@@ -4,47 +4,62 @@ The backend (`api` service on Cloud Run, project `telarchy-e0043`, region
 `us-central1`) builds on every push to `main` via
 `.github/workflows/deploy-cloudrun.yml`, which deploys a no-traffic
 candidate revision for smoke testing; production traffic moves only when a
-human publishes that candidate (see "Deployment contract" below). The
-workflow is a one-for-one mirror of `npm run deploy` in `package.json`
-(`gcloud run deploy api --source . ...`), so behavior matches what you get
-when you run the deploy locally.
+human publishes that candidate (see "Nothing reaches the public until you
+press Publish" below). The workflow and the hand deploy (`npm run deploy`,
+which runs `scripts/deploy-managed.sh`) share the same
+`gcloud run deploy api --source . --region us-central1 --allow-unauthenticated
+--memory 512Mi --cpu 1 --max-instances 4 --set-cloudsql-instances ...
+--clear-base-image` command, and both regenerate the data room's change log
+(`scripts/build-changelog.mjs`) first. They differ in three ways:
 
-If you ever need to deploy by hand (incident, rollback, hotfix from a
-laptop offline), just run:
+- The workflow lands the revision with `--no-traffic --tag candidate` and
+  `--min-instances 1`; the hand deploy passes neither `--no-traffic` nor
+  `--tag`, so the revision it lands is not a candidate and does not pass
+  through the publish gate, and it uses `--min-instances 0`.
+- The workflow passes `--update-env-vars ALLOWED_ORIGIN=https://telarchy.com,
+  TRUSTED_ORIGINS=<the candidate tag URL>` and `--update-secrets
+  API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest`;
+  these are merged into the service's configuration, so every other env var
+  and secret set on the service is inherited by the new revision. The hand
+  deploy passes no env or secret flags and inherits everything.
+- The workflow runs the test suite and the migrations first; the hand deploy
+  runs neither.
+
+The hand deploy is for an incident or a hotfix, not the routine path:
 
 ```bash
 cd telarchy-app
-npm run deploy
+GCP_PROJECT=telarchy-e0043 CLOUDSQL_INSTANCE=telarchy-e0043:us-central1:telarchy-pg npm run deploy
 ```
 
-It's the same command the workflow runs.
+`GCP_PROJECT` and `CLOUDSQL_INSTANCE` (`project:region:instance`) are
+required by the script; `CLOUD_RUN_REGION` defaults to `us-central1`.
 
-## The runners are ours (2026-08-21)
+History: notes/decisions/infra-deploy.md.
 
-Every workflow runs on **self-hosted runners**, not GitHub's metered ones.
-Reason: the repo is private, hosted minutes are billed per-minute there, and
-on 2026-08-20 the GitHub spending wall stopped every job mid-incident
-("recent account payments have failed or your spending limit needs to be
-increased") - CI died exactly when it was needed. Self-hosted runners are
-free without limit, and the laptop finishes a shard faster than a hosted
-runner anyway.
+## Runners
+
+Every job in every workflow under `.github/workflows/` declares
+`runs-on: ubuntu-latest`, GitHub's hosted runners. The repository also has
+self-hosted runners registered; a job runs on one of them only when it
+declares `runs-on: [self-hosted, telarchy]` (plus `x64` to pin the laptop),
+and no workflow does.
 
 | Runner | Where | Labels | Takes |
 |---|---|---|---|
-| `popos-laptop`, `-2`, `-3`, `-4` | Viktor's laptop, systemd system services (`actions.runner.Reblexis-telarchy-app.*`) | `x64, telarchy` | everything: tests, typecheck, docker publish, gh-pages, the Cloud Run deploy (4 runners = the 4 pipeline jobs in parallel) |
-| `kpi-sync-box` | Hetzner box, `telarchy` user, `systemd --user` unit `actions-runner-telarchy-app` | `arm64, telarchy, light` | only jobs tagged `[self-hosted, telarchy]` without `x64` - today that is the scheduled self-sync, so it fires even with the laptop off. **MemoryMax=1536M**: the fleet, bank and brain live on that box, and a CI job never gets to eat them |
+| `popos-laptop`, `-2`, `-3`, `-4` | Viktor's laptop, systemd system services (`actions.runner.Reblexis-telarchy-app.*`) | `x64, telarchy` | any job tagged `[self-hosted, telarchy]`, with or without `x64` (4 runners = the 4 pipeline jobs in parallel) |
+| `kpi-sync-box` | Hetzner box, `telarchy` user, `systemd --user` unit `actions-runner-telarchy-app` | `arm64, telarchy, light` | only jobs tagged `[self-hosted, telarchy]` without `x64`. **MemoryMax=1536M**: the fleet, bank and brain live on that box, and a CI job never gets to eat them |
 
-Consequences to know:
+Rules for a job routed to the self-hosted runners:
 
-- Tests, docker and deploys need the laptop ON. A push while it sleeps
-  queues (GitHub holds jobs ~24h) and runs on wake. That is the honest
-  price of free; the alternative was a metered bill that failed closed.
-- The deploy job pins `x64` because the box has no gcloud and the migration
-  step downloads an amd64 cloud-sql-proxy.
+- A job on the laptop runners needs the laptop ON. A push while it sleeps
+  queues (GitHub holds jobs ~24h) and runs on wake.
+- A deploy job on them pins `x64`, because the box has no gcloud and the
+  migration step downloads an amd64 cloud-sql-proxy.
 - Runner jobs use an isolated gcloud config (`CLOUDSDK_CONFIG` in each
   runner's `.env` points at `~/actions-runners/gcloud-config`), so WIF auth
   from CI never touches Viktor's own `~/.config/gcloud`.
-- The docker publish runs on x64 so `ghcr.io/reblexis/metrics-tracker-server`
+- A docker publish on them pins `x64` so `ghcr.io/reblexis/telarchy-app`
   stays amd64.
 - Add/repair a runner: `gh api repos/Reblexis/telarchy-app/actions/runners/registration-token -X POST`
   for a token, then `./config.sh --unattended --url ... --token ... --labels x64,telarchy --replace`
@@ -53,29 +68,41 @@ Consequences to know:
 
 ## One-time setup
 
-You need to pick one of two auth paths between GitHub and GCP. Workload
-Identity Federation is the recommended modern path (no JSON keys to
-rotate). The service-account-key fallback works too if you need to get
-this running in 5 minutes.
+The workflow supports two auth paths between GitHub and GCP and detects
+which one is configured (presence of the `GCP_WORKLOAD_IDENTITY_PROVIDER`
+variable). Workload Identity Federation is the path the managed instance
+uses (no JSON keys to rotate; see "Keyless deploys"). The service-account-key
+fallback exists for getting a fresh setup running in minutes; a setup can
+start with Option B and migrate to Option A by adding the variables and
+removing the secret.
 
-### Option A — Workload Identity Federation (recommended)
+The deploy job runs in the GitHub `production` environment, whose
+deployment-branch rule is `main` only. The workflow reads four repository
+variables: `GCP_PROJECT`, `CLOUDSQL_INSTANCE`, and the two WIF variables
+below.
+
+### Option A: Workload Identity Federation
 
 One-time GCP setup (replace `<...>`):
 
 ```bash
 PROJECT_ID=telarchy-e0043
-POOL_ID=github-actions
-PROVIDER_ID=github-actions-provider
+POOL_ID=github
+PROVIDER_ID=github
 SA_EMAIL=cloudrun-deployer@${PROJECT_ID}.iam.gserviceaccount.com
-GITHUB_REPO=Reblexis/metrics-tracker
+GITHUB_REPO=Reblexis/telarchy-app
 
 # 1. Create the service account the workflow will impersonate
 gcloud iam service-accounts create cloudrun-deployer \
   --display-name="GitHub Actions Cloud Run deployer" \
   --project=$PROJECT_ID
 
-# 2. Grant it just enough to deploy
-for role in run.admin cloudbuild.builds.editor storage.objectViewer iam.serviceAccountUser; do
+# 2. Grant it what the workflow uses: deploy, build, push the image, read
+#    the build bucket, act as the runtime account, tail logs, and (for the
+#    migration step) tunnel to Cloud SQL and read DATABASE_URL
+for role in run.admin cloudbuild.builds.editor artifactregistry.admin storage.admin \
+            storage.objectViewer iam.serviceAccountUser logging.viewer \
+            cloudsql.client secretmanager.secretAccessor; do
   gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="serviceAccount:$SA_EMAIL" \
     --role="roles/$role"
@@ -89,10 +116,10 @@ gcloud iam workload-identity-pools providers create-oidc $PROVIDER_ID \
   --project=$PROJECT_ID --location=global \
   --workload-identity-pool=$POOL_ID \
   --issuer-uri=https://token.actions.githubusercontent.com \
-  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
-  --attribute-condition="assertion.repository == '${GITHUB_REPO}'"
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" \
+  --attribute-condition="assertion.repository_owner == 'Reblexis'"
 
-# 4. Allow the WIF pool to impersonate the service account
+# 4. Allow the repository, by name, to impersonate the service account
 PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
 gcloud iam service-accounts add-iam-policy-binding $SA_EMAIL \
   --project=$PROJECT_ID \
@@ -100,18 +127,20 @@ gcloud iam service-accounts add-iam-policy-binding $SA_EMAIL \
   --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL_ID/attribute.repository/$GITHUB_REPO"
 ```
 
-Then in **GitHub → Settings → Secrets and variables → Actions → Variables**
-(yes, variables, not secrets — these aren't sensitive):
+Then in **GitHub > Settings > Secrets and variables > Actions > Variables**
+(variables, not secrets; none of these is sensitive):
 
 | Name | Value |
 | --- | --- |
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github-actions/providers/github-actions-provider` |
+| `GCP_PROJECT` | `telarchy-e0043` |
+| `CLOUDSQL_INSTANCE` | `telarchy-e0043:us-central1:telarchy-pg` |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github/providers/github` |
 | `GCP_DEPLOY_SERVICE_ACCOUNT` | `cloudrun-deployer@telarchy-e0043.iam.gserviceaccount.com` |
 
 The workflow picks up these variables and auths via OIDC. No JSON key
 ever leaves GCP.
 
-### Option B — Service-account JSON key (faster setup)
+### Option B: Service-account JSON key (fallback)
 
 ```bash
 PROJECT_ID=telarchy-e0043
@@ -120,7 +149,9 @@ gcloud iam service-accounts create cloudrun-deployer \
   --project=$PROJECT_ID
 
 SA_EMAIL=cloudrun-deployer@${PROJECT_ID}.iam.gserviceaccount.com
-for role in run.admin cloudbuild.builds.editor storage.objectViewer iam.serviceAccountUser; do
+for role in run.admin cloudbuild.builds.editor artifactregistry.admin storage.admin \
+            storage.objectViewer iam.serviceAccountUser logging.viewer \
+            cloudsql.client secretmanager.secretAccessor; do
   gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="serviceAccount:$SA_EMAIL" \
     --role="roles/$role"
@@ -130,26 +161,20 @@ gcloud iam service-accounts keys create key.json \
   --iam-account=$SA_EMAIL --project=$PROJECT_ID
 ```
 
-Then in **GitHub → Settings → Secrets and variables → Actions → Secrets**:
+Then in **GitHub > Settings > Secrets and variables > Actions > Secrets**:
 
 | Name | Value |
 | --- | --- |
 | `GCP_SA_KEY` | the entire contents of `key.json` (paste as-is) |
 
-Delete `key.json` from your laptop after pasting. Rotate it every ~90
-days.
-
-The workflow detects automatically which path you set up (presence of
-the `GCP_WORKLOAD_IDENTITY_PROVIDER` variable), so you can start with
-Option B and migrate to Option A later by adding the variables and
-removing the secret.
+Delete `key.json` from the laptop after pasting. Rotate it every ~90
+days. `scripts/setup-deploy-auth.sh` automates this option end to end.
 
 ## Nothing reaches the public until you press Publish
 
-**Changed 2026-08-20 (owner: "i think deploying to prod is too easy").** A push
-to `main` no longer changes what a visitor sees. The pipeline lands the build
-and stops; telarchy.com keeps serving the previous revision until a human
-presses a button.
+A push to `main` does not change what a visitor sees. The pipeline lands the
+build and stops; telarchy.com keeps serving the previous revision until a
+human presses a button.
 
 ```
 push to main
@@ -180,16 +205,13 @@ traffic → 100% to that exact revision
 **The beta is the whole app, not a preview of the frontend.** The candidate
 revision serves its own API from its own container, so a beta page's requests
 hit the beta's backend. That matters because the backend is where the risk
-lives: the three bugs that reached production in the week before this gate
-existed (a marking convention, an anchored price replay, a voided market slot)
-were all server-side, and a frontend-only preview would have caught none of
-them.
+lives: a frontend-only preview exercises none of the server-side paths where
+regressions reach production.
 
-**It has its own database** (owner ask 2026-08-20: "if we spawn a proposal
-there it should be spawned in a beta version of db"). `telarchy_beta` is a
-second database on the same Cloud SQL instance, mounted as
-`DATABASE_BETA_URL`, and it starts as a copy of production so the beta is a
-faithful place to test rather than an empty one.
+**It has its own database.** `telarchy_beta` is a second database on the same
+Cloud SQL instance, mounted as `DATABASE_BETA_URL`, and it starts as a copy of
+production so the beta is a faithful place to test rather than an empty one. A
+proposal spawned on the beta is spawned in the beta database.
 
 **The store is chosen per REQUEST, never per revision**, and that is the whole
 safety argument. The revision serving the beta today is the exact revision
@@ -209,7 +231,7 @@ reports which store answered, the response carries `X-Telarchy-Store`, and the
 beta stripe prints it: "own database", or "LIVE database" in bold if the beta
 is ever wired to production again.
 
-**Two things the beta still shares with production.** Authentication (`/api/auth/*`
+**Two things the beta shares with production.** Authentication (`/api/auth/*`
 is not proxied, so sessions and user rows are production's), and therefore who
 you are signed in as. A participant row for that user is created in the beta
 store on first use.
@@ -222,18 +244,17 @@ every migration to both databases in the same step, because a beta whose
 schema lags production fails on the code it exists to test.
 
 **And it shares the database's connection budget.** Cloud SQL `telarchy-pg` is
-a db-f1-micro with `max_connections=50` (flag set 2026-08-20; the default 25
-took the site down that evening: prod and candidate revisions each opened pg's
-default 10-connection pool, instances failing their startup probe kept
-churning, and every slot was gone). The standing contract:
+a db-f1-micro with `max_connections=50` (a database flag; Cloud SQL's default
+of 25 is not enough for prod and candidate revisions each opening pg's default
+10-connection pool while instances failing their startup probe churn). The
+standing contract:
 
 - Each API instance opens **at most 4** pooled connections to production, plus
   **1** to the beta store and only if a beta request ever reaches that instance
   (the beta pool is created lazily, so an instance serving the public site
-  never opens it). Five per instance either way, the same ceiling as before the
-  split. Both give up on an acquire after 5 seconds instead of queuing forever
-  (`functions/src/db/client.ts`); a starved request fails fast as a 500, it
-  does not hang for a minute.
+  never opens it). Five per instance either way. Both give up on an acquire
+  after 5 seconds instead of queuing forever (`functions/src/db/client.ts`); a
+  starved request fails fast as a 500, it does not hang for a minute.
 - Cloud Run runs **at most 4 instances** per revision (`--max-instances 4` in
   the CI deploy). Worst case prod + candidate: 2 x 4 x 5 = 40 connections,
   inside the 50 budget with room for cloud-sql-proxy and cron.
@@ -241,8 +262,7 @@ churning, and every slot was gone). The standing contract:
   same commit. `scale-invariant.test.ts` pins it: prod + candidate at full
   scale must fit in 40.
 
-**The performance posture around that budget (perf plan 2026-08-20,
-`telarchy` umbrella `notes/perf-plan-2026-08-20.md`):**
+**The performance posture around that budget:**
 
 - Every response is compressed (`compression` in app.ts; the 615 KB bundle
   ships as ~164 KB) and the frontend splits per route, so only `/` and the
@@ -268,11 +288,9 @@ is on the stripe at the top of every beta page (`BetaBanner`), backed by
 
 ### Reaching it
 
-**`telarchy.com/beta` IS the beta** (owner ask 2026-08-20: "couldnt u just host
-it directly on telarchy.com/beta? this way it would also better support other
-testers than me"). It is not a redirect. The revision serving telarchy.com
-forwards `/beta/*` to whichever revision carries the `candidate` tag, cookies
-and all, so:
+**`telarchy.com/beta` IS the beta.** It is not a redirect. The revision serving
+telarchy.com forwards `/beta/*` to whichever revision carries the `candidate`
+tag, cookies and all, so:
 
 ```
 telarchy.com/          published revision, published bundle
@@ -283,11 +301,12 @@ telarchy.com/beta/api/ same, so the beta exercises the beta's BACKEND
 Same origin buys two things that a separate URL could not:
 
 - **Google login works.** Google only redirects to URIs registered on the OAuth
-  client. On its own run.app origin the beta answered every Google sign-in with
-  a redirect_uri error, and registering each future preview URL by hand in a
-  console is not a workflow.
+  client, so a beta on its own run.app origin cannot complete a Google
+  sign-in (every attempt ends in a redirect_uri error), and registering each
+  future preview URL by hand in a console is not a workflow.
 - **A tester needs no second session.** One cookie jar, so whoever is signed in
-  on telarchy.com is signed in on the beta.
+  on telarchy.com is signed in on the beta, and a tester other than the owner
+  gets the same.
 
 How it is built. A bundle's asset paths and API base are baked in at build
 time, so the frontend is built twice: once at `/` and once with
@@ -300,22 +319,22 @@ second copy that could drift.
 prefixed, because better-auth's client uses its own base URL rather than ours.
 Those calls go to the published backend. That is deliberate and load-bearing:
 Google redirects only to `telarchy.com/api/auth/callback/google`, so prefixing
-auth would break Google login on the beta all over again. The session and the
-database are shared anyway, so a signed-in tester is signed in on both. The
-gap it leaves is real and small: a change to authentication itself is not
-exercised by the beta, so verify those against the candidate's own run.app URL,
-where the whole stack including auth is the new build.
+auth would break Google login on the beta. The session and the database are
+shared anyway, so a signed-in tester is signed in on both. The gap it leaves is
+real and small: a change to authentication itself is not exercised by the
+beta, so verify those against the candidate's own run.app URL, where the whole
+stack including auth is the new build.
 
 **The proxy must run before the prefix strip.** `/beta/api/*` has its prefix
-removed so the beta reuses the same handlers, and for one evening that strip
-was registered first: by the time the proxy looked at a request its path was
-already `/api/...` and no longer recognisable as the beta's, so every API call
-was served by the published backend. The beta was the candidate's frontend
-against production's API, the exact preview this exists not to be, and nothing
-on screen said so. It surfaced as a Publish button that never appeared, because
-`isServing` was being answered by production, where it is true by definition.
-`beta-proxy-order.test.ts` pins the order. The proxy also has to sit after
-`express.json()`, or a forwarded POST arrives with no body.
+removed so the beta reuses the same handlers. If the strip ran first, by the
+time the proxy looked at a request its path would already be `/api/...` and no
+longer recognisable as the beta's, so every API call would be served by the
+published backend: the candidate's frontend against production's API, the
+exact preview this exists not to be, with nothing on screen saying so (it
+shows as a Publish button that never appears, because `isServing` is answered
+by production, where it is true by definition). `beta-proxy-order.test.ts`
+pins the order. The proxy also has to sit after `express.json()`, or a
+forwarded POST arrives with no body.
 
 Note the bootstrap this creates: a change to the proxy itself only takes effect
 once it is published, and while it is broken the button that would publish it
@@ -348,7 +367,7 @@ gcloud run services update-traffic api --region us-central1 \
 ### Logging in on the beta
 
 On `telarchy.com/beta` you are already logged in: same origin, same cookie jar.
-That is the main reason it moved there (2026-08-20).
+That is the main reason the beta lives there.
 
 On the candidate's direct run.app URL it is a different origin with its own
 cookie jar, so you sign in again, and Google login does not work there at all
@@ -356,10 +375,10 @@ cookie jar, so you sign in again, and Google login does not work there at all
 authenticates because `TRUSTED_ORIGINS` names the beta's origin in the deploy
 command. Without it BetterAuth answers every sign-in on the beta with
 `403 INVALID_ORIGIN`, nobody can log in, nobody sees the Publish button, and
-nothing can be published from it. Found by trying it (2026-08-20). A
-cookie-less `curl` does **not** reproduce the failure, because better-auth runs
-the origin check only on a request carrying credentials, so verify this in a
-browser or not at all. `beta-origin.test.ts` pins both directions.
+nothing can be published from it. A cookie-less `curl` does **not** reproduce
+the failure, because better-auth runs the origin check only on a request
+carrying credentials, so verify this in a browser or not at all.
+`beta-origin.test.ts` pins both directions.
 
 `TRUSTED_ORIGINS` is deliberately separate from `ALLOWED_ORIGIN`: the latter
 names the published site, and `publicOrigins()` uses it to decide which hosts
@@ -376,24 +395,28 @@ cost of the open-the-URL-and-look flow.
 
 ### The permission behind the button
 
-The runtime service account holds a custom project role,
-`telarchyReleasePublisher` (`run.services.get`, `run.services.update`,
-`run.revisions.get`, `run.revisions.list`), bound **on the `api` service
-only**. It deliberately is not `roles/run.admin`, which would also let a
-compromised admin session delete the service. Recreate it with:
+The runtime service account (`telarchy-api@telarchy-e0043.iam.gserviceaccount.com`,
+see "Runtime identity") holds two grants that Publish depends on, both scoped
+to the one resource they concern rather than the project:
+
+- `roles/run.developer` on the `api` service only: the release endpoint
+  describes the service and Publish moves traffic.
+- `roles/artifactregistry.reader` on the `cloud-run-source-deploy` repository:
+  a traffic change re-validates the revision's image, so the runtime account
+  needs READ on the image repository. Without it the publish fails with 403
+  `artifactregistry.repositories.downloadArtifacts denied on
+  cloud-run-source-deploy` and the beta shows "Internal error". Read only: it
+  cannot push or delete an image.
+
+Recreate them with:
 
 ```bash
-gcloud iam roles create telarchyReleasePublisher --project=telarchy-e0043 \
-  --title="Telarchy release publisher" --stage=GA \
-  --permissions=run.services.get,run.services.update,run.revisions.get,run.revisions.list
 gcloud run services add-iam-policy-binding api --region us-central1 \
-  --member="serviceAccount:429618975282-compute@developer.gserviceaccount.com" \
-  --role="projects/telarchy-e0043/roles/telarchyReleasePublisher"
-# Added 2026-08-25: a traffic change re-validates the revision's image, so the
-# runtime account also needs READ on the image repository. Without it the
-# publish fails with 403 "artifactregistry.repositories.downloadArtifacts
-# denied on cloud-run-source-deploy" and the beta shows "Internal error"
-# (owner report 2026-08-25). Read only: it cannot push or delete an image.
+  --project telarchy-e0043 \
+  --member="serviceAccount:telarchy-api@telarchy-e0043.iam.gserviceaccount.com" \
+  --role="roles/run.developer"
+# A traffic change re-validates the revision's image: read on the image
+# repository, and read only.
 gcloud artifacts repositories add-iam-policy-binding cloud-run-source-deploy \
   --location us-central1 --project telarchy-e0043 \
   --member="serviceAccount:telarchy-api@telarchy-e0043.iam.gserviceaccount.com" \
@@ -404,36 +427,32 @@ Off Cloud Run there is no metadata server, so `releaseState()` reads as unknown
 and publishing refuses. That is why local dev shows the stripe (localhost is
 not the published origin) but no working button.
 
-
-**Two traps in reading Cloud Run's state (2026-08-24).**
+**Two traps in reading Cloud Run's state.**
 
 - **Revision numbers are not chronological here.** A deploy from a worktree
-  landed `api-00437-6gs` at 21:33 while pipeline builds sat in the 005xx
-  range, so `api-00542-vex` (17:46 the same day) is OLDER than 437 despite the
-  higher number. Judge age by `metadata.creationTimestamp`, never by the
-  number. I read the numbers once and reported a rollback that had not
-  happened.
+  can land a low-numbered revision after the pipeline has moved the counter
+  far past it, so a higher number can be the older revision. Judge age by
+  `metadata.creationTimestamp`, never by the number.
 - **A secret attached to the service is not a secret the service can read.**
   `gcloud run services update` accepts `--set-secrets` happily, and the
   revision then fails to become READY with `Permission denied on secret ...
   for Revision service account`. The runtime account
-  (`429618975282-compute@developer.gserviceaccount.com`) needs
+  (`telarchy-api@telarchy-e0043.iam.gserviceaccount.com`) needs
   `roles/secretmanager.secretAccessor` granted ON EACH SECRET:
 
   ```bash
   gcloud secrets add-iam-policy-binding <NAME> --project telarchy-e0043 \
-    --member serviceAccount:429618975282-compute@developer.gserviceaccount.com \
+    --member serviceAccount:telarchy-api@telarchy-e0043.iam.gserviceaccount.com \
     --role roles/secretmanager.secretAccessor
   ```
 
   This is quiet in the worst way: the deploy workflow goes green (it deployed;
   the revision just never started), production keeps serving the last
   published build so nothing looks broken, and `/beta` silently falls back to
-  that build because there is no candidate to forward to. Every deploy for
-  half a day in August 2026 was dead on arrival this way. After adding a
+  that build because there is no candidate to forward to. After adding a
   secret, check `gcloud run revisions list` for `STATUS True`.
 
-**The beta shares your ACCOUNT, and only your account (recorded 2026-08-23).**
+**The beta shares your ACCOUNT, and only your account.**
 `src/lib/auth-client.ts` pins BetterAuth to `window.location.origin` with
 `basePath: '/api/auth'`, an absolute path, so a page served at `/beta/` signs
 in against PRODUCTION auth while every other call it makes goes to `/beta/api`
@@ -456,47 +475,84 @@ The banner says "own data, real account" rather than "own database" for this
 reason. Do not "fix" the auth path without deciding what happens to Google
 login on the beta first.
 
-**The server has to agree with the browser about this (fixed 2026-08-24).**
-BetterAuth was built on the per-request `db` handle, so a session created
-against production auth was looked up in the BETA store on every `/beta/api`
-call, found nothing, and the caller came back anonymous. The page said signed
-in and the API said stranger: on the operator door that surfaced as Otto
-insisting "you are not signed in" underneath a note reading "Otto acts with
-your account". `db/client.ts` now exports `authDb` (the account store, which
-never follows the swap) and `auth.ts` binds to it; `auth-store-binding.test.ts`
-fails if that is tidied back. Everything else stays per-store, so a beta
-workspace is real beta data keyed by the real account id.
+**The server has to agree with the browser about this.** `db/client.ts`
+exports `authDb` (the account store, which never follows the swap) and
+`auth.ts` binds BetterAuth to it, never to the per-request `db` handle:
+otherwise a session created against production auth is looked up in the BETA
+store on every `/beta/api` call, found nothing, and the caller comes back
+anonymous while the page says signed in. `auth-store-binding.test.ts` fails if
+that is tidied back. Everything else stays per-store, so a beta workspace is
+real beta data keyed by the real account id.
 
 ## What the workflow does
 
-On `push` to `main` (or `workflow_dispatch`):
+On `push` to `main` (or `workflow_dispatch`); pushes touching only `**/*.md`,
+`docs/**` or the self-sync workflow do not trigger it:
 
-1. Checks out the repo.
-2. Auths to GCP (WIF if configured, SA key otherwise).
-3. Runs the tests, the migrations, and `gcloud run deploy --no-traffic --tag candidate`.
-4. Smoke-tests the candidate and stops without promoting.
+1. `checks`: type check, frontend suite, production bundle (`npm run build`).
+2. `backend`: the backend suite in three shards (`npm run test:ci --shard=N/3`).
+3. `deploy` (needs both, GitHub environment `production`): auths to GCP (WIF
+   if configured, SA key otherwise), runs the migrations against production
+   and then the beta database, regenerates the change log, and runs
+   `gcloud run deploy --no-traffic --tag candidate`.
+4. Smoke-tests the candidate (`/api/public-config` on the candidate's own URL
+   must answer 200 within 20 tries) and stops without promoting.
 
-That's it. Cloud Build does the actual image build server-side (faster
-than running `docker build` on the GitHub runner because Cloud Build
-caches layers per-project). Typical end-to-end time: ~3-5 minutes.
+Cloud Build does the actual image build server-side (faster than running
+`docker build` on the runner because Cloud Build caches layers per-project).
+Typical end-to-end time: ~3-5 minutes.
 
-The workflow is configured with `concurrency: cancel-in-progress` so if
-several pushes land in a row, only the newest one actually deploys —
-production always ends up on the latest commit, not a stale intermediate.
+The workflow runs in concurrency group `cloud-run-deploy` with
+`cancel-in-progress: false`: one deploy at a time, and the in-flight run is
+never cancelled, it always finishes and lands a candidate. While it runs, a
+new push is held pending and GitHub cancels any older pending run, so only the
+newest queued commit waits and runs next. Forward progress is guaranteed and
+the build that runs next is always the latest. Two builds never run at once:
+there is a single shared `candidate` tag that two concurrent deploys would
+clobber.
 
-## What this replaces
+`.github/workflows/deploy-autorecover.yml` re-runs the failed jobs of a deploy
+run that ends in `failure` (a runner dying mid-test, not a red suite) while
+`run_attempt < 5`, so a transient runner death self-heals within minutes and a
+genuinely red suite is still left red for a human after four retries. A run
+that loses the concurrency race ends as `cancelled`, not `failure`, so it never
+triggers this.
 
-- `docker-publish.yml` still runs in parallel and pushes the image to
-  `ghcr.io/reblexis/metrics-tracker-server:latest`. That image is now
-  redundant for production (Cloud Build does its own build), but it's
-  useful for `docker run` deploys and CI smoke tests. Leave it.
-- `deploy.yml` (Deploy to GitHub Pages) is separate — it builds the
-  static frontend bundle and pushes it to the `gh-pages` branch. That
-  bundle isn't what telarchy.com serves; the production frontend is
-  served by the same Cloud Run container as the backend. The gh-pages
-  build is for embeddable / docs use cases.
+## Other workflows
 
-## Runtime identity (C2, done 2026-08-25)
+- `docker-publish.yml` runs in parallel on every push to `main` and pushes the
+  image to `ghcr.io/reblexis/telarchy-app` (tags `latest` and `sha-<short>`;
+  concurrency `cancel-in-progress: true`, a newer push supersedes a queued or
+  running build; the newest 8 versions are kept and older ones deleted so the
+  package never crawls toward the ghcr storage quota). That image is redundant
+  for production (Cloud Build does its own build) but it is what
+  `docker-compose.yml` pulls for self-hosting and what `docker run` deploys
+  use. Leave it.
+- The production frontend is served by the same Cloud Run container as the
+  backend (the Dockerfile copies the built bundle into `lib/public`); there is
+  no separately hosted frontend.
+- `telarchy-self-sync.yml` pushes the dogfooding workspace's hero metric daily
+  at 23:40 UTC.
+
+## The container
+
+`Dockerfile` builds the backend (`functions/`), the frontend at `/`, and the
+frontend a second time at `/beta/` (`npm run build:beta`, see "Reaching it").
+The second bundle is built by default (`ARG BUILD_BETA=true`) because the
+managed deploy (`gcloud run deploy --source`) passes no build args and an
+empty `dist-beta` makes `/beta` serve the main bundle with the wrong asset
+paths; self-hosters may pass `--build-arg BUILD_BETA=false` to skip it. The
+container listens on port `8080` (`PORT=8080`).
+
+The entrypoint is `docker-entrypoint.sh`: with `AUTO_MIGRATE=true` it runs the
+database migrations (`node lib/migrate.js`) before starting the server, so
+`docker compose up` on an empty database yields a working instance
+(`docker-compose.yml` sets it). The managed deploy leaves `AUTO_MIGRATE`
+unset and migrates in the deploy workflow instead, before the revision lands.
+Required env: `DATABASE_URL`, `API_KEY`, `BETTER_AUTH_SECRET`; everything
+else is documented in `.env.example`.
+
+## Runtime identity
 
 The API runs as `telarchy-api@telarchy-e0043.iam.gserviceaccount.com`, not the
 default compute service account (which holds project Editor and still exists for
@@ -504,69 +560,78 @@ Cloud Build). Its grants are the smallest set the app uses: project roles
 `cloudsql.client`, `logging.logWriter`, `monitoring.metricWriter`,
 `cloudtrace.agent`; `secretmanager.secretAccessor` on each secret the service
 references (a NEW secret needs the same binding or the revision fails to start);
-`run.developer` on the `api` service itself (the release endpoint describes the
-service and Publish moves traffic). `cloudrun-deployer` holds
-`iam.serviceAccountUser` on it so deploys can set it. The cutover was done by
-landing a no-traffic revision of the published image under the new account,
-smoke-testing it through its own tag URL (DB, secrets, master key, release
-describe, `/beta`), then `update-traffic`. Removing Editor from the compute
-account is a separate step: Cloud Build (`deploy --source`) still uses it.
+`run.developer` on the `api` service itself and `artifactregistry.reader` on
+the image repository (see "The permission behind the button").
+`cloudrun-deployer` holds `iam.serviceAccountUser` so deploys can set it. A
+change of runtime account is done the same way as any other change: a
+no-traffic revision under the new account, smoke-tested through its own tag
+URL (DB, secrets, master key, release describe, `/beta`), then
+`update-traffic`. The default compute account keeps project Editor because
+Cloud Build (`deploy --source`) uses it; removing it is a separate step.
 
-## Keyless deploys (C3, done 2026-08-25)
+## Keyless deploys
 
 The deploy workflow authenticates with Workload Identity Federation: pool
 `github`, OIDC provider `github` (issuer token.actions.githubusercontent.com,
 attribute condition `repository_owner == 'Reblexis'`), and
 `cloudrun-deployer@telarchy-e0043.iam.gserviceaccount.com` bound with
 `iam.workloadIdentityUser` to the repository `Reblexis/telarchy-app` (by name,
-so the public repository of the same name after the rename is covered).
-Repository variables `GCP_WORKLOAD_IDENTITY_PROVIDER` and
-`GCP_DEPLOY_SERVICE_ACCOUNT` select this path in `deploy-cloudrun.yml`; the
-`GCP_SA_KEY` JSON key is the fallback only until the first WIF deploy succeeds,
-then it is deleted from the repository and from the service account.
+so a public repository of the same name is covered). Repository variables
+`GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_DEPLOY_SERVICE_ACCOUNT` select this
+path in `deploy-cloudrun.yml`. No `GCP_SA_KEY` secret exists in the repository
+and `cloudrun-deployer` carries no user-managed key; the JSON-key path is only
+a bootstrap fallback, deleted from the repository and from the service account
+once a WIF deploy succeeds.
 
 ## Master key rotation
 
-**Added 2026-08-24.** The master key (`API_KEY`) is read by exactly one function,
-`isMasterKey` in `functions/src/lib/master-key.ts`, which also accepts
-`API_KEY_PREVIOUS` when it is set. That is the grace window: rotation is no longer a
-simultaneous cutover of every reader (Cloud Run env, `registrars.json` on the box and
-the laptop, `master.env` in the keyring, `_runner/claude_cycle.py`, the cron caller).
+The master key (`API_KEY`) is read by exactly one function, `isMasterKey` in
+`functions/src/lib/master-key.ts`, which also accepts `API_KEY_PREVIOUS` when it
+is set. That is the grace window: rotation is not a simultaneous cutover of every
+reader (Cloud Run env, `registrars.json` on the box and the laptop, `master.env`
+in the keyring, `_runner/claude_cycle.py`, the cron caller).
 
 1. Generate the new key. Store it in the keyring (`keyring/telarchy/master.env`) as the
    new value and keep the old one beside it for the window.
 2. Update Cloud Run with `--update-secrets` (Secret Manager references), never
-   `--update-env-vars`: an env var value lands in revision history in plaintext, which is
-   exactly how the previous key leaked. Set `API_KEY=<new>` and `API_KEY_PREVIOUS=<old>`.
+   `--update-env-vars`: an env var value lands in revision history in plaintext.
+   Set `API_KEY=<new>` and `API_KEY_PREVIOUS=<old>`.
 3. Move every caller to the new key: fleet `registrars.json` (box and laptop),
    `master.env`, the runner, collectors, any Cloud Scheduler job that passes the key.
    The fleet instance has its own key and is unaffected.
 4. After 24 hours (and never mid-cycle: cut over between weekly market pairs during a
-   season), unset `API_KEY_PREVIOUS`. The old key now returns 401 everywhere.
+   season), unset `API_KEY_PREVIOUS`. The old key then returns 401 everywhere.
 
 ## Cron schedule (Cloud Scheduler)
 
-Two Cloud Scheduler jobs (project `telarchy-e0043`, region `us-central1`,
-legacy `firebase-schedule-*` names) drive the market lifecycle:
+The market lifecycle is driven by two endpoints, `POST /api/cron/resolve` and
+`POST /api/cron/refresh`, called with the master key. Both are idempotent and
+cheap when there is nothing to do, and the refresh holds a per-workspace
+cooldown lock. Who calls them depends on the instance:
 
-| Job | Schedule | Endpoint |
-|---|---|---|
-| `firebase-schedule-dailyResolve-us-central1` | `0 * * * *` (hourly) | `POST /api/cron/resolve` |
-| `firebase-schedule-dailyMarketRefresh-us-central1` | `10 * * * *` (hourly) | `POST /api/cron/refresh` |
+- **Managed instance**: two Cloud Scheduler jobs (project `telarchy-e0043`,
+  region `us-central1`, legacy `firebase-schedule-*` names):
 
-Both ran daily until 2026-06-05; they were switched to hourly when
-hour-granularity markets (`YYYY-MM-DDTHH` target dates, `+Nh` custom
-horizons) shipped, since those need hourly resolution and rolling. Both
-endpoints are idempotent and cheap when there is nothing to do, and the
-refresh holds a per-workspace cooldown lock.
+  | Job | Schedule | Endpoint |
+  |---|---|---|
+  | `firebase-schedule-dailyResolve-us-central1` | `*/10 * * * *` (every 10 minutes) | `POST /api/cron/resolve` |
+  | `firebase-schedule-dailyMarketRefresh-us-central1` | `10 * * * *` (hourly) | `POST /api/cron/refresh` |
+
+  Hour-granularity markets (`YYYY-MM-DDTHH` target dates, `+Nh` custom
+  horizons) need at least hourly resolution and rolling, so the managed
+  cadence is never coarser than hourly.
+- **Self-hosted instance**: nothing schedules itself. The operator triggers
+  the same endpoints from crontab or any scheduler; `.env.example` ("Cron
+  (self-hosted)") gives the daily template (`0 0 * * *` resolve, `10 0 * * *`
+  refresh), which suits day-granularity markets; hour markets need the hourly
+  cadence above.
 
 Cloud Scheduler invocation time drifts (observed +12s to +80min past the
-hour). Since 2026-06-06 this only delays payout, never changes the settled
-value: resolution settles each market on the metric's value **as of
-`resolvesOn`** (last `metric_logs` row at-or-before the period-end
-boundary), not the live value at cron time. Before that fix, 6 of the
-first 15 hour markets resolved against the wrong hour's reading because
-the cron raced the metric push at the boundary.
+hour). That only delays payout, never changes the settled value: resolution
+settles each market on the metric's value **as of `resolvesOn`** (last
+`metric_logs` row at-or-before the period-end boundary), not the live value
+at cron time, so a cron racing a metric push at the boundary cannot resolve a
+market against the wrong hour's reading.
 
 Rollback to daily:
 
@@ -584,16 +649,19 @@ owner notifications (new waitlist signup, new proposal) and participant
 notifications (a comment under your contract, a reply in your thread, and
 opt-in new-contract alerts; see docs/vision.md, "Participant email
 notifications"). Two pieces of service config, set once on Cloud Run and
-inherited by every CI deploy (the workflow passes no env flags, so
-revisions keep them):
+inherited by every CI deploy (the workflow's `--update-env-vars` and
+`--update-secrets` are merged into the service's configuration and name only
+`ALLOWED_ORIGIN`, `TRUSTED_ORIGINS`, `API_KEY` and `GITHUB_CLIENT_SECRET`, so
+revisions keep everything else):
 
 - `RESEND_API_KEY`: mounted from Secret Manager secret `resend-api-key`
   (source of truth: the keyring repo, `laptop/secrets/resend.env`).
 - `OWNER_NOTIFY_EMAIL`: plain env var, the owner's inbox.
 
-Set up 2026-08-10 via `gcloud secrets create resend-api-key` +
+They are set with `gcloud secrets create resend-api-key` +
 `gcloud run services update api --update-secrets=RESEND_API_KEY=resend-api-key:latest
---update-env-vars=OWNER_NOTIFY_EMAIL=...`. With `RESEND_API_KEY` unset no
+--update-env-vars=OWNER_NOTIFY_EMAIL=... --no-traffic` (see the next
+paragraph for why `--no-traffic`). With `RESEND_API_KEY` unset no
 mail leaves at all, and with only `OWNER_NOTIFY_EMAIL` unset the owner's
 own two notifications are off while participant mail still goes out; it
 never fails the calling request either way. That is what local dev and the
@@ -603,10 +671,9 @@ sending domain `telarchy.com` is verified in Resend.
 **Changing a service-level env var PUBLISHES whatever is latest.** `gcloud run
 services update --update-secrets=...` creates a new revision from the newest
 image and routes 100% of traffic to it, which walks straight through the
-publish gate (done by accident on 2026-08-20 while mounting the beta database:
-it promoted the unpublished Otto build to the live site). Add `--no-traffic`
-when you only mean to change configuration, then publish deliberately from the
-beta.
+publish gate and promotes whatever unpublished build is latest. Add
+`--no-traffic` when you only mean to change configuration, then publish
+deliberately from the beta.
 
 `AI_GATEWAY_API_KEY` (Secret Manager secret `ai-gateway-api-key`) powers
 the floor's Ask field (`POST /api/marketplace/:idOrSlug/ask`). It is a
@@ -642,17 +709,15 @@ back to the floor and a link to the account settings that switch it off.
 
 ## Memory
 
-**512Mi (raised from 256Mi on 2026-08-20).** At 256Mi the container was
-OOM-killed nine times in six hours on almost no traffic, and Cloud Run
-answers a killed instance's in-flight requests with 503. The endpoint that
-took it most often was `GET /api/marketplace/:slug`, i.e. the public floor's
-own payload: a visitor arriving from a shared link had a real chance of
-meeting an error page. Cloud Run names the cause itself in the logs ("the
-container instance was found to be using too much memory and was
-terminated").
+**512Mi.** At 256Mi the container is OOM-killed on almost no traffic, and
+Cloud Run answers a killed instance's in-flight requests with 503; the
+endpoint that takes it most often is `GET /api/marketplace/:slug`, i.e. the
+public floor's own payload, so a visitor arriving from a shared link meets an
+error page. Cloud Run names the cause itself in the logs ("the container
+instance was found to be using too much memory and was terminated").
 
-The limit is set in two places and they must agree: the `deploy` script in
-`package.json` (the hand deploy) and `.github/workflows/deploy-cloudrun.yml`
+The limit is set in two places and they must agree: `scripts/deploy-managed.sh`
+(the hand deploy, `npm run deploy`) and `.github/workflows/deploy-cloudrun.yml`
 (the pipeline). Changing one without the other means the next pipeline deploy
 silently reverts a hand fix.
 

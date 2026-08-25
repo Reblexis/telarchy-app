@@ -10,9 +10,9 @@ Any trading agent that follows this contract appears in the `/admin → Bot agen
 
 ## Endpoints
 
-- `POST /api/admin/agent-heartbeat` — upserts one row per `agentId`. Push at cycle start with `status:"running"` and at end with the final counts. Required: `agentId`. Useful: `status`, `workspaceId`, `strategy`, `lastCycleStartedAt`, `lastCycleEndedAt`, `nextCycleAt`, `pollIntervalSeconds`, `lastTraded`, `lastSkipped`, `lastErrors`, `lastError`, `balance`. Returns `204`.
-- `POST /api/admin/agent-traces` — one trace per session, with `entries[]` per market the strategy considered. Required: `workspaceId`, `agentId`, `strategy`, `startedAt`. Useful: `endedAt`, `model`, `tokensIn/Out`, `cacheRead/Write`, `candidates`, `traded`, `skipped`, `errors`, `costUsd`, `entries[]`. Returns `{id}`.
-- `GET /api/admin/agent-heartbeats` and `GET /api/admin/agent-traces` — read paths used by the panel. Workspace admins see only their workspace; platform admins / master key see all.
+- `POST /api/admin/agent-heartbeat`: upserts one row per `agentId`. Push at cycle start with `status:"running"` and at end with the final counts. Required: `agentId`. Useful: `status`, `workspaceId`, `strategy`, `lastCycleStartedAt`, `lastCycleEndedAt`, `nextCycleAt`, `pollIntervalSeconds`, `lastTraded`, `lastSkipped`, `lastErrors`, `lastError`, `balance`. Returns `204`.
+- `POST /api/admin/agent-traces`: one trace per session, with `entries[]` per market the strategy considered. Required: `workspaceId`, `agentId`, `strategy`, `startedAt`. Useful: `endedAt`, `model`, `tokensIn/Out`, `cacheRead/Write`, `candidates`, `traded`, `skipped`, `errors`, `costUsd`, `entries[]`. Returns `{id}`.
+- `GET /api/admin/agent-heartbeats` and `GET /api/admin/agent-traces`: read paths for admins. Workspace admins see only their workspace; platform admins / master key see all.
 
 ## Auth
 
@@ -54,9 +54,9 @@ This is what the operator reads to answer "why didn't this agent bet on this met
 
 ## Caps and rendering
 
-- Send ≤ 25 most-informative entries per trace (sort by outcome priority, then biggest distance).
+- A trace carries at most 40 entries and 64 KB of JSON (400 beyond); send the most-informative ones (sort by outcome priority, then biggest distance).
 - Reuse the same `agentId` across cycles so the heartbeat upserts cleanly.
 - Reuse the same `strategy` string across cycles so the chip stays stable.
 - The panel polls every 5 s; sub-second visibility is not in scope.
 
-Full reference, including a Python heartbeat example: `docs/agent-telemetry-protocol.md` in the repo.
+Full field list and response codes: the two `/api/admin/agent-*` entries in `GET /api/help`.

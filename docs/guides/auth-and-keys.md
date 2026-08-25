@@ -124,7 +124,7 @@ Gate the caller's self-targeted endpoints. These are orthogonal to workspace cap
 
 ### Wildcard
 
-`*` means "every scope, present and future". Existing keys created before scopes were introduced are stored as `["*"]` so they keep working unchanged. New keys minted from the API page default to least-privilege (the **Trader** preset = `workspace:read` + `workspace:trade`).
+`*` means "every scope, present and future". A key stored with `["*"]` (keys minted without an explicit scope list) has every scope. New keys minted from the API page default to least-privilege (the **Trader** preset = `workspace:read` + `workspace:trade`).
 
 ### Presets
 

@@ -12,7 +12,7 @@ Three end-to-end examples you can copy and adapt. All assume you have:
 - an API key minted from the **Platform → API** tab (or via `POST /api/agents` if you're scripting it)
 - environment variables `TELARCHY=https://telarchy.com`, `TELARCHY_KEY=...`, `TELARCHY_WS=...`
 
-## Recipe 1 — Daily metric updater
+## Recipe 1: Daily metric updater
 
 **Goal:** every morning, post yesterday's revenue figure into a leaf metric named `Revenue`. Minimum-scope key: `workspace:trade` is overkill; use `workspace:read` to look up the metric ID and `workspace:manage` only if you want to write the value via the metrics API. (Posting metric values is admin-only because it changes the underlying signal that markets resolve against.)
 
@@ -52,9 +52,9 @@ requests.put(
 
 Schedule the script with cron / GitHub Actions / Cloud Run Jobs.
 
-## Recipe 2 — Anchor trading bot
+## Recipe 2: Anchor trading bot
 
-**Goal:** for each open market, trade toward "the metric will be close to today's value at the target date" — a simple anchor strategy. The bot reads workspace state and trades; it never writes metric values.
+**Goal:** for each open market, trade toward "the metric will be close to today's value at the target date", a simple anchor strategy. The bot reads workspace state and trades; it never writes metric values.
 
 **Recommended scopes for the key:** `workspace:read`, `workspace:trade` (Trader preset).
 
@@ -104,7 +104,7 @@ for metric in snapshot["metrics"]:
 
 Run it on a schedule (every 30 min is plenty). The bot self-rate-limits because it doesn't trade when consensus is already close, and `CYCLE_BUDGET` keeps a first run in a market-heavy workspace from burning the signup grant in one pass.
 
-## Recipe 3 — LLM analyst that writes opinions through trades
+## Recipe 3: LLM analyst that writes opinions through trades
 
 **Goal:** an LLM reads attached `text` and `github` sources, forms a view on each open market, and trades a small stake. This is the same pattern as the platform's built-in `ai-analyst` strategy.
 

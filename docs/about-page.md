@@ -1,7 +1,6 @@
 # The about and contact pages
 
-`telarchy.com/about` and `telarchy.com/contact`, added 2026-08-21 (owner ask).
-Two standalone `.pubws` poster pages, linked from a quiet footer on the home
+`telarchy.com/about` and `telarchy.com/contact` are two standalone `.pubws` poster pages, linked from a quiet footer on the home
 page. Their job: a cold visitor who wants to know what this site is, who runs
 it, and how to reach a human can find out without an account.
 
@@ -16,16 +15,12 @@ AI" wherever a statement covers both; companies and individuals both
 first-class; no "startup"; no open-source claim; the mechanism is named after
 the job, never led with.
 
-**Revised 2026-08-22 (Viktor).** The first version framed a workspace as one
-number: "every workspace isn't one number its' multiple numbers that someone
-is tryingt o move theones that affect decisions the most.. one nuumber is
-deceiving" (verbatim). The page now says an owner lists the handful of metrics
-that decide the most. Same revision: shorter, left-aligned, six prose sections
-cut to a numbered mechanism plus short sections, and the vision added in the
-canonical wording from `vision.md` ("Mission and vision") after the mechanism,
-never as the cold open (per `go-to-market.md`: the vision is the
-why-it-matters layer; earn it, lead with the wedge). Approved on the design
-canvas 2026-08-22.
+A workspace is described as the handful of metrics that decide the most, never
+as one number. The page is short and left-aligned: a numbered mechanism plus
+short sections. The vision appears in the canonical wording from `vision.md`
+("Mission and vision") after the mechanism, never as the cold open: the vision
+is the why-it-matters layer; the page leads with the wedge. History:
+notes/decisions/about-page.md.
 
 ## /about
 
@@ -72,11 +67,12 @@ reads all of it.
 Rows (hairline list):
 
 - **Email**: support@telarchy.com
-- **Discord**: chat with the team and other traders (the standing invite,
-  same one the market pages carry)
-- **List your own number**: the waitlist at /manage
-- **Building a bot?**: every endpoint is documented at telarchy.com/api/help,
-  no account needed to read
+- **Discord**: "Chat with the team and other traders", linking to the standing
+  invite (the same one the market pages carry)
+- **List your own number**: "Join the owner waitlist", linking to /manage
+- **Building a bot?**: "Every endpoint is documented, no account needed to
+  read", linking to /api/help (a URL the API serves, base-aware, opened in a
+  new tab)
 
 ## Reaching them
 

@@ -2,9 +2,7 @@
 
 `telarchy.com/data-room` publishes Telarchy's own books: what the platform is
 for, what it has actually done, how many people came, what shipped, and what is
-planned. Owner ask, 2026-08-20: "you know how lookpilot has data room .. we
-should make one for telarchy as well ... there should be vision, plans.. log of
-changes traffic etc."
+planned. History: notes/decisions/data-room.md.
 
 It has two readers and no third.
 
@@ -97,8 +95,7 @@ Three things stay private on purpose:
 The floor's answer service (Otto, `functions/src/lib/ask.ts`) is handed the
 floor's brief as fixed context and one tool, `read_data_room`, which reads the
 index and then one section at a time from the same cached feed the page
-renders. Owner direction 2026-08-20: "he should be able to browse it itself,
-not force fed the context".
+renders; he browses it, he is not force-fed it.
 
 That split is deliberate. The brief is identical for every visitor on a floor,
 which is what lets an upstream cache hit it; pasting the data room into it
@@ -107,12 +104,16 @@ about, and bury the company they came to read. As a tool it costs only the
 visitors who want it, and because he reads the same feed object, he cannot
 quote a number the page does not show.
 
-He gets at most three tool rounds, and the last request is sent without tools
+He gets at most six tool rounds, and the last request is sent without tools
 so a model that keeps reaching for one has to answer instead. A lookup that
 fails is handed back to him as text saying so, never swallowed: he is allowed
 to say the data room would not open, and never to invent what it said.
 
-## The change log is the git history (**noted 2026-08-24**: it restarts at the public open-source release, which is a clean-root snapshot; the private archive keeps the earlier history and it is not stitched in, eng review 2026-08-24)
+## The change log is the git history
+
+The history starts at the public open-source release, which is a clean-root
+snapshot; the private archive keeps the earlier history and it is not stitched
+in.
 
 `shipping` is generated from `git log` of this repository by
 `scripts/build-changelog.mjs` into `functions/src/content/changelog.ts`, which is
@@ -131,7 +132,7 @@ machine-derived and unarguable) and the subjects themselves, newest first.
 
 ## Rules for changing this page
 
-1. A number that changes over time is computed in `functions/src/routes/
+1. A number that changes over time is computed in `functions/src/services/
    data-room.ts` from a live table, or it is labelled on the page with the date
    it was exported. There is no third category: a figure that quietly stops
    moving is worse than an absent one, because the page presents it with the

@@ -3,12 +3,11 @@
 What a live market is allowed to have done to it, and what must be on the
 record afterwards.
 
-This exists because Season 1 is running with real prize money against live
-markets. A market that can be silently reset, and a balance that cannot be
-rebuilt from history, are the two ways a season becomes unarguable-about.
-Owner ask, 2026-08-18: "nothing should be able to reset the markets and all
-trades / transactions / liquidity injections should be logged so that in case
-something happens it can be recreated."
+This exists because prize seasons run with real money against live markets.
+A market that can be silently reset, and a balance that cannot be rebuilt from
+history, are the two ways a season becomes unarguable-about. Nothing may reset
+a market, and every trade, transaction and liquidity injection is logged so
+that the state can be recreated. History: notes/decisions/market-integrity.md.
 
 ## The three invariants
 
@@ -28,19 +27,14 @@ ledger's sum, and a test proves it.
 
 ## I1: a definition edit splits in two
 
-**Changed 2026-08-18 (owner direction).** Editing a metric's description (the
-floor's "What is this market?" text) used to void every open market on that
-metric, refund every position, and respawn the market fresh. So did renaming
-it, changing its formula, or changing its range.
+Editing a metric's description (the floor's "What is this market?" text),
+renaming it, changing its formula, or changing its range never voids an open
+market as a side effect. Voiding destroys a week of price discovery and every
+position in it, which is a far larger harm than a reworded sentence, and it
+would make routine copy-editing into a destructive operation nobody could
+safely perform.
 
-That rule was defensible when nothing was at stake: the description is the
-settlement text, so changing it changes what a trade settles on, and voiding
-was the honest response. With a prize season running it is the wrong trade.
-Voiding destroys a week of price discovery and every position in it, which is a
-far larger harm than a reworded sentence, and it made routine copy-editing into
-a destructive operation nobody could safely perform.
-
-The four fields are not the same kind of thing, so they no longer get the same
+The four fields are not the same kind of thing, so they do not get the same
 rule:
 
 |  | `name`, `description` | `formula`, `marketRangeMax` |
@@ -63,15 +57,16 @@ rule:
 - **Machinery is refused, not voided.** A market stores its own
   `rangeMin`/`rangeMax` and prices inside them, so changing the metric's range
   under an open market makes the stated range and the traded range disagree
-  with nothing on screen saying so. Rather than void-and-respawn (the old
-  behaviour) or sync-and-hope, the edit is refused with a 409 naming the field
+  with nothing on screen saying so. Rather than void-and-respawn or
+  sync-and-hope, the edit is refused with a 409 naming the field
   and the open market. Get the range right before opening, or wait for it to
   settle.
 - **A leaf metric's `value` is a measurement, not a definition.** It is always
-  allowed; the daily sync depends on it. On a computed metric, setting `value`
-  by hand overrides the formula and counts as machinery.
+  allowed; the daily sync depends on it. On a computed metric `value` is not
+  settable: a value in the request is ignored and the stored value is the
+  formula's result.
 
-The residual risk is real and is accepted knowingly: an owner can now reword
+The residual risk is real and is accepted knowingly: an owner can reword
 what a market settles on while positions are open. The mitigation is
 disclosure, not prevention, because no code can tell a clarification from a
 redefinition. Publishing the revision history next to the definition is what
@@ -79,8 +74,7 @@ makes the risk visible to the people carrying it.
 
 ## I1b: a contract's definition edits the same way
 
-**Added 2026-08-20 (owner ask: "could you add options for contract creators to
-edit the description / title and price of their contract").** A contract
+A contract
 (`proposals`) is a definition too, and its conditional pair is a live market
 that prices it, so the split is the same one I1 draws for a metric:
 
@@ -90,9 +84,7 @@ that prices it, so the split is the same one I1 draws for a metric:
   The pair keeps its price, its pool and every position; the change writes an
   append-only `proposal_revisions` row, rendered on the floor beside the
   contract, so someone already holding can see the goalposts move.
-- **The price edits like the words do (revised 2026-08-22, Viktor: "i want
-  the contractors to be able to edit the price even when it has been
-  traded").** While the pair is untraded, changing the ask **re-anchors** it
+- **The price edits like the words do.** While the pair is untraded, changing the ask **re-anchors** it
   (the branch markets are voided and respawned at the new number, which costs
   nothing because nobody is in them). Once anyone has traded either branch,
   the ask still changes, but the markets, their pools and every position are
@@ -142,33 +134,27 @@ positions, or which season is running), not a silent no-op.
 `market:resolved` event. It exists on the model of `allowLedgerAdmin`: a guard
 with no sanctioned escape gets routed around with a hand-written UPDATE against
 production, and then the destruction happens with no record at all. Holders are
-still refunded in full, so the escape costs them their position and their price
-discovery, never their money. Used once so far, on 2026-08-19, to move the
-Telarchy floor's clock from end-of-2026 to 1 October.
+refunded their net cash at stake, as any void does (`vision.md`, void refund
+rule), so the escape costs them their position and their price discovery,
+never their money.
 
-### `POST /api/system/reset-economy` is gone
+### There is no reset endpoint
 
-It zeroed every balance in a workspace, deleted every trade under
-`allowLedgerAdmin`, and reset all market AMM state, behind nothing but the
-ordinary `manage` capability. It was built when the data was fake. With a prize
-season running against real money it was one mistyped workspace header away
-from ending the season with no way to reconstruct what had happened, and the
-append-only trigger could not stop it because it opted out of the trigger on
-purpose.
-
-Deleted rather than guarded (owner decision 2026-08-18): a guard has to be
-remembered, and the endpoint has no legitimate use on a live product. Starting
-a workspace over is `DELETE /api/workspaces/:id` followed by creating a new one.
+`POST /api/system/reset-economy` does not exist and is not reintroduced, guarded
+or otherwise: it zeroed every balance in a workspace, deleted every trade under
+`allowLedgerAdmin`, and reset all market AMM state behind nothing but the
+ordinary `manage` capability, and the append-only trigger could not stop it
+because it opted out of the trigger on purpose. A guard has to be remembered,
+and the endpoint has no legitimate use on a live product. Starting a workspace
+over is `DELETE /api/workspaces/:id` followed by creating a new one.
 
 ## I3: the credit ledger
 
-Before this, `trades` and `liquidity_events` were append-only and protected by
-a trigger (migration 0055), but they are two of the ways money moves. Payouts
-at settlement, void refunds, proposal stakes, proposal rewards, spam penalties,
-contract payments, signup grants, Manifold grants, admin adjustments,
-limit-order holds and top-ups all wrote `agents.balance` directly from about
-twenty-five separate call sites. None of them left a row. A balance could not be
-rebuilt, and a wrong one could not be explained.
+`trades` and `liquidity_events` are append-only under a trigger (migration
+0055), but they are two of the ways money moves; payouts at settlement, void
+refunds, proposal stakes, proposal rewards, spam penalties, contract payments,
+signup grants, Manifold grants, admin adjustments, limit-order holds and top-ups
+all move money too, and every one of them goes through the ledger.
 
 - **One door.** `applyCredits(tx, {...})` in `functions/src/services/credits.ts`
   is the only code allowed to write `agents.balance`. It performs the update and
@@ -196,7 +182,7 @@ rebuilt, and a wrong one could not be explained.
 - **`workspace_id` is `'platform'`** for movements that belong to no workspace:
   signup grants, transfers, deposits, withdrawals, admin adjustments.
 
-`agent_balance_snapshots` is now a cache rather than the only record; if it and
+`agent_balance_snapshots` is a cache rather than the only record; if it and
 the ledger ever disagree, the ledger is right.
 
 ### What the tests enforce
@@ -209,10 +195,10 @@ the ledger ever disagree, the ledger is right.
 | `market-freeze.test.ts` | each of the three destructive paths refuses for its own reason and allows the case it should; `voidMarket` itself stays unfrozen so the engine keeps working. |
 | `ledger-append-only.test.ts` | the trigger on both new tables, in both directions. |
 
-**Aggregate in SQL, never in JS.** The leaderboard was OOM-killed into 503s on
-2026-08-14 by pulling the 348k-row `trades` table into memory unaggregated, and
-`credit_ledger` grows faster than `trades` does. The reconciliation query sums
-database-side; any future ledger reader must too.
+**Aggregate in SQL, never in JS.** Pulling the `trades` table into memory
+unaggregated OOM-kills the process, and `credit_ledger` grows faster than
+`trades` does. The reconciliation query sums database-side; every ledger reader
+must too.
 
 ## Reconstruction
 

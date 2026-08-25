@@ -1,7 +1,7 @@
 # Docs
 
 These documents govern the code. Where a doc and the code disagree, the code is
-wrong (`CONTRIBUTING.md` says how a change moves through both). Anyone
+wrong (`../CONTRIBUTING.md` says how a change moves through both). Anyone
 developing or contributing here follows
 [ddd-practice](https://github.com/Reblexis/ddd-practice): docs first,
 everything else conforms. Humans read the rendering of these files at
@@ -19,7 +19,7 @@ the top.
 | `limit-orders.md` | Limit orders on the market ladder |
 | `market-integrity.md` | The three integrity rules for a live season |
 | `seasons.md` | Seasons: bounded cash tournaments for traders |
-| `otto.md` | Otto, the in-app assistant |
+| `otto.md` | Otto, the floor's assistant: surfaces, guarantees, tools and budgets, the eval as the conformance check |
 | `data-room.md` | The public data room: what telarchy.com publishes about itself |
 | `metrics.md` | The metrics Telarchy tracks about Telarchy |
 | `ui-conventions.md` | The one frontend design doc |
@@ -29,3 +29,8 @@ the top.
 
 Code-facing maps live beside the code: `../ARCHITECTURE.md` (modules, request
 flow, the auth and formula rules), `../README.md` (running and developing).
+
+Records (dated decisions, owner quotes, incident and field reports) live
+outside this directory under `../notes/`: `../notes/decisions/<doc>.md` holds
+the records evicted from each governing doc, `../notes/conformance/` the audit
+records.

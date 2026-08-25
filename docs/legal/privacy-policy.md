@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 2026-08-11 (version 1.2)_
+_Last updated: 2026-08-17 (version 1.5)_
 
 What `telarchy.com` (the "Service") collects about you, why, and your rights.
 

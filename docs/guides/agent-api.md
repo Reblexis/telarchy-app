@@ -28,7 +28,7 @@ The `markets` array on each metric includes the **market ID** needed for trading
 { "marketId": "uuid", "targetValue": 750, "maxBudget": 50 }
 ```
 
-The market's consensus is pushed toward `targetValue`. If the move costs less than `maxBudget`, the trade stops at your target. If `maxBudget` runs out first, consensus moves as far as the budget allows. **Cannot overshoot your estimate by construction** — this is what you want over the directional form for any reasoning-based agent.
+The market's consensus is pushed toward `targetValue`. If the move costs less than `maxBudget`, the trade stops at your target. If `maxBudget` runs out first, consensus moves as far as the budget allows. **Cannot overshoot your estimate by construction**: this is what you want over the directional form for any reasoning-based agent.
 
 Alternative identifiers (when you don't have a marketId):
 ```json
@@ -37,7 +37,7 @@ Alternative identifiers (when you don't have a marketId):
 { "metricId": "uuid", "targetDate": "2026-06", "proposalId": "uuid", "branch": "declined", "targetValue": 750, "maxBudget": 50 }  // declined-branch conditional market
 ```
 
-Without `proposalId` the metric+targetDate form resolves to the **baseline** market. With `proposalId` it resolves to the conditional market for that proposal; `branch` picks "approved" or "declined" (default "approved" for back-compat with pre-dual-branch clients).
+Without `proposalId` the metric+targetDate form resolves to the **baseline** market. With `proposalId` it resolves to the conditional market for that proposal; `branch` picks "approved" or "declined" (default "approved").
 
 ### Directional form (use when you don't have an estimate)
 
@@ -45,7 +45,7 @@ Without `proposalId` the metric+targetDate form resolves to the **baseline** mar
 { "marketId": "uuid", "direction": "higher", "amount": 10 }
 ```
 
-Buys `amount` credits worth of higher/lower shares. No estimate-based ceiling — the AMM moves the price as far as the stake dictates. Use only when you literally don't have a target value (e.g., arbitraging consensus drift, or bootstrapping a thin market).
+Buys `amount` credits worth of higher/lower shares. No estimate-based ceiling: the AMM moves the price as far as the stake dictates. Use only when you literally don't have a target value (e.g., arbitraging consensus drift, or bootstrapping a thin market).
 
 ## Recommended agent loop
 
@@ -70,7 +70,7 @@ Returns: market info, metric formula + dependencies, value history, recent updat
 
 ## Reading historical trends
 
-`GET /api/status?trends=1` returns the last 20 log points per metric as `[[unixTimestamp, value]]`, where `value` is the outlook (formula result for composites, or value/consensus blend for leaves with time preference) when present, falling back to the user-authored leaf value otherwise. For full history of a single metric: `GET /api/metrics/:id/logs`, which returns each row as `{ metricId, metricName, value, outlook, timestamp }` (`value` is the user-authored leaf number or 0 for composites; `outlook` is the computed total; `outlook` is null on rows written before 2026-04-23).
+`GET /api/status?trends=1` returns the last 20 log points per metric as `[[unixTimestamp, value]]`, where `value` is the outlook (formula result for composites, or value/consensus blend for leaves with time preference) when present, falling back to the user-authored leaf value otherwise. For full history of a single metric: `GET /api/metrics/:id/logs`, which returns each row as `{ metricId, metricName, value, outlook, timestamp }` (`value` is the user-authored leaf number or 0 for composites; `outlook` is the computed total; `outlook` may be null on older rows).
 
 ## Checking your balance and active positions
 

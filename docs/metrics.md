@@ -1,6 +1,6 @@
 # Telarchy metrics
 
-Primary metrics, organized by what they measure: product engagement and network quality. Lean Canvas cell #8 carries the headline list; this doc is the canonical definition and computation.
+Primary metrics, organized by what they measure: product engagement and network quality. This doc is the canonical definition. The platform computes none of the engagement or network-quality metrics below; the one metric it computes and the self-sync pushes is `weeklyActiveVerifiedTraders` (defined under Engagement).
 
 Telarchy's own platform-internal workspace at telarchy.com mirrors these as KPIs, with conditional markets pricing the impact of every product decision against them. The product dogfoods itself.
 
@@ -20,6 +20,13 @@ For workspaces created in week N, the fraction still WAU (above) in week N+4. St
 - **Why this metric:** Tells us whether the product creates a durable habit, separate from acquisition spikes. Per Sequoia / YC B2B benchmarks, healthy products retain 50-70% of new accounts to W4.
 - **How to compute:** Cohort by `workspaces.createdAt` week, intersect with WAU set 4 weeks later.
 
+### Weekly active verified traders (`weeklyActiveVerifiedTraders`)
+
+The hero metric of the Telarchy floor, and the one metric the platform computes itself: `GET /api/marketplace/stats` returns it and `scripts/telarchy-self-sync.js` pushes it verbatim into the floor's metric. Distinct participants who (a) have a Manifold account synced (the verified set: each maps to a public Manifold profile anyone can check) and (b) placed trades totalling at least 100 credits in absolute cost across the trailing 7 days, sells included.
+
+- **Why this metric:** credits are free, so a costless gesture must not count, and a resolution source has to be readable by the people asked to trust it; both the verification and the number are public.
+- **How to compute:** `functions/src/services/platform-stats.ts`: sum `abs(cost)` of `trades` per `agentId` over the trailing 7 days, keep those at or above 100, count the ones with a `manifold-claimed:agent:<id>` row in `system_config`. Cached for one minute.
+
 ## Network quality (the moat)
 
 ### Forecaster quality: liquidity-weighted Brier score on resolved markets, 30d trailing
@@ -34,14 +41,14 @@ Average Brier score across all markets resolved in the trailing 30 days, weighte
 
 Number of distinct participants whose cumulative net P&L on markets resolved in the last 30 days is strictly positive.
 
-- **Why this metric:** Counts useful contributors, not raw agents. **Naturally spam-resistant:** prediction markets are zero-sum on accuracy (one trader's P&L gain is another's loss, modulo the LMSR liquidity subsidy). 100 spam agents from one operator cannot all be P&L-positive — by construction, they cancel each other out. So this metric measures depth of useful talent in the network without an operator-deduplication heuristic that would unfairly penalize legitimate multi-agent operators.
+- **Why this metric:** Counts useful contributors, not raw agents. **Naturally spam-resistant:** prediction markets are zero-sum on accuracy (one trader's P&L gain is another's loss, modulo the LMSR liquidity subsidy). 100 spam agents from one operator cannot all be P&L-positive; by construction, they cancel each other out. So this metric measures depth of useful talent in the network without an operator-deduplication heuristic that would unfairly penalize legitimate multi-agent operators.
 - **How to compute:** Sum P&L per `agentId` across markets resolved in last 30 days. Count `agentId` values where the sum is greater than zero.
 
 ### Proposal quality: realized metric lift vs market-predicted lift on approved agent proposals (90d correlation)
 
 For agent-proposed proposals approved 90+ days ago, correlate the metric impact the conditional markets predicted at approval time with the impact actually realized post-execution.
 
-- **Why this metric:** Direct measure that the agent network proposes good actions AND forecasts their impact accurately. Activity alone doesn't prove the network is useful — the network is useful only if its proposals move the metrics it predicted they would. High correlation = predictive validity. Low correlation = the network is generating noise that owners are rubber-stamping.
+- **Why this metric:** Direct measure that the agent network proposes good actions AND forecasts their impact accurately. Activity alone doesn't prove the network is useful; the network is useful only if its proposals move the metrics it predicted they would. High correlation = predictive validity. Low correlation = the network is generating noise that owners are rubber-stamping.
 - **How to compute:** For each approved agent-proposed proposal p (filtered by `proposerId` resolving to an API-key participant) with ≥90d post-approval window:
   - `predicted_lift(p)` = consensus on the YES-conditional market at approval time, expressed as expected metric value at the proposal's target horizon.
   - `realized_lift(p)` = actual metric value at the same horizon minus the metric value at approval.
@@ -51,15 +58,15 @@ For agent-proposed proposals approved 90+ days ago, correlate the metric impact 
 
 ### Revenue, trailing 30 days (USD)
 
-**Added 2026-08-25 (Viktor: "lets add revenue metric to telarchy").** Money Telarchy itself was paid in the trailing 30 days: managed-tier subscriptions, platform fees on contracts, federation fees, any invoice paid to Telarchy, in USD, net of refunds. Money that moves THROUGH the platform (a workspace owner paying a contractor, a season prize) is not Telarchy's revenue and does not count.
+Money Telarchy itself was paid in the trailing 30 days: managed-tier subscriptions, platform fees on contracts, federation fees, any invoice paid to Telarchy, in USD, net of refunds. Money that moves THROUGH the platform (a workspace owner paying a contractor, a season prize) is not Telarchy's revenue and does not count.
 
 - **Why this metric:** it is the number every other one on this page is a proxy for, and pricing it on the public floor is the honest way to say what the platform has (nothing yet) and let forecasters price when that changes.
-- **How to compute:** Telarchy has no paid tier and no revenue rail today, so there is nothing to sync and the value is $0. Until a rail exists, the owner logs each payment by hand as a metric update with a note naming the payer category and amount; the metric log is public, so a trader can audit every reading. This is the one hero metric the owner CAN edit, and the market's description says so. When a rail exists (Stripe or the Wise business account), `scripts/telarchy-self-sync.js` pushes the trailing-30-day sum from it and the owner's hand is taken off, the same way `weeklyActiveVerifiedTraders` is pushed verbatim from `/api/marketplace/stats`.
+- **How to compute:** while Telarchy has no paid tier and no revenue rail there is nothing to sync and the value is $0. Until a rail exists, the owner logs each payment by hand as a metric update with a note naming the payer category and amount; the metric log is public, so a trader can audit every reading. This is the one hero metric the owner CAN edit, and the market's description says so. When a rail exists (Stripe or the Wise business account), `scripts/telarchy-self-sync.js` pushes the trailing-30-day sum from it and the owner's hand is taken off, the same way `weeklyActiveVerifiedTraders` is pushed verbatim from `/api/marketplace/stats`.
 - **Markets:** today, this week, next month (`+0d`, `+0w`, and the absolute next-month date every floor metric carries), like every metric on a public floor (docs/ui-conventions.md, "Two steppers"). Range 0 to 1,000.
 
 ### Implied valuation (USD)
 
-**Added 2026-08-25 (Viktor: "another metric of telarchy should be valuation essentially if invested in what is the implied valuation.. if not invested.. it resovles N/A").** The post-money valuation implied by the most recent closed investment in Telarchy: a priced round at its post-money; a SAFE or convertible note at its valuation cap; a secondary sale at the price it implies. USD.
+The post-money valuation implied by the most recent closed investment in Telarchy: a priced round at its post-money; a SAFE or convertible note at its valuation cap; a secondary sale at the price it implies. USD.
 
 - **Why this metric:** it is the market's answer to "what is this worth", asked on a date, and a forecaster can only be paid for it when the world answers too.
 - **How to compute:** nothing to sync. The owner logs the valuation with a note naming the instrument the day an investment closes; the log is public. Until then the metric has no reading and is declared `resolvesNaUntilMeasured`, so every market on it voids (N/A, all bets refunded) at its instant instead of settling on a number that does not exist (docs/ui-conventions.md, "A market on a number that does not exist yet").
@@ -70,3 +77,4 @@ For agent-proposed proposals approved 90+ days ago, correlate the metric impact 
 - **Why the revenue metric is a level, not ARR:** ARR, growth rate and NRR move to the top of this list once the paid managed tier is live. A trailing-30-day total is what can be read on any day and settled on any date, which is what the public floor's three clocks need; the others need a subscription base to exist first.
 - **YC B2B benchmarking:** the engagement and retention metrics are deliberately framed in standard YC B2B vocabulary so investor conversations don't waste time on ontology. The network-quality metrics are Telarchy-specific and have no exact comparable; they exist because they measure what makes the product defensible.
 - **Where these are tracked:** Telarchy's own platform-internal workspace at telarchy.com. Each metric here exists as a KPI in that workspace, with conditional markets pricing the impact of every product decision against them.
+- **History:** notes/decisions/metrics.md.

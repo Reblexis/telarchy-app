@@ -72,14 +72,14 @@ The only parameter is **half-life** (in years). It sets the timescale of your co
 - **Short half-life (e.g. 0.5y)** - near-term dominated; most weight on the next few months. Good for fast-moving or tactical metrics.
 - **Long half-life (e.g. 5y)** - long-horizon; samples spread across years. Good for strategic or structural goals.
 
-The blend is a simple average across t=0 and the sampled future points (equal weights). The half-life shapes *where* those samples fall, not how much each one counts. All samples share a single calendar granularity (day, week, month, or year), chosen as the coarsest one whose bucket width is at most the smallest gap between adjacent samples — so two samples can never land in overlapping buckets (no "2026-W23 plus 2026-06 both covering the same day" double counting).
+The blend is a simple average across t=0 and the sampled future points (equal weights). The half-life shapes *where* those samples fall, not how much each one counts. All samples share a single calendar granularity (day, week, month, or year), chosen as the coarsest one whose bucket width is at most the smallest gap between adjacent samples, so two samples can never land in overlapping buckets (no "2026-W23 plus 2026-06 both covering the same day" double counting).
 
 ## Custom market dates
 
 Beyond the exponential curve, any metric can carry **custom market horizons**: an explicit list of extra dates to keep markets at. They work with the curve on or off (a metric can have purely manual horizons), and like the curve they propagate to leaf descendants. Two kinds of entry:
 
-- **Rolling offsets** — `+Nh`, `+Nd`, `+Nw`, `+Nm`, `+Ny` (e.g. `+3m`, `+1h`). Re-resolved against "now" on every hourly refresh, so there is always a market about that far out. The offset's unit sets the market granularity: `+3m` maintains a month-market, `+2w` a week-market, `+6h` an hour-market. Want a standing intraday ladder? `["+1h", "+2h", ..., "+24h"]` keeps a market at every hour of the next day.
-- **One-shot dates** — `YYYY`, `YYYY-MM`, `YYYY-Www`, `YYYY-MM-DD`, or `YYYY-MM-DDTHH` (e.g. `2026-12-31`, `2026-12-31T14` for 14:00-15:00 UTC). A single market that resolves at the end of that period and is not recreated. Fully-passed periods are pruned on save.
+- **Rolling offsets**: `+Nh`, `+Nd`, `+Nw`, `+Nm`, `+Ny` (e.g. `+3m`, `+1h`). Re-resolved against "now" on every hourly refresh, so there is always a market about that far out. The offset's unit sets the market granularity: `+3m` maintains a month-market, `+2w` a week-market, `+6h` an hour-market. Want a standing intraday ladder? `["+1h", "+2h", ..., "+24h"]` keeps a market at every hour of the next day.
+- **One-shot dates**: `YYYY`, `YYYY-MM`, `YYYY-Www`, `YYYY-MM-DD`, or `YYYY-MM-DDTHH` (e.g. `2026-12-31`, `2026-12-31T14` for 14:00-15:00 UTC). A single market that resolves at the end of that period and is not recreated. Fully-passed periods are pruned on save.
 
 Configure them in the metric's edit modal ("Custom market dates"), or via the API: `timePreference.customHorizons` is an array of such strings (at most 24), e.g.
 
