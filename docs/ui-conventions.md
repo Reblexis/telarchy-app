@@ -1247,8 +1247,8 @@ c both for metrics and for the dates", then "do it shorten ech metric name as
 needed.. e.g. just 'net revenue' instead of the full one". So the caption row
 is a segmented control over the floor's metrics (`.pubws-seg`, primary metric
 first, the selected segment in ink on a bone tab) and the row under it is the
-same control over the metric's dates, soonest first: `today · 26 Aug`, `this
-week · 30 Aug`, `this month · 31 Aug`, `30 Sep`. Every option is on screen and
+same control over the metric's dates, soonest first: `today · 25 Aug`, `this
+week · 30 Aug`, `30 Sep`. Every option is on screen and
 the selected segment cannot move when the words change, which is what the
 pinned arrows were for; the arrows and `stepMetric`/`stepDate` are gone, and a
 click resolves through `cellOf(views, metricId, targetDate)` (same keep-the-date
@@ -1304,10 +1304,14 @@ net revenue" and "monthly net revenue" were two metrics for one thing, their
 descriptions drifted (the weekly one described September for five days), and
 nothing on the floor could say they were the same number. With one metric and
 three dates the definition is written once. The horizons on both floors are
-`+0d`, `+0w`, `+0m` (today, this ISO week, this calendar month; each rolls
-over on its boundary like the weekly always did) plus any absolute date a
-running market already holds, so a season's hero market is never deactivated
-by the change that surrounds it.
+THREE (owner direction 2026-08-26: "there should be only 3 horizons for each
+for now 1.next day 2. this week 3. next month", where next day is "tonights
+midnight coming midnight"): `+0d` (today, settling at the coming midnight
+UTC), `+0w` (this ISO week) and the next-month market, which for now is the
+absolute `2026-09` every floor metric carries (the Season 1 hero's date; it
+does not roll yet, and rolling it is a decision for when September ends). A
+`+0m` "this month" clock shipped for a day and was removed: four dates was one
+more than asked for.
 
 **Which market is THE number, with several metrics.** `primaryMarket` still
 picks the furthest-resolving open market, and a tie on the settle instant
