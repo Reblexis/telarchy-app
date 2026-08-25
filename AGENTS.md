@@ -122,6 +122,8 @@ When implementing a new feature or design decision not already captured in `docs
 
 Do not leave outdated, superseded, historical, or migration-era documentation in place. If a doc is no longer current, update it to match the live system or delete it.
 
+Any commit that changes a file under `docs/` regenerates the human-readable mirror in the same commit: `python3 scripts/build-docs-mirror.py` rewrites `browse/index.html` deterministically from `docs/` (needs `markdown-it-py`). A stale mirror is a divergence; the markdown wins.
+
 ## Browser-driven test specs
 
 `qa/browse/` is the repo's browser-driven acceptance-test suite: a derived

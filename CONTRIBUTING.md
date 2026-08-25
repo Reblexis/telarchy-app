@@ -7,7 +7,8 @@ about what governs what.
 ## The one rule: docs govern
 
 The documents under `docs/` are the source of truth and the code is derived from
-them. Where they disagree, the code is wrong. A behaviour change starts as a doc
+them ([ddd-practice](https://github.com/Reblexis/ddd-practice)). Where they
+disagree, the code is wrong. A behaviour change starts as a doc
 change, in the same pull request as the code that conforms to it. Which doc owns
 what:
 
