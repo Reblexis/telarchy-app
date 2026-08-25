@@ -149,7 +149,9 @@ describe('the definition editor edits the market on screen', () => {
     await waitFor(() => expect(defSection(container).getByRole('button', { name: 'Edit' })).toBeTruthy());
 
     // Step to the week market and confirm it is the one on screen.
-    fireEvent.click(container.querySelector('.pubws-hstep--next')!);
+    fireEvent.click(
+      [...container.querySelectorAll('.pubws-seg-btn')].find(b => b.textContent?.includes('Signups this week'))!,
+    );
     await waitFor(() => expect(caption(container)).toContain('Signups this week'));
 
     fireEvent.click(defSection(container).getByRole('button', { name: 'Edit' }));
@@ -202,7 +204,9 @@ describe('the definition editor edits the market on screen', () => {
     await waitFor(() => expect(caption(container)).toContain('Net 2026'));
     expect(defSection(container).getByText('The year definition.')).toBeTruthy();
 
-    fireEvent.click(container.querySelector('.pubws-hstep--next')!);
+    fireEvent.click(
+      [...container.querySelectorAll('.pubws-seg-btn')].find(b => b.textContent?.includes('Signups this week'))!,
+    );
     await waitFor(() => expect(caption(container)).toContain('Signups this week'));
     expect(defSection(container).queryByText('The year definition.')).toBeNull();
   });

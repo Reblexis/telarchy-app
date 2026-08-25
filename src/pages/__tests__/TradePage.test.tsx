@@ -573,7 +573,7 @@ test('the workspace name heads the page', async () => {
   // it settles is the line under it (owner ask 2026-08-25, two steppers: the
   // caption's arrows step the metric, the date line's arrows step the date).
   expect(container.querySelector('.pubws-instrument-label')!.textContent).toBe('revenue');
-  expect(container.querySelector('.pubws-instrument-date')!.textContent).toBe('end of 2026 @ 31 Dec');
+  expect(container.querySelector('.pubws-instrument-date')!.textContent).toBe('31 Dec');
 });
 
 test('the workspace description is the company tagline, and is optional', async () => {
@@ -917,13 +917,12 @@ describe('a contract keeps the clock line', () => {
     return ws;
   }
 
-  test('the horizon arrows survive opening a contract', async () => {
+  test('the metric picker survives opening a contract', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
 
-    // Both arrows are there before anything is selected. They loop, so with
-    // two horizons both are labelled for the other one.
+    // Both metrics are on the picker before anything is selected.
     expect((await screen.findAllByRole('button', { name: /^Show / })).length).toBe(2);
 
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
@@ -946,7 +945,7 @@ describe('a contract keeps the clock line', () => {
     // line under it still carries the settle day.
     const caption = document.querySelector('.pubws-instrument-label');
     expect(caption?.textContent).toContain('monthly net revenue');
-    expect(document.querySelector('.pubws-instrument-date')?.textContent).toContain('@');
+    expect(document.querySelector('.pubws-instrument-date')?.textContent).toMatch(/\d/);
   });
 
   test('the contract states the world without repeating the metric name', async () => {
@@ -963,7 +962,7 @@ describe('a contract keeps the clock line', () => {
     expect(question.textContent).not.toMatch(/net revenue/i);
   });
 
-  test('stepping the clock re-points the contract at that horizon', async () => {
+  test('picking the other metric re-points the contract at that market', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     vi.mocked(api.getMarketActivity).mockClear();
@@ -972,10 +971,12 @@ describe('a contract keeps the clock line', () => {
     // Opens on the furthest-resolving horizon, so the month's approved branch.
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-month-approved'));
 
-    fireEvent.click(screen.getAllByRole('button', { name: /^Show / })[1]);
+    // The fixture's two markets share one metric, so this is the DATE row;
+    // the week's segment is the one not on screen.
+    fireEvent.click(screen.getByRole('button', { name: /^Show .*(this week|week to)/ }));
 
-    // pair resolves by hero.targetDate, so the week's pair is now the one on
-    // screen. Before this change the arrows did not exist here at all.
+    // pair resolves by (metric, date), so the week's pair is now the one on
+    // screen.
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-week-approved'));
   });
 });

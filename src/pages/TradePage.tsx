@@ -27,16 +27,17 @@ import { indexBundleSrc } from '../lib/bundle-version';
 import {
   buildHorizonViews,
   captionLabel,
-  dateLineOf,
+  cellOf,
+  dateSegmentOf,
+  datesOf,
   type HorizonView,
   horizonById,
   metricLabelOf,
+  metricsOf,
   type PriceSeries,
   priceSeriesIsInline,
   priceSeriesOf,
   settleNoteOf,
-  stepDate,
-  stepMetric,
 } from '../lib/floor-horizons';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
@@ -340,14 +341,13 @@ export function TradePage() {
   const horizons: HorizonView[] = useMemo(() => buildHorizonViews(ws), [ws]);
   const [horizonId, setHorizonId] = useState<string | null>(null);
   const hero = horizonById(horizons, horizonId);
-  // Two steppers, not one (owner ask 2026-08-25): the arrows on the caption
-  // step the METRIC, the arrows on the date line under it step the DATE of
-  // that metric. Each is null when there is nothing to step to, and the
-  // arrows do not render then. See docs/ui-conventions.md "Two steppers".
-  const prevMetric = stepMetric(horizons, horizonId, -1);
-  const nextMetric = stepMetric(horizons, horizonId, 1);
-  const prevDate = stepDate(horizons, horizonId, -1);
-  const nextDate = stepDate(horizons, horizonId, 1);
+  // Two pickers, not one (owner ask 2026-08-25, both as segmented rows since
+  // 2026-08-26): the caption row picks the METRIC, the row under it picks the
+  // DATE of that metric. Every option is on screen and the selected cell is a
+  // market id. See docs/ui-conventions.md "Two pickers".
+  const metricHeads = metricsOf(horizons);
+  // Soonest first in the row: today, this week, this month, then anything absolute.
+  const heroDates = hero ? [...datesOf(horizons, hero.metricId)].reverse() : [];
   // The arithmetic under the price: booked, missing, per day. Null for any
   // metric that does not accumulate inside its period, which is most of them.
   const gap = periodGapOf(hero);
@@ -912,52 +912,53 @@ export function TradePage() {
                off this line on 2026-08-18 as redundant, when a floor had one
                market and the metric's name carried its own horizon; with
                arrows it is the only thing telling two clocks apart. */}
-              {/* Two steppers (owner ask 2026-08-25): the caption's arrows
-               step the METRIC; the line under it carries the clock's name and
-               settle day and its own arrows step the DATE of that metric. A
-               (metric, date) pair is a market, so selection is still one
-               market id. */}
+              {/* Two pickers (owner ask 2026-08-25; both segmented rows, owner
+               choice 2026-08-26): the caption row picks the METRIC, the row
+               under it picks the DATE of that metric. Every option is visible
+               and the selected segment never moves, which is what the pinned
+               arrows were for. A (metric, date) pair is a market, so
+               selection is still one market id. The caption stays an h2 that
+               is a block child of .pubws-center (layout rule, 2026-08-20). */}
               <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
-                {prevMetric && (
-                  <button
-                    className="pubws-hstep pubws-hstep--prev"
-                    onClick={() => setHorizonId(prevMetric.marketId)}
-                    aria-label={`Show ${prevMetric.metricLabel}`}
-                  >
-                    ‹
-                  </button>
-                )}
-                {captionLabel(metricLabel, ws.name)}
-                {nextMetric && (
-                  <button
-                    className="pubws-hstep pubws-hstep--next"
-                    onClick={() => setHorizonId(nextMetric.marketId)}
-                    aria-label={`Show ${nextMetric.metricLabel}`}
-                  >
-                    ›
-                  </button>
+                {metricHeads.length > 1 ? (
+                  <span className="pubws-seg" role="group" aria-label="Metric">
+                    {metricHeads.map(m => (
+                      <button
+                        key={m.metricId}
+                        className={`pubws-seg-btn${hero?.metricId === m.metricId ? ' is-active' : ''}`}
+                        aria-pressed={hero?.metricId === m.metricId}
+                        aria-label={`Show ${m.metricLabel}`}
+                        onClick={() => {
+                          const cell = cellOf(horizons, m.metricId, hero?.targetDate);
+                          if (cell) setHorizonId(cell.marketId);
+                        }}
+                      >
+                        {captionLabel(m.metricLabel, ws.name)}
+                      </button>
+                    ))}
+                  </span>
+                ) : (
+                  captionLabel(metricLabel, ws.name)
                 )}
               </h2>
               {hero && (
                 <div className="pubws-instrument-date pubws-enter pubws-enter--1">
-                  {prevDate && (
-                    <button
-                      className="pubws-dstep pubws-dstep--prev"
-                      onClick={() => setHorizonId(prevDate.marketId)}
-                      aria-label={`Show ${prevDate.metricLabel}, ${prevDate.label}`}
-                    >
-                      ‹
-                    </button>
-                  )}
-                  <span className="pubws-instrument-at">{dateLineOf(hero)}</span>
-                  {nextDate && (
-                    <button
-                      className="pubws-dstep pubws-dstep--next"
-                      onClick={() => setHorizonId(nextDate.marketId)}
-                      aria-label={`Show ${nextDate.metricLabel}, ${nextDate.label}`}
-                    >
-                      ›
-                    </button>
+                  {heroDates.length > 1 ? (
+                    <span className="pubws-seg" role="group" aria-label="Date">
+                      {heroDates.map(d => (
+                        <button
+                          key={d.marketId}
+                          className={`pubws-seg-btn${d.marketId === hero.marketId ? ' is-active' : ''}`}
+                          aria-pressed={d.marketId === hero.marketId}
+                          aria-label={`Show ${d.metricLabel}, ${d.label}`}
+                          onClick={() => setHorizonId(d.marketId)}
+                        >
+                          {dateSegmentOf(d)}
+                        </button>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="pubws-instrument-at">{dateSegmentOf(hero)}</span>
                   )}
                 </div>
               )}

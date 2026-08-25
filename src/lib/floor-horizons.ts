@@ -193,7 +193,7 @@ function shortDay(targetDate: string): string {
  * Index 0 is the primary, the one the floor opens on (see `primaryHorizonOf`
  * for the rule). The list is grouped by metric, the primary's metric first
  * and the rest by their display order, and inside a metric the dates run
- * furthest-first, so the two steppers (`stepMetric`, `stepDate`) walk it
+ * furthest-first, so the two pickers (`metricsOf`, `datesOf`, `cellOf`) read it
  * without a second ordering of their own. The payload ships soonest-first;
  * the order flip lives here and nowhere else.
  */
@@ -311,12 +311,6 @@ export function datesOf(views: HorizonView[], metricId: string): HorizonView[] {
 }
 
 /**
- * The caption's second line: the clock's name and its settle day, both
- * computed from the market ("this week @ 31 Aug"). A day that is no longer
- * today (between midnight and the refresh that opens the next market) shows
- * the date alone rather than "today" about a day that has ended.
- */
-/**
  * The settle note under the price: "resolves 30 September 2026", or, for a
  * number that does not exist yet, the same with what happens if it still
  * does not: "resolves 30 September 2026, or N/A (all bets refunded) if there
@@ -329,11 +323,17 @@ export function settleNoteOf(v: HorizonView | null): string | undefined {
     : `resolves ${v.settleDay}`;
 }
 
-export function dateLineOf(v: HorizonView | null): string {
+/**
+ * A date's label in the date picker (owner choice 2026-08-26, both pickers as
+ * segmented rows): a named clock reads "this week · 30 Aug"; any other date is
+ * its settle day alone ("30 Sep" for a September market, "31 Dec", or a day
+ * that has ended). Computed from the market, never stored on the metric.
+ */
+export function dateSegmentOf(v: HorizonView | null): string {
   if (!v) return '';
-  const at = v.settleShort ? `@ ${v.settleShort}` : '';
-  const named = /^(today|this week|this month|end of )/.test(v.label) ? v.label : '';
-  return [named, at].filter(Boolean).join(' ');
+  const named = /^(today|this week|this month)$/.test(v.label) ? v.label : '';
+  if (!v.settleShort) return named || v.targetDate;
+  return named ? `${named} · ${v.settleShort}` : v.settleShort;
 }
 
 /**
@@ -352,40 +352,19 @@ export function horizonById(views: HorizonView[], marketId: string | null | unde
 }
 
 /**
- * The next METRIC, wrapping (owner ask 2026-08-20: "the arrows should be
- * clickable infinitely it will just loop"), keeping the date on screen when
- * the next metric has an open market on it and falling to that metric's
- * furthest-resolving one otherwise (docs/ui-conventions.md, "Two steppers").
- * Null when the floor prices one metric, which is how the page knows not to
- * render the arrows: a control that sometimes does nothing is worse than one
- * that always moves, and one that never renders is neither.
+ * The cell of the grid a reader picked: the market on `metricId` read on
+ * `targetDate`. Picking a metric keeps the date on screen when that metric has
+ * a market on it and falls to the metric's furthest-resolving one otherwise;
+ * picking a date never changes the metric (docs/ui-conventions.md, "Two
+ * pickers"). Null only when the metric has no open market at all.
  */
-export function stepMetric(
+export function cellOf(
   views: HorizonView[],
-  marketId: string | null | undefined,
-  delta: 1 | -1,
+  metricId: string,
+  targetDate: string | null | undefined,
 ): HorizonView | null {
-  const current = horizonById(views, marketId);
-  if (!current) return null;
-  const heads = metricsOf(views);
-  if (heads.length < 2) return null;
-  const at = heads.findIndex(v => v.metricId === current.metricId);
-  const next = heads[(at + delta + heads.length) % heads.length];
-  const dates = datesOf(views, next.metricId);
-  return dates.find(v => v.targetDate === current.targetDate) ?? dates[0] ?? null;
-}
-
-/**
- * The next DATE of the metric on screen, wrapping, never changing the metric.
- * Null when the metric has one open date, so the arrows do not render.
- */
-export function stepDate(views: HorizonView[], marketId: string | null | undefined, delta: 1 | -1): HorizonView | null {
-  const current = horizonById(views, marketId);
-  if (!current) return null;
-  const dates = datesOf(views, current.metricId);
-  if (dates.length < 2) return null;
-  const at = dates.findIndex(v => v.marketId === current.marketId);
-  return dates[(at + delta + dates.length) % dates.length] ?? null;
+  const dates = datesOf(views, metricId);
+  return dates.find(v => v.targetDate === targetDate) ?? dates[0] ?? null;
 }
 
 export type PriceSeries = Array<{ at: string; consensus: number | null }>;

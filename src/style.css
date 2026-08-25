@@ -2190,18 +2190,14 @@ button.notif-row-link {
 
 /* The metric name as a caption over the number, not as the headline: the
    company above owns that role now. Mono uppercase so it reads as an
-   instrument label rather than as a sentence. */
+   instrument label rather than as a sentence.
+   It is a block child of .pubws-center and must stay one: wrapping it in a
+   flex row once dropped it into a 59px column beside the price (2026-08-20).
+   With several metrics it holds the METRIC PICKER, a segmented row (owner
+   choice 2026-08-26, replacing the pinned arrows of 2026-08-25): every metric
+   is visible and the selected segment cannot move when the words change,
+   which is what pinning the arrows was for. */
 .pubws-instrument-label {
-  /* Anchors the two horizon arrows. They used to sit inline either side of the
-     caption, so switching clocks changed the caption's width and both arrows
-     jumped sideways with it: a control that moves when you use it (owner ask
-     2026-08-20). They are absolute against this line now, pinned to its edges,
-     so they hold still whatever the caption says. The padding reserves their
-     space so a long caption cannot run underneath them.
-     position: relative does not break the constraint recorded below: this is
-     still a block child of .pubws-center, which is what the layout needs. */
-  position: relative;
-  padding: 0 2.2rem;
   margin: 0;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.74rem;
@@ -2217,55 +2213,53 @@ button.notif-row-link {
   color: var(--text-secondary);
 }
 
-/* The arrows to the floor's other clocks (owner ask 2026-08-20), on the
-   caption's own line rather than under the number, because what they change is
-   which instrument the page is about, and a control next to the price reads as
-   changing the price. Absolute against the caption, NOT in a flex wrapper:
-   wrapping the heading put it in a 59px column beside the price and over the
-   leaderboard rail, because its placement comes from rules that assume it is a
-   block child of .pubws-center. Pinning them to the caption's edges fixes the
-   other half of it, that they moved every time the caption's width changed. */
-.pubws-hstep {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  padding: 0 0.15rem;
-  background: none;
+/* A segmented row: one for the metric, one for the date under it. Wraps on
+   a narrow screen rather than shrinking the labels below reading size. */
+.pubws-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  vertical-align: middle;
+}
+
+.pubws-seg-btn {
+  padding: 0.4rem 0.65rem;
   border: none;
+  border-radius: 6px;
+  background: none;
   font: inherit;
-  font-size: 1rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   line-height: 1;
   color: var(--text-tertiary);
   cursor: pointer;
-  transition: color 0.12s ease;
+  white-space: nowrap;
+  transition: color 0.12s ease, background 0.12s ease;
 }
 
-.pubws-hstep--prev { left: 0; }
-.pubws-hstep--next { right: 0; }
+.pubws-seg-btn:hover { color: var(--text-primary); }
+.pubws-seg-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pubws-seg-btn.is-active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(23, 23, 28, 0.08);
+}
 
-.pubws-hstep:hover:not(:disabled),
-.pubws-hstep:focus-visible { color: var(--accent); outline: none; }
-
-
-/* The date line under the caption (owner ask 2026-08-25, "two steppers"):
-   the clock's name and its settle day, "this week @ 31 Aug", in a register
-   quieter than the name, because the name is what the market is and the date
-   is only which reading of it. Its arrows step the DATE of the metric on
-   screen; the caption's arrows above step the METRIC. It sits above the
-   price, not under it, for the 2026-08-20 reason: a control next to the
-   number reads as changing the number.
-   The line is a FIXED-WIDTH box and its arrows are pinned to that box's
-   edges (owner ask 2026-08-26: "make sure the arrow buttons dont move with
-   metric name length"), the same rule the caption's arrows follow. Inline
-   arrows shipped first and slid with every label change, "today @ 25 Aug"
-   to "end of September @ 30 Sep". The width holds the longest label the
-   date helpers can produce at this size, so the text never touches an arrow. */
+/* The date picker under the caption. With one open date it is the settle
+   day alone, in a register quieter than the name, because the name is what
+   the market is and the date is only which reading of it. Above the price,
+   not under it (2026-08-20): a control next to the number reads as changing
+   the number. */
 .pubws-instrument-date {
-  position: relative;
-  box-sizing: border-box;
-  width: min(100%, 18rem);
-  margin: 0.15rem auto 0;
-  padding: 0 1.6rem;
+  margin: 0.35rem 0 0;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.68rem;
   font-weight: 500;
@@ -2273,31 +2267,9 @@ button.notif-row-link {
   text-transform: uppercase;
   line-height: 1.3;
   text-align: center;
-  white-space: nowrap;
 }
 
 .pubws-instrument-at { color: var(--text-tertiary); font-weight: 500; }
-
-.pubws-dstep {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  padding: 0 0.15rem;
-  background: none;
-  border: none;
-  font: inherit;
-  font-size: 0.95rem;
-  line-height: 1;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: color 0.12s ease;
-}
-
-.pubws-dstep--prev { left: 0; }
-.pubws-dstep--next { right: 0; }
-
-.pubws-dstep:hover:not(:disabled),
-.pubws-dstep:focus-visible { color: var(--accent); outline: none; }
 
 /* The gap to the price, directly under the number and above the bet. One
    sentence of arithmetic a reader can check in their head, which is the only

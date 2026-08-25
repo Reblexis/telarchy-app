@@ -1240,6 +1240,39 @@ metrics x dates, and the caption carries two independent controls:
   so the settle day never leaves the page. It is above the price, not under
   it, for the reason recorded on 2026-08-20: a control next to the number
   reads as changing the number.
+**Revised 2026-08-26 (Viktor): both pickers are segmented rows.** Shown four
+layouts on a canvas (pinned arrows as shipped; one stepper block; dates as
+segments; both as segments), the owner picked the last: "what if we did option
+c both for metrics and for the dates", then "do it shorten ech metric name as
+needed.. e.g. just 'net revenue' instead of the full one". So the caption row
+is a segmented control over the floor's metrics (`.pubws-seg`, primary metric
+first, the selected segment in ink on a bone tab) and the row under it is the
+same control over the metric's dates, soonest first: `today · 26 Aug`, `this
+week · 30 Aug`, `this month · 31 Aug`, `30 Sep`. Every option is on screen and
+the selected segment cannot move when the words change, which is what the
+pinned arrows were for; the arrows and `stepMetric`/`stepDate` are gone, and a
+click resolves through `cellOf(views, metricId, targetDate)` (same keep-the-date
+rule as before). With one metric the caption is plain text; with one date the
+row is the settle day alone. The row wraps on a phone rather than shrinking
+its labels.
+
+**Metric names are short handles, since 2026-08-26.** A segment has to fit
+beside its siblings, so a floor metric's name is the noun a reader would say
+("LookPilot net revenue (USD)", "Active traders", "Implied valuation (USD)"):
+about twenty characters before the unit tail, three of them side by side in
+the 660px column. The definition, including the window ("trailing 30 days",
+"trailing 7 days"), lives in the description, which the floor prints under
+the chart, and which is the settlement text anyway. This retires the
+2026-08-20 rule that the window goes in the name before the unit tail: that
+rule existed to tell two metrics apart that were really one number on two
+windows, and one metric read on several dates has no such pair. The renamed
+metric keeps its id, so no market moves; the LookPilot sync's `COMPUTE` map
+is keyed by name and carries the new names (a rename without a map edit
+silently stops the sync).
+
+The paragraph below describes the pinned-arrow layout of 2026-08-25 to
+2026-08-26 and is kept for the rule it records, which the segments inherit.
+
 - **Neither pair of arrows moves when the words between them change** (owner
   ask 2026-08-26: "make sure the arrow buttons dont move with metric name
   length"). The caption's arrows are pinned to the caption's edges, as since
