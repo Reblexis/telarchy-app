@@ -2,7 +2,6 @@
 
 Project backlog, prioritized. P1 = blocking the next milestone (founder concierge), P2 = important but not blocking, P3 = nice-to-have.
 
-Last updated: 2026-04-29 (CEO plan review). Active CEO plan: `~/.gstack/projects/Reblexis-metrics-tracker/ceo-plans/2026-04-29-pre-launch-strategy.md`.
 
 ---
 
@@ -134,7 +133,6 @@ Last updated: 2026-04-29 (CEO plan review). Active CEO plan: `~/.gstack/projects
 
 ## P2 — Prize seasons (deferred from Season 1, added 2026-08-17 by /plan-eng-review)
 
-Design doc: `~/.gstack/projects/Reblexis-telarchy/cihalvi-main-design-20260817-154200.md`.
 Legal posture: `docs/legal/trader-compensation.md`. All three were raised during
 review, deliberately deferred by the owner to keep Season 1 simple, and are
 expected to matter more as the pool grows.
