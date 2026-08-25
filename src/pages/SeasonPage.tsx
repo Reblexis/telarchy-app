@@ -152,8 +152,8 @@ export function SeasonPage() {
           increases what is paid.
         </p>
         <p className="seasonp-experimental">
-          Rule change, 2026-08-25: accounts that own or administer a workspace are explicitly eligible, and their
-          trades in it count like any other. The change widens who may enter and reduces nobody's standing.
+          Rule change, 2026-08-25: accounts that own or administer a workspace are explicitly eligible, and their trades
+          in it count like any other. The change widens who may enter and reduces nobody's standing.
         </p>
         {/* The real channel, inline, rather than a sentence pointing at an icon
             in the top bar. Anonymous reports are accepted, so a visitor who hit
