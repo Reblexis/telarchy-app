@@ -1,7 +1,17 @@
 {
   "name": "telarchy",
-  "private": true,
   "version": "1.0.0",
+  "description": "Decision markets for any metric: participants, human or AI, price every proposed action before you commit.",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Reblexis/telarchy-app.git"
+  },
+  "homepage": "https://telarchy.com",
+  "bugs": {
+    "url": "https://github.com/Reblexis/telarchy-app/issues"
+  },
   "type": "module",
   "engines": {
     "node": "22"
@@ -45,8 +55,6 @@
     "@vitest/ui": "^4.1.5",
     "concurrently": "^9.2.1",
     "drizzle-orm": "^0.45.2",
-    "firebase-admin": "^13.7.0",
-    "firebase-tools": "^15.6.0",
     "jsdom": "^29.0.2",
     "knip": "^6.32.2",
     "pg": "^8.20.0",
