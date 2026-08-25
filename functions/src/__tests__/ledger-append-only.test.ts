@@ -23,6 +23,7 @@ import {
   markets,
   metricDefinitionRevisions,
   metrics,
+  proposalRevisions,
   trades,
   workspaces,
 } from '../db/schema';
@@ -305,5 +306,58 @@ describe('the credit ledger and the revision log are append-only too', () => {
       await tx.delete(creditLedger).where(eq(creditLedger.agentId, AGENT));
     });
     expect(await db.select().from(creditLedger)).toHaveLength(0);
+  });
+});
+
+/**
+ * `proposal_revisions` is the contract-side twin of the metric revision log:
+ * a contract's title, description and ask edit in place, and the revision row
+ * is the only thing that shows a holder the goalposts moved after they took
+ * a position (docs/market-integrity.md, "Words are edited in place, and
+ * published"). Created in 0066 with the same shape but, until 0080, without
+ * the trigger; the first conformance audit (2026-08-25) found the gap.
+ */
+describe('the contract revision log is append-only', () => {
+  const revisionRow = {
+    id: 'prev-1',
+    workspaceId: WS,
+    proposalId: 'proposal-1',
+    field: 'askUsd',
+    oldValue: '100',
+    newValue: '150',
+    changedBy: AGENT,
+  };
+
+  test('a contract revision can be written', async () => {
+    await seed();
+    await db.insert(proposalRevisions).values(revisionRow);
+    expect(await db.select().from(proposalRevisions)).toHaveLength(1);
+  });
+
+  test('a contract revision cannot be edited or deleted', async () => {
+    await seed();
+    await db.insert(proposalRevisions).values(revisionRow);
+
+    expect(await refusal(db.update(proposalRevisions).set({ newValue: '100' }))).toMatch(/append-only/i);
+    expect(await refusal(db.delete(proposalRevisions))).toMatch(/proposal_revisions/);
+    const [row] = await db.select().from(proposalRevisions);
+    expect(row.newValue).toBe('150');
+  });
+
+  test('raw SQL is refused the same way', async () => {
+    await seed();
+    await db.insert(proposalRevisions).values(revisionRow);
+    expect(await refusal(db.execute(sql`delete from proposal_revisions`))).toMatch(/append-only/i);
+    expect(await db.select().from(proposalRevisions)).toHaveLength(1);
+  });
+
+  test('the sanctioned path can still cascade', async () => {
+    await seed();
+    await db.insert(proposalRevisions).values(revisionRow);
+    await db.transaction(async tx => {
+      await allowLedgerAdmin(tx);
+      await tx.delete(proposalRevisions).where(eq(proposalRevisions.workspaceId, WS));
+    });
+    expect(await db.select().from(proposalRevisions)).toHaveLength(0);
   });
 });

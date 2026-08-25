@@ -101,6 +101,13 @@ describe('validateNickname', () => {
     expect(validateNickname('')).toBeDefined();
   });
 
+  test('the length error is served with a plain hyphen, not an en dash', () => {
+    // Repo style rule (and the first conformance audit, 2026-08-25): a served
+    // error string is copy, and copy carries no dashes.
+    expect(validateNickname('ab')).toBe('nickname must be 3-30 characters');
+    expect(validateNickname('ab')).not.toMatch(/[\u2013\u2014]/);
+  });
+
   test('rejects non-strings', () => {
     expect(validateNickname(undefined)).toBeDefined();
     expect(validateNickname(null)).toBeDefined();

@@ -19,8 +19,8 @@ import { wrap } from '../lib/wrap';
  *
  * Pass ?seasonId=<id> to ask the SAME question about a prize season instead:
  * how much each entrant's marked profit GREW while that season ran. Same
- * formula, same aggregation, different workspace set (the season's pinned one)
- * and a baseline subtracted. It is one endpoint on purpose: a season standing
+ * formula, same aggregation, the same workspace set (every workspace public
+ * at read time) and a baseline subtracted. It is one endpoint on purpose: a season standing
  * and a leaderboard row that disagree about the same participant's profit on
  * the same day is the bug class that hit the floor five times in one week.
  *
@@ -274,10 +274,13 @@ async function currentSeasonPrizes(): Promise<{
     return { entered, prizeById: new Map(), live: false, meta };
   }
 
-  const pinned = (season.workspaceIds ?? []) as string[];
+  // The same workspace set seasonStandings and settlement score over: every
+  // workspace that is public RIGHT NOW (docs/seasons.md, owner decision
+  // 2026-08-21), not the set pinned at the start. Until 2026-08-25 this column
+  // scored the pinned set while the standings scored the live one, so the two
+  // could name different winners for the same season on the same day.
   const publicNow = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.visibility, 'public'));
-  const publicIds = new Set(publicNow.map(w => w.id));
-  const board = await cachedBoard(pinned.filter(id => publicIds.has(id)));
+  const board = await cachedBoard(publicNow.map(w => w.id));
 
   const house = await platformOperatedIds(entries.map(e => e.agentId));
   const projection = settleSeason(
@@ -303,8 +306,8 @@ async function currentSeasonPrizes(): Promise<{
 /**
  * Standings for one prize season.
  *
- * A RUNNING season is computed live: the board over the season's pinned
- * workspaces, minus each entrant's baseline.
+ * A RUNNING season is computed live: the board over every workspace public
+ * right now, minus each entrant's baseline.
  *
  * A SETTLED season reads the stored finals and never recomputes. If it
  * recomputed, the published winner would quietly change every time a price

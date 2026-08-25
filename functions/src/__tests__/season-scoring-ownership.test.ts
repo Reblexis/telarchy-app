@@ -129,9 +129,10 @@ describe('season scoring ownership', () => {
     expect(settle).not.toMatch(/cachedBoard\(/);
   });
 
-  test('the season standings path reads the PINNED workspace set, not current visibility', () => {
-    // The whole point of pinning: an admin flipping a workspace public
-    // mid-season must not inject an entrant's history into their score.
+  test('the season standings path still reads the pinned set, to report what dropped out', () => {
+    // Scoring runs over every workspace public at read time (owner decision
+    // 2026-08-21, docs/seasons.md), but the pinned set stays the record of
+    // what was public at the start, and workspacesDropped is derived from it.
     const lb = files.find(f => f.rel === 'routes/leaderboard.ts')!;
     const standings = lb.text.slice(lb.text.indexOf('async function seasonStandings'));
     expect(standings).toMatch(/season\.workspaceIds/);

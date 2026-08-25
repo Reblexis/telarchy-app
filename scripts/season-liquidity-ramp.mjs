@@ -38,7 +38,8 @@ const FUNDER = process.env.SEASON_FUNDER ?? 'lookpilot-kpi-sync';
  * Pool credits by day of the season, doubling weekly until the book is deep
  * enough to read, then flat. b = pool / ln 2, so these are b = 2,000 ->
  * 4,000 -> 8,000 -> 16,700, and a 1,000-credit trade moves the consensus
- * $4,918 -> $2,588 -> $1,330 -> $727 on the hero market's $25,000 range.
+ * $4,919 -> $2,766 -> $1,469 -> $727 on the hero market's $25,000 range
+ * (docs/seasons.md, "The ramp").
  *
  * The whole ramp is spent by the end of week 4 of an eight-week season: depth
  * is worth having while there is still time to trade on it, and the last

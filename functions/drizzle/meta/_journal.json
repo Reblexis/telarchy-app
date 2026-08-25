@@ -561,6 +561,13 @@
       "when": 1787669510172,
       "tag": "0079_metric_resolves_na_until_measured",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1787669511172,
+      "tag": "0080_proposal_revisions_append_only",
+      "breakpoints": true
     }
   ]
 }

@@ -342,6 +342,26 @@ describe('the matrix in the bell', () => {
     expect(settled!.marketId).toBe('mkt-1');
   });
 
+  test('removing my contract from the board is not a decision and leaves no row', async () => {
+    // docs/vision.md: withdrawing is your own doing, removing is admin
+    // cleanup; neither is a decision, so neither produces a record. The
+    // remove path stamps resolvedAt like a decision does, which is how a
+    // removed contract used to surface as "Declined." in the bell.
+    await participant('me');
+    await seedFloor(['me']);
+    await contract('c-removed', 'me', 'Spam that got cleaned up', {
+      status: 'removed',
+      resolvedAt: new Date('2026-08-19T12:00:00Z'),
+    });
+    await contract('c-withdrawn', 'me', 'Changed my mind', {
+      status: 'withdrawn',
+      resolvedAt: new Date('2026-08-19T13:00:00Z'),
+    });
+
+    const { items } = await listNotifications('me');
+    expect(items.filter(i => i.kind === 'decision')).toEqual([]);
+  });
+
   test('a decision on a contract I traded lands, though it is not mine', async () => {
     await participant('me');
     await participant('other');

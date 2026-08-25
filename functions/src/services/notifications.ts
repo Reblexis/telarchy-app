@@ -933,8 +933,12 @@ export async function listNotifications(
 
   // A decision on your own contract is the one thing here you were actually
   // waiting for, so it is in the inbox even though no email switch covers it.
+  // Withdrawing is your own doing and removing is admin cleanup, not a
+  // decision, so neither produces a row (docs/vision.md, "Two neighbouring
+  // events stay silent on purpose"); a removed contract still carries a
+  // resolvedAt, which is why the status is checked and not only the date.
   for (const p of myProposals) {
-    if (!p.resolvedAt || p.status === 'pending' || p.status === 'withdrawn') continue;
+    if (!p.resolvedAt || p.status === 'pending' || p.status === 'withdrawn' || p.status === 'removed') continue;
     items.push({
       id: `dec-${p.id}`,
       kind: 'decision',

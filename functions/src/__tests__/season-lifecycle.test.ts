@@ -456,6 +456,33 @@ describe('standings', () => {
     expect(res.body.participants[0].score).toBeCloseTo(25, 5);
   });
 
+  test("a workspace made public mid-season moves the all-time board's seasonPrizeUsd column", async () => {
+    // docs/seasons.md: standings and settlement read the same set, every
+    // workspace public at read time. The prize column on the all-time board
+    // is a third reader of the same projection and must agree with the other
+    // two, or the board names one winner and the standings another.
+    await seedFloor(['t', 'u']);
+    await seedSecondFloor('t');
+    const season = (await createSeason()).body.season;
+    await startSeason(season.id); // pins only WS; ws-2 is private
+    await optIn(season.id, 't');
+    await optIn(season.id, 'u');
+    await giveProfit('u', 10, 'u-home'); // on the pinned floor
+    await db.update(workspaces).set({ visibility: 'public' }).where(eq(workspaces.id, 'ws-2'));
+    await giveProfit('t', 25, 't-second', 'ws-2'); // only on the floor published mid-season
+
+    const res = await request(app).get('/api/leaderboard');
+    const prize = new Map(
+      (res.body.participants as { id: string; seasonPrizeUsd: number }[]).map(p => [p.id, p.seasonPrizeUsd]),
+    );
+    // t leads the season on 25 vs 10, so t holds the first rung (500) and u the
+    // second (250), exactly what ?seasonId= reports for the same instant.
+    const standings = await request(app).get(`/api/leaderboard?seasonId=${season.id}`);
+    expect(standings.body.participants[0]).toMatchObject({ id: 't', projectedPrizeUsd: LADDER[0].prizeUsd });
+    expect(prize.get('t')).toBe(LADDER[0].prizeUsd);
+    expect(prize.get('u')).toBe(LADDER[1].prizeUsd);
+  });
+
   test('payment details never appear in a season standings response', async () => {
     await seedFloor(['t']);
     await db

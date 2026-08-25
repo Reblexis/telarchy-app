@@ -3,16 +3,16 @@
  * Each returns undefined on success, or an error message string on failure.
  */
 
-/** Agent IDs: alphanumeric, hyphens, underscores. 1–64 chars. */
+/** Agent IDs: alphanumeric, hyphens, underscores. 1-64 chars. */
 export function validateAgentId(id: unknown): string | undefined {
   if (typeof id !== 'string') return 'agentId must be a string';
-  if (id.length < 1 || id.length > 64) return 'agentId must be 1–64 characters';
+  if (id.length < 1 || id.length > 64) return 'agentId must be 1-64 characters';
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) return 'agentId must contain only letters, numbers, hyphens, and underscores';
   return undefined;
 }
 
 /**
- * Optional participant nickname: 3–30 chars, alphanumeric + hyphens + underscores,
+ * Optional participant nickname: 3-30 chars, alphanumeric + hyphens + underscores,
  * must start with a letter or digit. Case-insensitive uniqueness is enforced at
  * the database layer (partial unique index on LOWER(nickname)).
  */
@@ -23,7 +23,7 @@ const NICKNAME_RE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 export function validateNickname(value: unknown): string | undefined {
   if (typeof value !== 'string') return 'nickname must be a string';
   if (value.length < NICKNAME_MIN || value.length > NICKNAME_MAX) {
-    return `nickname must be ${NICKNAME_MIN}–${NICKNAME_MAX} characters`;
+    return `nickname must be ${NICKNAME_MIN}-${NICKNAME_MAX} characters`;
   }
   if (!NICKNAME_RE.test(value)) {
     return 'nickname must start with a letter or digit and contain only letters, digits, hyphens, and underscores';
@@ -130,7 +130,7 @@ export function fromUnits(units: number): number {
 
 /**
  * Check whether a stored balance (in nanocredits) covers a required cost (in decimal credits).
- * Comparison is integer vs integer — no float drift possible.
+ * Comparison is integer vs integer, no float drift possible.
  */
 export function sufficientBalance(balanceUnits: number, cost: number): boolean {
   return balanceUnits >= toUnits(cost);
