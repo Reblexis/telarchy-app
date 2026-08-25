@@ -25,42 +25,6 @@ Telarchy is an alignment layer for AI and humans. You define the metrics that ma
 
 When rewriting user-facing copy, always check that the four commitments above (dual-scope, participant symmetry, no OSS claim, alignment-layer framing) hold. If a change makes any of them slippery, flag it.
 
-## Focus gate
-
-The product has no users yet. Every feature request or refactor should be evaluated against: "Does this help get the first users?" If the answer is no (or unclear), flag it to the user as potential procrastination and suggest deferring it. Renaming, reorganizing, or polishing things that no users will see is not a priority. Remove this section once the product has real users.
-
-One failure pattern is worth naming on its own: solo-loop UI/copy polish on surfaces no real user has asked about (landing-page rewrites, sidebar redesigns, "calmer / sharper" visual passes, positioning iterations driven by taste alone). These are not product iteration. Before restyling a page for visual reasons, name the external trigger (a founder, investor, or outreach event that asked for it). If you cannot name one, leave the file closed. (`LandingPage.tsx` and `Sidebar.tsx`, the two worst offenders, were deleted with the console on 2026-08-19.)
-
-## Never speak as Viktor without showing him the words first
-
-**Owner instruction 2026-08-21: "dont do that again, remember not to write
-comments on telarchy without my approval".**
-
-Anything that publishes under his name to people who are not us needs the text
-in front of him before it goes out. That covers contract comments and market
-comments on Telarchy, workspace announcements, Manifold titles, descriptions
-and comments, decline reasons, and any post anywhere else.
-
-"He asked me to reply to X" is not approval of the reply. The act being wanted
-and the words being right are two separate permissions, and only he can give
-the second one. Draft it, show it, wait. He answers in seconds and has changed
-the copy nearly every time he has been asked.
-
-**Ask for one thing at a time.** The tetraspace comment went out on the back of
-"want me to approve and post that question on the contract?", answered "yes"
-inside a message whose real content was a different question. A bundled ask
-turns a one-word yes into something to point at afterwards, which is not
-consent, it is a trap for both of us. One action per question.
-
-What does **not** need it: reading anything, and mechanical state that carries
-no prose, for example approving or declining a contract he has already decided
-on, resolving a market answer, or editing a close date. A decline REASON is
-prose and does need it.
-
-This is not about tone. Copy that goes out under his name is the one thing in
-this repo that cannot be reverted: Manifold comments can be hidden but never
-edited, and announcements are append-only by database trigger.
-
 ## Writing style
 
 Do not use em dashes. Use commas, periods, semicolons, parentheses, or "i.e."/"e.g." instead. This applies to code comments, docs, commit messages, and all generated text.
@@ -232,41 +196,12 @@ Tests passing and types compiling are not proof a fix works in production. Every
 
 This applies even for "obvious" or single-line fixes. The cost of an unverified false-positive is high: the user loses trust, the bug stays in prod, and the next session inherits a stale problem.
 
-## Production deployment
-
-The backend runs on **Google Cloud Run** (service: `api`, region: `us-central1`, project: `telarchy-e0043`). The frontend is served from the same origin (`telarchy.com`).
-
-**A push to `main` does NOT change what a visitor sees (owner decision 2026-08-20: "i think deploying to prod is too easy").** `.github/workflows/deploy-cloudrun.yml` runs the suite, applies pending Drizzle migrations, deploys the container with **`--no-traffic --tag candidate`**, smoke-tests the candidate's isolated URL, and **stops there**. telarchy.com keeps serving the previous revision until a human publishes.
-
-To publish: open **`telarchy.com/beta`**, check it, and press **Publish this build** on the amber stripe. `/beta` is not a redirect: the serving revision proxies `/beta/*` (its API included) to the candidate revision, on the real domain and the real cookie jar, so Google login works and a tester needs no second session. The frontend is built twice for this, once at `/` and once at `/beta/`; `/beta/api/*` has the prefix stripped and runs the same handlers. That shifts traffic to the exact revision you were looking at, not to "latest". By hand: `gcloud run services update-traffic api --region us-central1 --to-latest`. **Rollback is the same command:** `--to-revisions <PREVIOUS_REVISION>=100`. Full flow, the shared-database caveat, and the IAM behind the button: `docs/infra/deploy.md`, "Nothing reaches the public until you press Publish".
-
-**Migrations must be backward-compatible (expand/contract).** They run while the OLD revision is still serving (and it keeps serving if the candidate is rejected), so additive changes (new nullable columns/tables) ship in one deploy; drop/rename splits across two deploys (first stop using the column, then a later deploy drops it). Cloud SQL has point-in-time recovery + deletion protection enabled, so a bad migration is recoverable. See `docs/infra/deploy.md` and the audit trail in `docs/infra/launch-security-review.md`.
-
-To deploy by hand (hotfix offline), `npm run deploy` from the repo root still works — but it deploys straight to 100% traffic and does NOT run migrations, so prefer the pipeline; if shipping a schema change by hand, apply migrations first (see the manual fallback below). One-time GCP+GitHub setup is in `docs/infra/deploy.md`.
-
-**Database**: Cloud SQL PostgreSQL (instance: `telarchy-pg`). Migrations are managed by Drizzle Kit and applied automatically by the deploy workflow.
-
-**Manual migration fallback** (rare — used when shipping a schema change by hand or recovering from a failed CI migrate):
-```bash
-cloud-sql-proxy telarchy-e0043:us-central1:telarchy-pg --port=5435 &
-PASSWORD=$(gcloud secrets versions access latest --secret=DATABASE_URL --project=telarchy-e0043 | python3 -c 'import sys,urllib.parse; print(urllib.parse.urlparse(sys.stdin.read().strip()).password)')
-cd functions && DATABASE_URL="postgresql://telarchy:${PASSWORD}@127.0.0.1:5435/telarchy" npx drizzle-kit migrate
-kill %1
-```
-
-If production returns 500/503 after a deploy, the first check is `gcloud run services logs read api --region us-central1 --limit 20` — a missing-table error means the auto-migrate step was skipped or failed.
-
-**Checking production logs**:
-```bash
-gcloud run services logs read api --region us-central1 --limit 20
-```
-
 ## Debugging with the API
 
 When uncertain about a bug or data state, use the live API directly before making code changes. Do not guess; verify.
 
 **Base URL**: `https://telarchy.com/api`
-**Auth header**: `X-API-Key: $TELARCHY_MASTER_KEY` - the master key is NOT committed to this repo (it may be open-sourced someday). Canonical source: the private `Reblexis/keyring` repo (`keyring/telarchy/master.env` in the telarchy umbrella; `source` it or read it from `cli-agents/_runner/registrars.json`).
+**Auth header**: `X-API-Key: $TELARCHY_MASTER_KEY` - the master key is NOT committed to this repo (it is public). Canonical source: the private `Reblexis/keyring` repo (`keyring/telarchy/master.env` in the telarchy umbrella; `source` it or read it from `cli-agents/_runner/registrars.json`).
 
 Example:
 ```bash
@@ -349,7 +284,7 @@ claim is the `h1` instead, in the display face, with one supporting line under
 it. Keep that copy dual-scope ("someone", not "a company"): individuals run
 personal goals here and are first-class.
 
-## Market integrity (Season 1)
+## Market integrity (Season 0)
 
 Governing doc: `docs/market-integrity.md`. Three rules, all owner decisions of
 2026-08-18, all with tests that fail against the old behaviour:
