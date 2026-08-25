@@ -203,12 +203,13 @@ must too.
 ## Reconstruction
 
 With all three invariants holding, a workspace's money state is derivable from
-four append-only tables: `trades` (who bought what at what price),
+five append-only tables: `trades` (who bought what at what price),
 `liquidity_events` (who funded which pool), `credit_ledger` (every balance
-delta with its reason), and `metric_definition_revisions` (what each market was
-settling on at each moment). Losing `agents.balance` costs nothing but a
-replay; losing any of the four is unrecoverable, which is why all four carry the
-append-only trigger.
+delta with its reason), `metric_definition_revisions` (what each market was
+settling on at each moment) and `proposal_revisions` (what each contract's
+words and ask were at each moment). Losing `agents.balance` costs nothing but
+a replay; losing any of the five is unrecoverable, which is why all five carry
+the append-only trigger.
 
 Known gap, not closed: `DELETE /api/workspaces/:id` still deletes that
 workspace's `trades` and `liquidity_events` under `allowLedgerAdmin`, while its

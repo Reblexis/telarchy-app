@@ -1637,12 +1637,13 @@ unaggregated OOM-kills the process, and <code>credit_ledger</code> grows faster 
 must too.</p>
 <h2 id="docs-market-integrity-md--h9">Reconstruction</h2>
 <p>With all three invariants holding, a workspace's money state is derivable from
-four append-only tables: <code>trades</code> (who bought what at what price),
+five append-only tables: <code>trades</code> (who bought what at what price),
 <code>liquidity_events</code> (who funded which pool), <code>credit_ledger</code> (every balance
-delta with its reason), and <code>metric_definition_revisions</code> (what each market was
-settling on at each moment). Losing <code>agents.balance</code> costs nothing but a
-replay; losing any of the four is unrecoverable, which is why all four carry the
-append-only trigger.</p>
+delta with its reason), <code>metric_definition_revisions</code> (what each market was
+settling on at each moment) and <code>proposal_revisions</code> (what each contract's
+words and ask were at each moment). Losing <code>agents.balance</code> costs nothing but
+a replay; losing any of the five is unrecoverable, which is why all five carry
+the append-only trigger.</p>
 <p>Known gap, not closed: <code>DELETE /api/workspaces/:id</code> still deletes that
 workspace's <code>trades</code> and <code>liquidity_events</code> under <code>allowLedgerAdmin</code>, while its
 <code>credit_ledger</code> rows survive. Reconciliation still holds, but the trades that
