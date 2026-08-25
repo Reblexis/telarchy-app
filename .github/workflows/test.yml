@@ -41,6 +41,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
         working-directory: functions
       - run: npm run typecheck
+      - run: npm run lint
       # Dead code report; flips to failing once the sweep is complete (knip.json).
       - run: npx knip --no-progress --no-exit-code
       - run: npm run test:frontend
