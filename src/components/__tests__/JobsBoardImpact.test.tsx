@@ -96,6 +96,23 @@ describe('the impact a contract prints', () => {
     expect(screen.getByText('+$60.0')).toBeTruthy();
   });
 
+  test('an unpriced pair on the metric on screen prints "open", never another pair\'s number', () => {
+    const unpriced = {
+      ...job,
+      markets: [
+        ...job.markets.filter((m: { metricId: string }) => m.metricId !== 'rev'),
+        { ...pair('rev', '2026-09', 0, 0), approvedConsensus: null, declinedConsensus: null, delta: null },
+      ],
+    };
+    render(
+      <MemoryRouter>
+        <JobsBoard {...base} proposals={[unpriced as never]} horizonDate="2026-09" horizonMetricId="rev" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('open')).toBeTruthy();
+    expect(screen.queryByText('+$30.0')).toBeNull();
+  });
+
   test('a payload without metricId on its pairs still matches by date', () => {
     const legacy = { ...job, markets: job.markets.map((m: { metricId?: string }) => ({ ...m, metricId: undefined })) };
     expect(deltaAt(legacy as never, '2026-09', 'rev')).toBe(30);

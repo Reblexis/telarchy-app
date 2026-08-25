@@ -128,7 +128,13 @@ export function JobsBoard({
   const navigate = useNavigate();
   // The number the charter funds on, falling back to the largest priced delta
   // before the floor's horizon is known.
-  const impactOf = (p: PublicProposal) => deltaAt(p, horizonDate, horizonMetricId) ?? headlineDelta(p);
+  // With a horizon on screen the board prints THAT pair's delta or "open";
+  // it never borrows another pair's number. The largest-delta fallback is
+  // only for the moment before the markets arrive and no horizon is known:
+  // used as a fallback for an unpriced pair, it printed the active-traders
+  // delta under the valuation caption while the ticket said "not yet priced"
+  // (owner report, docs/ui-conventions.md "the board reads the pair on screen").
+  const impactOf = (p: PublicProposal) => (horizonDate ? deltaAt(p, horizonDate, horizonMetricId) : headlineDelta(p));
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
   const [title, setTitle] = useState('');

@@ -339,7 +339,11 @@ alone and never by position; only a payload with no `metricId` on its pairs
 (older builds) falls back to date-only matching. The number the board
 prints is therefore, by construction, the approved consensus minus the
 declined consensus of the two markets the chart draws when that contract
-is opened. The suite seeds a two-metric, three-date grid with six pairs per
+is opened, and when that pair is unpriced the board prints "open", exactly
+as the ticket says "impact not yet priced": the largest-delta fallback
+exists only for the moment before the markets arrive and no horizon is
+known, never for an unpriced pair, because a borrowed number under the
+wrong caption is the mismatch this section exists to prevent. The suite seeds a two-metric, three-date grid with six pairs per
 contract and asserts (a) the payload ships all six, (b) the board's
 printed impact equals approved minus declined of the pair for the metric
 AND date on screen, and (c) that pair is the one the ticket trades.
