@@ -27,10 +27,16 @@
  *   DATABASE_URL=postgresql://... API_KEY=my-secret node lib/server.js
  */
 
-import 'dotenv/config';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+
+// One .env for the whole repo, at the repository root (.env.example documents
+// it). The backend is usually started from functions/, so look one level up as
+// well as in the working directory; the first that exists wins.
+for (const candidate of [path.resolve(process.cwd(), '.env'), path.resolve(process.cwd(), '..', '.env')]) {
+  if (fs.existsSync(candidate)) { dotenv.config({ path: candidate }); break; }
+}
 import express from 'express';
 
 // Overlay machine-local overrides from .env.local (ignored by git).
@@ -42,6 +48,7 @@ if (fs.existsSync(envLocalPath)) {
   dotenv.config({ path: envLocalPath, override: true });
 }
 import { assertTreasuryConfigured } from './lib/usdc';
+import { publicOrigin } from './lib/origin';
 import { runBootstrap } from './lib/bootstrap';
 import { shouldLogVisit } from './lib/visit-log';
 import { BETA_PREFIX, isBetaPath } from './lib/beta-surface';
@@ -91,7 +98,9 @@ async function runDailyRefresh(): Promise<void> {
 }
 
 import('./app').then(async ({ app }) => {
-  assertTreasuryConfigured();
+  // The treasury key is only needed when real-money settlement is on; a
+  // play-money instance must boot without one (.env.example).
+  if (process.env.USDC_SETTLEMENT_ENABLED === 'true') assertTreasuryConfigured();
   await runBootstrap();
 
   // Dynamic on purpose, like every db-touching import in this file: static
@@ -258,8 +267,8 @@ import('./app').then(async ({ app }) => {
             const html = fs.readFileSync(indexPath, 'utf8');
             res.setHeader('Cache-Control', 'no-cache');
             res.type('html').send(injectWorkspaceMeta(
-              html, ws, `https://telarchy.com${req.path}`,
-              `https://telarchy.com/api/marketplace/${encodeURIComponent(shareMatch[1])}/card.png`,
+              html, ws, `${publicOrigin()}${req.path}`,
+              `${publicOrigin()}/api/marketplace/${encodeURIComponent(shareMatch[1])}/card.png`,
             ));
             return;
           }

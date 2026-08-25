@@ -112,7 +112,7 @@ so a model that keeps reaching for one has to answer instead. A lookup that
 fails is handed back to him as text saying so, never swallowed: he is allowed
 to say the data room would not open, and never to invent what it said.
 
-## The change log is the git history
+## The change log is the git history (**noted 2026-08-24**: it restarts at the public open-source release, which is a clean-root snapshot; the private archive keeps the earlier history and it is not stitched in, eng review 2026-08-24)
 
 `shipping` is generated from `git log` of this repository by
 `scripts/build-changelog.mjs` into `functions/src/content/changelog.ts`, which is

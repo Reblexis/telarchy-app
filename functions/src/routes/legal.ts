@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { privacyContact } from '../lib/origin';
 
 export const legalRouter = Router();
 
@@ -66,7 +67,7 @@ These Terms are governed by the laws of the State of Delaware, USA; disputes bel
 
 ## 10. Contact
 
-\`viktor.cihal@gmail.com\`
+\`${privacyContact()}\`
 `;
 
 const PRIVACY_POLICY = `# Privacy Policy
@@ -105,7 +106,7 @@ Your data is kept while your account exists. Deleting your account (in the app, 
 
 ## 5. Your rights
 
-Export your data (\`GET /api/auth/me/export\`), delete your account, correct anything in-app, and object or complain to your data protection authority. For anything without an in-app control: \`viktor.cihal@gmail.com\`.
+Export your data (\`GET /api/auth/me/export\`), delete your account, correct anything in-app, and object or complain to your data protection authority. For anything without an in-app control: \`${privacyContact()}\`.
 
 ## 6. Security and transfers
 
@@ -121,7 +122,7 @@ Material changes are announced in-app or by email; continued use after an update
 
 ## 9. Contact
 
-\`viktor.cihal@gmail.com\`
+\`${privacyContact()}\`
 `;
 
 export const CURRENT_CONSENT_VERSION = CONSENT_VERSION;

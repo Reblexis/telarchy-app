@@ -6,13 +6,13 @@
  * contains no orphaned/stale data. Run after applying all migrations.
  *
  * Usage:
- *   DATABASE_URL=postgres://telarchy:changeme@localhost:5433/telarchy node scripts/test-db-consistency.ts
+ *   DATABASE_URL=postgres://telarchy:changeme@localhost:5432/telarchy node scripts/test-db-consistency.ts
  */
 
 import pg from 'pg';
 const { Pool } = pg;
 
-const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://telarchy:changeme@localhost:5433/telarchy';
+const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://telarchy:changeme@localhost:5432/telarchy';
 const pool = new Pool({ connectionString: DATABASE_URL });
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

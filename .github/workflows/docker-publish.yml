@@ -33,14 +33,14 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/reblexis/metrics-tracker-server
+          images: ghcr.io/reblexis/telarchy
           tags: |
             type=raw,value=latest
             type=sha,prefix=sha-,format=short
 
       - uses: docker/build-push-action@v6
         with:
-          context: functions
+          context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
 
@@ -50,6 +50,6 @@ jobs:
       # delete the tail, so the package can never crawl toward the quota.
       - uses: actions/delete-package-versions@v5
         with:
-          package-name: metrics-tracker-server
+          package-name: telarchy
           package-type: container
           min-versions-to-keep: 8

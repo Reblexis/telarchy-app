@@ -21,6 +21,7 @@ import { validateContent, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 import { getParticipantDisplayNames } from '../lib/participants';
 import { emitEvent } from '../services/events';
 import { notifyOwner } from '../lib/notify';
+import { publicOrigin } from '../lib/origin';
 import { notifyCommentPosted, notifyProposalCreated, notifyProposalDecided } from '../services/notifications';
 
 export const proposalsRouter = Router();
@@ -167,7 +168,7 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   // silent decline by accident (owner decision 2026-08-10: notify).
   void notifyOwner(
     `Telarchy: new job proposed - ${title}`,
-    `${proposedBy} put a job on the ballot:\n\n${title}\n\n${description || '(no pitch)'}\n\nReview: https://telarchy.com/lookpilot`,
+    `${proposedBy} put a job on the ballot:\n\n${title}\n\n${description || '(no pitch)'}\n\nReview: ${publicOrigin()}/floors`,
   );
 
   res.status(201).json({ id, conditionalMarketIds, liquiditySubsidy: subsidy });

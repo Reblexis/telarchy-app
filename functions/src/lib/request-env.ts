@@ -25,7 +25,8 @@
  * trade into a store nobody reads. Prefer the loud failure.
  */
 
-/** Hosts that serve the real thing. Everything else is a preview. */
+/** Hosts that serve the real thing. Everything else is a preview. Self-hosted
+ *  instances set PROD_HOSTS to their own domain (.env.example). */
 const PROD_HOSTS = (process.env.PROD_HOSTS ?? 'telarchy.com,www.telarchy.com')
   .split(',').map(h => h.trim().toLowerCase()).filter(Boolean);
 

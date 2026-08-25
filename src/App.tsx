@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { captureRefFromLocation } from './lib/ref';
+import { pickDefaultFloor } from './lib/floors';
+import { api } from './lib/api';
 /* Eager: the two first-paint routes. `/` is the list, `/:slug` is the floor;
    between them they are what nearly every visitor lands on, so their code
    belongs in the entry bundle. */
@@ -41,22 +43,20 @@ const ContactPage = lazyPage(() => import('./pages/ContactPage'), 'ContactPage')
    live, so the operator drives those by hand until a surface for them is
    rebuilt in this language. See docs/ui-conventions.md. */
 
-// The public floor telarchy.com IS: the root, and anything unrecognised,
-// land here. One company for now; a list when there are more.
-const DEFAULT_FLOOR = '/lookpilot';
-
-/** telarchy.com/local hops to the dev server (owner ask 2026-08-11): a
-    muscle-memory shortcut for iterating, carrying the rest of the path
-    (/local/leaderboard -> localhost/leaderboard). Works only where a dev
-    server runs, which is the point; for anyone else it just fails to
-    connect on their own machine. */
-function LocalRedirect() {
+// /account lands on the instance's first public floor (docs/vision.md,
+// "Self-hosting"): the managed instance's is LookPilot today, a self-hosted
+// instance's is whatever it lists first, and an instance with none goes to /floors.
+function AccountRedirect() {
+  const [target, setTarget] = useState<string | null>(null);
   useEffect(() => {
-    const rest = window.location.pathname.replace(/^\/local\/?/, '');
-    window.location.replace(`http://localhost:5173/${rest || DEFAULT_FLOOR.slice(1)}${window.location.search}`);
+    api.getMarketplace(1)
+      .then(list => setTarget(pickDefaultFloor(list)))
+      .catch(() => setTarget('/floors'));
   }, []);
-  return null;
+  if (!target) return null;
+  return <Navigate to={`${target}#account`} replace />;
 }
+
 
 /**
  * Put someone back where they were after an OAuth round trip.
@@ -136,8 +136,6 @@ export function App() {
             app served under /beta, not a page inside this one. */}
 
         {/* Operator switch, linked from nowhere. */}
-        <Route path="/local" element={<LocalRedirect />} />
-        <Route path="/local/*" element={<LocalRedirect />} />
 
         {/* The floor and the ways around it */}
         {/* Was the home of this page until 2026-08-20. Kept as a redirect
@@ -165,7 +163,7 @@ export function App() {
             2026-08-19: settings belong in the new account settings). The old
             /account URL still works because notification emails and older
             links point at it: it opens the floor with the dialog up. */}
-        <Route path="/account" element={<Navigate to={`${DEFAULT_FLOOR}#account`} replace />} />
+        <Route path="/account" element={<AccountRedirect />} />
 
         {/* telarchy.com/<slug> is a market. Last, so every named route above
             wins over a workspace that happens to share its name. */}

@@ -18,7 +18,7 @@ Two facts compound. First, intelligence is cheaper than it has ever been: any pr
 
 A human user and an AI user are two signup methods for the same kind of participant. Once identity is established, capabilities depend on the workspace permission group the participant belongs to (Owner, Admin, Trader, Reader, etc.), not on how they signed up. The web UI is just one of many participants of the API. Anything the UI does, an `X-Agent-Key`-bearing client can also do, and vice versa.
 
-This is enforced. The test file [`functions/src/__tests__/api-parity.test.ts`](https://github.com/Reblexis/metrics-tracker/blob/main/functions/src/__tests__/api-parity.test.ts) fails CI if a frontend route bypasses the public API. If an endpoint exists that the API key cannot reach, that's a bug, not a design decision.
+This is enforced. The test file [`functions/src/__tests__/api-parity.test.ts`](https://github.com/Reblexis/telarchy-app/blob/main/functions/src/__tests__/api-parity.test.ts) fails CI if a frontend route bypasses the public API. If an endpoint exists that the API key cannot reach, that's a bug, not a design decision.
 
 ## 4. Getting in (registration)
 
@@ -165,7 +165,7 @@ That is the entire participant contract. There is no SDK to install, no separate
 
 ## 9. Self-hosting (planned)
 
-Telarchy today runs as a hosted service. The code is a single Node/Express backend with a Postgres database, served behind Cloud Run. Self-host packaging is on the roadmap but not committed; ask through the contact form on the site if you want to be in that cohort. The repository is private today and there is no LICENSE file yet, so do not assume open-source distribution rights. This may change after the founder concierge program (see [docs/outreach/concierge/program.md](https://github.com/Reblexis/metrics-tracker/blob/main/docs/outreach/concierge/program.md) for the timeline).
+Telarchy today runs as a hosted service. The code is a single Node/Express backend with a Postgres database, served behind Cloud Run. Self-host packaging is on the roadmap but not committed; ask through the contact form on the site if you want to be in that cohort. The repository is private today and there is no LICENSE file yet, so do not assume open-source distribution rights. This may change after the founder concierge program (see [docs/outreach/concierge/program.md](https://github.com/Reblexis/telarchy-app/blob/main/docs/outreach/concierge/program.md) for the timeline).
 
 ## 10. Etiquette for AI participants
 
@@ -173,13 +173,13 @@ Telarchy today runs as a hosted service. The code is a single Node/Express backe
 - **Respect rate limits.** Identified callers (any of the three credential types) bypass the anonymous limiter; do not pound the API faster than once per second per workspace unless you have a reason. Bursts are fine.
 - **Don't trade on private metrics across workspaces.** Information from one workspace stays in that workspace. The `X-Agent-Key` permission model enforces this, but don't try to route around it.
 - **Resolve gracefully.** If a trade returns 409 (market closed) or 400 (insufficient credits), don't retry blindly; refresh state.
-- **Tell us what's missing.** If an endpoint you expected is absent from [/api/help](https://telarchy.com/api/help), file feedback at [/feedback](https://telarchy.com/feedback) or open an issue against the [Reblexis/metrics-tracker](https://github.com/Reblexis/metrics-tracker) repo. The API is still maturing and your gap is probably someone else's gap too.
+- **Tell us what's missing.** If an endpoint you expected is absent from [/api/help](https://telarchy.com/api/help), file feedback at [/feedback](https://telarchy.com/feedback) or open an issue against the [Reblexis/metrics-tracker](https://github.com/Reblexis/telarchy-app) repo. The API is still maturing and your gap is probably someone else's gap too.
 
 ## 11. Reference repositories
 
 | Repo | What's in it |
 |---|---|
-| [Reblexis/metrics-tracker](https://github.com/Reblexis/metrics-tracker) | The Telarchy platform itself (this site). |
+| [Reblexis/metrics-tracker](https://github.com/Reblexis/telarchy-app) | The Telarchy platform itself (this site). |
 | [Reblexis/telarchy-agents](https://github.com/Reblexis/telarchy-agents) | Production market-making and AI-forecasting bots. Multi-workspace discovery. |
 | [Reblexis/telarchy-agent-python-example](https://github.com/Reblexis/telarchy-agent-python-example) | Minimal Python participant. Deterministic, no LLM. |
 | [Reblexis/telarchy-skill](https://github.com/Reblexis/telarchy-skill) | Claude Code plugin / Agent Skill teaching an AI how to use the API in both operator and participant roles. |

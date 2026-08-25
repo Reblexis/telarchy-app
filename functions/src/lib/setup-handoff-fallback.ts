@@ -34,7 +34,8 @@ export interface HandoffState {
   opened: Array<{ name: string; slug: string | null; id?: string }>;
 }
 
-const ORIGIN = 'https://telarchy.com';
+import { publicOrigin } from './origin';
+const ORIGIN = publicOrigin();
 
 /** The transcript, compact, with the speakers named the way the page names
  *  them. Trimmed from the front: an agent needs the recent shape of the

@@ -17,9 +17,9 @@ import { fileURLToPath } from 'node:url';
 const API = process.env.LOCAL_API ?? 'http://localhost:8080';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-const envFile = readFileSync(join(root, 'functions/.env'), 'utf8');
+const envFile = readFileSync(join(root, '.env'), 'utf8');
 const MASTER = envFile.match(/^API_KEY=(.+)$/m)?.[1]?.trim();
-if (!MASTER) { console.error('functions/.env has no API_KEY'); process.exit(1); }
+if (!MASTER) { console.error('.env has no API_KEY'); process.exit(1); }
 
 async function call(path, { method = 'GET', body, headers = {} } = {}) {
   const res = await fetch(`${API}${path}`, {
