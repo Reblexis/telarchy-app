@@ -2,7 +2,7 @@
 
 ## Mission and vision
 
-**Tagline: the alignment layer for AI and humans.**
+**Slogan (revised 2026-08-25, Viktor): "Approve on evidence, not on who argued best. See what each proposal does to your KPIs before you say yes."** The mission line, "the alignment layer for AI and humans", remains the zoom-out framing below and is no longer the customer-facing tagline (it was misread by 20 of 20 simulated readers; see the telarchy umbrella `notes/slogan-simulation-2026-08-25.md`).
 
 **Mission.** Align every action to your goals. Whoever proposes a move, a person or an AI, it is priced against the metrics the owner actually values before it is taken, and the owner approves on a calibrated number rather than a pitch. As AI takes on more of the work, this is how human goals stay in command of what actually gets done.
 
