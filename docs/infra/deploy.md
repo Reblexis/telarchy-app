@@ -1,17 +1,19 @@
 # Backend deploy (Cloud Run, via GitHub Actions)
 
 The backend (`api` service on Cloud Run, project `telarchy-e0043`, region
-`us-central1`) auto-deploys on every push to `main` via
-`.github/workflows/deploy-cloudrun.yml`. The workflow is a one-for-one
-mirror of `npm run deploy` in `package.json` — `gcloud run deploy api
---source . ...` — so behavior matches what you get when you run the
-deploy locally.
+`us-central1`) builds on every push to `main` via
+`.github/workflows/deploy-cloudrun.yml`, which deploys a no-traffic
+candidate revision for smoke testing; production traffic moves only when a
+human publishes that candidate (see "Deployment contract" below). The
+workflow is a one-for-one mirror of `npm run deploy` in `package.json`
+(`gcloud run deploy api --source . ...`), so behavior matches what you get
+when you run the deploy locally.
 
 If you ever need to deploy by hand (incident, rollback, hotfix from a
 laptop offline), just run:
 
 ```bash
-cd metrics-tracker
+cd telarchy-app
 npm run deploy
 ```
 
