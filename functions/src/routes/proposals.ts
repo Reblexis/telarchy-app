@@ -4,7 +4,6 @@ import { agents, proposals, proposalMessages, workspaces } from '../db/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
-import { authMiddleware } from '../middleware/auth';
 import { requireCapability } from '../middleware/roles';
 import {
   approveProposal,
@@ -26,7 +25,6 @@ import { notifyCommentPosted, notifyProposalCreated, notifyProposalDecided } fro
 
 export const proposalsRouter = Router();
 
-proposalsRouter.use(authMiddleware);
 
 proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;

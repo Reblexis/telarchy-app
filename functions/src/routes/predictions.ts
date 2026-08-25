@@ -7,7 +7,6 @@ import { eq, and, asc, desc, sql, inArray, isNull, gt } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { AppError } from '../lib/errors';
-import { authMiddleware } from '../middleware/auth';
 import { requireCapability } from '../middleware/roles';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { resolvePredictions, resolveSingleMarket, getMarkets, replayMarketTradePoints, type MarketStatus } from '../services/predictions';
@@ -27,7 +26,6 @@ import { clearBoardCache } from './leaderboard';
 
 export const predictionsRouter = Router();
 
-predictionsRouter.use(authMiddleware);
 
 type MetricTradePermissionGroup = {
   type: string;

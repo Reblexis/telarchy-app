@@ -485,6 +485,25 @@ production always ends up on the latest commit, not a stale intermediate.
   served by the same Cloud Run container as the backend. The gh-pages
   build is for embeddable / docs use cases.
 
+## Master key rotation
+
+**Added 2026-08-24.** The master key (`API_KEY`) is read by exactly one function,
+`isMasterKey` in `functions/src/lib/master-key.ts`, which also accepts
+`API_KEY_PREVIOUS` when it is set. That is the grace window: rotation is no longer a
+simultaneous cutover of every reader (Cloud Run env, `registrars.json` on the box and
+the laptop, `master.env` in the keyring, `_runner/claude_cycle.py`, the cron caller).
+
+1. Generate the new key. Store it in the keyring (`keyring/telarchy/master.env`) as the
+   new value and keep the old one beside it for the window.
+2. Update Cloud Run with `--update-secrets` (Secret Manager references), never
+   `--update-env-vars`: an env var value lands in revision history in plaintext, which is
+   exactly how the previous key leaked. Set `API_KEY=<new>` and `API_KEY_PREVIOUS=<old>`.
+3. Move every caller to the new key: fleet `registrars.json` (box and laptop),
+   `master.env`, the runner, collectors, any Cloud Scheduler job that passes the key.
+   The fleet instance has its own key and is unaffected.
+4. After 24 hours (and never mid-cycle: cut over between weekly market pairs during a
+   season), unset `API_KEY_PREVIOUS`. The old key now returns 401 everywhere.
+
 ## Cron schedule (Cloud Scheduler)
 
 Two Cloud Scheduler jobs (project `telarchy-e0043`, region `us-central1`,

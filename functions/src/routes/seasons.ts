@@ -7,7 +7,6 @@ import { agents, authUser, prizeSeasons, seasonEntries, workspaces } from '../db
 import { wrap } from '../lib/wrap';
 import { AppError } from '../lib/errors';
 import { requireIdentity } from '../middleware/roles';
-import { optionalAuthMiddleware } from '../middleware/auth';
 import { requireConsentIfUser } from '../middleware/consent';
 import { isPlatformAuthorized } from '../lib/platform-admin';
 import { loadBoard } from '../lib/board';
@@ -50,7 +49,6 @@ export const seasonsRouter = Router();
 // "Platform admin required" on POST /). Optional rather than rejecting
 // because GET / is public; requireIdentity / requirePlatform enforce the
 // rest per route.
-seasonsRouter.use(optionalAuthMiddleware);
 seasonsRouter.use(requireConsentIfUser);
 
 function asLadder(raw: unknown): LadderRung[] {
