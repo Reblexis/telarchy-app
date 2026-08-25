@@ -32,6 +32,9 @@ jest.mock('../middleware/roles', () => ({
   requireIdentity: (_req: any, _res: any, next: any) => next(),
 }));
 
+// The router no longer carries auth itself (app.ts applies the policy first),
+// so the test mounts the mocked middleware where the policy would run.
+import { authMiddleware } from '../middleware/auth';
 import request from 'supertest';
 import express from 'express';
 import { and, eq } from 'drizzle-orm';
@@ -59,7 +62,7 @@ app.use((req, _res, next) => {
   next();
 });
 app.use('/api/metrics', metricsRouter);
-app.use('/api/predictions', predictionsRouter);
+app.use('/api/predictions', authMiddleware, predictionsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(err instanceof AppError ? err.status : 500).json({ error: err.message });

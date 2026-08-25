@@ -33,6 +33,9 @@ jest.mock('../middleware/roles', () => ({
   requireIdentity: (_req: any, _res: any, next: any) => next(),
 }));
 
+// The router no longer carries auth itself (app.ts applies the policy first),
+// so the test mounts the mocked middleware where the policy would run.
+import { authMiddleware } from '../middleware/auth';
 import request from 'supertest';
 import express from 'express';
 import { eq } from 'drizzle-orm';
@@ -65,7 +68,7 @@ app.use((req, _res, next) => {
   next();
 });
 app.use('/api/metrics', metricsRouter);
-app.use('/api/predictions', predictionsRouter);
+app.use('/api/predictions', authMiddleware, predictionsRouter);
 app.use('/api/workspaces', workspacesRouter);
 // Mirrors the production handler in app.ts, including the `extra` spread:
 // a test that flattens the error shape cannot assert the contract a caller

@@ -27,6 +27,9 @@ jest.mock('../middleware/consent', () => ({
   requireConsentIfUser: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
+// The router no longer carries auth itself (app.ts applies the policy first),
+// so the test mounts the mocked middleware where the policy would run.
+import { optionalAuthMiddleware } from '../middleware/auth';
 import request from 'supertest';
 import express from 'express';
 import { and, eq } from 'drizzle-orm';
@@ -48,7 +51,7 @@ let caller: { agentId?: string; uid?: string; isMasterKey?: boolean } = { isMast
 const app = express();
 app.use(express.json());
 app.use((req, _res, next) => { (req as unknown as { auth: typeof caller }).auth = caller; next(); });
-app.use('/api/seasons', seasonsRouter);
+app.use('/api/seasons', optionalAuthMiddleware, seasonsRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 // Mirrors app.ts, `extra` spread included: without it every assertion about
 // WHICH step is missing would be checking a field the caller never sees.
