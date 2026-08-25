@@ -106,9 +106,12 @@ when signed in, the account menu: a round avatar (the account's `image`,
 which OAuth providers populate and the menu can set, else initials)
 opening a small panel with the handle and email, credits to trade and
 credits earned, a picture setter, a link to /account and Log out. The
-picture is a URL, not an upload (no blob store in this stack), saved via
-POST /api/auth/profile { image } which accepts http(s) only so the value
-can never become a javascript: or data: vector in an img src. The bar owns
+picture is saved via POST /api/auth/profile { image }: there is no blob
+store in this stack, so the account dialog renders the pick to a 256px
+JPEG and sends it inline as a base64 data:image (png, jpeg or webp, at
+most ~96KB encoded), and the endpoint otherwise accepts only http(s) URLs
+(what OAuth providers populate), so the value can never become a
+javascript: vector in an img src. The bar owns
 a stacking layer above the floor rails so the panel paints over them; the bar deliberately ignores the 660px content
 column, which left the logo floating aligned to nothing), one headline naming the prediction (the metric's
 name alone, its parenthetical unit tail trimmed for display; no settle date
@@ -339,7 +342,7 @@ The account itself is a full dialog (`AccountDialog`, owner direction
 2026-08-10: the corner popover got too cramped for management; spawn a
 whole dialog like the proposal one). The avatar's popover keeps only a
 glance (name, credits, "Account settings", log out); the dialog carries the picture (the avatar IS the control:
-click, pick a file, saved), the username, structured payment details,
+click, pick a file, frame it, saved), the username, structured payment details,
 and the Manifold import, all in the ticket language. Payment details are
 STRUCTURED (owner direction, same day: providers, not one broad text
 field): a pill row picks the provider (PayPal, Bank, Crypto, Revolut,
@@ -363,6 +366,20 @@ as a form rather than a switch. This dialog is the only place they are
 edited. `<floor>#account` opens the dialog, `<floor>#emails` opens it ON
 that section, and that is where every notification email's "turn it off"
 line points.
+
+Framing the picture (owner ask 2026-08-25: zoom plus x and y offset, not
+just a centre crop). Picking a file does not save it; it opens a framing
+step under the head: the picture inside a round 220px frame the size of
+the avatar's shape, a Zoom slider (1x, the short side filling the frame,
+up to 4x), and the picture itself draggable inside the frame (pointer
+drag, or arrow keys when the frame has focus) so any part of it can sit
+under the circle. The frame is never uncovered: offset and zoom clamp so
+the picture always fills it. "Use this picture" renders exactly what the
+frame shows to the 256px square that POST /api/auth/profile stores;
+Cancel drops the pick and keeps the old picture. Nothing about the
+framing is stored separately: the stored image IS the framed result, so
+every viewer (rail avatar, leaderboards, participant page) sees the same
+crop with no per-surface math.
 
 **The floor's one modal says when it has more below.** `FloorModal` fades
 its bottom edge into the card colour with a chevron under it, and both

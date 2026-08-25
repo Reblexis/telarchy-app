@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { agentPrompt, type FloorRef } from '../lib/agent-prompt';
 import {
@@ -141,6 +141,62 @@ function storedFields(method: PayoutMethod): Record<string, string> {
   return { ...rest, network, asset: assets.includes(rest.asset) ? rest.asset : assets[0] };
 }
 
+/* The framing step's geometry. FRAME is the on-screen circle; OUT_SIZE the
+   square that gets stored. zoom=1 puts the picture's short side exactly
+   across the frame (a cover fit), so every zoom keeps the frame covered as
+   long as the offset stays within the overhang, which clampCrop enforces. */
+const FRAME = 220;
+const OUT_SIZE = 256;
+const MAX_ZOOM = 4;
+
+type Crop = {
+  url: string;
+  img: HTMLImageElement;
+  w: number;
+  h: number;
+  zoom: number;
+  /** Picture centre minus frame centre, in frame pixels. */
+  x: number;
+  y: number;
+};
+
+/** Scale from picture pixels to frame pixels at this zoom. */
+function cropScale(c: Pick<Crop, 'w' | 'h' | 'zoom'>): number {
+  return (FRAME / Math.min(c.w, c.h)) * c.zoom;
+}
+
+export function clampCrop(c: Crop): Crop {
+  const zoom = Math.min(MAX_ZOOM, Math.max(1, c.zoom));
+  const s = cropScale({ ...c, zoom });
+  const maxX = (c.w * s - FRAME) / 2;
+  const maxY = (c.h * s - FRAME) / 2;
+  return {
+    ...c,
+    zoom,
+    x: Math.min(maxX, Math.max(-maxX, c.x)),
+    y: Math.min(maxY, Math.max(-maxY, c.y)),
+  };
+}
+
+/** The picture-pixel square the frame shows: what drawImage reads. */
+export function sourceRect(c: Crop): { sx: number; sy: number; side: number } {
+  const s = cropScale(c);
+  return {
+    sx: ((c.w * s) / 2 - FRAME / 2 - c.x) / s,
+    sy: ((c.h * s) / 2 - FRAME / 2 - c.y) / s,
+    side: FRAME / s,
+  };
+}
+
+function imgStyle(c: Crop): CSSProperties {
+  const s = cropScale(c);
+  return {
+    width: c.w * s,
+    height: c.h * s,
+    transform: `translate(${FRAME / 2 - (c.w * s) / 2 + c.x}px, ${FRAME / 2 - (c.h * s) / 2 + c.y}px)`,
+  };
+}
+
 function fmtCr(v: number): string {
   return v >= 10_000 ? `${Math.round(v / 1000).toLocaleString('en-US')}k` : Math.round(v).toLocaleString('en-US');
 }
@@ -172,6 +228,13 @@ export function AccountDialog({
   const [participant, setParticipant] = useState<Participant | null>(null);
   const [savedImage, setSavedImage] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  // The framing step (owner ask 2026-08-25): a picked file is not saved
+  // until it has been framed. `zoom` is 1 when the short side fills the
+  // frame; `x`/`y` are the picture centre's offset from the frame centre in
+  // frame pixels, clamped so the frame is never uncovered.
+  const [crop, setCrop] = useState<Crop | null>(null);
+  const dragRef = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
 
   const [nick, setNick] = useState('');
   const [nickSaved, setNickSaved] = useState('');
@@ -245,39 +308,56 @@ export function AccountDialog({
     setTimeout(() => setSaved(s => ({ ...s, [key]: false })), 1200);
   };
 
-  const pickPicture = async (file: File) => {
+  const pickPicture = (file: File) => {
+    clearErr('picture');
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      if (!img.width || !img.height) {
+        URL.revokeObjectURL(url);
+        sectionErr('picture', 'That file does not look like an image');
+        return;
+      }
+      setCrop(c => {
+        if (c) URL.revokeObjectURL(c.url);
+        return { url, img, w: img.width, h: img.height, zoom: 1, x: 0, y: 0 };
+      });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      sectionErr('picture', 'That file does not look like an image');
+    };
+    img.src = url;
+  };
+
+  const cancelCrop = () => {
+    setCrop(c => {
+      if (c) URL.revokeObjectURL(c.url);
+      return null;
+    });
+  };
+
+  const moveCrop = (dx: number, dy: number) =>
+    setCrop(c => (c ? clampCrop({ ...c, x: c.x + dx, y: c.y + dy }) : c));
+
+  const zoomCrop = (zoom: number) => setCrop(c => (c ? clampCrop({ ...c, zoom }) : c));
+
+  const saveCrop = async () => {
+    if (!crop) return;
     clearErr('picture');
     setBusy('picture');
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const url = URL.createObjectURL(file);
-        const img = new Image();
-        img.onload = () => {
-          try {
-            const SIZE = 256;
-            const canvas = document.createElement('canvas');
-            canvas.width = SIZE;
-            canvas.height = SIZE;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-              reject(new Error('Your browser blocked image processing'));
-              return;
-            }
-            const side = Math.min(img.width, img.height);
-            ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
-            resolve(canvas.toDataURL('image/jpeg', 0.85));
-          } finally {
-            URL.revokeObjectURL(url);
-          }
-        };
-        img.onerror = () => {
-          URL.revokeObjectURL(url);
-          reject(new Error('That file does not look like an image'));
-        };
-        img.src = url;
-      });
+      const canvas = document.createElement('canvas');
+      canvas.width = OUT_SIZE;
+      canvas.height = OUT_SIZE;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Your browser blocked image processing');
+      const { sx, sy, side } = sourceRect(crop);
+      ctx.drawImage(crop.img, sx, sy, side, side, 0, 0, OUT_SIZE, OUT_SIZE);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
       await api.upsertProfile({ image: dataUrl });
       setSavedImage(dataUrl);
+      cancelCrop();
       flashSaved('picture');
     } catch (e) {
       sectionErr('picture', (e as Error).message || 'Could not save that picture');
@@ -475,6 +555,68 @@ export function AccountDialog({
           }}
         />
         {errors.picture && <p className="ticket-err">{errors.picture}</p>}
+
+        {crop && (
+          <div className="acctdlg-crop">
+            <div
+              className="acctdlg-crop-frame"
+              role="img"
+              aria-label="Drag to move the picture; arrow keys nudge it"
+              tabIndex={0}
+              style={{ width: FRAME, height: FRAME }}
+              onPointerDown={e => {
+                dragRef.current = { px: e.clientX, py: e.clientY, x: crop.x, y: crop.y };
+                (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+              }}
+              onPointerMove={e => {
+                const d = dragRef.current;
+                if (!d) return;
+                setCrop(c => (c ? clampCrop({ ...c, x: d.x + (e.clientX - d.px), y: d.y + (e.clientY - d.py) }) : c));
+              }}
+              onPointerUp={() => {
+                dragRef.current = null;
+              }}
+              onPointerCancel={() => {
+                dragRef.current = null;
+              }}
+              onKeyDown={e => {
+                const step = e.shiftKey ? 20 : 4;
+                if (e.key === 'ArrowLeft') moveCrop(-step, 0);
+                else if (e.key === 'ArrowRight') moveCrop(step, 0);
+                else if (e.key === 'ArrowUp') moveCrop(0, -step);
+                else if (e.key === 'ArrowDown') moveCrop(0, step);
+                else return;
+                e.preventDefault();
+              }}
+            >
+              <img src={crop.url} alt="" draggable={false} style={imgStyle(crop)} />
+            </div>
+            <label className="acctdlg-crop-zoom">
+              <span>Zoom</span>
+              <input
+                type="range"
+                className="ticket-slider"
+                min={1}
+                max={MAX_ZOOM}
+                step={0.01}
+                value={crop.zoom}
+                style={{ ['--slider-pct' as string]: `${((crop.zoom - 1) / (MAX_ZOOM - 1)) * 100}%` }}
+                onChange={e => zoomCrop(parseFloat(e.target.value))}
+                aria-label="Zoom"
+              />
+              <span className="acctdlg-crop-zoomval">{crop.zoom.toFixed(1)}×</span>
+            </label>
+            <p className="acctdlg-hint">Drag the picture to place it; the circle is what everyone sees.</p>
+            <div className="acctdlg-inline">
+              <button className="ticket-go acctdlg-save" disabled={busy === 'picture'} onClick={() => void saveCrop()}>
+                {busy === 'picture' ? 'Saving…' : 'Use this picture'}
+              </button>
+              <button className="acctdlg-ghost" disabled={busy === 'picture'} onClick={cancelCrop}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="acctdlg-tabs" role="tablist" aria-label="Account sections">
           {TABS.map(t => (

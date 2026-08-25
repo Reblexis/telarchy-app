@@ -3162,6 +3162,51 @@ textarea.jobform-line--desc {
   white-space: pre-wrap;
 }
 
+/* The framing step (owner ask 2026-08-25): the picked picture inside the
+   avatar's own round shape, dragged into place and zoomed with a slider.
+   The frame's size lives in the component (FRAME), since the same number
+   drives the stored crop; the circle only masks. */
+.acctdlg-crop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0 0.2rem;
+}
+.acctdlg-crop-frame {
+  position: relative;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-tertiary);
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  flex: none;
+}
+.acctdlg-crop-frame:active { cursor: grabbing; }
+.acctdlg-crop-frame:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.acctdlg-crop-frame img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: none;
+  display: block;
+  pointer-events: none;
+}
+.acctdlg-crop-zoom {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 320px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.acctdlg-crop-zoom .ticket-slider { flex: 1; margin: 0; }
+.acctdlg-crop-zoomval { min-width: 2.4em; text-align: right; font-variant-numeric: tabular-nums; }
+.acctdlg-crop .acctdlg-hint { margin: 0; text-align: center; }
+
 /* The per-section confirm: the ticket's own, a size down. */
 .acctdlg-save { padding: 0.6rem 1rem; font-size: 0.88rem; }
 
