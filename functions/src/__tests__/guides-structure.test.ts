@@ -1,5 +1,7 @@
 import { readFileSync } from 'fs';
-import { resolve, join } from 'path';
+import { join, resolve } from 'path';
+import { GUIDE_SECTIONS } from '../content/guides';
+import { GUIDE_CATEGORIES } from '../routes/guides';
 
 /**
  * Static check of the /api/guides structure: every section is tagged with a
@@ -14,7 +16,6 @@ import { resolve, join } from 'path';
  */
 
 const REPO_ROOT = resolve(__dirname, '../../..');
-const GUIDES_TS = join(REPO_ROOT, 'functions/src/routes/guides.ts');
 const APP_TS = join(REPO_ROOT, 'functions/src/lib/help-catalog.ts');
 
 /**
@@ -30,10 +31,15 @@ function parseAdvertisedSections(): { root: string[]; endpoint: string[] } {
   const src = readFileSync(APP_TS, 'utf8');
   const between = (haystack: string, start: string, end: string): string[] => {
     const from = haystack.indexOf(start);
-    if (from === -1) throw new Error(`app.ts: could not locate "${start}" -- the help catalog wording changed; update this test`);
+    if (from === -1)
+      throw new Error(`app.ts: could not locate "${start}" -- the help catalog wording changed; update this test`);
     const to = haystack.indexOf(end, from + start.length);
     if (to === -1) throw new Error(`app.ts: could not locate "${end}" after "${start}"`);
-    return haystack.slice(from + start.length, to).split(',').map(s => s.trim()).filter(Boolean);
+    return haystack
+      .slice(from + start.length, to)
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
   };
   return {
     root: between(src, 'markdown for a specific section (', ')'),
@@ -41,23 +47,15 @@ function parseAdvertisedSections(): { root: string[]; endpoint: string[] } {
   };
 }
 
+// The sections are data now (docs/guides/*.md -> functions/src/content/guides.ts,
+// 2026-08-25), so the structure checks read the real objects instead of the
+// router's source text.
 function parseSections(): Array<{ id: string; category: string; order: number; title: string }> {
-  const src = readFileSync(GUIDES_TS, 'utf8');
-  const re = /id:\s*'([a-z0-9-]+)',\s*\n\s*title:\s*'([^']+)',\s*\n\s*description:\s*'[^']*',\s*\n\s*category:\s*'([a-z]+)',\s*\n\s*order:\s*(\d+),/g;
-  const out: Array<{ id: string; category: string; order: number; title: string }> = [];
-  for (let m = re.exec(src); m !== null; m = re.exec(src)) {
-    out.push({ id: m[1], title: m[2], category: m[3], order: parseInt(m[4], 10) });
-  }
-  return out;
+  return GUIDE_SECTIONS.map(({ id, category, order, title }) => ({ id, category, order, title }));
 }
 
 function parseCategoryIds(): string[] {
-  const src = readFileSync(GUIDES_TS, 'utf8');
-  const block = src.slice(src.indexOf('GUIDE_CATEGORIES'), src.indexOf('interface GuideSection'));
-  const re = /\{\s*id:\s*'([a-z]+)'/g;
-  const out: string[] = [];
-  for (let m = re.exec(block); m !== null; m = re.exec(block)) out.push(m[1]);
-  return out;
+  return GUIDE_CATEGORIES.map(c => c.id);
 }
 
 describe('/api/guides structure', () => {
@@ -109,7 +107,9 @@ describe('/api/guides structure', () => {
     // baseline should stay tidy.
     const offenders = sections.filter(s => s.order % 10 !== 0);
     if (offenders.length > 0) {
-      throw new Error(`Order values that aren't multiples of 10 (consider re-spacing): ${offenders.map(s => `${s.id}:${s.order}`).join(', ')}`);
+      throw new Error(
+        `Order values that aren't multiples of 10 (consider re-spacing): ${offenders.map(s => `${s.id}:${s.order}`).join(', ')}`,
+      );
     }
   });
 

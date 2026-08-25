@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { api, type PublicParticipantProfile, type PublicProfilePosition, type PublicProfileTrade, type ProfileProposedJob } from '../lib/api';
+import { useParams } from 'react-router-dom';
 import { ManifoldLogo } from '../components/ManifoldLogo';
 import { PageTopBar } from '../components/PageTopBar';
+import {
+  api,
+  type ProfileProposedJob,
+  type PublicParticipantProfile,
+  type PublicProfilePosition,
+  type PublicProfileTrade,
+} from '../lib/api';
 
 /**
  * A participant's public profile, reworked to be a profile (owner
@@ -17,8 +23,14 @@ import { PageTopBar } from '../components/PageTopBar';
  */
 
 function initials(handle: string): string {
-  const parts = handle.replace(/^@/, '').split(/[\s._-]+/).filter(Boolean);
-  const letters = parts.slice(0, 2).map(p => p[0]).join('');
+  const parts = handle
+    .replace(/^@/, '')
+    .split(/[\s._-]+/)
+    .filter(Boolean);
+  const letters = parts
+    .slice(0, 2)
+    .map(p => p[0])
+    .join('');
   return (letters || handle[0] || '?').toUpperCase();
 }
 
@@ -54,7 +66,9 @@ function PositionRow({ p }: { p: PublicProfilePosition }) {
       <span className={`prof-dir prof-dir--${p.direction}`}>{p.direction === 'higher' ? '▲' : '▼'}</span>
       <span className="prof-row-main">
         <span className="prof-row-title">{p.metricName ?? 'market'}</span>
-        <span className="prof-row-sub">{fmtShares(p.shares)} {p.direction} · {p.workspaceName}</span>
+        <span className="prof-row-sub">
+          {fmtShares(p.shares)} {p.direction} · {p.workspaceName}
+        </span>
       </span>
       <span className="prof-row-val">{fmtShares(p.shares)} sh</span>
     </li>
@@ -66,10 +80,17 @@ function TradeRow({ t }: { t: PublicProfileTrade }) {
     <li className="prof-row">
       <span className={`prof-dir prof-dir--${t.direction}`}>{t.direction === 'higher' ? '▲' : '▼'}</span>
       <span className="prof-row-main">
-        <span className="prof-row-title">{t.kind === 'buy' ? 'Bought' : 'Sold'} {fmtShares(t.shares)} {t.direction}</span>
-        <span className="prof-row-sub">{t.metricName ?? 'market'} · {t.workspaceName}</span>
+        <span className="prof-row-title">
+          {t.kind === 'buy' ? 'Bought' : 'Sold'} {fmtShares(t.shares)} {t.direction}
+        </span>
+        <span className="prof-row-sub">
+          {t.metricName ?? 'market'} · {t.workspaceName}
+        </span>
       </span>
-      <span className="prof-row-val">{t.kind === 'sell' ? '+' : ''}{fmtCr(Math.abs(t.cost)).replace(/^\+/, '')} cr</span>
+      <span className="prof-row-val">
+        {t.kind === 'sell' ? '+' : ''}
+        {fmtCr(Math.abs(t.cost)).replace(/^\+/, '')} cr
+      </span>
       <span className="prof-row-time">{timeAgo(t.createdAt)}</span>
     </li>
   );
@@ -83,7 +104,8 @@ function JobRow({ j }: { j: ProfileProposedJob }) {
       <span className="prof-row-main">
         <span className="prof-row-title">{rest}</span>
         <span className="prof-row-sub">
-          {askUsd ? `asks $${askUsd} · ` : ''}{j.status}
+          {askUsd ? `asks $${askUsd} · ` : ''}
+          {j.status}
         </span>
       </span>
       <span className="prof-row-time">{timeAgo(j.createdAt)}</span>
@@ -110,17 +132,22 @@ export function ParticipantProfilePage() {
     if (!id) return;
     setLoading(true);
     setError(null);
-    api.getPublicProfile(id)
-      .then(p => { setProfile(p); setLoading(false); })
-      .catch(e => { setError(e instanceof Error ? e.message : String(e)); setLoading(false); });
+    api
+      .getPublicProfile(id)
+      .then(p => {
+        setProfile(p);
+        setLoading(false);
+      })
+      .catch(e => {
+        setError(e instanceof Error ? e.message : String(e));
+        setLoading(false);
+      });
   }, [id]);
 
   // Show the handle; fall back to a readable id (a named bot) but never a
   // 32-char opaque key, which reads as noise.
-  const readableId = (v: string) => v.length <= 24 && /[a-z]/i.test(v) && v.includes('-') || v.length <= 16;
-  const handle = profile
-    ? (profile.nickname ?? (readableId(profile.id) ? profile.id : 'anonymous'))
-    : '';
+  const readableId = (v: string) => (v.length <= 24 && /[a-z]/i.test(v) && v.includes('-')) || v.length <= 16;
+  const handle = profile ? (profile.nickname ?? (readableId(profile.id) ? profile.id : 'anonymous')) : '';
 
   return (
     <div className="prof-page">
@@ -134,9 +161,7 @@ export function ParticipantProfilePage() {
           <>
             <header className="prof-head">
               <div className="prof-avatar">
-                {profile.image
-                  ? <img src={profile.image} alt="" />
-                  : <span>{initials(handle)}</span>}
+                {profile.image ? <img src={profile.image} alt="" /> : <span>{initials(handle)}</span>}
               </div>
               <div className="prof-id">
                 <h1 className="prof-name">
@@ -156,12 +181,17 @@ export function ParticipantProfilePage() {
                 <p className="prof-earned">
                   <span className={profile.stats.totalEarnings >= 0 ? 'is-up' : 'is-down'}>
                     {fmtCr(profile.stats.totalEarnings)} cr
-                  </span>{' '}profit
+                  </span>{' '}
+                  profit
                   {/* The same split the board prints: what is final versus
                       what is still a mark (docs/seasons.md "The score"). */}
                   {profile.stats.settledEarnings !== undefined && (
-                    <span className="prof-split" title="Settled: resolutions and refunds, final. Open: what open positions are worth right now.">
-                      {' '}({fmtCr(profile.stats.settledEarnings)} settled, {fmtCr(profile.stats.openEarnings)} open)
+                    <span
+                      className="prof-split"
+                      title="Settled: resolutions and refunds, final. Open: what open positions are worth right now."
+                    >
+                      {' '}
+                      ({fmtCr(profile.stats.settledEarnings)} settled, {fmtCr(profile.stats.openEarnings)} open)
                     </span>
                   )}
                 </p>
@@ -176,11 +206,15 @@ export function ParticipantProfilePage() {
             </Section>
 
             <Section title="Recent trades" empty={profile.recentTrades.length === 0}>
-              {profile.recentTrades.map(t => <TradeRow key={t.id} t={t} />)}
+              {profile.recentTrades.map(t => (
+                <TradeRow key={t.id} t={t} />
+              ))}
             </Section>
 
             <Section title="Proposed jobs" empty={profile.proposedJobs.length === 0}>
-              {profile.proposedJobs.map(j => <JobRow key={j.id} j={j} />)}
+              {profile.proposedJobs.map(j => (
+                <JobRow key={j.id} j={j} />
+              ))}
             </Section>
           </>
         )}
@@ -188,4 +222,3 @@ export function ParticipantProfilePage() {
     </div>
   );
 }
-

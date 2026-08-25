@@ -13,20 +13,29 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import {
-  agents, workspaces, metrics, markets, permissionGroups, sources,
-  trades, proposals, announcements,
+  agents,
+  announcements,
+  markets,
+  metrics,
+  permissionGroups,
+  proposals,
+  sources,
+  trades,
+  workspaces,
 } from '../db/schema';
-import { toUnits } from '../lib/validation';
 import { initialPool } from '../lib/amm';
+import { toUnits } from '../lib/validation';
 import { buildChecklist } from '../services/setup-checklist';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const OWNER = 'agent-owner-checklist';
 const OUTSIDER = 'agent-outsider';
 const WS = 'ws-checklist';
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   await db.insert(agents).values([
@@ -34,33 +43,54 @@ beforeEach(async () => {
     { id: OUTSIDER, apiKeyHash: 'h-out', balance: toUnits(1000) },
   ]);
   await db.insert(workspaces).values({
-    id: WS, name: 'Kleros', slug: 'kleros', createdBy: OWNER, visibility: 'unlisted',
+    id: WS,
+    name: 'Kleros',
+    slug: 'kleros',
+    createdBy: OWNER,
+    visibility: 'unlisted',
   });
   await db.insert(permissionGroups).values({
-    id: 'grp-public', workspaceId: WS, name: 'Public', type: 'public',
-    memberIds: [], permissions: {}, capabilities: ['read'],
+    id: 'grp-public',
+    workspaceId: WS,
+    name: 'Public',
+    type: 'public',
+    memberIds: [],
+    permissions: {},
+    capabilities: ['read'],
   });
 });
 
 /** A metric with a horizon, and the market that comes with it. */
 async function seedNumber(opts: { liquidity?: number; description?: string } = {}) {
   await db.insert(metrics).values({
-    id: 'metric-1', workspaceId: WS, name: 'Monthly disputes arbitrated',
+    id: 'metric-1',
+    workspaceId: WS,
+    name: 'Monthly disputes arbitrated',
     description: opts.description ?? 'Counted on-chain from the arbitrator contract.',
-    value: 0, formula: '', marketRangeMax: 5000,
+    value: 0,
+    formula: '',
+    marketRangeMax: 5000,
     timePreference: { enabled: false, halfLife: 1, customHorizons: ['2026-09'] },
   });
   const b = opts.liquidity ?? 0;
   await db.insert(markets).values({
-    id: 'mkt-1', workspaceId: WS, metricId: 'metric-1', metricName: 'Monthly disputes arbitrated',
-    targetDate: '2026-09', rangeMin: 0, rangeMax: 5000,
-    shares: [0, 0], liquidity: b, pool: initialPool(b),
-    active: true, resolved: false, voided: false,
+    id: 'mkt-1',
+    workspaceId: WS,
+    metricId: 'metric-1',
+    metricName: 'Monthly disputes arbitrated',
+    targetDate: '2026-09',
+    rangeMin: 0,
+    rangeMax: 5000,
+    shares: [0, 0],
+    liquidity: b,
+    pool: initialPool(b),
+    active: true,
+    resolved: false,
+    voided: false,
   });
 }
 
-const itemOf = (c: Awaited<ReturnType<typeof buildChecklist>>, id: string) =>
-  c.items.find(i => i.id === id)!;
+const itemOf = (c: Awaited<ReturnType<typeof buildChecklist>>, id: string) => c.items.find(i => i.id === id)!;
 
 describe('a floor with nothing on it', () => {
   test('every decision is open, and the missing number blocks', async () => {
@@ -79,8 +109,14 @@ describe('a floor with nothing on it', () => {
 describe('the number', () => {
   test('a metric with no horizon is not a market, and says so', async () => {
     await db.insert(metrics).values({
-      id: 'metric-flat', workspaceId: WS, name: 'Revenue', description: 'x',
-      value: 0, formula: '', marketRangeMax: 1000, timePreference: null,
+      id: 'metric-flat',
+      workspaceId: WS,
+      name: 'Revenue',
+      description: 'x',
+      value: 0,
+      formula: '',
+      marketRangeMax: 1000,
+      timePreference: null,
     });
     const c = await buildChecklist(WS);
     expect(itemOf(c, 'number').status).toBe('open');
@@ -184,8 +220,14 @@ describe('the rest of the specification', () => {
 
   test('a decided contract counts even with no charter', async () => {
     await db.insert(proposals).values({
-      id: 'p-1', workspaceId: WS, proposedBy: OUTSIDER, title: 'Do a thing',
-      description: 'x', status: 'approved', conditionalMarketIds: [], createdAt: new Date(),
+      id: 'p-1',
+      workspaceId: WS,
+      proposedBy: OUTSIDER,
+      title: 'Do a thing',
+      description: 'x',
+      status: 'approved',
+      conditionalMarketIds: [],
+      createdAt: new Date(),
     });
     expect(itemOf(await buildChecklist(WS), 'decisions').status).toBe('done');
   });
@@ -193,7 +235,10 @@ describe('the rest of the specification', () => {
   test('published context counts whichever way it was published', async () => {
     expect(itemOf(await buildChecklist(WS), 'context').status).toBe('open');
     await db.insert(announcements).values({
-      id: 'ann-1', workspaceId: WS, body: 'We shipped the bridge.', publishedAt: new Date(),
+      id: 'ann-1',
+      workspaceId: WS,
+      body: 'We shipped the bridge.',
+      publishedAt: new Date(),
     });
     expect(itemOf(await buildChecklist(WS), 'context').status).toBe('done');
   });
@@ -202,14 +247,26 @@ describe('the rest of the specification', () => {
     await seedNumber({ liquidity: 100 });
     expect(itemOf(await buildChecklist(WS), 'reach').status).toBe('open');
     await db.insert(trades).values({
-      id: 't-1', workspaceId: WS, agentId: OWNER, marketId: 'mkt-1',
-      direction: 'higher', shares: 1, cost: 1, createdAt: new Date(),
+      id: 't-1',
+      workspaceId: WS,
+      agentId: OWNER,
+      marketId: 'mkt-1',
+      direction: 'higher',
+      shares: 1,
+      cost: 1,
+      createdAt: new Date(),
     });
     // The owner trading on their own floor is not reach.
     expect(itemOf(await buildChecklist(WS), 'reach').status).toBe('open');
     await db.insert(trades).values({
-      id: 't-2', workspaceId: WS, agentId: OUTSIDER, marketId: 'mkt-1',
-      direction: 'higher', shares: 1, cost: 1, createdAt: new Date(),
+      id: 't-2',
+      workspaceId: WS,
+      agentId: OUTSIDER,
+      marketId: 'mkt-1',
+      direction: 'higher',
+      shares: 1,
+      cost: 1,
+      createdAt: new Date(),
     });
     expect(itemOf(await buildChecklist(WS), 'reach').status).toBe('done');
   });
@@ -222,10 +279,7 @@ describe('the vocabulary a reader gets', () => {
     // into the prompt the operator pastes, so they are user-facing.
     await seedNumber({ liquidity: 0.5 / Math.LN2 });
     const c = await buildChecklist(WS);
-    const text = [
-      ...c.blocking,
-      ...c.items.flatMap(i => [i.label, i.note, i.question, i.why, ...i.options]),
-    ].join(' ');
+    const text = [...c.blocking, ...c.items.flatMap(i => [i.label, i.note, i.question, i.why, ...i.options])].join(' ');
     expect(text).not.toMatch(/floor/i);
   });
 });
@@ -258,10 +312,19 @@ describe('what the page draws', () => {
   test('the soonest horizon is the one drawn', async () => {
     await seedNumber({ liquidity: 100 });
     await db.insert(markets).values({
-      id: 'mkt-later', workspaceId: WS, metricId: 'metric-1', metricName: 'Monthly disputes arbitrated',
-      targetDate: '2027-03', rangeMin: 0, rangeMax: 5000,
-      shares: [0, 0], liquidity: 100, pool: initialPool(100),
-      active: true, resolved: false, voided: false,
+      id: 'mkt-later',
+      workspaceId: WS,
+      metricId: 'metric-1',
+      metricName: 'Monthly disputes arbitrated',
+      targetDate: '2027-03',
+      rangeMin: 0,
+      rangeMax: 5000,
+      shares: [0, 0],
+      liquidity: 100,
+      pool: initialPool(100),
+      active: true,
+      resolved: false,
+      voided: false,
     });
     expect((await buildChecklist(WS)).market!.targetDate).toBe('2026-09');
   });

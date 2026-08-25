@@ -11,17 +11,21 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { ensureMigrations, truncateAll, db } from './harness/test-db';
-import { agentTraces, floorQuestions, pageVisits } from '../db/schema';
-import { runDailyMaintenance, TRACE_RETENTION_DAYS, VISIT_RETENTION_DAYS } from '../services/maintenance';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { agentTraces, floorQuestions, pageVisits } from '../db/schema';
+import { runDailyMaintenance, TRACE_RETENTION_DAYS, VISIT_RETENTION_DAYS } from '../services/maintenance';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const DAY = 24 * 3600 * 1000;
 const daysAgo = (n: number) => new Date(Date.now() - n * DAY);
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 function visit(id: string, ts: Date) {
   return { id, ts, path: '/', referer: null, userAgent: null, ip: '203.0.113.9', country: 'CZ' };
@@ -29,17 +33,19 @@ function visit(id: string, ts: Date) {
 
 function trace(id: string, startedAt: Date) {
   return {
-    id, workspaceId: 'ws1', agentId: 'ag1', strategy: 's', startedAt, endedAt: startedAt,
+    id,
+    workspaceId: 'ws1',
+    agentId: 'ag1',
+    strategy: 's',
+    startedAt,
+    endedAt: startedAt,
     entries: [{ marketId: 'm1', reasoning: 'r' }],
   };
 }
 
 describe('runDailyMaintenance', () => {
   it('deletes visits past the window and keeps the rest', async () => {
-    await db.insert(pageVisits).values([
-      visit('old', daysAgo(VISIT_RETENTION_DAYS + 1)),
-      visit('fresh', daysAgo(1)),
-    ]);
+    await db.insert(pageVisits).values([visit('old', daysAgo(VISIT_RETENTION_DAYS + 1)), visit('fresh', daysAgo(1))]);
     const r = await runDailyMaintenance();
     expect(r.visitsDeleted).toBe(1);
     const left = await db.select().from(pageVisits);
@@ -48,8 +54,24 @@ describe('runDailyMaintenance', () => {
 
   it('scrubs question IP and country past the window, keeps question and answer', async () => {
     await db.insert(floorQuestions).values([
-      { id: 'old', workspaceId: 'ws1', question: 'q', answer: 'a', ip: '203.0.113.9', country: 'CZ', createdAt: daysAgo(31) },
-      { id: 'fresh', workspaceId: 'ws1', question: 'q2', answer: 'a2', ip: '203.0.113.9', country: 'CZ', createdAt: daysAgo(1) },
+      {
+        id: 'old',
+        workspaceId: 'ws1',
+        question: 'q',
+        answer: 'a',
+        ip: '203.0.113.9',
+        country: 'CZ',
+        createdAt: daysAgo(31),
+      },
+      {
+        id: 'fresh',
+        workspaceId: 'ws1',
+        question: 'q2',
+        answer: 'a2',
+        ip: '203.0.113.9',
+        country: 'CZ',
+        createdAt: daysAgo(1),
+      },
     ]);
     const r = await runDailyMaintenance();
     expect(r.questionsScrubbed).toBe(1);
@@ -64,11 +86,13 @@ describe('runDailyMaintenance', () => {
   });
 
   it('deletes traces past retention, in chunks, and keeps recent ones', async () => {
-    await db.insert(agentTraces).values([
-      trace('ancient-1', daysAgo(TRACE_RETENTION_DAYS + 10)),
-      trace('ancient-2', daysAgo(TRACE_RETENTION_DAYS + 5)),
-      trace('recent', daysAgo(5)),
-    ]);
+    await db
+      .insert(agentTraces)
+      .values([
+        trace('ancient-1', daysAgo(TRACE_RETENTION_DAYS + 10)),
+        trace('ancient-2', daysAgo(TRACE_RETENTION_DAYS + 5)),
+        trace('recent', daysAgo(5)),
+      ]);
     const r = await runDailyMaintenance();
     expect(r.tracesDeleted).toBe(2);
     const left = await db.select({ id: agentTraces.id }).from(agentTraces);

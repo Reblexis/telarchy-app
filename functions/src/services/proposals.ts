@@ -1,24 +1,35 @@
-import { db } from '../db/client';
-import { agents, markets, metrics as metricsTable, proposals, proposalRevisions, trades, systemConfig, liquidityEvents, workspaces } from '../db/schema';
-import { eq, and, asc, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
-import { consensus, anchoredMarketState } from '../lib/amm';
-import { voidMarket } from './markets';
-import { AppError } from '../lib/errors';
-import { MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
-import { emitEvent } from './events';
-import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { db } from '../db/client';
+import {
+  agents,
+  liquidityEvents,
+  markets,
+  metrics as metricsTable,
+  proposalRevisions,
+  proposals,
+  systemConfig,
+  trades,
+  workspaces,
+} from '../db/schema';
+import { anchoredMarketState, consensus } from '../lib/amm';
 import { resolutionInstant } from '../lib/date-utils';
-import { metricSubtractsContractAsk } from '../lib/metric-unit';
+import { AppError } from '../lib/errors';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
-import { applyCredits } from './credits';
 import { emitPricesChanged } from '../lib/market-events';
+import { metricSubtractsContractAsk } from '../lib/metric-unit';
+import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
+import { fromUnits, MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits } from '../lib/validation';
+import { applyCredits } from './credits';
+import { emitEvent } from './events';
+import { voidMarket } from './markets';
 
 type MarketRow = typeof markets.$inferSelect;
 
 async function getTradeCountMap(marketIds: string[], workspaceId: string): Promise<Map<string, number>> {
   if (marketIds.length === 0) return new Map();
-  const rows = await db.select({ marketId: trades.marketId, count: sql<number>`count(*)::int` })
+  const rows = await db
+    .select({ marketId: trades.marketId, count: sql<number>`count(*)::int` })
     .from(trades)
     .where(and(eq(trades.workspaceId, workspaceId), inArray(trades.marketId, marketIds)))
     .groupBy(trades.marketId);
@@ -30,12 +41,12 @@ async function getBaselineConsensusMap(marketRows: MarketRow[], workspaceId: str
   const metricIds = [...new Set(marketRows.map(m => m.metricId))];
   const wantedKeys = new Set(marketRows.map(m => `${m.metricId}:${m.targetDate}`));
 
-  const openMarkets = await db.select().from(markets)
-    .where(and(
-      eq(markets.workspaceId, workspaceId),
-      eq(markets.resolved, false),
-      inArray(markets.metricId, metricIds),
-    ));
+  const openMarkets = await db
+    .select()
+    .from(markets)
+    .where(
+      and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), inArray(markets.metricId, metricIds)),
+    );
 
   const map = new Map<string, number>();
   for (const m of openMarkets) {
@@ -69,7 +80,7 @@ export interface CreateConditionalMarketsOptions {
 }
 
 export const CONDITIONAL_BRANCHES = ['approved', 'declined'] as const;
-export type ConditionalBranch = typeof CONDITIONAL_BRANCHES[number];
+export type ConditionalBranch = (typeof CONDITIONAL_BRANCHES)[number];
 
 /**
  * Contributions map for a proposal row, falling back to attributing the
@@ -77,9 +88,11 @@ export type ConditionalBranch = typeof CONDITIONAL_BRANCHES[number];
  * subsidy_contributions column (migration 0037 backfills, this guards the
  * window where code runs ahead of the migration).
  */
-export function subsidyContributionsOf(
-  proposal: { subsidyContributions?: Record<string, number> | null; liquiditySubsidy?: number | null; proposedBy: string },
-): Record<string, number> {
+export function subsidyContributionsOf(proposal: {
+  subsidyContributions?: Record<string, number> | null;
+  liquiditySubsidy?: number | null;
+  proposedBy: string;
+}): Record<string, number> {
   const map = proposal.subsidyContributions ?? {};
   if (Object.keys(map).length > 0) return map;
   const legacy = proposal.liquiditySubsidy ?? 0;
@@ -91,8 +104,9 @@ export async function createConditionalMarkets(
   workspaceId: string,
   options: CreateConditionalMarketsOptions = {},
 ): Promise<string[]> {
-  const contributions = Object.entries(options.contributions ?? {})
-    .filter(([, perMarket]) => typeof perMarket === 'number' && perMarket > 0);
+  const contributions = Object.entries(options.contributions ?? {}).filter(
+    ([, perMarket]) => typeof perMarket === 'number' && perMarket > 0,
+  );
   const subsidy = contributions.reduce((sum, [, perMarket]) => sum + perMarket, 0);
   if (subsidy > 0 && subsidy < MIN_LIQUIDITY_CONTRIBUTION) {
     throw new AppError(
@@ -103,12 +117,11 @@ export async function createConditionalMarkets(
   const lockKey = `lock:proposalMarket:${proposalId}`;
 
   const acquired = await db.transaction(async tx => {
-    const rows = await tx.select().from(systemConfig)
-      .where(eq(systemConfig.key, lockKey))
-      .for('update');
+    const rows = await tx.select().from(systemConfig).where(eq(systemConfig.key, lockKey)).for('update');
     const existing = rows[0]?.value as { locked?: boolean; expiresAt?: number } | undefined;
     if (existing?.locked && (existing.expiresAt ?? 0) > Date.now()) return false;
-    await tx.insert(systemConfig)
+    await tx
+      .insert(systemConfig)
       .values({ key: lockKey, value: { locked: true, expiresAt: Date.now() + 300_000 } })
       .onConflictDoUpdate({
         target: systemConfig.key,
@@ -118,20 +131,23 @@ export async function createConditionalMarkets(
   });
 
   if (!acquired) {
-    const existing = await db.select({ id: markets.id }).from(markets)
-      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
+    const existing = await db
+      .select({ id: markets.id })
+      .from(markets)
+      .where(
+        and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)),
+      );
     return existing.map(m => m.id);
   }
 
   try {
-    const metricRows = await db.select().from(metricsTable)
-      .where(eq(metricsTable.workspaceId, workspaceId));
+    const metricRows = await db.select().from(metricsTable).where(eq(metricsTable.workspaceId, workspaceId));
 
-    const leafMetricIds = new Set(
-      metricRows.filter(r => !r.formula || r.formula === '0').map(r => r.id),
-    );
+    const leafMetricIds = new Set(metricRows.filter(r => !r.formula || r.formula === '0').map(r => r.id));
 
-    const openMarkets = await db.select().from(markets)
+    const openMarkets = await db
+      .select()
+      .from(markets)
       .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
     const sourceMarkets = openMarkets.filter(m => m.active !== false && !m.proposalId && leafMetricIds.has(m.metricId));
@@ -145,14 +161,16 @@ export async function createConditionalMarkets(
     // already be a bullish claim. Traders then price the upside from an
     // honest zero point. An unfunded baseline has no price; those pairs
     // still open at the center.
-    const [proposalRowForAsk] = await db.select({ askUsd: proposals.askUsd, title: proposals.title }).from(proposals)
+    const [proposalRowForAsk] = await db
+      .select({ askUsd: proposals.askUsd, title: proposals.title })
+      .from(proposals)
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
     // Rows that predate the askUsd column carry the price only as the
     // "$N: ..." title convention; parse it back so their approved branch
     // still opens ask-adjusted.
     const titleAsk = proposalRowForAsk?.title?.match(/^\$(\d+):/)?.[1];
     const askUsd = proposalRowForAsk?.askUsd ?? (titleAsk ? parseInt(titleAsk, 10) : 0);
-    const anchorFor = (src: typeof sourceMarkets[number], branch: ConditionalBranch): number | null => {
+    const anchorFor = (src: (typeof sourceMarkets)[number], branch: ConditionalBranch): number | null => {
       const c0 = consensus(src.shares as [number, number], src.liquidity, src.rangeMin, src.rangeMax);
       if (c0 === undefined) return null;
       // The ask burns out of the metric only when approving actually moves
@@ -172,12 +190,15 @@ export async function createConditionalMarkets(
       }
     }
 
-    const existingConditional = await db.select().from(markets)
-      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
+    const existingConditional = await db
+      .select()
+      .from(markets)
+      .where(
+        and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)),
+      );
 
-    const keyOf = (metricId: string, targetDate: string, branch: string) =>
-      `${metricId}:${targetDate}:${branch}`;
-    const existingByKey = new Map<string, typeof existingConditional[number]>();
+    const keyOf = (metricId: string, targetDate: string, branch: string) => `${metricId}:${targetDate}:${branch}`;
+    const existingByKey = new Map<string, (typeof existingConditional)[number]>();
     for (const m of existingConditional) {
       existingByKey.set(keyOf(m.metricId, m.targetDate, m.branch ?? 'approved'), m);
     }
@@ -197,11 +218,19 @@ export async function createConditionalMarkets(
         if (existingByKey.has(key)) continue;
         const marketId = randomUUID();
         toSpawn.push({
-          id: marketId, workspaceId,
-          metricId: src.metricId, metricName: src.metricName, targetDate: src.targetDate,
-          resolved: false, resolvedAt: null, actualValue: null, active: true, proposalId,
+          id: marketId,
+          workspaceId,
+          metricId: src.metricId,
+          metricName: src.metricName,
+          targetDate: src.targetDate,
+          resolved: false,
+          resolvedAt: null,
+          actualValue: null,
+          active: true,
+          proposalId,
           branch,
-          rangeMin: src.rangeMin, rangeMax: src.rangeMax,
+          rangeMin: src.rangeMin,
+          rangeMax: src.rangeMax,
           shares: [0, 0] as [number, number],
           liquidity: 0,
           pool: 0,
@@ -238,9 +267,8 @@ export async function createConditionalMarkets(
     // connection, and untestable either way (it hung the harness).
     const [wsRow] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
     const autoFundCredits = wsRow?.autoFundNewMarkets ? (wsRow.newMarketLiquidityCredits ?? 0) : 0;
-    const autoFundOwnerId = autoFundCredits >= MIN_LIQUIDITY_CONTRIBUTION
-      ? await resolveWorkspaceOwnerAgentId(workspaceId)
-      : null;
+    const autoFundOwnerId =
+      autoFundCredits >= MIN_LIQUIDITY_CONTRIBUTION ? await resolveWorkspaceOwnerAgentId(workspaceId) : null;
 
     const skipped: Array<{ contributorId: string; needed: number; had: number }> = [];
     await db.transaction(async tx => {
@@ -253,7 +281,9 @@ export async function createConditionalMarkets(
         const [agentRow] = await tx.select().from(agents).where(eq(agents.id, contributorId)).for('update');
         if (!agentRow) {
           if (options.strict) throw new AppError('Subsidy contributor agent not found', 404);
-          console.error(`createConditionalMarkets: subsidy contributor ${contributorId} not found; spawning proposal ${proposalId} markets without their share`);
+          console.error(
+            `createConditionalMarkets: subsidy contributor ${contributorId} not found; spawning proposal ${proposalId} markets without their share`,
+          );
           skipped.push({ contributorId, needed: cost, had: 0 });
           continue;
         }
@@ -264,7 +294,9 @@ export async function createConditionalMarkets(
               400,
             );
           }
-          console.error(`createConditionalMarkets: subsidy contributor ${contributorId} has ${fromUnits(agentRow.balance as number)} < ${cost} needed; spawning proposal ${proposalId} markets without their share`);
+          console.error(
+            `createConditionalMarkets: subsidy contributor ${contributorId} has ${fromUnits(agentRow.balance as number)} < ${cost} needed; spawning proposal ${proposalId} markets without their share`,
+          );
           skipped.push({ contributorId, needed: cost, had: fromUnits(agentRow.balance as number) });
           continue;
         }
@@ -285,7 +317,9 @@ export async function createConditionalMarkets(
         const [ownerRow] = await tx.select().from(agents).where(eq(agents.id, autoFundOwnerId)).for('update');
         if (ownerRow && sufficientBalance(ownerRow.balance as number, cost)) {
           funded.push([autoFundOwnerId, credits]);
-          console.error(`createConditionalMarkets: no subsidy contributor could fund proposal ${proposalId}; auto-funded ${credits}/market from workspace owner ${autoFundOwnerId}`);
+          console.error(
+            `createConditionalMarkets: no subsidy contributor could fund proposal ${proposalId}; auto-funded ${credits}/market from workspace owner ${autoFundOwnerId}`,
+          );
         } else if (ownerRow) {
           // Fund what the owner CAN cover rather than giving up. A thin
           // market is a market: it has a price, it charts, and it can be
@@ -297,12 +331,18 @@ export async function createConditionalMarkets(
           const affordable = Math.floor((fromUnits(ownerRow.balance as number) / newMarkets.length) * 1e6) / 1e6;
           if (affordable >= MIN_LIQUIDITY_CONTRIBUTION) {
             funded.push([autoFundOwnerId, affordable]);
-            console.error(`createConditionalMarkets: workspace owner ${autoFundOwnerId} cannot cover ${cost} for proposal ${proposalId}; auto-funded what they have, ${affordable}/market instead of ${credits}`);
+            console.error(
+              `createConditionalMarkets: workspace owner ${autoFundOwnerId} cannot cover ${cost} for proposal ${proposalId}; auto-funded what they have, ${affordable}/market instead of ${credits}`,
+            );
           } else {
-            console.error(`createConditionalMarkets: auto-fund fallback for proposal ${proposalId} failed too (owner ${autoFundOwnerId} holds ${fromUnits(ownerRow.balance as number)}, not enough for even one market); markets spawn with zero liquidity`);
+            console.error(
+              `createConditionalMarkets: auto-fund fallback for proposal ${proposalId} failed too (owner ${autoFundOwnerId} holds ${fromUnits(ownerRow.balance as number)}, not enough for even one market); markets spawn with zero liquidity`,
+            );
           }
         } else {
-          console.error(`createConditionalMarkets: auto-fund fallback for proposal ${proposalId} failed too (no agent row for owner ${autoFundOwnerId}); markets spawn with zero liquidity`);
+          console.error(
+            `createConditionalMarkets: auto-fund fallback for proposal ${proposalId} failed too (no agent row for owner ${autoFundOwnerId}); markets spawn with zero liquidity`,
+          );
         }
       }
 
@@ -313,9 +353,10 @@ export async function createConditionalMarkets(
       // with credits nobody paid in. No anchor (unpriced baseline) means
       // the classic center open at b = subsidy / ln 2.
       for (const m of newMarkets) {
-        const state = m.anchorP === null
-          ? { liquidity: effectiveSubsidy > 0 ? effectiveSubsidy / Math.LN2 : 0, shares: [0, 0] as [number, number] }
-          : anchoredMarketState(effectiveSubsidy, m.anchorP);
+        const state =
+          m.anchorP === null
+            ? { liquidity: effectiveSubsidy > 0 ? effectiveSubsidy / Math.LN2 : 0, shares: [0, 0] as [number, number] }
+            : anchoredMarketState(effectiveSubsidy, m.anchorP);
         m.liquidity = state.liquidity;
         m.shares = state.shares;
         m.pool = effectiveSubsidy;
@@ -324,8 +365,12 @@ export async function createConditionalMarkets(
       for (const [contributorId, perMarket] of funded) {
         const cost = Math.round(perMarket * newMarkets.length * 1e6) / 1e6;
         await applyCredits(tx, {
-          agentId: contributorId, workspaceId, deltaUnits: -toUnits(cost),
-          reason: 'liquidity', refType: 'proposal', refId: proposalId,
+          agentId: contributorId,
+          workspaceId,
+          deltaUnits: -toUnits(cost),
+          reason: 'liquidity',
+          refType: 'proposal',
+          refId: proposalId,
           also: { spentBetting: sql`${agents.spentBetting} + ${cost}` },
         });
       }
@@ -334,17 +379,19 @@ export async function createConditionalMarkets(
       await tx.insert(markets).values(newMarkets.map(({ anchorP: _a, ...row }) => row));
 
       if (funded.length > 0) {
-        const liqRows = newMarkets.flatMap(m => funded.map(([contributorId, perMarket]) => ({
-          id: randomUUID(),
-          workspaceId,
-          marketId: m.id as string,
-          agentId: contributorId,
-          amount: perMarket,
-          poolContribution: perMarket,
-          totalLiquidity: m.liquidity as number,
-          type: 'proposal-subsidy',
-          createdAt: new Date(),
-        })));
+        const liqRows = newMarkets.flatMap(m =>
+          funded.map(([contributorId, perMarket]) => ({
+            id: randomUUID(),
+            workspaceId,
+            marketId: m.id as string,
+            agentId: contributorId,
+            amount: perMarket,
+            poolContribution: perMarket,
+            totalLiquidity: m.liquidity as number,
+            type: 'proposal-subsidy',
+            createdAt: new Date(),
+          })),
+        );
         await tx.insert(liquidityEvents).values(liqRows);
         for (const r of liqRows) emitPricesChanged(workspaceId, r.marketId);
       }
@@ -357,8 +404,9 @@ export async function createConditionalMarkets(
     // the route deletes the proposal), so anything landing here came from
     // a rollover respawn.
     if (skipped.length > 0) {
-      emitEvent('proposal:subsidy_skipped', { proposalId, skipped }, workspaceId)
-        .catch(e => console.error('emitEvent failed:', e));
+      emitEvent('proposal:subsidy_skipped', { proposalId, skipped }, workspaceId).catch(e =>
+        console.error('emitEvent failed:', e),
+      );
     }
     // Return every market that belongs to the proposal's current desired set:
     // the newly spawned ones plus the existing ones we kept.
@@ -367,7 +415,8 @@ export async function createConditionalMarkets(
       .map(m => m.id);
     return [...keptIds, ...newMarkets.map(m => m.id as string)];
   } finally {
-    await db.insert(systemConfig)
+    await db
+      .insert(systemConfig)
       .values({ key: lockKey, value: { locked: false, expiresAt: 0 } })
       .onConflictDoUpdate({
         target: systemConfig.key,
@@ -382,7 +431,9 @@ export async function createConditionalMarkets(
  * stakes are refunded.
  */
 export async function voidProposalMarkets(proposalId: string, workspaceId: string): Promise<void> {
-  const openMarkets = await db.select().from(markets)
+  const openMarkets = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
 
   for (const market of openMarkets) {
@@ -402,13 +453,17 @@ export async function voidProposalBranch(
   workspaceId: string,
   branch: ConditionalBranch,
 ): Promise<void> {
-  const openMarkets = await db.select().from(markets)
-    .where(and(
-      eq(markets.workspaceId, workspaceId),
-      eq(markets.proposalId, proposalId),
-      eq(markets.resolved, false),
-      eq(markets.branch, branch),
-    ));
+  const openMarkets = await db
+    .select()
+    .from(markets)
+    .where(
+      and(
+        eq(markets.workspaceId, workspaceId),
+        eq(markets.proposalId, proposalId),
+        eq(markets.resolved, false),
+        eq(markets.branch, branch),
+      ),
+    );
 
   for (const market of openMarkets) {
     await voidMarket(market, workspaceId);
@@ -420,7 +475,9 @@ export async function approveProposal(
   workspaceId: string,
   resolvedBy?: string | null,
 ): Promise<{ rewardPaid: number }> {
-  const [proposal] = await db.select().from(proposals)
+  const [proposal] = await db
+    .select()
+    .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
   if (proposal.status !== 'pending') throw new AppError('Proposal is not pending', 400);
@@ -439,16 +496,21 @@ export async function approveProposal(
   // at resolution like before; a broke owner must not block an approval.
   await buyOutProposerLiquidity(proposalId, workspaceId, proposal.proposedBy);
 
-  const [ws] = await db.select({ proposalReward: workspaces.proposalReward })
-    .from(workspaces).where(eq(workspaces.id, workspaceId));
+  const [ws] = await db
+    .select({ proposalReward: workspaces.proposalReward })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId));
   const reward = ws?.proposalReward ?? 0;
 
   if (reward <= 0) {
-    await db.update(proposals).set({
-      status: 'approved',
-      resolvedAt: new Date(),
-      resolvedBy: resolvedBy ?? null,
-    }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    await db
+      .update(proposals)
+      .set({
+        status: 'approved',
+        resolvedAt: new Date(),
+        resolvedBy: resolvedBy ?? null,
+      })
+      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
     return { rewardPaid: 0 };
   }
 
@@ -457,11 +519,14 @@ export async function approveProposal(
     throw new AppError('Workspace has no owner participant; cannot pay proposal reward', 409);
   }
   if (ownerAgentId === proposal.proposedBy) {
-    await db.update(proposals).set({
-      status: 'approved',
-      resolvedAt: new Date(),
-      resolvedBy: resolvedBy ?? ownerAgentId,
-    }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    await db
+      .update(proposals)
+      .set({
+        status: 'approved',
+        resolvedAt: new Date(),
+        resolvedBy: resolvedBy ?? ownerAgentId,
+      })
+      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
     return { rewardPaid: 0 };
   }
 
@@ -475,19 +540,30 @@ export async function approveProposal(
       );
     }
     await applyCredits(tx, {
-      agentId: ownerAgentId, workspaceId, deltaUnits: -toUnits(reward),
-      reason: 'proposal_reward', refType: 'proposal', refId: proposalId,
+      agentId: ownerAgentId,
+      workspaceId,
+      deltaUnits: -toUnits(reward),
+      reason: 'proposal_reward',
+      refType: 'proposal',
+      refId: proposalId,
     });
     await applyCredits(tx, {
-      agentId: proposal.proposedBy, workspaceId, deltaUnits: toUnits(reward),
-      reason: 'proposal_reward', refType: 'proposal', refId: proposalId,
+      agentId: proposal.proposedBy,
+      workspaceId,
+      deltaUnits: toUnits(reward),
+      reason: 'proposal_reward',
+      refType: 'proposal',
+      refId: proposalId,
     });
-    await tx.update(proposals).set({
-      status: 'approved',
-      rewardPaid: reward,
-      resolvedAt: new Date(),
-      resolvedBy: resolvedBy ?? ownerAgentId,
-    }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    await tx
+      .update(proposals)
+      .set({
+        status: 'approved',
+        rewardPaid: reward,
+        resolvedAt: new Date(),
+        resolvedBy: resolvedBy ?? ownerAgentId,
+      })
+      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   });
   return { rewardPaid: reward };
 }
@@ -503,7 +579,9 @@ export async function declineProposal(
   reason?: string | null,
   refundStake = false,
 ): Promise<void> {
-  const [proposal] = await db.select().from(proposals)
+  const [proposal] = await db
+    .select()
+    .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
   if (proposal.status !== 'pending') throw new AppError('Can only decline pending proposals', 400);
@@ -517,7 +595,9 @@ export async function declineProposal(
     throw new AppError(`declineReason must be at most ${MAX_DECLINE_REASON} characters`, 400);
   }
   if (!trimmed) {
-    const [ws] = await db.select({ charter: workspaces.charter }).from(workspaces)
+    const [ws] = await db
+      .select({ charter: workspaces.charter })
+      .from(workspaces)
       .where(eq(workspaces.id, workspaceId));
     if (ws?.charter) {
       throw new AppError(
@@ -541,12 +621,15 @@ export async function declineProposal(
     // record we use to compute calibration on declined proposals.
     await voidProposalBranch(proposalId, workspaceId, 'approved');
   }
-  await db.update(proposals).set({
-    status: 'declined',
-    resolvedAt: new Date(),
-    resolvedBy: resolvedBy ?? null,
-    declineReason: trimmed || null,
-  }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  await db
+    .update(proposals)
+    .set({
+      status: 'declined',
+      resolvedAt: new Date(),
+      resolvedBy: resolvedBy ?? null,
+      declineReason: trimmed || null,
+    })
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
 }
 
 export async function declineProposalAsSpam(
@@ -554,15 +637,19 @@ export async function declineProposalAsSpam(
   workspaceId: string,
   resolvedBy?: string | null,
 ): Promise<{ penaltyCharged: number }> {
-  const [proposal] = await db.select().from(proposals)
+  const [proposal] = await db
+    .select()
+    .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
   if (proposal.status !== 'pending') throw new AppError('Can only decline pending proposals', 400);
 
   await voidProposalMarkets(proposalId, workspaceId);
 
-  const [ws] = await db.select({ spamPenalty: workspaces.spamPenalty })
-    .from(workspaces).where(eq(workspaces.id, workspaceId));
+  const [ws] = await db
+    .select({ spamPenalty: workspaces.spamPenalty })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId));
   const configuredPenalty = ws?.spamPenalty ?? 0;
 
   let actualCharged = 0;
@@ -570,8 +657,7 @@ export async function declineProposalAsSpam(
 
   if (configuredPenalty > 0 && ownerAgentId && ownerAgentId !== proposal.proposedBy) {
     await db.transaction(async tx => {
-      const [proposer] = await tx.select().from(agents)
-        .where(eq(agents.id, proposal.proposedBy)).for('update');
+      const [proposer] = await tx.select().from(agents).where(eq(agents.id, proposal.proposedBy)).for('update');
       if (!proposer) return;
       const balance = proposer.balance as number;
       const wantedUnits = toUnits(configuredPenalty);
@@ -579,22 +665,33 @@ export async function declineProposalAsSpam(
       if (chargedUnits <= 0) return;
       actualCharged = fromUnits(chargedUnits);
       await applyCredits(tx, {
-        agentId: proposal.proposedBy, workspaceId, deltaUnits: -chargedUnits,
-        reason: 'proposal_penalty', refType: 'proposal', refId: proposalId,
+        agentId: proposal.proposedBy,
+        workspaceId,
+        deltaUnits: -chargedUnits,
+        reason: 'proposal_penalty',
+        refType: 'proposal',
+        refId: proposalId,
       });
       await applyCredits(tx, {
-        agentId: ownerAgentId, workspaceId, deltaUnits: chargedUnits,
-        reason: 'proposal_penalty', refType: 'proposal', refId: proposalId,
+        agentId: ownerAgentId,
+        workspaceId,
+        deltaUnits: chargedUnits,
+        reason: 'proposal_penalty',
+        refType: 'proposal',
+        refId: proposalId,
       });
     });
   }
 
-  await db.update(proposals).set({
-    status: 'declined_spam',
-    penaltyCharged: actualCharged,
-    resolvedAt: new Date(),
-    resolvedBy: resolvedBy ?? ownerAgentId ?? null,
-  }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  await db
+    .update(proposals)
+    .set({
+      status: 'declined_spam',
+      penaltyCharged: actualCharged,
+      resolvedAt: new Date(),
+      resolvedBy: resolvedBy ?? ownerAgentId ?? null,
+    })
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
 
   return { penaltyCharged: actualCharged };
 }
@@ -618,17 +715,22 @@ export async function removeProposal(
   workspaceId: string,
   byAgentId?: string | null,
 ): Promise<void> {
-  const [proposal] = await db.select().from(proposals)
+  const [proposal] = await db
+    .select()
+    .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
   if (proposal.status === 'removed') return;
 
   await voidProposalMarkets(proposalId, workspaceId);
-  await db.update(proposals).set({
-    status: 'removed',
-    resolvedAt: new Date(),
-    resolvedBy: byAgentId ?? null,
-  }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  await db
+    .update(proposals)
+    .set({
+      status: 'removed',
+      resolvedAt: new Date(),
+      resolvedBy: byAgentId ?? null,
+    })
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
 }
 
 /** What an edit may touch. `payoutHandle` is deliberately absent: who gets
@@ -666,13 +768,15 @@ export async function editProposalDefinition(
   edit: ContractEdit,
   by: { agentId?: string; canManage: boolean },
 ): Promise<{ changed: string[]; reanchored: boolean }> {
-  const [proposal] = await db.select().from(proposals)
+  const [proposal] = await db
+    .select()
+    .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
 
   const isProposer = !!by.agentId && proposal.proposedBy === by.agentId;
   if (!isProposer && !by.canManage) {
-    throw new AppError('Only the contract\'s proposer, or a workspace manager, may edit it', 403);
+    throw new AppError("Only the contract's proposer, or a workspace manager, may edit it", 403);
   }
   // An approved contract's terms are the deal the owner agreed to pay for,
   // and a declined one's are what the published reason refers to.
@@ -692,7 +796,10 @@ export async function editProposalDefinition(
     throw new AppError(`The title says $${titled} but the ask is $${nextAsk}; make them agree`, 400);
   }
   if (nextAsk === 0 && titled !== null) {
-    throw new AppError(`The title says $${titled} but the contract asks for nothing; drop the price from the title`, 400);
+    throw new AppError(
+      `The title says $${titled} but the contract asks for nothing; drop the price from the title`,
+      400,
+    );
   }
 
   const changed: string[] = [];
@@ -708,41 +815,51 @@ export async function editProposalDefinition(
   // (docs/market-integrity.md, I1b, revised 2026-08-22).
   let pairIsTraded = false;
   if (changed.includes('askUsd')) {
-    const pairMarkets = await db.select({ id: markets.id }).from(markets)
-      .where(and(
-        eq(markets.workspaceId, workspaceId),
-        eq(markets.proposalId, proposalId),
-        eq(markets.resolved, false),
-      ));
+    const pairMarkets = await db
+      .select({ id: markets.id })
+      .from(markets)
+      .where(
+        and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)),
+      );
     if (pairMarkets.length > 0) {
-      const [traded] = await db.select({ n: sql<number>`count(*)::int` }).from(trades)
-        .where(and(
-          eq(trades.workspaceId, workspaceId),
-          inArray(trades.marketId, pairMarkets.map(m => m.id)),
-        ));
+      const [traded] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(trades)
+        .where(
+          and(
+            eq(trades.workspaceId, workspaceId),
+            inArray(
+              trades.marketId,
+              pairMarkets.map(m => m.id),
+            ),
+          ),
+        );
       pairIsTraded = (traded?.n ?? 0) > 0;
     }
   }
 
-  await db.update(proposals)
+  await db
+    .update(proposals)
     .set({ title: nextTitle, description: nextDescription, askUsd: nextAsk > 0 ? nextAsk : null })
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
 
   const stamp = new Date();
   const was = { title: proposal.title, description: proposal.description, askUsd: String(currentAsk) };
   const now = { title: nextTitle, description: nextDescription, askUsd: String(nextAsk) };
-  await db.insert(proposalRevisions).values(changed.map((field, i) => ({
-    id: randomUUID(),
-    workspaceId,
-    proposalId,
-    field,
-    oldValue: was[field as keyof typeof was],
-    newValue: now[field as keyof typeof now],
-    changedBy: by.agentId ?? null,
-    // One millisecond apart so a multi-field edit still reads in field order
-    // rather than in whatever order the rows come back.
-    createdAt: new Date(stamp.getTime() + i),
-  })));
+  await db.insert(proposalRevisions).values(
+    changed.map((field, i) => ({
+      id: randomUUID(),
+      workspaceId,
+      proposalId,
+      field,
+      oldValue: was[field as keyof typeof was],
+      newValue: now[field as keyof typeof now],
+      changedBy: by.agentId ?? null,
+      // One millisecond apart so a multi-field edit still reads in field order
+      // rather than in whatever order the rows come back.
+      createdAt: new Date(stamp.getTime() + i),
+    })),
+  );
 
   let reanchored = false;
   if (changed.includes('askUsd') && !pairIsTraded) {
@@ -762,41 +879,44 @@ export async function editProposalDefinition(
 
 /** Every edit to one contract, oldest first. */
 export async function proposalRevisionsFor(proposalId: string, workspaceId: string) {
-  return db.select().from(proposalRevisions)
+  return db
+    .select()
+    .from(proposalRevisions)
     .where(and(eq(proposalRevisions.workspaceId, workspaceId), eq(proposalRevisions.proposalId, proposalId)))
     .orderBy(asc(proposalRevisions.createdAt));
 }
 
-export async function withdrawProposal(
-  proposalId: string,
-  workspaceId: string,
-  byAgentId: string,
-): Promise<void> {
-  const [proposal] = await db.select().from(proposals)
+export async function withdrawProposal(proposalId: string, workspaceId: string, byAgentId: string): Promise<void> {
+  const [proposal] = await db
+    .select()
+    .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
   if (proposal.status !== 'pending') throw new AppError('Can only withdraw pending proposals', 400);
   if (proposal.proposedBy !== byAgentId) throw new AppError('Only the proposer may withdraw a proposal', 403);
 
   await voidProposalMarkets(proposalId, workspaceId);
-  await db.update(proposals).set({
-    status: 'withdrawn',
-    resolvedAt: new Date(),
-    resolvedBy: byAgentId,
-  }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  await db
+    .update(proposals)
+    .set({
+      status: 'withdrawn',
+      resolvedAt: new Date(),
+      resolvedBy: byAgentId,
+    })
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
 }
 
-export async function countPendingProposalsByProposer(
-  workspaceId: string,
-  proposedBy: string,
-): Promise<number> {
-  const [row] = await db.select({ count: sql<number>`count(*)::int` })
+export async function countPendingProposalsByProposer(workspaceId: string, proposedBy: string): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
     .from(proposals)
-    .where(and(
-      eq(proposals.workspaceId, workspaceId),
-      eq(proposals.proposedBy, proposedBy),
-      eq(proposals.status, 'pending'),
-    ));
+    .where(
+      and(
+        eq(proposals.workspaceId, workspaceId),
+        eq(proposals.proposedBy, proposedBy),
+        eq(proposals.status, 'pending'),
+      ),
+    );
   return row?.count ?? 0;
 }
 
@@ -805,7 +925,9 @@ export async function getProposalMarketSummariesForProposal(proposalId: string, 
   // counterfactual branch's price at the moment of refund. The LMSR shares
   // are not zeroed on void, so consensus() still computes a meaningful
   // snapshot.
-  const rows = await db.select().from(markets)
+  const rows = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId)));
   return buildProposalMarketSummariesFromRows(rows, workspaceId);
 }
@@ -847,7 +969,10 @@ async function buildProposalMarketSummariesFromRows(
   workspaceId: string,
 ): Promise<PairedProposalMarketSummary[]> {
   const [tradeCountMap, baselineConsensusMap] = await Promise.all([
-    getTradeCountMap(rows.map(r => r.id), workspaceId),
+    getTradeCountMap(
+      rows.map(r => r.id),
+      workspaceId,
+    ),
     getBaselineConsensusMap(rows, workspaceId),
   ]);
 
@@ -881,9 +1006,8 @@ async function buildProposalMarketSummariesFromRows(
     const declinedRow = branchRows.find(r => r.branch === 'declined') ?? null;
     const approved = approvedRow ? toBranchSummary(approvedRow) : null;
     const declined = declinedRow ? toBranchSummary(declinedRow) : null;
-    const delta = approved?.consensus != null && declined?.consensus != null
-      ? approved.consensus - declined.consensus
-      : null;
+    const delta =
+      approved?.consensus != null && declined?.consensus != null ? approved.consensus - declined.consensus : null;
     out.push({
       metricId: first.metricId,
       metricName: first.metricName,
@@ -900,53 +1024,63 @@ async function buildProposalMarketSummariesFromRows(
   return out;
 }
 
-
 /** Owner takes over the proposer's LP rows on the proposal's still-open
  *  markets, refunding the stake at decision time instead of resolution. */
-async function buyOutProposerLiquidity(
-  proposalId: string,
-  workspaceId: string,
-  proposerId: string,
-): Promise<void> {
+async function buyOutProposerLiquidity(proposalId: string, workspaceId: string, proposerId: string): Promise<void> {
   const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
   if (!ownerAgentId || ownerAgentId === proposerId) return;
 
-  const openMarkets = await db.select({ id: markets.id }).from(markets)
+  const openMarkets = await db
+    .select({ id: markets.id })
+    .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
   if (openMarkets.length === 0) return;
   const marketIds = openMarkets.map(m => m.id);
 
   await db.transaction(async tx => {
-    const rows = await tx.select().from(liquidityEvents)
-      .where(and(
-        eq(liquidityEvents.workspaceId, workspaceId),
-        inArray(liquidityEvents.marketId, marketIds),
-        eq(liquidityEvents.agentId, proposerId),
-      ))
+    const rows = await tx
+      .select()
+      .from(liquidityEvents)
+      .where(
+        and(
+          eq(liquidityEvents.workspaceId, workspaceId),
+          inArray(liquidityEvents.marketId, marketIds),
+          eq(liquidityEvents.agentId, proposerId),
+        ),
+      )
       .for('update');
     const stake = rows.reduce((sum, r) => sum + (r.poolContribution ?? 0), 0);
     if (stake <= 0) return;
 
     const [owner] = await tx.select().from(agents).where(eq(agents.id, ownerAgentId)).for('update');
     if (!owner || !sufficientBalance(owner.balance as number, stake)) {
-      console.error(`buyOutProposerLiquidity: owner ${ownerAgentId} cannot cover ${stake} for proposal ${proposalId}; proposer's LP claim stays until resolution`);
+      console.error(
+        `buyOutProposerLiquidity: owner ${ownerAgentId} cannot cover ${stake} for proposal ${proposalId}; proposer's LP claim stays until resolution`,
+      );
       return;
     }
 
     await applyCredits(tx, {
-      agentId: ownerAgentId, workspaceId, deltaUnits: -toUnits(stake),
-      reason: 'proposal_stake', refType: 'proposal', refId: proposalId,
+      agentId: ownerAgentId,
+      workspaceId,
+      deltaUnits: -toUnits(stake),
+      reason: 'proposal_stake',
+      refType: 'proposal',
+      refId: proposalId,
     });
     await applyCredits(tx, {
-      agentId: proposerId, workspaceId, deltaUnits: toUnits(stake),
-      reason: 'proposal_stake', refType: 'proposal', refId: proposalId,
+      agentId: proposerId,
+      workspaceId,
+      deltaUnits: toUnits(stake),
+      reason: 'proposal_stake',
+      refType: 'proposal',
+      refId: proposalId,
     });
     for (const row of rows) {
       // Re-attribution, not erasure: the row moves to the account that
       // actually paid for it.
       await allowLedgerAdmin(tx);
-      await tx.update(liquidityEvents).set({ agentId: ownerAgentId })
-        .where(eq(liquidityEvents.id, row.id));
+      await tx.update(liquidityEvents).set({ agentId: ownerAgentId }).where(eq(liquidityEvents.id, row.id));
     }
   });
 }

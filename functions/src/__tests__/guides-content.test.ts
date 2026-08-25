@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import express from 'express';
 import request from 'supertest';
 import { GUIDE_SECTIONS } from '../content/guides';
-import { guidesRouter, GUIDE_CATEGORIES } from '../routes/guides';
+import { GUIDE_CATEGORIES, guidesRouter } from '../routes/guides';
 
 const DIR = join(__dirname, '..', '..', '..', 'docs', 'guides');
 
@@ -22,10 +22,19 @@ function parse(id: string, text: string) {
     const i = line.indexOf(':');
     if (i !== -1) meta[line.slice(0, i).trim()] = line.slice(i + 1).trim();
   }
-  return { id, title: meta.title, description: meta.description, category: meta.category, order: Number(meta.order), content: text.slice(m[0].length).replace(/\n$/, '') };
+  return {
+    id,
+    title: meta.title,
+    description: meta.description,
+    category: meta.category,
+    order: Number(meta.order),
+    content: text.slice(m[0].length).replace(/\n$/, ''),
+  };
 }
 
-const files = readdirSync(DIR).filter(f => f.endsWith('.md') && f !== 'README.md').sort();
+const files = readdirSync(DIR)
+  .filter(f => f.endsWith('.md') && f !== 'README.md')
+  .sort();
 const fromDisk = files.map(f => parse(f.replace(/\.md$/, ''), readFileSync(join(DIR, f), 'utf8')));
 
 const app = express();

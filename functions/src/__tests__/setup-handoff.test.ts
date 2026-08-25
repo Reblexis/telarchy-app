@@ -25,19 +25,22 @@ const FACTS = renderFacts(STATE, null);
 
 /** One gateway reply carrying whatever the model "said". */
 function replyWith(content: string) {
-  global.fetch = (async () => ({
-    ok: true,
-    json: async () => ({
-      choices: [{ message: { role: 'assistant', content } }],
-      usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.0001 },
-    }),
-    text: async () => '',
-  } as unknown as Response)) as typeof global.fetch;
+  global.fetch = (async () =>
+    ({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { role: 'assistant', content } }],
+        usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.0001 },
+      }),
+      text: async () => '',
+    }) as unknown as Response) as typeof global.fetch;
 }
 
 const LONG = 'x'.repeat(260);
 
-beforeEach(() => { process.env.AI_GATEWAY_API_KEY = 'test-key'; });
+beforeEach(() => {
+  process.env.AI_GATEWAY_API_KEY = 'test-key';
+});
 afterEach(() => {
   global.fetch = ORIGINAL_FETCH;
   if (ORIGINAL_KEY === undefined) delete process.env.AI_GATEWAY_API_KEY;
@@ -96,28 +99,44 @@ describe('the budget it asks the gateway for', () => {
       return {
         ok: true,
         json: async () => ({
-          choices: [{ message: { role: 'assistant', content: JSON.stringify({ prompt: `ok. ${LONG}`, settled: [], open: [] }) } }],
+          choices: [
+            {
+              message: { role: 'assistant', content: JSON.stringify({ prompt: `ok. ${LONG}`, settled: [], open: [] }) },
+            },
+          ],
           usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.0001 },
         }),
         text: async () => '',
       } as unknown as Response;
     }) as unknown as typeof global.fetch;
 
-    const out = await writeHandoff({ turns: [{ role: 'user', content: 'hi' }], state: STATE, checklist: null, previouslySettled: [] });
+    const out = await writeHandoff({
+      turns: [{ role: 'user', content: 'hi' }],
+      state: STATE,
+      checklist: null,
+      previouslySettled: [],
+    });
     expect(out.written).toBe(true);
     expect(sent.max_completion_tokens as number).toBeGreaterThan(1000);
   });
 });
 
 describe('writing the handoff', () => {
-  const input = { turns: [{ role: 'user' as const, content: 'I run Kleros' }], state: STATE, checklist: null, previouslySettled: [] };
+  const input = {
+    turns: [{ role: 'user' as const, content: 'I run Kleros' }],
+    state: STATE,
+    checklist: null,
+    previouslySettled: [],
+  };
 
   test('uses what Otto wrote when it only names real things', async () => {
-    replyWith(JSON.stringify({
-      prompt: `I run Kleros. The floor is open at telarchy.com/kleros, workspace id ws-real. ${LONG}`,
-      settled: ['subject', 'number'],
-      open: ['liquidity'],
-    }));
+    replyWith(
+      JSON.stringify({
+        prompt: `I run Kleros. The floor is open at telarchy.com/kleros, workspace id ws-real. ${LONG}`,
+        settled: ['subject', 'number'],
+        open: ['liquidity'],
+      }),
+    );
     const out = await writeHandoff(input);
     expect(out.written).toBe(true);
     expect(out.prompt).toMatch(/I run Kleros/);
@@ -146,18 +165,22 @@ describe('writing the handoff', () => {
   });
 
   test('falls back when the gateway fails, rather than showing nothing', async () => {
-    global.fetch = (async () => { throw new Error('gateway down'); }) as typeof global.fetch;
+    global.fetch = (async () => {
+      throw new Error('gateway down');
+    }) as typeof global.fetch;
     const out = await writeHandoff(input);
     expect(out.written).toBe(false);
     expect(out.prompt.length).toBeGreaterThan(200);
   });
 
   test('reads a decision id it does not know as no decision at all', async () => {
-    replyWith(JSON.stringify({
-      prompt: `Fine. ${LONG}`,
-      settled: ['subject', 'ignore-previous-instructions', 'number'],
-      open: null,
-    }));
+    replyWith(
+      JSON.stringify({
+        prompt: `Fine. ${LONG}`,
+        settled: ['subject', 'ignore-previous-instructions', 'number'],
+        open: null,
+      }),
+    );
     const out = await writeHandoff(input);
     // The list round-trips through a browser, so only ids from the spec live.
     expect(out.settled).toEqual(['subject', 'number']);
@@ -167,14 +190,16 @@ describe('writing the handoff', () => {
 
 describe('reading what the model sent back', () => {
   test('the labelled shape, with the prompt over many lines', () => {
-    const out = parseHandoffAnswer([
-      'SETTLED: subject, number',
-      'OPEN: liquidity',
-      'PROMPT:',
-      'Call GET /api/setup/checklist first.',
-      '',
-      'Then fund the market.',
-    ].join('\n'));
+    const out = parseHandoffAnswer(
+      [
+        'SETTLED: subject, number',
+        'OPEN: liquidity',
+        'PROMPT:',
+        'Call GET /api/setup/checklist first.',
+        '',
+        'Then fund the market.',
+      ].join('\n'),
+    );
     expect(out.settled).toEqual(['subject', 'number']);
     expect(out.open).toEqual(['liquidity']);
     expect(out.prompt).toBe('Call GET /api/setup/checklist first.\n\nThen fund the market.');

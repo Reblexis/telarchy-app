@@ -31,36 +31,76 @@ const feed = {
     ],
   },
   evidence: {
-    pulse: { weeklyActiveVerifiedTraders: 2, participants: 211, openMarkets: 24, tradesThisWeek: 29, source: '/api/marketplace/stats' },
+    pulse: {
+      weeklyActiveVerifiedTraders: 2,
+      participants: 211,
+      openMarkets: 24,
+      tradesThisWeek: 29,
+      source: '/api/marketplace/stats',
+    },
     market: {
-      workspaceId: 'ws', name: 'Telarchy', slug: 'telarchy',
+      workspaceId: 'ws',
+      name: 'Telarchy',
+      slug: 'telarchy',
       market: {
-        metricName: 'Active traders @1st October', metricDescription: null,
-        consensus: null, currentValue: 4, rangeMin: 0, rangeMax: 50,
-        targetDate: '2026-09', resolvesOn: '2026-10-01T00:00:00Z',
-        liquidity: 360, tradedVolume: 120,
-        history: [{ at: '2026-08-01T00:00:00Z', value: 2 }, { at: '2026-08-10T00:00:00Z', value: 4 }],
+        metricName: 'Active traders @1st October',
+        metricDescription: null,
+        consensus: null,
+        currentValue: 4,
+        rangeMin: 0,
+        rangeMax: 50,
+        targetDate: '2026-09',
+        resolvesOn: '2026-10-01T00:00:00Z',
+        liquidity: 360,
+        tradedVolume: 120,
+        history: [
+          { at: '2026-08-01T00:00:00Z', value: 2 },
+          { at: '2026-08-10T00:00:00Z', value: 4 },
+        ],
       },
     },
     traction: {
-      participants: 211, accounts: 12, verifiedParticipants: 5, trades: 300, creditsTraded: 5000,
-      openMarkets: 24, settledMarkets: 3, publicFloors: 2, signupsByDay: [],
+      participants: 211,
+      accounts: 12,
+      verifiedParticipants: 5,
+      trades: 300,
+      creditsTraded: 5000,
+      openMarkets: 24,
+      settledMarkets: 3,
+      publicFloors: 2,
+      signupsByDay: [],
     },
     contracts: { proposed: 10, approved: 2, declined: 1, pending: 7, withdrawn: 0, approvedUsd: 300 },
     traffic: {
-      byDay: [{ day: '2026-08-19', visits: 40, uniques: 12 }, { day: '2026-08-20', visits: 61, uniques: 20 }],
-      keptSince: '2026-08-19', visits24h: 61, uniques24h: 20, visits7d: 101, uniques7d: 30, totalVisits: 101,
+      byDay: [
+        { day: '2026-08-19', visits: 40, uniques: 12 },
+        { day: '2026-08-20', visits: 61, uniques: 20 },
+      ],
+      keptSince: '2026-08-19',
+      visits24h: 61,
+      uniques24h: 20,
+      visits7d: 101,
+      uniques7d: 30,
+      totalVisits: 101,
     },
     shipping: {
-      days: [{ date: '2026-08-19', changes: 9 }, { date: '2026-08-20', changes: 12 }],
+      days: [
+        { date: '2026-08-19', changes: 9 },
+        { date: '2026-08-20', changes: 12 },
+      ],
       changes: [{ date: '2026-08-20', subject: 'Keep every question asked of a floor' }],
-      total: 1055, builtAt: '2026-08-20',
+      total: 1055,
+      builtAt: '2026-08-20',
     },
   },
 };
 
 function renderPage() {
-  return render(<MemoryRouter><DataRoomPage /></MemoryRouter>);
+  return render(
+    <MemoryRouter>
+      <DataRoomPage />
+    </MemoryRouter>,
+  );
 }
 
 describe('the data room page', () => {

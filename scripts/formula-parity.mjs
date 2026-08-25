@@ -17,8 +17,8 @@
  * data you pass it explicitly, never on stored data at runtime.
  */
 import { readFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const file = process.argv[2];
 if (!file) {
@@ -75,7 +75,9 @@ for (const r of nonLeaf) {
     const same = !('rejected' in b) && Object.is(a, b.value);
     if (!same) {
       diffs++;
-      console.log(`DIFF  ${r.workspace ?? ''} | ${r.name ?? ''} | ${JSON.stringify(r.formula)} | refs=${value} | old=${a} new=${'rejected' in b ? 'REJECTED: ' + b.rejected : b.value}`);
+      console.log(
+        `DIFF  ${r.workspace ?? ''} | ${r.name ?? ''} | ${JSON.stringify(r.formula)} | refs=${value} | old=${a} new=${'rejected' in b ? 'REJECTED: ' + b.rejected : b.value}`,
+      );
     }
   }
 }

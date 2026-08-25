@@ -29,7 +29,6 @@ describe('the auth door', () => {
   });
 
   test('keeps the hash, which is where the account dialog lives', () => {
-    expect(authPath('login', { pathname: '/lookpilot', hash: '#account' }))
-      .toBe('/login?next=%2Flookpilot%23account');
+    expect(authPath('login', { pathname: '/lookpilot', hash: '#account' })).toBe('/login?next=%2Flookpilot%23account');
   });
 });

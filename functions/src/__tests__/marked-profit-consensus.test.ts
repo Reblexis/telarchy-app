@@ -1,5 +1,5 @@
-import { computeTradingProfit, type LeaderboardPosition, type ProfitMarket } from '../lib/leaderboard';
 import { directionTradeCost, sharesForBudget } from '../lib/amm';
+import { computeTradingProfit, type LeaderboardPosition, type ProfitMarket } from '../lib/leaderboard';
 
 /**
  * An open position is worth what it would pay if the market resolved right now
@@ -15,7 +15,7 @@ import { directionTradeCost, sharesForBudget } from '../lib/amm';
  * own rather than being left to be rediscovered as a bug.
  */
 
-const HERO_B = 360.67376022224084;   // production, LookPilot September 2026 net revenue
+const HERO_B = 360.67376022224084; // production, LookPilot September 2026 net revenue
 const HERO_RANGE: [number, number] = [0, 25000];
 
 function marketAfterBuy(b: number, budget: number): { market: ProfitMarket; cost: number; shares: number } {
@@ -23,16 +23,25 @@ function marketAfterBuy(b: number, budget: number): { market: ProfitMarket; cost
   const { amount, cost } = sharesForBudget(opening, 1, budget, b);
   // The book after the trade: the buyer's shares are now outstanding.
   const market: ProfitMarket = {
-    id: 'mkt', workspaceId: 'ws',
-    rangeMin: HERO_RANGE[0], rangeMax: HERO_RANGE[1],
-    resolved: false, actualValue: null,
-    shares: [0, amount], liquidity: b, voided: false,
+    id: 'mkt',
+    workspaceId: 'ws',
+    rangeMin: HERO_RANGE[0],
+    rangeMax: HERO_RANGE[1],
+    resolved: false,
+    actualValue: null,
+    shares: [0, amount],
+    liquidity: b,
+    voided: false,
   };
   return { market, cost, shares: amount };
 }
 
 const position = (shares: number, direction = 'higher'): LeaderboardPosition => ({
-  agentId: 'trader', workspaceId: 'ws', marketId: 'mkt', direction, shares,
+  agentId: 'trader',
+  workspaceId: 'ws',
+  marketId: 'mkt',
+  direction,
+  shares,
 });
 
 const profitOf = (markets: ProfitMarket[], netCash: number, positions: LeaderboardPosition[]) =>
@@ -91,18 +100,30 @@ describe('marked profit on an open position', () => {
     const netCash = cost - proceeds;
 
     const market: ProfitMarket = {
-      id: 'mkt', workspaceId: 'ws', rangeMin: 0, rangeMax: 25000,
-      resolved: false, actualValue: null,
-      shares: [0, 0], liquidity: b, voided: false,
+      id: 'mkt',
+      workspaceId: 'ws',
+      rangeMin: 0,
+      rangeMax: 25000,
+      resolved: false,
+      actualValue: null,
+      shares: [0, 0],
+      liquidity: b,
+      voided: false,
     };
     expect(Math.abs(profitOf([market], netCash, []))).toBeLessThan(0.01);
   });
 
   test('a resolved market pays its per-share payout factor, not a price', () => {
     const market: ProfitMarket = {
-      id: 'mkt', workspaceId: 'ws', rangeMin: 0, rangeMax: 1000,
-      resolved: true, actualValue: 750,
-      shares: [0, 100], liquidity: 100, voided: false,
+      id: 'mkt',
+      workspaceId: 'ws',
+      rangeMin: 0,
+      rangeMax: 1000,
+      resolved: true,
+      actualValue: 750,
+      shares: [0, 100],
+      liquidity: 100,
+      voided: false,
     };
     // 100 shares x 0.75 payout = 75, minus 40 paid.
     expect(profitOf([market], 40, [position(100)])).toBeCloseTo(35, 2);

@@ -1,12 +1,13 @@
-import { and, eq, inArray, or, sql, ne } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { agents, authUser, permissionGroups, workspaces, workspaceSlugAliases } from '../db/schema';
-import { DEFAULT_MARKET_LIQUIDITY_CREDITS, validateNickname } from './validation';
+import { agents, authUser, permissionGroups, workspaceSlugAliases, workspaces } from '../db/schema';
 import { AppError } from './errors';
 import { uniqueSlugForOwner } from './slug';
+import { DEFAULT_MARKET_LIQUIDITY_CREDITS, validateNickname } from './validation';
 
 type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
+
 import type { WorkspaceMemberRole } from '../types';
 
 const ROLE_PRIORITY: WorkspaceMemberRole[] = ['owner', 'admin', 'trader', 'viewer'];
@@ -45,8 +46,8 @@ export function selectEffectiveWorkspaceId(
     const match = memberships.find(m => m.workspaceId === requestedWorkspaceId);
     if (match) return requestedWorkspaceId;
   }
-  const sorted = [...memberships].sort((a, b) =>
-    ROLE_PRIORITY.indexOf(a.memberRole) - ROLE_PRIORITY.indexOf(b.memberRole),
+  const sorted = [...memberships].sort(
+    (a, b) => ROLE_PRIORITY.indexOf(a.memberRole) - ROLE_PRIORITY.indexOf(b.memberRole),
   );
   return sorted[0].workspaceId;
 }
@@ -58,7 +59,7 @@ type GroupLike = {
 };
 
 export function getGroupMemberIds(group: GroupLike): string[] {
-  return (group.memberIds as string[] ?? []).filter(id => typeof id === 'string');
+  return ((group.memberIds as string[]) ?? []).filter(id => typeof id === 'string');
 }
 
 export function isParticipantMember(group: GroupLike, participantId?: string): boolean {
@@ -162,9 +163,13 @@ export async function getParticipantWorkspaceMemberships(participantId: string):
     if (!isParticipantMember(group, participantId)) continue;
     const caps = (group.capabilities as string[] | null) ?? [];
     const role: WorkspaceMemberRole =
-      group.type === 'admin' ? 'admin'
-      : group.type === 'public' ? (caps.includes('trade') ? 'trader' : 'viewer')
-      : 'trader';
+      group.type === 'admin'
+        ? 'admin'
+        : group.type === 'public'
+          ? caps.includes('trade')
+            ? 'trader'
+            : 'viewer'
+          : 'trader';
     upsertMembership(memberships, group.workspaceId, role);
   }
 
@@ -178,9 +183,7 @@ export async function getUserWorkspaceMemberships(userId: string): Promise<Works
   // (agents) row exists for them - workspace creation does not call
   // ensureParticipant. Do NOT early-return on a missing participantId, or the
   // creator loses membership (and thus capabilities) on their own workspace.
-  const memberships = participantId
-    ? await getParticipantWorkspaceMemberships(participantId)
-    : [];
+  const memberships = participantId ? await getParticipantWorkspaceMemberships(participantId) : [];
 
   // Permission groups cap at 'admin'. Upgrade to 'owner' for any workspace where
   // the user (or their participantId) is the workspace creator.
@@ -212,20 +215,22 @@ export async function getUserWorkspaceMemberships(userId: string): Promise<Works
     // Only possible once the owner has a participant row; until then the
     // 'owner' membership above (plus the createdBy owner-shortcut in
     // computeCapabilities) already grants full access.
-    if (participantId) db.select().from(permissionGroups)
-      .where(and(inArray(permissionGroups.workspaceId, missingWsIds), eq(permissionGroups.type, 'admin')))
-      .then(groups => {
-        for (const group of groups) {
-          const ids = (group.memberIds as string[] ?? []);
-          if (!ids.includes(participantId)) {
-            db.update(permissionGroups)
-              .set({ memberIds: [...ids, participantId] })
-              .where(eq(permissionGroups.id, group.id))
-              .catch(e => console.error('Failed to self-heal admin group membership:', e));
+    if (participantId)
+      db.select()
+        .from(permissionGroups)
+        .where(and(inArray(permissionGroups.workspaceId, missingWsIds), eq(permissionGroups.type, 'admin')))
+        .then(groups => {
+          for (const group of groups) {
+            const ids = (group.memberIds as string[]) ?? [];
+            if (!ids.includes(participantId)) {
+              db.update(permissionGroups)
+                .set({ memberIds: [...ids, participantId] })
+                .where(eq(permissionGroups.id, group.id))
+                .catch(e => console.error('Failed to self-heal admin group membership:', e));
+            }
           }
-        }
-      })
-      .catch(e => console.error('Failed to self-heal admin group lookup:', e));
+        })
+        .catch(e => console.error('Failed to self-heal admin group lookup:', e));
   }
 
   return result;
@@ -267,30 +272,47 @@ export async function provisionWorkspace(
   });
 
   await tx.insert(workspaceSlugAliases).values({
-    workspaceId: wsId, ownerKey: createdBy, slug, createdAt: now,
+    workspaceId: wsId,
+    ownerKey: createdBy,
+    slug,
+    createdAt: now,
   });
 
   const adminMemberIds = ownerAgentId ? [ownerAgentId] : [];
 
   await tx.insert(permissionGroups).values([
     {
-      id: randomUUID(), workspaceId: wsId,
-      name: 'Public', type: 'public',
+      id: randomUUID(),
+      workspaceId: wsId,
+      name: 'Public',
+      type: 'public',
       description: 'Participants explicitly added to this workspace.',
-      memberIds: [], permissions: {}, capabilities: ['read'], createdAt: now,
+      memberIds: [],
+      permissions: {},
+      capabilities: ['read'],
+      createdAt: now,
     },
     {
-      id: randomUUID(), workspaceId: wsId,
-      name: 'Admin', type: 'admin',
+      id: randomUUID(),
+      workspaceId: wsId,
+      name: 'Admin',
+      type: 'admin',
       description: 'Participants with full administrative access to this workspace.',
       memberIds: adminMemberIds,
-      permissions: {}, capabilities: ['read', 'trade', 'manage'], createdAt: now,
+      permissions: {},
+      capabilities: ['read', 'trade', 'manage'],
+      createdAt: now,
     },
     {
-      id: randomUUID(), workspaceId: wsId,
-      name: 'Trader', type: 'trader',
+      id: randomUUID(),
+      workspaceId: wsId,
+      name: 'Trader',
+      type: 'trader',
       description: 'Participants who can view metrics and trade on all markets.',
-      memberIds: [], permissions: {}, capabilities: ['read', 'trade'], createdAt: now,
+      memberIds: [],
+      permissions: {},
+      capabilities: ['read', 'trade'],
+      createdAt: now,
     },
   ]);
 
@@ -317,9 +339,7 @@ export async function listParticipantsForWorkspace(workspaceId: string) {
  * without a nickname are absent from the map; callers should fall back to a
  * truncated ID.
  */
-export async function getParticipantDisplayNames(
-  participantIds: string[],
-): Promise<Map<string, string>> {
+export async function getParticipantDisplayNames(participantIds: string[]): Promise<Map<string, string>> {
   const names = new Map<string, string>();
   const unique = [...new Set(participantIds.filter(Boolean))];
   if (unique.length === 0) return names;
@@ -347,11 +367,7 @@ export async function getParticipantDisplayNames(
  * for races; the pre-check exists so callers get a clean 409 instead of a raw
  * constraint-violation surface.
  */
-export async function claimNickname(
-  tx: DbOrTx,
-  participantId: string,
-  nickname: string,
-): Promise<void> {
+export async function claimNickname(tx: DbOrTx, participantId: string, nickname: string): Promise<void> {
   const formatError = validateNickname(nickname);
   if (formatError) throw new AppError(formatError, 400);
 
@@ -386,7 +402,9 @@ export async function claimNickname(
 export async function platformOperatedIds(agentIds: string[]): Promise<Set<string>> {
   const unique = [...new Set(agentIds.filter(Boolean))];
   if (unique.length === 0) return new Set();
-  const rows = await db.select({ id: agents.id, platformOperated: agents.platformOperated })
-    .from(agents).where(inArray(agents.id, unique));
+  const rows = await db
+    .select({ id: agents.id, platformOperated: agents.platformOperated })
+    .from(agents)
+    .where(inArray(agents.id, unique));
   return new Set(rows.filter(r => r.platformOperated).map(r => r.id));
 }

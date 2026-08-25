@@ -1,18 +1,18 @@
-import { and, eq, gt, lte, inArray, desc } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, lte } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
-  trades,
   deposits,
-  withdrawals,
-  markets,
-  updates,
-  proposals,
-  proposalMessages,
   liquidityEvents,
+  markets,
   metrics as metricsTable,
+  proposalMessages,
+  proposals,
+  trades,
+  updates,
+  withdrawals,
 } from '../db/schema';
-import { getParticipantDisplayNames, listParticipantsForWorkspace } from '../lib/participants';
 import { resolutionInstant } from '../lib/date-utils';
+import { getParticipantDisplayNames, listParticipantsForWorkspace } from '../lib/participants';
 
 export const ACTIVITY_TYPES = [
   'trade',
@@ -25,7 +25,7 @@ export const ACTIVITY_TYPES = [
   'proposal_message',
   'liquidity',
 ] as const;
-export type ActivityType = typeof ACTIVITY_TYPES[number];
+export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
 export interface ActivityItem {
   id: string;
@@ -68,86 +68,146 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
     return id === opts.participantId;
   };
 
-  const tradesQuery = want(types, 'trade') && memberIds.length > 0
-    ? db.select().from(trades).where(and(
-        eq(trades.workspaceId, workspaceId),
-        gt(trades.createdAt, since),
-        lte(trades.createdAt, until),
-        ...(opts.marketId ? [eq(trades.marketId, opts.marketId)] : []),
-        ...(opts.participantId ? [eq(trades.agentId, opts.participantId)] : []),
-      )).orderBy(desc(trades.createdAt)).limit(limit)
-    : Promise.resolve([]);
+  const tradesQuery =
+    want(types, 'trade') && memberIds.length > 0
+      ? db
+          .select()
+          .from(trades)
+          .where(
+            and(
+              eq(trades.workspaceId, workspaceId),
+              gt(trades.createdAt, since),
+              lte(trades.createdAt, until),
+              ...(opts.marketId ? [eq(trades.marketId, opts.marketId)] : []),
+              ...(opts.participantId ? [eq(trades.agentId, opts.participantId)] : []),
+            ),
+          )
+          .orderBy(desc(trades.createdAt))
+          .limit(limit)
+      : Promise.resolve([]);
 
-  const depositsQuery = want(types, 'deposit') && memberIds.length > 0
-    ? db.select().from(deposits).where(and(
-        inArray(deposits.agentId, opts.participantId ? [opts.participantId] : memberIds),
-        gt(deposits.createdAt, since),
-        lte(deposits.createdAt, until),
-      )).orderBy(desc(deposits.createdAt)).limit(limit)
-    : Promise.resolve([]);
+  const depositsQuery =
+    want(types, 'deposit') && memberIds.length > 0
+      ? db
+          .select()
+          .from(deposits)
+          .where(
+            and(
+              inArray(deposits.agentId, opts.participantId ? [opts.participantId] : memberIds),
+              gt(deposits.createdAt, since),
+              lte(deposits.createdAt, until),
+            ),
+          )
+          .orderBy(desc(deposits.createdAt))
+          .limit(limit)
+      : Promise.resolve([]);
 
-  const withdrawalsQuery = want(types, 'withdrawal') && memberIds.length > 0
-    ? db.select().from(withdrawals).where(and(
-        inArray(withdrawals.agentId, opts.participantId ? [opts.participantId] : memberIds),
-        gt(withdrawals.createdAt, since),
-        lte(withdrawals.createdAt, until),
-      )).orderBy(desc(withdrawals.createdAt)).limit(limit)
-    : Promise.resolve([]);
+  const withdrawalsQuery =
+    want(types, 'withdrawal') && memberIds.length > 0
+      ? db
+          .select()
+          .from(withdrawals)
+          .where(
+            and(
+              inArray(withdrawals.agentId, opts.participantId ? [opts.participantId] : memberIds),
+              gt(withdrawals.createdAt, since),
+              lte(withdrawals.createdAt, until),
+            ),
+          )
+          .orderBy(desc(withdrawals.createdAt))
+          .limit(limit)
+      : Promise.resolve([]);
 
   const marketsCreatedQuery = want(types, 'market_created')
-    ? db.select().from(markets).where(and(
-        eq(markets.workspaceId, workspaceId),
-        gt(markets.createdAt, since),
-        lte(markets.createdAt, until),
-        ...(opts.marketId ? [eq(markets.id, opts.marketId)] : []),
-        ...(opts.metricId ? [eq(markets.metricId, opts.metricId)] : []),
-      )).orderBy(desc(markets.createdAt)).limit(limit)
+    ? db
+        .select()
+        .from(markets)
+        .where(
+          and(
+            eq(markets.workspaceId, workspaceId),
+            gt(markets.createdAt, since),
+            lte(markets.createdAt, until),
+            ...(opts.marketId ? [eq(markets.id, opts.marketId)] : []),
+            ...(opts.metricId ? [eq(markets.metricId, opts.metricId)] : []),
+          ),
+        )
+        .orderBy(desc(markets.createdAt))
+        .limit(limit)
     : Promise.resolve([]);
 
   const marketsResolvedQuery = want(types, 'market_resolved')
-    ? db.select().from(markets).where(and(
-        eq(markets.workspaceId, workspaceId),
-        eq(markets.resolved, true),
-        ...(opts.marketId ? [eq(markets.id, opts.marketId)] : []),
-        ...(opts.metricId ? [eq(markets.metricId, opts.metricId)] : []),
-      )).orderBy(desc(markets.resolvedAt)).limit(limit)
+    ? db
+        .select()
+        .from(markets)
+        .where(
+          and(
+            eq(markets.workspaceId, workspaceId),
+            eq(markets.resolved, true),
+            ...(opts.marketId ? [eq(markets.id, opts.marketId)] : []),
+            ...(opts.metricId ? [eq(markets.metricId, opts.metricId)] : []),
+          ),
+        )
+        .orderBy(desc(markets.resolvedAt))
+        .limit(limit)
     : Promise.resolve([]);
 
   const updatesQuery = want(types, 'metric_update')
-    ? db.select().from(updates).where(and(
-        eq(updates.workspaceId, workspaceId),
-        gt(updates.timestamp, since),
-        lte(updates.timestamp, until),
-      )).orderBy(desc(updates.timestamp)).limit(limit)
+    ? db
+        .select()
+        .from(updates)
+        .where(and(eq(updates.workspaceId, workspaceId), gt(updates.timestamp, since), lte(updates.timestamp, until)))
+        .orderBy(desc(updates.timestamp))
+        .limit(limit)
     : Promise.resolve([]);
 
   const proposalsQuery = want(types, 'proposal_created')
-    ? db.select().from(proposals).where(and(
-        eq(proposals.workspaceId, workspaceId),
-        gt(proposals.createdAt, since),
-        lte(proposals.createdAt, until),
-        ...(opts.proposalId ? [eq(proposals.id, opts.proposalId)] : []),
-        ...(opts.participantId ? [eq(proposals.proposedBy, opts.participantId)] : []),
-      )).orderBy(desc(proposals.createdAt)).limit(limit)
+    ? db
+        .select()
+        .from(proposals)
+        .where(
+          and(
+            eq(proposals.workspaceId, workspaceId),
+            gt(proposals.createdAt, since),
+            lte(proposals.createdAt, until),
+            ...(opts.proposalId ? [eq(proposals.id, opts.proposalId)] : []),
+            ...(opts.participantId ? [eq(proposals.proposedBy, opts.participantId)] : []),
+          ),
+        )
+        .orderBy(desc(proposals.createdAt))
+        .limit(limit)
     : Promise.resolve([]);
 
   const proposalMessagesQuery = want(types, 'proposal_message')
-    ? db.select().from(proposalMessages).where(and(
-        eq(proposalMessages.workspaceId, workspaceId),
-        gt(proposalMessages.createdAt, since),
-        lte(proposalMessages.createdAt, until),
-        ...(opts.proposalId ? [eq(proposalMessages.proposalId, opts.proposalId)] : []),
-        ...(opts.participantId ? [eq(proposalMessages.from, opts.participantId)] : []),
-      )).orderBy(desc(proposalMessages.createdAt)).limit(limit)
+    ? db
+        .select()
+        .from(proposalMessages)
+        .where(
+          and(
+            eq(proposalMessages.workspaceId, workspaceId),
+            gt(proposalMessages.createdAt, since),
+            lte(proposalMessages.createdAt, until),
+            ...(opts.proposalId ? [eq(proposalMessages.proposalId, opts.proposalId)] : []),
+            ...(opts.participantId ? [eq(proposalMessages.from, opts.participantId)] : []),
+          ),
+        )
+        .orderBy(desc(proposalMessages.createdAt))
+        .limit(limit)
     : Promise.resolve([]);
 
   const liquidityQuery = want(types, 'liquidity')
-    ? db.select().from(liquidityEvents).where(and(
-        eq(liquidityEvents.workspaceId, workspaceId),
-        gt(liquidityEvents.createdAt, since),
-        lte(liquidityEvents.createdAt, until),
-        ...(opts.marketId ? [eq(liquidityEvents.marketId, opts.marketId)] : []),
-      )).orderBy(desc(liquidityEvents.createdAt)).limit(limit)
+    ? db
+        .select()
+        .from(liquidityEvents)
+        .where(
+          and(
+            eq(liquidityEvents.workspaceId, workspaceId),
+            gt(liquidityEvents.createdAt, since),
+            lte(liquidityEvents.createdAt, until),
+            ...(opts.marketId ? [eq(liquidityEvents.marketId, opts.marketId)] : []),
+          ),
+        )
+        .orderBy(desc(liquidityEvents.createdAt))
+        .limit(limit)
     : Promise.resolve([]);
 
   const [
@@ -173,8 +233,10 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
   ]);
 
   // Metric name -> id resolution for metric_update (updates table only stores name)
-  const metricRows = await db.select({ id: metricsTable.id, name: metricsTable.name })
-    .from(metricsTable).where(eq(metricsTable.workspaceId, workspaceId));
+  const metricRows = await db
+    .select({ id: metricsTable.id, name: metricsTable.name })
+    .from(metricsTable)
+    .where(eq(metricsTable.workspaceId, workspaceId));
   const metricIdByName = new Map(metricRows.map(r => [r.name, r.id]));
 
   // Market lookup so trade/liquidity rows can surface metricName + targetDate
@@ -184,15 +246,15 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
   for (const e of liquidityRows) marketIdsForLookup.add(e.marketId);
   const marketLookup = new Map<string, { metricId: string; metricName: string; targetDate: string }>();
   if (marketIdsForLookup.size > 0) {
-    const rows = await db.select({
-      id: markets.id,
-      metricId: markets.metricId,
-      metricName: markets.metricName,
-      targetDate: markets.targetDate,
-    }).from(markets).where(and(
-      eq(markets.workspaceId, workspaceId),
-      inArray(markets.id, Array.from(marketIdsForLookup)),
-    ));
+    const rows = await db
+      .select({
+        id: markets.id,
+        metricId: markets.metricId,
+        metricName: markets.metricName,
+        targetDate: markets.targetDate,
+      })
+      .from(markets)
+      .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.id, Array.from(marketIdsForLookup))));
     for (const r of rows) {
       marketLookup.set(r.id, { metricId: r.metricId, metricName: r.metricName, targetDate: r.targetDate });
     }

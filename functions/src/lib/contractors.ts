@@ -134,7 +134,8 @@ export function computeContractors(
   // contractor whose jobs are not priced yet still sits above nobody rather
   // than jumping the queue.
   entries.sort((a, b) => {
-    const ai = a.impact ?? 0, bi = b.impact ?? 0;
+    const ai = a.impact ?? 0,
+      bi = b.impact ?? 0;
     if (bi !== ai) return bi - ai;
     if (b.earnedUsd !== a.earnedUsd) return b.earnedUsd - a.earnedUsd;
     return b.jobs - a.jobs;

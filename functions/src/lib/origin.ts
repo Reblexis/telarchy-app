@@ -11,9 +11,9 @@
 /** Public origin for links in mail, share meta and handoff text. */
 export function publicOrigin(): string {
   return (
-    process.env.PUBLIC_ORIGIN?.trim().replace(/\/+$/, '')
-    || process.env.BETTER_AUTH_URL?.trim().replace(/\/+$/, '')
-    || 'https://telarchy.com'
+    process.env.PUBLIC_ORIGIN?.trim().replace(/\/+$/, '') ||
+    process.env.BETTER_AUTH_URL?.trim().replace(/\/+$/, '') ||
+    'https://telarchy.com'
   );
 }
 

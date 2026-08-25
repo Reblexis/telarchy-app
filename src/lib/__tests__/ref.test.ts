@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { captureRefFromLocation, readRefCookie, storeRef, REF_MAX_AGE_SECONDS } from '../ref';
+import { captureRefFromLocation, REF_MAX_AGE_SECONDS, readRefCookie, storeRef } from '../ref';
 
 const jar = () => ({ cookie: '' });
 

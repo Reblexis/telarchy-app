@@ -23,8 +23,8 @@
  */
 
 import { randomUUID } from 'crypto';
-import { and, eq, gte, sql, type SQL } from 'drizzle-orm';
-import { db } from '../db/client';
+import { and, eq, gte, type SQL, sql } from 'drizzle-orm';
+import type { db } from '../db/client';
 import { agents, creditLedger } from '../db/schema';
 
 type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
@@ -34,22 +34,22 @@ type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
  * twenty spellings of "payout" and the ledger stops being queryable.
  */
 export type CreditReason =
-  | 'trade'                 // buying or selling shares (cost debited, proceeds credited)
-  | 'payout'                // a resolved market paying its holders
-  | 'void_refund'           // a voided market returning net cash
-  | 'lp_leftover'           // pool left over after a void, back to its funders
-  | 'liquidity'             // funding a market's pool
-  | 'proposal_stake'        // the stake a proposal costs to post
-  | 'proposal_reward'       // the reward an approved proposal pays
-  | 'proposal_penalty'      // the spam penalty a removed proposal charges
-  | 'contract_payment'      // a job's agreed price, paid on approval
-  | 'signup_grant'          // the platform's starting balance
-  | 'limit_order_hold'      // budget reserved when a resting order is placed
-  | 'limit_order_release'   // the unfilled remainder returned
+  | 'trade' // buying or selling shares (cost debited, proceeds credited)
+  | 'payout' // a resolved market paying its holders
+  | 'void_refund' // a voided market returning net cash
+  | 'lp_leftover' // pool left over after a void, back to its funders
+  | 'liquidity' // funding a market's pool
+  | 'proposal_stake' // the stake a proposal costs to post
+  | 'proposal_reward' // the reward an approved proposal pays
+  | 'proposal_penalty' // the spam penalty a removed proposal charges
+  | 'contract_payment' // a job's agreed price, paid on approval
+  | 'signup_grant' // the platform's starting balance
+  | 'limit_order_hold' // budget reserved when a resting order is placed
+  | 'limit_order_release' // the unfilled remainder returned
   | 'transfer_in'
   | 'transfer_out'
-  | 'admin_adjustment'      // an operator setting a balance by hand
-  | 'opening_balance';      // migration 0060: the balance that predates the ledger
+  | 'admin_adjustment' // an operator setting a balance by hand
+  | 'opening_balance'; // migration 0060: the balance that predates the ledger
 
 /** What caused the movement, so a row can be traced back to its cause. */
 export type CreditRefType = 'market' | 'proposal' | 'transfer' | 'season' | null;
@@ -94,10 +94,7 @@ export interface ApplyCreditsParams {
  * at a different threshold than a proposal stake, and a refund has no floor at
  * all), and a check here would be a second, weaker copy of theirs.
  */
-export async function applyCredits(
-  tx: DbOrTx,
-  params: ApplyCreditsParams,
-): Promise<{ balanceAfterUnits: number }> {
+export async function applyCredits(tx: DbOrTx, params: ApplyCreditsParams): Promise<{ balanceAfterUnits: number }> {
   const result = await applyCreditsIfSufficient(tx, params);
   // A delta against a participant who does not exist is a bug in the caller,
   // not something to paper over: the money went nowhere and the ledger would
@@ -120,11 +117,13 @@ export async function applyCreditsIfSufficient(
 ): Promise<{ balanceAfterUnits: number } | null> {
   const { agentId, workspaceId, deltaUnits, reason, refType = null, refId = null, also, minBalanceUnits } = params;
 
-  const where = minBalanceUnits === undefined
-    ? eq(agents.id, agentId)
-    : and(eq(agents.id, agentId), gte(agents.balance, minBalanceUnits));
+  const where =
+    minBalanceUnits === undefined
+      ? eq(agents.id, agentId)
+      : and(eq(agents.id, agentId), gte(agents.balance, minBalanceUnits));
 
-  const [row] = await tx.update(agents)
+  const [row] = await tx
+    .update(agents)
     .set({ balance: sql`${agents.balance} + ${deltaUnits}`, ...(also ?? {}) })
     .where(where)
     .returning({ balance: agents.balance });

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { resolve } from 'node:path';
 /**
  * The open-source release's success number: participants attributed to a
  * source who actually traded (docs/agent-economy.md "Attribution";
@@ -12,7 +13,6 @@
  * Read-only. Needs a built backend (cd functions && npm run build).
  */
 import { pathToFileURL } from 'node:url';
-import { resolve } from 'node:path';
 
 const [source, start, end] = process.argv.slice(2);
 if (!source || !start || !end) {
@@ -24,8 +24,11 @@ if (!process.env.DATABASE_URL) {
   process.exit(2);
 }
 
-const lib = (p) => import(pathToFileURL(resolve('functions/lib', p)).href);
-const { db } = await lib('db/client.js').catch(() => { console.error('build the backend first: cd functions && npm run build'); process.exit(2); });
+const lib = p => import(pathToFileURL(resolve('functions/lib', p)).href);
+const { db } = await lib('db/client.js').catch(() => {
+  console.error('build the backend first: cd functions && npm run build');
+  process.exit(2);
+});
 const { activatedParticipants } = await lib('lib/attribution.js');
 
 const rows = await activatedParticipants(db, { source, start: new Date(start), end: new Date(end) });

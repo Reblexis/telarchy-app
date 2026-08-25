@@ -8,7 +8,7 @@ import { api } from './api';
  */
 export async function tradeHome(): Promise<string> {
   try {
-    const rows = await api.getPublicWorkspaces() as Array<{ slug?: string | null }>;
+    const rows = (await api.getPublicWorkspaces()) as Array<{ slug?: string | null }>;
     if (rows.length === 1 && rows[0].slug) return `/${rows[0].slug}`;
   } catch (e) {
     console.error('tradeHome fetch failed:', e);

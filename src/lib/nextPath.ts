@@ -48,10 +48,7 @@ export function readNextFromSearch(search: string): string | null {
  * half-finished setup you were asked about (owner direction 2026-08-24).
  * Pass `window.location` (or a router location) and they come back.
  */
-export function authPath(
-  door: 'login' | 'signup',
-  loc: { pathname: string; search?: string; hash?: string },
-): string {
+export function authPath(door: 'login' | 'signup', loc: { pathname: string; search?: string; hash?: string }): string {
   const here = `${loc.pathname}${loc.search ?? ''}${loc.hash ?? ''}`;
   const safe = safeNextPath(here);
   // The doors themselves are not somewhere to come back to.

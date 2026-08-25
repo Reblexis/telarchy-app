@@ -12,13 +12,25 @@ import { api } from '../lib/api';
 function linkify(text: string) {
   // Split on URLs, keeping them (capturing group), then wrap the URL parts.
   return text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
-    /^https?:\/\//.test(part)
-      ? <a key={i} href={part} target="_blank" rel="noreferrer">{part}</a>
-      : <span key={i}>{part}</span>,
+    /^https?:\/\//.test(part) ? (
+      <a key={i} href={part} target="_blank" rel="noreferrer">
+        {part}
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
   );
 }
 
-export function SubjectAbout({ workspaceId, name, value, defaultText, canManage, onSaved, onAsk }: {
+export function SubjectAbout({
+  workspaceId,
+  name,
+  value,
+  defaultText,
+  canManage,
+  onSaved,
+  onAsk,
+}: {
   workspaceId: string;
   name: string;
   value: string | null | undefined;
@@ -44,7 +56,8 @@ export function SubjectAbout({ workspaceId, name, value, defaultText, canManage,
   const [err, setErr] = useState('');
 
   const save = async () => {
-    setBusy(true); setErr('');
+    setBusy(true);
+    setErr('');
     try {
       // Empty clears back to the default copy (subjectAbout = null).
       await api.updateWorkspaceSettings(workspaceId, { subjectAbout: draft.trim() || null });
@@ -62,7 +75,16 @@ export function SubjectAbout({ workspaceId, name, value, defaultText, canManage,
       <div className="pubws-know-headrow">
         <h2 className="pubws-know-head">What is {name}?</h2>
         {canManage && !editing && (
-          <button className="pubws-know-edit" onClick={() => { setDraft(text); setErr(''); setEditing(true); }}>Edit</button>
+          <button
+            className="pubws-know-edit"
+            onClick={() => {
+              setDraft(text);
+              setErr('');
+              setEditing(true);
+            }}
+          >
+            Edit
+          </button>
         )}
       </div>
 
@@ -81,7 +103,15 @@ export function SubjectAbout({ workspaceId, name, value, defaultText, canManage,
             <button className="ticket-go" disabled={busy} onClick={() => void save()}>
               {busy ? 'Saving…' : 'Save'}
             </button>
-            <button className="pubws-ghost" onClick={() => { setEditing(false); setErr(''); }}>Cancel</button>
+            <button
+              className="pubws-ghost"
+              onClick={() => {
+                setEditing(false);
+                setErr('');
+              }}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       ) : (
@@ -89,9 +119,13 @@ export function SubjectAbout({ workspaceId, name, value, defaultText, canManage,
           <p className="pubws-know-what pubws-know-about">{linkify(text)}</p>
           {onAsk && (
             <button type="button" className="pubws-know-ask" onClick={onAsk}>
-              <span className="pubws-know-ask-mark" aria-hidden="true">O</span>
+              <span className="pubws-know-ask-mark" aria-hidden="true">
+                O
+              </span>
               <span className="pubws-know-ask-label">Ask Otto about {name}</span>
-              <span className="pubws-know-ask-go" aria-hidden="true">→</span>
+              <span className="pubws-know-ask-go" aria-hidden="true">
+                →
+              </span>
             </button>
           )}
         </>

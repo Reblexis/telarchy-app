@@ -10,14 +10,18 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { workspaces, agents, metrics, markets } from '../db/schema';
+import { agents, markets, metrics, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { toUnits } from '../lib/validation';
 import { getMarkets } from '../services/predictions';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-kind';
 const OWNER = 'owner-kind';
@@ -28,30 +32,70 @@ const CONDITIONAL_MARKET_B = 'mkt-cond-b';
 
 async function seed() {
   await db.insert(workspaces).values({
-    id: WS, name: 'Kind Filter', createdBy: OWNER, visibility: 'private',
+    id: WS,
+    name: 'Kind Filter',
+    createdBy: OWNER,
+    visibility: 'private',
   });
   await db.insert(agents).values({ id: OWNER, apiKeyHash: 'h-owner', balance: toUnits(0) });
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Steam units', value: 0, formula: '0', marketRangeMax: 100,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Steam units',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values([
     {
-      id: BASELINE_MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Steam units',
-      targetDate: '2028', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: null,
+      id: BASELINE_MARKET,
+      workspaceId: WS,
+      metricId: METRIC,
+      metricName: 'Steam units',
+      targetDate: '2028',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
     },
     {
-      id: CONDITIONAL_MARKET_A, workspaceId: WS, metricId: METRIC, metricName: 'Steam units',
-      targetDate: '2028', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: 'prop-1', branch: 'approved',
+      id: CONDITIONAL_MARKET_A,
+      workspaceId: WS,
+      metricId: METRIC,
+      metricName: 'Steam units',
+      targetDate: '2028',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: 'prop-1',
+      branch: 'approved',
     },
     {
-      id: CONDITIONAL_MARKET_B, workspaceId: WS, metricId: METRIC, metricName: 'Steam units',
-      targetDate: '2028', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: 'prop-2', branch: 'approved',
+      id: CONDITIONAL_MARKET_B,
+      workspaceId: WS,
+      metricId: METRIC,
+      metricName: 'Steam units',
+      targetDate: '2028',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: 'prop-2',
+      branch: 'approved',
     },
   ]);
 }
@@ -79,9 +123,7 @@ describe('getMarkets kind filter', () => {
   test('kind="all" returns baseline plus every conditional market', async () => {
     await seed();
     const rows = await getMarkets({ kind: 'all' }, undefined, WS);
-    expect(rows.map(r => r.id).sort()).toEqual(
-      [BASELINE_MARKET, CONDITIONAL_MARKET_A, CONDITIONAL_MARKET_B].sort(),
-    );
+    expect(rows.map(r => r.id).sort()).toEqual([BASELINE_MARKET, CONDITIONAL_MARKET_A, CONDITIONAL_MARKET_B].sort());
   });
 
   test('explicit proposalId still pins to that proposal regardless of kind', async () => {

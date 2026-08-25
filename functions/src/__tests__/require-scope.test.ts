@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { requireScope } from '../middleware/roles';
 import type { AuthInfo, Capability } from '../types';
 
@@ -63,7 +63,11 @@ describe('requireScope', () => {
   test('passes through for an agent-key caller whose scopes include the named scope', () => {
     const { res, status } = makeRes();
     const next = jest.fn();
-    requireScope('account:keys')(makeReq({ agentId: 'a1', scopes: ['workspace:read', 'account:keys'] }), res, next as NextFunction);
+    requireScope('account:keys')(
+      makeReq({ agentId: 'a1', scopes: ['workspace:read', 'account:keys'] }),
+      res,
+      next as NextFunction,
+    );
     expect(status).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledTimes(1);
   });

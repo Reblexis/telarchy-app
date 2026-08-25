@@ -1,14 +1,14 @@
 import {
-  isRelativeDate,
   detectGranularity,
+  endOfPeriod,
+  isRelativeDate,
+  isValidCalendarDate,
+  isValidDateFormat,
+  periodEndInstant,
+  periodStartInstant,
+  resolutionInstant,
   toAbsoluteDate,
   toISOWeekString,
-  endOfPeriod,
-  periodStartInstant,
-  periodEndInstant,
-  resolutionInstant,
-  isValidDateFormat,
-  isValidCalendarDate,
 } from '../lib/date-utils';
 
 // Fixed base date for deterministic relative-date tests

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { accumulatesInPeriod, periodGapOf } from '../period-gap';
 import type { HorizonView } from '../floor-horizons';
+import { accumulatesInPeriod, periodGapOf } from '../period-gap';
 
 /**
  * The arithmetic under the price: booked, needed, per day.
@@ -18,12 +18,24 @@ const week = (values: number[], start = '2026-08-17T10:00:00Z') =>
   }));
 
 const view = (o: Partial<HorizonView> = {}): HorizonView => ({
-  marketId: 'm', metricId: 'x', metricName: 'LookPilot net this week (USD)',
-  metricLabel: 'LookPilot net this week', unit: '$', targetDate: '2026-W34',
-  label: 'this week', settleDay: '23 August 2026', settleShort: '23 Aug',
-  resolvesOn: '2026-08-24T00:00:00Z', periodStart: '2026-08-17T00:00:00.000Z',
-  consensus: 1180, probability: 0.5, liquidity: 2171, rangeMin: 0, rangeMax: 8000,
-  metricHistory: week([0, 120, 250, 380, 488]), description: null,
+  marketId: 'm',
+  metricId: 'x',
+  metricName: 'LookPilot net this week (USD)',
+  metricLabel: 'LookPilot net this week',
+  unit: '$',
+  targetDate: '2026-W34',
+  label: 'this week',
+  settleDay: '23 August 2026',
+  settleShort: '23 Aug',
+  resolvesOn: '2026-08-24T00:00:00Z',
+  periodStart: '2026-08-17T00:00:00.000Z',
+  consensus: 1180,
+  probability: 0.5,
+  liquidity: 2171,
+  rangeMin: 0,
+  rangeMax: 8000,
+  metricHistory: week([0, 120, 250, 380, 488]),
+  description: null,
   ...o,
 });
 
@@ -40,8 +52,7 @@ describe('the gap to the market price', () => {
   });
 
   test('says so when the price is already beaten, instead of a negative per day', () => {
-    const g = periodGapOf(view({ metricHistory: week([0, 400, 900, 1300]) }),
-      new Date('2026-08-20T18:00:00Z'));
+    const g = periodGapOf(view({ metricHistory: week([0, 400, 900, 1300]) }), new Date('2026-08-20T18:00:00Z'));
     expect(g!.alreadyThere).toBe(true);
     expect(g!.needed).toBe(-120);
   });

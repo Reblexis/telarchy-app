@@ -30,28 +30,35 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, events, markets, metrics, proposals, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { toUnits, fromUnits } from '../lib/validation';
+import { AppError } from '../lib/errors';
+import { fromUnits, toUnits } from '../lib/validation';
+// The router no longer carries auth itself (app.ts applies the policy first),
+// so the test mounts the mocked middleware where the policy would run.
+import { authMiddleware } from '../middleware/auth';
 import { proposalsRouter } from '../routes/proposals';
 import { createConditionalMarkets } from '../services/proposals';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
-app.use('/api/proposals', proposalsRouter);
+app.use('/api/proposals', authMiddleware, proposalsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {
   const status = err instanceof AppError ? err.status : 500;
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-stake-atomic';
 const OWNER = 'agent-stake-owner';
@@ -66,32 +73,50 @@ async function seed() {
     { id: BROKE, apiKeyHash: 'h-sa-broke', balance: toUnits(5) },
   ]);
   await db.insert(workspaces).values({
-    id: WS, name: 'Stake Atomicity', createdBy: OWNER, visibility: 'public',
+    id: WS,
+    name: 'Stake Atomicity',
+    createdBy: OWNER,
+    visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: 'metric-sa', workspaceId: WS, name: 'Revenue', value: 50, formula: '0', marketRangeMax: 100,
+    id: 'metric-sa',
+    workspaceId: WS,
+    name: 'Revenue',
+    value: 50,
+    formula: '0',
+    marketRangeMax: 100,
   });
   // One baseline market -> a proposal spawns one approved+declined pair.
   await db.insert(markets).values({
-    id: 'mkt-base-sa', workspaceId: WS, metricId: 'metric-sa', metricName: 'Revenue',
-    targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 10, pool: initialPool(10),
-    active: true, resolved: false, voided: false, proposalId: null, branch: null,
+    id: 'mkt-base-sa',
+    workspaceId: WS,
+    metricId: 'metric-sa',
+    metricName: 'Revenue',
+    targetDate: '2026-12',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 10,
+    pool: initialPool(10),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
+    branch: null,
   });
 }
 
 function submit(agentId: string, body: Record<string, unknown>) {
-  return request(app).post('/api/proposals')
-    .set('x-workspace-id', WS)
-    .set('x-test-agent-id', agentId)
-    .send(body);
+  return request(app).post('/api/proposals').set('x-workspace-id', WS).set('x-test-agent-id', agentId).send(body);
 }
 
 describe('listing validation', () => {
   test('an overlong title is refused: 80 characters is the cap', async () => {
     await seed();
-    const res = await request(app).post('/api/proposals')
-      .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS)
+    const res = await request(app)
+      .post('/api/proposals')
+      .set('X-Test-Agent-Id', RICH)
+      .set('X-Workspace-Id', WS)
       .set('Content-Type', 'application/json')
       .send({ title: 'x'.repeat(81), description: '', liquiditySubsidy: 20 });
     expect(res.status).toBe(400);
@@ -102,24 +127,33 @@ describe('listing validation', () => {
     await seed();
     // No handle in the body and none on the account: the error points at
     // the account-level payment setup (owner decision 2026-08-10).
-    const bare = await request(app).post('/api/proposals')
-      .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS)
+    const bare = await request(app)
+      .post('/api/proposals')
+      .set('X-Test-Agent-Id', RICH)
+      .set('X-Workspace-Id', WS)
       .set('Content-Type', 'application/json')
       .send({ title: '$25: stream it', description: '', liquiditySubsidy: 20, askUsd: 25 });
     expect(bare.status).toBe(400);
     expect(bare.body.error).toMatch(/payment details on your account/);
 
-    const ok = await request(app).post('/api/proposals')
-      .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS)
+    const ok = await request(app)
+      .post('/api/proposals')
+      .set('X-Test-Agent-Id', RICH)
+      .set('X-Workspace-Id', WS)
       .set('Content-Type', 'application/json')
-      .send({ title: '$25: stream it', description: '', liquiditySubsidy: 20, askUsd: 25, payoutHandle: 'pay@example.com' });
+      .send({
+        title: '$25: stream it',
+        description: '',
+        liquiditySubsidy: 20,
+        askUsd: 25,
+        payoutHandle: 'pay@example.com',
+      });
     expect(ok.status).toBe(201);
 
     // The auth stub grants manage to everyone, so the list carries the
     // handle here; the redaction's absence for plain members is asserted
     // by the api-parity of the capabilities check itself (canSeePayout).
-    const listed = await request(app).get('/api/proposals')
-      .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS);
+    const listed = await request(app).get('/api/proposals').set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS);
     const row = (listed.body as Array<{ id: string; payoutHandle?: string }>).find(r => r.id === ok.body.id);
     expect(row?.payoutHandle).toBe('pay@example.com');
   });
@@ -128,8 +162,10 @@ describe('listing validation', () => {
     await seed();
     await db.update(agents).set({ payoutHandle: 'account@example.com' }).where(eq(agents.id, RICH));
 
-    const res = await request(app).post('/api/proposals')
-      .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS)
+    const res = await request(app)
+      .post('/api/proposals')
+      .set('X-Test-Agent-Id', RICH)
+      .set('X-Workspace-Id', WS)
       .set('Content-Type', 'application/json')
       .send({ title: '$25: stream it', description: '', liquiditySubsidy: 20, askUsd: 25 });
     expect(res.status).toBe(201);
@@ -142,8 +178,10 @@ describe('listing validation', () => {
 
   test('a free job (askUsd 0 or absent) needs no payout handle', async () => {
     await seed();
-    const res = await request(app).post('/api/proposals')
-      .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS)
+    const res = await request(app)
+      .post('/api/proposals')
+      .set('X-Test-Agent-Id', RICH)
+      .set('X-Workspace-Id', WS)
       .set('Content-Type', 'application/json')
       .send({ title: 'fix the typo on the store page', description: '', liquiditySubsidy: 20 });
     expect(res.status).toBe(201);
@@ -153,7 +191,12 @@ describe('listing validation', () => {
 describe('listing-stake atomicity', () => {
   test('a funded stake creates the proposal, debits the stake, and seeds both branches', async () => {
     await seed();
-    const res = await submit(RICH, { title: '$80: funded job', liquiditySubsidy: 20, askUsd: 80, payoutHandle: 'pay@example.com' });
+    const res = await submit(RICH, {
+      title: '$80: funded job',
+      liquiditySubsidy: 20,
+      askUsd: 80,
+      payoutHandle: 'pay@example.com',
+    });
     expect(res.status).toBe(201);
     expect(res.body.conditionalMarketIds).toHaveLength(2);
 
@@ -167,7 +210,12 @@ describe('listing-stake atomicity', () => {
 
   test('an unpayable stake returns 400 and leaves NO proposal row behind', async () => {
     await seed();
-    const res = await submit(BROKE, { title: '$80: broke job', liquiditySubsidy: 20, askUsd: 80, payoutHandle: 'pay@example.com' });
+    const res = await submit(BROKE, {
+      title: '$80: broke job',
+      liquiditySubsidy: 20,
+      askUsd: 80,
+      payoutHandle: 'pay@example.com',
+    });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Insufficient balance/);
 
@@ -190,9 +238,14 @@ describe('listing-stake atomicity', () => {
     // anyway at reduced liquidity, and the new guarantee is that doing so
     // is an event, not just a console line.
     await db.insert(proposals).values({
-      id: 'prop-rollover', workspaceId: WS, proposedBy: BROKE,
-      title: '$50: rollover job', description: '', status: 'pending',
-      conditionalMarketIds: [], liquiditySubsidy: 20,
+      id: 'prop-rollover',
+      workspaceId: WS,
+      proposedBy: BROKE,
+      title: '$50: rollover job',
+      description: '',
+      status: 'pending',
+      conditionalMarketIds: [],
+      liquiditySubsidy: 20,
       subsidyContributions: { [BROKE]: 20 },
     });
     const ids = await createConditionalMarkets('prop-rollover', WS, {
@@ -228,8 +281,12 @@ describe('listing-stake atomicity', () => {
 describe('a branch market is never born dead when anyone can pay', () => {
   const fundedWorkspace = async (ownerBalance: number, credits = 250) => {
     await seed();
-    await db.update(agents).set({ balance: toUnits(ownerBalance) }).where(eq(agents.id, OWNER));
-    await db.update(workspaces)
+    await db
+      .update(agents)
+      .set({ balance: toUnits(ownerBalance) })
+      .where(eq(agents.id, OWNER));
+    await db
+      .update(workspaces)
       .set({ autoFundNewMarkets: true, newMarketLiquidityCredits: credits })
       .where(eq(workspaces.id, WS));
   };
@@ -279,7 +336,10 @@ describe('a branch market is never born dead when anyone can pay', () => {
   test('a named subsidy still wins over the auto-fund fallback', async () => {
     await fundedWorkspace(1000);
     const res = await submit(RICH, {
-      title: 'self-funded', askUsd: 10, payoutHandle: 'pay@example.com', liquiditySubsidy: 20,
+      title: 'self-funded',
+      askUsd: 10,
+      payoutHandle: 'pay@example.com',
+      liquiditySubsidy: 20,
     });
     expect(res.status).toBe(201);
     const [owner] = await db.select().from(agents).where(eq(agents.id, OWNER));

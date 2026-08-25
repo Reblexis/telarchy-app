@@ -32,17 +32,20 @@ jest.mock('../middleware/roles', () => ({
   requireIdentity: (_req: any, _res: any, next: any) => next(),
 }));
 
-import request from 'supertest';
-import express from 'express';
 import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, markets, metricDefinitionRevisions, metrics, positions } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
 import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
 import { toUnits } from '../lib/validation';
+// The router no longer carries auth itself (app.ts applies the policy first),
+// so the test mounts the mocked middleware where the policy would run.
+import { authMiddleware } from '../middleware/auth';
 import { metricsRouter } from '../routes/metrics';
 import { predictionsRouter } from '../routes/predictions';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const WS = 'ws-edit';
 
@@ -59,14 +62,18 @@ app.use((req, _res, next) => {
   next();
 });
 app.use('/api/metrics', metricsRouter);
-app.use('/api/predictions', predictionsRouter);
+app.use('/api/predictions', authMiddleware, predictionsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(err instanceof AppError ? err.status : 500).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const OWNER = 'agent-edit-owner';
 const TRADER = 'agent-edit-trader';
@@ -81,28 +88,52 @@ async function seed() {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Edit Test', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'public',
+    wsId: WS,
+    name: 'Edit Test',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Net 2026', description: ORIGINAL_DESC,
-    value: 0, formula: '0', marketRangeMax: 100,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Net 2026',
+    description: ORIGINAL_DESC,
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Net 2026',
-    targetDate: '2028', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0] as [number, number], liquidity: 200, pool: initialPool(200),
-    active: true, resolved: false, voided: false, proposalId: null,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: METRIC,
+    metricName: 'Net 2026',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0] as [number, number],
+    liquidity: 200,
+    pool: initialPool(200),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
   });
 }
 
 const put = (body: Record<string, unknown>) =>
-  request(app).put(`/api/metrics/${METRIC}`)
-    .set('X-Test-Agent-Id', OWNER).set('X-Workspace-Id', WS)
-    .set('Content-Type', 'application/json').send(body);
+  request(app)
+    .put(`/api/metrics/${METRIC}`)
+    .set('X-Test-Agent-Id', OWNER)
+    .set('X-Workspace-Id', WS)
+    .set('Content-Type', 'application/json')
+    .send(body);
 
 const buy = (credits: number) =>
-  request(app).post('/api/predictions/trade')
-    .set('X-Test-Agent-Id', TRADER).set('X-Workspace-Id', WS)
+  request(app)
+    .post('/api/predictions/trade')
+    .set('X-Test-Agent-Id', TRADER)
+    .set('X-Workspace-Id', WS)
     .set('Content-Type', 'application/json')
     .send({ marketId: MARKET, direction: 'higher', amount: credits });
 
@@ -112,7 +143,9 @@ async function market() {
 }
 
 async function revisions() {
-  return db.select().from(metricDefinitionRevisions)
+  return db
+    .select()
+    .from(metricDefinitionRevisions)
     .where(eq(metricDefinitionRevisions.metricId, METRIC))
     .orderBy(metricDefinitionRevisions.createdAt);
 }
@@ -208,7 +241,9 @@ describe('the machinery half: refused while a market is open', () => {
 
   test('with no open market, the same edit is allowed', async () => {
     await seed();
-    await db.update(markets).set({ resolved: true, active: false })
+    await db
+      .update(markets)
+      .set({ resolved: true, active: false })
       .where(and(eq(markets.id, MARKET), eq(markets.workspaceId, WS)));
 
     expect((await put({ marketRangeMax: 500 })).status).toBe(200);

@@ -33,22 +33,25 @@ jest.mock('../middleware/auth', () => ({
   optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
-import request from 'supertest';
-import express from 'express';
 import { eq, sql } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, creditLedger, markets, metrics, positions, workspaces } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
+import express from 'express';
+import request from 'supertest';
+import { agents, creditLedger, markets, metrics, positions } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { toUnits, fromUnits } from '../lib/validation';
-import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
-import { predictionsRouter } from '../routes/predictions';
-import { voidMarket } from '../services/markets';
 import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { fromUnits, toUnits } from '../lib/validation';
+// The router no longer carries auth itself (app.ts applies the policy first),
+// so the test mounts the mocked middleware where the policy would run.
+import { authMiddleware } from '../middleware/auth';
+import { predictionsRouter } from '../routes/predictions';
+import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
+import { voidMarket } from '../services/markets';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
-app.use('/api/predictions', predictionsRouter);
+app.use('/api/predictions', authMiddleware, predictionsRouter);
 // Mirrors the production handler in app.ts, including the `extra` spread:
 // a test that flattens the error shape cannot assert the contract a caller
 // actually sees.
@@ -59,8 +62,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message, ...extra });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-ledger';
 const OWNER = 'agent-ledger-owner';
@@ -83,33 +90,58 @@ async function seed() {
   for (const id of [OWNER, ALICE, BOB]) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await applyCredits(db as any, {
-      agentId: id, workspaceId: PLATFORM_SCOPE,
-      deltaUnits: toUnits(1000), reason: 'signup_grant',
+      agentId: id,
+      workspaceId: PLATFORM_SCOPE,
+      deltaUnits: toUnits(1000),
+      reason: 'signup_grant',
     });
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Ledger Test', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'public',
+    wsId: WS,
+    name: 'Ledger Test',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: 'metric-ledger', workspaceId: WS, name: 'Throughput', value: 0, formula: '0', marketRangeMax: 100,
+    id: 'metric-ledger',
+    workspaceId: WS,
+    name: 'Throughput',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
-  await db.insert(markets).values([SETTLES, VOIDS].map(id => ({
-    id, workspaceId: WS, metricId: 'metric-ledger', metricName: 'Throughput',
-    targetDate: id === SETTLES ? '2028' : '2029', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0] as [number, number], liquidity: 200, pool: initialPool(200),
-    active: true, resolved: false, voided: false, proposalId: null,
-  })));
+  await db.insert(markets).values(
+    [SETTLES, VOIDS].map(id => ({
+      id,
+      workspaceId: WS,
+      metricId: 'metric-ledger',
+      metricName: 'Throughput',
+      targetDate: id === SETTLES ? '2028' : '2029',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0] as [number, number],
+      liquidity: 200,
+      pool: initialPool(200),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
+    })),
+  );
 }
 
 const trade = (agentId: string, marketId: string, body: Record<string, unknown>) =>
-  request(app).post('/api/predictions/trade')
-    .set('X-Test-Agent-Id', agentId).set('X-Workspace-Id', WS)
-    .set('Content-Type', 'application/json').send({ marketId, ...body });
+  request(app)
+    .post('/api/predictions/trade')
+    .set('X-Test-Agent-Id', agentId)
+    .set('X-Workspace-Id', WS)
+    .set('Content-Type', 'application/json')
+    .send({ marketId, ...body });
 
 async function heldShares(agentId: string, marketId: string): Promise<number> {
-  const rows = await db.select().from(positions)
-    .where(eq(positions.agentId, agentId));
+  const rows = await db.select().from(positions).where(eq(positions.agentId, agentId));
   return rows.filter(p => p.marketId === marketId).reduce((s, p) => s + p.shares, 0);
 }
 
@@ -129,7 +161,9 @@ async function divergences(): Promise<Array<{ agentId: string; ledger: number; b
   `);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (rows as any).rows.map((r: any) => ({
-    agentId: r.agent_id, ledger: Number(r.ledger), balance: Number(r.balance),
+    agentId: r.agent_id,
+    ledger: Number(r.ledger),
+    balance: Number(r.balance),
   }));
 }
 
@@ -148,8 +182,10 @@ describe('the ledger sums to the balance', () => {
     expect(held).toBeGreaterThan(0);
     expect((await trade(ALICE, SETTLES, { direction: 'higher', sellShares: held / 2 })).status).toBe(201);
 
-    const inject = await request(app).post(`/api/predictions/markets/${SETTLES}/liquidity`)
-      .set('X-Test-Agent-Id', OWNER).set('X-Workspace-Id', WS)
+    const inject = await request(app)
+      .post(`/api/predictions/markets/${SETTLES}/liquidity`)
+      .set('X-Test-Agent-Id', OWNER)
+      .set('X-Workspace-Id', WS)
       .send({ amount: 50, agentId: OWNER });
     expect(inject.status).toBeLessThan(300);
 
@@ -187,7 +223,9 @@ describe('the ledger sums to the balance', () => {
     await seed();
     await trade(ALICE, SETTLES, { direction: 'higher', amount: 40 });
 
-    const rows = await db.select().from(creditLedger)
+    const rows = await db
+      .select()
+      .from(creditLedger)
       .where(eq(creditLedger.agentId, ALICE))
       .orderBy(creditLedger.createdAt);
     // Replaying the deltas has to arrive at what each row claims, or
@@ -208,7 +246,9 @@ describe('the reconciliation query can actually fail', () => {
     // A test that cannot fail is worse than none: prove the detector fires by
     // moving the balance behind the ledger's back.
     await seed();
-    await db.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(5)}` })
+    await db
+      .update(agents)
+      .set({ balance: sql`${agents.balance} + ${toUnits(5)}` })
       .where(eq(agents.id, ALICE));
 
     const bad = await divergences();

@@ -28,7 +28,12 @@ export interface StartResult {
 
 /** Thrown for the conditions a caller should report rather than swallow. */
 export class SeasonStartError extends Error {
-  constructor(message: string, public status: number) { super(message); }
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+  }
 }
 
 /**
@@ -42,8 +47,7 @@ export async function startSeason(seasonId: string): Promise<StartResult> {
   if (!season) throw new SeasonStartError('Season not found', 404);
   if (season.status !== 'draft') throw new SeasonStartError(`Season is ${season.status}, not draft`, 409);
 
-  const publicWs = await db.select({ id: workspaces.id })
-    .from(workspaces).where(eq(workspaces.visibility, 'public'));
+  const publicWs = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.visibility, 'public'));
   const workspaceIds = publicWs.map(w => w.id);
   if (workspaceIds.length === 0) throw new SeasonStartError('No public workspaces to score over', 409);
 
@@ -84,8 +88,7 @@ export async function startSeason(seasonId: string): Promise<StartResult> {
   await db.transaction(async tx => {
     await tx.delete(seasonEntries).where(eq(seasonEntries.seasonId, seasonId));
     if (rows.length > 0) await tx.insert(seasonEntries).values(rows);
-    await tx.update(prizeSeasons).set({ status: 'running', workspaceIds })
-      .where(eq(prizeSeasons.id, seasonId));
+    await tx.update(prizeSeasons).set({ status: 'running', workspaceIds }).where(eq(prizeSeasons.id, seasonId));
   });
 
   return {
@@ -112,7 +115,9 @@ export async function startDueSeasons(now: Date = new Date()): Promise<{
   started: StartResult[];
   failed: Array<{ seasonId: string; error: string }>;
 }> {
-  const due = await db.select({ id: prizeSeasons.id }).from(prizeSeasons)
+  const due = await db
+    .select({ id: prizeSeasons.id })
+    .from(prizeSeasons)
     .where(and(eq(prizeSeasons.status, 'draft'), lte(prizeSeasons.startsAt, now)));
 
   const started: StartResult[] = [];

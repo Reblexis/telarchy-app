@@ -16,10 +16,19 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { eq, sql } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, creditLedger, liquidityEvents, markets, metricDefinitionRevisions, metrics, trades, workspaces } from '../db/schema';
-import { allowLedgerAdmin } from '../lib/ledger-admin';
+import {
+  agents,
+  creditLedger,
+  liquidityEvents,
+  markets,
+  metricDefinitionRevisions,
+  metrics,
+  trades,
+  workspaces,
+} from '../db/schema';
 import { initialPool } from '../lib/amm';
+import { allowLedgerAdmin } from '../lib/ledger-admin';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 /**
  * Drizzle wraps a driver error in "Failed query: ...", so the trigger's own
@@ -30,7 +39,8 @@ async function refusal(op: Promise<unknown>): Promise<string> {
   try {
     await op;
   } catch (e) {
-    let err: unknown = e, seen = '';
+    let err: unknown = e,
+      seen = '';
     while (err instanceof Error) {
       seen += ` ${err.message}`;
       err = (err as Error & { cause?: unknown }).cause;
@@ -40,8 +50,12 @@ async function refusal(op: Promise<unknown>): Promise<string> {
   throw new Error('expected the ledger to refuse this, but it succeeded');
 }
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-ledger';
 const AGENT = 'agent-ledger';
@@ -51,21 +65,48 @@ async function seed() {
   await db.insert(agents).values({ id: AGENT, apiKeyHash: 'h-ledger', balance: 0 });
   await db.insert(workspaces).values({ id: WS, name: 'Ledger', createdBy: AGENT, visibility: 'public' });
   await db.insert(metrics).values({
-    id: 'metric-ledger', workspaceId: WS, name: 'Revenue', value: 0, formula: '0', marketRangeMax: 100,
+    id: 'metric-ledger',
+    workspaceId: WS,
+    name: 'Revenue',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: 'metric-ledger', metricName: 'Revenue',
-    targetDate: '2028', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 100, pool: initialPool(100),
-    active: true, resolved: false, voided: false, proposalId: null,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: 'metric-ledger',
+    metricName: 'Revenue',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 100,
+    pool: initialPool(100),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
   });
   await db.insert(trades).values({
-    id: 'trade-1', workspaceId: WS, agentId: AGENT, marketId: MARKET,
-    direction: 'higher', shares: 10, cost: 5, createdAt: new Date(),
+    id: 'trade-1',
+    workspaceId: WS,
+    agentId: AGENT,
+    marketId: MARKET,
+    direction: 'higher',
+    shares: 10,
+    cost: 5,
+    createdAt: new Date(),
   });
   await db.insert(liquidityEvents).values({
-    id: 'liq-1', workspaceId: WS, marketId: MARKET, agentId: AGENT,
-    amount: 100, totalLiquidity: 100, type: 'initial', createdAt: new Date(),
+    id: 'liq-1',
+    workspaceId: WS,
+    marketId: MARKET,
+    agentId: AGENT,
+    amount: 100,
+    totalLiquidity: 100,
+    type: 'initial',
+    createdAt: new Date(),
   });
 }
 
@@ -73,16 +114,21 @@ describe('trades', () => {
   test('a trade can be written', async () => {
     await seed();
     await db.insert(trades).values({
-      id: 'trade-2', workspaceId: WS, agentId: AGENT, marketId: MARKET,
-      direction: 'lower', shares: 3, cost: 2, createdAt: new Date(),
+      id: 'trade-2',
+      workspaceId: WS,
+      agentId: AGENT,
+      marketId: MARKET,
+      direction: 'lower',
+      shares: 3,
+      cost: 2,
+      createdAt: new Date(),
     });
     expect(await db.select().from(trades)).toHaveLength(2);
   });
 
   test('a trade cannot be edited', async () => {
     await seed();
-    expect(await refusal(db.update(trades).set({ cost: 999 }).where(eq(trades.id, 'trade-1'))))
-      .toMatch(/append-only/i);
+    expect(await refusal(db.update(trades).set({ cost: 999 }).where(eq(trades.id, 'trade-1')))).toMatch(/append-only/i);
     const [row] = await db.select().from(trades).where(eq(trades.id, 'trade-1'));
     expect(row.cost).toBe(5);
   });
@@ -104,18 +150,24 @@ describe('liquidity events', () => {
   test('an injection can be written', async () => {
     await seed();
     await db.insert(liquidityEvents).values({
-      id: 'liq-2', workspaceId: WS, marketId: MARKET, agentId: AGENT,
-      amount: 50, totalLiquidity: 150, type: 'agent', createdAt: new Date(),
+      id: 'liq-2',
+      workspaceId: WS,
+      marketId: MARKET,
+      agentId: AGENT,
+      amount: 50,
+      totalLiquidity: 150,
+      type: 'agent',
+      createdAt: new Date(),
     });
     expect(await db.select().from(liquidityEvents)).toHaveLength(2);
   });
 
   test('an injection cannot be edited or deleted', async () => {
     await seed();
-    expect(await refusal(db.update(liquidityEvents).set({ amount: 1 }).where(eq(liquidityEvents.id, 'liq-1'))))
-      .toMatch(/append-only/i);
-    expect(await refusal(db.delete(liquidityEvents).where(eq(liquidityEvents.id, 'liq-1'))))
-      .toMatch(/append-only/i);
+    expect(await refusal(db.update(liquidityEvents).set({ amount: 1 }).where(eq(liquidityEvents.id, 'liq-1')))).toMatch(
+      /append-only/i,
+    );
+    expect(await refusal(db.delete(liquidityEvents).where(eq(liquidityEvents.id, 'liq-1')))).toMatch(/append-only/i);
     const [row] = await db.select().from(liquidityEvents);
     expect(row.amount).toBe(100);
   });
@@ -146,9 +198,13 @@ describe('the sanctioned escape hatch', () => {
 
   test('a transaction that does NOT opt in is refused even inside a transaction', async () => {
     await seed();
-    expect(await refusal(db.transaction(async tx => {
-      await tx.delete(trades).where(eq(trades.id, 'trade-1'));
-    }))).toMatch(/append-only/i);
+    expect(
+      await refusal(
+        db.transaction(async tx => {
+          await tx.delete(trades).where(eq(trades.id, 'trade-1'));
+        }),
+      ),
+    ).toMatch(/append-only/i);
     expect(await db.select().from(trades)).toHaveLength(1);
   });
 
@@ -165,8 +221,14 @@ describe('what the ledgers are for', () => {
     // The way to correct a position is another trade, which is what the
     // append-only rule is pushing every caller toward.
     await db.insert(trades).values({
-      id: 'trade-unwind', workspaceId: WS, agentId: AGENT, marketId: MARKET,
-      direction: 'higher', shares: -10, cost: -5, createdAt: new Date(),
+      id: 'trade-unwind',
+      workspaceId: WS,
+      agentId: AGENT,
+      marketId: MARKET,
+      direction: 'higher',
+      shares: -10,
+      cost: -5,
+      createdAt: new Date(),
     });
     const rows = await db.select().from(trades).where(eq(trades.agentId, AGENT));
     expect(rows).toHaveLength(2);
@@ -190,21 +252,30 @@ describe('what the ledgers are for', () => {
  */
 describe('the credit ledger and the revision log are append-only too', () => {
   const ledgerRow = {
-    id: 'cl-1', workspaceId: WS, agentId: AGENT,
-    deltaUnits: 1_000_000_000, balanceAfterUnits: 1_000_000_000,
-    reason: 'signup_grant', refType: null, refId: null,
+    id: 'cl-1',
+    workspaceId: WS,
+    agentId: AGENT,
+    deltaUnits: 1_000_000_000,
+    balanceAfterUnits: 1_000_000_000,
+    reason: 'signup_grant',
+    refType: null,
+    refId: null,
   };
   const revisionRow = {
-    id: 'rev-1', workspaceId: WS, metricId: 'metric-1',
-    field: 'description', oldValue: 'before', newValue: 'after', changedBy: AGENT,
+    id: 'rev-1',
+    workspaceId: WS,
+    metricId: 'metric-1',
+    field: 'description',
+    oldValue: 'before',
+    newValue: 'after',
+    changedBy: AGENT,
   };
 
   test('a credit ledger row cannot be edited or deleted', async () => {
     await seed();
     await db.insert(creditLedger).values(ledgerRow);
 
-    expect(await refusal(db.update(creditLedger).set({ deltaUnits: 5 })))
-      .toMatch(/append-only/i);
+    expect(await refusal(db.update(creditLedger).set({ deltaUnits: 5 }))).toMatch(/append-only/i);
     expect(await refusal(db.delete(creditLedger))).toMatch(/credit_ledger/);
     expect(await db.select().from(creditLedger)).toHaveLength(1);
   });
@@ -213,18 +284,15 @@ describe('the credit ledger and the revision log are append-only too', () => {
     await seed();
     await db.insert(metricDefinitionRevisions).values(revisionRow);
 
-    expect(await refusal(db.update(metricDefinitionRevisions).set({ newValue: 'rewritten' })))
-      .toMatch(/append-only/i);
-    expect(await refusal(db.delete(metricDefinitionRevisions)))
-      .toMatch(/metric_definition_revisions/);
+    expect(await refusal(db.update(metricDefinitionRevisions).set({ newValue: 'rewritten' }))).toMatch(/append-only/i);
+    expect(await refusal(db.delete(metricDefinitionRevisions))).toMatch(/metric_definition_revisions/);
     expect(await db.select().from(metricDefinitionRevisions)).toHaveLength(1);
   });
 
   test('raw SQL is refused the same way', async () => {
     await seed();
     await db.insert(creditLedger).values(ledgerRow);
-    expect(await refusal(db.execute(sql`update credit_ledger set delta_units = 0`)))
-      .toMatch(/append-only/i);
+    expect(await refusal(db.execute(sql`update credit_ledger set delta_units = 0`))).toMatch(/append-only/i);
   });
 
   test('the sanctioned path can still cascade', async () => {

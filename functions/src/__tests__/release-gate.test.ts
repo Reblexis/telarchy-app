@@ -17,20 +17,23 @@ jest.mock('../middleware/auth', () => ({
   optionalAuthMiddleware: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
-import request from 'supertest';
 import express from 'express';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import request from 'supertest';
 import { agents, authUser } from '../db/schema';
+import { AppError } from '../lib/errors';
 import { toUnits } from '../lib/validation';
 import { adminRouter } from '../routes/admin';
-import { AppError } from '../lib/errors';
-import { releaseState, publishRevision } from '../services/release';
+import { publishRevision, releaseState } from '../services/release';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 let caller: { uid?: string; agentId?: string; isMasterKey?: boolean } = {};
 
 const app = express();
 app.use(express.json());
-app.use((req, _res, next) => { (req as unknown as { auth: typeof caller }).auth = caller; next(); });
+app.use((req, _res, next) => {
+  (req as unknown as { auth: typeof caller }).auth = caller;
+  next();
+});
 app.use('/api/admin', adminRouter);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {
@@ -38,12 +41,28 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   await db.insert(authUser).values([
-    { id: 'user-admin', email: 'admin@example.com', name: 'Admin', emailVerified: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'user-plain', email: 'plain@example.com', name: 'Plain', emailVerified: true, createdAt: new Date(), updatedAt: new Date() },
+    {
+      id: 'user-admin',
+      email: 'admin@example.com',
+      name: 'Admin',
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: 'user-plain',
+      email: 'plain@example.com',
+      name: 'Plain',
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
   ]);
   await db.insert(agents).values([
     { id: 'a-admin', apiKeyHash: 'h-a', balance: toUnits(0), authUserId: 'user-admin', platformAdmin: true },

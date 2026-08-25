@@ -1,12 +1,12 @@
-import { describe, test, expect } from 'vitest';
-import { previewTrade, previewTargetBet, previewSell } from '../amm';
+import { describe, expect, test } from 'vitest';
 import {
-  pHigher,
-  consensus,
-  sharesForBudget,
   betTowardsValue,
+  consensus,
   directionSellProceeds,
+  pHigher,
+  sharesForBudget,
 } from '../../../functions/src/lib/amm';
+import { previewSell, previewTargetBet, previewTrade } from '../amm';
 
 /**
  * Preview / execution parity: the ticket's client-side previews against
@@ -34,8 +34,10 @@ type Book = [number, number];
 
 /** Server-side execution of a {direction, amount} buy, netting included. */
 function serverBuy(
-  book: Book, held: { direction: 'higher' | 'lower'; shares: number } | null,
-  direction: 'higher' | 'lower', amount: number,
+  book: Book,
+  held: { direction: 'higher' | 'lower'; shares: number } | null,
+  direction: 'higher' | 'lower',
+  amount: number,
 ): { landedProb: number; shares: number; nettingProceeds: number } {
   let b2: Book = [book[0], book[1]];
   let proceeds = 0;
@@ -56,8 +58,10 @@ function serverBuy(
     included: the route picks the buy side against the live consensus,
     executeTradeInTx nets against it, betTowardsValue does the rest. */
 function serverTargetTrade(
-  book: Book, held: { direction: 'higher' | 'lower'; shares: number } | null,
-  targetValue: number, maxBudget: number,
+  book: Book,
+  held: { direction: 'higher' | 'lower'; shares: number } | null,
+  targetValue: number,
+  maxBudget: number,
 ): { landedProb: number; direction: 'higher' | 'lower'; cost: number } {
   const c0 = consensus(book, B, MIN, MAX)!;
   const buyDir: 0 | 1 = targetValue >= c0 ? 1 : 0;

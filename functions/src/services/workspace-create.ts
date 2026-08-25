@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { metrics, proposals } from '../db/schema';
 import { provisionWorkspace } from '../lib/participants';
-import { getTemplate, getStarterProposal, type TemplateParams } from '../lib/templates';
+import { getStarterProposal, getTemplate, type TemplateParams } from '../lib/templates';
 import { parseVisibility } from '../lib/validation';
 import { ensureMarketsForTimePreference } from './metrics';
 import { createConditionalMarkets } from './proposals';
@@ -58,9 +58,8 @@ export async function createWorkspaceFromTemplate(input: {
     throw new WorkspaceCreateError((err as Error).message);
   }
 
-  const params: TemplateParams = input.templateParams && typeof input.templateParams === 'object'
-    ? input.templateParams as TemplateParams
-    : {};
+  const params: TemplateParams =
+    input.templateParams && typeof input.templateParams === 'object' ? (input.templateParams as TemplateParams) : {};
   const templateMetrics = template.metrics(params);
 
   const wsId = randomUUID();
@@ -69,7 +68,11 @@ export async function createWorkspaceFromTemplate(input: {
   let slug = '';
   await db.transaction(async tx => {
     slug = await provisionWorkspace(tx, {
-      wsId, name, createdBy: identity, ownerAgentId, visibility,
+      wsId,
+      name,
+      createdBy: identity,
+      ownerAgentId,
+      visibility,
     });
 
     const now = new Date();
@@ -119,7 +122,9 @@ export async function createWorkspaceFromTemplate(input: {
       });
       const conditionalMarketIds = await createConditionalMarkets(propId, wsId, {});
       if (conditionalMarketIds.length > 0) {
-        await db.update(proposals).set({ conditionalMarketIds })
+        await db
+          .update(proposals)
+          .set({ conditionalMarketIds })
           .where(and(eq(proposals.id, propId), eq(proposals.workspaceId, wsId)));
       }
       starterProposalId = propId;

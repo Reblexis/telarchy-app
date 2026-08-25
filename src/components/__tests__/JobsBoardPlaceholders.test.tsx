@@ -1,6 +1,6 @@
-import { describe, expect, test, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, test, vi } from 'vitest';
 
 /**
  * What the propose form suggests you write.
@@ -35,19 +35,22 @@ const base = {
 };
 
 function openForm(props: Partial<React.ComponentProps<typeof JobsBoard>> = {}) {
-  render(<MemoryRouter><JobsBoard {...base} workspaceName="LookPilot" {...props} /></MemoryRouter>);
+  render(
+    <MemoryRouter>
+      <JobsBoard {...base} workspaceName="LookPilot" {...props} />
+    </MemoryRouter>,
+  );
   // The exact CTA, not a loose regex: "Contracts" is also the board heading.
   fireEvent.click(screen.getByText('+ Offer to do a contract'));
 }
 
-describe('the phrase for a floor\'s numbers', () => {
+describe("the phrase for a floor's numbers", () => {
   test('one metric reads as itself', () => {
     expect(metricsPhrase(['net revenue'])).toBe('net revenue');
   });
 
   test('two are joined the way a person says them', () => {
-    expect(metricsPhrase(['net revenue', 'weekly traders']))
-      .toBe('net revenue and weekly traders');
+    expect(metricsPhrase(['net revenue', 'weekly traders'])).toBe('net revenue and weekly traders');
   });
 
   test('three take commas and a final and', () => {
@@ -63,26 +66,30 @@ describe('the phrase for a floor\'s numbers', () => {
 describe('the form suggests the right thing', () => {
   test('the title names this workspace, not the one it was written for', () => {
     openForm({ workspaceName: 'Telarchy' });
-    expect(screen.getByLabelText('Contract title').getAttribute('placeholder'))
-      .toBe('I will do a very useful thing for Telarchy');
+    expect(screen.getByLabelText('Contract title').getAttribute('placeholder')).toBe(
+      'I will do a very useful thing for Telarchy',
+    );
   });
 
   test('the pitch names the numbers the contract has to move', () => {
     openForm({ workspaceName: 'LookPilot', metricNames: ['LookPilot net 2026'] });
-    expect(screen.getByLabelText('Contract pitch').getAttribute('placeholder'))
-      .toBe('This will affect LookPilot net 2026 in this way because of these reasons');
+    expect(screen.getByLabelText('Contract pitch').getAttribute('placeholder')).toBe(
+      'This will affect LookPilot net 2026 in this way because of these reasons',
+    );
   });
 
   test('a floor with two numbers names both', () => {
     openForm({ metricNames: ['net revenue', 'weekly traders'] });
-    expect(screen.getByLabelText('Contract pitch').getAttribute('placeholder'))
-      .toContain('net revenue and weekly traders');
+    expect(screen.getByLabelText('Contract pitch').getAttribute('placeholder')).toContain(
+      'net revenue and weekly traders',
+    );
   });
 
   test('before the markets load it still reads as a sentence', () => {
     openForm({ metricNames: [] });
-    expect(screen.getByLabelText('Contract pitch').getAttribute('placeholder'))
-      .toBe('This will affect the number on this page in this way because of these reasons');
+    expect(screen.getByLabelText('Contract pitch').getAttribute('placeholder')).toBe(
+      'This will affect the number on this page in this way because of these reasons',
+    );
   });
 });
 
@@ -97,7 +104,9 @@ describe('a floor whose metrics are named after the company', () => {
       metricNames: ['weekly net revenue', 'monthly net revenue'],
     });
     const pitch = screen.getByLabelText('Contract pitch').getAttribute('placeholder')!;
-    expect(pitch).toBe('This will affect weekly net revenue and monthly net revenue in this way because of these reasons');
+    expect(pitch).toBe(
+      'This will affect weekly net revenue and monthly net revenue in this way because of these reasons',
+    );
     expect(pitch).not.toContain('LookPilot');
   });
 });

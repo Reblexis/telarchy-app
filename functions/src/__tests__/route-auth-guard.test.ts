@@ -18,21 +18,25 @@ process.env.BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET || 'guard-secret
 jest.mock('../db/client', () => require('./harness/test-db'));
 jest.mock('better-auth/node', () => ({
   fromNodeHeaders: (h: Record<string, unknown>) => h,
-  toNodeHandler: () => (_req: unknown, res: { status: (n: number) => { json: (b: unknown) => void } }) => res.status(404).json({ error: 'stub' }),
+  toNodeHandler: () => (_req: unknown, res: { status: (n: number) => { json: (b: unknown) => void } }) =>
+    res.status(404).json({ error: 'stub' }),
 }));
 jest.mock('../auth', () => ({ auth: { api: { getSession: async () => null } } }));
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import request from 'supertest';
-import { ensureMigrations, truncateAll } from './harness/test-db';
-import { listApiRoutes } from './harness/routes';
-import { OPTIONAL_AUTH_PREFIXES, isOptionalAuthPath } from '../middleware/route-policy';
 import { app } from '../app';
+import { isOptionalAuthPath, OPTIONAL_AUTH_PREFIXES } from '../middleware/route-policy';
+import { listApiRoutes } from './harness/routes';
+import { ensureMigrations, truncateAll } from './harness/test-db';
 
 const APP_TS = readFileSync(join(__dirname, '..', 'app.ts'), 'utf8');
 
-beforeAll(async () => { await ensureMigrations(); await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+  await truncateAll();
+});
 
 describe('app.ts', () => {
   test('mounts apiAuthPolicy on /api exactly once, before every router', () => {
@@ -42,13 +46,17 @@ describe('app.ts', () => {
     // Limiters and the JSON wrapper mounted on /api paths are not routers; the first
     // thing that can answer a request is a Router, an app.get/post handler, or the
     // BetterAuth handler.
-    const firstRouterMount = APP_TS.search(/app\.use\('\/api[^']*',[^;]*?(Router\b|toNodeHandler)|app\.(get|post|all)\('\/api/);
+    const firstRouterMount = APP_TS.search(
+      /app\.use\('\/api[^']*',[^;]*?(Router\b|toNodeHandler)|app\.(get|post|all)\('\/api/,
+    );
     expect(firstRouterMount).toBeGreaterThan(-1);
     expect(policyAt).toBeLessThan(firstRouterMount);
   });
 
   test('mounts no bare auth middleware (the policy owns the decision)', () => {
-    const bare = [...APP_TS.matchAll(/app\.use\([^)]*\b(authMiddleware|optionalAuthMiddleware)\b[^)]*\)/g)].map(m => m[0]);
+    const bare = [...APP_TS.matchAll(/app\.use\([^)]*\b(authMiddleware|optionalAuthMiddleware)\b[^)]*\)/g)].map(
+      m => m[0],
+    );
     expect(bare).toEqual([]);
   });
 });
@@ -56,9 +64,12 @@ describe('app.ts', () => {
 describe('optional-auth prefixes', () => {
   test('every prefix is served by a mounted route', () => {
     const routes = listApiRoutes(app);
-    const stale = OPTIONAL_AUTH_PREFIXES
-      .map(p => p.prefix)
-      .filter(prefix => !routes.some(r => prefix === '/api' ? r.path === '/api' : r.path === prefix || r.path.startsWith(prefix + '/')));
+    const stale = OPTIONAL_AUTH_PREFIXES.map(p => p.prefix).filter(
+      prefix =>
+        !routes.some(r =>
+          prefix === '/api' ? r.path === '/api' : r.path === prefix || r.path.startsWith(prefix + '/'),
+        ),
+    );
     expect(stale).toEqual([]);
   });
 
@@ -78,8 +89,10 @@ describe('runtime', () => {
   test('an unknown /api path is denied before it is routed', async () => {
     const anon = await request(app).get('/api/definitely-not-a-route');
     expect(anon.status).toBe(401);
-    const master = await request(app).get('/api/definitely-not-a-route')
-      .set('X-API-Key', process.env.API_KEY as string).set('X-Workspace-Id', 'ws-guard');
+    const master = await request(app)
+      .get('/api/definitely-not-a-route')
+      .set('X-API-Key', process.env.API_KEY as string)
+      .set('X-Workspace-Id', 'ws-guard');
     expect(master.status).toBe(404);
   });
 

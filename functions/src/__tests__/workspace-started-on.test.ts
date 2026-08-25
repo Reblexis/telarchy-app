@@ -21,7 +21,10 @@ jest.mock('../middleware/auth', () => ({
 
 jest.mock('../middleware/roles', () => ({
   requireCapability: (cap: string) => (req: any, res: any, next: any) => {
-    if (!req.auth?.capabilities?.has(cap)) { res.status(403).json({ error: 'Forbidden' }); return; }
+    if (!req.auth?.capabilities?.has(cap)) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
     next();
   },
   requireIdentity: (_req: any, _res: any, next: any) => next(),
@@ -31,18 +34,25 @@ jest.mock('../middleware/capabilities', () => ({
   computeCapabilities: async () => new Set<string>(['manage']),
 }));
 
-import request from 'supertest';
 import express from 'express';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import request from 'supertest';
 import { agents, permissionGroups, workspaces } from '../db/schema';
+import { AppError } from '../lib/errors';
 import { marketplaceRouter } from '../routes/marketplace';
 import { workspacesRouter } from '../routes/workspaces';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
 app.use('/api/marketplace', marketplaceRouter);
-app.use('/api/workspaces', (req: any, _res, next) => { req.auth = auth; next(); }, workspacesRouter);
+app.use(
+  '/api/workspaces',
+  (req: any, _res, next) => {
+    req.auth = auth;
+    next();
+  },
+  workspacesRouter,
+);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {
   const status = err instanceof AppError ? err.status : 500;
@@ -51,22 +61,34 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
 
 const WS = 'ws-started';
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   auth = { workspaceId: WS, capabilities: new Set(['manage', 'manage_workspace']), agentId: 'agent-s1' };
   await db.insert(agents).values({ id: 'agent-s1', apiKeyHash: 'h-s1', balance: 0, nickname: 'owner' });
   await db.insert(workspaces).values({
-    id: WS, name: 'Started WS', createdBy: 'agent-s1', visibility: 'public', slug: 'started-ws',
+    id: WS,
+    name: 'Started WS',
+    createdBy: 'agent-s1',
+    visibility: 'public',
+    slug: 'started-ws',
   });
   await db.insert(permissionGroups).values({
-    id: 'grp-pub-s', workspaceId: WS, name: 'Public', type: 'public', capabilities: ['read'], memberIds: [],
+    id: 'grp-pub-s',
+    workspaceId: WS,
+    name: 'Public',
+    type: 'public',
+    capabilities: ['read'],
+    memberIds: [],
   });
 });
 
 describe('the year chart marker date', () => {
   test('round-trips to the public payload, and clears back to null', async () => {
-    const set = await request(app).put(`/api/workspaces/${WS}/settings`)
+    const set = await request(app)
+      .put(`/api/workspaces/${WS}/settings`)
       .send({ telarchyStartedOn: '2026-08-13T00:00:00.000Z' });
     expect(set.status).toBe(200);
 
@@ -78,7 +100,8 @@ describe('the year chart marker date', () => {
   });
 
   test('an unparseable date is refused, not stored as an Invalid Date', async () => {
-    const bad = await request(app).put(`/api/workspaces/${WS}/settings`)
+    const bad = await request(app)
+      .put(`/api/workspaces/${WS}/settings`)
       .send({ telarchyStartedOn: 'sometime in August' });
     expect(bad.status).toBe(400);
     expect((await request(app).get(`/api/marketplace/${WS}`)).body.telarchyStartedOn).toBeNull();

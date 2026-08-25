@@ -1,11 +1,13 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { isMasterKey, masterKeyConfigured } from '../lib/master-key';
 
 const saved = { API_KEY: process.env.API_KEY, API_KEY_PREVIOUS: process.env.API_KEY_PREVIOUS };
 afterEach(() => {
-  if (saved.API_KEY === undefined) delete process.env.API_KEY; else process.env.API_KEY = saved.API_KEY;
-  if (saved.API_KEY_PREVIOUS === undefined) delete process.env.API_KEY_PREVIOUS; else process.env.API_KEY_PREVIOUS = saved.API_KEY_PREVIOUS;
+  if (saved.API_KEY === undefined) delete process.env.API_KEY;
+  else process.env.API_KEY = saved.API_KEY;
+  if (saved.API_KEY_PREVIOUS === undefined) delete process.env.API_KEY_PREVIOUS;
+  else process.env.API_KEY_PREVIOUS = saved.API_KEY_PREVIOUS;
 });
 
 describe('isMasterKey', () => {
@@ -51,7 +53,10 @@ describe('single reader', () => {
     const walk = (dir: string) => {
       for (const entry of readdirSync(dir)) {
         const p = join(dir, entry);
-        if (statSync(p).isDirectory()) { if (!p.endsWith('__tests__')) walk(p); continue; }
+        if (statSync(p).isDirectory()) {
+          if (!p.endsWith('__tests__')) walk(p);
+          continue;
+        }
         if (!/\.ts$/.test(entry) || p.endsWith('master-key.test.ts')) continue;
         const text = readFileSync(p, 'utf8');
         if (/process\.env\.API_KEY\b(?!_PREVIOUS)/.test(text) && !p.endsWith(join('lib', 'master-key.ts'))) {

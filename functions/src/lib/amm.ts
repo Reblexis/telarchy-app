@@ -51,12 +51,19 @@ export function directionTradeCost(shares: [number, number], direction: 0 | 1, a
  * Find how many shares can be bought for a given credit budget.
  * Uses binary search since LMSR cost is monotonically increasing.
  */
-export function sharesForBudget(shares: [number, number], direction: 0 | 1, budget: number, b: number): { amount: number; cost: number } {
-  let lo = 0, hi = budget * 20;
+export function sharesForBudget(
+  shares: [number, number],
+  direction: 0 | 1,
+  budget: number,
+  b: number,
+): { amount: number; cost: number } {
+  let lo = 0,
+    hi = budget * 20;
   for (let i = 0; i < 60; i++) {
     const mid = (lo + hi) / 2;
     const cost = directionTradeCost(shares, direction, mid, b);
-    if (cost < budget) lo = mid; else hi = mid;
+    if (cost < budget) lo = mid;
+    else hi = mid;
   }
   const amount = roundCredits(lo);
   const cost = directionTradeCost(shares, direction, amount, b);
@@ -69,9 +76,14 @@ export function sharesForBudget(shares: [number, number], direction: 0 | 1, budg
  * Otherwise spends the full budget pushing consensus as far as possible.
  */
 export function betTowardsValue(
-  shares: [number, number], b: number, rangeMin: number, rangeMax: number, targetValue: number, maxBudget: number,
+  shares: [number, number],
+  b: number,
+  rangeMin: number,
+  rangeMax: number,
+  targetValue: number,
+  maxBudget: number,
 ): { direction: 0 | 1; amount: number; cost: number } {
-  const current = consensus(shares, b, rangeMin, rangeMax) ?? (rangeMin + (rangeMax - rangeMin) / 2);
+  const current = consensus(shares, b, rangeMin, rangeMax) ?? rangeMin + (rangeMax - rangeMin) / 2;
   if (Math.abs(targetValue - current) < 0.01) return { direction: 1, amount: 0, cost: 0 };
 
   const direction: 0 | 1 = targetValue >= current ? 1 : 0;

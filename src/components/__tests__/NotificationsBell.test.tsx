@@ -1,6 +1,6 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * The floor's bell. What matters: the unread count is visible without
@@ -14,14 +14,30 @@ const getNotifications = vi.fn(async () => ({
   seenAt: '2026-08-19T09:00:00.000Z',
   notifications: [
     {
-      id: 'pm-1', kind: 'comment' as const, at: new Date().toISOString(), actor: 'trader-9',
-      subject: '$2000: Create a Telarchy tournament', detail: 'what is the deadline?',
-      workspaceSlug: 'telarchy', proposalId: 'prop-1', marketId: null, commentId: 'msg-7', unread: true,
+      id: 'pm-1',
+      kind: 'comment' as const,
+      at: new Date().toISOString(),
+      actor: 'trader-9',
+      subject: '$2000: Create a Telarchy tournament',
+      detail: 'what is the deadline?',
+      workspaceSlug: 'telarchy',
+      proposalId: 'prop-1',
+      marketId: null,
+      commentId: 'msg-7',
+      unread: true,
     },
     {
-      id: 'dec-2', kind: 'decision' as const, at: new Date().toISOString(), actor: null,
-      subject: 'Open source a trading agent', detail: 'out of scope this quarter',
-      workspaceSlug: 'telarchy', proposalId: 'prop-2', marketId: null, commentId: null, unread: true,
+      id: 'dec-2',
+      kind: 'decision' as const,
+      at: new Date().toISOString(),
+      actor: null,
+      subject: 'Open source a trading agent',
+      detail: 'out of scope this quarter',
+      workspaceSlug: 'telarchy',
+      proposalId: 'prop-2',
+      marketId: null,
+      commentId: null,
+      unread: true,
     },
   ],
 }));
@@ -39,9 +55,17 @@ vi.mock('../../lib/api', () => ({
 import { NotificationsBell } from '../NotificationsBell';
 
 /** The bell navigates through the router, so it is mounted in one. */
-const bell = () => render(<MemoryRouter><NotificationsBell /></MemoryRouter>);
+const bell = () =>
+  render(
+    <MemoryRouter>
+      <NotificationsBell />
+    </MemoryRouter>,
+  );
 
-beforeEach(() => { markNotificationsSeen.mockClear(); markNotificationRead.mockClear(); });
+beforeEach(() => {
+  markNotificationsSeen.mockClear();
+  markNotificationRead.mockClear();
+});
 
 describe('the notifications bell', () => {
   test('shows the unread count before anything is opened', async () => {
@@ -59,8 +83,9 @@ describe('the notifications bell', () => {
     // rather than dropping the reader on the page it lives on.
     expect(link.getAttribute('href')).toBe('/telarchy#contract=prop-1&comment=msg-7');
     // A decision has no comment, so it points at the contract alone.
-    expect((screen.getAllByRole('link')[1] as HTMLAnchorElement).getAttribute('href'))
-      .toBe('/telarchy#contract=prop-2');
+    expect((screen.getAllByRole('link')[1] as HTMLAnchorElement).getAttribute('href')).toBe(
+      '/telarchy#contract=prop-2',
+    );
   });
 
   test('a decision on my own contract reads as mine, with the reason', async () => {

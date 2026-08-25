@@ -1,9 +1,18 @@
 import { describe, expect, test } from 'vitest';
-import {
-  buildHorizonViews, captionLabel, currencyOf, horizonById, horizonLabel, metricLabelOf, priceSeriesOf,
-  primaryHorizonOf, settleDayOf, settleShortOf, stepHorizon,
-} from '../floor-horizons';
 import type { PublicWorkspace } from '../api';
+import {
+  buildHorizonViews,
+  captionLabel,
+  currencyOf,
+  horizonById,
+  horizonLabel,
+  metricLabelOf,
+  priceSeriesOf,
+  primaryHorizonOf,
+  settleDayOf,
+  settleShortOf,
+  stepHorizon,
+} from '../floor-horizons';
 
 /**
  * The floor's horizon model.
@@ -15,14 +24,28 @@ import type { PublicWorkspace } from '../api';
  */
 
 const WEEK = {
-  marketId: 'm-week', metricId: 'metric-w', metricName: 'LookPilot revenue this week (USD)',
-  targetDate: '2026-W34', resolvesOn: '2026-08-24T00:00:00Z', consensus: 213,
-  probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 8000,
+  marketId: 'm-week',
+  metricId: 'metric-w',
+  metricName: 'LookPilot revenue this week (USD)',
+  targetDate: '2026-W34',
+  resolvesOn: '2026-08-24T00:00:00Z',
+  consensus: 213,
+  probability: 0.5,
+  liquidity: 200,
+  rangeMin: 0,
+  rangeMax: 8000,
 };
 const YEAR = {
-  marketId: 'm-year', metricId: 'metric-y', metricName: 'LookPilot net 2026 (USD)',
-  targetDate: '2026-12', resolvesOn: '2027-01-01T00:00:00Z', consensus: 78_571,
-  probability: 0.52, liquidity: 5000, rangeMin: 0, rangeMax: 150_000,
+  marketId: 'm-year',
+  metricId: 'metric-y',
+  metricName: 'LookPilot net 2026 (USD)',
+  targetDate: '2026-12',
+  resolvesOn: '2027-01-01T00:00:00Z',
+  consensus: 78_571,
+  probability: 0.52,
+  liquidity: 5000,
+  rangeMin: 0,
+  rangeMax: 150_000,
 };
 
 /** Soonest-first, exactly as the API ships it. */
@@ -31,13 +54,19 @@ function ws(overrides: Partial<PublicWorkspace> = {}): PublicWorkspace {
     markets: [WEEK, YEAR],
     horizonHistories: [
       {
-        marketId: 'm-week', metricName: WEEK.metricName, targetDate: '2026-W34',
-        periodStart: '2026-08-17T00:00:00.000Z', description: 'This week only.',
+        marketId: 'm-week',
+        metricName: WEEK.metricName,
+        targetDate: '2026-W34',
+        periodStart: '2026-08-17T00:00:00.000Z',
+        description: 'This week only.',
         points: [{ at: '2026-08-17T09:00:00Z', value: 120 }],
       },
       {
-        marketId: 'm-year', metricName: YEAR.metricName, targetDate: '2026-12',
-        periodStart: '2026-12-01T00:00:00.000Z', description: 'The whole year.',
+        marketId: 'm-year',
+        metricName: YEAR.metricName,
+        targetDate: '2026-12',
+        periodStart: '2026-12-01T00:00:00.000Z',
+        description: 'The whole year.',
         points: [
           { at: '2026-08-01T09:00:00Z', value: 44_000 },
           { at: '2026-01-04T09:00:00Z', value: 137 },
@@ -111,17 +140,24 @@ describe('what each horizon knows', () => {
   });
 
   test('unusable readings are dropped, not drawn as gaps', () => {
-    const views = buildHorizonViews(ws({
-      horizonHistories: [{
-        marketId: 'm-year', metricName: YEAR.metricName, targetDate: '2026-12',
-        periodStart: '2026-12-01T00:00:00.000Z', description: null,
-        points: [
-          { at: null, value: 5 },
-          { at: '2026-02-01T00:00:00Z', value: Number.NaN },
-          { at: '2026-03-01T00:00:00Z', value: 900 },
+    const views = buildHorizonViews(
+      ws({
+        horizonHistories: [
+          {
+            marketId: 'm-year',
+            metricName: YEAR.metricName,
+            targetDate: '2026-12',
+            periodStart: '2026-12-01T00:00:00.000Z',
+            description: null,
+            points: [
+              { at: null, value: 5 },
+              { at: '2026-02-01T00:00:00Z', value: Number.NaN },
+              { at: '2026-03-01T00:00:00Z', value: 900 },
+            ],
+          },
         ],
-      }],
-    } as Partial<PublicWorkspace>));
+      } as Partial<PublicWorkspace>),
+    );
     expect(views[0].metricHistory.map(p => p.value)).toEqual([900]);
   });
 
@@ -152,7 +188,9 @@ describe('a price series belongs to one market', () => {
   });
 
   test('an unlabelled payload lends its series to nobody', () => {
-    const unlabelled = ws({ marketHistory: [{ at: '2026-08-11T06:00:00Z', consensus: 73_600 }] } as Partial<PublicWorkspace>);
+    const unlabelled = ws({
+      marketHistory: [{ at: '2026-08-11T06:00:00Z', consensus: 73_600 }],
+    } as Partial<PublicWorkspace>);
     expect(priceSeriesOf('m-year', unlabelled, {})).toEqual([]);
   });
 
@@ -221,8 +259,7 @@ describe('captionLabel', () => {
   });
 
   test('leaves a label that does not lead with the name alone', () => {
-    expect(captionLabel('Steam review percentage', 'LookPilot'))
-      .toBe('Steam review percentage');
+    expect(captionLabel('Steam review percentage', 'LookPilot')).toBe('Steam review percentage');
     // A name that is only the start of a longer word is not a prefix.
     expect(captionLabel('LookPilotter revenue', 'LookPilot')).toBe('LookPilotter revenue');
   });
@@ -234,14 +271,13 @@ describe('captionLabel', () => {
   });
 });
 
-
 /**
  * Stepping between clocks (owner ask 2026-08-20: arrows beside the metric's
  * name). Selection is a market id, never an index, so the cases that matter
  * are the ones where the list changes underneath a held selection.
  */
 describe('stepping between horizons', () => {
-  const views = buildHorizonViews(ws());   // [year, week], furthest first
+  const views = buildHorizonViews(ws()); // [year, week], furthest first
 
   test('no selection opens on the primary', () => {
     expect(horizonById(views, null)?.marketId).toBe('m-year');
@@ -278,7 +314,6 @@ describe('stepping between horizons', () => {
     expect(horizonById([], 'm-year')).toBeNull();
   });
 });
-
 
 /**
  * The settle day the caption puts after the metric's name (owner ask

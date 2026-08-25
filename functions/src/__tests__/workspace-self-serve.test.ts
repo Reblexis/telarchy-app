@@ -21,29 +21,37 @@ jest.mock('../middleware/auth', () => ({
   getAuthWorkspaceMemberships: () => [],
 }));
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, workspaces } from '../db/schema';
+import { AppError } from '../lib/errors';
 import { toUnits } from '../lib/validation';
 import { workspacesRouter } from '../routes/workspaces';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
-app.use((req, _res, next) => { (req as any).auth = { ...authOverride }; next(); });
+app.use((req, _res, next) => {
+  (req as any).auth = { ...authOverride };
+  next();
+});
 app.use('/api/workspaces', workspacesRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof AppError) { res.status(err.status).json({ error: err.message }); return; }
+  if (err instanceof AppError) {
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
   res.status(500).json({ error: (err as Error).message ?? 'Internal error' });
 });
 
 const OPERATOR = 'agent-operator';
 const ADMIN = 'agent-platform-admin';
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   await db.insert(agents).values([
@@ -53,8 +61,7 @@ beforeEach(async () => {
   authOverride = { uid: OPERATOR, agentId: OPERATOR };
 });
 
-const create = (body: Record<string, unknown>) =>
-  request(app).post('/api/workspaces').send(body);
+const create = (body: Record<string, unknown>) => request(app).post('/api/workspaces').send(body);
 
 describe('an ordinary signed-in person may open a floor', () => {
   test('creation succeeds and returns a slug to land on', async () => {

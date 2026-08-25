@@ -32,6 +32,6 @@ export function amountToSlider(amount: number, maxBet: number): number {
 
 function roundToTwoSig(v: number): number {
   if (v < 100) return Math.round(v);
-  const mag = Math.pow(10, Math.floor(Math.log10(v)) - 1);
+  const mag = 10 ** (Math.floor(Math.log10(v)) - 1);
   return Math.round(v / mag) * mag;
 }

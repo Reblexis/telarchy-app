@@ -14,12 +14,16 @@ jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import { mirrorAccountIntoStore } from '../db/client';
 import { authUser } from '../db/schema';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 describe('mirroring an account', () => {
   test('does nothing where there is only one store', async () => {

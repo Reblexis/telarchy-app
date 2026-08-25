@@ -4,7 +4,11 @@
  * a self-hosted instance's is whatever it lists first (docs/vision.md,
  * "Self-hosting"). Nothing here names a workspace.
  */
-export interface FloorListing { workspaceId?: string; slug?: string | null; workspaceSlug?: string | null }
+export interface FloorListing {
+  workspaceId?: string;
+  slug?: string | null;
+  workspaceSlug?: string | null;
+}
 
 export function pickDefaultFloor(listings: ReadonlyArray<FloorListing> | null | undefined): string {
   if (!listings || listings.length === 0) return '/floors';

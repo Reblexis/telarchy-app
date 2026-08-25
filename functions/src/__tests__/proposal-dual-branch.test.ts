@@ -13,23 +13,25 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import {
-  workspaces, agents, proposals, metrics as metricsTable, markets,
-} from '../db/schema';
-import { toUnits } from '../lib/validation';
+import { agents, markets, metrics as metricsTable, proposals, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
+import { toUnits } from '../lib/validation';
 import {
   approveProposal,
+  createConditionalMarkets,
   declineProposal,
   declineProposalAsSpam,
-  withdrawProposal,
-  createConditionalMarkets,
   getProposalMarketSummariesForProposal,
+  withdrawProposal,
 } from '../services/proposals';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-dual';
 const OWNER = 'owner-dual';
@@ -44,7 +46,10 @@ async function seedWorkspaceAndMetrics() {
     { id: PROPOSER, apiKeyHash: 'h-proposer-dual', balance: toUnits(1000) },
   ]);
   await db.insert(workspaces).values({
-    id: WS, name: 'Dual', createdBy: OWNER, visibility: 'private',
+    id: WS,
+    name: 'Dual',
+    createdBy: OWNER,
+    visibility: 'private',
   });
   await db.insert(metricsTable).values([
     { id: METRIC_A, workspaceId: WS, name: 'Metric A', value: 0, formula: '0', marketRangeMax: 100 },
@@ -54,30 +59,59 @@ async function seedWorkspaceAndMetrics() {
   // the sources that conditional markets clone from.
   await db.insert(markets).values([
     {
-      id: 'mkt-base-a', workspaceId: WS, metricId: METRIC_A, metricName: 'Metric A',
-      targetDate: TARGET, rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      id: 'mkt-base-a',
+      workspaceId: WS,
+      metricId: METRIC_A,
+      metricName: 'Metric A',
+      targetDate: TARGET,
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
+      branch: null,
     },
     {
-      id: 'mkt-base-b', workspaceId: WS, metricId: METRIC_B, metricName: 'Metric B',
-      targetDate: TARGET, rangeMin: 0, rangeMax: 200,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      id: 'mkt-base-b',
+      workspaceId: WS,
+      metricId: METRIC_B,
+      metricName: 'Metric B',
+      targetDate: TARGET,
+      rangeMin: 0,
+      rangeMax: 200,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
+      branch: null,
     },
   ]);
 }
 
 async function insertProposal(id: string, status: string = 'pending') {
   await db.insert(proposals).values({
-    id, workspaceId: WS, proposedBy: PROPOSER,
-    title: `proposal ${id}`, description: '', status,
-    conditionalMarketIds: [], liquiditySubsidy: 0,
+    id,
+    workspaceId: WS,
+    proposedBy: PROPOSER,
+    title: `proposal ${id}`,
+    description: '',
+    status,
+    conditionalMarketIds: [],
+    liquiditySubsidy: 0,
   });
 }
 
 async function branchesFor(proposalId: string) {
-  const rows = await db.select().from(markets)
+  const rows = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.workspaceId, WS), eq(markets.proposalId, proposalId)));
   const grouped: Record<string, Array<{ id: string; branch: string | null; resolved: boolean; voided: boolean }>> = {};
   for (const m of rows) {
@@ -95,9 +129,7 @@ describe('createConditionalMarkets — dual spawn', () => {
     expect(ids).toHaveLength(4); // 2 metrics * 2 branches
 
     const grouped = await branchesFor('p1');
-    expect(Object.keys(grouped).sort()).toEqual([
-      `${METRIC_A}:${TARGET}`, `${METRIC_B}:${TARGET}`,
-    ]);
+    expect(Object.keys(grouped).sort()).toEqual([`${METRIC_A}:${TARGET}`, `${METRIC_B}:${TARGET}`]);
     for (const pair of Object.values(grouped)) {
       const branches = pair.map(p => p.branch).sort();
       expect(branches).toEqual(['approved', 'declined']);
@@ -119,16 +151,38 @@ describe('createConditionalMarkets — dual spawn', () => {
     // markets manually, as if 0033 had backfilled them.
     await db.insert(markets).values([
       {
-        id: 'legacy-approved-a', workspaceId: WS, metricId: METRIC_A, metricName: 'Metric A',
-        targetDate: TARGET, rangeMin: 0, rangeMax: 100,
-        shares: [10, 5], liquidity: 5, pool: initialPool(5),
-        active: true, resolved: false, voided: false, proposalId: 'p1', branch: 'approved',
+        id: 'legacy-approved-a',
+        workspaceId: WS,
+        metricId: METRIC_A,
+        metricName: 'Metric A',
+        targetDate: TARGET,
+        rangeMin: 0,
+        rangeMax: 100,
+        shares: [10, 5],
+        liquidity: 5,
+        pool: initialPool(5),
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: 'p1',
+        branch: 'approved',
       },
       {
-        id: 'legacy-approved-b', workspaceId: WS, metricId: METRIC_B, metricName: 'Metric B',
-        targetDate: TARGET, rangeMin: 0, rangeMax: 200,
-        shares: [0, 0], liquidity: 5, pool: initialPool(5),
-        active: true, resolved: false, voided: false, proposalId: 'p1', branch: 'approved',
+        id: 'legacy-approved-b',
+        workspaceId: WS,
+        metricId: METRIC_B,
+        metricName: 'Metric B',
+        targetDate: TARGET,
+        rangeMin: 0,
+        rangeMax: 200,
+        shares: [0, 0],
+        liquidity: 5,
+        pool: initialPool(5),
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: 'p1',
+        branch: 'approved',
       },
     ]);
 

@@ -1,15 +1,15 @@
 import {
-  ALL_KEY_SCOPES,
-  WORKSPACE_SCOPES,
+  ACCOUNT_SCOPE_FOR_ROUTE,
   ACCOUNT_SCOPES,
-  WILDCARD_SCOPE,
-  SCOPE_PRESETS,
-  isValidScope,
-  parseScopesInput,
+  ALL_KEY_SCOPES,
+  granterCoversScopes,
   hasScope,
   intersectWorkspaceCaps,
-  granterCoversScopes,
-  ACCOUNT_SCOPE_FOR_ROUTE,
+  isValidScope,
+  parseScopesInput,
+  SCOPE_PRESETS,
+  WILDCARD_SCOPE,
+  WORKSPACE_SCOPES,
 } from '../lib/scopes';
 import type { Capability } from '../types';
 
@@ -143,13 +143,13 @@ describe('intersectWorkspaceCaps', () => {
   });
   test('workspace:manage scope passes manage_workspace capability through', () => {
     const caps = cap('read', 'trade', 'manage', 'manage_workspace');
-    expect([...intersectWorkspaceCaps(caps, ['workspace:read', 'workspace:trade', 'workspace:manage'])].sort())
-      .toEqual(['manage', 'manage_workspace', 'read', 'trade']);
+    expect([...intersectWorkspaceCaps(caps, ['workspace:read', 'workspace:trade', 'workspace:manage'])].sort()).toEqual(
+      ['manage', 'manage_workspace', 'read', 'trade'],
+    );
   });
   test('without workspace:manage scope, manage_workspace capability is filtered out', () => {
     const caps = cap('read', 'trade', 'manage_workspace');
-    expect([...intersectWorkspaceCaps(caps, ['workspace:read', 'workspace:trade'])].sort())
-      .toEqual(['read', 'trade']);
+    expect([...intersectWorkspaceCaps(caps, ['workspace:read', 'workspace:trade'])].sort()).toEqual(['read', 'trade']);
   });
 });
 
@@ -200,7 +200,9 @@ describe('SCOPE_PRESETS', () => {
     expect(SCOPE_PRESETS.reader.scopes).not.toContain('workspace:trade');
   });
   test('Manager preset implies trade and read', () => {
-    expect(SCOPE_PRESETS.manager.scopes).toEqual(expect.arrayContaining(['workspace:read', 'workspace:trade', 'workspace:manage']));
+    expect(SCOPE_PRESETS.manager.scopes).toEqual(
+      expect.arrayContaining(['workspace:read', 'workspace:trade', 'workspace:manage']),
+    );
   });
   test('Account preset has no workspace scopes', () => {
     expect(SCOPE_PRESETS.account.scopes.every(s => s.startsWith('account:'))).toBe(true);

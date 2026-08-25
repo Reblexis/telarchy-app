@@ -15,7 +15,10 @@ describe('ttlCache', () => {
     const cache = ttlCache({
       ttlMs: 1000,
       keyOf: (k: string) => k,
-      load: async (k: string) => { calls++; return `${k}:${calls}`; },
+      load: async (k: string) => {
+        calls++;
+        return `${k}:${calls}`;
+      },
     });
     return { cache, calls: () => calls };
   }
@@ -42,7 +45,12 @@ describe('ttlCache', () => {
     const cache = ttlCache({
       ttlMs: 1000,
       keyOf: (k: string) => k,
-      load: (_k: string) => { calls++; return new Promise<string>(r => { release = r; }); },
+      load: (_k: string) => {
+        calls++;
+        return new Promise<string>(r => {
+          release = r;
+        });
+      },
     });
     const p1 = cache.get('a');
     const p2 = cache.get('a');
@@ -65,7 +73,10 @@ describe('ttlCache', () => {
     const cache = ttlCache({
       ttlMs: 1000,
       keyOf: (k: string) => k,
-      load: async (k: string) => { if (fail) throw new Error('boom'); return k; },
+      load: async (k: string) => {
+        if (fail) throw new Error('boom');
+        return k;
+      },
     });
     await expect(cache.get('a')).rejects.toThrow('boom');
     // Let the rejection-eviction microtask run.
@@ -80,17 +91,20 @@ describe('ttlCache', () => {
       ttlMs: 60_000,
       maxEntries: 2,
       keyOf: (k: string) => k,
-      load: async (k: string) => { calls++; return k; },
+      load: async (k: string) => {
+        calls++;
+        return k;
+      },
     });
     await cache.get('a');
     jest.advanceTimersByTime(10);
     await cache.get('b');
     jest.advanceTimersByTime(10);
-    await cache.get('c');       // evicts 'a' (oldest, none stale yet)
+    await cache.get('c'); // evicts 'a' (oldest, none stale yet)
     const before = calls;
-    await cache.get('b');       // still cached
+    await cache.get('b'); // still cached
     expect(calls).toBe(before);
-    await cache.get('a');       // was evicted -> reloads
+    await cache.get('a'); // was evicted -> reloads
     expect(calls).toBe(before + 1);
   });
 });

@@ -58,7 +58,8 @@ function targetPool(dayIndex) {
   const last = SCHEDULE[SCHEDULE.length - 1];
   if (dayIndex >= last.day) return last.pool;
   for (let i = 1; i < SCHEDULE.length; i++) {
-    const a = SCHEDULE[i - 1], b = SCHEDULE[i];
+    const a = SCHEDULE[i - 1],
+      b = SCHEDULE[i];
     if (dayIndex <= b.day) {
       const t = (dayIndex - a.day) / (b.day - a.day);
       return a.pool + t * (b.pool - a.pool);
@@ -88,18 +89,26 @@ async function main() {
 
   const seasons = (await api('/seasons')).seasons ?? [];
   const season = seasons.find(s => s.status === 'running') ?? seasons.find(s => s.status === 'draft');
-  if (!season) { console.log('No running or draft season. Nothing to ramp.'); return; }
+  if (!season) {
+    console.log('No running or draft season. Nothing to ramp.');
+    return;
+  }
 
   const start = new Date(season.startsAt);
   const dayIndex = Math.floor((Date.now() - start.getTime()) / 86_400_000);
   const target = targetPool(dayIndex);
-  console.log(`${season.name}: day ${dayIndex} -> target pool ${target.toFixed(0)} cr (b = ${(target / Math.LN2).toFixed(0)})`);
+  console.log(
+    `${season.name}: day ${dayIndex} -> target pool ${target.toFixed(0)} cr (b = ${(target / Math.LN2).toFixed(0)})`,
+  );
 
   // Every open market on the season floor rides the same ramp, baseline and
   // contract branches alike: the game moves to whichever book is thinnest, so
   // there is no such thing as topping up only the headline one.
   const markets = await api('/predictions/markets?status=open&kind=all&limit=200');
-  if (!markets.length) { console.log('No open markets.'); return; }
+  if (!markets.length) {
+    console.log('No open markets.');
+    return;
+  }
 
   for (const m of markets) {
     const pool = m.liquidity * Math.LN2;
@@ -121,4 +130,7 @@ async function main() {
   }
 }
 
-main().catch(e => { console.error(e.message); process.exit(1); });
+main().catch(e => {
+  console.error(e.message);
+  process.exit(1);
+});

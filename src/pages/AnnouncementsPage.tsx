@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
+import { Link, useParams } from 'react-router-dom';
 import remarkGfm from 'remark-gfm';
-import { api, type Announcement, type PublicWorkspace } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
+import { type Announcement, api, type PublicWorkspace } from '../lib/api';
 import { TopBar } from './TradePage';
 
 /**
@@ -28,7 +28,11 @@ import { TopBar } from './TradePage';
 
 function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString('en-GB', {
-    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
@@ -38,7 +42,11 @@ function Body({ text }: { text: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>,
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noreferrer">
+              {children}
+            </a>
+          ),
         }}
       >
         {text}
@@ -47,7 +55,12 @@ function Body({ text }: { text: string }) {
   );
 }
 
-function AnnouncementRow({ item, workspaceId, canManage, onEdited }: {
+function AnnouncementRow({
+  item,
+  workspaceId,
+  canManage,
+  onEdited,
+}: {
   item: Announcement;
   workspaceId: string;
   canManage: boolean;
@@ -62,7 +75,9 @@ function AnnouncementRow({ item, workspaceId, canManage, onEdited }: {
   return (
     <article className="pubws-ann">
       <div className="pubws-ann-meta">
-        <time className="annp-when" dateTime={item.publishedAt}>{fmtWhen(item.publishedAt)}</time>
+        <time className="annp-when" dateTime={item.publishedAt}>
+          {fmtWhen(item.publishedAt)}
+        </time>
         {item.editedAt && (
           <>
             <span className="pubws-ann-edited">edited {fmtWhen(item.editedAt)}</span>
@@ -74,7 +89,14 @@ function AnnouncementRow({ item, workspaceId, canManage, onEdited }: {
           </>
         )}
         {canManage && !editing && (
-          <button className="pubws-ann-link" onClick={() => { setDraft(item.body); setErr(''); setEditing(true); }}>
+          <button
+            className="pubws-ann-link"
+            onClick={() => {
+              setDraft(item.body);
+              setErr('');
+              setEditing(true);
+            }}
+          >
             Edit
           </button>
         )}
@@ -102,7 +124,8 @@ function AnnouncementRow({ item, workspaceId, canManage, onEdited }: {
               className="ticket-go"
               disabled={busy}
               onClick={() => {
-                setBusy(true); setErr('');
+                setBusy(true);
+                setErr('');
                 void (async () => {
                   try {
                     onEdited(await api.editAnnouncement(workspaceId, item.id, draft));
@@ -117,7 +140,15 @@ function AnnouncementRow({ item, workspaceId, canManage, onEdited }: {
             >
               {busy ? 'Saving…' : 'Save'}
             </button>
-            <button className="pubws-ghost" onClick={() => { setEditing(false); setErr(''); }}>Cancel</button>
+            <button
+              className="pubws-ghost"
+              onClick={() => {
+                setEditing(false);
+                setErr('');
+              }}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       ) : (
@@ -151,21 +182,33 @@ export function AnnouncementsPage() {
   useEffect(() => {
     if (!idOrSlug) return;
     let cancelled = false;
-    api.getMarketplaceWorkspace(idOrSlug)
-      .then(w => { if (!cancelled) setWs(w); })
+    api
+      .getMarketplaceWorkspace(idOrSlug)
+      .then(w => {
+        if (!cancelled) setWs(w);
+      })
       .catch(e => console.error('workspace fetch failed:', e));
-    api.getWorkspaceAnnouncements(idOrSlug)
-      .then(r => { if (!cancelled) setItems(r.announcements); })
+    api
+      .getWorkspaceAnnouncements(idOrSlug)
+      .then(r => {
+        if (!cancelled) setItems(r.announcements);
+      })
       .catch(e => {
         console.error('announcements fetch failed:', e);
-        if (!cancelled) { setItems([]); setLoadErr((e as Error).message || 'Could not load announcements'); }
+        if (!cancelled) {
+          setItems([]);
+          setLoadErr((e as Error).message || 'Could not load announcements');
+        }
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [idOrSlug]);
 
   useEffect(() => {
     if (!user) return;
-    api.getProfile()
+    api
+      .getProfile()
       .then(p => setCanManage((p as { authRole?: string }).authRole === 'admin'))
       .catch(e => console.error('profile fetch failed:', e));
   }, [user]);
@@ -185,16 +228,17 @@ export function AnnouncementsPage() {
             anyway, so "telarchy" and "Telarchy" render identically: the name
             arriving late changes nothing a reader can see, where waiting for
             it left the page saying "back to the floor" for five seconds. */}
-        <Link className="annp-back" to={floorHref}>{ws?.name ?? params.slug ?? 'Back to the floor'}</Link>
+        <Link className="annp-back" to={floorHref}>
+          {ws?.name ?? params.slug ?? 'Back to the floor'}
+        </Link>
         <h1 className="annp-head">Announcements</h1>
         <p className="annp-lead">
-          Everything the owner has said here that the market could not see for itself.
-          Published announcements cannot be deleted or backdated, and an edit keeps the
-          original readable underneath it.
+          Everything the owner has said here that the market could not see for itself. Published announcements cannot be
+          deleted or backdated, and an edit keeps the original readable underneath it.
         </p>
 
-        {canManage && (
-          composing ? (
+        {canManage &&
+          (composing ? (
             <div className="pubws-ann-editor annp-compose">
               <textarea
                 className="jobform-line jobform-line--desc pubws-ann-editarea"
@@ -206,8 +250,8 @@ export function AnnouncementsPage() {
                 aria-label="New announcement"
               />
               <p className="pubws-ann-warn">
-                Published announcements cannot be deleted, and the time is stamped by the server.
-                An edit keeps the original visible.
+                Published announcements cannot be deleted, and the time is stamped by the server. An edit keeps the
+                original visible.
               </p>
               {err && <p className="ticket-err">{err}</p>}
               <div className="pubws-ann-actions">
@@ -215,7 +259,8 @@ export function AnnouncementsPage() {
                   className="ticket-go"
                   disabled={busy || draft.trim().length === 0}
                   onClick={() => {
-                    setBusy(true); setErr('');
+                    setBusy(true);
+                    setErr('');
                     void (async () => {
                       try {
                         const created = await api.publishAnnouncement(ws!.workspaceId, draft);
@@ -232,19 +277,30 @@ export function AnnouncementsPage() {
                 >
                   {busy ? 'Publishing…' : 'Publish'}
                 </button>
-                <button className="pubws-ghost" onClick={() => { setComposing(false); setErr(''); }}>Cancel</button>
+                <button
+                  className="pubws-ghost"
+                  onClick={() => {
+                    setComposing(false);
+                    setErr('');
+                  }}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           ) : (
             <button
               className="annp-new"
               disabled={!ws}
-              onClick={() => { setDraft(''); setErr(''); setComposing(true); }}
+              onClick={() => {
+                setDraft('');
+                setErr('');
+                setComposing(true);
+              }}
             >
               Write one
             </button>
-          )
-        )}
+          ))}
 
         {items === null ? null : items.length === 0 ? (
           <p className="pubws-ann-empty">Nothing announced yet.</p>

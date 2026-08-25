@@ -24,12 +24,16 @@ jest.mock('../middleware/auth', () => ({
   getAuthWorkspaceMemberships: () => [],
 }));
 
-import request from 'supertest';
 import express from 'express';
+import request from 'supertest';
 import { ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 describe('onboard gate', () => {
   test('POST /api/onboard is paused with a pointer to the owner door', async () => {
@@ -40,7 +44,8 @@ describe('onboard gate', () => {
     onboardApp.use(express.json());
     onboardApp.use('/api/onboard', onboardRouter);
 
-    const res = await request(onboardApp).post('/api/onboard')
+    const res = await request(onboardApp)
+      .post('/api/onboard')
       .send({ workspace: { name: 'X' } });
 
     expect(res.status).toBe(403);

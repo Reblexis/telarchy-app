@@ -16,36 +16,48 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import { eq } from 'drizzle-orm';
 import { agents, prizeSeasons, seasonEntries, workspaces } from '../db/schema';
-import { startDueSeasons, startSeason, SeasonStartError } from '../services/seasons';
 import { clearBoardCache } from '../routes/leaderboard';
+import { SeasonStartError, startDueSeasons, startSeason } from '../services/seasons';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const LADDER = [{ place: 1, prizeUsd: 500 }];
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); clearBoardCache(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+  clearBoardCache();
+});
 
 async function seed() {
-  await db.insert(agents).values([
-    { id: 'entrant', apiKeyHash: 'h-entrant', balance: 0, nickname: 'entrant' },
-  ]);
+  await db.insert(agents).values([{ id: 'entrant', apiKeyHash: 'h-entrant', balance: 0, nickname: 'entrant' }]);
   await db.insert(workspaces).values({
-    id: 'ws-auto', name: 'Auto', slug: 'auto', createdBy: 'entrant', visibility: 'public',
+    id: 'ws-auto',
+    name: 'Auto',
+    slug: 'auto',
+    createdBy: 'entrant',
+    visibility: 'public',
   });
 }
 
 async function makeSeason(id: string, startsAt: Date, status = 'draft') {
   await db.insert(prizeSeasons).values({
-    id, name: id, startsAt, endsAt: new Date('2026-12-31'),
-    poolUsd: 1000, ladder: LADDER, workspaceIds: [],
-    rulesUrl: '/legal/season-0', status,
+    id,
+    name: id,
+    startsAt,
+    endsAt: new Date('2026-12-31'),
+    poolUsd: 1000,
+    ladder: LADDER,
+    workspaceIds: [],
+    rulesUrl: '/legal/season-0',
+    status,
   });
 }
 
-const statusOf = async (id: string) =>
-  (await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, id)))[0]?.status;
+const statusOf = async (id: string) => (await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, id)))[0]?.status;
 
 describe('a due season starts on its own', () => {
   test('a draft whose start instant has passed is started', async () => {
@@ -105,16 +117,20 @@ describe('what the auto-start preserves', () => {
     await makeSeason('keep', new Date('2026-08-22T00:00:00Z'));
     const enteredAt = new Date('2026-08-20T10:00:00Z');
     await db.insert(seasonEntries).values({
-      seasonId: 'keep', agentId: 'entrant', optedIn: true, enteredAt,
-      rulesAcceptedAt: enteredAt, confirmedOver18At: enteredAt,
-      contactEmail: 'entrant@example.com', baselineProfit: 0,
+      seasonId: 'keep',
+      agentId: 'entrant',
+      optedIn: true,
+      enteredAt,
+      rulesAcceptedAt: enteredAt,
+      confirmedOver18At: enteredAt,
+      contactEmail: 'entrant@example.com',
+      baselineProfit: 0,
     });
 
     const r = await startDueSeasons(new Date('2026-08-22T00:03:00Z'));
     expect(r.started[0].preRegistrationsKept).toBe(1);
 
-    const [row] = await db.select().from(seasonEntries)
-      .where(eq(seasonEntries.seasonId, 'keep'));
+    const [row] = await db.select().from(seasonEntries).where(eq(seasonEntries.seasonId, 'keep'));
     expect(row.optedIn).toBe(true);
     expect(row.enteredAt).toEqual(enteredAt);
     expect(row.rulesAcceptedAt).toEqual(enteredAt);

@@ -1,11 +1,5 @@
-import { describe, test, expect } from 'vitest';
-import {
-  ALL_KEY_SCOPES,
-  WORKSPACE_SCOPES,
-  ACCOUNT_SCOPES,
-  SCOPE_LABELS,
-  SCOPE_PRESETS,
-} from '../../types';
+import { describe, expect, test } from 'vitest';
+import { ACCOUNT_SCOPES, ALL_KEY_SCOPES, SCOPE_LABELS, SCOPE_PRESETS, WORKSPACE_SCOPES } from '../../types';
 
 /**
  * The frontend mirrors the backend scope vocabulary by hand. This test pins
@@ -72,7 +66,9 @@ describe('SCOPE_PRESETS (frontend mirror)', () => {
     expect(account.scopes.every(s => s.startsWith('account:'))).toBe(true);
     // Should at least include the four most useful account capabilities for
     // someone scripting their own account from outside the browser.
-    expect(account.scopes).toEqual(expect.arrayContaining(['account:read', 'account:write', 'account:agents', 'account:feedback']));
+    expect(account.scopes).toEqual(
+      expect.arrayContaining(['account:read', 'account:write', 'account:agents', 'account:feedback']),
+    );
   });
 
   test('Full preset is the literal wildcard token', () => {

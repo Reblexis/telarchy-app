@@ -65,7 +65,8 @@ export function NotificationsBell() {
   const lastUnread = useRef(0);
 
   const load = useCallback(() => {
-    api.getNotifications()
+    api
+      .getNotifications()
       .then(p => {
         setItems(p.notifications);
         setUnread(p.unread);
@@ -93,7 +94,9 @@ export function NotificationsBell() {
     const onDown = (e: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
     return () => {
@@ -131,7 +134,10 @@ export function NotificationsBell() {
       setItems(list => list?.map(x => (x.id === n.id ? { ...x, unread: false } : x)) ?? list);
       void api.markNotificationRead(n.id).catch(err => console.error('mark read failed:', err));
     }
-    if (href) { setOpen(false); navigate(href); }
+    if (href) {
+      setOpen(false);
+      navigate(href);
+    }
   };
 
   return (
@@ -143,7 +149,18 @@ export function NotificationsBell() {
         aria-expanded={open}
         onClick={toggle}
       >
-        <svg className="notif-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg
+          className="notif-icon"
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
           <path d="M18 9a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16S18 14 18 9Z" />
           <path d="M10.5 19a2 2 0 0 0 3 0" />
         </svg>
@@ -165,8 +182,8 @@ export function NotificationsBell() {
             <p className="notif-empty">Loading…</p>
           ) : items.length === 0 ? (
             <p className="notif-empty">
-              Nothing yet. Comments on your contracts, answers in your threads, and new
-              contracts where you trade land here.
+              Nothing yet. Comments on your contracts, answers in your threads, and new contracts where you trade land
+              here.
             </p>
           ) : (
             <ul className="notif-list">
@@ -180,9 +197,11 @@ export function NotificationsBell() {
                             a decision. Which noun leads depends on the kind;
                             "Your contract" was wrong the moment decisions on
                             OTHER people's contracts started landing here. */}
-                        {n.actor ? `${n.actor} ${KIND_VERB[n.kind]}`
-                          : n.kind === 'settled' ? 'A market you traded settled'
-                          : `A contract ${KIND_VERB[n.kind]}`}
+                        {n.actor
+                          ? `${n.actor} ${KIND_VERB[n.kind]}`
+                          : n.kind === 'settled'
+                            ? 'A market you traded settled'
+                            : `A contract ${KIND_VERB[n.kind]}`}
                       </span>
                       <span className="notif-time">{timeAgo(n.at)}</span>
                     </span>
@@ -192,9 +211,15 @@ export function NotificationsBell() {
                 );
                 return (
                   <li key={n.id} className={`notif-row${n.unread ? ' is-unread' : ''}`}>
-                    {href
-                      ? <a className="notif-row-link" href={href} onClick={openRow(n, href)}>{body}</a>
-                      : <button type="button" className="notif-row-link" onClick={openRow(n, null)}>{body}</button>}
+                    {href ? (
+                      <a className="notif-row-link" href={href} onClick={openRow(n, href)}>
+                        {body}
+                      </a>
+                    ) : (
+                      <button type="button" className="notif-row-link" onClick={openRow(n, null)}>
+                        {body}
+                      </button>
+                    )}
                   </li>
                 );
               })}

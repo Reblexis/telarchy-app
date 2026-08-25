@@ -1,12 +1,12 @@
-import { Router } from 'express';
 import { and, eq, inArray } from 'drizzle-orm';
+import { Router } from 'express';
 import { db } from '../db/client';
+import { agents, authUser, prizeSeasons, seasonEntries, systemConfig, workspaces } from '../db/schema';
+import { loadBoard } from '../lib/board';
 import { getParticipantDisplayNames, platformOperatedIds } from '../lib/participants';
-import { agents, authUser, systemConfig, prizeSeasons, seasonEntries, workspaces } from '../db/schema';
-import { wrap } from '../lib/wrap';
-import { loadBoard, type Board } from '../lib/board';
+import { type LadderRung, seasonScore, settleSeason } from '../lib/seasons';
 import { ttlCache } from '../lib/ttl-cache';
-import { seasonScore, settleSeason, type LadderRung } from '../lib/seasons';
+import { wrap } from '../lib/wrap';
 
 /**
  * Participant leaderboard. Public (no auth). Aggregates only over markets in
@@ -101,13 +101,21 @@ export function clearBoardCache(): void {
 async function decorate(agentIds: string[]) {
   const displayNames = await getParticipantDisplayNames(agentIds);
 
-  const agentRows = await db.select({ id: agents.id, authUserId: agents.authUserId })
-    .from(agents).where(inArray(agents.id, agentIds));
+  const agentRows = await db
+    .select({ id: agents.id, authUserId: agents.authUserId })
+    .from(agents)
+    .where(inArray(agents.id, agentIds));
   const uidByAgent = new Map(agentRows.map(r => [r.id, r.authUserId]));
 
-  const manifoldRows = await db.select({ key: systemConfig.key, value: systemConfig.value })
+  const manifoldRows = await db
+    .select({ key: systemConfig.key, value: systemConfig.value })
     .from(systemConfig)
-    .where(inArray(systemConfig.key, agentIds.map(id => `manifold-claimed:agent:${id}`)));
+    .where(
+      inArray(
+        systemConfig.key,
+        agentIds.map(id => `manifold-claimed:agent:${id}`),
+      ),
+    );
   const manifoldNameByAgent = new Map<string, string>();
   for (const r of manifoldRows) {
     const agentId = r.key.replace('manifold-claimed:agent:', '');
@@ -118,96 +126,118 @@ async function decorate(agentIds: string[]) {
   const uids = agentRows.map(r => r.authUserId).filter((u): u is string => !!u);
   const imageByUid = new Map<string, string | null>();
   if (uids.length > 0) {
-    const userRows = await db.select({ id: authUser.id, image: authUser.image })
-      .from(authUser).where(inArray(authUser.id, uids));
+    const userRows = await db
+      .select({ id: authUser.id, image: authUser.image })
+      .from(authUser)
+      .where(inArray(authUser.id, uids));
     for (const u of userRows) imageByUid.set(u.id, u.image);
   }
 
   return (id: string) => ({
     nickname: displayNames.get(id) ?? null,
-    image: (() => { const uid = uidByAgent.get(id); return uid ? imageByUid.get(uid) ?? null : null; })(),
+    image: (() => {
+      const uid = uidByAgent.get(id);
+      return uid ? (imageByUid.get(uid) ?? null) : null;
+    })(),
     manifoldUsername: manifoldNameByAgent.get(id) ?? null,
   });
 }
 
-leaderboardRouter.get('/', wrap(async (req, res) => {
-  const limit = (() => {
-    const raw = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : NaN;
-    if (!Number.isFinite(raw) || raw <= 0) return 100;
-    return Math.min(raw, 500);
-  })();
+leaderboardRouter.get(
+  '/',
+  wrap(async (req, res) => {
+    const limit = (() => {
+      const raw = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : NaN;
+      if (!Number.isFinite(raw) || raw <= 0) return 100;
+      return Math.min(raw, 500);
+    })();
 
-  const seasonId = typeof req.query.seasonId === 'string' ? req.query.seasonId.trim() : '';
-  if (seasonId) { await seasonStandings(seasonId, limit, res); return; }
+    const seasonId = typeof req.query.seasonId === 'string' ? req.query.seasonId.trim() : '';
+    if (seasonId) {
+      await seasonStandings(seasonId, limit, res);
+      return;
+    }
 
-  // Optional scope: one public workspace, by id or slug. The floor's own
-  // rail asks for this (owner report 2026-08-15: "why are the contractors
-  // per workspace and traders globally sorted? it should all be per
-  // workspace"), while /leaderboard keeps asking for the cross-workspace
-  // board. Same formula either way, only the set of markets changes.
-  const scope = typeof req.query.workspaceId === 'string' ? req.query.workspaceId.trim()
-    : typeof req.query.workspace === 'string' ? req.query.workspace.trim()
-    : '';
+    // Optional scope: one public workspace, by id or slug. The floor's own
+    // rail asks for this (owner report 2026-08-15: "why are the contractors
+    // per workspace and traders globally sorted? it should all be per
+    // workspace"), while /leaderboard keeps asking for the cross-workspace
+    // board. Same formula either way, only the set of markets changes.
+    const scope =
+      typeof req.query.workspaceId === 'string'
+        ? req.query.workspaceId.trim()
+        : typeof req.query.workspace === 'string'
+          ? req.query.workspace.trim()
+          : '';
 
-  const publicWs = await db.select({ id: workspaces.id, slug: workspaces.slug })
-    .from(workspaces).where(eq(workspaces.visibility, 'public'));
-  const scoped = scope
-    ? publicWs.filter(w => w.id === scope || (w.slug ?? '').toLowerCase() === scope.toLowerCase())
-    : publicWs;
-  // A scope that names nothing public answers empty rather than silently
-  // widening to every workspace, which would leak the opposite of what was
-  // asked for.
-  if (scoped.length === 0) { res.json({ participants: [] }); return; }
+    const publicWs = await db
+      .select({ id: workspaces.id, slug: workspaces.slug })
+      .from(workspaces)
+      .where(eq(workspaces.visibility, 'public'));
+    const scoped = scope
+      ? publicWs.filter(w => w.id === scope || (w.slug ?? '').toLowerCase() === scope.toLowerCase())
+      : publicWs;
+    // A scope that names nothing public answers empty rather than silently
+    // widening to every workspace, which would leak the opposite of what was
+    // asked for.
+    if (scoped.length === 0) {
+      res.json({ participants: [] });
+      return;
+    }
 
-  const board = await cachedBoard(scoped.map(w => w.id));
-  if (board.agentIds.length === 0) { res.json({ participants: [] }); return; }
+    const board = await cachedBoard(scoped.map(w => w.id));
+    if (board.agentIds.length === 0) {
+      res.json({ participants: [] });
+      return;
+    }
 
-  const dress = await decorate(board.agentIds);
+    const dress = await decorate(board.agentIds);
 
-  const ranked = board.agentIds.map(id => {
-    const activity = board.activityById.get(id);
-    const quality = board.calibrationById.get(id);
-    return {
-      rank: 0,
-      id,
-      ...dress(id),
-      calibration: quality?.calibration ?? null,
-      accuracy: quality?.accuracy ?? null,
-      totalEarnings: board.profitById.get(id) ?? 0,
-      settledEarnings: board.breakdownById.get(id)?.settled ?? 0,
-      openEarnings: board.breakdownById.get(id)?.open ?? 0,
-      resolvedMarkets: quality?.resolvedMarkets ?? 0,
-      totalTrades: activity?.totalTrades ?? 0,
-      lastTradeAt: activity?.lastTradeAt ?? null,
-    };
-  });
-  // Profit first, most recent trade as the tiebreak; then rank + cap.
-  ranked.sort((a, b) => {
-    if (b.totalEarnings !== a.totalEarnings) return b.totalEarnings - a.totalEarnings;
-    const at = a.lastTradeAt ? Date.parse(a.lastTradeAt) : 0;
-    const bt = b.lastTradeAt ? Date.parse(b.lastTradeAt) : 0;
-    return bt - at;
-  });
-  const capped = ranked.slice(0, limit).map((e, i) => ({ ...e, rank: i + 1 }));
+    const ranked = board.agentIds.map(id => {
+      const activity = board.activityById.get(id);
+      const quality = board.calibrationById.get(id);
+      return {
+        rank: 0,
+        id,
+        ...dress(id),
+        calibration: quality?.calibration ?? null,
+        accuracy: quality?.accuracy ?? null,
+        totalEarnings: board.profitById.get(id) ?? 0,
+        settledEarnings: board.breakdownById.get(id)?.settled ?? 0,
+        openEarnings: board.breakdownById.get(id)?.open ?? 0,
+        resolvedMarkets: quality?.resolvedMarkets ?? 0,
+        totalTrades: activity?.totalTrades ?? 0,
+        lastTradeAt: activity?.lastTradeAt ?? null,
+      };
+    });
+    // Profit first, most recent trade as the tiebreak; then rank + cap.
+    ranked.sort((a, b) => {
+      if (b.totalEarnings !== a.totalEarnings) return b.totalEarnings - a.totalEarnings;
+      const at = a.lastTradeAt ? Date.parse(a.lastTradeAt) : 0;
+      const bt = b.lastTradeAt ? Date.parse(b.lastTradeAt) : 0;
+      return bt - at;
+    });
+    const capped = ranked.slice(0, limit).map((e, i) => ({ ...e, rank: i + 1 }));
 
-  // Who is in the prize season, and what they would win if it settled now.
-  // On the all-time board this is the answer to "is any of this worth money to
-  // me", which the board otherwise cannot say: its own order is lifetime
-  // profit, and the prize depends on SEASON score, a different number.
-  const seasonInfo = await currentSeasonPrizes();
+    // Who is in the prize season, and what they would win if it settled now.
+    // On the all-time board this is the answer to "is any of this worth money to
+    // me", which the board otherwise cannot say: its own order is lifetime
+    // profit, and the prize depends on SEASON score, a different number.
+    const seasonInfo = await currentSeasonPrizes();
 
-  res.json({
-    participants: capped.map(e => ({
-      ...e,
-      seasonEntered: seasonInfo.entered.has(e.id),
-      // Null rather than 0 before a season starts: no baselines exist, so
-      // there is no projection to make and a 0 would read as "wins nothing"
-      // rather than "not decided yet".
-      seasonPrizeUsd: seasonInfo.live ? (seasonInfo.prizeById.get(e.id) ?? 0) : null,
-    })),
-    season: seasonInfo.meta,
-  });
-}));
+    res.json({
+      participants: capped.map(e => ({
+        ...e,
+        seasonEntered: seasonInfo.entered.has(e.id),
+        // Null rather than 0 before a season starts: no baselines exist, so
+        // there is no projection to make and a 0 would read as "wins nothing"
+        // rather than "not decided yet".
+        seasonPrizeUsd: seasonInfo.live ? (seasonInfo.prizeById.get(e.id) ?? 0) : null,
+      })),
+      season: seasonInfo.meta,
+    });
+  }),
+);
 
 /**
  * The prize season as the all-time board needs it: who has entered, and what
@@ -224,13 +254,17 @@ async function currentSeasonPrizes(): Promise<{
 }> {
   const empty = { entered: new Set<string>(), prizeById: new Map<string, number>(), live: false, meta: null };
   const seasons = await db.select().from(prizeSeasons);
-  const season = seasons.find(x => x.status === 'running')
-    ?? seasons.filter(x => x.status === 'draft')
-      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0]
-    ?? null;
+  const season =
+    seasons.find(x => x.status === 'running') ??
+    seasons
+      .filter(x => x.status === 'draft')
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0] ??
+    null;
   if (!season) return empty;
 
-  const entries = await db.select().from(seasonEntries)
+  const entries = await db
+    .select()
+    .from(seasonEntries)
     .where(and(eq(seasonEntries.seasonId, season.id), eq(seasonEntries.optedIn, true)));
   const entered = new Set(entries.map(e => e.agentId));
   const meta = { id: season.id, name: season.name, status: season.status, rulesUrl: season.rulesUrl };
@@ -241,8 +275,7 @@ async function currentSeasonPrizes(): Promise<{
   }
 
   const pinned = (season.workspaceIds ?? []) as string[];
-  const publicNow = await db.select({ id: workspaces.id })
-    .from(workspaces).where(eq(workspaces.visibility, 'public'));
+  const publicNow = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.visibility, 'public'));
   const publicIds = new Set(publicNow.map(w => w.id));
   const board = await cachedBoard(pinned.filter(id => publicIds.has(id)));
 
@@ -285,7 +318,10 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
   const [season] = await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, seasonId)).limit(1);
   // 404 rather than falling through to the global board: a typo'd season id
   // silently answering with all-time profit would be read as season standings.
-  if (!season) { res.status(404).json({ error: 'Season not found' }); return; }
+  if (!season) {
+    res.status(404).json({ error: 'Season not found' });
+    return;
+  }
 
   const ladder = (season.ladder ?? []) as LadderRung[];
   const meta = {
@@ -306,7 +342,9 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
     // that nobody had entered, on the page every launch link points at (owner
     // decision 2026-08-21, hours before Season 0 started). List who entered,
     // in entry order, with no score: the score genuinely does not exist yet.
-    const entries = await db.select().from(seasonEntries)
+    const entries = await db
+      .select()
+      .from(seasonEntries)
       .where(and(eq(seasonEntries.seasonId, seasonId), eq(seasonEntries.optedIn, true)));
     const dress = await decorate(entries.map(e => e.agentId));
     const rows = entries
@@ -328,9 +366,14 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
     return;
   }
 
-  const entries = await db.select().from(seasonEntries)
+  const entries = await db
+    .select()
+    .from(seasonEntries)
     .where(and(eq(seasonEntries.seasonId, seasonId), eq(seasonEntries.optedIn, true)));
-  if (entries.length === 0) { res.json({ season: meta, participants: [] }); return; }
+  if (entries.length === 0) {
+    res.json({ season: meta, participants: [] });
+    return;
+  }
 
   const dress = await decorate(entries.map(e => e.agentId));
 
@@ -359,8 +402,7 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
   // stops contributing simply because it is no longer public, and
   // workspacesDropped still reports that.
   const pinned = (season.workspaceIds ?? []) as string[];
-  const publicNow = await db.select({ id: workspaces.id })
-    .from(workspaces).where(eq(workspaces.visibility, 'public'));
+  const publicNow = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.visibility, 'public'));
   const publicIds = new Set(publicNow.map(w => w.id));
   const scoring = publicNow.map(w => w.id);
 

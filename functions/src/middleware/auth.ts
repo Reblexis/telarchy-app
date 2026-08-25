@@ -1,20 +1,20 @@
-import { Request, Response, NextFunction } from 'express';
 import { fromNodeHeaders } from 'better-auth/node';
 import { createHash, timingSafeEqual } from 'crypto';
-import { db, mirrorAccountIntoStore } from '../db/client';
-import { agents, agentApiKeys } from '../db/schema';
-import { auth } from '../auth';
 import { eq, sql } from 'drizzle-orm';
-import type { AuthInfo, WorkspaceMemberRole, Capability } from '../types';
-import { computeCapabilities } from './capabilities';
-import { intersectWorkspaceCaps } from '../lib/scopes';
+import type { NextFunction, Request, Response } from 'express';
+import { auth } from '../auth';
+import { db, mirrorAccountIntoStore } from '../db/client';
+import { agentApiKeys, agents } from '../db/schema';
 import { isMasterKey } from '../lib/master-key';
-import { anonymousCapabilities, resolvePublicReadWorkspace } from '../lib/public-read';
 import {
   getParticipantWorkspaceMemberships,
   getUserWorkspaceMemberships as getUserWorkspaceMembershipsForParticipant,
   selectEffectiveWorkspaceId,
 } from '../lib/participants';
+import { anonymousCapabilities, resolvePublicReadWorkspace } from '../lib/public-read';
+import { intersectWorkspaceCaps } from '../lib/scopes';
+import type { AuthInfo, Capability, WorkspaceMemberRole } from '../types';
+import { computeCapabilities } from './capabilities';
 
 declare global {
   namespace Express {
@@ -28,7 +28,7 @@ export function hashKey(raw: string): string {
   return createHash('sha256').update(raw).digest('hex');
 }
 
-function safeCompare(a: string, b: string): boolean {
+function _safeCompare(a: string, b: string): boolean {
   try {
     return timingSafeEqual(Buffer.from(a), Buffer.from(b));
   } catch {
@@ -45,7 +45,10 @@ export async function getAgentWorkspaceMemberships(agentId: string): Promise<Wor
   return getParticipantWorkspaceMemberships(agentId);
 }
 
-export async function getUserWorkspaceMemberships(userId: string, _linkedAgentId?: string): Promise<WorkspaceMembership[]> {
+export async function getUserWorkspaceMemberships(
+  userId: string,
+  _linkedAgentId?: string,
+): Promise<WorkspaceMembership[]> {
   return getUserWorkspaceMembershipsFromParticipant(userId);
 }
 
@@ -66,8 +69,10 @@ export async function resolveUser(
   userId: string,
   requestedWorkspaceId?: string,
 ): Promise<{ workspaceId: string; agentId?: string } | null> {
-  const [agentRow] = await db.select({ id: agents.id, platformAdmin: agents.platformAdmin })
-    .from(agents).where(eq(agents.authUserId, userId));
+  const [agentRow] = await db
+    .select({ id: agents.id, platformAdmin: agents.platformAdmin })
+    .from(agents)
+    .where(eq(agents.authUserId, userId));
   const agentId = agentRow?.id ?? undefined;
   const isPlatformAdmin = agentRow?.platformAdmin === true;
 
@@ -83,7 +88,9 @@ export async function resolveUser(
   // capabilities stay empty because there is no workspace to scope them to.
   if (!effective) return agentId ? { workspaceId: '', agentId } : null;
   if (requestedWorkspaceId && effective !== requestedWorkspaceId) {
-    console.warn(`[auth] user ${userId} sent X-Workspace-Id=${requestedWorkspaceId} (not a membership); using ${effective}`);
+    console.warn(
+      `[auth] user ${userId} sent X-Workspace-Id=${requestedWorkspaceId} (not a membership); using ${effective}`,
+    );
   }
   return { workspaceId: effective, agentId };
 }
@@ -129,8 +136,9 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
 
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
   if (session?.user) {
-    const requestedWorkspaceId = (req.headers['x-workspace-id'] as string | undefined)
-      ?? (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
+    const requestedWorkspaceId =
+      (req.headers['x-workspace-id'] as string | undefined) ??
+      (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
     // Identity is global and data is per-store, and the two meet at a
     // foreign key: `agents.auth_user_id` points at THIS store's user table,
     // so on the beta a real account has to have a row here before anything
@@ -162,7 +170,10 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
   if (agentKey) {
     const hash = hashKey(agentKey);
     const [keyRecord] = await db.select().from(agentApiKeys).where(eq(agentApiKeys.hash, hash));
-    if (!keyRecord) { console.error(`[optionalAuth] agent key not found in DB (hash ${hash.slice(0,8)}...)`); return next(); }
+    if (!keyRecord) {
+      console.error(`[optionalAuth] agent key not found in DB (hash ${hash.slice(0, 8)}...)`);
+      return next();
+    }
     const { agentId } = keyRecord;
     const keyWorkspaceId = keyRecord.workspaceId;
     const keyScopes = (keyRecord.scopes as string[] | null) ?? ['*'];
@@ -211,8 +222,9 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   // 2. BetterAuth session (cookie or Bearer token)
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
   if (session?.user) {
-    const requestedWorkspaceId = (req.headers['x-workspace-id'] as string | undefined)
-      ?? (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
+    const requestedWorkspaceId =
+      (req.headers['x-workspace-id'] as string | undefined) ??
+      (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
     // Identity is global and data is per-store, and the two meet at a
     // foreign key: `agents.auth_user_id` points at THIS store's user table,
     // so on the beta a real account has to have a row here before anything
@@ -222,7 +234,9 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     const result = await resolveUser(session.user.id, requestedWorkspaceId);
     if (result === null) {
       if (requestedWorkspaceId) {
-        console.warn(`[auth] user ${session.user.id} has no memberships; ignoring X-Workspace-Id=${requestedWorkspaceId}`);
+        console.warn(
+          `[auth] user ${session.user.id} has no memberships; ignoring X-Workspace-Id=${requestedWorkspaceId}`,
+        );
       }
       req.auth = { capabilities: new Set(), workspaceId: '', uid: session.user.id };
     } else {
@@ -286,7 +300,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   // that sends agents down a generic auth-debugging path.
   if (apiKey) {
     return res.status(401).json({
-      error: 'Unauthorized: the X-API-Key header was not recognized as the master key. If this is a participant (agent) key, send it in the X-Agent-Key header instead.',
+      error:
+        'Unauthorized: the X-API-Key header was not recognized as the master key. If this is a participant (agent) key, send it in the X-Agent-Key header instead.',
     });
   }
 
@@ -310,8 +325,9 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
    * a slug works too, because an anonymous caller reading a public floor has
    * a slug long before it has an id.
    */
-  const publicWorkspace = (req.headers['x-workspace-id'] as string | undefined)
-    ?? (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
+  const publicWorkspace =
+    (req.headers['x-workspace-id'] as string | undefined) ??
+    (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
   if (publicWorkspace) {
     const resolved = await resolvePublicReadWorkspace(publicWorkspace);
     if (resolved) {
@@ -321,5 +337,3 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   }
   return res.status(401).json({ error: 'Unauthorized' });
 }
-
-

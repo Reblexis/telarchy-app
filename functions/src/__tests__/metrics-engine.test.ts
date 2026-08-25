@@ -1,13 +1,13 @@
-import type { Metric } from '../types';
 import {
+  detectCircularDependency,
   evaluateFormula,
   extractMetricReferences,
-  getTransitiveDependencyNames,
-  detectCircularDependency,
-  topologicalSort,
-  recalculateMetrics,
   getAffectedMetrics,
+  getTransitiveDependencyNames,
+  recalculateMetrics,
+  topologicalSort,
 } from '../lib/metrics-engine';
+import type { Metric } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -104,7 +104,7 @@ describe('extractMetricReferences', () => {
   });
 
   test('trims whitespace inside braces', () => {
-    expect(extractMetricReferences('{ Sleep }')). toEqual(['Sleep']);
+    expect(extractMetricReferences('{ Sleep }')).toEqual(['Sleep']);
   });
 
   test('does not deduplicate repeated references', () => {
@@ -185,10 +185,7 @@ describe('topologicalSort', () => {
   });
 
   test('independent metrics are all present', () => {
-    const metrics = [
-      metric({ id: '1', name: 'A', formula: '0' }),
-      metric({ id: '2', name: 'B', formula: '0' }),
-    ];
+    const metrics = [metric({ id: '1', name: 'A', formula: '0' }), metric({ id: '2', name: 'B', formula: '0' })];
     expect(topologicalSort(metrics)).toHaveLength(2);
   });
 });
@@ -217,7 +214,11 @@ describe('recalculateMetrics', () => {
     // A TP metric with missingMarkets becomes null; a composite that references it also becomes null
     const metrics = [
       metric({
-        id: '1', name: 'A', formula: '{Sleep}', value: 0, total: 0,
+        id: '1',
+        name: 'A',
+        formula: '{Sleep}',
+        value: 0,
+        total: 0,
         timePreference: { enabled: true, halfLife: 30 },
         missingMarkets: ['Sleep:2027'],
       }),

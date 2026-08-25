@@ -9,7 +9,8 @@ functions/node_modules
 functions/lib
 dist
 dist-beta
-docs
+docs/*
+!docs/guides
 qa
 scripts/*
 !scripts/build-changelog.mjs

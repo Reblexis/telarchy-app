@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, seasonStandingToEntry, type LeaderboardEntry, type PrizeSeason, type PublicContractor } from '../lib/api';
-import { useSeasonClock } from '../lib/useSeasonClock';
-import { pickCurrentSeason } from '../lib/season-clock';
+import { ManifoldLogo } from '../components/ManifoldLogo';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
+import { api, type LeaderboardEntry, type PrizeSeason, type PublicContractor, seasonStandingToEntry } from '../lib/api';
+import { pickCurrentSeason } from '../lib/season-clock';
+import { useSeasonClock } from '../lib/useSeasonClock';
 import { TopBar } from './TradePage';
-import { ManifoldLogo } from '../components/ManifoldLogo';
 
 /**
  * telarchy.com/leaderboard: the whole field, in the market pages' own
@@ -67,37 +67,55 @@ export function LeaderPage() {
       // The global all-time board (owner direction: /leaderboard is the whole
       // field, ranked on lifetime profit; the season standings live on /season
       // and behind "Show full leaderboard" on a workspace floor).
-      api.getSeasons()
+      api
+        .getSeasons()
         .then(r => {
           if (cancelled) return;
           const s = pickCurrentSeason(r.seasons);
           setSeason(s);
           // Scores exist once the season runs; a draft has only entries.
           if (s && s.status !== 'draft') {
-            api.getSeasonStandings(s.id, 100)
-              .then(b => { if (!cancelled) setSeasonBoard((b.participants ?? []).map(seasonStandingToEntry)); })
+            api
+              .getSeasonStandings(s.id, 100)
+              .then(b => {
+                if (!cancelled) setSeasonBoard((b.participants ?? []).map(seasonStandingToEntry));
+              })
               .catch(e => console.error('season standings fetch failed:', e));
           }
         })
         .catch(e => console.error('seasons fetch failed:', e));
-      api.getLeaderboard(200)
-        .then(r => { if (!cancelled) setTraders((r.participants ?? []).filter(e => e.totalTrades > 0)); })
-        .catch(e => { console.error('leaderboard fetch failed:', e); if (!cancelled) setTraders(t => t ?? []); });
+      api
+        .getLeaderboard(200)
+        .then(r => {
+          if (!cancelled) setTraders((r.participants ?? []).filter(e => e.totalTrades > 0));
+        })
+        .catch(e => {
+          console.error('leaderboard fetch failed:', e);
+          if (!cancelled) setTraders(t => t ?? []);
+        });
       // Contractors are a per-market list; the public markets are few, so the
       // page unions them and ranks by priced impact. A workspace that exposes
       // no board simply contributes nobody.
-      api.getPublicWorkspaces()
+      api
+        .getPublicWorkspaces()
         .then(async list => {
-          const rows = await Promise.all((list ?? []).map(w =>
-            api.getMarketplaceWorkspace(w.slug || w.workspaceId)
-              .then(ws => (ws.topContractors ?? []))
-              .catch(() => [])));
+          const rows = await Promise.all(
+            (list ?? []).map(w =>
+              api
+                .getMarketplaceWorkspace(w.slug || w.workspaceId)
+                .then(ws => ws.topContractors ?? [])
+                .catch(() => []),
+            ),
+          );
           if (cancelled) return;
           const merged = new Map<string, PublicContractor>();
           for (const c of rows.flat()) {
             const prev = merged.get(c.id);
             // Someone posting on two markets counts once, with their work summed.
-            if (!prev) { merged.set(c.id, { ...c }); continue; }
+            if (!prev) {
+              merged.set(c.id, { ...c });
+              continue;
+            }
             merged.set(c.id, {
               ...prev,
               jobs: prev.jobs + c.jobs,
@@ -109,12 +127,19 @@ export function LeaderPage() {
           }
           setContractors([...merged.values()].sort((a, b) => (b.impact ?? 0) - (a.impact ?? 0)));
         })
-        .catch(e => { console.error('contractors fetch failed:', e); if (!cancelled) setContractors(c => c ?? []); });
+        .catch(e => {
+          console.error('contractors fetch failed:', e);
+          if (!cancelled) setContractors(c => c ?? []);
+        });
     };
     load();
-    const tick = () => { if (typeof document === 'undefined' || !document.hidden) load(); };
+    const tick = () => {
+      if (typeof document === 'undefined' || !document.hidden) load();
+    };
     const interval = setInterval(tick, 15_000);
-    const onVisible = () => { if (!document.hidden) load(); };
+    const onVisible = () => {
+      if (!document.hidden) load();
+    };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
@@ -128,16 +153,19 @@ export function LeaderPage() {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    api.getMySeason()
-      .then(e => { if (!cancelled) setEntered(e.optedIn === true); })
+    api
+      .getMySeason()
+      .then(e => {
+        if (!cancelled) setEntered(e.optedIn === true);
+      })
       .catch(e => console.error('season entry fetch failed:', e));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
-  const pinned = meId && traders && !traders.some(e => e.id === meId)
-    ? traders.find(e => e.id === meId) ?? null
-    : null;
-
+  const pinned =
+    meId && traders && !traders.some(e => e.id === meId) ? (traders.find(e => e.id === meId) ?? null) : null;
 
   /**
    * One row, used by the list and by the pinned "you" row underneath it, so
@@ -148,12 +176,13 @@ export function LeaderPage() {
     const acc = accuracyLabel(e);
     const mine = e.id === meId;
     return (
-      <li key={`${isPinned ? 'pin-' : ''}${e.id}`} className={`lbp-row${mine ? ' is-me' : ''}${isPinned ? ' is-pinned' : ''}`}>
+      <li
+        key={`${isPinned ? 'pin-' : ''}${e.id}`}
+        className={`lbp-row${mine ? ' is-me' : ''}${isPinned ? ' is-pinned' : ''}`}
+      >
         <span className="lbp-rank">{rank || '—'}</span>
         <Link className="lbp-who" to={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
-          <span className="lbp-avatar">
-            {e.image ? <img src={e.image} alt="" /> : <span>{initialOf(name)}</span>}
-          </span>
+          <span className="lbp-avatar">{e.image ? <img src={e.image} alt="" /> : <span>{initialOf(name)}</span>}</span>
           <span className="lbp-stack">
             <span className="lbp-name">
               {name}
@@ -182,26 +211,37 @@ export function LeaderPage() {
             two people were entered (owner report 2026-08-21). A neutral
             "entered" marker until the season runs; the rank-based dollar
             appears the moment a score exists to rank on. */}
-        {e.seasonEntered && (
-          e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined ? (
-            <span className="lbp-prize lbp-prize--in" title={`Entered ${season?.name ?? 'the season'}; prizes are set once it starts`}>entered</span>
+        {e.seasonEntered &&
+          (e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined ? (
+            <span
+              className="lbp-prize lbp-prize--in"
+              title={`Entered ${season?.name ?? 'the season'}; prizes are set once it starts`}
+            >
+              entered
+            </span>
           ) : e.seasonPrizeUsd > 0 ? (
             <span className="lbp-prize" title="What this season would pay at the current standing">
               ${e.seasonPrizeUsd.toLocaleString()}
             </span>
           ) : (
-            <span className="lbp-prize lbp-prize--in" title="Entered the season, currently outside the prizes">entered</span>
-          )
-        )}
+            <span className="lbp-prize lbp-prize--in" title="Entered the season, currently outside the prizes">
+              entered
+            </span>
+          ))}
         <span className="lbp-scorestack">
-          <span className={`lbp-score${Math.round(e.totalEarnings) > 0 ? ' is-up' : Math.round(e.totalEarnings) < 0 ? ' is-down' : ''}`}>
+          <span
+            className={`lbp-score${Math.round(e.totalEarnings) > 0 ? ' is-up' : Math.round(e.totalEarnings) < 0 ? ' is-down' : ''}`}
+          >
             {signed(e.totalEarnings)} cr
           </span>
           {/* What of that is final and what is still a mark (owner direction
               2026-08-24, docs/seasons.md "The score"). Season rows carry no
               split: a season score is a difference of two marks. */}
           {!seasonRow && e.settledEarnings !== undefined && e.openEarnings !== undefined && (
-            <span className="lbp-split" title="Settled: resolutions and refunds, final. Open: what open positions are worth right now.">
+            <span
+              className="lbp-split"
+              title="Settled: resolutions and refunds, final. Open: what open positions are worth right now."
+            >
               {signed(e.settledEarnings)} settled · {signed(e.openEarnings)} open
             </span>
           )}
@@ -216,8 +256,8 @@ export function LeaderPage() {
       <main className="lbp">
         <h1 className="lbp-head">Leaderboard</h1>
         <p className="lbp-lead">
-          Everyone trading the public markets, ranked by profit in credits:
-          settled bets plus what open positions are worth right now.
+          Everyone trading the public markets, ranked by profit in credits: settled bets plus what open positions are
+          worth right now.
         </p>
 
         {/* One line and a link. The pool, the ladder, the scoring rules and
@@ -245,13 +285,10 @@ export function LeaderPage() {
           <section className="lbp-section" aria-label="Season standings">
             <h2 className="pubws-h2">{season.name} standings</h2>
             <p className="lbp-note">
-              Entrants only, scored on profit growth since the season started.
-              The dollar figure is what the season would pay at the current
-              standing{clock?.phase === 'settled' ? ', now final' : ''}.
+              Entrants only, scored on profit growth since the season started. The dollar figure is what the season
+              would pay at the current standing{clock?.phase === 'settled' ? ', now final' : ''}.
             </p>
-            <ol className="lbp-list">
-              {seasonBoard.map((e, i) => row(e, e.rank ?? i + 1, false, true))}
-            </ol>
+            <ol className="lbp-list">{seasonBoard.map((e, i) => row(e, e.rank ?? i + 1, false, true))}</ol>
           </section>
         )}
 
@@ -274,11 +311,13 @@ export function LeaderPage() {
         <section className="lbp-section" aria-label="Contractors">
           <h2 className="pubws-h2">Contractors</h2>
           <p className="lbp-note">
-            What the market says each poster's live contracts are worth: the
-            gap between approving and declining, summed.
+            What the market says each poster's live contracts are worth: the gap between approving and declining,
+            summed.
           </p>
           {contractors === null ? null : contractors.length === 0 ? (
-            <p className="lbp-empty">No contracts on the board yet. Offer one and the market prices what it is worth.</p>
+            <p className="lbp-empty">
+              No contracts on the board yet. Offer one and the market prices what it is worth.
+            </p>
           ) : (
             <ol className="lbp-list">
               {contractors.map((c, i) => {
@@ -293,7 +332,9 @@ export function LeaderPage() {
                   <li key={c.id} className="lbp-row">
                     <span className="lbp-rank">{i + 1}</span>
                     <Link className="lbp-who" to={`/participants/${encodeURIComponent(c.id)}`}>
-                      <span className="lbp-avatar"><span>{initialOf(name)}</span></span>
+                      <span className="lbp-avatar">
+                        <span>{initialOf(name)}</span>
+                      </span>
                       <span className="lbp-stack">
                         <span className="lbp-name">{name}</span>
                         <span className="lbp-sub">{parts.join(' · ') || 'no contracts priced yet'}</span>

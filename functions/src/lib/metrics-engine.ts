@@ -1,11 +1,8 @@
 import type { Metric } from '../types';
-import { sampleTimePoints, WEIGHT_T0 } from './time-preference';
 import { evaluate, parseFormulaCached } from './formula';
+import { sampleTimePoints, WEIGHT_T0 } from './time-preference';
 
-export function evaluateFormula(
-  formula: string,
-  metricsMap: Record<string, Metric>,
-): number | null {
+export function evaluateFormula(formula: string, metricsMap: Record<string, Metric>): number | null {
   if (!formula || formula.trim() === '0' || formula.trim() === '') return 0;
 
   // A metric that exists but has no value yet makes the result unknown (null);
@@ -133,10 +130,14 @@ export function getTransitiveDependencyNames(metricName: string, nameToFormula: 
 
 export function getAffectedMetrics(changedMetricIds: string[], metrics: Metric[]): string[] {
   const nameToId: Record<string, string> = {};
-  metrics.forEach(m => { nameToId[m.name] = m.id; });
+  metrics.forEach(m => {
+    nameToId[m.name] = m.id;
+  });
 
   const dependents: Record<string, string[]> = {};
-  metrics.forEach(m => { dependents[m.id] = []; });
+  metrics.forEach(m => {
+    dependents[m.id] = [];
+  });
 
   metrics.forEach(metric => {
     for (const depName of extractMetricReferences(metric.formula || '0')) {
@@ -149,7 +150,7 @@ export function getAffectedMetrics(changedMetricIds: string[], metrics: Metric[]
   const queue = [...changedMetricIds];
   while (queue.length > 0) {
     const currentId = queue.shift()!;
-    for (const depId of (dependents[currentId] || [])) {
+    for (const depId of dependents[currentId] || []) {
       if (!affected.has(depId)) {
         affected.add(depId);
         queue.push(depId);
@@ -160,10 +161,13 @@ export function getAffectedMetrics(changedMetricIds: string[], metrics: Metric[]
 }
 
 export function detectCircularDependency(metricId: string | null, formula: string, allMetrics: Metric[]): boolean {
-  const tempMetrics = allMetrics.map(m => m.id === metricId ? { ...m, formula } : m);
+  const tempMetrics = allMetrics.map(m => (m.id === metricId ? { ...m, formula } : m));
   const nameToId: Record<string, string> = {};
   const idToMetric: Record<string, Metric> = {};
-  tempMetrics.forEach(m => { nameToId[m.name] = m.id; idToMetric[m.id] = m; });
+  tempMetrics.forEach(m => {
+    nameToId[m.name] = m.id;
+    idToMetric[m.id] = m;
+  });
 
   if (metricId) {
     for (const depName of extractMetricReferences(formula)) {
@@ -191,13 +195,17 @@ export function detectCircularDependency(metricId: string | null, formula: strin
   }
 
   if (metricId) return hasCycle(metricId);
-  for (const m of tempMetrics) { if (hasCycle(m.id)) return true; }
+  for (const m of tempMetrics) {
+    if (hasCycle(m.id)) return true;
+  }
   return false;
 }
 
 export function topologicalSort(metrics: Metric[]): Metric[] {
   const nameToMetric: Record<string, Metric> = {};
-  metrics.forEach(m => { nameToMetric[m.name] = m; });
+  metrics.forEach(m => {
+    nameToMetric[m.name] = m;
+  });
 
   const sorted: Metric[] = [];
   const visited = new Set<string>();
@@ -217,17 +225,23 @@ export function topologicalSort(metrics: Metric[]): Metric[] {
     sorted.push(metric);
   }
 
-  metrics.forEach(m => { if (!visited.has(m.id)) visit(m); });
+  metrics.forEach(m => {
+    if (!visited.has(m.id)) visit(m);
+  });
   return sorted;
 }
 
 export function recalculateMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}): Metric[] {
   const sorted = topologicalSort(metrics);
   const nameToMetric: Record<string, Metric> = {};
-  sorted.forEach(m => { nameToMetric[m.name] = m; });
+  sorted.forEach(m => {
+    nameToMetric[m.name] = m;
+  });
 
   const nameToFormula: Record<string, string> = {};
-  sorted.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
+  sorted.forEach(m => {
+    nameToFormula[m.name] = m.formula || '0';
+  });
 
   sorted.forEach(metric => {
     const isLeaf = !metric.formula || metric.formula.trim() === '0';
@@ -260,8 +274,9 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
 
         const formulaAt0 = evaluateFormula(formula, nameToMetric);
         metric.currentTotal = formulaAt0;
-        if (formulaAt0 === null) { metric.total = null; }
-        else {
+        if (formulaAt0 === null) {
+          metric.total = null;
+        } else {
           let weightedSum = WEIGHT_T0 * formulaAt0;
           let totalWeight = WEIGHT_T0;
 
@@ -286,7 +301,9 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
 
 export function calculateMetricDepths(metrics: Metric[]): Record<string, number> {
   const nameToMetric: Record<string, Metric> = {};
-  metrics.forEach(m => { nameToMetric[m.name] = m; });
+  metrics.forEach(m => {
+    nameToMetric[m.name] = m;
+  });
 
   // Build parent→children map (formula references)
   const children: Record<string, string[]> = {};
@@ -295,7 +312,10 @@ export function calculateMetricDepths(metrics: Metric[]): Record<string, number>
     const deps: string[] = [];
     for (const depName of extractMetricReferences(metric.formula || '0')) {
       const dep = nameToMetric[depName];
-      if (dep) { deps.push(dep.id); referencedIds.add(dep.id); }
+      if (dep) {
+        deps.push(dep.id);
+        referencedIds.add(dep.id);
+      }
     }
     children[metric.id] = deps;
   });
@@ -313,7 +333,7 @@ export function calculateMetricDepths(metrics: Metric[]): Record<string, number>
 
   while (queue.length > 0) {
     const { id, depth } = queue.shift()!;
-    for (const childId of (children[id] || [])) {
+    for (const childId of children[id] || []) {
       const newDepth = depth + 1;
       if (depths[childId] === undefined || newDepth < depths[childId]) {
         depths[childId] = newDepth;
@@ -323,7 +343,9 @@ export function calculateMetricDepths(metrics: Metric[]): Record<string, number>
   }
 
   // Any metric still unassigned (e.g. circular refs) gets depth 0
-  metrics.forEach(m => { if (depths[m.id] === undefined) depths[m.id] = 0; });
+  metrics.forEach(m => {
+    if (depths[m.id] === undefined) depths[m.id] = 0;
+  });
 
   return depths;
 }

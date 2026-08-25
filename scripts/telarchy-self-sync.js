@@ -92,23 +92,33 @@ async function main() {
   }
   const startedAt = new Date().toISOString();
   console.log(`telarchy-self-sync ${startedAt}${DRY_RUN ? ' (dry run)' : ''}`);
-  if (!DRY_RUN) await pushHeartbeat({ agentId: AGENT_ID, status: 'running', workspaceId: WORKSPACE_ID, strategy: STRATEGY, lastCycleStartedAt: startedAt });
+  if (!DRY_RUN)
+    await pushHeartbeat({
+      agentId: AGENT_ID,
+      status: 'running',
+      workspaceId: WORKSPACE_ID,
+      strategy: STRATEGY,
+      lastCycleStartedAt: startedAt,
+    });
 
   // The value, from the public resolution source.
   const stats = await fetch(`${TELARCHY_URL}/api/marketplace/stats`).then(r => r.json());
   const value = stats.weeklyActiveVerifiedTraders;
   if (!Number.isFinite(value)) {
-    throw new Error(`weeklyActiveVerifiedTraders missing from /api/marketplace/stats: ${JSON.stringify(stats).slice(0, 200)}`);
+    throw new Error(
+      `weeklyActiveVerifiedTraders missing from /api/marketplace/stats: ${JSON.stringify(stats).slice(0, 200)}`,
+    );
   }
 
   const metricsList = await api('GET', '/metrics');
-  const list = Array.isArray(metricsList) ? metricsList : (metricsList.metrics || []);
-  const targets = list.filter(m =>
-    METRIC_NAMES.includes(m.name) || METRIC_NAMES.some(base => m.name.startsWith(`${base} (`)));
+  const list = Array.isArray(metricsList) ? metricsList : metricsList.metrics || [];
+  const targets = list.filter(
+    m => METRIC_NAMES.includes(m.name) || METRIC_NAMES.some(base => m.name.startsWith(`${base} (`)),
+  );
   if (targets.length === 0) {
     throw new Error(
-      `no metric named any of ${METRIC_NAMES.map(n => `"${n}"`).join(', ')} in workspace ${WORKSPACE_ID}. `
-      + 'If the metric was renamed in the app, add the new name here in the same change.',
+      `no metric named any of ${METRIC_NAMES.map(n => `"${n}"`).join(', ')} in workspace ${WORKSPACE_ID}. ` +
+        'If the metric was renamed in the app, add the new name here in the same change.',
     );
   }
 
@@ -131,20 +141,31 @@ async function main() {
   console.log(`Done.`);
   if (!DRY_RUN) {
     await pushHeartbeat({
-      agentId: AGENT_ID, status: 'idle', workspaceId: WORKSPACE_ID, strategy: STRATEGY,
-      lastCycleStartedAt: startedAt, lastCycleEndedAt: endedAt,
-      pollIntervalSeconds: 86400, nextCycleAt: nextCycleAt(),
-      lastTraded: targets.length, lastSkipped: 0, lastErrors: 0,
+      agentId: AGENT_ID,
+      status: 'idle',
+      workspaceId: WORKSPACE_ID,
+      strategy: STRATEGY,
+      lastCycleStartedAt: startedAt,
+      lastCycleEndedAt: endedAt,
+      pollIntervalSeconds: 86400,
+      nextCycleAt: nextCycleAt(),
+      lastTraded: targets.length,
+      lastSkipped: 0,
+      lastErrors: 0,
     });
   }
 }
 
-main().catch(async (e) => {
+main().catch(async e => {
   console.error('FAILED:', e.message);
   if (AGENT_KEY && WORKSPACE_ID && !DRY_RUN) {
     await pushHeartbeat({
-      agentId: AGENT_ID, status: 'error', workspaceId: WORKSPACE_ID, strategy: STRATEGY,
-      lastCycleEndedAt: new Date().toISOString(), lastError: e.message.slice(0, 500),
+      agentId: AGENT_ID,
+      status: 'error',
+      workspaceId: WORKSPACE_ID,
+      strategy: STRATEGY,
+      lastCycleEndedAt: new Date().toISOString(),
+      lastError: e.message.slice(0, 500),
     });
   }
   process.exit(1);

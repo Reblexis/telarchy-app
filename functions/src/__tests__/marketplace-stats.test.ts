@@ -10,18 +10,24 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 jest.mock('../middleware/auth', () => ({
-  authMiddleware: (req: any, _res: any, next: any) => { req.auth = null; next(); },
-  optionalAuthMiddleware: (req: any, _res: any, next: any) => { req.auth = req.auth ?? null; next(); },
+  authMiddleware: (req: any, _res: any, next: any) => {
+    req.auth = null;
+    next();
+  },
+  optionalAuthMiddleware: (req: any, _res: any, next: any) => {
+    req.auth = req.auth ?? null;
+    next();
+  },
 }));
 
-import request from 'supertest';
 import express from 'express';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import request from 'supertest';
 import { agents, markets, metrics, systemConfig, trades, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
 import { toUnits } from '../lib/validation';
 import { marketplaceRouter } from '../routes/marketplace';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -31,8 +37,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); }, 30_000);
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+}, 30_000);
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-stats';
 const DAY = 24 * 60 * 60 * 1000;
@@ -53,12 +63,26 @@ async function seed() {
     { key: 'manifold-claimed:agent:verified-gesture', value: { username: 'gesture' } },
     { key: 'manifold-claimed:agent:verified-stale', value: { username: 'stale' } },
   ]);
-  await db.insert(metrics).values([{ id: 'm1', workspaceId: WS, name: 'M', value: 0, formula: '0', marketRangeMax: 100 }]);
-  await db.insert(markets).values([{
-    id: 'mkt1', workspaceId: WS, metricId: 'm1', metricName: 'M', targetDate: '2026-12',
-    rangeMin: 0, rangeMax: 100, shares: [0, 0] as [number, number],
-    liquidity: 10, pool: initialPool(10), active: true, resolved: false, voided: false,
-  }]);
+  await db
+    .insert(metrics)
+    .values([{ id: 'm1', workspaceId: WS, name: 'M', value: 0, formula: '0', marketRangeMax: 100 }]);
+  await db.insert(markets).values([
+    {
+      id: 'mkt1',
+      workspaceId: WS,
+      metricId: 'm1',
+      metricName: 'M',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0] as [number, number],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+    },
+  ]);
   const base = { workspaceId: WS, marketId: 'mkt1', direction: 'higher', shares: 1 };
   await db.insert(trades).values([
     // Verified, 150 cr across two trades: counts.

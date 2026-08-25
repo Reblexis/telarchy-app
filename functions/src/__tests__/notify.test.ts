@@ -7,7 +7,11 @@
 import { notifyOwner } from '../lib/notify';
 
 const realFetch = global.fetch;
-afterEach(() => { global.fetch = realFetch; delete process.env.RESEND_API_KEY; delete process.env.OWNER_NOTIFY_EMAIL; });
+afterEach(() => {
+  global.fetch = realFetch;
+  delete process.env.RESEND_API_KEY;
+  delete process.env.OWNER_NOTIFY_EMAIL;
+});
 
 describe('notifyOwner', () => {
   test('sends through Resend when configured', async () => {
@@ -27,7 +31,9 @@ describe('notifyOwner', () => {
   });
 
   test('does nothing without config, and swallows transport failures', async () => {
-    global.fetch = jest.fn(async () => { throw new Error('no network'); }) as any;
+    global.fetch = jest.fn(async () => {
+      throw new Error('no network');
+    }) as any;
     await expect(notifyOwner('s', 'b')).resolves.toBeUndefined();
     expect(global.fetch).not.toHaveBeenCalled();
 

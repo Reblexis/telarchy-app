@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
-import { TopBar } from './TradePage';
-import { buildHorizonViews, primaryHorizonOf, priceSeriesOf } from '../lib/floor-horizons';
+import type { PrizeSeason } from '../lib/api';
+import { api } from '../lib/api';
+import { buildHorizonViews, priceSeriesOf, primaryHorizonOf } from '../lib/floor-horizons';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
-import type { PrizeSeason } from '../lib/api';
-import { withBase } from '../lib/base-path';
+import { TopBar } from './TradePage';
 
 /**
  * The marketplace at /marketplace (owner direction 2026-08-14, Viktor,
@@ -49,7 +48,6 @@ interface Listing {
   tradesThisWeek: number | null;
 }
 
-
 function fmtHero(v: number, unit: string): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
   return unit + v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -62,11 +60,16 @@ function fmtHero(v: number, unit: string): string {
  * market draws one flat line). No axes: the card's price is the only
  * numeral, and the dot marks where the market stands now.
  */
-function MarketSpark({ history, consensus }: {
+function MarketSpark({
+  history,
+  consensus,
+}: {
   history: Array<{ at: string; consensus: number | null }>;
   consensus: number;
 }) {
-  const W = 260, H = 72, PAD = 8;
+  const W = 260,
+    H = 72,
+    PAD = 8;
   const pts = history
     .filter(p => p.consensus !== null)
     .map(p => ({ t: new Date(p.at).getTime(), v: p.consensus as number }))
@@ -78,12 +81,12 @@ function MarketSpark({ history, consensus }: {
   // domain rather than being clipped, and the padding keeps a quiet market
   // drawing through the middle instead of along the box's edge.
   const sorted = [...pts.map(p => p.v)].sort((a, b) => a - b);
-  const quantile = (q: number) =>
-    sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * q)))];
+  const quantile = (q: number) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * q)))];
   const lo = sorted.length ? Math.min(quantile(0.05), consensus) : consensus;
   const hi = sorted.length ? Math.max(quantile(0.95), consensus) : consensus;
   const pad = (hi - lo || Math.abs(hi) * 0.1 || 1) * 0.35;
-  const vMin = lo - pad, vMax = hi + pad;
+  const vMin = lo - pad,
+    vMax = hi + pad;
   const spanV = vMax - vMin;
   // Excursions past the domain draw at the edge instead of off the card.
   const clamp = (v: number) => Math.max(vMin, Math.min(vMax, v));
@@ -91,9 +94,13 @@ function MarketSpark({ history, consensus }: {
   const t1 = Math.max(pts[pts.length - 1]?.t ?? 1, t0 + 1);
   const x = (t: number) => PAD + ((t - t0) / (t1 - t0)) * (W - PAD * 2 - 6);
   const y = (v: number) => PAD + (1 - (clamp(v) - vMin) / spanV) * (H - PAD * 2);
-  const seq = pts.length > 0
-    ? [...pts, { t: t1, v: consensus }]
-    : [{ t: t0, v: consensus }, { t: t1, v: consensus }];
+  const seq =
+    pts.length > 0
+      ? [...pts, { t: t1, v: consensus }]
+      : [
+          { t: t0, v: consensus },
+          { t: t1, v: consensus },
+        ];
   let d = `M${x(seq[0].t).toFixed(1)},${y(seq[0].v).toFixed(1)}`;
   for (let i = 1; i < seq.length; i++) {
     d += ` L${x(seq[i].t).toFixed(1)},${y(seq[i - 1].v).toFixed(1)} L${x(seq[i].t).toFixed(1)},${y(seq[i].v).toFixed(1)}`;
@@ -154,8 +161,7 @@ function ListYourNumberCard() {
       </span>
       <span className="mkt-new-title">List your own number</span>
       <span className="mkt-new-sub">
-        A company, a project, or something you are running yourself. Say what it
-        is and Otto opens the market for it.
+        A company, a project, or something you are running yourself. Say what it is and Otto opens the market for it.
       </span>
       <span className="mkt-new-cta">Get set up</span>
     </Link>
@@ -179,10 +185,15 @@ function SeasonDoor() {
   const [season, setSeason] = useState<PrizeSeason | null>(null);
   useEffect(() => {
     let cancelled = false;
-    api.getSeasons()
-      .then(r => { if (!cancelled) setSeason(pickCurrentSeason(r.seasons)); })
+    api
+      .getSeasons()
+      .then(r => {
+        if (!cancelled) setSeason(pickCurrentSeason(r.seasons));
+      })
       .catch(e => console.error('seasons fetch failed:', e));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
   const clock = useSeasonClock(season);
   if (!season || !clock) return null;
@@ -194,8 +205,8 @@ function SeasonDoor() {
         {clock.headline}
       </p>
       <p className="mkt-season-line">
-        ${season.poolUsd.toLocaleString()} in real money to the traders whose
-        profit grows the most. Free to enter, no purchase and no stake.
+        ${season.poolUsd.toLocaleString()} in real money to the traders whose profit grows the most. Free to enter, no
+        purchase and no stake.
       </p>
       <Link className="mkt-season-cta" to="/season">
         {clock.entryOpen ? 'Enter the season' : 'See the season'}
@@ -210,7 +221,8 @@ export function FloorsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    api.getPublicWorkspaces()
+    api
+      .getPublicWorkspaces()
       .then(list => {
         if (cancelled || !Array.isArray(list)) return;
         const base: Listing[] = list.map(w => ({
@@ -225,7 +237,8 @@ export function FloorsPage() {
         }));
         setListings(base);
         base.forEach(row => {
-          api.getMarketplaceWorkspace(row.slug || row.workspaceId)
+          api
+            .getMarketplaceWorkspace(row.slug || row.workspaceId)
             .then(ws => {
               if (cancelled) return;
               // The furthest-resolving market is the card's number (owner
@@ -236,28 +249,34 @@ export function FloorsPage() {
               // the same model the floor uses, so a card and the page it links
               // to can never name different numbers.
               const m = primaryHorizonOf(buildHorizonViews(ws));
-              setListings(cur => (cur ?? []).map(r => r.workspaceId === row.workspaceId
-                ? {
-                    ...r,
-                    participants: ws.participantCount ?? null,
-                    tradesThisWeek: ws.tradesThisWeek ?? null,
-                    hero: m
-                      ? {
-                          metricName: m.metricName,
-                          consensus: m.consensus,
-                          unit: m.unit,
-                          settles: m.settleDay,
-                          history: priceSeriesOf(m.marketId, ws, {}),
-                        }
-                      : r.hero,
-                  }
-                : r));
+              setListings(cur =>
+                (cur ?? []).map(r =>
+                  r.workspaceId === row.workspaceId
+                    ? {
+                        ...r,
+                        participants: ws.participantCount ?? null,
+                        tradesThisWeek: ws.tradesThisWeek ?? null,
+                        hero: m
+                          ? {
+                              metricName: m.metricName,
+                              consensus: m.consensus,
+                              unit: m.unit,
+                              settles: m.settleDay,
+                              history: priceSeriesOf(m.marketId, ws, {}),
+                            }
+                          : r.hero,
+                      }
+                    : r,
+                ),
+              );
             })
             .catch(e => console.error('market fetch failed:', e));
         });
       })
       .catch(e => console.error('public workspaces fetch failed:', e));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -274,12 +293,10 @@ export function FloorsPage() {
             every listing is one number someone is trying to move, and the way
             to move it is a paid job the market prices before the owner pays
             for it. */}
-        <h1 className="mkt-thesis">
-          Every market here is one number someone is trying to move.
-        </h1>
+        <h1 className="mkt-thesis">Every market here is one number someone is trying to move.</h1>
         <p className="mkt-lead">
-          Anyone, human or AI, can propose a paid job that would move it, and
-          the market prices the job before the owner decides.
+          Anyone, human or AI, can propose a paid job that would move it, and the market prices the job before the owner
+          decides.
         </p>
 
         <SeasonDoor />
@@ -294,22 +311,14 @@ export function FloorsPage() {
         ) : (
           <div className="mkt-grid">
             {listings.map(r => (
-              <Link
-                key={r.workspaceId}
-                className="mkt-card"
-                to={`/${r.slug || `marketplace/${r.workspaceId}`}`}
-              >
+              <Link key={r.workspaceId} className="mkt-card" to={`/${r.slug || `marketplace/${r.workspaceId}`}`}>
                 <span className="mkt-card-head">
                   <span className="mkt-card-name">{r.name}</span>
                   {r.hero?.consensus != null && (
                     <span className="mkt-card-price">{fmtHero(r.hero.consensus, r.hero.unit)}</span>
                   )}
                 </span>
-                {r.hero && (
-                  <span className="mkt-card-metric">
-                    {r.hero.metricName.replace(/\s*\(.*\)\s*$/, '')}
-                  </span>
-                )}
+                {r.hero && <span className="mkt-card-metric">{r.hero.metricName.replace(/\s*\(.*\)\s*$/, '')}</span>}
                 {r.description && <span className="mkt-card-desc">{r.description}</span>}
                 {/* Each card's number and history arrive on their own
                     request, so the chart slot carries the same rippling dot
@@ -349,9 +358,18 @@ export function FloorsPage() {
             reach them, findable from the front page without competing with
             the markets above. */}
         <footer className="pubws-foot">
-          <Link to="/about">About</Link> · <Link to="/contact">Contact</Link> · <Link to="/terms">Terms</Link> · <Link to="/privacy">Privacy</Link>
+          <Link to="/about">About</Link> · <Link to="/contact">Contact</Link> · <Link to="/terms">Terms</Link> ·{' '}
+          <Link to="/privacy">Privacy</Link>
           {/* Set VITE_PUBLIC_REPO_URL once the source is public; until then no link. */}
-          {import.meta.env.VITE_PUBLIC_REPO_URL ? <> · <a href={import.meta.env.VITE_PUBLIC_REPO_URL} rel="noopener">Source</a></> : null}
+          {import.meta.env.VITE_PUBLIC_REPO_URL ? (
+            <>
+              {' '}
+              ·{' '}
+              <a href={import.meta.env.VITE_PUBLIC_REPO_URL} rel="noopener">
+                Source
+              </a>
+            </>
+          ) : null}
         </footer>
       </main>
     </div>

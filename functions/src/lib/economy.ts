@@ -7,11 +7,7 @@ export function depositBuyRateUsd(creditValueUsd: number, buyFeePercent: number)
 }
 
 /** Credits minted for a verified USDC amount, using the same formula as POST /api/agents/:id/deposit. */
-export function creditsIssuedForUsdcDeposit(
-  usdcAmount: number,
-  creditValueUsd: number,
-  buyFeePercent: number,
-): number {
+export function creditsIssuedForUsdcDeposit(usdcAmount: number, creditValueUsd: number, buyFeePercent: number): number {
   const buyRate = depositBuyRateUsd(creditValueUsd, buyFeePercent);
   return Math.floor(usdcAmount / buyRate);
 }

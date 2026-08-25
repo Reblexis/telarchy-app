@@ -1,6 +1,6 @@
 import type { TimePreference } from '../types';
-import { pickCurrentSeason } from './season-clock';
 import { BASE_PATH, withBase } from './base-path';
+import { pickCurrentSeason } from './season-clock';
 
 export interface ActivityItem {
   id: string;
@@ -96,8 +96,7 @@ export interface AgentTrace {
  * then fall through for a stored 'base'. Cast nothing into this type; if a
  * payload does not fit, this type is what is wrong.
  */
-export type CryptoNetwork =
-  | 'ethereum' | 'base' | 'arbitrum' | 'optimism' | 'polygon' | 'solana' | 'bitcoin';
+export type CryptoNetwork = 'ethereum' | 'base' | 'arbitrum' | 'optimism' | 'polygon' | 'solana' | 'bitcoin';
 
 export type PayoutMethod = (
   | { provider: 'paypal'; email: string }
@@ -168,7 +167,9 @@ export type NotificationChannel = 'web' | 'email' | 'mobile';
 /** The resolved matrix GET /api/auth/me serves: every cell, defaults applied. */
 export type NotificationMatrix = Record<NotificationKindId, Record<NotificationChannel, boolean>>;
 /** A partial update: only the cells being flipped. */
-export type NotificationMatrixUpdate = Partial<Record<NotificationKindId, Partial<Record<NotificationChannel, boolean>>>>;
+export type NotificationMatrixUpdate = Partial<
+  Record<NotificationKindId, Partial<Record<NotificationChannel, boolean>>>
+>;
 
 /** A bug report, help request, or feature idea (POST /api/feedback).
  *  Mirrors the row in functions/src/routes/feedback.ts. */
@@ -199,7 +200,6 @@ export interface LimitOrder {
   expiresAt: string | null;
   createdAt: string;
 }
-
 
 /** One rung of a prize season's published ladder. */
 export interface LadderRung {
@@ -692,12 +692,16 @@ async function fetchGetWithRetry(url: string, attempts = 3): Promise<Response> {
     if (i < attempts - 1) await new Promise(r => setTimeout(r, delays[i] ?? 600));
   }
   // Out of retries: do one final plain fetch so the caller sees the real status.
-  try { return await fetch(url); } catch { throw lastErr; }
+  try {
+    return await fetch(url);
+  } catch {
+    throw lastErr;
+  }
 }
 
 let activeWorkspaceId: string | null = localStorage.getItem('activeWorkspaceId');
 
-async function agentRequest(path: string, apiKey: string, options: RequestInit = {}) {
+async function _agentRequest(path: string, apiKey: string, options: RequestInit = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
@@ -731,7 +735,11 @@ export function setActiveWorkspace(id: string | null): void {
   // Guarded by the no-op early-return above so re-setting the same id (e.g. the
   // profile echo inside the fetch) cannot cause a refetch loop.
   activeWorkspaceListeners.forEach(l => {
-    try { l(); } catch (e) { console.error('active-workspace listener failed', e); }
+    try {
+      l();
+    } catch (e) {
+      console.error('active-workspace listener failed', e);
+    }
   });
 }
 
@@ -750,12 +758,18 @@ export function setActiveWorkspace(id: string | null): void {
 const mutationListeners = new Set<() => void>();
 export function onApiMutation(cb: () => void): () => void {
   mutationListeners.add(cb);
-  return () => { mutationListeners.delete(cb); };
+  return () => {
+    mutationListeners.delete(cb);
+  };
 }
 
 function notifyMutation() {
   for (const cb of mutationListeners) {
-    try { cb(); } catch (err) { console.error('onApiMutation listener failed', err); }
+    try {
+      cb();
+    } catch (err) {
+      console.error('onApiMutation listener failed', err);
+    }
   }
 }
 
@@ -777,10 +791,14 @@ async function recoverConsent(): Promise<void> {
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accepted: true }),
-    }).then(res => {
-      sessionStorage.removeItem('pendingConsent');
-      if (!res.ok) throw new Error(`Consent recovery failed: ${res.status}`);
-    }).finally(() => { consentRecoveryInFlight = null; });
+    })
+      .then(res => {
+        sessionStorage.removeItem('pendingConsent');
+        if (!res.ok) throw new Error(`Consent recovery failed: ${res.status}`);
+      })
+      .finally(() => {
+        consentRecoveryInFlight = null;
+      });
   }
   return consentRecoveryInFlight;
 }
@@ -851,18 +869,31 @@ export function seasonStandingToEntry(s: SeasonStanding): LeaderboardEntry {
 
 export const api = {
   getMetrics: () => request('/api/metrics'),
-  createMetric: (body: { name: string; description: string; value: number; formula: string; timePreference?: TimePreference; marketRangeMax?: number }) =>
-    request('/api/metrics', { method: 'POST', body: JSON.stringify(body) }),
-  updateMetric: (id: string, body: { name: string; description: string; value: number; formula: string; oldValue: number; updateNote: string; timePreference?: TimePreference | null; marketRangeMax?: number }) =>
-    request(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  deleteMetric: (id: string) =>
-    request(`/api/metrics/${id}`, { method: 'DELETE' }),
-  reorderMetrics: (ids: string[]) =>
-    request('/api/metrics/reorder', { method: 'POST', body: JSON.stringify({ ids }) }),
-  getMetricLogs: (metricId: string) =>
-    request(`/api/metrics/${metricId}/logs`),
-  getUpdates: (limit?: number) =>
-    request(`/api/updates${limit ? `?limit=${limit}` : ''}`),
+  createMetric: (body: {
+    name: string;
+    description: string;
+    value: number;
+    formula: string;
+    timePreference?: TimePreference;
+    marketRangeMax?: number;
+  }) => request('/api/metrics', { method: 'POST', body: JSON.stringify(body) }),
+  updateMetric: (
+    id: string,
+    body: {
+      name: string;
+      description: string;
+      value: number;
+      formula: string;
+      oldValue: number;
+      updateNote: string;
+      timePreference?: TimePreference | null;
+      marketRangeMax?: number;
+    },
+  ) => request(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteMetric: (id: string) => request(`/api/metrics/${id}`, { method: 'DELETE' }),
+  reorderMetrics: (ids: string[]) => request('/api/metrics/reorder', { method: 'POST', body: JSON.stringify({ ids }) }),
+  getMetricLogs: (metricId: string) => request(`/api/metrics/${metricId}/logs`),
+  getUpdates: (limit?: number) => request(`/api/updates${limit ? `?limit=${limit}` : ''}`),
   getStatus: () => request('/api/status'),
 
   // Agents
@@ -870,8 +901,7 @@ export const api = {
   getAgents: () => request('/api/agents'),
   getAgentTrades: (agentId: string, limit = 100) =>
     request(`/api/agents/${encodeURIComponent(agentId)}/trades?limit=${limit}`),
-  getAgentMarketPnl: (agentId: string) =>
-    request(`/api/agents/${encodeURIComponent(agentId)}/market-pnl`),
+  getAgentMarketPnl: (agentId: string) => request(`/api/agents/${encodeURIComponent(agentId)}/market-pnl`),
   getMyAgents: () => request('/api/agents/mine'),
   registerAgent: (agentId: string) =>
     request('/api/agents/register', { method: 'POST', body: JSON.stringify({ agentId }) }),
@@ -900,7 +930,16 @@ export const api = {
     request(`/api/agents/${agentId}/wallet`, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
 
   // Markets & Trading
-  getMarkets: (proposalId?: string, workspaceId?: string, opts?: { status?: 'open' | 'closed' | 'resolved' | 'voided' | 'all'; includeResolved?: boolean; includeVoided?: boolean; kind?: 'baseline' | 'conditional' | 'all' }) => {
+  getMarkets: (
+    proposalId?: string,
+    workspaceId?: string,
+    opts?: {
+      status?: 'open' | 'closed' | 'resolved' | 'voided' | 'all';
+      includeResolved?: boolean;
+      includeVoided?: boolean;
+      kind?: 'baseline' | 'conditional' | 'all';
+    },
+  ) => {
     const params = new URLSearchParams();
     if (proposalId) params.set('proposalId', proposalId);
     if (opts?.status) params.set('status', opts.status);
@@ -920,8 +959,7 @@ export const api = {
     requestWithWorkspace(`/api/predictions/markets/${id}/positions`, {}, { workspaceId }),
   createMarket: (metricId: string, targetDate: string) =>
     request('/api/predictions/markets', { method: 'POST', body: JSON.stringify({ metricId, targetDate }) }),
-  deleteMarket: (id: string) =>
-    request(`/api/predictions/markets/${id}`, { method: 'DELETE' }),
+  deleteMarket: (id: string) => request(`/api/predictions/markets/${id}`, { method: 'DELETE' }),
   refreshMarkets: (proposalId?: string) =>
     request('/api/predictions/markets/refresh', {
       method: 'POST',
@@ -935,7 +973,11 @@ export const api = {
   // description voids and recreates the metric's open markets server-side:
   // it is the settlement text, so callers must warn before saving.
   updateMetricDescription: (id: string, description: string, workspaceId?: string) =>
-    requestWithWorkspace(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify({ description }) }, { workspaceId }),
+    requestWithWorkspace(
+      `/api/metrics/${id}`,
+      { method: 'PUT', body: JSON.stringify({ description }) },
+      { workspaceId },
+    ),
   getPositions: (marketId?: string, agentId?: string, workspaceId?: string) => {
     const params = new URLSearchParams();
     if (marketId) params.set('marketId', marketId);
@@ -946,38 +988,62 @@ export const api = {
   /** Resting orders. `limitValue` is in the metric's own units, not
       probability, because that is what the page shows. See docs/limit-orders.md. */
   placeLimitOrder: (
-    body: { marketId: string; direction: 'higher' | 'lower'; limitValue: number; budgetCredits: number; expiresAt?: string },
+    body: {
+      marketId: string;
+      direction: 'higher' | 'lower';
+      limitValue: number;
+      budgetCredits: number;
+      expiresAt?: string;
+    },
     workspaceId?: string,
-  ) => requestWithWorkspace('/api/predictions/limit-orders', { method: 'POST', body: JSON.stringify(body) }, { workspaceId }),
+  ) =>
+    requestWithWorkspace(
+      '/api/predictions/limit-orders',
+      { method: 'POST', body: JSON.stringify(body) },
+      { workspaceId },
+    ),
   getLimitOrders: (marketId?: string, workspaceId?: string): Promise<LimitOrder[]> => {
     const qs = marketId ? `?marketId=${encodeURIComponent(marketId)}` : '';
     return requestWithWorkspace(`/api/predictions/limit-orders${qs}`, {}, { workspaceId }) as Promise<LimitOrder[]>;
   },
   cancelLimitOrder: (id: string, workspaceId?: string) =>
-    requestWithWorkspace(`/api/predictions/limit-orders/${encodeURIComponent(id)}`, { method: 'DELETE' }, { workspaceId }),
+    requestWithWorkspace(
+      `/api/predictions/limit-orders/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+      { workspaceId },
+    ),
 
   injectLiquidity: (marketId: string, amount: number) =>
     request(`/api/predictions/markets/${marketId}/liquidity`, { method: 'POST', body: JSON.stringify({ amount }) }),
   injectLiquidityBulk: (amount: number, proposalId?: string) =>
-    request('/api/predictions/markets/liquidity/bulk', { method: 'POST', body: JSON.stringify({ amount, ...(proposalId && { proposalId }) }) }),
+    request('/api/predictions/markets/liquidity/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ amount, ...(proposalId && { proposalId }) }),
+    }),
 
   // Proposals
   getProposals: (status?: string) => request(`/api/proposals${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   getProposal: (id: string) => request(`/api/proposals/${id}`),
-  createProposal: (body: { title: string; description: string; liquiditySubsidy?: number; askUsd?: number; payoutHandle?: string }) =>
-    request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
+  createProposal: (body: {
+    title: string;
+    description: string;
+    liquiditySubsidy?: number;
+    askUsd?: number;
+    payoutHandle?: string;
+  }) => request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
   /** Edit a contract's definition: words and price both, published as
    *  revisions; a traded pair keeps its markets and positions untouched
    *  (docs/market-integrity.md, I1b). The proposer or a workspace manager;
    *  the server decides which. */
   /** What is published and what is waiting (platform admin only). */
-  getRelease: () => request('/api/admin/release') as Promise<{
-    serving: string | null;
-    candidate: { revision: string; url: string } | null;
-    running: string | null;
-    isServing: boolean;
-    error: string | null;
-  }>,
+  getRelease: () =>
+    request('/api/admin/release') as Promise<{
+      serving: string | null;
+      candidate: { revision: string; url: string } | null;
+      running: string | null;
+      isServing: boolean;
+      error: string | null;
+    }>,
   /** Give the revision answering this request 100% of the traffic. Pressed on
    *  the beta, so it publishes the build you are looking at. */
   publishRelease: () => request('/api/admin/publish', { method: 'POST', body: JSON.stringify({}) }),
@@ -985,14 +1051,14 @@ export const api = {
     request(`/api/proposals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   /** What changed on a contract, oldest first. */
   getProposalRevisions: (id: string) =>
-    request(`/api/proposals/${id}/revisions`) as Promise<{ revisions: Array<{ field: string; oldValue: string | null; newValue: string | null; at: string }> }>,
-  approveProposal: (id: string) =>
-    request(`/api/proposals/${id}/approve`, { method: 'POST' }),
+    request(`/api/proposals/${id}/revisions`) as Promise<{
+      revisions: Array<{ field: string; oldValue: string | null; newValue: string | null; at: string }>;
+    }>,
+  approveProposal: (id: string) => request(`/api/proposals/${id}/approve`, { method: 'POST' }),
   /** `declineReason` is published permanently on the proposal. Required by the
    *  backend when the workspace has a charter, since that is the promise. */
   /** Admin: take a job off the board entirely (refunds every stake first). */
-  removeProposal: (id: string) =>
-    request(`/api/proposals/${id}`, { method: 'DELETE' }),
+  removeProposal: (id: string) => request(`/api/proposals/${id}`, { method: 'DELETE' }),
   declineProposal: (id: string, declineReason?: string, refund?: boolean) =>
     request(`/api/proposals/${id}/decline`, {
       method: 'POST',
@@ -1079,13 +1145,24 @@ export const api = {
       }>;
     }>,
   /** Every question asked of a floor, newest first, with its answer. */
-  getFloorQuestions: (limit = 100): Promise<{
+  getFloorQuestions: (
+    limit = 100,
+  ): Promise<{
     totalCostUsd: number;
     questions: Array<{
-      id: string; workspaceId: string; slug: string | null; workspaceName: string | null;
-      question: string; answer: string; askedBy: string | null; askedByName: string | null;
-      country: string | null; costUsd: number | null; model: string | null;
-      error: string | null; createdAt: string;
+      id: string;
+      workspaceId: string;
+      slug: string | null;
+      workspaceName: string | null;
+      question: string;
+      answer: string;
+      askedBy: string | null;
+      askedByName: string | null;
+      country: string | null;
+      costUsd: number | null;
+      model: string | null;
+      error: string | null;
+      createdAt: string;
     }>;
   }> => request(`/api/admin/questions?limit=${limit}`),
   /** Bug reports, help requests and feature ideas (platform admin only).
@@ -1099,8 +1176,15 @@ export const api = {
     return request(`/api/feedback${qs ? `?${qs}` : ''}`) as Promise<{ items: FeedbackItem[] }>;
   },
 
-  getFloorComments: (idOrSlug: string, q: { marketId?: string; proposalId?: string }): Promise<Array<{ id: string; fromName: string; content: string; createdAt: string }>> =>
-    request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/comments?${q.proposalId ? `proposalId=${encodeURIComponent(q.proposalId)}` : `marketId=${encodeURIComponent(q.marketId ?? '')}`}`, {}, true),
+  getFloorComments: (
+    idOrSlug: string,
+    q: { marketId?: string; proposalId?: string },
+  ): Promise<Array<{ id: string; fromName: string; content: string; createdAt: string }>> =>
+    request(
+      `/api/marketplace/${encodeURIComponent(idOrSlug)}/comments?${q.proposalId ? `proposalId=${encodeURIComponent(q.proposalId)}` : `marketId=${encodeURIComponent(q.marketId ?? '')}`}`,
+      {},
+      true,
+    ),
 
   /** Talk to Otto, the floor's market maker. The whole conversation goes with
       every turn (the server keeps the last twelve), so a follow-up means
@@ -1109,9 +1193,14 @@ export const api = {
     idOrSlug: string,
     messages: Array<{ role: 'user' | 'assistant'; content: string }>,
   ): Promise<{ answer: string }> =>
-    request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/ask`, {
-      method: 'POST', body: JSON.stringify({ messages }),
-    }, true),
+    request(
+      `/api/marketplace/${encodeURIComponent(idOrSlug)}/ask`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ messages }),
+      },
+      true,
+    ),
 
   /** Otto on the operator door: the setup conversation for someone who does
    *  not have a floor yet (the operator-door design note). Same shape as askFloor,
@@ -1132,11 +1221,17 @@ export const api = {
     checklist: {
       blocking: string[];
       /** Enough of the market to draw it: the page's hero is the instrument. */
-      market: { metricName: string; rangeMin: number; rangeMax: number; targetDate: string; consensus: number | null; pool: number } | null;
+      market: {
+        metricName: string;
+        rangeMin: number;
+        rangeMax: number;
+        targetDate: string;
+        consensus: number | null;
+        pool: number;
+      } | null;
       items: Array<{ id: string; label: string; status: 'done' | 'open'; note: string }>;
     } | null;
-  }> =>
-    request('/api/setup/ask', { method: 'POST', body: JSON.stringify({ messages, settled }) }, true),
+  }> => request('/api/setup/ask', { method: 'POST', body: JSON.stringify({ messages, settled }) }, true),
 
   /**
    * The same conversation, arriving as Otto writes it (owner direction
@@ -1177,7 +1272,7 @@ export const api = {
       body: JSON.stringify({ messages, settled }),
     });
     if (!res.ok) {
-      const data = await res.json().catch(() => ({})) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
       throw new Error(data.error || `Could not reach Otto (${res.status})`);
     }
     if (!res.body || !(res.headers.get('content-type') ?? '').includes('text/event-stream')) {
@@ -1230,36 +1325,71 @@ export const api = {
    * answer, which made a turn as slow as both calls together and pushed it
    * past the deadline the beta proxy gives up at.
    */
-  askSetupHandoff: (
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
-    settled: string[] = [],
-  ) => request('/api/setup/handoff', {
-    method: 'POST', body: JSON.stringify({ messages, settled }),
-  }, true) as Promise<{ handoff: string; settled: string[]; open: string[]; written: boolean }>,
+  askSetupHandoff: (messages: Array<{ role: 'user' | 'assistant'; content: string }>, settled: string[] = []) =>
+    request(
+      '/api/setup/handoff',
+      {
+        method: 'POST',
+        body: JSON.stringify({ messages, settled }),
+      },
+      true,
+    ) as Promise<{ handoff: string; settled: string[]; open: string[]; written: boolean }>,
 
   /** What is still open on a floor, read from the database. The endpoint the
    *  handoff prompt tells an operator's own agent to call first. */
   setupChecklist: (workspaceId: string) =>
     request(`/api/setup/checklist?workspaceId=${encodeURIComponent(workspaceId)}`, {}, true) as Promise<{
       workspace: { id: string; name: string; slug: string | null; visibility: string } | null;
-      items: Array<{ id: string; label: string; question: string; why: string; options: string[]; api: string; status: 'done' | 'open'; note: string }>;
+      items: Array<{
+        id: string;
+        label: string;
+        question: string;
+        why: string;
+        options: string[];
+        api: string;
+        status: 'done' | 'open';
+        note: string;
+      }>;
       blocking: string[];
     }>,
 
   /** Public floor read: who holds what and the trade history for a
       market, no account needed (Open workspaces only). */
-  getMarketActivity: (idOrSlug: string, marketId: string): Promise<{
+  getMarketActivity: (
+    idOrSlug: string,
+    marketId: string,
+  ): Promise<{
     consensus: number | null;
-    positions: Array<{ handle: string; id: string; direction: 'higher' | 'lower'; shares: number; cost: number; worth: number | null }>;
-    trades: Array<{ id: string; handle: string; direction: 'higher' | 'lower'; kind: 'buy' | 'sell'; shares: number; cost: number; createdAt: string }>;
+    positions: Array<{
+      handle: string;
+      id: string;
+      direction: 'higher' | 'lower';
+      shares: number;
+      cost: number;
+      worth: number | null;
+    }>;
+    trades: Array<{
+      id: string;
+      handle: string;
+      direction: 'higher' | 'lower';
+      kind: 'buy' | 'sell';
+      shares: number;
+      cost: number;
+      createdAt: string;
+    }>;
   }> =>
-    request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/market-activity?marketId=${encodeURIComponent(marketId)}`, {}, true),
+    request(
+      `/api/marketplace/${encodeURIComponent(idOrSlug)}/market-activity?marketId=${encodeURIComponent(marketId)}`,
+      {},
+      true,
+    ),
 
-  getMarketMessages: (marketId: string) =>
-    request(`/api/predictions/markets/${encodeURIComponent(marketId)}/messages`),
+  getMarketMessages: (marketId: string) => request(`/api/predictions/markets/${encodeURIComponent(marketId)}/messages`),
   sendMarketMessage: (marketId: string, content: string) =>
-    request(`/api/predictions/markets/${encodeURIComponent(marketId)}/messages`,
-      { method: 'POST', body: JSON.stringify({ content }) }),
+    request(`/api/predictions/markets/${encodeURIComponent(marketId)}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
 
   getHooksStatus: (): Promise<{ active: boolean; lastPolledAt?: string; intervalMs?: number; nextPollAt?: string }> =>
     request('/api/events/hooks/status'),
@@ -1337,10 +1467,13 @@ export const api = {
   },
 
   // Agent control plane (platform admin / master key; see /agents)
-  getAgentControls: (): Promise<{ controls: AgentControl[] }> =>
-    request('/api/admin/agent-controls'),
+  getAgentControls: (): Promise<{ controls: AgentControl[] }> => request('/api/admin/agent-controls'),
 
-  setAgentControl: (params: { agentId: string; desiredState?: 'enabled' | 'paused'; trigger?: boolean }): Promise<AgentControl> =>
+  setAgentControl: (params: {
+    agentId: string;
+    desiredState?: 'enabled' | 'paused';
+    trigger?: boolean;
+  }): Promise<AgentControl> =>
     request('/api/admin/agent-control', {
       method: 'POST',
       body: JSON.stringify(params),
@@ -1362,7 +1495,17 @@ export const api = {
     if (!res.ok) throw new Error(`Marketplace workspace request failed: ${res.status}`);
     return res.json();
   },
-  getPublicWorkspaces: async (): Promise<Array<{ workspaceId: string; name: string; visibility: string; slug?: string | null; description?: string | null; openMarketCount?: number; proposalStats?: { pending?: number } }>> => {
+  getPublicWorkspaces: async (): Promise<
+    Array<{
+      workspaceId: string;
+      name: string;
+      visibility: string;
+      slug?: string | null;
+      description?: string | null;
+      openMarketCount?: number;
+      proposalStats?: { pending?: number };
+    }>
+  > => {
     const res = await fetch(`${API_BASE}/api/marketplace/workspaces/public`);
     if (!res.ok) throw new Error(`Public workspaces request failed: ${res.status}`);
     return res.json();
@@ -1384,7 +1527,10 @@ export const api = {
    * season-specific one, so a standings row and a leaderboard row can never
    * disagree about the same participant.
    */
-  getSeasonStandings: async (seasonId: string, limit = 100): Promise<{ season: PrizeSeason; participants: SeasonStanding[] }> => {
+  getSeasonStandings: async (
+    seasonId: string,
+    limit = 100,
+  ): Promise<{ season: PrizeSeason; participants: SeasonStanding[] }> => {
     const res = await fetch(`${API_BASE}/api/leaderboard?limit=${limit}&seasonId=${encodeURIComponent(seasonId)}`);
     if (!res.ok) throw new Error(`Season standings request failed: ${res.status}`);
     return res.json();
@@ -1461,7 +1607,10 @@ export const api = {
    * can never disagree about whether a season is on. Returns the season it
    * decided on so the caller can label the header without a second fetch.
    */
-  getFloorLeaders: async (limit = 100, workspaceIdOrSlug?: string): Promise<{ participants: LeaderboardEntry[]; seasonMode: boolean; season: PrizeSeason | null }> => {
+  getFloorLeaders: async (
+    limit = 100,
+    workspaceIdOrSlug?: string,
+  ): Promise<{ participants: LeaderboardEntry[]; seasonMode: boolean; season: PrizeSeason | null }> => {
     const { seasons } = await api.getSeasons();
     const season = pickCurrentSeason(seasons);
     if (season?.status === 'running') {
@@ -1474,8 +1623,13 @@ export const api = {
   /** One market's consensus history on a public workspace: the series the
    *  chart draws, addressable per market so a proposal's conditional branch
    *  can become the page's main view. */
-  getPublicMarketHistory: async (workspaceIdOrSlug: string, marketId: string): Promise<Array<{ at: string; consensus: number | null }>> => {
-    const res = await fetch(`${API_BASE}/api/marketplace/${encodeURIComponent(workspaceIdOrSlug)}/markets/${encodeURIComponent(marketId)}/history`);
+  getPublicMarketHistory: async (
+    workspaceIdOrSlug: string,
+    marketId: string,
+  ): Promise<Array<{ at: string; consensus: number | null }>> => {
+    const res = await fetch(
+      `${API_BASE}/api/marketplace/${encodeURIComponent(workspaceIdOrSlug)}/markets/${encodeURIComponent(marketId)}/history`,
+    );
     if (!res.ok) throw new Error(`Market history request failed: ${res.status}`);
     const body = await res.json();
     return body.history ?? [];
@@ -1491,8 +1645,7 @@ export const api = {
 
   // Notifications inbox (the bell). Workspace-agnostic: one inbox per
   // participant across every floor.
-  getNotifications: (limit = 30): Promise<NotificationsPayload> =>
-    request(`/api/notifications?limit=${limit}`),
+  getNotifications: (limit = 30): Promise<NotificationsPayload> => request(`/api/notifications?limit=${limit}`),
   markNotificationsSeen: (): Promise<{ ok: boolean; seenAt: string }> =>
     request('/api/notifications/seen', { method: 'POST' }),
   /** Read one row: the count drops by one, not all at once. */
@@ -1513,21 +1666,36 @@ export const api = {
   getProfile: () => request('/api/auth/me'),
   /** `notifications` is the email switches; any subset, an omitted key keeps
    *  its current value (see docs/vision.md, "Participant email notifications"). */
-  upsertProfile: (opts?: { email?: string; intent?: 'creator' | 'agent' | 'trader'; nickname?: string; bio?: string; image?: string | null; payoutHandle?: string | null; payoutMethod?: PayoutMethod | null; notifications?: Partial<NotificationPrefs>; notificationChannels?: NotificationMatrixUpdate }) =>
-    request('/api/auth/profile', { method: 'POST', body: JSON.stringify(opts ?? {}) }),
-  recordConsent: () =>
-    request('/api/auth/consent', { method: 'POST', body: JSON.stringify({ accepted: true }) }),
+  upsertProfile: (opts?: {
+    email?: string;
+    intent?: 'creator' | 'agent' | 'trader';
+    nickname?: string;
+    bio?: string;
+    image?: string | null;
+    payoutHandle?: string | null;
+    payoutMethod?: PayoutMethod | null;
+    notifications?: Partial<NotificationPrefs>;
+    notificationChannels?: NotificationMatrixUpdate;
+  }) => request('/api/auth/profile', { method: 'POST', body: JSON.stringify(opts ?? {}) }),
+  recordConsent: () => request('/api/auth/consent', { method: 'POST', body: JSON.stringify({ accepted: true }) }),
   // Key-first onboarding claim (see /claim page and POST /api/onboard)
-  onboardClaimInfo: (token: string) =>
-    request(`/api/onboard/claim/${encodeURIComponent(token)}`, {}, true),
+  onboardClaimInfo: (token: string) => request(`/api/onboard/claim/${encodeURIComponent(token)}`, {}, true),
   onboardClaim: (token: string) =>
     request('/api/onboard/claim', { method: 'POST', body: JSON.stringify({ token }) }, true),
-  deleteAccount: () =>
-    request('/api/auth/me', { method: 'DELETE' }),
+  deleteAccount: () => request('/api/auth/me', { method: 'DELETE' }),
   exportAccount: () => request('/api/auth/me/export'),
 
   // Workspaces
-  createWorkspace: (body: { name: string; template?: string; templateParams?: { revenueRangeMax?: number; currency?: string }; visibility?: 'public' | 'unlisted' | 'private' } | string) => {
+  createWorkspace: (
+    body:
+      | {
+          name: string;
+          template?: string;
+          templateParams?: { revenueRangeMax?: number; currency?: string };
+          visibility?: 'public' | 'unlisted' | 'private';
+        }
+      | string,
+  ) => {
     const payload = typeof body === 'string' ? { name: body } : body;
     return request('/api/workspaces', { method: 'POST', body: JSON.stringify(payload) }, true);
   },
@@ -1540,14 +1708,30 @@ export const api = {
   /** Map a GitHub-style /{owner}/{slug} path to a workspace id. Returns the
    *  canonical segments + a `moved` flag (true when the slug is a former,
    *  renamed-away slug and the URL should be replaced). */
-  resolveWorkspacePath: (owner: string, slug: string): Promise<{ workspaceId: string; canonicalOwner: string; canonicalSlug: string; moved: boolean }> =>
+  resolveWorkspacePath: (
+    owner: string,
+    slug: string,
+  ): Promise<{ workspaceId: string; canonicalOwner: string; canonicalSlug: string; moved: boolean }> =>
     request(`/api/workspaces/resolve?owner=${encodeURIComponent(owner)}&slug=${encodeURIComponent(slug)}`, {}, true),
   getWorkspace: (id: string) => request(`/api/workspaces/${id}`),
   getWorkspaceStats: (id: string) => request(`/api/workspaces/${id}/stats`),
-  updateWorkspaceSettings: (id: string, body: { name?: string; description?: string | null; charter?: string | null; subjectAbout?: string | null; telarchyStartedOn?: string | null; autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number; visibility?: 'public' | 'unlisted' | 'private'; proposalReward?: number; spamPenalty?: number; maxPendingProposalsPerParticipant?: number }) =>
-    request(`/api/workspaces/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
-  deleteWorkspace: (id: string) =>
-    request(`/api/workspaces/${id}`, { method: 'DELETE' }),
+  updateWorkspaceSettings: (
+    id: string,
+    body: {
+      name?: string;
+      description?: string | null;
+      charter?: string | null;
+      subjectAbout?: string | null;
+      telarchyStartedOn?: string | null;
+      autoFundNewMarkets?: boolean;
+      newMarketLiquidityCredits?: number;
+      visibility?: 'public' | 'unlisted' | 'private';
+      proposalReward?: number;
+      spamPenalty?: number;
+      maxPendingProposalsPerParticipant?: number;
+    },
+  ) => request(`/api/workspaces/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteWorkspace: (id: string) => request(`/api/workspaces/${id}`, { method: 'DELETE' }),
   /** Every announcement on a public floor, newest first. Anonymous read, so
    *  the floor can show them before a visitor has an account. */
   getWorkspaceAnnouncements: (idOrSlug: string): Promise<{ announcements: Announcement[] }> =>
@@ -1557,7 +1741,10 @@ export const api = {
   /** Corrects an announcement. The server keeps the original body and stamps
    *  editedAt; there is no delete. */
   editAnnouncement: (workspaceId: string, announcementId: string, body: string): Promise<Announcement> =>
-    request(`/api/workspaces/${workspaceId}/announcements/${announcementId}`, { method: 'PUT', body: JSON.stringify({ body }) }),
+    request(`/api/workspaces/${workspaceId}/announcements/${announcementId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ body }),
+    }),
   // Sources (text + external bridges, unified)
   listSources: () => request('/api/sources'),
   getSource: (id: string) => request(`/api/sources/${id}`),
@@ -1565,8 +1752,7 @@ export const api = {
     request('/api/sources', { method: 'POST', body: JSON.stringify({ ...body, type: 'text' }) }),
   updateSource: (id: string, body: { name?: string; description?: string; content?: string }) =>
     request(`/api/sources/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  deleteSource: (id: string) =>
-    request(`/api/sources/${id}`, { method: 'DELETE' }),
+  deleteSource: (id: string) => request(`/api/sources/${id}`, { method: 'DELETE' }),
   getSourceTree: (id: string, path?: string, ref?: string) => {
     const params = new URLSearchParams();
     if (path) params.set('path', path);
@@ -1579,15 +1765,25 @@ export const api = {
     if (ref) params.set('ref', ref);
     return request(`/api/sources/${id}/file?${params}`);
   },
-  getGitHubRepos: (state: string) =>
-    request(`/api/sources/github/repos?state=${encodeURIComponent(state)}`),
+  getGitHubRepos: (state: string) => request(`/api/sources/github/repos?state=${encodeURIComponent(state)}`),
   connectGitHub: (body: { state: string; repos: string[] }) =>
     request('/api/sources/github/connect', { method: 'POST', body: JSON.stringify(body) }),
 
   // Feedback (bug reports / help requests)
-  submitFeedback: (body: { kind: 'bug' | 'help' | 'feedback'; subject: string; body: string; url?: string; email?: string }) =>
-    request('/api/feedback', { method: 'POST', body: JSON.stringify(body) }, true),
-  listFeedback: (params: { kind?: 'bug' | 'help' | 'feedback'; status?: 'open' | 'triaged' | 'resolved' | 'closed'; limit?: number } = {}) => {
+  submitFeedback: (body: {
+    kind: 'bug' | 'help' | 'feedback';
+    subject: string;
+    body: string;
+    url?: string;
+    email?: string;
+  }) => request('/api/feedback', { method: 'POST', body: JSON.stringify(body) }, true),
+  listFeedback: (
+    params: {
+      kind?: 'bug' | 'help' | 'feedback';
+      status?: 'open' | 'triaged' | 'resolved' | 'closed';
+      limit?: number;
+    } = {},
+  ) => {
     const q = new URLSearchParams();
     if (params.kind) q.set('kind', params.kind);
     if (params.status) q.set('status', params.status);
@@ -1600,12 +1796,14 @@ export const api = {
 
   // API keys & authenticated agent creation (used by the API page).
   // /api/agents/:id/keys uses :id=me to operate on the calling agent.
-  listAgentKeys: (agentId: string) =>
-    request(`/api/agents/${encodeURIComponent(agentId)}/keys`),
+  listAgentKeys: (agentId: string) => request(`/api/agents/${encodeURIComponent(agentId)}/keys`),
   mintAgentKey: (agentId: string, body: { label?: string; scopes?: string[]; workspaceId?: string }) =>
     request(`/api/agents/${encodeURIComponent(agentId)}/keys`, { method: 'POST', body: JSON.stringify(body) }),
   updateAgentKey: (agentId: string, keyId: string, body: { label?: string | null; scopes?: string[] }) =>
-    request(`/api/agents/${encodeURIComponent(agentId)}/keys/${encodeURIComponent(keyId)}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    request(`/api/agents/${encodeURIComponent(agentId)}/keys/${encodeURIComponent(keyId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   revokeAgentKey: (agentId: string, keyId: string) =>
     request(`/api/agents/${encodeURIComponent(agentId)}/keys/${encodeURIComponent(keyId)}`, { method: 'DELETE' }),
   /**
@@ -1626,10 +1824,16 @@ export const api = {
 
   // Permission groups
   listGroups: () => request('/api/groups'),
-  createGroup: (name: string) =>
-    request('/api/groups', { method: 'POST', body: JSON.stringify({ name }) }),
-  updateGroup: (id: string, body: { name?: string; memberIds?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }>; sourcePermissions?: Record<string, { read: boolean }>; capabilities?: string[] }) =>
-    request(`/api/groups/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  deleteGroup: (id: string) =>
-    request(`/api/groups/${id}`, { method: 'DELETE' }),
+  createGroup: (name: string) => request('/api/groups', { method: 'POST', body: JSON.stringify({ name }) }),
+  updateGroup: (
+    id: string,
+    body: {
+      name?: string;
+      memberIds?: string[];
+      permissions?: Record<string, { read: boolean; trade: boolean }>;
+      sourcePermissions?: Record<string, { read: boolean }>;
+      capabilities?: string[];
+    },
+  ) => request(`/api/groups/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteGroup: (id: string) => request(`/api/groups/${id}`, { method: 'DELETE' }),
 };

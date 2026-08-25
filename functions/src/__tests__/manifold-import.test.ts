@@ -25,25 +25,30 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents } from '../db/schema';
-import { fromUnits, toUnits } from '../lib/validation';
-import { manifoldRouter } from '../routes/manifold';
 import { AppError } from '../lib/errors';
+import { fromUnits, toUnits } from '../lib/validation';
+// The router no longer carries auth itself (app.ts applies the policy first),
+// so the test mounts the mocked middleware where the policy would run.
+import { authMiddleware } from '../middleware/auth';
+import { manifoldRouter } from '../routes/manifold';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
-app.use('/api/import/manifold', manifoldRouter);
+app.use('/api/import/manifold', authMiddleware, manifoldRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {
   const status = err instanceof AppError ? err.status : 500;
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 
 // The Manifold side, controllable per test.
 let manifoldBio = '';
@@ -64,23 +69,37 @@ beforeEach(async () => {
   global.fetch = jest.fn(async (url: any) => {
     const u = String(url);
     if (u.includes('/v0/user/')) {
-      return new Response(JSON.stringify({ id: MUSER.id, username: MUSER.username, bio: manifoldBio }), { status: 200 });
+      return new Response(JSON.stringify({ id: MUSER.id, username: MUSER.username, bio: manifoldBio }), {
+        status: 200,
+      });
     }
     if (u.includes('/v0/get-user-portfolio')) {
-      return new Response(JSON.stringify({ balance: manifoldBalance, investmentValue: manifoldInvested }), { status: 200 });
+      return new Response(JSON.stringify({ balance: manifoldBalance, investmentValue: manifoldInvested }), {
+        status: 200,
+      });
     }
     throw new Error(`unexpected fetch ${u}`);
   }) as any;
 });
-afterAll(() => { global.fetch = realFetch; });
+afterAll(() => {
+  global.fetch = realFetch;
+});
 
 function as(agentId: string) {
   return {
-    start: (username: string) => request(app).post('/api/import/manifold/start')
-      .set('X-Test-Agent-Id', agentId).set('X-Workspace-Id', 'ws-any')
-      .set('Content-Type', 'application/json').send({ username }),
-    claim: () => request(app).post('/api/import/manifold/claim')
-      .set('X-Test-Agent-Id', agentId).set('X-Workspace-Id', 'ws-any').send({}),
+    start: (username: string) =>
+      request(app)
+        .post('/api/import/manifold/start')
+        .set('X-Test-Agent-Id', agentId)
+        .set('X-Workspace-Id', 'ws-any')
+        .set('Content-Type', 'application/json')
+        .send({ username }),
+    claim: () =>
+      request(app)
+        .post('/api/import/manifold/claim')
+        .set('X-Test-Agent-Id', agentId)
+        .set('X-Workspace-Id', 'ws-any')
+        .send({}),
   };
 }
 

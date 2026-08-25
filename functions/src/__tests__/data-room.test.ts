@@ -17,23 +17,32 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 jest.mock('../middleware/auth', () => ({
-  authMiddleware: (req: any, _res: any, next: any) => { req.auth = null; next(); },
-  optionalAuthMiddleware: (req: any, _res: any, next: any) => { req.auth = req.auth ?? null; next(); },
+  authMiddleware: (req: any, _res: any, next: any) => {
+    req.auth = null;
+    next();
+  },
+  optionalAuthMiddleware: (req: any, _res: any, next: any) => {
+    req.auth = req.auth ?? null;
+    next();
+  },
 }));
 
-import request from 'supertest';
 import express from 'express';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics, metricLogs, pageVisits, proposals, workspaces } from '../db/schema';
+import request from 'supertest';
+import { DATA_ROOM_MARKDOWN, KNOWN_BLOCKS } from '../content/data-room';
+import { agents, markets, metricLogs, metrics, pageVisits, proposals, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
 import { toUnits } from '../lib/validation';
 import { dataRoomRouter } from '../routes/data-room';
 import {
-  parseDataRoomContent, clearDataRoomCache, buildDataRoomFeed,
-  renderDataRoomIndex, renderDataRoomSection,
+  buildDataRoomFeed,
+  clearDataRoomCache,
+  parseDataRoomContent,
+  renderDataRoomIndex,
+  renderDataRoomSection,
 } from '../services/data-room';
-import { DATA_ROOM_MARKDOWN, KNOWN_BLOCKS } from '../content/data-room';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -43,27 +52,58 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); }, 30_000);
-beforeEach(async () => { await truncateAll(); clearDataRoomCache(); });
+beforeAll(async () => {
+  await ensureMigrations();
+}, 30_000);
+beforeEach(async () => {
+  await truncateAll();
+  clearDataRoomCache();
+});
 
 const WS = 'ws-telarchy';
 
 async function seed() {
-  await db.insert(workspaces).values([
-    { id: WS, name: 'Telarchy', slug: 'telarchy', createdBy: 'seed', visibility: 'public' },
-  ]);
+  await db
+    .insert(workspaces)
+    .values([{ id: WS, name: 'Telarchy', slug: 'telarchy', createdBy: 'seed', visibility: 'public' }]);
   await db.insert(agents).values([{ id: 'a1', apiKeyHash: 'h1', balance: toUnits(100) }]);
-  await db.insert(metrics).values([
-    { id: 'm1', workspaceId: WS, name: 'Active traders', value: 4, formula: '0', marketRangeMax: 50 },
+  await db
+    .insert(metrics)
+    .values([{ id: 'm1', workspaceId: WS, name: 'Active traders', value: 4, formula: '0', marketRangeMax: 50 }]);
+  await db.insert(markets).values([
+    {
+      id: 'mkt1',
+      workspaceId: WS,
+      metricId: 'm1',
+      metricName: 'Active traders',
+      targetDate: '2026-09',
+      rangeMin: 0,
+      rangeMax: 50,
+      shares: [0, 0] as [number, number],
+      liquidity: 100,
+      pool: initialPool(100),
+      active: true,
+      resolved: false,
+      voided: false,
+    },
   ]);
-  await db.insert(markets).values([{
-    id: 'mkt1', workspaceId: WS, metricId: 'm1', metricName: 'Active traders', targetDate: '2026-09',
-    rangeMin: 0, rangeMax: 50, shares: [0, 0] as [number, number],
-    liquidity: 100, pool: initialPool(100), active: true, resolved: false, voided: false,
-  }]);
   await db.insert(metricLogs).values([
-    { id: 'l1', workspaceId: WS, metricId: 'm1', metricName: 'Active traders', value: 2, timestamp: new Date('2026-08-01') },
-    { id: 'l2', workspaceId: WS, metricId: 'm1', metricName: 'Active traders', value: 4, timestamp: new Date('2026-08-10') },
+    {
+      id: 'l1',
+      workspaceId: WS,
+      metricId: 'm1',
+      metricName: 'Active traders',
+      value: 2,
+      timestamp: new Date('2026-08-01'),
+    },
+    {
+      id: 'l2',
+      workspaceId: WS,
+      metricId: 'm1',
+      metricName: 'Active traders',
+      value: 4,
+      timestamp: new Date('2026-08-10'),
+    },
   ]);
   await db.insert(proposals).values([
     { id: 'p1', workspaceId: WS, proposedBy: 'a1', title: 'Paid job', status: 'approved', askUsd: 100 },
@@ -84,8 +124,7 @@ describe('the document and the feed cannot disagree', () => {
   });
 
   it('refuses an unknown block rather than rendering a hole', () => {
-    expect(() => parseDataRoomContent('## Bad\n\nprose\n\nblock:nonesuch\n'))
-      .toThrow(/unknown block "nonesuch"/);
+    expect(() => parseDataRoomContent('## Bad\n\nprose\n\nblock:nonesuch\n')).toThrow(/unknown block "nonesuch"/);
   });
 
   it('strips the directives out of the prose it ships', () => {
@@ -130,9 +169,9 @@ describe('what the feed publishes', () => {
     await seed();
     // Removed is the admin taking an entry off the board because it should
     // never have been there (spam, a duplicate, a test row), not a decision.
-    await db.insert(proposals).values([
-      { id: 'p4', workspaceId: WS, proposedBy: 'a1', title: 'Spam', status: 'removed', askUsd: 999 },
-    ]);
+    await db
+      .insert(proposals)
+      .values([{ id: 'p4', workspaceId: WS, proposedBy: 'a1', title: 'Spam', status: 'removed', askUsd: 999 }]);
     const { body } = await request(app).get('/api/data-room');
     const c = body.evidence.contracts;
     expect(c.approved + c.declined + c.pending + c.withdrawn).toBe(c.proposed);
@@ -143,7 +182,10 @@ describe('what the feed publishes', () => {
     await seed();
     const { body } = await request(app).get('/api/data-room');
     expect(body.evidence.contracts).toMatchObject({
-      proposed: 3, approved: 1, declined: 1, pending: 1,
+      proposed: 3,
+      approved: 1,
+      declined: 1,
+      pending: 1,
     });
     // 100 from the approved job. The declined 250 and the pending 50 are not
     // commitments, and publishing them as such would overstate the spend.
@@ -177,9 +219,7 @@ describe('traffic counts what the cockpit counts', () => {
   it('keeps a day after its visit rows are purged', async () => {
     await seed();
     const old = new Date(Date.now() - 40 * 24 * 3600 * 1000);
-    await db.insert(pageVisits).values([
-      { id: 'old1', ts: old, path: '/', ip: '9.9.9.9', userAgent: 'Mozilla/5.0' },
-    ]);
+    await db.insert(pageVisits).values([{ id: 'old1', ts: old, path: '/', ip: '9.9.9.9', userAgent: 'Mozilla/5.0' }]);
     await request(app).get('/api/data-room');
 
     // The cockpit purges on read; the published history must not shrink with it.

@@ -26,14 +26,14 @@ jest.mock('../middleware/roles', () => ({
   requireCapability: () => (_req: any, _res: any, next: any) => next(),
 }));
 
-import request from 'supertest';
 import express from 'express';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, workspaces, workspaceOrderings } from '../db/schema';
-import { getAuthWorkspaceMemberships } from '../middleware/auth';
-import { toUnits } from '../lib/validation';
-import { workspacesRouter } from '../routes/workspaces';
+import request from 'supertest';
+import { agents, workspaceOrderings, workspaces } from '../db/schema';
 import { AppError } from '../lib/errors';
+import { toUnits } from '../lib/validation';
+import { getAuthWorkspaceMemberships } from '../middleware/auth';
+import { workspacesRouter } from '../routes/workspaces';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const membershipsMock = getAuthWorkspaceMemberships as jest.Mock;
 
@@ -42,11 +42,17 @@ let currentAuth: any = { uid: 'user-1', capabilities: new Set(['read', 'trade', 
 
 const app = express();
 app.use(express.json());
-app.use((req: any, _res, next) => { req.auth = currentAuth; next(); });
+app.use((req: any, _res, next) => {
+  req.auth = currentAuth;
+  next();
+});
 app.use('/api/workspaces', workspacesRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof AppError) { res.status(err.status).json({ error: err.message }); return; }
+  if (err instanceof AppError) {
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
   res.status(500).json({ error: (err as Error).message ?? 'Internal error' });
 });
 
@@ -54,7 +60,14 @@ const OWNER = 'owner-a';
 
 function ws(id: string, name: string, minutesOld: number) {
   // Distinct createdAt so the unsaved-order tiebreak (oldest first) is deterministic.
-  return { id, name, slug: name.toLowerCase().replace(/\s+/g, '-'), createdBy: OWNER, createdAt: new Date(Date.UTC(2026, 0, 1, 0, minutesOld)), visibility: 'private' as const };
+  return {
+    id,
+    name,
+    slug: name.toLowerCase().replace(/\s+/g, '-'),
+    createdBy: OWNER,
+    createdAt: new Date(Date.UTC(2026, 0, 1, 0, minutesOld)),
+    visibility: 'private' as const,
+  };
 }
 
 async function seedThree() {
@@ -69,7 +82,9 @@ async function seedThree() {
 
 const idsOf = (r: request.Response) => r.body.map((w: any) => w.id);
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   membershipsMock.mockReset();
@@ -86,7 +101,9 @@ describe('PUT /api/workspaces/order + GET ordering', () => {
 
   test('saved order is honored and persisted per identity', async () => {
     await seedThree();
-    const put = await request(app).put('/api/workspaces/order').send({ ids: ['ws-c', 'ws-a', 'ws-b'] });
+    const put = await request(app)
+      .put('/api/workspaces/order')
+      .send({ ids: ['ws-c', 'ws-a', 'ws-b'] });
     expect(put.status).toBe(200);
     expect(put.body).toMatchObject({ ok: true, order: ['ws-c', 'ws-a', 'ws-b'] });
 
@@ -107,7 +124,9 @@ describe('PUT /api/workspaces/order + GET ordering', () => {
       { workspaceId: 'ws-c', memberRole: 'admin' },
       { workspaceId: 'ws-d', memberRole: 'admin' },
     ]);
-    const put = await request(app).put('/api/workspaces/order').send({ ids: ['ws-x', 'ws-b', 'ws-b', 'ws-a'] });
+    const put = await request(app)
+      .put('/api/workspaces/order')
+      .send({ ids: ['ws-x', 'ws-b', 'ws-b', 'ws-a'] });
     expect(put.status).toBe(200);
     expect(put.body.order).toEqual(['ws-b', 'ws-a']); // ws-x dropped, dupe collapsed
 
@@ -118,7 +137,9 @@ describe('PUT /api/workspaces/order + GET ordering', () => {
 
   test('order is per-identity: a different user is unaffected', async () => {
     await seedThree();
-    await request(app).put('/api/workspaces/order').send({ ids: ['ws-c', 'ws-b', 'ws-a'] });
+    await request(app)
+      .put('/api/workspaces/order')
+      .send({ ids: ['ws-c', 'ws-b', 'ws-a'] });
 
     currentAuth = { uid: 'user-2', capabilities: new Set(['read']), workspaceId: '' };
     const r = await request(app).get('/api/workspaces');
@@ -127,8 +148,12 @@ describe('PUT /api/workspaces/order + GET ordering', () => {
 
   test('reorder replaces prior order wholesale (stale positions cleared)', async () => {
     await seedThree();
-    await request(app).put('/api/workspaces/order').send({ ids: ['ws-c', 'ws-b', 'ws-a'] });
-    await request(app).put('/api/workspaces/order').send({ ids: ['ws-a'] });
+    await request(app)
+      .put('/api/workspaces/order')
+      .send({ ids: ['ws-c', 'ws-b', 'ws-a'] });
+    await request(app)
+      .put('/api/workspaces/order')
+      .send({ ids: ['ws-a'] });
 
     const rows = await db.select().from(workspaceOrderings);
     expect(rows.map(r => r.workspaceId)).toEqual(['ws-a']); // ws-b, ws-c rows gone
@@ -139,8 +164,14 @@ describe('PUT /api/workspaces/order + GET ordering', () => {
 
   test('master key (no identity) cannot set a personal order', async () => {
     await seedThree();
-    currentAuth = { isMasterKey: true, capabilities: new Set(['read', 'trade', 'manage', 'manage_workspace']), workspaceId: '' };
-    const put = await request(app).put('/api/workspaces/order').send({ ids: ['ws-a'] });
+    currentAuth = {
+      isMasterKey: true,
+      capabilities: new Set(['read', 'trade', 'manage', 'manage_workspace']),
+      workspaceId: '',
+    };
+    const put = await request(app)
+      .put('/api/workspaces/order')
+      .send({ ids: ['ws-a'] });
     expect(put.status).toBe(403);
   });
 
@@ -148,6 +179,12 @@ describe('PUT /api/workspaces/order + GET ordering', () => {
     await seedThree();
     expect((await request(app).put('/api/workspaces/order').send({})).status).toBe(400);
     expect((await request(app).put('/api/workspaces/order').send({ ids: 'nope' })).status).toBe(400);
-    expect((await request(app).put('/api/workspaces/order').send({ ids: [1, 2] })).status).toBe(400);
+    expect(
+      (
+        await request(app)
+          .put('/api/workspaces/order')
+          .send({ ids: [1, 2] })
+      ).status,
+    ).toBe(400);
   });
 });

@@ -15,38 +15,56 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { eq, and } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import { and, eq } from 'drizzle-orm';
 import { agents, proposals } from '../db/schema';
+import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
 import { removeProposal } from '../services/proposals';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const OWNER = 'agent-owner';
 const PROPOSER = 'agent-proposer';
 const WS = 'ws-removal';
 
 async function seed(status: string) {
-  await db.insert(agents).values([
-    { id: OWNER, apiKeyHash: `h-owner-${WS}`, balance: 0 },
-    { id: PROPOSER, apiKeyHash: `h-proposer-${WS}`, balance: 0 },
-  ]).onConflictDoNothing();
+  await db
+    .insert(agents)
+    .values([
+      { id: OWNER, apiKeyHash: `h-owner-${WS}`, balance: 0 },
+      { id: PROPOSER, apiKeyHash: `h-proposer-${WS}`, balance: 0 },
+    ])
+    .onConflictDoNothing();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Removal WS', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'public',
+    wsId: WS,
+    name: 'Removal WS',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'public',
   });
   await db.insert(proposals).values({
-    id: 'p1', workspaceId: WS, proposedBy: PROPOSER,
-    title: '$10: buy a copy', description: 'test row', status,
+    id: 'p1',
+    workspaceId: WS,
+    proposedBy: PROPOSER,
+    title: '$10: buy a copy',
+    description: 'test row',
+    status,
   });
 }
 
-const getProposal = () => db.select().from(proposals)
-  .where(and(eq(proposals.id, 'p1'), eq(proposals.workspaceId, WS)))
-  .then(r => r[0]);
+const getProposal = () =>
+  db
+    .select()
+    .from(proposals)
+    .where(and(eq(proposals.id, 'p1'), eq(proposals.workspaceId, WS)))
+    .then(r => r[0]);
 
 describe('removeProposal', () => {
   test('a pending job becomes removed, and the row survives for the ledger', async () => {
@@ -54,7 +72,7 @@ describe('removeProposal', () => {
     await removeProposal('p1', WS, OWNER);
 
     const p = await getProposal();
-    expect(p).toBeDefined();          // the row is kept on purpose
+    expect(p).toBeDefined(); // the row is kept on purpose
     expect(p.status).toBe('removed');
     expect(p.resolvedBy).toBe(OWNER);
     expect(p.resolvedAt).toBeTruthy();

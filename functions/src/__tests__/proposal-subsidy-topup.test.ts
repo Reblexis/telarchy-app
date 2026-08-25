@@ -34,28 +34,35 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, markets, metrics, proposals, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { toUnits, fromUnits } from '../lib/validation';
+import { AppError } from '../lib/errors';
+import { fromUnits, toUnits } from '../lib/validation';
+// The router no longer carries auth itself (app.ts applies the policy first),
+// so the test mounts the mocked middleware where the policy would run.
+import { authMiddleware } from '../middleware/auth';
 import { predictionsRouter } from '../routes/predictions';
 import { createConditionalMarkets, subsidyContributionsOf } from '../services/proposals';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
-app.use('/api/predictions', predictionsRouter);
+app.use('/api/predictions', authMiddleware, predictionsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {
   const status = err instanceof AppError ? err.status : 500;
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-subsidy-topup';
 const OWNER = 'agent-topup-owner';
@@ -71,37 +78,64 @@ async function seed(opts: { creationSubsidy?: number } = {}) {
     { id: PROPOSER, apiKeyHash: 'h-topup-proposer', balance: toUnits(START_CREDITS) },
   ]);
   await db.insert(workspaces).values({
-    id: WS, name: 'Subsidy Topup', createdBy: OWNER, visibility: 'private',
+    id: WS,
+    name: 'Subsidy Topup',
+    createdBy: OWNER,
+    visibility: 'private',
   });
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Throughput', value: 0, formula: '0', marketRangeMax: 100,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Throughput',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
   // One natural-trajectory market -> the proposal spawns 2 branch markets.
   await db.insert(markets).values({
-    id: 'mkt-base-topup', workspaceId: WS, metricId: METRIC, metricName: 'Throughput',
-    targetDate: TARGET, rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 10, pool: initialPool(10),
-    active: true, resolved: false, voided: false, proposalId: null, branch: null,
+    id: 'mkt-base-topup',
+    workspaceId: WS,
+    metricId: METRIC,
+    metricName: 'Throughput',
+    targetDate: TARGET,
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 10,
+    pool: initialPool(10),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
+    branch: null,
   });
 
   const creationSubsidy = opts.creationSubsidy ?? 0;
   await db.insert(proposals).values({
-    id: PROPOSAL, workspaceId: WS, proposedBy: PROPOSER,
-    title: 'topup proposal', description: '', status: 'pending',
-    conditionalMarketIds: [], liquiditySubsidy: creationSubsidy,
+    id: PROPOSAL,
+    workspaceId: WS,
+    proposedBy: PROPOSER,
+    title: 'topup proposal',
+    description: '',
+    status: 'pending',
+    conditionalMarketIds: [],
+    liquiditySubsidy: creationSubsidy,
     subsidyContributions: creationSubsidy > 0 ? { [PROPOSER]: creationSubsidy } : {},
   });
   const ids = await createConditionalMarkets(PROPOSAL, WS, {
     contributions: creationSubsidy > 0 ? { [PROPOSER]: creationSubsidy } : {},
     strict: true,
   });
-  await db.update(proposals).set({ conditionalMarketIds: ids })
+  await db
+    .update(proposals)
+    .set({ conditionalMarketIds: ids })
     .where(and(eq(proposals.id, PROPOSAL), eq(proposals.workspaceId, WS)));
   return ids;
 }
 
 function bulkFund(callerId: string, body: Record<string, unknown>) {
-  return request(app).post('/api/predictions/markets/liquidity/bulk')
+  return request(app)
+    .post('/api/predictions/markets/liquidity/bulk')
     .set('X-Test-Agent-Id', callerId)
     .set('X-Workspace-Id', WS)
     .set('Content-Type', 'application/json')
@@ -109,13 +143,17 @@ function bulkFund(callerId: string, body: Record<string, unknown>) {
 }
 
 async function getProposal() {
-  const [row] = await db.select().from(proposals)
+  const [row] = await db
+    .select()
+    .from(proposals)
     .where(and(eq(proposals.id, PROPOSAL), eq(proposals.workspaceId, WS)));
   return row;
 }
 
 async function liveConditionalMarkets() {
-  const rows = await db.select().from(markets)
+  const rows = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.workspaceId, WS), eq(markets.proposalId, PROPOSAL)));
   return rows.filter(m => !m.resolved && !m.voided);
 }
@@ -177,7 +215,9 @@ describe('rollover re-seeds recorded contributions', () => {
 
     // Roll the baseline to a new target date; the old conditional markets'
     // (metric, targetDate) tuples leave the desired set and get voided.
-    await db.update(markets).set({ targetDate: '2027-01' })
+    await db
+      .update(markets)
+      .set({ targetDate: '2027-01' })
       .where(and(eq(markets.id, 'mkt-base-topup'), eq(markets.workspaceId, WS)));
 
     const proposal = await getProposal();
@@ -204,7 +244,9 @@ describe('rollover re-seeds recorded contributions', () => {
     await seed({ creationSubsidy: 1 });
     await bulkFund(OWNER, { amount: 2, proposalId: PROPOSAL });
 
-    await db.update(markets).set({ targetDate: '2027-01' })
+    await db
+      .update(markets)
+      .set({ targetDate: '2027-01' })
       .where(and(eq(markets.id, 'mkt-base-topup'), eq(markets.workspaceId, WS)));
 
     const proposal = await getProposal();
@@ -234,17 +276,38 @@ describe('rollover re-seeds recorded contributions', () => {
     // (1/market x 2 markets), so the new generation must cost more than that
     // for them to be genuinely underfunded: add a second baseline metric so
     // 4 markets spawn (cost 4 > refund 2).
-    await db.update(agents).set({ balance: toUnits(0) }).where(eq(agents.id, PROPOSER));
-    await db.update(markets).set({ targetDate: '2027-01' })
+    await db
+      .update(agents)
+      .set({ balance: toUnits(0) })
+      .where(eq(agents.id, PROPOSER));
+    await db
+      .update(markets)
+      .set({ targetDate: '2027-01' })
       .where(and(eq(markets.id, 'mkt-base-topup'), eq(markets.workspaceId, WS)));
     await db.insert(metrics).values({
-      id: 'metric-topup-2', workspaceId: WS, name: 'Latency', value: 0, formula: '0', marketRangeMax: 100,
+      id: 'metric-topup-2',
+      workspaceId: WS,
+      name: 'Latency',
+      value: 0,
+      formula: '0',
+      marketRangeMax: 100,
     });
     await db.insert(markets).values({
-      id: 'mkt-base-topup-2', workspaceId: WS, metricId: 'metric-topup-2', metricName: 'Latency',
-      targetDate: '2027-01', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      id: 'mkt-base-topup-2',
+      workspaceId: WS,
+      metricId: 'metric-topup-2',
+      metricName: 'Latency',
+      targetDate: '2027-01',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
+      branch: null,
     });
 
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -267,18 +330,25 @@ describe('rollover re-seeds recorded contributions', () => {
 
   test('strict spawn throws when a contributor cannot cover the subsidy', async () => {
     await seed();
-    await db.update(agents).set({ balance: toUnits(0) }).where(eq(agents.id, PROPOSER));
-    await expect(createConditionalMarkets('proposal-strict', WS, {
-      contributions: { [PROPOSER]: 5 },
-      strict: true,
-    })).rejects.toThrow(/Insufficient balance/);
+    await db
+      .update(agents)
+      .set({ balance: toUnits(0) })
+      .where(eq(agents.id, PROPOSER));
+    await expect(
+      createConditionalMarkets('proposal-strict', WS, {
+        contributions: { [PROPOSER]: 5 },
+        strict: true,
+      }),
+    ).rejects.toThrow(/Insufficient balance/);
   });
 });
 
 describe('decided proposals do not accumulate contributions', () => {
   test('top-up on an approved proposal injects but is not recorded', async () => {
     await seed();
-    await db.update(proposals).set({ status: 'approved' })
+    await db
+      .update(proposals)
+      .set({ status: 'approved' })
       .where(and(eq(proposals.id, PROPOSAL), eq(proposals.workspaceId, WS)));
 
     const res = await bulkFund(OWNER, { amount: 2, proposalId: PROPOSAL });

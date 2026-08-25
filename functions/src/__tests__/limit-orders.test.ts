@@ -31,21 +31,24 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, limitOrders, markets, metrics, positions, workspaces } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
 import { consensus, initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
 import { fromUnits, toUnits } from '../lib/validation';
+// The router no longer carries auth itself (app.ts applies the policy first),
+// so the test mounts the mocked middleware where the policy would run.
+import { authMiddleware } from '../middleware/auth';
 import { predictionsRouter } from '../routes/predictions';
 import { voidMarket } from '../services/markets';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
-app.use('/api/predictions', predictionsRouter);
+app.use('/api/predictions', authMiddleware, predictionsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {
   const status = err instanceof AppError ? err.status : 500;
@@ -53,8 +56,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message, ...extra });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-limit';
 const RESTER = 'agent-rester';
@@ -69,32 +76,65 @@ async function seed(cap = 0) {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Limit Test', createdBy: 'agent-owner-limit', ownerAgentId: 'agent-owner-limit', visibility: 'public',
+    wsId: WS,
+    name: 'Limit Test',
+    createdBy: 'agent-owner-limit',
+    ownerAgentId: 'agent-owner-limit',
+    visibility: 'public',
   });
   await db.update(workspaces).set({ maxPositionCostPerMarket: cap }).where(eq(workspaces.id, WS));
   await db.insert(metrics).values({
-    id: 'metric-limit', workspaceId: WS, name: 'Throughput', value: 0, formula: '0', marketRangeMax: 100,
+    id: 'metric-limit',
+    workspaceId: WS,
+    name: 'Throughput',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: 'metric-limit', metricName: 'Throughput',
-    targetDate: '2028', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 200, pool: initialPool(200),
-    active: true, resolved: false, voided: false, proposalId: null,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: 'metric-limit',
+    metricName: 'Throughput',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 200,
+    pool: initialPool(200),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
   });
 }
 
 function as(agentId: string) {
   return {
-    place: (body: Record<string, unknown>) => request(app).post('/api/predictions/limit-orders')
-      .set('X-Test-Agent-Id', agentId).set('X-Workspace-Id', WS)
-      .set('Content-Type', 'application/json').send({ marketId: MARKET, ...body }),
-    list: (query = '') => request(app).get(`/api/predictions/limit-orders${query}`)
-      .set('X-Test-Agent-Id', agentId).set('X-Workspace-Id', WS),
-    cancel: (id: string) => request(app).delete(`/api/predictions/limit-orders/${id}`)
-      .set('X-Test-Agent-Id', agentId).set('X-Workspace-Id', WS),
-    trade: (body: Record<string, unknown>) => request(app).post('/api/predictions/trade')
-      .set('X-Test-Agent-Id', agentId).set('X-Workspace-Id', WS)
-      .set('Content-Type', 'application/json').send({ marketId: MARKET, ...body }),
+    place: (body: Record<string, unknown>) =>
+      request(app)
+        .post('/api/predictions/limit-orders')
+        .set('X-Test-Agent-Id', agentId)
+        .set('X-Workspace-Id', WS)
+        .set('Content-Type', 'application/json')
+        .send({ marketId: MARKET, ...body }),
+    list: (query = '') =>
+      request(app)
+        .get(`/api/predictions/limit-orders${query}`)
+        .set('X-Test-Agent-Id', agentId)
+        .set('X-Workspace-Id', WS),
+    cancel: (id: string) =>
+      request(app)
+        .delete(`/api/predictions/limit-orders/${id}`)
+        .set('X-Test-Agent-Id', agentId)
+        .set('X-Workspace-Id', WS),
+    trade: (body: Record<string, unknown>) =>
+      request(app)
+        .post('/api/predictions/trade')
+        .set('X-Test-Agent-Id', agentId)
+        .set('X-Workspace-Id', WS)
+        .set('Content-Type', 'application/json')
+        .send({ marketId: MARKET, ...body }),
   };
 }
 
@@ -229,8 +269,13 @@ describe('filling', () => {
     await seed();
     await as(RESTER).place({ direction: 'higher', limitValue: 40, budgetCredits: 500 });
     await db.insert(positions).values({
-      id: `${RESTER}_${MARKET}_higher`, workspaceId: WS, agentId: RESTER, marketId: MARKET,
-      direction: 'higher', shares: 0, totalCost: 400,
+      id: `${RESTER}_${MARKET}_higher`,
+      workspaceId: WS,
+      agentId: RESTER,
+      marketId: MARKET,
+      direction: 'higher',
+      shares: 0,
+      totalCost: 400,
     });
     await db.update(workspaces).set({ maxPositionCostPerMarket: 300 }).where(eq(workspaces.id, WS));
 
@@ -246,11 +291,15 @@ describe('filling', () => {
   test('an expired order is swept instead of filled, and refunded', async () => {
     await seed();
     const placed = await as(RESTER).place({
-      direction: 'higher', limitValue: 40, budgetCredits: 100,
+      direction: 'higher',
+      limitValue: 40,
+      budgetCredits: 100,
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
     });
     expect(placed.status).toBe(201);
-    await db.update(limitOrders).set({ expiresAt: new Date(Date.now() - 1000) })
+    await db
+      .update(limitOrders)
+      .set({ expiresAt: new Date(Date.now() - 1000) })
       .where(eq(limitOrders.id, placed.body.id));
 
     await as(MOVER).trade({ targetValue: 20, maxBudget: 500 });
@@ -289,19 +338,23 @@ describe('cancelling and closing out', () => {
     await seed();
     const placed = await as(RESTER).place({ direction: 'higher', limitValue: 40, budgetCredits: 100 });
 
-    const res = await request(app).delete(`/api/predictions/limit-orders/${placed.body.id}`)
-      .set('X-Test-Agent-Id', MOVER).set('X-Workspace-Id', WS)
+    const res = await request(app)
+      .delete(`/api/predictions/limit-orders/${placed.body.id}`)
+      .set('X-Test-Agent-Id', MOVER)
+      .set('X-Workspace-Id', WS)
       .set('X-Test-Caps', 'read,trade');
     expect(res.status).toBe(403);
     expect(await balanceOf(RESTER)).toBeCloseTo(900, 5);
   });
 
-  test('a plain trader does not see another participant\'s orders', async () => {
+  test("a plain trader does not see another participant's orders", async () => {
     await seed();
     await as(RESTER).place({ direction: 'higher', limitValue: 40, budgetCredits: 100 });
 
-    const res = await request(app).get(`/api/predictions/limit-orders?agentId=${RESTER}`)
-      .set('X-Test-Agent-Id', MOVER).set('X-Workspace-Id', WS)
+    const res = await request(app)
+      .get(`/api/predictions/limit-orders?agentId=${RESTER}`)
+      .set('X-Test-Agent-Id', MOVER)
+      .set('X-Workspace-Id', WS)
       .set('X-Test-Caps', 'read,trade');
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(0);
@@ -321,7 +374,7 @@ describe('cancelling and closing out', () => {
 });
 
 describe('listing', () => {
-  test('lists only the caller\'s own open orders by default', async () => {
+  test("lists only the caller's own open orders by default", async () => {
     await seed();
     await as(RESTER).place({ direction: 'higher', limitValue: 40, budgetCredits: 100 });
     await as(MOVER).place({ direction: 'lower', limitValue: 80, budgetCredits: 100 });

@@ -17,12 +17,12 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import { eq } from 'drizzle-orm';
 import { agents, liquidityEvents, markets, metrics, trades, workspaces } from '../db/schema';
+import { consensus } from '../lib/amm';
 import { toUnits } from '../lib/validation';
 import { marketPriceSeries, replayMarketTradePoints } from '../services/predictions';
-import { consensus } from '../lib/amm';
-import { eq } from 'drizzle-orm';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const WS = 'ws-anchored';
 const METRIC = 'metric-anchored';
@@ -34,31 +34,65 @@ const BUY = 15.1393114;
 const OPENED = new Date('2026-08-19T10:06:38.616Z');
 const TRADED = new Date('2026-08-19T10:06:57.864Z');
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   await db.insert(agents).values({ id: 'trader', apiKeyHash: 'h-t', balance: toUnits(1000) });
   await db.insert(workspaces).values({
-    id: WS, name: 'Anchored', slug: 'anchored', createdBy: 'trader', visibility: 'public',
+    id: WS,
+    name: 'Anchored',
+    slug: 'anchored',
+    createdBy: 'trader',
+    visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Weekly active verified traders', value: 6, formula: '0', marketRangeMax: 50,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Weekly active verified traders',
+    value: 6,
+    formula: '0',
+    marketRangeMax: 50,
   });
   // The book as it stands now: the anchor plus the one buy.
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Weekly active verified traders',
-    targetDate: '2026-12', rangeMin: 0, rangeMax: 50,
-    shares: [ANCHOR[0], ANCHOR[1] + BUY], liquidity: B, pool: B * Math.LN2,
-    active: true, resolved: false, voided: false, proposalId: null, createdAt: OPENED,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: METRIC,
+    metricName: 'Weekly active verified traders',
+    targetDate: '2026-12',
+    rangeMin: 0,
+    rangeMax: 50,
+    shares: [ANCHOR[0], ANCHOR[1] + BUY],
+    liquidity: B,
+    pool: B * Math.LN2,
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
+    createdAt: OPENED,
   });
   await db.insert(liquidityEvents).values({
-    id: 'liq-open', workspaceId: WS, marketId: MARKET, agentId: 'trader',
-    amount: B * Math.LN2, poolContribution: B * Math.LN2, totalLiquidity: B,
-    type: 'initial', createdAt: OPENED,
+    id: 'liq-open',
+    workspaceId: WS,
+    marketId: MARKET,
+    agentId: 'trader',
+    amount: B * Math.LN2,
+    poolContribution: B * Math.LN2,
+    totalLiquidity: B,
+    type: 'initial',
+    createdAt: OPENED,
   });
   await db.insert(trades).values({
-    id: 'trade-1', workspaceId: WS, agentId: 'trader', marketId: MARKET,
-    direction: 'higher', shares: BUY, cost: 8, createdAt: TRADED,
+    id: 'trade-1',
+    workspaceId: WS,
+    agentId: 'trader',
+    marketId: MARKET,
+    direction: 'higher',
+    shares: BUY,
+    cost: 8,
+    createdAt: TRADED,
   });
 });
 
@@ -93,7 +127,10 @@ describe('price history of a market that opened anchored', () => {
   });
 
   test('a market that opened empty is unchanged', async () => {
-    await db.update(markets).set({ shares: [0, BUY] }).where(eq(markets.id, MARKET));
+    await db
+      .update(markets)
+      .set({ shares: [0, BUY] })
+      .where(eq(markets.id, MARKET));
     const series = await marketPriceSeries(MARKET, WS);
     // Opens at the midpoint prior, then the buy moves it up.
     expect(series[0].consensus).toBeCloseTo(25, 1);

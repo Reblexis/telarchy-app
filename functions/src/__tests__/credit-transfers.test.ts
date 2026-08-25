@@ -20,14 +20,14 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, creditTransfers } from '../db/schema';
-import { toUnits, fromUnits } from '../lib/validation';
-import { agentsRouter } from '../routes/agents';
 import { AppError } from '../lib/errors';
+import { fromUnits, toUnits } from '../lib/validation';
+import { agentsRouter } from '../routes/agents';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 // Injects req.auth before the router so requireIdentity / requireScope see
 // the caller described by test headers (the real authMiddleware is mocked).
@@ -50,14 +50,19 @@ app.use((req: any, _res, next) => {
 app.use('/api/agents', agentsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof AppError) { res.status(err.status).json({ error: err.message }); return; }
+  if (err instanceof AppError) {
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
   res.status(500).json({ error: (err as Error).message ?? 'Internal error' });
 });
 
 const ALICE = 'agent-alice-ct';
 const BOB = 'agent-bob-ct';
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   await db.insert(agents).values([
@@ -110,8 +115,7 @@ describe('POST /api/agents/transfer', () => {
   });
 
   it('rejects self-transfers, unknown recipients, and bad amounts', async () => {
-    const send = (body: object) =>
-      request(app).post('/api/agents/transfer').set('x-test-agent', ALICE).send(body);
+    const send = (body: object) => request(app).post('/api/agents/transfer').set('x-test-agent', ALICE).send(body);
     await send({ toAgent: ALICE, amount: 1 }).expect(400);
     await send({ toAgent: 'ghost', amount: 1 }).expect(404);
     await send({ toAgent: BOB, amount: 0 }).expect(400);
@@ -139,25 +143,23 @@ describe('POST /api/agents/transfer', () => {
 
 describe('GET /api/agents/transfers', () => {
   beforeEach(async () => {
-    await request(app).post('/api/agents/transfer')
-      .set('x-test-agent', ALICE).send({ toAgent: BOB, amount: 2, memo: 'a->b' });
-    await request(app).post('/api/agents/transfer')
-      .set('x-test-agent', BOB).send({ toAgent: ALICE, amount: 1, memo: 'b->a' });
+    await request(app)
+      .post('/api/agents/transfer')
+      .set('x-test-agent', ALICE)
+      .send({ toAgent: BOB, amount: 2, memo: 'a->b' });
+    await request(app)
+      .post('/api/agents/transfer')
+      .set('x-test-agent', BOB)
+      .send({ toAgent: ALICE, amount: 1, memo: 'b->a' });
   });
 
   it('filters by direction so a receiver can verify an inbound payment', async () => {
-    const inbound = await request(app)
-      .get('/api/agents/transfers?direction=in')
-      .set('x-test-agent', BOB)
-      .expect(200);
+    const inbound = await request(app).get('/api/agents/transfers?direction=in').set('x-test-agent', BOB).expect(200);
     expect(inbound.body).toHaveLength(1);
     expect(inbound.body[0].memo).toBe('a->b');
     expect(inbound.body[0].fromAgent).toBe(ALICE);
 
-    const all = await request(app)
-      .get('/api/agents/transfers')
-      .set('x-test-agent', BOB)
-      .expect(200);
+    const all = await request(app).get('/api/agents/transfers').set('x-test-agent', BOB).expect(200);
     expect(all.body).toHaveLength(2);
   });
 

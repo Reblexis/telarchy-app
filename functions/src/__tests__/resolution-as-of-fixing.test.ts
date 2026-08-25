@@ -13,16 +13,20 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { workspaces, agents, metrics, markets, metricLogs } from '../db/schema';
+import { agents, markets, metricLogs, metrics, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { toUnits } from '../lib/validation';
-import { resolvePredictions } from '../services/predictions';
-import { metricValueAsOf } from '../services/metrics';
 import { periodEndInstant } from '../lib/date-utils';
+import { toUnits } from '../lib/validation';
+import { metricValueAsOf } from '../services/metrics';
+import { resolvePredictions } from '../services/predictions';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-fixing';
 const OWNER = 'owner-fixing';
@@ -44,30 +48,52 @@ const LIVE_VALUE = 9; // metric's current value at "cron time" (now)
 
 async function seedWorld(opts: { logs?: Array<{ offsetMs: number; value: number; outlook?: number | null }> } = {}) {
   await db.insert(workspaces).values({
-    id: WS, name: 'Fixing Test', createdBy: OWNER, visibility: 'private',
+    id: WS,
+    name: 'Fixing Test',
+    createdBy: OWNER,
+    visibility: 'private',
   });
   await db.insert(agents).values({ id: OWNER, apiKeyHash: 'h-fixing', balance: toUnits(0) });
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Trailing counter', value: LIVE_VALUE,
-    formula: '0', marketRangeMax: 100,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Trailing counter',
+    value: LIVE_VALUE,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Trailing counter',
-    targetDate: TARGET, rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 10, pool: initialPool(10),
-    active: true, resolved: false, voided: false,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: METRIC,
+    metricName: 'Trailing counter',
+    targetDate: TARGET,
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 10,
+    pool: initialPool(10),
+    active: true,
+    resolved: false,
+    voided: false,
   });
   for (const log of opts.logs ?? []) {
     await db.insert(metricLogs).values({
-      id: `log-${log.offsetMs}`, workspaceId: WS, metricId: METRIC, metricName: 'Trailing counter',
-      value: log.value, outlook: log.outlook === undefined ? log.value : log.outlook,
+      id: `log-${log.offsetMs}`,
+      workspaceId: WS,
+      metricId: METRIC,
+      metricName: 'Trailing counter',
+      value: log.value,
+      outlook: log.outlook === undefined ? log.value : log.outlook,
       timestamp: new Date(BOUNDARY.getTime() + log.offsetMs),
     });
   }
 }
 
 async function resolvedMarket() {
-  const [m] = await db.select().from(markets)
+  const [m] = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.id, MARKET), eq(markets.workspaceId, WS)));
   return m;
 }

@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { requireCapability } from '../middleware/roles';
 import type { AuthInfo, Capability } from '../types';
 
@@ -47,7 +47,11 @@ describe('requireCapability', () => {
   test('passes through when the caller holds any one of several required capabilities', () => {
     const { res, status } = makeRes();
     const next = jest.fn();
-    requireCapability('manage', 'trade')(makeReq({ capabilities: new Set<Capability>(['trade']) }), res, next as NextFunction);
+    requireCapability('manage', 'trade')(
+      makeReq({ capabilities: new Set<Capability>(['trade']) }),
+      res,
+      next as NextFunction,
+    );
     expect(status).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledTimes(1);
   });
@@ -55,24 +59,36 @@ describe('requireCapability', () => {
   test('403 names the single missing capability and echoes requiredCapabilities', () => {
     const { res, status, json } = makeRes();
     const next = jest.fn();
-    requireCapability('read')(makeReq({ agentId: 'a1', capabilities: new Set<Capability>() }), res, next as NextFunction);
+    requireCapability('read')(
+      makeReq({ agentId: 'a1', capabilities: new Set<Capability>() }),
+      res,
+      next as NextFunction,
+    );
     expect(status).toHaveBeenCalledWith(403);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
-      error: expect.stringContaining('"read"'),
-      requiredCapabilities: ['read'],
-    }));
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.stringContaining('"read"'),
+        requiredCapabilities: ['read'],
+      }),
+    );
     expect(next).not.toHaveBeenCalled();
   });
 
   test('403 lists all options when multiple capabilities would satisfy the gate', () => {
     const { res, status, json } = makeRes();
     const next = jest.fn();
-    requireCapability('manage', 'trade')(makeReq({ agentId: 'a1', capabilities: new Set<Capability>(['read']) }), res, next as NextFunction);
+    requireCapability('manage', 'trade')(
+      makeReq({ agentId: 'a1', capabilities: new Set<Capability>(['read']) }),
+      res,
+      next as NextFunction,
+    );
     expect(status).toHaveBeenCalledWith(403);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
-      error: expect.stringContaining('manage, trade'),
-      requiredCapabilities: ['manage', 'trade'],
-    }));
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.stringContaining('manage, trade'),
+        requiredCapabilities: ['manage', 'trade'],
+      }),
+    );
     expect(next).not.toHaveBeenCalled();
   });
 });

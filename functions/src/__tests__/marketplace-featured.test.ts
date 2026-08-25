@@ -26,15 +26,15 @@ jest.mock('../middleware/auth', () => ({
   },
 }));
 
-import request from 'supertest';
 import express from 'express';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import request from 'supertest';
 import { agents, authUser, markets, metrics, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { toUnits } from '../lib/validation';
-import { marketplaceRouter } from '../routes/marketplace';
-import { adminRouter } from '../routes/admin';
 import { AppError } from '../lib/errors';
+import { toUnits } from '../lib/validation';
+import { adminRouter } from '../routes/admin';
+import { marketplaceRouter } from '../routes/marketplace';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -48,8 +48,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); }, 30_000);
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+}, 30_000);
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const PUBLIC_WS = 'ws-public';
 const PRIVATE_WS = 'ws-private';
@@ -79,21 +83,42 @@ async function seed() {
     { id: METRIC_PRIV, workspaceId: PRIVATE_WS, name: 'Priv metric', value: 0, formula: '0', marketRangeMax: 100 },
   ]);
   const marketBase = {
-    rangeMin: 0, rangeMax: 100, shares: [0, 0] as [number, number],
-    liquidity: 10, pool: initialPool(10), active: true, resolved: false, voided: false,
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0] as [number, number],
+    liquidity: 10,
+    pool: initialPool(10),
+    active: true,
+    resolved: false,
+    voided: false,
   };
   await db.insert(markets).values([
     {
-      ...marketBase, id: MKT_PUB_FEATURED, workspaceId: PUBLIC_WS, metricId: METRIC_PUB,
-      metricName: 'Pub metric', targetDate: '2026-12', featured: true,
+      ...marketBase,
+      id: MKT_PUB_FEATURED,
+      workspaceId: PUBLIC_WS,
+      metricId: METRIC_PUB,
+      metricName: 'Pub metric',
+      targetDate: '2026-12',
+      featured: true,
     },
     {
-      ...marketBase, id: MKT_PUB_PLAIN, workspaceId: PUBLIC_WS, metricId: METRIC_PUB,
-      metricName: 'Pub metric', targetDate: '2026-11', featured: false,
+      ...marketBase,
+      id: MKT_PUB_PLAIN,
+      workspaceId: PUBLIC_WS,
+      metricId: METRIC_PUB,
+      metricName: 'Pub metric',
+      targetDate: '2026-11',
+      featured: false,
     },
     {
-      ...marketBase, id: MKT_PRIV_FEATURED, workspaceId: PRIVATE_WS, metricId: METRIC_PRIV,
-      metricName: 'Priv metric', targetDate: '2026-12', featured: true,
+      ...marketBase,
+      id: MKT_PRIV_FEATURED,
+      workspaceId: PRIVATE_WS,
+      metricId: METRIC_PRIV,
+      metricName: 'Priv metric',
+      targetDate: '2026-12',
+      featured: true,
     },
   ]);
 }

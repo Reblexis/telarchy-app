@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { api } from '../lib/api';
 import { PageTopBar } from '../components/PageTopBar';
+import { api } from '../lib/api';
 
 const mdStyles: React.CSSProperties = {
   fontSize: '0.875rem',
@@ -20,7 +19,8 @@ export function LegalPage({ document }: LegalPageProps) {
 
   useEffect(() => {
     setLoading(true);
-    api.getLegalDocument(document)
+    api
+      .getLegalDocument(document)
       .then(setContent)
       .catch(err => console.error('Failed to load legal document', err))
       .finally(() => setLoading(false));
@@ -41,7 +41,16 @@ export function LegalPage({ document }: LegalPageProps) {
               </h1>
             ),
             h2: ({ children }) => (
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '2rem 0 0.6rem', paddingBottom: '0.35rem', borderBottom: '1px solid var(--border-color)' }}>
+              <h2
+                style={{
+                  fontSize: '1.05rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  margin: '2rem 0 0.6rem',
+                  paddingBottom: '0.35rem',
+                  borderBottom: '1px solid var(--border-color)',
+                }}
+              >
                 {children}
               </h2>
             ),
@@ -50,16 +59,38 @@ export function LegalPage({ document }: LegalPageProps) {
             ul: ({ children }) => <ul style={{ paddingLeft: '1.5rem', margin: '0.4rem 0' }}>{children}</ul>,
             ol: ({ children }) => <ol style={{ paddingLeft: '1.5rem', margin: '0.4rem 0' }}>{children}</ol>,
             code: ({ children }) => (
-              <code style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '3px', padding: '0.1em 0.35em', fontFamily: 'monospace', fontSize: '0.85em', color: 'var(--text-primary)' }}>
+              <code
+                style={{
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '3px',
+                  padding: '0.1em 0.35em',
+                  fontFamily: 'monospace',
+                  fontSize: '0.85em',
+                  color: 'var(--text-primary)',
+                }}
+              >
                 {children}
               </code>
             ),
             blockquote: ({ children }) => (
-              <div style={{ padding: '0.75rem 1rem', borderLeft: '3px solid var(--focus-border)', background: 'var(--focus-bg)', borderRadius: '0 4px 4px 0', fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '0.75rem 0' }}>
+              <div
+                style={{
+                  padding: '0.75rem 1rem',
+                  borderLeft: '3px solid var(--focus-border)',
+                  background: 'var(--focus-bg)',
+                  borderRadius: '0 4px 4px 0',
+                  fontSize: '0.875rem',
+                  color: 'var(--text-secondary)',
+                  margin: '0.75rem 0',
+                }}
+              >
                 {children}
               </div>
             ),
-            strong: ({ children }) => <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{children}</strong>,
+            strong: ({ children }) => (
+              <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{children}</strong>
+            ),
             em: ({ children }) => <em style={{ color: 'var(--text-secondary)' }}>{children}</em>,
           }}
         >

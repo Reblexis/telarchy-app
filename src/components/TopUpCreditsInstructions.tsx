@@ -1,6 +1,6 @@
-import { useState, useEffect, type CSSProperties } from 'react';
-import { Link } from 'react-router-dom';
+import { type CSSProperties, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 
 export type DepositAddressInfo = {
@@ -20,17 +20,20 @@ function CopyRow({ label, value }: { label: string; value: string }) {
   };
   return (
     <div style={{ marginBottom: '0.65rem' }}>
-      <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <div
+        style={{
+          fontSize: '0.7rem',
+          color: 'var(--text-tertiary)',
+          marginBottom: '0.2rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+        }}
+      >
         {label}
       </div>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <code style={{ fontSize: '0.78rem', wordBreak: 'break-all', flex: 1, minWidth: 0 }}>{value}</code>
-        <button
-          type="button"
-          onClick={copy}
-          className="btn-copy"
-          style={{ flexShrink: 0 }}
-        >
+        <button type="button" onClick={copy} className="btn-copy" style={{ flexShrink: 0 }}>
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
@@ -58,7 +61,8 @@ export function TopUpCreditsInstructions({ deposit }: { deposit: DepositAddressI
     let cancelled = false;
     setGuideLoading(true);
     setGuideErr(false);
-    api.getGuide('credits')
+    api
+      .getGuide('credits')
       .then(text => {
         if (!cancelled) setGuideMd(text);
       })
@@ -68,7 +72,9 @@ export function TopUpCreditsInstructions({ deposit }: { deposit: DepositAddressI
       .finally(() => {
         if (!cancelled) setGuideLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!deposit) {
@@ -84,7 +90,8 @@ export function TopUpCreditsInstructions({ deposit }: { deposit: DepositAddressI
           color: 'var(--text-secondary)',
         }}
       >
-        Top-up is unavailable: <code style={{ fontSize: '0.78rem' }}>GET /api/agents/deposit-address</code> did not return a treasury (host not configured for on-chain deposits).
+        Top-up is unavailable: <code style={{ fontSize: '0.78rem' }}>GET /api/agents/deposit-address</code> did not
+        return a treasury (host not configured for on-chain deposits).
       </div>
     );
   }
@@ -102,38 +109,88 @@ export function TopUpCreditsInstructions({ deposit }: { deposit: DepositAddressI
       <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.65rem' }}>
         Instructions below are the same as <code style={{ fontSize: '0.72rem' }}>GET /api/guides/credits</code>
         {' · '}
-        <Link to="/guides" style={{ color: 'var(--focus-border)' }}>Guides</Link>
+        <Link to="/guides" style={{ color: 'var(--focus-border)' }}>
+          Guides
+        </Link>
       </div>
 
-      {guideLoading && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem' }}>Loading instructions…</p>}
+      {guideLoading && (
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem' }}>
+          Loading instructions…
+        </p>
+      )}
       {guideErr && (
         <p style={{ fontSize: '0.8rem', color: 'var(--error-text)', margin: '0 0 0.75rem' }}>
-          Could not load <code>GET /api/guides/credits</code>. Open <Link to="/guides">Guides</Link> or call the API directly.
+          Could not load <code>GET /api/guides/credits</code>. Open <Link to="/guides">Guides</Link> or call the API
+          directly.
         </p>
       )}
       {!guideLoading && !guideErr && guideMd && (
         <div style={mdBox}>
           <ReactMarkdown
             components={{
-              h1: ({ children }) => <h1 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.75rem' }}>{children}</h1>,
-              h2: ({ children }) => <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '1rem 0 0.5rem' }}>{children}</h2>,
+              h1: ({ children }) => (
+                <h1
+                  style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.75rem' }}
+                >
+                  {children}
+                </h1>
+              ),
+              h2: ({ children }) => (
+                <h2
+                  style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '1rem 0 0.5rem' }}
+                >
+                  {children}
+                </h2>
+              ),
               p: ({ children }) => <p style={{ margin: '0 0 0.6rem' }}>{children}</p>,
               ol: ({ children }) => <ol style={{ margin: '0 0 0.6rem 1.1rem', padding: 0 }}>{children}</ol>,
               ul: ({ children }) => <ul style={{ margin: '0 0 0.6rem 1.1rem', padding: 0 }}>{children}</ul>,
               li: ({ children }) => <li style={{ marginBottom: '0.25rem' }}>{children}</li>,
               pre: ({ children }) => (
-                <pre style={{ margin: '0 0 0.6rem', overflow: 'auto', padding: '0.5rem', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                <pre
+                  style={{
+                    margin: '0 0 0.6rem',
+                    overflow: 'auto',
+                    padding: '0.5rem',
+                    background: 'var(--bg-primary)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
                   {children}
                 </pre>
               ),
               code: ({ className, children }) => {
                 const block = typeof className === 'string' && className.startsWith('language-');
                 if (block) {
-                  return <code className={className} style={{ fontSize: '0.78rem', display: 'block', whiteSpace: 'pre', fontFamily: 'monospace' }}>{children}</code>;
+                  return (
+                    <code
+                      className={className}
+                      style={{ fontSize: '0.78rem', display: 'block', whiteSpace: 'pre', fontFamily: 'monospace' }}
+                    >
+                      {children}
+                    </code>
+                  );
                 }
-                return <code style={{ fontSize: '0.82rem', background: 'var(--bg-primary)', padding: '0.1rem 0.25rem', borderRadius: '4px' }}>{children}</code>;
+                return (
+                  <code
+                    style={{
+                      fontSize: '0.82rem',
+                      background: 'var(--bg-primary)',
+                      padding: '0.1rem 0.25rem',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    {children}
+                  </code>
+                );
               },
-              a: ({ href, children }) => <a href={href} style={{ color: 'var(--focus-border)' }} target="_blank" rel="noreferrer">{children}</a>,
+              a: ({ href, children }) => (
+                <a href={href} style={{ color: 'var(--focus-border)' }} target="_blank" rel="noreferrer">
+                  {children}
+                </a>
+              ),
             }}
           >
             {guideMd}

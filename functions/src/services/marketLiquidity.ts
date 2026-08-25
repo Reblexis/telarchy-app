@@ -1,11 +1,11 @@
 import { randomUUID } from 'crypto';
-import { eq, and, sql } from 'drizzle-orm';
-import { db } from '../db/client';
-import { agents, markets, liquidityEvents } from '../db/schema';
+import { and, eq, sql } from 'drizzle-orm';
+import type { db } from '../db/client';
+import { agents, liquidityEvents, markets } from '../db/schema';
 import { AppError } from '../lib/errors';
-import { applyCredits } from './credits';
 import { emitPricesChanged } from '../lib/market-events';
-import { sufficientBalance, toUnits, fromUnits, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
+import { fromUnits, MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits } from '../lib/validation';
+import { applyCredits } from './credits';
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -20,9 +20,7 @@ export function liquidityStateAfterPoolContribution(
   const newPool = oldPool + poolContribution;
   const newLiquidity = newPool / Math.LN2;
   const bRatio = hasLiquidity ? newLiquidity / liquidity : 1;
-  const newShares: [number, number] = hasLiquidity
-    ? [shares[0] * bRatio, shares[1] * bRatio]
-    : [0, 0];
+  const newShares: [number, number] = hasLiquidity ? [shares[0] * bRatio, shares[1] * bRatio] : [0, 0];
   return { newPool, newLiquidity, newShares };
 }
 
@@ -46,7 +44,9 @@ export async function applyAgentLiquidityInjectionTx(
     );
   }
 
-  const [market] = await tx.select().from(markets)
+  const [market] = await tx
+    .select()
+    .from(markets)
     .where(and(eq(markets.id, params.marketId), eq(markets.workspaceId, params.workspaceId)))
     .for('update');
   if (!market) throw new AppError('Market not found', 404);
@@ -68,12 +68,17 @@ export async function applyAgentLiquidityInjectionTx(
     );
   }
 
-  await tx.update(markets).set({ liquidity: newLiquidity, shares: newShares, pool: newPool })
+  await tx
+    .update(markets)
+    .set({ liquidity: newLiquidity, shares: newShares, pool: newPool })
     .where(and(eq(markets.id, params.marketId), eq(markets.workspaceId, params.workspaceId)));
   await applyCredits(tx, {
-    agentId: params.agentId, workspaceId: params.workspaceId,
+    agentId: params.agentId,
+    workspaceId: params.workspaceId,
     deltaUnits: -toUnits(params.poolContribution),
-    reason: 'liquidity', refType: 'market', refId: params.marketId,
+    reason: 'liquidity',
+    refType: 'market',
+    refId: params.marketId,
     also: { spentBetting: sql`${agents.spentBetting} + ${params.poolContribution}` },
   });
   await tx.insert(liquidityEvents).values({

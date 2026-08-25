@@ -9,35 +9,49 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { eq, and } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { workspaces, metrics, markets } from '../db/schema';
+import { and, eq } from 'drizzle-orm';
+import { markets, metrics, workspaces } from '../db/schema';
+import { toAbsoluteDate } from '../lib/date-utils';
+import { desiredMarketDates } from '../lib/time-preference';
 import { refreshRelativeDateMarkets } from '../services/markets';
 import { resolvePredictions } from '../services/predictions';
-import { desiredMarketDates } from '../lib/time-preference';
-import { toAbsoluteDate } from '../lib/date-utils';
 import type { TimePreference } from '../types';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-custom-horizons';
 
 async function seedWorkspace() {
   await db.insert(workspaces).values({
-    id: WS, name: 'Custom Horizons Test', createdBy: 'owner', visibility: 'private',
+    id: WS,
+    name: 'Custom Horizons Test',
+    createdBy: 'owner',
+    visibility: 'private',
   });
 }
 
 async function seedMetric(id: string, name: string, tp: TimePreference | null, rangeMax = 100) {
   await db.insert(metrics).values({
-    id, workspaceId: WS, name, value: 0, formula: '0',
-    marketRangeMax: rangeMax, timePreference: tp,
+    id,
+    workspaceId: WS,
+    name,
+    value: 0,
+    formula: '0',
+    marketRangeMax: rangeMax,
+    timePreference: tp,
   });
 }
 
 async function marketsFor(metricId: string) {
-  return db.select().from(markets)
+  return db
+    .select()
+    .from(markets)
     .where(and(eq(markets.workspaceId, WS), eq(markets.metricId, metricId)));
 }
 
@@ -62,7 +76,8 @@ describe('refreshRelativeDateMarkets with custom horizons', () => {
     await seedMetric('m1', 'Custom Only', { enabled: false, halfLife: 1, customHorizons: ['+2w', '2099-12-31'] });
     await refreshRelativeDateMarkets(WS, { force: true });
 
-    await db.update(metrics)
+    await db
+      .update(metrics)
       .set({ timePreference: { enabled: false, halfLife: 1, customHorizons: ['2099-12-31'] } })
       .where(eq(metrics.id, 'm1'));
     await refreshRelativeDateMarkets(WS, { force: true });
@@ -83,7 +98,8 @@ describe('refreshRelativeDateMarkets with custom horizons', () => {
     let rows = await marketsFor('m1');
     expect(rows).toHaveLength(curveDates.length + 1);
 
-    await db.update(metrics)
+    await db
+      .update(metrics)
       .set({ timePreference: { enabled: false, halfLife: 1, customHorizons: ['2099-12-31'] } })
       .where(eq(metrics.id, 'm1'));
     await refreshRelativeDateMarkets(WS, { force: true });
@@ -99,17 +115,28 @@ describe('refreshRelativeDateMarkets with custom horizons', () => {
     await seedMetric('m-manual', 'No TP Metric', null, 100);
     // Manual one-off market with a custom range that mismatches marketRangeMax.
     await db.insert(markets).values({
-      id: 'manual-1', workspaceId: WS, metricId: 'm-manual', metricName: 'No TP Metric',
-      targetDate: '2099-06', rangeMin: 0, rangeMax: 50,
-      shares: [0, 0], liquidity: 10, pool: 10,
-      active: true, resolved: false, voided: false,
+      id: 'manual-1',
+      workspaceId: WS,
+      metricId: 'm-manual',
+      metricName: 'No TP Metric',
+      targetDate: '2099-06',
+      rangeMin: 0,
+      rangeMax: 50,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: 10,
+      active: true,
+      resolved: false,
+      voided: false,
     });
     // A managed metric in the same workspace so the refresh has real work to do.
     await seedMetric('m-managed', 'Managed Metric', { enabled: false, halfLife: 1, customHorizons: ['2099-12-31'] });
 
     await refreshRelativeDateMarkets(WS, { force: true });
 
-    const [manual] = await db.select().from(markets)
+    const [manual] = await db
+      .select()
+      .from(markets)
       .where(and(eq(markets.workspaceId, WS), eq(markets.id, 'manual-1')));
     expect(manual.active).toBe(true);
     expect(manual.resolved).toBe(false);
@@ -132,18 +159,31 @@ describe('refreshRelativeDateMarkets with custom horizons', () => {
     past.setUTCHours(past.getUTCHours() - 2);
     const pastHour = past.toISOString().slice(0, 13);
     await db.insert(markets).values({
-      id: 'hour-past', workspaceId: WS, metricId: 'm-hour', metricName: 'Hourly Metric',
-      targetDate: pastHour, rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: 10,
-      active: true, resolved: false, voided: false,
+      id: 'hour-past',
+      workspaceId: WS,
+      metricId: 'm-hour',
+      metricName: 'Hourly Metric',
+      targetDate: pastHour,
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: 10,
+      active: true,
+      resolved: false,
+      voided: false,
     });
     await resolvePredictions(undefined, WS);
 
-    const [resolvedRow] = await db.select().from(markets)
+    const [resolvedRow] = await db
+      .select()
+      .from(markets)
       .where(and(eq(markets.workspaceId, WS), eq(markets.id, 'hour-past')));
     expect(resolvedRow.resolved).toBe(true);
     // The +1h market's hour has not passed; it stays open.
-    const [openRow] = await db.select().from(markets)
+    const [openRow] = await db
+      .select()
+      .from(markets)
       .where(and(eq(markets.workspaceId, WS), eq(markets.id, rows[0].id)));
     expect(openRow.resolved).toBe(false);
   });
@@ -152,10 +192,19 @@ describe('refreshRelativeDateMarkets with custom horizons', () => {
     await seedWorkspace();
     await seedMetric('m1', 'Managed', { enabled: false, halfLife: 1, customHorizons: ['2099-12-31'] }, 100);
     await db.insert(markets).values({
-      id: 'stale-range', workspaceId: WS, metricId: 'm1', metricName: 'Managed',
-      targetDate: '2099-12-31', rangeMin: 0, rangeMax: 50, // stale vs marketRangeMax=100
-      shares: [0, 0], liquidity: 10, pool: 0,
-      active: true, resolved: false, voided: false,
+      id: 'stale-range',
+      workspaceId: WS,
+      metricId: 'm1',
+      metricName: 'Managed',
+      targetDate: '2099-12-31',
+      rangeMin: 0,
+      rangeMax: 50, // stale vs marketRangeMax=100
+      shares: [0, 0],
+      liquidity: 10,
+      pool: 0,
+      active: true,
+      resolved: false,
+      voided: false,
     });
 
     await refreshRelativeDateMarkets(WS, { force: true });

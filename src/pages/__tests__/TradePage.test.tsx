@@ -1,6 +1,6 @@
-import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * The floor's live poll must not touch what the viewer is looking at.
@@ -38,48 +38,54 @@ const h = vi.hoisted(() => {
     openMarketCount: 1,
     participantCount: 3,
     proposalStats: { total: 1, pending: 1, approved: 0, declined: 0 },
-    markets: [{
-      marketId: 'm-hero',
-      metricId: 'metric-1',
-      metricName: 'LookPilot revenue (monthly, USD)',
-      targetDate: '2026-12',
-      resolvesOn: '2026-12-31',
-      consensus: 80_000,
-      probability: 0.5,
-      liquidity: 200,
-      rangeMin: 0,
-      rangeMax: 500_000,
-    }],
+    markets: [
+      {
+        marketId: 'm-hero',
+        metricId: 'metric-1',
+        metricName: 'LookPilot revenue (monthly, USD)',
+        targetDate: '2026-12',
+        resolvesOn: '2026-12-31',
+        consensus: 80_000,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 500_000,
+      },
+    ],
     marketHistory: historyFor('m-hero'),
     // The payload names the market its inline replay belongs to, so the page
     // never has to guess which chart it fits.
     marketHistoryMarketId: 'm-hero',
-    proposals: [{
-      id: 'job-1',
-      title: '$80: rewrite the store page',
-      description: 'A better store page.',
-      askUsd: 80,
-      status: 'pending' as const,
-      proposedByName: 'Ada',
-      createdAt: '2026-08-12T09:00:00.000Z',
-      marketPairCount: 1,
-      markets: [{
-        metricName: 'LookPilot revenue (monthly, USD)',
-        targetDate: '2026-12',
-        resolvesOn: '2026-12-31',
-        approvedConsensus: 82_000,
-        declinedConsensus: 71_000,
-        delta: 11_000,
-        approvedMarketId: 'm-approved',
-        declinedMarketId: 'm-declined',
-        approvedProbability: 0.5,
-        approvedLiquidity: 200,
-        declinedProbability: 0.5,
-        declinedLiquidity: 200,
-        rangeMin: 0,
-        rangeMax: 500_000,
-      }],
-    }],
+    proposals: [
+      {
+        id: 'job-1',
+        title: '$80: rewrite the store page',
+        description: 'A better store page.',
+        askUsd: 80,
+        status: 'pending' as const,
+        proposedByName: 'Ada',
+        createdAt: '2026-08-12T09:00:00.000Z',
+        marketPairCount: 1,
+        markets: [
+          {
+            metricName: 'LookPilot revenue (monthly, USD)',
+            targetDate: '2026-12',
+            resolvesOn: '2026-12-31',
+            approvedConsensus: 82_000,
+            declinedConsensus: 71_000,
+            delta: 11_000,
+            approvedMarketId: 'm-approved',
+            declinedMarketId: 'm-declined',
+            approvedProbability: 0.5,
+            approvedLiquidity: 200,
+            declinedProbability: 0.5,
+            declinedLiquidity: 200,
+            rangeMin: 0,
+            rangeMax: 500_000,
+          },
+        ],
+      },
+    ],
   });
   return { historyFor, workspace, chartRenders: [] as Array<{ marketId: string; seriesLen: number }> };
 });
@@ -129,7 +135,9 @@ vi.mock('../../lib/api', () => {
 function renderFloor(entries: string[] = ['/lookpilot']) {
   return render(
     <MemoryRouter initialEntries={entries}>
-      <Routes><Route path="/:slug" element={<TradePage />} /></Routes>
+      <Routes>
+        <Route path="/:slug" element={<TradePage />} />
+      </Routes>
       <BellStandIn />
     </MemoryRouter>,
   );
@@ -142,11 +150,7 @@ function renderFloor(entries: string[] = ['/lookpilot']) {
  */
 function BellStandIn() {
   const navigate = useNavigate();
-  return (
-    <button onClick={() => navigate('/lookpilot#contract=job-1&comment=c-2')}>
-      stand-in notification
-    </button>
-  );
+  return <button onClick={() => navigate('/lookpilot#contract=job-1&comment=c-2')}>stand-in notification</button>;
 }
 
 // Imported after the mocks so the page picks them up.
@@ -156,16 +160,27 @@ const { settleDayOf } = await import('../../lib/floor-horizons');
 beforeEach(() => {
   h.chartRenders.length = 0;
   globalThis.IntersectionObserver = class {
-    observe() {} unobserve() {} disconnect() {} takeRecords() { return []; }
-    root = null; rootMargin = ''; thresholds = [];
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() {
+      return [];
+    }
+    root = null;
+    rootMargin = '';
+    thresholds = [];
   } as unknown as typeof IntersectionObserver;
   vi.useFakeTimers({ shouldAdvanceTime: true });
 });
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 /** Let the fifteen-second poll fire and its fetches settle. */
 async function poll() {
-  await act(async () => { await vi.advanceTimersByTimeAsync(15_200); });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(15_200);
+  });
 }
 
 describe('the poll cadence is 15 seconds', () => {
@@ -176,15 +191,21 @@ describe('the poll cadence is 15 seconds', () => {
   // the poll effect in TradePage.tsx.
   test('nothing refetches at the old 5s mark; everything does by 15s', async () => {
     renderFloor();
-    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
     const { api } = await import('../../lib/api');
     const loads = api.getMarketplaceWorkspace as ReturnType<typeof vi.fn>;
     const afterMount = loads.mock.calls.length;
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(6_000); });
-    expect(loads.mock.calls.length).toBe(afterMount);   // old cadence: silent
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6_000);
+    });
+    expect(loads.mock.calls.length).toBe(afterMount); // old cadence: silent
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(9_500); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(9_500);
+    });
     expect(loads.mock.calls.length).toBeGreaterThan(afterMount);
   });
 });
@@ -319,8 +340,9 @@ describe('what can you do', () => {
 test('the page explains, then asks, then offers the owner door', async () => {
   const { container } = renderFloor();
   await screen.findByRole('heading', { name: 'What can you do?' });
-  const order = [...container.querySelectorAll('.pubws-about-head, .pubws-do-head, .pubws-setup-lead')]
-    .map(n => (n.textContent ?? '').slice(0, 16));
+  const order = [...container.querySelectorAll('.pubws-about-head, .pubws-do-head, .pubws-setup-lead')].map(n =>
+    (n.textContent ?? '').slice(0, 16),
+  );
   expect(order).toEqual(['What is this?', 'What can you do?', 'Want this for yo']);
 });
 
@@ -345,7 +367,10 @@ describe('the activity panel under a selected contract', () => {
     // The comment thread stays keyed to the contract; the activity read is
     // keyed to the branch market on screen.
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-approved'));
-    expect(vi.mocked(api.getFloorComments)).toHaveBeenCalledWith('lookpilot', expect.objectContaining({ proposalId: 'job-1' }));
+    expect(vi.mocked(api.getFloorComments)).toHaveBeenCalledWith(
+      'lookpilot',
+      expect.objectContaining({ proposalId: 'job-1' }),
+    );
   });
 
   // The conversation outlives the decision (owner ask 2026-08-20,
@@ -362,7 +387,12 @@ describe('the activity panel under a selected contract', () => {
     renderFloor();
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
 
-    await waitFor(() => expect(vi.mocked(api.getFloorComments)).toHaveBeenCalledWith('lookpilot', expect.objectContaining({ proposalId: 'job-1' })));
+    await waitFor(() =>
+      expect(vi.mocked(api.getFloorComments)).toHaveBeenCalledWith(
+        'lookpilot',
+        expect.objectContaining({ proposalId: 'job-1' }),
+      ),
+    );
     expect(screen.queryByRole('button', { name: 'Bet Higher ↑' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Bet Lower ↓' })).toBeNull();
   });
@@ -421,12 +451,30 @@ describe('the one horizon', () => {
   const twoMarkets = () => {
     const ws = h.workspace();
     ws.markets = [
-      { marketId: 'm-week', metricId: 'metric-w', metricName: 'LookPilot revenue this week (USD)',
-        targetDate: '2026-W34', resolvesOn: '2026-08-24T00:00:00Z', consensus: 213,
-        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 8000 },
-      { marketId: 'm-hero', metricId: 'metric-1', metricName: 'LookPilot net 2026 (USD)',
-        targetDate: '2026-12', resolvesOn: '2026-12-31T00:00:00Z', consensus: 78_571,
-        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 150_000 },
+      {
+        marketId: 'm-week',
+        metricId: 'metric-w',
+        metricName: 'LookPilot revenue this week (USD)',
+        targetDate: '2026-W34',
+        resolvesOn: '2026-08-24T00:00:00Z',
+        consensus: 213,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 8000,
+      },
+      {
+        marketId: 'm-hero',
+        metricId: 'metric-1',
+        metricName: 'LookPilot net 2026 (USD)',
+        targetDate: '2026-12',
+        resolvesOn: '2026-12-31T00:00:00Z',
+        consensus: 78_571,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 150_000,
+      },
     ];
     return ws;
   };
@@ -456,18 +504,46 @@ test('the know section draws no metric chart', async () => {
   const { api } = await import('../../lib/api');
   const ws = h.workspace();
   ws.markets = [
-    { marketId: 'm-week', metricId: 'metric-w', metricName: 'LookPilot revenue this week (USD)',
-      targetDate: '2026-W34', resolvesOn: '2026-08-24T00:00:00Z', consensus: 213,
-      probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 8000 },
-    { marketId: 'm-hero', metricId: 'metric-1', metricName: 'LookPilot net 2026 (USD)',
-      targetDate: '2026-12', resolvesOn: '2026-12-31T00:00:00Z', consensus: 78_571,
-      probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 150_000 },
+    {
+      marketId: 'm-week',
+      metricId: 'metric-w',
+      metricName: 'LookPilot revenue this week (USD)',
+      targetDate: '2026-W34',
+      resolvesOn: '2026-08-24T00:00:00Z',
+      consensus: 213,
+      probability: 0.5,
+      liquidity: 200,
+      rangeMin: 0,
+      rangeMax: 8000,
+    },
+    {
+      marketId: 'm-hero',
+      metricId: 'metric-1',
+      metricName: 'LookPilot net 2026 (USD)',
+      targetDate: '2026-12',
+      resolvesOn: '2026-12-31T00:00:00Z',
+      consensus: 78_571,
+      probability: 0.5,
+      liquidity: 200,
+      rangeMin: 0,
+      rangeMax: 150_000,
+    },
   ];
   ws.horizonHistories = [
-    { marketId: 'm-week', metricName: 'LookPilot revenue this week (USD)', targetDate: '2026-W34',
-      description: 'This week only.', points: [{ at: '2026-08-18T09:00:00Z', value: 120 }] },
-    { marketId: 'm-hero', metricName: 'LookPilot net 2026 (USD)', targetDate: '2026-12',
-      description: 'The year.', points: [{ at: '2026-08-15T09:00:00Z', value: 45_339 }] },
+    {
+      marketId: 'm-week',
+      metricName: 'LookPilot revenue this week (USD)',
+      targetDate: '2026-W34',
+      description: 'This week only.',
+      points: [{ at: '2026-08-18T09:00:00Z', value: 120 }],
+    },
+    {
+      marketId: 'm-hero',
+      metricName: 'LookPilot net 2026 (USD)',
+      targetDate: '2026-12',
+      description: 'The year.',
+      points: [{ at: '2026-08-15T09:00:00Z', value: 45_339 }],
+    },
   ];
   vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
 
@@ -503,13 +579,13 @@ test('the workspace description is the company tagline, and is optional', async 
   const { api } = await import('../../lib/api');
   // What the business sells, said once under its name: without it the floor
   // opens with a number about a word the visitor has never seen.
-  vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(
-    { ...h.workspace(), description: 'Webcam head tracker for sims.' } as never,
-  );
+  vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+    ...h.workspace(),
+    description: 'Webcam head tracker for sims.',
+  } as never);
   const first = renderFloor();
   await waitFor(() => expect(first.container.querySelector('.pubws-ws-tagline')).toBeTruthy());
-  expect(first.container.querySelector('.pubws-ws-tagline')!.textContent)
-    .toBe('Webcam head tracker for sims.');
+  expect(first.container.querySelector('.pubws-ws-tagline')!.textContent).toBe('Webcam head tracker for sims.');
   first.unmount();
 
   // A workspace that never wrote one gets no empty line under its name.
@@ -533,12 +609,30 @@ describe('the price series belongs to the market on screen', () => {
   const payload = () => {
     const ws = h.workspace();
     ws.markets = [
-      { marketId: 'm-week', metricId: 'metric-w', metricName: 'LookPilot revenue this week (USD)',
-        targetDate: '2026-W34', resolvesOn: '2026-08-24T00:00:00Z', consensus: 213,
-        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 8000 },
-      { marketId: 'm-hero', metricId: 'metric-1', metricName: 'LookPilot net 2026 (USD)',
-        targetDate: '2026-12', resolvesOn: '2026-12-31T00:00:00Z', consensus: 78_571,
-        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 150_000 },
+      {
+        marketId: 'm-week',
+        metricId: 'metric-w',
+        metricName: 'LookPilot revenue this week (USD)',
+        targetDate: '2026-W34',
+        resolvesOn: '2026-08-24T00:00:00Z',
+        consensus: 213,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 8000,
+      },
+      {
+        marketId: 'm-hero',
+        metricId: 'metric-1',
+        metricName: 'LookPilot net 2026 (USD)',
+        targetDate: '2026-12',
+        resolvesOn: '2026-12-31T00:00:00Z',
+        consensus: 78_571,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 150_000,
+      },
     ];
     // The inline series names its market, the way the server sends it.
     (ws as Record<string, unknown>).marketHistory = [
@@ -586,12 +680,30 @@ describe('which market is the headline, across a poll', () => {
   const floor = () => {
     const ws = h.workspace();
     ws.markets = [
-      { marketId: 'm-week', metricId: 'metric-w', metricName: 'Revenue this week (USD)',
-        targetDate: '2026-W34', resolvesOn: '2026-08-24T00:00:00Z', consensus: 213,
-        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 8000 },
-      { marketId: 'm-hero', metricId: 'metric-1', metricName: 'Net 2026 (USD)',
-        targetDate: '2026-12', resolvesOn: '2027-01-01T00:00:00Z', consensus: 78_571,
-        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 150_000 },
+      {
+        marketId: 'm-week',
+        metricId: 'metric-w',
+        metricName: 'Revenue this week (USD)',
+        targetDate: '2026-W34',
+        resolvesOn: '2026-08-24T00:00:00Z',
+        consensus: 213,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 8000,
+      },
+      {
+        marketId: 'm-hero',
+        metricId: 'metric-1',
+        metricName: 'Net 2026 (USD)',
+        targetDate: '2026-12',
+        resolvesOn: '2027-01-01T00:00:00Z',
+        consensus: 78_571,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 150_000,
+      },
     ];
     return ws;
   };
@@ -607,14 +719,27 @@ describe('which market is the headline, across a poll', () => {
     const withMonthly = floor();
     withMonthly.markets = [
       withMonthly.markets[0],
-      { marketId: 'm-month', metricId: 'metric-1', metricName: 'Net 2026 (USD)',
-        targetDate: '2026-09', resolvesOn: '2026-10-01T00:00:00Z', consensus: 50_000,
-        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 150_000 },
+      {
+        marketId: 'm-month',
+        metricId: 'metric-1',
+        metricName: 'Net 2026 (USD)',
+        targetDate: '2026-09',
+        resolvesOn: '2026-10-01T00:00:00Z',
+        consensus: 50_000,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 150_000,
+      },
       withMonthly.markets[1],
     ];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(withMonthly as never);
-    await act(async () => { await vi.advanceTimersByTimeAsync(15_200); });
-    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_200);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
     expect(container.querySelector('.pubws-price')!.textContent).toContain('78');
   });
 
@@ -629,12 +754,23 @@ describe('which market is the headline, across a poll', () => {
     const with2027 = floor();
     with2027.markets = [
       ...with2027.markets,
-      { marketId: 'm-2027', metricId: 'metric-1', metricName: 'Net 2027 (USD)',
-        targetDate: '2027-12', resolvesOn: '2028-01-01T00:00:00Z', consensus: 120_000,
-        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 250_000 },
+      {
+        marketId: 'm-2027',
+        metricId: 'metric-1',
+        metricName: 'Net 2027 (USD)',
+        targetDate: '2027-12',
+        resolvesOn: '2028-01-01T00:00:00Z',
+        consensus: 120_000,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 250_000,
+      },
     ];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(with2027 as never);
-    await act(async () => { await vi.advanceTimersByTimeAsync(15_200); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_200);
+    });
     await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('120'));
   });
 
@@ -647,7 +783,9 @@ describe('which market is the headline, across a poll', () => {
     const soloWeek = h.workspace();
     soloWeek.markets = [floor().markets[0]];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(soloWeek as never);
-    await act(async () => { await vi.advanceTimersByTimeAsync(15_200); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_200);
+    });
     await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('213'));
   });
 });
@@ -727,14 +865,52 @@ describe('a contract keeps the clock line', () => {
     // who can trade, which is what makes the last test here observable.
     ws.joinAs = 'trader';
     ws.markets = [
-      { ...ws.markets[0], marketId: 'm-week', metricName: 'LookPilot weekly net revenue (USD)', targetDate: '2026-W34', resolvesOn: '2026-08-24', consensus: 500, rangeMax: 8_000 },
-      { ...ws.markets[0], marketId: 'm-month', metricName: 'LookPilot monthly net revenue (USD)', targetDate: '2026-09', resolvesOn: '2026-10-01', consensus: 3_500, rangeMax: 25_000 },
+      {
+        ...ws.markets[0],
+        marketId: 'm-week',
+        metricName: 'LookPilot weekly net revenue (USD)',
+        targetDate: '2026-W34',
+        resolvesOn: '2026-08-24',
+        consensus: 500,
+        rangeMax: 8_000,
+      },
+      {
+        ...ws.markets[0],
+        marketId: 'm-month',
+        metricName: 'LookPilot monthly net revenue (USD)',
+        targetDate: '2026-09',
+        resolvesOn: '2026-10-01',
+        consensus: 3_500,
+        rangeMax: 25_000,
+      },
     ];
     ws.marketHistoryMarketId = 'm-month';
     const pair = ws.proposals[0].markets[0];
     ws.proposals[0].markets = [
-      { ...pair, metricName: 'LookPilot weekly net revenue (USD)', targetDate: '2026-W34', resolvesOn: '2026-08-24', approvedConsensus: 520, declinedConsensus: 500, delta: 20, approvedMarketId: 'm-week-approved', declinedMarketId: 'm-week-declined', rangeMax: 8_000 },
-      { ...pair, metricName: 'LookPilot monthly net revenue (USD)', targetDate: '2026-09', resolvesOn: '2026-10-01', approvedConsensus: 4_700, declinedConsensus: 3_500, delta: 1_200, approvedMarketId: 'm-month-approved', declinedMarketId: 'm-month-declined', rangeMax: 25_000 },
+      {
+        ...pair,
+        metricName: 'LookPilot weekly net revenue (USD)',
+        targetDate: '2026-W34',
+        resolvesOn: '2026-08-24',
+        approvedConsensus: 520,
+        declinedConsensus: 500,
+        delta: 20,
+        approvedMarketId: 'm-week-approved',
+        declinedMarketId: 'm-week-declined',
+        rangeMax: 8_000,
+      },
+      {
+        ...pair,
+        metricName: 'LookPilot monthly net revenue (USD)',
+        targetDate: '2026-09',
+        resolvesOn: '2026-10-01',
+        approvedConsensus: 4_700,
+        declinedConsensus: 3_500,
+        delta: 1_200,
+        approvedMarketId: 'm-month-approved',
+        declinedMarketId: 'm-month-declined',
+        rangeMax: 25_000,
+      },
     ];
     ws.proposals[0].marketPairCount = 2;
     return ws;

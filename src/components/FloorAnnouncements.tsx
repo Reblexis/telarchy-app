@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { type Announcement } from '../lib/api';
 import { announcementHeadline } from '../lib/announcement-headline';
+import type { Announcement } from '../lib/api';
 
 /**
  * The owner's announcements, as one line on the floor.
@@ -27,7 +27,12 @@ function fmtDay(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-export function FloorAnnouncements({ idOrSlug, latest, total, canManage }: {
+export function FloorAnnouncements({
+  idOrSlug,
+  latest,
+  total,
+  canManage,
+}: {
   /** What the public read route is addressed by (slug or id), the same thing
    *  the floor was loaded with. */
   idOrSlug: string;
@@ -49,18 +54,29 @@ export function FloorAnnouncements({ idOrSlug, latest, total, canManage }: {
         <h2 className="pubws-know-head">Announcements</h2>
         {/* The count is the offer, so it sits where a count belongs and not in
             a second link underneath the line. */}
-        {total > 1 && <Link className="pubws-know-edit" to={href}>All {total}</Link>}
+        {total > 1 && (
+          <Link className="pubws-know-edit" to={href}>
+            All {total}
+          </Link>
+        )}
       </div>
 
       {latest ? (
         <Link className="pubws-annline" to={href}>
           <span className="pubws-annline-head">{announcementHeadline(latest.body)}</span>
-          <time className="pubws-annline-when" dateTime={latest.publishedAt}>{fmtDay(latest.publishedAt)}</time>
-          <span className="pubws-annline-go" aria-hidden="true">→</span>
+          <time className="pubws-annline-when" dateTime={latest.publishedAt}>
+            {fmtDay(latest.publishedAt)}
+          </time>
+          <span className="pubws-annline-go" aria-hidden="true">
+            →
+          </span>
         </Link>
       ) : (
         <p className="pubws-ann-empty">
-          Nothing announced yet. <Link className="pubws-ann-link" to={href}>Write one</Link>
+          Nothing announced yet.{' '}
+          <Link className="pubws-ann-link" to={href}>
+            Write one
+          </Link>
         </p>
       )}
     </section>

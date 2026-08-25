@@ -14,21 +14,18 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { eq } from 'drizzle-orm';
+import { agents, markets, metrics, positions, trades, workspaces } from '../db/schema';
+import { initialPool, resolutionPayouts, sharesForBudget } from '../lib/amm';
+import { fromUnits, toUnits } from '../lib/validation';
+import { getMarkets, resolvePredictions } from '../services/predictions';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import {
-  workspaces, agents, metrics, markets, positions, trades,
-} from '../db/schema';
-import {
-  sharesForBudget,
-  initialPool,
-  resolutionPayouts,
-} from '../lib/amm';
-import { toUnits, fromUnits } from '../lib/validation';
-import { resolvePredictions } from '../services/predictions';
-import { getMarkets } from '../services/predictions';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-lifecycle';
 const OWNER = 'owner-agent';
@@ -46,22 +43,37 @@ const BETTOR_START_CREDITS = 1000;
 
 async function seedWorld() {
   await db.insert(workspaces).values({
-    id: WS, name: 'Lifecycle Test', createdBy: OWNER, visibility: 'private',
+    id: WS,
+    name: 'Lifecycle Test',
+    createdBy: OWNER,
+    visibility: 'private',
   });
   await db.insert(agents).values([
     { id: OWNER, apiKeyHash: 'h-owner', balance: toUnits(0) },
     { id: BETTOR, apiKeyHash: 'h-bettor', balance: toUnits(BETTOR_START_CREDITS) },
   ]);
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Activation rate', value: 0,
-    formula: '0', marketRangeMax: RANGE_MAX,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Activation rate',
+    value: 0,
+    formula: '0',
+    marketRangeMax: RANGE_MAX,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Activation rate',
+    id: MARKET,
+    workspaceId: WS,
+    metricId: METRIC,
+    metricName: 'Activation rate',
     targetDate: TARGET,
-    rangeMin: RANGE_MIN, rangeMax: RANGE_MAX,
-    shares: [0, 0], liquidity: LIQUIDITY, pool: initialPool(LIQUIDITY),
-    active: true, resolved: false, voided: false,
+    rangeMin: RANGE_MIN,
+    rangeMax: RANGE_MAX,
+    shares: [0, 0],
+    liquidity: LIQUIDITY,
+    pool: initialPool(LIQUIDITY),
+    active: true,
+    resolved: false,
+    voided: false,
   });
 }
 
@@ -72,20 +84,34 @@ async function placeBuy(agentId: string, marketId: string, direction: 'higher' |
   const { amount, cost } = sharesForBudget(m.shares as [number, number], dirIdx, budget, m.liquidity);
   const newShares: [number, number] = [...(m.shares as [number, number])];
   newShares[dirIdx] += amount;
-  await db.update(markets).set({
-    shares: newShares,
-    pool: m.pool + cost,
-    tradedVolume: m.tradedVolume + cost,
-  }).where(eq(markets.id, marketId));
+  await db
+    .update(markets)
+    .set({
+      shares: newShares,
+      pool: m.pool + cost,
+      tradedVolume: m.tradedVolume + cost,
+    })
+    .where(eq(markets.id, marketId));
   await db.insert(positions).values({
     id: `${agentId}_${marketId}_${direction}`,
-    workspaceId: WS, agentId, marketId, direction, shares: amount, totalCost: cost,
+    workspaceId: WS,
+    agentId,
+    marketId,
+    direction,
+    shares: amount,
+    totalCost: cost,
   });
   await db.insert(trades).values({
-    id: `trade-${agentId}-${marketId}`, workspaceId: WS, agentId, marketId,
-    direction, shares: amount, cost,
+    id: `trade-${agentId}-${marketId}`,
+    workspaceId: WS,
+    agentId,
+    marketId,
+    direction,
+    shares: amount,
+    cost,
   });
-  await db.update(agents)
+  await db
+    .update(agents)
     .set({ balance: toUnits(BETTOR_START_CREDITS) - toUnits(cost) })
     .where(eq(agents.id, agentId));
   return { amount, cost };
@@ -103,7 +129,7 @@ describe('market lifecycle: open → closed → resolved with attribution', () =
     expect(buyCost).toBeLessThanOrEqual(BUY_BUDGET);
 
     // Listing in default mode (active-only) shows it as 'open'.
-    let listed = await getMarkets({ active: true }, undefined, WS);
+    const listed = await getMarkets({ active: true }, undefined, WS);
     expect(listed).toHaveLength(1);
     expect(listed[0].status).toBe('open');
 
@@ -148,7 +174,7 @@ describe('market lifecycle: open → closed → resolved with attribution', () =
 
     const [bettor] = await db.select().from(agents).where(eq(agents.id, BETTOR));
     const finalBalance = fromUnits(bettor.balance);
-    const expectedFinal = (BETTOR_START_CREDITS - buyCost) + expectedPayout;
+    const expectedFinal = BETTOR_START_CREDITS - buyCost + expectedPayout;
     expect(finalBalance).toBeCloseTo(expectedFinal, 1);
     expect(bettor.earnedBetting).toBeCloseTo(expectedPayout, 1);
   });

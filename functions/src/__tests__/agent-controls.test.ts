@@ -26,11 +26,11 @@ jest.mock('../middleware/auth', () => ({
   },
 }));
 
-import request from 'supertest';
 import express from 'express';
-import { ensureMigrations, truncateAll } from './harness/test-db';
-import { adminRouter } from '../routes/admin';
+import request from 'supertest';
 import { AppError } from '../lib/errors';
+import { adminRouter } from '../routes/admin';
+import { ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -41,8 +41,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); }, 30_000);
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+}, 30_000);
+beforeEach(async () => {
+  await truncateAll();
+});
 
 describe('agent control plane', () => {
   it('rejects non-platform callers', async () => {
@@ -61,10 +65,7 @@ describe('agent control plane', () => {
       .expect(200);
     expect(post.body.desiredState).toBe('paused');
 
-    const list = await request(app)
-      .get('/api/admin/agent-controls')
-      .set('x-master-key', '1')
-      .expect(200);
+    const list = await request(app).get('/api/admin/agent-controls').set('x-master-key', '1').expect(200);
     expect(list.body.controls).toHaveLength(1);
     expect(list.body.controls[0]).toMatchObject({ agentId: 'impact-analyst', desiredState: 'paused' });
 
@@ -74,10 +75,7 @@ describe('agent control plane', () => {
       .set('x-master-key', '1')
       .send({ agentId: 'impact-analyst', desiredState: 'enabled' })
       .expect(200);
-    const after = await request(app)
-      .get('/api/admin/agent-controls')
-      .set('x-master-key', '1')
-      .expect(200);
+    const after = await request(app).get('/api/admin/agent-controls').set('x-master-key', '1').expect(200);
     expect(after.body.controls).toHaveLength(1);
     expect(after.body.controls[0].desiredState).toBe('enabled');
   });
@@ -111,8 +109,9 @@ describe('agent control plane', () => {
       .set('x-master-key', '1')
       .send({ agentId: 'skeptic', ackTrigger: true })
       .expect(200);
-    expect(new Date(ack.body.triggerAckedAt).getTime())
-      .toBeGreaterThanOrEqual(new Date(ack.body.triggerRequestedAt).getTime());
+    expect(new Date(ack.body.triggerAckedAt).getTime()).toBeGreaterThanOrEqual(
+      new Date(ack.body.triggerRequestedAt).getTime(),
+    );
     // desiredState untouched by trigger traffic.
     expect(ack.body.desiredState).toBe('enabled');
   });

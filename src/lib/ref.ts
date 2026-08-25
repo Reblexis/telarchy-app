@@ -31,7 +31,10 @@ export function readRefCookie(doc: { cookie: string } = document): string | null
 }
 
 /** Called once on app start: capture `?ref=` from the current URL, if present. */
-export function captureRefFromLocation(search: string = window.location.search, doc: { cookie: string } = document): string | null {
+export function captureRefFromLocation(
+  search: string = window.location.search,
+  doc: { cookie: string } = document,
+): string | null {
   const ref = new URLSearchParams(search).get('ref');
   return storeRef(ref, doc);
 }

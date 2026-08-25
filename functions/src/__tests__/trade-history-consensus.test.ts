@@ -29,20 +29,23 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, markets, metrics, permissionGroups } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
 import { consensus, initialPool } from '../lib/amm';
-import { toUnits } from '../lib/validation';
-import { predictionsRouter } from '../routes/predictions';
 import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { toUnits } from '../lib/validation';
+// The router no longer carries auth itself (app.ts applies the policy first),
+// so the test mounts the mocked middleware where the policy would run.
+import { authMiddleware } from '../middleware/auth';
+import { predictionsRouter } from '../routes/predictions';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
-app.use('/api/predictions', predictionsRouter);
+app.use('/api/predictions', authMiddleware, predictionsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {
   const status = err instanceof AppError ? err.status : 500;
@@ -50,8 +53,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message, ...extra });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-trade-hist';
 const OWNER = 'agent-owner-hist';
@@ -66,30 +73,60 @@ async function seed() {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Trade History', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'private',
+    wsId: WS,
+    name: 'Trade History',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'private',
   });
-  const traderGroup = (await db.select().from(permissionGroups)
-    .where(eq(permissionGroups.workspaceId, WS))).find(g => g.type === 'trader')!;
-  await db.update(permissionGroups).set({ memberIds: [TRADER] })
+  const traderGroup = (await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS))).find(
+    g => g.type === 'trader',
+  )!;
+  await db
+    .update(permissionGroups)
+    .set({ memberIds: [TRADER] })
     .where(eq(permissionGroups.id, traderGroup.id));
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Fears', value: 0, formula: '0', marketRangeMax: 1000,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Fears',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 1000,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Fears',
-    targetDate: '2028', rangeMin: 0, rangeMax: 1000,
-    shares: [0, 0], liquidity: 10, pool: initialPool(10),
-    active: true, resolved: false, voided: false, proposalId: null,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: METRIC,
+    metricName: 'Fears',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 1000,
+    shares: [0, 0],
+    liquidity: 10,
+    pool: initialPool(10),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
   });
 }
 
-const buy = (budget: number) => request(app).post('/api/predictions/trade')
-  .set('X-Test-Agent-Id', TRADER).set('X-Workspace-Id', WS).set('Content-Type', 'application/json')
-  .send({ marketId: MARKET, direction: 'higher', amount: budget });
+const buy = (budget: number) =>
+  request(app)
+    .post('/api/predictions/trade')
+    .set('X-Test-Agent-Id', TRADER)
+    .set('X-Workspace-Id', WS)
+    .set('Content-Type', 'application/json')
+    .send({ marketId: MARKET, direction: 'higher', amount: budget });
 
-const inject = (amount: number) => request(app).post(`/api/predictions/markets/${MARKET}/liquidity`)
-  .set('X-Test-Agent-Id', OWNER).set('X-Workspace-Id', WS).set('Content-Type', 'application/json')
-  .send({ amount });
+const inject = (amount: number) =>
+  request(app)
+    .post(`/api/predictions/markets/${MARKET}/liquidity`)
+    .set('X-Test-Agent-Id', OWNER)
+    .set('X-Workspace-Id', WS)
+    .set('Content-Type', 'application/json')
+    .send({ amount });
 
 describe('trade history consensus replay across liquidity injections', () => {
   test('final replayed point equals live market consensus after an injection between trades', async () => {
@@ -103,8 +140,10 @@ describe('trade history consensus replay across liquidity injections', () => {
     expect((await inject(15)).status).toBe(200);
     expect((await buy(40)).status).toBe(201);
 
-    const res = await request(app).get(`/api/predictions/markets/${MARKET}/trades`)
-      .set('X-Test-Agent-Id', TRADER).set('X-Workspace-Id', WS);
+    const res = await request(app)
+      .get(`/api/predictions/markets/${MARKET}/trades`)
+      .set('X-Test-Agent-Id', TRADER)
+      .set('X-Workspace-Id', WS);
     expect(res.status).toBe(200);
     expect(res.body.length).toBe(2);
 
@@ -121,8 +160,10 @@ describe('trade history consensus replay across liquidity injections', () => {
     expect((await buy(30)).status).toBe(201);
     expect((await buy(20)).status).toBe(201);
 
-    const res = await request(app).get(`/api/predictions/markets/${MARKET}/trades`)
-      .set('X-Test-Agent-Id', TRADER).set('X-Workspace-Id', WS);
+    const res = await request(app)
+      .get(`/api/predictions/markets/${MARKET}/trades`)
+      .set('X-Test-Agent-Id', TRADER)
+      .set('X-Workspace-Id', WS);
     const [m] = await db.select().from(markets).where(eq(markets.id, MARKET));
     const live = consensus(m.shares as [number, number], m.liquidity, m.rangeMin, m.rangeMax)!;
     expect(res.body[res.body.length - 1].consensus as number).toBeCloseTo(live, 2);

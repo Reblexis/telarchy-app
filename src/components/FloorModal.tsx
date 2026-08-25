@@ -16,7 +16,11 @@ import { createPortal } from 'react-dom';
  * on a wrapper rather than on the scroller, because a decoration inside a
  * scrolling box scrolls away with the content it is describing.
  */
-export function FloorModal({ onClose, label, children }: {
+export function FloorModal({
+  onClose,
+  label,
+  children,
+}: {
   onClose: () => void;
   label: string;
   children: React.ReactNode;
@@ -44,11 +48,16 @@ export function FloorModal({ onClose, label, children }: {
     // scroll or resize event, so watch the subtree too.
     const mutations = typeof MutationObserver === 'function' ? new MutationObserver(measure) : null;
     mutations?.observe(el, { childList: true, subtree: true, characterData: true });
-    return () => { observer?.disconnect(); mutations?.disconnect(); };
+    return () => {
+      observer?.disconnect();
+      mutations?.disconnect();
+    };
   }, [measure]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
     document.addEventListener('keydown', onKey);
     // The page behind a dialog does not scroll.
     const prev = document.body.style.overflow;
@@ -62,7 +71,9 @@ export function FloorModal({ onClose, label, children }: {
   return createPortal(
     <div
       className="floor-modal-overlay"
-      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={e => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className={`floor-modal-shell${more ? ' has-more' : ''}`}>
         <div
@@ -76,7 +87,16 @@ export function FloorModal({ onClose, label, children }: {
           {children}
         </div>
         <div className="floor-modal-cue" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="m7 10 5 5 5-5" />
           </svg>
         </div>

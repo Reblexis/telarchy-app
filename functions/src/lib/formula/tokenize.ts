@@ -34,7 +34,10 @@ export function tokenize(formula: string): Token[] {
   while (i < formula.length) {
     const ch = formula[i];
     const column = i + 1;
-    if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') { i++; continue; }
+    if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') {
+      i++;
+      continue;
+    }
     if (ch === '{') {
       const close = formula.indexOf('}', i + 1);
       if (close === -1) throw new FormulaSyntaxError('Unterminated metric reference', column);
@@ -67,9 +70,21 @@ export function tokenize(formula: string): Token[] {
       i++;
       continue;
     }
-    if (ch === '(') { tokens.push({ kind: 'lparen', column }); i++; continue; }
-    if (ch === ')') { tokens.push({ kind: 'rparen', column }); i++; continue; }
-    if (ch === ',') { tokens.push({ kind: 'comma', column }); i++; continue; }
+    if (ch === '(') {
+      tokens.push({ kind: 'lparen', column });
+      i++;
+      continue;
+    }
+    if (ch === ')') {
+      tokens.push({ kind: 'rparen', column });
+      i++;
+      continue;
+    }
+    if (ch === ',') {
+      tokens.push({ kind: 'comma', column });
+      i++;
+      continue;
+    }
     throw new FormulaSyntaxError(`Unexpected character "${ch}"`, column);
   }
   tokens.push({ kind: 'eof', column: formula.length + 1 });

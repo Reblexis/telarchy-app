@@ -27,9 +27,31 @@ import { api } from '../lib/api';
  * "Trades (0)" until the reader happened to flip the toggle.
  */
 
-interface Comment { id: string; fromName: string; content: string; createdAt: string }
-interface Holder { handle: string; id: string; direction: 'higher' | 'lower'; shares: number; cost: number; worth: number | null; branch?: BranchLabel }
-interface TradeItem { id: string; handle: string; direction: 'higher' | 'lower'; kind: 'buy' | 'sell'; shares: number; cost: number; createdAt: string; branch?: BranchLabel }
+interface Comment {
+  id: string;
+  fromName: string;
+  content: string;
+  createdAt: string;
+}
+interface Holder {
+  handle: string;
+  id: string;
+  direction: 'higher' | 'lower';
+  shares: number;
+  cost: number;
+  worth: number | null;
+  branch?: BranchLabel;
+}
+interface TradeItem {
+  id: string;
+  handle: string;
+  direction: 'higher' | 'lower';
+  kind: 'buy' | 'sell';
+  shares: number;
+  cost: number;
+  createdAt: string;
+  branch?: BranchLabel;
+}
 
 type BranchLabel = 'approved' | 'declined';
 
@@ -59,15 +81,24 @@ function timeAgo(iso: string): string {
   if (s < 129600) return `${Math.round(s / 3600)}h ago`;
   return `${Math.round(s / 86400)}d ago`;
 }
-function fmtShares(v: number): string { return v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1); }
-function fmtCr(v: number): string { return Math.round(v).toLocaleString('en-US'); }
+function fmtShares(v: number): string {
+  return v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1);
+}
+function fmtCr(v: number): string {
+  return Math.round(v).toLocaleString('en-US');
+}
 
 function profileHref(handle: string, id: string): string {
   return `/participants/${encodeURIComponent(handle && handle !== id ? handle : id)}`;
 }
 
 export function FloorComments({
-  idOrSlug, subject, canPost, onRequireSignup, focusCommentId = null, onFocusHandled,
+  idOrSlug,
+  subject,
+  canPost,
+  onRequireSignup,
+  focusCommentId = null,
+  onFocusHandled,
 }: Props) {
   const [tab, setTab] = useState<Tab>(null);
   const activityReqRef = useRef(0);
@@ -84,7 +115,9 @@ export function FloorComments({
   // branch switch (which reorders nothing here) does not refetch.
   const activityMarkets: Array<{ marketId: string; branch?: BranchLabel }> = subject.markets?.length
     ? subject.markets
-    : subject.marketId ? [{ marketId: subject.marketId }] : [];
+    : subject.marketId
+      ? [{ marketId: subject.marketId }]
+      : [];
   const marketKey = activityMarkets.map(m => m.marketId).join(',');
   const threadKey = subject.proposalId ?? subject.marketId ?? subject.markets?.[0]?.marketId ?? '';
 
@@ -92,9 +125,13 @@ export function FloorComments({
   useEffect(() => {
     if (!threadKey) return;
     setComments(null);
-    api.getFloorComments(idOrSlug, subject)
+    api
+      .getFloorComments(idOrSlug, subject)
       .then(setComments)
-      .catch(e => { console.error('comments fetch failed:', e); setComments([]); });
+      .catch(e => {
+        console.error('comments fetch failed:', e);
+        setComments([]);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idOrSlug, threadKey]);
 
@@ -103,24 +140,34 @@ export function FloorComments({
   // trades newest-first across both. A branch whose fetch fails contributes
   // nothing rather than sinking the other's rows.
   useEffect(() => {
-    if (!marketKey) { setActivity(null); return; }
+    if (!marketKey) {
+      setActivity(null);
+      return;
+    }
     setActivity(null);
     // Only the newest pull may write: a slow response for the previous
     // subject landing late would otherwise paint the wrong market's rows.
     const token = ++activityReqRef.current;
     const wanted = activityMarkets;
-    Promise.all(wanted.map(m =>
-      api.getMarketActivity(idOrSlug, m.marketId)
-        .then(a => ({
-          positions: (a.positions ?? []).map(p => ({ ...p, branch: m.branch })),
-          trades: (a.trades ?? []).map(t => ({ ...t, branch: m.branch })),
-        }))
-        .catch(e => { console.error('market activity fetch failed:', e); return { positions: [], trades: [] }; }),
-    )).then(parts => {
+    Promise.all(
+      wanted.map(m =>
+        api
+          .getMarketActivity(idOrSlug, m.marketId)
+          .then(a => ({
+            positions: (a.positions ?? []).map(p => ({ ...p, branch: m.branch })),
+            trades: (a.trades ?? []).map(t => ({ ...t, branch: m.branch })),
+          }))
+          .catch(e => {
+            console.error('market activity fetch failed:', e);
+            return { positions: [], trades: [] };
+          }),
+      ),
+    ).then(parts => {
       if (token !== activityReqRef.current) return;
       setActivity({
         positions: parts.flatMap(p => p.positions),
-        trades: parts.flatMap(p => p.trades)
+        trades: parts
+          .flatMap(p => p.trades)
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
       });
     });
@@ -129,7 +176,9 @@ export function FloorComments({
 
   // A pointed-at comment opens the thread even if the panel was collapsed:
   // the reader was told about a line, not about a tab.
-  useEffect(() => { if (focusCommentId) setTab('comments'); }, [focusCommentId]);
+  useEffect(() => {
+    if (focusCommentId) setTab('comments');
+  }, [focusCommentId]);
 
   // ...and once the thread has rendered, the line is scrolled to and flashed.
   // Runs after comments load, because the row does not exist before that.
@@ -177,15 +226,27 @@ export function FloorComments({
   return (
     <div className="pubws-comments">
       <div className="pubws-panel-tabs">
-        <button className={`pubws-comments-toggle${tab === 'comments' ? ' is-active' : ''}`} aria-expanded={tab === 'comments'} onClick={() => toggle('comments')}>
+        <button
+          className={`pubws-comments-toggle${tab === 'comments' ? ' is-active' : ''}`}
+          aria-expanded={tab === 'comments'}
+          onClick={() => toggle('comments')}
+        >
           Discussion{cCount !== null ? ` (${cCount})` : ''}
         </button>
         {marketKey && (
           <>
-            <button className={`pubws-comments-toggle${tab === 'positions' ? ' is-active' : ''}`} aria-expanded={tab === 'positions'} onClick={() => toggle('positions')}>
+            <button
+              className={`pubws-comments-toggle${tab === 'positions' ? ' is-active' : ''}`}
+              aria-expanded={tab === 'positions'}
+              onClick={() => toggle('positions')}
+            >
               Positions{pCount !== null ? ` (${pCount})` : ''}
             </button>
-            <button className={`pubws-comments-toggle${tab === 'trades' ? ' is-active' : ''}`} aria-expanded={tab === 'trades'} onClick={() => toggle('trades')}>
+            <button
+              className={`pubws-comments-toggle${tab === 'trades' ? ' is-active' : ''}`}
+              aria-expanded={tab === 'trades'}
+              onClick={() => toggle('trades')}
+            >
               Trades{tCount !== null ? ` (${tCount})` : ''}
             </button>
           </>
@@ -246,9 +307,13 @@ export function FloorComments({
               {activity.positions.map((p, i) => (
                 <li key={`${p.id}-${p.direction}-${i}`} className="pubws-mkt-row">
                   <span className={`prof-dir prof-dir--${p.direction}`}>{p.direction === 'higher' ? '▲' : '▼'}</span>
-                  <Link className="pubws-mkt-who pubws-name-link" to={profileHref(p.handle, p.id)}>{p.handle}</Link>
+                  <Link className="pubws-mkt-who pubws-name-link" to={profileHref(p.handle, p.id)}>
+                    {p.handle}
+                  </Link>
                   {p.branch && <span className="pubws-mkt-branch">if {p.branch}</span>}
-                  <span className="pubws-mkt-val">{fmtShares(p.shares)} sh{p.worth !== null ? ` · ${fmtCr(p.worth)} cr` : ''}</span>
+                  <span className="pubws-mkt-val">
+                    {fmtShares(p.shares)} sh{p.worth !== null ? ` · ${fmtCr(p.worth)} cr` : ''}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -267,9 +332,13 @@ export function FloorComments({
               {activity.trades.map(t => (
                 <li key={t.id} className="pubws-mkt-row">
                   <span className={`prof-dir prof-dir--${t.direction}`}>{t.direction === 'higher' ? '▲' : '▼'}</span>
-                  <Link className="pubws-mkt-who pubws-name-link" to={profileHref(t.handle, t.handle)}>{t.handle}</Link>
+                  <Link className="pubws-mkt-who pubws-name-link" to={profileHref(t.handle, t.handle)}>
+                    {t.handle}
+                  </Link>
                   {t.branch && <span className="pubws-mkt-branch">if {t.branch}</span>}
-                  <span className="pubws-mkt-act">{t.kind === 'buy' ? 'bought' : 'sold'} {fmtShares(t.shares)}</span>
+                  <span className="pubws-mkt-act">
+                    {t.kind === 'buy' ? 'bought' : 'sold'} {fmtShares(t.shares)}
+                  </span>
                   <span className="pubws-mkt-val">{fmtCr(t.cost)} cr</span>
                   <span className="pubws-mkt-time">{timeAgo(t.createdAt)}</span>
                 </li>

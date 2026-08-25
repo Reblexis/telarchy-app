@@ -12,7 +12,11 @@
  */
 
 const ESCAPES: Record<string, string> = {
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
 };
 
 function escapeHtml(s: string): string {
@@ -70,11 +74,13 @@ export function injectWorkspaceMeta(html: string, ws: ShareMetaWorkspace, url: s
     // The card (owner direction 2026-08-10): a server-drawn picture of the
     // floor, so the unfurl leads with the live number and the chart, not
     // text. summary_large_image makes Twitter/Discord show it full-width.
-    ...(cardUrl ? [
-      `<meta property="og:image" content="${escapeHtml(cardUrl)}">`,
-      `<meta property="og:image:width" content="1200">`,
-      `<meta property="og:image:height" content="630">`,
-    ] : []),
+    ...(cardUrl
+      ? [
+          `<meta property="og:image" content="${escapeHtml(cardUrl)}">`,
+          `<meta property="og:image:width" content="1200">`,
+          `<meta property="og:image:height" content="630">`,
+        ]
+      : []),
     `<meta name="twitter:card" content="${cardUrl ? 'summary_large_image' : 'summary'}">`,
     ...(cardUrl ? [`<meta name="twitter:image" content="${escapeHtml(cardUrl)}">`] : []),
     `<meta name="twitter:title" content="${title}">`,

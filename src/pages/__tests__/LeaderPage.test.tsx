@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('../../lib/api', async (importOriginal) => ({
+vi.mock('../../lib/api', async importOriginal => ({
   // The real adapter: the season section renders exactly what it maps.
   seasonStandingToEntry: (await importOriginal<typeof import('../../lib/api')>()).seasonStandingToEntry,
   api: {
@@ -28,24 +28,46 @@ import { api } from '../../lib/api';
 import { LeaderPage } from '../LeaderPage';
 
 const draftSeason = {
-  id: 's0', name: 'Season 0', status: 'draft',
-  startsAt: '2026-08-22T00:00:00.000Z', endsAt: '2026-10-16T00:00:00.000Z',
-  settledAt: null, poolUsd: 1000,
+  id: 's0',
+  name: 'Season 0',
+  status: 'draft',
+  startsAt: '2026-08-22T00:00:00.000Z',
+  endsAt: '2026-10-16T00:00:00.000Z',
+  settledAt: null,
+  poolUsd: 1000,
   ladder: [
-    { place: 1, prizeUsd: 500 }, { place: 2, prizeUsd: 250 },
-    { place: 3, prizeUsd: 125 }, { place: 4, prizeUsd: 75 }, { place: 5, prizeUsd: 50 },
+    { place: 1, prizeUsd: 500 },
+    { place: 2, prizeUsd: 250 },
+    { place: 3, prizeUsd: 125 },
+    { place: 4, prizeUsd: 75 },
+    { place: 5, prizeUsd: 50 },
   ],
   rulesUrl: '/legal/season-0',
 };
 
 const trader = (overrides: Record<string, unknown>) => ({
-  rank: 1, id: 'a1', nickname: 'kai', image: null, manifoldUsername: null,
-  calibration: null, accuracy: null, totalEarnings: 42, resolvedMarkets: 0,
-  totalTrades: 7, lastTradeAt: null, seasonEntered: false, seasonPrizeUsd: null,
+  rank: 1,
+  id: 'a1',
+  nickname: 'kai',
+  image: null,
+  manifoldUsername: null,
+  calibration: null,
+  accuracy: null,
+  totalEarnings: 42,
+  resolvedMarkets: 0,
+  totalTrades: 7,
+  lastTradeAt: null,
+  seasonEntered: false,
+  seasonPrizeUsd: null,
   ...overrides,
 });
 
-const renderPage = () => render(<MemoryRouter><LeaderPage /></MemoryRouter>);
+const renderPage = () =>
+  render(
+    <MemoryRouter>
+      <LeaderPage />
+    </MemoryRouter>,
+  );
 
 // /leaderboard is the all-time global board (the season standings live on
 // /season and behind "Show full leaderboard" on a workspace floor). The season

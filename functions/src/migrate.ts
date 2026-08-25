@@ -7,10 +7,11 @@
  * managed deploy migrates in its workflow instead. Same journal as
  * `npm run db:migrate`; nothing here is specific to either path.
  */
-import path from 'path';
-import { Pool } from 'pg';
+
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import path from 'path';
+import { Pool } from 'pg';
 
 async function main(): Promise<void> {
   const url = process.env.DATABASE_URL;

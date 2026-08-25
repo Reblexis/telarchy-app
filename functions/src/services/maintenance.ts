@@ -18,8 +18,7 @@
  * spin forever.
  */
 
-import { sql } from 'drizzle-orm';
-import { lt } from 'drizzle-orm';
+import { lt, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agentTraces, floorQuestions, pageVisits } from '../db/schema';
 
@@ -32,7 +31,9 @@ const TRACE_DELETE_CHUNK = 5_000;
 const MAX_CHUNKS_PER_RUN = 200;
 
 export async function runDailyMaintenance(): Promise<{
-  visitsDeleted: number; questionsScrubbed: number; tracesDeleted: number;
+  visitsDeleted: number;
+  questionsScrubbed: number;
+  tracesDeleted: number;
 }> {
   const now = Date.now();
   const visitCutoff = new Date(now - VISIT_RETENTION_DAYS * 24 * 3600 * 1000);
@@ -40,10 +41,11 @@ export async function runDailyMaintenance(): Promise<{
 
   // RETURNING everywhere: row counts read the same on node-postgres and on
   // the pglite test harness, where driver rowCount shapes differ.
-  const visits = await db.delete(pageVisits).where(lt(pageVisits.ts, visitCutoff))
-    .returning({ id: pageVisits.id });
+  const visits = await db.delete(pageVisits).where(lt(pageVisits.ts, visitCutoff)).returning({ id: pageVisits.id });
 
-  const questions = await db.update(floorQuestions).set({ ip: null, country: null })
+  const questions = await db
+    .update(floorQuestions)
+    .set({ ip: null, country: null })
     .where(lt(floorQuestions.createdAt, visitCutoff))
     .returning({ id: floorQuestions.id });
 

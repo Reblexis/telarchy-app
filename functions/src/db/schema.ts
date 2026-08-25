@@ -1,6 +1,15 @@
 import {
-  pgTable, text, boolean, integer, bigint, doublePrecision,
-  timestamp, jsonb, primaryKey, uniqueIndex, index,
+  bigint,
+  boolean,
+  doublePrecision,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 // ---------------------------------------------------------------------------
@@ -32,14 +41,18 @@ export const authSession = pgTable('session', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
-  userId: text('user_id').notNull().references(() => authUser.id, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => authUser.id, { onDelete: 'cascade' }),
 });
 
 export const authAccount = pgTable('account', {
   id: text('id').primaryKey(),
   accountId: text('account_id').notNull(),
   providerId: text('provider_id').notNull(),
-  userId: text('user_id').notNull().references(() => authUser.id, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => authUser.id, { onDelete: 'cascade' }),
   accessToken: text('access_token'),
   refreshToken: text('refresh_token'),
   idToken: text('id_token'),
@@ -150,135 +163,143 @@ export const workspaceSlugAliases = pgTable('workspace_slug_aliases', {
  * position and appends any workspace lacking a row (e.g. newly joined) after the
  * ordered ones. See migration 0042.
  */
-export const workspaceOrderings = pgTable('workspace_orderings', {
-  identity: text('identity').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  position: integer('position').notNull().default(0),
-}, t => [primaryKey({ columns: [t.identity, t.workspaceId] })]);
+export const workspaceOrderings = pgTable(
+  'workspace_orderings',
+  {
+    identity: text('identity').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    position: integer('position').notNull().default(0),
+  },
+  t => [primaryKey({ columns: [t.identity, t.workspaceId] })],
+);
 
 // ---------------------------------------------------------------------------
 // Agents
 // ---------------------------------------------------------------------------
 
-export const agents = pgTable('agents', {
-  /** How this participant receives real money, as a human-readable summary
-   *  ("PayPal: x@y.com"). DERIVED from payoutMethod when that is set; kept
-   *  as its own column because proposal snapshots and the owner's payout
-   *  view read it. Required (via payoutMethod) to post any paid job. */
-  payoutHandle: text('payout_handle'),
-  /** The structured payment method: { provider, ...provider fields },
-   *  validated per provider in POST /api/auth/profile (lib/payout.ts).
-   *  Source of truth for payment details; payoutHandle is its summary. */
-  payoutMethod: jsonb('payout_method'),
-  id: text('id').primaryKey(),
-  apiKeyHash: text('api_key_hash').notNull(),
-  /** BetterAuth user ID for browser-authenticated participants. Means "this
-   *  human IS this participant"; unique by index, set on the user's first
-   *  participant only. Detached on GDPR delete. */
-  authUserId: text('auth_user_id').references(() => authUser.id, { onDelete: 'set null' }),
-  /** BetterAuth user ID of the human who registered this participant via
-   *  POST /api/agents. Means "this human OWNS this bot". Nullable, not unique
-   *  (one human can own many bots). Bot agents themselves are independent
-   *  participants once created; ownership is just an attribution / discovery
-   *  link surfaced in /api/agents/mine. */
-  ownerUserId: text('owner_user_id').references(() => authUser.id, { onDelete: 'set null' }),
-  /** Attribution slug ('github', ...). Set from POST /api/agents/register's
-   *  optional `source`, or inherited from the creating user's source on
-   *  POST /api/agents. See authUser.source. */
-  source: text('source'),
-  /** Agent id of the participant that created this one via POST /api/agents
-   *  using an agent key (agent-spawned sub-bots, e.g. an evolver's
-   *  population). Means "this agent OWNS this bot". Nullable; complementary
-   *  with ownerUserId (browser callers set ownerUserId, agent-key callers
-   *  set ownerAgentId). Surfaced as parent/children on the public
-   *  participant profile. Declared without .references() to avoid a
-   *  self-referential type cycle; the FK lives in migration 0035. */
-  ownerAgentId: text('owner_agent_id'),
-  /**
-   * Optional case-insensitive unique handle. Either signup path (human auth,
-   * API register) may claim one. Uniqueness is enforced by a partial unique
-   * index on LOWER(nickname); see migration 0020.
-   */
-  nickname: text('nickname'),
-  /** SHA-256 of the one-time claim token minted by POST /api/onboard. A human
-   *  presents the raw token (via the /claim page) to bind their browser
-   *  account to this key-first identity; consumed (nulled) on claim. Null for
-   *  identities not created through onboarding or already claimed. */
-  claimTokenHash: text('claim_token_hash'),
-  /** Balance in nanocredits (1 credit = 1_000_000_000 units) */
-  balance: bigint('balance', { mode: 'number' }).notNull().default(0),
-  earnedBetting: doublePrecision('earned_betting').notNull().default(0),
-  spentBetting: doublePrecision('spent_betting').notNull().default(0),
-  spentTokens: doublePrecision('spent_tokens').notNull().default(0),
-  /** Base network USDC withdrawal address (checksummed) */
-  walletAddress: text('wallet_address'),
-  withdrawnUsdc: doublePrecision('withdrawn_usdc').notNull().default(0),
-  /** Whether this participant has platform-wide admin privileges. */
-  platformAdmin: boolean('platform_admin').notNull().default(false),
-  /** 'creator' | 'agent' | null - onboarding intent captured at signup */
-  intent: text('intent'),
-  /** Freeform public bio: who this participant is and what it is in Telarchy
-   *  to do. Shown on the public profile. Max 500 chars, set at registration
-   *  or via POST /api/auth/profile. */
-  bio: text('bio'),
-  /**
-   * Email notification switches (owner ask 2026-08-19; docs/vision.md,
-   * "Participant email notifications"). They live on the participant rather
-   * than the browser account because the thing being notified about (a
-   * comment, a contract) happens to a participant, and one human can hold
-   * several. Mail only ever reaches a participant with a browser account
-   * attached; a key-only bot has no address and is skipped.
-   *
-   * On by default: someone commented under a contract this participant
-   * posted. An answer addressed to you that nobody tells you about is the
-   * comment box breaking its own promise.
-   */
-  notifyCommentOnMyProposal: boolean('notify_comment_on_my_proposal').notNull().default(true),
-  /** On by default: someone else commented in a thread this participant has
-   *  commented in (contract or market), i.e. a reply to them. */
-  notifyReplyToMyComment: boolean('notify_reply_to_my_comment').notNull().default(true),
-  /** OFF by default: every new contract on the ballot of a workspace this
-   *  participant belongs to. Volume is set by strangers, so this one is
-   *  opt-in rather than opt-out. */
-  notifyNewProposal: boolean('notify_new_proposal').notNull().default(false),
-  /** OFF by default: every comment on a workspace this participant belongs to,
-   *  whoever wrote it and wherever it landed. The owner of a floor wants to
-   *  see the conversation on it without going looking; nobody else does, and
-   *  the volume is set by strangers, so it is opt-in like the one above. */
-  notifyAnyComment: boolean('notify_any_comment').notNull().default(false),
-  /** ON by default: a market this participant traded settled, with the value
-   *  it settled at. The answer to a bet they placed, so opt-out. */
-  notifyMarketResolved: boolean('notify_market_resolved').notNull().default(true),
-  /** ON by default: a contract this participant traded on or commented under
-   *  was approved or declined. The proposer's own decision mail is switchless
-   *  (services/notifications.ts); this switch covers everyone else with money
-   *  or words on the outcome. */
-  notifyContractDecided: boolean('notify_contract_decided').notNull().default(true),
-  /** Web and mobile cells of the notification matrix, as OVERRIDES:
-   *  { [kind]: { web?, mobile? } }. A missing cell means its default
-   *  (lib/notification-prefs.ts). Email cells stay on the boolean columns
-   *  above, so every cell has exactly one owner. */
-  notificationChannels: jsonb('notification_channels'),
-  /**
-   * How far this participant has read the notifications inbox
-   * (GET /api/notifications). The inbox itself is derived from comments,
-   * contracts and decisions rather than stored, so this one timestamp is
-   * the entire read state: anything newer is unread.
-   *
-   * Defaults to now(), and migration 0064 backfilled existing rows the same
-   * way, because a null would have meant every account's first sight of the
-   * feature was a badge counting months of history nobody promised them.
-   */
-  /** Operated by us or run as part of the platform: trading bots, sync jobs,
-   *  the workspace owner's own admin account. They trade, they rank and they
-   *  appear on every board like anyone else; they simply cannot take a prize
-   *  rung, which is what the published season rules have always said and what
-   *  nothing enforced until 2026-08-20. */
-  platformOperated: boolean('platform_operated').notNull().default(false),
-  notificationsSeenAt: timestamp('notifications_seen_at').notNull().defaultNow(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  approvedAt: timestamp('approved_at'),
-}, t => [uniqueIndex('agents_auth_user_id_idx').on(t.authUserId)]);
+export const agents = pgTable(
+  'agents',
+  {
+    /** How this participant receives real money, as a human-readable summary
+     *  ("PayPal: x@y.com"). DERIVED from payoutMethod when that is set; kept
+     *  as its own column because proposal snapshots and the owner's payout
+     *  view read it. Required (via payoutMethod) to post any paid job. */
+    payoutHandle: text('payout_handle'),
+    /** The structured payment method: { provider, ...provider fields },
+     *  validated per provider in POST /api/auth/profile (lib/payout.ts).
+     *  Source of truth for payment details; payoutHandle is its summary. */
+    payoutMethod: jsonb('payout_method'),
+    id: text('id').primaryKey(),
+    apiKeyHash: text('api_key_hash').notNull(),
+    /** BetterAuth user ID for browser-authenticated participants. Means "this
+     *  human IS this participant"; unique by index, set on the user's first
+     *  participant only. Detached on GDPR delete. */
+    authUserId: text('auth_user_id').references(() => authUser.id, { onDelete: 'set null' }),
+    /** BetterAuth user ID of the human who registered this participant via
+     *  POST /api/agents. Means "this human OWNS this bot". Nullable, not unique
+     *  (one human can own many bots). Bot agents themselves are independent
+     *  participants once created; ownership is just an attribution / discovery
+     *  link surfaced in /api/agents/mine. */
+    ownerUserId: text('owner_user_id').references(() => authUser.id, { onDelete: 'set null' }),
+    /** Attribution slug ('github', ...). Set from POST /api/agents/register's
+     *  optional `source`, or inherited from the creating user's source on
+     *  POST /api/agents. See authUser.source. */
+    source: text('source'),
+    /** Agent id of the participant that created this one via POST /api/agents
+     *  using an agent key (agent-spawned sub-bots, e.g. an evolver's
+     *  population). Means "this agent OWNS this bot". Nullable; complementary
+     *  with ownerUserId (browser callers set ownerUserId, agent-key callers
+     *  set ownerAgentId). Surfaced as parent/children on the public
+     *  participant profile. Declared without .references() to avoid a
+     *  self-referential type cycle; the FK lives in migration 0035. */
+    ownerAgentId: text('owner_agent_id'),
+    /**
+     * Optional case-insensitive unique handle. Either signup path (human auth,
+     * API register) may claim one. Uniqueness is enforced by a partial unique
+     * index on LOWER(nickname); see migration 0020.
+     */
+    nickname: text('nickname'),
+    /** SHA-256 of the one-time claim token minted by POST /api/onboard. A human
+     *  presents the raw token (via the /claim page) to bind their browser
+     *  account to this key-first identity; consumed (nulled) on claim. Null for
+     *  identities not created through onboarding or already claimed. */
+    claimTokenHash: text('claim_token_hash'),
+    /** Balance in nanocredits (1 credit = 1_000_000_000 units) */
+    balance: bigint('balance', { mode: 'number' }).notNull().default(0),
+    earnedBetting: doublePrecision('earned_betting').notNull().default(0),
+    spentBetting: doublePrecision('spent_betting').notNull().default(0),
+    spentTokens: doublePrecision('spent_tokens').notNull().default(0),
+    /** Base network USDC withdrawal address (checksummed) */
+    walletAddress: text('wallet_address'),
+    withdrawnUsdc: doublePrecision('withdrawn_usdc').notNull().default(0),
+    /** Whether this participant has platform-wide admin privileges. */
+    platformAdmin: boolean('platform_admin').notNull().default(false),
+    /** 'creator' | 'agent' | null - onboarding intent captured at signup */
+    intent: text('intent'),
+    /** Freeform public bio: who this participant is and what it is in Telarchy
+     *  to do. Shown on the public profile. Max 500 chars, set at registration
+     *  or via POST /api/auth/profile. */
+    bio: text('bio'),
+    /**
+     * Email notification switches (owner ask 2026-08-19; docs/vision.md,
+     * "Participant email notifications"). They live on the participant rather
+     * than the browser account because the thing being notified about (a
+     * comment, a contract) happens to a participant, and one human can hold
+     * several. Mail only ever reaches a participant with a browser account
+     * attached; a key-only bot has no address and is skipped.
+     *
+     * On by default: someone commented under a contract this participant
+     * posted. An answer addressed to you that nobody tells you about is the
+     * comment box breaking its own promise.
+     */
+    notifyCommentOnMyProposal: boolean('notify_comment_on_my_proposal').notNull().default(true),
+    /** On by default: someone else commented in a thread this participant has
+     *  commented in (contract or market), i.e. a reply to them. */
+    notifyReplyToMyComment: boolean('notify_reply_to_my_comment').notNull().default(true),
+    /** OFF by default: every new contract on the ballot of a workspace this
+     *  participant belongs to. Volume is set by strangers, so this one is
+     *  opt-in rather than opt-out. */
+    notifyNewProposal: boolean('notify_new_proposal').notNull().default(false),
+    /** OFF by default: every comment on a workspace this participant belongs to,
+     *  whoever wrote it and wherever it landed. The owner of a floor wants to
+     *  see the conversation on it without going looking; nobody else does, and
+     *  the volume is set by strangers, so it is opt-in like the one above. */
+    notifyAnyComment: boolean('notify_any_comment').notNull().default(false),
+    /** ON by default: a market this participant traded settled, with the value
+     *  it settled at. The answer to a bet they placed, so opt-out. */
+    notifyMarketResolved: boolean('notify_market_resolved').notNull().default(true),
+    /** ON by default: a contract this participant traded on or commented under
+     *  was approved or declined. The proposer's own decision mail is switchless
+     *  (services/notifications.ts); this switch covers everyone else with money
+     *  or words on the outcome. */
+    notifyContractDecided: boolean('notify_contract_decided').notNull().default(true),
+    /** Web and mobile cells of the notification matrix, as OVERRIDES:
+     *  { [kind]: { web?, mobile? } }. A missing cell means its default
+     *  (lib/notification-prefs.ts). Email cells stay on the boolean columns
+     *  above, so every cell has exactly one owner. */
+    notificationChannels: jsonb('notification_channels'),
+    /**
+     * How far this participant has read the notifications inbox
+     * (GET /api/notifications). The inbox itself is derived from comments,
+     * contracts and decisions rather than stored, so this one timestamp is
+     * the entire read state: anything newer is unread.
+     *
+     * Defaults to now(), and migration 0064 backfilled existing rows the same
+     * way, because a null would have meant every account's first sight of the
+     * feature was a badge counting months of history nobody promised them.
+     */
+    /** Operated by us or run as part of the platform: trading bots, sync jobs,
+     *  the workspace owner's own admin account. They trade, they rank and they
+     *  appear on every board like anyone else; they simply cannot take a prize
+     *  rung, which is what the published season rules have always said and what
+     *  nothing enforced until 2026-08-20. */
+    platformOperated: boolean('platform_operated').notNull().default(false),
+    notificationsSeenAt: timestamp('notifications_seen_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    approvedAt: timestamp('approved_at'),
+  },
+  t => [uniqueIndex('agents_auth_user_id_idx').on(t.authUserId)],
+);
 
 /**
  * Daily balance snapshots per participant, written by the hourly resolve cron
@@ -292,27 +313,37 @@ export const agents = pgTable('agents', {
  * and replaying a participant's whole ledger to draw thirty points is a scan
  * where this is a lookup. If the two ever disagree, the ledger is right.
  */
-export const agentBalanceSnapshots = pgTable('agent_balance_snapshots', {
-  agentId: text('agent_id').notNull(),
-  /** UTC day, YYYY-MM-DD. */
-  day: text('day').notNull(),
-  balance: bigint('balance', { mode: 'number' }).notNull(),
-}, t => [primaryKey({ columns: [t.agentId, t.day] })]);
+export const agentBalanceSnapshots = pgTable(
+  'agent_balance_snapshots',
+  {
+    agentId: text('agent_id').notNull(),
+    /** UTC day, YYYY-MM-DD. */
+    day: text('day').notNull(),
+    balance: bigint('balance', { mode: 'number' }).notNull(),
+  },
+  t => [primaryKey({ columns: [t.agentId, t.day] })],
+);
 
-export const agentApiKeys = pgTable('agent_api_keys', {
-  hash: text('hash').primaryKey(),
-  /** Opaque public handle (uuid). Used in management URLs so the hash never leaves the DB. */
-  keyId: text('key_id').notNull(),
-  agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
-  workspaceId: text('workspace_id').notNull(),
-  /** Optional human label shown in the management UI. */
-  label: text('label'),
-  /** Per-key permission set. Vocabulary lives in lib/scopes.ts. Default '{*}' = full access. */
-  scopes: text('scopes').array().notNull().default(['*']),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  /** Bumped (debounced) by the auth middleware on every successful key resolve. */
-  lastUsedAt: timestamp('last_used_at'),
-}, t => [uniqueIndex('agent_api_keys_key_id_idx').on(t.keyId)]);
+export const agentApiKeys = pgTable(
+  'agent_api_keys',
+  {
+    hash: text('hash').primaryKey(),
+    /** Opaque public handle (uuid). Used in management URLs so the hash never leaves the DB. */
+    keyId: text('key_id').notNull(),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    workspaceId: text('workspace_id').notNull(),
+    /** Optional human label shown in the management UI. */
+    label: text('label'),
+    /** Per-key permission set. Vocabulary lives in lib/scopes.ts. Default '{*}' = full access. */
+    scopes: text('scopes').array().notNull().default(['*']),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    /** Bumped (debounced) by the auth middleware on every successful key resolve. */
+    lastUsedAt: timestamp('last_used_at'),
+  },
+  t => [uniqueIndex('agent_api_keys_key_id_idx').on(t.keyId)],
+);
 
 // ---------------------------------------------------------------------------
 // Waitlist
@@ -334,7 +365,9 @@ export const waitlist = pgTable('waitlist', {
 
 export const deposits = pgTable('deposits', {
   txHash: text('tx_hash').primaryKey(),
-  agentId: text('agent_id').notNull().references(() => agents.id),
+  agentId: text('agent_id')
+    .notNull()
+    .references(() => agents.id),
   from: text('from').notNull(),
   usdcAmount: doublePrecision('usdc_amount').notNull(),
   credits: doublePrecision('credits').notNull(),
@@ -351,23 +384,30 @@ export const deposits = pgTable('deposits', {
  * ledger of those moves. Amounts are stored in credits (display units);
  * balance mutations themselves happen in integer nanocredits.
  */
-export const creditTransfers = pgTable('credit_transfers', {
-  id: text('id').primaryKey(),
-  fromAgentId: text('from_agent_id').notNull().references(() => agents.id),
-  toAgentId: text('to_agent_id').notNull().references(() => agents.id),
-  credits: doublePrecision('credits').notNull(),
-  /** Freeform reference set by the sender (max 200 chars), e.g. an exchange
-   *  or invoice id in an external system. */
-  memo: text('memo').notNull().default(''),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [
-  index('credit_transfers_from_idx').on(t.fromAgentId),
-  index('credit_transfers_to_idx').on(t.toAgentId),
-]);
+export const creditTransfers = pgTable(
+  'credit_transfers',
+  {
+    id: text('id').primaryKey(),
+    fromAgentId: text('from_agent_id')
+      .notNull()
+      .references(() => agents.id),
+    toAgentId: text('to_agent_id')
+      .notNull()
+      .references(() => agents.id),
+    credits: doublePrecision('credits').notNull(),
+    /** Freeform reference set by the sender (max 200 chars), e.g. an exchange
+     *  or invoice id in an external system. */
+    memo: text('memo').notNull().default(''),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [index('credit_transfers_from_idx').on(t.fromAgentId), index('credit_transfers_to_idx').on(t.toAgentId)],
+);
 
 export const withdrawals = pgTable('withdrawals', {
   id: text('id').primaryKey(),
-  agentId: text('agent_id').notNull().references(() => agents.id),
+  agentId: text('agent_id')
+    .notNull()
+    .references(() => agents.id),
   credits: doublePrecision('credits').notNull(),
   usdcAmount: doublePrecision('usdc_amount').notNull(),
   toAddress: text('to_address').notNull(),
@@ -388,120 +428,141 @@ export const systemConfig = pgTable('system_config', {
 // Workspace-scoped tables (all carry workspaceId)
 // ---------------------------------------------------------------------------
 
-export const metrics = pgTable('metrics', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  name: text('name').notNull(),
-  description: text('description').notNull().default(''),
-  value: doublePrecision('value').notNull().default(0),
-  formula: text('formula').notNull().default('0'),
-  /** Display order within workspace */
-  order: integer('order').notNull().default(0),
-  /** { enabled: boolean, halfLife: number, density?: number } | null */
-  timePreference: jsonb('time_preference'),
-  marketRangeMax: doublePrecision('market_range_max').notNull().default(1000),
-  /**
-   * The period this number restarts on: 'hour' | 'day' | 'week' | 'month' |
-   * 'year', or NULL when it never restarts (an accumulating total or a level).
-   *
-   * It says which readings belong together. A resetting metric's reading is
-   * about the period it was taken in and nothing else, so only readings inside
-   * a market's own target period are that market's actual-so-far. Undeclared,
-   * the floor drew last week's total as this week's actual (owner report
-   * 2026-08-17).
-   */
-  resetsEvery: text('resets_every'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+export const metrics = pgTable(
+  'metrics',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    value: doublePrecision('value').notNull().default(0),
+    formula: text('formula').notNull().default('0'),
+    /** Display order within workspace */
+    order: integer('order').notNull().default(0),
+    /** { enabled: boolean, halfLife: number, density?: number } | null */
+    timePreference: jsonb('time_preference'),
+    marketRangeMax: doublePrecision('market_range_max').notNull().default(1000),
+    /**
+     * The period this number restarts on: 'hour' | 'day' | 'week' | 'month' |
+     * 'year', or NULL when it never restarts (an accumulating total or a level).
+     *
+     * It says which readings belong together. A resetting metric's reading is
+     * about the period it was taken in and nothing else, so only readings inside
+     * a market's own target period are that market's actual-so-far. Undeclared,
+     * the floor drew last week's total as this week's actual (owner report
+     * 2026-08-17).
+     */
+    resetsEvery: text('resets_every'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+);
 
-export const markets = pgTable('markets', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  metricId: text('metric_id').notNull(),
-  metricName: text('metric_name').notNull(),
-  targetDate: text('target_date').notNull(),
-  resolved: boolean('resolved').notNull().default(false),
-  resolvedAt: timestamp('resolved_at'),
-  actualValue: doublePrecision('actual_value'),
-  active: boolean('active').notNull().default(true),
-  voided: boolean('voided').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  rangeMin: doublePrecision('range_min').notNull(),
-  rangeMax: doublePrecision('range_max').notNull(),
-  /** [lowerShares, higherShares] - LMSR state */
-  shares: jsonb('shares').notNull().$type<[number, number]>(),
-  liquidity: doublePrecision('liquidity').notNull(),
-  /** LMSR pool (liquidity parameter b) */
-  pool: doublePrecision('pool').notNull(),
-  /** Cumulative traded volume on this market: sum of |cost| across all buy and sell trades. */
-  tradedVolume: doublePrecision('traded_volume').notNull().default(0),
-  proposalId: text('proposal_id'),
-  /**
-   * Conditional-market branch. NULL on natural-trajectory (non-proposal) markets.
-   * On proposal-conditional markets: 'approved' (priced under the assumption the
-   * proposal is approved) or 'declined' (priced under the assumption it is
-   * declined). The headline impact is approved.consensus - declined.consensus.
-   */
-  branch: text('branch'),
-  /** Flagged for the public benchmark surface (/benchmark + /api/marketplace/featured). */
-  featured: boolean('featured').notNull().default(false),
-}, t => [
-  primaryKey({ columns: [t.id, t.workspaceId] }),
-  index('markets_workspace_idx').on(t.workspaceId),
-]);
+export const markets = pgTable(
+  'markets',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    metricId: text('metric_id').notNull(),
+    metricName: text('metric_name').notNull(),
+    targetDate: text('target_date').notNull(),
+    resolved: boolean('resolved').notNull().default(false),
+    resolvedAt: timestamp('resolved_at'),
+    actualValue: doublePrecision('actual_value'),
+    active: boolean('active').notNull().default(true),
+    voided: boolean('voided').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    rangeMin: doublePrecision('range_min').notNull(),
+    rangeMax: doublePrecision('range_max').notNull(),
+    /** [lowerShares, higherShares] - LMSR state */
+    shares: jsonb('shares').notNull().$type<[number, number]>(),
+    liquidity: doublePrecision('liquidity').notNull(),
+    /** LMSR pool (liquidity parameter b) */
+    pool: doublePrecision('pool').notNull(),
+    /** Cumulative traded volume on this market: sum of |cost| across all buy and sell trades. */
+    tradedVolume: doublePrecision('traded_volume').notNull().default(0),
+    proposalId: text('proposal_id'),
+    /**
+     * Conditional-market branch. NULL on natural-trajectory (non-proposal) markets.
+     * On proposal-conditional markets: 'approved' (priced under the assumption the
+     * proposal is approved) or 'declined' (priced under the assumption it is
+     * declined). The headline impact is approved.consensus - declined.consensus.
+     */
+    branch: text('branch'),
+    /** Flagged for the public benchmark surface (/benchmark + /api/marketplace/featured). */
+    featured: boolean('featured').notNull().default(false),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] }), index('markets_workspace_idx').on(t.workspaceId)],
+);
 
-export const positions = pgTable('positions', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  agentId: text('agent_id').notNull().references(() => agents.id),
-  marketId: text('market_id').notNull(),
-  /** 'higher' | 'lower' */
-  direction: text('direction').notNull(),
-  shares: doublePrecision('shares').notNull(),
-  totalCost: doublePrecision('total_cost').notNull(),
-}, t => [
-  primaryKey({ columns: [t.id, t.workspaceId] }),
-  index('positions_workspace_idx').on(t.workspaceId),
-  index('positions_market_idx').on(t.marketId),
-]);
+export const positions = pgTable(
+  'positions',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id),
+    marketId: text('market_id').notNull(),
+    /** 'higher' | 'lower' */
+    direction: text('direction').notNull(),
+    shares: doublePrecision('shares').notNull(),
+    totalCost: doublePrecision('total_cost').notNull(),
+  },
+  t => [
+    primaryKey({ columns: [t.id, t.workspaceId] }),
+    index('positions_workspace_idx').on(t.workspaceId),
+    index('positions_market_idx').on(t.marketId),
+  ],
+);
 
-export const trades = pgTable('trades', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  agentId: text('agent_id').notNull().references(() => agents.id),
-  marketId: text('market_id').notNull(),
-  /** 'higher' | 'lower' */
-  direction: text('direction').notNull(),
-  shares: doublePrecision('shares').notNull(),
-  cost: doublePrecision('cost').notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [
-  primaryKey({ columns: [t.id, t.workspaceId] }),
-  // Regrowth insurance, not present-day tuning: this table hit 348k rows once
-  // (lib/board.ts) and every hot read filters one of these shapes. The PK
-  // leads on id, so it serves none of them.
-  index('trades_ws_market_created_idx').on(t.workspaceId, t.marketId, t.createdAt),
-  index('trades_created_idx').on(t.createdAt),
-]);
+export const trades = pgTable(
+  'trades',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id),
+    marketId: text('market_id').notNull(),
+    /** 'higher' | 'lower' */
+    direction: text('direction').notNull(),
+    shares: doublePrecision('shares').notNull(),
+    cost: doublePrecision('cost').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [
+    primaryKey({ columns: [t.id, t.workspaceId] }),
+    // Regrowth insurance, not present-day tuning: this table hit 348k rows once
+    // (lib/board.ts) and every hot read filters one of these shapes. The PK
+    // leads on id, so it serves none of them.
+    index('trades_ws_market_created_idx').on(t.workspaceId, t.marketId, t.createdAt),
+    index('trades_created_idx').on(t.createdAt),
+  ],
+);
 
-export const liquidityEvents = pgTable('liquidity_events', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  marketId: text('market_id').notNull(),
-  amount: doublePrecision('amount').notNull(),
-  totalLiquidity: doublePrecision('total_liquidity').notNull(),
-  /** 'initial' | 'injection' */
-  type: text('type').notNull(),
-  /** Agent who provided liquidity (null for initial platform liquidity) */
-  agentId: text('agent_id'),
-  poolContribution: doublePrecision('pool_contribution'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [
-  primaryKey({ columns: [t.id, t.workspaceId] }),
-  // The price replay reads every event for one market in creation order.
-  index('liquidity_events_ws_market_created_idx').on(t.workspaceId, t.marketId, t.createdAt),
-]);
+export const liquidityEvents = pgTable(
+  'liquidity_events',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    marketId: text('market_id').notNull(),
+    amount: doublePrecision('amount').notNull(),
+    totalLiquidity: doublePrecision('total_liquidity').notNull(),
+    /** 'initial' | 'injection' */
+    type: text('type').notNull(),
+    /** Agent who provided liquidity (null for initial platform liquidity) */
+    agentId: text('agent_id'),
+    poolContribution: doublePrecision('pool_contribution'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [
+    primaryKey({ columns: [t.id, t.workspaceId] }),
+    // The price replay reads every event for one market in creation order.
+    index('liquidity_events_ws_market_created_idx').on(t.workspaceId, t.marketId, t.createdAt),
+  ],
+);
 
 /**
  * A resting instruction: buy `direction` in this market with up to
@@ -533,21 +594,25 @@ export const liquidityEvents = pgTable('liquidity_events', {
  *
  * Governing doc: docs/market-integrity.md.
  */
-export const creditLedger = pgTable('credit_ledger', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  agentId: text('agent_id').notNull(),
-  /** Nanocredits, signed: negative is a debit. Same unit as agents.balance. */
-  deltaUnits: bigint('delta_units', { mode: 'number' }).notNull(),
-  /** The balance this row produced, so a divergence is visible at its origin. */
-  balanceAfterUnits: bigint('balance_after_units', { mode: 'number' }).notNull(),
-  /** Closed set; see CreditReason in services/credits.ts. */
-  reason: text('reason').notNull(),
-  /** 'market' | 'proposal' | 'transfer' | 'season' | null. */
-  refType: text('ref_type'),
-  refId: text('ref_id'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+export const creditLedger = pgTable(
+  'credit_ledger',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    agentId: text('agent_id').notNull(),
+    /** Nanocredits, signed: negative is a debit. Same unit as agents.balance. */
+    deltaUnits: bigint('delta_units', { mode: 'number' }).notNull(),
+    /** The balance this row produced, so a divergence is visible at its origin. */
+    balanceAfterUnits: bigint('balance_after_units', { mode: 'number' }).notNull(),
+    /** Closed set; see CreditReason in services/credits.ts. */
+    reason: text('reason').notNull(),
+    /** 'market' | 'proposal' | 'transfer' | 'season' | null. */
+    refType: text('ref_type'),
+    refId: text('ref_id'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+);
 
 /**
  * What a market was settling on, and when the owner changed it.
@@ -562,18 +627,22 @@ export const creditLedger = pgTable('credit_ledger', {
  *
  * Append-only: the whole point is that a revision cannot be un-made.
  */
-export const metricDefinitionRevisions = pgTable('metric_definition_revisions', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  metricId: text('metric_id').notNull(),
-  /** 'name' | 'description' | 'formula' | 'marketRangeMax' */
-  field: text('field').notNull(),
-  oldValue: text('old_value'),
-  newValue: text('new_value'),
-  /** Agent id or auth user id of whoever saved it, when known. */
-  changedBy: text('changed_by'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+export const metricDefinitionRevisions = pgTable(
+  'metric_definition_revisions',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    metricId: text('metric_id').notNull(),
+    /** 'name' | 'description' | 'formula' | 'marketRangeMax' */
+    field: text('field').notNull(),
+    oldValue: text('old_value'),
+    newValue: text('new_value'),
+    /** Agent id or auth user id of whoever saved it, when known. */
+    changedBy: text('changed_by'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+);
 
 /**
  * Every edit to a contract's definition, in the order it happened.
@@ -588,18 +657,22 @@ export const metricDefinitionRevisions = pgTable('metric_definition_revisions', 
  *
  * Append-only: the whole point is that a revision cannot be un-made.
  */
-export const proposalRevisions = pgTable('proposal_revisions', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  proposalId: text('proposal_id').notNull(),
-  /** 'title' | 'description' | 'askUsd' */
-  field: text('field').notNull(),
-  oldValue: text('old_value'),
-  newValue: text('new_value'),
-  /** Agent id or auth user id of whoever saved it, when known. */
-  changedBy: text('changed_by'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+export const proposalRevisions = pgTable(
+  'proposal_revisions',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    proposalId: text('proposal_id').notNull(),
+    /** 'title' | 'description' | 'askUsd' */
+    field: text('field').notNull(),
+    oldValue: text('old_value'),
+    newValue: text('new_value'),
+    /** Agent id or auth user id of whoever saved it, when known. */
+    changedBy: text('changed_by'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+);
 
 export const limitOrders = pgTable('limit_orders', {
   id: text('id').primaryKey(),
@@ -619,64 +692,68 @@ export const limitOrders = pgTable('limit_orders', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-export const proposals = pgTable('proposals', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  proposedBy: text('proposed_by').notNull(),
-  title: text('title').notNull(),
-  description: text('description').notNull().default(''),
-  /** 'pending' | 'approved' | 'declined' | 'declined_spam' | 'withdrawn' */
-  status: text('status').notNull().default('pending'),
-  /** Where approval's real-dollar payment goes (PayPal email, IBAN, crypto
-   *  address; free text). Required at listing for a non-zero ask; returned
-   *  only to manage-capability callers, never in member/public payloads. */
-  payoutHandle: text('payout_handle'),
-  conditionalMarketIds: jsonb('conditional_market_ids').notNull().$type<string[]>().default([]),
-  /**
-   * Per-branch-market credit subsidy seeded into each conditional market's
-   * pool. Running total of all contributions (proposer at creation plus any
-   * post-hoc admin top-ups); always equals the sum of subsidyContributions.
-   */
-  liquiditySubsidy: doublePrecision('liquidity_subsidy').notNull().default(0),
-  /**
-   * Who funds the subsidy: agentId -> credits per branch market. Re-spawned
-   * conditional markets (target-date rollovers) are re-seeded from this map,
-   * debiting each contributor, so top-ups persist instead of evaporating
-   * with the voided market generation. Refunds on void flow back through
-   * per-contributor liquidityEvents rows.
-   */
-  subsidyContributions: jsonb('subsidy_contributions').notNull().$type<Record<string, number>>().default({}),
-  /** Reward credits actually paid out on approval. 0 if not approved or workspace had no reward configured. */
-  rewardPaid: doublePrecision('reward_paid').notNull().default(0),
-  /** Penalty credits actually charged on spam-decline. 0 if not declined as spam. */
-  penaltyCharged: doublePrecision('penalty_charged').notNull().default(0),
-  /** Set when status leaves 'pending'. */
-  resolvedAt: timestamp('resolved_at'),
-  /** Participant id who approved/declined/spam-declined; equals proposedBy on withdraw. */
-  resolvedBy: text('resolved_by'),
-  /**
-   * Why this proposal was declined, in the owner's own words, kept permanently
-   * on the proposal.
-   *
-   * A workspace that publishes a charter is promising participants that a
-   * proposal the market ranked highest either ships or gets a written reason.
-   * Without somewhere durable to put that reason it degrades into a chat
-   * message nobody can find three months later, which is the same as not
-   * having promised anything. So it is required on decline exactly when the
-   * workspace has a charter: making the public commitment is what turns the
-   * field on. See workspaces.charter.
-   */
-  declineReason: text('decline_reason'),
-  /**
-   * The job's price in whole USD (paid-jobs charter, 2026-08-09). Stored
-   * rather than parsed back out of the title, because burn (the summed cost
-   * of approved jobs) is subtracted inside the resolving metric: a number
-   * that reaches the metric through prose can break silently or be edited.
-   * Null for proposals that predate the field or that carry no ask.
-   */
-  askUsd: integer('ask_usd'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+export const proposals = pgTable(
+  'proposals',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    proposedBy: text('proposed_by').notNull(),
+    title: text('title').notNull(),
+    description: text('description').notNull().default(''),
+    /** 'pending' | 'approved' | 'declined' | 'declined_spam' | 'withdrawn' */
+    status: text('status').notNull().default('pending'),
+    /** Where approval's real-dollar payment goes (PayPal email, IBAN, crypto
+     *  address; free text). Required at listing for a non-zero ask; returned
+     *  only to manage-capability callers, never in member/public payloads. */
+    payoutHandle: text('payout_handle'),
+    conditionalMarketIds: jsonb('conditional_market_ids').notNull().$type<string[]>().default([]),
+    /**
+     * Per-branch-market credit subsidy seeded into each conditional market's
+     * pool. Running total of all contributions (proposer at creation plus any
+     * post-hoc admin top-ups); always equals the sum of subsidyContributions.
+     */
+    liquiditySubsidy: doublePrecision('liquidity_subsidy').notNull().default(0),
+    /**
+     * Who funds the subsidy: agentId -> credits per branch market. Re-spawned
+     * conditional markets (target-date rollovers) are re-seeded from this map,
+     * debiting each contributor, so top-ups persist instead of evaporating
+     * with the voided market generation. Refunds on void flow back through
+     * per-contributor liquidityEvents rows.
+     */
+    subsidyContributions: jsonb('subsidy_contributions').notNull().$type<Record<string, number>>().default({}),
+    /** Reward credits actually paid out on approval. 0 if not approved or workspace had no reward configured. */
+    rewardPaid: doublePrecision('reward_paid').notNull().default(0),
+    /** Penalty credits actually charged on spam-decline. 0 if not declined as spam. */
+    penaltyCharged: doublePrecision('penalty_charged').notNull().default(0),
+    /** Set when status leaves 'pending'. */
+    resolvedAt: timestamp('resolved_at'),
+    /** Participant id who approved/declined/spam-declined; equals proposedBy on withdraw. */
+    resolvedBy: text('resolved_by'),
+    /**
+     * Why this proposal was declined, in the owner's own words, kept permanently
+     * on the proposal.
+     *
+     * A workspace that publishes a charter is promising participants that a
+     * proposal the market ranked highest either ships or gets a written reason.
+     * Without somewhere durable to put that reason it degrades into a chat
+     * message nobody can find three months later, which is the same as not
+     * having promised anything. So it is required on decline exactly when the
+     * workspace has a charter: making the public commitment is what turns the
+     * field on. See workspaces.charter.
+     */
+    declineReason: text('decline_reason'),
+    /**
+     * The job's price in whole USD (paid-jobs charter, 2026-08-09). Stored
+     * rather than parsed back out of the title, because burn (the summed cost
+     * of approved jobs) is subtracted inside the resolving metric: a number
+     * that reaches the metric through prose can break silently or be edited.
+     * Null for proposals that predate the field or that carry no ask.
+     */
+    askUsd: integer('ask_usd'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+);
 
 /** One row per document load the server serves on the public floor
  *  (owner ask 2026-08-11): launch traffic beside signups on /admin.
@@ -693,12 +770,16 @@ export const proposals = pgTable('proposals', {
  * rows, because the watermark then covers them and a table of read receipts
  * nobody queries is just growth.
  */
-export const notificationReads = pgTable('notification_reads', {
-  agentId: text('agent_id').notNull(),
-  /** The derived item id from GET /api/notifications, e.g. `pm-<uuid>`. */
-  itemId: text('item_id').notNull(),
-  readAt: timestamp('read_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.agentId, t.itemId] })]);
+export const notificationReads = pgTable(
+  'notification_reads',
+  {
+    agentId: text('agent_id').notNull(),
+    /** The derived item id from GET /api/notifications, e.g. `pm-<uuid>`. */
+    itemId: text('item_id').notNull(),
+    readAt: timestamp('read_at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.agentId, t.itemId] })],
+);
 
 /**
  * One browser's push subscription, the mobile channel's address (owner ask
@@ -707,18 +788,22 @@ export const notificationReads = pgTable('notification_reads', {
  * rather than duplicates. A push rejected with 404/410 means the browser
  * revoked it, and the sender deletes the row.
  */
-export const pushSubscriptions = pgTable('push_subscriptions', {
-  id: text('id').primaryKey(),
-  agentId: text('agent_id').notNull(),
-  /** The browser-issued push URL; unique, because one browser is one address. */
-  endpoint: text('endpoint').notNull(),
-  /** The subscription's `keys` object (p256dh + auth), as the browser gave it. */
-  keys: jsonb('keys').notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [
-  uniqueIndex('push_subscriptions_endpoint_idx').on(t.endpoint),
-  index('push_subscriptions_agent_idx').on(t.agentId),
-]);
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: text('id').primaryKey(),
+    agentId: text('agent_id').notNull(),
+    /** The browser-issued push URL; unique, because one browser is one address. */
+    endpoint: text('endpoint').notNull(),
+    /** The subscription's `keys` object (p256dh + auth), as the browser gave it. */
+    keys: jsonb('keys').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [
+    uniqueIndex('push_subscriptions_endpoint_idx').on(t.endpoint),
+    index('push_subscriptions_agent_idx').on(t.agentId),
+  ],
+);
 
 /**
  * Every question asked of a floor's Ask field, with its answer (owner ask
@@ -736,31 +821,35 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
  * are purged on the same 30-day window as pageVisits, while the question text
  * is kept, because the gap it names outlives the visit.
  */
-export const floorQuestions = pgTable('floor_questions', {
-  id: text('id').primaryKey(),
-  /** The floor asked about; NULL for a conversation on the operator door,
-   *  where the person does not have one yet (the operator-door design note). */
-  workspaceId: text('workspace_id'),
-  question: text('question').notNull(),
-  answer: text('answer').notNull().default(''),
-  /** Participant id when known; null for an anonymous visitor, which is most
-   *  of them by design (the field exists to serve people without accounts). */
-  askedBy: text('asked_by'),
-  ip: text('ip'),
-  country: text('country'),
-  costUsd: doublePrecision('cost_usd'),
-  model: text('model'),
-  /** Set when the gateway failed or the budget ran out: a question that got
-   *  no answer is the most interesting row in the table. */
-  error: text('error'),
-  /** What Otto did on the asker's behalf while answering: [{ method, path,
-   *  status }] (owner direction 2026-08-21, when he stopped being an answer
-   *  service and got the caller's own API access). Acting for someone without
-   *  a record of what was done is the part that could not be defended later,
-   *  and the row already carries who asked and what they asked for. */
-  toolCalls: jsonb('tool_calls'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [index('floor_questions_created_idx').on(t.createdAt)]);
+export const floorQuestions = pgTable(
+  'floor_questions',
+  {
+    id: text('id').primaryKey(),
+    /** The floor asked about; NULL for a conversation on the operator door,
+     *  where the person does not have one yet (the operator-door design note). */
+    workspaceId: text('workspace_id'),
+    question: text('question').notNull(),
+    answer: text('answer').notNull().default(''),
+    /** Participant id when known; null for an anonymous visitor, which is most
+     *  of them by design (the field exists to serve people without accounts). */
+    askedBy: text('asked_by'),
+    ip: text('ip'),
+    country: text('country'),
+    costUsd: doublePrecision('cost_usd'),
+    model: text('model'),
+    /** Set when the gateway failed or the budget ran out: a question that got
+     *  no answer is the most interesting row in the table. */
+    error: text('error'),
+    /** What Otto did on the asker's behalf while answering: [{ method, path,
+     *  status }] (owner direction 2026-08-21, when he stopped being an answer
+     *  service and got the caller's own API access). Acting for someone without
+     *  a record of what was done is the part that could not be defended later,
+     *  and the row already carries who asked and what they asked for. */
+    toolCalls: jsonb('tool_calls'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [index('floor_questions_created_idx').on(t.createdAt)],
+);
 
 export const pageVisits = pgTable('page_visits', {
   id: text('id').primaryKey(),
@@ -796,23 +885,31 @@ export const trafficDaily = pgTable('traffic_daily', {
   uniques: integer('uniques').notNull(),
 });
 
-export const proposalMessages = pgTable('proposal_messages', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  proposalId: text('proposal_id').notNull(),
-  from: text('from').notNull(),
-  content: text('content').notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+export const proposalMessages = pgTable(
+  'proposal_messages',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    proposalId: text('proposal_id').notNull(),
+    from: text('from').notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+);
 
-export const marketMessages = pgTable('market_messages', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  marketId: text('market_id').notNull(),
-  from: text('from').notNull(),
-  content: text('content').notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+export const marketMessages = pgTable(
+  'market_messages',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    marketId: text('market_id').notNull(),
+    from: text('from').notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+);
 
 /** Owner-authored prose attached to a workspace: public, timestamped, newest
  *  first. The surface a charter's "I announce material news" promise lands on
@@ -823,76 +920,93 @@ export const marketMessages = pgTable('market_messages', {
  *  there is no delete and no overwrite, because what this buys a trader is the
  *  ability to check that a disclosure happened BEFORE an event, and a record
  *  the publisher can quietly rewrite proves nothing. */
-export const announcements = pgTable('announcements', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  /** Markdown, capped at 5000 chars by the route. */
-  body: text('body').notNull(),
-  /** Set server-side on insert and never again; a self-chosen disclosure
-   *  timestamp is not evidence of anything. */
-  publishedAt: timestamp('published_at').notNull().defaultNow(),
-  /** Null until the row is edited. Public from then on, beside publishedAt. */
-  editedAt: timestamp('edited_at'),
-  /** Null until the FIRST edit, then the body exactly as first published.
-   *  Public, so an edit is visible as an edit rather than as history. */
-  originalBody: text('original_body'),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+export const announcements = pgTable(
+  'announcements',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    /** Markdown, capped at 5000 chars by the route. */
+    body: text('body').notNull(),
+    /** Set server-side on insert and never again; a self-chosen disclosure
+     *  timestamp is not evidence of anything. */
+    publishedAt: timestamp('published_at').notNull().defaultNow(),
+    /** Null until the row is edited. Public from then on, beside publishedAt. */
+    editedAt: timestamp('edited_at'),
+    /** Null until the FIRST edit, then the body exactly as first published.
+     *  Public, so an edit is visible as an edit rather than as history. */
+    originalBody: text('original_body'),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+);
 
-export const updates = pgTable('updates', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  metricName: text('metric_name').notNull(),
-  oldValue: doublePrecision('old_value').notNull(),
-  newValue: doublePrecision('new_value').notNull(),
-  description: text('description').notNull().default(''),
-  timestamp: timestamp('timestamp').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+export const updates = pgTable(
+  'updates',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    metricName: text('metric_name').notNull(),
+    oldValue: doublePrecision('old_value').notNull(),
+    newValue: doublePrecision('new_value').notNull(),
+    description: text('description').notNull().default(''),
+    timestamp: timestamp('timestamp').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+);
 
-export const metricLogs = pgTable('metric_logs', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  metricId: text('metric_id').notNull(),
-  metricName: text('metric_name').notNull(),
-  /** User-authored current value for leaves (0 for composites, since the PUT route zeroes value on non-leaf rows). */
-  value: doublePrecision('value').notNull(),
-  /** Computed outlook (m.total). For composites this is the formula result; for leaves with Time Preference enabled
-   *  it is the blend of value and future market consensus, so it differs from value. NULL on rows written before
-   *  migration 0018. */
-  outlook: doublePrecision('outlook'),
-  timestamp: timestamp('timestamp').notNull().defaultNow(),
-}, t => [
-  primaryKey({ columns: [t.id, t.workspaceId] }),
-  index('metric_logs_ws_metric_ts_idx').on(t.workspaceId, t.metricId, t.timestamp),
-]);
+export const metricLogs = pgTable(
+  'metric_logs',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    metricId: text('metric_id').notNull(),
+    metricName: text('metric_name').notNull(),
+    /** User-authored current value for leaves (0 for composites, since the PUT route zeroes value on non-leaf rows). */
+    value: doublePrecision('value').notNull(),
+    /** Computed outlook (m.total). For composites this is the formula result; for leaves with Time Preference enabled
+     *  it is the blend of value and future market consensus, so it differs from value. NULL on rows written before
+     *  migration 0018. */
+    outlook: doublePrecision('outlook'),
+    timestamp: timestamp('timestamp').notNull().defaultNow(),
+  },
+  t => [
+    primaryKey({ columns: [t.id, t.workspaceId] }),
+    index('metric_logs_ws_metric_ts_idx').on(t.workspaceId, t.metricId, t.timestamp),
+  ],
+);
 
-export const events = pgTable('events', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  type: text('type').notNull(),
-  data: jsonb('data').notNull(),
-  timestamp: timestamp('timestamp').notNull().defaultNow(),
-}, t => [
-  primaryKey({ columns: [t.id, t.workspaceId] }),
-  index('events_ws_ts_idx').on(t.workspaceId, t.timestamp),
-]);
+export const events = pgTable(
+  'events',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    type: text('type').notNull(),
+    data: jsonb('data').notNull(),
+    timestamp: timestamp('timestamp').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] }), index('events_ws_ts_idx').on(t.workspaceId, t.timestamp)],
+);
 
-export const permissionGroups = pgTable('permission_groups', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  name: text('name').notNull(),
-  /** 'public' | 'admin' | 'trader' | 'custom' */
-  type: text('type').notNull(),
-  description: text('description').notNull().default(''),
-  /** Canonical participant IDs in this group. */
-  memberIds: jsonb('member_ids').notNull().$type<string[]>().default([]),
-  /** metricId → { read: boolean, trade: boolean } */
-  permissions: jsonb('permissions').notNull().$type<Record<string, { read: boolean; trade: boolean }>>().default({}),
-  /** sourceId → { read: boolean } (covers both text and external-bridge sources) */
-  sourcePermissions: jsonb('source_permissions').notNull().$type<Record<string, { read: boolean }>>().default({}),
-  /** Capabilities granted to every member of this group: subset of 'read' | 'trade' | 'manage'. */
-  capabilities: jsonb('capabilities').notNull().$type<string[]>().default([]),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+export const permissionGroups = pgTable(
+  'permission_groups',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    name: text('name').notNull(),
+    /** 'public' | 'admin' | 'trader' | 'custom' */
+    type: text('type').notNull(),
+    description: text('description').notNull().default(''),
+    /** Canonical participant IDs in this group. */
+    memberIds: jsonb('member_ids').notNull().$type<string[]>().default([]),
+    /** metricId → { read: boolean, trade: boolean } */
+    permissions: jsonb('permissions').notNull().$type<Record<string, { read: boolean; trade: boolean }>>().default({}),
+    /** sourceId → { read: boolean } (covers both text and external-bridge sources) */
+    sourcePermissions: jsonb('source_permissions').notNull().$type<Record<string, { read: boolean }>>().default({}),
+    /** Capabilities granted to every member of this group: subset of 'read' | 'trade' | 'manage'. */
+    capabilities: jsonb('capabilities').notNull().$type<string[]>().default([]),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+);
 
 // ---------------------------------------------------------------------------
 // Sources (workspace-scoped information stores, static or live)
@@ -901,19 +1015,23 @@ export const permissionGroups = pgTable('permission_groups', {
 //   credentials in `credentials` (never exposed via API).
 // ---------------------------------------------------------------------------
 
-export const sources = pgTable('sources', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  name: text('name').notNull(),
-  description: text('description').notNull().default(''),
-  /** 'text' | 'github' | ... */
-  type: text('type').notNull(),
-  content: text('content').notNull().default(''),
-  config: jsonb('config').notNull().default({}),
-  credentials: text('credentials').notNull().default(''),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+export const sources = pgTable(
+  'sources',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    /** 'text' | 'github' | ... */
+    type: text('type').notNull(),
+    content: text('content').notNull().default(''),
+    config: jsonb('config').notNull().default({}),
+    credentials: text('credentials').notNull().default(''),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+);
 
 // ---------------------------------------------------------------------------
 // Hook watcher (replaces system/hookWatcher Firestore doc)
@@ -932,34 +1050,38 @@ export const hookWatcher = pgTable('hook_watcher', {
 // the bots are doing without tailing log files on the host.
 // ---------------------------------------------------------------------------
 
-export const agentTraces = pgTable('agent_traces', {
-  id: text('id').primaryKey(),
-  workspaceId: text('workspace_id').notNull(),
-  agentId: text('agent_id').notNull(),
-  strategy: text('strategy').notNull(),
-  startedAt: timestamp('started_at').notNull(),
-  endedAt: timestamp('ended_at').notNull(),
-  model: text('model'),
-  tokensIn: integer('tokens_in').notNull().default(0),
-  tokensOut: integer('tokens_out').notNull().default(0),
-  cacheRead: integer('cache_read').notNull().default(0),
-  cacheWrite: integer('cache_write').notNull().default(0),
-  candidates: integer('candidates').notNull().default(0),
-  traded: integer('traded').notNull().default(0),
-  skipped: integer('skipped').notNull().default(0),
-  errors: integer('errors').notNull().default(0),
-  costUsd: doublePrecision('cost_usd').notNull().default(0),
-  /** Array of session entries: per-market estimate, confidence, distance, threshold, outcome, reasoning. */
-  entries: jsonb('entries').notNull().$type<unknown[]>().default([]),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [
-  // The first two exist in migration 0019 but were never declared here;
-  // declaring them keeps drizzle-kit from trying to drop them. The third
-  // serves the daily retention prune (services/maintenance.ts).
-  index('agent_traces_workspace_started_idx').on(t.workspaceId, t.startedAt.desc()),
-  index('agent_traces_agent_started_idx').on(t.agentId, t.startedAt.desc()),
-  index('agent_traces_started_idx').on(t.startedAt),
-]);
+export const agentTraces = pgTable(
+  'agent_traces',
+  {
+    id: text('id').primaryKey(),
+    workspaceId: text('workspace_id').notNull(),
+    agentId: text('agent_id').notNull(),
+    strategy: text('strategy').notNull(),
+    startedAt: timestamp('started_at').notNull(),
+    endedAt: timestamp('ended_at').notNull(),
+    model: text('model'),
+    tokensIn: integer('tokens_in').notNull().default(0),
+    tokensOut: integer('tokens_out').notNull().default(0),
+    cacheRead: integer('cache_read').notNull().default(0),
+    cacheWrite: integer('cache_write').notNull().default(0),
+    candidates: integer('candidates').notNull().default(0),
+    traded: integer('traded').notNull().default(0),
+    skipped: integer('skipped').notNull().default(0),
+    errors: integer('errors').notNull().default(0),
+    costUsd: doublePrecision('cost_usd').notNull().default(0),
+    /** Array of session entries: per-market estimate, confidence, distance, threshold, outcome, reasoning. */
+    entries: jsonb('entries').notNull().$type<unknown[]>().default([]),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [
+    // The first two exist in migration 0019 but were never declared here;
+    // declaring them keeps drizzle-kit from trying to drop them. The third
+    // serves the daily retention prune (services/maintenance.ts).
+    index('agent_traces_workspace_started_idx').on(t.workspaceId, t.startedAt.desc()),
+    index('agent_traces_agent_started_idx').on(t.agentId, t.startedAt.desc()),
+    index('agent_traces_started_idx').on(t.startedAt),
+  ],
+);
 
 // ---------------------------------------------------------------------------
 // Feedback: bug reports and help requests submitted from the UI or via API.
@@ -1078,39 +1200,43 @@ export const prizeSeasons = pgTable('prize_seasons', {
  * season's start instant for everyone (otherwise opting in late is a free
  * option on your own drawdown). Only `optedIn` rows are ranked or paid.
  */
-export const seasonEntries = pgTable('season_entries', {
-  seasonId: text('season_id').notNull(),
-  agentId: text('agent_id').notNull(),
-  /** Explicit entry. Nothing enters a participant into a season implicitly. */
-  optedIn: boolean('opted_in').notNull().default(false),
-  /** When they turned the toggle on. The published first tiebreak. */
-  enteredAt: timestamp('entered_at'),
-  /** When this entrant agreed to the season's published rules.
-   *
-   *  A record rather than a checkbox, because the question it answers ("did
-   *  they accept these terms, and when?") is asked after the fact, in a
-   *  dispute about money. Set on every opt-in; left as it was on opt-out, so
-   *  leaving and rejoining does not erase that they once agreed. */
-  rulesAcceptedAt: timestamp('rules_accepted_at'),
-  /** Where we reach this entrant, given at entry.
-   *
-   *  Deliberately NOT derived from the account: a participant registered
-   *  through POST /api/agents has no email anywhere, since only browser
-   *  signups create an auth user. A prize with a 30-day claim window and
-   *  nobody to tell is a prize that expires quietly. */
-  contactEmail: text('contact_email'),
-  /** When they confirmed they are 18 or older. The published rules have always
-   *  required it; asking is what turns that from a sentence into a check. */
-  confirmedOver18At: timestamp('confirmed_over_18_at'),
-  /** Board profit at the season's START instant, not at opt-in. */
-  baselineProfit: doublePrecision('baseline_profit').notNull().default(0),
-  /** Board profit at the settle instant. Null until settled. */
-  finalProfit: doublePrecision('final_profit'),
-  finalScore: doublePrecision('final_score'),
-  finalRank: integer('final_rank'),
-  prizeUsd: doublePrecision('prize_usd'),
-  /** unclaimed | claimed | expired | paid. Only meaningful with a prize. */
-  claimState: text('claim_state'),
-  claimedAt: timestamp('claimed_at'),
-  paidAt: timestamp('paid_at'),
-}, t => [primaryKey({ columns: [t.seasonId, t.agentId] })]);
+export const seasonEntries = pgTable(
+  'season_entries',
+  {
+    seasonId: text('season_id').notNull(),
+    agentId: text('agent_id').notNull(),
+    /** Explicit entry. Nothing enters a participant into a season implicitly. */
+    optedIn: boolean('opted_in').notNull().default(false),
+    /** When they turned the toggle on. The published first tiebreak. */
+    enteredAt: timestamp('entered_at'),
+    /** When this entrant agreed to the season's published rules.
+     *
+     *  A record rather than a checkbox, because the question it answers ("did
+     *  they accept these terms, and when?") is asked after the fact, in a
+     *  dispute about money. Set on every opt-in; left as it was on opt-out, so
+     *  leaving and rejoining does not erase that they once agreed. */
+    rulesAcceptedAt: timestamp('rules_accepted_at'),
+    /** Where we reach this entrant, given at entry.
+     *
+     *  Deliberately NOT derived from the account: a participant registered
+     *  through POST /api/agents has no email anywhere, since only browser
+     *  signups create an auth user. A prize with a 30-day claim window and
+     *  nobody to tell is a prize that expires quietly. */
+    contactEmail: text('contact_email'),
+    /** When they confirmed they are 18 or older. The published rules have always
+     *  required it; asking is what turns that from a sentence into a check. */
+    confirmedOver18At: timestamp('confirmed_over_18_at'),
+    /** Board profit at the season's START instant, not at opt-in. */
+    baselineProfit: doublePrecision('baseline_profit').notNull().default(0),
+    /** Board profit at the settle instant. Null until settled. */
+    finalProfit: doublePrecision('final_profit'),
+    finalScore: doublePrecision('final_score'),
+    finalRank: integer('final_rank'),
+    prizeUsd: doublePrecision('prize_usd'),
+    /** unclaimed | claimed | expired | paid. Only meaningful with a prize. */
+    claimState: text('claim_state'),
+    claimedAt: timestamp('claimed_at'),
+    paidAt: timestamp('paid_at'),
+  },
+  t => [primaryKey({ columns: [t.seasonId, t.agentId] })],
+);

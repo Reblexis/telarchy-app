@@ -31,7 +31,7 @@ export function agentPrompt(origin: string, floor: FloorRef | null): string {
     ].join('\n');
   }
   return [
-    'You are working with Telarchy, where a market prices what each proposed action would do to a company\'s real numbers.',
+    "You are working with Telarchy, where a market prices what each proposed action would do to a company's real numbers.",
     '',
     `1. List the open floors: GET ${origin}/api/marketplace/workspaces/public`,
     `2. For any of them, read its brief: GET ${origin}/api/marketplace/<slug>/context?format=md`,

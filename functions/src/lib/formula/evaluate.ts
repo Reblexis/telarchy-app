@@ -16,14 +16,22 @@ const NULL = Symbol('null-input');
 
 function apply(name: FunctionName, args: number[]): number {
   switch (name) {
-    case 'sqrt': return Math.sqrt(args[0]);
-    case 'abs': return Math.abs(args[0]);
-    case 'log': return Math.log(args[0]);
-    case 'log10': return Math.log10(args[0]);
-    case 'min': return Math.min(...args);
-    case 'max': return Math.max(...args);
-    case 'pow': return Math.pow(args[0], args[1]);
-    case 'clamp': return Math.min(Math.max(args[0], args[1]), args[2]);
+    case 'sqrt':
+      return Math.sqrt(args[0]);
+    case 'abs':
+      return Math.abs(args[0]);
+    case 'log':
+      return Math.log(args[0]);
+    case 'log10':
+      return Math.log10(args[0]);
+    case 'min':
+      return Math.min(...args);
+    case 'max':
+      return Math.max(...args);
+    case 'pow':
+      return args[0] ** args[1];
+    case 'clamp':
+      return Math.min(Math.max(args[0], args[1]), args[2]);
   }
 }
 
@@ -45,11 +53,16 @@ function walk(node: Ast, lookup: Lookup): number | typeof NULL {
       const r = walk(node.right, lookup);
       if (r === NULL) return NULL;
       switch (node.op) {
-        case '+': return l + r;
-        case '-': return l - r;
-        case '*': return l * r;
-        case '/': return l / r;
-        case '^': return Math.pow(l, r);
+        case '+':
+          return l + r;
+        case '-':
+          return l - r;
+        case '*':
+          return l * r;
+        case '/':
+          return l / r;
+        case '^':
+          return l ** r;
       }
       break;
     }

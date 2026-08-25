@@ -25,25 +25,30 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, agentApiKeys, events as eventsTable, metrics, permissionGroups } from '../db/schema';
-import { hashKey } from '../middleware/auth';
+import express from 'express';
+import request from 'supertest';
+import { agentApiKeys, agents, events as eventsTable, metrics, permissionGroups } from '../db/schema';
+import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
 import { toUnits } from '../lib/validation';
-import { proposalsRouter } from '../routes/proposals';
+// The router no longer carries auth itself (app.ts applies the policy first),
+// so the test mounts the mocked middleware where the policy would run.
+import { authMiddleware, hashKey } from '../middleware/auth';
 import { eventsRouter } from '../routes/events';
-import { AppError } from '../lib/errors';
+import { proposalsRouter } from '../routes/proposals';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
-app.use('/api/proposals', proposalsRouter);
+app.use('/api/proposals', authMiddleware, proposalsRouter);
 app.use('/api/events', eventsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof AppError) { res.status(err.status).json({ error: err.message }); return; }
+  if (err instanceof AppError) {
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
   res.status(500).json({ error: (err as Error).message ?? 'Internal error' });
 });
 
@@ -56,8 +61,12 @@ const KEY_A = 'agent-a-key';
 const METRIC_A = 'metric-events-a';
 const METRIC_B = 'metric-events-b';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 async function seed() {
   await db.insert(agents).values([
@@ -67,19 +76,34 @@ async function seed() {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS_A, name: 'Events A', createdBy: OWNER_A, ownerAgentId: OWNER_A, visibility: 'private',
+    wsId: WS_A,
+    name: 'Events A',
+    createdBy: OWNER_A,
+    ownerAgentId: OWNER_A,
+    visibility: 'private',
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS_B, name: 'Events B', createdBy: OWNER_B, ownerAgentId: OWNER_B, visibility: 'private',
+    wsId: WS_B,
+    name: 'Events B',
+    createdBy: OWNER_B,
+    ownerAgentId: OWNER_B,
+    visibility: 'private',
   });
   // AGENT_A is ONLY in workspace A.
   const groupsA = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS_A));
   const traderA = groupsA.find(g => g.type === 'trader')!;
-  await db.update(permissionGroups).set({ memberIds: [AGENT_A] }).where(eq(permissionGroups.id, traderA.id));
+  await db
+    .update(permissionGroups)
+    .set({ memberIds: [AGENT_A] })
+    .where(eq(permissionGroups.id, traderA.id));
   await db.insert(agentApiKeys).values({
-    hash: hashKey(KEY_A), keyId: 'k-a', agentId: AGENT_A,
-    workspaceId: WS_A, label: 'test', scopes: ['*'],
+    hash: hashKey(KEY_A),
+    keyId: 'k-a',
+    agentId: AGENT_A,
+    workspaceId: WS_A,
+    label: 'test',
+    scopes: ['*'],
   });
   await db.insert(metrics).values([
     { id: METRIC_A, workspaceId: WS_A, name: 'M-A', value: 0, formula: '0', marketRangeMax: 100 },
@@ -88,14 +112,16 @@ async function seed() {
 }
 
 const postProposalA = (body: Record<string, unknown> = {}) =>
-  request(app).post('/api/proposals')
+  request(app)
+    .post('/api/proposals')
     .set('X-Test-Agent-Id', AGENT_A)
     .set('X-Workspace-Id', WS_A)
     .set('Content-Type', 'application/json')
     .send({ title: 'A title', description: 'A desc', liquiditySubsidy: 0, ...body });
 
 const getEventsA = (since: string) =>
-  request(app).get(`/api/events?since=${encodeURIComponent(since)}`)
+  request(app)
+    .get(`/api/events?since=${encodeURIComponent(since)}`)
     .set('X-Test-Agent-Id', AGENT_A)
     .set('X-Workspace-Id', WS_A);
 
@@ -113,7 +139,10 @@ describe('native event emission — new types', () => {
     const created = ev.body.filter((e: { type: string }) => e.type === 'proposal:created');
     expect(created).toHaveLength(1);
     expect(created[0].data).toMatchObject({
-      proposalId, title: 'Try X', proposedBy: AGENT_A, liquiditySubsidy: 0,
+      proposalId,
+      title: 'Try X',
+      proposedBy: AGENT_A,
+      liquiditySubsidy: 0,
     });
   });
 
@@ -121,8 +150,9 @@ describe('native event emission — new types', () => {
     await seed();
     const r = await postProposalA();
     const proposalId = r.body.id;
-    const a = await request(app).post(`/api/proposals/${proposalId}/approve`)
-      .set('X-Test-Agent-Id', OWNER_A)  // owner has manage in WS_A
+    const a = await request(app)
+      .post(`/api/proposals/${proposalId}/approve`)
+      .set('X-Test-Agent-Id', OWNER_A) // owner has manage in WS_A
       .set('X-Workspace-Id', WS_A);
     expect(a.status).toBe(200);
 
@@ -130,33 +160,47 @@ describe('native event emission — new types', () => {
     const changed = ev.body.filter((e: { type: string }) => e.type === 'proposal:status_changed');
     expect(changed).toHaveLength(1);
     expect(changed[0].data).toMatchObject({
-      proposalId, fromStatus: 'pending', toStatus: 'approved', decidedBy: OWNER_A,
+      proposalId,
+      fromStatus: 'pending',
+      toStatus: 'approved',
+      decidedBy: OWNER_A,
     });
   });
 
   test('proposal:status_changed emits on decline / decline-spam / withdraw with matching toStatus', async () => {
     await seed();
-    for (const [kind, expected] of [['decline', 'declined'], ['decline-spam', 'declined-spam']]) {
+    for (const [kind, expected] of [
+      ['decline', 'declined'],
+      ['decline-spam', 'declined-spam'],
+    ]) {
       const r = await postProposalA({ title: `T-${kind}` });
       const pid = r.body.id;
-      const action = await request(app).post(`/api/proposals/${pid}/${kind}`)
-        .set('X-Test-Agent-Id', OWNER_A).set('X-Workspace-Id', WS_A);
+      const action = await request(app)
+        .post(`/api/proposals/${pid}/${kind}`)
+        .set('X-Test-Agent-Id', OWNER_A)
+        .set('X-Workspace-Id', WS_A);
       expect(action.status).toBe(200);
       const ev = await getEventsA(past);
-      const match = ev.body.find((e: { type: string; data: { proposalId: string; toStatus: string } }) =>
-        e.type === 'proposal:status_changed' && e.data.proposalId === pid);
+      const match = ev.body.find(
+        (e: { type: string; data: { proposalId: string; toStatus: string } }) =>
+          e.type === 'proposal:status_changed' && e.data.proposalId === pid,
+      );
       expect(match).toBeDefined();
       expect(match.data.toStatus).toBe(expected);
     }
     // withdraw — done by the proposer (AGENT_A, not the owner)
     const r3 = await postProposalA({ title: 'T-withdraw' });
     const wid = r3.body.id;
-    const w = await request(app).post(`/api/proposals/${wid}/withdraw`)
-      .set('X-Test-Agent-Id', AGENT_A).set('X-Workspace-Id', WS_A);
+    const w = await request(app)
+      .post(`/api/proposals/${wid}/withdraw`)
+      .set('X-Test-Agent-Id', AGENT_A)
+      .set('X-Workspace-Id', WS_A);
     expect(w.status).toBe(200);
     const ev = await getEventsA(past);
-    const match = ev.body.find((e: { type: string; data: { proposalId: string; toStatus: string } }) =>
-      e.type === 'proposal:status_changed' && e.data.proposalId === wid);
+    const match = ev.body.find(
+      (e: { type: string; data: { proposalId: string; toStatus: string } }) =>
+        e.type === 'proposal:status_changed' && e.data.proposalId === wid,
+    );
     expect(match.data.toStatus).toBe('withdrawn');
     expect(match.data.decidedBy).toBe(AGENT_A);
   });
@@ -168,12 +212,16 @@ describe('native event emission — new types', () => {
     // contract: given req.auth.workspaceId = WS_A, only WS_A events leak.
     await seed();
     await db.insert(eventsTable).values({
-      id: 'evt-ws-b', workspaceId: WS_B, type: 'proposal:created',
+      id: 'evt-ws-b',
+      workspaceId: WS_B,
+      type: 'proposal:created',
       data: { proposalId: 'p-b', title: 'must-not-leak' } as Record<string, unknown>,
       timestamp: new Date(),
     });
     await db.insert(eventsTable).values({
-      id: 'evt-ws-a', workspaceId: WS_A, type: 'proposal:created',
+      id: 'evt-ws-a',
+      workspaceId: WS_A,
+      type: 'proposal:created',
       data: { proposalId: 'p-a', title: 'own-event' } as Record<string, unknown>,
       timestamp: new Date(),
     });

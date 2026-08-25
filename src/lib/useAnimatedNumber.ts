@@ -14,10 +14,13 @@ export function useAnimatedNumber(target: number | null): number | null {
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (target === null) { setShown(null); fromRef.current = null; return; }
+    if (target === null) {
+      setShown(null);
+      fromRef.current = null;
+      return;
+    }
     const from = fromRef.current;
-    const reduced = typeof window !== 'undefined'
-      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (from === null || reduced || from === target) {
       setShown(target);
       fromRef.current = target;
@@ -27,7 +30,7 @@ export function useAnimatedNumber(target: number | null): number | null {
     const dur = 450;
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / dur);
-      const eased = 1 - Math.pow(1 - t, 3);
+      const eased = 1 - (1 - t) ** 3;
       const v = from + (target - from) * eased;
       setShown(t >= 1 ? target : v);
       if (t < 1) rafRef.current = requestAnimationFrame(tick);

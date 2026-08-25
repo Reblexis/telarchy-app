@@ -19,15 +19,15 @@ jest.mock('../middleware/auth', () => ({
   optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
-import request from 'supertest';
-import express from 'express';
 import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, markets, metricLogs, metrics, permissionGroups, proposals } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
 import { initialPool } from '../lib/amm';
-import { marketplaceRouter } from '../routes/marketplace';
 import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { marketplaceRouter } from '../routes/marketplace';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -38,8 +38,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-ballot';
 const OWNER = 'agent-ballot-owner';
@@ -52,40 +56,81 @@ async function seed(publicCaps: string[]) {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Ballot Test', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'public',
+    wsId: WS,
+    name: 'Ballot Test',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'public',
   });
-  const [publicGroup] = await db.select().from(permissionGroups)
+  const [publicGroup] = await db
+    .select()
+    .from(permissionGroups)
     .where(and(eq(permissionGroups.workspaceId, WS), eq(permissionGroups.type, 'public')));
-  await db.update(permissionGroups).set({ capabilities: publicCaps })
-    .where(eq(permissionGroups.id, publicGroup.id));
+  await db.update(permissionGroups).set({ capabilities: publicCaps }).where(eq(permissionGroups.id, publicGroup.id));
 
   await db.insert(metrics).values({
-    id: 'metric-ballot', workspaceId: WS, name: 'Revenue', value: 50, formula: '0', marketRangeMax: 100,
+    id: 'metric-ballot',
+    workspaceId: WS,
+    name: 'Revenue',
+    value: 50,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(proposals).values([
     {
-      id: 'prop-open', workspaceId: WS, proposedBy: PROPOSER,
-      title: 'Ship offline mode', description: 'Asked by three people.', status: 'pending',
+      id: 'prop-open',
+      workspaceId: WS,
+      proposedBy: PROPOSER,
+      title: 'Ship offline mode',
+      description: 'Asked by three people.',
+      status: 'pending',
     },
     {
-      id: 'prop-declined', workspaceId: WS, proposedBy: PROPOSER,
-      title: 'Rewrite in Rust', description: 'why not', status: 'declined',
-      resolvedAt: new Date(), declineReason: 'Costs more than 20 hours of work.',
+      id: 'prop-declined',
+      workspaceId: WS,
+      proposedBy: PROPOSER,
+      title: 'Rewrite in Rust',
+      description: 'why not',
+      status: 'declined',
+      resolvedAt: new Date(),
+      declineReason: 'Costs more than 20 hours of work.',
     },
   ]);
   // Conditional pair for the pending proposal: approved priced above declined.
   await db.insert(markets).values([
     {
-      id: 'mkt-appr', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-      targetDate: '2028', rangeMin: 0, rangeMax: 100,
-      shares: [0, 10], liquidity: 100, pool: initialPool(100),
-      active: true, resolved: false, voided: false, proposalId: 'prop-open', branch: 'approved',
+      id: 'mkt-appr',
+      workspaceId: WS,
+      metricId: 'metric-ballot',
+      metricName: 'Revenue',
+      targetDate: '2028',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 10],
+      liquidity: 100,
+      pool: initialPool(100),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: 'prop-open',
+      branch: 'approved',
     },
     {
-      id: 'mkt-decl', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-      targetDate: '2028', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 100, pool: initialPool(100),
-      active: true, resolved: false, voided: false, proposalId: 'prop-open', branch: 'declined',
+      id: 'mkt-decl',
+      workspaceId: WS,
+      metricId: 'metric-ballot',
+      metricName: 'Revenue',
+      targetDate: '2028',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 100,
+      pool: initialPool(100),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: 'prop-open',
+      branch: 'declined',
     },
   ]);
 }
@@ -102,25 +147,49 @@ async function seed(publicCaps: string[]) {
  * for where a resetting metric's current period begins.
  */
 describe('horizon histories', () => {
-  test('a cumulative metric keeps readings from before its market\'s target month', async () => {
+  test("a cumulative metric keeps readings from before its market's target month", async () => {
     await seed(['read', 'trade']);
     await db.insert(markets).values({
-      id: 'mkt-year', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-      targetDate: '2026-12', rangeMin: 0, rangeMax: 150000,
-      shares: [0, 0], liquidity: 100, pool: initialPool(100),
-      active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      id: 'mkt-year',
+      workspaceId: WS,
+      metricId: 'metric-ballot',
+      metricName: 'Revenue',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 150000,
+      shares: [0, 0],
+      liquidity: 100,
+      pool: initialPool(100),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
+      branch: null,
     });
     await db.insert(metricLogs).values([
-      { id: 'log-jan', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue', value: 137,
-        timestamp: new Date('2026-01-01T23:30:00Z') },
-      { id: 'log-aug', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue', value: 45339,
-        timestamp: new Date('2026-08-15T10:00:00Z') },
+      {
+        id: 'log-jan',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        value: 137,
+        timestamp: new Date('2026-01-01T23:30:00Z'),
+      },
+      {
+        id: 'log-aug',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        value: 45339,
+        timestamp: new Date('2026-08-15T10:00:00Z'),
+      },
     ]);
 
     const res = await request(app).get(`/api/marketplace/${WS}`);
     expect(res.status).toBe(200);
-    const year = (res.body.horizonHistories as Array<{ targetDate: string; periodStart: string; points: Array<{ value: number }> }>)
-      .find(h => h.targetDate === '2026-12');
+    const year = (
+      res.body.horizonHistories as Array<{ targetDate: string; periodStart: string; points: Array<{ value: number }> }>
+    ).find(h => h.targetDate === '2026-12');
     // A whole year of trajectory, months before the market's target period.
     expect(year!.points.map(p => p.value)).toEqual([137, 45339]);
   });
@@ -133,22 +202,48 @@ describe('horizon histories', () => {
     await seed(['read', 'trade']);
     await db.insert(markets).values([
       {
-        id: 'mkt-year', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-        targetDate: '2026-12', rangeMin: 0, rangeMax: 150000,
-        shares: [0, 0], liquidity: 100, pool: initialPool(100),
-        active: true, resolved: false, voided: false, proposalId: null, branch: null,
+        id: 'mkt-year',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2026-12',
+        rangeMin: 0,
+        rangeMax: 150000,
+        shares: [0, 0],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: null,
+        branch: null,
       },
       {
-        id: 'mkt-week', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-        targetDate: '2026-W33', rangeMin: 0, rangeMax: 8000,
-        shares: [0, 0], liquidity: 100, pool: initialPool(100),
-        active: true, resolved: false, voided: false, proposalId: null, branch: null,
+        id: 'mkt-week',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2026-W33',
+        rangeMin: 0,
+        rangeMax: 8000,
+        shares: [0, 0],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: null,
+        branch: null,
       },
     ]);
 
     const res = await request(app).get(`/api/marketplace/${WS}`);
-    const byDate = new Map((res.body.horizonHistories as Array<{ targetDate: string; periodStart: string }>)
-      .map(h => [h.targetDate, h.periodStart]));
+    const byDate = new Map(
+      (res.body.horizonHistories as Array<{ targetDate: string; periodStart: string }>).map(h => [
+        h.targetDate,
+        h.periodStart,
+      ]),
+    );
     expect(byDate.get('2026-W33')).toBe('2026-08-10T00:00:00.000Z'); // the Monday
     expect(byDate.get('2026-12')).toBe('2026-12-01T00:00:00.000Z');
   });
@@ -161,24 +256,57 @@ describe('public ballot disclosure gate', () => {
     // voided. It kept printing its last delta on the ballot until 2026-08-15.
     await db.insert(markets).values([
       {
-        id: 'mkt-old-appr', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-        targetDate: '2026-08', rangeMin: 0, rangeMax: 100,
-        shares: [0, 40], liquidity: 100, pool: initialPool(100),
-        active: true, resolved: false, voided: true, proposalId: 'prop-open', branch: 'approved',
+        id: 'mkt-old-appr',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2026-08',
+        rangeMin: 0,
+        rangeMax: 100,
+        shares: [0, 40],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: true,
+        proposalId: 'prop-open',
+        branch: 'approved',
       },
       {
-        id: 'mkt-old-decl', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-        targetDate: '2026-08', rangeMin: 0, rangeMax: 100,
-        shares: [0, 0], liquidity: 100, pool: initialPool(100),
-        active: true, resolved: false, voided: true, proposalId: 'prop-open', branch: 'declined',
+        id: 'mkt-old-decl',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2026-08',
+        rangeMin: 0,
+        rangeMax: 100,
+        shares: [0, 0],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: true,
+        proposalId: 'prop-open',
+        branch: 'declined',
       },
       // The declined contract's own pair, voided at decision time: this one
       // stays, because a decided contract's markets are what was priced.
       {
-        id: 'mkt-dec-appr', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-        targetDate: '2028', rangeMin: 0, rangeMax: 100,
-        shares: [0, 20], liquidity: 100, pool: initialPool(100),
-        active: true, resolved: false, voided: true, proposalId: 'prop-declined', branch: 'approved',
+        id: 'mkt-dec-appr',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2028',
+        rangeMin: 0,
+        rangeMax: 100,
+        shares: [0, 20],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: true,
+        proposalId: 'prop-declined',
+        branch: 'approved',
       },
     ]);
     const res = await request(app).get(`/api/marketplace/${WS}`);
@@ -190,33 +318,68 @@ describe('public ballot disclosure gate', () => {
     if (decided?.markets) expect(decided.markets.length).toBeGreaterThan(0);
   });
 
-  test('the contractor score ignores a pending contract\'s dead pairs too', async () => {
+  test("the contractor score ignores a pending contract's dead pairs too", async () => {
     await seed(['read', 'trade']);
     // The score is denominated in the HERO metric, which is the soonest
     // baseline market: without one there is nothing to price against and
     // every impact is null, which is how the first version of this test
     // passed against the bug it was written for.
-    await db.insert(markets).values([{
-      id: 'mkt-baseline', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-      targetDate: '2028', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 100, pool: initialPool(100),
-      active: true, resolved: false, voided: false, proposalId: null, branch: null,
-    }]);
+    await db.insert(markets).values([
+      {
+        id: 'mkt-baseline',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2028',
+        rangeMin: 0,
+        rangeMax: 100,
+        shares: [0, 0],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: null,
+        branch: null,
+      },
+    ]);
     // Same zombie as above. The ballot stopped printing its delta on
     // 2026-08-15, but topContractors kept scoring it, so the Telarchy rail
     // read -48 and -108.21 for contracts whose live pairs were at zero.
     await db.insert(markets).values([
       {
-        id: 'mkt-zombie-appr', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-        targetDate: '2026-08', rangeMin: 0, rangeMax: 100,
-        shares: [400, 0], liquidity: 100, pool: initialPool(100),
-        active: true, resolved: false, voided: true, proposalId: 'prop-open', branch: 'approved',
+        id: 'mkt-zombie-appr',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2026-08',
+        rangeMin: 0,
+        rangeMax: 100,
+        shares: [400, 0],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: true,
+        proposalId: 'prop-open',
+        branch: 'approved',
       },
       {
-        id: 'mkt-zombie-decl', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-        targetDate: '2026-08', rangeMin: 0, rangeMax: 100,
-        shares: [0, 0], liquidity: 100, pool: initialPool(100),
-        active: true, resolved: false, voided: true, proposalId: 'prop-open', branch: 'declined',
+        id: 'mkt-zombie-decl',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2026-08',
+        rangeMin: 0,
+        rangeMax: 100,
+        shares: [0, 0],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: true,
+        proposalId: 'prop-open',
+        branch: 'declined',
       },
     ]);
 
@@ -281,15 +444,39 @@ describe('public ballot disclosure gate', () => {
     // The hero context keys off the soonest baseline market; the shared seed
     // only creates the conditional pair, so add the baseline here.
     await db.insert(markets).values({
-      id: 'mkt-base', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-      targetDate: '2028', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 100, pool: initialPool(100),
-      active: true, resolved: false, voided: false, proposalId: null,
+      id: 'mkt-base',
+      workspaceId: WS,
+      metricId: 'metric-ballot',
+      metricName: 'Revenue',
+      targetDate: '2028',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 100,
+      pool: initialPool(100),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
     });
     const { metricLogs } = require('../db/schema');
     await db.insert(metricLogs).values([
-      { id: 'log1', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue', value: 40, timestamp: new Date(Date.now() - 2 * 86400e3) },
-      { id: 'log2', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue', value: 50, timestamp: new Date(Date.now() - 1 * 86400e3) },
+      {
+        id: 'log1',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        value: 40,
+        timestamp: new Date(Date.now() - 2 * 86400e3),
+      },
+      {
+        id: 'log2',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        value: 50,
+        timestamp: new Date(Date.now() - 1 * 86400e3),
+      },
     ]);
 
     const res = await request(app).get(`/api/marketplace/${WS}`);
@@ -339,12 +526,18 @@ describe('public ballot disclosure gate', () => {
     // every proposal created before the ask was a number.
     await db.update(proposals).set({ askUsd: 80 }).where(eq(proposals.id, 'prop-open'));
     await db.insert(proposals).values({
-      id: 'prop-legacy', workspaceId: WS, proposedBy: PROPOSER,
-      title: '$40: legacy, ask only in the title', description: '', status: 'pending',
+      id: 'prop-legacy',
+      workspaceId: WS,
+      proposedBy: PROPOSER,
+      title: '$40: legacy, ask only in the title',
+      description: '',
+      status: 'pending',
     });
 
     const res = await request(app).get(`/api/marketplace/${WS}`);
-    const byId = Object.fromEntries(res.body.proposals.map((p: { id: string; askUsd: number | null }) => [p.id, p.askUsd]));
+    const byId = Object.fromEntries(
+      res.body.proposals.map((p: { id: string; askUsd: number | null }) => [p.id, p.askUsd]),
+    );
     expect(byId['prop-open']).toBe(80);
     expect(byId['prop-legacy']).toBeNull();
   });
@@ -399,29 +592,55 @@ describe('public ballot disclosure gate', () => {
 describe('the primary horizon server-side', () => {
   const addWeeklyClock = async () => {
     await db.insert(metrics).values({
-      id: 'metric-week', workspaceId: WS, name: 'Revenue this week (USD)', value: 887,
-      formula: '0', marketRangeMax: 8000, description: 'This week only, resets Monday.',
+      id: 'metric-week',
+      workspaceId: WS,
+      name: 'Revenue this week (USD)',
+      value: 887,
+      formula: '0',
+      marketRangeMax: 8000,
+      description: 'This week only, resets Monday.',
     });
-    await db.update(metrics).set({ description: 'The year, cumulative.' })
-      .where(eq(metrics.id, 'metric-ballot'));
+    await db.update(metrics).set({ description: 'The year, cumulative.' }).where(eq(metrics.id, 'metric-ballot'));
     // Soonest first in the payload: the week, then the year.
     await db.insert(markets).values([
       {
-        id: 'mkt-week-p', workspaceId: WS, metricId: 'metric-week', metricName: 'Revenue this week (USD)',
-        targetDate: '2026-W34', rangeMin: 0, rangeMax: 8000,
-        shares: [0, 0], liquidity: 100, pool: initialPool(100),
-        active: true, resolved: false, voided: false, proposalId: null, branch: null,
+        id: 'mkt-week-p',
+        workspaceId: WS,
+        metricId: 'metric-week',
+        metricName: 'Revenue this week (USD)',
+        targetDate: '2026-W34',
+        rangeMin: 0,
+        rangeMax: 8000,
+        shares: [0, 0],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: null,
+        branch: null,
       },
       {
-        id: 'mkt-year-p', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-        targetDate: '2026-12', rangeMin: 0, rangeMax: 150000,
-        shares: [0, 0], liquidity: 100, pool: initialPool(100),
-        active: true, resolved: false, voided: false, proposalId: null, branch: null,
+        id: 'mkt-year-p',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2026-12',
+        rangeMin: 0,
+        rangeMax: 150000,
+        shares: [0, 0],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: null,
+        branch: null,
       },
     ]);
   };
 
-  test('the quoted definition is the far horizon\'s, not the soonest', async () => {
+  test("the quoted definition is the far horizon's, not the soonest", async () => {
     await seed(['read', 'trade']);
     await addWeeklyClock();
     const res = await request(app).get(`/api/marketplace/${WS}`);
@@ -431,7 +650,7 @@ describe('the primary horizon server-side', () => {
     expect(res.body.heroMetricDescription).toBe('The year, cumulative.');
   });
 
-  test('a contractor\'s impact is denominated in the far horizon\'s metric', async () => {
+  test("a contractor's impact is denominated in the far horizon's metric", async () => {
     await seed(['read', 'trade']);
     await addWeeklyClock();
     // The pending contract's pair is on the YEAR metric, so it can only be

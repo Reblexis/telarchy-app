@@ -29,14 +29,14 @@ jest.mock('../middleware/roles', () => ({
   requireSelfOrAdmin: (_req: any, _res: any, next: any) => next(),
 }));
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, workspaces } from '../db/schema';
+import { MAX_BIO_LENGTH, normalizeBio } from '../lib/validation';
 import { agentsRouter } from '../routes/agents';
 import { userauthRouter } from '../routes/userauth';
-import { MAX_BIO_LENGTH, normalizeBio } from '../lib/validation';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const WS = 'ws-bio';
 const AGENT = 'bio-bot';
@@ -45,9 +45,7 @@ function makeApp(agentId: string | null) {
   const app = express();
   app.use(express.json());
   app.use((req: any, _res, next) => {
-    req.auth = agentId
-      ? { agentId, workspaceId: WS, capabilities: new Set(['read', 'trade', 'manage']) }
-      : undefined;
+    req.auth = agentId ? { agentId, workspaceId: WS, capabilities: new Set(['read', 'trade', 'manage']) } : undefined;
     next();
   });
   app.use('/api/agents', agentsRouter);
@@ -55,7 +53,9 @@ function makeApp(agentId: string | null) {
   return app;
 }
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   await db.insert(workspaces).values({ id: WS, name: 'Bio Test', createdBy: 'owner', visibility: 'open' });
@@ -76,7 +76,8 @@ describe('normalizeBio', () => {
 describe('participant bio over HTTP', () => {
   test('register stores the bio and returns it; public profile exposes it', async () => {
     const app = makeApp(null);
-    const reg = await request(app).post('/api/agents/register')
+    const reg = await request(app)
+      .post('/api/agents/register')
       .send({ agentId: AGENT, workspaceId: WS, bio: '  Momentum trader for revenue metrics.  ' });
     expect(reg.status).toBe(201);
     expect(reg.body.bio).toBe('Momentum trader for revenue metrics.');
@@ -88,7 +89,8 @@ describe('participant bio over HTTP', () => {
 
   test('register rejects an over-length bio', async () => {
     const app = makeApp(null);
-    const reg = await request(app).post('/api/agents/register')
+    const reg = await request(app)
+      .post('/api/agents/register')
       .send({ agentId: AGENT, workspaceId: WS, bio: 'x'.repeat(501) });
     expect(reg.status).toBe(400);
     expect(reg.body.error).toMatch(/500/);
@@ -121,7 +123,9 @@ describe('participant bio over HTTP', () => {
     const app = makeApp(AGENT);
     const bad = await request(app).post('/api/auth/profile').send({ bio: 42 });
     expect(bad.status).toBe(400);
-    const long = await request(app).post('/api/auth/profile').send({ bio: 'x'.repeat(501) });
+    const long = await request(app)
+      .post('/api/auth/profile')
+      .send({ bio: 'x'.repeat(501) });
     expect(long.status).toBe(400);
     // A bad bio must not clobber other fields silently.
     const [row] = await db.select().from(agents).where(eq(agents.id, AGENT));

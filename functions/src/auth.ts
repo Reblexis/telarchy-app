@@ -13,9 +13,9 @@ if (!process.env.BETTER_AUTH_SECRET?.trim()) {
   process.env.BETTER_AUTH_SECRET = generated;
   console.warn(
     '\n[WARN] BETTER_AUTH_SECRET is not set. A temporary secret has been generated:\n' +
-    `       ${generated}\n` +
-    '       All sessions will be invalidated on every restart until you persist this.\n' +
-    '       Add BETTER_AUTH_SECRET=<value> to your environment configuration.\n',
+      `       ${generated}\n` +
+      '       All sessions will be invalidated on every restart until you persist this.\n' +
+      '       Add BETTER_AUTH_SECRET=<value> to your environment configuration.\n',
   );
 }
 
@@ -84,18 +84,22 @@ export const auth = betterAuth({
   },
   emailAndPassword: { enabled: true },
   socialProviders: {
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? {
-      google: {
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      },
-    } : {}),
-    ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET ? {
-      github: {
-        clientId: process.env.GITHUB_CLIENT_ID,
-        clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      },
-    } : {}),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? {
+          google: {
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          },
+        }
+      : {}),
+    ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+      ? {
+          github: {
+            clientId: process.env.GITHUB_CLIENT_ID,
+            clientSecret: process.env.GITHUB_CLIENT_SECRET,
+          },
+        }
+      : {}),
   },
   trustedOrigins: betterAuthTrustedOrigins(),
   basePath: '/api/auth',

@@ -10,19 +10,23 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { and, eq, gte, inArray, sql } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { workspaces, agents, proposals } from '../db/schema';
-import { toUnits, fromUnits } from '../lib/validation';
+import { agents, proposals, workspaces } from '../db/schema';
+import { fromUnits, toUnits } from '../lib/validation';
 import {
   approveProposal,
+  countPendingProposalsByProposer,
   declineProposal,
   declineProposalAsSpam,
   withdrawProposal,
-  countPendingProposalsByProposer,
 } from '../services/proposals';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-bounty';
 const OWNER = 'owner-agent';
@@ -52,9 +56,14 @@ async function seed(opts: {
 
 async function insertProposal(id: string, status: string = 'pending') {
   await db.insert(proposals).values({
-    id, workspaceId: WS, proposedBy: PROPOSER,
-    title: `proposal ${id}`, description: '', status,
-    conditionalMarketIds: [], liquiditySubsidy: 0,
+    id,
+    workspaceId: WS,
+    proposedBy: PROPOSER,
+    title: `proposal ${id}`,
+    description: '',
+    status,
+    conditionalMarketIds: [],
+    liquiditySubsidy: 0,
   });
 }
 
@@ -64,7 +73,10 @@ async function balanceOf(agentId: string): Promise<number> {
 }
 
 async function statusOf(id: string): Promise<string> {
-  const [row] = await db.select().from(proposals).where(and(eq(proposals.id, id), eq(proposals.workspaceId, WS)));
+  const [row] = await db
+    .select()
+    .from(proposals)
+    .where(and(eq(proposals.id, id), eq(proposals.workspaceId, WS)));
   return row.status;
 }
 
@@ -158,7 +170,7 @@ describe('withdrawProposal', () => {
     expect(await balanceOf(PROPOSER)).toBe(50);
   });
 
-  test('non-proposer cannot withdraw someone else\'s proposal', async () => {
+  test("non-proposer cannot withdraw someone else's proposal", async () => {
     await seed({ ownerBalance: 100, proposerBalance: 50 });
     await insertProposal('p1');
     await expect(withdrawProposal('p1', WS, OWNER)).rejects.toThrow(/Only the proposer/i);
@@ -189,11 +201,13 @@ describe('marketplace 30-day proposalStats aggregation', () => {
     await insertProposal('p6', 'withdrawn');
 
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const rows = await db.select({
-      workspaceId: proposals.workspaceId,
-      status: proposals.status,
-      n: sql<number>`count(*)::int`,
-    }).from(proposals)
+    const rows = await db
+      .select({
+        workspaceId: proposals.workspaceId,
+        status: proposals.status,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(proposals)
       .where(and(inArray(proposals.workspaceId, [WS]), gte(proposals.createdAt, since)))
       .groupBy(proposals.workspaceId, proposals.status);
 

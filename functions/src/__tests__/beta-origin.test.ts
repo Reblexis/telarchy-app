@@ -23,7 +23,11 @@ const withEnv = (env: Record<string, string | undefined>, fn: () => void) => {
   const saved = { ...process.env };
   Object.assign(process.env, env);
   for (const [k, v] of Object.entries(env)) if (v === undefined) delete process.env[k];
-  try { fn(); } finally { process.env = saved; }
+  try {
+    fn();
+  } finally {
+    process.env = saved;
+  }
 };
 
 describe('the beta can authenticate', () => {

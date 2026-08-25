@@ -1,6 +1,6 @@
-import { db } from '../db/client';
-import { agents, markets, trades, systemConfig, workspaces } from '../db/schema';
 import { and, count, eq, gt, inArray, like, sql } from 'drizzle-orm';
+import { db } from '../db/client';
+import { agents, markets, systemConfig, trades, workspaces } from '../db/schema';
 import { ttlCache } from '../lib/ttl-cache';
 
 /**
@@ -52,35 +52,54 @@ async function computePlatformStats(): Promise<PlatformStats> {
   // gesture must not count; abs(cost) so sells are activity too). It is
   // public for the same reason manifoldImportCount is: a resolution source
   // has to be readable by the people being asked to trust it.
-  const spendByAgent = await db.select({ id: trades.agentId, spend: sql<number>`sum(abs(${trades.cost}))` })
-    .from(trades).where(gt(trades.createdAt, weekAgo)).groupBy(trades.agentId);
+  const spendByAgent = await db
+    .select({ id: trades.agentId, spend: sql<number>`sum(abs(${trades.cost}))` })
+    .from(trades)
+    .where(gt(trades.createdAt, weekAgo))
+    .groupBy(trades.agentId);
   const qualifying = spendByAgent.filter(r => Number(r.spend) >= 100).map(r => r.id);
-  const claimedRows = qualifying.length > 0
-    ? await db.select({ key: systemConfig.key }).from(systemConfig)
-        .where(inArray(systemConfig.key, qualifying.map(id => `manifold-claimed:agent:${id}`)))
-    : [];
+  const claimedRows =
+    qualifying.length > 0
+      ? await db
+          .select({ key: systemConfig.key })
+          .from(systemConfig)
+          .where(
+            inArray(
+              systemConfig.key,
+              qualifying.map(id => `manifold-claimed:agent:${id}`),
+            ),
+          )
+      : [];
   const weeklyActiveVerifiedTraders = claimedRows.length;
 
   let marketsActive = 0;
   let tradesThisWeek = 0;
 
-  await Promise.all(allWs.map(async ws => {
-    const [mCount, tCount] = await Promise.all([
-      db.select({ count: count() }).from(markets)
-        .where(and(eq(markets.workspaceId, ws.id), eq(markets.resolved, false), eq(markets.active, true)))
-        .then(r => r[0]?.count ?? 0),
-      db.select({ count: count() }).from(trades)
-        .where(and(eq(trades.workspaceId, ws.id), gt(trades.createdAt, weekAgo)))
-        .then(r => r[0]?.count ?? 0),
-    ]);
-    marketsActive += Number(mCount);
-    tradesThisWeek += Number(tCount);
-  }));
+  await Promise.all(
+    allWs.map(async ws => {
+      const [mCount, tCount] = await Promise.all([
+        db
+          .select({ count: count() })
+          .from(markets)
+          .where(and(eq(markets.workspaceId, ws.id), eq(markets.resolved, false), eq(markets.active, true)))
+          .then(r => r[0]?.count ?? 0),
+        db
+          .select({ count: count() })
+          .from(trades)
+          .where(and(eq(trades.workspaceId, ws.id), gt(trades.createdAt, weekAgo)))
+          .then(r => r[0]?.count ?? 0),
+      ]);
+      marketsActive += Number(mCount);
+      tradesThisWeek += Number(tCount);
+    }),
+  );
 
   // Platform-wide count of completed Manifold imports. It is a platform
   // number rather than a property of any one workspace, and a public
   // prediction market resolves against it.
-  const [manifoldRow] = await db.select({ n: count() }).from(systemConfig)
+  const [manifoldRow] = await db
+    .select({ n: count() })
+    .from(systemConfig)
     .where(like(systemConfig.key, 'manifold-claimed:agent:%'));
 
   return {

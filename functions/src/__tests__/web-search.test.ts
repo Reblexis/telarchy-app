@@ -16,14 +16,17 @@ const ORIGINAL_FETCH = global.fetch;
 const ORIGINAL_KEY = process.env.AI_GATEWAY_API_KEY;
 
 function reply(content: string, citations?: string[]) {
-  global.fetch = (async () => ({
-    ok: true,
-    json: async () => ({ choices: [{ message: { content } }], citations, usage: { cost: 0.004 } }),
-    text: async () => '',
-  } as unknown as Response)) as typeof global.fetch;
+  global.fetch = (async () =>
+    ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content } }], citations, usage: { cost: 0.004 } }),
+      text: async () => '',
+    }) as unknown as Response) as typeof global.fetch;
 }
 
-beforeEach(() => { process.env.AI_GATEWAY_API_KEY = 'test-key'; });
+beforeEach(() => {
+  process.env.AI_GATEWAY_API_KEY = 'test-key';
+});
 afterEach(() => {
   global.fetch = ORIGINAL_FETCH;
   if (ORIGINAL_KEY === undefined) delete process.env.AI_GATEWAY_API_KEY;
@@ -69,13 +72,12 @@ describe('the tool as he holds it', () => {
     const record: Array<{ method: string; path: string; status: number }> = [];
     const tool = webSearchTool(record);
     await tool.run({ query: 'where does kleros publish dispute counts' });
-    expect(record).toEqual([
-      { method: 'SEARCH', path: 'where does kleros publish dispute counts', status: 200 },
-    ]);
+    expect(record).toEqual([{ method: 'SEARCH', path: 'where does kleros publish dispute counts', status: 200 }]);
   });
 
   test('a failed search is a fact he can repeat, not an exception', async () => {
-    global.fetch = (async () => ({ ok: false, status: 503, text: async () => 'upstream down' } as unknown as Response)) as typeof global.fetch;
+    global.fetch = (async () =>
+      ({ ok: false, status: 503, text: async () => 'upstream down' }) as unknown as Response) as typeof global.fetch;
     const record: Array<{ method: string; path: string; status: number }> = [];
     const out = await webSearchTool(record).run({ query: 'kleros' });
     expect(out).toMatch(/That search failed/);
@@ -85,7 +87,10 @@ describe('the tool as he holds it', () => {
 
   test('an empty query does not spend anything', async () => {
     let called = false;
-    global.fetch = (async () => { called = true; return {} as Response; }) as typeof global.fetch;
+    global.fetch = (async () => {
+      called = true;
+      return {} as Response;
+    }) as typeof global.fetch;
     const out = await webSearchTool().run({});
     expect(called).toBe(false);
     expect(out).toMatch(/No query was given/);

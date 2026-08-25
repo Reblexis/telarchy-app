@@ -10,19 +10,33 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import { eq } from 'drizzle-orm';
 import {
-  agents, authUser, markets, marketMessages, permissionGroups,
-  proposals, proposalMessages, trades, workspaces,
+  agents,
+  authUser,
+  marketMessages,
+  markets,
+  permissionGroups,
+  proposalMessages,
+  proposals,
+  trades,
+  workspaces,
 } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { notifyCommentPosted, notifyMarketResolved, notifyProposalCreated, notifyProposalDecided } from '../services/notifications';
+import {
+  notifyCommentPosted,
+  notifyMarketResolved,
+  notifyProposalCreated,
+  notifyProposalDecided,
+} from '../services/notifications';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const realFetch = global.fetch;
 let sent: Array<{ to: string; subject: string; text: string }>;
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 
 beforeEach(async () => {
   await truncateAll();
@@ -35,17 +49,30 @@ beforeEach(async () => {
   }) as any;
 });
 
-afterEach(() => { global.fetch = realFetch; delete process.env.RESEND_API_KEY; });
+afterEach(() => {
+  global.fetch = realFetch;
+  delete process.env.RESEND_API_KEY;
+});
 
 const WS = 'ws-notif';
 
 /** A participant with a browser account, i.e. one that has an address. */
-async function human(id: string, email: string, prefs: Partial<{
-  notifyCommentOnMyProposal: boolean; notifyReplyToMyComment: boolean; notifyNewProposal: boolean;
-  notifyAnyComment: boolean; notifyMarketResolved: boolean; notifyContractDecided: boolean;
-}> = {}) {
+async function human(
+  id: string,
+  email: string,
+  prefs: Partial<{
+    notifyCommentOnMyProposal: boolean;
+    notifyReplyToMyComment: boolean;
+    notifyNewProposal: boolean;
+    notifyAnyComment: boolean;
+    notifyMarketResolved: boolean;
+    notifyContractDecided: boolean;
+  }> = {},
+) {
   await db.insert(authUser).values({ id: `u-${id}`, name: id, email });
-  await db.insert(agents).values({ id, apiKeyHash: `h-${id}`, balance: 0, nickname: id, authUserId: `u-${id}`, ...prefs });
+  await db
+    .insert(agents)
+    .values({ id, apiKeyHash: `h-${id}`, balance: 0, nickname: id, authUserId: `u-${id}`, ...prefs });
 }
 
 /** A key-only participant: no browser account, so no address anywhere. */
@@ -55,22 +82,36 @@ async function bot(id: string) {
 
 async function seedWorkspace(memberIds: string[]) {
   await db.insert(workspaces).values({
-    id: WS, name: 'LookPilot', createdBy: 'poster', visibility: 'public', slug: 'lookpilot',
+    id: WS,
+    name: 'LookPilot',
+    createdBy: 'poster',
+    visibility: 'public',
+    slug: 'lookpilot',
   });
   await db.insert(permissionGroups).values({
-    id: 'grp-traders', workspaceId: WS, name: 'Traders', type: 'trader',
-    capabilities: ['read', 'trade'], memberIds,
+    id: 'grp-traders',
+    workspaceId: WS,
+    name: 'Traders',
+    type: 'trader',
+    capabilities: ['read', 'trade'],
+    memberIds,
   });
 }
 
 async function seedProposal() {
   await db.insert(proposals).values({
-    id: 'prop-1', workspaceId: WS, proposedBy: 'poster', title: 'Ship the landing page', description: 'do the thing',
+    id: 'prop-1',
+    workspaceId: WS,
+    proposedBy: 'poster',
+    title: 'Ship the landing page',
+    description: 'do the thing',
   });
 }
 
 async function comment(id: string, from: string, content = 'a comment') {
-  await db.insert(proposalMessages).values({ id, workspaceId: WS, proposalId: 'prop-1', from, content, createdAt: new Date() });
+  await db
+    .insert(proposalMessages)
+    .values({ id, workspaceId: WS, proposalId: 'prop-1', from, content, createdAt: new Date() });
 }
 
 describe('a comment under a contract', () => {
@@ -81,7 +122,12 @@ describe('a comment under a contract', () => {
     await seedProposal();
     await comment('m1', 'commenter');
 
-    await notifyCommentPosted({ workspaceId: WS, from: 'commenter', content: 'what is the channel?', proposalId: 'prop-1' });
+    await notifyCommentPosted({
+      workspaceId: WS,
+      from: 'commenter',
+      content: 'what is the channel?',
+      proposalId: 'prop-1',
+    });
 
     expect(sent.map(s => s.to)).toEqual(['poster@example.com']);
     expect(sent[0].subject).toContain('Ship the landing page');
@@ -146,15 +192,22 @@ describe('a comment under a contract', () => {
   });
 
   test('a Resend outage does not surface to the caller', async () => {
-    global.fetch = jest.fn(async () => { throw new Error('no network'); }) as any;
+    global.fetch = jest.fn(async () => {
+      throw new Error('no network');
+    }) as any;
     await human('poster', 'poster@example.com');
     await human('commenter', 'commenter@example.com');
     await seedWorkspace(['poster', 'commenter']);
     await seedProposal();
 
-    await expect(notifyCommentPosted({
-      workspaceId: WS, from: 'commenter', content: 'ping', proposalId: 'prop-1',
-    })).resolves.toBeUndefined();
+    await expect(
+      notifyCommentPosted({
+        workspaceId: WS,
+        from: 'commenter',
+        content: 'ping',
+        proposalId: 'prop-1',
+      }),
+    ).resolves.toBeUndefined();
   });
 });
 
@@ -164,13 +217,29 @@ describe('a comment under a market', () => {
     await human('answerer', 'answerer@example.com');
     await seedWorkspace(['asker', 'answerer']);
     await db.insert(markets).values({
-      id: 'mkt-1', workspaceId: WS, metricId: 'metric-1', metricName: 'Net 2026',
-      targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      id: 'mkt-1',
+      workspaceId: WS,
+      metricId: 'metric-1',
+      metricName: 'Net 2026',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
+      branch: null,
     });
     await db.insert(marketMessages).values({
-      id: 'mm1', workspaceId: WS, marketId: 'mkt-1', from: 'asker', content: 'why so low?', createdAt: new Date(),
+      id: 'mm1',
+      workspaceId: WS,
+      marketId: 'mkt-1',
+      from: 'asker',
+      content: 'why so low?',
+      createdAt: new Date(),
     });
 
     await notifyCommentPosted({ workspaceId: WS, from: 'answerer', content: 'thin book', marketId: 'mkt-1' });
@@ -180,7 +249,7 @@ describe('a comment under a market', () => {
   });
 });
 
-describe('a comment under a contract\'s conditional market', () => {
+describe("a comment under a contract's conditional market", () => {
   /**
    * The bug this pins (found on the live floor 2026-08-19): a conditional
    * market belongs to a contract, but comments on it went into the market
@@ -193,10 +262,21 @@ describe('a comment under a contract\'s conditional market', () => {
     await seedWorkspace(['poster', 'trader']);
     await seedProposal();
     await db.insert(markets).values({
-      id: 'mkt-cond', workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
-      targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: 'prop-1', branch: 'approved',
+      id: 'mkt-cond',
+      workspaceId: WS,
+      metricId: 'metric-1',
+      metricName: 'Weekly traders',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: 'prop-1',
+      branch: 'approved',
     });
 
     await notifyCommentPosted({ workspaceId: WS, from: 'trader', content: 'priced too high', marketId: 'mkt-cond' });
@@ -214,10 +294,21 @@ describe('a comment under a contract\'s conditional market', () => {
     await seedWorkspace(['poster', 'trader']);
     await seedProposal();
     await db.insert(markets).values({
-      id: 'mkt-base', workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
-      targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      id: 'mkt-base',
+      workspaceId: WS,
+      metricId: 'metric-1',
+      metricName: 'Weekly traders',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
+      branch: null,
     });
 
     await notifyCommentPosted({ workspaceId: WS, from: 'trader', content: 'thin book', marketId: 'mkt-base' });
@@ -233,7 +324,12 @@ describe('a new contract on the ballot', () => {
     await human('quiet', 'quiet@example.com');
     await seedWorkspace(['poster', 'watcher', 'quiet']);
 
-    await notifyProposalCreated({ workspaceId: WS, proposedBy: 'poster', title: 'Rewrite the pricing page', description: 'why' });
+    await notifyProposalCreated({
+      workspaceId: WS,
+      proposedBy: 'poster',
+      title: 'Rewrite the pricing page',
+      description: 'why',
+    });
 
     expect(sent.map(s => s.to)).toEqual(['watcher@example.com']);
     expect(sent[0].subject).toContain('Rewrite the pricing page');
@@ -254,8 +350,13 @@ describe('a decision on your own contract', () => {
   /** A contract already decided, the way the routes leave it before mailing. */
   async function decided(fields: Record<string, unknown>) {
     await db.insert(proposals).values({
-      id: 'prop-1', workspaceId: WS, proposedBy: 'poster', title: 'Ship the landing page',
-      askUsd: 300, resolvedAt: new Date(), ...fields,
+      id: 'prop-1',
+      workspaceId: WS,
+      proposedBy: 'poster',
+      title: 'Ship the landing page',
+      askUsd: 300,
+      resolvedAt: new Date(),
+      ...fields,
     });
   }
 
@@ -296,7 +397,9 @@ describe('a decision on your own contract', () => {
 
   test('has no switch: it goes out with every email preference off', async () => {
     await human('poster', 'poster@example.com', {
-      notifyCommentOnMyProposal: false, notifyReplyToMyComment: false, notifyNewProposal: false,
+      notifyCommentOnMyProposal: false,
+      notifyReplyToMyComment: false,
+      notifyNewProposal: false,
     });
     await seedWorkspace(['poster']);
     await decided({ status: 'declined_spam' });
@@ -326,7 +429,6 @@ describe('a decision on your own contract', () => {
     expect(sent).toHaveLength(0);
   });
 });
-
 
 /**
  * Every comment on a floor you belong to (owner ask 2026-08-21: "make sure
@@ -384,7 +486,10 @@ describe('watching every comment on a floor', () => {
     await seedWorkspace(['owner', 'commenter']);
     // The contract is the watcher's own, so both switches would fire.
     await db.insert(proposals).values({
-      id: 'prop-1', workspaceId: WS, proposedBy: 'owner', title: 'Ship the landing page',
+      id: 'prop-1',
+      workspaceId: WS,
+      proposedBy: 'owner',
+      title: 'Ship the landing page',
     });
     await comment('m1', 'commenter');
 
@@ -400,12 +505,28 @@ describe('watching every comment on a floor', () => {
     await human('trader', 'trader@example.com');
     await seedWorkspace(['owner', 'trader']);
     await db.insert(markets).values({
-      id: 'mkt-1', workspaceId: WS, metricId: 'metric-1', metricName: 'Revenue', targetDate: '2026-12',
-      rangeMin: 0, rangeMax: 100, shares: [0, 0], liquidity: 100, pool: initialPool(100),
-      active: true, resolved: false, voided: false, proposalId: null,
+      id: 'mkt-1',
+      workspaceId: WS,
+      metricId: 'metric-1',
+      metricName: 'Revenue',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 100,
+      pool: initialPool(100),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
     });
     await db.insert(marketMessages).values({
-      id: 'mm-1', workspaceId: WS, marketId: 'mkt-1', from: 'trader', content: 'thin book', createdAt: new Date(),
+      id: 'mm-1',
+      workspaceId: WS,
+      marketId: 'mkt-1',
+      from: 'trader',
+      content: 'thin book',
+      createdAt: new Date(),
     });
 
     await notifyCommentPosted({ workspaceId: WS, from: 'trader', content: 'thin book', marketId: 'mkt-1' });
@@ -422,20 +543,45 @@ describe('watching every comment on a floor', () => {
 describe('a decision reaches everyone with money or words on the contract', () => {
   async function decidedWithPair(fields: Record<string, unknown> = {}) {
     await db.insert(proposals).values({
-      id: 'prop-1', workspaceId: WS, proposedBy: 'poster', title: 'Ship the landing page',
-      askUsd: 300, resolvedAt: new Date(), resolvedBy: 'owner', status: 'approved', ...fields,
+      id: 'prop-1',
+      workspaceId: WS,
+      proposedBy: 'poster',
+      title: 'Ship the landing page',
+      askUsd: 300,
+      resolvedAt: new Date(),
+      resolvedBy: 'owner',
+      status: 'approved',
+      ...fields,
     });
     await db.insert(markets).values({
-      id: 'mkt-approved', workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
-      targetDate: '2026-12', rangeMin: 0, rangeMax: 100, shares: [0, 0], liquidity: 10,
-      pool: initialPool(10), active: true, resolved: false, voided: false,
-      proposalId: 'prop-1', branch: 'approved',
+      id: 'mkt-approved',
+      workspaceId: WS,
+      metricId: 'metric-1',
+      metricName: 'Weekly traders',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: 'prop-1',
+      branch: 'approved',
     });
   }
-  const trade = (id: string, agentId: string) => db.insert(trades).values({
-    id, workspaceId: WS, agentId, marketId: 'mkt-approved',
-    direction: 'higher', shares: 5, cost: 2, createdAt: new Date(),
-  });
+  const trade = (id: string, agentId: string) =>
+    db.insert(trades).values({
+      id,
+      workspaceId: WS,
+      agentId,
+      marketId: 'mkt-approved',
+      direction: 'higher',
+      shares: 5,
+      cost: 2,
+      createdAt: new Date(),
+    });
 
   test('a trader on a branch and a commenter in the thread both hear the verdict', async () => {
     await human('poster', 'poster@example.com');
@@ -446,7 +592,12 @@ describe('a decision reaches everyone with money or words on the contract', () =
     await decidedWithPair();
     await trade('t1', 'trader');
     await db.insert(proposalMessages).values({
-      id: 'm1', workspaceId: WS, proposalId: 'prop-1', from: 'voice', content: 'is this priced right?', createdAt: new Date(),
+      id: 'm1',
+      workspaceId: WS,
+      proposalId: 'prop-1',
+      from: 'voice',
+      content: 'is this priced right?',
+      createdAt: new Date(),
     });
 
     await notifyProposalDecided({ workspaceId: WS, proposalId: 'prop-1' });
@@ -479,16 +630,35 @@ describe('a decision reaches everyone with money or words on the contract', () =
 describe('a settled market mails its traders', () => {
   async function settledMarket(fields: Record<string, unknown> = {}) {
     await db.insert(markets).values({
-      id: 'mkt-1', workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
-      targetDate: '2026-12', rangeMin: 0, rangeMax: 100, shares: [0, 0], liquidity: 10,
-      pool: 0, active: false, resolved: true, voided: false, actualValue: 62,
-      resolvedAt: new Date(), ...fields,
+      id: 'mkt-1',
+      workspaceId: WS,
+      metricId: 'metric-1',
+      metricName: 'Weekly traders',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: 0,
+      active: false,
+      resolved: true,
+      voided: false,
+      actualValue: 62,
+      resolvedAt: new Date(),
+      ...fields,
     });
   }
-  const trade = (id: string, agentId: string) => db.insert(trades).values({
-    id, workspaceId: WS, agentId, marketId: 'mkt-1',
-    direction: 'higher', shares: 5, cost: 2, createdAt: new Date(),
-  });
+  const trade = (id: string, agentId: string) =>
+    db.insert(trades).values({
+      id,
+      workspaceId: WS,
+      agentId,
+      marketId: 'mkt-1',
+      direction: 'higher',
+      shares: 5,
+      cost: 2,
+      createdAt: new Date(),
+    });
 
   test('every trader hears the settled value, once, and bystanders nothing', async () => {
     await human('alice', 'alice@example.com');
@@ -520,8 +690,14 @@ describe('a settled market mails its traders', () => {
     // Voided is not settled: the refund is the message.
     await db.update(markets).set({ voided: true }).where(eq(markets.id, 'mkt-1'));
     await db.insert(trades).values({
-      id: 't2', workspaceId: WS, agentId: 'bob', marketId: 'mkt-1',
-      direction: 'higher', shares: 5, cost: 2, createdAt: new Date(),
+      id: 't2',
+      workspaceId: WS,
+      agentId: 'bob',
+      marketId: 'mkt-1',
+      direction: 'higher',
+      shares: 5,
+      cost: 2,
+      createdAt: new Date(),
     });
     await notifyMarketResolved({ workspaceId: WS, marketId: 'mkt-1' });
     expect(sent).toHaveLength(0);

@@ -26,27 +26,34 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { and, eq, inArray } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, liquidityEvents, markets, metrics, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { toUnits, fromUnits } from '../lib/validation';
-import { proposalsRouter } from '../routes/proposals';
 import { AppError } from '../lib/errors';
+import { fromUnits, toUnits } from '../lib/validation';
+// The router no longer carries auth itself (app.ts applies the policy first),
+// so the test mounts the mocked middleware where the policy would run.
+import { authMiddleware } from '../middleware/auth';
+import { proposalsRouter } from '../routes/proposals';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
-app.use('/api/proposals', proposalsRouter);
+app.use('/api/proposals', authMiddleware, proposalsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {
   const status = err instanceof AppError ? err.status : 500;
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-buyout';
 const OWNER = 'agent-buyout-owner';
@@ -58,26 +65,53 @@ async function seed(ownerBalance: number) {
     { id: PROPOSER, apiKeyHash: 'h-bo-proposer', balance: toUnits(1000) },
   ]);
   await db.insert(workspaces).values({
-    id: WS, name: 'Buyout Test', createdBy: OWNER, visibility: 'public',
+    id: WS,
+    name: 'Buyout Test',
+    createdBy: OWNER,
+    visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: 'metric-bo', workspaceId: WS, name: 'Revenue', value: 50, formula: '0', marketRangeMax: 100,
+    id: 'metric-bo',
+    workspaceId: WS,
+    name: 'Revenue',
+    value: 50,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: 'mkt-base-bo', workspaceId: WS, metricId: 'metric-bo', metricName: 'Revenue',
-    targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 10, pool: initialPool(10),
-    active: true, resolved: false, voided: false, proposalId: null, branch: null,
+    id: 'mkt-base-bo',
+    workspaceId: WS,
+    metricId: 'metric-bo',
+    metricName: 'Revenue',
+    targetDate: '2026-12',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 10,
+    pool: initialPool(10),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
+    branch: null,
   });
 }
 
 function asAgent(agentId: string) {
   return {
-    propose: (body: Record<string, unknown>) => request(app).post('/api/proposals')
-      .set('X-Test-Agent-Id', agentId).set('X-Workspace-Id', WS)
-      .set('Content-Type', 'application/json').send(body),
-    approve: (id: string) => request(app).post(`/api/proposals/${id}/approve`)
-      .set('X-Test-Agent-Id', agentId).set('X-Workspace-Id', WS).send({}),
+    propose: (body: Record<string, unknown>) =>
+      request(app)
+        .post('/api/proposals')
+        .set('X-Test-Agent-Id', agentId)
+        .set('X-Workspace-Id', WS)
+        .set('Content-Type', 'application/json')
+        .send(body),
+    approve: (id: string) =>
+      request(app)
+        .post(`/api/proposals/${id}/approve`)
+        .set('X-Test-Agent-Id', agentId)
+        .set('X-Workspace-Id', WS)
+        .send({}),
   };
 }
 
@@ -90,7 +124,9 @@ describe('approval buys the proposer out', () => {
   test('the whole stake is back at decision time, and the owner holds the LP claim', async () => {
     await seed(1000);
     const created = await asAgent(PROPOSER).propose({
-      title: 'Stake me', description: 'x', liquiditySubsidy: 250,
+      title: 'Stake me',
+      description: 'x',
+      liquiditySubsidy: 250,
     });
     expect(created.status).toBe(201);
     // 250 per branch market, two branches: the full 500 left the proposer.
@@ -105,12 +141,20 @@ describe('approval buys the proposer out', () => {
 
     // The approved branch's LP rows now belong to the owner: the market
     // kept its depth and the resolution-time LP refund pays the owner.
-    const open = await db.select().from(markets).where(and(
-      eq(markets.workspaceId, WS), eq(markets.proposalId, created.body.id), eq(markets.resolved, false),
-    ));
+    const open = await db
+      .select()
+      .from(markets)
+      .where(and(eq(markets.workspaceId, WS), eq(markets.proposalId, created.body.id), eq(markets.resolved, false)));
     expect(open).toHaveLength(1);
-    const lp = await db.select().from(liquidityEvents)
-      .where(inArray(liquidityEvents.marketId, open.map(m => m.id)));
+    const lp = await db
+      .select()
+      .from(liquidityEvents)
+      .where(
+        inArray(
+          liquidityEvents.marketId,
+          open.map(m => m.id),
+        ),
+      );
     expect(lp.length).toBeGreaterThan(0);
     for (const row of lp) expect(row.agentId).toBe(OWNER);
   });
@@ -118,7 +162,9 @@ describe('approval buys the proposer out', () => {
   test('a broke owner approves anyway; the stake waits for resolution', async () => {
     await seed(100);
     const created = await asAgent(PROPOSER).propose({
-      title: 'Stake me', description: 'x', liquiditySubsidy: 250,
+      title: 'Stake me',
+      description: 'x',
+      liquiditySubsidy: 250,
     });
     expect(created.status).toBe(201);
 

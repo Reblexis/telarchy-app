@@ -1,5 +1,5 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { TradeTicket } from '../TradeTicket';
 
 /**
@@ -149,10 +149,17 @@ describe('limit mode', () => {
 
 describe('resting orders', () => {
   const order = {
-    id: 'ord-1', marketId: 'm1', agentId: 'a1',
-    direction: 'higher' as const, limitValue: 40_000,
-    budgetCredits: 50, filledCredits: 10, remainingCredits: 40,
-    status: 'open' as const, expiresAt: null, createdAt: new Date().toISOString(),
+    id: 'ord-1',
+    marketId: 'm1',
+    agentId: 'a1',
+    direction: 'higher' as const,
+    limitValue: 40_000,
+    budgetCredits: 50,
+    filledCredits: 10,
+    remainingCredits: 40,
+    status: 'open' as const,
+    expiresAt: null,
+    createdAt: new Date().toISOString(),
   };
 
   test('each order states its limit and what is still waiting', () => {

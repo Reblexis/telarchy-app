@@ -24,6 +24,10 @@ export function onPricesChanged(fn: Listener): void {
 
 export function emitPricesChanged(workspaceId: string, marketId?: string): void {
   for (const fn of listeners) {
-    try { fn(workspaceId, marketId); } catch (e) { console.error('price listener failed:', e); }
+    try {
+      fn(workspaceId, marketId);
+    } catch (e) {
+      console.error('price listener failed:', e);
+    }
   }
 }
