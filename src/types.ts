@@ -49,8 +49,6 @@ export interface UpdateEntry {
   timestamp: Date;
 }
 
-export type GraphInterval = 'hour' | 'day' | 'week' | 'month' | 'year';
-
 export type AgentRole = 'admin' | 'agent' | 'member' | 'pending';
 
 export interface MetricPermission {
@@ -113,37 +111,9 @@ export const SCOPE_PRESETS: ScopePreset[] = [
   { id: 'full',    label: 'Full access',     description: 'Wildcard. Equivalent to a legacy unrestricted key. Use only when you know you need it.', scopes: ['*'] },
 ];
 
-export interface AgentApiKey {
-  keyId: string;
-  label: string | null;
-  scopes: string[];
-  workspaceId: string;
-  createdAt: string;
-  lastUsedAt: string | null;
-  hashPrefix: string;
-}
-
-export interface MintedApiKey {
-  keyId: string;
-  apiKey: string;
-  label: string | null;
-  scopes: string[];
-  workspaceId: string;
-  createdAt: string;
-}
-
 export interface AgentMembershipRequest {
   workspaceId: string;
   groupIds: string[];
-}
-
-export interface CreatedAgent {
-  agentId: string;
-  apiKey: string;
-  keyId: string;
-  scopes: string[];
-  label: string | null;
-  memberships: AgentMembershipRequest[];
 }
 
 export interface PermissionGroup {
@@ -172,19 +142,6 @@ export interface Source {
   };
   createdAt: string;
   updatedAt: string;
-}
-
-export interface GitHubTreeEntry {
-  path: string;
-  type: 'file' | 'dir';
-  size?: number;
-}
-
-export interface GitHubFileContent {
-  path: string;
-  content: string;
-  size: number;
-  encoding: string;
 }
 
 export interface Agent {
@@ -256,15 +213,6 @@ export interface ProposalMessage {
   createdAt: string;
 }
 
-export interface MarketMessage {
-  id: string;
-  marketId: string;
-  from: string;
-  fromName?: string | null;
-  content: string;
-  createdAt: string;
-}
-
 /** Per-branch market state inside a paired proposal-market summary. */
 export interface BranchMarketSummary {
   marketId: string;
@@ -294,13 +242,6 @@ export interface ProposalMarketSummary {
   baselineConsensus: number | null;
 }
 
-export interface ProposalDetailData extends Proposal {
-  markets?: ProposalMarketSummary[];
-  marketCount?: number;
-  /** Total spawned LMSR markets (approved + declined per metric). */
-  branchMarketCount?: number;
-}
-
 export interface Position {
   id: string;
   agentId: string;
@@ -308,21 +249,4 @@ export interface Position {
   direction: 'higher' | 'lower';
   shares: number;
   totalCost: number;
-}
-
-export interface LiquidityEvent {
-  id: string;
-  amount: number;
-  totalLiquidity: number;
-  type: 'initial' | 'injection';
-  createdAt: unknown;
-}
-
-export interface TradePoint {
-  consensus: number | null;
-  createdAt: { _seconds: number } | null;
-  agentId?: string;
-  direction?: 'higher' | 'lower';
-  shares?: number;
-  cost?: number;
 }

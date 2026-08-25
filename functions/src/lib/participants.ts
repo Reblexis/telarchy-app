@@ -231,38 +231,6 @@ export async function getUserWorkspaceMemberships(userId: string): Promise<Works
   return result;
 }
 
-export async function getWorkspaceRoleForParticipant(
-  workspaceId: string,
-  participantId?: string,
-  userId?: string,
-): Promise<'admin' | 'trader' | null> {
-  if (!participantId && !userId) return null;
-  const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
-
-  // If we only have userId, resolve to participantId
-  const resolvedParticipantId = participantId ?? (userId ? await resolveParticipantIdForUser(userId) : null) ?? undefined;
-
-  const adminGroup = groups.find(group => group.type === 'admin');
-  if (adminGroup && isParticipantMember(adminGroup, resolvedParticipantId)) {
-    return 'admin';
-  }
-
-  const hasTraderMembership = groups.some(group => isParticipantMember(group, resolvedParticipantId));
-  return hasTraderMembership ? 'trader' : null;
-}
-
-export async function listAccessibleWorkspaceIdsForParticipant(
-  participantId?: string,
-  userId?: string,
-): Promise<WorkspaceMembership[]> {
-  if (participantId) {
-    const memberships = await getParticipantWorkspaceMemberships(participantId);
-    if (memberships.length > 0) return memberships;
-  }
-  if (userId) return getUserWorkspaceMemberships(userId);
-  return [];
-}
-
 /**
  * Create a workspace and guarantee the owner is a member of the Admin permission group.
  *
@@ -401,11 +369,6 @@ export async function claimNickname(
     if (code === '23505') throw new AppError('Nickname is already taken', 409);
     throw err;
   }
-}
-
-export async function workspaceExists(workspaceId: string): Promise<boolean> {
-  const [workspace] = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, workspaceId));
-  return Boolean(workspace);
 }
 
 /**

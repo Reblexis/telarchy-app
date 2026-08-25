@@ -37,7 +37,7 @@ grade-prompt: |
 
 The other end of the dual-actor flow: a person who didn't propose the
 proposal and is being asked to commit. Borrowed from
-`docs/personas/13-proposal-approver.md` and `11-decision-maker.md`.
+the proposal-approver and decision-maker persona fixtures (private notes).
 
 ## Setup
 

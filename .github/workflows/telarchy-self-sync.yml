@@ -2,7 +2,7 @@ name: Telarchy self-sync
 
 # Daily push of the dogfooding workspace's one hero metric ("Weekly active
 # participants") read from the public /api/marketplace/stats route. See
-# docs/infra/self-sync.md. Rebuilt 2026-08-14: the four-metric Firestore-era
+# the self-sync note (private, umbrella notes). Rebuilt 2026-08-14: the four-metric Firestore-era
 # sync died in the Postgres migration and zombie-failed daily.
 
 on:

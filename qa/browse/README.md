@@ -8,9 +8,9 @@ Markdown file with YAML frontmatter and concrete `browse` (`$B`) +
 
 | Layer | File(s) | Question it answers |
 | --- | --- | --- |
-| Feature checklist | `docs/mvp-evaluation/plan.md` | Does every feature behave as specified? |
-| Persona walkthroughs | `docs/personas/*.md` | Will a specific kind of stranger succeed? |
-| First-time-user flow | `docs/user-flow-audit.md` | Does the activation funnel hold together end-to-end? |
+| Feature checklist | the feature plan in the umbrella's private notes (notes/telarchy-app-private/) | Does every feature behave as specified? |
+| Persona walkthroughs | the persona fixtures in the umbrella's private notes (notes/telarchy-app-private/) | Will a specific kind of stranger succeed? |
+| First-time-user flow | the user-flow audit in the umbrella's private notes (notes/telarchy-app-private/) | Does the activation funnel hold together end-to-end? |
 | **This directory** | `qa/browse/**.md` | Per-feature, runnable, parallelisable test specs |
 
 The other layers are reference material; this one is what you *run*.

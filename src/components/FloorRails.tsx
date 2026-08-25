@@ -279,20 +279,3 @@ function SeasonStrip({ signedIn, season }: { signedIn: boolean; season: PrizeSea
     </section>
   );
 }
-
-export function ActivityRail({ items }: { items: ActivityItem[] }) {
-  if (items.length === 0) return null;
-  return (
-    <aside className="pubws-rail pubws-rail--right" aria-label="Activity">
-      <h2 className="pubws-h2">Activity</h2>
-      <ul className="pubws-log">
-        {items.map((it, i) => (
-          <li key={`${it.at}-${i}`} className={`pubws-log-item pubws-log-item--${it.kind}`}>
-            <span className="pubws-log-time">{timeAgo(it.at)}</span>
-            <span className="pubws-log-text">{it.text}</span>
-          </li>
-        ))}
-      </ul>
-    </aside>
-  );
-}

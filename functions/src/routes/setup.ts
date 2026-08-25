@@ -16,7 +16,7 @@ export const setupRouter = Router();
 
 /**
  * Otto on the operator door: the setup conversation for someone who wants
- * their own floor (owner direction 2026-08-22, docs/operator-setup.md).
+ * their own floor (owner direction 2026-08-22, the operator-door design note).
  *
  * The same machinery as the floor's `POST /api/marketplace/:id/ask`, with two
  * differences and no third: a different job description (`SETUP_SYSTEM`), and

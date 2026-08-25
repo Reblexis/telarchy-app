@@ -35,7 +35,7 @@ export function ManagePage() {
       <main className="pubws-main">
 
         {/* Otto runs the setup, not a form (owner direction 2026-08-22,
-            docs/operator-setup.md). Every field a form could ask for (which
+            the operator-door design note). Every field a form could ask for (which
             number, what ceiling, what horizon) is a question Telarchy answers
             better than a stranger on their first minute, and a form cannot
             argue with the answer. He makes the calls himself, as them. */}

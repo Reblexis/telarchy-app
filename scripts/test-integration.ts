@@ -3,7 +3,7 @@
  * Integration test suite for the Telarchy API.
  *
  * Tests the live API end-to-end to verify behaviour documented in:
- *   docs/vision.md, docs/agent-economy.md, docs/go-to-market.md
+ *   docs/vision.md, docs/agent-economy.md
  *
  * Usage:
  *   BASE_URL=http://localhost:8080 API_KEY=<master> node scripts/test-integration.ts

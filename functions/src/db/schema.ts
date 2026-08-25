@@ -739,7 +739,7 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
 export const floorQuestions = pgTable('floor_questions', {
   id: text('id').primaryKey(),
   /** The floor asked about; NULL for a conversation on the operator door,
-   *  where the person does not have one yet (docs/operator-setup.md). */
+   *  where the person does not have one yet (the operator-door design note). */
   workspaceId: text('workspace_id'),
   question: text('question').notNull(),
   answer: text('answer').notNull().default(''),

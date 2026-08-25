@@ -800,13 +800,6 @@ export async function countPendingProposalsByProposer(
   return row?.count ?? 0;
 }
 
-export async function getProposalMarketSummaries(marketIds: string[], workspaceId: string) {
-  if (marketIds.length === 0) return [];
-  const rows = await db.select().from(markets)
-    .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.id, marketIds)));
-  return buildProposalMarketSummariesFromRows(rows, workspaceId);
-}
-
 export async function getProposalMarketSummariesForProposal(proposalId: string, workspaceId: string) {
   // Include voided rows so the post-decision view still shows the
   // counterfactual branch's price at the moment of refund. The LMSR shares

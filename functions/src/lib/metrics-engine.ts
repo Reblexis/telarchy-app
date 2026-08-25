@@ -103,30 +103,6 @@ export function validateFormula(formula: string, metricNames: Set<string>): Form
   return warnings;
 }
 
-export function getDependencyChain(metricId: string, metrics: Metric[]): string[] {
-  const nameToId: Record<string, string> = {};
-  const idToMetric: Record<string, Metric> = {};
-  metrics.forEach(m => { nameToId[m.name] = m.id; idToMetric[m.id] = m; });
-
-  const chain = new Set([metricId]);
-  getAffectedMetrics([metricId], metrics).forEach(id => chain.add(id));
-
-  const visited = new Set<string>();
-  function addParents(currentId: string) {
-    if (visited.has(currentId)) return;
-    visited.add(currentId);
-    const metric = idToMetric[currentId];
-    if (metric && metric.formula) {
-      for (const depName of extractMetricReferences(metric.formula)) {
-        const depId = nameToId[depName];
-        if (depId) { chain.add(depId); addParents(depId); }
-      }
-    }
-  }
-  addParents(metricId);
-  return Array.from(chain);
-}
-
 export function extractMetricReferences(formula: string): string[] {
   if (!formula) return [];
   const matches = formula.match(/\{([^}]+)\}/g);
@@ -350,12 +326,4 @@ export function calculateMetricDepths(metrics: Metric[]): Record<string, number>
   metrics.forEach(m => { if (depths[m.id] === undefined) depths[m.id] = 0; });
 
   return depths;
-}
-
-export function calculateDaysPassed(lastDate: string, currentDate: Date): number {
-  const last = new Date(lastDate);
-  const current = new Date(currentDate);
-  last.setHours(0, 0, 0, 0);
-  current.setHours(0, 0, 0, 0);
-  return Math.floor((current.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
 }

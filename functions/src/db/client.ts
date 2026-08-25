@@ -154,4 +154,3 @@ export async function mirrorAccountIntoStore(userId: string): Promise<void> {
   await active.insert(schema.authUser).values(real).onConflictDoNothing();
 }
 
-export type Db = typeof prodDb;

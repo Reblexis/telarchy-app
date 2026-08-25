@@ -356,9 +356,6 @@ onPricesChanged((workspaceId, marketId) => {
 });
 
 /** Test seam. */
-export function clearReplayCache(): void {
-  replayCache.clear();
-}
 
 async function computeReplayBundle(marketId: string, workspaceId: string): Promise<ReplayBundle> {
   const [market] = await db.select().from(markets)
