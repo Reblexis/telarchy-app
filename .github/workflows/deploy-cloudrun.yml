@@ -42,7 +42,7 @@ jobs:
   # failure than the test that would trip over it.
   checks:
     name: Type check and frontend tests
-    runs-on: [self-hosted, x64, telarchy]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -66,7 +66,7 @@ jobs:
   # well inside the runner's memory.
   backend:
     name: Backend tests (shard ${{ matrix.shard }}/3)
-    runs-on: [self-hosted, x64, telarchy]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -84,7 +84,10 @@ jobs:
 
   deploy:
     needs: [checks, backend]
-    runs-on: [self-hosted, x64, telarchy]
+    runs-on: ubuntu-latest
+    # The production environment's deployment-branch rule is main only; its
+    # secrets and variables are the managed instance's, never a fork's.
+    environment: production
     timeout-minutes: 20
     steps:
       # Full history: the data room's change log is generated from git below,
@@ -128,7 +131,7 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
         if: steps.auth_check.outputs.skip != 'true'
         with:
-          project_id: telarchy-e0043
+          project_id: ${{ vars.GCP_PROJECT }}
 
       - uses: actions/setup-node@v4
         if: steps.auth_check.outputs.skip != 'true'
@@ -152,7 +155,7 @@ jobs:
           chmod +x /tmp/cloud-sql-proxy
 
           # 2. Tunnel
-          /tmp/cloud-sql-proxy telarchy-e0043:us-central1:telarchy-pg --port=5435 > /tmp/proxy.log 2>&1 &
+          /tmp/cloud-sql-proxy ${{ vars.CLOUDSQL_INSTANCE }} --port=5435 > /tmp/proxy.log 2>&1 &
           PROXY_PID=$!
           trap 'kill $PROXY_PID 2>/dev/null || true' EXIT
           # Wait until the proxy accepts connections (~5s typically)
@@ -166,7 +169,7 @@ jobs:
 
           # 3. Read prod DATABASE_URL and swap the host for the local tunnel
           PROD_URL=$(gcloud secrets versions access latest \
-            --secret=DATABASE_URL --project=telarchy-e0043)
+            --secret=DATABASE_URL --project=${{ vars.GCP_PROJECT }})
           PASSWORD=$(python3 -c "
           import sys, urllib.parse
           p = urllib.parse.urlparse('$PROD_URL')
@@ -237,7 +240,7 @@ jobs:
             --cpu 1 \
             --min-instances 1 \
             --max-instances 4 \
-            --set-cloudsql-instances telarchy-e0043:us-central1:telarchy-pg \
+            --set-cloudsql-instances ${{ vars.CLOUDSQL_INSTANCE }} \
             --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app \
             --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest \
             --clear-base-image \

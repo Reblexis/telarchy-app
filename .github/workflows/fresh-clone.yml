@@ -1,0 +1,47 @@
+name: Fresh clone
+
+# The README's quick start, run by a machine: clone, copy the example env, bring
+# the stack up, and use it. If this fails, the README is wrong and so is the
+# image. Runs on pull requests and on demand; needs no secrets.
+on:
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  compose-up:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure from the example env
+        run: |
+          cp .env.example .env
+          sed -i "s/^API_KEY=.*/API_KEY=$(openssl rand -hex 32)/" .env
+          sed -i "s/^BETTER_AUTH_SECRET=.*/BETTER_AUTH_SECRET=$(openssl rand -hex 32)/" .env
+          sed -i "s/^INITIAL_ADMIN_EMAIL=.*/INITIAL_ADMIN_EMAIL=admin@example.com/" .env
+          sed -i "s/^INITIAL_ADMIN_PASSWORD=.*/INITIAL_ADMIN_PASSWORD=fresh-clone-admin-password/" .env
+      - name: docker compose up
+        run: docker compose up -d --build
+      - name: Wait for the API
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/api >/dev/null && exit 0
+            sleep 3
+          done
+          docker compose logs app
+          exit 1
+      - name: Use it
+        run: |
+          set -e
+          curl -sf http://localhost:8080/api/help >/dev/null
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/marketplace)" = "200"
+          # Registration reaches the handler (404 is the workspace lookup, not auth).
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8080/api/agents/register -H 'Content-Type: application/json' -d '{"agentId":"fresh-bot","workspaceId":"none","source":"github"}')" = "404"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8080/api/auth/sign-in/email -H 'Content-Type: application/json' -H 'Origin: http://localhost:8080' -d '{"email":"admin@example.com","password":"fresh-clone-admin-password"}')" = "200"
+          docker compose logs app | grep -q "applying database migrations"
+      - name: Down
+        if: always()
+        run: docker compose down -v
