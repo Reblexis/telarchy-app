@@ -103,11 +103,21 @@ describe('runtime', () => {
     // read originalUrl, 2026-08-25). Exercised directly: the beta store the real
     // app would consult for /beta is not configured under test.
     const { apiAuthPolicy } = await import('../middleware/route-policy');
-    const call = (path: string) => new Promise<number | 'next'>(resolve => {
-      const req = { originalUrl: `/beta/api${path}`, baseUrl: '/api', path, headers: {}, query: {}, method: 'GET' } as unknown as import('express').Request;
-      const res = { status: (code: number) => ({ json: () => resolve(code) }) } as unknown as import('express').Response;
-      apiAuthPolicy(req, res, () => resolve('next'));
-    });
+    const call = (path: string) =>
+      new Promise<number | 'next'>(resolve => {
+        const req = {
+          originalUrl: `/beta/api${path}`,
+          baseUrl: '/api',
+          path,
+          headers: {},
+          query: {},
+          method: 'GET',
+        } as unknown as import('express').Request;
+        const res = {
+          status: (code: number) => ({ json: () => resolve(code) }),
+        } as unknown as import('express').Response;
+        apiAuthPolicy(req, res, () => resolve('next'));
+      });
     expect(await call('/help')).toBe('next');
     expect(await call('/marketplace')).toBe('next');
     expect(await call('/metrics')).toBe(401);

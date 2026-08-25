@@ -145,7 +145,10 @@ describe('publishing', () => {
     expect(delegated.body.publishedBy).toBe('results-agent');
 
     const pub = await request(app).get(`/api/marketplace/announce-ws/announcements`);
-    expect(pub.body.announcements.map((a: { publishedBy: string | null }) => a.publishedBy)).toEqual(['results-agent', null]);
+    expect(pub.body.announcements.map((a: { publishedBy: string | null }) => a.publishedBy)).toEqual([
+      'results-agent',
+      null,
+    ]);
     const floor = await request(app).get(`/api/marketplace/${WS}`);
     expect(floor.body.latestAnnouncement.publishedBy).toBe('results-agent');
 
