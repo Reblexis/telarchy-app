@@ -7322,6 +7322,15 @@ compromised admin session delete the service. Recreate it with:</p>
 gcloud run services add-iam-policy-binding api --region us-central1 \
   --member=&quot;serviceAccount:429618975282-compute@developer.gserviceaccount.com&quot; \
   --role=&quot;projects/telarchy-e0043/roles/telarchyReleasePublisher&quot;
+# Added 2026-08-25: a traffic change re-validates the revision's image, so the
+# runtime account also needs READ on the image repository. Without it the
+# publish fails with 403 &quot;artifactregistry.repositories.downloadArtifacts
+# denied on cloud-run-source-deploy&quot; and the beta shows &quot;Internal error&quot;
+# (owner report 2026-08-25). Read only: it cannot push or delete an image.
+gcloud artifacts repositories add-iam-policy-binding cloud-run-source-deploy \
+  --location us-central1 --project telarchy-e0043 \
+  --member=&quot;serviceAccount:telarchy-api@telarchy-e0043.iam.gserviceaccount.com&quot; \
+  --role=&quot;roles/artifactregistry.reader&quot;
 </code></pre>
 <p>Off Cloud Run there is no metadata server, so <code>releaseState()</code> reads as unknown
 and publishing refuses. That is why local dev shows the stripe (localhost is
