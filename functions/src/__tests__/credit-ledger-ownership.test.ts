@@ -18,7 +18,7 @@
  * single most destructive endpoint bypassed the ledger entirely.
  */
 
-import { readFileSync, readdirSync, statSync } from 'fs';
+import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative, resolve } from 'path';
 
 const SRC = resolve(__dirname, '..');

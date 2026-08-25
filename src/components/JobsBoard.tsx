@@ -1,9 +1,9 @@
-import { FloorModal } from './FloorModal';
-import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { PublicProposal } from '../lib/api';
 import { api } from '../lib/api';
 import { horizonLabel } from '../lib/floor-horizons';
-import type { PublicProposal } from '../lib/api';
+import { FloorModal } from './FloorModal';
 
 /**
  * The jobs board: the proposal side of the trading floor, rendered for
@@ -96,7 +96,18 @@ function deltaAt(p: PublicProposal, targetDate: string | null | undefined): numb
   return p.markets.find(m => m.targetDate === targetDate)?.delta ?? null;
 }
 
-export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, signedIn, onRequireSignup, workspaceName, metricNames = [], horizonDate }: Props) {
+export function JobsBoard({
+  proposals,
+  unit,
+  selectedId,
+  onSelect,
+  onPropose,
+  signedIn,
+  onRequireSignup,
+  workspaceName,
+  metricNames = [],
+  horizonDate,
+}: Props) {
   const navigate = useNavigate();
   // The number the charter funds on, falling back to the largest priced delta
   // before the floor's horizon is known.
@@ -117,18 +128,28 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
   const [accountPayout, setAccountPayout] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     if (!formOpen) return;
-    api.getParticipant()
+    api
+      .getParticipant()
       .then(p => setAccountPayout((p as { payoutHandle?: string | null }).payoutHandle ?? null))
-      .catch(e => { console.error('participant fetch failed:', e); setAccountPayout(null); });
+      .catch(e => {
+        console.error('participant fetch failed:', e);
+        setAccountPayout(null);
+      });
   }, [formOpen]);
-  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [],
+  );
 
   // Pending jobs lead (the live ballot, biggest priced impact first), decided
   // ones follow. One list; status is shown per row instead of a separate
   // history section (owner direction 2026-08-12).
   const statusRank = (s?: string) => (!s || s === 'pending' ? 0 : 1);
   const ranked = [...proposals].sort((a, b) => {
-    const ra = statusRank(a.status), rb = statusRank(b.status);
+    const ra = statusRank(a.status),
+      rb = statusRank(b.status);
     if (ra !== rb) return ra - rb;
     return (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
   });
@@ -142,7 +163,10 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
   const formValid = title.trim().length > 0 && !needsPayout;
 
   const submit = async () => {
-    if (!title.trim()) { setFormErr('Add a contract.'); return; }
+    if (!title.trim()) {
+      setFormErr('Add a contract.');
+      return;
+    }
     // The title carries the price because it reads well and travels
     // (activity log, share text); the number is also sent separately, and
     // that copy is the one anything financial reads. A free job keeps a
@@ -156,7 +180,11 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
       // The green moment: the one place the form earns its color.
       setPlaced(true);
       closeTimer.current = setTimeout(() => {
-        setAsk(''); setTitle(''); setDesc(''); setPlaced(false); setFormOpen(false);
+        setAsk('');
+        setTitle('');
+        setDesc('');
+        setPlaced(false);
+        setFormOpen(false);
       }, 900);
     } catch (e) {
       setFormErr((e as Error).message || 'Failed to submit');
@@ -172,7 +200,9 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
         {/* One column label for the whole list instead of one per row; it is
             the header's meta, the same anatomy as the standings rail. */}
         {proposals.length > 0 && (
-          <span className="pubws-lb-meta" aria-hidden="true">{horizonDate ? `impact by ${horizonLabel(horizonDate)}` : 'impact if done'}</span>
+          <span className="pubws-lb-meta" aria-hidden="true">
+            {horizonDate ? `impact by ${horizonLabel(horizonDate)}` : 'impact if done'}
+          </span>
         )}
       </div>
 
@@ -201,23 +231,31 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
                       {/* A link cannot nest inside the row button, so the
                           name is a span that navigates; stopPropagation
                           keeps the row from also selecting. */}
-                      {p.proposedByName && (
-                        p.proposedByHandle
-                          ? (
-                            <span>by{' '}
-                              <span
-                                className="pubws-name-link"
-                                role="link"
-                                tabIndex={0}
-                                onClick={ev => { ev.stopPropagation(); navigate(`/participants/${encodeURIComponent(p.proposedByHandle!)}`); }}
-                                onKeyDown={ev => { if (ev.key === 'Enter') { ev.stopPropagation(); navigate(`/participants/${encodeURIComponent(p.proposedByHandle!)}`); } }}
-                              >
-                                {p.proposedByName}
-                              </span>
+                      {p.proposedByName &&
+                        (p.proposedByHandle ? (
+                          <span>
+                            by{' '}
+                            <span
+                              className="pubws-name-link"
+                              role="link"
+                              tabIndex={0}
+                              onClick={ev => {
+                                ev.stopPropagation();
+                                navigate(`/participants/${encodeURIComponent(p.proposedByHandle!)}`);
+                              }}
+                              onKeyDown={ev => {
+                                if (ev.key === 'Enter') {
+                                  ev.stopPropagation();
+                                  navigate(`/participants/${encodeURIComponent(p.proposedByHandle!)}`);
+                                }
+                              }}
+                            >
+                              {p.proposedByName}
                             </span>
-                          )
-                          : <span>by {p.proposedByName}</span>
-                      )}
+                          </span>
+                        ) : (
+                          <span>by {p.proposedByName}</span>
+                        ))}
                       {askUsd !== null && <span>${askUsd} to them</span>}
                       {p.status && p.status !== 'pending' && (
                         <span className={`pubws-ballot-status is-${p.status}`}>{p.status}</span>
@@ -228,11 +266,15 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
                     {/* "open" = nobody has priced it yet; a hard 0 means the
                         two worlds are priced the same, which is a statement,
                         not an absence. */}
-                    {delta === null
-                      ? <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
-                      : delta === 0
-                        ? <span className="pubws-ballot-delta pubws-ballot-delta--open">±{unit}0</span>
-                        : <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>}
+                    {delta === null ? (
+                      <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
+                    ) : delta === 0 ? (
+                      <span className="pubws-ballot-delta pubws-ballot-delta--open">±{unit}0</span>
+                    ) : (
+                      <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>
+                        {fmtDelta(delta, unit)}
+                      </span>
+                    )}
                   </span>
                 </button>
               </li>
@@ -242,16 +284,15 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
       )}
       <div className="pubws-propose">
         <p className="pubws-propose-lead">Do you think you could do something useful for {workspaceName}?</p>
-        <button
-          className="pubws-propose-cta"
-          onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}
-        >
+        <button className="pubws-propose-cta" onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}>
           + Offer to do a contract
         </button>
         {/* Surface the stake on the board itself, not only inside the form:
             posting costs 500 cr and pays 1,000 cr back if the owner approves,
             so a new signup (1,000 free cr) can afford it and see the upside. */}
-        <p className="pubws-propose-cost">Free to post. Approved means <strong>you are paid in real money</strong>, plus 500&nbsp;cr.</p>
+        <p className="pubws-propose-cost">
+          Free to post. Approved means <strong>you are paid in real money</strong>, plus 500&nbsp;cr.
+        </p>
       </div>
 
       {/* The form is the ticket's structure, not just its underlines
@@ -278,18 +319,25 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
                   />
                 </label>
               </div>
-              <button className="ticket-close" aria-label="Close" onClick={() => setFormOpen(false)}>×</button>
+              <button className="ticket-close" aria-label="Close" onClick={() => setFormOpen(false)}>
+                ×
+              </button>
             </div>
 
             <label className="jobform-field">
               <span className="ticket-label">
-                Contract <span className={`jobform-count${title.length >= 70 ? ' is-max' : title.length >= 60 ? ' is-near' : ''}`}>{title.length}/70</span>
+                Contract{' '}
+                <span
+                  className={`jobform-count${title.length >= 70 ? ' is-max' : title.length >= 60 ? ' is-near' : ''}`}
+                >
+                  {title.length}/70
+                </span>
               </span>
               <input
                 className="jobform-line jobform-line--title"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder={`I will do a very useful thing for ${workspaceName || "this company"}`}
+                placeholder={`I will do a very useful thing for ${workspaceName || 'this company'}`}
                 maxLength={70}
                 aria-label="Contract title"
               />
@@ -309,7 +357,9 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
 
             {/* A paid job cannot go up without somewhere for the money to
                 go; the warning names the fix and the confirm stays off. */}
-            {needsPayout && <p className="ticket-err">A paid contract needs payment details first: add them in your account menu.</p>}
+            {needsPayout && (
+              <p className="ticket-err">A paid contract needs payment details first: add them in your account menu.</p>
+            )}
             {formErr && <p className="ticket-err">{formErr}</p>}
             {/* The whole deal rides the confirm itself (owner direction
                 2026-08-12): the cost belongs at the moment of commitment,
@@ -320,8 +370,18 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
               disabled={formBusy || (!placed && !formValid)}
               onClick={() => void submit()}
             >
-              {placed ? 'Added to ballot' : formBusy ? 'Submitting…' : formValid && askNum > 0 ? `Offer this for $${askNum}` : 'Suggest a contract'}
-              {!placed && <span className="ticket-go-sub">Free to post. Approved means you are paid in real money, plus 500&nbsp;cr.</span>}
+              {placed
+                ? 'Added to ballot'
+                : formBusy
+                  ? 'Submitting…'
+                  : formValid && askNum > 0
+                    ? `Offer this for $${askNum}`
+                    : 'Suggest a contract'}
+              {!placed && (
+                <span className="ticket-go-sub">
+                  Free to post. Approved means you are paid in real money, plus 500&nbsp;cr.
+                </span>
+              )}
             </button>
           </div>
         </FloorModal>

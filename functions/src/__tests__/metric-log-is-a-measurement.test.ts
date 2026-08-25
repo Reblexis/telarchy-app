@@ -24,14 +24,14 @@ jest.mock('../middleware/roles', () => ({
   requireIdentity: (_req: any, _res: any, next: any) => next(),
 }));
 
-import request from 'supertest';
-import express from 'express';
 import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, metricLogs, metrics, permissionGroups, workspaces } from '../db/schema';
+import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
 import { metricsRouter } from '../routes/metrics';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const WS = 'ws-metric-log';
 const OWNER = 'agent-metric-log';
@@ -49,17 +49,28 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(err instanceof AppError ? err.status : 500).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   await db.insert(agents).values({ id: OWNER, apiKeyHash: 'h-ml', balance: 0 });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Metric Log', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'public',
+    wsId: WS,
+    name: 'Metric Log',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Revenue this week (USD)', value: 1_179.72,
-    formula: '0', marketRangeMax: 8_000, resetsEvery: 'week',
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Revenue this week (USD)',
+    value: 1_179.72,
+    formula: '0',
+    marketRangeMax: 8_000,
+    resetsEvery: 'week',
     description: 'Resets every Monday.',
   });
 });
@@ -71,7 +82,10 @@ test('a rename writes no reading', async () => {
   const res = await put({ name: 'Net this week (USD)' });
   expect(res.status).toBe(200);
   expect(await logs()).toHaveLength(0);
-  const [row] = await db.select().from(metrics).where(and(eq(metrics.id, METRIC), eq(metrics.workspaceId, WS)));
+  const [row] = await db
+    .select()
+    .from(metrics)
+    .where(and(eq(metrics.id, METRIC), eq(metrics.workspaceId, WS)));
   expect(row.name).toBe('Net this week (USD)');
 });
 
@@ -92,13 +106,20 @@ test('a new value writes exactly one reading, at the value given', async () => {
 
 test('a formula change writes a reading, because the number itself moves', async () => {
   await db.insert(metrics).values({
-    id: 'metric-composite', workspaceId: WS, name: 'Composite', value: 0,
-    formula: '0', marketRangeMax: 1_000,
+    id: 'metric-composite',
+    workspaceId: WS,
+    name: 'Composite',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 1_000,
   });
-  const res = await request(app).put('/api/metrics/metric-composite')
+  const res = await request(app)
+    .put('/api/metrics/metric-composite')
     .send({ formula: '{Revenue this week (USD)} * 2' });
   expect(res.status).toBe(200);
-  const rows = await db.select().from(metricLogs)
+  const rows = await db
+    .select()
+    .from(metricLogs)
     .where(and(eq(metricLogs.workspaceId, WS), eq(metricLogs.metricId, 'metric-composite')));
   expect(rows.length).toBeGreaterThan(0);
 });
@@ -107,5 +128,7 @@ test('the workspace and its groups survive all of this', async () => {
   // Cheap guard that the harness fixture is real: a route that silently 404'd
   // would make every assertion above vacuous.
   expect(await db.select().from(workspaces).where(eq(workspaces.id, WS))).toHaveLength(1);
-  expect((await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS))).length).toBeGreaterThan(0);
+  expect((await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS))).length).toBeGreaterThan(
+    0,
+  );
 });

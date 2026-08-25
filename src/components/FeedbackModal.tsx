@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { FloorModal } from './FloorModal';
@@ -78,18 +78,24 @@ export function FeedbackModal({ open, defaultKind = 'bug', onClose }: Props) {
       <div className="mfimport">
         <div className="ticket-head mfimport-head">
           <h3 className="mfimport-title">{KIND_LABELS[kind]}</h3>
-          <button className="ticket-close" aria-label="Close" onClick={onClose}>×</button>
+          <button className="ticket-close" aria-label="Close" onClick={onClose}>
+            ×
+          </button>
         </div>
 
         {success ? (
           <>
             <p className="mfimport-done">
               Thanks. Your {kindWord} was received.
-              {email
-                ? <> We&rsquo;ll follow up at {email} if needed.</>
-                : <> Leave a reply-to email next time if you&rsquo;d like a response.</>}
+              {email ? (
+                <> We&rsquo;ll follow up at {email} if needed.</>
+              ) : (
+                <> Leave a reply-to email next time if you&rsquo;d like a response.</>
+              )}
             </p>
-            <button type="button" className="ticket-go is-placed" onClick={onClose}>Done</button>
+            <button type="button" className="ticket-go is-placed" onClick={onClose}>
+              Done
+            </button>
           </>
         ) : (
           <form onSubmit={handleSubmit}>

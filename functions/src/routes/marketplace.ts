@@ -1,23 +1,38 @@
+import { randomUUID } from 'crypto';
+import { and, asc, count, desc, eq, gt, gte, inArray, like, ne, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
-import { workspaces, markets, metrics, metricLogs, agents, trades, positions, permissionGroups, proposals, proposalMessages, proposalRevisions, marketMessages, systemConfig, announcements, floorQuestions } from '../db/schema';
-import { eq, ne, and, gt, gte, count, desc, asc, inArray, like, sql } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
+import {
+  announcements,
+  floorQuestions,
+  marketMessages,
+  markets,
+  metricLogs,
+  metrics,
+  permissionGroups,
+  positions,
+  proposalMessages,
+  proposalRevisions,
+  proposals,
+  systemConfig,
+  trades,
+  workspaces,
+} from '../db/schema';
+import { consensus, pHigher } from '../lib/amm';
+import { type AskTurn, askAboutWorkspace, askEnabled } from '../lib/ask';
+import { type ContractorEntry, type ContractorJobPair, computeContractors } from '../lib/contractors';
+import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
+import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
+import { SIGNUP_CREDITS } from '../lib/validation';
 import { wrap } from '../lib/wrap';
-import { platformStats } from '../services/platform-stats';
-import { dataRoomTool } from '../services/data-room';
-import { ottoApiTools, type ApiCallRecord } from '../services/otto-tools';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
-import { consensus, pHigher } from '../lib/amm';
+import { dataRoomTool } from '../services/data-room';
+import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
+import { platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
-import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
-import { ensureSystemGroups } from './groups';
-import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
 import { buildWorkspaceContext, renderContextMarkdown } from '../services/workspace-context';
-import { askAboutWorkspace, askEnabled, type AskTurn } from '../lib/ask';
-import { SIGNUP_CREDITS } from '../lib/validation';
-import { computeContractors, type ContractorEntry, type ContractorJobPair } from '../lib/contractors';
+import { ensureSystemGroups } from './groups';
 
 export const marketplaceRouter = Router();
 
@@ -37,73 +52,79 @@ function primaryMarket<T>(soonestFirst: T[]): T | undefined {
   return soonestFirst.length > 0 ? soonestFirst[soonestFirst.length - 1] : undefined;
 }
 
-marketplaceRouter.get('/', wrap(async (req, res) => {
-  const limit = typeof req.query.limit === 'string'
-    ? Math.min(parseInt(req.query.limit, 10), 100)
-    : 50;
+marketplaceRouter.get(
+  '/',
+  wrap(async (req, res) => {
+    const limit = typeof req.query.limit === 'string' ? Math.min(parseInt(req.query.limit, 10), 100) : 50;
 
-  const publicWs = await db.select({ id: workspaces.id, name: workspaces.name })
-    .from(workspaces)
-    .where(eq(workspaces.visibility, 'public'));
+    const publicWs = await db
+      .select({ id: workspaces.id, name: workspaces.name })
+      .from(workspaces)
+      .where(eq(workspaces.visibility, 'public'));
 
-  if (publicWs.length === 0) { res.json([]); return; }
-
-  const allMarkets: Array<Record<string, unknown>> = [];
-
-  await Promise.all(publicWs.map(async ws => {
-    const wsMarkets = await db.select().from(markets)
-      .where(and(
-        eq(markets.workspaceId, ws.id),
-        eq(markets.resolved, false),
-        eq(markets.active, true),
-      ));
-
-    for (const m of wsMarkets) {
-      if (m.proposalId) continue;
-      const shares = (m.shares as [number, number]) || [0, 0];
-      allMarkets.push({
-        workspaceId: ws.id,
-        workspaceName: ws.name,
-        marketId: m.id,
-        metricName: m.metricName,
-        targetDate: m.targetDate,
-        resolvesOn: resolutionInstant(m.targetDate),
-        consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
-        probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
-        liquidity: m.liquidity,
-        rangeMin: m.rangeMin,
-        rangeMax: m.rangeMax,
-      });
+    if (publicWs.length === 0) {
+      res.json([]);
+      return;
     }
-  }));
 
-  // Sort within-workspace by soonest target date, then by liquidity, then
-  // round-robin across workspaces so one prolific workspace doesn't dominate
-  // the public marketplace list. Anonymous visitors should see breadth.
-  allMarkets.sort((a, b) => {
-    const dateDiff = periodEndInstant(a.targetDate as string).getTime() - periodEndInstant(b.targetDate as string).getTime();
-    if (dateDiff !== 0) return dateDiff;
-    return (b.liquidity as number) - (a.liquidity as number);
-  });
-  const byWs: Map<string, Array<Record<string, unknown>>> = new Map();
-  for (const m of allMarkets) {
-    const wsId = m.workspaceId as string;
-    if (!byWs.has(wsId)) byWs.set(wsId, []);
-    byWs.get(wsId)!.push(m);
-  }
-  const interleaved: Array<Record<string, unknown>> = [];
-  let added = true;
-  while (added && interleaved.length < limit) {
-    added = false;
-    for (const list of byWs.values()) {
-      if (list.length === 0) continue;
-      interleaved.push(list.shift()!);
-      added = true;
-      if (interleaved.length >= limit) break;
+    const allMarkets: Array<Record<string, unknown>> = [];
+
+    await Promise.all(
+      publicWs.map(async ws => {
+        const wsMarkets = await db
+          .select()
+          .from(markets)
+          .where(and(eq(markets.workspaceId, ws.id), eq(markets.resolved, false), eq(markets.active, true)));
+
+        for (const m of wsMarkets) {
+          if (m.proposalId) continue;
+          const shares = (m.shares as [number, number]) || [0, 0];
+          allMarkets.push({
+            workspaceId: ws.id,
+            workspaceName: ws.name,
+            marketId: m.id,
+            metricName: m.metricName,
+            targetDate: m.targetDate,
+            resolvesOn: resolutionInstant(m.targetDate),
+            consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
+            probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
+            liquidity: m.liquidity,
+            rangeMin: m.rangeMin,
+            rangeMax: m.rangeMax,
+          });
+        }
+      }),
+    );
+
+    // Sort within-workspace by soonest target date, then by liquidity, then
+    // round-robin across workspaces so one prolific workspace doesn't dominate
+    // the public marketplace list. Anonymous visitors should see breadth.
+    allMarkets.sort((a, b) => {
+      const dateDiff =
+        periodEndInstant(a.targetDate as string).getTime() - periodEndInstant(b.targetDate as string).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return (b.liquidity as number) - (a.liquidity as number);
+    });
+    const byWs: Map<string, Array<Record<string, unknown>>> = new Map();
+    for (const m of allMarkets) {
+      const wsId = m.workspaceId as string;
+      if (!byWs.has(wsId)) byWs.set(wsId, []);
+      byWs.get(wsId)!.push(m);
     }
-  }
-  res.json(interleaved);
-}));
+    const interleaved: Array<Record<string, unknown>> = [];
+    let added = true;
+    while (added && interleaved.length < limit) {
+      added = false;
+      for (const list of byWs.values()) {
+        if (list.length === 0) continue;
+        interleaved.push(list.shift()!);
+        added = true;
+        if (interleaved.length >= limit) break;
+      }
+    }
+    res.json(interleaved);
+  }),
+);
 
 /**
  * The platform's pulse, and the route a market on this platform resolves
@@ -111,133 +132,178 @@ marketplaceRouter.get('/', wrap(async (req, res) => {
  * room publishes the same numbers with an explanation attached, and a second
  * copy is how a resolution source and the page describing it drift apart.
  */
-marketplaceRouter.get('/stats', wrap(async (_req, res) => {
-  res.json(await platformStats());
-}));
+marketplaceRouter.get(
+  '/stats',
+  wrap(async (_req, res) => {
+    res.json(await platformStats());
+  }),
+);
 
-marketplaceRouter.get('/featured', wrap(async (_req, res) => {
-  const publicWs = await db.select({ id: workspaces.id, name: workspaces.name })
-    .from(workspaces).where(eq(workspaces.visibility, 'public'));
-  if (publicWs.length === 0) { res.json([]); return; }
-  const wsById = new Map(publicWs.map(w => [w.id, w.name]));
+marketplaceRouter.get(
+  '/featured',
+  wrap(async (_req, res) => {
+    const publicWs = await db
+      .select({ id: workspaces.id, name: workspaces.name })
+      .from(workspaces)
+      .where(eq(workspaces.visibility, 'public'));
+    if (publicWs.length === 0) {
+      res.json([]);
+      return;
+    }
+    const wsById = new Map(publicWs.map(w => [w.id, w.name]));
 
-  const rows = await db.select().from(markets).where(and(
-    inArray(markets.workspaceId, publicWs.map(w => w.id)),
-    eq(markets.featured, true),
-    eq(markets.resolved, false),
-    eq(markets.active, true),
-    eq(markets.voided, false),
-  ));
+    const rows = await db
+      .select()
+      .from(markets)
+      .where(
+        and(
+          inArray(
+            markets.workspaceId,
+            publicWs.map(w => w.id),
+          ),
+          eq(markets.featured, true),
+          eq(markets.resolved, false),
+          eq(markets.active, true),
+          eq(markets.voided, false),
+        ),
+      );
 
-  const out = rows.filter(m => !m.proposalId).map(m => {
-    const shares = (m.shares as [number, number]) || [0, 0];
-    return {
-      workspaceId: m.workspaceId,
-      workspaceName: wsById.get(m.workspaceId) ?? m.workspaceId,
-      marketId: m.id,
-      metricName: m.metricName,
-      targetDate: m.targetDate,
-      resolvesOn: resolutionInstant(m.targetDate),
-      consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
-      probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
-      liquidity: m.liquidity,
-      tradedVolume: m.tradedVolume,
-      rangeMin: m.rangeMin,
-      rangeMax: m.rangeMax,
-    };
-  });
+    const out = rows
+      .filter(m => !m.proposalId)
+      .map(m => {
+        const shares = (m.shares as [number, number]) || [0, 0];
+        return {
+          workspaceId: m.workspaceId,
+          workspaceName: wsById.get(m.workspaceId) ?? m.workspaceId,
+          marketId: m.id,
+          metricName: m.metricName,
+          targetDate: m.targetDate,
+          resolvesOn: resolutionInstant(m.targetDate),
+          consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
+          probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
+          liquidity: m.liquidity,
+          tradedVolume: m.tradedVolume,
+          rangeMin: m.rangeMin,
+          rangeMax: m.rangeMax,
+        };
+      });
 
-  out.sort((a, b) => {
-    const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
-    if (dateDiff !== 0) return dateDiff;
-    return b.liquidity - a.liquidity;
-  });
+    out.sort((a, b) => {
+      const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return b.liquidity - a.liquidity;
+    });
 
-  res.json(out);
-}));
+    res.json(out);
+  }),
+);
 
-marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
-  const rows = await db.select({
-    id: workspaces.id,
-    name: workspaces.name,
-    slug: workspaces.slug,
-    createdBy: workspaces.createdBy,
-    description: workspaces.description,
-    visibility: workspaces.visibility,
-    proposalReward: workspaces.proposalReward,
-    spamPenalty: workspaces.spamPenalty,
-    maxPendingProposalsPerParticipant: workspaces.maxPendingProposalsPerParticipant,
-  }).from(workspaces).where(eq(workspaces.visibility, 'public'));
+marketplaceRouter.get(
+  '/workspaces/public',
+  wrap(async (_req, res) => {
+    const rows = await db
+      .select({
+        id: workspaces.id,
+        name: workspaces.name,
+        slug: workspaces.slug,
+        createdBy: workspaces.createdBy,
+        description: workspaces.description,
+        visibility: workspaces.visibility,
+        proposalReward: workspaces.proposalReward,
+        spamPenalty: workspaces.spamPenalty,
+        maxPendingProposalsPerParticipant: workspaces.maxPendingProposalsPerParticipant,
+      })
+      .from(workspaces)
+      .where(eq(workspaces.visibility, 'public'));
 
-  if (rows.length === 0) { res.json([]); return; }
+    if (rows.length === 0) {
+      res.json([]);
+      return;
+    }
 
-  const ownerHandles = await getOwnerHandles(rows.map(r => r.createdBy));
+    const ownerHandles = await getOwnerHandles(rows.map(r => r.createdBy));
 
-  const wsIds = rows.map(r => r.id);
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const statRows = await db.select({
-    workspaceId: proposals.workspaceId,
-    status: proposals.status,
-    n: sql<number>`count(*)::int`,
-  }).from(proposals)
-    .where(and(inArray(proposals.workspaceId, wsIds), gte(proposals.createdAt, since), ne(proposals.status, 'removed')))
-    .groupBy(proposals.workspaceId, proposals.status);
+    const wsIds = rows.map(r => r.id);
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const statRows = await db
+      .select({
+        workspaceId: proposals.workspaceId,
+        status: proposals.status,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(proposals)
+      .where(
+        and(inArray(proposals.workspaceId, wsIds), gte(proposals.createdAt, since), ne(proposals.status, 'removed')),
+      )
+      .groupBy(proposals.workspaceId, proposals.status);
 
-  const statsByWs = new Map<string, { total: number; approved: number; declined: number; declinedSpam: number; withdrawn: number; pending: number }>();
-  for (const id of wsIds) {
-    statsByWs.set(id, { total: 0, approved: 0, declined: 0, declinedSpam: 0, withdrawn: 0, pending: 0 });
-  }
-  for (const row of statRows) {
-    const s = statsByWs.get(row.workspaceId);
-    if (!s) continue;
-    s.total += row.n;
-    if (row.status === 'approved') s.approved += row.n;
-    else if (row.status === 'declined') s.declined += row.n;
-    else if (row.status === 'declined_spam') s.declinedSpam += row.n;
-    else if (row.status === 'withdrawn') s.withdrawn += row.n;
-    else if (row.status === 'pending') s.pending += row.n;
-  }
+    const statsByWs = new Map<
+      string,
+      { total: number; approved: number; declined: number; declinedSpam: number; withdrawn: number; pending: number }
+    >();
+    for (const id of wsIds) {
+      statsByWs.set(id, { total: 0, approved: 0, declined: 0, declinedSpam: 0, withdrawn: 0, pending: 0 });
+    }
+    for (const row of statRows) {
+      const s = statsByWs.get(row.workspaceId);
+      if (!s) continue;
+      s.total += row.n;
+      if (row.status === 'approved') s.approved += row.n;
+      else if (row.status === 'declined') s.declined += row.n;
+      else if (row.status === 'declined_spam') s.declinedSpam += row.n;
+      else if (row.status === 'withdrawn') s.withdrawn += row.n;
+      else if (row.status === 'pending') s.pending += row.n;
+    }
 
-  // Activity counts so an agent can tell empty workspaces from active ones in
-  // one call, before joining. metricCount = metrics defined; openMarketCount =
-  // markets still tradeable (active, not resolved/voided).
-  const metricRows = await db.select({
-    workspaceId: metrics.workspaceId,
-    n: sql<number>`count(*)::int`,
-  }).from(metrics)
-    .where(inArray(metrics.workspaceId, wsIds))
-    .groupBy(metrics.workspaceId);
-  const metricCountByWs = new Map<string, number>(metricRows.map(r => [r.workspaceId, r.n]));
+    // Activity counts so an agent can tell empty workspaces from active ones in
+    // one call, before joining. metricCount = metrics defined; openMarketCount =
+    // markets still tradeable (active, not resolved/voided).
+    const metricRows = await db
+      .select({
+        workspaceId: metrics.workspaceId,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(metrics)
+      .where(inArray(metrics.workspaceId, wsIds))
+      .groupBy(metrics.workspaceId);
+    const metricCountByWs = new Map<string, number>(metricRows.map(r => [r.workspaceId, r.n]));
 
-  const openMarketRows = await db.select({
-    workspaceId: markets.workspaceId,
-    n: sql<number>`count(*)::int`,
-  }).from(markets)
-    .where(and(
-      inArray(markets.workspaceId, wsIds),
-      eq(markets.active, true),
-      eq(markets.resolved, false),
-      eq(markets.voided, false),
-    ))
-    .groupBy(markets.workspaceId);
-  const openMarketCountByWs = new Map<string, number>(openMarketRows.map(r => [r.workspaceId, r.n]));
+    const openMarketRows = await db
+      .select({
+        workspaceId: markets.workspaceId,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(markets)
+      .where(
+        and(
+          inArray(markets.workspaceId, wsIds),
+          eq(markets.active, true),
+          eq(markets.resolved, false),
+          eq(markets.voided, false),
+        ),
+      )
+      .groupBy(markets.workspaceId);
+    const openMarketCountByWs = new Map<string, number>(openMarketRows.map(r => [r.workspaceId, r.n]));
 
-  res.json(rows.map(r => ({
-    workspaceId: r.id,
-    name: r.name,
-    slug: r.slug,
-    ownerId: ownerHandles.get(r.createdBy)?.ownerId ?? null,
-    ownerHandle: ownerHandles.get(r.createdBy)?.ownerHandle ?? null,
-    description: r.description,
-    visibility: r.visibility,
-    proposalReward: r.proposalReward,
-    spamPenalty: r.spamPenalty,
-    maxPendingProposalsPerParticipant: r.maxPendingProposalsPerParticipant,
-    metricCount: metricCountByWs.get(r.id) ?? 0,
-    openMarketCount: openMarketCountByWs.get(r.id) ?? 0,
-    proposalStats: statsByWs.get(r.id)!,
-  })));
-}));
+    res.json(
+      rows.map(r => ({
+        workspaceId: r.id,
+        name: r.name,
+        slug: r.slug,
+        ownerId: ownerHandles.get(r.createdBy)?.ownerId ?? null,
+        ownerHandle: ownerHandles.get(r.createdBy)?.ownerHandle ?? null,
+        description: r.description,
+        visibility: r.visibility,
+        proposalReward: r.proposalReward,
+        spamPenalty: r.spamPenalty,
+        maxPendingProposalsPerParticipant: r.maxPendingProposalsPerParticipant,
+        metricCount: metricCountByWs.get(r.id) ?? 0,
+        openMarketCount: openMarketCountByWs.get(r.id) ?? 0,
+        proposalStats: statsByWs.get(r.id)!,
+      })),
+    );
+  }),
+);
 
 /**
  * Resolve a share-link segment to a non-private workspace: by id first, then
@@ -251,11 +317,12 @@ marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
 export async function resolvePublicWorkspace(idOrSlug: string) {
   const [byId] = await db.select().from(workspaces).where(eq(workspaces.id, idOrSlug));
   if (byId) return byId;
-  const bySlug = await db.select().from(workspaces)
-    .where(and(
-      sql`lower(${workspaces.slug}) = lower(${idOrSlug})`,
-      inArray(workspaces.visibility, ['public', 'unlisted']),
-    ));
+  const bySlug = await db
+    .select()
+    .from(workspaces)
+    .where(
+      and(sql`lower(${workspaces.slug}) = lower(${idOrSlug})`, inArray(workspaces.visibility, ['public', 'unlisted'])),
+    );
   return bySlug.length === 1 ? bySlug[0] : undefined;
 }
 
@@ -273,34 +340,47 @@ export async function resolvePublicWorkspace(idOrSlug: string) {
  */
 type PublicWs = NonNullable<Awaited<ReturnType<typeof resolvePublicWorkspace>>>;
 
-marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
-  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
-  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
-  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
-  res.json(await buildFloorPayload(ws));
-}));
+marketplaceRouter.get(
+  '/:workspaceId',
+  wrap(async (req, res) => {
+    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (ws.visibility === 'private') {
+      res.status(403).json({ error: 'This workspace is private' });
+      return;
+    }
+    res.json(await buildFloorPayload(ws));
+  }),
+);
 
 async function buildFloorPayload(ws: PublicWs) {
   const workspaceId = ws.id;
 
-  const wsMarkets = await db.select().from(markets)
+  const wsMarkets = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), eq(markets.active, true)));
 
-  const marketList = wsMarkets.filter(m => !m.proposalId).map(m => {
-    const shares = (m.shares as [number, number]) || [0, 0];
-    return {
-      marketId: m.id,
-      metricId: m.metricId,
-      metricName: m.metricName,
-      targetDate: m.targetDate,
-      resolvesOn: resolutionInstant(m.targetDate),
-      consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
-      probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
-      liquidity: m.liquidity,
-      rangeMin: m.rangeMin,
-      rangeMax: m.rangeMax,
-    };
-  });
+  const marketList = wsMarkets
+    .filter(m => !m.proposalId)
+    .map(m => {
+      const shares = (m.shares as [number, number]) || [0, 0];
+      return {
+        marketId: m.id,
+        metricId: m.metricId,
+        metricName: m.metricName,
+        targetDate: m.targetDate,
+        resolvesOn: resolutionInstant(m.targetDate),
+        consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
+        probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
+        liquidity: m.liquidity,
+        rangeMin: m.rangeMin,
+        rangeMax: m.rangeMax,
+      };
+    });
 
   marketList.sort((a, b) => {
     const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
@@ -316,9 +396,12 @@ async function buildFloorPayload(ws: PublicWs) {
   const [owner] = [...(await getOwnerHandles([ws.createdBy])).values()];
 
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const proposalRows = await db.select({ status: proposals.status, n: sql<number>`count(*)::int` })
+  const proposalRows = await db
+    .select({ status: proposals.status, n: sql<number>`count(*)::int` })
     .from(proposals)
-    .where(and(eq(proposals.workspaceId, workspaceId), gte(proposals.createdAt, since), ne(proposals.status, 'removed')))
+    .where(
+      and(eq(proposals.workspaceId, workspaceId), gte(proposals.createdAt, since), ne(proposals.status, 'removed')),
+    )
     .groupBy(proposals.status);
   const proposalStats = { total: 0, approved: 0, declined: 0, declinedSpam: 0, withdrawn: 0, pending: 0 };
   for (const row of proposalRows) {
@@ -330,21 +413,29 @@ async function buildFloorPayload(ws: PublicWs) {
     else if (row.status === 'pending') proposalStats.pending += row.n;
   }
 
-  const [metricCountRow] = await db.select({ n: sql<number>`count(*)::int` })
-    .from(metrics).where(eq(metrics.workspaceId, workspaceId));
+  const [metricCountRow] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(metrics)
+    .where(eq(metrics.workspaceId, workspaceId));
 
   // Distinct participants across every group, so the page can say whether
   // anyone is actually here. Identities stay unlisted; this is a count only.
-  const groupRows = await db.select({ memberIds: permissionGroups.memberIds })
-    .from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
+  const groupRows = await db
+    .select({ memberIds: permissionGroups.memberIds })
+    .from(permissionGroups)
+    .where(eq(permissionGroups.workspaceId, workspaceId));
   const participantIds = new Set<string>();
   for (const g of groupRows) for (const id of getGroupMemberIds(g)) participantIds.add(id);
 
   // What a visitor gets if they press join, so the CTA can be honest about it
   // rather than promising trading rights the Public group does not hold.
   const publicGroup = groupRows.length
-    ? (await db.select().from(permissionGroups)
-        .where(and(eq(permissionGroups.workspaceId, workspaceId), eq(permissionGroups.type, 'public'))))[0]
+    ? (
+        await db
+          .select()
+          .from(permissionGroups)
+          .where(and(eq(permissionGroups.workspaceId, workspaceId), eq(permissionGroups.type, 'public')))
+      )[0]
     : undefined;
   const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
 
@@ -365,11 +456,17 @@ async function buildFloorPayload(ws: PublicWs) {
   // from), and a simple activity pulse. Without these the page asks people
   // to bet on a number with no evidence, which serious forecasters refuse.
   let heroHistory: Array<{ at: Date | null; value: number }> | undefined;
-  let horizonHistories: Array<{
-    marketId: string; metricName: string; targetDate: string; periodStart: string;
-    resetsEvery: string | null;
-    description: string | null; points: Array<{ at: Date | null; value: number }>;
-  }> | undefined;
+  let horizonHistories:
+    | Array<{
+        marketId: string;
+        metricName: string;
+        targetDate: string;
+        periodStart: string;
+        resetsEvery: string | null;
+        description: string | null;
+        points: Array<{ at: Date | null; value: number }>;
+      }>
+    | undefined;
   let heroMetricDescription: string | null | undefined;
   // Shipped so a manager on the floor can edit the definition in place
   // (PUT /api/metrics/:id needs the id; owner ask 2026-08-18).
@@ -382,23 +479,37 @@ async function buildFloorPayload(ws: PublicWs) {
   // GET /api/marketplace/:workspaceId/announcements. A trader arriving
   // mid-market should not have to go looking for the newest thing the owner
   // said (docs/vision.md, "Workspace announcements").
-  let latestAnnouncement: {
-    id: string; body: string; publishedAt: Date; editedAt: Date | null; originalBody: string | null;
-  } | null | undefined;
+  let latestAnnouncement:
+    | {
+        id: string;
+        body: string;
+        publishedAt: Date;
+        editedAt: Date | null;
+        originalBody: string | null;
+      }
+    | null
+    | undefined;
   let announcementCount: number | undefined;
   if (publicCaps.includes('read')) {
-    const [latest] = await db.select().from(announcements)
+    const [latest] = await db
+      .select()
+      .from(announcements)
       .where(eq(announcements.workspaceId, workspaceId))
       .orderBy(desc(announcements.publishedAt))
       .limit(1);
     latestAnnouncement = latest
       ? {
-          id: latest.id, body: latest.body, publishedAt: latest.publishedAt,
-          editedAt: latest.editedAt, originalBody: latest.originalBody,
+          id: latest.id,
+          body: latest.body,
+          publishedAt: latest.publishedAt,
+          editedAt: latest.editedAt,
+          originalBody: latest.originalBody,
         }
       : null;
-    const [announcementRow] = await db.select({ n: sql<number>`count(*)::int` })
-      .from(announcements).where(eq(announcements.workspaceId, workspaceId));
+    const [announcementRow] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(announcements)
+      .where(eq(announcements.workspaceId, workspaceId));
     announcementCount = announcementRow?.n ?? 0;
     const heroMarketId = primaryMarket(marketList)?.marketId as string | undefined;
     if (heroMarketId) {
@@ -418,13 +529,16 @@ async function buildFloorPayload(ws: PublicWs) {
     const heroMetricId = primaryMarket(marketList)?.metricId as string | undefined;
     heroMetricIdOut = heroMetricId ?? null;
     if (heroMetricId) {
-      const [metricRow] = await db.select({ description: metrics.description })
-        .from(metrics).where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, heroMetricId)));
+      const [metricRow] = await db
+        .select({ description: metrics.description })
+        .from(metrics)
+        .where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, heroMetricId)));
       heroMetricDescription = metricRow?.description ?? null;
       // Up to a year of the hero metric's real values, so the floor's
       // year chart can show the actual trajectory (not just the last few
       // days). Cadence is at most a few pushes a day, so 500 covers it.
-      const logs = await db.select({ at: metricLogs.timestamp, value: metricLogs.value })
+      const logs = await db
+        .select({ at: metricLogs.timestamp, value: metricLogs.value })
         .from(metricLogs)
         .where(and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, heroMetricId)))
         .orderBy(desc(metricLogs.timestamp))
@@ -443,13 +557,16 @@ async function buildFloorPayload(ws: PublicWs) {
     // have emptied the page's opening view.
     for (const m of marketList.slice(-4)) {
       const metricId = m.metricId as string;
-      const rows = await db.select({ at: metricLogs.timestamp, value: metricLogs.value })
+      const rows = await db
+        .select({ at: metricLogs.timestamp, value: metricLogs.value })
         .from(metricLogs)
         .where(and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, metricId)))
         .orderBy(desc(metricLogs.timestamp))
         .limit(500);
-      const [metricRow] = await db.select({ description: metrics.description, resetsEvery: metrics.resetsEvery })
-        .from(metrics).where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, metricId)));
+      const [metricRow] = await db
+        .select({ description: metrics.description, resetsEvery: metrics.resetsEvery })
+        .from(metrics)
+        .where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, metricId)));
       // A horizon's chart draws its metric's history, unfiltered.
       //
       // 2026-08-16: this briefly filtered points to the market's own target
@@ -495,7 +612,8 @@ async function buildFloorPayload(ws: PublicWs) {
       });
     }
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const [tradeCount] = await db.select({ n: sql<number>`count(*)::int` })
+    const [tradeCount] = await db
+      .select({ n: sql<number>`count(*)::int` })
       .from(trades)
       .where(and(eq(trades.workspaceId, workspaceId), gte(trades.createdAt, weekAgo)));
     tradesThisWeek = tradeCount?.n ?? 0;
@@ -505,8 +623,12 @@ async function buildFloorPayload(ws: PublicWs) {
     // show status inline instead of a separate history. Decided jobs keep
     // their markets (resolved/voided included, not just active) so clicking one
     // still shows the impact that was priced for it.
-    const pending = await db.select().from(proposals)
-      .where(and(eq(proposals.workspaceId, workspaceId), inArray(proposals.status, ['pending', 'approved', 'declined'])))
+    const pending = await db
+      .select()
+      .from(proposals)
+      .where(
+        and(eq(proposals.workspaceId, workspaceId), inArray(proposals.status, ['pending', 'approved', 'declined'])),
+      )
       .orderBy(desc(proposals.createdAt))
       .limit(40);
     const names = await getParticipantDisplayNames(pending.map(p => p.proposedBy));
@@ -514,26 +636,33 @@ async function buildFloorPayload(ws: PublicWs) {
     // one whose words or price moved after people started pricing it
     // (docs/market-integrity.md, I1b). The log itself is behind
     // GET /api/proposals/:id/revisions; this is only the marker.
-    const editedRows = pending.length > 0
-      ? await db.select({
-          proposalId: proposalRevisions.proposalId,
-          at: sql<string>`max(${proposalRevisions.createdAt})`,
-        }).from(proposalRevisions)
-          .where(and(
-            eq(proposalRevisions.workspaceId, workspaceId),
-            inArray(proposalRevisions.proposalId, pending.map(p => p.id)),
-          ))
-          .groupBy(proposalRevisions.proposalId)
-      : [];
+    const editedRows =
+      pending.length > 0
+        ? await db
+            .select({
+              proposalId: proposalRevisions.proposalId,
+              at: sql<string>`max(${proposalRevisions.createdAt})`,
+            })
+            .from(proposalRevisions)
+            .where(
+              and(
+                eq(proposalRevisions.workspaceId, workspaceId),
+                inArray(
+                  proposalRevisions.proposalId,
+                  pending.map(p => p.id),
+                ),
+              ),
+            )
+            .groupBy(proposalRevisions.proposalId)
+        : [];
     const editedAtById = new Map(editedRows.map(r => [r.proposalId, r.at]));
 
     const pendingIds = pending.map(p => p.id);
     const branchMarkets = pendingIds.length
-      ? await db.select().from(markets)
-          .where(and(
-            eq(markets.workspaceId, workspaceId),
-            inArray(markets.proposalId, pendingIds),
-          ))
+      ? await db
+          .select()
+          .from(markets)
+          .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.proposalId, pendingIds)))
       : [];
     // Group per proposal x (metric, targetDate); the delta a visitor reads is
     // approved consensus minus declined consensus, the causal impact of saying
@@ -650,7 +779,8 @@ async function buildFloorPayload(ws: PublicWs) {
     // decided first): one list, ordered by where a job is in its life.
     openProposals.sort((a, b) => {
       const rank = (s: unknown) => (s === 'pending' ? 0 : 1);
-      const ra = rank(a.status), rb = rank(b.status);
+      const ra = rank(a.status),
+        rb = rank(b.status);
       if (ra !== rb) return ra - rb;
       const at = new Date((a.resolvedAt as Date | null) ?? (a.createdAt as Date)).getTime();
       const bt = new Date((b.resolvedAt as Date | null) ?? (b.createdAt as Date)).getTime();
@@ -663,15 +793,15 @@ async function buildFloorPayload(ws: PublicWs) {
     // pending + approved; a declined job's forecast was about an action
     // nobody will take, so it scores nothing. Scored over every live job in
     // the workspace, not just the 40 the ballot ships.
-    const liveJobs = await db.select({
-      id: proposals.id,
-      proposedBy: proposals.proposedBy,
-      status: proposals.status,
-      askUsd: proposals.askUsd,
-    }).from(proposals).where(and(
-      eq(proposals.workspaceId, workspaceId),
-      inArray(proposals.status, ['pending', 'approved']),
-    ));
+    const liveJobs = await db
+      .select({
+        id: proposals.id,
+        proposedBy: proposals.proposedBy,
+        status: proposals.status,
+        askUsd: proposals.askUsd,
+      })
+      .from(proposals)
+      .where(and(eq(proposals.workspaceId, workspaceId), inArray(proposals.status, ['pending', 'approved'])));
     const liveJobIds = liveJobs.map(j => j.id);
     // Voided branch markets are kept for a DECIDED contract and dropped for a
     // pending one, the same rule the ballot follows.
@@ -685,20 +815,20 @@ async function buildFloorPayload(ws: PublicWs) {
     // had been re-created at zero impact, because the largest-magnitude
     // horizon was a dead market nobody can trade.
     const liveJobMarkets = liveJobIds.length
-      ? await db.select({
-          proposalId: markets.proposalId,
-          branch: markets.branch,
-          metricId: markets.metricId,
-          targetDate: markets.targetDate,
-          shares: markets.shares,
-          liquidity: markets.liquidity,
-          rangeMin: markets.rangeMin,
-          rangeMax: markets.rangeMax,
-          voided: markets.voided,
-        }).from(markets).where(and(
-          eq(markets.workspaceId, workspaceId),
-          inArray(markets.proposalId, liveJobIds),
-        ))
+      ? await db
+          .select({
+            proposalId: markets.proposalId,
+            branch: markets.branch,
+            metricId: markets.metricId,
+            targetDate: markets.targetDate,
+            shares: markets.shares,
+            liquidity: markets.liquidity,
+            rangeMin: markets.rangeMin,
+            rangeMax: markets.rangeMax,
+            voided: markets.voided,
+          })
+          .from(markets)
+          .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.proposalId, liveJobIds)))
       : [];
     const pendingJobIds = new Set(liveJobs.filter(j => j.status === 'pending').map(j => j.id));
     const pairsByJob = new Map<string, Map<string, ContractorJobPair>>();
@@ -708,8 +838,12 @@ async function buildFloorPayload(ws: PublicWs) {
       const c = consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax) ?? null;
       const groups = pairsByJob.get(m.proposalId) ?? new Map<string, ContractorJobPair>();
       const key = `${m.metricId}|${m.targetDate}`;
-      const pair: ContractorJobPair = groups.get(key)
-        ?? { metricId: m.metricId, targetDate: m.targetDate, approvedConsensus: null, declinedConsensus: null };
+      const pair: ContractorJobPair = groups.get(key) ?? {
+        metricId: m.metricId,
+        targetDate: m.targetDate,
+        approvedConsensus: null,
+        declinedConsensus: null,
+      };
       if (m.branch === 'approved') pair.approvedConsensus = c;
       else if (m.branch === 'declined') pair.declinedConsensus = c;
       groups.set(key, pair);
@@ -740,7 +874,9 @@ async function buildFloorPayload(ws: PublicWs) {
   // cannot resolve on a number only the owner can see, and this audience will
   // not take it on faith. Counts claims rather than workspace membership, so it
   // reads the same from anywhere.
-  const [manifoldRow] = await db.select({ n: count() }).from(systemConfig)
+  const [manifoldRow] = await db
+    .select({ n: count() })
+    .from(systemConfig)
     .where(like(systemConfig.key, 'manifold-claimed:agent:%'));
   const manifoldImportCount = manifoldRow?.n ?? 0;
 
@@ -772,19 +908,21 @@ async function buildFloorPayload(ws: PublicWs) {
     manifoldImportCount,
     proposalStats,
     markets: marketList,
-    ...(openProposals !== undefined ? {
-      proposals: openProposals,
-      topContractors,
-      heroHistory,
-      horizonHistories,
-      heroMetricDescription,
-      heroMetricId: heroMetricIdOut,
-      tradesThisWeek,
-      marketHistory,
-      marketHistoryMarketId,
-      latestAnnouncement,
-      announcementCount,
-    } : {}),
+    ...(openProposals !== undefined
+      ? {
+          proposals: openProposals,
+          topContractors,
+          heroHistory,
+          horizonHistories,
+          heroMetricDescription,
+          heroMetricId: heroMetricIdOut,
+          tradesThisWeek,
+          marketHistory,
+          marketHistoryMarketId,
+          latestAnnouncement,
+          announcementCount,
+        }
+      : {}),
   };
 }
 
@@ -796,23 +934,42 @@ async function buildFloorPayload(ws: PublicWs) {
  * underneath the first. Same Open-workspace disclosure rule as the ballot:
  * if the Public group cannot `read`, neither can this.
  */
-marketplaceRouter.get('/:workspaceId/markets/:marketId/history', wrap(async (req, res) => {
-  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
-  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
-  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+marketplaceRouter.get(
+  '/:workspaceId/markets/:marketId/history',
+  wrap(async (req, res) => {
+    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (ws.visibility === 'private') {
+      res.status(403).json({ error: 'This workspace is private' });
+      return;
+    }
 
-  const [publicGroup] = await db.select().from(permissionGroups)
-    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
-  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
-  if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
+    const [publicGroup] = await db
+      .select()
+      .from(permissionGroups)
+      .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+    const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+    if (!publicCaps.includes('read')) {
+      res.status(403).json({ error: 'Not public' });
+      return;
+    }
 
-  const [market] = await db.select({ id: markets.id }).from(markets)
-    .where(and(eq(markets.id, req.params.marketId as string), eq(markets.workspaceId, ws.id)));
-  if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
+    const [market] = await db
+      .select({ id: markets.id })
+      .from(markets)
+      .where(and(eq(markets.id, req.params.marketId as string), eq(markets.workspaceId, ws.id)));
+    if (!market) {
+      res.status(404).json({ error: 'Market not found' });
+      return;
+    }
 
-  const points = await marketPriceSeries(market.id, ws.id);
-  res.json({ history: points.slice(-500).map(pt => ({ at: pt.at, consensus: pt.consensus })) });
-}));
+    const points = await marketPriceSeries(market.id, ws.id);
+    res.json({ history: points.slice(-500).map(pt => ({ at: pt.at, consensus: pt.consensus })) });
+  }),
+);
 
 /**
  * The owner's announcements for a workspace, newest first. Public with no
@@ -828,27 +985,46 @@ marketplaceRouter.get('/:workspaceId/markets/:marketId/history', wrap(async (req
  * announcement must read as edited, with the text it replaced still visible;
  * hiding either would turn a verifiable record back into the owner's word.
  */
-marketplaceRouter.get('/:workspaceId/announcements', wrap(async (req, res) => {
-  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
-  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
-  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+marketplaceRouter.get(
+  '/:workspaceId/announcements',
+  wrap(async (req, res) => {
+    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (ws.visibility === 'private') {
+      res.status(403).json({ error: 'This workspace is private' });
+      return;
+    }
 
-  const [publicGroup] = await db.select().from(permissionGroups)
-    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
-  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
-  if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
+    const [publicGroup] = await db
+      .select()
+      .from(permissionGroups)
+      .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+    const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+    if (!publicCaps.includes('read')) {
+      res.status(403).json({ error: 'Not public' });
+      return;
+    }
 
-  const rows = await db.select().from(announcements)
-    .where(eq(announcements.workspaceId, ws.id))
-    .orderBy(desc(announcements.publishedAt))
-    .limit(100);
-  res.json({
-    announcements: rows.map(a => ({
-      id: a.id, body: a.body, publishedAt: a.publishedAt,
-      editedAt: a.editedAt, originalBody: a.originalBody,
-    })),
-  });
-}));
+    const rows = await db
+      .select()
+      .from(announcements)
+      .where(eq(announcements.workspaceId, ws.id))
+      .orderBy(desc(announcements.publishedAt))
+      .limit(100);
+    res.json({
+      announcements: rows.map(a => ({
+        id: a.id,
+        body: a.body,
+        publishedAt: a.publishedAt,
+        editedAt: a.editedAt,
+        originalBody: a.originalBody,
+      })),
+    });
+  }),
+);
 
 /**
  * The workspace brief: one read that carries what this floor is about (owner
@@ -866,25 +1042,42 @@ marketplaceRouter.get('/:workspaceId/announcements', wrap(async (req, res) => {
  * 403, and a workspace whose Public group cannot read is refused rather than
  * summarised, because the brief IS the contents.
  */
-marketplaceRouter.get('/:workspaceId/context', wrap(async (req, res) => {
-  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
-  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
-  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+marketplaceRouter.get(
+  '/:workspaceId/context',
+  wrap(async (req, res) => {
+    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (ws.visibility === 'private') {
+      res.status(403).json({ error: 'This workspace is private' });
+      return;
+    }
 
-  const [publicGroup] = await db.select().from(permissionGroups)
-    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
-  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
-  if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
+    const [publicGroup] = await db
+      .select()
+      .from(permissionGroups)
+      .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+    const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+    if (!publicCaps.includes('read')) {
+      res.status(403).json({ error: 'Not public' });
+      return;
+    }
 
-  const context = await buildWorkspaceContext(ws.id);
-  if (!context) { res.status(404).json({ error: 'Workspace not found' }); return; }
+    const context = await buildWorkspaceContext(ws.id);
+    if (!context) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
 
-  if (req.query.format === 'md') {
-    res.type('text/markdown').send(renderContextMarkdown(context));
-    return;
-  }
-  res.json(context);
-}));
+    if (req.query.format === 'md') {
+      res.type('text/markdown').send(renderContextMarkdown(context));
+      return;
+    }
+    res.json(context);
+  }),
+);
 
 /**
  * Ask this floor a question in plain language (owner ask 2026-08-20: reduce
@@ -897,104 +1090,139 @@ marketplaceRouter.get('/:workspaceId/context', wrap(async (req, res) => {
  * The cost of that decision is controlled by the per-IP limiter on the route
  * and by the model's own short-answer instruction, not by a login.
  */
-marketplaceRouter.post('/:workspaceId/ask', wrap(async (req, res) => {
-  if (!askEnabled()) {
-    res.status(503).json({ error: 'Answers are not configured on this instance.' });
-    return;
-  }
-  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
-  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
-  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
-
-  const [publicGroup] = await db.select().from(permissionGroups)
-    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
-  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
-  if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
-
-  // A conversation, not a lookup (owner direction 2026-08-20): the caller
-  // keeps the turns and sends them back, which is what lets a follow-up mean
-  // anything. `question` still works on its own, because an API caller asking
-  // one thing should not have to build an array.
-  const raw = Array.isArray(req.body?.messages)
-    ? req.body.messages
-    : (typeof req.body?.question === 'string' ? [{ role: 'user', content: req.body.question }] : []);
-
-  const turns: AskTurn[] = [];
-  for (const m of raw.slice(-12)) {
-    const role = m?.role === 'assistant' ? 'assistant' : 'user';
-    const content = typeof m?.content === 'string' ? m.content.trim() : '';
-    if (!content) continue;
-    if (role === 'user' && content.length > 500) {
-      res.status(400).json({ error: 'Keep each message under 500 characters.' }); return;
+marketplaceRouter.post(
+  '/:workspaceId/ask',
+  wrap(async (req, res) => {
+    if (!askEnabled()) {
+      res.status(503).json({ error: 'Answers are not configured on this instance.' });
+      return;
     }
-    // An assistant turn is one Otto wrote, so it is bounded by his own
-    // max_tokens; anything longer than that did not come from here.
-    turns.push({ role, content: content.slice(0, 4000) });
-  }
-  if (turns.length === 0 || turns[turns.length - 1].role !== 'user') {
-    res.status(400).json({ error: 'question is required' }); return;
-  }
-  const question = turns[turns.length - 1].content;
-
-  const context = await buildWorkspaceContext(ws.id);
-  if (!context) { res.status(404).json({ error: 'Workspace not found' }); return; }
-
-  // Who asked, best effort. Most askers are anonymous by design, since the
-  // field exists for the visitor who has not signed up yet, so the request-log
-  // fields (the same pair page_visits keeps, under the same privacy policy)
-  // are the only identity there is for them.
-  const askedBy = req.auth?.agentId ?? null;
-  const fwd = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
-  const ip = (fwd || req.socket.remoteAddress || '').slice(0, 60) || null;
-  let country: string | null = null;
-  try {
-    const geoip = (await import('geoip-lite')).default;
-    country = ip ? (geoip.lookup(ip)?.country || null) : null;
-  } catch (e) {
-    console.error('geoip lookup failed:', e);
-  }
-
-  const logRow = {
-    id: randomUUID(), workspaceId: ws.id, question, askedBy, ip, country,
-    model: process.env.ASK_MODEL || 'openai/gpt-5.6-luna', createdAt: new Date(),
-  };
-
-  // What Otto did while answering, filled in by the tools as he goes.
-  const actions: ApiCallRecord[] = [];
-
-  try {
-    // Otto gets the floor's brief as fixed context and three doors he opens
-    // himself: Telarchy's data room, the API catalog, and the API itself,
-    // called with THIS caller's credentials (owner direction 2026-08-21:
-    // "exact same access the given user has"). Nothing here grants him
-    // anything: the request he makes is the visitor's own request replayed, so
-    // an anonymous asker's Otto can read and cannot act, and a signed-in
-    // asker's Otto can do what they can do and no more.
-    const { answer, usage } = await askAboutWorkspace(
-      renderContextMarkdown(context), turns, [dataRoomTool(), ...ottoApiTools(req, actions, ws.id)]);
-    console.log(`ask ${ws.slug ?? ws.id}: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out, $${usage.costUsd ?? '?'}`);
-    // Every question is kept, with its answer (owner ask 2026-08-20): a row
-    // here is a gap in the floor said in a visitor's own words, and the answer
-    // has to be stored beside it because a model that has since changed cannot
-    // reproduce what it said today.
-    if (actions.length) {
-      console.log(`ask ${ws.slug ?? ws.id}: acted ${actions.map(a => `${a.method} ${a.path} -> ${a.status}`).join(', ')}`);
+    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
     }
-    await db.insert(floorQuestions)
-      .values({ ...logRow, answer, costUsd: usage.costUsd, toolCalls: actions.length ? actions : null })
-      .catch(e => console.error('question log failed:', e));
-    res.json({ answer });
-  } catch (e) {
-    console.error('ask failed:', e);
-    const message = e instanceof Error ? e.message.slice(0, 500) : String(e).slice(0, 500);
-    // A question nobody could answer is the most interesting row in the
-    // table, so a failure is logged as loudly as a success.
-    await db.insert(floorQuestions)
-      .values({ ...logRow, error: message, toolCalls: actions.length ? actions : null })
-      .catch(err => console.error('question log failed:', err));
-    res.status(502).json({ error: 'Could not answer that right now. Try again in a moment.' });
-  }
-}));
+    if (ws.visibility === 'private') {
+      res.status(403).json({ error: 'This workspace is private' });
+      return;
+    }
+
+    const [publicGroup] = await db
+      .select()
+      .from(permissionGroups)
+      .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+    const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+    if (!publicCaps.includes('read')) {
+      res.status(403).json({ error: 'Not public' });
+      return;
+    }
+
+    // A conversation, not a lookup (owner direction 2026-08-20): the caller
+    // keeps the turns and sends them back, which is what lets a follow-up mean
+    // anything. `question` still works on its own, because an API caller asking
+    // one thing should not have to build an array.
+    const raw = Array.isArray(req.body?.messages)
+      ? req.body.messages
+      : typeof req.body?.question === 'string'
+        ? [{ role: 'user', content: req.body.question }]
+        : [];
+
+    const turns: AskTurn[] = [];
+    for (const m of raw.slice(-12)) {
+      const role = m?.role === 'assistant' ? 'assistant' : 'user';
+      const content = typeof m?.content === 'string' ? m.content.trim() : '';
+      if (!content) continue;
+      if (role === 'user' && content.length > 500) {
+        res.status(400).json({ error: 'Keep each message under 500 characters.' });
+        return;
+      }
+      // An assistant turn is one Otto wrote, so it is bounded by his own
+      // max_tokens; anything longer than that did not come from here.
+      turns.push({ role, content: content.slice(0, 4000) });
+    }
+    if (turns.length === 0 || turns[turns.length - 1].role !== 'user') {
+      res.status(400).json({ error: 'question is required' });
+      return;
+    }
+    const question = turns[turns.length - 1].content;
+
+    const context = await buildWorkspaceContext(ws.id);
+    if (!context) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+
+    // Who asked, best effort. Most askers are anonymous by design, since the
+    // field exists for the visitor who has not signed up yet, so the request-log
+    // fields (the same pair page_visits keeps, under the same privacy policy)
+    // are the only identity there is for them.
+    const askedBy = req.auth?.agentId ?? null;
+    const fwd = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
+    const ip = (fwd || req.socket.remoteAddress || '').slice(0, 60) || null;
+    let country: string | null = null;
+    try {
+      const geoip = (await import('geoip-lite')).default;
+      country = ip ? geoip.lookup(ip)?.country || null : null;
+    } catch (e) {
+      console.error('geoip lookup failed:', e);
+    }
+
+    const logRow = {
+      id: randomUUID(),
+      workspaceId: ws.id,
+      question,
+      askedBy,
+      ip,
+      country,
+      model: process.env.ASK_MODEL || 'openai/gpt-5.6-luna',
+      createdAt: new Date(),
+    };
+
+    // What Otto did while answering, filled in by the tools as he goes.
+    const actions: ApiCallRecord[] = [];
+
+    try {
+      // Otto gets the floor's brief as fixed context and three doors he opens
+      // himself: Telarchy's data room, the API catalog, and the API itself,
+      // called with THIS caller's credentials (owner direction 2026-08-21:
+      // "exact same access the given user has"). Nothing here grants him
+      // anything: the request he makes is the visitor's own request replayed, so
+      // an anonymous asker's Otto can read and cannot act, and a signed-in
+      // asker's Otto can do what they can do and no more.
+      const { answer, usage } = await askAboutWorkspace(renderContextMarkdown(context), turns, [
+        dataRoomTool(),
+        ...ottoApiTools(req, actions, ws.id),
+      ]);
+      console.log(
+        `ask ${ws.slug ?? ws.id}: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out, $${usage.costUsd ?? '?'}`,
+      );
+      // Every question is kept, with its answer (owner ask 2026-08-20): a row
+      // here is a gap in the floor said in a visitor's own words, and the answer
+      // has to be stored beside it because a model that has since changed cannot
+      // reproduce what it said today.
+      if (actions.length) {
+        console.log(
+          `ask ${ws.slug ?? ws.id}: acted ${actions.map(a => `${a.method} ${a.path} -> ${a.status}`).join(', ')}`,
+        );
+      }
+      await db
+        .insert(floorQuestions)
+        .values({ ...logRow, answer, costUsd: usage.costUsd, toolCalls: actions.length ? actions : null })
+        .catch(e => console.error('question log failed:', e));
+      res.json({ answer });
+    } catch (e) {
+      console.error('ask failed:', e);
+      const message = e instanceof Error ? e.message.slice(0, 500) : String(e).slice(0, 500);
+      // A question nobody could answer is the most interesting row in the
+      // table, so a failure is logged as loudly as a success.
+      await db
+        .insert(floorQuestions)
+        .values({ ...logRow, error: message, toolCalls: actions.length ? actions : null })
+        .catch(err => console.error('question log failed:', err));
+      res.status(502).json({ error: 'Could not answer that right now. Try again in a moment.' });
+    }
+  }),
+);
 
 /**
  * Comments, publicly readable on the floor (owner ask 2026-08-11): the
@@ -1005,35 +1233,61 @@ marketplaceRouter.post('/:workspaceId/ask', wrap(async (req, res) => {
  * stays on the authenticated routes (markets/:id/messages,
  * proposals/:id/messages).
  */
-marketplaceRouter.get('/:workspaceId/comments', wrap(async (req, res) => {
-  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
-  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
-  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+marketplaceRouter.get(
+  '/:workspaceId/comments',
+  wrap(async (req, res) => {
+    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (ws.visibility === 'private') {
+      res.status(403).json({ error: 'This workspace is private' });
+      return;
+    }
 
-  const [publicGroup] = await db.select().from(permissionGroups)
-    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
-  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
-  if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
+    const [publicGroup] = await db
+      .select()
+      .from(permissionGroups)
+      .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+    const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+    if (!publicCaps.includes('read')) {
+      res.status(403).json({ error: 'Not public' });
+      return;
+    }
 
-  const marketId = typeof req.query.marketId === 'string' ? req.query.marketId : null;
-  const proposalId = typeof req.query.proposalId === 'string' ? req.query.proposalId : null;
-  if (!marketId && !proposalId) { res.status(400).json({ error: 'Pass marketId or proposalId' }); return; }
+    const marketId = typeof req.query.marketId === 'string' ? req.query.marketId : null;
+    const proposalId = typeof req.query.proposalId === 'string' ? req.query.proposalId : null;
+    if (!marketId && !proposalId) {
+      res.status(400).json({ error: 'Pass marketId or proposalId' });
+      return;
+    }
 
-  let rows: Array<{ id: string; from: string; content: string; createdAt: Date }>;
-  if (proposalId) {
-    rows = await db.select().from(proposalMessages)
-      .where(and(eq(proposalMessages.workspaceId, ws.id), eq(proposalMessages.proposalId, proposalId)))
-      .orderBy(asc(proposalMessages.createdAt));
-  } else {
-    rows = await db.select().from(marketMessages)
-      .where(and(eq(marketMessages.workspaceId, ws.id), eq(marketMessages.marketId, marketId!)))
-      .orderBy(asc(marketMessages.createdAt));
-  }
-  const names = await getParticipantDisplayNames(rows.map(m => m.from));
-  res.json(rows.slice(-200).map(m => ({
-    id: m.id, fromName: names.get(m.from) ?? 'anonymous', content: m.content, createdAt: m.createdAt,
-  })));
-}));
+    let rows: Array<{ id: string; from: string; content: string; createdAt: Date }>;
+    if (proposalId) {
+      rows = await db
+        .select()
+        .from(proposalMessages)
+        .where(and(eq(proposalMessages.workspaceId, ws.id), eq(proposalMessages.proposalId, proposalId)))
+        .orderBy(asc(proposalMessages.createdAt));
+    } else {
+      rows = await db
+        .select()
+        .from(marketMessages)
+        .where(and(eq(marketMessages.workspaceId, ws.id), eq(marketMessages.marketId, marketId!)))
+        .orderBy(asc(marketMessages.createdAt));
+    }
+    const names = await getParticipantDisplayNames(rows.map(m => m.from));
+    res.json(
+      rows.slice(-200).map(m => ({
+        id: m.id,
+        fromName: names.get(m.from) ?? 'anonymous',
+        content: m.content,
+        createdAt: m.createdAt,
+      })),
+    );
+  }),
+);
 
 /**
  * Who holds what, and the trade history, for a market on a public floor
@@ -1043,58 +1297,107 @@ marketplaceRouter.get('/:workspaceId/comments', wrap(async (req, res) => {
  * handles the leaderboard shows. Marks each holder's position to the
  * market's current consensus so the worth reads live.
  */
-marketplaceRouter.get('/:workspaceId/market-activity', wrap(async (req, res) => {
-  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
-  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
-  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+marketplaceRouter.get(
+  '/:workspaceId/market-activity',
+  wrap(async (req, res) => {
+    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (ws.visibility === 'private') {
+      res.status(403).json({ error: 'This workspace is private' });
+      return;
+    }
 
-  const [publicGroup] = await db.select().from(permissionGroups)
-    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
-  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
-  if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
+    const [publicGroup] = await db
+      .select()
+      .from(permissionGroups)
+      .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+    const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+    if (!publicCaps.includes('read')) {
+      res.status(403).json({ error: 'Not public' });
+      return;
+    }
 
-  const marketId = typeof req.query.marketId === 'string' ? req.query.marketId : null;
-  if (!marketId) { res.status(400).json({ error: 'Pass marketId' }); return; }
+    const marketId = typeof req.query.marketId === 'string' ? req.query.marketId : null;
+    if (!marketId) {
+      res.status(400).json({ error: 'Pass marketId' });
+      return;
+    }
 
-  const [market] = await db.select().from(markets)
-    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, ws.id)));
-  if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
+    const [market] = await db
+      .select()
+      .from(markets)
+      .where(and(eq(markets.id, marketId), eq(markets.workspaceId, ws.id)));
+    if (!market) {
+      res.status(404).json({ error: 'Market not found' });
+      return;
+    }
 
-  const c = consensus((market.shares as [number, number]) || [0, 0], market.liquidity, market.rangeMin, market.rangeMax);
-  const p = c === undefined ? null : Math.max(0, Math.min(1, (c - market.rangeMin) / (market.rangeMax - market.rangeMin)));
+    const c = consensus(
+      (market.shares as [number, number]) || [0, 0],
+      market.liquidity,
+      market.rangeMin,
+      market.rangeMax,
+    );
+    const p =
+      c === undefined ? null : Math.max(0, Math.min(1, (c - market.rangeMin) / (market.rangeMax - market.rangeMin)));
 
-  const posRows = await db.select({
-    agentId: positions.agentId, direction: positions.direction, shares: positions.shares, totalCost: positions.totalCost,
-  }).from(positions)
-    .where(and(eq(positions.workspaceId, ws.id), eq(positions.marketId, marketId), gt(positions.shares, 0)))
-    .orderBy(desc(positions.shares)).limit(50);
+    const posRows = await db
+      .select({
+        agentId: positions.agentId,
+        direction: positions.direction,
+        shares: positions.shares,
+        totalCost: positions.totalCost,
+      })
+      .from(positions)
+      .where(and(eq(positions.workspaceId, ws.id), eq(positions.marketId, marketId), gt(positions.shares, 0)))
+      .orderBy(desc(positions.shares))
+      .limit(50);
 
-  const tradeRows = await db.select({
-    id: trades.id, agentId: trades.agentId, direction: trades.direction, shares: trades.shares,
-    cost: trades.cost, createdAt: trades.createdAt,
-  }).from(trades)
-    .where(and(eq(trades.workspaceId, ws.id), eq(trades.marketId, marketId)))
-    .orderBy(desc(trades.createdAt)).limit(50);
+    const tradeRows = await db
+      .select({
+        id: trades.id,
+        agentId: trades.agentId,
+        direction: trades.direction,
+        shares: trades.shares,
+        cost: trades.cost,
+        createdAt: trades.createdAt,
+      })
+      .from(trades)
+      .where(and(eq(trades.workspaceId, ws.id), eq(trades.marketId, marketId)))
+      .orderBy(desc(trades.createdAt))
+      .limit(50);
 
-  const ids = [...new Set([...posRows.map(r => r.agentId), ...tradeRows.map(r => r.agentId)])];
-  const names = await getParticipantDisplayNames(ids);
-  const handle = (id: string) => names.get(id) ?? id;
+    const ids = [...new Set([...posRows.map(r => r.agentId), ...tradeRows.map(r => r.agentId)])];
+    const names = await getParticipantDisplayNames(ids);
+    const handle = (id: string) => names.get(id) ?? id;
 
-  res.json({
-    consensus: c ?? null,
-    positions: posRows.map(r => ({
-      handle: handle(r.agentId), id: r.agentId,
-      direction: r.direction, shares: r.shares, cost: r.totalCost,
-      // Worth = shares marked to current price (the EV payout factor).
-      worth: p === null ? null : Math.round(r.shares * (r.direction === 'higher' ? p : 1 - p) * 100) / 100,
-    })),
-    trades: tradeRows.map(r => ({
-      id: r.id, handle: handle(r.agentId), direction: r.direction,
-      // A negative cost is a sell (proceeds); the sign carries the kind.
-      kind: r.cost < 0 ? 'sell' : 'buy', shares: Math.abs(r.shares), cost: Math.abs(r.cost), createdAt: r.createdAt,
-    })),
-  });
-}));
+    res.json({
+      consensus: c ?? null,
+      positions: posRows.map(r => ({
+        handle: handle(r.agentId),
+        id: r.agentId,
+        direction: r.direction,
+        shares: r.shares,
+        cost: r.totalCost,
+        // Worth = shares marked to current price (the EV payout factor).
+        worth: p === null ? null : Math.round(r.shares * (r.direction === 'higher' ? p : 1 - p) * 100) / 100,
+      })),
+      trades: tradeRows.map(r => ({
+        id: r.id,
+        handle: handle(r.agentId),
+        direction: r.direction,
+        // A negative cost is a sell (proceeds); the sign carries the kind.
+        kind: r.cost < 0 ? 'sell' : 'buy',
+        shares: Math.abs(r.shares),
+        cost: Math.abs(r.cost),
+        createdAt: r.createdAt,
+      })),
+    });
+  }),
+);
 
 /**
  * The workspace's og:image (owner direction 2026-08-10: graphics over
@@ -1103,92 +1406,127 @@ marketplaceRouter.get('/:workspaceId/market-activity', wrap(async (req, res) => 
  * data only (market consensus is already public on this page), so no
  * `read` gate; five-minute cache keeps scraper storms off the replay.
  */
-marketplaceRouter.get('/:workspaceId/card.png', wrap(async (req, res) => {
-  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
-  if (!ws || ws.visibility === 'private') { res.status(404).json({ error: 'Workspace not found' }); return; }
+marketplaceRouter.get(
+  '/:workspaceId/card.png',
+  wrap(async (req, res) => {
+    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+    if (!ws || ws.visibility === 'private') {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
 
-  const wsMarkets = await db.select().from(markets)
-    .where(and(eq(markets.workspaceId, ws.id), eq(markets.resolved, false), eq(markets.active, true)));
-  const baseline = wsMarkets.filter(m => !m.proposalId);
-  baseline.sort((a, b) => {
-    const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
-    if (dateDiff !== 0) return dateDiff;
-    return b.liquidity - a.liquidity;
-  });
-  const hero = primaryMarket(baseline);
+    const wsMarkets = await db
+      .select()
+      .from(markets)
+      .where(and(eq(markets.workspaceId, ws.id), eq(markets.resolved, false), eq(markets.active, true)));
+    const baseline = wsMarkets.filter(m => !m.proposalId);
+    baseline.sort((a, b) => {
+      const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return b.liquidity - a.liquidity;
+    });
+    const hero = primaryMarket(baseline);
 
-  let history: number[] = [];
-  let heroConsensus: number | null = null;
-  let metricLabel = ws.name;
-  let unit = '';
-  let resolvesOn: string | null = null;
-  if (hero) {
-    const shares = (hero.shares as [number, number]) || [0, 0];
-    heroConsensus = consensus(shares, hero.liquidity, hero.rangeMin, hero.rangeMax) ?? null;
-    metricLabel = hero.metricName.replace(/\s*\(.*\)\s*$/, '');
-    // Same mapping the floor's currencyOf uses: the "(USD)" tail becomes
-    // the $ prefix; any other tail stays off the headline number.
-    const unitTail = hero.metricName.match(/\(([^)]*)\)\s*$/)?.[1] ?? '';
-    unit = /\busd\b|\$/i.test(unitTail) ? '$' : '';
-    resolvesOn = resolutionInstant(hero.targetDate)
-      ? new Date(periodEndInstant(hero.targetDate).getTime() - 1).toLocaleDateString('en-GB', {
-          day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-        })
-      : null;
-    const points = await marketPriceSeries(hero.id, ws.id);
-    history = points.map(pt => pt.consensus).filter((c): c is number => c !== null).slice(-120);
-  }
+    let history: number[] = [];
+    let heroConsensus: number | null = null;
+    let metricLabel = ws.name;
+    let unit = '';
+    let resolvesOn: string | null = null;
+    if (hero) {
+      const shares = (hero.shares as [number, number]) || [0, 0];
+      heroConsensus = consensus(shares, hero.liquidity, hero.rangeMin, hero.rangeMax) ?? null;
+      metricLabel = hero.metricName.replace(/\s*\(.*\)\s*$/, '');
+      // Same mapping the floor's currencyOf uses: the "(USD)" tail becomes
+      // the $ prefix; any other tail stays off the headline number.
+      const unitTail = hero.metricName.match(/\(([^)]*)\)\s*$/)?.[1] ?? '';
+      unit = /\busd\b|\$/i.test(unitTail) ? '$' : '';
+      resolvesOn = resolutionInstant(hero.targetDate)
+        ? new Date(periodEndInstant(hero.targetDate).getTime() - 1).toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC',
+          })
+        : null;
+      const points = await marketPriceSeries(hero.id, ws.id);
+      history = points
+        .map(pt => pt.consensus)
+        .filter((c): c is number => c !== null)
+        .slice(-120);
+    }
 
-  const { renderShareCardPng } = await import('../lib/share-card');
-  const png = renderShareCardPng({
-    name: ws.name, metricLabel, unit, consensus: heroConsensus, resolvesOn, history,
-  });
-  // Short cache so a shared card stays close to the live price (owner ask
-  // 2026-08-11: the shared link should show the current price). The big
-  // number already renders the current consensus; this keeps re-fetches
-  // fresh. Platforms cache og:images on their own side too, which we
-  // cannot control.
-  res.setHeader('Cache-Control', 'public, max-age=60');
-  res.type('png').send(png);
-}));
+    const { renderShareCardPng } = await import('../lib/share-card');
+    const png = renderShareCardPng({
+      name: ws.name,
+      metricLabel,
+      unit,
+      consensus: heroConsensus,
+      resolvesOn,
+      history,
+    });
+    // Short cache so a shared card stays close to the live price (owner ask
+    // 2026-08-11: the shared link should show the current price). The big
+    // number already renders the current consensus; this keeps re-fetches
+    // fresh. Platforms cache og:images on their own side too, which we
+    // cannot control.
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.type('png').send(png);
+  }),
+);
 
-marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireIdentity, wrap(async (req, res) => {
-  const { uid, agentId } = req.auth!;
-  const { workspaceId } = req.params as { workspaceId: string };
-  const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
-  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
-  // Visibility is the access boundary, not knowledge of the UUID. A private
-  // workspace is populated by an admin adding members; nobody self-joins it.
-  // 404 rather than 403 so this cannot be used to probe for private IDs.
-  if (ws.visibility === 'private') { res.status(404).json({ error: 'Workspace not found' }); return; }
+marketplaceRouter.post(
+  '/:workspaceId/join',
+  authMiddleware,
+  requireIdentity,
+  wrap(async (req, res) => {
+    const { uid, agentId } = req.auth!;
+    const { workspaceId } = req.params as { workspaceId: string };
+    const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    // Visibility is the access boundary, not knowledge of the UUID. A private
+    // workspace is populated by an admin adding members; nobody self-joins it.
+    // 404 rather than 403 so this cannot be used to probe for private IDs.
+    if (ws.visibility === 'private') {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
 
-  await ensureSystemGroups(workspaceId);
-  const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
-  const publicGroup = groups.find(group => group.type === 'public');
-  if (!publicGroup) {
-    res.status(500).json({ error: 'Workspace public group is missing' }); return;
-  }
+    await ensureSystemGroups(workspaceId);
+    const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
+    const publicGroup = groups.find(group => group.type === 'public');
+    if (!publicGroup) {
+      res.status(500).json({ error: 'Workspace public group is missing' });
+      return;
+    }
 
-  const participantId = agentId ?? uid;
-  if (!participantId) { res.status(400).json({ error: 'No participant identity' }); return; }
+    const participantId = agentId ?? uid;
+    if (!participantId) {
+      res.status(400).json({ error: 'No participant identity' });
+      return;
+    }
 
-  const publicMemberIds = getGroupMemberIds(publicGroup);
-  const alreadyMember = publicMemberIds.includes(participantId);
+    const publicMemberIds = getGroupMemberIds(publicGroup);
+    const alreadyMember = publicMemberIds.includes(participantId);
 
-  if (!alreadyMember) {
-    await db.update(permissionGroups)
-      .set({ memberIds: [...publicMemberIds, participantId] })
-      .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, workspaceId)));
-  }
+    if (!alreadyMember) {
+      await db
+        .update(permissionGroups)
+        .set({ memberIds: [...publicMemberIds, participantId] })
+        .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, workspaceId)));
+    }
 
-  const publicCaps = (publicGroup.capabilities as string[] | null) ?? [];
-  const role = publicCaps.includes('trade') ? 'trader' : 'viewer';
+    const publicCaps = (publicGroup.capabilities as string[] | null) ?? [];
+    const role = publicCaps.includes('trade') ? 'trader' : 'viewer';
 
-  res.status(alreadyMember ? 200 : 201).json({
-    ok: true,
-    workspaceId,
-    workspaceName: ws.name,
-    role,
-    alreadyMember,
-  });
-}));
+    res.status(alreadyMember ? 200 : 201).json({
+      ok: true,
+      workspaceId,
+      workspaceName: ws.name,
+      role,
+      alreadyMember,
+    });
+  }),
+);

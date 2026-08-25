@@ -36,10 +36,7 @@ export async function uniqueSlugForOwner(
 ): Promise<string> {
   const base = slugify(name);
   const where = excludeWorkspaceId
-    ? and(
-        sql`${workspaceSlugAliases.ownerKey} = ${ownerKey}`,
-        ne(workspaceSlugAliases.workspaceId, excludeWorkspaceId),
-      )
+    ? and(sql`${workspaceSlugAliases.ownerKey} = ${ownerKey}`, ne(workspaceSlugAliases.workspaceId, excludeWorkspaceId))
     : sql`${workspaceSlugAliases.ownerKey} = ${ownerKey}`;
   const rows: Array<{ slug: string }> = await tx
     .select({ slug: workspaceSlugAliases.slug })

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
-import { AccountDialog } from './AccountDialog';
 import type { FloorRef } from '../lib/agent-prompt';
+import { api } from '../lib/api';
+import { AccountDialog } from './AccountDialog';
 
 /**
  * The signed-in corner of the trading floor: an avatar that opens a small
@@ -24,14 +24,15 @@ interface Participant {
 function initials(name: string | null, email: string | null): string {
   const source = (name ?? email ?? '?').trim();
   const parts = source.split(/[\s@._-]+/).filter(Boolean);
-  const letters = parts.slice(0, 2).map(p => p[0]).join('');
+  const letters = parts
+    .slice(0, 2)
+    .map(p => p[0])
+    .join('');
   return (letters || source[0] || '?').toUpperCase();
 }
 
 function fmtCr(v: number): string {
-  return v >= 10_000
-    ? `${Math.round(v / 1000).toLocaleString('en-US')}k`
-    : Math.round(v).toLocaleString('en-US');
+  return v >= 10_000 ? `${Math.round(v / 1000).toLocaleString('en-US')}k` : Math.round(v).toLocaleString('en-US');
 }
 
 export function AccountMenu({ floor = null }: { floor?: FloorRef | null }) {
@@ -46,14 +47,17 @@ export function AccountMenu({ floor = null }: { floor?: FloorRef | null }) {
   const image = user?.image ?? null;
 
   const load = () => {
-    api.getParticipant()
+    api
+      .getParticipant()
       .then(p => setParticipant(p as Participant))
       .catch(e => console.error('participant fetch failed:', e));
   };
   useEffect(load, []);
   // The balance sits beside the avatar (owner ask 2026-08-11), so it must
   // not go stale after a bet: refresh on every open, plus a slow poll.
-  useEffect(() => { if (open) load(); }, [open]);
+  useEffect(() => {
+    if (open) load();
+  }, [open]);
   useEffect(() => {
     const t = setInterval(load, 30_000);
     return () => clearInterval(t);
@@ -67,8 +71,14 @@ export function AccountMenu({ floor = null }: { floor?: FloorRef | null }) {
   // in-app navigation to #emails moves the hash by pushState, which fires no
   // hashchange event.
   useEffect(() => {
-    if (location.hash === '#account') { setDialogTab('profile'); setDialogOpen(true); }
-    if (location.hash === '#emails') { setDialogTab('emails'); setDialogOpen(true); }
+    if (location.hash === '#account') {
+      setDialogTab('profile');
+      setDialogOpen(true);
+    }
+    if (location.hash === '#emails') {
+      setDialogTab('emails');
+      setDialogOpen(true);
+    }
   }, [location.hash]);
 
   const closeDialog = () => {
@@ -88,7 +98,9 @@ export function AccountMenu({ floor = null }: { floor?: FloorRef | null }) {
     const onDown = (e: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
     return () => {
@@ -103,7 +115,9 @@ export function AccountMenu({ floor = null }: { floor?: FloorRef | null }) {
   return (
     <div className="acctmenu" ref={rootRef}>
       {participant?.balance != null && (
-        <span className="acctmenu-credits" title="Your credits">{fmtCr(participant.balance)} cr</span>
+        <span className="acctmenu-credits" title="Your credits">
+          {fmtCr(participant.balance)} cr
+        </span>
       )}
       <button
         className="acctmenu-avatar"
@@ -112,43 +126,51 @@ export function AccountMenu({ floor = null }: { floor?: FloorRef | null }) {
         aria-label="Account"
         onClick={() => setOpen(o => !o)}
       >
-        {image
-          ? <img src={image} alt="" />
-          : <span>{initials(user?.name ?? null, user?.email ?? null)}</span>}
+        {image ? <img src={image} alt="" /> : <span>{initials(user?.name ?? null, user?.email ?? null)}</span>}
       </button>
 
       {open && (
         <div className="acctmenu-panel" role="menu">
           <div className="acctmenu-who">
             <span className="acctmenu-name">{label}</span>
-            {user?.email
-              ? (
-                <span className="acctmenu-email">
-                  {user.email}
-                  {user.emailVerified === false && <span className="acctmenu-tag">unverified</span>}
-                </span>
-              )
-              : <span className="acctmenu-email">no email connected</span>}
+            {user?.email ? (
+              <span className="acctmenu-email">
+                {user.email}
+                {user.emailVerified === false && <span className="acctmenu-tag">unverified</span>}
+              </span>
+            ) : (
+              <span className="acctmenu-email">no email connected</span>
+            )}
           </div>
 
           <div className="acctmenu-stats">
             <span>
-              <span className="acctmenu-stat">{participant?.balance != null ? fmtCr(participant.balance) : '–'}</span> cr to trade
+              <span className="acctmenu-stat">{participant?.balance != null ? fmtCr(participant.balance) : '–'}</span>{' '}
+              cr to trade
             </span>
             <span>
               <span className={`acctmenu-stat${earned && earned > 0 ? ' is-up' : ''}`}>
                 {earned != null ? `${earned > 0 ? '+' : ''}${fmtCr(earned)}` : '–'}
-              </span> cr earned
+              </span>{' '}
+              cr earned
             </span>
           </div>
 
           {/* Management lives in the dialog: picture, username, payment
               details, Manifold import. */}
-          <button className="acctmenu-item" onClick={() => { setDialogOpen(true); setOpen(false); }}>
+          <button
+            className="acctmenu-item"
+            onClick={() => {
+              setDialogOpen(true);
+              setOpen(false);
+            }}
+          >
             Account settings
           </button>
 
-          <button className="acctmenu-item acctmenu-item--out" onClick={() => void logout()}>Log out</button>
+          <button className="acctmenu-item acctmenu-item--out" onClick={() => void logout()}>
+            Log out
+          </button>
         </div>
       )}
 

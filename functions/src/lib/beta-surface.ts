@@ -90,22 +90,21 @@ export async function proxyToCandidate(req: Request, res: Response): Promise<boo
   const wantsStream = (req.headers.accept ?? '').includes('text/event-stream');
 
   const method = req.method.toUpperCase();
-  const body = method === 'GET' || method === 'HEAD'
-    ? undefined
-    : JSON.stringify(req.body ?? {});
+  const body = method === 'GET' || method === 'HEAD' ? undefined : JSON.stringify(req.body ?? {});
   if (body !== undefined) headers['content-type'] = 'application/json';
 
   let upstream: globalThis.Response;
   try {
     upstream = await fetch(url, {
-      method, headers, body, redirect: 'manual',
+      method,
+      headers,
+      body,
+      redirect: 'manual',
       signal: AbortSignal.timeout(wantsStream ? 180_000 : 20_000),
     });
   } catch (e) {
     console.error('beta: proxy to candidate failed', (e as Error).message);
-    res.status(502).type('text/plain').send(
-      'The beta build did not answer. telarchy.com itself is unaffected.',
-    );
+    res.status(502).type('text/plain').send('The beta build did not answer. telarchy.com itself is unaffected.');
     return true;
   }
 
@@ -114,7 +113,7 @@ export async function proxyToCandidate(req: Request, res: Response): Promise<boo
     // Let the runtime frame the body; copying these across a decoded stream
     // is how a response ends up claiming a gzip it no longer is.
     if (key === 'content-encoding' || key === 'content-length' || key === 'transfer-encoding') return;
-    if (key === 'set-cookie') return;   // handled below, plural
+    if (key === 'set-cookie') return; // handled below, plural
     res.setHeader(key, value);
   });
   // Node exposes multiple Set-Cookie headers only through getSetCookie().

@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { api } from '../lib/api';
 import { FloorModal } from './FloorModal';
 import { ManifoldLogo } from './ManifoldLogo';
-import { api } from '../lib/api';
 
 /**
  * Import your Manifold balance (owner ask 2026-08-11: make it a
@@ -23,26 +23,38 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
   const [done, setDone] = useState<string | null>(null);
 
   const start = async () => {
-    setBusy(true); setError('');
+    setBusy(true);
+    setError('');
     try {
       const d = await api.startManifoldImport(username);
       setStep({ code: d.code, username: d.username });
     } catch (e) {
       setError((e as Error).message);
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
 
   const claim = async () => {
-    setBusy(true); setError('');
+    setBusy(true);
+    setError('');
     try {
       const d = await api.claimManifoldImport();
       setDone(`Imported @${d.username}: +${d.granted.toLocaleString('en-US')} cr`);
     } catch (e) {
       setError((e as Error).message);
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const close = () => { setOpen(false); setStep('ask'); setError(''); setDone(null); setUsername(''); };
+  const close = () => {
+    setOpen(false);
+    setStep('ask');
+    setError('');
+    setDone(null);
+    setUsername('');
+  };
 
   return (
     <>
@@ -51,7 +63,9 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
         aria-label="Bring your Manifold record"
         onClick={() => (signedIn ? setOpen(true) : onRequireSignup())}
       >
-        <span className="pubws-manifold-icon"><ManifoldLogo size={18} color="currentColor" /></span>
+        <span className="pubws-manifold-icon">
+          <ManifoldLogo size={18} color="currentColor" />
+        </span>
         <span className="pubws-manifold-label">Bring your Manifold record</span>
       </button>
 
@@ -59,20 +73,26 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
         <FloorModal onClose={close} label="Bring your Manifold record">
           <div className="mfimport">
             <div className="ticket-head mfimport-head">
-              <h3 className="mfimport-title"><ManifoldLogo size={22} /> Bring your Manifold record</h3>
-              <button className="ticket-close" aria-label="Close" onClick={close}>×</button>
+              <h3 className="mfimport-title">
+                <ManifoldLogo size={22} /> Bring your Manifold record
+              </h3>
+              <button className="ticket-close" aria-label="Close" onClick={close}>
+                ×
+              </button>
             </div>
 
             {done ? (
               <>
                 <p className="mfimport-done">{done}</p>
-                <button className="ticket-go is-placed" onClick={close}>Done</button>
+                <button className="ticket-go is-placed" onClick={close}>
+                  Done
+                </button>
               </>
             ) : step === 'ask' ? (
               <>
                 <p className="mfimport-lead">
-                  A proven record starts you with real weight here. We match your Manifold net
-                  worth in credits, one for one, up to 100,000, once.
+                  A proven record starts you with real weight here. We match your Manifold net worth in credits, one for
+                  one, up to 100,000, once.
                 </p>
                 <label className="jobform-field">
                   <span className="ticket-label">Your Manifold username</span>
@@ -91,8 +111,8 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
             ) : (
               <>
                 <p className="mfimport-lead">
-                  Add <code>{step.code}</code> anywhere in @{step.username}&rsquo;s bio on
-                  manifold.markets, then verify. You can remove it right after.
+                  Add <code>{step.code}</code> anywhere in @{step.username}&rsquo;s bio on manifold.markets, then
+                  verify. You can remove it right after.
                 </p>
                 <button className="ticket-go" disabled={busy} onClick={() => void claim()}>
                   {busy ? 'Verifying…' : 'Verify and import'}

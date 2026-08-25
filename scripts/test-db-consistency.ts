@@ -10,6 +10,7 @@
  */
 
 import pg from 'pg';
+
 const { Pool } = pg;
 
 const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://telarchy:changeme@localhost:5432/telarchy';
@@ -17,7 +18,12 @@ const pool = new Pool({ connectionString: DATABASE_URL });
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
-interface TestResult { name: string; passed: boolean; error?: string; suite: string }
+interface TestResult {
+  name: string;
+  passed: boolean;
+  error?: string;
+  suite: string;
+}
 const results: TestResult[] = [];
 let currentSuite = 'root';
 
@@ -25,7 +31,9 @@ async function suite(name: string, fn: () => Promise<void>): Promise<void> {
   const prev = currentSuite;
   currentSuite = name;
   console.log(`\n  ${name}`);
-  try { await fn(); } catch (e) {
+  try {
+    await fn();
+  } catch (e) {
     console.error(`  Suite setup failed: ${(e as Error).message}`);
   }
   currentSuite = prev;
@@ -44,13 +52,26 @@ async function test(name: string, fn: () => Promise<void>): Promise<void> {
 }
 
 function expect(actual: unknown) {
-  const fail = (msg: string) => { throw new Error(msg); };
+  const fail = (msg: string) => {
+    throw new Error(msg);
+  };
   return {
-    toBe: (v: unknown) => { if (actual !== v) fail(`Expected ${JSON.stringify(v)}, got ${JSON.stringify(actual)}`); },
-    toEqual: (v: unknown) => { if (JSON.stringify(actual) !== JSON.stringify(v)) fail(`Expected ${JSON.stringify(v)}, got ${JSON.stringify(actual)}`); },
-    toBeGreaterThan: (n: number) => { if ((actual as number) <= n) fail(`Expected > ${n}, got ${actual}`); },
-    toContain: (v: string) => { if (!(actual as string[]).includes(v)) fail(`Expected to contain ${v}, got ${JSON.stringify(actual)}`); },
-    notToContain: (v: string) => { if ((actual as string[]).includes(v)) fail(`Expected not to contain ${v}, got ${JSON.stringify(actual)}`); },
+    toBe: (v: unknown) => {
+      if (actual !== v) fail(`Expected ${JSON.stringify(v)}, got ${JSON.stringify(actual)}`);
+    },
+    toEqual: (v: unknown) => {
+      if (JSON.stringify(actual) !== JSON.stringify(v))
+        fail(`Expected ${JSON.stringify(v)}, got ${JSON.stringify(actual)}`);
+    },
+    toBeGreaterThan: (n: number) => {
+      if ((actual as number) <= n) fail(`Expected > ${n}, got ${actual}`);
+    },
+    toContain: (v: string) => {
+      if (!(actual as string[]).includes(v)) fail(`Expected to contain ${v}, got ${JSON.stringify(actual)}`);
+    },
+    notToContain: (v: string) => {
+      if ((actual as string[]).includes(v)) fail(`Expected not to contain ${v}, got ${JSON.stringify(actual)}`);
+    },
   };
 }
 
@@ -59,7 +80,9 @@ async function query(sql: string): Promise<pg.QueryResult> {
 }
 
 async function getColumns(table: string): Promise<string[]> {
-  const res = await query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '${table}' ORDER BY ordinal_position`);
+  const res = await query(
+    `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '${table}' ORDER BY ordinal_position`,
+  );
   return res.rows.map((r: { column_name: string }) => r.column_name);
 }
 
@@ -78,21 +101,108 @@ async function countQuery(sql: string): Promise<number> {
 const expectedSchema: Record<string, string[]> = {
   user: ['id', 'name', 'email', 'email_verified', 'image', 'created_at', 'updated_at'],
   session: ['id', 'expires_at', 'token', 'created_at', 'updated_at', 'ip_address', 'user_agent', 'user_id'],
-  account: ['id', 'account_id', 'provider_id', 'user_id', 'access_token', 'refresh_token', 'id_token', 'access_token_expires_at', 'refresh_token_expires_at', 'scope', 'password', 'created_at', 'updated_at'],
+  account: [
+    'id',
+    'account_id',
+    'provider_id',
+    'user_id',
+    'access_token',
+    'refresh_token',
+    'id_token',
+    'access_token_expires_at',
+    'refresh_token_expires_at',
+    'scope',
+    'password',
+    'created_at',
+    'updated_at',
+  ],
   verification: ['id', 'identifier', 'value', 'expires_at', 'created_at', 'updated_at'],
-  workspaces: ['id', 'name', 'created_by', 'created_at', 'visibility', 'traded_volume', 'auto_fund_new_markets', 'new_market_liquidity_credits'],
-  agents: ['id', 'api_key_hash', 'role', 'auth_user_id', 'balance', 'earned_betting', 'spent_betting', 'spent_tokens', 'wallet_address', 'withdrawn_usdc', 'platform_admin', 'intent', 'created_at', 'approved_at'],
+  workspaces: [
+    'id',
+    'name',
+    'created_by',
+    'created_at',
+    'visibility',
+    'traded_volume',
+    'auto_fund_new_markets',
+    'new_market_liquidity_credits',
+  ],
+  agents: [
+    'id',
+    'api_key_hash',
+    'role',
+    'auth_user_id',
+    'balance',
+    'earned_betting',
+    'spent_betting',
+    'spent_tokens',
+    'wallet_address',
+    'withdrawn_usdc',
+    'platform_admin',
+    'intent',
+    'created_at',
+    'approved_at',
+  ],
   agent_api_keys: ['hash', 'agent_id', 'workspace_id'],
   waitlist: ['email', 'created_at'],
   deposits: ['tx_hash', 'agent_id', 'from', 'usdc_amount', 'credits', 'buy_rate', 'created_at'],
   withdrawals: ['id', 'agent_id', 'credits', 'usdc_amount', 'to_address', 'tx_hash', 'created_at'],
   system_config: ['key', 'value'],
-  metrics: ['id', 'workspace_id', 'name', 'description', 'value', 'formula', 'order', 'time_preference', 'market_range_max', 'created_at', 'updated_at'],
-  markets: ['id', 'workspace_id', 'metric_id', 'metric_name', 'target_date', 'resolved', 'resolved_at', 'actual_value', 'active', 'voided', 'created_at', 'range_min', 'range_max', 'shares', 'liquidity', 'pool', 'proposal_id'],
+  metrics: [
+    'id',
+    'workspace_id',
+    'name',
+    'description',
+    'value',
+    'formula',
+    'order',
+    'time_preference',
+    'market_range_max',
+    'created_at',
+    'updated_at',
+  ],
+  markets: [
+    'id',
+    'workspace_id',
+    'metric_id',
+    'metric_name',
+    'target_date',
+    'resolved',
+    'resolved_at',
+    'actual_value',
+    'active',
+    'voided',
+    'created_at',
+    'range_min',
+    'range_max',
+    'shares',
+    'liquidity',
+    'pool',
+    'proposal_id',
+  ],
   positions: ['id', 'workspace_id', 'agent_id', 'market_id', 'direction', 'shares', 'total_cost'],
   trades: ['id', 'workspace_id', 'agent_id', 'market_id', 'direction', 'shares', 'cost', 'created_at'],
-  liquidity_events: ['id', 'workspace_id', 'market_id', 'amount', 'total_liquidity', 'type', 'agent_id', 'pool_contribution', 'created_at'],
-  proposals: ['id', 'workspace_id', 'proposed_by', 'title', 'description', 'status', 'conditional_market_ids', 'created_at'],
+  liquidity_events: [
+    'id',
+    'workspace_id',
+    'market_id',
+    'amount',
+    'total_liquidity',
+    'type',
+    'agent_id',
+    'pool_contribution',
+    'created_at',
+  ],
+  proposals: [
+    'id',
+    'workspace_id',
+    'proposed_by',
+    'title',
+    'description',
+    'status',
+    'conditional_market_ids',
+    'created_at',
+  ],
   proposal_messages: ['id', 'workspace_id', 'proposal_id', 'from', 'content', 'created_at'],
   updates: ['id', 'workspace_id', 'metric_name', 'old_value', 'new_value', 'description', 'timestamp'],
   metric_logs: ['id', 'workspace_id', 'metric_id', 'metric_name', 'value', 'timestamp'],
@@ -108,7 +218,9 @@ async function main() {
   console.log('='.repeat(60));
 
   await suite('Schema: tables exist', async () => {
-    const res = await query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`);
+    const res = await query(
+      `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`,
+    );
     const tables = res.rows.map((r: { table_name: string }) => r.table_name);
 
     for (const table of Object.keys(expectedSchema)) {
@@ -260,12 +372,16 @@ async function main() {
     });
 
     await test('permission group member_ids are arrays', async () => {
-      const count = await countQuery(`SELECT count(*) FROM permission_groups WHERE jsonb_typeof(member_ids) != 'array'`);
+      const count = await countQuery(
+        `SELECT count(*) FROM permission_groups WHERE jsonb_typeof(member_ids) != 'array'`,
+      );
       expect(count).toBe(0);
     });
 
     await test('permission group permissions are objects', async () => {
-      const count = await countQuery(`SELECT count(*) FROM permission_groups WHERE jsonb_typeof(permissions) != 'object'`);
+      const count = await countQuery(
+        `SELECT count(*) FROM permission_groups WHERE jsonb_typeof(permissions) != 'object'`,
+      );
       expect(count).toBe(0);
     });
 
@@ -309,4 +425,7 @@ async function main() {
   process.exit(failed > 0 ? 1 : 0);
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+main().catch(e => {
+  console.error(e);
+  process.exit(1);
+});

@@ -1,4 +1,4 @@
-import { sampleTimePoints, pickGranularity } from '../lib/time-preference';
+import { pickGranularity, sampleTimePoints } from '../lib/time-preference';
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const WEEK_PATTERN = /^\d{4}-W\d{2}$/;
@@ -79,13 +79,15 @@ describe('sampleTimePoints', () => {
     ];
     for (const [hl, density] of cases) {
       const points = sampleTimePoints(hl, density, base);
-      const granularities = new Set(points.map(p => {
-        if (DAY_PATTERN.test(p.date)) return 'day';
-        if (WEEK_PATTERN.test(p.date)) return 'week';
-        if (MONTH_PATTERN.test(p.date)) return 'month';
-        if (YEAR_PATTERN.test(p.date)) return 'year';
-        return 'unknown';
-      }));
+      const granularities = new Set(
+        points.map(p => {
+          if (DAY_PATTERN.test(p.date)) return 'day';
+          if (WEEK_PATTERN.test(p.date)) return 'week';
+          if (MONTH_PATTERN.test(p.date)) return 'month';
+          if (YEAR_PATTERN.test(p.date)) return 'year';
+          return 'unknown';
+        }),
+      );
       expect(granularities.size).toBe(1);
     }
   });

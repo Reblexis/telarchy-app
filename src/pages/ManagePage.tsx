@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../lib/api';
+import { PageTopBar } from '../components/PageTopBar';
 import { SetupChat } from '../components/SetupChat';
 import { useAuth } from '../hooks/useAuth';
-import { PageTopBar } from '../components/PageTopBar';
+import { api } from '../lib/api';
 
 /**
  * The operator door: Otto, and nothing else.
@@ -23,8 +23,12 @@ export function ManagePage() {
   // (2026-08-22). The cockpit gets a link at the bottom instead.
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
-    if (!user) { setIsAdmin(false); return; }
-    api.getProfile()
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+    api
+      .getProfile()
       .then((p: { platformAdmin?: boolean }) => setIsAdmin(p.platformAdmin === true))
       .catch(e => console.error('profile check failed:', e));
   }, [user]);
@@ -33,7 +37,6 @@ export function ManagePage() {
     <div className="pubws">
       <PageTopBar />
       <main className="pubws-main">
-
         {/* Otto runs the setup, not a form (owner direction 2026-08-22,
             the operator-door design note). Every field a form could ask for (which
             number, what ceiling, what horizon) is a question Telarchy answers
@@ -43,10 +46,14 @@ export function ManagePage() {
           <SetupChat signedIn={loading ? null : !!user} />
         </section>
 
-
         <footer className="pubws-foot">
           Just want to trade? <Link to="/">The live markets are open</Link>.
-          {isAdmin && <> · <Link to="/admin">Platform admin</Link></>}
+          {isAdmin && (
+            <>
+              {' '}
+              · <Link to="/admin">Platform admin</Link>
+            </>
+          )}
         </footer>
       </main>
     </div>

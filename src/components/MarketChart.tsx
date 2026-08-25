@@ -35,7 +35,12 @@ interface Props {
       line (owner decision 2026-08-10: both branches on the page, the gap
       between them IS the priced impact). `tone` colours it; the primary
       series stays the loud one. */
-  secondary?: { series: Array<{ at: string; consensus: number | null }>; consensus: number; label: string; tone: 'higher' | 'lower' } | null;
+  secondary?: {
+    series: Array<{ at: string; consensus: number | null }>;
+    consensus: number;
+    label: string;
+    tone: 'higher' | 'lower';
+  } | null;
   height?: number;
 }
 
@@ -65,9 +70,9 @@ function compactNum(v: number): string {
  */
 function labelQuantum(v: number): number {
   const abs = Math.abs(v);
-  if (abs >= 1000) return 100;  // "77.4k": one tenth of a thousand
-  if (abs >= 1) return 1;       // "25": whole units
-  return 0.01;                  // sub-unit values, where the guard must not flatten a real move
+  if (abs >= 1000) return 100; // "77.4k": one tenth of a thousand
+  if (abs >= 1) return 1; // "25": whole units
+  return 0.01; // sub-unit values, where the guard must not flatten a real move
 }
 
 function fullNum(v: number): string {
@@ -87,7 +92,16 @@ const RANGES: Array<{ key: string; ms: number }> = [
   { key: '1M', ms: 30 * 24 * 3600e3 },
 ];
 
-export function MarketChart({ series, consensus, unit = '', note, preview = null, orders = [], secondary = null, height }: Props) {
+export function MarketChart({
+  series,
+  consensus,
+  unit = '',
+  note,
+  preview = null,
+  orders = [],
+  secondary = null,
+  height,
+}: Props) {
   const [range, setRange] = useState<number | null>(null);
   const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
   useEffect(() => {
@@ -156,9 +170,7 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
     // yet, and stranded the primary line mid-chart while the secondary drew
     // to the domain edge (owner report 2026-08-13).
     const t1 = Math.max(now, pts[pts.length - 1].t);
-    const t0 = range !== null
-      ? now - range
-      : Math.min(pts[0].t, secPts[0]?.t ?? pts[0].t, t1 - 60_000);
+    const t0 = range !== null ? now - range : Math.min(pts[0].t, secPts[0]?.t ?? pts[0].t, t1 - 60_000);
     const span = t1 - t0;
 
     // In ALL mode the step line enters the window at the call in force at
@@ -232,11 +244,14 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
     if (secondary) {
       // Same entry rule as the primary: in ALL mode the quiet line starts
       // at the window's left edge holding its first value.
-      const secLead = range === null && secPts.length > 0 && secPts[0].t > t0
-        ? [{ t: t0, v: secPts[0].v }] : [];
-      const sec = secPts.length > 0
-        ? [...secLead, ...secPts, { t: t1, v: secondary.consensus }]
-        : [{ t: t0, v: secondary.consensus }, { t: t1, v: secondary.consensus }];
+      const secLead = range === null && secPts.length > 0 && secPts[0].t > t0 ? [{ t: t0, v: secPts[0].v }] : [];
+      const sec =
+        secPts.length > 0
+          ? [...secLead, ...secPts, { t: t1, v: secondary.consensus }]
+          : [
+              { t: t0, v: secondary.consensus },
+              { t: t1, v: secondary.consensus },
+            ];
       secD = `M${x(sec[0].t).toFixed(1)},${y(sec[0].v).toFixed(1)}`;
       for (let i = 1; i < sec.length; i++) {
         secD += ` L${x(sec[i].t).toFixed(1)},${y(sec[i - 1].v).toFixed(1)}`;
@@ -247,7 +262,7 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
 
     // Round-number gridlines.
     const rawStep = (vMax - vMin) / 4;
-    const mag = Math.pow(10, Math.floor(Math.log10(rawStep || 1)));
+    const mag = 10 ** Math.floor(Math.log10(rawStep || 1));
     const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(sv => sv >= rawStep) ?? rawStep;
     const gridVals: number[] = [];
     for (let v = Math.ceil(vMin / step) * step; v < vMax; v += step) {
@@ -263,14 +278,35 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
       if (span >= 48 * 3600e3) return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       // Under ten minutes, four minute-resolution ticks all print the same
       // minute; seconds keep them distinct.
-      const time = dt.toLocaleTimeString('en-US', span < 600e3
-        ? { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false }
-        : { hour: 'numeric', minute: '2-digit', hour12: false });
+      const time = dt.toLocaleTimeString(
+        'en-US',
+        span < 600e3
+          ? { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false }
+          : { hour: 'numeric', minute: '2-digit', hour12: false },
+      );
       return crossesDay ? `${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${time}` : time;
     };
     const ticks = [0.08, 0.38, 0.68, 0.95].map(f => t0 + f * span);
 
-    return { pts, extended, d, areaPath, end, secD, secEnd, t0, t1, span, fullSpan, x, y, gridVals, ticks, fmt, open: extended[0] };
+    return {
+      pts,
+      extended,
+      d,
+      areaPath,
+      end,
+      secD,
+      secEnd,
+      t0,
+      t1,
+      span,
+      fullSpan,
+      x,
+      y,
+      gridVals,
+      ticks,
+      fmt,
+      open: extended[0],
+    };
   }, [series, consensus, preview, orders, secondary, range, H, W, PAD_L, PAD_R]);
 
   // A window wider than the market's whole life falls back to ALL. This used
@@ -287,7 +323,12 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
   // the whole SVG. Coalesce to one update per frame.
   const rafRef = useRef<number | null>(null);
   const pendingRef = useRef<number | null>(null);
-  useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    },
+    [],
+  );
 
   if (!model) return null;
   const { extended, d, areaPath, end, secD, secEnd, x, y, gridVals, ticks, fmt } = model;
@@ -319,7 +360,10 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
   };
 
   const onLeave = () => {
-    if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
     pendingRef.current = null;
     setCursor(null);
   };
@@ -327,7 +371,10 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
   // The call in force at a moment = the last step at or before it.
   const valueAt = (t: number) => {
     let v = extended[0].v;
-    for (const p of extended) { if (p.t <= t) v = p.v; else break; }
+    for (const p of extended) {
+      if (p.t <= t) v = p.v;
+      else break;
+    }
     return v;
   };
   const tipX = cursor !== null ? x(cursor) : 0;
@@ -388,29 +435,38 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
         {gridVals.map(v => (
           <g key={v}>
             <line className="mchart-grid" x1={PAD_L} x2={W - PAD_R} y1={y(v)} y2={y(v)} />
-            <text className="mchart-ylabel" x={PAD_L - 6} y={y(v) + 3}>{cNum(v)}</text>
+            <text className="mchart-ylabel" x={PAD_L - 6} y={y(v) + 3}>
+              {cNum(v)}
+            </text>
           </g>
         ))}
 
         {ticks.map(t => (
-          <text key={t} className="mchart-xlabel" x={x(t)} y={H - 8}>{fmt(t)}</text>
+          <text key={t} className="mchart-xlabel" x={x(t)} y={H - 8}>
+            {fmt(t)}
+          </text>
         ))}
 
-        {secondary && secD && secEnd && (() => {
-          // Keep the two end labels apart when the branches sit close.
-          const py = y(secEnd.v);
-          const cy0 = y(end.v);
-          const labelY = Math.abs(py - cy0) < 15 ? py + (py >= cy0 ? 15 : -15) : py;
-          const text = `${fNum(secondary.consensus)} ${secondary.label}`;
-          const lb = edgeLabel(x(secEnd.t), text);
-          return (
-            <g className={`mchart-branch mchart-branch--${secondary.tone}`}>
-              <path d={secD} className="mchart-branch-line" clipPath={`url(#${clipId})`} />
-              <circle cx={x(secEnd.t)} cy={py} r="3.5" className="mchart-branch-dot" />
-              <text className="mchart-branch-label" x={lb.x} y={labelY + 4} textAnchor={lb.anchor}>{text}</text>
-            </g>
-          );
-        })()}
+        {secondary &&
+          secD &&
+          secEnd &&
+          (() => {
+            // Keep the two end labels apart when the branches sit close.
+            const py = y(secEnd.v);
+            const cy0 = y(end.v);
+            const labelY = Math.abs(py - cy0) < 15 ? py + (py >= cy0 ? 15 : -15) : py;
+            const text = `${fNum(secondary.consensus)} ${secondary.label}`;
+            const lb = edgeLabel(x(secEnd.t), text);
+            return (
+              <g className={`mchart-branch mchart-branch--${secondary.tone}`}>
+                <path d={secD} className="mchart-branch-line" clipPath={`url(#${clipId})`} />
+                <circle cx={x(secEnd.t)} cy={py} r="3.5" className="mchart-branch-dot" />
+                <text className="mchart-branch-label" x={lb.x} y={labelY + 4} textAnchor={lb.anchor}>
+                  {text}
+                </text>
+              </g>
+            );
+          })()}
 
         <g className="mchart-market">
           <g clipPath={`url(#${clipId})`}>
@@ -440,23 +496,24 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
           </g>
         ))}
 
-        {preview && (() => {
-          const py = y(preview.value);
-          const cy0 = y(end.v);
-          // Keep the ghost label clear of the live call label on tiny moves.
-          const labelY = Math.abs(py - cy0) < 15 ? cy0 + (preview.direction === 'higher' ? -15 : 15) : py;
-          const text = `${preview.direction === 'higher' ? '▲' : '▼'} ${fNum(preview.value)}`;
-          const lb = edgeLabel(x(end.t), text);
-          return (
-            <g className={`mchart-ghost mchart-ghost--${preview.direction}`}>
-              <line className="mchart-ghost-line" x1={x(end.t)} x2={x(end.t)} y1={cy0} y2={py} />
-              <circle className="mchart-ghost-dot" cx={x(end.t)} cy={py} r="4.5" />
-              <text className="mchart-ghost-label" x={lb.x} y={labelY + 4} textAnchor={lb.anchor}>
-                {text}
-              </text>
-            </g>
-          );
-        })()}
+        {preview &&
+          (() => {
+            const py = y(preview.value);
+            const cy0 = y(end.v);
+            // Keep the ghost label clear of the live call label on tiny moves.
+            const labelY = Math.abs(py - cy0) < 15 ? cy0 + (preview.direction === 'higher' ? -15 : 15) : py;
+            const text = `${preview.direction === 'higher' ? '▲' : '▼'} ${fNum(preview.value)}`;
+            const lb = edgeLabel(x(end.t), text);
+            return (
+              <g className={`mchart-ghost mchart-ghost--${preview.direction}`}>
+                <line className="mchart-ghost-line" x1={x(end.t)} x2={x(end.t)} y1={cy0} y2={py} />
+                <circle className="mchart-ghost-dot" cx={x(end.t)} cy={py} r="4.5" />
+                <text className="mchart-ghost-label" x={lb.x} y={labelY + 4} textAnchor={lb.anchor}>
+                  {text}
+                </text>
+              </g>
+            );
+          })()}
 
         {cursor !== null && (
           <g className="mchart-cross">
@@ -469,7 +526,9 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
       {cursor !== null && (
         <div className={`mchart-tip${tipRight ? ' is-right' : ''}`} style={{ left: `${(tipX / W) * 100}%` }}>
           <div className="mchart-tip-date">{fmt(cursor)}</div>
-          <div>market <span className="mchart-tip-v mchart-tip-v--mkt">{fNum(valueAt(cursor))}</span></div>
+          <div>
+            market <span className="mchart-tip-v mchart-tip-v--mkt">{fNum(valueAt(cursor))}</span>
+          </div>
         </div>
       )}
     </div>

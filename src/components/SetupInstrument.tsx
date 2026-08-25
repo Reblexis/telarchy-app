@@ -36,7 +36,11 @@ function settleLabel(targetDate: string): string {
   return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
-export function SetupInstrument({ market, name, compact }: {
+export function SetupInstrument({
+  market,
+  name,
+  compact,
+}: {
   market: InstrumentMarket | null;
   /** What they said they run, once there is a market to put it over. */
   name?: string | null;
@@ -61,14 +65,18 @@ export function SetupInstrument({ market, name, compact }: {
           {market ? (name ? `${name} · ${market.metricName}` : market.metricName) : 'A new market'}
         </span>
         <span className="instr-value">
-          {market && market.consensus !== null
-            ? nf.format(market.consensus)
-            : <span className="instr-ghostnum">?,???</span>}
+          {market && market.consensus !== null ? (
+            nf.format(market.consensus)
+          ) : (
+            <span className="instr-ghostnum">?,???</span>
+          )}
         </span>
         {!compact && (
           <span className="instr-sub">
             {market
-              ? (priced ? `${nf.format(market.pool)} credits behind it` : 'nothing behind it yet, so it cannot be traded')
+              ? priced
+                ? `${nf.format(market.pool)} credits behind it`
+                : 'nothing behind it yet, so it cannot be traded'
               : 'your number, once you name it'}
           </span>
         )}
@@ -84,9 +92,7 @@ export function SetupInstrument({ market, name, compact }: {
         <span className="instr-end instr-end--max">{market ? nf.format(market.rangeMax) : 'ceiling ?'}</span>
       </div>
 
-      {compact && market && (
-        <span className="instr-settles">Settles {settleLabel(market.targetDate)}</span>
-      )}
+      {compact && market && <span className="instr-settles">Settles {settleLabel(market.targetDate)}</span>}
     </div>
   );
 }
@@ -95,15 +101,17 @@ export function SetupInstrument({ market, name, compact }: {
  * Nine decisions, nine ticks: a progress bar made of the thing being built
  * rather than of a widget.
  */
-export function SetupTicks({ items }: {
-  items: Array<{ id: string; label: string; status: 'done' | 'open' }>;
-}) {
+export function SetupTicks({ items }: { items: Array<{ id: string; label: string; status: 'done' | 'open' }> }) {
   if (!items.length) return null;
   const done = items.filter(i => i.status === 'done').length;
   return (
     <div className="instr-ticks" aria-label={`${done} of ${items.length} decided`}>
       {items.map(i => (
-        <span key={i.id} className={`instr-tick is-${i.status}`} title={`${i.label}: ${i.status === 'done' ? 'decided' : 'still open'}`} />
+        <span
+          key={i.id}
+          className={`instr-tick is-${i.status}`}
+          title={`${i.label}: ${i.status === 'done' ? 'decided' : 'still open'}`}
+        />
       ))}
     </div>
   );

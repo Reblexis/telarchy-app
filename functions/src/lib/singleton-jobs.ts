@@ -43,15 +43,12 @@ export type LockName = keyof typeof LOCK_KEYS;
  * to 'skipped'. The lock is held for the duration of `fn` and always
  * released, so a slow job on one instance means others skip, never queue.
  */
-export async function withSingletonLock(
-  name: LockName,
-  fn: () => Promise<void>,
-): Promise<'ran' | 'skipped'> {
+export async function withSingletonLock(name: LockName, fn: () => Promise<void>): Promise<'ran' | 'skipped'> {
   const client = await pool.connect();
   try {
-    const { rows } = await client.query<{ locked: boolean }>(
-      'select pg_try_advisory_lock($1) as locked', [LOCK_KEYS[name]],
-    );
+    const { rows } = await client.query<{ locked: boolean }>('select pg_try_advisory_lock($1) as locked', [
+      LOCK_KEYS[name],
+    ]);
     if (!rows[0]?.locked) return 'skipped';
     try {
       const started = Date.now();

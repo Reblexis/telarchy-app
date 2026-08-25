@@ -65,7 +65,7 @@ const CRYPTO_ADDRESS: Record<string, RegExp> = {
 };
 
 export const CRYPTO_NETWORKS = ['ethereum', 'base', 'arbitrum', 'optimism', 'polygon', 'solana', 'bitcoin'] as const;
-export type CryptoNetwork = typeof CRYPTO_NETWORKS[number];
+export type CryptoNetwork = (typeof CRYPTO_NETWORKS)[number];
 
 /** Which assets each chain can actually settle. USDC is listed first where it
  *  exists because that is what people ask to be paid in. */
@@ -105,7 +105,8 @@ export function normalizePayoutMethod(input: unknown): PayoutMethod | Error {
       const iban = str(m.iban).replace(/\s+/g, '').toUpperCase();
       const holder = str(m.holder);
       if (!isValidIban(iban)) return new Error('That IBAN does not check out; copy it exactly from your bank');
-      if (holder.length < 2 || holder.length > 100) return new Error('Enter the account holder name, as the bank knows it');
+      if (holder.length < 2 || holder.length > 100)
+        return new Error('Enter the account holder name, as the bank knows it');
       return withNote({ provider, iban, holder });
     }
     case 'crypto': {
@@ -156,16 +157,21 @@ export function payoutSummary(method: PayoutMethod): string {
 
 function payoutSummaryBody(method: PayoutMethod): string {
   switch (method.provider) {
-    case 'paypal': return `PayPal: ${method.email}`;
-    case 'bank': return `Bank (IBAN): ${method.iban}, holder ${method.holder}`;
+    case 'paypal':
+      return `PayPal: ${method.email}`;
+    case 'bank':
+      return `Bank (IBAN): ${method.iban}, holder ${method.holder}`;
     case 'crypto': {
       const net = method.network[0].toUpperCase() + method.network.slice(1);
       // Asset and chain both go in the summary because that is what the owner
       // pays against, and either one wrong sends the money somewhere else.
       return `${method.asset} on ${net}: ${method.address}`;
     }
-    case 'revolut': return `Revolut: @${method.handle}`;
-    case 'wise': return `Wise: ${method.email}`;
-    case 'other': return method.details;
+    case 'revolut':
+      return `Revolut: @${method.handle}`;
+    case 'wise':
+      return `Wise: ${method.email}`;
+    case 'other':
+      return method.details;
   }
 }

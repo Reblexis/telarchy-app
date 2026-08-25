@@ -1,7 +1,7 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * Otto on the operator door (the operator-door design note).
@@ -18,7 +18,10 @@ type Reply = {
   handoff: string;
   settled?: string[];
   open?: string[];
-  checklist?: { blocking: string[]; items: Array<{ id: string; label: string; status: 'done' | 'open'; note: string }> } | null;
+  checklist?: {
+    blocking: string[];
+    items: Array<{ id: string; label: string; status: 'done' | 'open'; note: string }>;
+  } | null;
 };
 const askSetup = vi.fn(async (): Promise<Reply> => ({ answer: 'Opened it.', opened: [], handoff: '' }));
 /** The component streams. The mock plays a reply back through onDelta the way
@@ -44,7 +47,11 @@ vi.mock('../../lib/api', () => ({
 import { SetupChat } from '../SetupChat';
 
 const renderChat = (signedIn = true) =>
-  render(<MemoryRouter><SetupChat signedIn={signedIn} /></MemoryRouter>);
+  render(
+    <MemoryRouter>
+      <SetupChat signedIn={signedIn} />
+    </MemoryRouter>,
+  );
 
 beforeEach(() => {
   localStorage.clear();
@@ -54,7 +61,7 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
   askSetup.mockClear();
   askSetup.mockResolvedValue({ answer: 'Opened it.', opened: [] });
-    askHandoff.mockResolvedValue({ handoff: '', settled: [], open: [], written: true });
+  askHandoff.mockResolvedValue({ handoff: '', settled: [], open: [], written: true });
 });
 
 describe('the setup conversation', () => {
@@ -122,7 +129,9 @@ describe('the handoff to your own agent', () => {
     askSetup.mockResolvedValue({ answer: 'Which number?', opened: [] });
     askHandoff.mockResolvedValue({
       handoff: 'You are picking up a Telarchy setup.\nworkspace id ws-42',
-      settled: [], open: [], written: true,
+      settled: [],
+      open: [],
+      written: true,
     });
     const user = userEvent.setup();
     renderChat();
@@ -200,7 +209,8 @@ describe('what the conversation carries forward', () => {
 
   test('the floor state shows what is blocking, not just what is done', async () => {
     askSetup.mockResolvedValue({
-      answer: 'Opened.', opened: [],
+      answer: 'Opened.',
+      opened: [],
       checklist: {
         blocking: ['Every market holds zero liquidity, so every trade against them is refused.'],
         items: [
@@ -229,7 +239,9 @@ describe('the vocabulary a visitor reads', () => {
     // it is "market". Everything this door says was written after that rule
     // and broke it, which is why the test is here rather than in review.
     askSetup.mockResolvedValue({
-      answer: 'Which number?', opened: [{ name: 'Kleros', slug: 'kleros' }], handoff: 'X'.repeat(220),
+      answer: 'Which number?',
+      opened: [{ name: 'Kleros', slug: 'kleros' }],
+      handoff: 'X'.repeat(220),
     });
     const user = userEvent.setup();
     const { container } = renderChat(false);
@@ -286,7 +298,11 @@ describe('before the session check comes back', () => {
     // The page renders while the check is still out, and reading "not yet
     // known" as "signed out" is what told a signed-in visitor to create an
     // account they already had (owner, 2026-08-24).
-    render(<MemoryRouter><SetupChat signedIn={null} /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <SetupChat signedIn={null} />
+      </MemoryRouter>,
+    );
     expect(screen.queryByRole('link', { name: /create an account/i })).toBeNull();
     expect(screen.queryByText(/opening it takes an account/i)).toBeNull();
     expect(screen.queryByText(/Otto acts with your account/i)).toBeNull();
@@ -301,7 +317,9 @@ describe('watching the answer arrive', () => {
     // sometimes calls the API before he speaks, so a whole answer can be half
     // a minute of nothing on screen.
     let release!: () => void;
-    streamPause = new Promise<void>(r => { release = r; });
+    streamPause = new Promise<void>(r => {
+      release = r;
+    });
     askSetup.mockResolvedValue({ answer: 'Monthly disputes, then.', opened: [] });
     askHandoff.mockResolvedValue({ handoff: '', settled: [], open: [], written: true });
 
@@ -341,9 +359,15 @@ describe('the two halves of the rail arrive separately', () => {
     // a second model call. Gating the surer half behind the slower one is
     // what made a turn take longer than the beta proxy would wait.
     let release!: (v: { handoff: string; settled: string[]; open: string[]; written: boolean }) => void;
-    askHandoff.mockImplementation((() => new Promise(r => { release = r; })) as never);
+    askHandoff.mockImplementation(
+      (() =>
+        new Promise(r => {
+          release = r;
+        })) as never,
+    );
     askSetup.mockResolvedValue({
-      answer: 'Opened.', opened: [],
+      answer: 'Opened.',
+      opened: [],
       checklist: {
         blocking: ['Every market is thin enough that 5 credits moves it.'],
         items: [{ id: 'liquidity', label: 'Liquidity', status: 'open', note: '0.5 credits.' }],
@@ -379,13 +403,19 @@ describe('the two halves of the rail arrive separately', () => {
 
 describe('the receipt says what the rows say', () => {
   const market = {
-    metricName: 'Monthly disputes', rangeMin: 0, rangeMax: 5000,
-    targetDate: '2026-09', consensus: 2500, pool: 240,
+    metricName: 'Monthly disputes',
+    rangeMin: 0,
+    rangeMax: 5000,
+    targetDate: '2026-09',
+    consensus: 2500,
+    pool: 240,
   };
 
   const openWith = async (checklist: unknown) => {
     askSetup.mockResolvedValue({
-      answer: 'Opened.', opened: [{ name: 'Kleros', slug: 'kleros' }], checklist,
+      answer: 'Opened.',
+      opened: [{ name: 'Kleros', slug: 'kleros' }],
+      checklist,
     } as never);
     const user = userEvent.setup();
     renderChat();

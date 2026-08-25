@@ -8,7 +8,7 @@
  * trade, it is a regression with a nice story.
  */
 
-import { SCENARIOS, judge, runScenario, type Scenario } from './otto-setup';
+import { judge, runScenario, SCENARIOS, type Scenario } from './otto-setup';
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -41,8 +41,15 @@ async function main() {
    */
   const repeat = Math.max(1, Number(arg('repeat') ?? 1));
 
-  console.log(`Otto setup eval · model=${model ?? process.env.ASK_MODEL ?? 'default'} effort=${effort ?? 'default'} · ${repeat} run(s) per scenario\n`);
-  let safe = 0, safeTotal = 0, good = 0, goodTotal = 0, cost = 0, seconds = 0;
+  console.log(
+    `Otto setup eval · model=${model ?? process.env.ASK_MODEL ?? 'default'} effort=${effort ?? 'default'} · ${repeat} run(s) per scenario\n`,
+  );
+  let safe = 0,
+    safeTotal = 0,
+    good = 0,
+    goodTotal = 0,
+    cost = 0,
+    seconds = 0;
 
   for (const s of list) {
     console.log(`\x1b[1m${s.id}\x1b[0m — ${s.about}`);
@@ -72,17 +79,25 @@ async function main() {
       });
       if (s.judged?.length) {
         const verdicts = await judge(s.judged, run.answer);
-        verdicts.forEach((v, k) => { if (v) judgeHits[k] += 1; });
+        verdicts.forEach((v, k) => {
+          if (v) judgeHits[k] += 1;
+        });
       }
     }
-    if (!done) { safeTotal += s.mechanical.length; goodTotal += (s.judged ?? []).length; continue; }
+    if (!done) {
+      safeTotal += s.mechanical.length;
+      goodTotal += (s.judged ?? []).length;
+      continue;
+    }
 
     const rate = (hits: number) => `${hits}/${done}`;
     s.mechanical.forEach((m, k) => {
       safeTotal += 1;
       // A safety property that holds SOMETIMES does not hold.
       if (mechHits[k] === done) safe += 1;
-      console.log(`  ${mechHits[k] === done ? '\x1b[32mpass\x1b[0m' : '\x1b[31mFAIL\x1b[0m'}  ${rate(mechHits[k])}  ${m.name}`);
+      console.log(
+        `  ${mechHits[k] === done ? '\x1b[32mpass\x1b[0m' : '\x1b[31mFAIL\x1b[0m'}  ${rate(mechHits[k])}  ${m.name}`,
+      );
       if (mechHits[k] !== done && offenders[k]) {
         console.log(`        \x1b[31m^ "${offenders[k].replace(/\s+/g, ' ').slice(0, 300)}"\x1b[0m`);
       }
@@ -92,7 +107,9 @@ async function main() {
       // Judged checks count as met on a majority, and the rate is printed so
       // a 3/5 never reads as a clean pass.
       if (judgeHits[k] * 2 > done) good += 1;
-      console.log(`  ${judgeHits[k] * 2 > done ? '\x1b[32m ok \x1b[0m' : '\x1b[33m no \x1b[0m'}  ${rate(judgeHits[k])}  ${q}`);
+      console.log(
+        `  ${judgeHits[k] * 2 > done ? '\x1b[32m ok \x1b[0m' : '\x1b[33m no \x1b[0m'}  ${rate(judgeHits[k])}  ${q}`,
+      );
     });
     const full = process.argv.includes('--full');
     console.log(`  \x1b[90m"${last.replace(/\s+/g, ' ').slice(0, full ? 4000 : 150)}"\x1b[0m\n`);
@@ -106,4 +123,7 @@ async function main() {
   process.exit(safe === safeTotal ? 0 : 1);
 }
 
-main().catch(e => { console.error(e); process.exit(2); });
+main().catch(e => {
+  console.error(e);
+  process.exit(2);
+});

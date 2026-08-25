@@ -36,16 +36,18 @@ import { AppError } from './errors';
  * operator can act on, "forbidden" is not).
  */
 export async function assertMarketUntraded(marketId: string, workspaceId: string): Promise<void> {
-  const [row] = await db.select({
-    traders: sql<number>`count(distinct ${trades.agentId})::int`,
-  }).from(trades)
+  const [row] = await db
+    .select({
+      traders: sql<number>`count(distinct ${trades.agentId})::int`,
+    })
+    .from(trades)
     .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, marketId)));
 
   const traders = Number(row?.traders ?? 0);
   if (traders > 0) {
     throw new AppError(
-      `This market has been traded by ${traders} participant${traders === 1 ? '' : 's'} and cannot be destroyed. `
-      + 'Their positions settle when it resolves.',
+      `This market has been traded by ${traders} participant${traders === 1 ? '' : 's'} and cannot be destroyed. ` +
+        'Their positions settle when it resolves.',
       409,
       { marketId, traders },
     );
@@ -54,12 +56,10 @@ export async function assertMarketUntraded(marketId: string, workspaceId: string
 
 /** The same rule across every open market on one metric (metric deletion). */
 export async function assertMetricMarketsUntraded(metricId: string, workspaceId: string): Promise<void> {
-  const open = await db.select({ id: markets.id }).from(markets)
-    .where(and(
-      eq(markets.workspaceId, workspaceId),
-      eq(markets.metricId, metricId),
-      eq(markets.resolved, false),
-    ));
+  const open = await db
+    .select({ id: markets.id })
+    .from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, metricId), eq(markets.resolved, false)));
   for (const m of open) await assertMarketUntraded(m.id, workspaceId);
 }
 
@@ -71,12 +71,13 @@ export async function assertMetricMarketsUntraded(metricId: string, workspaceId:
  * cannot slip it out of the freeze.
  */
 export async function assertNotInRunningSeason(workspaceId: string): Promise<void> {
-  const running = await db.select({ id: prizeSeasons.id, name: prizeSeasons.name, workspaceIds: prizeSeasons.workspaceIds })
+  const running = await db
+    .select({ id: prizeSeasons.id, name: prizeSeasons.name, workspaceIds: prizeSeasons.workspaceIds })
     .from(prizeSeasons)
     .where(eq(prizeSeasons.status, 'running'));
 
   for (const season of running) {
-    const ids = Array.isArray(season.workspaceIds) ? season.workspaceIds as string[] : [];
+    const ids = Array.isArray(season.workspaceIds) ? (season.workspaceIds as string[]) : [];
     if (ids.includes(workspaceId)) {
       throw new AppError(
         `"${season.name}" is running and scores this workspace, so it cannot be deleted until the season settles.`,

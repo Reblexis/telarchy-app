@@ -25,19 +25,19 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
+import { and, eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agents, markets, metrics, positions } from '../db/schema';
+import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { fromUnits, toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics, positions, workspaces } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
-import { initialPool } from '../lib/amm';
-import { toUnits, fromUnits } from '../lib/validation';
 import { predictionsRouter } from '../routes/predictions';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -48,8 +48,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-net';
 const TRADER = 'agent-net';
@@ -62,28 +66,51 @@ async function seed() {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Netting Test', createdBy: 'agent-owner-net', ownerAgentId: 'agent-owner-net', visibility: 'public',
+    wsId: WS,
+    name: 'Netting Test',
+    createdBy: 'agent-owner-net',
+    ownerAgentId: 'agent-owner-net',
+    visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: 'metric-net', workspaceId: WS, name: 'Revenue', value: 50, formula: '0', marketRangeMax: 100,
+    id: 'metric-net',
+    workspaceId: WS,
+    name: 'Revenue',
+    value: 50,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: 'metric-net', metricName: 'Revenue',
-    targetDate: '2028', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 500, pool: initialPool(500),
-    active: true, resolved: false, voided: false, proposalId: null,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: 'metric-net',
+    metricName: 'Revenue',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 500,
+    pool: initialPool(500),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
   });
 }
 
 function trade(body: Record<string, unknown>) {
-  return request(app).post('/api/predictions/trade')
-    .set('X-Test-Agent-Id', TRADER).set('X-Workspace-Id', WS)
+  return request(app)
+    .post('/api/predictions/trade')
+    .set('X-Test-Agent-Id', TRADER)
+    .set('X-Workspace-Id', WS)
     .set('Content-Type', 'application/json')
     .send({ marketId: MARKET, ...body });
 }
 
 async function pos(dir: 'higher' | 'lower'): Promise<number> {
-  const [row] = await db.select().from(positions)
+  const [row] = await db
+    .select()
+    .from(positions)
     .where(and(eq(positions.id, `${TRADER}_${MARKET}_${dir}`), eq(positions.workspaceId, WS)));
   return row?.shares ?? 0;
 }

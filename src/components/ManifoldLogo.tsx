@@ -4,7 +4,11 @@
  * pass color="currentColor" where it should follow the surrounding text.
  * stroke-width is bumped from the source's 0.6 so it reads at small sizes.
  */
-export function ManifoldLogo({ size = 18, color = '#4337C9', strokeWidth = 1.4 }: {
+export function ManifoldLogo({
+  size = 18,
+  color = '#4337C9',
+  strokeWidth = 1.4,
+}: {
   size?: number;
   color?: string;
   strokeWidth?: number;

@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
+import { join, resolve } from 'path';
 import { GUIDE_SECTIONS } from '../content/guides';
 import { GUIDE_CATEGORIES } from '../routes/guides';
-import { resolve, join } from 'path';
 
 /**
  * Static check of the /api/guides structure: every section is tagged with a
@@ -31,10 +31,15 @@ function parseAdvertisedSections(): { root: string[]; endpoint: string[] } {
   const src = readFileSync(APP_TS, 'utf8');
   const between = (haystack: string, start: string, end: string): string[] => {
     const from = haystack.indexOf(start);
-    if (from === -1) throw new Error(`app.ts: could not locate "${start}" -- the help catalog wording changed; update this test`);
+    if (from === -1)
+      throw new Error(`app.ts: could not locate "${start}" -- the help catalog wording changed; update this test`);
     const to = haystack.indexOf(end, from + start.length);
     if (to === -1) throw new Error(`app.ts: could not locate "${end}" after "${start}"`);
-    return haystack.slice(from + start.length, to).split(',').map(s => s.trim()).filter(Boolean);
+    return haystack
+      .slice(from + start.length, to)
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
   };
   return {
     root: between(src, 'markdown for a specific section (', ')'),
@@ -102,7 +107,9 @@ describe('/api/guides structure', () => {
     // baseline should stay tidy.
     const offenders = sections.filter(s => s.order % 10 !== 0);
     if (offenders.length > 0) {
-      throw new Error(`Order values that aren't multiples of 10 (consider re-spacing): ${offenders.map(s => `${s.id}:${s.order}`).join(', ')}`);
+      throw new Error(
+        `Order values that aren't multiples of 10 (consider re-spacing): ${offenders.map(s => `${s.id}:${s.order}`).join(', ')}`,
+      );
     }
   });
 

@@ -1,19 +1,24 @@
-import { db } from '../db/client';
-import { metrics, markets, metricLogs, updates } from '../db/schema';
-import { eq, and, asc, desc, lte } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
+import { and, asc, desc, eq, lte } from 'drizzle-orm';
+import { db } from '../db/client';
+import { markets, metricLogs, metrics, updates } from '../db/schema';
+import { AMM_DEFAULTS, consensus as ammConsensus } from '../lib/amm';
+import { periodEndInstant, toISOWeekString } from '../lib/date-utils';
+import { calculateMetricDepths, evaluateFormulaAtTime, recalculateMetrics } from '../lib/metrics-engine';
+import { desiredMarketDates, generatesMarkets, getLeafDescendantNames, sampleTimePoints } from '../lib/time-preference';
 import type { Metric, MetricLog, TimePreference, UpdateEntry } from '../types';
-import { recalculateMetrics, calculateMetricDepths, evaluateFormulaAtTime } from '../lib/metrics-engine';
-import { sampleTimePoints, getLeafDescendantNames, desiredMarketDates, generatesMarkets } from '../lib/time-preference';
-import { periodEndInstant } from '../lib/date-utils';
-import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
-import { toISOWeekString } from '../lib/date-utils';
 import { emitEvent } from './events';
 import { insertPendingMarkets, type PendingMarket } from './markets';
 
-export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number> = {}, untradedKeys: Set<string> = new Set()): Metric[] {
+export function enrichMetrics(
+  rawMetrics: Metric[],
+  consensusMap: Record<string, number> = {},
+  untradedKeys: Set<string> = new Set(),
+): Metric[] {
   const nameToFormula: Record<string, string> = {};
-  rawMetrics.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
+  rawMetrics.forEach(m => {
+    nameToFormula[m.name] = m.formula || '0';
+  });
 
   if (untradedKeys.size > 0) {
     // A leaf only counts as "missing markets" when one of its CURVE-desired
@@ -33,7 +38,9 @@ export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string,
     rawMetrics.forEach(m => {
       const isLeaf = !m.formula || m.formula.trim() === '0';
       const missing = isLeaf
-        ? (missingLeaves.has(m.name) ? [m.name] : [])
+        ? missingLeaves.has(m.name)
+          ? [m.name]
+          : []
         : getLeafDescendantNames(m.name, nameToFormula).filter(n => missingLeaves.has(n));
       if (missing.length > 0) m.missingMarkets = missing;
     });
@@ -49,7 +56,9 @@ export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string,
   const nameToTimeSeries: Record<string, Array<{ date: string; value: number }>> = {};
   const nameToInheritedHalfLife: Record<string, number> = {};
   const nameToFormulaLocal: Record<string, string> = {};
-  rawMetrics.forEach(m => { nameToFormulaLocal[m.name] = m.formula || '0'; });
+  rawMetrics.forEach(m => {
+    nameToFormulaLocal[m.name] = m.formula || '0';
+  });
 
   for (const tpMetric of rawMetrics) {
     if (!generatesMarkets(tpMetric.timePreference)) continue;
@@ -70,7 +79,11 @@ export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string,
         const refs = (nameToFormulaLocal[current] || '').match(/\{([^}]+)\}/g) ?? [];
         for (const ref of refs) {
           const name = ref.slice(1, -1).trim();
-          if (!visited.has(name)) { visited.add(name); descendants.add(name); queue.push(name); }
+          if (!visited.has(name)) {
+            visited.add(name);
+            descendants.add(name);
+            queue.push(name);
+          }
         }
       }
     }
@@ -118,12 +131,16 @@ export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string,
     if (nameToTimeSeries[m.name]) m.timeSeries = nameToTimeSeries[m.name];
     if (nameToInheritedHalfLife[m.name] !== undefined) m.inheritedHalfLife = nameToInheritedHalfLife[m.name];
   });
-  rawMetrics.sort((a, b) => a.depth !== b.depth ? a.depth - b.depth : (a.order || 999) - (b.order || 999));
+  rawMetrics.sort((a, b) => (a.depth !== b.depth ? a.depth - b.depth : (a.order || 999) - (b.order || 999)));
   return rawMetrics;
 }
 
-export async function buildConsensusMap(workspaceId: string): Promise<{ map: Record<string, number>; untradedKeys: Set<string> }> {
-  const openMarkets = await db.select().from(markets)
+export async function buildConsensusMap(
+  workspaceId: string,
+): Promise<{ map: Record<string, number>; untradedKeys: Set<string> }> {
+  const openMarkets = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
   if (openMarkets.length === 0) return { map: {}, untradedKeys: new Set() };
@@ -171,24 +188,32 @@ export async function buildConsensusMap(workspaceId: string): Promise<{ map: Rec
 
 export async function getAllMetrics(workspaceId: string): Promise<Metric[]> {
   const [rows, { map, untradedKeys }] = await Promise.all([
-    db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId)).orderBy(asc(metrics.order), asc(metrics.createdAt)),
+    db
+      .select()
+      .from(metrics)
+      .where(eq(metrics.workspaceId, workspaceId))
+      .orderBy(asc(metrics.order), asc(metrics.createdAt)),
     buildConsensusMap(workspaceId),
   ]);
-  return enrichMetrics(rows.map(row => ({
-    id: row.id,
-    name: row.name,
-    description: row.description || '',
-    value: row.value,
-    total: row.value,
-    formula: row.formula || '0',
-    order: row.order || 999,
-    depth: 0,
-    updatedAt: row.updatedAt?.toISOString(),
-    timePreference: generatesMarkets(row.timePreference as TimePreference | null)
-      ? row.timePreference as TimePreference
-      : undefined,
-    marketRangeMax: row.marketRangeMax ?? undefined,
-  })), map, untradedKeys);
+  return enrichMetrics(
+    rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description || '',
+      value: row.value,
+      total: row.value,
+      formula: row.formula || '0',
+      order: row.order || 999,
+      depth: 0,
+      updatedAt: row.updatedAt?.toISOString(),
+      timePreference: generatesMarkets(row.timePreference as TimePreference | null)
+        ? (row.timePreference as TimePreference)
+        : undefined,
+      marketRangeMax: row.marketRangeMax ?? undefined,
+    })),
+    map,
+    untradedKeys,
+  );
 }
 
 export async function getMetricById(id: string, workspaceId: string): Promise<Metric | null> {
@@ -229,7 +254,8 @@ export async function ensureMarketsForTimePreference(
 
   const targetDates = desiredMarketDates(tp);
 
-  const openMarkets = await db.select({ id: markets.id, metricId: markets.metricId, targetDate: markets.targetDate, active: markets.active })
+  const openMarkets = await db
+    .select({ id: markets.id, metricId: markets.metricId, targetDate: markets.targetDate, active: markets.active })
     .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
@@ -247,7 +273,9 @@ export async function ensureMarketsForTimePreference(
   }
   for (const m of inactiveToReactivate) {
     if (desiredKeys.has(`${m.metricId}:${m.targetDate}`)) {
-      await db.update(markets).set({ active: true })
+      await db
+        .update(markets)
+        .set({ active: true })
         .where(and(eq(markets.id, m.id), eq(markets.workspaceId, workspaceId)));
     }
   }
@@ -269,7 +297,11 @@ export async function ensureMarketsForTimePreference(
 
   await insertPendingMarkets(pending, workspaceId);
   for (const p of pending) {
-    await emitEvent('market:created', { marketId: p.marketId, metricName: p.metricName, targetDate: p.targetDate }, workspaceId);
+    await emitEvent(
+      'market:created',
+      { marketId: p.marketId, metricName: p.metricName, targetDate: p.targetDate },
+      workspaceId,
+    );
   }
 }
 
@@ -299,12 +331,16 @@ export async function deleteMetric(id: string, workspaceId: string): Promise<voi
  * live value and log the gap.
  */
 export async function metricValueAsOf(metricId: string, instant: Date, workspaceId: string): Promise<number | null> {
-  const [row] = await db.select().from(metricLogs)
-    .where(and(
-      eq(metricLogs.workspaceId, workspaceId),
-      eq(metricLogs.metricId, metricId),
-      lte(metricLogs.timestamp, instant),
-    ))
+  const [row] = await db
+    .select()
+    .from(metricLogs)
+    .where(
+      and(
+        eq(metricLogs.workspaceId, workspaceId),
+        eq(metricLogs.metricId, metricId),
+        lte(metricLogs.timestamp, instant),
+      ),
+    )
     .orderBy(desc(metricLogs.timestamp))
     .limit(1);
   if (!row) return null;
@@ -312,7 +348,9 @@ export async function metricValueAsOf(metricId: string, instant: Date, workspace
 }
 
 export async function getMetricLogs(metricId: string, workspaceId: string): Promise<MetricLog[]> {
-  const rows = await db.select().from(metricLogs)
+  const rows = await db
+    .select()
+    .from(metricLogs)
     .where(and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, metricId)))
     .orderBy(asc(metricLogs.timestamp));
   return rows.map(r => ({
@@ -325,9 +363,7 @@ export async function getMetricLogs(metricId: string, workspaceId: string): Prom
 }
 
 export async function getUpdates(limit: number | undefined, workspaceId: string): Promise<UpdateEntry[]> {
-  const query = db.select().from(updates)
-    .where(eq(updates.workspaceId, workspaceId))
-    .orderBy(desc(updates.timestamp));
+  const query = db.select().from(updates).where(eq(updates.workspaceId, workspaceId)).orderBy(desc(updates.timestamp));
   const rows = limit ? await query.limit(limit) : await query;
   return rows.map(r => ({
     metricName: r.metricName,
@@ -338,7 +374,11 @@ export async function getUpdates(limit: number | undefined, workspaceId: string)
   }));
 }
 
-export async function logSpecificMetrics(metricIds: string[], allMetrics: Metric[], workspaceId: string): Promise<void> {
+export async function logSpecificMetrics(
+  metricIds: string[],
+  allMetrics: Metric[],
+  workspaceId: string,
+): Promise<void> {
   // We log two numbers per row: `value` (what the user types into the "Now:"
   // editor for leaves; 0 for composites, since the PUT route zeroes value on
   // non-leaf rows) and `outlook` (m.total, the computed formula result or the
@@ -352,8 +392,13 @@ export async function logSpecificMetrics(metricIds: string[], allMetrics: Metric
     .map(id => allMetrics.find(m => m.id === id))
     .filter((m): m is Metric => m !== undefined)
     .map(m => ({
-      id: randomUUID(), workspaceId, metricId: m.id, metricName: m.name,
-      value: m.value, outlook: m.total ?? m.value, timestamp: new Date(),
+      id: randomUUID(),
+      workspaceId,
+      metricId: m.id,
+      metricName: m.name,
+      value: m.value,
+      outlook: m.total ?? m.value,
+      timestamp: new Date(),
     }));
 
   if (toInsert.length > 0) {
@@ -383,8 +428,12 @@ export function getStatus(allMetrics: Metric[]) {
 }
 
 /** Fetch all metric logs for a workspace in one query, grouped by metricId. */
-export async function getAllMetricLogsGrouped(workspaceId: string): Promise<Record<string, Array<{ value: number; outlook: number | null; timestamp: Date }>>> {
-  const rows = await db.select().from(metricLogs)
+export async function getAllMetricLogsGrouped(
+  workspaceId: string,
+): Promise<Record<string, Array<{ value: number; outlook: number | null; timestamp: Date }>>> {
+  const rows = await db
+    .select()
+    .from(metricLogs)
     .where(eq(metricLogs.workspaceId, workspaceId))
     .orderBy(asc(metricLogs.timestamp));
   const grouped: Record<string, Array<{ value: number; outlook: number | null; timestamp: Date }>> = {};

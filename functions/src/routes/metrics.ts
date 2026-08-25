@@ -1,395 +1,500 @@
+import { randomUUID } from 'crypto';
+import { and, asc, eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
-import { metrics, markets, updates, metricLogs, metricDefinitionRevisions } from '../db/schema';
-import { eq, and, sql, asc } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
+import { markets, metricDefinitionRevisions, metricLogs, metrics, updates } from '../db/schema';
+import { isValidCalendarDate, periodEndInstant } from '../lib/date-utils';
+import { assertMetricMarketsUntraded } from '../lib/market-freeze';
+import {
+  detectCircularDependency,
+  extractMetricReferences,
+  getAffectedMetrics,
+  getTransitiveDependencyNames,
+} from '../lib/metrics-engine';
+import { desiredMarketDates, generatesMarkets, getLeafDescendantNames } from '../lib/time-preference';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
-import {
-  getAffectedMetrics, extractMetricReferences, getTransitiveDependencyNames,
-  detectCircularDependency,
-} from '../lib/metrics-engine';
-import { getLeafDescendantNames, desiredMarketDates, generatesMarkets } from '../lib/time-preference';
-import { isValidCalendarDate, periodEndInstant } from '../lib/date-utils';
-import * as svc from '../services/metrics';
-import { voidOpenMarketsForMetrics } from '../services/markets';
-import { assertMetricMarketsUntraded } from '../lib/market-freeze';
 import { emitEvent } from '../services/events';
+import { voidOpenMarketsForMetrics } from '../services/markets';
+import * as svc from '../services/metrics';
 import type { TimePreference } from '../types';
 
 export const metricsRouter = Router();
 
-metricsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
-  res.json(await svc.getAllMetrics(req.auth!.workspaceId));
-}));
+metricsRouter.get(
+  '/',
+  requireCapability('read'),
+  wrap(async (req, res) => {
+    res.json(await svc.getAllMetrics(req.auth!.workspaceId));
+  }),
+);
 
-metricsRouter.get('/:id', requireCapability('read'), wrap(async (req, res) => {
-  const metric = await svc.getMetricById(req.params.id as string, req.auth!.workspaceId);
-  if (!metric) { res.status(404).json({ error: 'Metric not found' }); return; }
-  res.json(metric);
-}));
+metricsRouter.get(
+  '/:id',
+  requireCapability('read'),
+  wrap(async (req, res) => {
+    const metric = await svc.getMetricById(req.params.id as string, req.auth!.workspaceId);
+    if (!metric) {
+      res.status(404).json({ error: 'Metric not found' });
+      return;
+    }
+    res.json(metric);
+  }),
+);
 
-metricsRouter.get('/:id/logs', requireCapability('read'), wrap(async (req, res) => {
-  res.json(await svc.getMetricLogs(req.params.id as string, req.auth!.workspaceId));
-}));
+metricsRouter.get(
+  '/:id/logs',
+  requireCapability('read'),
+  wrap(async (req, res) => {
+    res.json(await svc.getMetricLogs(req.params.id as string, req.auth!.workspaceId));
+  }),
+);
 
 // Purge metric_logs. Useful as a one-off reset when the logging semantic
 // changes (e.g. we switched leaf logs from total → value). Body { metricId }
 // scopes the purge to one metric; omit to wipe every log in the workspace.
 // Returns { deleted: number }. Admin-only.
-metricsRouter.post('/logs/purge', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  const metricId = typeof req.body?.metricId === 'string' ? req.body.metricId : undefined;
-  const whereClause = metricId
-    ? and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, metricId))
-    : eq(metricLogs.workspaceId, workspaceId);
-  const result = await db.delete(metricLogs).where(whereClause);
-  res.json({ deleted: result.rowCount ?? 0, scope: metricId ? 'metric' : 'workspace' });
-}));
+metricsRouter.post(
+  '/logs/purge',
+  requireCapability('manage'),
+  wrap(async (req, res) => {
+    const { workspaceId } = req.auth!;
+    const metricId = typeof req.body?.metricId === 'string' ? req.body.metricId : undefined;
+    const whereClause = metricId
+      ? and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, metricId))
+      : eq(metricLogs.workspaceId, workspaceId);
+    const result = await db.delete(metricLogs).where(whereClause);
+    res.json({ deleted: result.rowCount ?? 0, scope: metricId ? 'metric' : 'workspace' });
+  }),
+);
 
-metricsRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  const { name, description = '', value = 0, formula = '0', timePreference, marketRangeMax, resetsEvery } = req.body;
-  if (!name) { res.status(400).json({ error: 'name is required' }); return; }
-  const resets = parseResetsEvery(resetsEvery);
-  if (resets instanceof Error) { res.status(400).json({ error: resets.message }); return; }
-  if (marketRangeMax !== undefined && (typeof marketRangeMax !== 'number' || marketRangeMax <= 0)) {
-    res.status(400).json({ error: 'marketRangeMax must be a positive number' }); return;
-  }
+metricsRouter.post(
+  '/',
+  requireCapability('manage'),
+  wrap(async (req, res) => {
+    const { workspaceId } = req.auth!;
+    const { name, description = '', value = 0, formula = '0', timePreference, marketRangeMax, resetsEvery } = req.body;
+    if (!name) {
+      res.status(400).json({ error: 'name is required' });
+      return;
+    }
+    const resets = parseResetsEvery(resetsEvery);
+    if (resets instanceof Error) {
+      res.status(400).json({ error: resets.message });
+      return;
+    }
+    if (marketRangeMax !== undefined && (typeof marketRangeMax !== 'number' || marketRangeMax <= 0)) {
+      res.status(400).json({ error: 'marketRangeMax must be a positive number' });
+      return;
+    }
 
-  const tp = parseTimePreference(timePreference);
-  if (tp instanceof Error) { res.status(400).json({ error: tp.message }); return; }
-  // Default TP to enabled (half-life 1 year) unless explicitly provided
-  const effectiveTP: TimePreference | null = tp !== undefined
-    ? storableTP(tp)
-    : { enabled: true, halfLife: 1 };
+    const tp = parseTimePreference(timePreference);
+    if (tp instanceof Error) {
+      res.status(400).json({ error: tp.message });
+      return;
+    }
+    // Default TP to enabled (half-life 1 year) unless explicitly provided
+    const effectiveTP: TimePreference | null = tp !== undefined ? storableTP(tp) : { enabled: true, halfLife: 1 };
 
-  const isLeaf = !formula || formula.trim() === '0';
-  if (marketRangeMax !== undefined && !isLeaf) {
-    res.status(400).json({ error: 'marketRangeMax can only be set on leaf metrics (no formula)' }); return;
-  }
+    const isLeaf = !formula || formula.trim() === '0';
+    if (marketRangeMax !== undefined && !isLeaf) {
+      res.status(400).json({ error: 'marketRangeMax can only be set on leaf metrics (no formula)' });
+      return;
+    }
 
-  const isDefinition = formula && formula.trim() !== '0';
-  const id = randomUUID();
+    const isDefinition = formula && formula.trim() !== '0';
+    const id = randomUUID();
 
-  await db.insert(metrics).values({
-    id, workspaceId, name,
-    value: isDefinition ? 0 : (value || 0),
-    formula, description, order: 999,
-    timePreference: effectiveTP,
-    marketRangeMax: marketRangeMax ?? 1000,
-    resetsEvery: resets ?? null,
-    createdAt: new Date(), updatedAt: new Date(),
-  });
+    await db.insert(metrics).values({
+      id,
+      workspaceId,
+      name,
+      value: isDefinition ? 0 : value || 0,
+      formula,
+      description,
+      order: 999,
+      timePreference: effectiveTP,
+      marketRangeMax: marketRangeMax ?? 1000,
+      resetsEvery: resets ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
-  const warnings: string[] = [];
+    const warnings: string[] = [];
 
-  // If ancestor already has TP, suppress this metric's curve (parent overrides).
-  // Custom horizons are explicit user choices and survive the demotion.
-  if (effectiveTP?.enabled) {
-    const ancestorConflict = await findTPAncestorConflict(id, workspaceId);
-    if (ancestorConflict) {
-      const demoted = storableTP({ ...effectiveTP, enabled: false });
-      await db.update(metrics).set({ timePreference: demoted, updatedAt: new Date() })
-        .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
-      if (demoted) await svc.ensureMarketsForTimePreference(id, demoted, workspaceId);
-    } else {
-      // Parent overrides: remove curve TP from descendants
-      const removed = await removeTPFromDescendants(name, workspaceId);
-      if (removed.length > 0) {
-        warnings.push(`Time preference removed from ${removed.join(', ')} (now covered by ${name})`);
+    // If ancestor already has TP, suppress this metric's curve (parent overrides).
+    // Custom horizons are explicit user choices and survive the demotion.
+    if (effectiveTP?.enabled) {
+      const ancestorConflict = await findTPAncestorConflict(id, workspaceId);
+      if (ancestorConflict) {
+        const demoted = storableTP({ ...effectiveTP, enabled: false });
+        await db
+          .update(metrics)
+          .set({ timePreference: demoted, updatedAt: new Date() })
+          .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
+        if (demoted) await svc.ensureMarketsForTimePreference(id, demoted, workspaceId);
+      } else {
+        // Parent overrides: remove curve TP from descendants
+        const removed = await removeTPFromDescendants(name, workspaceId);
+        if (removed.length > 0) {
+          warnings.push(`Time preference removed from ${removed.join(', ')} (now covered by ${name})`);
+        }
+        await svc.ensureMarketsForTimePreference(id, effectiveTP, workspaceId);
       }
+    } else if (generatesMarkets(effectiveTP)) {
+      // Custom horizons only, no curve: no ancestor conflict applies.
       await svc.ensureMarketsForTimePreference(id, effectiveTP, workspaceId);
     }
-  } else if (generatesMarkets(effectiveTP)) {
-    // Custom horizons only, no curve: no ancestor conflict applies.
-    await svc.ensureMarketsForTimePreference(id, effectiveTP, workspaceId);
-  }
 
-  const allMetrics = await svc.getAllMetrics(workspaceId);
-  await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
-
-  res.status(201).json({ ok: true, id, warnings });
-}));
-
-metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  const id = req.params.id as string;
-  const { oldValue, updateNote = '', timePreference: rawTP, resetsEvery: rawResets, ...fields } = req.body;
-
-  const newTP = parseTimePreference(rawTP);
-  if (newTP instanceof Error) { res.status(400).json({ error: newTP.message }); return; }
-  const newResets = parseResetsEvery(rawResets);
-  if (newResets instanceof Error) { res.status(400).json({ error: newResets.message }); return; }
-
-  if (fields.marketRangeMax !== undefined && (typeof fields.marketRangeMax !== 'number' || fields.marketRangeMax <= 0)) {
-    res.status(400).json({ error: 'marketRangeMax must be a positive number' }); return;
-  }
-  // marketRangeMax leaf-only check happens after oldRow is fetched (effectiveFormula needed)
-
-  const allowed = ['name', 'description', 'value', 'formula', 'marketRangeMax'] as const;
-  const update: Record<string, unknown> = {};
-  for (const key of allowed) {
-    if (fields[key] !== undefined) update[key] = fields[key];
-  }
-  if (Object.keys(update).length === 0 && rawTP === undefined && newResets === undefined) {
-    res.status(400).json({ error: 'No fields to update' }); return;
-  }
-
-  const [oldRow] = await db.select().from(metrics)
-    .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
-  if (!oldRow) { res.status(404).json({ error: 'Metric not found' }); return; }
-
-  const oldTP = (oldRow.timePreference as TimePreference | null) ?? undefined;
-
-  const effectiveFormula = (update.formula as string | undefined) ?? oldRow.formula ?? '0';
-  const effectiveName = (update.name as string | undefined) ?? oldRow.name;
-
-  const effectiveIsLeaf = !effectiveFormula || effectiveFormula.trim() === '0';
-  if (update.marketRangeMax !== undefined && !effectiveIsLeaf) {
-    res.status(400).json({ error: 'marketRangeMax can only be set on leaf metrics (no formula)' }); return;
-  }
-
-  if (update.formula) {
     const allMetrics = await svc.getAllMetrics(workspaceId);
-    if (detectCircularDependency(id, update.formula as string, allMetrics)) {
-      res.status(400).json({ error: 'This formula would create a circular dependency' }); return;
-    }
-  }
+    await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
 
-  const wasTPEnabled = oldTP?.enabled ?? false;
-  const isTPEnabled = newTP !== undefined ? (newTP?.enabled ?? false) : wasTPEnabled;
-  if (isTPEnabled && !wasTPEnabled) {
-    const ancestorConflict = await findTPAncestorConflict(id, workspaceId);
-    if (ancestorConflict) {
-      res.status(400).json({ error: `Cannot enable time preference: ancestor "${ancestorConflict}" already has time preference on this path` });
+    res.status(201).json({ ok: true, id, warnings });
+  }),
+);
+
+metricsRouter.put(
+  '/:id',
+  requireCapability('manage'),
+  wrap(async (req, res) => {
+    const { workspaceId } = req.auth!;
+    const id = req.params.id as string;
+    const { oldValue, updateNote = '', timePreference: rawTP, resetsEvery: rawResets, ...fields } = req.body;
+
+    const newTP = parseTimePreference(rawTP);
+    if (newTP instanceof Error) {
+      res.status(400).json({ error: newTP.message });
       return;
     }
-  }
-
-  if (effectiveFormula && effectiveFormula.trim() !== '0') update.value = 0;
-
-  if (rawTP !== undefined) {
-    update.timePreference = storableTP(newTP);
-  }
-  update.updatedAt = new Date();
-
-  const dbUpdate: Partial<typeof metrics.$inferInsert> = {};
-  if (update.name !== undefined) dbUpdate.name = update.name as string;
-  if (update.description !== undefined) dbUpdate.description = update.description as string;
-  if (update.value !== undefined) dbUpdate.value = update.value as number;
-  if (update.formula !== undefined) dbUpdate.formula = update.formula as string;
-  if (update.marketRangeMax !== undefined) dbUpdate.marketRangeMax = (update.marketRangeMax as number | null) ?? 1000;
-  if (update.timePreference !== undefined) dbUpdate.timePreference = update.timePreference as TimePreference | null;
-  if (newResets !== undefined) dbUpdate.resetsEvery = newResets;
-  dbUpdate.updatedAt = new Date();
-
-  const isLeafMetric = !effectiveFormula || effectiveFormula.trim() === '0';
-
-  // The machinery half of the definition (owner decision 2026-08-18): the
-  // formula that computes the number, and the range the price lives inside.
-  // A market stores its own rangeMin/rangeMax and prices inside them, so
-  // changing the metric's range while a market is open makes the floor's
-  // stated range and the traded range disagree with nothing on screen saying
-  // so. Rather than void-and-respawn (the old behaviour) or sync-and-hope,
-  // the edit is simply refused while a market is open. Nothing is destroyed
-  // and nothing silently diverges; get the range right before opening, or
-  // wait for the market to settle.
-  const settlementFields = settlementFieldChanges(oldRow, update, effectiveFormula);
-  if (settlementFields.length > 0) {
-    const [openMarket] = await db.select({ id: markets.id, targetDate: markets.targetDate })
-      .from(markets)
-      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)))
-      .limit(1);
-    if (openMarket) {
-      res.status(409).json({
-        error: `Cannot change ${settlementFields.join(' or ')} while a market on this metric is open: `
-          + 'that is what the open market settles on. Wait for it to resolve, or void it deliberately first.',
-        fields: settlementFields,
-        openMarketId: openMarket.id,
-        targetDate: openMarket.targetDate,
-      });
+    const newResets = parseResetsEvery(rawResets);
+    if (newResets instanceof Error) {
+      res.status(400).json({ error: newResets.message });
       return;
     }
-  }
 
-  await db.transaction(async tx => {
-    await tx.update(metrics).set(dbUpdate)
+    if (
+      fields.marketRangeMax !== undefined &&
+      (typeof fields.marketRangeMax !== 'number' || fields.marketRangeMax <= 0)
+    ) {
+      res.status(400).json({ error: 'marketRangeMax must be a positive number' });
+      return;
+    }
+    // marketRangeMax leaf-only check happens after oldRow is fetched (effectiveFormula needed)
+
+    const allowed = ['name', 'description', 'value', 'formula', 'marketRangeMax'] as const;
+    const update: Record<string, unknown> = {};
+    for (const key of allowed) {
+      if (fields[key] !== undefined) update[key] = fields[key];
+    }
+    if (Object.keys(update).length === 0 && rawTP === undefined && newResets === undefined) {
+      res.status(400).json({ error: 'No fields to update' });
+      return;
+    }
+
+    const [oldRow] = await db
+      .select()
+      .from(metrics)
+      .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
+    if (!oldRow) {
+      res.status(404).json({ error: 'Metric not found' });
+      return;
+    }
+
+    const oldTP = (oldRow.timePreference as TimePreference | null) ?? undefined;
+
+    const effectiveFormula = (update.formula as string | undefined) ?? oldRow.formula ?? '0';
+    const effectiveName = (update.name as string | undefined) ?? oldRow.name;
+
+    const effectiveIsLeaf = !effectiveFormula || effectiveFormula.trim() === '0';
+    if (update.marketRangeMax !== undefined && !effectiveIsLeaf) {
+      res.status(400).json({ error: 'marketRangeMax can only be set on leaf metrics (no formula)' });
+      return;
+    }
+
+    if (update.formula) {
+      const allMetrics = await svc.getAllMetrics(workspaceId);
+      if (detectCircularDependency(id, update.formula as string, allMetrics)) {
+        res.status(400).json({ error: 'This formula would create a circular dependency' });
+        return;
+      }
+    }
+
+    const wasTPEnabled = oldTP?.enabled ?? false;
+    const isTPEnabled = newTP !== undefined ? (newTP?.enabled ?? false) : wasTPEnabled;
+    if (isTPEnabled && !wasTPEnabled) {
+      const ancestorConflict = await findTPAncestorConflict(id, workspaceId);
+      if (ancestorConflict) {
+        res.status(400).json({
+          error: `Cannot enable time preference: ancestor "${ancestorConflict}" already has time preference on this path`,
+        });
+        return;
+      }
+    }
+
+    if (effectiveFormula && effectiveFormula.trim() !== '0') update.value = 0;
+
+    if (rawTP !== undefined) {
+      update.timePreference = storableTP(newTP);
+    }
+    update.updatedAt = new Date();
+
+    const dbUpdate: Partial<typeof metrics.$inferInsert> = {};
+    if (update.name !== undefined) dbUpdate.name = update.name as string;
+    if (update.description !== undefined) dbUpdate.description = update.description as string;
+    if (update.value !== undefined) dbUpdate.value = update.value as number;
+    if (update.formula !== undefined) dbUpdate.formula = update.formula as string;
+    if (update.marketRangeMax !== undefined) dbUpdate.marketRangeMax = (update.marketRangeMax as number | null) ?? 1000;
+    if (update.timePreference !== undefined) dbUpdate.timePreference = update.timePreference as TimePreference | null;
+    if (newResets !== undefined) dbUpdate.resetsEvery = newResets;
+    dbUpdate.updatedAt = new Date();
+
+    const isLeafMetric = !effectiveFormula || effectiveFormula.trim() === '0';
+
+    // The machinery half of the definition (owner decision 2026-08-18): the
+    // formula that computes the number, and the range the price lives inside.
+    // A market stores its own rangeMin/rangeMax and prices inside them, so
+    // changing the metric's range while a market is open makes the floor's
+    // stated range and the traded range disagree with nothing on screen saying
+    // so. Rather than void-and-respawn (the old behaviour) or sync-and-hope,
+    // the edit is simply refused while a market is open. Nothing is destroyed
+    // and nothing silently diverges; get the range right before opening, or
+    // wait for the market to settle.
+    const settlementFields = settlementFieldChanges(oldRow, update, effectiveFormula);
+    if (settlementFields.length > 0) {
+      const [openMarket] = await db
+        .select({ id: markets.id, targetDate: markets.targetDate })
+        .from(markets)
+        .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)))
+        .limit(1);
+      if (openMarket) {
+        res.status(409).json({
+          error:
+            `Cannot change ${settlementFields.join(' or ')} while a market on this metric is open: ` +
+            'that is what the open market settles on. Wait for it to resolve, or void it deliberately first.',
+          fields: settlementFields,
+          openMarketId: openMarket.id,
+          targetDate: openMarket.targetDate,
+        });
+        return;
+      }
+    }
+
+    await db.transaction(async tx => {
+      await tx
+        .update(metrics)
+        .set(dbUpdate)
+        .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
+
+      if (isLeafMetric && oldValue !== undefined && update.value !== undefined && oldValue !== update.value) {
+        await tx.insert(updates).values({
+          id: randomUUID(),
+          workspaceId,
+          metricName: effectiveName,
+          oldValue,
+          newValue: update.value as number,
+          description: updateNote || 'Value updated',
+          timestamp: new Date(),
+        });
+      }
+    });
+
+    const [updated] = await db
+      .select()
+      .from(metrics)
       .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
 
-    if (isLeafMetric && oldValue !== undefined && update.value !== undefined && oldValue !== update.value) {
-      await tx.insert(updates).values({
-        id: randomUUID(), workspaceId,
-        metricName: effectiveName, oldValue, newValue: update.value as number,
-        description: updateNote || 'Value updated', timestamp: new Date(),
-      });
+    // Parent overrides: remove TP from descendants when enabling TP
+    const warnings: string[] = [];
+    if (isTPEnabled && !wasTPEnabled) {
+      const removed = await removeTPFromDescendants(effectiveName, workspaceId);
+      if (removed.length > 0) {
+        warnings.push(`Time preference removed from ${removed.join(', ')} (now covered by ${effectiveName})`);
+      }
     }
-  });
 
-  const [updated] = await db.select().from(metrics)
-    .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
+    res.json({ ...updated, warnings });
 
-  // Parent overrides: remove TP from descendants when enabling TP
-  const warnings: string[] = [];
-  if (isTPEnabled && !wasTPEnabled) {
-    const removed = await removeTPFromDescendants(effectiveName, workspaceId);
-    if (removed.length > 0) {
-      warnings.push(`Time preference removed from ${removed.join(', ')} (now covered by ${effectiveName})`);
+    // The TP record in effect after this request (stored form, or unchanged old).
+    const effectiveTPRecord: TimePreference | null = rawTP !== undefined ? storableTP(newTP) : (oldTP ?? null);
+
+    // Unified reconcile: deactivate dates the old config wanted but the new one
+    // doesn't, then ensure the new desired set (creates missing markets and
+    // reactivates inactive-but-desired ones). Covers enable, disable, curve
+    // parameter changes, custom horizon edits, and explicit clear alike.
+    if (rawTP !== undefined) {
+      const oldDesired = generatesMarkets(oldTP) ? desiredMarketDates(oldTP) : [];
+      const newDesired = generatesMarkets(effectiveTPRecord)
+        ? new Set(desiredMarketDates(effectiveTPRecord))
+        : new Set<string>();
+      const staleDates = oldDesired.filter(d => !newDesired.has(d));
+      if (staleDates.length > 0) {
+        await deactivateLeafMarketsForTPMetric(id, staleDates, workspaceId);
+      }
+      if (generatesMarkets(effectiveTPRecord)) {
+        await svc.ensureMarketsForTimePreference(id, effectiveTPRecord, workspaceId);
+      }
     }
-  }
 
-  res.json({ ...updated, warnings });
-
-  // The TP record in effect after this request (stored form, or unchanged old).
-  const effectiveTPRecord: TimePreference | null = rawTP !== undefined
-    ? storableTP(newTP)
-    : (oldTP ?? null);
-
-  // Unified reconcile: deactivate dates the old config wanted but the new one
-  // doesn't, then ensure the new desired set (creates missing markets and
-  // reactivates inactive-but-desired ones). Covers enable, disable, curve
-  // parameter changes, custom horizon edits, and explicit clear alike.
-  if (rawTP !== undefined) {
-    const oldDesired = generatesMarkets(oldTP) ? desiredMarketDates(oldTP) : [];
-    const newDesired = generatesMarkets(effectiveTPRecord) ? new Set(desiredMarketDates(effectiveTPRecord)) : new Set<string>();
-    const staleDates = oldDesired.filter(d => !newDesired.has(d));
-    if (staleDates.length > 0) {
-      await deactivateLeafMarketsForTPMetric(id, staleDates, workspaceId);
+    // Editing a definition no longer voids the market it settles (owner
+    // direction 2026-08-18; governing doc docs/market-integrity.md).
+    //
+    // The old invariant was "a market may only exist while its metric's
+    // definition is unchanged", enforced by voiding every open market on ANY
+    // edit to name, description, formula or range, refunding every position and
+    // respawning fresh. That was defensible when nothing was at stake. With a
+    // prize season running it is the wrong trade: rewording one sentence
+    // destroyed a week of price discovery and every position in it, which made
+    // routine copy-editing a destructive act nobody could safely perform.
+    //
+    // What replaces it splits the four fields by what they actually are.
+    // `name` and `description` are words: nothing computes from them, so they
+    // are free to change and every change is written to the append-only
+    // revision log, rendered on the floor beside the definition. No code can
+    // tell a clarification from a redefinition, so the answer is disclosure,
+    // not prevention. `formula` and `marketRangeMax` are machinery, and they
+    // are refused above while a market is open rather than voided.
+    const textChanged = isTextDefinitionChange(oldRow, update);
+    if (textChanged) {
+      await recordDefinitionRevisions(id, workspaceId, oldRow, update, revisionAuthor(req));
     }
-    if (generatesMarkets(effectiveTPRecord)) {
-      await svc.ensureMarketsForTimePreference(id, effectiveTPRecord, workspaceId);
+
+    // Markets carry the metric's name denormalised (it is what the floor, the
+    // share image and every notification render), so a rename that no longer
+    // voids has to reach the open markets or they show the old name forever.
+    if (update.name !== undefined && update.name !== oldRow.name) {
+      await db
+        .update(markets)
+        .set({ metricName: update.name as string })
+        .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)));
     }
-  }
 
-  // Editing a definition no longer voids the market it settles (owner
-  // direction 2026-08-18; governing doc docs/market-integrity.md).
-  //
-  // The old invariant was "a market may only exist while its metric's
-  // definition is unchanged", enforced by voiding every open market on ANY
-  // edit to name, description, formula or range, refunding every position and
-  // respawning fresh. That was defensible when nothing was at stake. With a
-  // prize season running it is the wrong trade: rewording one sentence
-  // destroyed a week of price discovery and every position in it, which made
-  // routine copy-editing a destructive act nobody could safely perform.
-  //
-  // What replaces it splits the four fields by what they actually are.
-  // `name` and `description` are words: nothing computes from them, so they
-  // are free to change and every change is written to the append-only
-  // revision log, rendered on the floor beside the definition. No code can
-  // tell a clarification from a redefinition, so the answer is disclosure,
-  // not prevention. `formula` and `marketRangeMax` are machinery, and they
-  // are refused above while a market is open rather than voided.
-  const textChanged = isTextDefinitionChange(oldRow, update);
-  if (textChanged) {
-    await recordDefinitionRevisions(id, workspaceId, oldRow, update, revisionAuthor(req));
-  }
-
-  // Markets carry the metric's name denormalised (it is what the floor, the
-  // share image and every notification render), so a rename that no longer
-  // voids has to reach the open markets or they show the old name forever.
-  if (update.name !== undefined && update.name !== oldRow.name) {
-    await db.update(markets)
-      .set({ metricName: update.name as string })
-      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)));
-  }
-
-  const allMetrics = await svc.getAllMetrics(workspaceId);
-  // A reading is logged only when this update actually moved the number: a new
-  // value, or a formula whose result changes. A rename, a description, a range
-  // or a time-preference edit is not a measurement, and logging one fabricates
-  // history: renaming the weekly LookPilot metric on a Monday morning stamped
-  // last week's $1,179.72 total as a reading inside the new week, which is
-  // exactly what the resetsEvery rule exists to keep off the chart
-  // (2026-08-17).
-  if (update.value !== undefined || update.formula !== undefined) {
-    await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
-  }
-  if (update.value !== undefined) {
-    const metric = allMetrics.find(m => m.id === id);
-    if (!metric) { console.error(`emitEvent: metric ${id} not found after update`); }
-    else emitEvent('metric:updated', { metricId: id, metricName: metric.name, oldValue: oldValue ?? null, newValue: update.value }, workspaceId)
-      .catch(e => console.error('emitEvent failed:', e));
-  }
-}));
-
-metricsRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  const id = req.params.id as string;
-  const [row] = await db.select().from(metrics)
-    .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
-  if (!row) { res.status(404).json({ error: 'Metric not found' }); return; }
-
-  // Deleting the metric voids its open markets, so it is refused for the same
-  // reason the void endpoint is: it takes money off whoever put it in
-  // (docs/market-integrity.md).
-  await assertMetricMarketsUntraded(id, workspaceId);
-
-  const tpAncestorIds = await findTPAncestors(id, workspaceId);
-  await svc.deleteMetric(id, workspaceId);
-  res.status(204).send();
-
-  // The deleted metric's definition no longer exists, so any open markets for it must be
-  // voided (refunding each participant the net cash still at stake). Descendant markets under a deleted non-leaf TP metric are
-  // handled separately: their own definitions are unchanged, so they stay open and close
-  // naturally via the daily refresh, resolving against the descendant's live value.
-  await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
-
-  const tp = row.timePreference as TimePreference | null;
-  if (!tp?.enabled) {
-    for (const tpId of tpAncestorIds) {
-      const [tpRow] = await db.select({ timePreference: metrics.timePreference }).from(metrics)
-        .where(and(eq(metrics.id, tpId), eq(metrics.workspaceId, workspaceId)));
-      const tpRecord = tpRow?.timePreference as TimePreference | null;
-      if (generatesMarkets(tpRecord)) await svc.respawnMarketsForTimePreference(tpId, tpRecord, workspaceId);
+    const allMetrics = await svc.getAllMetrics(workspaceId);
+    // A reading is logged only when this update actually moved the number: a new
+    // value, or a formula whose result changes. A rename, a description, a range
+    // or a time-preference edit is not a measurement, and logging one fabricates
+    // history: renaming the weekly LookPilot metric on a Monday morning stamped
+    // last week's $1,179.72 total as a reading inside the new week, which is
+    // exactly what the resetsEvery rule exists to keep off the chart
+    // (2026-08-17).
+    if (update.value !== undefined || update.formula !== undefined) {
+      await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
     }
-  }
-}));
+    if (update.value !== undefined) {
+      const metric = allMetrics.find(m => m.id === id);
+      if (!metric) {
+        console.error(`emitEvent: metric ${id} not found after update`);
+      } else
+        emitEvent(
+          'metric:updated',
+          { metricId: id, metricName: metric.name, oldValue: oldValue ?? null, newValue: update.value },
+          workspaceId,
+        ).catch(e => console.error('emitEvent failed:', e));
+    }
+  }),
+);
+
+metricsRouter.delete(
+  '/:id',
+  requireCapability('manage'),
+  wrap(async (req, res) => {
+    const { workspaceId } = req.auth!;
+    const id = req.params.id as string;
+    const [row] = await db
+      .select()
+      .from(metrics)
+      .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
+    if (!row) {
+      res.status(404).json({ error: 'Metric not found' });
+      return;
+    }
+
+    // Deleting the metric voids its open markets, so it is refused for the same
+    // reason the void endpoint is: it takes money off whoever put it in
+    // (docs/market-integrity.md).
+    await assertMetricMarketsUntraded(id, workspaceId);
+
+    const tpAncestorIds = await findTPAncestors(id, workspaceId);
+    await svc.deleteMetric(id, workspaceId);
+    res.status(204).send();
+
+    // The deleted metric's definition no longer exists, so any open markets for it must be
+    // voided (refunding each participant the net cash still at stake). Descendant markets under a deleted non-leaf TP metric are
+    // handled separately: their own definitions are unchanged, so they stay open and close
+    // naturally via the daily refresh, resolving against the descendant's live value.
+    await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
+
+    const tp = row.timePreference as TimePreference | null;
+    if (!tp?.enabled) {
+      for (const tpId of tpAncestorIds) {
+        const [tpRow] = await db
+          .select({ timePreference: metrics.timePreference })
+          .from(metrics)
+          .where(and(eq(metrics.id, tpId), eq(metrics.workspaceId, workspaceId)));
+        const tpRecord = tpRow?.timePreference as TimePreference | null;
+        if (generatesMarkets(tpRecord)) await svc.respawnMarketsForTimePreference(tpId, tpRecord, workspaceId);
+      }
+    }
+  }),
+);
 
 // Reorder metrics within their depth level. Body: { ids: string[] } — an
 // ordered list of metric ids belonging to the same depth. The metric at index 0
 // gets `order = 0`, index 1 gets `order = 1`, etc. Ids that don't belong to the
 // workspace are ignored. Returns { updated: number }. Admin-only because order
 // is a workspace-level setting, not a per-participant view.
-metricsRouter.post('/reorder', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  const ids = req.body?.ids;
-  if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string')) {
-    res.status(400).json({ error: 'ids must be an array of metric id strings' });
-    return;
-  }
-  if (ids.length === 0) { res.json({ updated: 0 }); return; }
-
-  const rows = await db.select({ id: metrics.id }).from(metrics)
-    .where(eq(metrics.workspaceId, workspaceId));
-  const known = new Set(rows.map(r => r.id));
-  const filtered = ids.filter(id => known.has(id));
-
-  // 1-based: existing sort sites use `order || 999`, so order=0 would silently
-  // sort to the bottom. Index from 1 to dodge that legacy falsy-zero trap.
-  await db.transaction(async tx => {
-    for (let i = 0; i < filtered.length; i++) {
-      await tx.update(metrics)
-        .set({ order: i + 1, updatedAt: new Date() })
-        .where(and(eq(metrics.id, filtered[i]), eq(metrics.workspaceId, workspaceId)));
+metricsRouter.post(
+  '/reorder',
+  requireCapability('manage'),
+  wrap(async (req, res) => {
+    const { workspaceId } = req.auth!;
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string')) {
+      res.status(400).json({ error: 'ids must be an array of metric id strings' });
+      return;
     }
-  });
-
-  res.json({ updated: filtered.length });
-}));
-
-metricsRouter.post('/migrate-leaf-types', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  const rows = await db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId));
-  let updated = 0;
-  for (const row of rows) {
-    if ((row.formula ?? '0').trim() !== '0' && row.value !== 0) {
-      await db.update(metrics).set({ value: 0 })
-        .where(and(eq(metrics.id, row.id), eq(metrics.workspaceId, workspaceId)));
-      updated++;
+    if (ids.length === 0) {
+      res.json({ updated: 0 });
+      return;
     }
-  }
-  res.json({ updated });
-}));
+
+    const rows = await db.select({ id: metrics.id }).from(metrics).where(eq(metrics.workspaceId, workspaceId));
+    const known = new Set(rows.map(r => r.id));
+    const filtered = ids.filter(id => known.has(id));
+
+    // 1-based: existing sort sites use `order || 999`, so order=0 would silently
+    // sort to the bottom. Index from 1 to dodge that legacy falsy-zero trap.
+    await db.transaction(async tx => {
+      for (let i = 0; i < filtered.length; i++) {
+        await tx
+          .update(metrics)
+          .set({ order: i + 1, updatedAt: new Date() })
+          .where(and(eq(metrics.id, filtered[i]), eq(metrics.workspaceId, workspaceId)));
+      }
+    });
+
+    res.json({ updated: filtered.length });
+  }),
+);
+
+metricsRouter.post(
+  '/migrate-leaf-types',
+  requireCapability('manage'),
+  wrap(async (req, res) => {
+    const { workspaceId } = req.auth!;
+    const rows = await db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId));
+    let updated = 0;
+    for (const row of rows) {
+      if ((row.formula ?? '0').trim() !== '0' && row.value !== 0) {
+        await db
+          .update(metrics)
+          .set({ value: 0 })
+          .where(and(eq(metrics.id, row.id), eq(metrics.workspaceId, workspaceId)));
+        updated++;
+      }
+    }
+    res.json({ updated });
+  }),
+);
 
 // --- Helpers ---
 
@@ -401,7 +506,7 @@ const MAX_CUSTOM_HORIZONS = 24;
  * Exported so the frontend picker and the tests read the same list.
  */
 export const RESET_PERIODS = ['hour', 'day', 'week', 'month', 'year'] as const;
-export type ResetPeriod = typeof RESET_PERIODS[number];
+export type ResetPeriod = (typeof RESET_PERIODS)[number];
 
 /** `undefined` = field absent (no change); `null` = declared non-resetting. */
 export function parseResetsEvery(raw: unknown): ResetPeriod | null | undefined | Error {
@@ -460,7 +565,9 @@ export function parseTimePreference(raw: unknown): TimePreference | null | undef
       // all and falls to the format error below.
       if (!RELATIVE_HORIZON_RE.test(entry)) {
         if (!isValidCalendarDate(entry)) {
-          return new Error(`invalid custom horizon "${entry}": use +Nh / +Nd / +Nw / +Nm / +Ny or YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH (UTC)`);
+          return new Error(
+            `invalid custom horizon "${entry}": use +Nh / +Nd / +Nw / +Nm / +Ny or YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH (UTC)`,
+          );
         }
         if (periodEndInstant(entry) <= now) continue; // expired absolute: prune, don't reject
       }
@@ -482,7 +589,7 @@ export function parseTimePreference(raw: unknown): TimePreference | null | undef
 /** Storage rule: a TP record is kept only when it can generate markets later. */
 function storableTP(tp: TimePreference | null | undefined): TimePreference | null {
   if (!tp) return null;
-  return (tp.enabled || (tp.customHorizons?.length ?? 0) > 0) ? tp : null;
+  return tp.enabled || (tp.customHorizons?.length ?? 0) > 0 ? tp : null;
 }
 
 /**
@@ -492,10 +599,7 @@ function storableTP(tp: TimePreference | null | undefined): TimePreference | nul
  * told the market means, which is why every change to them is logged rather
  * than blocked (docs/market-integrity.md).
  */
-function isTextDefinitionChange(
-  oldRow: typeof metrics.$inferSelect,
-  update: Record<string, unknown>,
-): boolean {
+function isTextDefinitionChange(oldRow: typeof metrics.$inferSelect, update: Record<string, unknown>): boolean {
   if (update.name !== undefined && update.name !== oldRow.name) return true;
   if (update.description !== undefined && update.description !== oldRow.description) return true;
   return false;
@@ -517,7 +621,8 @@ function settlementFieldChanges(
 ): string[] {
   const changed: string[] = [];
   if (update.formula !== undefined && update.formula !== (oldRow.formula ?? '0')) changed.push('the formula');
-  if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldRow.marketRangeMax) changed.push('the market range');
+  if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldRow.marketRangeMax)
+    changed.push('the market range');
   const isLeaf = !effectiveFormula || effectiveFormula.trim() === '0';
   if (!isLeaf && update.value !== undefined && update.value !== oldRow.value) changed.push('the computed value');
   return changed;
@@ -547,8 +652,13 @@ async function recordDefinitionRevisions(
   const consider = (field: 'name' | 'description', oldValue: string | null) => {
     if (update[field] === undefined || update[field] === oldValue) return;
     rows.push({
-      id: randomUUID(), workspaceId, metricId, field,
-      oldValue, newValue: (update[field] as string | null) ?? null, changedBy,
+      id: randomUUID(),
+      workspaceId,
+      metricId,
+      field,
+      oldValue,
+      newValue: (update[field] as string | null) ?? null,
+      changedBy,
     });
   };
   consider('name', oldRow.name);
@@ -557,7 +667,11 @@ async function recordDefinitionRevisions(
 }
 
 async function getAllMetricRows(workspaceId: string) {
-  return db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId)).orderBy(asc(metrics.order), asc(metrics.createdAt));
+  return db
+    .select()
+    .from(metrics)
+    .where(eq(metrics.workspaceId, workspaceId))
+    .orderBy(asc(metrics.order), asc(metrics.createdAt));
 }
 
 async function findTPAncestors(metricId: string, workspaceId: string): Promise<string[]> {
@@ -619,7 +733,9 @@ async function removeTPFromDescendants(metricName: string, workspaceId: string):
     const tp = row?.timePreference as TimePreference | null;
     if (tp?.enabled) {
       const demoted = storableTP({ ...tp, enabled: false });
-      await db.update(metrics).set({ timePreference: demoted, updatedAt: new Date() })
+      await db
+        .update(metrics)
+        .set({ timePreference: demoted, updatedAt: new Date() })
         .where(and(eq(metrics.id, row!.id), eq(metrics.workspaceId, workspaceId)));
       const oldDesired = desiredMarketDates(tp);
       const keep = new Set(demoted ? desiredMarketDates(demoted) : []);
@@ -633,7 +749,11 @@ async function removeTPFromDescendants(metricName: string, workspaceId: string):
 }
 
 /** Deactivate open markets at the given target dates on the TP metric's leaves. */
-async function deactivateLeafMarketsForTPMetric(tpMetricId: string, staleDates: string[], workspaceId: string): Promise<void> {
+async function deactivateLeafMarketsForTPMetric(
+  tpMetricId: string,
+  staleDates: string[],
+  workspaceId: string,
+): Promise<void> {
   if (staleDates.length === 0) return;
   const rows = await getAllMetricRows(workspaceId);
   const nameToFormula: Record<string, string> = {};
@@ -659,12 +779,16 @@ async function deactivateLeafMarketsForTPMetric(tpMetricId: string, staleDates: 
   const leafIds = new Set(leafNames.map(n => nameToId.get(n)).filter(Boolean) as string[]);
   const staleSet = new Set(staleDates);
 
-  const openMarkets = await db.select().from(markets)
+  const openMarkets = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
   for (const m of openMarkets) {
     if (leafIds.has(m.metricId) && staleSet.has(m.targetDate) && m.active !== false) {
-      await db.update(markets).set({ active: false })
+      await db
+        .update(markets)
+        .set({ active: false })
         .where(and(eq(markets.id, m.id), eq(markets.workspaceId, workspaceId)));
     }
   }

@@ -14,16 +14,7 @@
  *   5. For resolved markets, pnlMetric uses actual resolution payouts
  */
 
-import {
-  directionTradeCost,
-  directionSellProceeds,
-  sharesForBudget,
-  betTowardsValue,
-  resolutionPayouts,
-  consensus,
-  pHigher,
-  initialPool,
-} from '../lib/amm';
+import { consensus, directionSellProceeds, resolutionPayouts, sharesForBudget } from '../lib/amm';
 
 const B = 100; // liquidity parameter
 const RANGE_MIN = 0;
@@ -165,7 +156,7 @@ describe('PnL at metric value (resolution payout)', () => {
   test('higher bet profits when metric resolves above consensus', () => {
     const { newShares, agentShares, cost } = simulateBuy([0, 0], 1, 20, B);
     const netCash = -cost;
-    const currentConsensus = consensus(newShares, B, RANGE_MIN, RANGE_MAX)!;
+    const _currentConsensus = consensus(newShares, B, RANGE_MIN, RANGE_MAX)!;
 
     // Metric resolves well above consensus
     const pnl = computePnlMetric(netCash, agentShares, 0, RANGE_MAX, RANGE_MIN, RANGE_MAX);
@@ -233,15 +224,11 @@ describe('Voided market PnL exclusion (the bot-anchor bug)', () => {
     expect(Math.abs(wrongNetCash)).toBeGreaterThan(Math.abs(correctNetCash) * 3);
 
     // Correct PnL should be near zero for a fresh position
-    const correctPnl = computePnlConsensus(
-      correctNetCash, liveMarket.newShares, liveMarket.agentShares, 0, B,
-    );
+    const correctPnl = computePnlConsensus(correctNetCash, liveMarket.newShares, liveMarket.agentShares, 0, B);
     expect(Math.abs(correctPnl)).toBeLessThan(0.5);
 
     // Wrong PnL would show a massive phantom loss
-    const wrongPnl = computePnlConsensus(
-      wrongNetCash, liveMarket.newShares, liveMarket.agentShares, 0, B,
-    );
+    const wrongPnl = computePnlConsensus(wrongNetCash, liveMarket.newShares, liveMarket.agentShares, 0, B);
     expect(Math.abs(wrongPnl)).toBeGreaterThan(40);
   });
 
@@ -294,10 +281,7 @@ describe('Liquidity injection does not break PnL', () => {
     const newPool = oldPool + amount;
     const b2 = newPool / Math.LN2;
     const bRatio = b2 / b1;
-    const shares2: [number, number] = [
-      buy1.newShares[0] * bRatio,
-      buy1.newShares[1] * bRatio,
-    ];
+    const shares2: [number, number] = [buy1.newShares[0] * bRatio, buy1.newShares[1] * bRatio];
 
     // Agent's position shares are NOT scaled (only market shares are)
     const agentShares = buy1.agentShares;

@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { TopUpCreditsInstructions, type DepositAddressInfo } from './TopUpCreditsInstructions';
+import { type DepositAddressInfo, TopUpCreditsInstructions } from './TopUpCreditsInstructions';
 
 /**
  * Money in and money out, in the account dialog's own language.
@@ -36,17 +36,24 @@ export function AccountCredits({ me, onChanged }: { me: CreditsAccount | null; o
   useEffect(() => {
     void (async () => {
       const [status, dep] = await Promise.all([
-        api.getStatus().catch(e => { console.error('status fetch failed:', e); return null; }),
+        api.getStatus().catch(e => {
+          console.error('status fetch failed:', e);
+          return null;
+        }),
         api.getDepositAddress().catch(() => null),
       ]);
       setEnabled(Boolean((status as { usdcSettlementEnabled?: boolean } | null)?.usdcSettlementEnabled));
-      setDeposit(dep?.address && dep.usdcContract
-        ? { address: dep.address, usdcContract: dep.usdcContract, chain: dep.chain, asset: dep.asset }
-        : null);
+      setDeposit(
+        dep?.address && dep.usdcContract
+          ? { address: dep.address, usdcContract: dep.usdcContract, chain: dep.chain, asset: dep.asset }
+          : null,
+      );
     })();
   }, []);
 
-  useEffect(() => { if (me?.walletAddress) setWallet(me.walletAddress); }, [me?.walletAddress]);
+  useEffect(() => {
+    if (me?.walletAddress) setWallet(me.walletAddress);
+  }, [me?.walletAddress]);
 
   const run = async (key: string, fn: () => Promise<string>) => {
     setBusy(key);
@@ -66,7 +73,7 @@ export function AccountCredits({ me, onChanged }: { me: CreditsAccount | null; o
   const onDeposit = (e: FormEvent) => {
     e.preventDefault();
     void run('deposit', async () => {
-      const r = await api.depositForMe(txHash.trim()) as { credits: number };
+      const r = (await api.depositForMe(txHash.trim())) as { credits: number };
       setTxHash('');
       return `Deposited ${r.credits} credits.`;
     });
@@ -77,7 +84,7 @@ export function AccountCredits({ me, onChanged }: { me: CreditsAccount | null; o
     const value = parseFloat(amount);
     if (isNaN(value) || value <= 0) return;
     void run('withdraw', async () => {
-      const r = await api.withdrawFromMe(value) as { usdcAmount: number; txHash: string };
+      const r = (await api.withdrawFromMe(value)) as { usdcAmount: number; txHash: string };
       setAmount('');
       return `Withdrew ${r.usdcAmount} USDC. Tx ${r.txHash}`;
     });

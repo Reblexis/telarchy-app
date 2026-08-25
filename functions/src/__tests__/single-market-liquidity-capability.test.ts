@@ -23,7 +23,12 @@ jest.mock('../middleware/auth', () => {
       req.auth = {
         agentId: req.headers['x-test-agent-id'],
         workspaceId: req.headers['x-workspace-id'],
-        capabilities: new Set(capsHeader.split(',').map((c: string) => c.trim()).filter(Boolean)),
+        capabilities: new Set(
+          capsHeader
+            .split(',')
+            .map((c: string) => c.trim())
+            .filter(Boolean),
+        ),
       };
       next();
     },
@@ -31,19 +36,19 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
+import { eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agents, markets, metrics, permissionGroups } from '../db/schema';
+import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { fromUnits, toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics, permissionGroups } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
-import { initialPool } from '../lib/amm';
-import { toUnits, fromUnits } from '../lib/validation';
 import { predictionsRouter } from '../routes/predictions';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -55,8 +60,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message, ...extra });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-liq-single';
 const OWNER = 'agent-owner';
@@ -76,27 +85,50 @@ async function seed() {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Liquidity Single Test', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'private',
+    wsId: WS,
+    name: 'Liquidity Single Test',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'private',
   });
 
-  const traderGroup = (await db.select().from(permissionGroups)
-    .where(eq(permissionGroups.workspaceId, WS))).find(g => g.type === 'trader')!;
-  await db.update(permissionGroups).set({ memberIds: [TRADER, MEMBER] })
+  const traderGroup = (await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS))).find(
+    g => g.type === 'trader',
+  )!;
+  await db
+    .update(permissionGroups)
+    .set({ memberIds: [TRADER, MEMBER] })
     .where(eq(permissionGroups.id, traderGroup.id));
 
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Throughput', value: 0, formula: '0', marketRangeMax: 100,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Throughput',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Throughput',
-    targetDate: '2028', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 10, pool: initialPool(10),
-    active: true, resolved: false, voided: false, proposalId: null,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: METRIC,
+    metricName: 'Throughput',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 10,
+    pool: initialPool(10),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
   });
 }
 
 function inject(callerId: string, caps: string, body: Record<string, unknown>) {
-  return request(app).post(`/api/predictions/markets/${MARKET}/liquidity`)
+  return request(app)
+    .post(`/api/predictions/markets/${MARKET}/liquidity`)
     .set('X-Test-Agent-Id', callerId)
     .set('X-Test-Caps', caps)
     .set('X-Workspace-Id', WS)
@@ -119,7 +151,7 @@ describe('single-market liquidity capability gating', () => {
     expect(fromUnits(trader.balance as number)).toBeCloseTo(START_CREDITS - 5, 6);
   });
 
-  test('a trade-only participant cannot fund another participant\'s balance', async () => {
+  test("a trade-only participant cannot fund another participant's balance", async () => {
     await seed();
 
     const res = await inject(TRADER, 'read,trade', { amount: 5, agentId: MEMBER });
@@ -133,7 +165,7 @@ describe('single-market liquidity capability gating', () => {
     expect(fromUnits(member.balance as number)).toBeCloseTo(START_CREDITS, 6);
   });
 
-  test('a manager can fund another member\'s balance', async () => {
+  test("a manager can fund another member's balance", async () => {
     await seed();
 
     const res = await inject(OWNER, 'read,trade,manage', { amount: 5, agentId: MEMBER });

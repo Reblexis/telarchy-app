@@ -1,13 +1,13 @@
+import { directionSellProceeds } from '../lib/amm';
 import {
   computeCalibrationStats,
   computeLeaderboard,
   computeTradingProfit,
-  voidedStakeKey,
   type LeaderboardMarket,
   type LeaderboardPosition,
   type LeaderboardTrade,
+  voidedStakeKey,
 } from '../lib/leaderboard';
-import { directionSellProceeds } from '../lib/amm';
 
 const m = (overrides: Partial<LeaderboardMarket>): LeaderboardMarket => ({
   id: 'mkt',
@@ -89,10 +89,7 @@ describe('computeLeaderboard', () => {
     const result = computeLeaderboard(
       [m({ resolved: true, actualValue: 500 })],
       [t({ agentId: 'h' }), t({ agentId: 'l' })],
-      [
-        p({ agentId: 'h', direction: 'higher', shares: 8 }),
-        p({ agentId: 'l', direction: 'lower', shares: 8 }),
-      ],
+      [p({ agentId: 'h', direction: 'higher', shares: 8 }), p({ agentId: 'l', direction: 'lower', shares: 8 })],
       new Map(),
       100,
     );
@@ -108,18 +105,9 @@ describe('computeLeaderboard', () => {
     //   market B (resolves at 0 -> higher factor 0.0): 30 higher shares
     // Weighted mean: (10*1 + 30*0) / 40 = 0.25
     const result = computeLeaderboard(
-      [
-        m({ id: 'A', resolved: true, actualValue: 1000 }),
-        m({ id: 'B', resolved: true, actualValue: 0 }),
-      ],
-      [
-        t({ marketId: 'A', cost: 5 }),
-        t({ marketId: 'B', cost: 12 }),
-      ],
-      [
-        p({ marketId: 'A', direction: 'higher', shares: 10 }),
-        p({ marketId: 'B', direction: 'higher', shares: 30 }),
-      ],
+      [m({ id: 'A', resolved: true, actualValue: 1000 }), m({ id: 'B', resolved: true, actualValue: 0 })],
+      [t({ marketId: 'A', cost: 5 }), t({ marketId: 'B', cost: 12 })],
+      [p({ marketId: 'A', direction: 'higher', shares: 10 }), p({ marketId: 'B', direction: 'higher', shares: 30 })],
       new Map(),
       100,
     );
@@ -137,15 +125,12 @@ describe('computeLeaderboard', () => {
     // Sort must put bravo first because earnings is primary.
     const result = computeLeaderboard(
       [
-        m({ id: 'A', resolved: true, actualValue: 1000 }),  // resolves at max
-        m({ id: 'B', resolved: true, actualValue: 750 }),   // resolves mid
+        m({ id: 'A', resolved: true, actualValue: 1000 }), // resolves at max
+        m({ id: 'B', resolved: true, actualValue: 750 }), // resolves mid
       ],
+      [t({ agentId: 'alpha', marketId: 'A', cost: 1 }), t({ agentId: 'bravo', marketId: 'B', cost: 10 })],
       [
-        t({ agentId: 'alpha', marketId: 'A', cost: 1 }),
-        t({ agentId: 'bravo', marketId: 'B', cost: 10 }),
-      ],
-      [
-        p({ agentId: 'alpha', marketId: 'A', direction: 'higher', shares: 1 }),  // factor 1, payout 1, pnl 0
+        p({ agentId: 'alpha', marketId: 'A', direction: 'higher', shares: 1 }), // factor 1, payout 1, pnl 0
         p({ agentId: 'bravo', marketId: 'B', direction: 'higher', shares: 100 }), // factor 0.75, payout 75, pnl 65
       ],
       new Map(),
@@ -160,10 +145,7 @@ describe('computeLeaderboard', () => {
 
   test('ranks identical-calibration participants by earnings desc', () => {
     const result = computeLeaderboard(
-      [
-        m({ id: 'B', resolved: true, actualValue: 750 }),
-        m({ id: 'C', resolved: true, actualValue: 750 }),
-      ],
+      [m({ id: 'B', resolved: true, actualValue: 750 }), m({ id: 'C', resolved: true, actualValue: 750 })],
       [
         t({ agentId: 'beta', marketId: 'B', cost: 1 }),
         t({ agentId: 'gamma', marketId: 'B', cost: 1 }),
@@ -184,10 +166,7 @@ describe('computeLeaderboard', () => {
 
   test('unranked participants follow ranked ones, sorted by lastTradeAt desc', () => {
     const result = computeLeaderboard(
-      [
-        m({ id: 'R', resolved: true, actualValue: 1000 }),
-        m({ id: 'O', resolved: false }),
-      ],
+      [m({ id: 'R', resolved: true, actualValue: 1000 }), m({ id: 'O', resolved: false })],
       [
         // ranked: has a resolved position
         t({ agentId: 'ranked', marketId: 'R', cost: 1, createdAt: new Date('2026-01-01T00:00:00Z') }),
@@ -270,10 +249,7 @@ import { computeLeaderboardFromAggregates } from '../lib/leaderboard';
 
 describe('computeLeaderboardFromAggregates', () => {
   test('matches computeLeaderboard on the same underlying data', () => {
-    const markets = [
-      m({ id: 'm1', resolved: true, actualValue: 800 }),
-      m({ id: 'm2' }),
-    ];
+    const markets = [m({ id: 'm1', resolved: true, actualValue: 800 }), m({ id: 'm2' })];
     const trades = [
       t({ agentId: 'a', marketId: 'm1', cost: 10, createdAt: new Date('2026-01-02T00:00:00Z') }),
       t({ agentId: 'a', marketId: 'm2', cost: 5, createdAt: new Date('2026-01-03T00:00:00Z') }),
@@ -283,7 +259,10 @@ describe('computeLeaderboardFromAggregates', () => {
       p({ agentId: 'a', marketId: 'm1', shares: 20, direction: 'higher' }),
       p({ agentId: 'b', marketId: 'm1', shares: 4, direction: 'lower' }),
     ];
-    const nick = new Map<string, string | null>([['a', 'alpha'], ['b', null]]);
+    const nick = new Map<string, string | null>([
+      ['a', 'alpha'],
+      ['b', null],
+    ]);
 
     const viaRaw = computeLeaderboard(markets, trades, posns, nick, 100);
     const viaAgg = computeLeaderboardFromAggregates(
@@ -362,11 +341,9 @@ describe('computeTradingProfit', () => {
     // arithmetic a resolved market uses. b = 100 holding 100 higher shares
     // prices higher at 1/(1+e^-1) = 0.731 of the range.
     const market = pm({ resolved: false, shares: [0, 100], liquidity: 100 });
-    const profit = computeTradingProfit(
-      [market],
-      new Map([['kai', 40]]),
-      [p({ agentId: 'kai', direction: 'higher', shares: 100 })],
-    );
+    const profit = computeTradingProfit([market], new Map([['kai', 40]]), [
+      p({ agentId: 'kai', direction: 'higher', shares: 100 }),
+    ]);
     const priceHigher = 1 / (1 + Math.exp(-100 / 100));
     expect(profit.get('kai')).toBeCloseTo(100 * priceHigher - 40, 2);
     // And strictly above the liquidation value, which is the accepted cost of
@@ -375,11 +352,9 @@ describe('computeTradingProfit', () => {
   });
 
   test('a resolved position counts at its payout factor', () => {
-    const profit = computeTradingProfit(
-      [pm({ resolved: true, actualValue: 1000 })],
-      new Map([['kai', 30]]),
-      [p({ agentId: 'kai', direction: 'higher', shares: 50 })],
-    );
+    const profit = computeTradingProfit([pm({ resolved: true, actualValue: 1000 })], new Map([['kai', 30]]), [
+      p({ agentId: 'kai', direction: 'higher', shares: 50 }),
+    ]);
     expect(profit.get('kai')).toBe(20); // 50 * 1.0 - 30
   });
 
@@ -401,7 +376,9 @@ describe('computeTradingProfit', () => {
     const stake = new Map([[voidedStakeKey('kai', 'ws', 'mkt'), 60]]);
     const profit = computeTradingProfit(
       [pm({ voided: true, resolved: true, actualValue: null })],
-      new Map([['kai', 60]]), [], stake,
+      new Map([['kai', 60]]),
+      [],
+      stake,
     );
     expect(profit.get('kai')).toBe(0);
   });
@@ -413,7 +390,9 @@ describe('computeTradingProfit', () => {
     const stake = new Map([[voidedStakeKey('kai', 'ws', 'mkt'), 0]]);
     const profit = computeTradingProfit(
       [pm({ voided: true, resolved: true, actualValue: null })],
-      new Map([['kai', 0]]), [], stake,
+      new Map([['kai', 0]]),
+      [],
+      stake,
     );
     expect(profit.get('kai') ?? 0).toBe(0);
   });
@@ -424,7 +403,9 @@ describe('computeTradingProfit', () => {
     const stake = new Map([[voidedStakeKey('kai', 'ws', 'mkt'), -20]]);
     const profit = computeTradingProfit(
       [pm({ voided: true, resolved: true, actualValue: null })],
-      new Map([['kai', -20]]), [], stake,
+      new Map([['kai', -20]]),
+      [],
+      stake,
     );
     expect(profit.get('kai')).toBe(20);
   });
@@ -434,7 +415,9 @@ describe('computeTradingProfit', () => {
     const stake = new Map([[voidedStakeKey('kai', 'ws', 'mkt'), 35]]);
     const profit = computeTradingProfit(
       [pm({ voided: true, resolved: true, actualValue: null })],
-      new Map([['kai', 35]]), [], stake,
+      new Map([['kai', 35]]),
+      [],
+      stake,
     );
     expect(profit.get('kai')).toBe(0);
   });
@@ -452,11 +435,9 @@ describe('computeTradingProfit', () => {
   });
 
   test('an unpriced market (no liquidity) cannot be valued and is skipped', () => {
-    const profit = computeTradingProfit(
-      [pm({ resolved: false, liquidity: 0 })],
-      new Map([['kai', 10]]),
-      [p({ agentId: 'kai', direction: 'higher', shares: 50 })],
-    );
+    const profit = computeTradingProfit([pm({ resolved: false, liquidity: 0 })], new Map([['kai', 10]]), [
+      p({ agentId: 'kai', direction: 'higher', shares: 50 }),
+    ]);
     expect(profit.get('kai')).toBe(-10);
   });
 });

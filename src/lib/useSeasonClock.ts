@@ -8,8 +8,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { clockTickMs, seasonClock, type SeasonClock } from './season-clock';
 import type { PrizeSeason } from './api';
+import { clockTickMs, type SeasonClock, seasonClock } from './season-clock';
 
 export function useSeasonClock(season: PrizeSeason | null): SeasonClock | null {
   const [now, setNow] = useState(() => new Date());

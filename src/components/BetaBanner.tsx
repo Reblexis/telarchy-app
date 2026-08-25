@@ -15,8 +15,8 @@
  * the press happens on the thing you just looked at.
  */
 import { useEffect, useState } from 'react';
-import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
+import { api } from '../lib/api';
 
 /** The one origin that is the real site. Everything else wears the stripe. */
 const PUBLIC_ORIGIN = 'telarchy.com';
@@ -25,8 +25,7 @@ export function isPublishedOrigin(): boolean {
   if (typeof window === 'undefined') return true;
   const h = window.location.hostname;
   const onPublicHost = h === PUBLIC_ORIGIN || h === `www.${PUBLIC_ORIGIN}`;
-  const underBeta = window.location.pathname === '/beta'
-    || window.location.pathname.startsWith('/beta/');
+  const underBeta = window.location.pathname === '/beta' || window.location.pathname.startsWith('/beta/');
   return onPublicHost && !underBeta;
 }
 
@@ -55,7 +54,8 @@ export function BetaBanner() {
 
   useEffect(() => {
     if (isPublishedOrigin()) return;
-    api.getPublicConfig()
+    api
+      .getPublicConfig()
       .then(c => setStore(c.store === 'beta' ? 'beta' : 'production'))
       .catch(e => console.error('public-config fetch failed:', e));
   }, []);
@@ -64,16 +64,23 @@ export function BetaBanner() {
     if (isPublishedOrigin()) return;
     // Signed out, there is nobody to offer a button to, and asking would put a
     // 403 in the log for every anonymous pageview.
-    if (!user) { setCanPublish(false); return; }
+    if (!user) {
+      setCanPublish(false);
+      return;
+    }
     // Only a platform admin gets the button; everyone else still gets the
     // stripe, because "you are not on the real site" is worth saying to
     // anyone who somehow finds the URL.
-    api.getRelease()
+    api
+      .getRelease()
       .then(r => {
         setCanPublish(!r.isServing);
         setWaiting(r.isServing ? 'no' : 'yes');
       })
-      .catch(() => { setCanPublish(false); setWaiting('unknown'); });
+      .catch(() => {
+        setCanPublish(false);
+        setWaiting('unknown');
+      });
   }, [user]);
 
   if (isPublishedOrigin()) return null;
@@ -106,24 +113,31 @@ export function BetaBanner() {
       {store && (
         <span
           className={`betabar-store${store === 'production' ? ' is-live' : ''}`}
-          title={store === 'beta'
-            ? 'Workspaces, markets and trades are the beta\'s own. Your ACCOUNT is the real one: sign-in, profile and notification changes here are live.'
-            : 'This build is serving telarchy.com.'}
+          title={
+            store === 'beta'
+              ? "Workspaces, markets and trades are the beta's own. Your ACCOUNT is the real one: sign-in, profile and notification changes here are live."
+              : 'This build is serving telarchy.com.'
+          }
         >
           {store === 'beta' ? 'own data, real account' : 'LIVE database'}
         </span>
       )}
       <span className="betabar-text">
-        {note || (
-          waiting === 'yes'
+        {note ||
+          (waiting === 'yes'
             ? 'Not published. telarchy.com is still serving the previous build.'
             : waiting === 'no'
               ? 'Nothing is waiting. This is the build telarchy.com is serving.'
-              : 'The beta build. What telarchy.com serves may differ.'
-        )}
+              : 'The beta build. What telarchy.com serves may differ.')}
       </span>
       {canPublish && !note && (
-        <button className="betabar-go" disabled={busy} onClick={() => { void publish(); }}>
+        <button
+          className="betabar-go"
+          disabled={busy}
+          onClick={() => {
+            void publish();
+          }}
+        >
           {busy ? 'Publishing…' : 'Publish this build'}
         </button>
       )}

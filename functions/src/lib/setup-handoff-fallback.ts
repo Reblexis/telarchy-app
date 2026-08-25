@@ -35,6 +35,7 @@ export interface HandoffState {
 }
 
 import { publicOrigin } from './origin';
+
 const ORIGIN = publicOrigin();
 
 /** The transcript, compact, with the speakers named the way the page names
@@ -65,26 +66,36 @@ export function renderHandoff(turns: AskTurn[], state: HandoffState): string {
 
   parts.push('Where it stands:');
   if (!state.signedIn) {
-    parts.push('- I am not signed in yet, so nothing has been created. I need an account at ' + ORIGIN + '/signup, or you can register a participant key with POST /api/agents/register.');
+    parts.push(
+      '- I am not signed in yet, so nothing has been created. I need an account at ' +
+        ORIGIN +
+        '/signup, or you can register a participant key with POST /api/agents/register.',
+    );
   } else {
     parts.push('- I am signed in, so calls made with my session or my agent key run as me.');
   }
   if (state.opened.length) {
     for (const w of state.opened) {
-      parts.push(`- Opened during this conversation: ${w.name}${w.slug ? `, at ${ORIGIN}/${w.slug}` : ''}${w.id ? ` (workspace id ${w.id})` : ''}.`);
+      parts.push(
+        `- Opened during this conversation: ${w.name}${w.slug ? `, at ${ORIGIN}/${w.slug}` : ''}${w.id ? ` (workspace id ${w.id})` : ''}.`,
+      );
     }
   } else if (state.workspaces.length) {
     // With the id, because that is the thing the agent on the other side has
     // to send as X-Workspace-Id on every call; an address alone means it has
     // to go looking.
-    parts.push(`- Nothing opened during this conversation. I already run: ${state.workspaces.map(w => `${w.name}${w.slug ? ` at ${ORIGIN}/${w.slug}` : ''}${w.id ? ` (workspace id ${w.id})` : ''}`).join('; ')}. Adding a number to one of those may be better than opening another.`);
+    parts.push(
+      `- Nothing opened during this conversation. I already run: ${state.workspaces.map(w => `${w.name}${w.slug ? ` at ${ORIGIN}/${w.slug}` : ''}${w.id ? ` (workspace id ${w.id})` : ''}`).join('; ')}. Adding a number to one of those may be better than opening another.`,
+    );
   } else {
     parts.push('- Nothing opened yet, and I run no market.');
   }
   parts.push('');
 
   parts.push(
-    'What to do with the API (base ' + ORIGIN + '/api). Read GET /api/help first: it is the live catalog and it is more current than this message.',
+    'What to do with the API (base ' +
+      ORIGIN +
+      '/api). Read GET /api/help first: it is the live catalog and it is more current than this message.',
     '',
     '1. Auth. Either use my browser session, or POST /api/agents/register to get an X-Agent-Key of your own. Every call below takes X-Workspace-Id once the workspace exists.',
     '2. Open the market, if it is not open yet: POST /api/workspaces { "name": "...", "template": "blank" } returns { id, slug }. A new market starts unlisted, which means live and shareable by link but not on the front page.',

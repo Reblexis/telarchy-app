@@ -25,7 +25,8 @@ export function SeasonEntryPanel() {
   const [claimed, setClaimed] = useState<{ prizeUsd: number; claimBy: string } | null>(null);
 
   const load = useCallback(() => {
-    api.getMySeason()
+    api
+      .getMySeason()
       .then(setEntry)
       .catch(e => {
         // Not user-actionable: a failed read here means the panel stays hidden,
@@ -64,10 +65,8 @@ export function SeasonEntryPanel() {
 
       <p className="acctdlg-hint">
         ${season.poolUsd.toLocaleString()} in prizes across {season.ladder.length} places
-        {top ? `, $${top.prizeUsd.toLocaleString()} for first` : ''}.
-        {' '}{clock.headline}.
-        {' '}Ranked on how much your marked profit grows while the season runs.{' '}
-        <Link to={season.rulesUrl}>Rules</Link>.
+        {top ? `, $${top.prizeUsd.toLocaleString()} for first` : ''}. {clock.headline}. Ranked on how much your marked
+        profit grows while the season runs. <Link to={season.rulesUrl}>Rules</Link>.
       </p>
 
       {/* No entry toggle here. Entering moved to SeasonEntryButton on the
@@ -77,8 +76,7 @@ export function SeasonEntryPanel() {
           the account context it already sits in. */}
       {clock.entryOpen && !entry.optedIn && (
         <p className="acctdlg-hint">
-          You have not entered. The entry button is on the{' '}
-          <Link to="/leaderboard">leaderboard</Link>.
+          You have not entered. The entry button is on the <Link to="/leaderboard">leaderboard</Link>.
         </p>
       )}
       {entry.optedIn && <p className="acctdlg-hint">You are entered.</p>}
@@ -91,8 +89,7 @@ export function SeasonEntryPanel() {
 
       {claimed && (
         <p className="acctdlg-ok">
-          Claimed ${claimed.prizeUsd.toLocaleString()}. Payment is sent directly
-          to the details on your account.
+          Claimed ${claimed.prizeUsd.toLocaleString()}. Payment is sent directly to the details on your account.
         </p>
       )}
 

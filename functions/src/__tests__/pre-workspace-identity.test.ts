@@ -16,19 +16,25 @@ jest.mock('../db/client', () => require('./harness/test-db'));
 jest.mock('../auth', () => ({ auth: { api: { getSession: jest.fn() } } }));
 jest.mock('better-auth/node', () => ({ fromNodeHeaders: (h: unknown) => h }));
 
-import { ensureMigrations, truncateAll, db } from './harness/test-db';
 import { agents, authUser } from '../db/schema';
-import { resolveUser } from '../middleware/auth';
 import { provisionWorkspace } from '../lib/participants';
+import { resolveUser } from '../middleware/auth';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 describe('resolveUser before the first workspace', () => {
   test('keeps agentId when the participant exists but has no memberships', async () => {
     await db.insert(authUser).values({ id: 'auth-user-1', name: 'U', email: 'u1@example.com' });
     await db.insert(agents).values({
-      id: 'user-1', authUserId: 'auth-user-1', apiKeyHash: 'h-user-1',
+      id: 'user-1',
+      authUserId: 'auth-user-1',
+      apiKeyHash: 'h-user-1',
     });
     const result = await resolveUser('auth-user-1');
     expect(result).toEqual({ workspaceId: '', agentId: 'user-1' });
@@ -43,7 +49,9 @@ describe('provisionWorkspace', () => {
   test('returns the slug it stored on the workspace row', async () => {
     await db.insert(authUser).values({ id: 'auth-owner-1', name: 'O', email: 'o1@example.com' });
     await db.insert(agents).values({
-      id: 'owner-1', authUserId: 'auth-owner-1', apiKeyHash: 'h-owner-1',
+      id: 'owner-1',
+      authUserId: 'auth-owner-1',
+      apiKeyHash: 'h-owner-1',
     });
     const slug = await provisionWorkspace(db as any, {
       wsId: '00000000-0000-4000-8000-000000000001',

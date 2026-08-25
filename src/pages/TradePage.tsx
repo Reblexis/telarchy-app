@@ -1,38 +1,44 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import remarkBreaks from 'remark-breaks';
-import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
-import { authPath } from '../lib/nextPath';
-import { useAuth } from '../hooks/useAuth';
-import { MarketChart } from '../components/MarketChart';
-import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
-import { FloorModal } from '../components/FloorModal';
-import { useAnimatedNumber } from '../lib/useAnimatedNumber';
-import { indexBundleSrc } from '../lib/bundle-version';
-import { JobsBoard, splitAsk } from '../components/JobsBoard';
-import { SubjectAbout } from '../components/SubjectAbout';
-import { FloorAnnouncements } from '../components/FloorAnnouncements';
-import { FloorComments } from '../components/FloorComments';
-import { withBase } from '../lib/base-path';
-import { LeaderboardRail } from '../components/FloorRails';
-import { useMyParticipantId } from '../hooks/useMyParticipantId';
+import remarkGfm from 'remark-gfm';
 import { AccountMenu } from '../components/AccountMenu';
-import { FloorChat } from '../components/FloorChat';
-import type { FloorRef } from '../lib/agent-prompt';
-import { NotificationsBell } from '../components/NotificationsBell';
 import { DiscordButton } from '../components/DiscordButton';
-import { ManifoldButton } from '../components/ManifoldButton';
-import { ReportButton } from '../components/ReportButton';
+import { FloorAnnouncements } from '../components/FloorAnnouncements';
+import { FloorChat } from '../components/FloorChat';
+import { FloorComments } from '../components/FloorComments';
+import { FloorModal } from '../components/FloorModal';
+import { LeaderboardRail } from '../components/FloorRails';
+import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { Logo } from '../components/Logo';
+import { ManifoldButton } from '../components/ManifoldButton';
+import { MarketChart } from '../components/MarketChart';
+import { NotificationsBell } from '../components/NotificationsBell';
+import { ReportButton } from '../components/ReportButton';
+import { SubjectAbout } from '../components/SubjectAbout';
+import { type TicketPosition, TradeTicket } from '../components/TradeTicket';
+import { useAuth } from '../hooks/useAuth';
+import { useMyParticipantId } from '../hooks/useMyParticipantId';
+import type { FloorRef } from '../lib/agent-prompt';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
+import { api, type PublicWorkspace, setActiveWorkspace } from '../lib/api';
+import { indexBundleSrc } from '../lib/bundle-version';
 import {
-  buildHorizonViews, captionLabel, horizonById, metricLabelOf, priceSeriesIsInline, priceSeriesOf,
-  settleDayOf, stepHorizon,
-  type HorizonView, type PriceSeries,
+  buildHorizonViews,
+  captionLabel,
+  type HorizonView,
+  horizonById,
+  metricLabelOf,
+  type PriceSeries,
+  priceSeriesIsInline,
+  priceSeriesOf,
+  settleDayOf,
+  stepHorizon,
 } from '../lib/floor-horizons';
+import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
+import { useAnimatedNumber } from '../lib/useAnimatedNumber';
 
 /**
  * telarchy.com/<slug>: the market and one action, nothing else (owner
@@ -61,7 +67,6 @@ function formatValue(v: number): string {
   const decimals = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
-
 
 function formatDelta(delta: number, unit = ''): string {
   const abs = Math.abs(delta);
@@ -115,7 +120,10 @@ export function TradePage() {
   // version silently did nothing exactly where it was most likely to be used
   // (owner report 2026-08-19: "I click it and it still doesn't highlight").
   // location.hash sees both that and a pasted URL.
-  useEffect(() => { setEditingJob(false); setJobErr(''); }, [selectedJobId]);
+  useEffect(() => {
+    setEditingJob(false);
+    setJobErr('');
+  }, [selectedJobId]);
 
   useEffect(() => {
     const hash = location.hash.replace(/^#/, '');
@@ -188,7 +196,8 @@ export function TradePage() {
 
   const reload = () => {
     if (!idOrSlug) return;
-    api.getMarketplaceWorkspace(idOrSlug)
+    api
+      .getMarketplaceWorkspace(idOrSlug)
       .then(setWs)
       .catch(e => {
         console.error('trade page fetch failed:', e);
@@ -196,9 +205,9 @@ export function TradePage() {
         // (/overview, /metrics, ...), so say what the visitor can do rather
         // than quoting an HTTP status at them.
         const missing = e instanceof Error && /\b404\b/.test(e.message);
-        setError(missing
-          ? 'There is no market at this address.'
-          : e instanceof Error ? e.message : 'Failed to load workspace');
+        setError(
+          missing ? 'There is no market at this address.' : e instanceof Error ? e.message : 'Failed to load workspace',
+        );
       });
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,7 +237,8 @@ export function TradePage() {
     if (!ws || !user || joinTried.current) return;
     if (ws.joinAs !== 'trader') return;
     joinTried.current = true;
-    api.joinWorkspace(ws.workspaceId)
+    api
+      .joinWorkspace(ws.workspaceId)
       .then(() => setJoined(true))
       .catch(e => console.error('silent join failed:', e));
   }, [ws, user]);
@@ -244,7 +254,8 @@ export function TradePage() {
     // 2026-08-22: local by default; the season and global boards live behind
     // "Show full leaderboard"). Enough rows for the top ten after dropping
     // never-traded participants (owner direction 2026-08-17).
-    api.getLeaderboard(30, idOrSlug)
+    api
+      .getLeaderboard(30, idOrSlug)
       .then(r => setLeaders(r.participants ?? []))
       .catch(e => console.error('leaderboard fetch failed:', e));
   };
@@ -259,7 +270,8 @@ export function TradePage() {
   // and they are exactly who these controls exist for.
   useEffect(() => {
     if (!user || !ws) return;
-    api.getProfile()
+    api
+      .getProfile()
       .then(p => setCanManage(((p as { capabilities?: string[] }).capabilities ?? []).includes('manage')))
       .catch(e => console.error('profile fetch failed:', e));
   }, [user, ws]);
@@ -338,23 +350,27 @@ export function TradePage() {
   // the propose form's placeholder, so a proposer is told what their contract
   // is supposed to move.
   const metricNames = useMemo(
-    () => Array.from(new Set(
-      // captionLabel drops a leading copy of the company's name, the same way
-      // the number's caption does (owner decision 2026-08-18). Without it the
-      // pitch placeholder on a floor whose metrics are named after the company
-      // read "This will affect LookPilot weekly net revenue and LookPilot
-      // monthly net revenue", three LookPilots in one sentence.
-      (ws?.markets ?? []).map(m => captionLabel(metricLabelOf(m.metricName), ws?.name)),
-    )).slice(0, 3),
+    () =>
+      Array.from(
+        new Set(
+          // captionLabel drops a leading copy of the company's name, the same way
+          // the number's caption does (owner decision 2026-08-18). Without it the
+          // pitch placeholder on a floor whose metrics are named after the company
+          // read "This will affect LookPilot weekly net revenue and LookPilot
+          // monthly net revenue", three LookPilots in one sentence.
+          (ws?.markets ?? []).map(m => captionLabel(metricLabelOf(m.metricName), ws?.name)),
+        ),
+      ).slice(0, 3),
     [ws?.markets, ws?.name],
   );
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
   // A contract is editable by whoever posted it (and by a manager) while it is
   // still on the ballot. The server decides the same thing again; this only
   // decides whether to draw the button.
-  const canEditJob = !!selectedJob
-    && (selectedJob.status ?? 'pending') === 'pending'
-    && (canManage || (!!myAgentId && selectedJob.proposedByHandle === myAgentId));
+  const canEditJob =
+    !!selectedJob &&
+    (selectedJob.status ?? 'pending') === 'pending' &&
+    (canManage || (!!myAgentId && selectedJob.proposedByHandle === myAgentId));
 
   const saveJobEdit = async () => {
     if (!selectedJob || !ws) return;
@@ -385,8 +401,8 @@ export function TradePage() {
 
   // The contract's pair for the horizon on screen, not whichever pair the
   // payload happened to list first.
-  const pair = (hero && selectedJob?.markets.find(m => m.targetDate === hero.targetDate))
-    ?? selectedJob?.markets[0] ?? null;
+  const pair =
+    (hero && selectedJob?.markets.find(m => m.targetDate === hero.targetDate)) ?? selectedJob?.markets[0] ?? null;
   // A decided job is history: its markets are resolved, so trading is paused;
   // the page still shows the impact that was priced for it.
   const selectedJobDecided = !!selectedJob?.status && selectedJob.status !== 'pending';
@@ -420,18 +436,20 @@ export function TradePage() {
   };
   // The one market the page is showing and the ticket is trading: the
   // baseline, or the selected branch of the selected job.
-  const active = branchShape(branch) ?? (hero
-    ? {
-        marketId: hero.marketId,
-        consensus: hero.consensus,
-        probability: hero.probability,
-        liquidity: hero.liquidity,
-        funded: hero.liquidity > 0,
-        rangeMin: hero.rangeMin,
-        rangeMax: hero.rangeMax,
-        history: priceSeriesOf(hero.marketId, ws, horizonPrices),
-      }
-    : null);
+  const active =
+    branchShape(branch) ??
+    (hero
+      ? {
+          marketId: hero.marketId,
+          consensus: hero.consensus,
+          probability: hero.probability,
+          liquidity: hero.liquidity,
+          funded: hero.liquidity > 0,
+          rangeMin: hero.rangeMin,
+          rangeMax: hero.rangeMax,
+          history: priceSeriesOf(hero.marketId, ws, horizonPrices),
+        }
+      : null);
   const otherBranch = pair ? branchShape(branch === 'approved' ? 'declined' : 'approved') : null;
   const activeMarketId = active?.marketId ?? null;
 
@@ -454,13 +472,15 @@ export function TradePage() {
       api.getPublicMarketHistory(slug, aid),
       did ? api.getPublicMarketHistory(slug, did) : Promise.resolve([]),
     ])
-      .then(([a, d]) => { if (token === condReqRef.current) setCondHistory({ approved: a, declined: d }); })
+      .then(([a, d]) => {
+        if (token === condReqRef.current) setCondHistory({ approved: a, declined: d });
+      })
       .catch(e => console.error('conditional history fetch failed:', e));
   };
   // The workspace's stable identity for URLs. Deliberately NOT the `ws`
   // object: that is a fresh object on every five-second poll, and effects
   // keyed on it re-ran (and re-reset) on every tick.
-  const wsKey = ws ? (ws.slug || ws.workspaceId) : null;
+  const wsKey = ws ? ws.slug || ws.workspaceId : null;
 
   // The selected horizon's own price replay, when it is not the one the
   // payload carries inline. Cached per market id, so switching back and forth
@@ -478,7 +498,8 @@ export function TradePage() {
   horizonPricesRef.current = () => {
     if (!heroMarketId || !wsKey || heroPricesInline) return;
     const token = ++priceReqRef.current;
-    api.getPublicMarketHistory(wsKey, heroMarketId)
+    api
+      .getPublicMarketHistory(wsKey, heroMarketId)
       .then(points => {
         if (token !== priceReqRef.current) return;
         setHorizonPrices(prev => ({ ...prev, [heroMarketId]: points }));
@@ -486,26 +507,34 @@ export function TradePage() {
       .catch(e => console.error('horizon price history fetch failed:', e));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { horizonPricesRef.current(); }, [heroMarketId, heroPricesInline, wsKey]);
+  useEffect(() => {
+    horizonPricesRef.current();
+  }, [heroMarketId, heroPricesInline, wsKey]);
 
   // The initial pull for a newly selected job. Keyed on the market ids and
   // the workspace's stable slug, NOT on the `ws` object: `ws` is a fresh
   // object on every five-second poll, and depending on it re-ran this whole
   // effect (and its resets) on every tick.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { condHistoryRef.current(); }, [pair?.approvedMarketId, pair?.declinedMarketId, wsKey]);
+  useEffect(() => {
+    condHistoryRef.current();
+  }, [pair?.approvedMarketId, pair?.declinedMarketId, wsKey]);
 
   const refreshMoney = () => {
     if (activeMarketId && ws) {
-      api.getPositions(activeMarketId, undefined, ws.workspaceId)
+      api
+        .getPositions(activeMarketId, undefined, ws.workspaceId)
         .then((rows: Array<{ direction: 'higher' | 'lower'; shares: number; totalCost: number }>) =>
-          setPositions((rows ?? []).filter(r => r.shares > 1e-9)))
+          setPositions((rows ?? []).filter(r => r.shares > 1e-9)),
+        )
         .catch(e => console.error('positions fetch failed:', e));
-      api.getLimitOrders(activeMarketId, ws.workspaceId)
+      api
+        .getLimitOrders(activeMarketId, ws.workspaceId)
         .then(rows => setOrders(rows ?? []))
         .catch(e => console.error('limit orders fetch failed:', e));
     }
-    api.getParticipant()
+    api
+      .getParticipant()
       .then(pt => {
         const row = pt as { balance?: number; id?: string };
         setBalance(row.balance ?? null);
@@ -515,7 +544,11 @@ export function TradePage() {
   };
   // Positions belong to the market on screen, so they refetch on a switch.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setPositions([]); setOrders([]); if (joined) refreshMoney(); }, [joined, activeMarketId]);
+  useEffect(() => {
+    setPositions([]);
+    setOrders([]);
+    if (joined) refreshMoney();
+  }, [joined, activeMarketId]);
 
   // Live updates (owner ask 2026-08-11: the market updates in real time
   // for viewers and traders). The floor polls so a price move, a filled
@@ -536,11 +569,18 @@ export function TradePage() {
     if (joined) refreshMoney();
   };
   useEffect(() => {
-    const tick = () => { if (typeof document === 'undefined' || !document.hidden) pollRef.current(); };
+    const tick = () => {
+      if (typeof document === 'undefined' || !document.hidden) pollRef.current();
+    };
     const interval = setInterval(tick, 15_000);
-    const onVisible = () => { if (!document.hidden) pollRef.current(); };
+    const onVisible = () => {
+      if (!document.hidden) pollRef.current();
+    };
     document.addEventListener('visibilitychange', onVisible);
-    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   // Stale-tab guard (owner report 2026-08-13): a long-open floor tab runs
@@ -555,7 +595,8 @@ export function TradePage() {
     const currentPath = new URL(current, window.location.origin).pathname;
     const check = () => {
       if (document.hidden) return;
-      api.getServedIndexHtml()
+      api
+        .getServedIndexHtml()
         .then(html => {
           const served = indexBundleSrc(html);
           if (served && served !== currentPath) setUpdateAvailable(true);
@@ -571,7 +612,10 @@ export function TradePage() {
   // where the finger is.
   const doTrade = async (body: Record<string, unknown>) => {
     if (!ws) return;
-    const r = await api.trade(body, ws.workspaceId) as { consensus?: number | null; settledConsensus?: number | null };
+    const r = (await api.trade(body, ws.workspaceId)) as {
+      consensus?: number | null;
+      settledConsensus?: number | null;
+    };
     // If resting limit orders filled against this trade, the market settled
     // at settledConsensus, not at the trade's own post-price; show where the
     // market actually is, not where it briefly was.
@@ -619,18 +663,17 @@ export function TradePage() {
   // after its first trade. For a job, the chip shows the impact itself
   // (approved minus declined), which is the one number the job is about,
   // and it stays the same whichever branch is on screen.
-  const marketOpen = pair
-    ? null
-    : active?.history.find(p => p.consensus !== null)?.consensus ?? null;
+  const marketOpen = pair ? null : (active?.history.find(p => p.consensus !== null)?.consensus ?? null);
   // Impact is the delta on the floor's one horizon, which is also the only
   // market on screen, so `pair` already IS that pair. Kept as its own name
   // because the ballot passes the same target date and the two must agree.
-  const jobImpact = pair && pair.approvedConsensus !== null && pair.declinedConsensus !== null
-    ? pair.approvedConsensus - pair.declinedConsensus
-    : null;
+  const jobImpact =
+    pair && pair.approvedConsensus !== null && pair.declinedConsensus !== null
+      ? pair.approvedConsensus - pair.declinedConsensus
+      : null;
   const impactUnit = unit;
-  const consensus = (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null)
-    ?? active?.consensus ?? null;
+  const consensus =
+    (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null) ?? active?.consensus ?? null;
   // The number rolls to its new value (trade, branch switch, job select)
   // instead of teleporting; everything downstream (chart, ticket) uses the
   // true value, only the headline shows the tween.
@@ -657,9 +700,15 @@ export function TradePage() {
   useEffect(() => {
     const el = aboutRef.current;
     if (!el || aboutIn) return;
-    const io = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { setAboutIn(true); io.disconnect(); }
-    }, { threshold: 0.2 });
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          setAboutIn(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.2 },
+    );
     io.observe(el);
     return () => io.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -667,15 +716,19 @@ export function TradePage() {
 
   // The composed bet's impact, projected from probability space onto the
   // metric's range so the chart can draw where the call would move.
-  const chartPreview = active && ticketPreview
-    ? { direction: ticketPreview.direction, value: active.rangeMin + ticketPreview.newProb * (active.rangeMax - active.rangeMin) }
-    : null;
+  const chartPreview =
+    active && ticketPreview
+      ? {
+          direction: ticketPreview.direction,
+          value: active.rangeMin + ticketPreview.newProb * (active.rangeMax - active.rangeMin),
+        }
+      : null;
 
   // Year chart: the hero metric's REAL value over the calendar year (solid),
   // continued to where the market sees it settling (dashed, to the resolve
   // date). The x-axis is the year, not the trading timeline, so this is its
   // own chart below the market poster, drawn in the same visual family.
-  const heroActualHistory = useMemo(() => {
+  const _heroActualHistory = useMemo(() => {
     return (ws?.heroHistory ?? [])
       .filter(p => p.at && Number.isFinite(p.value))
       .slice()
@@ -714,8 +767,8 @@ export function TradePage() {
   // heroMetricDescription is only a fallback when the on-screen market IS the
   // hero metric; borrowed under any other clock it would caption one market
   // with another's settlement text.
-  const horizonDescription = hero?.description
-    ?? (hero && hero.metricId === ws?.heroMetricId ? ws?.heroMetricDescription ?? null : null);
+  const horizonDescription =
+    hero?.description ?? (hero && hero.metricId === ws?.heroMetricId ? (ws?.heroMetricDescription ?? null) : null);
 
   if (error) {
     return (
@@ -724,7 +777,9 @@ export function TradePage() {
         <main className="pubws-main">
           <section className="pubws-status">
             <p className="pubws-pitch">{error}</p>
-            <p className="pubws-pitch"><Link to="/marketplace">See the open markets</Link></p>
+            <p className="pubws-pitch">
+              <Link to="/marketplace">See the open markets</Link>
+            </p>
           </section>
         </main>
       </div>
@@ -751,11 +806,7 @@ export function TradePage() {
 
   return (
     <div className="pubws pubws--center">
-      <TopBar
-        user={!!user}
-        ready={!authLoading}
-        floor={idOrSlug ? { idOrSlug, name: ws.name } : null}
-      />
+      <TopBar user={!!user} ready={!authLoading} floor={idOrSlug ? { idOrSlug, name: ws.name } : null} />
       {/* Otto, in the corner rather than in the column (owner direction
           2026-08-20): a reader needs him at whatever point of the page their
           question arrives, and the page's job is the market. */}
@@ -770,9 +821,15 @@ export function TradePage() {
         />
       )}
       <main className="pubws-main pubws-main--floor">
-        <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} signedIn={!!user} meId={myParticipantId} />
+        <LeaderboardRail
+          entries={leaders}
+          contractors={ws?.topContractors}
+          unit={unit}
+          signedIn={!!user}
+          meId={myParticipantId}
+        />
         <div className="pubws-center">
-        {/* The company IS the page (owner direction 2026-08-18): a cold
+          {/* The company IS the page (owner direction 2026-08-18): a cold
             visitor arrives from a link about this business, not about
             Telarchy, and cannot parse "What is LookPilot net 2026" as a
             first impression. So the identity block leads (name, then the
@@ -781,41 +838,41 @@ export function TradePage() {
             name was already here as a grey eyebrow, which read as a
             breadcrumb rather than as a real business. Fixed across job
             selection: only the instrument below it swaps. */}
-        {ws.name && (
-          <header className="pubws-ident pubws-enter">
-            <h1 className="pubws-ws-name">{ws.name}</h1>
-            {ws.description && <p className="pubws-ws-tagline">{ws.description}</p>}
-          </header>
-        )}
-        {hero && active && consensus !== null && (
-          <section className="pubws-instrument" aria-label="The market">
-            {/* Selecting a job re-points this one view at its conditional
+          {ws.name && (
+            <header className="pubws-ident pubws-enter">
+              <h1 className="pubws-ws-name">{ws.name}</h1>
+              {ws.description && <p className="pubws-ws-tagline">{ws.description}</p>}
+            </header>
+          )}
+          {hero && active && consensus !== null && (
+            <section className="pubws-instrument" aria-label="The market">
+              {/* Selecting a job re-points this one view at its conditional
                 market; the condition is stated above the same headline so
                 the page never grows a second market. */}
-            {/* The whole title: what is being predicted, as of when. The
+              {/* The whole title: what is being predicted, as of when. The
                 metric's parenthetical unit tail is trimmed for display only
                 (the full name stays in the API); renaming the metric itself
                 would void the live market by the definition-change invariant.
                 With a job selected the title becomes the actual question the
                 conditional market prices, naming who gets paid and how much,
                 because that is the whole bet. */}
-            {/* Above the clock line, not between it and the world line:
+              {/* Above the clock line, not between it and the world line:
                 the caption and the condition under it are one statement, and
                 a control wedged between them splits it. Says where it goes
                 rather than repeating the metric the caption already names. */}
-            {selectedJob && (
-              <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
-                ← Back to the market
-              </button>
-            )}
-            {/* The clock line renders in BOTH states (owner design
+              {selectedJob && (
+                <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
+                  ← Back to the market
+                </button>
+              )}
+              {/* The clock line renders in BOTH states (owner design
                 2026-08-20). Opening a contract used to replace it, which took
                 the arrows away and pinned the page to markets[0], so a
                 contract's number depended on the horizon the reader happened
                 to be on before they clicked in. Rendered once here, never
                 copied into the branch below, because a second copy is how the
                 two drift. */}
-            {/* The metric name alone: it carries its own horizon
+              {/* The metric name alone: it carries its own horizon
                ("September 2026 net revenue"), so a settle date beside it
                was redundant and confusing when the two differ (a September
                metric settling 14 October read as an October market; owner
@@ -823,13 +880,13 @@ export function TradePage() {
                when it lands. It is a caption, not a headline: with the
                company named above, this line's only job is to say what
                the big number underneath measures. */}
-            {/* One clock at a time, with a way to the others. The arrows
+              {/* One clock at a time, with a way to the others. The arrows
                render whenever the floor has more than one market and they
                LOOP (owner ask 2026-08-20): a control that sometimes does
                nothing is worse than one that always moves, and with one
                market they do not render at all, so looping never shows the
                same number twice in a row. */}
-            {/* The arrows live INSIDE the caption, not in a wrapper around
+              {/* The arrows live INSIDE the caption, not in a wrapper around
                it. Wrapping the h2 in a flex row put it in a 59px column
                beside the price on the live floor, four words tall and
                overlapping the leaderboard rail: this heading's placement
@@ -840,355 +897,423 @@ export function TradePage() {
                off this line on 2026-08-18 as redundant, when a floor had one
                market and the metric's name carried its own horizon; with
                arrows it is the only thing telling two clocks apart. */}
-            <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
-              {horizons.length > 1 && (
-                <button
-                  className="pubws-hstep pubws-hstep--prev"
-                  onClick={() => prevHorizon && setHorizonId(prevHorizon.marketId)}
-                  aria-label={prevHorizon ? `Show ${prevHorizon.metricLabel}, ${prevHorizon.label}` : 'Previous market'}
-                >‹</button>
-              )}
-              {captionLabel(metricLabel, ws.name)}
-              {hero?.settleShort && <span className="pubws-instrument-at"> @ {hero.settleShort}</span>}
-              {horizons.length > 1 && (
-                <button
-                  className="pubws-hstep pubws-hstep--next"
-                  onClick={() => nextHorizon && setHorizonId(nextHorizon.marketId)}
-                  aria-label={nextHorizon ? `Show ${nextHorizon.metricLabel}, ${nextHorizon.label}` : 'Next market'}
-                >›</button>
-              )}
-            </h2>
-            {selectedJob && (
-              <>
-                <h2 className={`pubws-instrument-title pubws-question pubws-enter pubws-enter--1${flashContract ? ' is-flashed' : ''}`}>
-                  if{' '}
-                  {selectedJob.proposedByName ?? 'someone'}{' '}
-                  {/* The phrase IS the world: green "is paid" in the
+              <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
+                {horizons.length > 1 && (
+                  <button
+                    className="pubws-hstep pubws-hstep--prev"
+                    onClick={() => prevHorizon && setHorizonId(prevHorizon.marketId)}
+                    aria-label={
+                      prevHorizon ? `Show ${prevHorizon.metricLabel}, ${prevHorizon.label}` : 'Previous market'
+                    }
+                  >
+                    ‹
+                  </button>
+                )}
+                {captionLabel(metricLabel, ws.name)}
+                {hero?.settleShort && <span className="pubws-instrument-at"> @ {hero.settleShort}</span>}
+                {horizons.length > 1 && (
+                  <button
+                    className="pubws-hstep pubws-hstep--next"
+                    onClick={() => nextHorizon && setHorizonId(nextHorizon.marketId)}
+                    aria-label={nextHorizon ? `Show ${nextHorizon.metricLabel}, ${nextHorizon.label}` : 'Next market'}
+                  >
+                    ›
+                  </button>
+                )}
+              </h2>
+              {selectedJob && (
+                <>
+                  <h2
+                    className={`pubws-instrument-title pubws-question pubws-enter pubws-enter--1${flashContract ? ' is-flashed' : ''}`}
+                  >
+                    if {selectedJob.proposedByName ?? 'someone'}{' '}
+                    {/* The phrase IS the world: green "is paid" in the
                       approved branch, red "is not paid" in the declined one,
                       and clicking it flips to the other world (owner
                       direction 2026-08-10). Both phrases share one grid
                       cell, so the headline sizes to the longer one and
                       never reflows on a switch, whatever the ask's width. */}
-                  <WorldWord
-                    branch={branch}
-                    approvedText={splitAsk(selectedJob.title).ask !== null
-                      ? `is paid $${splitAsk(selectedJob.title).ask}`
-                      : 'does'}
-                    declinedText={splitAsk(selectedJob.title).ask !== null
-                      ? `is not paid $${splitAsk(selectedJob.title).ask}`
-                      : 'does not do'}
-                    onToggle={pair?.declinedMarketId
-                      ? () => setBranch(b => (b === 'approved' ? 'declined' : 'approved'))
-                      : null}
-                  />
-                  {splitAsk(selectedJob.title).ask !== null ? ' to do:' : ':'}
-                  {' '}
-                  <span className="pubws-question-task">{splitAsk(selectedJob.title).rest}</span>
-                </h2>
-                {editingJob ? (
-                  /* Editing a contract in place (owner ask 2026-08-20). The
+                    <WorldWord
+                      branch={branch}
+                      approvedText={
+                        splitAsk(selectedJob.title).ask !== null
+                          ? `is paid $${splitAsk(selectedJob.title).ask}`
+                          : 'does'
+                      }
+                      declinedText={
+                        splitAsk(selectedJob.title).ask !== null
+                          ? `is not paid $${splitAsk(selectedJob.title).ask}`
+                          : 'does not do'
+                      }
+                      onToggle={
+                        pair?.declinedMarketId
+                          ? () => setBranch(b => (b === 'approved' ? 'declined' : 'approved'))
+                          : null
+                      }
+                    />
+                    {splitAsk(selectedJob.title).ask !== null ? ' to do:' : ':'}{' '}
+                    <span className="pubws-question-task">{splitAsk(selectedJob.title).rest}</span>
+                  </h2>
+                  {editingJob ? (
+                    /* Editing a contract in place (owner ask 2026-08-20). The
                      words save without touching the market; the price only
                      moves while nobody has traded the pair, and the server
                      says so plainly when it will not (docs/market-integrity.md
                      I1b). Same three fields as posting one, same order. */
-                  <div className="pubws-know-edit pubws-enter pubws-enter--1">
-                    <label className="jobform-field">
-                      <span className="ticket-label">Price (USD)</span>
-                      <input
-                        className="jobform-line"
-                        inputMode="numeric"
-                        value={jobAsk}
-                        onChange={e => setJobAsk(e.target.value.replace(/[^0-9]/g, ''))}
-                        placeholder="0"
-                        aria-label="Price in USD"
-                      />
-                    </label>
-                    <label className="jobform-field">
-                      <span className="ticket-label">What you will do</span>
-                      <input
-                        className="jobform-line"
-                        value={jobTitle}
-                        maxLength={80}
-                        onChange={e => setJobTitle(e.target.value)}
-                        aria-label="Contract title"
-                      />
-                    </label>
-                    <label className="jobform-field">
-                      <span className="ticket-label">Details</span>
-                      <textarea
-                        className="pubws-know-edit-text"
-                        rows={4}
-                        value={jobDesc}
-                        onChange={e => setJobDesc(e.target.value)}
-                        aria-label="Contract details"
-                      />
-                    </label>
-                    <p className="pubws-settle">
-                      Editing the words keeps the market and every position on it,
-                      and publishes that it changed. The price can only move while
-                      nobody has traded this contract yet, because the market
-                      opened at that number.
-                    </p>
-                    <div>
-                      <button className="pubws-decide" disabled={jobSaving} onClick={() => { void saveJobEdit(); }}>
-                        {jobSaving ? 'Saving…' : 'Save'}
-                      </button>
-                      <button
-                        className="pubws-decide"
-                        style={{ marginLeft: '0.5rem' }}
-                        disabled={jobSaving}
-                        onClick={() => { setEditingJob(false); setJobErr(''); }}
-                      >
-                        Cancel
-                      </button>
+                    <div className="pubws-know-edit pubws-enter pubws-enter--1">
+                      <label className="jobform-field">
+                        <span className="ticket-label">Price (USD)</span>
+                        <input
+                          className="jobform-line"
+                          inputMode="numeric"
+                          value={jobAsk}
+                          onChange={e => setJobAsk(e.target.value.replace(/[^0-9]/g, ''))}
+                          placeholder="0"
+                          aria-label="Price in USD"
+                        />
+                      </label>
+                      <label className="jobform-field">
+                        <span className="ticket-label">What you will do</span>
+                        <input
+                          className="jobform-line"
+                          value={jobTitle}
+                          maxLength={80}
+                          onChange={e => setJobTitle(e.target.value)}
+                          aria-label="Contract title"
+                        />
+                      </label>
+                      <label className="jobform-field">
+                        <span className="ticket-label">Details</span>
+                        <textarea
+                          className="pubws-know-edit-text"
+                          rows={4}
+                          value={jobDesc}
+                          onChange={e => setJobDesc(e.target.value)}
+                          aria-label="Contract details"
+                        />
+                      </label>
+                      <p className="pubws-settle">
+                        Editing the words keeps the market and every position on it, and publishes that it changed. The
+                        price can only move while nobody has traded this contract yet, because the market opened at that
+                        number.
+                      </p>
+                      <div>
+                        <button
+                          className="pubws-decide"
+                          disabled={jobSaving}
+                          onClick={() => {
+                            void saveJobEdit();
+                          }}
+                        >
+                          {jobSaving ? 'Saving…' : 'Save'}
+                        </button>
+                        <button
+                          className="pubws-decide"
+                          style={{ marginLeft: '0.5rem' }}
+                          disabled={jobSaving}
+                          onClick={() => {
+                            setEditingJob(false);
+                            setJobErr('');
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      {jobErr && <p className="ticket-err">{jobErr}</p>}
                     </div>
-                    {jobErr && <p className="ticket-err">{jobErr}</p>}
-                  </div>
-                ) : selectedJob.description && (
-                  <>
-                    <p className={`pubws-details pubws-enter pubws-enter--1${descExpanded ? '' : ' is-clamped'}`}>
-                      {selectedJob.description}
-                    </p>
-                    {selectedJob.description.length > 220 && (
-                      <button className="pubws-details-more" onClick={() => setDescExpanded(v => !v)}>
-                        {descExpanded ? 'less' : 'more'}
-                      </button>
-                    )}
-                  </>
-                )}
-                {/* Edited, and when: a trader who priced this contract before
-                    the wording moved is entitled to know that it moved. */}
-                {!editingJob && selectedJob.editedAt && (
-                  <p className="pubws-proposal-meta">
-                    edited {new Date(selectedJob.editedAt).toLocaleDateString('en-GB', {
-                      day: 'numeric', month: 'short', timeZone: 'UTC',
-                    })}
-                  </p>
-                )}
-                {/* The proposer's own controls. A contract is a listing its
-                    author should be able to correct: a typo, a clearer
-                    description, a price they got wrong before anyone traded. */}
-                {canEditJob && !editingJob && (
-                  <div className="pubws-ownerbar pubws-enter pubws-enter--1">
-                    <button
-                      className="pubws-decide"
-                      onClick={() => {
-                        const split = splitAsk(selectedJob.title);
-                        setJobAsk(split.ask !== null ? String(split.ask) : '');
-                        setJobTitle(split.rest);
-                        setJobDesc(selectedJob.description ?? '');
-                        setJobErr('');
-                        setEditingJob(true);
-                      }}
-                    >
-                      Edit contract
-                    </button>
-                  </div>
-                )}
-                {/* The owner's press, on the floor itself (owner ask
-                    2026-08-11). Approve is the money verb, green; decline
-                    asks for the reason the charter promises to publish. */}
-                {canManage && (
-                  <div className="pubws-ownerbar pubws-enter pubws-enter--1">
-                    {declineReason === null ? (
+                  ) : (
+                    selectedJob.description && (
                       <>
-                        {/* Approve and decline are decisions, so they only
-                            apply while the job is still on the ballot. */}
-                        {!selectedJobDecided && (
-                          <>
-                            <button
-                              className="pubws-decide pubws-decide--approve"
-                              disabled={decideBusy}
-                              onClick={() => void decide('approve')}
-                            >
-                              {decideBusy ? 'Deciding…' : splitAsk(selectedJob.title).ask !== null
-                                ? `Approve, pay $${splitAsk(selectedJob.title).ask}`
-                                : 'Approve'}
-                            </button>
-                            <button
-                              className="pubws-decide pubws-decide--decline"
-                              disabled={decideBusy}
-                              onClick={() => setDeclineReason('')}
-                            >
-                              Decline
-                            </button>
-                          </>
-                        )}
-                        {/* Take it off the board entirely: spam, a duplicate, a
-                            test row. Two-step, because it is not a decision and
-                            cannot be undone from the UI. Every stake is
-                            refunded server-side first. */}
-                        {removeArmed ? (
-                          <>
-                            <button
-                              className="pubws-decide pubws-decide--decline"
-                              disabled={decideBusy}
-                              onClick={() => void removeJob()}
-                            >
-                              {decideBusy ? 'Removing…' : 'Confirm remove'}
-                            </button>
-                            <button className="pubws-decide" onClick={() => { setRemoveArmed(false); setDecideErr(''); }}>
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            className="pubws-decide"
-                            disabled={decideBusy}
-                            onClick={() => { setRemoveArmed(true); setDecideErr(''); }}
-                            title="Take this contract off the board. Stakes are refunded."
-                          >
-                            Remove
+                        <p className={`pubws-details pubws-enter pubws-enter--1${descExpanded ? '' : ' is-clamped'}`}>
+                          {selectedJob.description}
+                        </p>
+                        {selectedJob.description.length > 220 && (
+                          <button className="pubws-details-more" onClick={() => setDescExpanded(v => !v)}>
+                            {descExpanded ? 'less' : 'more'}
                           </button>
                         )}
                       </>
-                    ) : (
-                      <>
-                        <input
-                          className="pubws-decide-reason"
-                          value={declineReason}
-                          onChange={e => setDeclineReason(e.target.value)}
-                          placeholder="Why not, published on the contract"
-                          aria-label="Decline reason"
-                          autoFocus
-                        />
-                        <button
-                          className="pubws-decide pubws-decide--decline"
-                          disabled={decideBusy || declineReason.trim().length === 0}
-                          onClick={() => void decide('decline')}
-                        >
-                          {decideBusy ? 'Deciding…' : 'Confirm decline'}
-                        </button>
-                        {/* Genuine idea, just not taking it: decline but refund
+                    )
+                  )}
+                  {/* Edited, and when: a trader who priced this contract before
+                    the wording moved is entitled to know that it moved. */}
+                  {!editingJob && selectedJob.editedAt && (
+                    <p className="pubws-proposal-meta">
+                      edited{' '}
+                      {new Date(selectedJob.editedAt).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        timeZone: 'UTC',
+                      })}
+                    </p>
+                  )}
+                  {/* The proposer's own controls. A contract is a listing its
+                    author should be able to correct: a typo, a clearer
+                    description, a price they got wrong before anyone traded. */}
+                  {canEditJob && !editingJob && (
+                    <div className="pubws-ownerbar pubws-enter pubws-enter--1">
+                      <button
+                        className="pubws-decide"
+                        onClick={() => {
+                          const split = splitAsk(selectedJob.title);
+                          setJobAsk(split.ask !== null ? String(split.ask) : '');
+                          setJobTitle(split.rest);
+                          setJobDesc(selectedJob.description ?? '');
+                          setJobErr('');
+                          setEditingJob(true);
+                        }}
+                      >
+                        Edit contract
+                      </button>
+                    </div>
+                  )}
+                  {/* The owner's press, on the floor itself (owner ask
+                    2026-08-11). Approve is the money verb, green; decline
+                    asks for the reason the charter promises to publish. */}
+                  {canManage && (
+                    <div className="pubws-ownerbar pubws-enter pubws-enter--1">
+                      {declineReason === null ? (
+                        <>
+                          {/* Approve and decline are decisions, so they only
+                            apply while the job is still on the ballot. */}
+                          {!selectedJobDecided && (
+                            <>
+                              <button
+                                className="pubws-decide pubws-decide--approve"
+                                disabled={decideBusy}
+                                onClick={() => void decide('approve')}
+                              >
+                                {decideBusy
+                                  ? 'Deciding…'
+                                  : splitAsk(selectedJob.title).ask !== null
+                                    ? `Approve, pay $${splitAsk(selectedJob.title).ask}`
+                                    : 'Approve'}
+                              </button>
+                              <button
+                                className="pubws-decide pubws-decide--decline"
+                                disabled={decideBusy}
+                                onClick={() => setDeclineReason('')}
+                              >
+                                Decline
+                              </button>
+                            </>
+                          )}
+                          {/* Take it off the board entirely: spam, a duplicate, a
+                            test row. Two-step, because it is not a decision and
+                            cannot be undone from the UI. Every stake is
+                            refunded server-side first. */}
+                          {removeArmed ? (
+                            <>
+                              <button
+                                className="pubws-decide pubws-decide--decline"
+                                disabled={decideBusy}
+                                onClick={() => void removeJob()}
+                              >
+                                {decideBusy ? 'Removing…' : 'Confirm remove'}
+                              </button>
+                              <button
+                                className="pubws-decide"
+                                onClick={() => {
+                                  setRemoveArmed(false);
+                                  setDecideErr('');
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              className="pubws-decide"
+                              disabled={decideBusy}
+                              onClick={() => {
+                                setRemoveArmed(true);
+                                setDecideErr('');
+                              }}
+                              title="Take this contract off the board. Stakes are refunded."
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <input
+                            className="pubws-decide-reason"
+                            value={declineReason}
+                            onChange={e => setDeclineReason(e.target.value)}
+                            placeholder="Why not, published on the contract"
+                            aria-label="Decline reason"
+                            autoFocus
+                          />
+                          <button
+                            className="pubws-decide pubws-decide--decline"
+                            disabled={decideBusy || declineReason.trim().length === 0}
+                            onClick={() => void decide('decline')}
+                          >
+                            {decideBusy ? 'Deciding…' : 'Confirm decline'}
+                          </button>
+                          {/* Genuine idea, just not taking it: decline but refund
                             the proposer's whole stake (owner ask 2026-08-12). */}
-                        <button
-                          className="pubws-decide"
-                          disabled={decideBusy || declineReason.trim().length === 0}
-                          onClick={() => void decide('decline', true)}
-                          title="Decline but refund the proposer's stake in full"
-                        >
-                          Decline + refund
-                        </button>
-                        <button className="pubws-decide" onClick={() => { setDeclineReason(null); setDecideErr(''); }}>
-                          Cancel
-                        </button>
-                      </>
-                    )}
-                    {decideErr && <p className="ticket-err">{decideErr}</p>}
-                  </div>
-                )}
-              </>
-            )}
-            <div className="pubws-headline pubws-enter pubws-enter--2">
-              <span className="pubws-price">{unit}{formatValue(shownConsensus ?? consensus)}</span>
-              {!selectedJob && marketOpen !== null && consensus !== marketOpen && (
-                <span key={`open-${Math.round(consensus - marketOpen)}`} className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}>
-                  {consensus >= marketOpen ? '▲' : '▼'} {formatDelta(consensus - marketOpen, unit)}
-                  {' '}since open
-                </span>
+                          <button
+                            className="pubws-decide"
+                            disabled={decideBusy || declineReason.trim().length === 0}
+                            onClick={() => void decide('decline', true)}
+                            title="Decline but refund the proposer's stake in full"
+                          >
+                            Decline + refund
+                          </button>
+                          <button
+                            className="pubws-decide"
+                            onClick={() => {
+                              setDeclineReason(null);
+                              setDecideErr('');
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                      {decideErr && <p className="ticket-err">{decideErr}</p>}
+                    </div>
+                  )}
+                </>
               )}
-              {/* The impact is the job's one number, so it is always said:
+              <div className="pubws-headline pubws-enter pubws-enter--2">
+                <span className="pubws-price">
+                  {unit}
+                  {formatValue(shownConsensus ?? consensus)}
+                </span>
+                {!selectedJob && marketOpen !== null && consensus !== marketOpen && (
+                  <span
+                    key={`open-${Math.round(consensus - marketOpen)}`}
+                    className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}
+                  >
+                    {consensus >= marketOpen ? '▲' : '▼'} {formatDelta(consensus - marketOpen, unit)} since open
+                  </span>
+                )}
+                {/* The impact is the job's one number, so it is always said:
                   priced, zero-so-far, or not yet priced. Silence read as a
                   broken page. */}
-              {selectedJob && (
-                jobImpact === null ? (
-                  <span className="pubws-delta-chip">impact not yet priced</span>
-                ) : jobImpact === 0 ? (
-                  <span className="pubws-delta-chip">±{impactUnit}0 impact so far</span>
-                ) : (
-                  <span key={`imp-${Math.round(jobImpact)}`} className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}>
-                    {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)} impact
-                    {hero ? ` by ${hero.label}` : ''}
-                  </span>
-                )
-              )}
-            </div>
-            {/* What is left to reach the price, in the reader's own arithmetic
+                {selectedJob &&
+                  (jobImpact === null ? (
+                    <span className="pubws-delta-chip">impact not yet priced</span>
+                  ) : jobImpact === 0 ? (
+                    <span className="pubws-delta-chip">±{impactUnit}0 impact so far</span>
+                  ) : (
+                    <span
+                      key={`imp-${Math.round(jobImpact)}`}
+                      className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}
+                    >
+                      {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)} impact
+                      {hero ? ` by ${hero.label}` : ''}
+                    </span>
+                  ))}
+              </div>
+              {/* What is left to reach the price, in the reader's own arithmetic
                 (codex, 2026-08-20). A base rate stated as a multiplier asks
                 someone to compute a ratio before they are allowed to have a
                 feeling; "about $173 a day for four days" asks nothing, and
                 whether that sounds greedy IS the trade. Hidden while a job is
                 selected, because then the number on screen is that job's
                 impact and not the market's level. */}
-            {!selectedJob && gap && (
-              <p className="pubws-gap pubws-enter pubws-enter--2">
-                {gap.alreadyThere ? (
-                  <>
-                    <b>{unit}{formatValue(gap.booked)}</b> booked already, past the market's{' '}
-                    {unit}{formatValue(gap.target)} with {gap.daysLeft === 1 ? 'a day' : `${gap.daysLeft} days`} to go.
-                  </>
-                ) : (
-                  <>
-                    <b>{unit}{formatValue(gap.booked)}</b> booked so far. Another{' '}
-                    <b>{unit}{formatValue(gap.needed)}</b> reaches the market's {unit}{formatValue(gap.target)},
-                    which is about <b>{unit}{formatValue(gap.perDay)} a day</b> for the{' '}
-                    {gap.daysLeft === 1 ? 'day' : `${gap.daysLeft} days`} left.
-                  </>
-                )}
-              </p>
-            )}
-            {/* A market nobody has traded yet has no replayed history, which
+              {!selectedJob && gap && (
+                <p className="pubws-gap pubws-enter pubws-enter--2">
+                  {gap.alreadyThere ? (
+                    <>
+                      <b>
+                        {unit}
+                        {formatValue(gap.booked)}
+                      </b>{' '}
+                      booked already, past the market's {unit}
+                      {formatValue(gap.target)} with {gap.daysLeft === 1 ? 'a day' : `${gap.daysLeft} days`} to go.
+                    </>
+                  ) : (
+                    <>
+                      <b>
+                        {unit}
+                        {formatValue(gap.booked)}
+                      </b>{' '}
+                      booked so far. Another{' '}
+                      <b>
+                        {unit}
+                        {formatValue(gap.needed)}
+                      </b>{' '}
+                      reaches the market's {unit}
+                      {formatValue(gap.target)}, which is about{' '}
+                      <b>
+                        {unit}
+                        {formatValue(gap.perDay)} a day
+                      </b>{' '}
+                      for the {gap.daysLeft === 1 ? 'day' : `${gap.daysLeft} days`} left.
+                    </>
+                  )}
+                </p>
+              )}
+              {/* A market nobody has traded yet has no replayed history, which
                 used to mean no chart at all: selecting a fresh job showed a
                 price and blank space. A market always has a call, so fall
                 back to that single point and let the chart hold it. */}
-            {/* Every proposal branches into two worlds and both are on the
+              {/* Every proposal branches into two worlds and both are on the
                 page (owner decision 2026-08-10): the toggle picks which one
                 the ticket trades, the chart draws the other as a quiet
                 second line, and the gap between the lines is the impact. */}
-            {selectedJob && pair?.declinedMarketId && (
-              <div className="pubws-branch pubws-enter pubws-enter--2" role="group" aria-label="Branch">
-                <button
-                  className={`pubws-branch-opt pubws-branch-opt--approved${branch === 'approved' ? ' is-active' : ''}`}
-                  aria-pressed={branch === 'approved'}
-                  onClick={() => setBranch('approved')}
-                >
-                  if approved
-                </button>
-                <button
-                  className={`pubws-branch-opt pubws-branch-opt--declined${branch === 'declined' ? ' is-active' : ''}`}
-                  aria-pressed={branch === 'declined'}
-                  onClick={() => setBranch('declined')}
-                >
-                  if declined
-                </button>
-              </div>
-            )}
-            <div className="pubws-enter pubws-enter--3">
-              <MarketChart
-                key={active.marketId}
-                series={active.history.length > 0
-                  ? active.history
-                  : [{ at: new Date().toISOString(), consensus }]}
-                consensus={consensus}
-                unit={unit}
-                note={settleDayOf(hero.targetDate) ? `resolves ${settleDayOf(hero.targetDate)}` : undefined}
-                preview={chartPreview}
-                orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
-                /* Only ever the other BRANCH: same metric, same window,
+              {selectedJob && pair?.declinedMarketId && (
+                <div className="pubws-branch pubws-enter pubws-enter--2" role="group" aria-label="Branch">
+                  <button
+                    className={`pubws-branch-opt pubws-branch-opt--approved${branch === 'approved' ? ' is-active' : ''}`}
+                    aria-pressed={branch === 'approved'}
+                    onClick={() => setBranch('approved')}
+                  >
+                    if approved
+                  </button>
+                  <button
+                    className={`pubws-branch-opt pubws-branch-opt--declined${branch === 'declined' ? ' is-active' : ''}`}
+                    aria-pressed={branch === 'declined'}
+                    onClick={() => setBranch('declined')}
+                  >
+                    if declined
+                  </button>
+                </div>
+              )}
+              <div className="pubws-enter pubws-enter--3">
+                <MarketChart
+                  key={active.marketId}
+                  series={active.history.length > 0 ? active.history : [{ at: new Date().toISOString(), consensus }]}
+                  consensus={consensus}
+                  unit={unit}
+                  note={settleDayOf(hero.targetDate) ? `resolves ${settleDayOf(hero.targetDate)}` : undefined}
+                  preview={chartPreview}
+                  orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
+                  /* Only ever the other BRANCH: same metric, same window,
                    two worlds, so the gap is the priced impact. The other
                    horizon measures a different window and shares no scale
                    with this one (2026-08-15), so it gets its own chart
                    below rather than a line on this axis. */
-                secondary={selectedJob && otherBranch && otherBranch.consensus !== null
-                  ? {
-                      series: otherBranch.history,
-                      consensus: otherBranch.consensus,
-                      label: branch === 'approved' ? 'if declined' : 'if approved',
-                      tone: branch === 'approved' ? 'lower' as const : 'higher' as const,
-                    }
-                  : null}
-              />
-            </div>
-          </section>
-        )}
+                  secondary={
+                    selectedJob && otherBranch && otherBranch.consensus !== null
+                      ? {
+                          series: otherBranch.history,
+                          consensus: otherBranch.consensus,
+                          label: branch === 'approved' ? 'if declined' : 'if approved',
+                          tone: branch === 'approved' ? ('lower' as const) : ('higher' as const),
+                        }
+                      : null
+                  }
+                />
+              </div>
+            </section>
+          )}
 
-        {/* A decision pauses trading, not the conversation (owner ask
+          {/* A decision pauses trading, not the conversation (owner ask
             2026-08-20, docs/vision.md "the conversation outlives the
             decision"): a decided contract drops the bet verbs and keeps
             its thread, readable and open to new comments. */}
-        {active && (trading || (canTrade && !user && !authLoading)) ? (
-          <section className="pubws-act pubws-enter pubws-enter--3" aria-label={selectedJobDecided ? 'Conversation' : 'Place a trade'}>
-            {/* Prominent, Manifold-style (owner direction 2026-08-10):
+          {active && (trading || (canTrade && !user && !authLoading)) ? (
+            <section
+              className="pubws-act pubws-enter pubws-enter--3"
+              aria-label={selectedJobDecided ? 'Conversation' : 'Place a trade'}
+            >
+              {/* Prominent, Manifold-style (owner direction 2026-08-10):
                 the two filled verbs ARE the floor's call to action, green
                 up first like the reference. The dialog they open keeps its
                 own side pills for switching.
@@ -1199,35 +1324,41 @@ export function TradePage() {
                 "Market has no liquidity" at submit (owner report
                 2026-08-15). The number above is the baseline's prior, drawn
                 so the chart is not blank; it is not a price anyone made. */}
-            {!selectedJobDecided && (active.funded ? (
-              <div className="pubws-bet" role="group" aria-label="Bet">
-                <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>Bet Higher ↑</button>
-                <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>Bet Lower ↓</button>
-              </div>
-            ) : (
-              <p className="pubws-unfunded" role="status">
-                {selectedJob
-                  ? 'This contract has no market yet: nobody has funded one, so there is nothing to trade against. The owner funds it, or the proposer can back it themselves.'
-                  : 'This market has no liquidity yet, so there is nothing to trade against.'}
-              </p>
-            ))}
-            {/* The held position stays visible on the floor; managing it
+              {!selectedJobDecided &&
+                (active.funded ? (
+                  <div className="pubws-bet" role="group" aria-label="Bet">
+                    <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>
+                      Bet Higher ↑
+                    </button>
+                    <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>
+                      Bet Lower ↓
+                    </button>
+                  </div>
+                ) : (
+                  <p className="pubws-unfunded" role="status">
+                    {selectedJob
+                      ? 'This contract has no market yet: nobody has funded one, so there is nothing to trade against. The owner funds it, or the proposer can back it themselves.'
+                      : 'This market has no liquidity yet, so there is nothing to trade against.'}
+                  </p>
+                ))}
+              {/* The held position stays visible on the floor; managing it
                 (selling, cancelling orders) happens in the same dialog. */}
-            {!selectedJobDecided && (positions.length > 0 || orders.length > 0) && (
-              <button className="pubws-pos-summary" onClick={() => setBetModal('manage')}>
-                {positions.map(p => `${p.direction === 'higher' ? '▲' : '▼'} ${fmtShares(p.shares)} ${p.direction}`).join(' · ')}
-                {positions.length > 0 && orders.length > 0 ? ' · ' : ''}
-                {orders.length > 0 ? `${orders.length} resting order${orders.length > 1 ? 's' : ''}` : ''}
-                {' '}→ manage
-              </button>
-            )}
-            {/* The conversation under whatever the one view shows: the
+              {!selectedJobDecided && (positions.length > 0 || orders.length > 0) && (
+                <button className="pubws-pos-summary" onClick={() => setBetModal('manage')}>
+                  {positions
+                    .map(p => `${p.direction === 'higher' ? '▲' : '▼'} ${fmtShares(p.shares)} ${p.direction}`)
+                    .join(' · ')}
+                  {positions.length > 0 && orders.length > 0 ? ' · ' : ''}
+                  {orders.length > 0 ? `${orders.length} resting order${orders.length > 1 ? 's' : ''}` : ''} → manage
+                </button>
+              )}
+              {/* The conversation under whatever the one view shows: the
                 baseline market's thread, or the selected job's (owner ask
                 2026-08-11). */}
-            {idOrSlug && (
-              <FloorComments
-                idOrSlug={idOrSlug}
-                /* A contract passes its proposal AND both branch markets
+              {idOrSlug && (
+                <FloorComments
+                  idOrSlug={idOrSlug}
+                  /* A contract passes its proposal AND both branch markets
                    (owner reports 2026-08-15 "if there is a trade why don't I
                    see it down here", 2026-08-21 "why dont i see any trades
                    made on the conditional markets"). The conversation
@@ -1235,28 +1366,33 @@ export function TradePage() {
                    positions and trades cover BOTH branches, labeled, because
                    scoping them to the branch on screen made a contract whose
                    trades sat on the other branch answer "Trades (0)". */
-                focusCommentId={focusCommentId}
-                onFocusHandled={() => setFocusCommentId(null)}
-                subject={selectedJob
-                  ? {
-                      proposalId: selectedJob.id,
-                      markets: [
-                        ...(pair?.approvedMarketId ? [{ marketId: pair.approvedMarketId, branch: 'approved' as const }] : []),
-                        ...(pair?.declinedMarketId ? [{ marketId: pair.declinedMarketId, branch: 'declined' as const }] : []),
-                      ],
-                    }
-                  : hero ? { marketId: hero.marketId } : {}}
-                canPost={!!user && joined}
-                onRequireSignup={() => navigate(authPath('signup', location))}
-              />
-            )}
+                  focusCommentId={focusCommentId}
+                  onFocusHandled={() => setFocusCommentId(null)}
+                  subject={
+                    selectedJob
+                      ? {
+                          proposalId: selectedJob.id,
+                          markets: [
+                            ...(pair?.approvedMarketId
+                              ? [{ marketId: pair.approvedMarketId, branch: 'approved' as const }]
+                              : []),
+                            ...(pair?.declinedMarketId
+                              ? [{ marketId: pair.declinedMarketId, branch: 'declined' as const }]
+                              : []),
+                          ],
+                        }
+                      : hero
+                        ? { marketId: hero.marketId }
+                        : {}
+                  }
+                  canPost={!!user && joined}
+                  onRequireSignup={() => navigate(authPath('signup', location))}
+                />
+              )}
+            </section>
+          ) : null}
 
-          </section>
-        ) : null}
-
-
-
-        {/* Two questions, two sections (owner direction 2026-08-10):
+          {/* Two questions, two sections (owner direction 2026-08-10):
             "What is this market?" is the metric's stored definition,
             verbatim, because it is the settlement text. "What is
             LookPilot?" is the product in its own words plus the primary
@@ -1267,114 +1403,118 @@ export function TradePage() {
             logged instead, and the log is rendered below the definition so
             a trader can see whether the wording moved after they took
             their position. */}
-        <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this market">
-          <h2 className="pubws-know-head">
-            What is this market?
-            {/* Managers edit the definition in place (owner ask 2026-08-18).
+          <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this market">
+            <h2 className="pubws-know-head">
+              What is this market?
+              {/* Managers edit the definition in place (owner ask 2026-08-18).
                 Saving keeps the market: the price, the pool and every
                 position survive. What it does instead is publish the change
                 here, which is the honest trade when no code can tell a
                 clarification from a redefinition. */}
-            {canManage && hero?.metricId && !editingDef && (
-              <button
-                className="pubws-decide"
-                style={{ marginLeft: '0.6rem' }}
-                onClick={() => {
-                  setDefDraft(horizonDescription ?? '');
-                  setDefErr('');
-                  setEditingDef(true);
-                }}
-              >
-                Edit
-              </button>
-            )}
-          </h2>
-          {/* The metric's stored definition, verbatim: it is the settlement
+              {canManage && hero?.metricId && !editingDef && (
+                <button
+                  className="pubws-decide"
+                  style={{ marginLeft: '0.6rem' }}
+                  onClick={() => {
+                    setDefDraft(horizonDescription ?? '');
+                    setDefErr('');
+                    setEditingDef(true);
+                  }}
+                >
+                  Edit
+                </button>
+              )}
+            </h2>
+            {/* The metric's stored definition, verbatim: it is the settlement
               text (see the section comment above). This paragraph was
               hardcoded LookPilot prose from the one-workspace era; a second
               floor (telarchy, 2026-08-14) made that a lie on every other
               workspace. No fallback: a workspace whose owner wrote no
               definition shows no definition rather than someone else's. */}
-          {editingDef ? (
-            <div className="pubws-know-edit">
-              <textarea
-                className="pubws-know-edit-text"
-                value={defDraft}
-                rows={14}
-                onChange={e => setDefDraft(e.target.value)}
-              />
-              <p className="pubws-settle">
-                This text is what the market settles on. Saving keeps the
-                market open and every position intact, and publishes the
-                change below, old wording and new, for anyone holding a
-                position to see.
-              </p>
-              <div>
-                <button
-                  className="pubws-decide"
-                  disabled={defSaving}
-                  onClick={() => { void saveDefinition(); }}
-                >
-                  {defSaving ? 'Saving…' : 'Save'}
-                </button>
-                <button
-                  className="pubws-decide"
-                  style={{ marginLeft: '0.5rem' }}
-                  disabled={defSaving}
-                  onClick={() => setEditingDef(false)}
-                >
-                  Cancel
-                </button>
+            {editingDef ? (
+              <div className="pubws-know-edit">
+                <textarea
+                  className="pubws-know-edit-text"
+                  value={defDraft}
+                  rows={14}
+                  onChange={e => setDefDraft(e.target.value)}
+                />
+                <p className="pubws-settle">
+                  This text is what the market settles on. Saving keeps the market open and every position intact, and
+                  publishes the change below, old wording and new, for anyone holding a position to see.
+                </p>
+                <div>
+                  <button
+                    className="pubws-decide"
+                    disabled={defSaving}
+                    onClick={() => {
+                      void saveDefinition();
+                    }}
+                  >
+                    {defSaving ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    className="pubws-decide"
+                    style={{ marginLeft: '0.5rem' }}
+                    disabled={defSaving}
+                    onClick={() => setEditingDef(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {defErr && <p className="ticket-err">{defErr}</p>}
               </div>
-              {defErr && <p className="ticket-err">{defErr}</p>}
-            </div>
-          ) : (
-            horizonDescription && (
-              /* The settlement text renders as markdown (owner ask
+            ) : (
+              horizonDescription && (
+                /* The settlement text renders as markdown (owner ask
                  2026-08-21), same stack as the announcements body, plus
                  remark-breaks so a plain newline is a line break: owners
                  write this text over the API and a collapsed paragraph
                  misquotes what the market settles on. */
-              <div className="pubws-know-what">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkBreaks]}
-                  components={{
-                    a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>,
-                  }}
-                >
-                  {horizonDescription}
-                </ReactMarkdown>
-              </div>
-            )
-          )}
-          {/* The actual-trajectory chart that used to sit here was removed
+                <div className="pubws-know-what">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    components={{
+                      a: ({ href, children }) => (
+                        <a href={href} target="_blank" rel="noreferrer">
+                          {children}
+                        </a>
+                      ),
+                    }}
+                  >
+                    {horizonDescription}
+                  </ReactMarkdown>
+                </div>
+              )
+            )}
+            {/* The actual-trajectory chart that used to sit here was removed
               on owner direction 2026-08-18: the floor no longer plots the
               metric's measured values, only the market. The history fields
               stay in the API. */}
-        </section>
-        {/* The owner's disclosures, in the owner-prose zone between the
+          </section>
+          {/* The owner's disclosures, in the owner-prose zone between the
             market's definition and the company blurb. A charter that promises
             to announce material news needs the announcements on the page the
             promise is read on, not in a thread under one market. Present only
             when the Public group grants read, the same disclosure rule as the
             ballot: `announcementCount` is absent on a counts-only floor. */}
-        {ws.announcementCount !== undefined && (
-          <FloorAnnouncements
-            idOrSlug={idOrSlug ?? ws.workspaceId}
-            latest={ws.latestAnnouncement}
-            total={ws.announcementCount}
+          {ws.announcementCount !== undefined && (
+            <FloorAnnouncements
+              idOrSlug={idOrSlug ?? ws.workspaceId}
+              latest={ws.latestAnnouncement}
+              total={ws.announcementCount}
+              canManage={canManage}
+            />
+          )}
+          <SubjectAbout
+            workspaceId={ws.workspaceId}
+            name={ws.name}
+            value={ws.subjectAbout}
+            defaultText=""
             canManage={canManage}
+            onSaved={reload}
+            onAsk={() => setAskingOtto(true)}
           />
-        )}
-        <SubjectAbout
-          workspaceId={ws.workspaceId}
-          name={ws.name}
-          value={ws.subjectAbout}
-          defaultText=""
-          canManage={canManage}
-          onSaved={reload}
-          onAsk={() => setAskingOtto(true)}
-        />
         </div>
         {/* The jobs board IS the right rail (owner direction 2026-08-10:
             jobs where the activity log was). The log's information lives
@@ -1397,7 +1537,10 @@ export function TradePage() {
                 // itself is public information (Open workspace ballot).
                 // Payment details come from the account (owner decision
                 // 2026-08-10): the server reads and snapshots them.
-                if (!user) { navigate(authPath('signup', location)); return; }
+                if (!user) {
+                  navigate(authPath('signup', location));
+                  return;
+                }
                 // No proposer stake (owner call 2026-08-14): the workspace
                 // auto-funds the branch markets instead. Charging the empty
                 // side of the marketplace half a newcomer's starting balance
@@ -1469,7 +1612,10 @@ export function TradePage() {
               <circle className="ab-dot ab-dot--up" cx="152" cy="10" r="4.5" />
               <circle className="ab-dot ab-dot--down" cx="152" cy="46" r="4.5" />
             </svg>
-            <p>Anyone can offer to do work and name their price, paid in real money if approved. Participants, human or AI, bet on both worlds: done, and not done.</p>
+            <p>
+              Anyone can offer to do work and name their price, paid in real money if approved. Participants, human or
+              AI, bet on both worlds: done, and not done.
+            </p>
           </div>
           <div className="pubws-about-beat">
             <span className="pubws-about-num">03</span>
@@ -1481,7 +1627,10 @@ export function TradePage() {
               <circle className="ab-dot ab-dot--down" cx="30" cy="44" r="4" />
               <path className="ab-check" d="M80,30 L92,42 L120,14" />
             </svg>
-            <p>The gap between those worlds is a calibrated number. The owner approves on it, and pays for outcomes, not promises.</p>
+            <p>
+              The gap between those worlds is a calibrated number. The owner approves on it, and pays for outcomes, not
+              promises.
+            </p>
           </div>
         </div>
       </section>
@@ -1506,8 +1655,7 @@ export function TradePage() {
             </svg>
             <span className="pubws-do-title">Trade</span>
             <span className="pubws-do-body">
-              Say where the number lands. You are paid for being right, and the
-              price moves when you are.
+              Say where the number lands. You are paid for being right, and the price moves when you are.
             </span>
             <span className="pubws-do-go">Place a bet →</span>
           </button>
@@ -1525,8 +1673,8 @@ export function TradePage() {
             </svg>
             <span className="pubws-do-title">Do a contract</span>
             <span className="pubws-do-body">
-              Offer work and name your price. The market prices what it would do
-              to the number, and the owner pays in real money if it clears.
+              Offer work and name your price. The market prices what it would do to the number, and the owner pays in
+              real money if it clears.
             </span>
             <span className="pubws-do-go">Offer a contract →</span>
           </button>
@@ -1555,7 +1703,11 @@ export function TradePage() {
   );
 }
 
-export function TopBar({ user, ready, floor = null }: {
+export function TopBar({
+  user,
+  ready,
+  floor = null,
+}: {
   user: boolean;
   ready: boolean;
   /** Which floor the reader is standing on, so account settings can hand out
@@ -1584,10 +1736,21 @@ export function TopBar({ user, ready, floor = null }: {
         {/* Rendered only after the session check settles: while it is
             pending, user is still null, and a signed-in visitor would see
             "Log in" flash and vanish. Anonymous visitors get it fading in. */}
-        {ready && user && <div className="pubws-fade"><NotificationsBell /></div>}
-        {ready && (user
-          ? <div className="pubws-fade"><AccountMenu floor={floor} /></div>
-          : <Link to={authPath('login', location)} className="pubws-login pubws-fade">Log in</Link>)}
+        {ready && user && (
+          <div className="pubws-fade">
+            <NotificationsBell />
+          </div>
+        )}
+        {ready &&
+          (user ? (
+            <div className="pubws-fade">
+              <AccountMenu floor={floor} />
+            </div>
+          ) : (
+            <Link to={authPath('login', location)} className="pubws-login pubws-fade">
+              Log in
+            </Link>
+          ))}
       </div>
     </nav>
   );
@@ -1600,7 +1763,12 @@ export function TopBar({ user, ready, floor = null }: {
  * stands, the other waits below it, and a click crossfades them and
  * re-points the whole view at the other branch.
  */
-function WorldWord({ branch, approvedText, declinedText, onToggle }: {
+function WorldWord({
+  branch,
+  approvedText,
+  declinedText,
+  onToggle,
+}: {
   branch: 'approved' | 'declined';
   approvedText: string;
   declinedText: string;
@@ -1608,8 +1776,12 @@ function WorldWord({ branch, approvedText, declinedText, onToggle }: {
 }) {
   const inner = (
     <>
-      <span className="pubws-world-opt pubws-world-opt--approved" aria-hidden={branch !== 'approved'}>{approvedText}</span>
-      <span className="pubws-world-opt pubws-world-opt--declined" aria-hidden={branch !== 'declined'}>{declinedText}</span>
+      <span className="pubws-world-opt pubws-world-opt--approved" aria-hidden={branch !== 'approved'}>
+        {approvedText}
+      </span>
+      <span className="pubws-world-opt pubws-world-opt--declined" aria-hidden={branch !== 'declined'}>
+        {declinedText}
+      </span>
     </>
   );
   if (!onToggle) {
@@ -1668,7 +1840,9 @@ function SetupForm({ source }: { source: string }) {
           onChange={e => setEmail(e.target.value)}
           aria-label="Your email"
         />
-        <button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Get set up'}</button>
+        <button type="submit" disabled={busy}>
+          {busy ? 'Sending…' : 'Get set up'}
+        </button>
       </div>
       {error && <p className="pubws-setup-err">{error}</p>}
     </form>

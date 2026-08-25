@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { clockTickMs, pickCurrentSeason, seasonClock } from '../season-clock';
 import type { PrizeSeason } from '../api';
+import { clockTickMs, pickCurrentSeason, seasonClock } from '../season-clock';
 
 /**
  * The season countdown.
@@ -20,9 +20,14 @@ const OCT16 = '2026-10-16T00:00:00.000Z';
 
 function season(over: Partial<PrizeSeason> = {}): PrizeSeason {
   return {
-    id: 's1', name: 'Season 1', status: 'draft',
-    startsAt: AUG20, endsAt: OCT16, settledAt: null,
-    poolUsd: 1000, ladder: [{ place: 1, prizeUsd: 500 }],
+    id: 's1',
+    name: 'Season 1',
+    status: 'draft',
+    startsAt: AUG20,
+    endsAt: OCT16,
+    settledAt: null,
+    poolUsd: 1000,
+    ladder: [{ place: 1, prizeUsd: 500 }],
     rulesUrl: '/legal/season-1',
     ...over,
   } as PrizeSeason;
@@ -41,12 +46,9 @@ describe('a season that has not started', () => {
   });
 
   test('drops to hours and minutes as it gets close', () => {
-    expect(seasonClock(season(), at('2026-08-19T14:00:00.000Z')).headline)
-      .toBe('Starts in 10 hours');
-    expect(seasonClock(season(), at('2026-08-19T23:12:00.000Z')).headline)
-      .toBe('Starts in 48 min');
-    expect(seasonClock(season(), at('2026-08-19T23:59:12.000Z')).headline)
-      .toBe('Starts in 48 sec');
+    expect(seasonClock(season(), at('2026-08-19T14:00:00.000Z')).headline).toBe('Starts in 10 hours');
+    expect(seasonClock(season(), at('2026-08-19T23:12:00.000Z')).headline).toBe('Starts in 48 min');
+    expect(seasonClock(season(), at('2026-08-19T23:59:12.000Z')).headline).toBe('Starts in 48 sec');
   });
 
   test('a draft whose start instant has passed says so honestly', () => {
@@ -98,8 +100,7 @@ describe('the phrase never reads like a stopwatch', () => {
 
   test('singulars are singular', () => {
     expect(seasonClock(season(), at('2026-08-19T23:00:00.000Z')).remaining).toBe('1 hour');
-    expect(seasonClock(season({ status: 'running' }), at('2026-10-15T00:00:00.000Z')).remaining)
-      .toBe('1 day');
+    expect(seasonClock(season({ status: 'running' }), at('2026-10-15T00:00:00.000Z')).remaining).toBe('1 day');
   });
 });
 

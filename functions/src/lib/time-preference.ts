@@ -19,15 +19,15 @@
  * that both cover the same day on the same metric.
  */
 
-import { toISOWeekString, isRelativeDate, toAbsoluteDate, periodEndInstant } from './date-utils';
 import type { TimePreference } from '../types';
+import { isRelativeDate, periodEndInstant, toAbsoluteDate, toISOWeekString } from './date-utils';
 
 export const WEIGHT_T0 = 1.0; // weight at t = 0 (current)
 
 export const DEFAULT_DENSITY = 3;
 
 export interface TimePoint {
-  date: string;   // absolute date string (YYYY-MM-DD, YYYY-Www, YYYY-MM, or YYYY)
+  date: string; // absolute date string (YYYY-MM-DD, YYYY-Www, YYYY-MM, or YYYY)
   weight: number; // probability-mass weight in the exponential distribution
 }
 
@@ -75,10 +75,14 @@ function dateAtGranularity(years: number, base: Date, granularity: Granularity):
   d.setDate(d.getDate() + days);
 
   switch (granularity) {
-    case 'day':   return d.toISOString().slice(0, 10);
-    case 'week':  return toISOWeekString(d);
-    case 'month': return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    case 'year':  return String(d.getFullYear());
+    case 'day':
+      return d.toISOString().slice(0, 10);
+    case 'week':
+      return toISOWeekString(d);
+    case 'month':
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    case 'year':
+      return String(d.getFullYear());
   }
 }
 
@@ -95,7 +99,7 @@ export function sampleTimePoints(halfLife: number, density?: number, base: Date 
   const ts: number[] = [];
   for (let i = 1; i <= n; i++) {
     const p = (2 * i - 1) / (2 * n);
-    ts.push((-Math.log(1 - p)) / lambda);
+    ts.push(-Math.log(1 - p) / lambda);
   }
 
   const granularity = pickGranularity(ts);
@@ -138,9 +142,7 @@ export function resolveCustomHorizons(horizons: unknown, base: Date = new Date()
  * Sorted chronologically by period end for stable ordering downstream.
  */
 export function desiredMarketDates(tp: TimePreference, base: Date = new Date()): string[] {
-  const dates = new Set<string>(
-    tp.enabled ? sampleTimePoints(tp.halfLife, tp.density, base).map(p => p.date) : [],
-  );
+  const dates = new Set<string>(tp.enabled ? sampleTimePoints(tp.halfLife, tp.density, base).map(p => p.date) : []);
   for (const date of resolveCustomHorizons(tp.customHorizons, base)) dates.add(date);
   return Array.from(dates).sort((a, b) => periodEndInstant(a).getTime() - periodEndInstant(b).getTime());
 }
@@ -159,10 +161,7 @@ export function generatesMarkets(tp: TimePreference | null | undefined, base: Da
  * A leaf is a metric with no formula (formula === '0' or '').
  * Does not include the starting metric itself.
  */
-export function getLeafDescendantNames(
-  metricName: string,
-  nameToFormula: Record<string, string>,
-): string[] {
+export function getLeafDescendantNames(metricName: string, nameToFormula: Record<string, string>): string[] {
   const formula = nameToFormula[metricName];
   if (!formula || formula.trim() === '0') return [];
 

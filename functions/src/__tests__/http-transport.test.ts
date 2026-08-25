@@ -12,12 +12,12 @@
  * the behavioral ones pin what the settings do).
  */
 
-import express from 'express';
-import request from 'supertest';
 import compression from 'compression';
+import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import request from 'supertest';
 
 const APP_TS = readFileSync(join(__dirname, '../app.ts'), 'utf8');
 
@@ -43,14 +43,16 @@ describe('compression behavior', () => {
     app.get('/big.json', (_req, res) => {
       res.json({ rows: Array.from({ length: 500 }, (_, i) => ({ i, name: `row-${i}` })) });
     });
-    app.get('/tiny.json', (_req, res) => { res.json({ ok: true }); });
+    app.get('/tiny.json', (_req, res) => {
+      res.json({ ok: true });
+    });
     return app;
   }
 
   it('gzips a large JSON response when the client accepts it', async () => {
     const res = await request(compressedApp()).get('/big.json').set('Accept-Encoding', 'gzip');
     expect(res.headers['content-encoding']).toBe('gzip');
-    expect(res.body.rows).toHaveLength(500);   // supertest decodes; body survives intact
+    expect(res.body.rows).toHaveLength(500); // supertest decodes; body survives intact
   });
 
   it('leaves sub-threshold responses uncompressed', async () => {
@@ -69,7 +71,9 @@ describe('trust proxy behavior (one hop, Cloud Run shape)', () => {
   function proxiedApp(): express.Express {
     const app = express();
     app.set('trust proxy', 1);
-    app.get('/ip', (req, res) => { res.json({ ip: req.ip }); });
+    app.get('/ip', (req, res) => {
+      res.json({ ip: req.ip });
+    });
     return app;
   }
 
@@ -81,24 +85,31 @@ describe('trust proxy behavior (one hop, Cloud Run shape)', () => {
   it('a client forging extra X-Forwarded-For entries cannot pick its own identity', async () => {
     // The front end APPENDS the real client last; forged entries sit left of
     // it. With one trusted hop, express must read the rightmost entry.
-    const res = await request(proxiedApp()).get('/ip')
-      .set('X-Forwarded-For', '10.0.0.1, 198.51.100.7, 203.0.113.9');
+    const res = await request(proxiedApp()).get('/ip').set('X-Forwarded-For', '10.0.0.1, 198.51.100.7, 203.0.113.9');
     expect(res.body.ip).toBe('203.0.113.9');
   });
 
   it('rate limiting buckets per client IP, so one noisy IP cannot starve another', async () => {
     const app = express();
     app.set('trust proxy', 1);
-    app.use(rateLimit({
-      windowMs: 60_000, max: 2, standardHeaders: true, legacyHeaders: false,
-      validate: { forwardedHeader: false },
-    }));
-    app.get('/x', (_req, res) => { res.json({ ok: true }); });
+    app.use(
+      rateLimit({
+        windowMs: 60_000,
+        max: 2,
+        standardHeaders: true,
+        legacyHeaders: false,
+        validate: { forwardedHeader: false },
+      }),
+    );
+    app.get('/x', (_req, res) => {
+      res.json({ ok: true });
+    });
 
     const scanner = () => request(app).get('/x').set('X-Forwarded-For', '198.51.100.7');
     const visitor = () => request(app).get('/x').set('X-Forwarded-For', '203.0.113.9');
-    await scanner(); await scanner();
-    expect((await scanner()).status).toBe(429);   // scanner exhausted its bucket
-    expect((await visitor()).status).toBe(200);   // visitor unaffected
+    await scanner();
+    await scanner();
+    expect((await scanner()).status).toBe(429); // scanner exhausted its bucket
+    expect((await visitor()).status).toBe(200); // visitor unaffected
   });
 });

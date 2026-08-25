@@ -1,6 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('../../lib/api', () => ({
@@ -15,6 +14,7 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: f
 // The top bar drags in the whole floor page; the marketplace grid is what
 // this spec is about.
 vi.mock('../TradePage', () => ({ TopBar: () => null }));
+
 // Labels and the card's hero come from lib/floor-horizons, the same model the
 // floor page uses, so this spec asserts the real strings: a card and the floor
 // it links to must never name the number differently.
@@ -33,7 +33,9 @@ const listing = {
 const payload = {
   participantCount: 14,
   tradesThisWeek: 108,
-  markets: [{ marketId: 'm-1', metricName: 'LookPilot revenue (monthly, USD)', consensus: 77315.69, targetDate: '2026-08' }],
+  markets: [
+    { marketId: 'm-1', metricName: 'LookPilot revenue (monthly, USD)', consensus: 77315.69, targetDate: '2026-08' },
+  ],
   // Shaped like the real payload: the inline price replay names its market.
   marketHistory: [
     { at: '2026-08-11T06:41:39.275Z', consensus: 73600 },
@@ -42,7 +44,12 @@ const payload = {
   marketHistoryMarketId: 'm-1',
 };
 
-const renderPage = () => render(<MemoryRouter><FloorsPage /></MemoryRouter>);
+const renderPage = () =>
+  render(
+    <MemoryRouter>
+      <FloorsPage />
+    </MemoryRouter>,
+  );
 
 beforeEach(() => {
   vi.mocked(api.getPublicWorkspaces).mockResolvedValue([listing] as never);
@@ -52,14 +59,18 @@ beforeEach(() => {
 
 /** A draft season, the state the home page has to sell hardest. */
 const season = {
-  id: 's0', name: 'Season 0', status: 'draft',
-  startsAt: '2026-08-22T00:00:00.000Z', endsAt: '2026-10-16T00:00:00.000Z',
-  settledAt: null, poolUsd: 1000,
-  ladder: [{ place: 1, prizeUsd: 500 }], rulesUrl: '/legal/season-0',
+  id: 's0',
+  name: 'Season 0',
+  status: 'draft',
+  startsAt: '2026-08-22T00:00:00.000Z',
+  endsAt: '2026-10-16T00:00:00.000Z',
+  settledAt: null,
+  poolUsd: 1000,
+  ladder: [{ place: 1, prizeUsd: 500 }],
+  rulesUrl: '/legal/season-0',
 };
 
 describe('marketplace', () => {
-
   test('states the mechanism once, in plain words', async () => {
     // Reworded and halved 2026-08-20 when this became the home page. The
     // three things the sentence has to carry are unchanged: one number, who
@@ -207,7 +218,11 @@ describe('the market spark', () => {
 describe('loading', () => {
   test('the grid holds the market page motif until the listings land', async () => {
     let release: (v: unknown) => void = () => {};
-    vi.mocked(api.getPublicWorkspaces).mockReturnValue(new Promise(r => { release = r; }) as never);
+    vi.mocked(api.getPublicWorkspaces).mockReturnValue(
+      new Promise(r => {
+        release = r;
+      }) as never,
+    );
     const { container } = renderPage();
     // Same element and class as a market page's loading screen, never a
     // blank page and never a spinner.
@@ -220,7 +235,11 @@ describe('loading', () => {
 
   test('a card whose number is still in flight ripples in the chart slot', async () => {
     let release: (v: unknown) => void = () => {};
-    vi.mocked(api.getMarketplaceWorkspace).mockReturnValue(new Promise(r => { release = r; }) as never);
+    vi.mocked(api.getMarketplaceWorkspace).mockReturnValue(
+      new Promise(r => {
+        release = r;
+      }) as never,
+    );
     const { container } = renderPage();
     await screen.findByText('LookPilot');
     expect(container.querySelector('.mkt-card-loading .pubws-loading-dot')).toBeTruthy();
@@ -233,7 +252,11 @@ describe('loading', () => {
 describe('the activity line', () => {
   test('never leaves a separator hanging while counts are still loading', async () => {
     let release: (v: unknown) => void = () => {};
-    vi.mocked(api.getMarketplaceWorkspace).mockReturnValue(new Promise(r => { release = r; }) as never);
+    vi.mocked(api.getMarketplaceWorkspace).mockReturnValue(
+      new Promise(r => {
+        release = r;
+      }) as never,
+    );
     const { container } = renderPage();
     await screen.findByText('LookPilot');
     // Only the proposal count is known from the listing payload; the

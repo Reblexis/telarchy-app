@@ -21,16 +21,16 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import request from 'supertest';
-import express from 'express';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import { eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
 import { agents, metrics, permissionGroups, workspaces } from '../db/schema';
-import { toUnits } from '../lib/validation';
+import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
 import { anonymousCapabilities, resolvePublicReadWorkspace } from '../lib/public-read';
+import { toUnits } from '../lib/validation';
 import { requireCapability, requireIdentity } from '../middleware/roles';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const OPEN_WS = 'ws-open';
 const PRIVATE_WS = 'ws-private';
@@ -45,8 +45,9 @@ const OWNER = 'agent-owner';
 const app = express();
 app.use(express.json());
 app.use('/api', async (req, _res, next) => {
-  const named = (req.headers['x-workspace-id'] as string | undefined)
-    ?? (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
+  const named =
+    (req.headers['x-workspace-id'] as string | undefined) ??
+    (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
   if (named) {
     const resolved = await resolvePublicReadWorkspace(named);
     if (resolved) req.auth = { capabilities: anonymousCapabilities(), workspaceId: resolved };
@@ -63,28 +64,43 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(err instanceof AppError ? err.status : 500).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   await db.insert(agents).values({ id: OWNER, apiKeyHash: 'h-owner', balance: toUnits(0) });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: OPEN_WS, name: 'Open floor', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'public',
+    wsId: OPEN_WS,
+    name: 'Open floor',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'public',
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: PRIVATE_WS, name: 'Private', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'private',
+    wsId: PRIVATE_WS,
+    name: 'Private',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'private',
   });
   await db.update(workspaces).set({ slug: 'open-floor' }).where(eq(workspaces.id, OPEN_WS));
   await db.insert(metrics).values({
-    id: 'm-1', workspaceId: OPEN_WS, name: 'Revenue', value: 10, formula: '0', marketRangeMax: 100,
+    id: 'm-1',
+    workspaceId: OPEN_WS,
+    name: 'Revenue',
+    value: 10,
+    formula: '0',
+    marketRangeMax: 100,
   });
   // An Open floor: the Public group grants read AND trade, which is what makes
   // a self-join enough to trade. The anonymous grant must still be read only.
-  const [pub] = await db.select().from(permissionGroups)
-    .where(eq(permissionGroups.workspaceId, OPEN_WS));
+  const [pub] = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, OPEN_WS));
   void pub;
-  await db.update(permissionGroups)
+  await db
+    .update(permissionGroups)
     .set({ capabilities: ['read', 'trade'] })
     .where(eq(permissionGroups.workspaceId, OPEN_WS));
 });
@@ -133,8 +149,7 @@ describe('an anonymous caller elsewhere', () => {
   });
 
   test('gets nothing once the owner closes the Public group', async () => {
-    await db.update(permissionGroups).set({ capabilities: [] })
-      .where(eq(permissionGroups.workspaceId, OPEN_WS));
+    await db.update(permissionGroups).set({ capabilities: [] }).where(eq(permissionGroups.workspaceId, OPEN_WS));
     expect((await get('/api/read-thing', OPEN_WS)).status).toBe(401);
   });
 });

@@ -22,6 +22,10 @@ COPY functions/src/lib/metrics-engine.ts ./functions/src/lib/metrics-engine.ts
 COPY functions/src/lib/time-preference.ts ./functions/src/lib/time-preference.ts
 COPY functions/src/lib/date-utils.ts ./functions/src/lib/date-utils.ts
 COPY functions/src/types.ts ./functions/src/types.ts
+# `npm run build` regenerates the guides module from docs/guides first.
+COPY scripts/build-guides.mjs ./scripts/build-guides.mjs
+COPY docs/guides ./docs/guides
+RUN mkdir -p functions/src/content
 # Empty VITE_API_URL means frontend calls the same origin (self-hosted mode)
 ARG VITE_API_URL=""
 ENV VITE_API_URL=$VITE_API_URL

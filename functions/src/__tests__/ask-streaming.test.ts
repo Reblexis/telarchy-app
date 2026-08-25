@@ -14,12 +14,14 @@
  *    reports no cost at all.
  */
 
-import { askAboutWorkspace, type AskTool } from '../lib/ask';
+import { type AskTool, askAboutWorkspace } from '../lib/ask';
 
 const ORIGINAL_FETCH = global.fetch;
 const ORIGINAL_KEY = process.env.AI_GATEWAY_API_KEY;
 
-beforeEach(() => { process.env.AI_GATEWAY_API_KEY = 'test-key'; });
+beforeEach(() => {
+  process.env.AI_GATEWAY_API_KEY = 'test-key';
+});
 afterEach(() => {
   global.fetch = ORIGINAL_FETCH;
   if (ORIGINAL_KEY === undefined) delete process.env.AI_GATEWAY_API_KEY;
@@ -74,8 +76,12 @@ describe('a streamed answer', () => {
 
   test('asks for usage, or a streamed answer costs nothing on the record', async () => {
     let body: Record<string, unknown> = {};
-    streamOf([delta('ok'), frame({ choices: [], usage: { prompt_tokens: 10, completion_tokens: 4, cost: 0.002 } })],
-      b => { body = b; });
+    streamOf(
+      [delta('ok'), frame({ choices: [], usage: { prompt_tokens: 10, completion_tokens: 4, cost: 0.002 } })],
+      b => {
+        body = b;
+      },
+    );
     const res = await askAboutWorkspace('BRIEF', [{ role: 'user', content: 'hi' }], [], { onDelta: () => {} });
     expect(body.stream).toBe(true);
     expect(body.stream_options).toEqual({ include_usage: true });
@@ -94,8 +100,14 @@ describe('tool calls while streaming', () => {
   test('their arguments never reach the reader, and the tool still runs', async () => {
     const calls: unknown[] = [];
     const tool: AskTool = {
-      spec: { type: 'function', function: { name: 'look', description: 'look', parameters: { type: 'object', properties: {} } } },
-      run: async (args: unknown) => { calls.push(args); return 'the answer is 41'; },
+      spec: {
+        type: 'function',
+        function: { name: 'look', description: 'look', parameters: { type: 'object', properties: {} } },
+      },
+      run: async (args: unknown) => {
+        calls.push(args);
+        return 'the answer is 41';
+      },
     };
 
     let round = 0;
@@ -104,18 +116,26 @@ describe('tool calls while streaming', () => {
       const encoder = new TextEncoder();
       // Round one asks for the tool, in fragments, exactly as a gateway
       // splits an arguments string. Round two speaks.
-      const chunks = round === 1
-        ? [
-          frame({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'c1', function: { name: 'look', arguments: '{"q":' } }] } }] }),
-          frame({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '"disputes"}' } }] } }] }),
-          frame({ choices: [{ finish_reason: 'tool_calls', delta: {} }] }),
-        ]
-        : [delta('It is 41.')];
+      const chunks =
+        round === 1
+          ? [
+              frame({
+                choices: [
+                  { delta: { tool_calls: [{ index: 0, id: 'c1', function: { name: 'look', arguments: '{"q":' } }] } },
+                ],
+              }),
+              frame({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '"disputes"}' } }] } }] }),
+              frame({ choices: [{ finish_reason: 'tool_calls', delta: {} }] }),
+            ]
+          : [delta('It is 41.')];
       return {
         ok: true,
         headers: new Headers({ 'content-type': 'text/event-stream' }),
         body: new ReadableStream({
-          start(c) { for (const chunk of chunks) c.enqueue(encoder.encode(chunk)); c.close(); },
+          start(c) {
+            for (const chunk of chunks) c.enqueue(encoder.encode(chunk));
+            c.close();
+          },
         }),
       } as unknown as Response;
     }) as unknown as typeof global.fetch;

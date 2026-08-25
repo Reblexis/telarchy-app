@@ -28,29 +28,29 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
+import { eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agentApiKeys, agents, markets, metrics, permissionGroups } from '../db/schema';
+import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
-import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import {
-  agents, agentApiKeys, markets, metrics, permissionGroups,
-} from '../db/schema';
-import { hashKey } from '../middleware/auth';
-import { provisionWorkspace } from '../lib/participants';
-import { initialPool } from '../lib/amm';
-import { toUnits } from '../lib/validation';
+import { authMiddleware, hashKey } from '../middleware/auth';
 import { predictionsRouter } from '../routes/predictions';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
 app.use('/api/predictions', authMiddleware, predictionsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof AppError) { res.status(err.status).json({ error: err.message }); return; }
+  if (err instanceof AppError) {
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
   res.status(500).json({ error: (err as Error).message ?? 'Internal error' });
 });
 
@@ -69,8 +69,12 @@ const RANGE_MIN = 0;
 const RANGE_MAX = 100;
 const LIQUIDITY = 10;
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 async function seed() {
   await db.insert(agents).values([
@@ -79,38 +83,75 @@ async function seed() {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Routing Test', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'private',
+    wsId: WS,
+    name: 'Routing Test',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'private',
   });
   const traderRows = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS));
   const traderGroup = traderRows.find(g => g.type === 'trader')!;
-  await db.update(permissionGroups).set({ memberIds: [BETTOR] }).where(eq(permissionGroups.id, traderGroup.id));
+  await db
+    .update(permissionGroups)
+    .set({ memberIds: [BETTOR] })
+    .where(eq(permissionGroups.id, traderGroup.id));
   await db.insert(agentApiKeys).values({
-    hash: hashKey(BETTOR_KEY), keyId: 'key-r', agentId: BETTOR,
-    workspaceId: WS, label: 'test', scopes: ['*'],
+    hash: hashKey(BETTOR_KEY),
+    keyId: 'key-r',
+    agentId: BETTOR,
+    workspaceId: WS,
+    label: 'test',
+    scopes: ['*'],
   });
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Routing Metric', value: 0,
-    formula: '0', marketRangeMax: RANGE_MAX,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Routing Metric',
+    value: 0,
+    formula: '0',
+    marketRangeMax: RANGE_MAX,
   });
   // Two markets for the same (metricId, targetDate) — one baseline, one conditional.
   await db.insert(markets).values([
     {
-      id: BASELINE_MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Routing Metric',
-      targetDate: TARGET, rangeMin: RANGE_MIN, rangeMax: RANGE_MAX,
-      shares: [0, 0], liquidity: LIQUIDITY, pool: initialPool(LIQUIDITY),
-      active: true, resolved: false, voided: false, proposalId: null,
+      id: BASELINE_MARKET,
+      workspaceId: WS,
+      metricId: METRIC,
+      metricName: 'Routing Metric',
+      targetDate: TARGET,
+      rangeMin: RANGE_MIN,
+      rangeMax: RANGE_MAX,
+      shares: [0, 0],
+      liquidity: LIQUIDITY,
+      pool: initialPool(LIQUIDITY),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
     },
     {
-      id: CONDITIONAL_MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Routing Metric',
-      targetDate: TARGET, rangeMin: RANGE_MIN, rangeMax: RANGE_MAX,
-      shares: [0, 0], liquidity: LIQUIDITY, pool: initialPool(LIQUIDITY),
-      active: true, resolved: false, voided: false, proposalId: PROPOSAL_ID, branch: 'approved',
+      id: CONDITIONAL_MARKET,
+      workspaceId: WS,
+      metricId: METRIC,
+      metricName: 'Routing Metric',
+      targetDate: TARGET,
+      rangeMin: RANGE_MIN,
+      rangeMax: RANGE_MAX,
+      shares: [0, 0],
+      liquidity: LIQUIDITY,
+      pool: initialPool(LIQUIDITY),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: PROPOSAL_ID,
+      branch: 'approved',
     },
   ]);
 }
 
 const post = (body: Record<string, unknown>) =>
-  request(app).post('/api/predictions/trade')
+  request(app)
+    .post('/api/predictions/trade')
     .set('X-Test-Agent-Id', BETTOR)
     .set('X-Workspace-Id', WS)
     .set('Content-Type', 'application/json')
@@ -126,7 +167,13 @@ describe('trade route — proposalId routing on metricId + targetDate lookup', (
 
   test('with proposalId, routes to the CONDITIONAL market for that proposal', async () => {
     await seed();
-    const r = await post({ metricId: METRIC, targetDate: TARGET, proposalId: PROPOSAL_ID, targetValue: 60, maxBudget: 5 });
+    const r = await post({
+      metricId: METRIC,
+      targetDate: TARGET,
+      proposalId: PROPOSAL_ID,
+      targetValue: 60,
+      maxBudget: 5,
+    });
     expect(r.status).toBe(201);
     expect(r.body.marketId).toBe(CONDITIONAL_MARKET);
   });
@@ -140,7 +187,13 @@ describe('trade route — proposalId routing on metricId + targetDate lookup', (
 
   test('non-existent proposalId returns 404 with a useful message', async () => {
     await seed();
-    const r = await post({ metricId: METRIC, targetDate: TARGET, proposalId: 'no-such-proposal', targetValue: 60, maxBudget: 5 });
+    const r = await post({
+      metricId: METRIC,
+      targetDate: TARGET,
+      proposalId: 'no-such-proposal',
+      targetValue: 60,
+      maxBudget: 5,
+    });
     expect(r.status).toBe(404);
     expect(String(r.body.error)).toMatch(/no-such-proposal/);
     expect(String(r.body.error)).toMatch(/conditional/i);
@@ -155,7 +208,13 @@ describe('trade route — proposalId routing on metricId + targetDate lookup', (
 
   test('routing also works for directional mode (not just targetValue)', async () => {
     await seed();
-    const r = await post({ metricId: METRIC, targetDate: TARGET, proposalId: PROPOSAL_ID, direction: 'higher', amount: 5 });
+    const r = await post({
+      metricId: METRIC,
+      targetDate: TARGET,
+      proposalId: PROPOSAL_ID,
+      direction: 'higher',
+      amount: 5,
+    });
     expect(r.status).toBe(201);
     expect(r.body.marketId).toBe(CONDITIONAL_MARKET);
   });
@@ -163,7 +222,13 @@ describe('trade route — proposalId routing on metricId + targetDate lookup', (
   test('targetValue mode self-limits to target — does not overshoot', async () => {
     await seed();
     // Target ~= 60 on a 0-100 range; with abundant maxBudget, consensus must land at 60.
-    const r = await post({ metricId: METRIC, targetDate: TARGET, proposalId: PROPOSAL_ID, targetValue: 60, maxBudget: 50 });
+    const r = await post({
+      metricId: METRIC,
+      targetDate: TARGET,
+      proposalId: PROPOSAL_ID,
+      targetValue: 60,
+      maxBudget: 50,
+    });
     expect(r.status).toBe(201);
     expect(r.body.consensus).toBeCloseTo(60, 4);
     // And cost must be strictly less than maxBudget — confirms self-limit, not budget-cap.

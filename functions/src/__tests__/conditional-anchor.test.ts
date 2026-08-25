@@ -25,18 +25,18 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
+import { and, eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agents, markets, metrics, workspaces } from '../db/schema';
+import { anchoredMarketState, consensus, directionTradeCost, sharesForBudget } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics, workspaces } from '../db/schema';
-import { consensus, anchoredMarketState, sharesForBudget, directionTradeCost } from '../lib/amm';
-import { toUnits } from '../lib/validation';
 import { proposalsRouter } from '../routes/proposals';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -47,8 +47,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-anchor';
 const PROPOSER = 'agent-anchor-proposer';
@@ -58,34 +62,57 @@ const BASE_B = 100;
 const BASE_DIFF = BASE_B * Math.log(0.6 / 0.4);
 
 async function seed() {
-  await db.insert(agents).values([
-    { id: PROPOSER, apiKeyHash: 'h-anchor-p', balance: toUnits(1000) },
-  ]);
+  await db.insert(agents).values([{ id: PROPOSER, apiKeyHash: 'h-anchor-p', balance: toUnits(1000) }]);
   await db.insert(workspaces).values({
-    id: WS, name: 'Anchor Test', createdBy: PROPOSER, visibility: 'public',
+    id: WS,
+    name: 'Anchor Test',
+    createdBy: PROPOSER,
+    visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: 'metric-anchor', workspaceId: WS, name: 'Net revenue (USD)', value: 60, formula: '0', marketRangeMax: 100,
+    id: 'metric-anchor',
+    workspaceId: WS,
+    name: 'Net revenue (USD)',
+    value: 60,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: 'mkt-base-anchor', workspaceId: WS, metricId: 'metric-anchor', metricName: 'Net revenue (USD)',
-    targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
-    shares: [0, BASE_DIFF], liquidity: BASE_B, pool: 100,
-    active: true, resolved: false, voided: false, proposalId: null, branch: null,
+    id: 'mkt-base-anchor',
+    workspaceId: WS,
+    metricId: 'metric-anchor',
+    metricName: 'Net revenue (USD)',
+    targetDate: '2026-12',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, BASE_DIFF],
+    liquidity: BASE_B,
+    pool: 100,
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
+    branch: null,
   });
 }
 
 function propose(body: Record<string, unknown>) {
-  return request(app).post('/api/proposals')
-    .set('X-Test-Agent-Id', PROPOSER).set('X-Workspace-Id', WS)
-    .set('Content-Type', 'application/json').send(body);
+  return request(app)
+    .post('/api/proposals')
+    .set('X-Test-Agent-Id', PROPOSER)
+    .set('X-Workspace-Id', WS)
+    .set('Content-Type', 'application/json')
+    .send(body);
 }
 
 async function branchMarkets(proposalId: string) {
-  const rows = (await db.select().from(markets)
-    .where(and(eq(markets.workspaceId, WS), eq(markets.proposalId, proposalId))))
-    .filter(m => !m.resolved);
-  const val = (m: typeof rows[number]) =>
+  const rows = (
+    await db
+      .select()
+      .from(markets)
+      .where(and(eq(markets.workspaceId, WS), eq(markets.proposalId, proposalId)))
+  ).filter(m => !m.resolved);
+  const val = (m: (typeof rows)[number]) =>
     consensus(m.shares as [number, number], m.liquidity, m.rangeMin, m.rangeMax);
   return {
     approved: rows.find(m => m.branch === 'approved')!,
@@ -110,11 +137,15 @@ describe('anchored conditional opens', () => {
     // Against a metric counted in people this subtracted dollars from a
     // headcount, pinning every approved branch at the range floor and
     // printing the same fake negative impact on every contract.
-    await db.update(metrics).set({ name: 'Weekly active traders' })
-      .where(eq(metrics.id, 'metric-anchor'));
-    await db.update(markets).set({ metricName: 'Weekly active traders' })
-      .where(eq(markets.id, 'mkt-base-anchor'));
-    const res = await propose({ title: '$20: paid job', description: '', liquiditySubsidy: 20, askUsd: 20, payoutHandle: 'pay@example.com' });
+    await db.update(metrics).set({ name: 'Weekly active traders' }).where(eq(metrics.id, 'metric-anchor'));
+    await db.update(markets).set({ metricName: 'Weekly active traders' }).where(eq(markets.id, 'mkt-base-anchor'));
+    const res = await propose({
+      title: '$20: paid job',
+      description: '',
+      liquiditySubsidy: 20,
+      askUsd: 20,
+      payoutHandle: 'pay@example.com',
+    });
     expect(res.status).toBe(201);
     const { approved, declined, val } = await branchMarkets(res.body.id);
     expect(val(approved)).toBeCloseTo(60, 0);
@@ -123,7 +154,13 @@ describe('anchored conditional opens', () => {
 
   test('a paid job opens the approved branch at baseline minus the ask', async () => {
     await seed();
-    const res = await propose({ title: '$20: paid job', description: '', liquiditySubsidy: 20, askUsd: 20, payoutHandle: 'pay@example.com' });
+    const res = await propose({
+      title: '$20: paid job',
+      description: '',
+      liquiditySubsidy: 20,
+      askUsd: 20,
+      payoutHandle: 'pay@example.com',
+    });
     expect(res.status).toBe(201);
     const { approved, declined, val } = await branchMarkets(res.body.id);
     expect(val(approved)).toBeCloseTo(40, 0);
@@ -136,7 +173,9 @@ describe('anchored conditional opens', () => {
 
   test('an unpriced baseline still opens the pair at the center', async () => {
     await seed();
-    await db.update(markets).set({ liquidity: 0, pool: 0, shares: [0, 0] })
+    await db
+      .update(markets)
+      .set({ liquidity: 0, pool: 0, shares: [0, 0] })
       .where(eq(markets.id, 'mkt-base-anchor'));
     const res = await propose({ title: 'free job', description: '', liquiditySubsidy: 20, askUsd: 0 });
     expect(res.status).toBe(201);
@@ -173,14 +212,22 @@ describe('anchored open solvency', () => {
 describe('legacy title-priced proposals', () => {
   test('a "$N:" title with no askUsd column still opens ask-adjusted', async () => {
     await seed();
-    const res = await propose({ title: '$20: legacy job', description: '', liquiditySubsidy: 20, askUsd: 20, payoutHandle: 'pay@example.com' });
+    const res = await propose({
+      title: '$20: legacy job',
+      description: '',
+      liquiditySubsidy: 20,
+      askUsd: 20,
+      payoutHandle: 'pay@example.com',
+    });
     expect(res.status).toBe(201);
     // Simulate the pre-column row: null askUsd, price only in the title.
     const { proposals: proposalsTable } = require('../db/schema');
     await db.update(proposalsTable).set({ askUsd: null }).where(eq(proposalsTable.id, res.body.id));
     // Void the pair and respawn (the rollover path every legacy row takes).
     const { markets: marketsTable } = require('../db/schema');
-    await db.update(marketsTable).set({ resolved: true, active: false })
+    await db
+      .update(marketsTable)
+      .set({ resolved: true, active: false })
       .where(and(eq(marketsTable.workspaceId, WS), eq(marketsTable.proposalId, res.body.id)));
     const { createConditionalMarkets } = require('../services/proposals');
     await createConditionalMarkets(res.body.id, WS, { contributions: { [PROPOSER]: 20 } });

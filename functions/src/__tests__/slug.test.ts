@@ -39,8 +39,7 @@ describe('uniqueSlugForOwner', () => {
 
   test('suffixes -2, -3 when the base is taken by the owner', async () => {
     expect(await uniqueSlugForOwner(fakeTx(['q3-growth']), 'owner', 'Q3 Growth')).toBe('q3-growth-2');
-    expect(await uniqueSlugForOwner(fakeTx(['q3-growth', 'q3-growth-2']), 'owner', 'Q3 Growth'))
-      .toBe('q3-growth-3');
+    expect(await uniqueSlugForOwner(fakeTx(['q3-growth', 'q3-growth-2']), 'owner', 'Q3 Growth')).toBe('q3-growth-3');
   });
 
   test('matching is case-insensitive', async () => {

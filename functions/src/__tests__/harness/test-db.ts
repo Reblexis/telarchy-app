@@ -70,9 +70,7 @@ async function applyMigrations(): Promise<void> {
   const journal = JSON.parse(readFileSync(join(dir, 'meta', '_journal.json'), 'utf8')) as {
     entries: Array<{ idx: number; tag: string }>;
   };
-  const files = [...journal.entries]
-    .sort((a, b) => a.idx - b.idx)
-    .map(e => `${e.tag}.sql`);
+  const files = [...journal.entries].sort((a, b) => a.idx - b.idx).map(e => `${e.tag}.sql`);
   for (const f of files) {
     const sql = readFileSync(join(dir, f), 'utf8');
     const statements = sql.split('--> statement-breakpoint');

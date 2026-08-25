@@ -1,4 +1,4 @@
-import { sql, type SQL } from 'drizzle-orm';
+import { type SQL, sql } from 'drizzle-orm';
 
 /**
  * Just the one capability this needs: issue a statement inside the caller's

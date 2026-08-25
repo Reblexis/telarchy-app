@@ -21,15 +21,15 @@ jest.mock('../middleware/roles', () => ({
   requireCapability: () => (_req: any, _res: any, next: any) => next(),
 }));
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, workspaces } from '../db/schema';
+import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
 import { toUnits } from '../lib/validation';
 import { workspacesRouter } from '../routes/workspaces';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -44,21 +44,32 @@ app.use((req: any, _res, next) => {
 app.use('/api/workspaces', workspacesRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof AppError) { res.status(err.status).json({ error: err.message }); return; }
+  if (err instanceof AppError) {
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
   res.status(500).json({ error: (err as Error).message ?? 'Internal error' });
 });
 
 const OWNER = 'agent-owner-ws';
 const WS = 'ws-resolve-test';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 async function seed(nickname?: string) {
   await db.insert(agents).values({ id: OWNER, apiKeyHash: 'h-ws-resolve', balance: toUnits(0), nickname });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Q3 Growth', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'private',
+    wsId: WS,
+    name: 'Q3 Growth',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'private',
   });
 }
 
@@ -67,7 +78,12 @@ describe('GET /api/workspaces/resolve', () => {
     await seed('acme-corp');
     const r = await request(app).get('/api/workspaces/resolve').query({ owner: 'acme-corp', slug: 'q3-growth' });
     expect(r.status).toBe(200);
-    expect(r.body).toMatchObject({ workspaceId: WS, canonicalOwner: 'acme-corp', canonicalSlug: 'q3-growth', moved: false });
+    expect(r.body).toMatchObject({
+      workspaceId: WS,
+      canonicalOwner: 'acme-corp',
+      canonicalSlug: 'q3-growth',
+      moved: false,
+    });
   });
 
   test('resolves owner-by-raw-id when no nickname is set', async () => {
@@ -87,8 +103,12 @@ describe('GET /api/workspaces/resolve', () => {
 
   test('404 for unknown owner and unknown slug', async () => {
     await seed('acme-corp');
-    expect((await request(app).get('/api/workspaces/resolve').query({ owner: 'nobody', slug: 'q3-growth' })).status).toBe(404);
-    expect((await request(app).get('/api/workspaces/resolve').query({ owner: 'acme-corp', slug: 'nope' })).status).toBe(404);
+    expect(
+      (await request(app).get('/api/workspaces/resolve').query({ owner: 'nobody', slug: 'q3-growth' })).status,
+    ).toBe(404);
+    expect((await request(app).get('/api/workspaces/resolve').query({ owner: 'acme-corp', slug: 'nope' })).status).toBe(
+      404,
+    );
   });
 });
 

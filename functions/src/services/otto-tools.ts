@@ -28,13 +28,7 @@ import { HELP } from '../lib/help-catalog';
 /** Headers that carry WHO the caller is. Nothing else is forwarded: a copied
  *  Host or Content-Length would confuse the loopback request, and the rest is
  *  the browser talking about itself. */
-const IDENTITY_HEADERS = [
-  'cookie',
-  'authorization',
-  'x-api-key',
-  'x-agent-key',
-  'x-workspace-id',
-] as const;
+const IDENTITY_HEADERS = ['cookie', 'authorization', 'x-api-key', 'x-agent-key', 'x-workspace-id'] as const;
 
 /** How much of a response Otto is given. A floor payload with every contract
  *  and its comments can run past a hundred kilobytes, which would spend the
@@ -102,8 +96,7 @@ export function ottoApiTools(req: Request, record: ApiCallRecord[], floorWorkspa
 
   // The visitor's own address, so per-IP limits count against them rather than
   // against the loopback interface every visitor shares.
-  const fwd = (req.headers['x-forwarded-for'] as string | undefined)
-    || req.socket.remoteAddress || '';
+  const fwd = (req.headers['x-forwarded-for'] as string | undefined) || req.socket.remoteAddress || '';
   if (fwd) identity['x-forwarded-for'] = fwd;
 
   const signedIn = Boolean(req.auth?.agentId);
@@ -123,7 +116,8 @@ export function ottoApiTools(req: Request, record: ApiCallRecord[], floorWorkspa
           properties: {
             query: {
               type: 'string',
-              description: 'Words that appear in the path or description, e.g. "place trade", "proposal", "positions", "balance".',
+              description:
+                'Words that appear in the path or description, e.g. "place trade", "proposal", "positions", "balance".',
             },
           },
           required: ['query'],
@@ -132,9 +126,7 @@ export function ottoApiTools(req: Request, record: ApiCallRecord[], floorWorkspa
     },
     async run(args: { query?: string }) {
       const lines = catalogLines(args?.query ?? '');
-      return lines.length
-        ? lines.join('\n')
-        : 'No endpoint matches that. Try fewer or different words.';
+      return lines.length ? lines.join('\n') : 'No endpoint matches that. Try fewer or different words.';
     },
   };
 
@@ -143,16 +135,15 @@ export function ottoApiTools(req: Request, record: ApiCallRecord[], floorWorkspa
       type: 'function',
       function: {
         name: 'call_api',
-        description:
-          signedIn
-            ? 'Call the Telarchy API as the person you are talking to, with their own account. ' +
-              'You can do anything they can do and nothing more: read their balance and positions, ' +
-              'place or sell a bet, post a comment, offer a contract, update their profile, and, ' +
-              'if they own a workspace, manage it. Every call is made with their credentials, so a ' +
-              '401 or 403 means they cannot do it either. Use find_endpoint first if unsure of the path.'
-            : 'Call the Telarchy API as an anonymous visitor, because this person is not signed in. ' +
-              'Public reads work; anything that acts (trading, posting, proposing) will return 401 ' +
-              'or 403, and the honest answer is to tell them what signing up would let them do.',
+        description: signedIn
+          ? 'Call the Telarchy API as the person you are talking to, with their own account. ' +
+            'You can do anything they can do and nothing more: read their balance and positions, ' +
+            'place or sell a bet, post a comment, offer a contract, update their profile, and, ' +
+            'if they own a workspace, manage it. Every call is made with their credentials, so a ' +
+            '401 or 403 means they cannot do it either. Use find_endpoint first if unsure of the path.'
+          : 'Call the Telarchy API as an anonymous visitor, because this person is not signed in. ' +
+            'Public reads work; anything that acts (trading, posting, proposing) will return 401 ' +
+            'or 403, and the honest answer is to tell them what signing up would let them do.',
         parameters: {
           type: 'object',
           properties: {
@@ -189,9 +180,10 @@ export function ottoApiTools(req: Request, record: ApiCallRecord[], floorWorkspa
       record.push({ method, path, status: res.status });
 
       const text = await res.text();
-      const body = text.length > MAX_RESULT_CHARS
-        ? `${text.slice(0, MAX_RESULT_CHARS)}\n... (cut here; ask for a narrower endpoint or a filter)`
-        : text;
+      const body =
+        text.length > MAX_RESULT_CHARS
+          ? `${text.slice(0, MAX_RESULT_CHARS)}\n... (cut here; ask for a narrower endpoint or a filter)`
+          : text;
       // The status is stated rather than interpreted: a 403 is a fact about
       // this person's permissions and he should say so plainly.
       return `HTTP ${res.status}\n${body || '(empty response)'}`;

@@ -1,6 +1,6 @@
-import { askAboutWorkspace, type AskTurn } from '../lib/ask';
-import { renderSpec, sanitiseDecisionIds, type DecisionId } from '../lib/setup-spec';
-import { renderHandoff, type HandoffState } from '../lib/setup-handoff-fallback';
+import { type AskTurn, askAboutWorkspace } from '../lib/ask';
+import { type HandoffState, renderHandoff } from '../lib/setup-handoff-fallback';
+import { type DecisionId, renderSpec, sanitiseDecisionIds } from '../lib/setup-spec';
 import type { Checklist } from './setup-checklist';
 
 /**
@@ -77,14 +77,20 @@ export interface HandoffResult {
  *  from the request, never from anything anyone typed at Otto. */
 export function renderFacts(state: HandoffState, checklist: Checklist | null): string {
   const lines: string[] = ['FACTS. These are true. Nothing outside this block may be quoted as an id or an address.'];
-  lines.push(state.signedIn
-    ? '- The operator is signed in on telarchy.com, so calls made with their session or their agent key run as them.'
-    : '- The operator is NOT signed in and nothing has been created. They need an account at https://telarchy.com/signup, or a participant key from POST /api/agents/register.');
+  lines.push(
+    state.signedIn
+      ? '- The operator is signed in on telarchy.com, so calls made with their session or their agent key run as them.'
+      : '- The operator is NOT signed in and nothing has been created. They need an account at https://telarchy.com/signup, or a participant key from POST /api/agents/register.',
+  );
   for (const w of state.opened) {
-    lines.push(`- Market opened during this conversation: name "${w.name}", workspace id ${w.id ?? 'unknown'}, address https://telarchy.com/${w.slug}`);
+    lines.push(
+      `- Market opened during this conversation: name "${w.name}", workspace id ${w.id ?? 'unknown'}, address https://telarchy.com/${w.slug}`,
+    );
   }
   for (const w of state.workspaces.filter(w => !state.opened.some(o => o.slug === w.slug))) {
-    lines.push(`- Market they already run: name "${w.name}", workspace id ${w.id ?? 'unknown'}, address https://telarchy.com/${w.slug}`);
+    lines.push(
+      `- Market they already run: name "${w.name}", workspace id ${w.id ?? 'unknown'}, address https://telarchy.com/${w.slug}`,
+    );
   }
   if (!state.workspaces.length) lines.push('- They run no market yet, so no workspace id exists.');
   if (checklist) {
@@ -99,15 +105,28 @@ export function renderFacts(state: HandoffState, checklist: Checklist | null): s
 }
 
 /** Anything shaped like an id we hand out: a uuid, or one of our short ids. */
-const ID_SHAPED = /\b(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|ws-[a-z0-9-]{3,}|agent-[a-z0-9-]{3,}|metric-[a-z0-9-]{3,})\b/gi;
+const ID_SHAPED =
+  /\b(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|ws-[a-z0-9-]{3,}|agent-[a-z0-9-]{3,}|metric-[a-z0-9-]{3,})\b/gi;
 /** A telarchy.com market address. */
 const FLOOR_URL = /telarchy\.com\/([a-z0-9][a-z0-9-]{1,})/gi;
 
 /** Paths that are addresses on telarchy.com but not markets, so a prompt
  *  naming them is not claiming a workspace exists. */
 const NON_FLOOR_PATHS = new Set([
-  'api', 'signup', 'login', 'manage', 'season', 'leaderboard', 'marketplace',
-  'about', 'contact', 'terms', 'privacy', 'legal', 'data-room', 'admin',
+  'api',
+  'signup',
+  'login',
+  'manage',
+  'season',
+  'leaderboard',
+  'marketplace',
+  'about',
+  'contact',
+  'terms',
+  'privacy',
+  'legal',
+  'data-room',
+  'admin',
 ]);
 
 /**
@@ -120,9 +139,7 @@ export function guardFacts(prompt: string, facts: string): string | null {
   for (const found of prompt.match(ID_SHAPED) ?? []) {
     if (!allowedIds.has(found.toLowerCase())) return `invented id ${found}`;
   }
-  const allowedSlugs = new Set(
-    Array.from(facts.matchAll(FLOOR_URL)).map(m => m[1].toLowerCase()),
-  );
+  const allowedSlugs = new Set(Array.from(facts.matchAll(FLOOR_URL)).map(m => m[1].toLowerCase()));
   for (const m of prompt.matchAll(FLOOR_URL)) {
     const slug = m[1].toLowerCase();
     if (NON_FLOOR_PATHS.has(slug)) continue;
@@ -144,10 +161,17 @@ export function guardFacts(prompt: string, facts: string): string | null {
  * format will sometimes produce another.
  */
 export function parseHandoffAnswer(raw: string): { prompt: string; settled: unknown; open: unknown } {
-  const text = raw.trim().replace(/^```(?:json|text)?/i, '').replace(/```$/, '').trim();
+  const text = raw
+    .trim()
+    .replace(/^```(?:json|text)?/i, '')
+    .replace(/```$/, '')
+    .trim();
 
   const ids = (line: string | undefined) =>
-    (line ?? '').split(',').map(s => s.trim()).filter(Boolean);
+    (line ?? '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
   const settledLine = text.match(/^SETTLED:\s*(.*)$/im)?.[1];
   const openLine = text.match(/^OPEN:\s*(.*)$/im)?.[1];
 
@@ -164,9 +188,21 @@ export function parseHandoffAnswer(raw: string): { prompt: string; settled: unkn
     let inString = false;
     let escaped = false;
     for (const ch of text) {
-      if (escaped) { repaired += ch; escaped = false; continue; }
-      if (ch === '\\') { repaired += ch; escaped = true; continue; }
-      if (ch === '"') { inString = !inString; repaired += ch; continue; }
+      if (escaped) {
+        repaired += ch;
+        escaped = false;
+        continue;
+      }
+      if (ch === '\\') {
+        repaired += ch;
+        escaped = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = !inString;
+        repaired += ch;
+        continue;
+      }
       if (inString && (ch === '\n' || ch === '\r' || ch === '\t')) {
         repaired += ch === '\n' ? '\\n' : ch === '\r' ? '\\r' : '\\t';
         continue;

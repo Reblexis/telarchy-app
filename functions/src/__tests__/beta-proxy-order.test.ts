@@ -16,10 +16,10 @@
  * possible.
  */
 
+import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import request from 'supertest';
-import express from 'express';
 import { isBetaPath } from '../lib/beta-surface';
 
 /** The middleware chain app.ts builds, with the proxy stubbed. */
@@ -106,7 +106,6 @@ describe('the order that makes it work', () => {
 
   test('and proxies after the body is parsed, so a POST survives', () => {
     const src = fs.readFileSync(path.join(__dirname, '..', 'app.ts'), 'utf8');
-    expect(src.indexOf('app.use(express.json())'))
-      .toBeLessThan(src.indexOf('await proxyToCandidate(req, res)'));
+    expect(src.indexOf('app.use(express.json())')).toBeLessThan(src.indexOf('await proxyToCandidate(req, res)'));
   });
 });

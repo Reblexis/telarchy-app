@@ -2,11 +2,11 @@ import {
   claimDeadline,
   isOpenForEntry,
   isPrizeEligible,
+  type LadderRung,
   ladderTotal,
+  type SeasonEntrant,
   seasonScore,
   settleSeason,
-  type LadderRung,
-  type SeasonEntrant,
 } from '../lib/seasons';
 
 /**
@@ -29,7 +29,12 @@ const POOL = 1000;
 
 const T0 = new Date('2026-09-01T00:00:00Z');
 function entrant(agentId: string, baseline: number, current: number, enteredMsAfterT0 = 0): SeasonEntrant {
-  return { agentId, baselineProfit: baseline, currentProfit: current, enteredAt: new Date(T0.getTime() + enteredMsAfterT0) };
+  return {
+    agentId,
+    baselineProfit: baseline,
+    currentProfit: current,
+    enteredAt: new Date(T0.getTime() + enteredMsAfterT0),
+  };
 }
 
 describe('seasonScore', () => {
@@ -83,13 +88,11 @@ describe('isPrizeEligible', () => {
 
 describe('settleSeason', () => {
   test('assigns the ladder in score order and rolls nothing when full', () => {
-    const result = settleSeason([
-      entrant('e', 0, 10),
-      entrant('a', 0, 500),
-      entrant('c', 0, 100),
-      entrant('b', 0, 250),
-      entrant('d', 0, 50),
-    ], LADDER, POOL);
+    const result = settleSeason(
+      [entrant('e', 0, 10), entrant('a', 0, 500), entrant('c', 0, 100), entrant('b', 0, 250), entrant('d', 0, 50)],
+      LADDER,
+      POOL,
+    );
 
     expect(result.ranked.map(r => r.agentId)).toEqual(['a', 'b', 'c', 'd', 'e']);
     expect(result.ranked.map(r => r.prizeUsd)).toEqual([500, 250, 125, 75, 50]);
@@ -97,10 +100,7 @@ describe('settleSeason', () => {
   });
 
   test('fewer eligible entrants than rungs leaves the lower rungs unpaid and rolls them', () => {
-    const result = settleSeason([
-      entrant('a', 0, 300),
-      entrant('b', 0, 100),
-    ], LADDER, POOL);
+    const result = settleSeason([entrant('a', 0, 300), entrant('b', 0, 100)], LADDER, POOL);
 
     expect(result.ranked.map(r => r.prizeUsd)).toEqual([500, 250]);
     // 1000 - 750. Places 3, 4 and 5 were promised to nobody.
@@ -110,10 +110,7 @@ describe('settleSeason', () => {
   test('a losing field is still paid by place (owner report 2026-08-22)', () => {
     // The whole board was negative and the season page showed dashes where
     // the dollar amounts belonged. Place decides the prize, whatever the sign.
-    const result = settleSeason([
-      entrant('a', 0, -31),
-      entrant('b', 0, -94),
-    ], LADDER, POOL);
+    const result = settleSeason([entrant('a', 0, -31), entrant('b', 0, -94)], LADDER, POOL);
 
     expect(result.ranked.map(r => r.eligible)).toEqual([true, true]);
     expect(result.ranked.map(r => r.prizeUsd)).toEqual([500, 250]);
@@ -121,11 +118,7 @@ describe('settleSeason', () => {
   });
 
   test('entrants at exactly zero rank by tiebreak and still collect', () => {
-    const result = settleSeason([
-      entrant('a', 0, 25),
-      entrant('b', 100, 100),
-      entrant('c', 100, 100),
-    ], LADDER, POOL);
+    const result = settleSeason([entrant('a', 0, 25), entrant('b', 100, 100), entrant('c', 100, 100)], LADDER, POOL);
 
     expect(result.ranked.map(r => r.rank)).toEqual([1, 2, 3]);
     expect(result.ranked.map(r => r.eligible)).toEqual([true, true, true]);
@@ -136,10 +129,11 @@ describe('settleSeason', () => {
   test('a platform-operated account above a paying place does not burn a rung', () => {
     // A naive implementation that maps rank straight onto ladder place would
     // hand 'trader' second prize with the house sitting on first.
-    const result = settleSeason([
-      { ...entrant('house', 0, 10), platformOperated: true },
-      entrant('trader', 0, -5),
-    ], LADDER, POOL);
+    const result = settleSeason(
+      [{ ...entrant('house', 0, 10), platformOperated: true }, entrant('trader', 0, -5)],
+      LADDER,
+      POOL,
+    );
 
     const house = result.ranked.find(r => r.agentId === 'house')!;
     const trader = result.ranked.find(r => r.agentId === 'trader')!;
@@ -151,10 +145,7 @@ describe('settleSeason', () => {
   test('ties break by earlier entry, then by agent id, deterministically', () => {
     // A cash ladder cannot break a tie by whatever order the database
     // returned. 'late' entered a second after 'early' on the same score.
-    const result = settleSeason([
-      entrant('late', 0, 100, 1000),
-      entrant('early', 0, 100, 0),
-    ], LADDER, POOL);
+    const result = settleSeason([entrant('late', 0, 100, 1000), entrant('early', 0, 100, 0)], LADDER, POOL);
     expect(result.ranked.map(r => r.agentId)).toEqual(['early', 'late']);
     expect(result.ranked.map(r => r.prizeUsd)).toEqual([500, 250]);
   });
@@ -170,10 +161,7 @@ describe('settleSeason', () => {
   test('scores are computed from the baseline, so the biggest balance need not win', () => {
     // 'whale' is far richer in absolute profit but earned less this season.
     // Ranking on raw profit rather than the delta would invert this.
-    const result = settleSeason([
-      entrant('whale', 1000, 1010),
-      entrant('sharp', 0, 90),
-    ], LADDER, POOL);
+    const result = settleSeason([entrant('whale', 1000, 1010), entrant('sharp', 0, 90)], LADDER, POOL);
     expect(result.ranked[0].agentId).toBe('sharp');
     expect(result.ranked[0].score).toBe(90);
     expect(result.ranked[1].score).toBe(10);
@@ -186,7 +174,10 @@ describe('settleSeason', () => {
   });
 
   test('rollover is exact to the cent on an odd ladder', () => {
-    const odd: LadderRung[] = [{ place: 1, prizeUsd: 333.33 }, { place: 2, prizeUsd: 333.33 }];
+    const odd: LadderRung[] = [
+      { place: 1, prizeUsd: 333.33 },
+      { place: 2, prizeUsd: 333.33 },
+    ];
     const result = settleSeason([entrant('a', 0, 5), entrant('b', 0, 4)], odd, 1000);
     expect(result.rolloverUsd).toBe(333.34);
   });
@@ -198,7 +189,12 @@ describe('ladderTotal', () => {
   });
 
   test('is exact on cents', () => {
-    expect(ladderTotal([{ place: 1, prizeUsd: 0.1 }, { place: 2, prizeUsd: 0.2 }])).toBe(0.3);
+    expect(
+      ladderTotal([
+        { place: 1, prizeUsd: 0.1 },
+        { place: 2, prizeUsd: 0.2 },
+      ]),
+    ).toBe(0.3);
   });
 });
 
@@ -233,11 +229,9 @@ describe('isOpenForEntry', () => {
 
 describe('claimDeadline', () => {
   test('is 30 days after settlement, the window published in the rules', () => {
-    expect(claimDeadline(new Date('2026-09-30T00:00:00Z')).toISOString())
-      .toBe('2026-10-30T00:00:00.000Z');
+    expect(claimDeadline(new Date('2026-09-30T00:00:00Z')).toISOString()).toBe('2026-10-30T00:00:00.000Z');
   });
 });
-
 
 /**
  * The house cannot take a rung (published rules, enforced 2026-08-20).
@@ -248,13 +242,20 @@ describe('claimDeadline', () => {
  */
 describe('platform-operated entrants', () => {
   const at = (n: number) => new Date(2026, 0, n);
-  const ladder = [{ place: 1, prizeUsd: 500 }, { place: 2, prizeUsd: 250 }];
+  const ladder = [
+    { place: 1, prizeUsd: 500 },
+    { place: 2, prizeUsd: 250 },
+  ];
 
   test('a house account ranks and scores, and wins nothing', () => {
-    const { ranked, rolloverUsd } = settleSeason([
-      { agentId: 'bot', baselineProfit: 0, currentProfit: 900, enteredAt: at(1), platformOperated: true },
-      { agentId: 'stranger', baselineProfit: 0, currentProfit: 100, enteredAt: at(2) },
-    ], ladder, 1000);
+    const { ranked, rolloverUsd } = settleSeason(
+      [
+        { agentId: 'bot', baselineProfit: 0, currentProfit: 900, enteredAt: at(1), platformOperated: true },
+        { agentId: 'stranger', baselineProfit: 0, currentProfit: 100, enteredAt: at(2) },
+      ],
+      ladder,
+      1000,
+    );
 
     const bot = ranked.find(r => r.agentId === 'bot')!;
     // Still on the board, still first, still carrying its real score: nobody
@@ -271,11 +272,15 @@ describe('platform-operated entrants', () => {
   test('it does not burn the rung above a real entrant', () => {
     // The whole point: the stranger below the bot takes FIRST money, not
     // second. A house account sitting on top must cost nobody a place.
-    const { ranked } = settleSeason([
-      { agentId: 'bot', baselineProfit: 0, currentProfit: 900, enteredAt: at(1), platformOperated: true },
-      { agentId: 'stranger', baselineProfit: 0, currentProfit: 100, enteredAt: at(2) },
-      { agentId: 'other', baselineProfit: 0, currentProfit: 50, enteredAt: at(3) },
-    ], ladder, 1000);
+    const { ranked } = settleSeason(
+      [
+        { agentId: 'bot', baselineProfit: 0, currentProfit: 900, enteredAt: at(1), platformOperated: true },
+        { agentId: 'stranger', baselineProfit: 0, currentProfit: 100, enteredAt: at(2) },
+        { agentId: 'other', baselineProfit: 0, currentProfit: 50, enteredAt: at(3) },
+      ],
+      ladder,
+      1000,
+    );
 
     expect(ranked.find(r => r.agentId === 'stranger')!.prizeUsd).toBe(500);
     expect(ranked.find(r => r.agentId === 'other')!.prizeUsd).toBe(250);
@@ -292,10 +297,14 @@ describe('platform-operated entrants', () => {
   });
 
   test('a season of nothing but house accounts pays out zero and rolls it all', () => {
-    const { ranked, rolloverUsd } = settleSeason([
-      { agentId: 'bot', baselineProfit: 0, currentProfit: 900, enteredAt: at(1), platformOperated: true },
-      { agentId: 'sync', baselineProfit: 0, currentProfit: 400, enteredAt: at(2), platformOperated: true },
-    ], ladder, 1000);
+    const { ranked, rolloverUsd } = settleSeason(
+      [
+        { agentId: 'bot', baselineProfit: 0, currentProfit: 900, enteredAt: at(1), platformOperated: true },
+        { agentId: 'sync', baselineProfit: 0, currentProfit: 400, enteredAt: at(2), platformOperated: true },
+      ],
+      ladder,
+      1000,
+    );
 
     expect(ranked.every(r => r.prizeUsd === 0)).toBe(true);
     expect(rolloverUsd).toBe(1000);

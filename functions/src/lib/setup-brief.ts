@@ -95,8 +95,12 @@ export function renderSetupBrief(caller: {
   } else {
     lines.push(`- Signed in${caller.name ? ` as ${caller.name}` : ''}. Anything you call runs as them.`);
     if (caller.workspaces.length) {
-      lines.push(`- Already runs ${caller.workspaces.length} market(s): ${caller.workspaces.map(w => `${w.name}${w.slug ? ` (/${w.slug})` : ''}`).join(', ')}.`);
-      lines.push('- Adding a number to a market they already run is often the better answer than opening another one. Ask which they meant.');
+      lines.push(
+        `- Already runs ${caller.workspaces.length} market(s): ${caller.workspaces.map(w => `${w.name}${w.slug ? ` (/${w.slug})` : ''}`).join(', ')}.`,
+      );
+      lines.push(
+        '- Adding a number to a market they already run is often the better answer than opening another one. Ask which they meant.',
+      );
     } else {
       lines.push('- Runs no market yet.');
     }
@@ -124,10 +128,14 @@ export function renderSetupBrief(caller: {
     // Named alongside the notes above, which say what each one actually is.
     // "Settled" with nothing behind it is worse than silence: he repeats it
     // back to the operator as a fact he cannot explain.
-    lines.push(`Settled already, according to the rows above: ${caller.settled.join(', ')}. Do not ask about these again unless the operator raises them.`);
+    lines.push(
+      `Settled already, according to the rows above: ${caller.settled.join(', ')}. Do not ask about these again unless the operator raises them.`,
+    );
     lines.push('');
   }
 
-  lines.push('What Telarchy is, in the words you should use for it: the owner names a number they answer to, anyone (human or AI) can offer a paid job that would move it, and a market prices the job before the owner decides. The number being public and machine-read is what makes the rest worth anything.');
+  lines.push(
+    'What Telarchy is, in the words you should use for it: the owner names a number they answer to, anyone (human or AI) can offer a paid job that would move it, and a market prices the job before the owner decides. The number being public and machine-read is what makes the rest worth anything.',
+  );
   return lines.join('\n');
 }

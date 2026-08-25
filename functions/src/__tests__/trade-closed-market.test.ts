@@ -29,22 +29,19 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
+import { eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agentApiKeys, agents, markets, metrics, permissionGroups, positions } from '../db/schema';
+import { initialPool, sharesForBudget } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
-import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import {
-  agents, agentApiKeys, markets, metrics, permissionGroups, positions,
-} from '../db/schema';
-import { hashKey } from '../middleware/auth';
-import { provisionWorkspace } from '../lib/participants';
-import { initialPool, sharesForBudget } from '../lib/amm';
-import { toUnits } from '../lib/validation';
+import { authMiddleware, hashKey } from '../middleware/auth';
 import { predictionsRouter } from '../routes/predictions';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -57,8 +54,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message, ...extra });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-trade-closed';
 const OWNER = 'agent-owner';
@@ -83,35 +84,57 @@ async function seed() {
   // runtime operations are identical, so cast to bypass the compile-time gate.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Trade Closed Test', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'private',
+    wsId: WS,
+    name: 'Trade Closed Test',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'private',
   });
 
-  const traderRows = await db.select().from(permissionGroups)
-    .where(eq(permissionGroups.workspaceId, WS));
+  const traderRows = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS));
   const traderGroup = traderRows.find(g => g.type === 'trader')!;
-  await db.update(permissionGroups)
+  await db
+    .update(permissionGroups)
     .set({ memberIds: [BETTOR] })
     .where(eq(permissionGroups.id, traderGroup.id));
 
   await db.insert(agentApiKeys).values({
-    hash: hashKey(BETTOR_KEY), keyId: 'key-1', agentId: BETTOR,
-    workspaceId: WS, label: 'test', scopes: ['*'],
+    hash: hashKey(BETTOR_KEY),
+    keyId: 'key-1',
+    agentId: BETTOR,
+    workspaceId: WS,
+    label: 'test',
+    scopes: ['*'],
   });
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Activation', value: 0,
-    formula: '0', marketRangeMax: RANGE_MAX,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Activation',
+    value: 0,
+    formula: '0',
+    marketRangeMax: RANGE_MAX,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Activation',
-    targetDate: TARGET, rangeMin: RANGE_MIN, rangeMax: RANGE_MAX,
-    shares: [0, 0], liquidity: LIQUIDITY, pool: initialPool(LIQUIDITY),
-    active: true, resolved: false, voided: false,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: METRIC,
+    metricName: 'Activation',
+    targetDate: TARGET,
+    rangeMin: RANGE_MIN,
+    rangeMax: RANGE_MAX,
+    shares: [0, 0],
+    liquidity: LIQUIDITY,
+    pool: initialPool(LIQUIDITY),
+    active: true,
+    resolved: false,
+    voided: false,
   });
 }
 
 /** Helper: place a buy directly via the trade route (used to build a position before deactivating). */
 async function buyHigher(budget: number) {
-  return request(app).post('/api/predictions/trade')
+  return request(app)
+    .post('/api/predictions/trade')
     .set('X-Test-Agent-Id', BETTOR)
     .set('X-Workspace-Id', WS)
     .set('Content-Type', 'application/json')
@@ -133,7 +156,8 @@ describe('trade route on closed markets', () => {
 
     // 3. Sell half — must be allowed.
     const sellAmount = sharesBought / 2;
-    const sell = await request(app).post('/api/predictions/trade')
+    const sell = await request(app)
+      .post('/api/predictions/trade')
       .set('X-Test-Agent-Id', BETTOR)
       .set('X-Workspace-Id', WS)
       .set('Content-Type', 'application/json')
@@ -141,7 +165,9 @@ describe('trade route on closed markets', () => {
     expect(sell.status).toBe(201);
     expect(sell.body.proceeds).toBeGreaterThan(0);
 
-    const [pos] = await db.select().from(positions)
+    const [pos] = await db
+      .select()
+      .from(positions)
       .where(eq(positions.id, `${BETTOR}_${MARKET}_higher`));
     expect(pos.shares).toBeCloseTo(sharesBought - sellAmount, 6);
   });
@@ -162,7 +188,8 @@ describe('trade route on closed markets', () => {
     await buyHigher(10);
     await db.update(markets).set({ active: false }).where(eq(markets.id, MARKET));
 
-    const tv = await request(app).post('/api/predictions/trade')
+    const tv = await request(app)
+      .post('/api/predictions/trade')
       .set('X-Test-Agent-Id', BETTOR)
       .set('X-Workspace-Id', WS)
       .set('Content-Type', 'application/json')
@@ -176,7 +203,8 @@ describe('trade route on closed markets', () => {
     await buyHigher(50);
     await db.update(markets).set({ resolved: true, active: false }).where(eq(markets.id, MARKET));
 
-    const sell = await request(app).post('/api/predictions/trade')
+    const sell = await request(app)
+      .post('/api/predictions/trade')
       .set('X-Test-Agent-Id', BETTOR)
       .set('X-Workspace-Id', WS)
       .set('Content-Type', 'application/json')
@@ -190,7 +218,8 @@ describe('trade route on closed markets', () => {
     await buyHigher(50);
     await db.update(markets).set({ voided: true, active: false }).where(eq(markets.id, MARKET));
 
-    const sell = await request(app).post('/api/predictions/trade')
+    const sell = await request(app)
+      .post('/api/predictions/trade')
       .set('X-Test-Agent-Id', BETTOR)
       .set('X-Workspace-Id', WS)
       .set('Content-Type', 'application/json')

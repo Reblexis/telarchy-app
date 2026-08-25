@@ -1,6 +1,6 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * The record, on its own page (owner direction 2026-08-20). The behaviour
@@ -19,11 +19,18 @@ const getWorkspaceAnnouncements = vi.fn(async () => ({
 const getMarketplaceWorkspace = vi.fn(async () => ({ workspaceId: 'ws', name: 'Telarchy', slug: 'telarchy' }));
 const getProfile = vi.fn(async () => ({ authRole: 'admin' }));
 const publishAnnouncement = vi.fn(async () => ({
-  id: 'a3', body: 'Just published', publishedAt: '2026-08-17T09:00:00Z', editedAt: null, originalBody: null,
+  id: 'a3',
+  body: 'Just published',
+  publishedAt: '2026-08-17T09:00:00Z',
+  editedAt: null,
+  originalBody: null,
 }));
 const editAnnouncement = vi.fn(async () => ({
-  id: 'a2', body: 'Corrected', publishedAt: '2026-08-15T09:00:00Z',
-  editedAt: '2026-08-16T09:00:00Z', originalBody: 'Newer news',
+  id: 'a2',
+  body: 'Corrected',
+  publishedAt: '2026-08-15T09:00:00Z',
+  editedAt: '2026-08-16T09:00:00Z',
+  originalBody: 'Newer news',
 }));
 
 vi.mock('../../lib/api', () => ({
@@ -31,8 +38,8 @@ vi.mock('../../lib/api', () => ({
     getWorkspaceAnnouncements: () => getWorkspaceAnnouncements(),
     getMarketplaceWorkspace: () => getMarketplaceWorkspace(),
     getProfile: () => getProfile(),
-    publishAnnouncement: (...a: unknown[]) => publishAnnouncement(...a as []),
-    editAnnouncement: (...a: unknown[]) => editAnnouncement(...a as []),
+    publishAnnouncement: (...a: unknown[]) => publishAnnouncement(...(a as [])),
+    editAnnouncement: (...a: unknown[]) => editAnnouncement(...(a as [])),
   },
 }));
 let signedIn = true;
@@ -42,11 +49,14 @@ vi.mock('../TradePage', () => ({ TopBar: () => null }));
 
 import { AnnouncementsPage } from '../AnnouncementsPage';
 
-const renderPage = () => render(
-  <MemoryRouter initialEntries={['/telarchy/announcements']}>
-    <Routes><Route path="/:slug/announcements" element={<AnnouncementsPage />} /></Routes>
-  </MemoryRouter>,
-);
+const renderPage = () =>
+  render(
+    <MemoryRouter initialEntries={['/telarchy/announcements']}>
+      <Routes>
+        <Route path="/:slug/announcements" element={<AnnouncementsPage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
 
 beforeEach(() => {
   signedIn = true;
@@ -76,10 +86,15 @@ describe('the announcements page', () => {
 
   test('an edited announcement says so, and can show what it replaced', async () => {
     getWorkspaceAnnouncements.mockResolvedValueOnce({
-      announcements: [{
-        id: 'a2', body: 'Corrected', publishedAt: '2026-08-15T09:00:00Z',
-        editedAt: '2026-08-16T09:00:00Z', originalBody: 'Newer news',
-      }],
+      announcements: [
+        {
+          id: 'a2',
+          body: 'Corrected',
+          publishedAt: '2026-08-15T09:00:00Z',
+          editedAt: '2026-08-16T09:00:00Z',
+          originalBody: 'Newer news',
+        },
+      ],
     });
     renderPage();
     await waitFor(() => expect(screen.getByText(/^edited /)).toBeTruthy());

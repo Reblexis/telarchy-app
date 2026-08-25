@@ -14,11 +14,11 @@
 import { randomBytes, randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/client';
-import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
-import { authUser, authAccount, agents, agentApiKeys } from '../db/schema';
+import { agentApiKeys, agents, authAccount, authUser } from '../db/schema';
 import { hashKey } from '../middleware/auth';
+import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
 import { provisionWorkspace } from './participants';
-import { toUnits, SIGNUP_CREDITS } from './validation';
+import { SIGNUP_CREDITS, toUnits } from './validation';
 
 async function hashAuthPassword(password: string): Promise<string> {
   const { hashPassword } = await import('better-auth/crypto');
@@ -36,11 +36,11 @@ export function validateStartupConfig(): void {
   if ((hasGoogle || hasGithub) && !hasBetterAuthUrl) {
     console.warn(
       '\n[WARN] OAuth provider credentials are set but BETTER_AUTH_URL is not.\n' +
-      '       OAuth redirect URIs will be wrong on custom domains.\n' +
-      '       Set BETTER_AUTH_URL=https://your-domain.com\n' +
-      '       Callback URLs to register in your OAuth app:\n' +
-      '         Google:  {BETTER_AUTH_URL}/api/auth/callback/google\n' +
-      '         GitHub:  {BETTER_AUTH_URL}/api/auth/callback/github\n',
+        '       OAuth redirect URIs will be wrong on custom domains.\n' +
+        '       Set BETTER_AUTH_URL=https://your-domain.com\n' +
+        '       Callback URLs to register in your OAuth app:\n' +
+        '         Google:  {BETTER_AUTH_URL}/api/auth/callback/google\n' +
+        '         GitHub:  {BETTER_AUTH_URL}/api/auth/callback/github\n',
     );
   }
 }
@@ -58,8 +58,10 @@ export async function ensureInitialAdminElevated(): Promise<void> {
   const [user] = await db.select({ id: authUser.id }).from(authUser).where(eq(authUser.email, email));
   if (!user) return;
 
-  const [agent] = await db.select({ id: agents.id, platformAdmin: agents.platformAdmin })
-    .from(agents).where(eq(agents.authUserId, user.id));
+  const [agent] = await db
+    .select({ id: agents.id, platformAdmin: agents.platformAdmin })
+    .from(agents)
+    .where(eq(agents.authUserId, user.id));
   if (!agent || agent.platformAdmin === true) return;
 
   await db.update(agents).set({ platformAdmin: true }).where(eq(agents.id, agent.id));
@@ -125,13 +127,17 @@ export async function runBootstrap(): Promise<void> {
       approvedAt: new Date(),
     });
     await applyCredits(tx, {
-      agentId, workspaceId: PLATFORM_SCOPE,
-      deltaUnits: toUnits(SIGNUP_CREDITS), reason: 'signup_grant',
+      agentId,
+      workspaceId: PLATFORM_SCOPE,
+      deltaUnits: toUnits(SIGNUP_CREDITS),
+      reason: 'signup_grant',
     });
 
     const wsId = randomUUID();
     await provisionWorkspace(tx, {
-      wsId, name: 'My Workspace', createdBy: userId,
+      wsId,
+      name: 'My Workspace',
+      createdBy: userId,
       ownerAgentId: agentId,
     });
     await tx.insert(agentApiKeys).values({

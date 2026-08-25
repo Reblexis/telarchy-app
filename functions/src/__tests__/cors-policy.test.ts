@@ -26,17 +26,29 @@ const ALIEN = 'https://lookpilot.app';
 function appWith(): express.Express {
   const app = express();
   app.use(corsMiddleware);
-  app.get('/api/status', (_req, res) => { res.json({ ok: true }); });
-  app.get('/api/marketplace/:id', (_req, res) => { res.json({ floor: true }); });
-  app.get('/api/marketplace/:id/context', (_req, res) => { res.json({ brief: true }); });
-  app.post('/api/marketplace/:id/ask', (_req, res) => { res.json({ answer: 'yes' }); });
-  app.get('/api/marketplace/:id/comments', (_req, res) => { res.json([]); });
+  app.get('/api/status', (_req, res) => {
+    res.json({ ok: true });
+  });
+  app.get('/api/marketplace/:id', (_req, res) => {
+    res.json({ floor: true });
+  });
+  app.get('/api/marketplace/:id/context', (_req, res) => {
+    res.json({ brief: true });
+  });
+  app.post('/api/marketplace/:id/ask', (_req, res) => {
+    res.json({ answer: 'yes' });
+  });
+  app.get('/api/marketplace/:id/comments', (_req, res) => {
+    res.json([]);
+  });
   return app;
 }
 
 describe('CORS policy', () => {
   const prev = process.env.ALLOWED_ORIGIN;
-  beforeAll(() => { process.env.ALLOWED_ORIGIN = 'https://telarchy.com'; });
+  beforeAll(() => {
+    process.env.ALLOWED_ORIGIN = 'https://telarchy.com';
+  });
   afterAll(() => {
     if (prev === undefined) delete process.env.ALLOWED_ORIGIN;
     else process.env.ALLOWED_ORIGIN = prev;

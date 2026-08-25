@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, type PrizeSeason, type SeasonStanding } from '../lib/api';
-import { useSeasonClock } from '../lib/useSeasonClock';
-import { pickCurrentSeason } from '../lib/season-clock';
-import { SeasonEntryButton } from '../components/SeasonEntryButton';
 import { ReportButton } from '../components/ReportButton';
+import { SeasonEntryButton } from '../components/SeasonEntryButton';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
+import { api, type PrizeSeason, type SeasonStanding } from '../lib/api';
+import { pickCurrentSeason } from '../lib/season-clock';
+import { useSeasonClock } from '../lib/useSeasonClock';
 import { TopBar } from './TradePage';
 
 /**
@@ -45,31 +45,43 @@ export function SeasonPage() {
 
   useEffect(() => {
     let cancelled = false;
-    api.getSeasons()
+    api
+      .getSeasons()
       .then(r => {
         if (cancelled) return;
         const s = pickCurrentSeason(r.seasons);
         setSeason(s);
         if (!s) setMissing(true);
       })
-      .catch(e => { console.error('seasons fetch failed:', e); if (!cancelled) setMissing(true); });
-    return () => { cancelled = true; };
+      .catch(e => {
+        console.error('seasons fetch failed:', e);
+        if (!cancelled) setMissing(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadStandings = useCallback(() => {
     if (!season) return;
-    api.getSeasonStandings(season.id)
+    api
+      .getSeasonStandings(season.id)
       .then(r => setRows(r.participants))
       // Standings are secondary to the pitch: a failed read leaves the section
       // out rather than replacing the page with an error.
-      .catch(e => { console.error('season standings fetch failed:', e); setRows([]); });
+      .catch(e => {
+        console.error('season standings fetch failed:', e);
+        setRows([]);
+      });
   }, [season]);
 
   useEffect(() => {
     loadStandings();
     // A draft season's board cannot move, so there is nothing to poll for.
     if (!season || season.status !== 'running') return;
-    const id = setInterval(() => { if (!document.hidden) loadStandings(); }, 15_000);
+    const id = setInterval(() => {
+      if (!document.hidden) loadStandings();
+    }, 15_000);
     return () => clearInterval(id);
   }, [season, loadStandings]);
 
@@ -80,8 +92,7 @@ export function SeasonPage() {
         <main className="lbp">
           <h1 className="lbp-head">No season running</h1>
           <p className="lbp-lead">
-            There is no prize season right now. The{' '}
-            <Link to="/leaderboard">leaderboard</Link> is still live.
+            There is no prize season right now. The <Link to="/leaderboard">leaderboard</Link> is still live.
           </p>
         </main>
       </div>
@@ -103,7 +114,7 @@ export function SeasonPage() {
   const draft = season?.status === 'draft';
   // The standings response caps at 100; if this entrant is outside it there is
   // nothing to pin, and saying nothing beats inventing a rank.
-  const myStanding = meId ? rows?.find(r => r.id === meId) ?? null : null;
+  const myStanding = meId ? (rows?.find(r => r.id === meId) ?? null) : null;
 
   return (
     <div className="pubws">
@@ -122,9 +133,8 @@ export function SeasonPage() {
         <section className="seasonp-hero" aria-label="Prize pool">
           <p className="seasonp-pool">${season.poolUsd.toLocaleString()}</p>
           <p className="seasonp-pool-sub">
-            in real money, paid to the five whose trading profit grows the most
-            while the season runs. Free to enter: no purchase, no stake, your
-            credits are never spent or exchanged.
+            in real money, paid to the five whose trading profit grows the most while the season runs. Free to enter: no
+            purchase, no stake, your credits are never spent or exchanged.
           </p>
         </section>
 
@@ -132,21 +142,21 @@ export function SeasonPage() {
             whether to spend eight weeks on this deserves to know the platform
             is still being launched before they decide, not after. */}
         <p className="seasonp-experimental">
-          Season 0 is the first one, and the platform is still being launched.
-          Expect rough edges, apologies in advance. If something looks wrong,
-          tell us: where a bug affects standings we publish the correction.
+          Season 0 is the first one, and the platform is still being launched. Expect rough edges, apologies in advance.
+          If something looks wrong, tell us: where a bug affects standings we publish the correction.
         </p>
         {/* The rules require every mid-season change to be announced HERE
             before it takes effect. Remove when Season 0 settles. */}
         <p className="seasonp-experimental">
-          Rule change, 2026-08-22: a prize no longer requires a positive
-          score; place alone decides it. The change only increases what is
-          paid.
+          Rule change, 2026-08-22: a prize no longer requires a positive score; place alone decides it. The change only
+          increases what is paid.
         </p>
         {/* The real channel, inline, rather than a sentence pointing at an icon
             in the top bar. Anonymous reports are accepted, so a visitor who hit
             a bug before signing up can still send one. */}
-        <p className="seasonp-report"><ReportButton /></p>
+        <p className="seasonp-report">
+          <ReportButton />
+        </p>
 
         {clock.entryOpen && (
           <section className="seasonp-enter" aria-label="Enter">
@@ -181,9 +191,7 @@ export function SeasonPage() {
 
         <section className="seasonp-block" aria-label="How it is scored">
           <h2 className="lbp-season-name">How it is scored</h2>
-          <p className="seasonp-formula">
-            season score = trading profit now - trading profit at season start
-          </p>
+          <p className="seasonp-formula">season score = trading profit now - trading profit at season start</p>
           {/* The formula and the rules link are the whole section (owner
               direction 2026-08-19: the explanatory paragraphs are gone; the
               rules doc carries the detail). */}
@@ -198,71 +206,89 @@ export function SeasonPage() {
             <p className="lbp-empty">Nobody has entered yet.</p>
           ) : (
             <>
-            {/* The right column needed a name: "$500" beside a score read as
+              {/* The right column needed a name: "$500" beside a score read as
                 a balance until hovered. Mirrors the row's own cell widths. */}
-            <div className="seasonp-cols" aria-hidden="true">
-              <span className="seasonp-cols-rank">#</span>
-              <span className="seasonp-cols-who">participant</span>
-              <span className="seasonp-cols-score">{draft ? '' : 'score'}</span>
-              <span className="seasonp-cols-pays">{draft ? '' : settled ? 'prize' : 'pays now'}</span>
-            </div>
-            <ol className="lbp-list">
-              {rows.map(r => {
-                const name = r.nickname || 'anonymous';
-                return (
-                  <li key={r.id} className={`lbp-row${r.id === meId ? ' is-me' : ''}`}>
-                    <span className="lbp-rank">{r.rank}</span>
-                    <Link className="lbp-who" to={`/participants/${encodeURIComponent(r.nickname ?? r.id)}`}>
-                      <span className="lbp-avatar">
-                        {r.image ? <img src={r.image} alt="" /> : <span>{initialOf(name)}</span>}
-                      </span>
-                      <span className="lbp-stack">
-                        <span className="lbp-name">
-                          {name}
+              <div className="seasonp-cols" aria-hidden="true">
+                <span className="seasonp-cols-rank">#</span>
+                <span className="seasonp-cols-who">participant</span>
+                <span className="seasonp-cols-score">{draft ? '' : 'score'}</span>
+                <span className="seasonp-cols-pays">{draft ? '' : settled ? 'prize' : 'pays now'}</span>
+              </div>
+              <ol className="lbp-list">
+                {rows.map(r => {
+                  const name = r.nickname || 'anonymous';
+                  return (
+                    <li key={r.id} className={`lbp-row${r.id === meId ? ' is-me' : ''}`}>
+                      <span className="lbp-rank">{r.rank}</span>
+                      <Link className="lbp-who" to={`/participants/${encodeURIComponent(r.nickname ?? r.id)}`}>
+                        <span className="lbp-avatar">
+                          {r.image ? <img src={r.image} alt="" /> : <span>{initialOf(name)}</span>}
                         </span>
+                        <span className="lbp-stack">
+                          <span className="lbp-name">{name}</span>
+                        </span>
+                      </Link>
+                      <span
+                        className={`lbp-score${(r.score ?? 0) > 0 ? ' is-up' : (r.score ?? 0) < 0 ? ' is-down' : ''}`}
+                      >
+                        {r.score === null ? '' : formatScore(r.score)}
                       </span>
-                    </Link>
-                    <span className={`lbp-score${(r.score ?? 0) > 0 ? ' is-up' : (r.score ?? 0) < 0 ? ' is-down' : ''}`}>
-                      {r.score === null ? '' : formatScore(r.score)}
-                    </span>
-                    {/* Settled shows what was actually assigned. Running shows
+                      {/* Settled shows what was actually assigned. Running shows
                         what this standing would pay if it settled now, from the
                         same function settlement uses, so the two can never
                         promise different amounts. */}
-                    <span className="seasonp-won" title={draft ? undefined : settled ? 'Prize' : 'What this standing would pay if the season settled now'}>
-                      {draft ? ''
-                        : settled
-                        ? (r.prizeUsd && r.prizeUsd > 0 ? `$${r.prizeUsd.toLocaleString()}` : '—')
-                        : (r.projectedPrizeUsd && r.projectedPrizeUsd > 0 ? `$${r.projectedPrizeUsd.toLocaleString()}` : '—')}
+                      <span
+                        className="seasonp-won"
+                        title={
+                          draft
+                            ? undefined
+                            : settled
+                              ? 'Prize'
+                              : 'What this standing would pay if the season settled now'
+                        }
+                      >
+                        {draft
+                          ? ''
+                          : settled
+                            ? r.prizeUsd && r.prizeUsd > 0
+                              ? `$${r.prizeUsd.toLocaleString()}`
+                              : '—'
+                            : r.projectedPrizeUsd && r.projectedPrizeUsd > 0
+                              ? `$${r.projectedPrizeUsd.toLocaleString()}`
+                              : '—'}
+                      </span>
+                    </li>
+                  );
+                })}
+                {/* Pinned when the entrant is not in the list above: "where am
+                  I" is the question an entrant reads standings to answer. */}
+                {meId && !rows.some(r => r.id === meId) && myStanding && (
+                  <li className="lbp-row is-me is-pinned">
+                    <span className="lbp-rank">{myStanding.rank}</span>
+                    <Link
+                      className="lbp-who"
+                      to={`/participants/${encodeURIComponent(myStanding.nickname ?? myStanding.id)}`}
+                    >
+                      <span className="lbp-avatar">
+                        <span>{initialOf(myStanding.nickname || 'you')}</span>
+                      </span>
+                      <span className="lbp-stack">
+                        <span className="lbp-name">{myStanding.nickname || 'you'}</span>
+                      </span>
+                    </Link>
+                    <span
+                      className={`lbp-score${(myStanding.score ?? 0) > 0 ? ' is-up' : (myStanding.score ?? 0) < 0 ? ' is-down' : ''}`}
+                    >
+                      {myStanding.score === null ? '' : formatScore(myStanding.score)}
+                    </span>
+                    <span className="seasonp-won">
+                      {myStanding.projectedPrizeUsd && myStanding.projectedPrizeUsd > 0
+                        ? `$${myStanding.projectedPrizeUsd.toLocaleString()}`
+                        : '—'}
                     </span>
                   </li>
-                );
-              })}
-              {/* Pinned when the entrant is not in the list above: "where am
-                  I" is the question an entrant reads standings to answer. */}
-              {meId && !rows.some(r => r.id === meId) && myStanding && (
-                <li className="lbp-row is-me is-pinned">
-                  <span className="lbp-rank">{myStanding.rank}</span>
-                  <Link className="lbp-who" to={`/participants/${encodeURIComponent(myStanding.nickname ?? myStanding.id)}`}>
-                    <span className="lbp-avatar">
-                      <span>{initialOf(myStanding.nickname || 'you')}</span>
-                    </span>
-                    <span className="lbp-stack">
-                      <span className="lbp-name">
-                        {myStanding.nickname || 'you'}
-                      </span>
-                    </span>
-                  </Link>
-                  <span className={`lbp-score${(myStanding.score ?? 0) > 0 ? ' is-up' : (myStanding.score ?? 0) < 0 ? ' is-down' : ''}`}>
-                    {myStanding.score === null ? '' : formatScore(myStanding.score)}
-                  </span>
-                  <span className="seasonp-won">
-                    {myStanding.projectedPrizeUsd && myStanding.projectedPrizeUsd > 0
-                      ? `$${myStanding.projectedPrizeUsd.toLocaleString()}` : '—'}
-                  </span>
-                </li>
-              )}
-            </ol>
+                )}
+              </ol>
             </>
           )}
         </section>

@@ -9,9 +9,13 @@
 jest.mock('../db/client', () => ({ db: {} }));
 
 import {
-  resolveCustomHorizons, desiredMarketDates, generatesMarkets, sampleTimePoints,
-} from '../lib/time-preference';
-import { isValidCalendarDate, toAbsoluteDate, endOfPeriod, periodEndInstant, resolutionInstant } from '../lib/date-utils';
+  endOfPeriod,
+  isValidCalendarDate,
+  periodEndInstant,
+  resolutionInstant,
+  toAbsoluteDate,
+} from '../lib/date-utils';
+import { desiredMarketDates, generatesMarkets, resolveCustomHorizons, sampleTimePoints } from '../lib/time-preference';
 import { parseResetsEvery, parseTimePreference } from '../routes/metrics';
 import { enrichMetrics } from '../services/metrics';
 import type { Metric, TimePreference } from '../types';
@@ -113,14 +117,17 @@ describe('resolveCustomHorizons', () => {
 describe('desiredMarketDates', () => {
   test('custom-only config (curve disabled) yields exactly the custom dates', () => {
     const tp: TimePreference = { enabled: false, halfLife: 1, customHorizons: ['+2w', '2099-12-31'] };
-    expect(desiredMarketDates(tp, BASE)).toEqual(
-      expect.arrayContaining([toAbsoluteDate('+2w', BASE), '2099-12-31']),
-    );
+    expect(desiredMarketDates(tp, BASE)).toEqual(expect.arrayContaining([toAbsoluteDate('+2w', BASE), '2099-12-31']));
     expect(desiredMarketDates(tp, BASE)).toHaveLength(2);
   });
   test('curve and custom dates union without duplicates', () => {
     const curveDates = sampleTimePoints(1, 3, BASE).map(p => p.date);
-    const tp: TimePreference = { enabled: true, halfLife: 1, density: 3, customHorizons: [curveDates[0], '2099-12-31'] };
+    const tp: TimePreference = {
+      enabled: true,
+      halfLife: 1,
+      density: 3,
+      customHorizons: [curveDates[0], '2099-12-31'],
+    };
     const desired = desiredMarketDates(tp, BASE);
     expect(desired).toHaveLength(curveDates.length + 1);
     expect(desired).toEqual(expect.arrayContaining([...curveDates, '2099-12-31']));
@@ -180,7 +187,10 @@ describe('parseTimePreference (custom horizons)', () => {
     expect(parseTimePreference({ enabled: false, customHorizons: 'not-array' })).toBeInstanceOf(Error);
   });
   test('accepts hour offsets and hour absolutes; prunes past hours', () => {
-    const tp = parseTimePreference({ enabled: false, customHorizons: ['+1h', '+24h', '2099-01-01T08', '2020-01-01T08'] });
+    const tp = parseTimePreference({
+      enabled: false,
+      customHorizons: ['+1h', '+24h', '2099-01-01T08', '2020-01-01T08'],
+    });
     expect(tp).not.toBeInstanceOf(Error);
     expect((tp as TimePreference).customHorizons).toEqual(['+1h', '+24h', '2099-01-01T08']);
   });
@@ -215,8 +225,15 @@ describe('parseTimePreference (custom horizons)', () => {
 
 describe('outlook with custom horizons', () => {
   const leafMetric = (name: string, tp: TimePreference): Metric => ({
-    id: name, name, description: '', value: 10, total: 10,
-    formula: '0', order: 1, depth: 0, timePreference: tp,
+    id: name,
+    name,
+    description: '',
+    value: 10,
+    total: 10,
+    formula: '0',
+    order: 1,
+    depth: 0,
+    timePreference: tp,
   });
 
   test('an untraded custom-horizon market does not null the outlook', () => {

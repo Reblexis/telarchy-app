@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { TopBar } from './TradePage';
-import { api, type DataRoomFeed, type DataRoomBlock } from '../lib/api';
+import { api, type DataRoomBlock, type DataRoomFeed } from '../lib/api';
 import { withBase } from '../lib/base-path';
+import { TopBar } from './TradePage';
 
 /**
  * telarchy.com/data-room: Telarchy's own books (owner ask 2026-08-20).
@@ -36,7 +36,9 @@ function Figure({ value, label, note }: { value: number | string | null; label: 
     <div className="dr-fig">
       {/* null is refused, not zero: a term that could not be computed says so
           rather than reading as a measurement of nothing. */}
-      <span className="dr-fig-n">{value === null ? 'not published' : typeof value === 'number' ? n(value) : value}</span>
+      <span className="dr-fig-n">
+        {value === null ? 'not published' : typeof value === 'number' ? n(value) : value}
+      </span>
       <span className="dr-fig-l">{label}</span>
       {note && <span className="dr-fig-note">{note}</span>}
     </div>
@@ -86,14 +88,7 @@ function DayBars({ points, label }: { points: Array<{ day: string; value: number
         {points.map((p, i) => {
           const h = p.value === 0 ? 0 : Math.max(1.5, (p.value / max) * (H - 10));
           return (
-            <rect
-              key={p.day}
-              x={i * (w + gap)}
-              y={H - h}
-              width={w}
-              height={h}
-              className="dr-chart-bar"
-            >
+            <rect key={p.day} x={i * (w + gap)} y={H - h} width={w} height={h} className="dr-chart-bar">
               <title>{`${dayLabel(p.day)}: ${n(p.value)}`}</title>
             </rect>
           );
@@ -193,19 +188,24 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
       <>
         <div className="dr-market">
           <span className="dr-market-cap">{m.metricName}</span>
-          <span className="dr-market-price">{m.consensus === null ? 'not published' : n(Math.round(m.consensus * 100) / 100)}</span>
+          <span className="dr-market-price">
+            {m.consensus === null ? 'not published' : n(Math.round(m.consensus * 100) / 100)}
+          </span>
           <span className="dr-market-sub">
-            the market&apos;s call · now reading {m.currentValue === null ? 'not published' : n(Math.round(m.currentValue))}
+            the market&apos;s call · now reading{' '}
+            {m.currentValue === null ? 'not published' : n(Math.round(m.currentValue))}
             {' · '}settles {dayLabel(m.resolvesOn)}
           </span>
         </div>
         <Readings points={m.history} label={`${m.metricName} over time`} />
         <p className="dr-note">Every reading of the metric the market settles against, oldest first.</p>
-        <Rows rows={[
-          { key: 'range', left: 'Range the market prices inside', value: `${n(m.rangeMin)} to ${n(m.rangeMax)}` },
-          { key: 'liq', left: 'Liquidity in the book', value: `${n(Math.round(m.liquidity))} cr` },
-          { key: 'vol', left: 'Traded volume, lifetime', value: `${n(Math.round(m.tradedVolume))} cr` },
-        ]} />
+        <Rows
+          rows={[
+            { key: 'range', left: 'Range the market prices inside', value: `${n(m.rangeMin)} to ${n(m.rangeMax)}` },
+            { key: 'liq', left: 'Liquidity in the book', value: `${n(Math.round(m.liquidity))} cr` },
+            { key: 'vol', left: 'Traded volume, lifetime', value: `${n(Math.round(m.tradedVolume))} cr` },
+          ]}
+        />
         <p className="dr-note">
           <Link to={`/${floor.slug ?? 'telarchy'}`}>Trade it on the floor</Link>, or read the raw payload at{' '}
           <code>/api/marketplace/{floor.slug ?? 'telarchy'}</code>.
@@ -224,12 +224,14 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
           <Figure value={t.trades} label="trades, lifetime" />
           <Figure value={t.creditsTraded} label="credits traded" />
         </Figures>
-        <Rows rows={[
-          { key: 'accounts', left: 'Accounts with an email login', value: t.accounts },
-          { key: 'floors', left: 'Public floors', value: t.publicFloors },
-          { key: 'open', left: 'Markets open now', value: t.openMarkets },
-          { key: 'settled', left: 'Markets already settled', value: t.settledMarkets },
-        ]} />
+        <Rows
+          rows={[
+            { key: 'accounts', left: 'Accounts with an email login', value: t.accounts },
+            { key: 'floors', left: 'Public floors', value: t.publicFloors },
+            { key: 'open', left: 'Markets open now', value: t.openMarkets },
+            { key: 'settled', left: 'Markets already settled', value: t.settledMarkets },
+          ]}
+        />
       </>
     );
   }
@@ -238,13 +240,15 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
     const c = e.contracts;
     return (
       <>
-        <Rows rows={[
-          { key: 'proposed', left: 'Proposed', value: c.proposed },
-          { key: 'approved', left: 'Approved', value: c.approved },
-          { key: 'declined', left: 'Declined, with a written reason', value: c.declined },
-          { key: 'pending', left: 'Waiting on a decision', value: c.pending },
-          { key: 'withdrawn', left: 'Withdrawn by the proposer', value: c.withdrawn },
-        ]} />
+        <Rows
+          rows={[
+            { key: 'proposed', left: 'Proposed', value: c.proposed },
+            { key: 'approved', left: 'Approved', value: c.approved },
+            { key: 'declined', left: 'Declined, with a written reason', value: c.declined },
+            { key: 'pending', left: 'Waiting on a decision', value: c.pending },
+            { key: 'withdrawn', left: 'Withdrawn by the proposer', value: c.withdrawn },
+          ]}
+        />
         <Figures>
           <Figure value={`$${n(c.approvedUsd)}`} label="committed by approving" />
         </Figures>
@@ -264,9 +268,8 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
         </Figures>
         <DayBars points={t.byDay.map(d => ({ day: d.day, value: d.visits }))} label="Visits per day" />
         <p className="dr-note">
-          Visits per day, humans only. {t.keptSince
-            ? <>Kept from {dayLabel(t.keptSince)}, the day the rollup started.</>
-            : <>Nothing kept yet.</>}
+          Visits per day, humans only.{' '}
+          {t.keptSince ? <>Kept from {dayLabel(t.keptSince)}, the day the rollup started.</> : <>Nothing kept yet.</>}
         </p>
       </>
     );
@@ -297,7 +300,8 @@ export function DataRoomPage() {
   const [active, setActive] = useState('');
 
   useEffect(() => {
-    api.getDataRoom()
+    api
+      .getDataRoom()
       .then(setFeed)
       .catch(err => {
         console.error('data room failed to load', err);
@@ -332,15 +336,16 @@ export function DataRoomPage() {
         <header className="dr-head">
           <h1 className="dr-title">Data room</h1>
           <p className="dr-lead">
-            Telarchy&apos;s own books: what this is for, what it has done, who showed up, what
-            shipped, and what is planned. Every figure is read live from the database that
-            serves this site.
+            Telarchy&apos;s own books: what this is for, what it has done, who showed up, what shipped, and what is
+            planned. Every figure is read live from the database that serves this site.
           </p>
           {feed && (
             <p className="dr-stamp">
               Words updated {dayLabel(feed.doc.updatedAt)} · figures generated{' '}
               {new Date(feed.generatedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
-              <a href={withBase('/api/data-room')} className="dr-stamp-link">the same page as JSON</a>
+              <a href={withBase('/api/data-room')} className="dr-stamp-link">
+                the same page as JSON
+              </a>
             </p>
           )}
         </header>
@@ -352,11 +357,7 @@ export function DataRoomPage() {
           <>
             <nav className="dr-index" aria-label="Sections">
               {sections.map(s => (
-                <a
-                  key={s.id}
-                  href={`#${s.id}`}
-                  className={`dr-index-link${active === s.id ? ' is-active' : ''}`}
-                >
+                <a key={s.id} href={`#${s.id}`} className={`dr-index-link${active === s.id ? ' is-active' : ''}`}>
                   {s.title}
                 </a>
               ))}

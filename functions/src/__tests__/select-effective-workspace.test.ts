@@ -1,4 +1,4 @@
-import { selectEffectiveWorkspaceId, WorkspaceMembership } from '../lib/participants';
+import { selectEffectiveWorkspaceId, type WorkspaceMembership } from '../lib/participants';
 
 const admin = (id: string): WorkspaceMembership => ({ workspaceId: id, memberRole: 'admin' });
 const owner = (id: string): WorkspaceMembership => ({ workspaceId: id, memberRole: 'owner' });

@@ -5,7 +5,11 @@
  */
 
 import {
-  applyMatrixUpdate, channelOn, CHANNEL_DEFAULTS, NOTIFICATION_KINDS, resolveMatrix,
+  applyMatrixUpdate,
+  CHANNEL_DEFAULTS,
+  channelOn,
+  NOTIFICATION_KINDS,
+  resolveMatrix,
 } from '../lib/notification-prefs';
 
 describe('the defaults are the design', () => {
@@ -47,9 +51,14 @@ describe('resolveMatrix', () => {
 
 describe('applyMatrixUpdate', () => {
   test('merges named cells and routes email cells to the columns', () => {
-    const r = applyMatrixUpdate({ reply: { web: false } }, {
-      reply: { mobile: false }, settled: { email: false }, anyComment: { web: true },
-    });
+    const r = applyMatrixUpdate(
+      { reply: { web: false } },
+      {
+        reply: { mobile: false },
+        settled: { email: false },
+        anyComment: { web: true },
+      },
+    );
     if ('error' in r) throw new Error(r.error);
     // The earlier web override survives a later mobile-only update.
     expect(r.overrides.reply).toEqual({ web: false, mobile: false });

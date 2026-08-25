@@ -1,23 +1,35 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { render } from '@testing-library/react';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MarketChart } from '../MarketChart';
 
 // Wide geometry constants from MarketChart (jsdom's innerWidth is 1024).
-const W = 720, PAD_L = 46, PAD_R = 58;
+const W = 720,
+  PAD_L = 46,
+  PAD_R = 58;
 const RIGHT_EDGE = W - PAD_R;
 
 beforeAll(() => {
   // jsdom has no matchMedia; the chart only uses it to pick geometry.
   window.matchMedia = ((query: string) => ({
-    matches: false, media: query, onchange: null,
-    addEventListener: () => {}, removeEventListener: () => {},
-    addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
   })) as unknown as typeof window.matchMedia;
 });
 
 const NOW = new Date('2026-08-13T17:40:30Z').getTime();
-beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(NOW); });
-afterEach(() => { vi.useRealTimers(); });
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const iso = (msAgo: number) => new Date(NOW - msAgo).toISOString();
 
@@ -47,7 +59,10 @@ describe('MarketChart axis on young markets (2026-08-13)', () => {
         consensus={77316}
         unit="$"
         secondary={{
-          series: [{ at: iso(40_000), consensus: 80000 }, { at: iso(2_000), consensus: 82390 }],
+          series: [
+            { at: iso(40_000), consensus: 80000 },
+            { at: iso(2_000), consensus: 82390 },
+          ],
           consensus: 82390,
           label: 'if approved',
           tone: 'higher',
@@ -110,8 +125,7 @@ describe('MarketChart axis on young markets (2026-08-13)', () => {
 describe('a negligible move does not draw as a cliff', () => {
   const yLabels = (container: HTMLElement) =>
     [...container.querySelectorAll('.mchart-ylabel')].map(n => n.textContent ?? '');
-  const pathYs = (d: string): number[] =>
-    [...d.matchAll(/[ML][\d.]+,([\d.]+)/g)].map(m => parseFloat(m[1]));
+  const pathYs = (d: string): number[] => [...d.matchAll(/[ML][\d.]+,([\d.]+)/g)].map(m => parseFloat(m[1]));
 
   it('draws a 0.07 wobble on a 25 market as nearly flat', () => {
     const { container } = render(
@@ -134,7 +148,10 @@ describe('a negligible move does not draw as a cliff', () => {
   it('never prints the same y label twice', () => {
     const { container } = render(
       <MarketChart
-        series={[{ at: iso(2 * 3600e3), consensus: 25 }, { at: iso(3600e3), consensus: 25.07 }]}
+        series={[
+          { at: iso(2 * 3600e3), consensus: 25 },
+          { at: iso(3600e3), consensus: 25.07 },
+        ]}
         consensus={25}
       />,
     );
@@ -164,7 +181,10 @@ describe('a negligible move does not draw as a cliff', () => {
   it('a market that never moved sits in the middle, not on an edge', () => {
     const { container } = render(
       <MarketChart
-        series={[{ at: iso(2 * 3600e3), consensus: 25 }, { at: iso(3600e3), consensus: 25 }]}
+        series={[
+          { at: iso(2 * 3600e3), consensus: 25 },
+          { at: iso(3600e3), consensus: 25 },
+        ]}
         consensus={25}
       />,
     );

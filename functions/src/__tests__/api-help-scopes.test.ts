@@ -1,5 +1,5 @@
 import { readFileSync } from 'fs';
-import { resolve, join } from 'path';
+import { join, resolve } from 'path';
 import { ALL_KEY_SCOPES, WILDCARD_SCOPE } from '../lib/scopes';
 
 /**
@@ -29,7 +29,8 @@ function readDocumentedEndpoints(): DocumentedEndpoint[] {
   const block = src.slice(start);
   // Same shape as api-parity.test.ts but also captures an optional scope field
   // sitting between auth and description.
-  const re = /\{\s*method:\s*'([A-Z]+)',\s*path:\s*'([^']+)',\s*auth:\s*(?:'([^']+)'|(false))(?:,\s*scope:\s*'([^']+)')?/g;
+  const re =
+    /\{\s*method:\s*'([A-Z]+)',\s*path:\s*'([^']+)',\s*auth:\s*(?:'([^']+)'|(false))(?:,\s*scope:\s*'([^']+)')?/g;
   const out: DocumentedEndpoint[] = [];
   for (let m = re.exec(block); m !== null; m = re.exec(block)) {
     out.push({
@@ -59,8 +60,7 @@ describe('/api/help scope annotations', () => {
     if (offenders.length > 0) {
       const detail = offenders.map(e => `${e.method} ${e.path} -> scope:${e.scope}`).join('\n');
       throw new Error(
-        `Endpoint(s) reference unknown scopes:\n${detail}\n` +
-          `Allowed: ${[...VALID_SCOPES].join(', ')}.`,
+        `Endpoint(s) reference unknown scopes:\n${detail}\n` + `Allowed: ${[...VALID_SCOPES].join(', ')}.`,
       );
     }
   });
@@ -70,8 +70,9 @@ describe('/api/help scope annotations', () => {
     // presenting an agent key must still hold the scope (enforced inline in
     // the route). The annotation is meaningful there, not a drift.
     const ANONYMOUS_WITH_SCOPE = new Set(['POST /api/feedback']);
-    const broken = documented.filter(e =>
-      e.scope !== undefined && e.auth === 'false' && !ANONYMOUS_WITH_SCOPE.has(`${e.method} ${e.path}`));
+    const broken = documented.filter(
+      e => e.scope !== undefined && e.auth === 'false' && !ANONYMOUS_WITH_SCOPE.has(`${e.method} ${e.path}`),
+    );
     if (broken.length > 0) {
       const detail = broken.map(e => `${e.method} ${e.path}`).join('\n');
       throw new Error(`Endpoint(s) have a scope but auth: false (the scope is meaningless):\n${detail}`);
@@ -100,7 +101,7 @@ describe('/api/help scope annotations', () => {
     const wallet: Array<[string, string]> = [
       ['POST', '/api/agents/:id/spend'],
       ['POST', '/api/agents/:id/deposit'],
-      ['PUT',  '/api/agents/:id/wallet'],
+      ['PUT', '/api/agents/:id/wallet'],
       ['POST', '/api/agents/:id/withdraw'],
     ];
     for (const [method, path] of wallet) {

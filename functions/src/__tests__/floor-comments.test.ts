@@ -14,13 +14,13 @@ jest.mock('../middleware/auth', () => ({
   optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
-import request from 'supertest';
 import express from 'express';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, marketMessages, proposalMessages, permissionGroups, workspaces } from '../db/schema';
+import request from 'supertest';
+import { agents, marketMessages, markets, permissionGroups, proposalMessages, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { marketplaceRouter } from '../routes/marketplace';
 import { AppError } from '../lib/errors';
+import { marketplaceRouter } from '../routes/marketplace';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -31,26 +31,61 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-comments';
 
 async function seed(publicCaps: string[]) {
   await db.insert(agents).values([{ id: 'agent-c1', apiKeyHash: 'h-c1', balance: 0, nickname: 'carol' }]);
-  await db.insert(workspaces).values({ id: WS, name: 'Comments WS', createdBy: 'agent-c1', visibility: 'public', slug: 'comments-ws' });
+  await db
+    .insert(workspaces)
+    .values({ id: WS, name: 'Comments WS', createdBy: 'agent-c1', visibility: 'public', slug: 'comments-ws' });
   await db.insert(permissionGroups).values({
-    id: 'grp-pub-c', workspaceId: WS, name: 'Public', type: 'public',
-    capabilities: publicCaps, memberIds: [],
+    id: 'grp-pub-c',
+    workspaceId: WS,
+    name: 'Public',
+    type: 'public',
+    capabilities: publicCaps,
+    memberIds: [],
   });
   await db.insert(markets).values({
-    id: 'mkt-c1', workspaceId: WS, metricId: 'metric-c', metricName: 'Revenue',
-    targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 10, pool: initialPool(10),
-    active: true, resolved: false, voided: false, proposalId: null, branch: null,
+    id: 'mkt-c1',
+    workspaceId: WS,
+    metricId: 'metric-c',
+    metricName: 'Revenue',
+    targetDate: '2026-12',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 10,
+    pool: initialPool(10),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
+    branch: null,
   });
-  await db.insert(marketMessages).values({ id: 'mm1', workspaceId: WS, marketId: 'mkt-c1', from: 'agent-c1', content: 'thin book, fair price', createdAt: new Date() });
-  await db.insert(proposalMessages).values({ id: 'pm1', workspaceId: WS, proposalId: 'prop-c1', from: 'agent-c1', content: 'show your channel first', createdAt: new Date() });
+  await db.insert(marketMessages).values({
+    id: 'mm1',
+    workspaceId: WS,
+    marketId: 'mkt-c1',
+    from: 'agent-c1',
+    content: 'thin book, fair price',
+    createdAt: new Date(),
+  });
+  await db.insert(proposalMessages).values({
+    id: 'pm1',
+    workspaceId: WS,
+    proposalId: 'prop-c1',
+    from: 'agent-c1',
+    content: 'show your channel first',
+    createdAt: new Date(),
+  });
 }
 
 describe('public comments window', () => {

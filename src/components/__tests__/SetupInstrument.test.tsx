@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, expect, test } from 'vitest';
 import { SetupInstrument, SetupTicks } from '../SetupInstrument';
 
 /**
@@ -59,11 +59,15 @@ describe('the instrument', () => {
 
 describe('the ticks', () => {
   test('one per decision, inked when decided', () => {
-    const { container } = render(<SetupTicks items={[
-      { id: 'subject', label: 'What you run', status: 'done' },
-      { id: 'number', label: 'The number', status: 'done' },
-      { id: 'liquidity', label: 'Liquidity', status: 'open' },
-    ]} />);
+    const { container } = render(
+      <SetupTicks
+        items={[
+          { id: 'subject', label: 'What you run', status: 'done' },
+          { id: 'number', label: 'The number', status: 'done' },
+          { id: 'liquidity', label: 'Liquidity', status: 'open' },
+        ]}
+      />,
+    );
     expect(container.querySelectorAll('.instr-tick')).toHaveLength(3);
     expect(container.querySelectorAll('.instr-tick.is-done')).toHaveLength(2);
     expect(container.querySelector('.instr-ticks')?.getAttribute('aria-label')).toBe('2 of 3 decided');

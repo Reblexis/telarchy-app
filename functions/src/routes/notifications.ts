@@ -1,12 +1,12 @@
+import { randomUUID } from 'crypto';
+import { and, eq } from 'drizzle-orm';
 import { Router } from 'express';
+import { db } from '../db/client';
+import { agents, pushSubscriptions } from '../db/schema';
+import { pushConfigured, vapidPublicKey } from '../lib/push';
 import { wrap } from '../lib/wrap';
 import { requireIdentity, requireScope } from '../middleware/roles';
 import { listNotifications, markNotificationRead, markNotificationsSeen } from '../services/notifications';
-import { db } from '../db/client';
-import { agents, pushSubscriptions } from '../db/schema';
-import { and, eq } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
-import { pushConfigured, vapidPublicKey } from '../lib/push';
 
 /**
  * The notifications inbox behind the floor's bell (owner ask 2026-08-19).
@@ -40,24 +40,40 @@ async function callerParticipantId(req: import('express').Request): Promise<stri
   return row?.id ?? null;
 }
 
-notificationsRouter.get('/', requireIdentity, requireScope('account:read'), wrap(async (req, res) => {
-  const participantId = await callerParticipantId(req);
-  if (!participantId) { res.status(403).json({ error: 'Identity required' }); return; }
+notificationsRouter.get(
+  '/',
+  requireIdentity,
+  requireScope('account:read'),
+  wrap(async (req, res) => {
+    const participantId = await callerParticipantId(req);
+    if (!participantId) {
+      res.status(403).json({ error: 'Identity required' });
+      return;
+    }
 
-  const raw = Number(req.query.limit);
-  const limit = Number.isFinite(raw) ? Math.min(Math.max(Math.trunc(raw), 1), 100) : 30;
-  const { items, unread, seenAt } = await listNotifications(participantId, limit);
+    const raw = Number(req.query.limit);
+    const limit = Number.isFinite(raw) ? Math.min(Math.max(Math.trunc(raw), 1), 100) : 30;
+    const { items, unread, seenAt } = await listNotifications(participantId, limit);
 
-  res.json({
-    unread,
-    seenAt,
-    notifications: items.map(i => ({
-      id: i.id, kind: i.kind, at: i.at, actor: i.actor, subject: i.subject,
-      detail: i.detail, workspaceSlug: i.workspaceSlug,
-      proposalId: i.proposalId, marketId: i.marketId, commentId: i.commentId, unread: i.unread,
-    })),
-  });
-}));
+    res.json({
+      unread,
+      seenAt,
+      notifications: items.map(i => ({
+        id: i.id,
+        kind: i.kind,
+        at: i.at,
+        actor: i.actor,
+        subject: i.subject,
+        detail: i.detail,
+        workspaceSlug: i.workspaceSlug,
+        proposalId: i.proposalId,
+        marketId: i.marketId,
+        commentId: i.commentId,
+        unread: i.unread,
+      })),
+    });
+  }),
+);
 
 /**
  * Read ONE item, which is what clicking a row does: the count goes down by
@@ -65,62 +81,116 @@ notificationsRouter.get('/', requireIdentity, requireScope('account:read'), wrap
  * inbox no longer derives, because "I read a thing that has since aged out"
  * is not an error worth showing a person.
  */
-notificationsRouter.post('/:itemId/read', requireIdentity, requireScope('account:write'), wrap(async (req, res) => {
-  const participantId = await callerParticipantId(req);
-  if (!participantId) { res.status(403).json({ error: 'Identity required' }); return; }
-  const itemId = String(req.params.itemId ?? '');
-  if (!itemId || itemId.length > 200) { res.status(400).json({ error: 'itemId is required' }); return; }
-  await markNotificationRead(participantId, itemId);
-  res.json({ ok: true });
-}));
+notificationsRouter.post(
+  '/:itemId/read',
+  requireIdentity,
+  requireScope('account:write'),
+  wrap(async (req, res) => {
+    const participantId = await callerParticipantId(req);
+    if (!participantId) {
+      res.status(403).json({ error: 'Identity required' });
+      return;
+    }
+    const itemId = String(req.params.itemId ?? '');
+    if (!itemId || itemId.length > 200) {
+      res.status(400).json({ error: 'itemId is required' });
+      return;
+    }
+    await markNotificationRead(participantId, itemId);
+    res.json({ ok: true });
+  }),
+);
 
 /** Read everything: moves the watermark to now. Idempotent. */
-notificationsRouter.post('/seen', requireIdentity, requireScope('account:write'), wrap(async (req, res) => {
-  const participantId = await callerParticipantId(req);
-  if (!participantId) { res.status(403).json({ error: 'Identity required' }); return; }
-  const seenAt = await markNotificationsSeen(participantId);
-  res.json({ ok: true, seenAt });
-}));
+notificationsRouter.post(
+  '/seen',
+  requireIdentity,
+  requireScope('account:write'),
+  wrap(async (req, res) => {
+    const participantId = await callerParticipantId(req);
+    if (!participantId) {
+      res.status(403).json({ error: 'Identity required' });
+      return;
+    }
+    const seenAt = await markNotificationsSeen(participantId);
+    res.json({ ok: true, seenAt });
+  }),
+);
 
 /** The VAPID public key a browser needs to subscribe, and whether push is
  *  configured at all. Public: it is embedded in every subscribing client. */
-notificationsRouter.get('/push-key', wrap(async (_req, res) => {
-  res.json({ configured: pushConfigured(), publicKey: vapidPublicKey() });
-}));
+notificationsRouter.get(
+  '/push-key',
+  wrap(async (_req, res) => {
+    res.json({ configured: pushConfigured(), publicKey: vapidPublicKey() });
+  }),
+);
 
 /**
  * Register this browser's push subscription as one of the caller's mobile
  * addresses. Upserts on the endpoint: re-subscribing the same browser (which
  * browsers do on every permission re-grant) must not duplicate deliveries.
  */
-notificationsRouter.post('/push-subscriptions', requireIdentity, requireScope('account:write'), wrap(async (req, res) => {
-  const participantId = await callerParticipantId(req);
-  if (!participantId) { res.status(403).json({ error: 'Identity required' }); return; }
-  if (!pushConfigured()) { res.status(503).json({ error: 'Push is not configured on this server' }); return; }
-  const sub = req.body?.subscription;
-  const endpoint = sub?.endpoint;
-  const keys = sub?.keys;
-  if (typeof endpoint !== 'string' || !endpoint.startsWith('https://') || endpoint.length > 2000
-      || !keys || typeof keys.p256dh !== 'string' || typeof keys.auth !== 'string') {
-    res.status(400).json({ error: 'subscription must be a browser PushSubscription: { endpoint, keys: { p256dh, auth } }' });
-    return;
-  }
-  await db.insert(pushSubscriptions)
-    .values({ id: randomUUID(), agentId: participantId, endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } })
-    .onConflictDoUpdate({
-      target: pushSubscriptions.endpoint,
-      set: { agentId: participantId, keys: { p256dh: keys.p256dh, auth: keys.auth } },
-    });
-  res.json({ ok: true });
-}));
+notificationsRouter.post(
+  '/push-subscriptions',
+  requireIdentity,
+  requireScope('account:write'),
+  wrap(async (req, res) => {
+    const participantId = await callerParticipantId(req);
+    if (!participantId) {
+      res.status(403).json({ error: 'Identity required' });
+      return;
+    }
+    if (!pushConfigured()) {
+      res.status(503).json({ error: 'Push is not configured on this server' });
+      return;
+    }
+    const sub = req.body?.subscription;
+    const endpoint = sub?.endpoint;
+    const keys = sub?.keys;
+    if (
+      typeof endpoint !== 'string' ||
+      !endpoint.startsWith('https://') ||
+      endpoint.length > 2000 ||
+      !keys ||
+      typeof keys.p256dh !== 'string' ||
+      typeof keys.auth !== 'string'
+    ) {
+      res
+        .status(400)
+        .json({ error: 'subscription must be a browser PushSubscription: { endpoint, keys: { p256dh, auth } }' });
+      return;
+    }
+    await db
+      .insert(pushSubscriptions)
+      .values({ id: randomUUID(), agentId: participantId, endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } })
+      .onConflictDoUpdate({
+        target: pushSubscriptions.endpoint,
+        set: { agentId: participantId, keys: { p256dh: keys.p256dh, auth: keys.auth } },
+      });
+    res.json({ ok: true });
+  }),
+);
 
 /** Forget this browser's subscription (the mobile toggle going dark here). */
-notificationsRouter.delete('/push-subscriptions', requireIdentity, requireScope('account:write'), wrap(async (req, res) => {
-  const participantId = await callerParticipantId(req);
-  if (!participantId) { res.status(403).json({ error: 'Identity required' }); return; }
-  const endpoint = req.body?.endpoint;
-  if (typeof endpoint !== 'string') { res.status(400).json({ error: 'endpoint is required' }); return; }
-  await db.delete(pushSubscriptions)
-    .where(and(eq(pushSubscriptions.agentId, participantId), eq(pushSubscriptions.endpoint, endpoint)));
-  res.json({ ok: true });
-}));
+notificationsRouter.delete(
+  '/push-subscriptions',
+  requireIdentity,
+  requireScope('account:write'),
+  wrap(async (req, res) => {
+    const participantId = await callerParticipantId(req);
+    if (!participantId) {
+      res.status(403).json({ error: 'Identity required' });
+      return;
+    }
+    const endpoint = req.body?.endpoint;
+    if (typeof endpoint !== 'string') {
+      res.status(400).json({ error: 'endpoint is required' });
+      return;
+    }
+    await db
+      .delete(pushSubscriptions)
+      .where(and(eq(pushSubscriptions.agentId, participantId), eq(pushSubscriptions.endpoint, endpoint)));
+    res.json({ ok: true });
+  }),
+);

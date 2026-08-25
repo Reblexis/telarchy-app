@@ -1,8 +1,4 @@
-import {
-  applyMemberPolicy,
-  MEMBER_HIDDEN_TYPES,
-  MEMBER_VISIBLE_TYPES,
-} from '../routes/activity';
+import { applyMemberPolicy, MEMBER_HIDDEN_TYPES, MEMBER_VISIBLE_TYPES } from '../routes/activity';
 import type { ActivityItem } from '../services/activity';
 
 function item(type: ActivityItem['type'], extras: Partial<ActivityItem> = {}): ActivityItem {
@@ -33,11 +29,7 @@ describe('activity member policy', () => {
   });
 
   it('anonymizes the actor on trade entries but keeps actors on other entries', () => {
-    const feed: ActivityItem[] = [
-      item('trade'),
-      item('proposal_created'),
-      item('metric_update'),
-    ];
+    const feed: ActivityItem[] = [item('trade'), item('proposal_created'), item('metric_update')];
     const filtered = applyMemberPolicy(feed);
     const trade = filtered.find(f => f.type === 'trade')!;
     const proposal = filtered.find(f => f.type === 'proposal_created')!;

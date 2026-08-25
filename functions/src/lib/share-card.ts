@@ -29,11 +29,7 @@ const H = 630;
 
 function fontFiles(): string[] {
   const dir = join(__dirname, '..', '..', 'assets', 'fonts');
-  return [
-    join(dir, 'JetBrainsMono-SemiBold.ttf'),
-    join(dir, 'Fraunces-SemiBold.ttf'),
-    join(dir, 'Inter-Medium.ttf'),
-  ];
+  return [join(dir, 'JetBrainsMono-SemiBold.ttf'), join(dir, 'Fraunces-SemiBold.ttf'), join(dir, 'Inter-Medium.ttf')];
 }
 
 export interface ShareCardData {
@@ -61,14 +57,24 @@ function fmtValue(v: number): string {
 }
 
 /** The step path the floor's chart draws, scaled into the card's plot box. */
-function stepPath(history: number[], x0: number, y0: number, w: number, h: number): { path: string; endX: number; endY: number } | null {
+function stepPath(
+  history: number[],
+  x0: number,
+  y0: number,
+  w: number,
+  h: number,
+): { path: string; endX: number; endY: number } | null {
   if (history.length === 0) return null;
   const pts = history.length === 1 ? [history[0], history[0]] : history;
   let min = Math.min(...pts);
   let max = Math.max(...pts);
-  if (min === max) { min -= 1; max += 1; }
+  if (min === max) {
+    min -= 1;
+    max += 1;
+  }
   const pad = (max - min) * 0.18;
-  min -= pad; max += pad;
+  min -= pad;
+  max += pad;
   const xAt = (i: number) => x0 + (i / (pts.length - 1)) * w;
   const yAt = (v: number) => y0 + h - ((v - min) / (max - min)) * h;
   let d = `M${xAt(0).toFixed(1)},${yAt(pts[0]).toFixed(1)}`;
@@ -80,9 +86,7 @@ function stepPath(history: number[], x0: number, y0: number, w: number, h: numbe
 }
 
 export function renderShareCardSvg(data: ShareCardData): string {
-  const headline = data.consensus === null
-    ? 'unpriced'
-    : `${data.unit}${fmtValue(data.consensus)}`;
+  const headline = data.consensus === null ? 'unpriced' : `${data.unit}${fmtValue(data.consensus)}`;
   // The number is the hero: scale it to fit the card's width.
   const headlineSize = headline.length <= 8 ? 168 : headline.length <= 11 ? 132 : 104;
 

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { type FormEvent, useState } from 'react';
 import { authClient } from '../lib/auth-client';
 
 /**
@@ -38,7 +38,9 @@ export function AccountPassword() {
     <div className="jobform-field">
       <span className="ticket-label">Password</span>
       {!open ? (
-        <button className="acctdlg-ghost" onClick={() => setOpen(true)}>Change password</button>
+        <button className="acctdlg-ghost" onClick={() => setOpen(true)}>
+          Change password
+        </button>
       ) : (
         <form className="acctdlg-inline acctdlg-inline--col" onSubmit={submit}>
           <input

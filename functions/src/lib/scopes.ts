@@ -26,11 +26,7 @@ import type { Capability } from '../types';
  * have full access; scopes only apply to per-agent keys.
  */
 
-export const WORKSPACE_SCOPES = [
-  'workspace:read',
-  'workspace:trade',
-  'workspace:manage',
-] as const;
+export const WORKSPACE_SCOPES = ['workspace:read', 'workspace:trade', 'workspace:manage'] as const;
 
 export const ACCOUNT_SCOPES = [
   'account:read',
@@ -44,8 +40,8 @@ export const ACCOUNT_SCOPES = [
 export const ALL_KEY_SCOPES = [...WORKSPACE_SCOPES, ...ACCOUNT_SCOPES] as const;
 export const WILDCARD_SCOPE = '*';
 
-export type WorkspaceScope = typeof WORKSPACE_SCOPES[number];
-export type AccountScope = typeof ACCOUNT_SCOPES[number];
+export type WorkspaceScope = (typeof WORKSPACE_SCOPES)[number];
+export type AccountScope = (typeof ACCOUNT_SCOPES)[number];
 export type KeyScope = WorkspaceScope | AccountScope;
 export type ScopeValue = KeyScope | typeof WILDCARD_SCOPE;
 
@@ -57,22 +53,25 @@ export function isValidScope(s: unknown): s is ScopeValue {
 
 /** Validate a candidate scopes list. Empty array is allowed (a useless key,
  *  but not invalid). Duplicates are silently de-duped by the caller via Set. */
-export function parseScopesInput(input: unknown):
-  | { ok: true; scopes: string[] }
-  | { ok: false; error: string }
-{
+export function parseScopesInput(input: unknown): { ok: true; scopes: string[] } | { ok: false; error: string } {
   if (!Array.isArray(input)) return { ok: false, error: 'scopes must be an array of strings' };
   const out = new Set<string>();
   for (const v of input) {
     if (!isValidScope(v)) {
-      return { ok: false, error: `unknown scope "${String(v)}"; allowed: ${[WILDCARD_SCOPE, ...ALL_KEY_SCOPES].join(', ')}` };
+      return {
+        ok: false,
+        error: `unknown scope "${String(v)}"; allowed: ${[WILDCARD_SCOPE, ...ALL_KEY_SCOPES].join(', ')}`,
+      };
     }
     out.add(v);
   }
   // Apply implications so callers don't have to set them by hand. Wildcard
   // already covers everything so we skip it in that case.
   if (!out.has(WILDCARD_SCOPE)) {
-    if (out.has('workspace:manage')) { out.add('workspace:trade'); out.add('workspace:read'); }
+    if (out.has('workspace:manage')) {
+      out.add('workspace:trade');
+      out.add('workspace:read');
+    }
     if (out.has('workspace:trade')) out.add('workspace:read');
   }
   return { ok: true, scopes: [...out] };
@@ -87,10 +86,7 @@ export function hasScope(scopes: string[] | null | undefined, target: KeyScope):
 /** Filter a workspace capability set down to what the per-key scope allows.
  *  Wildcard scope returns the full set unchanged. Used by authMiddleware to
  *  build req.auth.capabilities for agent-key auth. */
-export function intersectWorkspaceCaps(
-  caps: Set<Capability>,
-  scopes: string[] | null | undefined,
-): Set<Capability> {
+export function intersectWorkspaceCaps(caps: Set<Capability>, scopes: string[] | null | undefined): Set<Capability> {
   if (!scopes || scopes.includes(WILDCARD_SCOPE)) return caps;
   const out = new Set<Capability>();
   if (caps.has('read') && scopes.includes('workspace:read')) out.add('read');
@@ -142,10 +138,20 @@ export const SCOPE_PRESETS: Record<string, { label: string; description: string;
 /** Documentation: which scope each named account endpoint requires. Mirrored
  *  in /api/help and used by the auth-and-keys guide. */
 export const ACCOUNT_SCOPE_FOR_ROUTE: Record<AccountScope, string[]> = {
-  'account:read':     ['GET /api/auth/me', 'GET /api/auth/me/export', 'GET /api/agents/mine'],
-  'account:write':    ['POST /api/auth/profile'],
-  'account:wallet':   ['PUT /api/agents/:id/wallet', 'POST /api/agents/:id/deposit', 'POST /api/agents/:id/withdraw', 'POST /api/agents/:id/spend'],
-  'account:keys':     ['GET /api/agents/:id/keys', 'POST /api/agents/:id/keys', 'PATCH /api/agents/:id/keys/:keyId', 'DELETE /api/agents/:id/keys/:keyId'],
-  'account:agents':   ['POST /api/agents'],
+  'account:read': ['GET /api/auth/me', 'GET /api/auth/me/export', 'GET /api/agents/mine'],
+  'account:write': ['POST /api/auth/profile'],
+  'account:wallet': [
+    'PUT /api/agents/:id/wallet',
+    'POST /api/agents/:id/deposit',
+    'POST /api/agents/:id/withdraw',
+    'POST /api/agents/:id/spend',
+  ],
+  'account:keys': [
+    'GET /api/agents/:id/keys',
+    'POST /api/agents/:id/keys',
+    'PATCH /api/agents/:id/keys/:keyId',
+    'DELETE /api/agents/:id/keys/:keyId',
+  ],
+  'account:agents': ['POST /api/agents'],
   'account:feedback': ['POST /api/feedback'],
 };

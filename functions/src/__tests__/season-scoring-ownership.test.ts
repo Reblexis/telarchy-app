@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from 'fs';
+import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative, resolve } from 'path';
 
 /**
@@ -62,15 +62,10 @@ const MAY_COMPUTE_PROFIT = new Set([
  * positions.totalCost is gross buys by design and cannot answer it. Not the
  * board, and not a second copy of it.
  */
-const MAY_QUERY_BOARD = new Set([
-  'lib/board.ts',
-  'services/markets.ts',
-]);
+const MAY_QUERY_BOARD = new Set(['lib/board.ts', 'services/markets.ts']);
 
 /** Files permitted to compute a season score. */
-const MAY_SCORE_SEASON = new Set([
-  'lib/seasons.ts',
-]);
+const MAY_SCORE_SEASON = new Set(['lib/seasons.ts']);
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -102,7 +97,7 @@ describe('season scoring ownership', () => {
     expect(offenders).toEqual([]);
   });
 
-  test('only lib/board.ts writes the board\'s SQL aggregate over trades', () => {
+  test("only lib/board.ts writes the board's SQL aggregate over trades", () => {
     // The signature of the board query: summing trade cost per agent. Written
     // anywhere else it is both a second answer and a second chance to pull the
     // 348k-row trades table into memory.

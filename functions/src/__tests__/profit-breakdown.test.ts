@@ -2,9 +2,9 @@ import {
   computeProfitBreakdown,
   computeTradingProfit,
   isSettledMarket,
-  voidedStakeKey,
   type LeaderboardPosition,
   type ProfitMarket,
+  voidedStakeKey,
 } from '../lib/leaderboard';
 
 /**
@@ -21,24 +21,50 @@ import {
  */
 
 const resolvedMarket: ProfitMarket = {
-  id: 'wat-w34', workspaceId: 'ws', rangeMin: 0, rangeMax: 50,
-  resolved: true, actualValue: 5, shares: [0, 369.546960271], liquidity: 608.8173, voided: false,
+  id: 'wat-w34',
+  workspaceId: 'ws',
+  rangeMin: 0,
+  rangeMax: 50,
+  resolved: true,
+  actualValue: 5,
+  shares: [0, 369.546960271],
+  liquidity: 608.8173,
+  voided: false,
 };
 
 // An open market whose book currently calls p(higher) = 0.5 (no shares
 // outstanding on either side), so a 'higher' share marks at 0.5.
 const openMarket: ProfitMarket = {
-  id: 'wat-sep', workspaceId: 'ws', rangeMin: 0, rangeMax: 50,
-  resolved: false, actualValue: null, shares: [0, 0], liquidity: 360, voided: false,
+  id: 'wat-sep',
+  workspaceId: 'ws',
+  rangeMin: 0,
+  rangeMax: 50,
+  resolved: false,
+  actualValue: null,
+  shares: [0, 0],
+  liquidity: 360,
+  voided: false,
 };
 
 const voidedMarket: ProfitMarket = {
-  id: 'cond-w34', workspaceId: 'ws', rangeMin: 0, rangeMax: 50,
-  resolved: false, actualValue: null, shares: [0, 38.99], liquidity: 360, voided: true,
+  id: 'cond-w34',
+  workspaceId: 'ws',
+  rangeMin: 0,
+  rangeMax: 50,
+  resolved: false,
+  actualValue: null,
+  shares: [0, 38.99],
+  liquidity: 360,
+  voided: true,
 };
 
-const pos = (marketId: string, shares: number, direction = 'higher', agentId = 'viktor'): LeaderboardPosition =>
-  ({ agentId, workspaceId: 'ws', marketId, direction, shares });
+const pos = (marketId: string, shares: number, direction = 'higher', agentId = 'viktor'): LeaderboardPosition => ({
+  agentId,
+  workspaceId: 'ws',
+  marketId,
+  direction,
+  shares,
+});
 
 describe('isSettledMarket', () => {
   test('a market resolved to a number, or cancelled, is settled; anything else is a mark', () => {

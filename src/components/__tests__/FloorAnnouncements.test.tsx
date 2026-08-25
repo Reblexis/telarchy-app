@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, test } from 'vitest';
 
 /**
  * The floor's announcements section, since it became one line (owner

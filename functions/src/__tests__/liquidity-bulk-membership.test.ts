@@ -33,19 +33,19 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
+import { eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agents, markets, metrics, permissionGroups } from '../db/schema';
+import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { fromUnits, toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics, permissionGroups } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
-import { initialPool } from '../lib/amm';
-import { toUnits, fromUnits } from '../lib/validation';
 import { predictionsRouter } from '../routes/predictions';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -57,8 +57,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message, ...extra });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-liq-bulk';
 const OWNER = 'agent-owner';
@@ -78,29 +82,52 @@ async function seed() {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Liquidity Bulk Test', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'private',
+    wsId: WS,
+    name: 'Liquidity Bulk Test',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'private',
   });
 
   // MEMBER joins the trader group; ADMIN is a platform admin but is NOT in any
   // group, so listParticipantsForWorkspace excludes it. OUTSIDER is unaffiliated.
-  const traderGroup = (await db.select().from(permissionGroups)
-    .where(eq(permissionGroups.workspaceId, WS))).find(g => g.type === 'trader')!;
-  await db.update(permissionGroups).set({ memberIds: [MEMBER] })
+  const traderGroup = (await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS))).find(
+    g => g.type === 'trader',
+  )!;
+  await db
+    .update(permissionGroups)
+    .set({ memberIds: [MEMBER] })
     .where(eq(permissionGroups.id, traderGroup.id));
 
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Throughput', value: 0, formula: '0', marketRangeMax: 100,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Throughput',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Throughput',
-    targetDate: '2028', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 10, pool: initialPool(10),
-    active: true, resolved: false, voided: false, proposalId: null,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: METRIC,
+    metricName: 'Throughput',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 10,
+    pool: initialPool(10),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
   });
 }
 
 function bulkFund(callerId: string, body: Record<string, unknown>) {
-  return request(app).post('/api/predictions/markets/liquidity/bulk')
+  return request(app)
+    .post('/api/predictions/markets/liquidity/bulk')
     .set('X-Test-Agent-Id', callerId)
     .set('X-Workspace-Id', WS)
     .set('Content-Type', 'application/json')
@@ -119,7 +146,7 @@ describe('bulk liquidity workspace-membership guard', () => {
     expect(fromUnits(admin.balance as number)).toBeCloseTo(START_CREDITS - 5, 6);
   });
 
-  test('admin funding another member\'s balance still works', async () => {
+  test("admin funding another member's balance still works", async () => {
     await seed();
 
     const res = await bulkFund(ADMIN, { amount: 5, agentId: MEMBER });
@@ -128,7 +155,7 @@ describe('bulk liquidity workspace-membership guard', () => {
     expect(fromUnits(member.balance as number)).toBeCloseTo(START_CREDITS - 5, 6);
   });
 
-  test('admin cannot fund from a non-member agent\'s balance', async () => {
+  test("admin cannot fund from a non-member agent's balance", async () => {
     await seed();
 
     const res = await bulkFund(ADMIN, { amount: 5, agentId: OUTSIDER });

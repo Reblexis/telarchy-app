@@ -27,19 +27,19 @@ jest.mock('../middleware/consent', () => ({
   requireConsentIfUser: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
+import { and, eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agents, markets, metrics, positions, prizeSeasons, seasonEntries, trades, workspaces } from '../db/schema';
+import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { optionalAuthMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics, positions, prizeSeasons, seasonEntries, trades, workspaces } from '../db/schema';
-import { initialPool } from '../lib/amm';
-import { toUnits } from '../lib/validation';
-import { AppError } from '../lib/errors';
+import { clearBoardCache, leaderboardRouter } from '../routes/leaderboard';
 import { seasonsRouter } from '../routes/seasons';
-import { leaderboardRouter, clearBoardCache } from '../routes/leaderboard';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const WS = 'ws-prereg';
 const EARLY = 'agent-early';
@@ -50,7 +50,10 @@ let caller: { agentId?: string; uid?: string; isMasterKey?: boolean } = { isMast
 
 const app = express();
 app.use(express.json());
-app.use((req, _res, next) => { (req as unknown as { auth: typeof caller }).auth = caller; next(); });
+app.use((req, _res, next) => {
+  (req as unknown as { auth: typeof caller }).auth = caller;
+  next();
+});
 app.use('/api/seasons', optionalAuthMiddleware, seasonsRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 // Mirrors app.ts, `extra` spread included: without it every assertion about
@@ -62,7 +65,9 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(status).json({ error: status >= 500 ? 'Internal error' : err.message, ...extra });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   clearBoardCache();
@@ -70,21 +75,45 @@ beforeEach(async () => {
 });
 
 async function seedFloor(ids: string[]) {
-  await db.insert(agents).values(ids.map((id, i) => ({
-    id, apiKeyHash: `h-${id}`, balance: toUnits(1000), nickname: `p${i}`,
-    payoutMethod: { provider: 'paypal', email: `${id}@example.com` },
-  })));
+  await db.insert(agents).values(
+    ids.map((id, i) => ({
+      id,
+      apiKeyHash: `h-${id}`,
+      balance: toUnits(1000),
+      nickname: `p${i}`,
+      payoutMethod: { provider: 'paypal', email: `${id}@example.com` },
+    })),
+  );
   await db.insert(workspaces).values({
-    id: WS, name: 'Floor', slug: 'prereg-floor', createdBy: ids[0], visibility: 'public',
+    id: WS,
+    name: 'Floor',
+    slug: 'prereg-floor',
+    createdBy: ids[0],
+    visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: 'metric-p', workspaceId: WS, name: 'Revenue', value: 50, formula: '0', marketRangeMax: 100,
+    id: 'metric-p',
+    workspaceId: WS,
+    name: 'Revenue',
+    value: 50,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: 'mkt-p', workspaceId: WS, metricId: 'metric-p', metricName: 'Revenue',
-    targetDate: '2028', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0] as [number, number], liquidity: 200, pool: initialPool(200),
-    active: true, resolved: false, voided: false, proposalId: null,
+    id: 'mkt-p',
+    workspaceId: WS,
+    metricId: 'metric-p',
+    metricName: 'Revenue',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0] as [number, number],
+    liquidity: 200,
+    pool: initialPool(200),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
   });
 }
 
@@ -92,12 +121,23 @@ async function seedFloor(ids: string[]) {
 async function giveProfit(agentId: string, profit: number, tag: string) {
   const cost = 20 - profit;
   await db.insert(positions).values({
-    id: `pos-${tag}`, workspaceId: WS, agentId, marketId: 'mkt-p',
-    direction: 'higher', shares: 40, totalCost: cost,
+    id: `pos-${tag}`,
+    workspaceId: WS,
+    agentId,
+    marketId: 'mkt-p',
+    direction: 'higher',
+    shares: 40,
+    totalCost: cost,
   });
   await db.insert(trades).values({
-    id: `trade-${tag}`, workspaceId: WS, agentId, marketId: 'mkt-p',
-    direction: 'higher', shares: 40, cost, createdAt: new Date(),
+    id: `trade-${tag}`,
+    workspaceId: WS,
+    agentId,
+    marketId: 'mkt-p',
+    direction: 'higher',
+    shares: 40,
+    cost,
+    createdAt: new Date(),
   });
   clearBoardCache();
 }
@@ -107,30 +147,40 @@ async function createSeason() {
     name: 'Season 1',
     startsAt: '2026-09-01T00:00:00Z',
     endsAt: '2026-09-29T00:00:00Z',
-    poolUsd: 1000, ladder: LADDER, rulesUrl: '/legal/season-1',
+    poolUsd: 1000,
+    ladder: LADDER,
+    rulesUrl: '/legal/season-1',
   });
   expect(res.status).toBeLessThan(300);
   return res.body.season.id as string;
 }
 
-const asAgent = (id: string) => { caller = { agentId: id }; };
-const asAdmin = () => { caller = { isMasterKey: true }; };
+const asAgent = (id: string) => {
+  caller = { agentId: id };
+};
+const asAdmin = () => {
+  caller = { isMasterKey: true };
+};
 
 const enter = (optedIn: boolean, acceptedRules = true) =>
-  request(app).put('/api/seasons/me')
+  request(app)
+    .put('/api/seasons/me')
     .send({ optedIn, acceptedRules, confirmedOver18: true, contactEmail: 'entrant@example.com' });
 
 /** Payment details on the account: entering requires them (owner direction
  *  2026-08-19), so every seed that expects to get in has to set one. */
 async function withPayout(agentId: string) {
-  await db.update(agents)
+  await db
+    .update(agents)
     .set({ payoutMethod: { provider: 'paypal', email: `${agentId}@example.com` } })
     .where(eq(agents.id, agentId));
 }
 const mine = () => request(app).get('/api/seasons/me');
 
 async function entryRow(seasonId: string, agentId: string) {
-  const [row] = await db.select().from(seasonEntries)
+  const [row] = await db
+    .select()
+    .from(seasonEntries)
     .where(and(eq(seasonEntries.seasonId, seasonId), eq(seasonEntries.agentId, agentId)));
   return row ?? null;
 }
@@ -265,10 +315,15 @@ describe('a running season still behaves as it did', () => {
 
     // A second season drafted while the first runs must not steal the toggle.
     await db.insert(prizeSeasons).values({
-      id: 'season-2', name: 'Season 2',
-      startsAt: new Date('2026-11-01'), endsAt: new Date('2026-12-01'),
-      poolUsd: 500, ladder: LADDER, workspaceIds: [],
-      rulesUrl: '/legal/season-1', status: 'draft',
+      id: 'season-2',
+      name: 'Season 2',
+      startsAt: new Date('2026-11-01'),
+      endsAt: new Date('2026-12-01'),
+      poolUsd: 500,
+      ladder: LADDER,
+      workspaceIds: [],
+      rulesUrl: '/legal/season-1',
+      status: 'draft',
     });
 
     asAgent(EARLY);
@@ -384,8 +439,7 @@ describe('editing a draft season', () => {
     await seedFloor([EARLY]);
     const id = await createSeason();
 
-    const res = await request(app).patch(`/api/seasons/${id}`)
-      .send({ startsAt: '2026-09-02T00:00:00Z' });
+    const res = await request(app).patch(`/api/seasons/${id}`).send({ startsAt: '2026-09-02T00:00:00Z' });
     expect(res.status).toBe(200);
     expect(res.body.season.startsAt).toBe('2026-09-02T00:00:00.000Z');
     expect(res.body.season.endsAt).toBe('2026-09-29T00:00:00.000Z');
@@ -396,8 +450,7 @@ describe('editing a draft season', () => {
     // Validated against what the season WILL be, not against what was sent.
     await seedFloor([EARLY]);
     const id = await createSeason();
-    const res = await request(app).patch(`/api/seasons/${id}`)
-      .send({ startsAt: '2026-10-30T00:00:00Z' });
+    const res = await request(app).patch(`/api/seasons/${id}`).send({ startsAt: '2026-10-30T00:00:00Z' });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/endsAt must be after startsAt/);
   });
@@ -425,8 +478,7 @@ describe('editing a draft season', () => {
     await seedFloor([EARLY]);
     const id = await createSeason();
     await request(app).post(`/api/seasons/${id}/start`).send({});
-    const res = await request(app).patch(`/api/seasons/${id}`)
-      .send({ startsAt: '2026-09-02T00:00:00Z' });
+    const res = await request(app).patch(`/api/seasons/${id}`).send({ startsAt: '2026-09-02T00:00:00Z' });
     expect(res.status).toBe(409);
   });
 });
@@ -441,7 +493,8 @@ describe('what an entrant has to give us', () => {
     await createSeason();
     asAgent(EARLY);
 
-    const res = await request(app).put('/api/seasons/me')
+    const res = await request(app)
+      .put('/api/seasons/me')
       .send({ optedIn: true, acceptedRules: true, confirmedOver18: true });
     expect(res.status).toBe(400);
     expect(res.body.reason).toBe('contactEmail');
@@ -452,7 +505,8 @@ describe('what an entrant has to give us', () => {
     await seedFloor([EARLY]);
     await createSeason();
     asAgent(EARLY);
-    const res = await request(app).put('/api/seasons/me')
+    const res = await request(app)
+      .put('/api/seasons/me')
       .send({ optedIn: true, acceptedRules: true, confirmedOver18: true, contactEmail: 'not-an-email' });
     expect(res.status).toBe(400);
     expect(res.body.reason).toBe('contactEmail');
@@ -462,7 +516,8 @@ describe('what an entrant has to give us', () => {
     await seedFloor([EARLY]);
     const id = await createSeason();
     asAgent(EARLY);
-    const res = await request(app).put('/api/seasons/me')
+    const res = await request(app)
+      .put('/api/seasons/me')
       .send({ optedIn: true, acceptedRules: true, confirmedOver18: true, contactEmail: 'a+season1@sub.example.co.uk' });
     expect(res.status).toBe(200);
     expect((await entryRow(id, EARLY))?.contactEmail).toBe('a+season1@sub.example.co.uk');
@@ -474,7 +529,8 @@ describe('what an entrant has to give us', () => {
     await seedFloor([EARLY]);
     await createSeason();
     asAgent(EARLY);
-    const res = await request(app).put('/api/seasons/me')
+    const res = await request(app)
+      .put('/api/seasons/me')
       .send({ optedIn: true, acceptedRules: true, contactEmail: 'entrant@example.com' });
     expect(res.status).toBe(400);
     expect(res.body.reason).toBe('age');
@@ -496,8 +552,7 @@ describe('what an entrant has to give us', () => {
     const id = await createSeason();
     asAgent(EARLY);
     await enter(true);
-    await request(app).put('/api/seasons/me')
-      .send({ optedIn: true, contactEmail: 'fixed@example.com' });
+    await request(app).put('/api/seasons/me').send({ optedIn: true, contactEmail: 'fixed@example.com' });
     expect((await entryRow(id, EARLY))?.contactEmail).toBe('fixed@example.com');
   });
 

@@ -9,8 +9,8 @@
  * genuinely dead network becomes a reload loop.
  */
 
-import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { lazyPage } from '../lazy-page';
 
 const reload = vi.fn();
@@ -36,10 +36,9 @@ describe('lazyPage', () => {
   });
 
   test('a dead chunk reloads the page once', async () => {
-    const Lazy = lazyPage<'Page', object>(
-      async () => { throw new Error('Failed to fetch dynamically imported module: /assets/Page-abc.js'); },
-      'Page',
-    );
+    const Lazy = lazyPage<'Page', object>(async () => {
+      throw new Error('Failed to fetch dynamically imported module: /assets/Page-abc.js');
+    }, 'Page');
     const silence = vi.spyOn(console, 'error').mockImplementation(() => {});
     render(<Lazy />);
     await screen.findByText(/failed to load/i);
@@ -49,10 +48,9 @@ describe('lazyPage', () => {
 
   test('a second failure inside a minute shows the retry link instead of looping', async () => {
     sessionStorage.setItem('chunk-reload-at', String(Date.now()));
-    const Lazy = lazyPage<'Page', object>(
-      async () => { throw new Error('Importing a module script failed.'); },
-      'Page',
-    );
+    const Lazy = lazyPage<'Page', object>(async () => {
+      throw new Error('Importing a module script failed.');
+    }, 'Page');
     const silence = vi.spyOn(console, 'error').mockImplementation(() => {});
     render(<Lazy />);
     const retry = await screen.findByRole('link', { name: /retry/i });
@@ -62,10 +60,9 @@ describe('lazyPage', () => {
   });
 
   test('a non-chunk error never reloads (it is a real bug, not a stale tab)', async () => {
-    const Lazy = lazyPage<'Page', object>(
-      async () => { throw new Error('TypeError: undefined is not a function'); },
-      'Page',
-    );
+    const Lazy = lazyPage<'Page', object>(async () => {
+      throw new Error('TypeError: undefined is not a function');
+    }, 'Page');
     const silence = vi.spyOn(console, 'error').mockImplementation(() => {});
     render(<Lazy />);
     await screen.findByText(/failed to load/i);

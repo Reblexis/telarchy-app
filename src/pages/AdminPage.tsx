@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type FeedbackItem } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
+import { api, type FeedbackItem } from '../lib/api';
 import { TopBar } from './TradePage';
 
 /**
@@ -28,7 +28,14 @@ interface FloorStats {
   topReferers: Array<{ source: string; visits: number }>;
   topPaths: Array<{ path: string; visits: number }>;
   topCountries: Array<{ country: string; visits: number; uniques: number }>;
-  recentVisitors: Array<{ ip: string; country: string; visits: number; lastSeen: string; kind: 'person' | 'server' | 'proxy' | 'unknown'; org: string }>;
+  recentVisitors: Array<{
+    ip: string;
+    country: string;
+    visits: number;
+    lastSeen: string;
+    kind: 'person' | 'server' | 'proxy' | 'unknown';
+    org: string;
+  }>;
   visitorSummary: { people: number; servers: number; proxies: number };
   signupsByDay: Array<{ day: string; signups: number }>;
   recentSignups: Array<{ email: string; name: string; createdAt: string }>;
@@ -44,7 +51,11 @@ function countryLabel(code: string): string {
   if (!code || code === '??') return 'unknown';
   const flag = code.toUpperCase().replace(/[A-Z]/g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
   let name = code;
-  try { name = new Intl.DisplayNames(['en'], { type: 'region' }).of(code) || code; } catch { /* older runtime */ }
+  try {
+    name = new Intl.DisplayNames(['en'], { type: 'region' }).of(code) || code;
+  } catch {
+    /* older runtime */
+  }
   return `${flag} ${name}`;
 }
 
@@ -76,7 +87,11 @@ function Figure({ value, label }: { value: number | string; label: string }) {
  * largest row, which answers "was today busy" without a chart.
  */
 function Rows({
-  title, note, rows, empty, bar = false,
+  title,
+  note,
+  rows,
+  empty,
+  bar = false,
 }: {
   title: string;
   note?: string;
@@ -133,39 +148,70 @@ export function AdminPage() {
   // exist (docs/ui-conventions.md, "The cockpit").
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { navigate('/', { replace: true }); return; }
+    if (!user) {
+      navigate('/', { replace: true });
+      return;
+    }
     let cancelled = false;
-    api.getProfile()
+    api
+      .getProfile()
       .then((p: { platformAdmin?: boolean }) => {
         if (cancelled) return;
         if (p.platformAdmin !== true) navigate('/', { replace: true });
         else setAllowed(true);
       })
-      .catch(() => { if (!cancelled) navigate('/', { replace: true }); });
-    return () => { cancelled = true; };
+      .catch(() => {
+        if (!cancelled) navigate('/', { replace: true });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
     if (!allowed) return;
     let cancelled = false;
     const load = () => {
-      api.getFloorStats()
-        .then(s => { if (!cancelled) { setStats(s as FloorStats); setError(''); } })
-        .catch(e => { if (!cancelled) setError((e as Error).message || 'Could not load stats'); });
+      api
+        .getFloorStats()
+        .then(s => {
+          if (!cancelled) {
+            setStats(s as FloorStats);
+            setError('');
+          }
+        })
+        .catch(e => {
+          if (!cancelled) setError((e as Error).message || 'Could not load stats');
+        });
       // Reports come from the documented admin endpoint rather than being
       // bolted onto floor-stats: one capability, one route.
-      api.getFeedback({ limit: 100 })
-        .then(r => { if (!cancelled) setReports(r.items); })
-        .catch(e => { console.error('feedback fetch failed:', e); if (!cancelled) setReports([]); });
+      api
+        .getFeedback({ limit: 100 })
+        .then(r => {
+          if (!cancelled) setReports(r.items);
+        })
+        .catch(e => {
+          console.error('feedback fetch failed:', e);
+          if (!cancelled) setReports([]);
+        });
       // What the floors were asked, on the same poll as the rest.
-      api.getFloorQuestions(100)
-        .then(q => { if (!cancelled) setQuestions(q); })
-        .catch(e => { console.error('questions fetch failed:', e); if (!cancelled) setQuestions({ totalCostUsd: 0, questions: [] }); });
+      api
+        .getFloorQuestions(100)
+        .then(q => {
+          if (!cancelled) setQuestions(q);
+        })
+        .catch(e => {
+          console.error('questions fetch failed:', e);
+          if (!cancelled) setQuestions({ totalCostUsd: 0, questions: [] });
+        });
     };
     load();
     // Left open during a launch, so it keeps itself current.
     const t = setInterval(load, 20_000);
-    return () => { cancelled = true; clearInterval(t); };
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
   }, [allowed]);
 
   const open = reports?.filter(r => r.status === 'open').length ?? 0;
@@ -182,8 +228,8 @@ export function AdminPage() {
       <main className="adm">
         <h1 className="adm-head">Admin</h1>
         <p className="adm-lead">
-          Human traffic and signups over the last fortnight, the people waiting
-          for a reply, and everything anyone has reported.
+          Human traffic and signups over the last fortnight, the people waiting for a reply, and everything anyone has
+          reported.
         </p>
 
         {/* Who to pay, and where (owner ask 2026-08-20). Approving a contract
@@ -195,17 +241,21 @@ export function AdminPage() {
         <section className="adm-block">
           <h2 className="pubws-h2">Who to pay</h2>
           <p className="adm-note">
-            Search by name, account id or email. Blank shows everyone who has payout
-            details on file. Platform admin only, and nowhere else in the API.
+            Search by name, account id or email. Blank shows everyone who has payout details on file. Platform admin
+            only, and nowhere else in the API.
           </p>
           <form
             className="adm-payform"
             onSubmit={e => {
               e.preventDefault();
               setPayErr('');
-              api.findParticipants(payQ)
+              api
+                .findParticipants(payQ)
                 .then(r => setPayRows(r.participants))
-                .catch(err => { setPayErr((err as Error).message || 'Could not search'); setPayRows(null); });
+                .catch(err => {
+                  setPayErr((err as Error).message || 'Could not search');
+                  setPayRows(null);
+                });
             }}
           >
             <input
@@ -215,7 +265,9 @@ export function AdminPage() {
               placeholder="name, id or email"
               aria-label="Find a participant"
             />
-            <button className="adm-paygo" type="submit">Find</button>
+            <button className="adm-paygo" type="submit">
+              Find
+            </button>
           </form>
           {payErr && <p className="adm-err">{payErr}</p>}
           {payRows && payRows.length === 0 && <p className="adm-empty">Nobody matches that.</p>}
@@ -237,7 +289,9 @@ export function AdminPage() {
                   {p.approvedContracts.length > 0 && (
                     <ul className="adm-paycon">
                       {p.approvedContracts.map((c, i) => (
-                        <li key={i}>${c.askUsd} &middot; {c.title}</li>
+                        <li key={i}>
+                          ${c.askUsd} &middot; {c.title}
+                        </li>
                       ))}
                     </ul>
                   )}
@@ -265,12 +319,15 @@ export function AdminPage() {
               note="Human visits, bots and scanners filtered out."
               bar
               empty="Nobody yet."
-              rows={stats.visitsByDay.slice().reverse().map(d => ({
-                key: d.day,
-                left: dayLabel(d.day),
-                right: `${n(d.uniques)} unique`,
-                value: d.visits,
-              }))}
+              rows={stats.visitsByDay
+                .slice()
+                .reverse()
+                .map(d => ({
+                  key: d.day,
+                  left: dayLabel(d.day),
+                  right: `${n(d.uniques)} unique`,
+                  value: d.visits,
+                }))}
             />
 
             <Rows
@@ -283,7 +340,11 @@ export function AdminPage() {
             <Rows
               title="Pages"
               empty="No human visits yet."
-              rows={stats.topPaths.map(p => ({ key: p.path, left: <span className="adm-mono">{p.path}</span>, value: p.visits }))}
+              rows={stats.topPaths.map(p => ({
+                key: p.path,
+                left: <span className="adm-mono">{p.path}</span>,
+                value: p.visits,
+              }))}
             />
 
             <Rows
@@ -308,11 +369,23 @@ export function AdminPage() {
                     <span className="adm-mono">{v.ip}</span>
                     {/* Neutral chip, not a colour code: person is the
                         expected case, so only the others are worth a word. */}
-                    {v.kind !== 'person' && <span className="adm-tag">{v.kind === 'server' ? 'server' : v.kind === 'proxy' ? 'proxy' : '?'}</span>}
-                    <span className="adm-sub">{countryLabel(v.country)}{v.org ? ` · ${v.org}` : ''}</span>
+                    {v.kind !== 'person' && (
+                      <span className="adm-tag">
+                        {v.kind === 'server' ? 'server' : v.kind === 'proxy' ? 'proxy' : '?'}
+                      </span>
+                    )}
+                    <span className="adm-sub">
+                      {countryLabel(v.country)}
+                      {v.org ? ` · ${v.org}` : ''}
+                    </span>
                   </>
                 ),
-                right: new Date(v.lastSeen).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                right: new Date(v.lastSeen).toLocaleString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
                 value: v.visits,
               }))}
             />
@@ -321,11 +394,14 @@ export function AdminPage() {
               title="Signups by day"
               bar
               empty="None yet."
-              rows={stats.signupsByDay.slice().reverse().map(d => ({
-                key: d.day,
-                left: dayLabel(d.day),
-                value: d.signups,
-              }))}
+              rows={stats.signupsByDay
+                .slice()
+                .reverse()
+                .map(d => ({
+                  key: d.day,
+                  left: dayLabel(d.day),
+                  value: d.signups,
+                }))}
             />
 
             <Rows
@@ -370,9 +446,7 @@ export function AdminPage() {
                 is one line and clicking through to read it is friction on
                 the person who has to act on it. */}
             <section className="adm-block">
-              <h2 className="pubws-h2">
-                Questions{questions ? ` (${questions.questions.length})` : ''}
-              </h2>
+              <h2 className="pubws-h2">Questions{questions ? ` (${questions.questions.length})` : ''}</h2>
               {questions && questions.questions.length > 0 && (
                 <p className="adm-note">
                   Asked of the floors&rsquo; Ask field. Total spend ${questions.totalCostUsd.toFixed(2)}.
@@ -397,7 +471,9 @@ export function AdminPage() {
                           q.askedByName ?? 'anonymous',
                           q.country,
                           q.costUsd != null ? `$${q.costUsd.toFixed(4)}` : null,
-                        ].filter(Boolean).join(' · ')}
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </p>
                     </li>
                   ))}
@@ -410,9 +486,7 @@ export function AdminPage() {
                 clicking through to read them is friction on the person who
                 has to answer. */}
             <section className="adm-block">
-              <h2 className="pubws-h2">
-                Reports{reports ? ` (${open} open of ${reports.length})` : ''}
-              </h2>
+              <h2 className="pubws-h2">Reports{reports ? ` (${open} open of ${reports.length})` : ''}</h2>
               {reports === null ? null : reports.length === 0 ? (
                 <p className="adm-empty">
                   Nothing reported yet. The floor&rsquo;s Report button and POST /api/feedback both land here.
@@ -420,8 +494,11 @@ export function AdminPage() {
               ) : (
                 <ul className="adm-list">
                   {[...reports]
-                    .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1)
-                      || b.createdAt.localeCompare(a.createdAt))
+                    .sort(
+                      (a, b) =>
+                        (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) ||
+                        b.createdAt.localeCompare(a.createdAt),
+                    )
                     .map(r => (
                       <li key={r.id} className={`adm-report${r.status === 'open' ? '' : ' is-done'}`}>
                         <div className="adm-report-head">

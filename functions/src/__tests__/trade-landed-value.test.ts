@@ -32,19 +32,19 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
+import { and, eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agents, markets, metrics } from '../db/schema';
+import { consensus, initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
-import { initialPool, consensus } from '../lib/amm';
-import { toUnits } from '../lib/validation';
 import { predictionsRouter } from '../routes/predictions';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -55,8 +55,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-landed';
 const TRADER = 'agent-landed';
@@ -71,29 +75,52 @@ async function seed() {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Landed Value Test', createdBy: 'agent-owner-landed', ownerAgentId: 'agent-owner-landed', visibility: 'public',
+    wsId: WS,
+    name: 'Landed Value Test',
+    createdBy: 'agent-owner-landed',
+    ownerAgentId: 'agent-owner-landed',
+    visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: 'metric-landed', workspaceId: WS, name: 'Revenue', value: 50, formula: '0', marketRangeMax: 100,
+    id: 'metric-landed',
+    workspaceId: WS,
+    name: 'Revenue',
+    value: 50,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: 'metric-landed', metricName: 'Revenue',
-    targetDate: '2028', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 500, pool: initialPool(500),
-    active: true, resolved: false, voided: false, proposalId: null,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: 'metric-landed',
+    metricName: 'Revenue',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 500,
+    pool: initialPool(500),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
   });
 }
 
 function trade(body: Record<string, unknown>, agentId = TRADER) {
-  return request(app).post('/api/predictions/trade')
-    .set('X-Test-Agent-Id', agentId).set('X-Workspace-Id', WS)
+  return request(app)
+    .post('/api/predictions/trade')
+    .set('X-Test-Agent-Id', agentId)
+    .set('X-Workspace-Id', WS)
     .set('Content-Type', 'application/json')
     .send({ marketId: MARKET, ...body });
 }
 
 /** The consensus derived from the book the market actually stored. */
 async function storedConsensus(): Promise<number> {
-  const [m] = await db.select().from(markets)
+  const [m] = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.id, MARKET), eq(markets.workspaceId, WS)));
   return consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax)!;
 }
@@ -178,8 +205,10 @@ describe('when resting orders fill behind a trade, settledConsensus is the rest 
   test('the response separates "where my trade put it" from "where it settled"', async () => {
     await seed();
     // OTHER rests a buy-higher order that fills once the price drops to 40.
-    const placed = await request(app).post('/api/predictions/limit-orders')
-      .set('X-Test-Agent-Id', OTHER).set('X-Workspace-Id', WS)
+    const placed = await request(app)
+      .post('/api/predictions/limit-orders')
+      .set('X-Test-Agent-Id', OTHER)
+      .set('X-Workspace-Id', WS)
       .set('Content-Type', 'application/json')
       .send({ marketId: MARKET, direction: 'higher', limitValue: 40, budgetCredits: 50 });
     expect(placed.status).toBe(201);

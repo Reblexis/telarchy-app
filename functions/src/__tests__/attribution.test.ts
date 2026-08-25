@@ -4,12 +4,16 @@
  */
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import { agents, authUser, trades } from '../db/schema';
 import { activatedParticipants, creatorSource, isValidSourceSlug, sourceFromCookieHeader } from '../lib/attribution';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 describe('slug and cookie', () => {
   test('slug grammar', () => {
@@ -39,7 +43,16 @@ async function agent(id: string, extra: Partial<typeof agents.$inferInsert> = {}
 }
 async function trade(agentId: string, at: Date, n = 1) {
   for (let i = 0; i < n; i++) {
-    await db.insert(trades).values({ id: `t-${agentId}-${at.toISOString()}-${i}`, workspaceId: 'ws', agentId, marketId: 'm', direction: 'higher', shares: 1, cost: 1, createdAt: at });
+    await db.insert(trades).values({
+      id: `t-${agentId}-${at.toISOString()}-${i}`,
+      workspaceId: 'ws',
+      agentId,
+      marketId: 'm',
+      direction: 'higher',
+      shares: 1,
+      cost: 1,
+      createdAt: at,
+    });
   }
 }
 

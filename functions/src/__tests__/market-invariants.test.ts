@@ -35,19 +35,19 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
+import { eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agents, markets, metrics, workspaces } from '../db/schema';
+import { consensus, initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { fromUnits, toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics, workspaces } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
-import { consensus, initialPool } from '../lib/amm';
-import { fromUnits, toUnits } from '../lib/validation';
 import { predictionsRouter } from '../routes/predictions';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -59,8 +59,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message, ...extra });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-invariant';
 const A = 'agent-inv-a';
@@ -75,24 +79,46 @@ async function seed(liquidity = 200) {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Invariant Test', createdBy: 'agent-owner-inv', ownerAgentId: 'agent-owner-inv', visibility: 'public',
+    wsId: WS,
+    name: 'Invariant Test',
+    createdBy: 'agent-owner-inv',
+    ownerAgentId: 'agent-owner-inv',
+    visibility: 'public',
   });
   await db.update(workspaces).set({ maxPositionCostPerMarket: 0 }).where(eq(workspaces.id, WS));
   await db.insert(metrics).values({
-    id: 'metric-inv', workspaceId: WS, name: 'Throughput', value: 0, formula: '0', marketRangeMax: 100,
+    id: 'metric-inv',
+    workspaceId: WS,
+    name: 'Throughput',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: 'metric-inv', metricName: 'Throughput',
-    targetDate: '2028', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity, pool: initialPool(liquidity),
-    active: true, resolved: false, voided: false, proposalId: null,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: 'metric-inv',
+    metricName: 'Throughput',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity,
+    pool: initialPool(liquidity),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
   });
 }
 
 function trade(agentId: string, body: Record<string, unknown>) {
-  return request(app).post('/api/predictions/trade')
-    .set('X-Test-Agent-Id', agentId).set('X-Workspace-Id', WS)
-    .set('Content-Type', 'application/json').send({ marketId: MARKET, ...body });
+  return request(app)
+    .post('/api/predictions/trade')
+    .set('X-Test-Agent-Id', agentId)
+    .set('X-Workspace-Id', WS)
+    .set('Content-Type', 'application/json')
+    .send({ marketId: MARKET, ...body });
 }
 
 async function marketState() {
@@ -192,10 +218,13 @@ describe('conservation', () => {
     // The last piece is whatever the position actually still holds (the
     // stored row rounds, so "shares / 2" can overshoot by a hair and be
     // refused as overselling, which is itself correct behaviour).
-    const posRes = await request(app).get('/api/predictions/positions')
-      .set('X-Test-Agent-Id', A).set('X-Workspace-Id', WS);
-    const remaining = (posRes.body as Array<{ direction: string; shares: number }>)
-      .find(r => r.direction === 'higher')!.shares;
+    const posRes = await request(app)
+      .get('/api/predictions/positions')
+      .set('X-Test-Agent-Id', A)
+      .set('X-Workspace-Id', WS);
+    const remaining = (posRes.body as Array<{ direction: string; shares: number }>).find(
+      r => r.direction === 'higher',
+    )!.shares;
     const s3 = await trade(A, { direction: 'higher', sellShares: remaining });
     expect(s3.status).toBe(201);
     const piecewise = (s1.body.proceeds as number) + (s2.body.proceeds as number) + (s3.body.proceeds as number);

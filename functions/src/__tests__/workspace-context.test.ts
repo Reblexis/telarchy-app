@@ -17,16 +17,24 @@ jest.mock('../middleware/auth', () => ({
   optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
-import request from 'supertest';
 import express from 'express';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import request from 'supertest';
 import {
-  agents, floorQuestions, markets, metrics, metricLogs, permissionGroups, proposals, sources, workspaces,
+  agents,
+  floorQuestions,
+  markets,
+  metricLogs,
+  metrics,
+  permissionGroups,
+  proposals,
+  sources,
+  workspaces,
 } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { marketplaceRouter } from '../routes/marketplace';
 import { AppError } from '../lib/errors';
+import { marketplaceRouter } from '../routes/marketplace';
 import { buildWorkspaceContext, renderContextMarkdown } from '../services/workspace-context';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -37,8 +45,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-ctx';
 
@@ -46,37 +58,76 @@ async function seed(opts: { publicCaps?: string[]; publishDocument?: boolean } =
   const { publicCaps = ['read', 'trade'], publishDocument = true } = opts;
   await db.insert(agents).values({ id: 'owner', apiKeyHash: 'h-owner', balance: 0, nickname: 'owner' });
   await db.insert(workspaces).values({
-    id: WS, name: 'LookPilot', createdBy: 'owner', visibility: 'public', slug: 'lookpilot',
+    id: WS,
+    name: 'LookPilot',
+    createdBy: 'owner',
+    visibility: 'public',
+    slug: 'lookpilot',
     description: 'Webcam head tracking for simulator games.',
     charter: 'I ship what the market ranks highest, or I say why not.',
   });
   await db.insert(sources).values([
-    { id: 'src-room', workspaceId: WS, name: 'Data room', description: 'The numbers behind the numbers',
-      type: 'text', content: 'Revenue is Steam developer share plus Stripe. 17 languages.' },
+    {
+      id: 'src-room',
+      workspaceId: WS,
+      name: 'Data room',
+      description: 'The numbers behind the numbers',
+      type: 'text',
+      content: 'Revenue is Steam developer share plus Stripe. 17 languages.',
+    },
     { id: 'src-private', workspaceId: WS, name: 'Payroll', description: '', type: 'text', content: 'SECRET SALARIES' },
   ]);
   await db.insert(permissionGroups).values({
-    id: 'grp-pub', workspaceId: WS, name: 'Public', type: 'public',
-    capabilities: publicCaps, memberIds: [],
+    id: 'grp-pub',
+    workspaceId: WS,
+    name: 'Public',
+    type: 'public',
+    capabilities: publicCaps,
+    memberIds: [],
     // Only the data room is published; payroll is not.
     sourcePermissions: publishDocument ? { 'src-room': { read: true } } : {},
   });
   await db.insert(metrics).values({
-    id: 'metric-1', workspaceId: WS, name: 'Revenue this week', description: 'Steam plus Stripe, gross.',
-    value: 1234, marketRangeMax: 5000,
+    id: 'metric-1',
+    workspaceId: WS,
+    name: 'Revenue this week',
+    description: 'Steam plus Stripe, gross.',
+    value: 1234,
+    marketRangeMax: 5000,
   });
   await db.insert(metricLogs).values({
-    id: 'log-1', workspaceId: WS, metricId: 'metric-1', metricName: 'Revenue this week',
-    value: 1000, timestamp: new Date('2026-08-01'),
+    id: 'log-1',
+    workspaceId: WS,
+    metricId: 'metric-1',
+    metricName: 'Revenue this week',
+    value: 1000,
+    timestamp: new Date('2026-08-01'),
   });
   await db.insert(markets).values({
-    id: 'mkt-hero', workspaceId: WS, metricId: 'metric-1', metricName: 'Revenue this week',
-    targetDate: '2026-12', rangeMin: 0, rangeMax: 5000, shares: [0, 0], liquidity: 50, pool: initialPool(50),
-    active: true, resolved: false, voided: false, proposalId: null, branch: null,
+    id: 'mkt-hero',
+    workspaceId: WS,
+    metricId: 'metric-1',
+    metricName: 'Revenue this week',
+    targetDate: '2026-12',
+    rangeMin: 0,
+    rangeMax: 5000,
+    shares: [0, 0],
+    liquidity: 50,
+    pool: initialPool(50),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
+    branch: null,
   });
   await db.insert(proposals).values({
-    id: 'prop-1', workspaceId: WS, proposedBy: 'owner', title: '$200: rewrite the store page',
-    description: 'Better copy, better conversion.', askUsd: 200, status: 'pending',
+    id: 'prop-1',
+    workspaceId: WS,
+    proposedBy: 'owner',
+    title: '$200: rewrite the store page',
+    description: 'Better copy, better conversion.',
+    askUsd: 200,
+    status: 'pending',
   });
 }
 
@@ -140,7 +191,9 @@ describe('asking the floor', () => {
     process.env.AI_GATEWAY_API_KEY = 'test-key';
     const empty = await request(app).post(`/api/marketplace/${WS}/ask`).send({ question: '   ' });
     expect(empty.status).toBe(400);
-    const huge = await request(app).post(`/api/marketplace/${WS}/ask`).send({ question: 'x'.repeat(501) });
+    const huge = await request(app)
+      .post(`/api/marketplace/${WS}/ask`)
+      .send({ question: 'x'.repeat(501) });
     expect(huge.status).toBe(400);
     delete process.env.AI_GATEWAY_API_KEY;
   });
@@ -176,10 +229,16 @@ describe('every question is kept', () => {
     await seed();
     process.env.AI_GATEWAY_API_KEY = 'test-key';
     const realFetch = global.fetch;
-    global.fetch = jest.fn(async () => new Response(JSON.stringify({
-      choices: [{ message: { content: 'Webcam head tracking, $14.99 on Steam.' } }],
-      usage: { prompt_tokens: 4000, completion_tokens: 40, cost: 0.0009 },
-    }), { status: 200 })) as any;
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: 'Webcam head tracking, $14.99 on Steam.' } }],
+            usage: { prompt_tokens: 4000, completion_tokens: 40, cost: 0.0009 },
+          }),
+          { status: 200 },
+        ),
+    ) as any;
 
     const res = await request(app).post(`/api/marketplace/${WS}/ask`).send({ question: 'What do you sell?' });
     expect(res.status).toBe(200);
@@ -203,19 +262,24 @@ describe('a conversation, not a lookup', () => {
     let sent: any = null;
     global.fetch = jest.fn(async (_u: any, init: any) => {
       sent = JSON.parse(init.body);
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: 'Both, but Steam is most of it.' } }],
-        usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.00001 },
-      }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'Both, but Steam is most of it.' } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.00001 },
+        }),
+        { status: 200 },
+      );
     }) as any;
 
-    const res = await request(app).post(`/api/marketplace/${WS}/ask`).send({
-      messages: [
-        { role: 'user', content: 'How do you make money?' },
-        { role: 'assistant', content: 'Steam sales and Stripe.' },
-        { role: 'user', content: 'Which one is bigger?' },
-      ],
-    });
+    const res = await request(app)
+      .post(`/api/marketplace/${WS}/ask`)
+      .send({
+        messages: [
+          { role: 'user', content: 'How do you make money?' },
+          { role: 'assistant', content: 'Steam sales and Stripe.' },
+          { role: 'user', content: 'Which one is bigger?' },
+        ],
+      });
     expect(res.status).toBe(200);
 
     // System turn plus the three, in order: without the assistant turn the
@@ -233,9 +297,11 @@ describe('a conversation, not a lookup', () => {
   test('a conversation that does not end on a question is refused', async () => {
     await seed();
     process.env.AI_GATEWAY_API_KEY = 'test-key';
-    const res = await request(app).post(`/api/marketplace/${WS}/ask`).send({
-      messages: [{ role: 'assistant', content: 'Anything else?' }],
-    });
+    const res = await request(app)
+      .post(`/api/marketplace/${WS}/ask`)
+      .send({
+        messages: [{ role: 'assistant', content: 'Anything else?' }],
+      });
     expect(res.status).toBe(400);
     delete process.env.AI_GATEWAY_API_KEY;
   });

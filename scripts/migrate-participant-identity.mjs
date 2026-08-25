@@ -25,17 +25,21 @@ await client.connect();
 
 const now = new Date();
 
-const users = (await client.query(`
+const users = (
+  await client.query(`
   select user_id, agent_id
   from app_users
   order by created_at asc
-`)).rows;
+`)
+).rows;
 
-const agentRows = (await client.query(`
+const agentRows = (
+  await client.query(`
   select id, auth_user_id, owner_uid
   from agents
   order by created_at asc
-`)).rows;
+`)
+).rows;
 
 const usedIds = new Set(agentRows.map(row => row.id));
 const agentsById = new Map(agentRows.map(row => [row.id, row]));
@@ -58,53 +62,64 @@ for (const user of users) {
   if (!participantId) {
     participantId = nextAvailableId(user.user_id, usedIds);
     usedIds.add(participantId);
-    await client.query(`
+    await client.query(
+      `
       insert into agents (id, api_key_hash, role, auth_user_id, balance, created_at, approved_at)
       values ($1, $2, 'agent', $3, 0, $4, $4)
-    `, [participantId, `__browser__:${user.user_id}`, user.user_id, now]);
+    `,
+      [participantId, `__browser__:${user.user_id}`, user.user_id, now],
+    );
     createdParticipants += 1;
   } else {
-    await client.query(`
+    await client.query(
+      `
       update agents
       set auth_user_id = $2
       where id = $1
-    `, [participantId, user.user_id]);
+    `,
+      [participantId, user.user_id],
+    );
   }
 
   participantByUserId.set(user.user_id, participantId);
 }
 
-const groupRows = (await client.query(`
+const groupRows = (
+  await client.query(`
   select id, workspace_id, member_ids, agent_ids, uids
   from permission_groups
   order by workspace_id, id
-`)).rows;
+`)
+).rows;
 
 for (const group of groupRows) {
   const legacyUsers = Array.isArray(group.uids) ? group.uids : [];
-  const mappedUsers = legacyUsers
-    .map(userId => participantByUserId.get(userId) ?? null)
-    .filter(Boolean);
+  const mappedUsers = legacyUsers.map(userId => participantByUserId.get(userId) ?? null).filter(Boolean);
   const memberIds = unique([
     ...(Array.isArray(group.member_ids) ? group.member_ids : []),
     ...(Array.isArray(group.agent_ids) ? group.agent_ids : []),
     ...mappedUsers,
   ]);
 
-  await client.query(`
+  await client.query(
+    `
     update permission_groups
     set member_ids = $3::jsonb,
         agent_ids = $3::jsonb,
         uids = '[]'::jsonb
     where id = $1 and workspace_id = $2
-  `, [group.id, group.workspace_id, JSON.stringify(memberIds)]);
+  `,
+    [group.id, group.workspace_id, JSON.stringify(memberIds)],
+  );
 }
 
-const refreshedGroups = (await client.query(`
+const refreshedGroups = (
+  await client.query(`
   select id, workspace_id, type, member_ids
   from permission_groups
   order by workspace_id, id
-`)).rows;
+`)
+).rows;
 
 const rolesByWorkspace = new Map();
 for (const group of refreshedGroups) {
@@ -122,17 +137,23 @@ for (const group of refreshedGroups) {
 for (const [workspaceId, workspaceRoles] of rolesByWorkspace.entries()) {
   await client.query(`delete from user_workspaces where workspace_id = $1`, [workspaceId]);
   for (const [participantId, role] of workspaceRoles.entries()) {
-    const participant = await client.query(`
+    const participant = await client.query(
+      `
       select auth_user_id
       from agents
       where id = $1
-    `, [participantId]);
+    `,
+      [participantId],
+    );
     const authUserId = participant.rows[0]?.auth_user_id ?? null;
     if (!authUserId) continue;
-    await client.query(`
+    await client.query(
+      `
       insert into user_workspaces (user_id, workspace_id, role, joined_at)
       values ($1, $2, $3, $4)
-    `, [authUserId, workspaceId, role, now]);
+    `,
+      [authUserId, workspaceId, role, now],
+    );
   }
 }
 

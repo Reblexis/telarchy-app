@@ -31,16 +31,16 @@ jest.mock('../middleware/auth', () => ({
   optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
-import request from 'supertest';
-import express from 'express';
 import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, announcements, markets, metricLogs, metrics, permissionGroups, proposals, trades } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
 import { initialPool } from '../lib/amm';
-import { marketplaceRouter } from '../routes/marketplace';
 import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
 import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { marketplaceRouter } from '../routes/marketplace';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -51,8 +51,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-coherence';
 const OWNER = 'agent-coh-owner';
@@ -63,20 +67,37 @@ const YEAR_MARKET = 'mkt-coh-year';
 const WEEK_MARKET = 'mkt-coh-week';
 
 type Market = {
-  marketId: string; metricId: string; metricName: string; targetDate: string;
-  resolvesOn: string; consensus: number | null; probability: number;
-  liquidity: number; rangeMin: number; rangeMax: number;
+  marketId: string;
+  metricId: string;
+  metricName: string;
+  targetDate: string;
+  resolvesOn: string;
+  consensus: number | null;
+  probability: number;
+  liquidity: number;
+  rangeMin: number;
+  rangeMax: number;
 };
 type Horizon = {
-  marketId: string; metricName: string; targetDate: string; periodStart: string;
+  marketId: string;
+  metricName: string;
+  targetDate: string;
+  periodStart: string;
   resetsEvery: string | null;
-  description: string | null; points: Array<{ at: string | null; value: number }>;
+  description: string | null;
+  points: Array<{ at: string | null; value: number }>;
 };
 type Pair = {
-  metricName: string; targetDate: string; resolvesOn: string;
-  approvedConsensus: number | null; declinedConsensus: number | null; delta: number | null;
-  approvedMarketId: string | null; declinedMarketId: string | null;
-  rangeMin: number; rangeMax: number;
+  metricName: string;
+  targetDate: string;
+  resolvesOn: string;
+  approvedConsensus: number | null;
+  declinedConsensus: number | null;
+  delta: number | null;
+  approvedMarketId: string | null;
+  declinedMarketId: string | null;
+  rangeMin: number;
+  rangeMax: number;
 };
 type Proposal = { id: string; status: string; askUsd: number; markets: Pair[] };
 type Floor = {
@@ -87,7 +108,11 @@ type Floor = {
   proposals: Proposal[];
   heroHistory: Array<{ at: string; value: number }>;
   latestAnnouncement: {
-    id: string; body: string; publishedAt: string; editedAt: string | null; originalBody: string | null;
+    id: string;
+    body: string;
+    publishedAt: string;
+    editedAt: string | null;
+    originalBody: string | null;
   } | null;
   announcementCount: number;
 };
@@ -103,80 +128,200 @@ async function seedFloor() {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Coherence Floor', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'public',
+    wsId: WS,
+    name: 'Coherence Floor',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'public',
   });
-  const [publicGroup] = await db.select().from(permissionGroups)
+  const [publicGroup] = await db
+    .select()
+    .from(permissionGroups)
     .where(and(eq(permissionGroups.workspaceId, WS), eq(permissionGroups.type, 'public')));
-  await db.update(permissionGroups).set({ capabilities: ['read', 'trade'] })
+  await db
+    .update(permissionGroups)
+    .set({ capabilities: ['read', 'trade'] })
     .where(eq(permissionGroups.id, publicGroup.id));
 
   await db.insert(metrics).values([
     {
-      id: YEAR_METRIC, workspaceId: WS, name: 'Net 2026 (USD)', value: 45_000,
-      formula: '0', marketRangeMax: 150_000, description: 'Everything earned in 2026.',
+      id: YEAR_METRIC,
+      workspaceId: WS,
+      name: 'Net 2026 (USD)',
+      value: 45_000,
+      formula: '0',
+      marketRangeMax: 150_000,
+      description: 'Everything earned in 2026.',
     },
     {
-      id: WEEK_METRIC, workspaceId: WS, name: 'Revenue this week (USD)', value: 1_179,
-      formula: '0', marketRangeMax: 8_000, description: 'Resets every Monday.',
+      id: WEEK_METRIC,
+      workspaceId: WS,
+      name: 'Revenue this week (USD)',
+      value: 1_179,
+      formula: '0',
+      marketRangeMax: 8_000,
+      description: 'Resets every Monday.',
       resetsEvery: 'week',
     },
   ]);
   await db.insert(markets).values([
     {
-      id: WEEK_MARKET, workspaceId: WS, metricId: WEEK_METRIC, metricName: 'Revenue this week (USD)',
-      targetDate: '2026-W34', rangeMin: 0, rangeMax: 8_000,
-      shares: [0, 0], liquidity: 200, pool: initialPool(200),
-      active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      id: WEEK_MARKET,
+      workspaceId: WS,
+      metricId: WEEK_METRIC,
+      metricName: 'Revenue this week (USD)',
+      targetDate: '2026-W34',
+      rangeMin: 0,
+      rangeMax: 8_000,
+      shares: [0, 0],
+      liquidity: 200,
+      pool: initialPool(200),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
+      branch: null,
     },
     {
-      id: YEAR_MARKET, workspaceId: WS, metricId: YEAR_METRIC, metricName: 'Net 2026 (USD)',
-      targetDate: '2026-12', rangeMin: 0, rangeMax: 150_000,
-      shares: [0, 12], liquidity: 5_000, pool: initialPool(5_000),
-      active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      id: YEAR_MARKET,
+      workspaceId: WS,
+      metricId: YEAR_METRIC,
+      metricName: 'Net 2026 (USD)',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 150_000,
+      shares: [0, 12],
+      liquidity: 5_000,
+      pool: initialPool(5_000),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
+      branch: null,
     },
   ]);
   await db.insert(metricLogs).values([
-    { id: 'log-y1', workspaceId: WS, metricId: YEAR_METRIC, metricName: 'Net 2026 (USD)', value: 137, timestamp: new Date('2026-01-04T09:00:00Z') },
-    { id: 'log-y2', workspaceId: WS, metricId: YEAR_METRIC, metricName: 'Net 2026 (USD)', value: 45_000, timestamp: new Date('2026-08-16T09:00:00Z') },
+    {
+      id: 'log-y1',
+      workspaceId: WS,
+      metricId: YEAR_METRIC,
+      metricName: 'Net 2026 (USD)',
+      value: 137,
+      timestamp: new Date('2026-01-04T09:00:00Z'),
+    },
+    {
+      id: 'log-y2',
+      workspaceId: WS,
+      metricId: YEAR_METRIC,
+      metricName: 'Net 2026 (USD)',
+      value: 45_000,
+      timestamp: new Date('2026-08-16T09:00:00Z'),
+    },
     // Last week's total, which is not this market's actual-so-far.
-    { id: 'log-w0', workspaceId: WS, metricId: WEEK_METRIC, metricName: 'Revenue this week (USD)', value: 1_180, timestamp: new Date('2026-08-16T10:00:00Z') },
-    { id: 'log-w1', workspaceId: WS, metricId: WEEK_METRIC, metricName: 'Revenue this week (USD)', value: 887, timestamp: new Date('2026-08-18T09:00:00Z') },
-    { id: 'log-w2', workspaceId: WS, metricId: WEEK_METRIC, metricName: 'Revenue this week (USD)', value: 1_179, timestamp: new Date('2026-08-19T09:00:00Z') },
+    {
+      id: 'log-w0',
+      workspaceId: WS,
+      metricId: WEEK_METRIC,
+      metricName: 'Revenue this week (USD)',
+      value: 1_180,
+      timestamp: new Date('2026-08-16T10:00:00Z'),
+    },
+    {
+      id: 'log-w1',
+      workspaceId: WS,
+      metricId: WEEK_METRIC,
+      metricName: 'Revenue this week (USD)',
+      value: 887,
+      timestamp: new Date('2026-08-18T09:00:00Z'),
+    },
+    {
+      id: 'log-w2',
+      workspaceId: WS,
+      metricId: WEEK_METRIC,
+      metricName: 'Revenue this week (USD)',
+      value: 1_179,
+      timestamp: new Date('2026-08-19T09:00:00Z'),
+    },
   ]);
   await db.insert(trades).values([
-    { id: 'trd-coh-1', workspaceId: WS, agentId: TRADER, marketId: YEAR_MARKET, direction: 'higher', shares: 12, cost: 40, createdAt: new Date('2026-08-16T10:00:00Z') },
+    {
+      id: 'trd-coh-1',
+      workspaceId: WS,
+      agentId: TRADER,
+      marketId: YEAR_MARKET,
+      direction: 'higher',
+      shares: 12,
+      cost: 40,
+      createdAt: new Date('2026-08-16T10:00:00Z'),
+    },
   ]);
 
   // One pending contract priced on BOTH clocks, one approved and one declined,
   // each with the branch pairs a decided contract keeps.
   await db.insert(proposals).values([
     {
-      id: 'prop-pending', workspaceId: WS, proposedBy: TRADER, title: '$2000: new trailer',
-      description: 'A better trailer.', askUsd: 2000, status: 'pending',
+      id: 'prop-pending',
+      workspaceId: WS,
+      proposedBy: TRADER,
+      title: '$2000: new trailer',
+      description: 'A better trailer.',
+      askUsd: 2000,
+      status: 'pending',
       conditionalMarketIds: ['cm-p-y-a', 'cm-p-y-d', 'cm-p-w-a', 'cm-p-w-d'],
     },
     {
-      id: 'prop-approved', workspaceId: WS, proposedBy: TRADER, title: '$10: a post',
-      description: 'A post.', askUsd: 10, status: 'approved',
-      conditionalMarketIds: ['cm-a-y-a', 'cm-a-y-d'], resolvedAt: new Date('2026-08-18T10:00:00Z'),
+      id: 'prop-approved',
+      workspaceId: WS,
+      proposedBy: TRADER,
+      title: '$10: a post',
+      description: 'A post.',
+      askUsd: 10,
+      status: 'approved',
+      conditionalMarketIds: ['cm-a-y-a', 'cm-a-y-d'],
+      resolvedAt: new Date('2026-08-18T10:00:00Z'),
     },
     {
-      id: 'prop-declined', workspaceId: WS, proposedBy: TRADER, title: '$13: another post',
-      description: 'Another post.', askUsd: 13, status: 'declined',
-      conditionalMarketIds: ['cm-d-y-a', 'cm-d-y-d'], resolvedAt: new Date('2026-08-18T11:00:00Z'),
+      id: 'prop-declined',
+      workspaceId: WS,
+      proposedBy: TRADER,
+      title: '$13: another post',
+      description: 'Another post.',
+      askUsd: 13,
+      status: 'declined',
+      conditionalMarketIds: ['cm-d-y-a', 'cm-d-y-d'],
+      resolvedAt: new Date('2026-08-18T11:00:00Z'),
       declineReason: 'Not worth it.',
     },
   ]);
   const branch = (
-    id: string, proposalId: string, br: 'approved' | 'declined',
-    metricId: string, metricName: string, targetDate: string, rangeMax: number,
+    id: string,
+    proposalId: string,
+    br: 'approved' | 'declined',
+    metricId: string,
+    metricName: string,
+    targetDate: string,
+    rangeMax: number,
     // [lower, higher]: index 1 is a bet the number goes UP, which is the
     // convention the AMM and the trade replay both use.
-    shares: [number, number], voided = false, resolved = false,
+    shares: [number, number],
+    voided = false,
+    resolved = false,
   ) => ({
-    id, workspaceId: WS, metricId, metricName, targetDate, rangeMin: 0, rangeMax,
-    shares, liquidity: 250, pool: voided ? 0 : initialPool(250),
-    active: !voided && !resolved, resolved, voided, proposalId, branch: br,
+    id,
+    workspaceId: WS,
+    metricId,
+    metricName,
+    targetDate,
+    rangeMin: 0,
+    rangeMax,
+    shares,
+    liquidity: 250,
+    pool: voided ? 0 : initialPool(250),
+    active: !voided && !resolved,
+    resolved,
+    voided,
+    proposalId,
+    branch: br,
   });
   await db.insert(markets).values([
     branch('cm-p-y-a', 'prop-pending', 'approved', YEAR_METRIC, 'Net 2026 (USD)', '2026-12', 150_000, [0, 30]),
@@ -197,7 +342,9 @@ async function floor(): Promise<Floor> {
   return res.body as Floor;
 }
 
-beforeEach(async () => { await seedFloor(); });
+beforeEach(async () => {
+  await seedFloor();
+});
 
 describe('every market describes itself completely', () => {
   test('a price is inside the band it can settle in', async () => {
@@ -256,7 +403,7 @@ describe('the price replay names its market', () => {
     expect(f.marketHistoryMarketId).toBe(YEAR_MARKET);
   });
 
-  test('every replayed price is inside that market\'s band', async () => {
+  test("every replayed price is inside that market's band", async () => {
     const f = await floor();
     const market = f.markets.find(m => m.marketId === f.marketHistoryMarketId)!;
     expect(f.marketHistory.length).toBeGreaterThan(0);
@@ -266,19 +413,17 @@ describe('the price replay names its market', () => {
       expect(pt.consensus).toBeLessThanOrEqual(market.rangeMax);
     }
     // And it ends where the market currently is.
-    expect(f.marketHistory[f.marketHistory.length - 1].consensus)
-      .toBeCloseTo(market.consensus!, 6);
+    expect(f.marketHistory[f.marketHistory.length - 1].consensus).toBeCloseTo(market.consensus!, 6);
   });
 });
 
 describe('every horizon carries its own history', () => {
   test('one row per open market, keyed by market id', async () => {
     const f = await floor();
-    expect(f.horizonHistories.map(h => h.marketId).sort())
-      .toEqual(f.markets.map(m => m.marketId).sort());
+    expect(f.horizonHistories.map(h => h.marketId).sort()).toEqual(f.markets.map(m => m.marketId).sort());
   });
 
-  test('a row\'s metric name and target date match its market', async () => {
+  test("a row's metric name and target date match its market", async () => {
     const f = await floor();
     for (const h of f.horizonHistories) {
       const m = f.markets.find(mm => mm.marketId === h.marketId)!;
@@ -296,7 +441,7 @@ describe('every horizon carries its own history', () => {
     }
   });
 
-  test('a row\'s readings are the metric\'s own, oldest first, nothing borrowed', async () => {
+  test("a row's readings are the metric's own, oldest first, nothing borrowed", async () => {
     const f = await floor();
     const week = f.horizonHistories.find(h => h.targetDate === '2026-W34')!;
     const year = f.horizonHistories.find(h => h.targetDate === '2026-12')!;
@@ -308,7 +453,7 @@ describe('every horizon carries its own history', () => {
     }
   });
 
-  test('the primary horizon\'s row and heroHistory tell the same story', async () => {
+  test("the primary horizon's row and heroHistory tell the same story", async () => {
     const f = await floor();
     const primary = f.horizonHistories.find(h => h.marketId === f.marketHistoryMarketId)!;
     expect(primary.points.map(p => p.value)).toEqual(f.heroHistory.map(p => p.value));
@@ -341,7 +486,7 @@ describe('a contract is priced on horizons this floor actually has', () => {
     }
   });
 
-  test('a branch price stays inside the metric\'s band, and an untraded pair predicts nothing', async () => {
+  test("a branch price stays inside the metric's band, and an untraded pair predicts nothing", async () => {
     // Both halves of the 2026-08-15 failure: an approved branch pinned at the
     // range floor by a dollar ask, and an identical fake impact on every
     // contract. An untraded pair must open at zero delta.
@@ -383,7 +528,7 @@ describe('a contract is priced on horizons this floor actually has', () => {
 });
 
 describe('a resetting metric only shows the period it is measuring', () => {
-  test('readings from the previous period are not this market\'s actual-so-far', async () => {
+  test("readings from the previous period are not this market's actual-so-far", async () => {
     // The report: the "revenue this week" chart drew last week's $1,180 as
     // this week's actual, on a market about a week that had barely started.
     const f = await floor();
@@ -412,7 +557,14 @@ describe('a resetting metric only shows the period it is measuring', () => {
     // and the page draws the forecast alone.
     await db.delete(metricLogs).where(eq(metricLogs.metricId, WEEK_METRIC));
     await db.insert(metricLogs).values([
-      { id: 'log-w-old', workspaceId: WS, metricId: WEEK_METRIC, metricName: 'Revenue this week (USD)', value: 1_180, timestamp: new Date('2026-08-16T10:00:00Z') },
+      {
+        id: 'log-w-old',
+        workspaceId: WS,
+        metricId: WEEK_METRIC,
+        metricName: 'Revenue this week (USD)',
+        value: 1_180,
+        timestamp: new Date('2026-08-16T10:00:00Z'),
+      },
     ]);
     const f = await floor();
     const week = f.horizonHistories.find(h => h.targetDate === '2026-W34')!;
@@ -426,10 +578,21 @@ describe('a crowded floor still describes its primary horizon', () => {
     // soonest end, a floor with five open markets left the DECISION horizon -
     // the one the page opens on - with no readings and therefore no chart.
     const extra = ['2026-09', '2026-10', '2026-11'].map((targetDate, i) => ({
-      id: `mkt-coh-extra-${i}`, workspaceId: WS, metricId: YEAR_METRIC, metricName: 'Net 2026 (USD)',
-      targetDate, rangeMin: 0, rangeMax: 150_000,
-      shares: [0, 0] as [number, number], liquidity: 1_000, pool: initialPool(1_000),
-      active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      id: `mkt-coh-extra-${i}`,
+      workspaceId: WS,
+      metricId: YEAR_METRIC,
+      metricName: 'Net 2026 (USD)',
+      targetDate,
+      rangeMin: 0,
+      rangeMax: 150_000,
+      shares: [0, 0] as [number, number],
+      liquidity: 1_000,
+      pool: initialPool(1_000),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
+      branch: null,
     }));
     await db.insert(markets).values(extra);
 
@@ -448,7 +611,12 @@ describe('the newest announcement agrees with the announcement list', () => {
   test('latestAnnouncement is the newest row, and the count is every row', async () => {
     await db.insert(announcements).values([
       { id: 'ann-old', workspaceId: WS, body: 'first disclosure', publishedAt: new Date('2026-08-01T09:00:00Z') },
-      { id: 'ann-new', workspaceId: WS, body: 'the one a trader must not miss', publishedAt: new Date('2026-08-16T09:00:00Z') },
+      {
+        id: 'ann-new',
+        workspaceId: WS,
+        body: 'the one a trader must not miss',
+        publishedAt: new Date('2026-08-16T09:00:00Z'),
+      },
     ]);
     const f = await floor();
     // Inline for the first paint, so it has to be the SAME row the list route
@@ -472,14 +640,23 @@ describe('the newest announcement agrees with the announcement list', () => {
 
 describe('the private boundary still holds', () => {
   test('a floor whose Public group cannot read ships no history at all', async () => {
-    const [publicGroup] = await db.select().from(permissionGroups)
+    const [publicGroup] = await db
+      .select()
+      .from(permissionGroups)
       .where(and(eq(permissionGroups.workspaceId, WS), eq(permissionGroups.type, 'public')));
-    await db.update(permissionGroups).set({ capabilities: [] })
-      .where(eq(permissionGroups.id, publicGroup.id));
+    await db.update(permissionGroups).set({ capabilities: [] }).where(eq(permissionGroups.id, publicGroup.id));
 
     const res = await request(app).get(`/api/marketplace/${WS}`);
     expect(res.status).toBe(200);
-    for (const key of ['marketHistory', 'marketHistoryMarketId', 'horizonHistories', 'heroHistory', 'proposals', 'latestAnnouncement', 'announcementCount']) {
+    for (const key of [
+      'marketHistory',
+      'marketHistoryMarketId',
+      'horizonHistories',
+      'heroHistory',
+      'proposals',
+      'latestAnnouncement',
+      'announcementCount',
+    ]) {
       expect(res.body[key]).toBeUndefined();
     }
     // The counts-only surface survives, so the marketplace card still works.

@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
-import type { Capability } from '../types';
+import type { NextFunction, Request, Response } from 'express';
 import type { AccountScope, KeyScope } from '../lib/scopes';
 import { hasScope } from '../lib/scopes';
+import type { Capability } from '../types';
 
 /**
  * Require that the caller's capability set contains at least one of the given capabilities.
@@ -79,8 +79,10 @@ export async function requireSelfOrAdmin(req: Request, res: Response, next: Next
     const { db } = await import('../db/client');
     const { agents } = await import('../db/schema');
     const { eq } = await import('drizzle-orm');
-    const [target] = await db.select({ ownerAgentId: agents.ownerAgentId })
-      .from(agents).where(eq(agents.id, req.params.id as string));
+    const [target] = await db
+      .select({ ownerAgentId: agents.ownerAgentId })
+      .from(agents)
+      .where(eq(agents.id, req.params.id as string));
     if (target?.ownerAgentId === req.auth.agentId) return next();
   }
   if (req.auth.capabilities.has('manage')) {

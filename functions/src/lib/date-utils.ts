@@ -215,11 +215,13 @@ export function resolutionInstant(targetDate: string): string {
  * Validate that a string is a recognized absolute date format.
  */
 export function isValidDateFormat(dateStr: string): boolean {
-  return ABS_YEAR_RE.test(dateStr) ||
+  return (
+    ABS_YEAR_RE.test(dateStr) ||
     ABS_MONTH_RE.test(dateStr) ||
     ABS_WEEK_RE.test(dateStr) ||
     ABS_DAY_RE.test(dateStr) ||
-    ABS_HOUR_RE.test(dateStr);
+    ABS_HOUR_RE.test(dateStr)
+  );
 }
 
 /**

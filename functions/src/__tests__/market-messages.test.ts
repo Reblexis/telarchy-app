@@ -25,27 +25,29 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
+import { eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agentApiKeys, agents, marketMessages, markets, metrics, permissionGroups } from '../db/schema';
+import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
-import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, agentApiKeys, markets, marketMessages, metrics, permissionGroups } from '../db/schema';
-import { hashKey } from '../middleware/auth';
-import { provisionWorkspace } from '../lib/participants';
-import { initialPool } from '../lib/amm';
-import { toUnits } from '../lib/validation';
+import { authMiddleware, hashKey } from '../middleware/auth';
 import { predictionsRouter } from '../routes/predictions';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
 app.use('/api/predictions', authMiddleware, predictionsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof AppError) { res.status(err.status).json({ error: err.message }); return; }
+  if (err instanceof AppError) {
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
   res.status(500).json({ error: (err as Error).message ?? 'Internal error' });
 });
 
@@ -57,8 +59,12 @@ const METRIC = 'metric-mm';
 const MARKET = 'mkt-mm-2026-11';
 const OTHER_MARKET = 'mkt-mm-other-2026-11';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 async function seed() {
   await db.insert(agents).values([
@@ -67,41 +73,77 @@ async function seed() {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Market Msg Test', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'private',
+    wsId: WS,
+    name: 'Market Msg Test',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'private',
   });
   const traderRows = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS));
   const traderGroup = traderRows.find(g => g.type === 'trader')!;
-  await db.update(permissionGroups).set({ memberIds: [BOT] }).where(eq(permissionGroups.id, traderGroup.id));
+  await db
+    .update(permissionGroups)
+    .set({ memberIds: [BOT] })
+    .where(eq(permissionGroups.id, traderGroup.id));
   await db.insert(agentApiKeys).values({
-    hash: hashKey(BOT_KEY), keyId: 'key-mm', agentId: BOT,
-    workspaceId: WS, label: 'test', scopes: ['*'],
+    hash: hashKey(BOT_KEY),
+    keyId: 'key-mm',
+    agentId: BOT,
+    workspaceId: WS,
+    label: 'test',
+    scopes: ['*'],
   });
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Mm Metric', value: 0, formula: '0', marketRangeMax: 100,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Mm Metric',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values([
     {
-      id: MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Mm Metric',
-      targetDate: '2026-11', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false,
+      id: MARKET,
+      workspaceId: WS,
+      metricId: METRIC,
+      metricName: 'Mm Metric',
+      targetDate: '2026-11',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
     },
     {
-      id: OTHER_MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Mm Metric',
-      targetDate: '2026-11', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false,
+      id: OTHER_MARKET,
+      workspaceId: WS,
+      metricId: METRIC,
+      metricName: 'Mm Metric',
+      targetDate: '2026-11',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
     },
   ]);
 }
 
 const get = (marketId: string) =>
-  request(app).get(`/api/predictions/markets/${marketId}/messages`)
+  request(app)
+    .get(`/api/predictions/markets/${marketId}/messages`)
     .set('X-Test-Agent-Id', BOT)
     .set('X-Workspace-Id', WS);
 
 const post = (marketId: string, body: Record<string, unknown>) =>
-  request(app).post(`/api/predictions/markets/${marketId}/messages`)
+  request(app)
+    .post(`/api/predictions/markets/${marketId}/messages`)
     .set('X-Test-Agent-Id', BOT)
     .set('X-Workspace-Id', WS)
     .set('Content-Type', 'application/json')

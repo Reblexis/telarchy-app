@@ -9,10 +9,10 @@
  * way. So the test reads the request the tool actually sends.
  */
 
+import type { Request } from 'express';
 import express from 'express';
 import type { Server } from 'http';
-import type { Request } from 'express';
-import { ottoApiTools, type ApiCallRecord } from '../services/otto-tools';
+import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
 
 /** A stand-in for the API this process serves: it answers with the headers it
  *  received, so the test can assert on identity rather than on behaviour. */
@@ -39,7 +39,10 @@ afterAll(async () => {
   await new Promise<void>(resolve => server.close(() => resolve()));
 });
 
-beforeEach(() => { seen = []; reply = { status: 200, body: { ok: true } }; });
+beforeEach(() => {
+  seen = [];
+  reply = { status: 200, body: { ok: true } };
+});
 
 /** The parts of an Express request these tools read. */
 function fakeReq(headers: Record<string, string>, agentId: string | null): Request {
@@ -55,13 +58,19 @@ function callTool(tools: ReturnType<typeof ottoApiTools>) {
   return t;
 }
 
-test('the call carries the caller\'s own credentials, and no others', async () => {
+test("the call carries the caller's own credentials, and no others", async () => {
   const record: ApiCallRecord[] = [];
-  const tools = ottoApiTools(fakeReq({
-    cookie: 'session=abc',
-    'x-workspace-id': 'ws-1',
-    'user-agent': 'Mozilla/5.0',
-  }, 'agent-7'), record);
+  const tools = ottoApiTools(
+    fakeReq(
+      {
+        cookie: 'session=abc',
+        'x-workspace-id': 'ws-1',
+        'user-agent': 'Mozilla/5.0',
+      },
+      'agent-7',
+    ),
+    record,
+  );
 
   await callTool(tools).run({ method: 'POST', path: '/api/predictions/trade', body: { amount: 25 } });
 
@@ -153,7 +162,7 @@ test('an anonymous question about this floor still reads this floor', async () =
   expect(seen[0].headers['x-workspace-id']).toBe('ws-lookpilot');
 });
 
-test('the caller\'s own workspace wins over the floor they are standing on', async () => {
+test("the caller's own workspace wins over the floor they are standing on", async () => {
   const record: ApiCallRecord[] = [];
   const tools = ottoApiTools(fakeReq({ 'x-workspace-id': 'ws-mine' }, 'agent-7'), record, 'ws-lookpilot');
   await callTool(tools).run({ method: 'GET', path: '/api/predictions/markets' });

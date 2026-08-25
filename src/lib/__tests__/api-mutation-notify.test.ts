@@ -4,14 +4,16 @@
  * the balance immediately after a spend (trade, liquidity top-up, proposal
  * subsidy) instead of waiting for a route change.
  */
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { api, onApiMutation } from '../api';
 
 function jsonResponse(body: unknown, status = 200) {
-  return Promise.resolve(new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  }));
+  return Promise.resolve(
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  );
 }
 
 describe('onApiMutation', () => {
@@ -29,25 +31,37 @@ describe('onApiMutation', () => {
   });
 
   test('fires after a successful POST', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => jsonResponse({ ok: true })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => jsonResponse({ ok: true })),
+    );
     await api.injectLiquidityBulk(1, 'proposal-1');
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
   test('does not fire on GET', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => jsonResponse({ balance: 10 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => jsonResponse({ balance: 10 })),
+    );
     await api.getParticipant();
     expect(listener).not.toHaveBeenCalled();
   });
 
   test('does not fire when the mutation fails', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => jsonResponse({ error: 'Insufficient balance' }, 400)));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => jsonResponse({ error: 'Insufficient balance' }, 400)),
+    );
     await expect(api.injectLiquidityBulk(1, 'proposal-1')).rejects.toThrow('Insufficient balance');
     expect(listener).not.toHaveBeenCalled();
   });
 
   test('unsubscribe stops notifications', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => jsonResponse({ ok: true })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => jsonResponse({ ok: true })),
+    );
     unsubscribe();
     await api.injectLiquidityBulk(1, 'proposal-1');
     expect(listener).not.toHaveBeenCalled();

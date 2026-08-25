@@ -1,10 +1,10 @@
-import { useState, FormEvent } from 'react';
+import { type FormEvent, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { authClient } from '../lib/auth-client';
+import { AuthField, AuthOr, AuthShell } from '../components/AuthShell';
 import { OAuthButtons } from '../components/OAuthButtons';
-import { AuthShell, AuthField, AuthOr } from '../components/AuthShell';
-import { tradeHome } from '../lib/tradeHome';
+import { authClient } from '../lib/auth-client';
 import { readNextFromSearch, stashNextPath } from '../lib/nextPath';
+import { tradeHome } from '../lib/tradeHome';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -34,7 +34,7 @@ export function LoginPage() {
     // Back where they were if they were sent here from somewhere, and
     // otherwise straight to trading, never to a dashboard: the market is the
     // product, and after the console was deleted it is also all there is.
-    const home = next ?? await tradeHome();
+    const home = next ?? (await tradeHome());
     setSubmitting(false);
     navigate(home);
   };
@@ -42,20 +42,40 @@ export function LoginPage() {
   return (
     <AuthShell
       title="Log in"
-      foot={<>New here? <Link to={next ? `/signup?next=${encodeURIComponent(next)}` : '/signup'}>Create an account</Link>.</>}
+      foot={
+        <>
+          New here? <Link to={next ? `/signup?next=${encodeURIComponent(next)}` : '/signup'}>Create an account</Link>.
+        </>
+      }
     >
       {/* An OAuth round trip leaves the page, so the return path has to
           outlive it: the same stash signup uses. */}
-      <OAuthButtons onError={setError} beforeSignIn={() => { stashNextPath(next); return true; }} />
+      <OAuthButtons
+        onError={setError}
+        beforeSignIn={() => {
+          stashNextPath(next);
+          return true;
+        }}
+      />
       <AuthOr />
       <form className="pubws-form" onSubmit={handleSubmit}>
         <AuthField
-          id="email" label="Email" type="email" required autoComplete="email"
-          value={email} onChange={e => setEmail(e.target.value)}
+          id="email"
+          label="Email"
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
         />
         <AuthField
-          id="password" label="Password" type="password" required autoComplete="current-password"
-          value={password} onChange={e => setPassword(e.target.value)}
+          id="password"
+          label="Password"
+          type="password"
+          required
+          autoComplete="current-password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
         />
         <button className="pubws-cta" type="submit" disabled={submitting}>
           {submitting ? 'Logging in…' : 'Log in'}

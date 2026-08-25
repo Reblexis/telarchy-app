@@ -1,6 +1,6 @@
-import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
-import { render, fireEvent, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * The definition editor writes the metric of the market ON SCREEN.
@@ -37,12 +37,30 @@ const h = vi.hoisted(() => {
     heroMetricDescription: 'The year definition.',
     proposalStats: { total: 0, pending: 0, approved: 0, declined: 0 },
     markets: [
-      { marketId: 'm-week', metricId: 'metric-week', metricName: 'Signups this week',
-        targetDate: '2026-W34', resolvesOn: '2026-08-24T00:00:00Z', consensus: 213,
-        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 8000 },
-      { marketId: 'm-year', metricId: 'metric-year', metricName: 'Net 2026 (USD)',
-        targetDate: '2026-12', resolvesOn: '2027-01-01T00:00:00Z', consensus: 78_571,
-        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 150_000 },
+      {
+        marketId: 'm-week',
+        metricId: 'metric-week',
+        metricName: 'Signups this week',
+        targetDate: '2026-W34',
+        resolvesOn: '2026-08-24T00:00:00Z',
+        consensus: 213,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 8000,
+      },
+      {
+        marketId: 'm-year',
+        metricId: 'metric-year',
+        metricName: 'Net 2026 (USD)',
+        targetDate: '2026-12',
+        resolvesOn: '2027-01-01T00:00:00Z',
+        consensus: 78_571,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 150_000,
+      },
     ],
     marketHistory: [],
     marketHistoryMarketId: 'm-year',
@@ -90,14 +108,15 @@ const { api } = await import('../../lib/api');
 function renderFloor() {
   return render(
     <MemoryRouter initialEntries={['/telarchy']}>
-      <Routes><Route path="/:slug" element={<TradePage />} /></Routes>
+      <Routes>
+        <Route path="/:slug" element={<TradePage />} />
+      </Routes>
     </MemoryRouter>,
   );
 }
 
 /** Which market is on screen, read from the caption (never the animated price). */
-const caption = (container: HTMLElement) =>
-  container.querySelector('.pubws-instrument-label')?.textContent ?? '';
+const caption = (container: HTMLElement) => container.querySelector('.pubws-instrument-label')?.textContent ?? '';
 
 /** The "What is this market?" section, so queries never leak into the
  *  workspace-about section, which has its own Edit button and prose. */
@@ -106,11 +125,20 @@ const defSection = (container: HTMLElement) =>
 
 beforeEach(() => {
   globalThis.IntersectionObserver = class {
-    observe() {} unobserve() {} disconnect() {} takeRecords() { return []; }
-    root = null; rootMargin = ''; thresholds = [];
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() {
+      return [];
+    }
+    root = null;
+    rootMargin = '';
+    thresholds = [];
   } as unknown as typeof IntersectionObserver;
 });
-afterEach(() => { vi.clearAllMocks(); });
+afterEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('the definition editor edits the market on screen', () => {
   test('saving under the nearer clock writes ITS metric, not the hero metric', async () => {
@@ -132,11 +160,17 @@ describe('the definition editor edits the market on screen', () => {
     fireEvent.change(box, { target: { value: 'Signups counted Mon-Sun.' } });
     fireEvent.click(defSection(container).getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(vi.mocked(api.updateMetricDescription)).toHaveBeenCalledWith(
-      'metric-week', 'Signups counted Mon-Sun.', 'ws-1',
-    ));
+    await waitFor(() =>
+      expect(vi.mocked(api.updateMetricDescription)).toHaveBeenCalledWith(
+        'metric-week',
+        'Signups counted Mon-Sun.',
+        'ws-1',
+      ),
+    );
     expect(vi.mocked(api.updateMetricDescription)).not.toHaveBeenCalledWith(
-      'metric-year', expect.anything(), expect.anything(),
+      'metric-year',
+      expect.anything(),
+      expect.anything(),
     );
   });
 

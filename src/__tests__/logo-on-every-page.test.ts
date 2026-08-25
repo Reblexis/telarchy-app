@@ -1,7 +1,7 @@
-import { describe, expect, test } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { describe, expect, test } from 'vitest';
 
 /**
  * Every page wears the real lockup, not the word set in a serif.
@@ -61,7 +61,12 @@ describe('the mark', () => {
         if (!src.includes('pubws-topbar')) return false;
         // A page either renders the bar itself or hands it to TopBar /
         // AuthShell, both of which carry the lockup.
-        return !(src.includes('<Logo') || src.includes('<TopBar') || src.includes('<AuthShell') || src.includes('<PageTopBar'));
+        return !(
+          src.includes('<Logo') ||
+          src.includes('<TopBar') ||
+          src.includes('<AuthShell') ||
+          src.includes('<PageTopBar')
+        );
       })
       .map(f => f.slice(SRC.length + 1));
     expect(missing).toEqual([]);
