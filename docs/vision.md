@@ -446,7 +446,7 @@ Participants forecast metric values, staking credits on their predictions.
 
 ### Formula Composition (Implemented)
 
-Metric formulas use `{MetricName}` references plus standard math operators and helper functions such as `sqrt()`, `abs()`, `min()`, `max()`, and `pow()`. Forward-looking behavior is handled by the time-preference system, not by special formula syntax.
+Metric formulas use `{MetricName}` references plus arithmetic and the helper functions `sqrt()`, `abs()`, `log()`, `log10()`, `min()`, `max()`, `pow()` and `clamp()`; the grammar is `docs/formulas.md`. Forward-looking behavior is handled by the time-preference system, not by special formula syntax.
 
 ### Phase 4: Proposals and Conditional Decision Markets (Implemented)
 

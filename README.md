@@ -86,9 +86,10 @@ sqrt({Adoption} * {Retention})
 ```
 
 **Functions**: `sqrt()`, `abs()`, `log()`, `log10()`, `min()`, `max()`, `pow()`, `clamp()`
-**Operators**: `+`, `-`, `*`, `/`, `()`
+**Operators**: `+`, `-`, `*`, `/`, `^` (power), `()`
 
-Circular dependencies are detected and rejected.
+Anything else is a syntax error that names the column. Full grammar:
+[`docs/formulas.md`](docs/formulas.md). Circular dependencies are detected and rejected.
 
 ## Project structure
 
