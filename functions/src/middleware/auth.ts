@@ -8,6 +8,7 @@ import { eq, sql } from 'drizzle-orm';
 import type { AuthInfo, WorkspaceMemberRole, Capability } from '../types';
 import { computeCapabilities } from './capabilities';
 import { intersectWorkspaceCaps } from '../lib/scopes';
+import { isMasterKey } from '../lib/master-key';
 import { anonymousCapabilities, resolvePublicReadWorkspace } from '../lib/public-read';
 import {
   getParticipantWorkspaceMemberships,
@@ -115,8 +116,7 @@ function maybeBumpLastUsed(hash: string, lastUsedAt: Date | null): void {
 /** Like authMiddleware but never rejects. Unauthenticated requests pass through with req.auth unset. */
 export async function optionalAuthMiddleware(req: Request, _res: Response, next: NextFunction) {
   const apiKey = req.headers['x-api-key'] as string | undefined;
-  const masterKey = process.env.API_KEY;
-  if (apiKey && masterKey && safeCompare(apiKey, masterKey)) {
+  if (isMasterKey(apiKey)) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
     if (!requestedWorkspaceId) return next();
     req.auth = {
@@ -197,8 +197,7 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   // 1. Master API key → all capabilities, requires X-Workspace-Id
   const apiKey = req.headers['x-api-key'] as string | undefined;
-  const masterKey = process.env.API_KEY;
-  if (apiKey && masterKey && safeCompare(apiKey, masterKey)) {
+  if (isMasterKey(apiKey)) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
     if (!requestedWorkspaceId) return res.status(400).json({ error: 'X-Workspace-Id header is required' });
     req.auth = {

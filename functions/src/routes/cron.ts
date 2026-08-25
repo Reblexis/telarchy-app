@@ -10,25 +10,18 @@
  */
 
 import { Router } from 'express';
-import { timingSafeEqual } from 'crypto';
 import { db } from '../db/client';
 import { workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
+import { isMasterKey, masterKeyConfigured } from '../lib/master-key';
 import type { Request, Response } from 'express';
 
 export const cronRouter = Router();
 
 function validateApiKey(req: Request, res: Response): boolean {
   const key = req.headers['x-api-key'] as string | undefined;
-  const master = process.env.API_KEY;
-  if (!key || !master) { res.status(401).json({ error: 'X-API-Key required' }); return false; }
-  try {
-    if (!timingSafeEqual(Buffer.from(key), Buffer.from(master))) {
-      res.status(401).json({ error: 'Invalid API key' }); return false;
-    }
-  } catch {
-    res.status(401).json({ error: 'Invalid API key' }); return false;
-  }
+  if (!key || !masterKeyConfigured()) { res.status(401).json({ error: 'X-API-Key required' }); return false; }
+  if (!isMasterKey(key)) { res.status(401).json({ error: 'Invalid API key' }); return false; }
   return true;
 }
 
