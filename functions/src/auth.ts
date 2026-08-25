@@ -32,6 +32,8 @@ const publicAuthBaseURL = process.env.BETTER_AUTH_URL?.trim() || undefined;
  */
 const authCookieDomain = process.env.AUTH_COOKIE_DOMAIN?.trim();
 
+import { isValidSourceSlug, sourceFromCookieHeader } from './lib/attribution';
+
 export const auth = betterAuth({
   ...(publicAuthBaseURL ? { baseURL: publicAuthBaseURL } : {}),
   ...(authCookieDomain
@@ -57,6 +59,29 @@ export const auth = betterAuth({
       verification: schema.authVerification,
     },
   }),
+  // Attribution (open-source release, 2026-08-24): `source` is the `?ref=` slug
+  // the landing stored in the ta_ref cookie. Email signups send it in the body
+  // (SignupPage); OAuth signups never call signUp.email, so the create hook reads
+  // the cookie from the request instead. better-auth ^1.5: hooks receive
+  // (user, ctx) with ctx.request / ctx.headers on the endpoint context.
+  user: {
+    additionalFields: {
+      source: { type: 'string', required: false, input: true },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user, ctx) => {
+          const given = (user as { source?: unknown }).source;
+          if (typeof given === 'string' && isValidSourceSlug(given)) return { data: { ...user, source: given } };
+          const cookie = ctx?.headers?.get?.('cookie') ?? ctx?.request?.headers?.get?.('cookie') ?? '';
+          const fromCookie = sourceFromCookieHeader(cookie);
+          return { data: { ...user, source: fromCookie } };
+        },
+      },
+    },
+  },
   emailAndPassword: { enabled: true },
   socialProviders: {
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? {

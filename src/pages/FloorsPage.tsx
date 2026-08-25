@@ -350,6 +350,8 @@ export function FloorsPage() {
             the markets above. */}
         <footer className="pubws-foot">
           <Link to="/about">About</Link> · <Link to="/contact">Contact</Link> · <Link to="/terms">Terms</Link> · <Link to="/privacy">Privacy</Link>
+          {/* Set VITE_PUBLIC_REPO_URL once the source is public; until then no link. */}
+          {import.meta.env.VITE_PUBLIC_REPO_URL ? <> · <a href={import.meta.env.VITE_PUBLIC_REPO_URL} rel="noopener">Source</a></> : null}
         </footer>
       </main>
     </div>
