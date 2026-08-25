@@ -1,0 +1,112 @@
+import { and, count, eq, gt, inArray, like, sql } from 'drizzle-orm';
+import { db } from '../db/client';
+import { agents, markets, systemConfig, trades, workspaces } from '../db/schema';
+import { ttlCache } from '../lib/ttl-cache';
+
+/**
+ * The platform's own pulse, in one place.
+ *
+ * Two public surfaces publish these numbers: `GET /api/marketplace/stats`,
+ * which is the route a market on this platform resolves against, and the data
+ * room, which explains what they mean. A second copy of the arithmetic is how
+ * the resolution source and the page describing it start disagreeing, so there
+ * is one function and both call it. See docs/data-room.md.
+ */
+export interface PlatformStats {
+  marketsActive: number;
+  agentsActive: number;
+  tradesThisWeek: number;
+  weeklyActiveVerifiedTraders: number;
+  manifoldImportCount: number;
+}
+
+/**
+ * Cached one minute: `GET /api/marketplace/stats` is public and was the only
+ * public aggregate with no cache at all, an N+1 over every workspace on each
+ * request. A market resolving against these numbers reads a value at most 60s
+ * old, which is inside the noise of the weekly windows they measure.
+ */
+const statsCache = ttlCache({
+  ttlMs: 60_000,
+  keyOf: () => 'stats',
+  load: () => computePlatformStats(),
+});
+
+/** Test seam. */
+
+export function platformStats(): Promise<PlatformStats> {
+  return statsCache.get();
+}
+
+async function computePlatformStats(): Promise<PlatformStats> {
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const allWs = await db.select({ id: workspaces.id }).from(workspaces);
+
+  const [agentCount] = await db.select({ count: count() }).from(agents);
+
+  // The hero metric of the Telarchy dogfooding workspace (2026-08-14):
+  // distinct participants who (a) have a Manifold account synced (the
+  // verified set: each maps to a public Manifold profile anyone can check,
+  // surfaced on the leaderboard) and (b) placed trades totalling at least
+  // 100 credits across the trailing 7 days (credits are free, so a costless
+  // gesture must not count; abs(cost) so sells are activity too). It is
+  // public for the same reason manifoldImportCount is: a resolution source
+  // has to be readable by the people being asked to trust it.
+  const spendByAgent = await db
+    .select({ id: trades.agentId, spend: sql<number>`sum(abs(${trades.cost}))` })
+    .from(trades)
+    .where(gt(trades.createdAt, weekAgo))
+    .groupBy(trades.agentId);
+  const qualifying = spendByAgent.filter(r => Number(r.spend) >= 100).map(r => r.id);
+  const claimedRows =
+    qualifying.length > 0
+      ? await db
+          .select({ key: systemConfig.key })
+          .from(systemConfig)
+          .where(
+            inArray(
+              systemConfig.key,
+              qualifying.map(id => `manifold-claimed:agent:${id}`),
+            ),
+          )
+      : [];
+  const weeklyActiveVerifiedTraders = claimedRows.length;
+
+  let marketsActive = 0;
+  let tradesThisWeek = 0;
+
+  await Promise.all(
+    allWs.map(async ws => {
+      const [mCount, tCount] = await Promise.all([
+        db
+          .select({ count: count() })
+          .from(markets)
+          .where(and(eq(markets.workspaceId, ws.id), eq(markets.resolved, false), eq(markets.active, true)))
+          .then(r => r[0]?.count ?? 0),
+        db
+          .select({ count: count() })
+          .from(trades)
+          .where(and(eq(trades.workspaceId, ws.id), gt(trades.createdAt, weekAgo)))
+          .then(r => r[0]?.count ?? 0),
+      ]);
+      marketsActive += Number(mCount);
+      tradesThisWeek += Number(tCount);
+    }),
+  );
+
+  // Platform-wide count of completed Manifold imports. It is a platform
+  // number rather than a property of any one workspace, and a public
+  // prediction market resolves against it.
+  const [manifoldRow] = await db
+    .select({ n: count() })
+    .from(systemConfig)
+    .where(like(systemConfig.key, 'manifold-claimed:agent:%'));
+
+  return {
+    marketsActive,
+    agentsActive: Number(agentCount.count),
+    tradesThisWeek,
+    weeklyActiveVerifiedTraders,
+    manifoldImportCount: Number(manifoldRow?.n ?? 0),
+  };
+}

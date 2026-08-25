@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["src/main.tsx", "vite.config.ts", "vitest.config.ts", "scripts/*.{mjs,cjs,ts}"],
+      "project": ["src/**/*.{ts,tsx}", "scripts/**/*.{mjs,cjs,ts}"],
+      "ignore": ["dist/**", "dist-beta/**", "functions/**"]
+    },
+    "functions": {
+      "entry": ["src/server.ts", "src/migrate.ts", "src/index.ts", "drizzle.config.ts", "jest.config.js"],
+      "project": ["src/**/*.ts"],
+      "ignore": ["lib/**"]
+    }
+  },
+  "ignoreDependencies": ["tsx", "concurrently"]
+}

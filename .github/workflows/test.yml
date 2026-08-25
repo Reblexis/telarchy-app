@@ -1,0 +1,88 @@
+name: Tests
+
+# The suite on a pull request, before anything reaches main. The gate that
+# actually blocks production is the `test` job inside deploy-cloudrun.yml,
+# which the deploy job needs (owner ask 2026-08-15, after two bugs reached
+# production in one afternoon).
+#
+# Deliberately independent of any cloud credential: it runs on a bare runner
+# against pglite, so a fork, a branch, or a contributor with no GCP access
+# still gets the same verdict.
+
+# Pull requests, pushes to main, and manual runs. Runs on GitHub-hosted runners
+# with no secrets, so a fork PR gets the same verdict; deploy-cloudrun.yml runs
+# its own copy of the suite before deploying.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Type check and the frontend suite: fast, and a type error is a clearer
+  # failure than the test that would trip over it.
+  checks:
+    name: Type check and frontend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
+        working-directory: functions
+      - run: npm run typecheck
+      - run: npm run lint
+      # Dead code report; flips to failing once the sweep is complete (knip.json).
+      - run: npx knip --no-progress --no-exit-code
+      - run: npm run test:frontend
+      # The production bundle. `typecheck` runs tsc, which does not catch a
+      # broken import path, a missing asset or a Vite plugin failure; those
+      # used to surface only in the deploy job, after the gate had passed.
+      - run: npm run build
+
+  # The backend suite, sharded three ways. Every suite boots its own pglite
+  # and applies every migration, so one runner holding all 82 was dying
+  # around the eight-minute mark with SIGTERM (exit 143) and taking the gate
+  # down with it. Three runners finish in a third of the wall clock and stay
+  # well inside the runner's memory.
+  backend:
+    name: Backend tests (shard ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+        working-directory: functions
+      - run: npm run test:ci -- --shard=${{ matrix.shard }}/3
+        working-directory: functions
+
+  # No credential may live in the tree. no-committed-secrets.test.ts checks the
+  # obvious shapes from inside the suite; gitleaks checks the long tail.
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

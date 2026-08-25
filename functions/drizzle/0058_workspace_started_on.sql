@@ -1,0 +1,17 @@
+-- When this workspace started running its number through Telarchy.
+--
+-- The floor's actual-vs-forecast chart draws a year of trajectory, which
+-- raises the question the number alone cannot answer: what changed, and when.
+-- The owner names one moment and the chart marks it (owner ask 2026-08-17,
+-- "draw a vertical line saying Started using Telarchy").
+--
+-- A column rather than a constant in the frontend, because the honest date is
+-- neither derivable nor shared. LookPilot's is 13 August 2026, which is not
+-- its workspace creation (8 August) and not its first trade (11 August): it is
+-- a fact the owner knows. Hardcoding one floor's date is the same mistake as
+-- the hardcoded LookPilot metric blurb, which became a lie on every other
+-- floor the day a second one existed.
+--
+-- NULL (the default, and every existing row) means the chart carries no
+-- marker, which is the right answer for a workspace whose owner has not said.
+ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS telarchy_started_on timestamp;

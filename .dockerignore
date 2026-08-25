@@ -1,0 +1,19 @@
+# Nothing the image does not need, and nothing that could carry a secret.
+.env
+.env.*
+!.env.example
+.git
+.github
+node_modules
+functions/node_modules
+functions/lib
+dist
+dist-beta
+docs/*
+!docs/guides
+qa
+scripts/*
+!scripts/build-changelog.mjs
+!scripts/build-guides.mjs
+*.md
+!README.md

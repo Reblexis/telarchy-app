@@ -1,0 +1,55 @@
+name: Publish Docker image
+
+on:
+  push:
+    branches: [main]
+
+# One image build at a time; a newer push supersedes a queued or running
+# one. Agents push to main many times an hour and the runners share
+# Viktor's laptop, so redundant builds are pure queue poison.
+concurrency:
+  group: docker-publish
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Hosted runners preinstall buildx; our self-hosted ones do not.
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/reblexis/telarchy
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+      # Retention: every push adds a sha- tag, and private ghcr storage is
+      # what the free plan actually meters (the runners are ours and cost
+      # nothing, see docs/infra/deploy.md). Keep the newest versions and
+      # delete the tail, so the package can never crawl toward the quota.
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: telarchy
+          package-type: container
+          min-versions-to-keep: 8

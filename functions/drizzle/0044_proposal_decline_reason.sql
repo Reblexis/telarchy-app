@@ -1,0 +1,13 @@
+-- 0044: Durable decline reasons on proposals.
+--
+-- Why: a workspace that publishes a charter promises participants that a
+-- proposal the market ranked highest either ships or gets a written reason.
+-- declineProposal() previously wrote only status, resolvedAt and resolvedBy,
+-- so that reason had nowhere to live and degraded into a chat message nobody
+-- could find three months later, which is the same as not having promised
+-- anything.
+--
+-- Required on decline exactly when the workspace has a charter set: making the
+-- public commitment is what turns the requirement on. Nullable, because every
+-- proposal declined before this existed has no reason and never will.
+ALTER TABLE "proposals" ADD COLUMN IF NOT EXISTS "decline_reason" text;

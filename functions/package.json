@@ -1,0 +1,56 @@
+{
+  "name": "telarchy-functions",
+  "version": "0.0.0",
+  "description": "Telarchy backend (Express + Drizzle)",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "main": "lib/server.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "dev": "tsx watch src/server.ts",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:integration": "node ../../scripts/test-integration.ts",
+    "start:standalone": "node lib/server.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "test:ci": "NODE_OPTIONS=--experimental-vm-modules jest --ci --testTimeout=120000",
+    "eval:otto": "tsx src/evals/run.ts"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/web-push": "^3.6.4",
+    "better-auth": "^1.5.6",
+    "compression": "^1.8.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "ethers": "^6.16.0",
+    "express": "^4.22.1",
+    "express-rate-limit": "^8.3.1",
+    "geoip-lite": "^2.0.3",
+    "pg": "^8.20.0",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.4.5",
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/geoip-lite": "^1.4.4",
+    "@types/jest": "^30.0.0",
+    "@types/pg": "^8.20.0",
+    "@types/supertest": "^7.2.0",
+    "drizzle-kit": "^0.31.10",
+    "jest": "^30.3.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3"
+  }
+}

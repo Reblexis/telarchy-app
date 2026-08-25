@@ -1,0 +1,351 @@
+import type { Metric } from '../types';
+import { evaluate, parseFormulaCached } from './formula';
+import { sampleTimePoints, WEIGHT_T0 } from './time-preference';
+
+export function evaluateFormula(formula: string, metricsMap: Record<string, Metric>): number | null {
+  if (!formula || formula.trim() === '0' || formula.trim() === '') return 0;
+
+  // A metric that exists but has no value yet makes the result unknown (null);
+  // a reference to a metric that does not exist evaluates as 0. Grammar and the
+  // rest of the contract: docs/formulas.md.
+  const lookup = (name: string): number | null => {
+    const metric = metricsMap[name];
+    if (!metric) return 0;
+    if (metric.total === null) return null;
+    return metric.total;
+  };
+  try {
+    const result = evaluate(parseFormulaCached(formula), lookup);
+    if (result === null) return null;
+    if (isNaN(result)) {
+      console.error(`evaluateFormula: formula "${formula}" evaluated to NaN`);
+      return 0;
+    }
+    return result;
+  } catch (e) {
+    console.error(`evaluateFormula: formula "${formula}" is invalid:`, (e as Error).message);
+    return 0;
+  }
+}
+
+/**
+ * Evaluate a formula at a future time point.
+ * Leaf nodes (formula = "0") use their market consensus at targetDate.
+ * Intermediate nodes are evaluated recursively using their static formulas.
+ */
+export function evaluateFormulaAtTime(
+  formula: string,
+  nameToFormula: Record<string, string>,
+  consensusMap: Record<string, number>,
+  targetDate: string,
+  memo: Record<string, number> = {},
+): number {
+  if (!formula || formula.trim() === '0' || formula.trim() === '') return 0;
+
+  const lookup = (name: string): number => {
+    const memoKey = `${name}:${targetDate}`;
+    if (memoKey in memo) return memo[memoKey];
+    const childFormula = nameToFormula[name];
+    let value: number;
+    if (!childFormula || childFormula.trim() === '0' || childFormula.trim() === '') {
+      value = consensusMap[`${name}:${targetDate}`] ?? 0;
+    } else {
+      memo[memoKey] = 0; // break potential cycles
+      value = evaluateFormulaAtTime(childFormula, nameToFormula, consensusMap, targetDate, memo);
+    }
+    memo[memoKey] = value;
+    return value;
+  };
+  try {
+    const result = evaluate(parseFormulaCached(formula), lookup);
+    if (result === null || isNaN(result)) {
+      console.error(`evaluateFormulaAtTime: formula "${formula}" evaluated to NaN at ${targetDate}`);
+      return 0;
+    }
+    return result;
+  } catch (e) {
+    console.error(`evaluateFormulaAtTime: formula "${formula}" is invalid at ${targetDate}:`, (e as Error).message);
+    return 0;
+  }
+}
+
+export interface FormulaWarning {
+  type: 'syntax_error';
+  message: string;
+}
+
+export function validateFormula(formula: string, metricNames: Set<string>): FormulaWarning[] {
+  if (!formula || formula.trim() === '0' || formula.trim() === '') return [];
+
+  const warnings: FormulaWarning[] = [];
+
+  for (const name of extractMetricReferences(formula)) {
+    if (!metricNames.has(name)) {
+      warnings.push({ type: 'syntax_error', message: `Unknown metric: {${name}}` });
+    }
+  }
+
+  // Parse against the grammar in docs/formulas.md; the error carries the column.
+  // Then evaluate with every reference at 0 to catch results that are NaN for
+  // any input (sqrt of a negative literal, log(0) style mistakes).
+  try {
+    const result = evaluate(parseFormulaCached(formula), () => 0);
+    if (result === null || typeof result !== 'number' || isNaN(result)) {
+      warnings.push({ type: 'syntax_error', message: 'Formula evaluates to NaN' });
+    }
+  } catch (e) {
+    warnings.push({ type: 'syntax_error', message: `Invalid formula syntax: ${(e as Error).message}` });
+  }
+
+  return warnings;
+}
+
+export function extractMetricReferences(formula: string): string[] {
+  if (!formula) return [];
+  const matches = formula.match(/\{([^}]+)\}/g);
+  if (!matches) return [];
+  return matches.map(m => m.slice(1, -1).trim());
+}
+
+/** BFS through {MetricName} references to find all transitive formula dependencies. */
+export function getTransitiveDependencyNames(metricName: string, nameToFormula: Record<string, string>): string[] {
+  const deps = new Set<string>();
+  const queue = [metricName];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const formula = nameToFormula[current];
+    if (!formula) continue;
+
+    for (const depName of extractMetricReferences(formula)) {
+      if (!deps.has(depName)) {
+        deps.add(depName);
+        queue.push(depName);
+      }
+    }
+  }
+
+  return Array.from(deps);
+}
+
+export function getAffectedMetrics(changedMetricIds: string[], metrics: Metric[]): string[] {
+  const nameToId: Record<string, string> = {};
+  metrics.forEach(m => {
+    nameToId[m.name] = m.id;
+  });
+
+  const dependents: Record<string, string[]> = {};
+  metrics.forEach(m => {
+    dependents[m.id] = [];
+  });
+
+  metrics.forEach(metric => {
+    for (const depName of extractMetricReferences(metric.formula || '0')) {
+      const depId = nameToId[depName];
+      if (depId && dependents[depId]) dependents[depId].push(metric.id);
+    }
+  });
+
+  const affected = new Set(changedMetricIds);
+  const queue = [...changedMetricIds];
+  while (queue.length > 0) {
+    const currentId = queue.shift()!;
+    for (const depId of dependents[currentId] || []) {
+      if (!affected.has(depId)) {
+        affected.add(depId);
+        queue.push(depId);
+      }
+    }
+  }
+  return Array.from(affected);
+}
+
+export function detectCircularDependency(metricId: string | null, formula: string, allMetrics: Metric[]): boolean {
+  const tempMetrics = allMetrics.map(m => (m.id === metricId ? { ...m, formula } : m));
+  const nameToId: Record<string, string> = {};
+  const idToMetric: Record<string, Metric> = {};
+  tempMetrics.forEach(m => {
+    nameToId[m.name] = m.id;
+    idToMetric[m.id] = m;
+  });
+
+  if (metricId) {
+    for (const depName of extractMetricReferences(formula)) {
+      if (nameToId[depName] === metricId) return true;
+    }
+  }
+
+  const visited = new Set<string>();
+  const recStack = new Set<string>();
+
+  function hasCycle(currentId: string): boolean {
+    if (recStack.has(currentId)) return true;
+    if (visited.has(currentId)) return false;
+    visited.add(currentId);
+    recStack.add(currentId);
+    const current = idToMetric[currentId];
+    if (current && current.formula) {
+      for (const depName of extractMetricReferences(current.formula)) {
+        const depId = nameToId[depName];
+        if (depId && hasCycle(depId)) return true;
+      }
+    }
+    recStack.delete(currentId);
+    return false;
+  }
+
+  if (metricId) return hasCycle(metricId);
+  for (const m of tempMetrics) {
+    if (hasCycle(m.id)) return true;
+  }
+  return false;
+}
+
+export function topologicalSort(metrics: Metric[]): Metric[] {
+  const nameToMetric: Record<string, Metric> = {};
+  metrics.forEach(m => {
+    nameToMetric[m.name] = m;
+  });
+
+  const sorted: Metric[] = [];
+  const visited = new Set<string>();
+  const temp = new Set<string>();
+
+  function visit(metric: Metric) {
+    if (temp.has(metric.id) || visited.has(metric.id)) return;
+    temp.add(metric.id);
+
+    for (const depName of extractMetricReferences(metric.formula || '0')) {
+      const dep = nameToMetric[depName];
+      if (dep) visit(dep);
+    }
+
+    temp.delete(metric.id);
+    visited.add(metric.id);
+    sorted.push(metric);
+  }
+
+  metrics.forEach(m => {
+    if (!visited.has(m.id)) visit(m);
+  });
+  return sorted;
+}
+
+export function recalculateMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}): Metric[] {
+  const sorted = topologicalSort(metrics);
+  const nameToMetric: Record<string, Metric> = {};
+  sorted.forEach(m => {
+    nameToMetric[m.name] = m;
+  });
+
+  const nameToFormula: Record<string, string> = {};
+  sorted.forEach(m => {
+    nameToFormula[m.name] = m.formula || '0';
+  });
+
+  sorted.forEach(metric => {
+    const isLeaf = !metric.formula || metric.formula.trim() === '0';
+    if (isLeaf && metric.timePreference?.enabled) {
+      // Leaf with TP: blend current value with market consensus at future dates
+      metric.currentTotal = metric.value;
+      if (metric.missingMarkets?.length) {
+        metric.total = null;
+      } else {
+        const { halfLife, density } = metric.timePreference;
+        let weightedSum = WEIGHT_T0 * metric.value;
+        let totalWeight = WEIGHT_T0;
+        for (const { date, weight } of sampleTimePoints(halfLife, density)) {
+          const consensusAtT = consensusMap[`${metric.name}:${date}`] ?? metric.value;
+          weightedSum += weight * consensusAtT;
+          totalWeight += weight;
+        }
+        metric.total = totalWeight > 0 ? weightedSum / totalWeight : metric.value;
+      }
+    } else if (isLeaf) {
+      metric.total = metric.value;
+      metric.currentTotal = metric.value;
+    } else if (metric.timePreference?.enabled) {
+      if (metric.missingMarkets?.length) {
+        metric.total = null;
+        metric.currentTotal = null;
+      } else {
+        const { halfLife, density } = metric.timePreference;
+        const formula = metric.formula;
+
+        const formulaAt0 = evaluateFormula(formula, nameToMetric);
+        metric.currentTotal = formulaAt0;
+        if (formulaAt0 === null) {
+          metric.total = null;
+        } else {
+          let weightedSum = WEIGHT_T0 * formulaAt0;
+          let totalWeight = WEIGHT_T0;
+
+          const memo: Record<string, number> = {};
+          for (const { date, weight } of sampleTimePoints(halfLife, density)) {
+            const formulaAtT = evaluateFormulaAtTime(formula, nameToFormula, consensusMap, date, memo);
+            weightedSum += weight * formulaAtT;
+            totalWeight += weight;
+          }
+
+          metric.total = totalWeight > 0 ? weightedSum / totalWeight : formulaAt0;
+        }
+      }
+    } else {
+      metric.total = evaluateFormula(metric.formula, nameToMetric);
+      metric.currentTotal = metric.total;
+    }
+  });
+
+  return metrics;
+}
+
+export function calculateMetricDepths(metrics: Metric[]): Record<string, number> {
+  const nameToMetric: Record<string, Metric> = {};
+  metrics.forEach(m => {
+    nameToMetric[m.name] = m;
+  });
+
+  // Build parent→children map (formula references)
+  const children: Record<string, string[]> = {};
+  const referencedIds = new Set<string>();
+  metrics.forEach(metric => {
+    const deps: string[] = [];
+    for (const depName of extractMetricReferences(metric.formula || '0')) {
+      const dep = nameToMetric[depName];
+      if (dep) {
+        deps.push(dep.id);
+        referencedIds.add(dep.id);
+      }
+    }
+    children[metric.id] = deps;
+  });
+
+  // Roots = metrics not referenced by any other metric's formula
+  const roots = metrics.filter(m => !referencedIds.has(m.id));
+
+  // Multi-root BFS
+  const depths: Record<string, number> = {};
+  const queue: Array<{ id: string; depth: number }> = [];
+  for (const root of roots) {
+    depths[root.id] = 0;
+    queue.push({ id: root.id, depth: 0 });
+  }
+
+  while (queue.length > 0) {
+    const { id, depth } = queue.shift()!;
+    for (const childId of children[id] || []) {
+      const newDepth = depth + 1;
+      if (depths[childId] === undefined || newDepth < depths[childId]) {
+        depths[childId] = newDepth;
+        queue.push({ id: childId, depth: newDepth });
+      }
+    }
+  }
+
+  // Any metric still unassigned (e.g. circular refs) gets depth 0
+  metrics.forEach(m => {
+    if (depths[m.id] === undefined) depths[m.id] = 0;
+  });
+
+  return depths;
+}

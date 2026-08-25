@@ -1,0 +1,71 @@
+# Firebase
+.firebaserc
+firebase-debug.log
+firestore-debug.log
+
+# Node
+node_modules/
+npm-debug.log
+
+# Build output
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local development
+*.local
+.env
+.env.*
+!.env.example
+!.env.local.example
+.emulator-data/
+
+
+.firebase/
+functions/.env
+functions/.env.local
+.env
+.playwright-mcp/
+flow-audit-*/
+
+# Local debug artifacts (screenshots at repo root, TS incremental build cache)
+/*.png
+tsconfig.tsbuildinfo
+.gstack/
+
+# Claude Code runtime state (not application code)
+.claude/
+
+# Browse-test runner output (per-run logs, reports, evidence)
+qa-runs/
+qa-results.md
+ux-grade.md
+
+
+# Concierge program PII (real founder names) stays local
+docs/outreach/concierge/tracking.md
+docs/outreach/concierge/candidates.md
+scripts/.local-floor-maker.json
+.context/
+
+# Keys, certs, cloud credentials, local databases
+*.pem
+*.key
+*.p12
+*-key.json
+service-account*.json
+gha-creds-*.json
+pgdata/
+*.pgdata
+*.sqlite
+*.db
+dist-beta/

@@ -1,0 +1,13 @@
+-- A metric declares whether its number restarts each period.
+--
+-- NULL (the default, and every existing row) means it accumulates or is a
+-- level: its whole logged history is one trajectory, which is what "LookPilot
+-- net 2026" is. Set to a period, it means the number restarts there, so a
+-- reading belongs only to the period it was taken in.
+--
+-- The floor's actual-vs-forecast chart needs this to be honest: with no such
+-- declaration it drew last week's $1,180 total as this week's actual, on a
+-- market about a week that had barely started (owner report 2026-08-17).
+-- Settlement already worked this way - the fixing is the metric's value as of
+-- resolvesOn - so this only brings the drawing in line with the arithmetic.
+ALTER TABLE metrics ADD COLUMN IF NOT EXISTS resets_every text;

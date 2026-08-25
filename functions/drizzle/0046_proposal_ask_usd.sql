@@ -1,0 +1,19 @@
+-- 0046: The job's price as a number, not as prose.
+--
+-- Why: under the paid-jobs charter every proposal is a job with a price, and
+-- the propose form already requires that price as a numeric field. It was
+-- then composed into the title ("$80: ...") and read back out with a regex,
+-- which is a number thrown away and reconstructed.
+--
+-- That was survivable while the ask was only ever displayed. It stops being
+-- survivable now that burn (the summed cost of approved jobs) is subtracted
+-- inside the resolving metric: a title the parser does not expect makes the
+-- metric silently wrong, and a mutable text field feeding the metric is a
+-- standing invitation to massage the number the charter promises cannot be
+-- massaged.
+--
+-- Nullable: proposals created before this have their ask only in the title,
+-- and callers that never send one (the API is open to any participant) still
+-- work. Integer USD; cents are noise at this scale and invite float drift in
+-- a term that feeds a resolving value.
+ALTER TABLE "proposals" ADD COLUMN IF NOT EXISTS "ask_usd" integer;

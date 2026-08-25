@@ -1,0 +1,295 @@
+name: Deploy backend to Cloud Run
+
+# Auto-deploys the Express+Vite app to the existing `api` Cloud Run service
+# whenever main moves. Mirrors `npm run deploy` from package.json so the
+# behavior is identical to the manual path. See docs/infra/deploy.md for
+# the one-time GCP setup this workflow depends on.
+#
+# The suite runs FIRST and the deploy needs it (owner ask 2026-08-15). A red
+# suite means main simply does not ship; the previous revision keeps serving.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/workflows/deploy.yml'        # frontend-only gh-pages job
+      - '.github/workflows/telarchy-self-sync.yml'
+  workflow_dispatch: {}
+
+# A single in-flight deploy at a time, but the in-flight run is never cancelled:
+# it always finishes and lands a candidate (owner ask 2026-08-22, "one that does
+# not stop until a build is finished"). While it runs, a new push is held
+# pending, and GitHub cancels any older pending run so only the NEWEST queued
+# commit waits, then runs next and becomes the new stubborn one. That is the
+# stubborn+chaser design without a dispatcher: forward progress is guaranteed
+# (nothing starves the way cancel-in-progress:true did under heavy churn from
+# many concurrent sessions), and the build that runs next is always the latest.
+# We deliberately do NOT run two builds at once: the runners are the bottleneck
+# (self-hosted, often saturated), and there is a single shared `candidate` tag
+# that two concurrent deploys would clobber.
+concurrency:
+  group: cloud-run-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write   # required for Workload Identity Federation auth
+
+jobs:
+  # Type check and the frontend suite: fast, and a type error is a clearer
+  # failure than the test that would trip over it.
+  checks:
+    name: Type check and frontend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
+        working-directory: functions
+      - run: npm run typecheck
+      - run: npm run test:frontend
+      # The production bundle. `typecheck` runs tsc, which does not catch a
+      # broken import path, a missing asset or a Vite plugin failure; those
+      # used to surface only in the deploy job, after the gate had passed.
+      - run: npm run build
+
+  # The backend suite, sharded three ways. Every suite boots its own pglite
+  # and applies every migration, so one runner holding all 82 was dying
+  # around the eight-minute mark with SIGTERM (exit 143) and taking the gate
+  # down with it. Three runners finish in a third of the wall clock and stay
+  # well inside the runner's memory.
+  backend:
+    name: Backend tests (shard ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+        working-directory: functions
+      - run: npm run test:ci -- --shard=${{ matrix.shard }}/3
+        working-directory: functions
+
+  deploy:
+    needs: [checks, backend]
+    runs-on: ubuntu-latest
+    # The production environment's deployment-branch rule is main only; its
+    # secrets and variables are the managed instance's, never a fork's.
+    environment: production
+    timeout-minutes: 20
+    steps:
+      # Full history: the data room's change log is generated from git below,
+      # and a shallow clone would publish one commit as the whole log.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Before doing anything, check whether ANY auth path is configured.
+      # On a fresh repo neither WIF nor SA key is set — we skip the deploy
+      # cleanly so the first run doesn't show as a red failure. See
+      # docs/infra/deploy.md for the one-time setup.
+      - name: Check auth configured
+        id: auth_check
+        env:
+          HAS_SA_KEY: ${{ secrets.GCP_SA_KEY != '' }}
+        run: |
+          if [ "${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}" = "" ] && [ "$HAS_SA_KEY" != "true" ]; then
+            echo "::warning::No GCP auth configured — skipping deploy. Set up either GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_DEPLOY_SERVICE_ACCOUNT (vars) or GCP_SA_KEY (secret). See docs/infra/deploy.md."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Auth path: prefer Workload Identity Federation when configured (no
+      # JSON keys in secrets), fall back to a service-account JSON key.
+      # Only ONE of these blocks runs — gated by which secrets are populated.
+      - name: 'gcloud auth (WIF)'
+        if: steps.auth_check.outputs.skip != 'true' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: 'gcloud auth (SA key)'
+        if: steps.auth_check.outputs.skip != 'true' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER == ''
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        if: steps.auth_check.outputs.skip != 'true'
+        with:
+          project_id: ${{ vars.GCP_PROJECT }}
+
+      - uses: actions/setup-node@v4
+        if: steps.auth_check.outputs.skip != 'true'
+        with:
+          node-version: '22'
+
+      # Migrations run BEFORE the deploy so the new container starts against
+      # the schema it expects. Path: download cloud-sql-proxy, tunnel to the
+      # Cloud SQL instance, read the prod DATABASE_URL from Secret Manager
+      # (rewriting its socket host to the local tunnel), then `drizzle-kit
+      # migrate` from functions/.
+      - name: Apply pending database migrations
+        if: steps.auth_check.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+
+          # 1. Download cloud-sql-proxy
+          PROXY_VERSION=v2.20.0
+          curl -fsSL -o /tmp/cloud-sql-proxy \
+            "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/${PROXY_VERSION}/cloud-sql-proxy.linux.amd64"
+          chmod +x /tmp/cloud-sql-proxy
+
+          # 2. Tunnel
+          /tmp/cloud-sql-proxy ${{ vars.CLOUDSQL_INSTANCE }} --port=5435 > /tmp/proxy.log 2>&1 &
+          PROXY_PID=$!
+          trap 'kill $PROXY_PID 2>/dev/null || true' EXIT
+          # Wait until the proxy accepts connections (~5s typically)
+          for _ in $(seq 1 30); do
+            if nc -z 127.0.0.1 5435 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if ! nc -z 127.0.0.1 5435; then
+            echo "cloud-sql-proxy never came up; log:"; cat /tmp/proxy.log; exit 1
+          fi
+
+          # 3. Read prod DATABASE_URL and swap the host for the local tunnel
+          PROD_URL=$(gcloud secrets versions access latest \
+            --secret=DATABASE_URL --project=${{ vars.GCP_PROJECT }})
+          PASSWORD=$(python3 -c "
+          import sys, urllib.parse
+          p = urllib.parse.urlparse('$PROD_URL')
+          print(p.password or '')
+          ")
+          if [ -z "$PASSWORD" ]; then
+            echo "Couldn't parse password from DATABASE_URL"; exit 1
+          fi
+          export DATABASE_URL="postgresql://telarchy:${PASSWORD}@127.0.0.1:5435/telarchy"
+
+          # 4. Install drizzle-kit (functions/) and migrate
+          cd functions
+          npm ci --no-audit --no-fund
+          npx drizzle-kit migrate
+
+          # 5. The beta store gets the same migrations, in the same run
+          # (owner ask 2026-08-20). It is a second database on the same
+          # instance, so it is the same tunnel and the same password; only the
+          # database name differs. A beta whose schema lags production is a
+          # beta that fails on the code it exists to test, so this is not
+          # optional and not a separate job.
+          export DATABASE_URL="postgresql://telarchy:${PASSWORD}@127.0.0.1:5435/telarchy_beta"
+          npx drizzle-kit migrate
+
+      # The data room's change log is generated from git, and the container
+      # image has no .git (the Dockerfile copies functions/src, not the
+      # repository). Regenerating it here means the deployed page publishes the
+      # history the deploy actually contains. See docs/data-room.md.
+      - name: Regenerate the change log
+        if: steps.auth_check.outputs.skip != 'true'
+        run: node scripts/build-changelog.mjs
+
+      # Safe deploy (tag-then-promote): land the new revision with NO traffic
+      # under a tag, smoke-test its isolated URL, and only then shift 100% of
+      # traffic to it. A bad build fails the smoke test and is never promoted
+      # (the previous revision keeps serving every user), so a broken push
+      # cannot take the site down. Rollback is one command:
+      #   gcloud run services update-traffic api --region us-central1 \
+      #     --to-revisions <PREVIOUS_REVISION>=100
+      #
+      # Note on migrations (step above): they run against prod before this,
+      # while the OLD revision is still serving, so every migration MUST be
+      # backward-compatible (expand/contract): additive changes ship in one
+      # deploy; drop/rename splits across two (stop using the column, then a
+      # later deploy drops it). See docs/infra/deploy.md.
+      #
+      # ALLOWED_ORIGIN + the master-key / GitHub-secret refs are declared here
+      # so the config is reproducible in code, not only set imperatively on the
+      # service (they are merged, so other secrets/env are untouched).
+      #
+      # TRUSTED_ORIGINS is the beta's own origin. Without it BetterAuth answers
+      # every sign-in there with 403 INVALID_ORIGIN, so nobody can log in on
+      # the beta, so nobody sees the Publish button, so nothing can ever be
+      # published from it (found the hard way, 2026-08-20). The candidate tag
+      # URL is stable across deploys, which is what makes hardcoding it safe.
+      # It is deliberately NOT added to ALLOWED_ORIGIN: that names the
+      # published site, and publicOrigins() uses it to decide what gets
+      # X-Robots-Tag: noindex.
+      - name: Deploy candidate (no traffic)
+        if: steps.auth_check.outputs.skip != 'true'
+        run: |
+          gcloud run deploy api \
+            --source . \
+            --region us-central1 \
+            --no-traffic --tag candidate \
+            --allow-unauthenticated \
+            --memory 512Mi \
+            --cpu 1 \
+            --min-instances 1 \
+            --max-instances 4 \
+            --set-cloudsql-instances ${{ vars.CLOUDSQL_INSTANCE }} \
+            --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app \
+            --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest \
+            --clear-base-image \
+            --quiet
+
+      - name: Smoke-test the candidate revision
+        if: steps.auth_check.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          # `describe` has no --filter; pull the traffic list as JSON and pick
+          # the URL tagged "candidate" (the no-traffic revision we just landed).
+          CAND_URL=$(gcloud run services describe api --region us-central1 --format=json \
+            | python3 -c "import sys,json; t=json.load(sys.stdin).get('status',{}).get('traffic',[]); print(next((x.get('url','') for x in t if x.get('tag')=='candidate'), ''))")
+          echo "Candidate URL: $CAND_URL"
+          [ -n "$CAND_URL" ] || { echo "no candidate URL found"; exit 1; }
+          ok=""
+          for _ in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$CAND_URL/api/public-config" || true)
+            echo "  /api/public-config -> $code"
+            if [ "$code" = "200" ]; then ok=1; break; fi
+            sleep 3
+          done
+          [ -n "$ok" ] || { echo "candidate failed smoke test; NOT promoting (prod still serves the previous revision)"; exit 1; }
+
+      # NO AUTOMATIC PROMOTE (owner decision 2026-08-20: "i think deploying to
+      # prod is too easy"). A green build lands here as a revision carrying no
+      # traffic and stops. telarchy.com keeps serving whatever it served
+      # before; the new code exists only at the candidate's own URL, which
+      # telarchy.com/beta sends a platform admin to. It goes public when the
+      # owner presses Publish on the beta, which shifts traffic to the exact
+      # revision they were looking at (POST /api/admin/publish, see
+      # functions/src/services/release.ts and docs/infra/deploy.md).
+      #
+      # To publish from a terminal instead:
+      #   gcloud run services update-traffic api --region us-central1 --to-latest
+      - name: Report the candidate, do not promote
+        if: steps.auth_check.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          CAND_URL=$(gcloud run services describe api --region us-central1 --format=json \
+            | python3 -c "import sys,json; t=json.load(sys.stdin).get('status',{}).get('traffic',[]); print(next((x.get('url','') for x in t if x.get('tag')=='candidate'), ''))")
+          {
+            echo "### Waiting to be published"
+            echo ""
+            echo "Tests passed and this build is live at its own URL, with no public traffic."
+            echo ""
+            echo "- Beta: <https://telarchy.com/beta> (platform admin only)"
+            echo "- Direct: <$CAND_URL>"
+            echo ""
+            echo "telarchy.com is still serving the previous build. Press **Publish this build**"
+            echo "on the beta when it looks right."
+          } >> "$GITHUB_STEP_SUMMARY"

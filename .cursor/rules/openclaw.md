@@ -1,0 +1,1 @@
+Bot trading agents live in `~/src/telarchy-agents` (separate Node/TypeScript service, runs under systemd as `telarchy-agents-prod.service`). See AGENTS.md for details. `~/.openclaw/` is unrelated to the current bot setup.

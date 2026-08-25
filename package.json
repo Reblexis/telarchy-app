@@ -1,0 +1,80 @@
+{
+  "name": "telarchy",
+  "version": "1.0.0",
+  "description": "Decision markets for any metric: participants, human or AI, price every proposed action before you commit.",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Reblexis/telarchy-app.git"
+  },
+  "homepage": "https://telarchy.com",
+  "bugs": {
+    "url": "https://github.com/Reblexis/telarchy-app/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm --prefix functions run dev\" \"vite\"",
+    "build": "node scripts/build-guides.mjs && tsc -b && vite build",
+    "build:guides": "node scripts/build-guides.mjs",
+    "knip": "knip",
+    "build:functions": "npm --prefix functions run build",
+    "predeploy": "node scripts/build-changelog.mjs",
+    "deploy": "sh scripts/deploy-managed.sh",
+    "preview": "vite preview",
+    "test": "npm --prefix functions run test && npm run test:frontend",
+    "test:frontend": "vitest run",
+    "test:frontend:watch": "vitest",
+    "test:integration": "node scripts/test-integration.ts",
+    "test:db": "npx tsx scripts/test-db-consistency.ts",
+    "migrate:participants": "node scripts/migrate-participant-identity.mjs",
+    "test:ci": "npm --prefix functions run test:ci && npm run test:frontend",
+    "typecheck": "tsc -b && npm --prefix functions run build",
+    "build:beta": "BASE_PATH=/beta/ VITE_API_URL=/beta vite build --outDir dist-beta",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "prepare": "simple-git-hooks"
+  },
+  "dependencies": {
+    "better-auth": "^1.5.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.1.0",
+    "remark-breaks": "^4.0.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.10",
+    "@tailwindcss/vite": "^4.2.3",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "@vitest/ui": "^4.1.5",
+    "concurrently": "^9.2.1",
+    "drizzle-orm": "^0.45.2",
+    "jsdom": "^29.0.2",
+    "knip": "^6.32.2",
+    "lint-staged": "^17.3.0",
+    "pg": "^8.20.0",
+    "simple-git-hooks": "^2.13.1",
+    "tailwindcss": "^4.2.3",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^4.1.5"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,mjs,cjs,json}": "biome check --write --no-errors-on-unmatched"
+  }
+}

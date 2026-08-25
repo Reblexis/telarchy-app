@@ -1,0 +1,38 @@
+name: Telarchy self-sync
+
+# Daily push of the dogfooding workspace's one hero metric ("Weekly active
+# participants") read from the public /api/marketplace/stats route. See
+# the self-sync note (private, umbrella notes). Rebuilt 2026-08-14: the four-metric Firestore-era
+# sync died in the Postgres migration and zombie-failed daily.
+
+on:
+  schedule:
+    # 23:40 UTC: pre-boundary, the same settlement discipline as LookPilot's
+    # KPI sync. Markets settle on the last value at-or-before the next-day
+    # 00:00 UTC boundary, so the daily push lands just inside it.
+    - cron: '40 23 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: telarchy-self-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run self-sync
+        env:
+          TELARCHY_SELF_SYNC_KEY: ${{ secrets.TELARCHY_SELF_SYNC_KEY }}
+          TELARCHY_SELF_SYNC_WORKSPACE: ${{ secrets.TELARCHY_SELF_SYNC_WORKSPACE }}
+        run: node scripts/telarchy-self-sync.js

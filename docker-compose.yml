@@ -1,0 +1,71 @@
+# Self-hosted Telarchy: Postgres plus the app image. `cp .env.example .env`,
+# set API_KEY and BETTER_AUTH_SECRET, then `docker compose up`. The app
+# migrates its own database on start (AUTO_MIGRATE=true below).
+#
+# Upgrading from the pre-2026-08 project name (metrics-tracker): the volume was
+# metrics-tracker_db_data. Either `docker volume create telarchy_db_data &&
+# docker run --rm -v metrics-tracker_db_data:/from -v telarchy_db_data:/to alpine
+# cp -a /from/. /to/`, or start fresh.
+name: telarchy
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: telarchy
+      POSTGRES_USER: telarchy
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telarchy"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    # The published image; `build: .` is the fallback when you change the code.
+    image: ghcr.io/reblexis/telarchy:latest
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      DATABASE_URL: postgres://telarchy:${DB_PASSWORD:-changeme}@db:5432/telarchy
+      AUTO_MIGRATE: "true"
+      API_KEY: ${API_KEY}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8080}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:8080}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-*}
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-}
+      TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-}
+      ALLOW_LOCALHOST_CORS: ${ALLOW_LOCALHOST_CORS:-}
+      PROD_HOSTS: ${PROD_HOSTS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      PRIVACY_CONTACT: ${PRIVACY_CONTACT:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      # Signup credit grant (default 1000; set 0 to issue credits only
+      # through admin crediting or transfers).
+      SIGNUP_CREDITS: ${SIGNUP_CREDITS:-}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      # Real-money settlement (self-hosted only). Off by default; when on, a
+      # parseable TREASURY_PRIVATE_KEY is required at boot. Never a funded
+      # wallet you use for anything else.
+      USDC_SETTLEMENT_ENABLED: ${USDC_SETTLEMENT_ENABLED:-false}
+      TREASURY_PRIVATE_KEY: ${TREASURY_PRIVATE_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      PORT: 8080
+    restart: unless-stopped
+
+volumes:
+  db_data:
