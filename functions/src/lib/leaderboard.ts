@@ -123,7 +123,7 @@ export function computeTradingProfit(
   const out = new Map<string, number>();
   for (const id of new Set([...value.keys(), ...netCashByAgent.keys()])) {
     const v = value.get(id);
-    const profit = ((v?.settled ?? 0) + (v?.open ?? 0)) - (netCashByAgent.get(id) ?? 0);
+    const profit = (v?.settled ?? 0) + (v?.open ?? 0) - (netCashByAgent.get(id) ?? 0);
     out.set(id, Math.round(profit * 100) / 100);
   }
   return out;
@@ -238,7 +238,10 @@ export function computeCalibrationStats(
     const actual = Math.min(m.actualValue, m.rangeMax);
     factorsByKey.set(marketKey(m.workspaceId, m.id), resolutionPayouts(actual, m.rangeMin, m.rangeMax));
   }
-  const acc = new Map<string, { weightSum: number; weightedFactor: number; correct: number; n: number; markets: Set<string> }>();
+  const acc = new Map<
+    string,
+    { weightSum: number; weightedFactor: number; correct: number; n: number; markets: Set<string> }
+  >();
   for (const p of positionsList) {
     if (p.shares <= 0) continue;
     const k = marketKey(p.workspaceId, p.marketId);
@@ -246,7 +249,10 @@ export function computeCalibrationStats(
     if (!factors) continue;
     const factor = p.direction === 'higher' ? factors[1] : factors[0];
     let s = acc.get(p.agentId);
-    if (!s) { s = { weightSum: 0, weightedFactor: 0, correct: 0, n: 0, markets: new Set() }; acc.set(p.agentId, s); }
+    if (!s) {
+      s = { weightSum: 0, weightedFactor: 0, correct: 0, n: 0, markets: new Set() };
+      acc.set(p.agentId, s);
+    }
     s.weightSum += p.shares;
     s.weightedFactor += p.shares * factor;
     s.n += 1;
@@ -356,7 +362,11 @@ export function computeLeaderboard(
 
   const resolvedMarkets = marketsList.filter(m => m.resolved && m.actualValue !== null);
   return computeLeaderboardFromAggregates(
-    resolvedMarkets, Array.from(aggById.values()), positionsList, nicknameById, limit,
+    resolvedMarkets,
+    Array.from(aggById.values()),
+    positionsList,
+    nicknameById,
+    limit,
   );
 }
 
@@ -387,7 +397,10 @@ export function computeLeaderboardFromAggregates(
   const stats = new Map<string, AgentStats>();
   const ensure = (id: string): AgentStats => {
     let s = stats.get(id);
-    if (!s) { s = emptyStats(); stats.set(id, s); }
+    if (!s) {
+      s = emptyStats();
+      stats.set(id, s);
+    }
     return s;
   };
 

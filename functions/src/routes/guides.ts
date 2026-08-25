@@ -16,10 +16,23 @@ export const guidesRouter = Router();
 export type GuideCategoryId = 'start' | 'metrics' | 'forecast' | 'api';
 
 export const GUIDE_CATEGORIES: Array<{ id: GuideCategoryId; title: string; description: string }> = [
-  { id: 'start',    title: 'Start here',           description: 'A 5-minute orientation. Read this first.' },
-  { id: 'metrics',  title: 'Define your metrics',  description: 'How to design, create, and compose metrics so the system optimizes what you actually want.' },
-  { id: 'forecast', title: 'Forecast and decide',  description: 'How prediction markets price proposals against your metrics, and how decisions flow through proposals.' },
-  { id: 'api',      title: 'Build with the API',   description: 'Authenticate, write bots, observe them, and look up endpoints.' },
+  { id: 'start', title: 'Start here', description: 'A 5-minute orientation. Read this first.' },
+  {
+    id: 'metrics',
+    title: 'Define your metrics',
+    description: 'How to design, create, and compose metrics so the system optimizes what you actually want.',
+  },
+  {
+    id: 'forecast',
+    title: 'Forecast and decide',
+    description:
+      'How prediction markets price proposals against your metrics, and how decisions flow through proposals.',
+  },
+  {
+    id: 'api',
+    title: 'Build with the API',
+    description: 'Authenticate, write bots, observe them, and look up endpoints.',
+  },
 ];
 
 // The sections themselves are documentation and live as markdown under
@@ -49,14 +62,16 @@ function compareSections(a: GuideSection, b: GuideSection): number {
 // descriptions) is exposed via GET /api/guides/_categories below.
 guidesRouter.get('/', (_req, res) => {
   const sorted = [...sections].sort(compareSections);
-  res.json(sorted.map(({ id, title, description, category, order }) => ({
-    id,
-    title,
-    description,
-    category,
-    order,
-    path: `/api/guides/${id}`,
-  })));
+  res.json(
+    sorted.map(({ id, title, description, category, order }) => ({
+      id,
+      title,
+      description,
+      category,
+      order,
+      path: `/api/guides/${id}`,
+    })),
+  );
 });
 
 // GET /api/guides/_categories - category metadata, in render order. Kept

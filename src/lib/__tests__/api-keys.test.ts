@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { api, setActiveWorkspace } from '../api';
 
 /**
@@ -11,9 +11,13 @@ describe('api.ts key-management wrappers', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
   beforeEach(() => {
     setActiveWorkspace('ws-1');
-    fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), {
-      status: 200, headers: { 'content-type': 'application/json' },
-    }));
+    fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
     vi.stubGlobal('fetch', fetchMock);
   });
   afterEach(() => {

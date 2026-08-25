@@ -20,22 +20,25 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, permissionGroups } from '../db/schema';
+import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
 import { toUnits } from '../lib/validation';
 import { agentsRouter } from '../routes/agents';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
 app.use('/api/agents', agentsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof AppError) { res.status(err.status).json({ error: err.message }); return; }
+  if (err instanceof AppError) {
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
   res.status(500).json({ error: (err as Error).message ?? 'Internal error' });
 });
 
@@ -43,22 +46,29 @@ const WS = 'ws-register-auto-add';
 const OWNER = 'agent-owner-rg';
 const NEW_AGENT = 'agent-new-rg';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 async function seedWorkspace() {
   await db.insert(agents).values({ id: OWNER, apiKeyHash: 'h-owner-rg', balance: toUnits(0) });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Register Auto-Add Test', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'public',
+    wsId: WS,
+    name: 'Register Auto-Add Test',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'public',
   });
 }
 
 describe('POST /api/agents/register auto-add', () => {
   test('adds the new agent to the Public group', async () => {
     await seedWorkspace();
-    const r = await request(app).post('/api/agents/register')
-      .send({ agentId: NEW_AGENT, workspaceId: WS });
+    const r = await request(app).post('/api/agents/register').send({ agentId: NEW_AGENT, workspaceId: WS });
     expect(r.status).toBe(201);
 
     const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS));
@@ -68,8 +78,7 @@ describe('POST /api/agents/register auto-add', () => {
 
   test('does NOT add the new agent to the Trader group', async () => {
     await seedWorkspace();
-    const r = await request(app).post('/api/agents/register')
-      .send({ agentId: NEW_AGENT, workspaceId: WS });
+    const r = await request(app).post('/api/agents/register').send({ agentId: NEW_AGENT, workspaceId: WS });
     expect(r.status).toBe(201);
 
     const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS));

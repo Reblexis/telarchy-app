@@ -84,8 +84,11 @@ describe('publishRevision speaks ReplaceService', () => {
     // ...and the candidate tag survived, so /beta keeps resolving.
     expect(body.spec.traffic).toContainEqual({ revisionName: 'api-00999-new', tag: 'candidate' });
     // Nothing untagged points at the old revision any more.
-    expect(body.spec.traffic.filter((t: { revisionName?: string; tag?: string }) =>
-      t.revisionName === 'api-00998-old' && !t.tag)).toHaveLength(0);
+    expect(
+      body.spec.traffic.filter(
+        (t: { revisionName?: string; tag?: string }) => t.revisionName === 'api-00998-old' && !t.tag,
+      ),
+    ).toHaveLength(0);
   });
 
   test('never PATCHes (the method the API answers with an HTML 404)', async () => {

@@ -82,7 +82,8 @@ export const SETUP_SPEC: SetupDecision[] = [
   {
     id: 'context',
     label: 'What traders see',
-    question: 'What do forecasters and contractors need to know that is not on the page, and how much of it are you willing to publish?',
+    question:
+      'What do forecasters and contractors need to know that is not on the page, and how much of it are you willing to publish?',
     why: 'Forecasting a business you cannot see is guessing, and guesses price badly. Everything here is public, so this is a real decision about disclosure rather than a form field: what you share is what the price is worth.',
     options: [
       'A public "what is this" blurb and sources on the market',
@@ -107,7 +108,8 @@ export const SETUP_SPEC: SetupDecision[] = [
   {
     id: 'contracts',
     label: 'Contracts',
-    question: 'When someone offers to do paid work for you, does its market get funded automatically, or do you decide per contract?',
+    question:
+      'When someone offers to do paid work for you, does its market get funded automatically, or do you decide per contract?',
     why: 'A contract nobody has priced is a contract you are approving on a feeling. Funding every one is simple and wasteful; funding by hand means the good ones sometimes sit unpriced. An agent reading the contract can decide, which is the version that scales without going blind.',
     options: [
       'Auto-fund every contract market with a flat amount',

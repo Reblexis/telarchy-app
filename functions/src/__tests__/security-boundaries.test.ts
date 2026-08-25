@@ -27,7 +27,12 @@ jest.mock('../middleware/auth', () => {
       req.auth = {
         agentId: req.headers['x-test-agent-id'],
         workspaceId: req.headers['x-workspace-id'],
-        capabilities: new Set(capsHeader.split(',').map((c: string) => c.trim()).filter(Boolean)),
+        capabilities: new Set(
+          capsHeader
+            .split(',')
+            .map((c: string) => c.trim())
+            .filter(Boolean),
+        ),
       };
       next();
     },
@@ -47,23 +52,24 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, permissionGroups, workspaces } from '../db/schema';
+import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import { agentsRouter } from '../routes/agents';
 import { workspacesRouter } from '../routes/workspaces';
-import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
 // The register route mounts its own optional auth; everything else in these
 // tests goes through the mocked authMiddleware.
 app.use('/api/agents', (req, res, next) =>
-  req.path === '/register' ? optionalAuthMiddleware(req, res, next) : authMiddleware(req, res, next));
+  req.path === '/register' ? optionalAuthMiddleware(req, res, next) : authMiddleware(req, res, next),
+);
 app.use('/api/agents', agentsRouter);
 app.use('/api/workspaces', authMiddleware, workspacesRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -72,8 +78,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const OWNER_A = 'agent-owner-a';
 const OWNER_B = 'agent-owner-b';
@@ -86,7 +96,9 @@ async function seed(visibilityA: 'public' | 'unlisted' | 'private' = 'public') {
     { id: OWNER_A, apiKeyHash: 'h-owner-a', balance: 0 },
     { id: OWNER_B, apiKeyHash: 'h-owner-b', balance: 0 },
     {
-      id: MEMBER_A, apiKeyHash: 'h-member-a', balance: 0,
+      id: MEMBER_A,
+      apiKeyHash: 'h-member-a',
+      balance: 0,
       payoutHandle: 'PayPal: member@example.com',
       payoutMethod: { provider: 'paypal', email: 'member@example.com' },
       walletAddress: '0x1111111111111111111111111111111111111111',
@@ -95,16 +107,27 @@ async function seed(visibilityA: 'public' | 'unlisted' | 'private' = 'public') {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS_A, name: 'Workspace A', createdBy: OWNER_A, ownerAgentId: OWNER_A, visibility: visibilityA,
+    wsId: WS_A,
+    name: 'Workspace A',
+    createdBy: OWNER_A,
+    ownerAgentId: OWNER_A,
+    visibility: visibilityA,
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS_B, name: 'Workspace B', createdBy: OWNER_B, ownerAgentId: OWNER_B, visibility: 'public',
+    wsId: WS_B,
+    name: 'Workspace B',
+    createdBy: OWNER_B,
+    ownerAgentId: OWNER_B,
+    visibility: 'public',
   });
   // MEMBER_A joins workspace A's Public group.
-  const [publicA] = await db.select().from(permissionGroups)
+  const [publicA] = await db
+    .select()
+    .from(permissionGroups)
     .where(and(eq(permissionGroups.workspaceId, WS_A), eq(permissionGroups.type, 'public')));
-  await db.update(permissionGroups)
+  await db
+    .update(permissionGroups)
     .set({ memberIds: [...((publicA.memberIds as string[]) ?? []), MEMBER_A] })
     .where(eq(permissionGroups.id, publicA.id));
 }
@@ -112,22 +135,23 @@ async function seed(visibilityA: 'public' | 'unlisted' | 'private' = 'public') {
 describe('POST /api/agents/register respects workspace visibility', () => {
   test('anonymous registration into a private workspace 404s and creates nothing', async () => {
     await seed('private');
-    const res = await request(app).post('/api/agents/register')
-      .send({ agentId: 'agent-probe', workspaceId: WS_A });
+    const res = await request(app).post('/api/agents/register').send({ agentId: 'agent-probe', workspaceId: WS_A });
 
     expect(res.status).toBe(404);
     const rows = await db.select().from(agents).where(eq(agents.id, 'agent-probe'));
     expect(rows).toHaveLength(0);
-    const [publicA] = await db.select().from(permissionGroups)
+    const [publicA] = await db
+      .select()
+      .from(permissionGroups)
       .where(and(eq(permissionGroups.workspaceId, WS_A), eq(permissionGroups.type, 'public')));
     expect((publicA.memberIds as string[]) ?? []).not.toContain('agent-probe');
   });
 
   test('a private workspace is indistinguishable from a missing one', async () => {
     await seed('private');
-    const priv = await request(app).post('/api/agents/register')
-      .send({ agentId: 'agent-probe-2', workspaceId: WS_A });
-    const missing = await request(app).post('/api/agents/register')
+    const priv = await request(app).post('/api/agents/register').send({ agentId: 'agent-probe-2', workspaceId: WS_A });
+    const missing = await request(app)
+      .post('/api/agents/register')
       .send({ agentId: 'agent-probe-3', workspaceId: 'ws-does-not-exist' });
 
     expect(priv.status).toBe(missing.status);
@@ -136,15 +160,15 @@ describe('POST /api/agents/register respects workspace visibility', () => {
 
   test('anonymous registration into a public workspace still works', async () => {
     await seed('public');
-    const res = await request(app).post('/api/agents/register')
-      .send({ agentId: 'agent-new-pub', workspaceId: WS_A });
+    const res = await request(app).post('/api/agents/register').send({ agentId: 'agent-new-pub', workspaceId: WS_A });
     expect(res.status).toBe(201);
     expect(res.body.apiKey).toBeTruthy();
   });
 
   test('the workspace owner can still register a bot into their private workspace', async () => {
     await seed('private');
-    const res = await request(app).post('/api/agents/register')
+    const res = await request(app)
+      .post('/api/agents/register')
       .set('X-Test-Agent-Id', OWNER_A)
       .send({ agentId: 'agent-owner-bot', workspaceId: WS_A });
     expect(res.status).toBe(201);
@@ -154,7 +178,8 @@ describe('POST /api/agents/register respects workspace visibility', () => {
 describe('DELETE /api/agents/:id is bounded to the caller workspace', () => {
   test('manage in workspace B cannot delete a participant of workspace A', async () => {
     await seed();
-    const res = await request(app).delete(`/api/agents/${MEMBER_A}`)
+    const res = await request(app)
+      .delete(`/api/agents/${MEMBER_A}`)
       .set('X-Test-Agent-Id', OWNER_B)
       .set('X-Workspace-Id', WS_B)
       .set('X-Test-Caps', 'read,manage');
@@ -166,7 +191,8 @@ describe('DELETE /api/agents/:id is bounded to the caller workspace', () => {
 
   test('manage in the target participant workspace still deletes', async () => {
     await seed();
-    const res = await request(app).delete(`/api/agents/${MEMBER_A}`)
+    const res = await request(app)
+      .delete(`/api/agents/${MEMBER_A}`)
       .set('X-Test-Agent-Id', OWNER_A)
       .set('X-Workspace-Id', WS_A)
       .set('X-Test-Caps', 'read,manage');
@@ -180,7 +206,8 @@ describe('DELETE /api/agents/:id is bounded to the caller workspace', () => {
 describe('workspace lifecycle routes verify the capability on the PATH workspace', () => {
   test('manage_workspace in A does not delete workspace B', async () => {
     await seed();
-    const res = await request(app).delete(`/api/workspaces/${WS_B}`)
+    const res = await request(app)
+      .delete(`/api/workspaces/${WS_B}`)
       .set('X-Test-Agent-Id', OWNER_A)
       .set('X-Workspace-Id', WS_A);
 
@@ -191,7 +218,8 @@ describe('workspace lifecycle routes verify the capability on the PATH workspace
 
   test('manage in A does not edit workspace B settings', async () => {
     await seed();
-    const res = await request(app).put(`/api/workspaces/${WS_B}/settings`)
+    const res = await request(app)
+      .put(`/api/workspaces/${WS_B}/settings`)
       .set('X-Test-Agent-Id', OWNER_A)
       .set('X-Workspace-Id', WS_A)
       .send({ visibility: 'public' });
@@ -201,7 +229,8 @@ describe('workspace lifecycle routes verify the capability on the PATH workspace
 
   test('the owner of the path workspace passes even with a different header workspace', async () => {
     await seed();
-    const res = await request(app).put(`/api/workspaces/${WS_B}/settings`)
+    const res = await request(app)
+      .put(`/api/workspaces/${WS_B}/settings`)
       .set('X-Test-Agent-Id', OWNER_B)
       .set('X-Workspace-Id', WS_A)
       .send({ description: 'edited by its own owner' });
@@ -211,7 +240,8 @@ describe('workspace lifecycle routes verify the capability on the PATH workspace
 
   test('the owner can still delete their own workspace', async () => {
     await seed();
-    const res = await request(app).delete(`/api/workspaces/${WS_B}`)
+    const res = await request(app)
+      .delete(`/api/workspaces/${WS_B}`)
       .set('X-Test-Agent-Id', OWNER_B)
       .set('X-Workspace-Id', WS_B);
 
@@ -222,11 +252,20 @@ describe('workspace lifecycle routes verify the capability on the PATH workspace
 });
 
 describe('agent reads do not leak payment rails or identity bindings', () => {
-  const PRIVATE_FIELDS = ['apiKeyHash', 'claimTokenHash', 'payoutMethod', 'payoutHandle', 'walletAddress', 'authUserId', 'ownerUserId'];
+  const PRIVATE_FIELDS = [
+    'apiKeyHash',
+    'claimTokenHash',
+    'payoutMethod',
+    'payoutHandle',
+    'walletAddress',
+    'authUserId',
+    'ownerUserId',
+  ];
 
   test('GET /api/agents/:id strips private fields for a workspace manager', async () => {
     await seed();
-    const res = await request(app).get(`/api/agents/${MEMBER_A}`)
+    const res = await request(app)
+      .get(`/api/agents/${MEMBER_A}`)
       .set('X-Test-Agent-Id', OWNER_A)
       .set('X-Workspace-Id', WS_A)
       .set('X-Test-Caps', 'read,manage');
@@ -240,7 +279,8 @@ describe('agent reads do not leak payment rails or identity bindings', () => {
 
   test('GET /api/agents/:id keeps payout fields for the participant itself', async () => {
     await seed();
-    const res = await request(app).get(`/api/agents/${MEMBER_A}`)
+    const res = await request(app)
+      .get(`/api/agents/${MEMBER_A}`)
       .set('X-Test-Agent-Id', MEMBER_A)
       .set('X-Workspace-Id', WS_A);
 
@@ -254,7 +294,8 @@ describe('agent reads do not leak payment rails or identity bindings', () => {
 
   test('GET /api/agents strips private fields from co-member rows', async () => {
     await seed();
-    const res = await request(app).get('/api/agents')
+    const res = await request(app)
+      .get('/api/agents')
       .set('X-Test-Agent-Id', OWNER_A)
       .set('X-Workspace-Id', WS_A)
       .set('X-Test-Caps', 'read,manage');

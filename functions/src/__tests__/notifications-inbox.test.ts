@@ -9,33 +9,59 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import {
-  agents, authUser, markets, marketMessages, permissionGroups, proposals, proposalMessages, trades, workspaces,
+  agents,
+  authUser,
+  marketMessages,
+  markets,
+  permissionGroups,
+  proposalMessages,
+  proposals,
+  trades,
+  workspaces,
 } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { listNotifications, markNotificationRead, markNotificationsSeen } from '../services/notifications';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-inbox';
 
 async function participant(id: string, prefs: Record<string, boolean> = {}) {
   await db.insert(authUser).values({ id: `u-${id}`, name: id, email: `${id}@example.com` });
   await db.insert(agents).values({
-    id, apiKeyHash: `h-${id}`, balance: 0, nickname: id, authUserId: `u-${id}`,
+    id,
+    apiKeyHash: `h-${id}`,
+    balance: 0,
+    nickname: id,
+    authUserId: `u-${id}`,
     // Read state starts in the past, so seeded rows count as unread.
-    notificationsSeenAt: new Date('2020-01-01'), ...prefs,
+    notificationsSeenAt: new Date('2020-01-01'),
+    ...prefs,
   });
 }
 
 async function seedFloor(memberIds: string[]) {
   await db.insert(workspaces).values({
-    id: WS, name: 'LookPilot', createdBy: 'poster', visibility: 'public', slug: 'lookpilot',
+    id: WS,
+    name: 'LookPilot',
+    createdBy: 'poster',
+    visibility: 'public',
+    slug: 'lookpilot',
   });
   await db.insert(permissionGroups).values({
-    id: 'grp', workspaceId: WS, name: 'Traders', type: 'trader', capabilities: ['read', 'trade'], memberIds,
+    id: 'grp',
+    workspaceId: WS,
+    name: 'Traders',
+    type: 'trader',
+    capabilities: ['read', 'trade'],
+    memberIds,
   });
 }
 
@@ -100,13 +126,29 @@ describe('the inbox', () => {
     await participant('trader');
     await seedFloor(['me', 'trader']);
     await db.insert(markets).values({
-      id: 'mkt-1', workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
-      targetDate: '2026-12', rangeMin: 0, rangeMax: 100, shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false,
+      id: 'mkt-1',
+      workspaceId: WS,
+      metricId: 'metric-1',
+      metricName: 'Weekly traders',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
     });
-    const say = (id: string, from: string, content: string, at: Date) => db.insert(marketMessages).values({
-      id, workspaceId: WS, marketId: 'mkt-1', from, content, createdAt: at,
-    });
+    const say = (id: string, from: string, content: string, at: Date) =>
+      db.insert(marketMessages).values({
+        id,
+        workspaceId: WS,
+        marketId: 'mkt-1',
+        from,
+        content,
+        createdAt: at,
+      });
     await say('old', 'trader', 'before me', new Date('2026-08-19T09:00:00Z'));
     await say('mine', 'me', 'my first reply', new Date('2026-08-19T10:00:00Z'));
     await say('after', 'trader', 'answering you', new Date('2026-08-19T11:00:00Z'));
@@ -118,11 +160,21 @@ describe('the inbox', () => {
   });
 
   test('shows an event whose email is switched off', async () => {
-    await participant('me', { notifyCommentOnMyProposal: false, notifyReplyToMyComment: false, notifyNewProposal: false });
+    await participant('me', {
+      notifyCommentOnMyProposal: false,
+      notifyReplyToMyComment: false,
+      notifyNewProposal: false,
+    });
     await participant('other');
     await seedFloor(['me', 'other']);
     await contract('c-mine', 'me', 'My contract');
-    await comment('m1', 'c-mine', 'other', 'you switched the email off, not the fact', new Date('2026-08-19T10:00:00Z'));
+    await comment(
+      'm1',
+      'c-mine',
+      'other',
+      'you switched the email off, not the fact',
+      new Date('2026-08-19T10:00:00Z'),
+    );
 
     const { items } = await listNotifications('me');
     expect(items.map(i => i.kind)).toContain('comment');
@@ -134,13 +186,29 @@ describe('the inbox', () => {
     await seedFloor(['me', 'trader']);
     await contract('c-mine', 'me', 'My contract');
     await db.insert(markets).values({
-      id: 'mkt-cond', workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
-      targetDate: '2026-12', rangeMin: 0, rangeMax: 100, shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: 'c-mine', branch: 'approved',
+      id: 'mkt-cond',
+      workspaceId: WS,
+      metricId: 'metric-1',
+      metricName: 'Weekly traders',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: 'c-mine',
+      branch: 'approved',
     });
     await db.insert(marketMessages).values({
-      id: 'mm1', workspaceId: WS, marketId: 'mkt-cond', from: 'trader',
-      content: 'priced too high', createdAt: new Date('2026-08-19T11:00:00Z'),
+      id: 'mm1',
+      workspaceId: WS,
+      marketId: 'mkt-cond',
+      from: 'trader',
+      content: 'priced too high',
+      createdAt: new Date('2026-08-19T11:00:00Z'),
     });
 
     const { items } = await listNotifications('me');
@@ -159,7 +227,9 @@ describe('the inbox', () => {
     await participant('me');
     await seedFloor(['me']);
     await contract('c-mine', 'me', 'My contract', {
-      status: 'declined', resolvedAt: new Date('2026-08-19T12:00:00Z'), declineReason: 'out of scope this quarter',
+      status: 'declined',
+      resolvedAt: new Date('2026-08-19T12:00:00Z'),
+      declineReason: 'out of scope this quarter',
     });
 
     const { items } = await listNotifications('me');
@@ -223,21 +293,44 @@ describe('the inbox', () => {
 // each kind's web cell decides whether the bell derives it at all).
 
 describe('the matrix in the bell', () => {
-  const market = (id: string, fields: Record<string, unknown> = {}) => db.insert(markets).values({
-    id, workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
-    targetDate: '2026-12', rangeMin: 0, rangeMax: 100, shares: [0, 0], liquidity: 10,
-    pool: initialPool(10), active: true, resolved: false, voided: false, ...fields,
-  });
-  const trade = (id: string, agentId: string, marketId: string) => db.insert(trades).values({
-    id, workspaceId: WS, agentId, marketId, direction: 'higher', shares: 5, cost: 2, createdAt: new Date(),
-  });
+  const market = (id: string, fields: Record<string, unknown> = {}) =>
+    db.insert(markets).values({
+      id,
+      workspaceId: WS,
+      metricId: 'metric-1',
+      metricName: 'Weekly traders',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      ...fields,
+    });
+  const trade = (id: string, agentId: string, marketId: string) =>
+    db.insert(trades).values({
+      id,
+      workspaceId: WS,
+      agentId,
+      marketId,
+      direction: 'higher',
+      shares: 5,
+      cost: 2,
+      createdAt: new Date(),
+    });
 
   test('a market I traded settling lands as a settled item, with the value', async () => {
     await participant('me');
     await participant('other');
     await seedFloor(['me', 'other']);
     await market('mkt-1', {
-      resolved: true, voided: false, active: false, actualValue: 62,
+      resolved: true,
+      voided: false,
+      active: false,
+      actualValue: 62,
       resolvedAt: new Date('2026-08-24T10:00:00Z'),
     });
     await trade('t1', 'me', 'mkt-1');
@@ -254,7 +347,9 @@ describe('the matrix in the bell', () => {
     await participant('other');
     await seedFloor(['me', 'other']);
     await contract('c-theirs', 'other', 'Their contract', {
-      status: 'declined', resolvedAt: new Date('2026-08-24T11:00:00Z'), declineReason: 'not now',
+      status: 'declined',
+      resolvedAt: new Date('2026-08-24T11:00:00Z'),
+      declineReason: 'not now',
     });
     await market('mkt-b', { proposalId: 'c-theirs', branch: 'approved' });
     await trade('t1', 'me', 'mkt-b');
@@ -270,7 +365,11 @@ describe('the matrix in the bell', () => {
     await participant('other');
     await db.insert(authUser).values({ id: 'u-me', name: 'me', email: 'me@example.com' });
     await db.insert(agents).values({
-      id: 'me', apiKeyHash: 'h-me', balance: 0, nickname: 'me', authUserId: 'u-me',
+      id: 'me',
+      apiKeyHash: 'h-me',
+      balance: 0,
+      nickname: 'me',
+      authUserId: 'u-me',
       notificationsSeenAt: new Date('2020-01-01'),
       notificationChannels: { contract: { web: false } },
     });
@@ -286,7 +385,11 @@ describe('the matrix in the bell', () => {
     await participant('other');
     await db.insert(authUser).values({ id: 'u-me', name: 'me', email: 'me@example.com' });
     await db.insert(agents).values({
-      id: 'me', apiKeyHash: 'h-me', balance: 0, nickname: 'me', authUserId: 'u-me',
+      id: 'me',
+      apiKeyHash: 'h-me',
+      balance: 0,
+      nickname: 'me',
+      authUserId: 'u-me',
       notificationsSeenAt: new Date('2020-01-01'),
       notificationChannels: { anyComment: { web: true } },
     });

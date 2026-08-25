@@ -18,11 +18,10 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { BETA_POOL_MAX, POOL_MAX, pool } from '../db/client';
 
-const CONNECTION_BUDGET = 40;   // max_connections=50 minus operational headroom
+const CONNECTION_BUDGET = 40; // max_connections=50 minus operational headroom
 
 function deployedMaxInstances(): number {
-  const workflow = readFileSync(
-    join(__dirname, '../../../.github/workflows/deploy-cloudrun.yml'), 'utf8');
+  const workflow = readFileSync(join(__dirname, '../../../.github/workflows/deploy-cloudrun.yml'), 'utf8');
   const m = workflow.match(/--max-instances\s+(\d+)/);
   if (!m) throw new Error('deploy-cloudrun.yml no longer sets --max-instances');
   return Number(m[1]);
@@ -38,7 +37,7 @@ describe('connection budget invariant', () => {
     // case has to count both, or the budget silently doubles the first time
     // somebody opens the beta.
     const perInstance = POOL_MAX + BETA_POOL_MAX;
-    const worstCase = 2 * maxInstances * perInstance;   // prod revision + candidate revision
+    const worstCase = 2 * maxInstances * perInstance; // prod revision + candidate revision
     expect(worstCase).toBeLessThanOrEqual(CONNECTION_BUDGET);
   });
 });

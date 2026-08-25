@@ -11,7 +11,10 @@ function trimEnv(key: string): string | undefined {
 /** Comma-separated list → de-duplicated origins. */
 export function parseOriginList(raw: string | undefined): string[] {
   if (!raw?.trim()) return [];
-  const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  const parts = raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
   return [...new Set(parts)];
 }
 
@@ -32,12 +35,7 @@ export function corsExplicitOrigins(): string[] {
 const LOCALHOST_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 function mergedRestrictedOrigins(): string[] {
-  return [
-    ...new Set([
-      ...corsExplicitOrigins(),
-      ...parseOriginList(trimEnv('TRUSTED_ORIGINS')),
-    ]),
-  ];
+  return [...new Set([...corsExplicitOrigins(), ...parseOriginList(trimEnv('TRUSTED_ORIGINS'))])];
 }
 
 /**

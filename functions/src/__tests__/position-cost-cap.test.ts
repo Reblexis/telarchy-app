@@ -27,19 +27,19 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
+import { eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agents, markets, metrics, workspaces } from '../db/schema';
+import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics, workspaces } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
-import { initialPool } from '../lib/amm';
-import { toUnits } from '../lib/validation';
 import { predictionsRouter } from '../routes/predictions';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -51,8 +51,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message, ...extra });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-cap';
 const TRADER = 'agent-capped';
@@ -65,23 +69,43 @@ async function seed(cap: number) {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Cap Test', createdBy: 'agent-owner-cap', ownerAgentId: 'agent-owner-cap', visibility: 'public',
+    wsId: WS,
+    name: 'Cap Test',
+    createdBy: 'agent-owner-cap',
+    ownerAgentId: 'agent-owner-cap',
+    visibility: 'public',
   });
   await db.update(workspaces).set({ maxPositionCostPerMarket: cap }).where(eq(workspaces.id, WS));
   await db.insert(metrics).values({
-    id: 'metric-cap', workspaceId: WS, name: 'Throughput', value: 0, formula: '0', marketRangeMax: 100,
+    id: 'metric-cap',
+    workspaceId: WS,
+    name: 'Throughput',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
   // Deep book so cost tracks the requested amount closely.
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: 'metric-cap', metricName: 'Throughput',
-    targetDate: '2028', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 1000, pool: initialPool(1000),
-    active: true, resolved: false, voided: false, proposalId: null,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: 'metric-cap',
+    metricName: 'Throughput',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 1000,
+    pool: initialPool(1000),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
   });
 }
 
 function trade(body: Record<string, unknown>) {
-  return request(app).post('/api/predictions/trade')
+  return request(app)
+    .post('/api/predictions/trade')
     .set('X-Test-Agent-Id', TRADER)
     .set('X-Workspace-Id', WS)
     .set('Content-Type', 'application/json')

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { withBase } from '../lib/base-path';
 import { PageTopBar } from '../components/PageTopBar';
+import { withBase } from '../lib/base-path';
 
 /** Same invite the market pages' Discord button carries; one constant would
  *  be better, but DiscordButton keeps its own for now (both are pinned by
@@ -20,10 +20,7 @@ export function ContactPage() {
       <main className="pubws-main">
         <header className="pubws-hero">
           <h1 className="pubws-name">Contact</h1>
-          <p className="pubws-pitch">
-            Short questions, bug reports, numbers you want listed. A human
-            reads all of it.
-          </p>
+          <p className="pubws-pitch">Short questions, bug reports, numbers you want listed. A human reads all of it.</p>
         </header>
 
         <section className="pubws-section">
@@ -54,7 +51,8 @@ export function ContactPage() {
         </section>
 
         <footer className="pubws-foot">
-          <Link to="/">The live markets</Link> · <Link to="/about">About</Link> · <Link to="/terms">Terms</Link> · <Link to="/privacy">Privacy</Link>
+          <Link to="/">The live markets</Link> · <Link to="/about">About</Link> · <Link to="/terms">Terms</Link> ·{' '}
+          <Link to="/privacy">Privacy</Link>
         </footer>
       </main>
     </div>

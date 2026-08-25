@@ -1,5 +1,5 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * Otto in the corner. What matters: he is closed until asked for (the page's
@@ -9,7 +9,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
  * these are.
  */
 
-const askFloor = vi.fn(async () => ({ answer: 'Webcam head tracking for sims, $14.99 on Steam. I would not pay more.' }));
+const askFloor = vi.fn(async () => ({
+  answer: 'Webcam head tracking for sims, $14.99 on Steam. I would not pay more.',
+}));
 
 vi.mock('../../lib/api', () => ({ api: { askFloor: (...a: unknown[]) => askFloor(...(a as [])) } }));
 
@@ -39,9 +41,11 @@ describe('Otto', () => {
     expect(screen.getByText(/revenue this week/i)).toBeTruthy();
 
     fireEvent.click(screen.getByText('What does LookPilot actually do?'));
-    await waitFor(() => expect(askFloor).toHaveBeenCalledWith('lookpilot', [
-      { role: 'user', content: 'What does LookPilot actually do?' },
-    ]));
+    await waitFor(() =>
+      expect(askFloor).toHaveBeenCalledWith('lookpilot', [
+        { role: 'user', content: 'What does LookPilot actually do?' },
+      ]),
+    );
     expect(await screen.findByText(/Webcam head tracking for sims/)).toBeTruthy();
   });
 
@@ -55,11 +59,13 @@ describe('Otto', () => {
     fireEvent.change(input, { target: { value: 'Is that a lot?' } });
     fireEvent.submit(input.closest('form')!);
 
-    await waitFor(() => expect(askFloor).toHaveBeenLastCalledWith('lookpilot', [
-      { role: 'user', content: 'What does LookPilot actually do?' },
-      { role: 'assistant', content: 'Webcam head tracking for sims, $14.99 on Steam. I would not pay more.' },
-      { role: 'user', content: 'Is that a lot?' },
-    ]));
+    await waitFor(() =>
+      expect(askFloor).toHaveBeenLastCalledWith('lookpilot', [
+        { role: 'user', content: 'What does LookPilot actually do?' },
+        { role: 'assistant', content: 'Webcam head tracking for sims, $14.99 on Steam. I would not pay more.' },
+        { role: 'user', content: 'Is that a lot?' },
+      ]),
+    );
   });
 
   test('says whose opinions these are', () => {
@@ -69,7 +75,9 @@ describe('Otto', () => {
   });
 
   test('a refusal is shown, not swallowed', async () => {
-    askFloor.mockImplementationOnce(async () => { throw new Error('That is a lot of questions.'); });
+    askFloor.mockImplementationOnce(async () => {
+      throw new Error('That is a lot of questions.');
+    });
     render(<FloorChat {...props} />);
     openHim();
     fireEvent.click(screen.getByText('Which contract would you take?'));

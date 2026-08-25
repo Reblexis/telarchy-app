@@ -1,7 +1,7 @@
 import {
   FEEDBACK_KINDS,
-  FEEDBACK_STATUSES,
   FEEDBACK_LIMITS,
+  FEEDBACK_STATUSES,
   isValidFeedbackKind,
   isValidFeedbackStatus,
   trimWithLimit,

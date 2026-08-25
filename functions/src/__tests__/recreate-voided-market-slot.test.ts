@@ -27,18 +27,18 @@ jest.mock('../middleware/auth', () => ({
   optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
+import { and, eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agents, markets, metrics } from '../db/schema';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
-import { toUnits } from '../lib/validation';
 import { predictionsRouter } from '../routes/predictions';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -54,29 +54,44 @@ const OWNER = 'agent-owner';
 const METRIC = 'metric-void-slot';
 const TARGET = '2028';
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   await db.insert(agents).values({ id: OWNER, apiKeyHash: 'h-owner', balance: toUnits(10_000) });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Void Slot', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'private',
+    wsId: WS,
+    name: 'Void Slot',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'private',
   });
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Revenue', value: 50, formula: '0', marketRangeMax: 100,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Revenue',
+    value: 50,
+    formula: '0',
+    marketRangeMax: 100,
   });
 });
 
 /** `liquidity` in the request body is POOL CREDITS, not b: the market opens
  *  with b = pool / ln 2. Easy to get backwards, so the assertions below spell
  *  the conversion out. */
-const create = (liquidity: number) => request(app)
-  .post('/api/predictions/markets')
-  .set('X-Workspace-Id', WS)
-  .send({ metricId: METRIC, targetDate: TARGET, rangeMin: 0, rangeMax: 100, liquidity, skipAutoLiquidity: true });
+const create = (liquidity: number) =>
+  request(app)
+    .post('/api/predictions/markets')
+    .set('X-Workspace-Id', WS)
+    .send({ metricId: METRIC, targetDate: TARGET, rangeMin: 0, rangeMax: 100, liquidity, skipAutoLiquidity: true });
 
-const live = () => db.select().from(markets)
-  .where(and(eq(markets.workspaceId, WS), eq(markets.voided, false)));
+const live = () =>
+  db
+    .select()
+    .from(markets)
+    .where(and(eq(markets.workspaceId, WS), eq(markets.voided, false)));
 
 describe('recreating a market whose slot was voided', () => {
   test('a fresh market can open where a cancelled one stood, at a new size', async () => {

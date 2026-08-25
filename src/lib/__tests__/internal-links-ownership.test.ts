@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'fs';
+import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative, resolve } from 'path';
+import { describe, expect, test } from 'vitest';
 
 /**
  * A drift guard, in the shape of floor-horizons-ownership: the app is built
@@ -47,9 +47,7 @@ describe('no root-absolute internal URLs outside the base module', () => {
   test('no href="/..." literals: use <Link to>, or withBase for real URLs', () => {
     // href="/x", href={'/x'}, href={`/x`}. Protocol-relative (//) is external
     // and not matched.
-    const offenders = files
-      .filter(f => /href=\{?["'`]\/(?!\/)/.test(f.text))
-      .map(f => f.path);
+    const offenders = files.filter(f => /href=\{?["'`]\/(?!\/)/.test(f.text)).map(f => f.path);
     expect(offenders).toEqual([]);
   });
 
@@ -60,7 +58,7 @@ describe('no root-absolute internal URLs outside the base module', () => {
     expect(offenders).toEqual([]);
   });
 
-  test("no fetch of a root path: fetch(withBase(...)) or API_BASE", () => {
+  test('no fetch of a root path: fetch(withBase(...)) or API_BASE', () => {
     const offenders = files
       .filter(f => /fetch\(\s*["'`]\/(?!\/)/.test(f.text))
       // lib/api.ts prefixes every request with API_BASE, which the beta build

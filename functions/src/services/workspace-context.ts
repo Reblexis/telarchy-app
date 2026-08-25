@@ -20,8 +20,15 @@
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
-  announcements, markets, metricLogs, metrics as metricsTable, permissionGroups,
-  proposalMessages, proposals, sources, workspaces,
+  announcements,
+  markets,
+  metricLogs,
+  metrics as metricsTable,
+  permissionGroups,
+  proposalMessages,
+  proposals,
+  sources,
+  workspaces,
 } from '../db/schema';
 import { consensus } from '../lib/amm';
 import { getParticipantDisplayNames } from '../lib/participants';
@@ -74,7 +81,13 @@ export interface WorkspaceContext {
     createdAt: string;
     declineReason: string | null;
     /** Priced impact per horizon: approved consensus minus declined. */
-    impact: Array<{ metricName: string; targetDate: string; approved: number | null; declined: number | null; delta: number | null }>;
+    impact: Array<{
+      metricName: string;
+      targetDate: string;
+      approved: number | null;
+      declined: number | null;
+      delta: number | null;
+    }>;
     recentComments: Array<{ from: string; content: string; at: string }>;
   }>;
   announcements: Array<{ body: string; publishedAt: string }>;
@@ -89,10 +102,22 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
 
   const [metricRows, marketRows, proposalRows, announcementRows, groupRows, sourceRows] = await Promise.all([
     db.select().from(metricsTable).where(eq(metricsTable.workspaceId, workspaceId)).orderBy(metricsTable.order),
-    db.select().from(markets).where(and(eq(markets.workspaceId, workspaceId), eq(markets.active, true))),
-    db.select().from(proposals).where(eq(proposals.workspaceId, workspaceId)).orderBy(desc(proposals.createdAt)).limit(25),
-    db.select().from(announcements).where(eq(announcements.workspaceId, workspaceId))
-      .orderBy(desc(announcements.publishedAt)).limit(5),
+    db
+      .select()
+      .from(markets)
+      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.active, true))),
+    db
+      .select()
+      .from(proposals)
+      .where(eq(proposals.workspaceId, workspaceId))
+      .orderBy(desc(proposals.createdAt))
+      .limit(25),
+    db
+      .select()
+      .from(announcements)
+      .where(eq(announcements.workspaceId, workspaceId))
+      .orderBy(desc(announcements.publishedAt))
+      .limit(5),
     db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId)),
     db.select().from(sources).where(eq(sources.workspaceId, workspaceId)),
   ]);
@@ -111,58 +136,86 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
     })
     .filter(d => d.content.length > 0);
 
-  const logRows = metricRows.length === 0 ? [] : await db.select().from(metricLogs)
-    .where(and(eq(metricLogs.workspaceId, workspaceId), inArray(metricLogs.metricId, metricRows.map(m => m.id))))
-    .orderBy(desc(metricLogs.timestamp)).limit(metricRows.length * HISTORY_POINTS);
+  const logRows =
+    metricRows.length === 0
+      ? []
+      : await db
+          .select()
+          .from(metricLogs)
+          .where(
+            and(
+              eq(metricLogs.workspaceId, workspaceId),
+              inArray(
+                metricLogs.metricId,
+                metricRows.map(m => m.id),
+              ),
+            ),
+          )
+          .orderBy(desc(metricLogs.timestamp))
+          .limit(metricRows.length * HISTORY_POINTS);
 
-  const historyOf = (metricId: string) => logRows
-    .filter(l => l.metricId === metricId)
-    .slice(0, HISTORY_POINTS)
-    .reverse()
-    .map(l => ({ at: l.timestamp.toISOString().slice(0, 10), value: l.value }));
+  const historyOf = (metricId: string) =>
+    logRows
+      .filter(l => l.metricId === metricId)
+      .slice(0, HISTORY_POINTS)
+      .reverse()
+      .map(l => ({ at: l.timestamp.toISOString().slice(0, 10), value: l.value }));
 
   const liveProposals = proposalRows.filter(p => p.status !== 'removed');
   const names = await getParticipantDisplayNames(liveProposals.map(p => p.proposedBy));
 
-  const commentRows = liveProposals.length === 0 ? [] : await db.select().from(proposalMessages)
-    .where(and(
-      eq(proposalMessages.workspaceId, workspaceId),
-      inArray(proposalMessages.proposalId, liveProposals.map(p => p.id)),
-    ))
-    .orderBy(desc(proposalMessages.createdAt)).limit(60);
+  const commentRows =
+    liveProposals.length === 0
+      ? []
+      : await db
+          .select()
+          .from(proposalMessages)
+          .where(
+            and(
+              eq(proposalMessages.workspaceId, workspaceId),
+              inArray(
+                proposalMessages.proposalId,
+                liveProposals.map(p => p.id),
+              ),
+            ),
+          )
+          .orderBy(desc(proposalMessages.createdAt))
+          .limit(60);
   const commenterNames = await getParticipantDisplayNames(commentRows.map(c => c.from));
 
-  const contracts = await Promise.all(liveProposals.map(async p => {
-    // The priced impact comes from the same function the floor's own ballot
-    // reads, so a brief and a page can never quote different deltas.
-    const pairs = await getProposalMarketSummariesForProposal(p.id, workspaceId);
-    return {
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      askUsd: p.askUsd,
-      status: p.status,
-      proposedBy: names.get(p.proposedBy) ?? p.proposedBy,
-      createdAt: p.createdAt.toISOString(),
-      declineReason: p.declineReason,
-      impact: pairs.map(pair => ({
-        metricName: pair.metricName,
-        targetDate: pair.targetDate,
-        approved: pair.approved?.consensus ?? null,
-        declined: pair.declined?.consensus ?? null,
-        delta: pair.delta,
-      })),
-      recentComments: commentRows
-        .filter(c => c.proposalId === p.id)
-        .slice(0, 6)
-        .reverse()
-        .map(c => ({
-          from: commenterNames.get(c.from) ?? c.from,
-          content: c.content,
-          at: c.createdAt.toISOString(),
+  const contracts = await Promise.all(
+    liveProposals.map(async p => {
+      // The priced impact comes from the same function the floor's own ballot
+      // reads, so a brief and a page can never quote different deltas.
+      const pairs = await getProposalMarketSummariesForProposal(p.id, workspaceId);
+      return {
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        askUsd: p.askUsd,
+        status: p.status,
+        proposedBy: names.get(p.proposedBy) ?? p.proposedBy,
+        createdAt: p.createdAt.toISOString(),
+        declineReason: p.declineReason,
+        impact: pairs.map(pair => ({
+          metricName: pair.metricName,
+          targetDate: pair.targetDate,
+          approved: pair.approved?.consensus ?? null,
+          declined: pair.declined?.consensus ?? null,
+          delta: pair.delta,
         })),
-    };
-  }));
+        recentComments: commentRows
+          .filter(c => c.proposalId === p.id)
+          .slice(0, 6)
+          .reverse()
+          .map(c => ({
+            from: commenterNames.get(c.from) ?? c.from,
+            content: c.content,
+            at: c.createdAt.toISOString(),
+          })),
+      };
+    }),
+  );
 
   return {
     workspaceId: ws.id,
@@ -214,10 +267,16 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
   if (ctx.description) out.push(ctx.description);
   if (ctx.runningSince) out.push(`Running its numbers through Telarchy since ${ctx.runningSince}.`);
   out.push('');
-  out.push('This is a Telarchy floor: the owner publishes the numbers they are judged on, anyone may post a contract (a job with a price), and a market prices what approving each contract would do to those numbers. Traders earn by being right.');
+  out.push(
+    'This is a Telarchy floor: the owner publishes the numbers they are judged on, anyone may post a contract (a job with a price), and a market prices what approving each contract would do to those numbers. Traders earn by being right.',
+  );
 
-  if (ctx.about) { out.push('', '## About', ctx.about); }
-  if (ctx.charter) { out.push('', '## The owner\'s charter (what they commit to doing with the market\'s answer)', ctx.charter); }
+  if (ctx.about) {
+    out.push('', '## About', ctx.about);
+  }
+  if (ctx.charter) {
+    out.push('', "## The owner's charter (what they commit to doing with the market's answer)", ctx.charter);
+  }
 
   out.push('', '## The numbers');
   for (const m of ctx.metrics) {
@@ -232,7 +291,9 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
   out.push('', '## Open markets (what the crowd currently predicts)');
   if (ctx.markets.length === 0) out.push('None open.');
   for (const m of ctx.markets) {
-    out.push(`- ${m.metricName}, ${m.targetDate}: market says ${num(m.consensus)} (range ${num(m.rangeMin)}-${num(m.rangeMax)}, liquidity ${num(m.liquidity)} credits)`);
+    out.push(
+      `- ${m.metricName}, ${m.targetDate}: market says ${num(m.consensus)} (range ${num(m.rangeMin)}-${num(m.rangeMax)}, liquidity ${num(m.liquidity)} credits)`,
+    );
   }
 
   out.push('', '## Contracts');
@@ -242,7 +303,9 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
     out.push('', `### ${c.title} (${ask}, ${c.status}, by ${c.proposedBy})`);
     if (c.description) out.push(c.description);
     for (const i of c.impact) {
-      out.push(`Priced impact on ${i.metricName} ${i.targetDate}: if approved ${num(i.approved)}, if declined ${num(i.declined)}, difference ${i.delta === null ? 'not priced yet' : num(i.delta)}.`);
+      out.push(
+        `Priced impact on ${i.metricName} ${i.targetDate}: if approved ${num(i.approved)}, if declined ${num(i.declined)}, difference ${i.delta === null ? 'not priced yet' : num(i.delta)}.`,
+      );
     }
     if (c.declineReason) out.push(`Declined because: ${c.declineReason}`);
     for (const m of c.recentComments) out.push(`Comment from ${m.from}: ${m.content}`);

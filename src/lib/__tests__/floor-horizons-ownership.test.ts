@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'fs';
+import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative, resolve } from 'path';
+import { describe, expect, test } from 'vitest';
 
 /**
  * A drift guard, in the shape of the api-parity test: the rules that keep the
@@ -45,7 +45,7 @@ test('the scan actually sees the frontend', () => {
 
 describe('the price replay is read by market id', () => {
   const ALLOWED = new Set([
-    MODEL,     // priceSeriesOf itself, the one place that may key it
+    MODEL, // priceSeriesOf itself, the one place that may key it
     'lib/api.ts', // the type declaration
   ]);
 
@@ -64,8 +64,11 @@ describe('which market is primary comes from the model, not from an index', () =
   test('nobody else reverses the markets list', () => {
     const offenders = files
       .filter(f => !ALLOWED.has(f.path))
-      .filter(f => /markets\s*\??\.?\s*\]?\s*\)?\s*\.reverse\(\)/.test(f.text)
-        || /\[\s*\.\.\.\s*\(?\s*\w*\.?markets[^\]]*\]\s*\.reverse\(\)/.test(f.text))
+      .filter(
+        f =>
+          /markets\s*\??\.?\s*\]?\s*\)?\s*\.reverse\(\)/.test(f.text) ||
+          /\[\s*\.\.\.\s*\(?\s*\w*\.?markets[^\]]*\]\s*\.reverse\(\)/.test(f.text),
+      )
       .map(f => f.path);
     expect(offenders).toEqual([]);
   });
@@ -102,19 +105,28 @@ describe('which market is primary comes from the model, not from an index', () =
 });
 
 describe('one definition of each label helper', () => {
-  test.each(['currencyOf', 'settleDayOf', 'horizonLabel', 'metricLabelOf', 'buildHorizonViews', 'priceSeriesOf', 'primaryHorizonOf'])(
-    '%s is defined once, in the model',
-    name => {
-      const definers = files.filter(f => new RegExp(`function ${name}\\b`).test(f.text)).map(f => f.path);
-      expect(definers).toEqual([MODEL]);
-    },
-  );
+  test.each([
+    'currencyOf',
+    'settleDayOf',
+    'horizonLabel',
+    'metricLabelOf',
+    'buildHorizonViews',
+    'priceSeriesOf',
+    'primaryHorizonOf',
+  ])('%s is defined once, in the model', name => {
+    const definers = files.filter(f => new RegExp(`function ${name}\\b`).test(f.text)).map(f => f.path);
+    expect(definers).toEqual([MODEL]);
+  });
 
   test('the model is imported, not re-exported through a page', () => {
     // Components importing floor helpers from a PAGE is how they ended up
     // there in the first place; a page is not a library.
     const offenders = files
-      .filter(f => /import\s*\{[^}]*\b(settleDayOf|horizonLabel|currencyOf)\b[^}]*\}\s*from\s*['"][^'"]*pages\/TradePage['"]/.test(f.text))
+      .filter(f =>
+        /import\s*\{[^}]*\b(settleDayOf|horizonLabel|currencyOf)\b[^}]*\}\s*from\s*['"][^'"]*pages\/TradePage['"]/.test(
+          f.text,
+        ),
+      )
       .map(f => f.path);
     expect(offenders).toEqual([]);
   });

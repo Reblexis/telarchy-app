@@ -32,26 +32,34 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, authUser, workspaces, agentApiKeys } from '../db/schema';
-import { toUnits, fromUnits, SIGNUP_CREDITS, UNCLAIMED_SIGNUP_CREDITS } from '../lib/validation';
-import { onboardRouter } from '../routes/onboard';
+import express from 'express';
+import request from 'supertest';
+import { agentApiKeys, agents, authUser, workspaces } from '../db/schema';
 import { AppError } from '../lib/errors';
+import { fromUnits, SIGNUP_CREDITS, toUnits, UNCLAIMED_SIGNUP_CREDITS } from '../lib/validation';
+import { onboardRouter } from '../routes/onboard';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
 app.use('/api/onboard', onboardRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof AppError) { res.status(err.status).json({ error: err.message }); return; }
+  if (err instanceof AppError) {
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
   res.status(500).json({ error: (err as Error).message ?? 'Internal error' });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); SESSION_UID = null; });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+  SESSION_UID = null;
+});
 
 async function onboard(body: object = { workspace: { name: 'Onboard Test Co', template: 'blank' } }) {
   return request(app).post('/api/onboard').send(body);
@@ -61,7 +69,8 @@ describe('POST /api/onboard', () => {
   test('creates identity + workspace + scoped key + claim url in one call', async () => {
     const res = await onboard({
       workspace: { name: 'Onboard Test Co', template: 'blank', visibility: 'private' },
-      nickname: 'onboard-test', bio: 'test identity',
+      nickname: 'onboard-test',
+      bio: 'test identity',
     });
     expect(res.status).toBe(201);
     expect(res.body.participantId).toBeTruthy();
@@ -105,7 +114,9 @@ describe('claim flow', () => {
     // Fresh browser account with its auto-provisioned zero-activity participant.
     await db.insert(authUser).values({ id: 'claimer-1', name: 'C', email: 'c1@example.com' });
     await db.insert(agents).values({
-      id: 'claimer-1', apiKeyHash: 'h-claimer-1', authUserId: 'claimer-1',
+      id: 'claimer-1',
+      apiKeyHash: 'h-claimer-1',
+      authUserId: 'claimer-1',
       balance: toUnits(SIGNUP_CREDITS),
     });
     SESSION_UID = 'claimer-1';

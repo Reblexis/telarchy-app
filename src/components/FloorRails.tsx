@@ -1,9 +1,9 @@
-import type { LeaderboardEntry, PublicContractor } from '../lib/api';
-import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import type { LeaderboardEntry, PublicContractor } from '../lib/api';
 import { api, type PrizeSeason } from '../lib/api';
-import { useSeasonClock } from '../lib/useSeasonClock';
 import { pickCurrentSeason } from '../lib/season-clock';
+import { useSeasonClock } from '../lib/useSeasonClock';
 import { ManifoldLogo } from './ManifoldLogo';
 
 /**
@@ -20,7 +20,7 @@ export interface ActivityItem {
   text: string;
 }
 
-function timeAgo(t: number): string {
+function _timeAgo(t: number): string {
   const mins = Math.max(0, Math.round((Date.now() - t) / 60_000));
   if (mins < 60) return `${mins}m`;
   const hours = Math.round(mins / 60);
@@ -47,7 +47,13 @@ function contractorSubline(c: PublicContractor): string {
   return parts.join(' · ');
 }
 
-export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn = false, meId = null }: {
+export function LeaderboardRail({
+  entries: all,
+  contractors,
+  unit = '',
+  signedIn = false,
+  meId = null,
+}: {
   /** THIS workspace's own board (owner decision 2026-08-22: the rail is local
    *  by default; the season and global boards live on /leaderboard, behind
    *  "Show full leaderboard"). */
@@ -71,7 +77,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
   // Pinned underneath when the visitor is outside the ten. A board that shows
   // the top ten and nothing else answers "who is winning" but not "where am
   // I", which is the question the person reading it actually has.
-  const mine = meId ? traded.find(e => e.id === meId) ?? null : null;
+  const mine = meId ? (traded.find(e => e.id === meId) ?? null) : null;
   const minePinned = mine && !entries.some(e => e.id === meId) ? mine : null;
   const hasTraders = entries.length > 0;
 
@@ -86,7 +92,8 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
   // One fetch, so the chip and the strip cannot disagree.
   const [season, setSeason] = useState<PrizeSeason | null>(null);
   useEffect(() => {
-    api.getSeasons()
+    api
+      .getSeasons()
       .then(r => setSeason(pickCurrentSeason(r.seasons)))
       .catch(e => console.error('seasons fetch failed:', e));
   }, []);
@@ -95,12 +102,27 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
   const prizeChip = (e: LeaderboardEntry) => {
     if (!e.seasonEntered) return null;
     if (e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined) {
-      return <span className="pubws-lb-prize pubws-lb-prize--in" title={`Entered ${season?.name ?? 'the season'}; prizes are set once it starts`}>entered</span>;
+      return (
+        <span
+          className="pubws-lb-prize pubws-lb-prize--in"
+          title={`Entered ${season?.name ?? 'the season'}; prizes are set once it starts`}
+        >
+          entered
+        </span>
+      );
     }
     if (e.seasonPrizeUsd > 0) {
-      return <span className="pubws-lb-prize" title="What this season would pay at the current standing">${e.seasonPrizeUsd.toLocaleString()}</span>;
+      return (
+        <span className="pubws-lb-prize" title="What this season would pay at the current standing">
+          ${e.seasonPrizeUsd.toLocaleString()}
+        </span>
+      );
     }
-    return <span className="pubws-lb-prize pubws-lb-prize--in" title="Entered the season, currently outside the prizes">in</span>;
+    return (
+      <span className="pubws-lb-prize pubws-lb-prize--in" title="Entered the season, currently outside the prizes">
+        in
+      </span>
+    );
   };
 
   const renderRow = (e: LeaderboardEntry, i: number) => {
@@ -114,9 +136,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
       <li key={e.id} className={`pubws-lb-row${e.id === meId ? ' is-me' : ''}`}>
         <span className="pubws-lb-rank">{e.rank ?? i + 1}</span>
         <Link className="pubws-lb-who pubws-name-link" to={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
-          <span className="pubws-lb-avatar">
-            {e.image ? <img src={e.image} alt="" /> : <span>{initial}</span>}
-          </span>
+          <span className="pubws-lb-avatar">{e.image ? <img src={e.image} alt="" /> : <span>{initial}</span>}</span>
           <span className="pubws-lb-name">{name}</span>
           {e.manifoldUsername && (
             <span className="pubws-lb-manifold" title={`Imported from Manifold: @${e.manifoldUsername}`}>
@@ -126,7 +146,8 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
         </Link>
         {prizeChip(e)}
         <span className={`pubws-lb-score${cr > 0 ? ' is-up' : cr < 0 ? ' is-down' : ''}`}>
-          {cr > 0 ? '+' : ''}{cr === 0 ? 0 : cr.toLocaleString('en-US')} cr
+          {cr > 0 ? '+' : ''}
+          {cr === 0 ? 0 : cr.toLocaleString('en-US')} cr
         </span>
       </li>
     );
@@ -151,11 +172,16 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
             {minePinned && (
               <li className="pubws-lb-row is-me is-pinned">
                 <span className="pubws-lb-rank">{minePinned.rank ?? '—'}</span>
-                <Link className="pubws-lb-who pubws-name-link" to={`/participants/${encodeURIComponent(minePinned.nickname ?? minePinned.id)}`}>
+                <Link
+                  className="pubws-lb-who pubws-name-link"
+                  to={`/participants/${encodeURIComponent(minePinned.nickname ?? minePinned.id)}`}
+                >
                   <span className="pubws-lb-avatar">
-                    {minePinned.image
-                      ? <img src={minePinned.image} alt="" />
-                      : <span>{(minePinned.nickname || 'anonymous').replace(/^@/, '')[0]?.toUpperCase() ?? '?'}</span>}
+                    {minePinned.image ? (
+                      <img src={minePinned.image} alt="" />
+                    ) : (
+                      <span>{(minePinned.nickname || 'anonymous').replace(/^@/, '')[0]?.toUpperCase() ?? '?'}</span>
+                    )}
                   </span>
                   <span className="pubws-lb-name">{minePinned.nickname || 'you'}</span>
                 </Link>
@@ -164,7 +190,8 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
                   const cr = Math.round(minePinned.totalEarnings);
                   return (
                     <span className={`pubws-lb-score${cr > 0 ? ' is-up' : cr < 0 ? ' is-down' : ''}`}>
-                      {cr > 0 ? '+' : ''}{cr === 0 ? 0 : cr.toLocaleString('en-US')} cr
+                      {cr > 0 ? '+' : ''}
+                      {cr === 0 ? 0 : cr.toLocaleString('en-US')} cr
                     </span>
                   );
                 })()}
@@ -193,7 +220,9 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
                   <li key={c.id} className="pubws-lb-row">
                     <span className="pubws-lb-rank">{i + 1}</span>
                     <Link className="pubws-lb-who pubws-name-link" to={`/participants/${encodeURIComponent(c.id)}`}>
-                      <span className="pubws-lb-avatar"><span>{initial}</span></span>
+                      <span className="pubws-lb-avatar">
+                        <span>{initial}</span>
+                      </span>
                       <span className="pubws-lb-stack">
                         <span className="pubws-lb-name">{name}</span>
                         <span className="pubws-lb-sub">{contractorSubline(c)}</span>
@@ -207,7 +236,8 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
                            arrow would misreport as a gain. */
                         title="What the market says this contractor's contracts are worth: approved minus declined, summed over the live ones."
                       >
-                        {c.impact! > 0 ? '▲ ' : c.impact! < 0 ? '▼ ' : ''}{formatImpact(c.impact!, unit)}
+                        {c.impact! > 0 ? '▲ ' : c.impact! < 0 ? '▼ ' : ''}
+                        {formatImpact(c.impact!, unit)}
                       </span>
                     ) : c.impact === null ? (
                       <span className="pubws-lb-score is-up">${Math.round(c.earnedUsd).toLocaleString('en-US')}</span>
@@ -219,7 +249,9 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
               })}
             </ol>
           ) : (
-            <p className="pubws-lb-empty">No contracts on the board yet. Post one and the market prices what it is worth.</p>
+            <p className="pubws-lb-empty">
+              No contracts on the board yet. Post one and the market prices what it is worth.
+            </p>
           )}
         </section>
       )}
@@ -227,12 +259,13 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
           (owner direction 2026-08-24: "show full leaderboard should lead to
           a new page"). It sits under the boards it extends; the season strip
           is its own block below. */}
-      <Link className="pubws-lb-more" to="/leaderboard">Show full leaderboard</Link>
+      <Link className="pubws-lb-more" to="/leaderboard">
+        Show full leaderboard
+      </Link>
       <SeasonStrip signedIn={signedIn} season={season} />
     </aside>
   );
 }
-
 
 /**
  * The prize season, on a market page: one line and a link.
@@ -252,8 +285,12 @@ function SeasonStrip({ signedIn, season }: { signedIn: boolean; season: PrizeSea
   // reads as the entry not having worked (owner report 2026-08-19).
   const [entered, setEntered] = useState(false);
   useEffect(() => {
-    if (!signedIn) { setEntered(false); return; }
-    api.getMySeason()
+    if (!signedIn) {
+      setEntered(false);
+      return;
+    }
+    api
+      .getMySeason()
       .then(e => setEntered(e.optedIn === true))
       .catch(e => console.error('season entry fetch failed:', e));
   }, [signedIn]);

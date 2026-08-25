@@ -15,9 +15,9 @@
 
 jest.mock('./harness/test-db', () => require('./harness/test-db'));
 
-import request from 'supertest';
 import express from 'express';
-import { isBetaPath, BETA_PREFIX } from '../lib/beta-surface';
+import request from 'supertest';
+import { BETA_PREFIX, isBetaPath } from '../lib/beta-surface';
 
 describe('what counts as the beta', () => {
   test('the prefix itself and everything under it', () => {
@@ -75,8 +75,13 @@ describe('the beta API prefix is stripped before routing', () => {
 
   test('end to end through express: /beta/api hits the same route', async () => {
     const app = express();
-    app.use((req, _res, next) => { req.url = rewrite(req.url); next(); });
-    app.get('/api/status', (_req, res) => { res.json({ ok: true }); });
+    app.use((req, _res, next) => {
+      req.url = rewrite(req.url);
+      next();
+    });
+    app.get('/api/status', (_req, res) => {
+      res.json({ ok: true });
+    });
 
     expect((await request(app).get('/api/status')).body).toEqual({ ok: true });
     expect((await request(app).get('/beta/api/status')).body).toEqual({ ok: true });

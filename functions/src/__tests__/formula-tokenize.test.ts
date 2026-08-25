@@ -1,11 +1,13 @@
-import { tokenize, FormulaSyntaxError } from '../lib/formula';
+import { FormulaSyntaxError, tokenize } from '../lib/formula';
 
 const kinds = (s: string) => tokenize(s).map(t => t.kind);
 
 describe('formula tokenizer', () => {
   test('numbers: integers, decimals, leading dot, exponent', () => {
     const toks = tokenize('42 3.14 .5 1e3 2.5E-2');
-    expect(toks.filter(t => t.kind === 'num').map(t => (t as { value: number }).value)).toEqual([42, 3.14, 0.5, 1000, 0.025]);
+    expect(toks.filter(t => t.kind === 'num').map(t => (t as { value: number }).value)).toEqual([
+      42, 3.14, 0.5, 1000, 0.025,
+    ]);
   });
 
   test('metric references keep the trimmed name and the column', () => {
@@ -15,7 +17,22 @@ describe('formula tokenizer', () => {
 
   test('every operator, parentheses and comma', () => {
     expect(kinds('1+2-3*4/5^6,(7)')).toEqual([
-      'num', 'op', 'num', 'op', 'num', 'op', 'num', 'op', 'num', 'op', 'num', 'comma', 'lparen', 'num', 'rparen', 'eof',
+      'num',
+      'op',
+      'num',
+      'op',
+      'num',
+      'op',
+      'num',
+      'op',
+      'num',
+      'op',
+      'num',
+      'comma',
+      'lparen',
+      'num',
+      'rparen',
+      'eof',
     ]);
   });
 

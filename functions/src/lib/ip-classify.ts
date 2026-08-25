@@ -10,17 +10,25 @@
 // re-query, and any failure degrades to 'unknown' rather than erroring.
 
 export type IpKind = 'person' | 'server' | 'proxy' | 'unknown';
-export interface IpInfo { kind: IpKind; org: string; }
+export interface IpInfo {
+  kind: IpKind;
+  org: string;
+}
 
 /** Pure mapping from an ip-api row to our label; unit-tested. */
 export function classifyRow(row: {
-  status?: string; hosting?: boolean; proxy?: boolean; mobile?: boolean; org?: string; as?: string;
+  status?: string;
+  hosting?: boolean;
+  proxy?: boolean;
+  mobile?: boolean;
+  org?: string;
+  as?: string;
 }): IpInfo {
   if (!row || row.status !== 'success') return { kind: 'unknown', org: '' };
   const org = (row.org || row.as || '').slice(0, 80);
-  if (row.hosting) return { kind: 'server', org };   // datacenter / cloud = a bot or server
-  if (row.proxy) return { kind: 'proxy', org };       // VPN / anonymizer
-  return { kind: 'person', org };                     // residential / mobile ISP
+  if (row.hosting) return { kind: 'server', org }; // datacenter / cloud = a bot or server
+  if (row.proxy) return { kind: 'proxy', org }; // VPN / anonymizer
+  return { kind: 'person', org }; // residential / mobile ISP
 }
 
 const cache = new Map<string, { info: IpInfo; at: number }>();

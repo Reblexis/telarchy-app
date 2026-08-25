@@ -14,6 +14,9 @@ import { buildDataRoomFeed } from '../services/data-room';
  */
 export const dataRoomRouter = Router();
 
-dataRoomRouter.get('/', wrap(async (_req, res) => {
-  res.json(await buildDataRoomFeed());
-}));
+dataRoomRouter.get(
+  '/',
+  wrap(async (_req, res) => {
+    res.json(await buildDataRoomFeed());
+  }),
+);

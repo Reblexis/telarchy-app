@@ -68,8 +68,24 @@ export interface TemplateSpec {
 }
 
 const SUPPORTED_CURRENCIES = [
-  'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'SEK', 'NOK', 'DKK',
-  'PLN', 'CZK', 'INR', 'BRL', 'MXN', 'SGD', 'NZD', 'ZAR',
+  'USD',
+  'EUR',
+  'GBP',
+  'CAD',
+  'AUD',
+  'JPY',
+  'CHF',
+  'SEK',
+  'NOK',
+  'DKK',
+  'PLN',
+  'CZK',
+  'INR',
+  'BRL',
+  'MXN',
+  'SGD',
+  'NZD',
+  'ZAR',
 ];
 
 function normalizeCurrency(c: string | undefined): string {
@@ -89,7 +105,7 @@ const SAAS: TemplateSpec = {
   intent: 'MRR, paying customers, churn, trial conversion.',
   needsCurrency: true,
   revenueScale: { label: 'MRR target', default: 100000 },
-  metrics: (params) => {
+  metrics: params => {
     const cur = normalizeCurrency(params.currency);
     const mrrMax = clampPositive(params.revenueRangeMax, 100000);
     return [
@@ -109,14 +125,16 @@ const SAAS: TemplateSpec = {
       },
       {
         name: 'Weekly churn rate (%)',
-        description: 'Paying customers who cancelled this week divided by paying customers at week start, expressed as a percentage (0-100).',
+        description:
+          'Paying customers who cancelled this week divided by paying customers at week start, expressed as a percentage (0-100).',
         marketRangeMax: 20,
         timePreferenceHalfLifeYears: 2,
         initialValue: 0,
       },
       {
         name: 'Trial-to-paid conversion (%)',
-        description: 'Of trials that started in the past 30 days and have ended, the percentage that converted to a paid plan (0-100).',
+        description:
+          'Of trials that started in the past 30 days and have ended, the percentage that converted to a paid plan (0-100).',
         marketRangeMax: 100,
         timePreferenceHalfLifeYears: 2,
         initialValue: 0,
@@ -132,7 +150,7 @@ const ECOMMERCE: TemplateSpec = {
   intent: 'Weekly revenue, orders, AOV, repeat customer rate.',
   needsCurrency: true,
   revenueScale: { label: 'Weekly revenue target', default: 100000 },
-  metrics: (params) => {
+  metrics: params => {
     const cur = normalizeCurrency(params.currency);
     const revMax = clampPositive(params.revenueRangeMax, 100000);
     return [
@@ -159,7 +177,8 @@ const ECOMMERCE: TemplateSpec = {
       },
       {
         name: 'Repeat customer rate (%)',
-        description: 'Orders this week from customers who ordered at least once before, divided by total orders this week (0-100).',
+        description:
+          'Orders this week from customers who ordered at least once before, divided by total orders this week (0-100).',
         marketRangeMax: 100,
         timePreferenceHalfLifeYears: 2,
         initialValue: 0,
@@ -175,7 +194,7 @@ const MARKETPLACE: TemplateSpec = {
   intent: 'GMV, active buyers and sellers, take rate.',
   needsCurrency: true,
   revenueScale: { label: 'Weekly GMV target', default: 250000 },
-  metrics: (params) => {
+  metrics: params => {
     const cur = normalizeCurrency(params.currency);
     const gmvMax = clampPositive(params.revenueRangeMax, 250000);
     return [
@@ -220,7 +239,8 @@ const CONSUMER_APP: TemplateSpec = {
   metrics: () => [
     {
       name: 'Weekly active users',
-      description: 'Distinct users who opened the app at least once in the past 7 days (count, from product analytics).',
+      description:
+        'Distinct users who opened the app at least once in the past 7 days (count, from product analytics).',
       marketRangeMax: 100000,
       timePreferenceHalfLifeYears: 1,
       initialValue: 0,
@@ -256,7 +276,7 @@ const AGENCY: TemplateSpec = {
   intent: 'Billable hours, retainer MRR, active clients, win rate.',
   needsCurrency: true,
   revenueScale: { label: 'Retainer MRR target', default: 50000 },
-  metrics: (params) => {
+  metrics: params => {
     const cur = normalizeCurrency(params.currency);
     const mrrMax = clampPositive(params.revenueRangeMax, 50000);
     return [
@@ -296,30 +316,34 @@ const COMMUNITY: TemplateSpec = {
   id: 'community',
   category: 'startup',
   name: 'Community / collective',
-  intent: 'Active members, weekly engagement, retention, recurring revenue. For professional communities, advisory collectives, or curated networks.',
+  intent:
+    'Active members, weekly engagement, retention, recurring revenue. For professional communities, advisory collectives, or curated networks.',
   needsCurrency: true,
   revenueScale: { label: 'Recurring revenue target', default: 30000 },
-  metrics: (params) => {
+  metrics: params => {
     const cur = normalizeCurrency(params.currency);
     const revMax = clampPositive(params.revenueRangeMax, 30000);
     return [
       {
         name: 'Active members',
-        description: 'Distinct members in good standing at week end (count, from your member directory or billing system).',
+        description:
+          'Distinct members in good standing at week end (count, from your member directory or billing system).',
         marketRangeMax: 5000,
         timePreferenceHalfLifeYears: 2,
         initialValue: 0,
       },
       {
         name: 'Weekly engagement events',
-        description: 'Distinct events held this week with at least 3 member participants (count, e.g. workshops, meetups, hosted threads, live sessions).',
+        description:
+          'Distinct events held this week with at least 3 member participants (count, e.g. workshops, meetups, hosted threads, live sessions).',
         marketRangeMax: 30,
         timePreferenceHalfLifeYears: 1,
         initialValue: 0,
       },
       {
         name: 'Annual member retention (%)',
-        description: 'Members renewed in the trailing 12 months divided by members eligible to renew in that window, expressed as a percentage (0-100).',
+        description:
+          'Members renewed in the trailing 12 months divided by members eligible to renew in that window, expressed as a percentage (0-100).',
         marketRangeMax: 100,
         timePreferenceHalfLifeYears: 3,
         initialValue: 0,
@@ -342,13 +366,14 @@ const CREATOR: TemplateSpec = {
   intent: 'Subscribers, weekly views, monetization, publishing cadence.',
   needsCurrency: true,
   revenueScale: { label: 'Weekly revenue target', default: 5000 },
-  metrics: (params) => {
+  metrics: params => {
     const cur = normalizeCurrency(params.currency);
     const revMax = clampPositive(params.revenueRangeMax, 5000);
     return [
       {
         name: 'Total subscribers',
-        description: 'Total subscribers / followers on the primary channel at week end (count, from the channel dashboard).',
+        description:
+          'Total subscribers / followers on the primary channel at week end (count, from the channel dashboard).',
         marketRangeMax: 1000000,
         timePreferenceHalfLifeYears: 2,
         initialValue: 0,
@@ -425,21 +450,24 @@ const WELLBEING: TemplateSpec = {
   metrics: () => [
     {
       name: 'Happiness (self-reported)',
-      description: 'Your gut read on how happy you feel right now, from 0 (miserable) to 10 (best you can imagine). Subjective by design; record honestly.',
+      description:
+        'Your gut read on how happy you feel right now, from 0 (miserable) to 10 (best you can imagine). Subjective by design; record honestly.',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 1,
       initialValue: 5,
     },
     {
       name: 'Health (self-reported)',
-      description: 'Your gut read on overall physical and mental health, from 0 (severely unwell) to 10 (peak). Subjective; not a clinical measure.',
+      description:
+        'Your gut read on overall physical and mental health, from 0 (severely unwell) to 10 (peak). Subjective; not a clinical measure.',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 5,
       initialValue: 5,
     },
     {
       name: 'Career satisfaction (self-reported)',
-      description: 'Your gut read on how satisfied you are with your career trajectory right now, from 0 (stuck) to 10 (thriving). Subjective.',
+      description:
+        'Your gut read on how satisfied you are with your career trajectory right now, from 0 (stuck) to 10 (thriving). Subjective.',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 3,
       initialValue: 5,
@@ -463,7 +491,8 @@ const HEALTH_FITNESS: TemplateSpec = {
     },
     {
       name: 'Weekly exercise minutes',
-      description: 'Minutes of intentional exercise logged this week across all activities (count, from your tracker or training log).',
+      description:
+        'Minutes of intentional exercise logged this week across all activities (count, from your tracker or training log).',
       marketRangeMax: 1000,
       timePreferenceHalfLifeYears: 1,
       initialValue: 0,
@@ -477,7 +506,8 @@ const HEALTH_FITNESS: TemplateSpec = {
     },
     {
       name: 'Energy (self-reported)',
-      description: 'Your gut read on average energy this week, from 0 (exhausted all week) to 10 (energized all week). Subjective.',
+      description:
+        'Your gut read on average energy this week, from 0 (exhausted all week) to 10 (energized all week). Subjective.',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 1,
       initialValue: 5,
@@ -492,7 +522,7 @@ const CAREER: TemplateSpec = {
   intent: 'Income, deep work hours, satisfaction.',
   needsCurrency: true,
   revenueScale: { label: 'Annual income target', default: 150000 },
-  metrics: (params) => {
+  metrics: params => {
     const cur = normalizeCurrency(params.currency);
     const incomeMax = clampPositive(params.revenueRangeMax, 150000);
     return [
@@ -505,14 +535,16 @@ const CAREER: TemplateSpec = {
       },
       {
         name: 'Weekly deep work hours',
-        description: 'Hours spent this week on focused work on hard problems, with no shallow tasks or meetings (count, from your time log).',
+        description:
+          'Hours spent this week on focused work on hard problems, with no shallow tasks or meetings (count, from your time log).',
         marketRangeMax: 60,
         timePreferenceHalfLifeYears: 1,
         initialValue: 0,
       },
       {
         name: 'Career satisfaction (self-reported)',
-        description: 'Your gut read on how satisfied you are with your career trajectory right now, from 0 (stuck) to 10 (thriving). Subjective.',
+        description:
+          'Your gut read on how satisfied you are with your career trajectory right now, from 0 (stuck) to 10 (thriving). Subjective.',
         marketRangeMax: 10,
         timePreferenceHalfLifeYears: 3,
         initialValue: 5,
@@ -530,7 +562,8 @@ const LEARNING: TemplateSpec = {
   metrics: () => [
     {
       name: 'Weekly study hours',
-      description: 'Hours spent this week on focused study (reading, courses, exercises). Count only time you would defend as deliberate practice.',
+      description:
+        'Hours spent this week on focused study (reading, courses, exercises). Count only time you would defend as deliberate practice.',
       marketRangeMax: 40,
       timePreferenceHalfLifeYears: 1,
       initialValue: 0,
@@ -544,14 +577,16 @@ const LEARNING: TemplateSpec = {
     },
     {
       name: 'Courses completed this year',
-      description: 'Distinct online or formal courses completed since January 1 of this year (count, completion certificate or final exam passed).',
+      description:
+        'Distinct online or formal courses completed since January 1 of this year (count, completion certificate or final exam passed).',
       marketRangeMax: 30,
       timePreferenceHalfLifeYears: 1,
       initialValue: 0,
     },
     {
       name: 'Mastery (self-reported)',
-      description: 'Your gut read on how well you understand the subject right now, from 0 (total beginner) to 10 (could teach a graduate course). Subjective.',
+      description:
+        'Your gut read on how well you understand the subject right now, from 0 (total beginner) to 10 (could teach a graduate course). Subjective.',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 3,
       initialValue: 3,
@@ -568,21 +603,24 @@ const RELATIONSHIPS: TemplateSpec = {
   metrics: () => [
     {
       name: 'Close people contacted this week',
-      description: 'Distinct close friends or family members you had a real conversation with this week (count). Texting "hi" does not count; a real exchange does.',
+      description:
+        'Distinct close friends or family members you had a real conversation with this week (count). Texting "hi" does not count; a real exchange does.',
       marketRangeMax: 30,
       timePreferenceHalfLifeYears: 1,
       initialValue: 0,
     },
     {
       name: 'Weekly in-person hours with loved ones',
-      description: 'Hours spent in person with partner, family, or close friends this week (count). Shared activities count; passive co-presence (e.g. silent commute) does not.',
+      description:
+        'Hours spent in person with partner, family, or close friends this week (count). Shared activities count; passive co-presence (e.g. silent commute) does not.',
       marketRangeMax: 60,
       timePreferenceHalfLifeYears: 1,
       initialValue: 0,
     },
     {
       name: 'Connection (self-reported)',
-      description: 'Your gut read on how connected and supported you feel right now, from 0 (alone) to 10 (deeply held). Subjective.',
+      description:
+        'Your gut read on how connected and supported you feel right now, from 0 (alone) to 10 (deeply held). Subjective.',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 2,
       initialValue: 5,
@@ -599,28 +637,32 @@ const CREATIVE_PROJECT: TemplateSpec = {
   metrics: () => [
     {
       name: 'Weekly creation hours',
-      description: 'Hours spent making the work this week (count, from your time log). Planning and consumption do not count; making does.',
+      description:
+        'Hours spent making the work this week (count, from your time log). Planning and consumption do not count; making does.',
       marketRangeMax: 40,
       timePreferenceHalfLifeYears: 1,
       initialValue: 0,
     },
     {
       name: 'Pieces shipped this year',
-      description: 'Finished pieces published since January 1 of this year (count). "Shipped" means a real audience can see it.',
+      description:
+        'Finished pieces published since January 1 of this year (count). "Shipped" means a real audience can see it.',
       marketRangeMax: 100,
       timePreferenceHalfLifeYears: 2,
       initialValue: 0,
     },
     {
       name: 'Audience size',
-      description: 'Total followers / subscribers / listeners on the primary channel at week end (count, from the channel dashboard).',
+      description:
+        'Total followers / subscribers / listeners on the primary channel at week end (count, from the channel dashboard).',
       marketRangeMax: 100000,
       timePreferenceHalfLifeYears: 3,
       initialValue: 0,
     },
     {
       name: 'Creative momentum (self-reported)',
-      description: 'Your gut read on how alive and on-track the project feels right now, from 0 (dead) to 10 (best of my life). Subjective.',
+      description:
+        'Your gut read on how alive and on-track the project feels right now, from 0 (dead) to 10 (best of my life). Subjective.',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 1,
       initialValue: 5,
@@ -635,7 +677,7 @@ const FINANCIAL_INDEPENDENCE: TemplateSpec = {
   intent: 'Net worth, savings rate, expenses, runway.',
   needsCurrency: true,
   revenueScale: { label: 'Net worth target', default: 1000000 },
-  metrics: (params) => {
+  metrics: params => {
     const cur = normalizeCurrency(params.currency);
     const nwMax = clampPositive(params.revenueRangeMax, 1000000);
     return [
@@ -648,7 +690,8 @@ const FINANCIAL_INDEPENDENCE: TemplateSpec = {
       },
       {
         name: 'Monthly savings rate (%)',
-        description: 'This calendar month: (income minus expenses) divided by income, expressed as a percentage (0-100).',
+        description:
+          'This calendar month: (income minus expenses) divided by income, expressed as a percentage (0-100).',
         marketRangeMax: 100,
         timePreferenceHalfLifeYears: 2,
         initialValue: 0,
@@ -662,7 +705,8 @@ const FINANCIAL_INDEPENDENCE: TemplateSpec = {
       },
       {
         name: 'Years to financial independence',
-        description: 'Estimated years until investment income covers annual expenses at the current savings rate (count).',
+        description:
+          'Estimated years until investment income covers annual expenses at the current savings rate (count).',
         marketRangeMax: 50,
         timePreferenceHalfLifeYears: 5,
         initialValue: 30,
@@ -752,18 +796,20 @@ export function getStarterProposal(template: TemplateSpec): { title: string; des
     case 'startup':
       return {
         title: 'Actively use Telarchy to run this company',
-        description: 'Starter proposal. Approve if you intend to run real decisions through this workspace for at least one cycle. The conditional markets below price whether doing so will move the KPIs you just set up; participants forecast the impact and you decide.',
+        description:
+          'Starter proposal. Approve if you intend to run real decisions through this workspace for at least one cycle. The conditional markets below price whether doing so will move the KPIs you just set up; participants forecast the impact and you decide.',
       };
     case 'personal':
       return {
         title: 'Actively use Telarchy for my personal goals',
-        description: 'Starter proposal. Approve if you intend to use this workspace to make decisions against your personal goals for at least one cycle. The conditional markets below price the predicted impact on each metric you just set up.',
+        description:
+          'Starter proposal. Approve if you intend to use this workspace to make decisions against your personal goals for at least one cycle. The conditional markets below price the predicted impact on each metric you just set up.',
       };
-    case 'blank':
     default:
       return {
         title: 'Try Telarchy for one cycle',
-        description: 'Starter proposal. Approve if you intend to use this workspace to make at least one real decision. The conditional markets below price predicted impact against the metrics in this workspace.',
+        description:
+          'Starter proposal. Approve if you intend to use this workspace to make at least one real decision. The conditional markets below price predicted impact against the metrics in this workspace.',
       };
   }
 }

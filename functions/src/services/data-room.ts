@@ -1,16 +1,25 @@
+import { and, asc, count, eq, gte, isNull, like, ne, sql } from 'drizzle-orm';
+import { CHANGE_DAYS, CHANGELOG_BUILT_AT, CHANGES, TOTAL_CHANGES } from '../content/changelog';
+import { type BlockName, CONTENT_UPDATED_AT, DATA_ROOM_MARKDOWN, KNOWN_BLOCKS } from '../content/data-room';
 import { db } from '../db/client';
 import {
-  agents, authUser, markets, metricLogs, metrics, pageVisits, proposals,
-  systemConfig, trades, trafficDaily, workspaces,
+  agents,
+  authUser,
+  markets,
+  metricLogs,
+  metrics,
+  pageVisits,
+  proposals,
+  systemConfig,
+  trades,
+  trafficDaily,
+  workspaces,
 } from '../db/schema';
-import { and, asc, count, eq, gte, isNull, like, ne, sql } from 'drizzle-orm';
 import { consensus } from '../lib/amm';
+import { resolutionInstant } from '../lib/date-utils';
+import { ttlCache } from '../lib/ttl-cache';
 import { humanVisitFilter } from '../lib/visit-log';
 import { platformStats } from './platform-stats';
-import { ttlCache } from '../lib/ttl-cache';
-import { resolutionInstant } from '../lib/date-utils';
-import { CHANGES, CHANGE_DAYS, CHANGELOG_BUILT_AT, TOTAL_CHANGES } from '../content/changelog';
-import { CONTENT_UPDATED_AT, DATA_ROOM_MARKDOWN, KNOWN_BLOCKS, type BlockName } from '../content/data-room';
 
 /**
  * The data room: Telarchy's own books, prose and numbers in one payload.
@@ -60,15 +69,21 @@ export function parseDataRoomContent(markdown: string): DataRoomSection[] {
       const name = m[1];
       if (!(KNOWN_BLOCKS as readonly string[]).includes(name)) {
         throw new Error(
-          `data room: section "${title}" names unknown block "${name}". ` +
-          `Known blocks: ${KNOWN_BLOCKS.join(', ')}`);
+          `data room: section "${title}" names unknown block "${name}". ` + `Known blocks: ${KNOWN_BLOCKS.join(', ')}`,
+        );
       }
       blocks.push(name as BlockName);
     }
     return {
-      id: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+      id: title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, ''),
       title,
-      markdown: body.replace(/^block:[a-z]+$/gm, '').replace(/\n{3,}/g, '\n\n').trim(),
+      markdown: body
+        .replace(/^block:[a-z]+$/gm, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim(),
       blocks,
     };
   });
@@ -92,14 +107,19 @@ const SECTIONS = parseDataRoomContent(DATA_ROOM_MARKDOWN);
  * with a hole in it, and this is cheap and idempotent.
  */
 export async function rollUpTraffic(): Promise<void> {
-  const rows = await db.select({
-    day: sql<string>`to_char(${pageVisits.ts}, 'YYYY-MM-DD')`,
-    visits: sql<number>`count(*)::int`,
-    uniques: sql<number>`count(distinct ${pageVisits.ip})::int`,
-  }).from(pageVisits).where(humanVisitFilter()).groupBy(sql`1`);
+  const rows = await db
+    .select({
+      day: sql<string>`to_char(${pageVisits.ts}, 'YYYY-MM-DD')`,
+      visits: sql<number>`count(*)::int`,
+      uniques: sql<number>`count(distinct ${pageVisits.ip})::int`,
+    })
+    .from(pageVisits)
+    .where(humanVisitFilter())
+    .groupBy(sql`1`);
 
   for (const r of rows) {
-    await db.insert(trafficDaily)
+    await db
+      .insert(trafficDaily)
       .values({ day: r.day, visits: Number(r.visits), uniques: Number(r.uniques) })
       // A day already rolled up can only grow while it is still in the log,
       // and once the rows are purged the stored count is the record.
@@ -120,21 +140,29 @@ async function selfFloor() {
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.slug, SELF_SLUG)).limit(1);
   if (!ws) return null;
 
-  const open = await db.select().from(markets)
-    .where(and(
-      eq(markets.workspaceId, ws.id),
-      eq(markets.resolved, false),
-      eq(markets.active, true),
-      isNull(markets.proposalId),   // the baseline market, not a contract's branch
-    ))
+  const open = await db
+    .select()
+    .from(markets)
+    .where(
+      and(
+        eq(markets.workspaceId, ws.id),
+        eq(markets.resolved, false),
+        eq(markets.active, true),
+        isNull(markets.proposalId), // the baseline market, not a contract's branch
+      ),
+    )
     .orderBy(asc(markets.targetDate));
   const m = open[0];
   if (!m) return { workspaceId: ws.id, name: ws.name, slug: ws.slug, market: null };
 
-  const [metric] = await db.select().from(metrics)
-    .where(and(eq(metrics.workspaceId, ws.id), eq(metrics.id, m.metricId))).limit(1);
+  const [metric] = await db
+    .select()
+    .from(metrics)
+    .where(and(eq(metrics.workspaceId, ws.id), eq(metrics.id, m.metricId)))
+    .limit(1);
 
-  const logs = await db.select({ at: metricLogs.timestamp, value: metricLogs.value })
+  const logs = await db
+    .select({ at: metricLogs.timestamp, value: metricLogs.value })
     .from(metricLogs)
     .where(and(eq(metricLogs.workspaceId, ws.id), eq(metricLogs.metricId, m.metricId)))
     .orderBy(asc(metricLogs.timestamp))
@@ -166,24 +194,33 @@ async function selfFloor() {
 async function traction() {
   const [participants] = await db.select({ n: count() }).from(agents);
   const [accounts] = await db.select({ n: count() }).from(authUser);
-  const [verified] = await db.select({ n: count() }).from(systemConfig)
+  const [verified] = await db
+    .select({ n: count() })
+    .from(systemConfig)
     .where(like(systemConfig.key, 'manifold-claimed:agent:%'));
-  const [tradeRow] = await db.select({
-    n: count(),
-    credits: sql<number>`coalesce(sum(abs(${trades.cost})), 0)::float`,
-  }).from(trades);
-  const [openMarkets] = await db.select({ n: count() }).from(markets)
+  const [tradeRow] = await db
+    .select({
+      n: count(),
+      credits: sql<number>`coalesce(sum(abs(${trades.cost})), 0)::float`,
+    })
+    .from(trades);
+  const [openMarkets] = await db
+    .select({ n: count() })
+    .from(markets)
     .where(and(eq(markets.resolved, false), eq(markets.active, true)));
   const [settled] = await db.select({ n: count() }).from(markets).where(eq(markets.resolved, true));
-  const [floors] = await db.select({ n: count() }).from(workspaces)
-    .where(eq(workspaces.visibility, 'public'));
+  const [floors] = await db.select({ n: count() }).from(workspaces).where(eq(workspaces.visibility, 'public'));
 
   const twoMonthsAgo = new Date(Date.now() - 60 * 24 * 3600 * 1000);
-  const signupsByDay = await db.select({
-    day: sql<string>`to_char(${authUser.createdAt}, 'YYYY-MM-DD')`,
-    signups: sql<number>`count(*)::int`,
-  }).from(authUser).where(gte(authUser.createdAt, twoMonthsAgo))
-    .groupBy(sql`1`).orderBy(sql`1`);
+  const signupsByDay = await db
+    .select({
+      day: sql<string>`to_char(${authUser.createdAt}, 'YYYY-MM-DD')`,
+      signups: sql<number>`count(*)::int`,
+    })
+    .from(authUser)
+    .where(gte(authUser.createdAt, twoMonthsAgo))
+    .groupBy(sql`1`)
+    .orderBy(sql`1`);
 
   return {
     participants: Number(participants.n),
@@ -201,7 +238,8 @@ async function traction() {
 /** The jobs side of every public floor: what was proposed, what was decided,
  *  and what the approvals cost in real money. */
 async function contracts() {
-  const rows = await db.select({ status: proposals.status, n: count(), ask: sql<number>`coalesce(sum(${proposals.askUsd}), 0)::float` })
+  const rows = await db
+    .select({ status: proposals.status, n: count(), ask: sql<number>`coalesce(sum(${proposals.askUsd}), 0)::float` })
     .from(proposals)
     // 'removed' is the admin taking an entry off the board because it should
     // never have been on it (spam, duplicates, test rows). It is not a
@@ -232,10 +270,14 @@ async function traffic() {
   const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
   const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
 
-  const since = (from: Date) => db.select({
-    visits: sql<number>`count(*)::int`,
-    uniques: sql<number>`count(distinct ${pageVisits.ip})::int`,
-  }).from(pageVisits).where(and(gte(pageVisits.ts, from), humanVisitFilter()));
+  const since = (from: Date) =>
+    db
+      .select({
+        visits: sql<number>`count(*)::int`,
+        uniques: sql<number>`count(distinct ${pageVisits.ip})::int`,
+      })
+      .from(pageVisits)
+      .where(and(gte(pageVisits.ts, from), humanVisitFilter()));
 
   const [last24h] = await since(dayAgo);
   const [last7d] = await since(weekAgo);
@@ -279,7 +321,11 @@ export function buildDataRoomFeed(): Promise<DataRoomFeed> {
 
 async function computeDataRoomFeed(): Promise<DataRoomFeed> {
   const [stats, floor, tract, contractRows, traf] = await Promise.all([
-    platformStats(), selfFloor(), traction(), contracts(), traffic(),
+    platformStats(),
+    selfFloor(),
+    traction(),
+    contracts(),
+    traffic(),
   ]);
 
   const body: DataRoomFeed = {
@@ -319,8 +365,12 @@ export interface DataRoomFeed {
   generatedAt: string;
   doc: { updatedAt: string; sections: DataRoomSection[] };
   evidence: Record<string, unknown> & {
-    shipping: { changes: Array<{ date: string; subject: string }>; total: number; builtAt: string;
-      days: Array<{ date: string; changes: number }> };
+    shipping: {
+      changes: Array<{ date: string; subject: string }>;
+      total: number;
+      builtAt: string;
+      days: Array<{ date: string; changes: number }>;
+    };
   };
 }
 
@@ -357,12 +407,20 @@ function renderBlock(name: string, feed: DataRoomFeed): string {
       `  the metric now reads: ${fmt(m.currentValue)}`,
       `  band ${fmt(m.rangeMin)} to ${fmt(m.rangeMax)}, settles ${m.resolvesOn}`,
       `  liquidity ${fmt(m.liquidity)} cr, traded volume ${fmt(m.tradedVolume)} cr`,
-      `  readings: ${(m.history || []).slice(-12).map((p: any) => `${String(p.at).slice(0, 10)}=${fmt(p.value)}`).join(', ') || 'none'}`,
+      `  readings: ${
+        (m.history || [])
+          .slice(-12)
+          .map((p: any) => `${String(p.at).slice(0, 10)}=${fmt(p.value)}`)
+          .join(', ') || 'none'
+      }`,
     ].join('\n');
   }
 
   if (name === 'shipping') {
-    const recent = v.changes.slice(0, 15).map((c: any) => `  ${c.date}: ${c.subject}`).join('\n');
+    const recent = v.changes
+      .slice(0, 15)
+      .map((c: any) => `  ${c.date}: ${c.subject}`)
+      .join('\n');
     return [
       `shipping: ${fmt(v.total)} changes over ${v.days.length} days, log generated ${v.builtAt}`,
       `  newest changes:`,
@@ -371,10 +429,13 @@ function renderBlock(name: string, feed: DataRoomFeed): string {
   }
 
   if (name === 'traffic') {
-    const tail = v.byDay.slice(-14).map((d: any) => `  ${d.day}: ${d.visits} visits, ${d.uniques} distinct`).join('\n');
+    const tail = v.byDay
+      .slice(-14)
+      .map((d: any) => `  ${d.day}: ${d.visits} visits, ${d.uniques} distinct`)
+      .join('\n');
     return [
       `traffic: ${fmt(v.visits24h)} visits and ${fmt(v.uniques24h)} distinct visitors in 24h, ` +
-      `${fmt(v.visits7d)} visits in 7 days, ${fmt(v.totalVisits)} since ${fmt(v.keptSince)}`,
+        `${fmt(v.visits7d)} visits in 7 days, ${fmt(v.totalVisits)} since ${fmt(v.keptSince)}`,
       tail,
     ].join('\n');
   }
@@ -387,8 +448,9 @@ function renderBlock(name: string, feed: DataRoomFeed): string {
 
 /** The table of contents: what is in the data room, so Otto can pick. */
 export function renderDataRoomIndex(feed: DataRoomFeed): string {
-  const lines = feed.doc.sections.map(s =>
-    `- ${s.id}${s.blocks.length ? ` (figures: ${s.blocks.join(', ')})` : ''}: ${s.title}`);
+  const lines = feed.doc.sections.map(
+    s => `- ${s.id}${s.blocks.length ? ` (figures: ${s.blocks.join(', ')})` : ''}: ${s.title}`,
+  );
   return [
     `Telarchy's data room, telarchy.com/data-room, figures generated ${feed.generatedAt}.`,
     'Sections, readable one at a time with read_data_room({ section }):',

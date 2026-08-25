@@ -157,11 +157,7 @@ export function isPrizeEligible(_score: number, platformOperated = false): boole
  * ladder has five rungs, places 4 and 5 pay nothing and their money rolls
  * forward; a rung nobody consumes rolls into the next season's pool.
  */
-export function settleSeason(
-  entrants: SeasonEntrant[],
-  ladder: LadderRung[],
-  poolUsd: number,
-): SettlementResult {
+export function settleSeason(entrants: SeasonEntrant[], ladder: LadderRung[], poolUsd: number): SettlementResult {
   const scored = entrants.map(e => ({
     agentId: e.agentId,
     enteredAt: e.enteredAt,

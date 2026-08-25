@@ -37,13 +37,12 @@ describe('metric unit from the name tail', () => {
 });
 
 describe('which metrics a contract ask burns into', () => {
-  test.each([
-    'LookPilot net 2026 (USD)',
-    'LookPilot net this week (USD)',
-    'Net revenue (USD)',
-  ])('%s is net of payouts, so approving moves it', name => {
-    expect(metricSubtractsContractAsk(name)).toBe(true);
-  });
+  test.each(['LookPilot net 2026 (USD)', 'LookPilot net this week (USD)', 'Net revenue (USD)'])(
+    '%s is net of payouts, so approving moves it',
+    name => {
+      expect(metricSubtractsContractAsk(name)).toBe(true);
+    },
+  );
 
   test.each([
     // Gross revenue: the payment does not touch it, and a week's range

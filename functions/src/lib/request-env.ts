@@ -28,10 +28,12 @@
 /** Hosts that serve the real thing. Everything else is a preview. Self-hosted
  *  instances set PROD_HOSTS to their own domain (.env.example). */
 const PROD_HOSTS = (process.env.PROD_HOSTS ?? 'telarchy.com,www.telarchy.com')
-  .split(',').map(h => h.trim().toLowerCase()).filter(Boolean);
+  .split(',')
+  .map(h => h.trim().toLowerCase())
+  .filter(Boolean);
 
 export function isProdHost(host: string | undefined): boolean {
-  if (!host) return true;                       // no Host: assume production
+  if (!host) return true; // no Host: assume production
   const bare = host.toLowerCase().split(':')[0];
   // Local development is production's database, i.e. the only one it has.
   if (bare === 'localhost' || bare === '127.0.0.1' || bare === '::1') return true;

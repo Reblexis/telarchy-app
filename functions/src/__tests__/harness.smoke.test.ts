@@ -9,14 +9,20 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { sql } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import { workspaces } from '../db/schema';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 test('migrations apply and core tables are reachable', async () => {
-  const result = await db.execute(sql`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = 'public'`);
+  const result = await db.execute(
+    sql`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = 'public'`,
+  );
   const rows = result.rows as Array<{ n: number }>;
   expect(rows[0].n).toBeGreaterThan(10);
 });

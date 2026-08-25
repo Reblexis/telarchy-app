@@ -15,11 +15,11 @@
 /** Strip the markdown that would otherwise read as punctuation in a headline. */
 function plain(line: string): string {
   return line
-    .replace(/^\s*#{1,6}\s+/, '')          // heading
-    .replace(/^\s*>\s?/, '')               // quote
+    .replace(/^\s*#{1,6}\s+/, '') // heading
+    .replace(/^\s*>\s?/, '') // quote
     .replace(/^\s*(?:[-*+]|\d+\.)\s+/, '') // bullet or numbered item
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1') // links and images, text only
-    .replace(/[*_`]/g, '')                 // emphasis and code ticks
+    .replace(/[*_`]/g, '') // emphasis and code ticks
     .trim();
 }
 
@@ -29,7 +29,10 @@ function sentences(text: string): string[] {
 }
 
 export function announcementHeadline(body: string, max = 90): string {
-  const line = (body ?? '').split('\n').map(plain).find(l => l.length > 0);
+  const line = (body ?? '')
+    .split('\n')
+    .map(plain)
+    .find(l => l.length > 0);
   if (!line) return '';
   if (line.length <= max) return line;
 

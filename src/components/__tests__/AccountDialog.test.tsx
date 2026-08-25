@@ -1,5 +1,5 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * The account dialog: management left the corner popover for a real
@@ -10,7 +10,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const upsertProfile = vi.fn(async () => ({}));
 const getParticipant = vi.fn(async () => ({
-  nickname: 'trader-1', balance: 1000, earnedBetting: 50,
+  nickname: 'trader-1',
+  balance: 1000,
+  earnedBetting: 50,
   payoutHandle: 'PayPal: old@x.com',
   payoutMethod: { provider: 'paypal', email: 'old@x.com' },
 }));
@@ -19,9 +21,12 @@ const getParticipant = vi.fn(async () => ({
 const cell = (web: boolean, email: boolean, mobile: boolean) => ({ web, email, mobile });
 const getProfile = vi.fn(async () => ({
   notificationChannels: {
-    comment: cell(true, true, true), reply: cell(true, true, true),
-    contract: cell(true, false, false), anyComment: cell(false, false, false),
-    settled: cell(true, true, true), decision: cell(true, true, true),
+    comment: cell(true, true, true),
+    reply: cell(true, true, true),
+    contract: cell(true, false, false),
+    anyComment: cell(false, false, false),
+    settled: cell(true, true, true),
+    decision: cell(true, true, true),
   },
 }));
 
@@ -31,7 +36,7 @@ const getProfile = vi.fn(async () => ({
    simulation-instance shape: credits and season render nothing at all. */
 vi.mock('../../lib/api', () => ({
   api: {
-    upsertProfile: (...a: unknown[]) => upsertProfile(...a as []),
+    upsertProfile: (...a: unknown[]) => upsertProfile(...(a as [])),
     getParticipant: () => getParticipant(),
     getProfile: () => getProfile(),
     getPushKey: async () => ({ configured: false, publicKey: null }),
@@ -46,7 +51,9 @@ vi.mock('../../hooks/useAuth', () => ({
 
 import { AccountDialog } from '../AccountDialog';
 
-beforeEach(() => { upsertProfile.mockClear(); });
+beforeEach(() => {
+  upsertProfile.mockClear();
+});
 
 describe('the account dialog', () => {
   test('hydrates the stored provider and its fields', async () => {
@@ -73,9 +80,11 @@ describe('the account dialog', () => {
     fireEvent.change(screen.getByLabelText('IBAN'), { target: { value: 'DE89 3704 0044 0532 0130 00' } });
     fireEvent.change(screen.getByLabelText('Account holder'), { target: { value: 'Jan Novak' } });
     fireEvent.click(screen.getByText('Save payment details'));
-    await waitFor(() => expect(upsertProfile).toHaveBeenCalledWith({
-      payoutMethod: { provider: 'bank', iban: 'DE89 3704 0044 0532 0130 00', holder: 'Jan Novak' },
-    }));
+    await waitFor(() =>
+      expect(upsertProfile).toHaveBeenCalledWith({
+        payoutMethod: { provider: 'bank', iban: 'DE89 3704 0044 0532 0130 00', holder: 'Jan Novak' },
+      }),
+    );
   });
 
   test('a server refusal lands beside the save, verbatim', async () => {
@@ -99,7 +108,9 @@ describe('crypto payment details', () => {
   test('a method saved before assets existed is backfilled, not left unsavable', async () => {
     // The stored shape from before the change: chain, address, no asset.
     getParticipant.mockResolvedValueOnce({
-      nickname: 'trader-1', balance: 1000, earnedBetting: 50,
+      nickname: 'trader-1',
+      balance: 1000,
+      earnedBetting: 50,
       payoutHandle: 'Crypto',
       payoutMethod: { provider: 'crypto', network: 'ethereum', address: '0x' + 'a'.repeat(40) },
     } as never);
@@ -116,12 +127,17 @@ describe('crypto payment details', () => {
     // has to ride along or the request 400s on a field they never saw.
     fireEvent.change(screen.getByLabelText('Note'), { target: { value: 'memo 42' } });
     fireEvent.click(screen.getByText('Save payment details'));
-    await waitFor(() => expect(upsertProfile).toHaveBeenCalledWith({
-      payoutMethod: {
-        provider: 'crypto', network: 'ethereum', asset: 'USDC',
-        address: '0x' + 'a'.repeat(40), note: 'memo 42',
-      },
-    }));
+    await waitFor(() =>
+      expect(upsertProfile).toHaveBeenCalledWith({
+        payoutMethod: {
+          provider: 'crypto',
+          network: 'ethereum',
+          asset: 'USDC',
+          address: '0x' + 'a'.repeat(40),
+          note: 'memo 42',
+        },
+      }),
+    );
   });
 
   test('the highlighted chain and the offered assets are the same chain', async () => {
@@ -129,8 +145,9 @@ describe('crypto payment details', () => {
     await waitFor(() => expect(screen.getByText('Crypto')).toBeTruthy());
     fireEvent.click(screen.getByText('Crypto'));
 
-    const active = ['Ethereum', 'Base', 'Arbitrum', 'Optimism', 'Polygon', 'Solana', 'Bitcoin']
-      .filter(n => screen.getByText(n).className.includes('is-active'));
+    const active = ['Ethereum', 'Base', 'Arbitrum', 'Optimism', 'Polygon', 'Solana', 'Bitcoin'].filter(n =>
+      screen.getByText(n).className.includes('is-active'),
+    );
     expect(active).toEqual(['Base']);
     // Base settles USDC and ETH, not USDT: the asset row must match the
     // highlighted chain, not a different default.
@@ -182,21 +199,31 @@ describe('the notification matrix', () => {
     expect(mineWeb.getAttribute('aria-checked')).toBe('true');
     // The new-contract firehose: bell on, mail and push off.
     expect(screen.getByRole('switch', { name: /goes on the ballot: Web/i }).getAttribute('aria-checked')).toBe('true');
-    expect(screen.getByRole('switch', { name: /goes on the ballot: Email/i }).getAttribute('aria-checked')).toBe('false');
-    expect(screen.getByRole('switch', { name: /goes on the ballot: Mobile/i }).getAttribute('aria-checked')).toBe('false');
-    expect(screen.getByRole('switch', { name: /market I traded settles: Email/i }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('switch', { name: /goes on the ballot: Email/i }).getAttribute('aria-checked')).toBe(
+      'false',
+    );
+    expect(screen.getByRole('switch', { name: /goes on the ballot: Mobile/i }).getAttribute('aria-checked')).toBe(
+      'false',
+    );
+    expect(screen.getByRole('switch', { name: /market I traded settles: Email/i }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
   });
 
   test('one click sends only that cell', async () => {
     render(<AccountDialog onClose={() => {}} initialTab="emails" />);
     const ballotEmail = await screen.findByRole('switch', { name: /goes on the ballot: Email/i });
     fireEvent.click(ballotEmail);
-    await waitFor(() => expect(upsertProfile).toHaveBeenCalledWith({ notificationChannels: { contract: { email: true } } }));
+    await waitFor(() =>
+      expect(upsertProfile).toHaveBeenCalledWith({ notificationChannels: { contract: { email: true } } }),
+    );
     expect(ballotEmail.getAttribute('aria-checked')).toBe('true');
   });
 
   test('a refused save puts the cell back', async () => {
-    upsertProfile.mockImplementationOnce(async () => { throw new Error('nope'); });
+    upsertProfile.mockImplementationOnce(async () => {
+      throw new Error('nope');
+    });
     render(<AccountDialog onClose={() => {}} initialTab="emails" />);
     const ballotEmail = await screen.findByRole('switch', { name: /goes on the ballot: Email/i });
     fireEvent.click(ballotEmail);

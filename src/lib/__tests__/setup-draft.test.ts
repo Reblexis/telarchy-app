@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, vi, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearSetupDraft, loadSetupDraft, saveSetupDraft } from '../setup-draft';
 
 /**
@@ -10,8 +10,13 @@ import { clearSetupDraft, loadSetupDraft, saveSetupDraft } from '../setup-draft'
  * on the way to an account is one they will not have twice.
  */
 
-beforeEach(() => { localStorage.clear(); vi.useRealTimers(); });
-afterEach(() => { vi.useRealTimers(); });
+beforeEach(() => {
+  localStorage.clear();
+  vi.useRealTimers();
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const TURNS = [
   { role: 'user' as const, content: 'I run an arbitration protocol' },
@@ -44,10 +49,13 @@ describe('the draft', () => {
   });
 
   test('a draft written by another build fails closed', () => {
-    localStorage.setItem('telarchy.setup-draft.v1', JSON.stringify({
-      turns: [{ role: 'user', content: 'kept' }, { nonsense: true }, { role: 'user', content: 42 }],
-      savedAt: Date.now(),
-    }));
+    localStorage.setItem(
+      'telarchy.setup-draft.v1',
+      JSON.stringify({
+        turns: [{ role: 'user', content: 'kept' }, { nonsense: true }, { role: 'user', content: 42 }],
+        savedAt: Date.now(),
+      }),
+    );
     const back = loadSetupDraft()!;
     expect(back.turns).toEqual([{ role: 'user', content: 'kept' }]);
     expect(back.handoff).toBe('');

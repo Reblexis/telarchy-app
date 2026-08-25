@@ -1,6 +1,6 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * The comment thread under the one market view, and specifically what a
@@ -10,11 +10,14 @@ import { MemoryRouter } from 'react-router-dom';
  * the flash is an arrival, never a selected state left behind.
  */
 
-const getFloorComments = vi.fn(async () => ([
+const getFloorComments = vi.fn(async () => [
   { id: 'c-old', fromName: 'trader-1', content: 'first thought', createdAt: new Date().toISOString() },
   { id: 'c-target', fromName: 'trader-9', content: 'how will you measure this?', createdAt: new Date().toISOString() },
-]));
-const getMarketActivity = vi.fn(async (_idOrSlug: string, _marketId: string) => ({ positions: [] as unknown[], trades: [] as unknown[] }));
+]);
+const getMarketActivity = vi.fn(async (_idOrSlug: string, _marketId: string) => ({
+  positions: [] as unknown[],
+  trades: [] as unknown[],
+}));
 
 vi.mock('../../lib/api', () => ({
   api: {
@@ -42,7 +45,11 @@ const props = {
 describe('a comment a notification points at', () => {
   test('opens the collapsed thread and flashes that comment', async () => {
     const onFocusHandled = vi.fn();
-    render(<MemoryRouter><FloorComments {...props} focusCommentId="c-target" onFocusHandled={onFocusHandled} /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <FloorComments {...props} focusCommentId="c-target" onFocusHandled={onFocusHandled} />
+      </MemoryRouter>,
+    );
 
     // The thread opens on its own: the reader was told about a line, not a tab.
     const target = await screen.findByText('how will you measure this?');
@@ -57,13 +64,21 @@ describe('a comment a notification points at', () => {
 
   test('a comment that no longer exists is handled, not waited on', async () => {
     const onFocusHandled = vi.fn();
-    render(<MemoryRouter><FloorComments {...props} focusCommentId="c-gone" onFocusHandled={onFocusHandled} /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <FloorComments {...props} focusCommentId="c-gone" onFocusHandled={onFocusHandled} />
+      </MemoryRouter>,
+    );
     await waitFor(() => expect(onFocusHandled).toHaveBeenCalled());
     expect(document.querySelector('.is-flashed')).toBeNull();
   });
 
   test('with nothing pointed at, the panel stays closed', async () => {
-    render(<MemoryRouter><FloorComments {...props} /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <FloorComments {...props} />
+      </MemoryRouter>,
+    );
     await waitFor(() => expect(getFloorComments).toHaveBeenCalled());
     expect(screen.queryByText('how will you measure this?')).toBeNull();
   });
@@ -75,15 +90,24 @@ describe('a contract covers both branch markets', () => {
   // trades sat on the declined branch, the branch-scoped panel answered
   // "Trades (0)", which read as the trades having been lost.
   const trade = (id: string, handle: string) => ({
-    id, handle, direction: 'lower', kind: 'buy', shares: 338.9, cost: 221,
+    id,
+    handle,
+    direction: 'lower',
+    kind: 'buy',
+    shares: 338.9,
+    cost: 221,
     createdAt: new Date().toISOString(),
   });
 
   beforeEach(() => {
     getMarketActivity.mockImplementation(async (_idOrSlug: string, marketId: string) =>
       marketId === 'mkt-declined'
-        ? { positions: [{ handle: 'boss', id: 'boss', direction: 'lower', shares: 338.9, cost: 221, worth: 120 }], trades: [trade('t1', 'boss'), trade('t2', 'viktor')] }
-        : { positions: [], trades: [] });
+        ? {
+            positions: [{ handle: 'boss', id: 'boss', direction: 'lower', shares: 338.9, cost: 221, worth: 120 }],
+            trades: [trade('t1', 'boss'), trade('t2', 'viktor')],
+          }
+        : { positions: [], trades: [] },
+    );
   });
 
   const contractProps = {
@@ -98,7 +122,11 @@ describe('a contract covers both branch markets', () => {
   };
 
   test('trades on the other branch still count and render, labeled with their world', async () => {
-    const { getByText } = render(<MemoryRouter><FloorComments {...contractProps} /></MemoryRouter>);
+    const { getByText } = render(
+      <MemoryRouter>
+        <FloorComments {...contractProps} />
+      </MemoryRouter>,
+    );
     await waitFor(() => expect(getByText('Trades (2)')).toBeInTheDocument());
     expect(getByText('Positions (1)')).toBeInTheDocument();
 
@@ -109,9 +137,14 @@ describe('a contract covers both branch markets', () => {
 
   test('a baseline market has one world and carries no label', async () => {
     getMarketActivity.mockImplementation(async () => ({
-      positions: [], trades: [trade('t1', 'boss')],
+      positions: [],
+      trades: [trade('t1', 'boss')],
     }));
-    const { getByText } = render(<MemoryRouter><FloorComments {...props} subject={{ marketId: 'mkt-hero' }} /></MemoryRouter>);
+    const { getByText } = render(
+      <MemoryRouter>
+        <FloorComments {...props} subject={{ marketId: 'mkt-hero' }} />
+      </MemoryRouter>,
+    );
     await waitFor(() => expect(getByText('Trades (1)')).toBeInTheDocument());
     getByText('Trades (1)').click();
     const row = (await screen.findByText('boss')).closest('li')!;

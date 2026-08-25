@@ -16,8 +16,14 @@ const ROOT = resolve(__dirname, '..', '..', '..');
 const PATTERNS: Array<[string, RegExp]> = [
   ['retired admin password', /TestAdmin99/],
   // example.com / example.org addresses are fixtures, not accounts.
-  ['password literal beside an email', /"email"\s*:\s*"[^"@]+@(?!example\.(com|org))[^"]+"\s*,\s*"password"\s*:\s*"(?!\$|\\"\$)[^"]{4,}"/],
-  ['password literal beside an email (single quotes)', /email:\s*'[^'@]+@(?!example\.(com|org))[^']+'\s*,\s*password:\s*'[^']{4,}'/],
+  [
+    'password literal beside an email',
+    /"email"\s*:\s*"[^"@]+@(?!example\.(com|org))[^"]+"\s*,\s*"password"\s*:\s*"(?!\$|\\"\$)[^"]{4,}"/,
+  ],
+  [
+    'password literal beside an email (single quotes)',
+    /email:\s*'[^'@]+@(?!example\.(com|org))[^']+'\s*,\s*password:\s*'[^']{4,}'/,
+  ],
   ['private key header', /-----BEGIN (RSA |EC |OPENSSH |)PRIVATE KEY-----/],
   ['AWS access key', /AKIA[0-9A-Z]{16}/],
   ['GitHub token', /\bgh[pousr]_[A-Za-z0-9]{30,}\b/],

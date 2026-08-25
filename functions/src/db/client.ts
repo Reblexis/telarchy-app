@@ -146,11 +146,12 @@ export const db = new Proxy(prodDb, {
 export async function mirrorAccountIntoStore(userId: string): Promise<void> {
   if (currentStoreName() !== 'beta') return;
   const active = current();
-  const [here] = await active.select({ id: schema.authUser.id })
-    .from(schema.authUser).where(eq(schema.authUser.id, userId));
+  const [here] = await active
+    .select({ id: schema.authUser.id })
+    .from(schema.authUser)
+    .where(eq(schema.authUser.id, userId));
   if (here) return;
   const [real] = await prodDb.select().from(schema.authUser).where(eq(schema.authUser.id, userId));
   if (!real) return;
   await active.insert(schema.authUser).values(real).onConflictDoNothing();
 }
-

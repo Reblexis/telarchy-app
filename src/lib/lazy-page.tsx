@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, type ComponentType, type ReactNode } from 'react';
+import { Component, type ComponentType, lazy, type ReactNode, Suspense } from 'react';
 
 /**
  * Route-level code splitting with a self-healing failure path.
@@ -60,10 +60,18 @@ class ChunkBoundary extends Component<{ children: ReactNode }, { dead: boolean }
   componentDidCatch(err: unknown): void {
     if (!isChunkLoadError(err)) return;
     let last = 0;
-    try { last = Number(sessionStorage.getItem(RELOADED_KEY) ?? 0); } catch { /* storage off */ }
+    try {
+      last = Number(sessionStorage.getItem(RELOADED_KEY) ?? 0);
+    } catch {
+      /* storage off */
+    }
     // One reload per minute: enough to heal a deploy, never a loop offline.
     if (Date.now() - last > 60_000) {
-      try { sessionStorage.setItem(RELOADED_KEY, String(Date.now())); } catch { /* storage off */ }
+      try {
+        sessionStorage.setItem(RELOADED_KEY, String(Date.now()));
+      } catch {
+        /* storage off */
+      }
       window.location.reload();
     }
   }

@@ -19,7 +19,10 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const envFile = readFileSync(join(root, '.env'), 'utf8');
 const MASTER = envFile.match(/^API_KEY=(.+)$/m)?.[1]?.trim();
-if (!MASTER) { console.error('.env has no API_KEY'); process.exit(1); }
+if (!MASTER) {
+  console.error('.env has no API_KEY');
+  process.exit(1);
+}
 
 async function call(path, { method = 'GET', body, headers = {} } = {}) {
   const res = await fetch(`${API}${path}`, {
@@ -29,7 +32,11 @@ async function call(path, { method = 'GET', body, headers = {} } = {}) {
   });
   const text = await res.text();
   let json;
-  try { json = JSON.parse(text); } catch { json = { raw: text }; }
+  try {
+    json = JSON.parse(text);
+  } catch {
+    json = { raw: text };
+  }
   if (!res.ok) throw new Error(`${method} ${path} -> ${res.status}: ${text.slice(0, 200)}`);
   return json;
 }
@@ -63,8 +70,6 @@ if (existing.ok) {
   console.log(`  workspace ${wsId} (slug ${ws.slug})`);
 }
 
-
-
 console.log('Creating the hero metric…');
 const metricsNow = await call('/api/metrics', { headers: asAdmin(wsId) });
 const metricList = Array.isArray(metricsNow) ? metricsNow : (metricsNow.metrics ?? []);
@@ -84,7 +89,9 @@ if (!metricList.some(m => m.name === 'LookPilot net 2026 (USD)')) {
   console.log('  metric exists, skipping');
 }
 await call('/api/predictions/markets/refresh', {
-  method: 'POST', headers: asAdmin(wsId), body: {},
+  method: 'POST',
+  headers: asAdmin(wsId),
+  body: {},
 });
 
 console.log('Registering a local market maker…');
@@ -105,7 +112,9 @@ if (existsSync(keyFile)) {
   writeFileSync(keyFile, JSON.stringify({ makerId, makerKey }));
 }
 await call(`/api/agents/${makerId}/credit`, {
-  method: 'POST', headers: asAdmin(wsId), body: { amount: 5000, reason: 'local dev seed' },
+  method: 'POST',
+  headers: asAdmin(wsId),
+  body: { amount: 5000, reason: 'local dev seed' },
 });
 const asMaker = { 'X-Agent-Key': makerKey, 'X-Workspace-Id': wsId };
 
@@ -117,7 +126,8 @@ const groupList = Array.isArray(groups) ? groups : (groups.groups ?? []);
 const publicGroup = groupList.find(g => g.type === 'public');
 if (publicGroup && !(publicGroup.capabilities ?? []).includes('trade')) {
   await call(`/api/groups/${publicGroup.id}`, {
-    method: 'PUT', headers: asAdmin(wsId),
+    method: 'PUT',
+    headers: asAdmin(wsId),
     body: { capabilities: ['read', 'trade'] },
   });
 }
@@ -129,7 +139,9 @@ console.log(`  hero market ${hero.id}`);
 
 if (hero.liquidity < 100) {
   await call(`/api/predictions/markets/${hero.id}/liquidity`, {
-    method: 'POST', headers: asAdmin(wsId), body: { amount: 400, agentId: makerId },
+    method: 'POST',
+    headers: asAdmin(wsId),
+    body: { amount: 400, agentId: makerId },
   });
 }
 
@@ -137,22 +149,28 @@ console.log('Seeding price history…');
 // Cap-off / seed / cap-on, same as the production procedure: the opening
 // price is the operator's statement, not a capped participant's bet.
 await call(`/api/workspaces/${wsId}/settings`, {
-  method: 'PUT', headers: asAdmin(wsId), body: { maxPositionCostPerMarket: 0 },
+  method: 'PUT',
+  headers: asAdmin(wsId),
+  body: { maxPositionCostPerMarket: 0 },
 });
 // A few steps so the chart has a line, ending at the production-like call.
 for (const target of [90_000, 81_000, 73_600]) {
   await call('/api/predictions/trade', {
-    method: 'POST', headers: asMaker,
+    method: 'POST',
+    headers: asMaker,
     body: { marketId: hero.id, targetValue: target, maxBudget: 400 },
   });
 }
 await call(`/api/workspaces/${wsId}/settings`, {
-  method: 'PUT', headers: asAdmin(wsId), body: { maxPositionCostPerMarket: 250 },
+  method: 'PUT',
+  headers: asAdmin(wsId),
+  body: { maxPositionCostPerMarket: 250 },
 });
 
 console.log('Creating a sample job (with branch markets)…');
 await call('/api/proposals', {
-  method: 'POST', headers: asMaker,
+  method: 'POST',
+  headers: asMaker,
   body: {
     title: '$10: buy a copy',
     description: 'Local sample job so the branch toggle and conditional charts render.',

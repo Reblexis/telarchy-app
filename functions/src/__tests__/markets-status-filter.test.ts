@@ -9,14 +9,18 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { workspaces, agents, metrics, markets } from '../db/schema';
+import { agents, markets, metrics, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { toUnits } from '../lib/validation';
 import { getMarkets } from '../services/predictions';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-status';
 const OWNER = 'owner-status';
@@ -28,36 +32,84 @@ const VOIDED = 'mkt-voided';
 
 async function seed() {
   await db.insert(workspaces).values({
-    id: WS, name: 'Status Filter', createdBy: OWNER, visibility: 'private',
+    id: WS,
+    name: 'Status Filter',
+    createdBy: OWNER,
+    visibility: 'private',
   });
   await db.insert(agents).values({ id: OWNER, apiKeyHash: 'h-owner-status', balance: toUnits(0) });
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Steam units', value: 0, formula: '0', marketRangeMax: 100,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Steam units',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values([
     {
-      id: OPEN, workspaceId: WS, metricId: METRIC, metricName: 'Steam units',
-      targetDate: '2028', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: null,
+      id: OPEN,
+      workspaceId: WS,
+      metricId: METRIC,
+      metricName: 'Steam units',
+      targetDate: '2028',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
     },
     {
-      id: CLOSED, workspaceId: WS, metricId: METRIC, metricName: 'Steam units',
-      targetDate: '2027', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: false, resolved: false, voided: false, proposalId: null,
+      id: CLOSED,
+      workspaceId: WS,
+      metricId: METRIC,
+      metricName: 'Steam units',
+      targetDate: '2027',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: false,
+      resolved: false,
+      voided: false,
+      proposalId: null,
     },
     {
-      id: RESOLVED, workspaceId: WS, metricId: METRIC, metricName: 'Steam units',
-      targetDate: '2026', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: false, resolved: true, voided: false, proposalId: null,
+      id: RESOLVED,
+      workspaceId: WS,
+      metricId: METRIC,
+      metricName: 'Steam units',
+      targetDate: '2026',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: false,
+      resolved: true,
+      voided: false,
+      proposalId: null,
     },
     {
-      id: VOIDED, workspaceId: WS, metricId: METRIC, metricName: 'Steam units',
-      targetDate: '2029', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: true, proposalId: null,
+      id: VOIDED,
+      workspaceId: WS,
+      metricId: METRIC,
+      metricName: 'Steam units',
+      targetDate: '2029',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: true,
+      proposalId: null,
     },
   ]);
 }

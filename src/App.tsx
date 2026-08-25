@@ -1,17 +1,17 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { captureRefFromLocation } from './lib/ref';
-import { pickDefaultFloor } from './lib/floors';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { BetaBanner } from './components/BetaBanner';
 import { api } from './lib/api';
+import { BASE_PATH } from './lib/base-path';
+import { pickDefaultFloor } from './lib/floors';
+import { lazyPage } from './lib/lazy-page';
+import { popStashedNextPath } from './lib/nextPath';
+import { captureRefFromLocation } from './lib/ref';
+import { FloorsPage } from './pages/FloorsPage';
 /* Eager: the two first-paint routes. `/` is the list, `/:slug` is the floor;
    between them they are what nearly every visitor lands on, so their code
    belongs in the entry bundle. */
 import { TradePage } from './pages/TradePage';
-import { FloorsPage } from './pages/FloorsPage';
-import { BetaBanner } from './components/BetaBanner';
-import { lazyPage } from './lib/lazy-page';
-import { BASE_PATH } from './lib/base-path';
-import { popStashedNextPath } from './lib/nextPath';
 
 /* Lazy: everything else splits into per-route chunks (2026-08-20). The entry
    bundle was 615 KB with every page in it, so a phone visitor downloaded the
@@ -49,14 +49,14 @@ const ContactPage = lazyPage(() => import('./pages/ContactPage'), 'ContactPage')
 function AccountRedirect() {
   const [target, setTarget] = useState<string | null>(null);
   useEffect(() => {
-    api.getMarketplace(1)
+    api
+      .getMarketplace(1)
       .then(list => setTarget(pickDefaultFloor(list)))
       .catch(() => setTarget('/floors'));
   }, []);
   if (!target) return null;
   return <Navigate to={`${target}#account`} replace />;
 }
-
 
 /**
  * Put someone back where they were after an OAuth round trip.
@@ -86,7 +86,9 @@ function ResumeAfterOAuth() {
 export function App() {
   // Attribution: a `?ref=<slug>` on any landing URL is kept for 30 days so the
   // signup that follows can say where it came from (src/lib/ref.ts).
-  useEffect(() => { captureRefFromLocation(); }, []);
+  useEffect(() => {
+    captureRefFromLocation();
+  }, []);
   return (
     <BrowserRouter basename={BASE_PATH || '/'}>
       <ResumeAfterOAuth />

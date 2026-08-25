@@ -22,19 +22,20 @@ jest.mock('../db/client', () => require('./harness/test-db'));
 // replaced by inert equivalents and every other line of the real middleware runs.
 jest.mock('better-auth/node', () => ({
   fromNodeHeaders: (h: Record<string, unknown>) => h,
-  toNodeHandler: () => (_req: unknown, res: { status: (n: number) => { json: (b: unknown) => void } }) => res.status(404).json({ error: 'auth handler stubbed in tests' }),
+  toNodeHandler: () => (_req: unknown, res: { status: (n: number) => { json: (b: unknown) => void } }) =>
+    res.status(404).json({ error: 'auth handler stubbed in tests' }),
 }));
 jest.mock('../auth', () => ({ auth: { api: { getSession: async () => null } } }));
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import request from 'supertest';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, agentApiKeys } from '../db/schema';
-import { hashKey } from '../middleware/auth';
+import { app } from '../app';
+import { agentApiKeys, agents } from '../db/schema';
 import { provisionWorkspace } from '../lib/participants';
 import { toUnits } from '../lib/validation';
-import { app } from '../app';
+import { hashKey } from '../middleware/auth';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const FIXTURE = join(__dirname, 'fixtures', 'route-auth-matrix.json');
 const WS = 'ws-auth-matrix';
@@ -42,10 +43,7 @@ const AGENT = 'agent-auth-matrix';
 const AGENT_KEY = 'matrix-agent-key-raw-value';
 
 /** Streaming or outbound routes that never return for a bare request. */
-const SKIP = new Set<string>([
-  'GET /api/events',
-  'GET /api/events/stream',
-]);
+const SKIP = new Set<string>(['GET /api/events', 'GET /api/events/stream']);
 
 import { listApiRoutes, type RouteRef } from './harness/routes';
 
@@ -69,8 +67,16 @@ beforeAll(async () => {
   await truncateAll();
   await db.insert(agents).values({ id: AGENT, apiKeyHash: hashKey(AGENT_KEY), balance: toUnits(100) });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await provisionWorkspace(db as any, { wsId: WS, name: 'Auth matrix', createdBy: AGENT, ownerAgentId: AGENT, visibility: 'public' });
-  await db.insert(agentApiKeys).values({ hash: hashKey(AGENT_KEY), keyId: 'matrix-key', agentId: AGENT, workspaceId: WS, scopes: ['*'] });
+  await provisionWorkspace(db as any, {
+    wsId: WS,
+    name: 'Auth matrix',
+    createdBy: AGENT,
+    ownerAgentId: AGENT,
+    visibility: 'public',
+  });
+  await db
+    .insert(agentApiKeys)
+    .values({ hash: hashKey(AGENT_KEY), keyId: 'matrix-key', agentId: AGENT, workspaceId: WS, scopes: ['*'] });
 });
 
 test('every /api route answers the same status for anon, agent key and master key as the pinned matrix', async () => {
@@ -82,7 +88,7 @@ test('every /api route answers the same status for anon, agent key and master ke
     for (const mode of MODES) {
       try {
         row[mode] = await hit(r, mode);
-      } catch (e) {
+      } catch (_e) {
         row[mode] = -1; // timed out or threw: recorded as such, still a stable value
       }
     }

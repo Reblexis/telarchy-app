@@ -11,7 +11,7 @@
  * still return an answer, which is exactly the failure this catches.
  */
 
-import { askAboutWorkspace, type AskTool } from '../lib/ask';
+import { type AskTool, askAboutWorkspace } from '../lib/ask';
 
 const ORIGINAL_FETCH = global.fetch;
 const ORIGINAL_KEY = process.env.AI_GATEWAY_API_KEY;
@@ -25,7 +25,9 @@ function reply(message: Record<string, unknown>) {
   } as unknown as Response;
 }
 
-beforeEach(() => { process.env.AI_GATEWAY_API_KEY = 'test-key'; });
+beforeEach(() => {
+  process.env.AI_GATEWAY_API_KEY = 'test-key';
+});
 afterEach(() => {
   global.fetch = ORIGINAL_FETCH;
   if (ORIGINAL_KEY === undefined) delete process.env.AI_GATEWAY_API_KEY;
@@ -56,7 +58,9 @@ test('Otto opens the data room, and answers from what it said', async () => {
       return reply({
         role: 'assistant',
         content: '',
-        tool_calls: [{ id: 'c1', type: 'function', function: { name: 'read_data_room', arguments: '{"section":"traffic"}' } }],
+        tool_calls: [
+          { id: 'c1', type: 'function', function: { name: 'read_data_room', arguments: '{"section":"traffic"}' } },
+        ],
       });
     }
     return reply({ role: 'assistant', content: '3,583 visits so far. Small, and published anyway.' });
@@ -81,7 +85,8 @@ test('Otto opens the data room, and answers from what it said', async () => {
 
 test('a visitor who asks nothing about Telarchy pays for no lookup', async () => {
   const { tool, calls } = fakeDataRoom();
-  global.fetch = (async () => reply({ role: 'assistant', content: 'The market says 8,370.' })) as unknown as typeof fetch;
+  global.fetch = (async () =>
+    reply({ role: 'assistant', content: 'The market says 8,370.' })) as unknown as typeof fetch;
 
   const res = await askAboutWorkspace('THE BRIEF', [{ role: 'user', content: 'what does the market say?' }], [tool]);
   expect(res.answer).toContain('8,370');
@@ -94,14 +99,17 @@ test('a failed lookup is told to him, never silently dropped', async () => {
       type: 'function',
       function: { name: 'read_data_room', description: 'the books', parameters: { type: 'object', properties: {} } },
     },
-    async run() { throw new Error('database unreachable'); },
+    async run() {
+      throw new Error('database unreachable');
+    },
   };
   const bodies: any[] = [];
   global.fetch = (async (_url: string, init: RequestInit) => {
     bodies.push(JSON.parse(String(init.body)));
     if (bodies.length === 1) {
       return reply({
-        role: 'assistant', content: '',
+        role: 'assistant',
+        content: '',
         tool_calls: [{ id: 'c1', type: 'function', function: { name: 'read_data_room', arguments: '{}' } }],
       });
     }
@@ -124,8 +132,11 @@ test('the tools are withheld on the last round, so a loop has to end', async () 
     // last round is sent without tools to call.
     if (body.tools) {
       return reply({
-        role: 'assistant', content: '',
-        tool_calls: [{ id: `c${bodies.length}`, type: 'function', function: { name: 'read_data_room', arguments: '{}' } }],
+        role: 'assistant',
+        content: '',
+        tool_calls: [
+          { id: `c${bodies.length}`, type: 'function', function: { name: 'read_data_room', arguments: '{}' } },
+        ],
       });
     }
     return reply({ role: 'assistant', content: 'Here is what I have.' });

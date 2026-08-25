@@ -36,20 +36,20 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
+import { eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agents, markets, metrics, permissionGroups, positions, trades } from '../db/schema';
+import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics, permissionGroups, positions, trades } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
-import { initialPool } from '../lib/amm';
-import { toUnits } from '../lib/validation';
+import { clearBoardCache, leaderboardRouter } from '../routes/leaderboard';
 import { predictionsRouter } from '../routes/predictions';
-import { leaderboardRouter, clearBoardCache } from '../routes/leaderboard';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -61,9 +61,16 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); clearBoardCache(); });
-afterEach(() => { jest.restoreAllMocks(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+  clearBoardCache();
+});
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 const WS = 'ws-freshness';
 const OWNER = 'agent-owner';
@@ -79,22 +86,40 @@ async function seed() {
   // Public: the board aggregates public workspaces only.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Freshness Test', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'public',
+    wsId: WS,
+    name: 'Freshness Test',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'public',
   });
-  const groups = await db.select().from(permissionGroups)
-    .where(eq(permissionGroups.workspaceId, WS));
+  const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS));
   const traderGroup = groups.find(g => g.type === 'trader')!;
-  await db.update(permissionGroups)
+  await db
+    .update(permissionGroups)
     .set({ memberIds: [BETTOR] })
     .where(eq(permissionGroups.id, traderGroup.id));
   await db.insert(metrics).values({
-    id: METRIC, workspaceId: WS, name: 'Revenue', value: 50, formula: '0', marketRangeMax: 100,
+    id: METRIC,
+    workspaceId: WS,
+    name: 'Revenue',
+    value: 50,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Revenue',
-    targetDate: '2028', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 200, pool: initialPool(200),
-    active: true, resolved: false, voided: false,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: METRIC,
+    metricName: 'Revenue',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 200,
+    pool: initialPool(200),
+    active: true,
+    resolved: false,
+    voided: false,
   });
 }
 
@@ -110,7 +135,8 @@ test('a trade placed through the route is on the board on the very next read', a
   // on the page has just done.
   expect(await board()).toEqual([]);
 
-  const trade = await request(app).post('/api/predictions/trade')
+  const trade = await request(app)
+    .post('/api/predictions/trade')
     .set('X-Test-Agent-Id', BETTOR)
     .set('X-Workspace-Id', WS)
     .set('Content-Type', 'application/json')
@@ -130,12 +156,23 @@ test('a trade written outside the route is on the board within five seconds', as
   // A background writer this process never sees: another instance, a bot run,
   // a settlement. Rows only, no invalidation.
   await db.insert(positions).values({
-    id: `pos-${MARKET}`, workspaceId: WS, agentId: BETTOR, marketId: MARKET,
-    direction: 'higher', shares: 40, totalCost: 10,
+    id: `pos-${MARKET}`,
+    workspaceId: WS,
+    agentId: BETTOR,
+    marketId: MARKET,
+    direction: 'higher',
+    shares: 40,
+    totalCost: 10,
   });
   await db.insert(trades).values({
-    id: `trade-${MARKET}`, workspaceId: WS, agentId: BETTOR, marketId: MARKET,
-    direction: 'higher', shares: 40, cost: 10, createdAt: new Date(),
+    id: `trade-${MARKET}`,
+    workspaceId: WS,
+    agentId: BETTOR,
+    marketId: MARKET,
+    direction: 'higher',
+    shares: 40,
+    cost: 10,
+    createdAt: new Date(),
   });
 
   // Still inside the TTL: the cached answer stands. This is the cache doing

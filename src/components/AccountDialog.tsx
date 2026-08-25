@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FloorModal } from './FloorModal';
+import { useAuth } from '../hooks/useAuth';
+import { agentPrompt, type FloorRef } from '../lib/agent-prompt';
+import {
+  api,
+  type NotificationChannel,
+  type NotificationKindId,
+  type NotificationMatrix,
+  type NotificationPrefs,
+  type PayoutMethod,
+} from '../lib/api';
 import { AccountCredits } from './AccountCredits';
 import { AccountPassword } from './AccountPassword';
+import { FloorModal } from './FloorModal';
 import { SeasonEntryPanel } from './SeasonEntryPanel';
-import { api, type NotificationChannel, type NotificationKindId, type NotificationMatrix, type NotificationPrefs, type PayoutMethod } from '../lib/api';
-import { agentPrompt, type FloorRef } from '../lib/agent-prompt';
-import { useAuth } from '../hooks/useAuth';
 
 /**
  * The account, as a real dialog (owner direction 2026-08-10: the corner
@@ -135,19 +142,24 @@ function storedFields(method: PayoutMethod): Record<string, string> {
 }
 
 function fmtCr(v: number): string {
-  return v >= 10_000
-    ? `${Math.round(v / 1000).toLocaleString('en-US')}k`
-    : Math.round(v).toLocaleString('en-US');
+  return v >= 10_000 ? `${Math.round(v / 1000).toLocaleString('en-US')}k` : Math.round(v).toLocaleString('en-US');
 }
 
 function initials(name: string | null, email: string | null): string {
   const source = (name ?? email ?? '?').trim();
   const parts = source.split(/[\s@._-]+/).filter(Boolean);
-  const letters = parts.slice(0, 2).map(p => p[0]).join('');
+  const letters = parts
+    .slice(0, 2)
+    .map(p => p[0])
+    .join('');
   return (letters || source[0] || '?').toUpperCase();
 }
 
-export function AccountDialog({ onClose, initialTab = 'profile', floor = null }: {
+export function AccountDialog({
+  onClose,
+  initialTab = 'profile',
+  floor = null,
+}: {
   onClose: () => void;
   /** Which section to open on. Notification emails link straight to 'emails'. */
   initialTab?: AccountTab;
@@ -199,7 +211,8 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
       the balance under the deposit box ends up disagreeing with the balance
       in the header. */
   const loadParticipant = useCallback(() => {
-    api.getParticipant()
+    api
+      .getParticipant()
       .then(p => {
         const part = p as Participant;
         setParticipant(part);
@@ -214,7 +227,8 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
         }
       })
       .catch(e => console.error('participant fetch failed:', e));
-    api.getProfile()
+    api
+      .getProfile()
       .then(p => {
         const m = (p as { notificationChannels?: NotificationMatrix }).notificationChannels;
         if (m) setMatrix(m);
@@ -242,15 +256,24 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
           try {
             const SIZE = 256;
             const canvas = document.createElement('canvas');
-            canvas.width = SIZE; canvas.height = SIZE;
+            canvas.width = SIZE;
+            canvas.height = SIZE;
             const ctx = canvas.getContext('2d');
-            if (!ctx) { reject(new Error('Your browser blocked image processing')); return; }
+            if (!ctx) {
+              reject(new Error('Your browser blocked image processing'));
+              return;
+            }
             const side = Math.min(img.width, img.height);
             ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
             resolve(canvas.toDataURL('image/jpeg', 0.85));
-          } finally { URL.revokeObjectURL(url); }
+          } finally {
+            URL.revokeObjectURL(url);
+          }
         };
-        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That file does not look like an image')); };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('That file does not look like an image'));
+        };
         img.src = url;
       });
       await api.upsertProfile({ image: dataUrl });
@@ -325,10 +348,12 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') throw new Error('The browser blocked notifications; allow them in site settings');
     const existing = await reg.pushManager.getSubscription();
-    const sub = existing ?? await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: vapidKeyBytes(publicKey) as BufferSource,
-    });
+    const sub =
+      existing ??
+      (await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: vapidKeyBytes(publicKey) as BufferSource,
+      }));
     await api.registerPushSubscription(sub.toJSON());
   };
 
@@ -351,28 +376,42 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
   };
 
   const manifoldStart = async () => {
-    setBusy('manifold'); clearErr('manifold'); setManifoldMsg('');
+    setBusy('manifold');
+    clearErr('manifold');
+    setManifoldMsg('');
     try {
       const d = await api.startManifoldImport(manifoldName);
       setManifold({ code: d.code, username: d.username });
     } catch (e) {
       sectionErr('manifold', (e as Error).message);
-    } finally { setBusy(null); }
+    } finally {
+      setBusy(null);
+    }
   };
 
   const manifoldClaim = async () => {
-    setBusy('manifold'); clearErr('manifold'); setManifoldMsg('');
+    setBusy('manifold');
+    clearErr('manifold');
+    setManifoldMsg('');
     try {
       const d = await api.claimManifoldImport();
       setManifoldMsg(`Imported @${d.username}: +${d.granted.toLocaleString('en-US')} cr`);
       setManifold(null);
-      api.getParticipant().then(p => setParticipant(p as Participant)).catch(() => {});
+      api
+        .getParticipant()
+        .then(p => setParticipant(p as Participant))
+        .catch(() => {});
     } catch (e) {
       sectionErr('manifold', (e as Error).message);
-    } finally { setBusy(null); }
+    } finally {
+      setBusy(null);
+    }
   };
 
-  const setField = (k: string, v: string) => { setFields(f => ({ ...f, [k]: v })); setPayDirty(true); };
+  const setField = (k: string, v: string) => {
+    setFields(f => ({ ...f, [k]: v }));
+    setPayDirty(true);
+  };
   const switchProvider = (p: PayoutMethod['provider']) => {
     setProvider(p);
     // Re-hydrate the stored fields when returning to the saved provider;
@@ -415,17 +454,25 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
             {user?.email && <span className="acctdlg-email">{user.email}</span>}
             <span className="acctdlg-stats">
               {participant?.balance != null ? `${fmtCr(participant.balance)} cr to trade` : ''}
-              {participant?.earnedBetting != null ? ` · ${participant.earnedBetting > 0 ? '+' : ''}${fmtCr(participant.earnedBetting)} cr earned` : ''}
+              {participant?.earnedBetting != null
+                ? ` · ${participant.earnedBetting > 0 ? '+' : ''}${fmtCr(participant.earnedBetting)} cr earned`
+                : ''}
             </span>
           </div>
-          <button className="ticket-close" aria-label="Close" onClick={onClose}>×</button>
+          <button className="ticket-close" aria-label="Close" onClick={onClose}>
+            ×
+          </button>
         </div>
         <input
           ref={fileRef}
           type="file"
           accept="image/*"
           style={{ display: 'none' }}
-          onChange={e => { const f = e.target.files?.[0]; if (f) void pickPicture(f); e.target.value = ''; }}
+          onChange={e => {
+            const f = e.target.files?.[0];
+            if (f) void pickPicture(f);
+            e.target.value = '';
+          }}
         />
         {errors.picture && <p className="ticket-err">{errors.picture}</p>}
 
@@ -445,273 +492,314 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
         </div>
 
         <div className="acctdlg-panel" role="tabpanel" aria-label={TABS.find(t => t.id === tab)?.label ?? 'Account'}>
-        {tab === 'profile' && (
-          <>
-          <label className="jobform-field">
-            <span className="ticket-label">Username</span>
-            <input
-              className="jobform-line"
-              value={nick}
-              onChange={e => setNick(e.target.value)}
-              placeholder="your-username"
-              maxLength={30}
-              aria-label="Username"
-            />
-          </label>
-          {nick.trim() !== nickSaved && nick.trim() !== '' && (
-            <button className="ticket-go acctdlg-save" disabled={busy === 'nick'} onClick={() => void saveNick()}>
-              {busy === 'nick' ? 'Saving…' : saved.nick ? 'Saved' : 'Save username'}
-            </button>
-          )}
-          {errors.nick && <p className="ticket-err">{errors.nick}</p>}
-
-          <label className="jobform-field">
-            <span className="ticket-label">Bio</span>
-            <textarea
-              className="jobform-line acctdlg-bio"
-              value={bio}
-              onChange={e => setBio(e.target.value)}
-              placeholder="Who are you, and what are you here to do? Shown on your public profile."
-              maxLength={500}
-              rows={2}
-              aria-label="Bio"
-            />
-          </label>
-          {bio.trim() !== bioSaved && (
-            <button className="ticket-go acctdlg-save" disabled={busy === 'bio'} onClick={() => void saveBio()}>
-              {busy === 'bio' ? 'Saving…' : saved.bio ? 'Saved' : 'Save bio'}
-            </button>
-          )}
-          {errors.bio && <p className="ticket-err">{errors.bio}</p>}
-
-          {/* Bring a Manifold record: proven calibration converts once. */}
-          <div className="jobform-field">
-            <span className="ticket-label">Manifold</span>
-            {manifold === null && !manifoldMsg && (
-              <button className="acctdlg-ghost" onClick={() => { setManifold('ask'); clearErr('manifold'); }}>
-                Import Manifold balance
-              </button>
-            )}
-            {manifold === 'ask' && (
-              <div className="acctdlg-inline">
+          {tab === 'profile' && (
+            <>
+              <label className="jobform-field">
+                <span className="ticket-label">Username</span>
                 <input
                   className="jobform-line"
-                  value={manifoldName}
-                  onChange={e => setManifoldName(e.target.value)}
-                  placeholder="your Manifold username"
-                  aria-label="Manifold username"
+                  value={nick}
+                  onChange={e => setNick(e.target.value)}
+                  placeholder="your-username"
+                  maxLength={30}
+                  aria-label="Username"
                 />
-                <button className="acctdlg-ghost" disabled={busy === 'manifold' || !manifoldName.trim()} onClick={() => void manifoldStart()}>
-                  {busy === 'manifold' ? 'Checking…' : 'Next'}
+              </label>
+              {nick.trim() !== nickSaved && nick.trim() !== '' && (
+                <button className="ticket-go acctdlg-save" disabled={busy === 'nick'} onClick={() => void saveNick()}>
+                  {busy === 'nick' ? 'Saving…' : saved.nick ? 'Saved' : 'Save username'}
                 </button>
-              </div>
-            )}
-            {manifold !== null && manifold !== 'ask' && (
-              <div className="acctdlg-inline acctdlg-inline--col">
-                <p className="acctdlg-hint">
-                  Add <code>{manifold.code}</code> to @{manifold.username}&rsquo;s bio on
-                  manifold.markets, then verify. You can remove it right after.
-                </p>
-                <button className="acctdlg-ghost" disabled={busy === 'manifold'} onClick={() => void manifoldClaim()}>
-                  {busy === 'manifold' ? 'Verifying…' : 'Verify'}
+              )}
+              {errors.nick && <p className="ticket-err">{errors.nick}</p>}
+
+              <label className="jobform-field">
+                <span className="ticket-label">Bio</span>
+                <textarea
+                  className="jobform-line acctdlg-bio"
+                  value={bio}
+                  onChange={e => setBio(e.target.value)}
+                  placeholder="Who are you, and what are you here to do? Shown on your public profile."
+                  maxLength={500}
+                  rows={2}
+                  aria-label="Bio"
+                />
+              </label>
+              {bio.trim() !== bioSaved && (
+                <button className="ticket-go acctdlg-save" disabled={busy === 'bio'} onClick={() => void saveBio()}>
+                  {busy === 'bio' ? 'Saving…' : saved.bio ? 'Saved' : 'Save bio'}
                 </button>
+              )}
+              {errors.bio && <p className="ticket-err">{errors.bio}</p>}
+
+              {/* Bring a Manifold record: proven calibration converts once. */}
+              <div className="jobform-field">
+                <span className="ticket-label">Manifold</span>
+                {manifold === null && !manifoldMsg && (
+                  <button
+                    className="acctdlg-ghost"
+                    onClick={() => {
+                      setManifold('ask');
+                      clearErr('manifold');
+                    }}
+                  >
+                    Import Manifold balance
+                  </button>
+                )}
+                {manifold === 'ask' && (
+                  <div className="acctdlg-inline">
+                    <input
+                      className="jobform-line"
+                      value={manifoldName}
+                      onChange={e => setManifoldName(e.target.value)}
+                      placeholder="your Manifold username"
+                      aria-label="Manifold username"
+                    />
+                    <button
+                      className="acctdlg-ghost"
+                      disabled={busy === 'manifold' || !manifoldName.trim()}
+                      onClick={() => void manifoldStart()}
+                    >
+                      {busy === 'manifold' ? 'Checking…' : 'Next'}
+                    </button>
+                  </div>
+                )}
+                {manifold !== null && manifold !== 'ask' && (
+                  <div className="acctdlg-inline acctdlg-inline--col">
+                    <p className="acctdlg-hint">
+                      Add <code>{manifold.code}</code> to @{manifold.username}&rsquo;s bio on manifold.markets, then
+                      verify. You can remove it right after.
+                    </p>
+                    <button
+                      className="acctdlg-ghost"
+                      disabled={busy === 'manifold'}
+                      onClick={() => void manifoldClaim()}
+                    >
+                      {busy === 'manifold' ? 'Verifying…' : 'Verify'}
+                    </button>
+                  </div>
+                )}
+                {manifoldMsg && <p className="acctdlg-ok">{manifoldMsg}</p>}
               </div>
-            )}
-            {manifoldMsg && <p className="acctdlg-ok">{manifoldMsg}</p>}
-          </div>
-          {errors.manifold && <p className="ticket-err">{errors.manifold}</p>}
+              {errors.manifold && <p className="ticket-err">{errors.manifold}</p>}
+            </>
+          )}
 
-          </>
-        )}
-
-        {tab === 'money' && (
-          <>
-          {/* Payment details: pick a provider, fill its own fields. What is
+          {tab === 'money' && (
+            <>
+              {/* Payment details: pick a provider, fill its own fields. What is
               stored is a typed method the owner can pay against; the fields
               are validated server-side per provider (IBAN checksum, address
               shapes) and errors land right here. */}
-          <div className="jobform-field">
-            <span className="ticket-label">Paid through</span>
-            <div className="acctdlg-pills" role="tablist" aria-label="Payment provider">
-              {PROVIDERS.map(p => (
+              <div className="jobform-field">
+                <span className="ticket-label">Paid through</span>
+                <div className="acctdlg-pills" role="tablist" aria-label="Payment provider">
+                  {PROVIDERS.map(p => (
+                    <button
+                      key={p.id}
+                      role="tab"
+                      aria-selected={provider === p.id}
+                      className={`acctdlg-pill${provider === p.id ? ' is-active' : ''}`}
+                      onClick={() => switchProvider(p.id)}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {provider === 'paypal' && (
+                <label className="jobform-field">
+                  <span className="ticket-label">PayPal email</span>
+                  {line('email', 'PayPal email', 'you@example.com')}
+                </label>
+              )}
+              {provider === 'bank' && (
+                <>
+                  <label className="jobform-field">
+                    <span className="ticket-label">IBAN</span>
+                    {line('iban', 'IBAN', 'CZ65 0800 0000 1920 0014 5399')}
+                  </label>
+                  <label className="jobform-field">
+                    <span className="ticket-label">Account holder</span>
+                    {line('holder', 'Account holder', 'Name as the bank knows it')}
+                  </label>
+                </>
+              )}
+              {provider === 'crypto' && (
+                <>
+                  <div className="jobform-field">
+                    <span className="ticket-label">Network</span>
+                    <div className="acctdlg-pills">
+                      {NETWORKS.map(n => (
+                        <button
+                          key={n.id}
+                          className={`acctdlg-pill${(fields.network ?? DEFAULT_NETWORK) === n.id ? ' is-active' : ''}`}
+                          onClick={() => {
+                            setField('network', n.id);
+                            // Assets differ per chain, so a stale pick from the
+                            // previous chain must not survive the switch.
+                            const first = ASSETS[n.id]?.[0];
+                            if (first && !ASSETS[n.id].includes(fields.asset ?? '')) setField('asset', first);
+                          }}
+                        >
+                          {n.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="jobform-field">
+                    <span className="ticket-label">Paid in</span>
+                    <div className="acctdlg-pills">
+                      {(ASSETS[fields.network ?? DEFAULT_NETWORK] ?? ASSETS[DEFAULT_NETWORK]).map(a => (
+                        <button
+                          key={a}
+                          className={`acctdlg-pill${(fields.asset ?? '') === a ? ' is-active' : ''}`}
+                          onClick={() => setField('asset', a)}
+                        >
+                          {a}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="jobform-field">
+                    <span className="ticket-label">Address</span>
+                    {line(
+                      'address',
+                      'Address',
+                      (fields.network ?? DEFAULT_NETWORK) === 'solana'
+                        ? 'Solana address'
+                        : (fields.network ?? DEFAULT_NETWORK) === 'bitcoin'
+                          ? 'bc1…'
+                          : '0x…',
+                    )}
+                  </label>
+                </>
+              )}
+              {provider === 'revolut' && (
+                <label className="jobform-field">
+                  <span className="ticket-label">Revtag or phone</span>
+                  {line('handle', 'Revtag or phone', '@yourtag')}
+                </label>
+              )}
+              {provider === 'wise' && (
+                <label className="jobform-field">
+                  <span className="ticket-label">Wise email</span>
+                  {line('email', 'Wise email', 'you@example.com')}
+                </label>
+              )}
+              {provider === 'other' && (
+                <label className="jobform-field">
+                  <span className="ticket-label">How to pay you</span>
+                  {line('details', 'How to pay you', 'Say exactly how the money reaches you')}
+                </label>
+              )}
+
+              <label className="jobform-field">
+                <span className="ticket-label">Note (optional)</span>
+                {line('note', 'Note', 'Reference, exchange memo or tag, anything I need to know when sending')}
+              </label>
+
+              {(payDirty || saved.pay) && (
                 <button
-                  key={p.id}
-                  role="tab"
-                  aria-selected={provider === p.id}
-                  className={`acctdlg-pill${provider === p.id ? ' is-active' : ''}`}
-                  onClick={() => switchProvider(p.id)}
+                  className={`ticket-go acctdlg-save${saved.pay ? ' is-placed' : ''}`}
+                  disabled={busy === 'pay'}
+                  onClick={() => void savePayment()}
                 >
-                  {p.label}
+                  {busy === 'pay' ? 'Saving…' : saved.pay ? 'Saved' : 'Save payment details'}
                 </button>
-              ))}
-            </div>
-          </div>
+              )}
+              {errors.pay && <p className="ticket-err">{errors.pay}</p>}
 
-          {provider === 'paypal' && (
-            <label className="jobform-field"><span className="ticket-label">PayPal email</span>{line('email', 'PayPal email', 'you@example.com')}</label>
-          )}
-          {provider === 'bank' && (
-            <>
-              <label className="jobform-field"><span className="ticket-label">IBAN</span>{line('iban', 'IBAN', 'CZ65 0800 0000 1920 0014 5399')}</label>
-              <label className="jobform-field"><span className="ticket-label">Account holder</span>{line('holder', 'Account holder', 'Name as the bank knows it')}</label>
+              <AccountCredits me={participant} onChanged={loadParticipant} />
+              <SeasonEntryPanel />
             </>
           )}
-          {provider === 'crypto' && (
+
+          {tab === 'emails' && (
             <>
-              <div className="jobform-field">
-                <span className="ticket-label">Network</span>
-                <div className="acctdlg-pills">
-                  {NETWORKS.map(n => (
-                    <button
-                      key={n.id}
-                      className={`acctdlg-pill${(fields.network ?? DEFAULT_NETWORK) === n.id ? ' is-active' : ''}`}
-                      onClick={() => {
-                        setField('network', n.id);
-                        // Assets differ per chain, so a stale pick from the
-                        // previous chain must not survive the switch.
-                        const first = ASSETS[n.id]?.[0];
-                        if (first && !ASSETS[n.id].includes(fields.asset ?? '')) setField('asset', first);
-                      }}
-                    >
-                      {n.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="jobform-field">
-                <span className="ticket-label">Paid in</span>
-                <div className="acctdlg-pills">
-                  {(ASSETS[fields.network ?? DEFAULT_NETWORK] ?? ASSETS[DEFAULT_NETWORK]).map(a => (
-                    <button
-                      key={a}
-                      className={`acctdlg-pill${(fields.asset ?? '') === a ? ' is-active' : ''}`}
-                      onClick={() => setField('asset', a)}
-                    >
-                      {a}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <label className="jobform-field"><span className="ticket-label">Address</span>{line('address', 'Address', (fields.network ?? DEFAULT_NETWORK) === 'solana' ? 'Solana address' : (fields.network ?? DEFAULT_NETWORK) === 'bitcoin' ? 'bc1…' : '0x…')}</label>
-            </>
-          )}
-          {provider === 'revolut' && (
-            <label className="jobform-field"><span className="ticket-label">Revtag or phone</span>{line('handle', 'Revtag or phone', '@yourtag')}</label>
-          )}
-          {provider === 'wise' && (
-            <label className="jobform-field"><span className="ticket-label">Wise email</span>{line('email', 'Wise email', 'you@example.com')}</label>
-          )}
-          {provider === 'other' && (
-            <label className="jobform-field"><span className="ticket-label">How to pay you</span>{line('details', 'How to pay you', 'Say exactly how the money reaches you')}</label>
-          )}
-
-          <label className="jobform-field">
-            <span className="ticket-label">Note (optional)</span>
-            {line('note', 'Note', 'Reference, exchange memo or tag, anything I need to know when sending')}
-          </label>
-
-          {(payDirty || saved.pay) && (
-            <button className={`ticket-go acctdlg-save${saved.pay ? ' is-placed' : ''}`} disabled={busy === 'pay'} onClick={() => void savePayment()}>
-              {busy === 'pay' ? 'Saving…' : saved.pay ? 'Saved' : 'Save payment details'}
-            </button>
-          )}
-          {errors.pay && <p className="ticket-err">{errors.pay}</p>}
-
-          <AccountCredits me={participant} onChanged={loadParticipant} />
-          <SeasonEntryPanel />
-
-          </>
-        )}
-
-        {tab === 'emails' && (
-          <>
-          {/* The matrix: each kind of news, over three channels. Web is the
+              {/* The matrix: each kind of news, over three channels. Web is the
               bell, Email is mail, Mobile is a browser push. Answers addressed
               to you are on for a new account, the firehoses off (docs/
               vision.md, "Participant notifications"). Each cell saves on the
               click; there is no confirm to forget to press. */}
-          <div className="jobform-field">
-            <span className="ticket-label">Notifications</span>
-            <div className="acctdlg-switches">
-              {matrix === null ? (
-                <p className="acctdlg-hint">Loading your settings…</p>
-              ) : NOTIFICATION_ROWS.map(row => (
-                <div key={row.kind} className="acctdlg-matrix-row">
-                  <span className="acctdlg-matrix-label">{row.label}</span>
-                  <span className="acctdlg-matrix-cells">
-                    {CHANNEL_LABELS.map(({ channel, label }) => (
-                      <button
-                        key={channel}
-                        type="button"
-                        role="switch"
-                        aria-checked={matrix[row.kind][channel]}
-                        aria-label={`${row.label}: ${label}`}
-                        className={`acctdlg-switch acctdlg-switch--cell${matrix[row.kind][channel] ? ' is-on' : ''}`}
-                        disabled={busy === `cell:${row.kind}:${channel}`}
-                        onClick={() => void toggleCell(row.kind, channel)}
-                      >
-                        <span className="acctdlg-switch-box" aria-hidden="true">{matrix[row.kind][channel] ? '✓' : ''}</span>
-                        <span className="acctdlg-switch-label">{label}</span>
-                      </button>
-                    ))}
-                  </span>
+              <div className="jobform-field">
+                <span className="ticket-label">Notifications</span>
+                <div className="acctdlg-switches">
+                  {matrix === null ? (
+                    <p className="acctdlg-hint">Loading your settings…</p>
+                  ) : (
+                    NOTIFICATION_ROWS.map(row => (
+                      <div key={row.kind} className="acctdlg-matrix-row">
+                        <span className="acctdlg-matrix-label">{row.label}</span>
+                        <span className="acctdlg-matrix-cells">
+                          {CHANNEL_LABELS.map(({ channel, label }) => (
+                            <button
+                              key={channel}
+                              type="button"
+                              role="switch"
+                              aria-checked={matrix[row.kind][channel]}
+                              aria-label={`${row.label}: ${label}`}
+                              className={`acctdlg-switch acctdlg-switch--cell${matrix[row.kind][channel] ? ' is-on' : ''}`}
+                              disabled={busy === `cell:${row.kind}:${channel}`}
+                              onClick={() => void toggleCell(row.kind, channel)}
+                            >
+                              <span className="acctdlg-switch-box" aria-hidden="true">
+                                {matrix[row.kind][channel] ? '✓' : ''}
+                              </span>
+                              <span className="acctdlg-switch-label">{label}</span>
+                            </button>
+                          ))}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))}
-            </div>
-            <p className="acctdlg-hint">
-              Email goes to {user?.email ?? 'your account email'}; every one says how to turn it off.
-              Mobile is a push notification from this browser: switching one on asks the browser's permission,
-              and works on a phone when Telarchy is installed from the browser menu.
-            </p>
-          </div>
-          {errors.emails && <p className="ticket-err">{errors.emails}</p>}
+                <p className="acctdlg-hint">
+                  Email goes to {user?.email ?? 'your account email'}; every one says how to turn it off. Mobile is a
+                  push notification from this browser: switching one on asks the browser's permission, and works on a
+                  phone when Telarchy is installed from the browser menu.
+                </p>
+              </div>
+              {errors.emails && <p className="ticket-err">{errors.emails}</p>}
+            </>
+          )}
 
-          </>
-        )}
-
-        {tab === 'ai' && (
-          <>
-            {/* Moved off the floor (owner direction 2026-08-20: the page's
+          {tab === 'ai' && (
+            <>
+              {/* Moved off the floor (owner direction 2026-08-20: the page's
                 job is the market). Everything it points at is public and
                 unauthenticated, and it is the SAME brief the floor's own Ask
                 field reads, which is the point: your agent and ours should
                 work from identical facts. */}
-            <div className="jobform-field">
-              <span className="ticket-label">Point your own AI at Telarchy</span>
-              <p className="acctdlg-hint">
-                {floor
-                  ? `Paste this into Claude, ChatGPT or your own agent. It reads ${floor.name}'s public brief: the company, every number with its history, what the markets currently predict, and every contract with its priced impact.`
-                  : 'Paste this into Claude, ChatGPT or your own agent. It reads a floor\'s public brief: the company, every number with its history, what the markets currently predict, and every contract with its priced impact.'}
-              </p>
-              <pre className="acctdlg-prompt">{agentPrompt(window.location.origin, floor)}</pre>
-              <button
-                type="button"
-                className="acctdlg-ghost"
-                onClick={() => {
-                  navigator.clipboard.writeText(agentPrompt(window.location.origin, floor)).then(() => {
-                    setPromptCopied(true);
-                    setTimeout(() => setPromptCopied(false), 1600);
-                  }).catch(e => console.error('copy failed:', e));
-                }}
-              >
-                {promptCopied ? 'Copied' : 'Copy prompt'}
-              </button>
-            </div>
-          </>
-        )}
+              <div className="jobform-field">
+                <span className="ticket-label">Point your own AI at Telarchy</span>
+                <p className="acctdlg-hint">
+                  {floor
+                    ? `Paste this into Claude, ChatGPT or your own agent. It reads ${floor.name}'s public brief: the company, every number with its history, what the markets currently predict, and every contract with its priced impact.`
+                    : "Paste this into Claude, ChatGPT or your own agent. It reads a floor's public brief: the company, every number with its history, what the markets currently predict, and every contract with its priced impact."}
+                </p>
+                <pre className="acctdlg-prompt">{agentPrompt(window.location.origin, floor)}</pre>
+                <button
+                  type="button"
+                  className="acctdlg-ghost"
+                  onClick={() => {
+                    navigator.clipboard
+                      .writeText(agentPrompt(window.location.origin, floor))
+                      .then(() => {
+                        setPromptCopied(true);
+                        setTimeout(() => setPromptCopied(false), 1600);
+                      })
+                      .catch(e => console.error('copy failed:', e));
+                  }}
+                >
+                  {promptCopied ? 'Copied' : 'Copy prompt'}
+                </button>
+              </div>
+            </>
+          )}
 
-        {tab === 'security' && (
-          <>
-          <AccountPassword />
-
-          </>
-        )}
+          {tab === 'security' && <AccountPassword />}
         </div>
-
-
-
-
-
       </div>
     </FloorModal>
   );

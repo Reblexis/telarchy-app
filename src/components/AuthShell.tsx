@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { PageTopBar } from './PageTopBar';
 
@@ -56,5 +55,9 @@ export function AuthField({
 
 /** The "or" rule between OAuth and the email form. */
 export function AuthOr() {
-  return <div className="pubws-or"><span>or</span></div>;
+  return (
+    <div className="pubws-or">
+      <span>or</span>
+    </div>
+  );
 }

@@ -1,23 +1,28 @@
+import { and, asc, count, eq, gt, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { agents, markets, positions, proposals, trades, liquidityEvents } from '../db/schema';
-import { eq, and, inArray, sql, count, asc, gt } from 'drizzle-orm';
-import { getAllMetrics, buildConsensusMap, metricValueAsOf } from './metrics';
-import { voidMarket, distributeLPLeftover } from './markets';
+import { agents, liquidityEvents, markets, positions, proposals, trades } from '../db/schema';
+import { consensus, pHigher, resolutionPayouts } from '../lib/amm';
+import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
+import { onPricesChanged } from '../lib/market-events';
+import { ttlCache } from '../lib/ttl-cache';
 import { toUnits } from '../lib/validation';
 import type { Metric } from '../types';
-import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
-import { pHigher, consensus, resolutionPayouts } from '../lib/amm';
-import { emitEvent } from './events';
-import { ttlCache } from '../lib/ttl-cache';
-import { onPricesChanged } from '../lib/market-events';
-import { releaseLimitOrdersForMarket } from './trading';
 import { applyCredits } from './credits';
+import { emitEvent } from './events';
+import { distributeLPLeftover, voidMarket } from './markets';
+import { getAllMetrics, metricValueAsOf } from './metrics';
 import { notifyMarketResolved } from './notifications';
+import { releaseLimitOrdersForMarket } from './trading';
 
 type MarketRow = typeof markets.$inferSelect;
 
-export async function resolveSingleMarket(marketId: string, workspaceId: string): Promise<{ resolved: boolean; totalPayout: number; skipped?: boolean }> {
-  const [market] = await db.select().from(markets)
+export async function resolveSingleMarket(
+  marketId: string,
+  workspaceId: string,
+): Promise<{ resolved: boolean; totalPayout: number; skipped?: boolean }> {
+  const [market] = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
   if (!market) return { resolved: false, totalPayout: 0, skipped: true };
   if (market.resolved) return { resolved: false, totalPayout: 0, skipped: true };
@@ -51,7 +56,9 @@ async function resolveMarketRow(
     // logging or was created after the boundary). Fall back to the live
     // value, but make the gap visible: this is the only path where cron
     // timing can still affect the settled value.
-    console.error(`Market ${market.id} (${market.metricName}): no metric log at-or-before ${boundary.toISOString()}, falling back to live value ${metric.total}`);
+    console.error(
+      `Market ${market.id} (${market.metricName}): no metric log at-or-before ${boundary.toISOString()}, falling back to live value ${metric.total}`,
+    );
     rawValue = metric.total;
   }
   if (rawValue === null || rawValue < 0) {
@@ -63,7 +70,9 @@ async function resolveMarketRow(
   const [lowerPay, higherPay] = resolutionPayouts(actualValue, market.rangeMin, market.rangeMax);
   const pool = market.pool ?? 0;
 
-  const posRows = await db.select().from(positions)
+  const posRows = await db
+    .select()
+    .from(positions)
     .where(and(eq(positions.workspaceId, workspaceId), eq(positions.marketId, market.id)));
 
   let totalPayout = 0;
@@ -78,8 +87,12 @@ async function resolveMarketRow(
       totalPayout += payout;
       positionCount++;
       await applyCredits(tx, {
-        agentId: pos.agentId, workspaceId, deltaUnits: toUnits(payout),
-        reason: 'payout', refType: 'market', refId: market.id,
+        agentId: pos.agentId,
+        workspaceId,
+        deltaUnits: toUnits(payout),
+        reason: 'payout',
+        refType: 'market',
+        refId: market.id,
         also: { earnedBetting: sql`${agents.earnedBetting} + ${payout}` },
       });
     }
@@ -94,15 +107,19 @@ async function resolveMarketRow(
 
     // Cap leftover at 0 so a violated invariant can never subtract from LPs.
     const poolLeftover = Math.max(0, Math.round((pool - totalPayout) * 100) / 100);
-    await tx.update(markets)
+    await tx
+      .update(markets)
       .set({ resolved: true, resolvedAt: new Date(), actualValue, active: false, pool: 0 })
       .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));
 
     await distributeLPLeftover(tx, market.id, poolLeftover, workspaceId);
   });
 
-  emitEvent('market:resolved', { marketId: market.id, metricName: market.metricName, targetDate: market.targetDate, actualValue }, workspaceId)
-    .catch(e => console.error('emitEvent failed:', e));
+  emitEvent(
+    'market:resolved',
+    { marketId: market.id, metricName: market.metricName, targetDate: market.targetDate, actualValue },
+    workspaceId,
+  ).catch(e => console.error('emitEvent failed:', e));
 
   // Fire-and-forget, after the transaction: the settlement is the answer to
   // every bet on this book, and mail must never block or fail a resolve.
@@ -111,14 +128,19 @@ async function resolveMarketRow(
   return { positions: positionCount, totalPayout };
 }
 
-export async function resolvePredictions(targetDate: string | undefined, workspaceId: string): Promise<{ resolved: number; totalPayout: number }> {
+export async function resolvePredictions(
+  targetDate: string | undefined,
+  workspaceId: string,
+): Promise<{ resolved: number; totalPayout: number }> {
   // Optional `targetDate` override pins "now" to that day's midnight UTC
   // (test/backfill use). A market is resolvable once its period has fully
   // passed; instant-based so hour-granularity markets resolve on the next
   // hourly cron run instead of waiting for midnight.
   const now = targetDate ? new Date(`${targetDate}T00:00:00.000Z`) : new Date();
 
-  const openMarkets = await db.select().from(markets)
+  const openMarkets = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
   const marketsToResolve = openMarkets.filter(m => periodEndInstant(m.targetDate) <= now);
@@ -130,7 +152,9 @@ export async function resolvePredictions(targetDate: string | undefined, workspa
   const proposalIds = [...new Set(marketsToResolve.map(m => m.proposalId).filter(Boolean) as string[])];
   const proposalStatusMap = new Map<string, string>();
   if (proposalIds.length > 0) {
-    const proposalRows = await db.select({ id: proposals.id, status: proposals.status }).from(proposals)
+    const proposalRows = await db
+      .select({ id: proposals.id, status: proposals.status })
+      .from(proposals)
       .where(and(eq(proposals.workspaceId, workspaceId), inArray(proposals.id, proposalIds)));
     for (const row of proposalRows) proposalStatusMap.set(row.id, row.status);
   }
@@ -182,31 +206,38 @@ export interface GetMarketsOptions {
   kind?: 'baseline' | 'conditional' | 'all';
 }
 
-export async function getMarkets(options: GetMarketsOptions | boolean = false, proposalId: string | undefined, workspaceId: string) {
-  const opts: GetMarketsOptions = typeof options === 'boolean'
-    ? { includeResolved: options, proposalId }
-    : options;
+export async function getMarkets(
+  options: GetMarketsOptions | boolean = false,
+  proposalId: string | undefined,
+  workspaceId: string,
+) {
+  const opts: GetMarketsOptions = typeof options === 'boolean' ? { includeResolved: options, proposalId } : options;
 
   // Resolve which lifecycle states the caller actually wants. Explicit
   // `status` is authoritative. Otherwise: if any legacy flag is set, treat
   // the call as legacy; if nothing is set, default to status='open' so a
   // bare `GET /api/predictions/markets` returns tradeable markets only.
   const anyLegacy = opts.active !== undefined || !!opts.includeResolved || !!opts.includeVoided;
-  const effectiveStatus: MarketStatus | 'legacy' =
-    opts.status ? opts.status : anyLegacy ? 'legacy' : 'open';
+  const effectiveStatus: MarketStatus | 'legacy' = opts.status ? opts.status : anyLegacy ? 'legacy' : 'open';
 
-  const wantsResolved = effectiveStatus === 'resolved' || effectiveStatus === 'all'
-    || (effectiveStatus === 'legacy' && !!opts.includeResolved);
-  const wantsVoided = effectiveStatus === 'voided' || effectiveStatus === 'all'
-    || (effectiveStatus === 'legacy' && !!opts.includeVoided);
+  const wantsResolved =
+    effectiveStatus === 'resolved' ||
+    effectiveStatus === 'all' ||
+    (effectiveStatus === 'legacy' && !!opts.includeResolved);
+  const wantsVoided =
+    effectiveStatus === 'voided' || effectiveStatus === 'all' || (effectiveStatus === 'legacy' && !!opts.includeVoided);
 
-  let rows = await db.select().from(markets)
-    .where(and(
-      eq(markets.workspaceId, workspaceId),
-      wantsResolved ? undefined : eq(markets.resolved, false),
-      wantsVoided ? undefined : eq(markets.voided, false),
-      opts.proposalId ? eq(markets.proposalId, opts.proposalId) : undefined,
-    ));
+  let rows = await db
+    .select()
+    .from(markets)
+    .where(
+      and(
+        eq(markets.workspaceId, workspaceId),
+        wantsResolved ? undefined : eq(markets.resolved, false),
+        wantsVoided ? undefined : eq(markets.voided, false),
+        opts.proposalId ? eq(markets.proposalId, opts.proposalId) : undefined,
+      ),
+    );
 
   if (!opts.proposalId) {
     const kind = opts.kind ?? 'baseline';
@@ -247,7 +278,8 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, p
   // Batch-count trades per market to avoid N+1 queries.
   const marketIds = rows.map(m => m.id);
   const tradeCounts = marketIds.length
-    ? await db.select({ marketId: trades.marketId, count: count() })
+    ? await db
+        .select({ marketId: trades.marketId, count: count() })
         .from(trades)
         .where(inArray(trades.marketId, marketIds))
         .groupBy(trades.marketId)
@@ -257,11 +289,13 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, p
 
   return rows.map(m => {
     const shares = (m.shares as [number, number]) || [0, 0];
-    const status: 'open' | 'resolved' | 'voided' | 'closed' =
-      m.voided ? 'voided' :
-      m.resolved ? 'resolved' :
-      m.active === false ? 'closed' :
-      'open';
+    const status: 'open' | 'resolved' | 'voided' | 'closed' = m.voided
+      ? 'voided'
+      : m.resolved
+        ? 'resolved'
+        : m.active === false
+          ? 'closed'
+          : 'open';
     return {
       id: m.id,
       metricId: m.metricId,
@@ -358,24 +392,32 @@ onPricesChanged((workspaceId, marketId) => {
 /** Test seam. */
 
 async function computeReplayBundle(marketId: string, workspaceId: string): Promise<ReplayBundle> {
-  const [market] = await db.select().from(markets)
+  const [market] = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.id, marketId)));
   if (!market) return { market: null, points: [], opening: null };
 
-  const rows = await db.select().from(trades)
+  const rows = await db
+    .select()
+    .from(trades)
     .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, marketId)))
     .orderBy(asc(trades.createdAt));
 
-  const liqRows = await db.select().from(liquidityEvents)
-    .where(and(
-      eq(liquidityEvents.workspaceId, workspaceId),
-      eq(liquidityEvents.marketId, marketId),
-      gt(liquidityEvents.totalLiquidity, 0),
-    ))
+  const liqRows = await db
+    .select()
+    .from(liquidityEvents)
+    .where(
+      and(
+        eq(liquidityEvents.workspaceId, workspaceId),
+        eq(liquidityEvents.marketId, marketId),
+        gt(liquidityEvents.totalLiquidity, 0),
+      ),
+    )
     .orderBy(asc(liquidityEvents.createdAt));
 
   type Ev =
-    | { at: number; kind: 'trade'; trade: typeof rows[number] }
+    | { at: number; kind: 'trade'; trade: (typeof rows)[number] }
     | { at: number; kind: 'liquidity'; totalLiquidity: number };
   const events: Ev[] = [
     ...rows.map(t => ({ at: t.createdAt.getTime(), kind: 'trade' as const, trade: t })),
@@ -466,7 +508,7 @@ export async function marketPriceSeries(
   // The opening price: reconstructed by rewinding the first trade out of the
   // book the replay produced, so it needs no second solve.
   if (opening === null) return series;
-  const openedAt = market.createdAt ?? (points[0]?.createdAt ?? new Date());
+  const openedAt = market.createdAt ?? points[0]?.createdAt ?? new Date();
   // Never draw the open after the first trade (clock skew, a backfilled row).
   if (points.length > 0 && openedAt.getTime() >= points[0].createdAt.getTime()) return series;
   return [{ at: openedAt, consensus: opening }, ...series];
@@ -481,10 +523,14 @@ function openingConsensus(
   liqRows: Array<typeof liquidityEvents.$inferSelect>,
 ): number | null {
   if (points.length === 0) {
-    return consensus(
-      (market.shares as [number, number] | null) ?? [0, 0],
-      market.liquidity, market.rangeMin, market.rangeMax,
-    ) ?? null;
+    return (
+      consensus(
+        (market.shares as [number, number] | null) ?? [0, 0],
+        market.liquidity,
+        market.rangeMin,
+        market.rangeMax,
+      ) ?? null
+    );
   }
   const openingLiquidity = liqRows[0]?.totalLiquidity ?? market.liquidity;
 
@@ -497,11 +543,10 @@ function openingConsensus(
   // Reconstruct the book at the first point, then undo that trade.
   const p = firstPoint.consensus;
   if (p === null) return null;
-  const bAtFirst = liqRows.filter(l => l.createdAt <= first.createdAt).slice(-1)[0]?.totalLiquidity
-    ?? openingLiquidity;
+  const bAtFirst = liqRows.filter(l => l.createdAt <= first.createdAt).slice(-1)[0]?.totalLiquidity ?? openingLiquidity;
   const frac = (p - market.rangeMin) / (market.rangeMax - market.rangeMin);
   if (!(frac > 0 && frac < 1)) return null;
-  const diffAfter = Math.log(frac / (1 - frac)) * bAtFirst;   // shares[1] - shares[0]
+  const diffAfter = Math.log(frac / (1 - frac)) * bAtFirst; // shares[1] - shares[0]
   const diffBefore = dir === 1 ? diffAfter - first.shares : diffAfter + first.shares;
   const pBefore = 1 / (1 + Math.exp(-diffBefore / bAtFirst));
   return Math.round((market.rangeMin + pBefore * (market.rangeMax - market.rangeMin)) * 100) / 100;

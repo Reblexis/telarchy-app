@@ -14,39 +14,56 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { eq, and } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import { and, eq } from 'drizzle-orm';
 import { agents, proposals, workspaces } from '../db/schema';
+import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
 import { declineProposal, MAX_DECLINE_REASON } from '../services/proposals';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const OWNER = 'agent-owner';
 const PROPOSER = 'agent-proposer';
 
 async function seed(wsId: string, charter: string | null) {
-  await db.insert(agents).values([
-    { id: OWNER, apiKeyHash: `h-owner-${wsId}`, balance: 0 },
-    { id: PROPOSER, apiKeyHash: `h-proposer-${wsId}`, balance: 0 },
-  ]).onConflictDoNothing();
+  await db
+    .insert(agents)
+    .values([
+      { id: OWNER, apiKeyHash: `h-owner-${wsId}`, balance: 0 },
+      { id: PROPOSER, apiKeyHash: `h-proposer-${wsId}`, balance: 0 },
+    ])
+    .onConflictDoNothing();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId, name: `WS ${wsId}`, createdBy: OWNER, ownerAgentId: OWNER, visibility: 'public',
+    wsId,
+    name: `WS ${wsId}`,
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'public',
   });
   if (charter !== null) {
     await db.update(workspaces).set({ charter }).where(eq(workspaces.id, wsId));
   }
   await db.insert(proposals).values({
-    id: 'p1', workspaceId: wsId, proposedBy: PROPOSER,
-    title: 'Ship offline mode', description: '', status: 'pending',
+    id: 'p1',
+    workspaceId: wsId,
+    proposedBy: PROPOSER,
+    title: 'Ship offline mode',
+    description: '',
+    status: 'pending',
   });
 }
 
 function getProposal(wsId: string) {
-  return db.select().from(proposals)
+  return db
+    .select()
+    .from(proposals)
     .where(and(eq(proposals.id, 'p1'), eq(proposals.workspaceId, wsId)))
     .then(r => r[0]);
 }
@@ -66,7 +83,9 @@ describe('declineReason is gated on the workspace charter', () => {
 
   test('whitespace is not a reason', async () => {
     await seed('ws-charter-2', 'A charter.');
-    await expect(declineProposal('p1', 'ws-charter-2', OWNER, '   \n  ')).rejects.toThrow(/requires a written declineReason/);
+    await expect(declineProposal('p1', 'ws-charter-2', OWNER, '   \n  ')).rejects.toThrow(
+      /requires a written declineReason/,
+    );
     expect((await getProposal('ws-charter-2')).status).toBe('pending');
   });
 
@@ -103,9 +122,9 @@ describe('declineReason is gated on the workspace charter', () => {
   test('an over-long reason is rejected before anything is written', async () => {
     await seed('ws-charter-4', 'A charter.');
 
-    await expect(
-      declineProposal('p1', 'ws-charter-4', OWNER, 'x'.repeat(MAX_DECLINE_REASON + 1)),
-    ).rejects.toThrow(/at most 4000 characters/);
+    await expect(declineProposal('p1', 'ws-charter-4', OWNER, 'x'.repeat(MAX_DECLINE_REASON + 1))).rejects.toThrow(
+      /at most 4000 characters/,
+    );
 
     expect((await getProposal('ws-charter-4')).status).toBe('pending');
   });
@@ -124,9 +143,9 @@ describe('declineReason is gated on the workspace charter', () => {
     await seed('ws-charter-6', 'A charter.');
     await declineProposal('p1', 'ws-charter-6', OWNER, 'The original reason.');
 
-    await expect(
-      declineProposal('p1', 'ws-charter-6', OWNER, 'A more convenient reason.'),
-    ).rejects.toThrow(/only decline pending proposals/i);
+    await expect(declineProposal('p1', 'ws-charter-6', OWNER, 'A more convenient reason.')).rejects.toThrow(
+      /only decline pending proposals/i,
+    );
 
     expect((await getProposal('ws-charter-6')).declineReason).toBe('The original reason.');
   });

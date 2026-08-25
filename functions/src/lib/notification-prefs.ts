@@ -24,10 +24,10 @@
  */
 
 export const NOTIFICATION_KINDS = ['comment', 'reply', 'contract', 'anyComment', 'settled', 'decision'] as const;
-export type NotificationKindId = typeof NOTIFICATION_KINDS[number];
+export type NotificationKindId = (typeof NOTIFICATION_KINDS)[number];
 
 export const NOTIFICATION_CHANNELS = ['web', 'email', 'mobile'] as const;
-export type NotificationChannel = typeof NOTIFICATION_CHANNELS[number];
+export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 
 /** What each kind means, one sentence, shared by /api/help and the dialog. */
 

@@ -1,5 +1,5 @@
-import { readFileSync, readdirSync } from 'fs';
-import { resolve, join } from 'path';
+import { readdirSync, readFileSync } from 'fs';
+import { join, resolve } from 'path';
 
 /**
  * API parity guard: enforces that the web UI and the public API stay one
@@ -144,7 +144,8 @@ describe('API parity: one module owns HTTP', () => {
   /** Files allowed to call fetch, with the reason. Adding to this list is
    *  adding a second way for the UI to reach the server: say why. */
   const FETCH_OWNERS: Record<string, string> = {
-    'lib/api.ts': 'The API client itself: the one place that knows the base path, the credentials and the workspace header.',
+    'lib/api.ts':
+      'The API client itself: the one place that knows the base path, the credentials and the workspace header.',
   };
 
   test('nothing outside the api client calls fetch', () => {
@@ -224,8 +225,8 @@ describe('API parity: frontend goes through the public API', () => {
     const allowlist = new Set([
       '/api/auth/sign-in/email', // BetterAuth handles
       '/api/auth/sign-up/email', // BetterAuth handles
-      '/api/auth/sign-out',      // BetterAuth handles
-      '/api/auth/session',       // BetterAuth handles
+      '/api/auth/sign-out', // BetterAuth handles
+      '/api/auth/session', // BetterAuth handles
     ]);
 
     const frontendPaths = readFrontendApiPaths().filter(p => !allowlist.has(p));
@@ -418,9 +419,7 @@ describe('API parity: /api/help is a complete map of the API', () => {
   });
 
   test('every registered route is documented in /api/help', () => {
-    const documentedShapes = new Set(
-      documented.map(e => normaliseRoute(`${e.method} ${e.path.replace(/\/$/, '')}`)),
-    );
+    const documentedShapes = new Set(documented.map(e => normaliseRoute(`${e.method} ${e.path.replace(/\/$/, '')}`)));
 
     const undocumented = [...registered.entries()]
       .filter(([route]) => !documentedShapes.has(normaliseRoute(route)))

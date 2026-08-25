@@ -46,7 +46,10 @@ interface Props {
   onOpenChange?: (open: boolean) => void;
 }
 
-interface Turn { role: 'user' | 'assistant'; content: string }
+interface Turn {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open: openProp, onOpenChange }: Props) {
   const [ownOpen, setOwnOpen] = useState(false);
@@ -78,7 +81,9 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open
   useEffect(() => {
     if (!open) return;
     inputRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
@@ -106,10 +111,10 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open
   if (!open) {
     return (
       <button type="button" className="ottodock" onClick={() => setOpen(true)}>
-        <span className="ottodock-mark" aria-hidden="true">O</span>
-        <span className="ottodock-label">
-          Ask Otto about {workspaceName}
+        <span className="ottodock-mark" aria-hidden="true">
+          O
         </span>
+        <span className="ottodock-label">Ask Otto about {workspaceName}</span>
       </button>
     );
   }
@@ -117,12 +122,16 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open
   return (
     <section className="otto" aria-label={`Otto, the market maker on ${workspaceName}`}>
       <header className="otto-head">
-        <span className="otto-mark" aria-hidden="true">O</span>
+        <span className="otto-mark" aria-hidden="true">
+          O
+        </span>
         <span className="otto-who">
           <strong>Otto</strong>
           <span className="otto-role">market maker on {workspaceName}</span>
         </span>
-        <button type="button" className="otto-close" aria-label="Close" onClick={() => setOpen(false)}>×</button>
+        <button type="button" className="otto-close" aria-label="Close" onClick={() => setOpen(false)}>
+          ×
+        </button>
       </header>
 
       <div className="otto-log">
@@ -155,7 +164,13 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open
         <div ref={endRef} />
       </div>
 
-      <form className="otto-bar" onSubmit={e => { e.preventDefault(); void send(draft); }}>
+      <form
+        className="otto-bar"
+        onSubmit={e => {
+          e.preventDefault();
+          void send(draft);
+        }}
+      >
         <input
           ref={inputRef}
           className="otto-input"
@@ -170,11 +185,17 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open
         </button>
       </form>
       <p className="otto-note">
-        {signedIn
-          ? <>Otto acts with your account, so he can do what you can do and nothing more.
-              The opinions are his, not advice from {workspaceName}.</>
-          : <>Otto reads this floor&rsquo;s public brief and has his own opinions. They are
-              not advice from {workspaceName}. Sign up and he can act for you too.</>}
+        {signedIn ? (
+          <>
+            Otto acts with your account, so he can do what you can do and nothing more. The opinions are his, not advice
+            from {workspaceName}.
+          </>
+        ) : (
+          <>
+            Otto reads this floor&rsquo;s public brief and has his own opinions. They are not advice from{' '}
+            {workspaceName}. Sign up and he can act for you too.
+          </>
+        )}
       </p>
     </section>
   );

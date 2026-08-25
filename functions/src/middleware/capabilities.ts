@@ -1,8 +1,8 @@
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agents, permissionGroups, workspaces } from '../db/schema';
-import { ALL_CAPABILITIES, type Capability } from '../types';
 import { getGroupMemberIds, resolveParticipantIdForUser } from '../lib/participants';
+import { ALL_CAPABILITIES, type Capability } from '../types';
 
 /**
  * Compute the union of capabilities a caller has in a given workspace.
@@ -33,14 +33,18 @@ export async function computeCapabilities(opts: {
 
   // Platform admin shortcut
   if (opts.uid) {
-    const [row] = await db.select({ platformAdmin: agents.platformAdmin })
-      .from(agents).where(eq(agents.authUserId, opts.uid));
+    const [row] = await db
+      .select({ platformAdmin: agents.platformAdmin })
+      .from(agents)
+      .where(eq(agents.authUserId, opts.uid));
     if (row?.platformAdmin === true) return new Set(ALL_CAPABILITIES);
   }
 
   // Workspace owner shortcut: createdBy matches either the uid or the participantId
-  const [ws] = await db.select({ createdBy: workspaces.createdBy })
-    .from(workspaces).where(eq(workspaces.id, opts.workspaceId));
+  const [ws] = await db
+    .select({ createdBy: workspaces.createdBy })
+    .from(workspaces)
+    .where(eq(workspaces.id, opts.workspaceId));
   if (ws) {
     if ((opts.uid && ws.createdBy === opts.uid) || (participantId && ws.createdBy === participantId)) {
       return new Set(ALL_CAPABILITIES);
@@ -49,8 +53,7 @@ export async function computeCapabilities(opts: {
 
   if (!participantId) return caps;
 
-  const groups = await db.select().from(permissionGroups)
-    .where(eq(permissionGroups.workspaceId, opts.workspaceId));
+  const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, opts.workspaceId));
   for (const group of groups) {
     if (!getGroupMemberIds(group).includes(participantId)) continue;
     const groupCaps = (group.capabilities as string[] | null) ?? [];

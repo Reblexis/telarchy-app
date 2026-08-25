@@ -81,9 +81,13 @@ export function metricLabelOf(metricName: string): string {
  * never reads a day late.
  */
 export function settleDayOf(targetDate: string): string | null {
-  const fmt = (d: Date) => d.toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-  });
+  const fmt = (d: Date) =>
+    d.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
   // An ISO week settles on its Sunday. Without this the weekly horizon drew a
   // chart that never said when it lands, and on a workspace whose two metrics
   // share a name once their tail is stripped, the settle day is the only thing
@@ -121,8 +125,10 @@ export function horizonLabel(targetDate: string, now: Date = new Date()): string
     // December IS the year end: "end of 2026" is what the charter calls it,
     // and it beats "end of December" beside a metric named "net 2026".
     if (m[2] === '12') return `end of ${m[1]}`;
-    const month = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1))
-      .toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' });
+    const month = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1)).toLocaleDateString('en-GB', {
+      month: 'long',
+      timeZone: 'UTC',
+    });
     return `end of ${month}`;
   }
   return settleDayOf(targetDate) ?? targetDate;
@@ -175,10 +181,7 @@ function shortDay(targetDate: string): string {
  * The rest of the list exists so a caller can still resolve a market it holds
  * an id for; no surface renders it.
  */
-export function buildHorizonViews(
-  ws: PublicWorkspace | null | undefined,
-  now: Date = new Date(),
-): HorizonView[] {
+export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: Date = new Date()): HorizonView[] {
   const markets = ws?.markets ?? [];
   const historyByMarket = new Map((ws?.horizonHistories ?? []).map(h => [h.marketId, h]));
   return [...markets].reverse().map(m => {

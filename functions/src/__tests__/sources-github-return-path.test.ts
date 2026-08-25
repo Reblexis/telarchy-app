@@ -8,23 +8,31 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import { ensureMigrations, truncateAll, db } from './harness/test-db';
 import { agents } from '../db/schema';
 import { provisionWorkspace } from '../lib/participants';
 import { toUnits } from '../lib/validation';
 import { workspaceSourcesReturnPath } from '../routes/sources';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const OWNER = 'agent-owner-gh';
 const WS = 'ws-gh-return';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 async function seed(nickname?: string) {
   await db.insert(agents).values({ id: OWNER, apiKeyHash: 'h-gh-return', balance: toUnits(0), nickname });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Q3 Growth', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'private',
+    wsId: WS,
+    name: 'Q3 Growth',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'private',
   });
 }
 

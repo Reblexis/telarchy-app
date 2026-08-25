@@ -10,18 +10,22 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import request from 'supertest';
 import express from 'express';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import request from 'supertest';
 import { waitlist } from '../db/schema';
 import { waitlistRouter } from '../routes/waitlist';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
 app.use('/api/waitlist', waitlistRouter);
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const join = (body: Record<string, unknown>) =>
   request(app).post('/api/waitlist').set('Content-Type', 'application/json').send(body);

@@ -30,27 +30,52 @@ const questions = {
   totalCostUsd: 0.0123,
   questions: [
     {
-      id: 'q1', workspaceId: 'ws1', slug: 'lookpilot', workspaceName: 'LookPilot',
-      question: 'What does LookPilot sell?', answer: 'Webcam head tracking, $14.99 on Steam.',
-      askedBy: null, askedByName: null, country: 'CZ', costUsd: 0.0009,
-      model: 'openai/gpt-5.6-luna', error: null, createdAt: '2026-08-20T10:00:00.000Z',
+      id: 'q1',
+      workspaceId: 'ws1',
+      slug: 'lookpilot',
+      workspaceName: 'LookPilot',
+      question: 'What does LookPilot sell?',
+      answer: 'Webcam head tracking, $14.99 on Steam.',
+      askedBy: null,
+      askedByName: null,
+      country: 'CZ',
+      costUsd: 0.0009,
+      model: 'openai/gpt-5.6-luna',
+      error: null,
+      createdAt: '2026-08-20T10:00:00.000Z',
     },
     {
-      id: 'q2', workspaceId: 'ws1', slug: 'lookpilot', workspaceName: 'LookPilot',
-      question: 'How many staff?', answer: '', askedBy: 'agent-7', askedByName: 'trader-7',
-      country: null, costUsd: null, model: 'openai/gpt-5.6-luna',
-      error: 'gateway 402 (budget spent)', createdAt: '2026-08-20T11:00:00.000Z',
+      id: 'q2',
+      workspaceId: 'ws1',
+      slug: 'lookpilot',
+      workspaceName: 'LookPilot',
+      question: 'How many staff?',
+      answer: '',
+      askedBy: 'agent-7',
+      askedByName: 'trader-7',
+      country: null,
+      costUsd: null,
+      model: 'openai/gpt-5.6-luna',
+      error: 'gateway 402 (budget spent)',
+      createdAt: '2026-08-20T11:00:00.000Z',
     },
   ],
 };
 
 const stats = {
-  visits24h: 12, uniques24h: 5, botVisits: 900,
-  visitsByDay: [{ day: '2026-08-18', visits: 4, uniques: 3 }, { day: '2026-08-19', visits: 12, uniques: 5 }],
+  visits24h: 12,
+  uniques24h: 5,
+  botVisits: 900,
+  visitsByDay: [
+    { day: '2026-08-18', visits: 4, uniques: 3 },
+    { day: '2026-08-19', visits: 12, uniques: 5 },
+  ],
   topReferers: [{ source: 'manifold.markets', visits: 9 }],
   topPaths: [{ path: '/lookpilot', visits: 11 }],
   topCountries: [{ country: 'CZ', visits: 7, uniques: 3 }],
-  recentVisitors: [{ ip: '1.2.3.4', country: 'CZ', visits: 3, lastSeen: '2026-08-19T10:00:00.000Z', kind: 'server', org: 'Hetzner' }],
+  recentVisitors: [
+    { ip: '1.2.3.4', country: 'CZ', visits: 3, lastSeen: '2026-08-19T10:00:00.000Z', kind: 'server', org: 'Hetzner' },
+  ],
   visitorSummary: { people: 4, servers: 1, proxies: 0 },
   signupsByDay: [{ day: '2026-08-19', signups: 2 }],
   recentSignups: [{ email: 'new@example.com', name: 'New Person', createdAt: '2026-08-19T09:00:00.000Z' }],
@@ -59,10 +84,27 @@ const stats = {
 };
 
 const reports = [
-  { id: 'f1', kind: 'bug', subject: 'Chart is blank', body: 'Nothing draws.', status: 'open', email: 'a@b.c', url: '/lookpilot', agentId: null, workspaceId: null, createdAt: '2026-08-19T08:00:00.000Z', updatedAt: '2026-08-19T08:00:00.000Z' },
+  {
+    id: 'f1',
+    kind: 'bug',
+    subject: 'Chart is blank',
+    body: 'Nothing draws.',
+    status: 'open',
+    email: 'a@b.c',
+    url: '/lookpilot',
+    agentId: null,
+    workspaceId: null,
+    createdAt: '2026-08-19T08:00:00.000Z',
+    updatedAt: '2026-08-19T08:00:00.000Z',
+  },
 ];
 
-const renderPage = () => render(<MemoryRouter><AdminPage /></MemoryRouter>);
+const renderPage = () =>
+  render(
+    <MemoryRouter>
+      <AdminPage />
+    </MemoryRouter>,
+  );
 
 beforeEach(() => {
   vi.clearAllMocks();

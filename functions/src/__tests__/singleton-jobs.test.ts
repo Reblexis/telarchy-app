@@ -12,7 +12,7 @@ jest.mock('../db/client', () => ({
   pool: { connect: jest.fn(async () => ({ query, release })) },
 }));
 
-import { withSingletonLock, LOCK_KEYS } from '../lib/singleton-jobs';
+import { LOCK_KEYS, withSingletonLock } from '../lib/singleton-jobs';
 
 beforeEach(() => {
   query.mockReset();
@@ -49,8 +49,11 @@ describe('withSingletonLock', () => {
 
   it('unlocks and releases the client even when the job throws', async () => {
     lockAnswer(true);
-    await expect(withSingletonLock('resolve', async () => { throw new Error('job died'); }))
-      .rejects.toThrow('job died');
+    await expect(
+      withSingletonLock('resolve', async () => {
+        throw new Error('job died');
+      }),
+    ).rejects.toThrow('job died');
     const calls = query.mock.calls.map(c => String(c[0]));
     expect(calls.some(c => c.includes('pg_advisory_unlock'))).toBe(true);
     expect(release).toHaveBeenCalledTimes(1);

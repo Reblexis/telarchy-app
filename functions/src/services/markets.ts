@@ -1,18 +1,27 @@
-import { db } from '../db/client';
-import { agents, markets, metrics as metricsTable, positions, trades, liquidityEvents, systemConfig, workspaces, proposals as proposalsTable } from '../db/schema';
-import { eq, and, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
-import { getLeafDescendantNames, desiredMarketDates, generatesMarkets } from '../lib/time-preference';
-import type { TimePreference } from '../types';
-import { AMM_DEFAULTS, initialPool, anchoredMarketState } from '../lib/amm';
-import { nearHorizonAnchorP } from '../lib/market-open';
+import { and, eq, sql } from 'drizzle-orm';
+import { db } from '../db/client';
+import {
+  agents,
+  liquidityEvents,
+  markets,
+  metrics as metricsTable,
+  proposals as proposalsTable,
+  systemConfig,
+  trades,
+  workspaces,
+} from '../db/schema';
+import { AMM_DEFAULTS, anchoredMarketState, initialPool } from '../lib/amm';
 import { emitPricesChanged } from '../lib/market-events';
-import { emitEvent } from './events';
+import { nearHorizonAnchorP } from '../lib/market-open';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
-import { applyAgentLiquidityInjectionTx } from './marketLiquidity';
-import { sufficientBalance, toUnits, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
-import { releaseLimitOrdersForMarket } from './trading';
+import { desiredMarketDates, generatesMarkets, getLeafDescendantNames } from '../lib/time-preference';
+import { MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits } from '../lib/validation';
+import type { TimePreference } from '../types';
 import { applyCredits } from './credits';
+import { emitEvent } from './events';
+import { applyAgentLiquidityInjectionTx } from './marketLiquidity';
+import { releaseLimitOrdersForMarket } from './trading';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -24,7 +33,9 @@ export async function distributeLPLeftover(
   workspaceId: string,
 ): Promise<void> {
   if (poolAmount <= 0) return;
-  const liqRows = await tx.select().from(liquidityEvents)
+  const liqRows = await tx
+    .select()
+    .from(liquidityEvents)
     .where(and(eq(liquidityEvents.workspaceId, workspaceId), eq(liquidityEvents.marketId, marketId)));
 
   const contributions = new Map<string, number>();
@@ -40,14 +51,19 @@ export async function distributeLPLeftover(
   const entries = [...contributions.entries()];
   for (let i = 0; i < entries.length; i++) {
     const [agentId, contribution] = entries[i];
-    const share = i === entries.length - 1
-      ? Math.round((poolAmount - distributed) * 100) / 100
-      : Math.round(poolAmount * contribution / total * 100) / 100;
+    const share =
+      i === entries.length - 1
+        ? Math.round((poolAmount - distributed) * 100) / 100
+        : Math.round(((poolAmount * contribution) / total) * 100) / 100;
     if (share <= 0) continue;
     distributed += share;
     await applyCredits(tx, {
-      agentId, workspaceId, deltaUnits: toUnits(share),
-      reason: 'lp_leftover', refType: 'market', refId: marketId,
+      agentId,
+      workspaceId,
+      deltaUnits: toUnits(share),
+      reason: 'lp_leftover',
+      refType: 'market',
+      refId: marketId,
       also: { earnedBetting: sql`${agents.earnedBetting} + ${share}` },
     });
   }
@@ -78,11 +94,14 @@ export async function voidMarket(
    *  the reason survives next to the act. */
   reason?: string,
 ): Promise<{ refunded: number }> {
-  const market = typeof marketOrId === 'string'
-    ? await db.select().from(markets)
-        .where(and(eq(markets.id, marketOrId), eq(markets.workspaceId, workspaceId)))
-        .then(r => r[0] ?? null)
-    : marketOrId;
+  const market =
+    typeof marketOrId === 'string'
+      ? await db
+          .select()
+          .from(markets)
+          .where(and(eq(markets.id, marketOrId), eq(markets.workspaceId, workspaceId)))
+          .then(r => r[0] ?? null)
+      : marketOrId;
 
   if (!market || market.resolved) return { refunded: 0 };
 
@@ -90,10 +109,12 @@ export async function voidMarket(
   // money they already took back out by selling is not handed to them twice.
   // Read from trades rather than positions because positions.totalCost is
   // gross buys by design (see the position cap) and cannot answer this.
-  const stakeRows = await db.select({
-    agentId: trades.agentId,
-    netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
-  }).from(trades)
+  const stakeRows = await db
+    .select({
+      agentId: trades.agentId,
+      netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
+    })
+    .from(trades)
     .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, market.id)))
     .groupBy(trades.agentId);
 
@@ -101,7 +122,8 @@ export async function voidMarket(
   const pool = market.pool ?? 0;
 
   await db.transaction(async tx => {
-    await tx.update(markets)
+    await tx
+      .update(markets)
       .set({ resolved: true, resolvedAt: new Date(), actualValue: null, voided: true, active: false, pool: 0 })
       .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));
 
@@ -117,8 +139,12 @@ export async function voidMarket(
       if (refund <= 0) continue;
       refunded += refund;
       await applyCredits(tx, {
-        agentId: row.agentId, workspaceId, deltaUnits: toUnits(refund),
-        reason: 'void_refund', refType: 'market', refId: market.id,
+        agentId: row.agentId,
+        workspaceId,
+        deltaUnits: toUnits(refund),
+        reason: 'void_refund',
+        refType: 'market',
+        refId: market.id,
         also: { spentBetting: sql`${agents.spentBetting} - ${refund}` },
       });
     }
@@ -131,14 +157,25 @@ export async function voidMarket(
     await distributeLPLeftover(tx, market.id, lpLeftover, workspaceId);
   });
 
-  emitEvent('market:resolved', { marketId: market.id, metricName: market.metricName, targetDate: market.targetDate, voided: true, ...(reason ? { reason } : {}) }, workspaceId)
-    .catch(e => console.error('emitEvent failed:', e));
+  emitEvent(
+    'market:resolved',
+    {
+      marketId: market.id,
+      metricName: market.metricName,
+      targetDate: market.targetDate,
+      voided: true,
+      ...(reason ? { reason } : {}),
+    },
+    workspaceId,
+  ).catch(e => console.error('emitEvent failed:', e));
   return { refunded };
 }
 
 /** Void all open markets whose metricId is in the provided set. */
 export async function voidOpenMarketsForMetrics(metricIds: Set<string>, workspaceId: string): Promise<void> {
-  const openMarkets = await db.select().from(markets)
+  const openMarkets = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
   for (const m of openMarkets) {
@@ -168,15 +205,30 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
 
   const insertWithDefaults = async (): Promise<number> => {
     const newMarkets = pending.map(p => ({
-      id: p.marketId, workspaceId, metricId: p.metricId, metricName: p.metricName, targetDate: p.targetDate,
-      resolved: false, resolvedAt: null, actualValue: null, active: true,
-      rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: p.rangeMax,
-      shares: [0, 0] as [number, number], liquidity: AMM_DEFAULTS.liquidity,
-      pool: initialPool(AMM_DEFAULTS.liquidity), createdAt: now,
+      id: p.marketId,
+      workspaceId,
+      metricId: p.metricId,
+      metricName: p.metricName,
+      targetDate: p.targetDate,
+      resolved: false,
+      resolvedAt: null,
+      actualValue: null,
+      active: true,
+      rangeMin: AMM_DEFAULTS.rangeMin,
+      rangeMax: p.rangeMax,
+      shares: [0, 0] as [number, number],
+      liquidity: AMM_DEFAULTS.liquidity,
+      pool: initialPool(AMM_DEFAULTS.liquidity),
+      createdAt: now,
     }));
     const newLiqEvents = pending.map(p => ({
-      id: randomUUID(), workspaceId, marketId: p.marketId, amount: AMM_DEFAULTS.liquidity,
-      totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial' as const, createdAt: now,
+      id: randomUUID(),
+      workspaceId,
+      marketId: p.marketId,
+      amount: AMM_DEFAULTS.liquidity,
+      totalLiquidity: AMM_DEFAULTS.liquidity,
+      type: 'initial' as const,
+      createdAt: now,
     }));
     await db.transaction(async tx => {
       await tx.insert(markets).values(newMarkets);
@@ -193,7 +245,11 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
   // MIN_LIQUIDITY_CONTRIBUTION guard was added). Treat as auto-fund off
   // rather than aborting the entire refresh transaction.
   if (credits < MIN_LIQUIDITY_CONTRIBUTION) {
-    console.error('insertPendingMarkets: newMarketLiquidityCredits below minimum, falling back to insertWithDefaults', { workspaceId, credits, minimum: MIN_LIQUIDITY_CONTRIBUTION });
+    console.error('insertPendingMarkets: newMarketLiquidityCredits below minimum, falling back to insertWithDefaults', {
+      workspaceId,
+      credits,
+      minimum: MIN_LIQUIDITY_CONTRIBUTION,
+    });
     return insertWithDefaults();
   }
 
@@ -211,27 +267,47 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
   }
 
   const metricValues = new Map(
-    (await db.select({ id: metricsTable.id, value: metricsTable.value }).from(metricsTable)
-      .where(eq(metricsTable.workspaceId, workspaceId)))
-      .map(r => [r.id, r.value as number]),
+    (
+      await db
+        .select({ id: metricsTable.id, value: metricsTable.value })
+        .from(metricsTable)
+        .where(eq(metricsTable.workspaceId, workspaceId))
+    ).map(r => [r.id, r.value as number]),
   );
 
   await db.transaction(async tx => {
     for (const p of pending) {
       const anchorP = nearHorizonAnchorP(p.targetDate, metricValues.get(p.metricId), p.rangeMax, now);
       await tx.insert(markets).values({
-        id: p.marketId, workspaceId, metricId: p.metricId, metricName: p.metricName, targetDate: p.targetDate,
-        resolved: false, resolvedAt: null, actualValue: null, active: true,
-        rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: p.rangeMax,
-        shares: [0, 0] as [number, number], liquidity: 0, pool: 0, createdAt: now,
+        id: p.marketId,
+        workspaceId,
+        metricId: p.metricId,
+        metricName: p.metricName,
+        targetDate: p.targetDate,
+        resolved: false,
+        resolvedAt: null,
+        actualValue: null,
+        active: true,
+        rangeMin: AMM_DEFAULTS.rangeMin,
+        rangeMax: p.rangeMax,
+        shares: [0, 0] as [number, number],
+        liquidity: 0,
+        pool: 0,
+        createdAt: now,
       });
-      await applyAgentLiquidityInjectionTx(tx, { workspaceId, marketId: p.marketId, agentId: ownerAgentId, poolContribution: credits });
+      await applyAgentLiquidityInjectionTx(tx, {
+        workspaceId,
+        marketId: p.marketId,
+        agentId: ownerAgentId,
+        poolContribution: credits,
+      });
       if (anchorP !== null) {
         // Same solvency sizing the conditional pairs use: the subsidy
         // covers the anchored worst case, so an off-center open buys its
         // anchor with a thinner book, never with unminted credits.
         const anchored = anchoredMarketState(credits, anchorP);
-        await tx.update(markets)
+        await tx
+          .update(markets)
           .set({ shares: anchored.shares, liquidity: anchored.liquidity })
           .where(eq(markets.id, p.marketId));
       }
@@ -243,12 +319,11 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
 /** Acquire a named lock using systemConfig as a lock table. Returns true if acquired. */
 async function acquireLock(lockKey: string, ttlMs: number): Promise<boolean> {
   return db.transaction(async tx => {
-    const rows = await tx.select().from(systemConfig)
-      .where(eq(systemConfig.key, lockKey))
-      .for('update');
+    const rows = await tx.select().from(systemConfig).where(eq(systemConfig.key, lockKey)).for('update');
     const existing = rows[0]?.value as { locked?: boolean; expiresAt?: number } | undefined;
     if (existing?.locked && (existing.expiresAt ?? 0) > Date.now()) return false;
-    await tx.insert(systemConfig)
+    await tx
+      .insert(systemConfig)
       .values({ key: lockKey, value: { locked: true, expiresAt: Date.now() + ttlMs } })
       .onConflictDoUpdate({
         target: systemConfig.key,
@@ -259,7 +334,8 @@ async function acquireLock(lockKey: string, ttlMs: number): Promise<boolean> {
 }
 
 async function setLockCooldown(lockKey: string, ttlMs: number): Promise<void> {
-  await db.insert(systemConfig)
+  await db
+    .insert(systemConfig)
     .values({ key: lockKey, value: { locked: true, expiresAt: Date.now() + ttlMs } })
     .onConflictDoUpdate({
       target: systemConfig.key,
@@ -267,8 +343,9 @@ async function setLockCooldown(lockKey: string, ttlMs: number): Promise<void> {
     });
 }
 
-async function releaseLock(lockKey: string): Promise<void> {
-  await db.insert(systemConfig)
+async function _releaseLock(lockKey: string): Promise<void> {
+  await db
+    .insert(systemConfig)
     .values({ key: lockKey, value: { locked: false, expiresAt: 0 } })
     .onConflictDoUpdate({
       target: systemConfig.key,
@@ -276,7 +353,10 @@ async function releaseLock(lockKey: string): Promise<void> {
     });
 }
 
-export async function refreshRelativeDateMarkets(workspaceId: string, opts: { force?: boolean } = {}): Promise<{ created: number; deactivated: number; deduplicated: number; conditionalRespawned: number }> {
+export async function refreshRelativeDateMarkets(
+  workspaceId: string,
+  opts: { force?: boolean } = {},
+): Promise<{ created: number; deactivated: number; deduplicated: number; conditionalRespawned: number }> {
   const lockKey = `lock:marketRefresh:${workspaceId}`;
   if (!opts.force) {
     const acquired = await acquireLock(lockKey, 120_000);
@@ -325,14 +405,16 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
     }
   }
 
-  const openMarkets = await db.select().from(markets)
+  const openMarkets = await db
+    .select()
+    .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
   const openKeys = new Set<string>();
   let deactivated = 0;
   const toDeactivate: string[] = [];
   const toActivate: string[] = [];
-  const toLiquidityNormalize: string[] = [];
+  const _toLiquidityNormalize: string[] = [];
   const seenNonProposal = new Map<string, { id: string; createdAt: Date }>();
   const toVoid: MarketRow[] = [];
   const toFund: string[] = [];
@@ -387,7 +469,6 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
     // Captures both pool=0 (auto-fund was off when created) and pool < MIN
     // (historical micro-injections that left markets butterfly-sensitive).
     if (m.active && (m.pool ?? 0) < MIN_LIQUIDITY_CONTRIBUTION) toFund.push(m.id);
-
   }
 
   // Apply updates in a transaction
@@ -395,21 +476,24 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
     await db.transaction(async tx => {
       if (toActivate.length) {
         for (const id of toActivate) {
-          await tx.update(markets).set({ active: true })
+          await tx
+            .update(markets)
+            .set({ active: true })
             .where(and(eq(markets.id, id), eq(markets.workspaceId, workspaceId)));
         }
       }
       if (toDeactivate.length) {
         for (const id of toDeactivate) {
-          await tx.update(markets).set({ active: false })
+          await tx
+            .update(markets)
+            .set({ active: false })
             .where(and(eq(markets.id, id), eq(markets.workspaceId, workspaceId)));
         }
       }
     });
     // Outside the transaction (events are non-blocking, fire-and-forget).
     for (const id of toDeactivate) {
-      emitEvent('market:closed', { marketId: id }, workspaceId)
-        .catch(e => console.error('emitEvent failed:', e));
+      emitEvent('market:closed', { marketId: id }, workspaceId).catch(e => console.error('emitEvent failed:', e));
     }
   }
 
@@ -442,7 +526,12 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
         if (ag && sufficientBalance(ag.balance as number, totalCost)) {
           await db.transaction(async tx => {
             for (const marketId of toFund) {
-              await applyAgentLiquidityInjectionTx(tx, { workspaceId, marketId, agentId: ownerAgentId, poolContribution: credits });
+              await applyAgentLiquidityInjectionTx(tx, {
+                workspaceId,
+                marketId,
+                agentId: ownerAgentId,
+                poolContribution: credits,
+              });
             }
           });
         }
@@ -469,7 +558,9 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
   // pending proposals are reconciled: approved/declined proposals void one branch
   // on purpose, and re-spawning it would resurrect the dead counterfactual.
   let conditionalRespawned = 0;
-  const pendingProposals = await db.select().from(proposalsTable)
+  const pendingProposals = await db
+    .select()
+    .from(proposalsTable)
     .where(and(eq(proposalsTable.workspaceId, workspaceId), eq(proposalsTable.status, 'pending')));
   if (pendingProposals.length > 0) {
     const { createConditionalMarkets, subsidyContributionsOf } = await import('./proposals');
@@ -481,7 +572,9 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
         const prevIds = (proposal.conditionalMarketIds as string[]) ?? [];
         const changed = marketIds.length !== prevIds.length || marketIds.some(id => !prevIds.includes(id));
         if (changed) {
-          await db.update(proposalsTable).set({ conditionalMarketIds: marketIds })
+          await db
+            .update(proposalsTable)
+            .set({ conditionalMarketIds: marketIds })
             .where(and(eq(proposalsTable.id, proposal.id), eq(proposalsTable.workspaceId, workspaceId)));
           conditionalRespawned++;
         }

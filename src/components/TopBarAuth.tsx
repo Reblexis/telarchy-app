@@ -23,8 +23,16 @@ export function TopBarAuth() {
 
   if (loading) return <span className="pubws-login" aria-hidden="true" />;
   if (!user) {
-    return <Link to={authPath('login', location)} className="pubws-login pubws-fade">Log in</Link>;
+    return (
+      <Link to={authPath('login', location)} className="pubws-login pubws-fade">
+        Log in
+      </Link>
+    );
   }
   // Signed in: the account lives on the market page, behind its own dialog.
-  return <Link to="/account" className="pubws-login pubws-fade">Account</Link>;
+  return (
+    <Link to="/account" className="pubws-login pubws-fade">
+      Account
+    </Link>
+  );
 }

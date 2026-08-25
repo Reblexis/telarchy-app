@@ -1,4 +1,4 @@
-import { parseFormula, evaluate } from '../lib/formula';
+import { evaluate, parseFormula } from '../lib/formula';
 import { evaluateFormula, evaluateFormulaAtTime, validateFormula } from '../lib/metrics-engine';
 import type { Metric } from '../types';
 
@@ -48,9 +48,16 @@ describe('formula evaluator', () => {
 });
 
 describe('engine behaviour preserved after the parser switch', () => {
-  const metric = (m: Partial<Metric>): Metric => ({
-    id: 'x', name: 'x', value: 0, total: 0, formula: '0', order: 0, ...m,
-  } as Metric);
+  const metric = (m: Partial<Metric>): Metric =>
+    ({
+      id: 'x',
+      name: 'x',
+      value: 0,
+      total: 0,
+      formula: '0',
+      order: 0,
+      ...m,
+    }) as Metric;
   const map = {
     Sleep: metric({ id: 's', name: 'Sleep', value: 8, total: 8 }),
     Null: metric({ id: 'n', name: 'Null', value: 0, total: null as unknown as number }),

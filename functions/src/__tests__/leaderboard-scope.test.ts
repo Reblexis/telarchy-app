@@ -10,23 +10,28 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
-import request from 'supertest';
 import express from 'express';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import request from 'supertest';
 import { agents, markets, metrics, positions, trades, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { toUnits } from '../lib/validation';
-import { leaderboardRouter, clearBoardCache } from '../routes/leaderboard';
+import { clearBoardCache, leaderboardRouter } from '../routes/leaderboard';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
 app.use('/api/leaderboard', leaderboardRouter);
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 // The board is cached in process (five seconds), so a test that seeds new
 // data must drop the previous test's answer or it reads a board that no
 // longer exists.
-beforeEach(async () => { await truncateAll(); clearBoardCache(); });
+beforeEach(async () => {
+  await truncateAll();
+  clearBoardCache();
+});
 
 const ALPHA = 'ws-alpha';
 const BETA = 'ws-beta';
@@ -48,30 +53,60 @@ async function seed() {
     { id: PRIVATE, name: 'Private', slug: 'private', createdBy: 'private-trader', visibility: 'private' },
   ]);
 
-  for (const [ws, agentId] of [[ALPHA, 'alpha-trader'], [BETA, 'beta-trader'], [PRIVATE, 'private-trader']] as const) {
+  for (const [ws, agentId] of [
+    [ALPHA, 'alpha-trader'],
+    [BETA, 'beta-trader'],
+    [PRIVATE, 'private-trader'],
+  ] as const) {
     await db.insert(metrics).values({
-      id: `metric-${ws}`, workspaceId: ws, name: 'Revenue', value: 50, formula: '0', marketRangeMax: 100,
+      id: `metric-${ws}`,
+      workspaceId: ws,
+      name: 'Revenue',
+      value: 50,
+      formula: '0',
+      marketRangeMax: 100,
     });
     await db.insert(markets).values({
-      id: `mkt-${ws}`, workspaceId: ws, metricId: `metric-${ws}`, metricName: 'Revenue',
-      targetDate: '2028', rangeMin: 0, rangeMax: 100,
+      id: `mkt-${ws}`,
+      workspaceId: ws,
+      metricId: `metric-${ws}`,
+      metricName: 'Revenue',
+      targetDate: '2028',
+      rangeMin: 0,
+      rangeMax: 100,
       // The book holds the shares the position below holds: an open position
       // is valued at what this book would pay to take it back (docs/seasons.md
       // F1), so a market claiming zero outstanding shares would value it at
       // nothing.
-      shares: [0, 80], liquidity: 200, pool: initialPool(200),
-      active: true, resolved: false, voided: false, proposalId: null,
+      shares: [0, 80],
+      liquidity: 200,
+      pool: initialPool(200),
+      active: true,
+      resolved: false,
+      voided: false,
+      proposalId: null,
     });
     // Paid 10 for 40 shares the book would pay about 19 to take back: a real
     // gain, in this workspace and nowhere else. (80 outstanding, because the
     // cross-workspace test adds a second holder to Beta's book.)
     await db.insert(positions).values({
-      id: `pos-${ws}`, workspaceId: ws, agentId, marketId: `mkt-${ws}`,
-      direction: 'higher', shares: 40, totalCost: 10,
+      id: `pos-${ws}`,
+      workspaceId: ws,
+      agentId,
+      marketId: `mkt-${ws}`,
+      direction: 'higher',
+      shares: 40,
+      totalCost: 10,
     });
     await db.insert(trades).values({
-      id: `trade-${ws}`, workspaceId: ws, agentId, marketId: `mkt-${ws}`,
-      direction: 'higher', shares: 40, cost: 10, createdAt: new Date(),
+      id: `trade-${ws}`,
+      workspaceId: ws,
+      agentId,
+      marketId: `mkt-${ws}`,
+      direction: 'higher',
+      shares: 40,
+      cost: 10,
+      createdAt: new Date(),
     });
   }
 }
@@ -106,12 +141,23 @@ describe('scope', () => {
     await seed();
     // The same account also trades on Beta.
     await db.insert(positions).values({
-      id: 'pos-cross', workspaceId: BETA, agentId: 'alpha-trader', marketId: `mkt-${BETA}`,
-      direction: 'higher', shares: 40, totalCost: 10,
+      id: 'pos-cross',
+      workspaceId: BETA,
+      agentId: 'alpha-trader',
+      marketId: `mkt-${BETA}`,
+      direction: 'higher',
+      shares: 40,
+      totalCost: 10,
     });
     await db.insert(trades).values({
-      id: 'trade-cross', workspaceId: BETA, agentId: 'alpha-trader', marketId: `mkt-${BETA}`,
-      direction: 'higher', shares: 40, cost: 10, createdAt: new Date(),
+      id: 'trade-cross',
+      workspaceId: BETA,
+      agentId: 'alpha-trader',
+      marketId: `mkt-${BETA}`,
+      direction: 'higher',
+      shares: 40,
+      cost: 10,
+      createdAt: new Date(),
     });
 
     const onAlpha = (await board(`?workspaceId=${ALPHA}`)).find(r => r.id === 'alpha-trader')!;
@@ -125,8 +171,7 @@ describe('scope', () => {
     // Within a cent per scope: profit is rounded to cents once per board, so
     // two scoped boards can round in the same direction and the global one
     // cannot land on their exact sum.
-    expect(Math.abs(global.totalEarnings - (onAlpha.totalEarnings + onBeta.totalEarnings)))
-      .toBeLessThanOrEqual(0.02);
+    expect(Math.abs(global.totalEarnings - (onAlpha.totalEarnings + onBeta.totalEarnings))).toBeLessThanOrEqual(0.02);
   });
 
   test('a private workspace is never aggregated, scoped or not', async () => {

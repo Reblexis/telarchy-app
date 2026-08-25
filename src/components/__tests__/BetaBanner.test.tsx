@@ -1,5 +1,5 @@
-import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * The stripe that says "this is not the published site".
@@ -11,8 +11,11 @@ import { render, screen, waitFor } from '@testing-library/react';
  */
 
 const getRelease = vi.fn(async () => ({
-  serving: 'api-00380', candidate: { revision: 'api-00381', url: 'https://candidate---api.run.app' },
-  running: 'api-00381', isServing: false, error: null,
+  serving: 'api-00380',
+  candidate: { revision: 'api-00381', url: 'https://candidate---api.run.app' },
+  running: 'api-00381',
+  isServing: false,
+  error: null,
 }));
 const publishRelease = vi.fn(async () => ({ ok: true }));
 /** Which store this build writes to, read through the api client like every
@@ -45,7 +48,9 @@ function setHost(hostname: string, pathname = '/') {
 
 const realLocation = window.location;
 beforeEach(() => {
-  getRelease.mockClear(); publishRelease.mockClear(); getPublicConfig.mockClear();
+  getRelease.mockClear();
+  publishRelease.mockClear();
+  getPublicConfig.mockClear();
   getPublicConfig.mockResolvedValue({ store: 'production' });
   mockUser = { id: 'user-admin' };
 });
@@ -90,7 +95,11 @@ describe('the button', () => {
   test('is not offered on a revision that is already serving', async () => {
     setHost('candidate---api.run.app');
     getRelease.mockResolvedValueOnce({
-      serving: 'api-00381', candidate: null, running: 'api-00381', isServing: true, error: null,
+      serving: 'api-00381',
+      candidate: null,
+      running: 'api-00381',
+      isServing: true,
+      error: null,
     });
     render(<BetaBanner />);
     await waitFor(() => expect(getRelease).toHaveBeenCalled());
@@ -169,7 +178,11 @@ describe('the stripe says which of three states it is in', () => {
   test('nothing waiting: this IS what the site serves', async () => {
     setHost('telarchy.com', '/beta/');
     getRelease.mockResolvedValueOnce({
-      serving: 'api-1', candidate: null, running: 'api-1', isServing: true, error: null,
+      serving: 'api-1',
+      candidate: null,
+      running: 'api-1',
+      isServing: true,
+      error: null,
     });
     render(<BetaBanner />);
     await waitFor(() => expect(screen.getByText(/Nothing is waiting/)).toBeTruthy());

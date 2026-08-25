@@ -99,13 +99,19 @@ interface GatewayMessage {
 interface GatewayReply {
   choices?: Array<{ message?: GatewayMessage; finish_reason?: string }>;
   usage?: {
-    prompt_tokens?: number; completion_tokens?: number; cost?: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    cost?: number;
     prompt_tokens_details?: { cached_tokens?: number };
   };
 }
 
 async function postGateway(
-  key: string, messages: GatewayMessage[], tools: AskTool[], maxTokens: number, stream: boolean,
+  key: string,
+  messages: GatewayMessage[],
+  tools: AskTool[],
+  maxTokens: number,
+  stream: boolean,
   effort?: string,
 ): Promise<Response> {
   const res = await fetch(GATEWAY, {
@@ -133,11 +139,14 @@ async function postGateway(
 }
 
 async function callGateway(
-  key: string, messages: GatewayMessage[], tools: AskTool[], maxTokens: number = MAX_TOKENS,
+  key: string,
+  messages: GatewayMessage[],
+  tools: AskTool[],
+  maxTokens: number = MAX_TOKENS,
   effort?: string,
 ): Promise<GatewayReply> {
   const res = await postGateway(key, messages, tools, maxTokens, false, effort);
-  return await res.json() as GatewayReply;
+  return (await res.json()) as GatewayReply;
 }
 
 /** One streamed round, reassembled into the same shape a whole reply has.
@@ -147,8 +156,12 @@ async function callGateway(
  *  something up, and a reader watching JSON appear would be watching Otto
  *  think out loud in a language they did not ask for. */
 async function streamGateway(
-  key: string, messages: GatewayMessage[], tools: AskTool[], maxTokens: number,
-  onDelta: (text: string) => void, effort?: string,
+  key: string,
+  messages: GatewayMessage[],
+  tools: AskTool[],
+  maxTokens: number,
+  onDelta: (text: string) => void,
+  effort?: string,
 ): Promise<GatewayReply> {
   const res = await postGateway(key, messages, tools, maxTokens, true, effort);
   if (!res.body) throw new Error('gateway returned no stream');
@@ -179,7 +192,10 @@ async function streamGateway(
         if (!payload || payload === '[DONE]') continue;
         let chunk: {
           choices?: Array<{
-            delta?: { content?: string; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> };
+            delta?: {
+              content?: string;
+              tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }>;
+            };
             finish_reason?: string;
           }>;
           usage?: GatewayReply['usage'];
@@ -196,7 +212,10 @@ async function streamGateway(
         if (!choice) continue;
         if (choice.finish_reason) finish = choice.finish_reason;
         const text = choice.delta?.content;
-        if (text) { content += text; onDelta(text); }
+        if (text) {
+          content += text;
+          onDelta(text);
+        }
         for (const part of choice.delta?.tool_calls ?? []) {
           const idx = part.index ?? 0;
           const existing = calls.get(idx) ?? { id: '', name: '', args: '' };
@@ -215,16 +234,20 @@ async function streamGateway(
     .map(([, c]) => ({ id: c.id, type: 'function' as const, function: { name: c.name, arguments: c.args } }));
 
   return {
-    choices: [{
-      message: { role: 'assistant', content, ...(tool_calls.length ? { tool_calls } : {}) },
-      finish_reason: finish,
-    }],
+    choices: [
+      {
+        message: { role: 'assistant', content, ...(tool_calls.length ? { tool_calls } : {}) },
+        finish_reason: finish,
+      },
+    ],
     usage,
   };
 }
 
 export async function askAboutWorkspace(
-  brief: string, turns: AskTurn[], tools: AskTool[] = [],
+  brief: string,
+  turns: AskTurn[],
+  tools: AskTool[] = [],
   opts: {
     /** Who Otto is on this surface. He is the floor's market maker by
      *  default; the operator door hands him a different job (setting someone

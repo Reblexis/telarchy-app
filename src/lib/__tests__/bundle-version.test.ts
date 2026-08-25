@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { indexBundleSrc } from '../bundle-version';
 
 describe('indexBundleSrc (stale-tab guard, 2026-08-13)', () => {
   it('extracts the built entry bundle from a production index.html', () => {
-    const html = '<script type="module" crossorigin src="/assets/index-D81RcpRC.js"></script>'
-      + '<link rel="stylesheet" crossorigin href="/assets/index-B3fz7wD6.css">';
+    const html =
+      '<script type="module" crossorigin src="/assets/index-D81RcpRC.js"></script>' +
+      '<link rel="stylesheet" crossorigin href="/assets/index-B3fz7wD6.css">';
     expect(indexBundleSrc(html)).toBe('/assets/index-D81RcpRC.js');
   });
 

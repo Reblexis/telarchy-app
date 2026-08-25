@@ -67,31 +67,51 @@ export async function activatedParticipants(db: any, q: ActivatedQuery): Promise
   const userIds: string[] = users.map((u: { id: string }) => u.id);
   // The founder's participant identities are platform admins; anything they own
   // (by user id or by parent agent) is excluded, as are Telarchy's own bots.
-  const adminAgents = await db.select({ id: agents.id, authUserId: agents.authUserId }).from(agents).where(eq(agents.platformAdmin, true));
-  const adminAgentIds: string[] = adminAgents.map((a: { id: string }) => a.id);
-  const adminUserIds: string[] = adminAgents.map((a: { authUserId: string | null }) => a.authUserId).filter((x: string | null): x is string => Boolean(x));
-
-  const candidates = await db.select({
-    id: agents.id, ownerUserId: agents.ownerUserId, ownerAgentId: agents.ownerAgentId,
-    platformOperated: agents.platformOperated, platformAdmin: agents.platformAdmin,
-  })
+  const adminAgents = await db
+    .select({ id: agents.id, authUserId: agents.authUserId })
     .from(agents)
-    .where(userIds.length > 0
-      ? sql`(${agents.source} = ${q.source} OR ${agents.authUserId} IN ${userIds})`
-      : eq(agents.source, q.source));
+    .where(eq(agents.platformAdmin, true));
+  const adminAgentIds: string[] = adminAgents.map((a: { id: string }) => a.id);
+  const adminUserIds: string[] = adminAgents
+    .map((a: { authUserId: string | null }) => a.authUserId)
+    .filter((x: string | null): x is string => Boolean(x));
+
+  const candidates = await db
+    .select({
+      id: agents.id,
+      ownerUserId: agents.ownerUserId,
+      ownerAgentId: agents.ownerAgentId,
+      platformOperated: agents.platformOperated,
+      platformAdmin: agents.platformAdmin,
+    })
+    .from(agents)
+    .where(
+      userIds.length > 0
+        ? sql`(${agents.source} = ${q.source} OR ${agents.authUserId} IN ${userIds})`
+        : eq(agents.source, q.source),
+    );
   const eligible: string[] = candidates
-    .filter((a: { platformOperated: boolean; platformAdmin: boolean; ownerUserId: string | null; ownerAgentId: string | null }) =>
-      !a.platformOperated && !a.platformAdmin
-      && !(a.ownerUserId && adminUserIds.includes(a.ownerUserId))
-      && !(a.ownerAgentId && adminAgentIds.includes(a.ownerAgentId)))
+    .filter(
+      (a: {
+        platformOperated: boolean;
+        platformAdmin: boolean;
+        ownerUserId: string | null;
+        ownerAgentId: string | null;
+      }) =>
+        !a.platformOperated &&
+        !a.platformAdmin &&
+        !(a.ownerUserId && adminUserIds.includes(a.ownerUserId)) &&
+        !(a.ownerAgentId && adminAgentIds.includes(a.ownerAgentId)),
+    )
     .map((a: { id: string }) => a.id);
   if (eligible.length === 0) return [];
 
-  const rows = await db.select({
-    agentId: trades.agentId,
-    n: sql<number>`count(*)::int`,
-    days: sql<number>`count(distinct date_trunc('day', ${trades.createdAt}))::int`,
-  })
+  const rows = await db
+    .select({
+      agentId: trades.agentId,
+      n: sql<number>`count(*)::int`,
+      days: sql<number>`count(distinct date_trunc('day', ${trades.createdAt}))::int`,
+    })
     .from(trades)
     .where(and(inArray(trades.agentId, eligible), gte(trades.createdAt, q.start), lt(trades.createdAt, q.end)))
     .groupBy(trades.agentId);

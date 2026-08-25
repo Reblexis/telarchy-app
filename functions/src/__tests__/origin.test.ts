@@ -2,8 +2,18 @@ import { mailFrom, privacyContact, publicOrigin } from '../lib/origin';
 
 const KEYS = ['PUBLIC_ORIGIN', 'BETTER_AUTH_URL', 'MAIL_FROM', 'PRIVACY_CONTACT'] as const;
 const saved: Record<string, string | undefined> = {};
-beforeEach(() => { for (const k of KEYS) { saved[k] = process.env[k]; delete process.env[k]; } });
-afterEach(() => { for (const k of KEYS) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; } });
+beforeEach(() => {
+  for (const k of KEYS) {
+    saved[k] = process.env[k];
+    delete process.env[k];
+  }
+});
+afterEach(() => {
+  for (const k of KEYS) {
+    if (saved[k] === undefined) delete process.env[k];
+    else process.env[k] = saved[k];
+  }
+});
 
 describe('instance identity from the environment', () => {
   test('defaults are the managed instance', () => {

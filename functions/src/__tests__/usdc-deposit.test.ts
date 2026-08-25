@@ -1,4 +1,4 @@
-import { id, getAddress, parseUnits, toBeHex, zeroPadValue } from 'ethers';
+import { getAddress, id, parseUnits, toBeHex, zeroPadValue } from 'ethers';
 import { extractUsdcDepositFromLogs, type TransferLogLike, USDC_ON_BASE_MAINNET } from '../lib/usdc';
 
 const TRANSFER_TOPIC = id('Transfer(address,address,uint256)');

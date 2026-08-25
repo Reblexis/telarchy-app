@@ -37,23 +37,26 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, markets, metrics, permissionGroups, positions, trades, workspaces } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
 import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
 import { toUnits } from '../lib/validation';
 import { agentsRouter } from '../routes/agents';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
 app.use('/api/agents', agentsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof AppError) { res.status(err.status).json({ error: err.message }); return; }
+  if (err instanceof AppError) {
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
   res.status(500).json({ error: (err as Error).message ?? 'Internal error' });
 });
 
@@ -64,8 +67,12 @@ const PRIVATE_VIEWER = 'viewer';
 const PUBLIC_WS = 'ws-public-profile';
 const PRIVATE_WS = 'ws-private-profile';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 async function seed() {
   await db.insert(agents).values([
@@ -77,10 +84,18 @@ async function seed() {
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
   await provisionWorkspace(db as any, {
-    wsId: PUBLIC_WS, name: 'Public', createdBy: PUBLIC_WS_OWNER, ownerAgentId: PUBLIC_WS_OWNER, visibility: 'public',
+    wsId: PUBLIC_WS,
+    name: 'Public',
+    createdBy: PUBLIC_WS_OWNER,
+    ownerAgentId: PUBLIC_WS_OWNER,
+    visibility: 'public',
   });
   await provisionWorkspace(db as any, {
-    wsId: PRIVATE_WS, name: 'Private', createdBy: PRIVATE_WS_OWNER, ownerAgentId: PRIVATE_WS_OWNER, visibility: 'private',
+    wsId: PRIVATE_WS,
+    name: 'Private',
+    createdBy: PRIVATE_WS_OWNER,
+    ownerAgentId: PRIVATE_WS_OWNER,
+    visibility: 'private',
   });
   /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -90,38 +105,89 @@ async function seed() {
     const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, ws));
     const trader = groups.find(g => g.type === 'trader')!;
     const member = ws === PRIVATE_WS ? [PROFILE_OWNER, PRIVATE_VIEWER] : [PROFILE_OWNER];
-    await db.update(permissionGroups).set({ memberIds: member })
-      .where(eq(permissionGroups.id, trader.id));
+    await db.update(permissionGroups).set({ memberIds: member }).where(eq(permissionGroups.id, trader.id));
   }
 
   await db.insert(metrics).values([
-    { id: 'metric-public',  workspaceId: PUBLIC_WS,  name: 'Pub',  value: 0, formula: '0', marketRangeMax: 100 },
+    { id: 'metric-public', workspaceId: PUBLIC_WS, name: 'Pub', value: 0, formula: '0', marketRangeMax: 100 },
     { id: 'metric-private', workspaceId: PRIVATE_WS, name: 'Priv', value: 0, formula: '0', marketRangeMax: 100 },
   ]);
   await db.insert(markets).values([
     {
-      id: 'mkt-public', workspaceId: PUBLIC_WS, metricId: 'metric-public', metricName: 'Pub',
-      targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false,
+      id: 'mkt-public',
+      workspaceId: PUBLIC_WS,
+      metricId: 'metric-public',
+      metricName: 'Pub',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
     },
     {
-      id: 'mkt-private', workspaceId: PRIVATE_WS, metricId: 'metric-private', metricName: 'Priv',
-      targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false,
+      id: 'mkt-private',
+      workspaceId: PRIVATE_WS,
+      metricId: 'metric-private',
+      metricName: 'Priv',
+      targetDate: '2026-12',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 0],
+      liquidity: 10,
+      pool: initialPool(10),
+      active: true,
+      resolved: false,
+      voided: false,
     },
   ]);
 
   // One position + trade in each workspace.
   const now = new Date();
   await db.insert(positions).values([
-    { id: 'pos-pub', agentId: PROFILE_OWNER, workspaceId: PUBLIC_WS,  marketId: 'mkt-public',  direction: 'higher', shares: 5, totalCost: 25 },
-    { id: 'pos-prv', agentId: PROFILE_OWNER, workspaceId: PRIVATE_WS, marketId: 'mkt-private', direction: 'lower',  shares: 3, totalCost: 15 },
+    {
+      id: 'pos-pub',
+      agentId: PROFILE_OWNER,
+      workspaceId: PUBLIC_WS,
+      marketId: 'mkt-public',
+      direction: 'higher',
+      shares: 5,
+      totalCost: 25,
+    },
+    {
+      id: 'pos-prv',
+      agentId: PROFILE_OWNER,
+      workspaceId: PRIVATE_WS,
+      marketId: 'mkt-private',
+      direction: 'lower',
+      shares: 3,
+      totalCost: 15,
+    },
   ]);
   await db.insert(trades).values([
-    { id: 't-pub-1', agentId: PROFILE_OWNER, workspaceId: PUBLIC_WS,  marketId: 'mkt-public',  direction: 'higher', shares: 5, cost: 25, createdAt: now },
-    { id: 't-prv-1', agentId: PROFILE_OWNER, workspaceId: PRIVATE_WS, marketId: 'mkt-private', direction: 'lower',  shares: 3, cost: 15, createdAt: now },
+    {
+      id: 't-pub-1',
+      agentId: PROFILE_OWNER,
+      workspaceId: PUBLIC_WS,
+      marketId: 'mkt-public',
+      direction: 'higher',
+      shares: 5,
+      cost: 25,
+      createdAt: now,
+    },
+    {
+      id: 't-prv-1',
+      agentId: PROFILE_OWNER,
+      workspaceId: PRIVATE_WS,
+      marketId: 'mkt-private',
+      direction: 'lower',
+      shares: 3,
+      cost: 15,
+      createdAt: now,
+    },
   ]);
 }
 
@@ -156,9 +222,7 @@ describe('GET /api/agents/:idOrNickname/public visibility', () => {
     await seed();
     // Outsider has an identity but isn't a member of PRIVATE_WS.
     await db.insert(agents).values({ id: 'outsider', apiKeyHash: 'h-out', balance: toUnits(0) });
-    const res = await request(app)
-      .get(`/api/agents/${PROFILE_OWNER}/public`)
-      .set('X-Test-Agent-Id', 'outsider');
+    const res = await request(app).get(`/api/agents/${PROFILE_OWNER}/public`).set('X-Test-Agent-Id', 'outsider');
     expect(res.status).toBe(200);
     expect(res.body.openPositions.map((p: { workspaceId: string }) => p.workspaceId)).toEqual([PUBLIC_WS]);
     expect(res.body.recentTrades.map((t: { workspaceId: string }) => t.workspaceId)).toEqual([PUBLIC_WS]);
@@ -182,7 +246,9 @@ describe('GET /api/agents/:idOrNickname/public visibility', () => {
       .get(`/api/agents/${PROFILE_OWNER}/public`)
       .set('X-Test-Agent-Id', PRIVATE_VIEWER)
       .set('X-Workspace-Id', PRIVATE_WS);
-    const byMarket = new Map<string, string>(res.body.openPositions.map((p: { marketId: string; status: string }) => [p.marketId, p.status]));
+    const byMarket = new Map<string, string>(
+      res.body.openPositions.map((p: { marketId: string; status: string }) => [p.marketId, p.status]),
+    );
     expect(byMarket.get('mkt-public')).toBe('open');
     expect(byMarket.get('mkt-private')).toBe('closed');
   });
@@ -196,9 +262,7 @@ describe('GET /api/agents/:idOrNickname/public visibility', () => {
 
   test('open positions are filtered to shares > 0', async () => {
     await seed();
-    await db.update(positions)
-      .set({ shares: 0 })
-      .where(eq(positions.marketId, 'mkt-public'));
+    await db.update(positions).set({ shares: 0 }).where(eq(positions.marketId, 'mkt-public'));
     const res = await request(app).get(`/api/agents/${PROFILE_OWNER}/public`);
     expect(res.body.openPositions).toEqual([]);
     // Trade history survives even if the position has been fully unwound.
@@ -210,9 +274,7 @@ describe('GET /api/agents/:idOrNickname/public visibility', () => {
     // Resolve the private market in profile owner's favour. If stats expanded
     // to the viewer's scope, totalEarnings and resolvedMarkets would change
     // between anon and authenticated viewer. They must not.
-    await db.update(markets)
-      .set({ resolved: true, actualValue: 0 })
-      .where(eq(markets.id, 'mkt-private'));
+    await db.update(markets).set({ resolved: true, actualValue: 0 }).where(eq(markets.id, 'mkt-private'));
 
     const anon = await request(app).get(`/api/agents/${PROFILE_OWNER}/public`);
     const authed = await request(app)

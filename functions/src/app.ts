@@ -1,45 +1,45 @@
+import { toNodeHandler } from 'better-auth/node';
+import compression from 'compression';
+import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { apiAuthPolicy } from './middleware/route-policy';
-import { requireConsentIfUser } from './middleware/consent';
-import { requireCapability } from './middleware/roles';
-import { metricsRouter } from './routes/metrics';
-import { updatesRouter } from './routes/updates';
-import { systemRouter } from './routes/system';
-import { agentsRouter } from './routes/agents';
-import { predictionsRouter } from './routes/predictions';
-import { eventsRouter } from './routes/events';
-import { proposalsRouter } from './routes/proposals';
-import { waitlistRouter } from './routes/waitlist';
-import { manifoldRouter } from './routes/manifold';
-import { onboardRouter } from './routes/onboard';
-import { workspacesRouter } from './routes/workspaces';
-import { userauthRouter } from './routes/userauth';
-import { setupRouter } from './routes/setup';
-import { marketplaceRouter } from './routes/marketplace';
-import { leaderboardRouter } from './routes/leaderboard';
-import { seasonsRouter } from './routes/seasons';
-import { notificationsRouter } from './routes/notifications';
-import { groupsRouter } from './routes/groups';
-import { sourcesRouter } from './routes/sources';
-import { guidesRouter } from './routes/guides';
-import { legalRouter } from './routes/legal';
-import { dataRoomRouter } from './routes/data-room';
-import { cronRouter } from './routes/cron';
-import { adminRouter } from './routes/admin';
-import { activityRouter } from './routes/activity';
-import { feedbackRouter } from './routes/feedback';
-import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth';
-import type { Request, Response, NextFunction } from 'express';
+import { currentStoreName, runInBetaStore } from './db/client';
+import { isBetaPath, proxyToCandidate } from './lib/beta-surface';
+import { corsMiddleware } from './lib/cors';
 import { AppError } from './lib/errors';
 import { HELP } from './lib/help-catalog';
-import { corsMiddleware } from './lib/cors';
 import { publicOrigins } from './lib/origins';
-import { isBetaPath, proxyToCandidate } from './lib/beta-surface';
 import { isBetaRequest } from './lib/request-env';
-import { currentStoreName, runInBetaStore } from './db/client';
-import compression from 'compression';
+import { requireConsentIfUser } from './middleware/consent';
+import { requireCapability } from './middleware/roles';
+import { apiAuthPolicy } from './middleware/route-policy';
+import { activityRouter } from './routes/activity';
+import { adminRouter } from './routes/admin';
+import { agentsRouter } from './routes/agents';
+import { cronRouter } from './routes/cron';
+import { dataRoomRouter } from './routes/data-room';
+import { eventsRouter } from './routes/events';
+import { feedbackRouter } from './routes/feedback';
+import { groupsRouter } from './routes/groups';
+import { guidesRouter } from './routes/guides';
+import { leaderboardRouter } from './routes/leaderboard';
+import { legalRouter } from './routes/legal';
+import { manifoldRouter } from './routes/manifold';
+import { marketplaceRouter } from './routes/marketplace';
+import { metricsRouter } from './routes/metrics';
+import { notificationsRouter } from './routes/notifications';
+import { onboardRouter } from './routes/onboard';
+import { predictionsRouter } from './routes/predictions';
+import { proposalsRouter } from './routes/proposals';
+import { seasonsRouter } from './routes/seasons';
+import { setupRouter } from './routes/setup';
+import { sourcesRouter } from './routes/sources';
+import { systemRouter } from './routes/system';
+import { updatesRouter } from './routes/updates';
+import { userauthRouter } from './routes/userauth';
+import { waitlistRouter } from './routes/waitlist';
+import { workspacesRouter } from './routes/workspaces';
 
 export const app = express();
 
@@ -218,7 +218,7 @@ const limiterDefaults = {
 const globalLimiter = rateLimit({
   ...limiterDefaults,
   max: rateLimitMax || 1_000_000,
-  skip: (req) => hasIdentity(req as unknown as { headers: Record<string, unknown> }),
+  skip: req => hasIdentity(req as unknown as { headers: Record<string, unknown> }),
 });
 
 const strictLimiter = rateLimit({
@@ -245,7 +245,7 @@ const feedbackLimitMax = parseInt(process.env.FEEDBACK_LIMIT_MAX ?? '20', 10);
 const feedbackLimiter = rateLimit({
   ...limiterDefaults,
   max: feedbackLimitMax || 1_000_000,
-  skip: (req) => hasIdentity(req as unknown as { headers: Record<string, unknown> }),
+  skip: req => hasIdentity(req as unknown as { headers: Record<string, unknown> }),
 });
 
 // Asking the floor a question spends real money on a model call, so this

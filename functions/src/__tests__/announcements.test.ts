@@ -23,7 +23,10 @@ jest.mock('../middleware/auth', () => ({
 
 jest.mock('../middleware/roles', () => ({
   requireCapability: (cap: string) => (req: any, res: any, next: any) => {
-    if (!req.auth?.capabilities?.has(cap)) { res.status(403).json({ error: 'Forbidden' }); return; }
+    if (!req.auth?.capabilities?.has(cap)) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
     next();
   },
   requireIdentity: (_req: any, _res: any, next: any) => next(),
@@ -35,19 +38,26 @@ jest.mock('../middleware/capabilities', () => ({
   computeCapabilities: async () => new Set<string>(),
 }));
 
-import request from 'supertest';
-import express from 'express';
 import { sql } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, announcements, permissionGroups, workspaces } from '../db/schema';
+import { AppError } from '../lib/errors';
 import { marketplaceRouter } from '../routes/marketplace';
 import { workspacesRouter } from '../routes/workspaces';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
 app.use('/api/marketplace', marketplaceRouter);
-app.use('/api/workspaces', (req: any, _res, next) => { req.auth = auth; next(); }, workspacesRouter);
+app.use(
+  '/api/workspaces',
+  (req: any, _res, next) => {
+    req.auth = auth;
+    next();
+  },
+  workspacesRouter,
+);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {
   const status = err instanceof AppError ? err.status : 500;
@@ -61,7 +71,8 @@ async function refusal(op: Promise<unknown>): Promise<string> {
   try {
     await op;
   } catch (e) {
-    let err: unknown = e, seen = '';
+    let err: unknown = e,
+      seen = '';
     while (err instanceof Error) {
       seen += ` ${err.message}`;
       err = (err as Error & { cause?: unknown }).cause;
@@ -71,7 +82,9 @@ async function refusal(op: Promise<unknown>): Promise<string> {
   throw new Error('expected the announcement record to refuse this, but it succeeded');
 }
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   auth = { workspaceId: WS, capabilities: new Set(['manage']), agentId: 'agent-a1' };
@@ -82,18 +95,27 @@ const WS = 'ws-ann';
 async function seed(publicCaps: string[], visibility = 'public') {
   await db.insert(agents).values({ id: 'agent-a1', apiKeyHash: 'h-a1', balance: 0, nickname: 'owner' });
   await db.insert(workspaces).values({
-    id: WS, name: 'Announce WS', createdBy: 'agent-a1', visibility, slug: 'announce-ws',
+    id: WS,
+    name: 'Announce WS',
+    createdBy: 'agent-a1',
+    visibility,
+    slug: 'announce-ws',
   });
   await db.insert(permissionGroups).values({
-    id: 'grp-pub-a', workspaceId: WS, name: 'Public', type: 'public',
-    capabilities: publicCaps, memberIds: [],
+    id: 'grp-pub-a',
+    workspaceId: WS,
+    name: 'Public',
+    type: 'public',
+    capabilities: publicCaps,
+    memberIds: [],
   });
 }
 
 describe('publishing', () => {
   test('an announcement reads back anonymously on the public floor', async () => {
     await seed(['read', 'trade']);
-    const created = await request(app).post(`/api/workspaces/${WS}/announcements`)
+    const created = await request(app)
+      .post(`/api/workspaces/${WS}/announcements`)
       .send({ body: 'The autumn Steam sale is locked in with Valve at 30% off, 29 Sep to 6 Oct.' });
     expect(created.status).toBe(201);
     expect(created.body.editedAt).toBeNull();
@@ -109,7 +131,8 @@ describe('publishing', () => {
   test('publishedAt is the server clock, not whatever the client sent', async () => {
     await seed(['read']);
     const backdated = new Date('2020-01-01T00:00:00Z').toISOString();
-    const created = await request(app).post(`/api/workspaces/${WS}/announcements`)
+    const created = await request(app)
+      .post(`/api/workspaces/${WS}/announcements`)
       .send({ body: 'material news', publishedAt: backdated, editedAt: backdated, originalBody: 'something else' });
     expect(created.status).toBe(201);
     // A disclosure timestamp the publisher picks proves nothing, so the route
@@ -129,7 +152,9 @@ describe('publishing', () => {
 
     const empty = await request(app).post(`/api/workspaces/${WS}/announcements`).send({ body: '   ' });
     expect(empty.status).toBe(400);
-    const huge = await request(app).post(`/api/workspaces/${WS}/announcements`).send({ body: 'x'.repeat(5001) });
+    const huge = await request(app)
+      .post(`/api/workspaces/${WS}/announcements`)
+      .send({ body: 'x'.repeat(5001) });
     expect(huge.status).toBe(400);
   });
 });
@@ -155,8 +180,7 @@ describe('the privacy contract, the same one the ballot follows', () => {
     expect(open.body.latestAnnouncement.body).toBe('latest news');
     expect(open.body.announcementCount).toBe(1);
 
-    await db.update(permissionGroups).set({ capabilities: [] })
-      .where(sql`id = 'grp-pub-a'`);
+    await db.update(permissionGroups).set({ capabilities: [] }).where(sql`id = 'grp-pub-a'`);
     const closed = await request(app).get(`/api/marketplace/${WS}`);
     expect(closed.body.latestAnnouncement).toBeUndefined();
     expect(closed.body.announcementCount).toBeUndefined();
@@ -166,11 +190,11 @@ describe('the privacy contract, the same one the ballot follows', () => {
 describe('editing keeps the record', () => {
   test('an edit preserves the original body and shows both timestamps publicly', async () => {
     await seed(['read']);
-    const created = await request(app).post(`/api/workspaces/${WS}/announcements`)
-      .send({ body: 'Sale is 30% off.' });
+    const created = await request(app).post(`/api/workspaces/${WS}/announcements`).send({ body: 'Sale is 30% off.' });
     const id = created.body.id as string;
 
-    const edited = await request(app).put(`/api/workspaces/${WS}/announcements/${id}`)
+    const edited = await request(app)
+      .put(`/api/workspaces/${WS}/announcements/${id}`)
       .send({ body: 'Correction: the sale is 25% off.' });
     expect(edited.status).toBe(200);
     expect(edited.body.body).toBe('Correction: the sale is 25% off.');
@@ -180,7 +204,8 @@ describe('editing keeps the record', () => {
 
     // A second edit does not overwrite the FIRST published text: the original
     // is what was there before anyone corrected anything.
-    const again = await request(app).put(`/api/workspaces/${WS}/announcements/${id}`)
+    const again = await request(app)
+      .put(`/api/workspaces/${WS}/announcements/${id}`)
       .send({ body: 'Correction 2: 20% off.' });
     expect(again.body.originalBody).toBe('Sale is 30% off.');
 
@@ -194,7 +219,8 @@ describe('editing keeps the record', () => {
   test('saving an identical body is not an edit', async () => {
     await seed(['read']);
     const created = await request(app).post(`/api/workspaces/${WS}/announcements`).send({ body: 'same' });
-    const same = await request(app).put(`/api/workspaces/${WS}/announcements/${created.body.id}`)
+    const same = await request(app)
+      .put(`/api/workspaces/${WS}/announcements/${created.body.id}`)
       .send({ body: 'same' });
     expect(same.body.editedAt).toBeNull();
     expect(same.body.originalBody).toBeNull();
@@ -206,31 +232,30 @@ describe('the owner cannot quietly change history', () => {
     await seed(['read']);
     await db.insert(announcements).values({ id: 'a1', workspaceId: WS, body: 'as published' });
 
-    expect(await refusal(db.execute(sql`DELETE FROM announcements WHERE id = 'a1'`)))
-      .toMatch(/append-only/i);
+    expect(await refusal(db.execute(sql`DELETE FROM announcements WHERE id = 'a1'`))).toMatch(/append-only/i);
 
-    expect(await refusal(db.execute(
-      sql`UPDATE announcements SET published_at = '2020-01-01' WHERE id = 'a1'`,
-    ))).toMatch(/re-dated/i);
+    expect(
+      await refusal(db.execute(sql`UPDATE announcements SET published_at = '2020-01-01' WHERE id = 'a1'`)),
+    ).toMatch(/re-dated/i);
 
     // The exact operation the surface exists to prevent: swap the text,
     // leave no edit marker.
-    expect(await refusal(db.execute(
-      sql`UPDATE announcements SET body = 'never mind' WHERE id = 'a1'`,
-    ))).toMatch(/edited_at/i);
+    expect(await refusal(db.execute(sql`UPDATE announcements SET body = 'never mind' WHERE id = 'a1'`))).toMatch(
+      /edited_at/i,
+    );
 
     // Marking it edited but pretending nothing preceded it is refused too.
-    expect(await refusal(db.execute(
-      sql`UPDATE announcements SET body = 'never mind', edited_at = now() WHERE id = 'a1'`,
-    ))).toMatch(/original/i);
+    expect(
+      await refusal(db.execute(sql`UPDATE announcements SET body = 'never mind', edited_at = now() WHERE id = 'a1'`)),
+    ).toMatch(/original/i);
 
     // And the original, once recorded, is not editable either.
     await db.execute(
       sql`UPDATE announcements SET body = 'corrected', edited_at = now(), original_body = 'as published' WHERE id = 'a1'`,
     );
-    expect(await refusal(db.execute(
-      sql`UPDATE announcements SET original_body = 'a nicer version' WHERE id = 'a1'`,
-    ))).toMatch(/not editable/i);
+    expect(
+      await refusal(db.execute(sql`UPDATE announcements SET original_body = 'a nicer version' WHERE id = 'a1'`)),
+    ).toMatch(/not editable/i);
 
     const [row] = await db.select().from(announcements);
     expect(row.body).toBe('corrected');
@@ -250,11 +275,16 @@ describe('who may publish', () => {
   test('manage rights in one workspace do not reach another', async () => {
     await seed(['read']);
     await db.insert(workspaces).values({
-      id: 'ws-other', name: 'Other', createdBy: 'agent-a1', visibility: 'public', slug: 'other-ws',
+      id: 'ws-other',
+      name: 'Other',
+      createdBy: 'agent-a1',
+      visibility: 'public',
+      slug: 'other-ws',
     });
     // The gate passed against the header workspace; the handler acts on the
     // path id, where this identity holds nothing.
-    const cross = await request(app).post('/api/workspaces/ws-other/announcements')
+    const cross = await request(app)
+      .post('/api/workspaces/ws-other/announcements')
       .send({ body: 'not mine to publish' });
     expect(cross.status).toBe(403);
     expect(await db.select().from(announcements)).toHaveLength(0);

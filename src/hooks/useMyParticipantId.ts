@@ -17,14 +17,20 @@ export function useMyParticipantId(signedIn: boolean): string | null {
   const [id, setId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!signedIn) { setId(null); return; }
+    if (!signedIn) {
+      setId(null);
+      return;
+    }
     let cancelled = false;
-    api.getProfile()
+    api
+      .getProfile()
       .then((p: { participantId?: string | null }) => {
         if (!cancelled) setId(p?.participantId ?? null);
       })
       .catch(e => console.error('profile fetch failed:', e));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [signedIn]);
 
   return id;

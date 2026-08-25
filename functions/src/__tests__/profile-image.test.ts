@@ -17,13 +17,13 @@ jest.mock('../middleware/auth', () => ({
   optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
-import request from 'supertest';
-import express from 'express';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, authUser } from '../db/schema';
-import { userauthRouter } from '../routes/userauth';
 import { AppError } from '../lib/errors';
+import { userauthRouter } from '../routes/userauth';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const UID = 'user-avatar';
 const AGENT = 'agent-avatar';
@@ -48,11 +48,16 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   await db.insert(authUser).values({
-    id: UID, name: 'Avatar Tester', email: 'avatar@example.com', emailVerified: true,
+    id: UID,
+    name: 'Avatar Tester',
+    email: 'avatar@example.com',
+    emailVerified: true,
   });
   await db.insert(agents).values({ id: AGENT, apiKeyHash: 'h-avatar', balance: 0, authUserId: UID });
 });
@@ -64,8 +69,7 @@ async function storedImage(): Promise<string | null> {
 
 describe('profile picture', () => {
   test('an https URL is stored on the account row', async () => {
-    const res = await request(app).post('/api/auth/profile')
-      .send({ image: 'https://example.com/me.png' });
+    const res = await request(app).post('/api/auth/profile').send({ image: 'https://example.com/me.png' });
     expect(res.status).toBe(200);
     expect(await storedImage()).toBe('https://example.com/me.png');
   });
@@ -78,16 +82,14 @@ describe('profile picture', () => {
   });
 
   test('a javascript: URL is refused, and nothing is written', async () => {
-    const res = await request(app).post('/api/auth/profile')
-      .send({ image: 'javascript:alert(1)' });
+    const res = await request(app).post('/api/auth/profile').send({ image: 'javascript:alert(1)' });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/http or https/);
     expect(await storedImage()).toBeNull();
   });
 
   test('a data: URL is refused too', async () => {
-    const res = await request(app).post('/api/auth/profile')
-      .send({ image: 'data:text/html;base64,PHNjcmlwdD4=' });
+    const res = await request(app).post('/api/auth/profile').send({ image: 'data:text/html;base64,PHNjcmlwdD4=' });
     expect(res.status).toBe(400);
     expect(await storedImage()).toBeNull();
   });
@@ -99,14 +101,16 @@ describe('profile picture', () => {
   });
 
   test('an over-long URL is refused', async () => {
-    const res = await request(app).post('/api/auth/profile')
+    const res = await request(app)
+      .post('/api/auth/profile')
       .send({ image: `https://example.com/${'x'.repeat(500)}.png` });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/500 characters/);
   });
 
   test('an API-key participant with no browser account gets a clear 400', async () => {
-    const res = await request(app).post('/api/auth/profile')
+    const res = await request(app)
+      .post('/api/auth/profile')
       .set('x-no-uid', '1')
       .send({ image: 'https://example.com/me.png' });
     expect(res.status).toBe(400);
@@ -128,8 +132,7 @@ describe('payment details', () => {
   }
 
   test('a handle is stored on the participant row', async () => {
-    const res = await request(app).post('/api/auth/profile')
-      .send({ payoutHandle: '  pay@example.com  ' });
+    const res = await request(app).post('/api/auth/profile').send({ payoutHandle: '  pay@example.com  ' });
     expect(res.status).toBe(200);
     expect(await storedPayout()).toBe('pay@example.com');
   });
@@ -156,12 +159,12 @@ describe('inline data-URL picture', () => {
   });
 
   test('non-image data URLs and oversized images are refused', async () => {
-    const html = await request(app).post('/api/auth/profile')
-      .send({ image: 'data:text/html;base64,PHNjcmlwdD4=' });
+    const html = await request(app).post('/api/auth/profile').send({ image: 'data:text/html;base64,PHNjcmlwdD4=' });
     expect(html.status).toBe(400);
     expect(await storedImage()).toBeNull();
 
-    const big = await request(app).post('/api/auth/profile')
+    const big = await request(app)
+      .post('/api/auth/profile')
       .send({ image: 'data:image/png;base64,' + 'A'.repeat(97_000) });
     expect(big.status).toBe(400);
     expect(await storedImage()).toBeNull();
@@ -175,7 +178,8 @@ describe('structured payment method', () => {
   }
 
   test('a valid method stores the object and derives the summary', async () => {
-    const res = await request(app).post('/api/auth/profile')
+    const res = await request(app)
+      .post('/api/auth/profile')
       .send({ payoutMethod: { provider: 'bank', iban: 'DE89 3704 0044 0532 0130 00', holder: 'Jan Novak' } });
     expect(res.status).toBe(200);
     const { handle, method } = await storedPayment();
@@ -184,7 +188,8 @@ describe('structured payment method', () => {
   });
 
   test('an invalid method is refused with the provider-specific reason', async () => {
-    const res = await request(app).post('/api/auth/profile')
+    const res = await request(app)
+      .post('/api/auth/profile')
       .send({ payoutMethod: { provider: 'bank', iban: 'DE00WRONG', holder: 'Jan' } });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/IBAN/);
@@ -192,7 +197,8 @@ describe('structured payment method', () => {
   });
 
   test('null clears both columns; a legacy bare handle becomes the other provider', async () => {
-    await request(app).post('/api/auth/profile')
+    await request(app)
+      .post('/api/auth/profile')
       .send({ payoutMethod: { provider: 'paypal', email: 'p@x.com' } });
     const cleared = await request(app).post('/api/auth/profile').send({ payoutMethod: null });
     expect(cleared.status).toBe(200);
@@ -208,7 +214,8 @@ describe('structured payment method', () => {
 
 describe('account deletion wipes payment PII', () => {
   test('payout method, summary, bio, and nickname are gone after DELETE /me', async () => {
-    await request(app).post('/api/auth/profile')
+    await request(app)
+      .post('/api/auth/profile')
       .send({ payoutMethod: { provider: 'paypal', email: 'p@x.com' }, bio: 'I stream sims.' });
     const res = await request(app).delete('/api/auth/me');
     expect(res.status).toBe(204);

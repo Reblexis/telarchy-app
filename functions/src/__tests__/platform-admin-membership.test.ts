@@ -11,16 +11,20 @@ jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import { agents, permissionGroups } from '../db/schema';
 import {
   getParticipantWorkspaceMemberships,
   listParticipantsForWorkspace,
   provisionWorkspace,
 } from '../lib/participants';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 async function insertAgent(opts: { id: string; platformAdmin?: boolean }): Promise<void> {
   await db.insert(agents).values({
@@ -64,10 +68,7 @@ describe('platform admin virtual workspace access', () => {
     await provisionWorkspace(db as any, { wsId: ws, name: 'Alpha', createdBy: 'alice', ownerAgentId: 'alice' });
 
     // Inject the platform admin into the admin group as if a self-heal had run.
-    const [adminGroup] = await db
-      .select()
-      .from(permissionGroups)
-      .where(eq(permissionGroups.workspaceId, ws));
+    const [adminGroup] = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, ws));
     const beforeIds = (adminGroup.memberIds as string[]) ?? [];
     await db
       .update(permissionGroups)

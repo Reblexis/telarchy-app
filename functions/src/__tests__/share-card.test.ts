@@ -6,7 +6,7 @@
  * of throwing at a link scraper.
  */
 
-import { renderShareCardSvg, renderShareCardPng } from '../lib/share-card';
+import { renderShareCardPng, renderShareCardSvg } from '../lib/share-card';
 
 const DATA = {
   name: 'LookPilot',

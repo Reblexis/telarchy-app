@@ -18,9 +18,11 @@
  */
 
 const RESEND_API = 'https://api.resend.com/emails';
+
 // From address and public origin come from lib/origin.ts (PUBLIC_ORIGIN, MAIL_FROM),
 // so a self-hosted instance mails from its own domain and links to itself.
 export { publicOrigin } from './origin';
+
 import { mailFrom } from './origin';
 
 /**

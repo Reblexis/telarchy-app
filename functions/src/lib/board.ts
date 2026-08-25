@@ -2,13 +2,13 @@ import { and, eq, gt, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { markets, positions, trades } from '../db/schema';
 import {
+  type CalibrationStats,
   computeCalibrationStats,
   computeProfitBreakdown,
-  voidedStakeKey,
-  type CalibrationStats,
   type LeaderboardPosition,
   type ProfitBreakdown,
   type ProfitMarket,
+  voidedStakeKey,
 } from './leaderboard';
 
 /**
@@ -90,17 +90,20 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
   // Every market in the set, whatever state it is in: enough to say what a
   // holding is worth (currentPayoutFactors picks the resolution payout or the
   // live call; a voided market pays its refund instead).
-  const marketRows = await db.select({
-    id: markets.id,
-    workspaceId: markets.workspaceId,
-    rangeMin: markets.rangeMin,
-    rangeMax: markets.rangeMax,
-    resolved: markets.resolved,
-    actualValue: markets.actualValue,
-    shares: markets.shares,
-    liquidity: markets.liquidity,
-    voided: markets.voided,
-  }).from(markets).where(inArray(markets.workspaceId, workspaceIds));
+  const marketRows = await db
+    .select({
+      id: markets.id,
+      workspaceId: markets.workspaceId,
+      rangeMin: markets.rangeMin,
+      rangeMax: markets.rangeMax,
+      resolved: markets.resolved,
+      actualValue: markets.actualValue,
+      shares: markets.shares,
+      liquidity: markets.liquidity,
+      voided: markets.voided,
+    })
+    .from(markets)
+    .where(inArray(markets.workspaceId, workspaceIds));
 
   const profitMarkets: ProfitMarket[] = marketRows.map(m => ({
     id: m.id,
@@ -120,11 +123,13 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
   // 2026-08-14, silently deleted every trader whose activity sat on voided
   // conditional branches, which on the LookPilot floor was most of them, so
   // the board rendered two rows out of eight.
-  const tradeAggs = await db.select({
-    agentId: trades.agentId,
-    totalTrades: sql<number>`count(*)::int`,
-    lastTradeAt: sql<string | null>`max(${trades.createdAt})`,
-  }).from(trades)
+  const tradeAggs = await db
+    .select({
+      agentId: trades.agentId,
+      totalTrades: sql<number>`count(*)::int`,
+      lastTradeAt: sql<string | null>`max(${trades.createdAt})`,
+    })
+    .from(trades)
     .where(inArray(trades.workspaceId, workspaceIds))
     .groupBy(trades.agentId);
 
@@ -133,80 +138,68 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
   // money in minus money already taken back out. Voided markets are counted
   // on this side too, because the value side counts their refund; the join
   // only drops trades whose market row is gone, which nothing can value.
-  const costAggs = await db.select({
-    agentId: trades.agentId,
-    netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
-  }).from(trades)
-    .innerJoin(markets, and(
-      eq(markets.id, trades.marketId),
-      eq(markets.workspaceId, trades.workspaceId),
-    ))
+  const costAggs = await db
+    .select({
+      agentId: trades.agentId,
+      netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
+    })
+    .from(trades)
+    .innerJoin(markets, and(eq(markets.id, trades.marketId), eq(markets.workspaceId, trades.workspaceId)))
     .where(inArray(trades.workspaceId, workspaceIds))
     .groupBy(trades.agentId);
 
   // The part of that net cash that went into markets whose money is final
   // (resolved to a number, or cancelled): the cost side of settled profit.
   // Same predicate as isSettledMarket in lib/leaderboard.ts.
-  const settledCostAggs = await db.select({
-    agentId: trades.agentId,
-    netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
-  }).from(trades)
-    .innerJoin(markets, and(
-      eq(markets.id, trades.marketId),
-      eq(markets.workspaceId, trades.workspaceId),
-    ))
-    .where(and(
-      inArray(trades.workspaceId, workspaceIds),
-      or(
-        eq(markets.voided, true),
-        and(eq(markets.resolved, true), isNotNull(markets.actualValue)),
+  const settledCostAggs = await db
+    .select({
+      agentId: trades.agentId,
+      netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
+    })
+    .from(trades)
+    .innerJoin(markets, and(eq(markets.id, trades.marketId), eq(markets.workspaceId, trades.workspaceId)))
+    .where(
+      and(
+        inArray(trades.workspaceId, workspaceIds),
+        or(eq(markets.voided, true), and(eq(markets.resolved, true), isNotNull(markets.actualValue))),
       ),
-    ))
+    )
     .groupBy(trades.agentId);
 
   // Positions that can still be valued at a price: held, on a market that was
   // not cancelled. Both filters matter for size as much as for meaning, since
   // this query has been OOM-killed before. Cancelled markets pay a refund
   // instead and are handled below, off the trades, so they need no rows here.
-  const positionRows = await db.select({
-    agentId: positions.agentId,
-    workspaceId: positions.workspaceId,
-    marketId: positions.marketId,
-    direction: positions.direction,
-    shares: positions.shares,
-  }).from(positions)
-    .innerJoin(markets, and(
-      eq(markets.id, positions.marketId),
-      eq(markets.workspaceId, positions.workspaceId),
-    ))
-    .where(and(
-      inArray(positions.workspaceId, workspaceIds),
-      eq(markets.voided, false),
-      gt(positions.shares, 0),
-    ));
+  const positionRows = await db
+    .select({
+      agentId: positions.agentId,
+      workspaceId: positions.workspaceId,
+      marketId: positions.marketId,
+      direction: positions.direction,
+      shares: positions.shares,
+    })
+    .from(positions)
+    .innerJoin(markets, and(eq(markets.id, positions.marketId), eq(markets.workspaceId, positions.workspaceId)))
+    .where(and(inArray(positions.workspaceId, workspaceIds), eq(markets.voided, false), gt(positions.shares, 0)));
 
   // What each agent still had at stake on each CANCELLED market: the void
   // refund is this floored at zero (docs/vision.md), so it is the value side
   // of those markets. One row per (agent, voided market).
-  const voidedStakeRows = await db.select({
-    agentId: trades.agentId,
-    workspaceId: trades.workspaceId,
-    marketId: trades.marketId,
-    netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
-  }).from(trades)
-    .innerJoin(markets, and(
-      eq(markets.id, trades.marketId),
-      eq(markets.workspaceId, trades.workspaceId),
-    ))
-    .where(and(
-      inArray(trades.workspaceId, workspaceIds),
-      eq(markets.voided, true),
-    ))
+  const voidedStakeRows = await db
+    .select({
+      agentId: trades.agentId,
+      workspaceId: trades.workspaceId,
+      marketId: trades.marketId,
+      netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
+    })
+    .from(trades)
+    .innerJoin(markets, and(eq(markets.id, trades.marketId), eq(markets.workspaceId, trades.workspaceId)))
+    .where(and(inArray(trades.workspaceId, workspaceIds), eq(markets.voided, true)))
     .groupBy(trades.agentId, trades.workspaceId, trades.marketId);
 
-  const voidedStake = new Map(voidedStakeRows.map(r => [
-    voidedStakeKey(r.agentId, r.workspaceId, r.marketId), Number(r.netCash),
-  ]));
+  const voidedStake = new Map(
+    voidedStakeRows.map(r => [voidedStakeKey(r.agentId, r.workspaceId, r.marketId), Number(r.netCash)]),
+  );
 
   const netCashById = new Map(costAggs.map(c => [c.agentId, Number(c.netCash)]));
   const settledCashById = new Map(settledCostAggs.map(c => [c.agentId, Number(c.netCash)]));
@@ -218,10 +211,15 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
   const resolved = profitMarkets.filter(m => m.resolved && m.actualValue !== null);
   const calibrationById = computeCalibrationStats(resolved, positionRows);
 
-  const activityById = new Map(tradeAggs.map(t => [t.agentId, {
-    totalTrades: Number(t.totalTrades),
-    lastTradeAt: t.lastTradeAt ?? null,
-  }]));
+  const activityById = new Map(
+    tradeAggs.map(t => [
+      t.agentId,
+      {
+        totalTrades: Number(t.totalTrades),
+        lastTradeAt: t.lastTradeAt ?? null,
+      },
+    ]),
+  );
 
   // Nobody is excluded (owner report 2026-08-14: "maybe the bug is that it
   // doesn't count admin into traders"). Trading profit never sees a grant, so

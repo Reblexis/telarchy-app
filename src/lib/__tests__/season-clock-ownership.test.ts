@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'fs';
+import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative, resolve } from 'path';
+import { describe, expect, test } from 'vitest';
 
 /**
  * One clock, four surfaces.
@@ -38,10 +38,10 @@ test('the scan actually sees the frontend', () => {
   expect(files.map(f => f.path)).toContain('components/SeasonEntryPanel.tsx');
 });
 
-describe('only the model reads a season\'s dates', () => {
+describe("only the model reads a season's dates", () => {
   const ALLOWED = new Set([
     MODEL,
-    'lib/api.ts',          // the PrizeSeason type declaration
+    'lib/api.ts', // the PrizeSeason type declaration
     'lib/useSeasonClock.ts', // the hook, which only passes `now` through
   ]);
 

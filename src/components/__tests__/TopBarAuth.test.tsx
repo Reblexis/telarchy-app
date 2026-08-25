@@ -1,6 +1,6 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * The page has to ask before it tells someone they are signed out.
@@ -18,9 +18,15 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => mockAuth }));
 import { TopBarAuth } from '../TopBarAuth';
 
 const renderAt = (path = '/manage') =>
-  render(<MemoryRouter initialEntries={[path]}><TopBarAuth /></MemoryRouter>);
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <TopBarAuth />
+    </MemoryRouter>,
+  );
 
-beforeEach(() => { mockAuth = { user: null, loading: false }; });
+beforeEach(() => {
+  mockAuth = { user: null, loading: false };
+});
 
 describe('the corner of the top bar', () => {
   test('offers the door to someone who is signed out, and remembers where they were', () => {

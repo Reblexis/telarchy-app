@@ -1,5 +1,5 @@
-import type { Request, Response, NextFunction } from 'express';
 import { eq } from 'drizzle-orm';
+import type { NextFunction, Request, Response } from 'express';
 import { db } from '../db/client';
 import { authUser } from '../db/schema';
 
@@ -16,10 +16,7 @@ export async function requireConsentIfUser(req: Request, res: Response, next: Ne
   const uid = req.auth?.uid;
   if (!uid) return next();
 
-  const [row] = await db
-    .select({ consentedAt: authUser.consentedAt })
-    .from(authUser)
-    .where(eq(authUser.id, uid));
+  const [row] = await db.select({ consentedAt: authUser.consentedAt }).from(authUser).where(eq(authUser.id, uid));
 
   if (row?.consentedAt) return next();
   return res.status(403).json({ error: 'Consent to Terms and Privacy Policy is required', needsConsent: true });

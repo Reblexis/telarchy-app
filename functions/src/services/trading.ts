@@ -1,12 +1,12 @@
-import { and, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { applyCredits } from './credits';
 import { agents, limitOrders, markets, positions, trades, workspaces } from '../db/schema';
+import { betTowardsValue, consensus, directionSellProceeds, pHigher, sharesForBudget } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { emitPricesChanged } from '../lib/market-events';
-import { betTowardsValue, consensus, directionSellProceeds, pHigher, sharesForBudget } from '../lib/amm';
 import { fromUnits, sufficientBalance, toUnits } from '../lib/validation';
+import { applyCredits } from './credits';
 
 /**
  * The one place a trade happens.
@@ -51,17 +51,20 @@ export interface TradeOutcome {
  *
  * Throws AppError on every refusal; the caller's transaction rolls back.
  */
-export async function executeTradeInTx(tx: Tx, opts: {
-  workspaceId: string;
-  agentId: string;
-  marketId: string;
-  mode: TradeMode;
-  tradeId?: string;
-  /** Skip opposite-side netting. Set by internal callers (limit fills)
-   *  that build a position mechanically and must not have it unwound when
-   *  a fill iteration briefly overshoots and flips the target direction. */
-  skipNetting?: boolean;
-}): Promise<TradeOutcome> {
+export async function executeTradeInTx(
+  tx: Tx,
+  opts: {
+    workspaceId: string;
+    agentId: string;
+    marketId: string;
+    mode: TradeMode;
+    tradeId?: string;
+    /** Skip opposite-side netting. Set by internal callers (limit fills)
+     *  that build a position mechanically and must not have it unwound when
+     *  a fill iteration briefly overshoots and flips the target direction. */
+    skipNetting?: boolean;
+  },
+): Promise<TradeOutcome> {
   const { workspaceId, agentId, marketId, mode } = opts;
   const tradeId = opts.tradeId ?? randomUUID();
 
@@ -78,26 +81,36 @@ export async function executeTradeInTx(tx: Tx, opts: {
     if (mode.type === 'buy') {
       buyDir = mode.direction;
     } else {
-      const [m0] = await tx.select().from(markets)
+      const [m0] = await tx
+        .select()
+        .from(markets)
         .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
       const mid = m0 ? m0.rangeMin + (m0.rangeMax - m0.rangeMin) / 2 : 0;
-      const c0 = m0 ? consensus((m0.shares as [number, number]) || [0, 0], m0.liquidity, m0.rangeMin, m0.rangeMax) ?? mid : mid;
+      const c0 = m0
+        ? (consensus((m0.shares as [number, number]) || [0, 0], m0.liquidity, m0.rangeMin, m0.rangeMax) ?? mid)
+        : mid;
       buyDir = mode.targetValue >= c0 ? 1 : 0;
     }
     const oppDir: 0 | 1 = buyDir === 1 ? 0 : 1;
     const oppLabel: 'higher' | 'lower' = oppDir === 1 ? 'higher' : 'lower';
     const oppPosId = `${agentId}_${marketId}_${oppLabel}`;
-    const [oppPos] = await tx.select().from(positions)
+    const [oppPos] = await tx
+      .select()
+      .from(positions)
       .where(and(eq(positions.id, oppPosId), eq(positions.workspaceId, workspaceId)));
     if (oppPos && (oppPos.shares as number) > 1e-9) {
       await executeTradeInTx(tx, {
-        workspaceId, agentId, marketId,
+        workspaceId,
+        agentId,
+        marketId,
         mode: { type: 'sell', direction: oppDir, dirLabel: oppLabel, sellShares: oppPos.shares as number },
       });
     }
   }
 
-  const [market] = await tx.select().from(markets)
+  const [market] = await tx
+    .select()
+    .from(markets)
     .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)))
     .for('update');
   if (!market) throw new AppError('Market not found', 404);
@@ -109,7 +122,11 @@ export async function executeTradeInTx(tx: Tx, opts: {
 
   const shares = (market.shares as [number, number]) || [0, 0];
   const b = market.liquidity;
-  if (b <= 0) throw new AppError('This market has no liquidity yet, so there is nothing to trade against. Someone has to fund it first.', 400);
+  if (b <= 0)
+    throw new AppError(
+      'This market has no liquidity yet, so there is nothing to trade against. Someone has to fund it first.',
+      400,
+    );
   const prevConsensus = consensus(shares, b, market.rangeMin, market.rangeMax) ?? null;
 
   const [agentRow] = await tx.select().from(agents).where(eq(agents.id, agentId)).for('update');
@@ -127,21 +144,29 @@ export async function executeTradeInTx(tx: Tx, opts: {
       throw new AppError(`targetValue/value must be between ${market.rangeMin} and ${market.rangeMax}`, 400);
     }
     const r = betTowardsValue(shares, b, market.rangeMin, market.rangeMax, mode.targetValue, mode.maxBudget);
-    direction = r.direction; amount = r.amount; cost = r.cost;
+    direction = r.direction;
+    amount = r.amount;
+    cost = r.cost;
     dirLabel = direction === 1 ? 'higher' : 'lower';
   } else if (mode.type === 'sell') {
-    direction = mode.direction; dirLabel = mode.dirLabel;
-    amount = mode.sellShares; isSell = true;
+    direction = mode.direction;
+    dirLabel = mode.dirLabel;
+    amount = mode.sellShares;
+    isSell = true;
   } else {
-    direction = mode.direction; dirLabel = mode.dirLabel;
+    direction = mode.direction;
+    dirLabel = mode.dirLabel;
     const r = sharesForBudget(shares, direction, mode.amount, b);
-    amount = r.amount; cost = r.cost;
+    amount = r.amount;
+    cost = r.cost;
   }
 
   if (amount <= 0) throw new AppError('Trade too small', 400);
 
   const resolvedPosId = `${agentId}_${marketId}_${dirLabel}`;
-  const [posRow] = await tx.select().from(positions)
+  const [posRow] = await tx
+    .select()
+    .from(positions)
     .where(and(eq(positions.id, resolvedPosId), eq(positions.workspaceId, workspaceId)));
 
   let proceeds = 0;
@@ -151,7 +176,8 @@ export async function executeTradeInTx(tx: Tx, opts: {
     proceeds = directionSellProceeds(shares, direction, amount, b);
     if (proceeds <= 0) throw new AppError('Trade too small', 400);
   } else {
-    if (cost > 0 && !sufficientBalance(balanceUnits, cost)) throw new AppError('Insufficient balance', 400, { balance: fromUnits(balanceUnits), cost });
+    if (cost > 0 && !sufficientBalance(balanceUnits, cost))
+      throw new AppError('Insufficient balance', 400, { balance: fromUnits(balanceUnits), cost });
 
     // Manipulation bound (workspaces.maxPositionCostPerMarket): cumulative
     // buy cost per participant per market, both directions summed. Free
@@ -183,50 +209,80 @@ export async function executeTradeInTx(tx: Tx, opts: {
   const newProbability = Math.round(pHigher(newShares, b) * 10000) / 10000;
 
   if (isSell) {
-    await tx.update(markets).set({
-      shares: newShares,
-      pool: sql`${markets.pool} - ${proceeds}`,
-      tradedVolume: sql`${markets.tradedVolume} + ${proceeds}`,
-    }).where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+    await tx
+      .update(markets)
+      .set({
+        shares: newShares,
+        pool: sql`${markets.pool} - ${proceeds}`,
+        tradedVolume: sql`${markets.tradedVolume} + ${proceeds}`,
+      })
+      .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
     await applyCredits(tx, {
-      agentId, workspaceId, deltaUnits: toUnits(proceeds),
-      reason: 'trade', refType: 'market', refId: marketId,
+      agentId,
+      workspaceId,
+      deltaUnits: toUnits(proceeds),
+      reason: 'trade',
+      refType: 'market',
+      refId: marketId,
       also: { earnedBetting: sql`${agents.earnedBetting} + ${proceeds}` },
     });
-    await tx.update(positions).set({ shares: sql`${positions.shares} - ${amount}` })
+    await tx
+      .update(positions)
+      .set({ shares: sql`${positions.shares} - ${amount}` })
       .where(and(eq(positions.id, resolvedPosId), eq(positions.workspaceId, workspaceId)));
   } else {
-    await tx.update(markets).set({
-      shares: newShares,
-      pool: sql`${markets.pool} + ${cost}`,
-      tradedVolume: sql`${markets.tradedVolume} + ${cost}`,
-    }).where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+    await tx
+      .update(markets)
+      .set({
+        shares: newShares,
+        pool: sql`${markets.pool} + ${cost}`,
+        tradedVolume: sql`${markets.tradedVolume} + ${cost}`,
+      })
+      .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
     await applyCredits(tx, {
-      agentId, workspaceId, deltaUnits: -toUnits(cost),
-      reason: 'trade', refType: 'market', refId: marketId,
+      agentId,
+      workspaceId,
+      deltaUnits: -toUnits(cost),
+      reason: 'trade',
+      refType: 'market',
+      refId: marketId,
       also: { spentBetting: sql`${agents.spentBetting} + ${cost}` },
     });
 
     if (posRow) {
-      await tx.update(positions).set({
-        shares: sql`${positions.shares} + ${amount}`,
-        totalCost: sql`${positions.totalCost} + ${cost}`,
-      }).where(and(eq(positions.id, resolvedPosId), eq(positions.workspaceId, workspaceId)));
+      await tx
+        .update(positions)
+        .set({
+          shares: sql`${positions.shares} + ${amount}`,
+          totalCost: sql`${positions.totalCost} + ${cost}`,
+        })
+        .where(and(eq(positions.id, resolvedPosId), eq(positions.workspaceId, workspaceId)));
     } else {
       await tx.insert(positions).values({
-        id: resolvedPosId, workspaceId, agentId, marketId,
-        direction: dirLabel, shares: amount, totalCost: cost,
+        id: resolvedPosId,
+        workspaceId,
+        agentId,
+        marketId,
+        direction: dirLabel,
+        shares: amount,
+        totalCost: cost,
       });
     }
 
     if (cost > 0) {
-      await tx.update(workspaces).set({ tradedVolume: sql`${workspaces.tradedVolume} + ${cost}` })
+      await tx
+        .update(workspaces)
+        .set({ tradedVolume: sql`${workspaces.tradedVolume} + ${cost}` })
         .where(eq(workspaces.id, workspaceId));
     }
   }
 
   await tx.insert(trades).values({
-    id: tradeId, workspaceId, agentId, marketId, direction: dirLabel,
+    id: tradeId,
+    workspaceId,
+    agentId,
+    marketId,
+    direction: dirLabel,
     shares: isSell ? -amount : amount,
     cost: isSell ? -proceeds : cost,
     createdAt: new Date(),
@@ -237,16 +293,26 @@ export async function executeTradeInTx(tx: Tx, opts: {
   emitPricesChanged(workspaceId, marketId);
 
   return {
-    tradeId, marketId, metricName: market.metricName, direction: dirLabel,
-    shares: amount, cost, proceeds, isSell,
-    probability: newProbability, consensus: newConsensus, prevConsensus,
+    tradeId,
+    marketId,
+    metricName: market.metricName,
+    direction: dirLabel,
+    shares: amount,
+    cost,
+    proceeds,
+    isSell,
+    probability: newProbability,
+    consensus: newConsensus,
+    prevConsensus,
   };
 }
 
 /** The workspace's per-participant, per-market cap on cumulative buy cost. */
 export async function positionCap(tx: Tx, workspaceId: string): Promise<number> {
-  const [row] = await tx.select({ cap: workspaces.maxPositionCostPerMarket })
-    .from(workspaces).where(eq(workspaces.id, workspaceId));
+  const [row] = await tx
+    .select({ cap: workspaces.maxPositionCostPerMarket })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId));
   return row?.cap ?? 0;
 }
 
@@ -257,23 +323,25 @@ export async function positionCap(tx: Tx, workspaceId: string): Promise<number> 
  * position without asking permission again.
  */
 export async function capUsage(tx: Tx, workspaceId: string, marketId: string, agentId: string): Promise<number> {
-  const [spentRow] = await tx.select({ total: sql<number>`coalesce(sum(${positions.totalCost}), 0)` })
+  const [spentRow] = await tx
+    .select({ total: sql<number>`coalesce(sum(${positions.totalCost}), 0)` })
     .from(positions)
-    .where(and(
-      eq(positions.workspaceId, workspaceId),
-      eq(positions.marketId, marketId),
-      eq(positions.agentId, agentId),
-    ));
-  const [reservedRow] = await tx.select({
-    total: sql<number>`coalesce(sum(${limitOrders.budgetCredits} - ${limitOrders.filledCredits}), 0)`,
-  })
+    .where(
+      and(eq(positions.workspaceId, workspaceId), eq(positions.marketId, marketId), eq(positions.agentId, agentId)),
+    );
+  const [reservedRow] = await tx
+    .select({
+      total: sql<number>`coalesce(sum(${limitOrders.budgetCredits} - ${limitOrders.filledCredits}), 0)`,
+    })
     .from(limitOrders)
-    .where(and(
-      eq(limitOrders.workspaceId, workspaceId),
-      eq(limitOrders.marketId, marketId),
-      eq(limitOrders.agentId, agentId),
-      eq(limitOrders.status, 'open'),
-    ));
+    .where(
+      and(
+        eq(limitOrders.workspaceId, workspaceId),
+        eq(limitOrders.marketId, marketId),
+        eq(limitOrders.agentId, agentId),
+        eq(limitOrders.status, 'open'),
+      ),
+    );
   return Number(spentRow?.total ?? 0) + Number(reservedRow?.total ?? 0);
 }
 
@@ -306,16 +374,18 @@ function isCrossed(direction: string, limitValue: number, current: number, eps: 
  * able to fail your trade.
  */
 export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId: string): Promise<FillOutcome[]> {
-  const [market] = await tx.select().from(markets)
+  const [market] = await tx
+    .select()
+    .from(markets)
     .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
   if (!market || market.resolved || market.voided || !market.active || market.liquidity <= 0) return [];
 
-  const open = await tx.select().from(limitOrders)
-    .where(and(
-      eq(limitOrders.workspaceId, workspaceId),
-      eq(limitOrders.marketId, marketId),
-      eq(limitOrders.status, 'open'),
-    ))
+  const open = await tx
+    .select()
+    .from(limitOrders)
+    .where(
+      and(eq(limitOrders.workspaceId, workspaceId), eq(limitOrders.marketId, marketId), eq(limitOrders.status, 'open')),
+    )
     .for('update');
   if (open.length === 0) return [];
 
@@ -341,18 +411,26 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
   // or exhausts its budget.
   for (let step = 0; step < 50; step++) {
     const [fresh] = await tx.select().from(markets).where(eq(markets.id, marketId));
-    const current = consensus((fresh!.shares as [number, number]) || [0, 0], fresh!.liquidity, fresh!.rangeMin, fresh!.rangeMax);
+    const current = consensus(
+      (fresh!.shares as [number, number]) || [0, 0],
+      fresh!.liquidity,
+      fresh!.rangeMin,
+      fresh!.rangeMax,
+    );
     if (current === undefined) break;
 
     // The order the price passed furthest is the one it reached first.
-    let next: typeof live[number] | null = null;
+    let next: (typeof live)[number] | null = null;
     let bestDepth = 0;
     for (const order of live) {
       if (blocked.has(order.id)) continue;
       if ((remaining.get(order.id) ?? 0) <= 0.01) continue;
       if (!isCrossed(order.direction, order.limitValue, current, eps)) continue;
       const depth = Math.abs(current - order.limitValue);
-      if (!next || depth > bestDepth) { next = order; bestDepth = depth; }
+      if (!next || depth > bestDepth) {
+        next = order;
+        bestDepth = depth;
+      }
     }
     if (!next) break;
 
@@ -361,10 +439,13 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
     if (cap > 0) {
       // capUsage counts this order's own reservation, which is exactly the
       // money about to be spent, so it must not be double-counted.
-      const used = await capUsage(tx, workspaceId, marketId, next.agentId) - budget;
+      const used = (await capUsage(tx, workspaceId, marketId, next.agentId)) - budget;
       budget = Math.min(budget, Math.max(0, cap - used));
     }
-    if (budget <= 0.01) { blocked.add(next.id); continue; }
+    if (budget <= 0.01) {
+      blocked.add(next.id);
+      continue;
+    }
 
     // The whole fill runs in a savepoint. If anything in it fails, only the
     // fill unwinds: the trade that triggered this pass, and every fill before
@@ -376,8 +457,12 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
         // Release the reservation so the shared trade path can debit it like
         // any other spend, then re-reserve whatever the fill did not use.
         await applyCredits(sp, {
-          agentId: next!.agentId, workspaceId, deltaUnits: toUnits(budget),
-          reason: 'limit_order_release', refType: 'market', refId: marketId,
+          agentId: next!.agentId,
+          workspaceId,
+          deltaUnits: toUnits(budget),
+          reason: 'limit_order_release',
+          refType: 'market',
+          refId: marketId,
         });
 
         const outcome = await executeTradeInTx(sp, {
@@ -398,18 +483,25 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
         const unused = budget - outcome.cost;
         if (unused > 0) {
           await applyCredits(sp, {
-            agentId: next!.agentId, workspaceId, deltaUnits: -toUnits(unused),
-            reason: 'limit_order_hold', refType: 'market', refId: marketId,
+            agentId: next!.agentId,
+            workspaceId,
+            deltaUnits: -toUnits(unused),
+            reason: 'limit_order_hold',
+            refType: 'market',
+            refId: marketId,
           });
         }
 
         const left = (remaining.get(next!.id) ?? 0) - outcome.cost;
         const closed = left <= 0.01;
-        await sp.update(limitOrders).set({
-          filledCredits: sql`${limitOrders.filledCredits} + ${outcome.cost}`,
-          status: closed ? 'filled' : 'open',
-          updatedAt: new Date(),
-        }).where(eq(limitOrders.id, next!.id));
+        await sp
+          .update(limitOrders)
+          .set({
+            filledCredits: sql`${limitOrders.filledCredits} + ${outcome.cost}`,
+            status: closed ? 'filled' : 'open',
+            updatedAt: new Date(),
+          })
+          .where(eq(limitOrders.id, next!.id));
 
         filled = { cost: outcome.cost, shares: outcome.shares, consensus: outcome.consensus, closed };
       });
@@ -419,7 +511,10 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
       blocked.add(next.id);
       continue;
     }
-    if (!filled) { blocked.add(next.id); continue; }
+    if (!filled) {
+      blocked.add(next.id);
+      continue;
+    }
     const done = filled as { cost: number; shares: number; consensus: number | null; closed: boolean };
 
     remaining.set(next.id, (remaining.get(next.id) ?? 0) - done.cost);
@@ -448,24 +543,40 @@ export async function closeLimitOrderInTx(
   // workspaceId and marketId come off the order row rather than the caller,
   // so the ledger entry names the market whose reservation is being released
   // however the close was reached (cancel, expiry, resolution, void).
-  order: { id: string; agentId: string; workspaceId: string; marketId: string; budgetCredits: number; filledCredits: number },
+  order: {
+    id: string;
+    agentId: string;
+    workspaceId: string;
+    marketId: string;
+    budgetCredits: number;
+    filledCredits: number;
+  },
   status: 'cancelled' | 'expired' | 'voided',
 ): Promise<number> {
   const refund = Math.max(0, order.budgetCredits - order.filledCredits);
   if (refund > 0) {
     await applyCredits(tx, {
-      agentId: order.agentId, workspaceId: order.workspaceId, deltaUnits: toUnits(refund),
-      reason: 'limit_order_release', refType: 'market', refId: order.marketId,
+      agentId: order.agentId,
+      workspaceId: order.workspaceId,
+      deltaUnits: toUnits(refund),
+      reason: 'limit_order_release',
+      refType: 'market',
+      refId: order.marketId,
     });
   }
-  await tx.update(limitOrders).set({ status, updatedAt: new Date() })
-    .where(eq(limitOrders.id, order.id));
+  await tx.update(limitOrders).set({ status, updatedAt: new Date() }).where(eq(limitOrders.id, order.id));
   return refund;
 }
 
 /** Refund and close every open order on a market (resolution, voiding). */
-export async function releaseLimitOrdersForMarket(tx: Tx, marketId: string, status: 'cancelled' | 'voided' = 'voided'): Promise<number> {
-  const open = await tx.select().from(limitOrders)
+export async function releaseLimitOrdersForMarket(
+  tx: Tx,
+  marketId: string,
+  status: 'cancelled' | 'voided' = 'voided',
+): Promise<number> {
+  const open = await tx
+    .select()
+    .from(limitOrders)
     .where(and(eq(limitOrders.marketId, marketId), eq(limitOrders.status, 'open')))
     .for('update');
   let total = 0;
@@ -492,7 +603,10 @@ export async function sweepLimitOrders(): Promise<{ marketsSwept: number; fills:
   for (const { marketId, workspaceId } of marketsWithOrders) {
     try {
       const outcome = await db.transaction(async tx => fillLimitOrdersInTx(tx, workspaceId, marketId));
-      if (outcome.length > 0) { fills += outcome.length; marketsSwept += 1; }
+      if (outcome.length > 0) {
+        fills += outcome.length;
+        marketsSwept += 1;
+      }
     } catch (e) {
       console.error(`sweepLimitOrders: market ${marketId} failed:`, e);
     }

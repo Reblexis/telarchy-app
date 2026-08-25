@@ -1,7 +1,12 @@
 import {
-  toUnits, fromUnits, sufficientBalance,
-  CREDIT_PRECISION, SIGNUP_CREDITS, parseSignupCredits, DEFAULT_MARKET_LIQUIDITY_CREDITS,
+  CREDIT_PRECISION,
+  DEFAULT_MARKET_LIQUIDITY_CREDITS,
+  fromUnits,
   MIN_LIQUIDITY_CONTRIBUTION,
+  parseSignupCredits,
+  SIGNUP_CREDITS,
+  sufficientBalance,
+  toUnits,
 } from '../lib/validation';
 
 describe('credit conversion helpers', () => {

@@ -1,8 +1,8 @@
 import {
-  getTemplate,
   getStarterProposal,
-  listTemplates,
+  getTemplate,
   listSupportedCurrencies,
+  listTemplates,
   type TemplateId,
 } from '../lib/templates';
 
@@ -10,9 +10,22 @@ describe('templates', () => {
   describe('getTemplate', () => {
     test('resolves every catalog id', () => {
       const ids: TemplateId[] = [
-        'saas', 'ecommerce', 'marketplace', 'consumer-app', 'agency', 'community', 'creator', 'oss',
-        'wellbeing', 'health-fitness', 'career', 'learning', 'relationships',
-        'creative-project', 'financial-independence', 'blank',
+        'saas',
+        'ecommerce',
+        'marketplace',
+        'consumer-app',
+        'agency',
+        'community',
+        'creator',
+        'oss',
+        'wellbeing',
+        'health-fitness',
+        'career',
+        'learning',
+        'relationships',
+        'creative-project',
+        'financial-independence',
+        'blank',
       ];
       for (const id of ids) {
         const tpl = getTemplate(id);
@@ -92,7 +105,8 @@ describe('templates', () => {
       for (const m of wellbeing) {
         expect(m.name).toContain('(self-reported)');
       }
-      const energy = getTemplate('health-fitness').metrics({})
+      const energy = getTemplate('health-fitness')
+        .metrics({})
         .find(m => m.name.toLowerCase().startsWith('energy'));
       expect(energy?.name).toContain('(self-reported)');
     });

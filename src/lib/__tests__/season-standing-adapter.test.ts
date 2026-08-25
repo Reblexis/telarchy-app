@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { seasonStandingToEntry } from '../api';
 import type { SeasonStanding } from '../api';
+import { seasonStandingToEntry } from '../api';
 
 /**
  * The adapter that lets the trader rail and /leaderboard render a running
@@ -11,8 +11,14 @@ import type { SeasonStanding } from '../api';
  */
 describe('seasonStandingToEntry', () => {
   const standing = (o: Partial<SeasonStanding>): SeasonStanding => ({
-    rank: 1, id: 'a', nickname: 'kai', image: null, manifoldUsername: null,
-    score: 0, projectedPrizeUsd: 0, ...o,
+    rank: 1,
+    id: 'a',
+    nickname: 'kai',
+    image: null,
+    manifoldUsername: null,
+    score: 0,
+    projectedPrizeUsd: 0,
+    ...o,
   });
 
   test('the season SCORE takes the slot the row prints as the number', () => {
@@ -38,7 +44,9 @@ describe('seasonStandingToEntry', () => {
   });
 
   test('rank, identity and Manifold badge carry through', () => {
-    const e = seasonStandingToEntry(standing({ rank: 3, id: 'z', nickname: 'ada', manifoldUsername: 'ada_m', image: 'http://x/a.png' }));
+    const e = seasonStandingToEntry(
+      standing({ rank: 3, id: 'z', nickname: 'ada', manifoldUsername: 'ada_m', image: 'http://x/a.png' }),
+    );
     expect([e.rank, e.id, e.nickname, e.manifoldUsername, e.image]).toEqual([3, 'z', 'ada', 'ada_m', 'http://x/a.png']);
   });
 });

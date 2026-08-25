@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { previewSell, previewTargetBet, previewTrade } from '../lib/amm';
-import { SLIDER_STEPS, amountToSlider, sliderToAmount } from '../lib/bet-slider';
 import type { LimitOrder } from '../lib/api';
+import { amountToSlider, SLIDER_STEPS, sliderToAmount } from '../lib/bet-slider';
 
 /**
  * The trade ticket, in Manifold's layout (owner direction 2026-08-10): a
@@ -25,7 +25,11 @@ import type { LimitOrder } from '../lib/api';
  * give. Design: docs/limit-orders.md.
  */
 
-export interface TicketPosition { direction: 'higher' | 'lower'; shares: number; totalCost: number }
+export interface TicketPosition {
+  direction: 'higher' | 'lower';
+  shares: number;
+  totalCost: number;
+}
 
 interface Props {
   probability: number;
@@ -71,12 +75,11 @@ interface Props {
   manageMode?: boolean;
 }
 
-
 /** A round metric-space step for the "each X beyond" line: ~1/50 of the
     range snapped to 1/2/5, so a $0..500k market speaks in $10k steps. */
 function niceStep(span: number): number {
   const raw = span / 50;
-  const mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+  const mag = 10 ** Math.floor(Math.log10(raw || 1));
   const c = [1, 2, 5, 10].find(m => m * mag >= raw) ?? 10;
   return c * mag;
 }
@@ -103,9 +106,25 @@ function fmtValue(v: number): string {
 }
 
 export function TradeTicket({
-  probability, liquidity, positions, onTrade, onTradeTarget, onSell, balance, onPreview, onRequireSignup,
-  unit = '', consensus = null, rangeMin, rangeMax, orders = [], onPlaceLimit, onCancelLimit,
-  initialDir, onClose, manageMode = false,
+  probability,
+  liquidity,
+  positions,
+  onTrade,
+  onTradeTarget,
+  onSell,
+  balance,
+  onPreview,
+  onRequireSignup,
+  unit = '',
+  consensus = null,
+  rangeMin,
+  rangeMax,
+  orders = [],
+  onPlaceLimit,
+  onCancelLimit,
+  initialDir,
+  onClose,
+  manageMode = false,
 }: Props) {
   const [dir, setDir] = useState<'higher' | 'lower' | null>(initialDir ?? null);
   const [amount, setAmount] = useState('25');
@@ -135,9 +154,8 @@ export function TradeTicket({
   // Every buy preview needs it: buying the opposite side first sells this
   // position, which moves the price the buy then prices against.
   const held = positions.find(p => p.shares > 1e-9) ?? null;
-  const oppProceeds = dir && held && held.direction !== dir
-    ? previewSell(probability, liquidity, held.direction, held.shares)
-    : 0;
+  const oppProceeds =
+    dir && held && held.direction !== dir ? previewSell(probability, liquidity, held.direction, held.shares) : 0;
 
   // The bet ceiling is what the trader can afford (owner removed the
   // per-market cap 2026-08-11); fall back to a sane default before the
@@ -148,24 +166,25 @@ export function TradeTicket({
 
   const amountNum = Math.max(0, Math.floor(parseFloat(amount) || 0));
   const limitNum = limit.trim() === '' ? null : parseFloat(limit.replace(/,/g, ''));
-  const limitDisplay = limitNum !== null && Number.isFinite(limitNum) && !limit.endsWith('.')
-    ? limitNum.toLocaleString('en-US', { maximumFractionDigits: 2 })
-    : limit;
+  const limitDisplay =
+    limitNum !== null && Number.isFinite(limitNum) && !limit.endsWith('.')
+      ? limitNum.toLocaleString('en-US', { maximumFractionDigits: 2 })
+      : limit;
   const canLimit = !!onPlaceLimit && consensus !== null && rangeMin !== undefined && rangeMax !== undefined;
   const isLimit = mode === 'limit' && canLimit;
   const span = rangeMin !== undefined && rangeMax !== undefined ? rangeMax - rangeMin : null;
   // A typed target previews (and places) the server's targetValue mode; a
   // hand-picked side and amount preview a budget buy. Both replay the
   // netting close first, so what this shows is what the trade lands on.
-  const targetComposed = target !== null && span !== null && rangeMin !== undefined && amountNum > 0
-    ? previewTargetBet(probability, liquidity, rangeMin, rangeMin + span, target, amountNum, held)
-    : null;
-  const composed = targetComposed ?? (dir && amountNum > 0 ? previewTrade(probability, liquidity, dir, amountNum, held) : null);
-  const payout = composed?.shares ?? null;
+  const targetComposed =
+    target !== null && span !== null && rangeMin !== undefined && amountNum > 0
+      ? previewTargetBet(probability, liquidity, rangeMin, rangeMin + span, target, amountNum, held)
+      : null;
+  const composed =
+    targetComposed ?? (dir && amountNum > 0 ? previewTrade(probability, liquidity, dir, amountNum, held) : null);
+  const _payout = composed?.shares ?? null;
   // Where the market's call would land if this bet were placed now.
-  const newValue = composed && span !== null && rangeMin !== undefined
-    ? rangeMin + composed.newProb * span
-    : null;
+  const newValue = composed && span !== null && rangeMin !== undefined ? rangeMin + composed.newProb * span : null;
 
   // A resting order is only resting if the market has not already reached it.
   // Buying higher means waiting for a cheaper price, so the limit sits below
@@ -346,7 +365,8 @@ export function TradeTicket({
                       <>
                         {' '}
                         <span className={`ticket-pos-delta ${delta >= 0 ? 'is-up' : 'is-down'}`}>
-                          {delta >= 0 ? '+' : '-'}{fmt(Math.abs(delta))}
+                          {delta >= 0 ? '+' : '-'}
+                          {fmt(Math.abs(delta))}
                         </span>
                       </>
                     )}
@@ -355,7 +375,10 @@ export function TradeTicket({
                     className="ticket-sell"
                     disabled={busy !== null}
                     onClick={() => {
-                      if (selling) { setSellDir(null); return; }
+                      if (selling) {
+                        setSellDir(null);
+                        return;
+                      }
                       setSellDir(p.direction);
                       setSellShares(p.shares); // default to the whole thing
                     }}
@@ -381,7 +404,9 @@ export function TradeTicket({
                       aria-label={`Shares of ${p.direction} to sell`}
                     />
                     <div className="ticket-sell-facts">
-                      <span>{Math.round(sellPct)}% · {fmtShares(sharesToSell)} shares</span>
+                      <span>
+                        {Math.round(sellPct)}% · {fmtShares(sharesToSell)} shares
+                      </span>
                       <span>≈ {fmt(sellWorth)} cr</span>
                     </div>
                     <button
@@ -410,20 +435,18 @@ export function TradeTicket({
           {orders.map(o => (
             <div key={o.id} className="ticket-pos-row">
               <div className="ticket-pos-head">
-              <span className={`ticket-pos-dir ticket-pos-dir--${o.direction}`}>
-                {o.direction === 'higher' ? '▲' : '▼'} {o.direction}
-              </span>
-              <span className="ticket-pos-detail">
-                {o.direction === 'higher' ? 'under' : 'over'} {unit}{fmtValue(o.limitValue)}
-                {' · '}{fmt(o.remainingCredits)} cr waiting
-              </span>
-              <button
-                className="ticket-sell"
-                disabled={busy !== null}
-                onClick={() => void cancelOrder(o.id)}
-              >
-                {busy === `cancel-${o.id}` ? 'Cancelling…' : 'Cancel'}
-              </button>
+                <span className={`ticket-pos-dir ticket-pos-dir--${o.direction}`}>
+                  {o.direction === 'higher' ? '▲' : '▼'} {o.direction}
+                </span>
+                <span className="ticket-pos-detail">
+                  {o.direction === 'higher' ? 'under' : 'over'} {unit}
+                  {fmtValue(o.limitValue)}
+                  {' · '}
+                  {fmt(o.remainingCredits)} cr waiting
+                </span>
+                <button className="ticket-sell" disabled={busy !== null} onClick={() => void cancelOrder(o.id)}>
+                  {busy === `cancel-${o.id}` ? 'Cancelling…' : 'Cancel'}
+                </button>
               </div>
             </div>
           ))}
@@ -458,7 +481,10 @@ export function TradeTicket({
             <button
               className={`ticket-mode-opt${!isLimit ? ' is-active' : ''}`}
               aria-pressed={!isLimit}
-              onClick={() => { setMode('quick'); setError(''); }}
+              onClick={() => {
+                setMode('quick');
+                setError('');
+              }}
             >
               Quick
             </button>
@@ -472,141 +498,170 @@ export function TradeTicket({
           </div>
         )}
         {(dir || onClose) && (
-          <button className="ticket-close" aria-label="Close" onClick={() => (onClose ? onClose() : setDir(null))}>×</button>
+          <button className="ticket-close" aria-label="Close" onClick={() => (onClose ? onClose() : setDir(null))}>
+            ×
+          </button>
         )}
       </div>
 
       {dir && (
-      <>
-      {/* The amount is one number, typed or slid, and nothing else: no box,
+        <>
+          {/* The amount is one number, typed or slid, and nothing else: no box,
           no stepper chips. The underline is the input; the slider under it
           is the same value in the side's colour. */}
-      <label className="ticket-amt">
-        <input
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          value={amount}
-          style={{ width: `${Math.max(1, amount.length)}ch` }}
-          onChange={e => { setAmount(e.target.value.replace(/[^0-9]/g, '')); setTarget(null); }}
-          aria-label="Credits to spend"
-        />
-        <span className="ticket-amt-unit">cr</span>
-      </label>
-      {/* The track is logarithmic (lib/bet-slider.ts): the ceiling is the
-          whole balance, and linearly that crams every sensible stake into
-          the leftmost pixels (user report 2026-08-21). */}
-      <input
-        className={`ticket-slider ticket-slider--${dir}`}
-        type="range"
-        min={0}
-        max={SLIDER_STEPS}
-        value={amountToSlider(amountNum, maxBet)}
-        style={(() => {
-          const p = (amountToSlider(amountNum, maxBet) / SLIDER_STEPS) * 100;
-          return { ['--slider-pct' as string]: `${p.toFixed(2)}%` };
-        })()}
-        onChange={e => { setAmount(String(sliderToAmount(parseInt(e.target.value, 10), maxBet))); setTarget(null); }}
-        aria-label="Bet amount slider"
-      />
-
-      {isLimit && (
-        <>
-          <p className="ticket-label">
-            {dir === 'higher' ? 'buy when the market is under' : 'buy when the market is over'}
-          </p>
-          <label className="ticket-amt ticket-amt--price">
-            <span className="ticket-amt-unit">{unit || '#'}</span>
-            {/* Shown with thousands separators ("63,600" reads as a price,
-                "63600" reads as a serial number); the state stays raw. */}
+          <label className="ticket-amt">
             <input
               type="text"
-              inputMode="decimal"
-              value={limitDisplay}
-              style={{ width: `${Math.max(1, limitDisplay.length)}ch` }}
-              onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
-              aria-label={`Limit price in ${unit || 'metric units'}`}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={amount}
+              style={{ width: `${Math.max(1, amount.length)}ch` }}
+              onChange={e => {
+                setAmount(e.target.value.replace(/[^0-9]/g, ''));
+                setTarget(null);
+              }}
+              aria-label="Credits to spend"
             />
+            <span className="ticket-amt-unit">cr</span>
           </label>
-          {limitError && <p className="ticket-err">{limitError}</p>}
+          {/* The track is logarithmic (lib/bet-slider.ts): the ceiling is the
+          whole balance, and linearly that crams every sensible stake into
+          the leftmost pixels (user report 2026-08-21). */}
+          <input
+            className={`ticket-slider ticket-slider--${dir}`}
+            type="range"
+            min={0}
+            max={SLIDER_STEPS}
+            value={amountToSlider(amountNum, maxBet)}
+            style={(() => {
+              const p = (amountToSlider(amountNum, maxBet) / SLIDER_STEPS) * 100;
+              return { ['--slider-pct' as string]: `${p.toFixed(2)}%` };
+            })()}
+            onChange={e => {
+              setAmount(String(sliderToAmount(parseInt(e.target.value, 10), maxBet)));
+              setTarget(null);
+            }}
+            aria-label="Bet amount slider"
+          />
+
+          {isLimit && (
+            <>
+              <p className="ticket-label">
+                {dir === 'higher' ? 'buy when the market is under' : 'buy when the market is over'}
+              </p>
+              <label className="ticket-amt ticket-amt--price">
+                <span className="ticket-amt-unit">{unit || '#'}</span>
+                {/* Shown with thousands separators ("63,600" reads as a price,
+                "63600" reads as a serial number); the state stays raw. */}
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={limitDisplay}
+                  style={{ width: `${Math.max(1, limitDisplay.length)}ch` }}
+                  onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
+                  aria-label={`Limit price in ${unit || 'metric units'}`}
+                />
+              </label>
+              {limitError && <p className="ticket-err">{limitError}</p>}
+            </>
+          )}
+
+          <div className="ticket-facts">
+            {!isLimit && newValue !== null && consensus !== null && span !== null && rangeMin !== undefined && (
+              <div className="ticket-fact">
+                <span className="ticket-fact-k">New value</span>
+                <span className="ticket-fact-v">
+                  {unit}
+                  <input
+                    className="ticket-newvalue"
+                    value={targetDraft ?? fmtValue(newValue)}
+                    style={{ width: `${Math.max(2, (targetDraft ?? fmtValue(newValue)).length)}ch` }}
+                    onFocus={e => {
+                      setTargetDraft(fmtValue(newValue).replace(/,/g, ''));
+                      // A plain select() dies when the mouse click that caused
+                      // the focus lands and collapses the selection to a caret,
+                      // so a real mouse user TYPES INTO the old number (caught
+                      // by the 2026-08-11 VM smoke: "74100" became
+                      // "7674100840"). Selecting on the next frame outlives
+                      // the click.
+                      const el = e.currentTarget;
+                      requestAnimationFrame(() => el.select());
+                    }}
+                    onBlur={() => setTargetDraft(null)}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/[^0-9.]/g, '');
+                      setTargetDraft(raw);
+                      const t = parseFloat(raw);
+                      if (!Number.isFinite(t)) return;
+                      const clamped = Math.min(rangeMin + span * 0.999, Math.max(rangeMin + span * 0.001, t));
+                      // Full server mirror (netting close included): the side
+                      // shown and the cost charged are the ones the server will
+                      // actually use, and place() sends the target itself.
+                      const r = previewTargetBet(
+                        probability,
+                        liquidity,
+                        rangeMin,
+                        rangeMin + span,
+                        clamped,
+                        Number.MAX_SAFE_INTEGER,
+                        held,
+                      );
+                      if (!r) return;
+                      setDir(r.direction);
+                      setAmount(String(Math.min(maxBet, Math.max(1, Math.ceil(r.cost)))));
+                      setTarget(clamped);
+                    }}
+                    inputMode="decimal"
+                    aria-label={`Bet the market to this value in ${unit || 'metric units'}`}
+                    title="Type a value to bet the market there"
+                  />
+                  <span className={`ticket-fact-d ${newValue >= consensus ? 'is-up' : 'is-down'}`}>
+                    {' '}
+                    {newValue >= consensus ? '↑' : '↓'}
+                    {unit}
+                    {fmtValue(Math.abs(newValue - consensus))}
+                  </span>
+                </span>
+              </div>
+            )}
+            {winFacts && step !== null && (
+              <>
+                <div className="ticket-fact">
+                  <span className="ticket-fact-k">
+                    {isLimit ? 'Once filled, wins' : 'Wins'} {dir === 'higher' ? 'above' : 'below'}
+                  </span>
+                  <span className="ticket-fact-v">
+                    {unit}
+                    {fmtValue(winFacts.breakeven)}
+                  </span>
+                </div>
+                <div className="ticket-fact">
+                  <span className="ticket-fact-k">
+                    Each {unit}
+                    {stepLabel(step)} beyond
+                  </span>
+                  <span className="ticket-fact-v">
+                    <span className="ticket-fact-d is-up">+{fmt(winFacts.slope)} cr</span>
+                  </span>
+                </div>
+              </>
+            )}
+            {isLimit && !limitError && (
+              <div className="ticket-fact">
+                <span className="ticket-fact-k">Until filled</span>
+                <span className="ticket-fact-v">{amountNum} cr waits, cancel anytime</span>
+              </div>
+            )}
+          </div>
+
+          <button
+            className={`ticket-go${placed ? ' is-placed' : ''} ticket-go--${dir}`}
+            disabled={amountNum <= 0 || busy !== null || (isLimit && !limitReady && !onRequireSignup)}
+            onClick={() => void place()}
+          >
+            {confirmLabel()}
+          </button>
         </>
-      )}
-
-      <div className="ticket-facts">
-        {!isLimit && newValue !== null && consensus !== null && span !== null && rangeMin !== undefined && (
-          <div className="ticket-fact">
-            <span className="ticket-fact-k">New value</span>
-            <span className="ticket-fact-v">
-              {unit}
-              <input
-                className="ticket-newvalue"
-                value={targetDraft ?? fmtValue(newValue)}
-                style={{ width: `${Math.max(2, (targetDraft ?? fmtValue(newValue)).length)}ch` }}
-                onFocus={e => {
-                  setTargetDraft(fmtValue(newValue).replace(/,/g, ''));
-                  // A plain select() dies when the mouse click that caused
-                  // the focus lands and collapses the selection to a caret,
-                  // so a real mouse user TYPES INTO the old number (caught
-                  // by the 2026-08-11 VM smoke: "74100" became
-                  // "7674100840"). Selecting on the next frame outlives
-                  // the click.
-                  const el = e.currentTarget;
-                  requestAnimationFrame(() => el.select());
-                }}
-                onBlur={() => setTargetDraft(null)}
-                onChange={e => {
-                  const raw = e.target.value.replace(/[^0-9.]/g, '');
-                  setTargetDraft(raw);
-                  const t = parseFloat(raw);
-                  if (!Number.isFinite(t)) return;
-                  const clamped = Math.min(rangeMin + span * 0.999, Math.max(rangeMin + span * 0.001, t));
-                  // Full server mirror (netting close included): the side
-                  // shown and the cost charged are the ones the server will
-                  // actually use, and place() sends the target itself.
-                  const r = previewTargetBet(probability, liquidity, rangeMin, rangeMin + span, clamped, Number.MAX_SAFE_INTEGER, held);
-                  if (!r) return;
-                  setDir(r.direction);
-                  setAmount(String(Math.min(maxBet, Math.max(1, Math.ceil(r.cost)))));
-                  setTarget(clamped);
-                }}
-                inputMode="decimal"
-                aria-label={`Bet the market to this value in ${unit || 'metric units'}`}
-                title="Type a value to bet the market there"
-              />
-              <span className={`ticket-fact-d ${newValue >= consensus ? 'is-up' : 'is-down'}`}>
-                {' '}{newValue >= consensus ? '↑' : '↓'}{unit}{fmtValue(Math.abs(newValue - consensus))}
-              </span>
-            </span>
-          </div>
-        )}
-        {winFacts && step !== null && (
-          <>
-            <div className="ticket-fact">
-              <span className="ticket-fact-k">{isLimit ? 'Once filled, wins' : 'Wins'} {dir === 'higher' ? 'above' : 'below'}</span>
-              <span className="ticket-fact-v">{unit}{fmtValue(winFacts.breakeven)}</span>
-            </div>
-            <div className="ticket-fact">
-              <span className="ticket-fact-k">Each {unit}{stepLabel(step)} beyond</span>
-              <span className="ticket-fact-v"><span className="ticket-fact-d is-up">+{fmt(winFacts.slope)} cr</span></span>
-            </div>
-          </>
-        )}
-        {isLimit && !limitError && (
-          <div className="ticket-fact">
-            <span className="ticket-fact-k">Until filled</span>
-            <span className="ticket-fact-v">{amountNum} cr waits, cancel anytime</span>
-          </div>
-        )}
-      </div>
-
-      <button
-        className={`ticket-go${placed ? ' is-placed' : ''} ticket-go--${dir}`}
-        disabled={amountNum <= 0 || busy !== null || (isLimit && !limitReady && !onRequireSignup)}
-        onClick={() => void place()}
-      >
-        {confirmLabel()}
-      </button>
-      </>
       )}
       {error && <p className="ticket-err">{error}</p>}
     </div>

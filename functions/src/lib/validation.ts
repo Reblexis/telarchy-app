@@ -41,7 +41,9 @@ export function validateContent(value: unknown, fieldName = 'content', maxLength
 const VISIBILITY_VALUES = ['public', 'unlisted', 'private'] as const;
 export type WorkspaceVisibilityInput = (typeof VISIBILITY_VALUES)[number];
 
-export function parseVisibility(value: unknown): { ok: true; value: WorkspaceVisibilityInput } | { ok: false; error: string } {
+export function parseVisibility(
+  value: unknown,
+): { ok: true; value: WorkspaceVisibilityInput } | { ok: false; error: string } {
   if (typeof value !== 'string' || !(VISIBILITY_VALUES as readonly string[]).includes(value)) {
     return { ok: false, error: `visibility must be one of: ${VISIBILITY_VALUES.join(', ')}` };
   }
@@ -79,14 +81,8 @@ export const CREDIT_PRECISION = 1_000_000_000;
 export function parseSignupCredits(raw: string | undefined, fallback = 1000): number {
   if (raw === undefined || raw.trim() === '') return fallback;
   const parsed = Number(raw);
-  if (
-    !Number.isFinite(parsed) ||
-    parsed < 0 ||
-    !Number.isSafeInteger(parsed * CREDIT_PRECISION)
-  ) {
-    console.warn(
-      `SIGNUP_CREDITS env value ${JSON.stringify(raw)} is invalid; falling back to ${fallback}`,
-    );
+  if (!Number.isFinite(parsed) || parsed < 0 || !Number.isSafeInteger(parsed * CREDIT_PRECISION)) {
+    console.warn(`SIGNUP_CREDITS env value ${JSON.stringify(raw)} is invalid; falling back to ${fallback}`);
     return fallback;
   }
   return parsed;

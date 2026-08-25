@@ -1,6 +1,6 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseFormula, parseFormulaCached, parseCacheSize, FormulaSyntaxError, evaluate } from '../lib/formula';
+import { evaluate, FormulaSyntaxError, parseCacheSize, parseFormula, parseFormulaCached } from '../lib/formula';
 
 const num = (s: string) => evaluate(parseFormula(s), () => 0);
 

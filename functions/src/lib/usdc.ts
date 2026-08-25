@@ -1,13 +1,13 @@
 import {
-  JsonRpcProvider,
-  Wallet,
   Contract,
-  parseUnits,
-  formatUnits,
-  isAddress,
-  getAddress,
   id as ethersId,
   formatEther,
+  formatUnits,
+  getAddress,
+  isAddress,
+  JsonRpcProvider,
+  parseUnits,
+  Wallet,
 } from 'ethers';
 import { AppError } from './errors';
 
@@ -32,7 +32,7 @@ export function assertTreasuryConfigured(): void {
   const pk = readTreasuryPrivateKey();
   try {
     new Wallet(pk);
-  } catch (error) {
+  } catch (_error) {
     throw new AppError('TREASURY_PRIVATE_KEY is invalid', 500);
   }
 }
@@ -69,10 +69,7 @@ export async function getTreasuryBalances(): Promise<TreasuryBalances> {
   const wallet = getTreasuryWallet();
   const provider = wallet.provider!;
   const usdc = new Contract(USDC_ADDRESS, ERC20_ABI, provider);
-  const [usdcRaw, ethRaw] = await Promise.all([
-    usdc.balanceOf(wallet.address),
-    provider.getBalance(wallet.address),
-  ]);
+  const [usdcRaw, ethRaw] = await Promise.all([usdc.balanceOf(wallet.address), provider.getBalance(wallet.address)]);
   return {
     address: wallet.address,
     usdcBalance: Number(formatUnits(usdcRaw, USDC_DECIMALS)),
@@ -109,11 +106,12 @@ export function extractUsdcDepositFromLogs(
   treasuryAddressLower: string,
   usdcContractLower: string = USDC_ADDRESS.toLowerCase(),
 ): DepositVerification | null {
-  const log = logs.find(l =>
-    l.address.toLowerCase() === usdcContractLower &&
-    l.topics[0] === TRANSFER_TOPIC &&
-    l.topics.length === 3 &&
-    `0x${l.topics[2]!.slice(26)}`.toLowerCase() === treasuryAddressLower,
+  const log = logs.find(
+    l =>
+      l.address.toLowerCase() === usdcContractLower &&
+      l.topics[0] === TRANSFER_TOPIC &&
+      l.topics.length === 3 &&
+      `0x${l.topics[2]!.slice(26)}`.toLowerCase() === treasuryAddressLower,
   );
 
   if (!log) return null;

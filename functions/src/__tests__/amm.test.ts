@@ -1,13 +1,13 @@
 import {
+  betTowardsValue,
+  consensus,
+  directionSellProceeds,
+  directionTradeCost,
+  initialPool,
   lmsrCost,
   pHigher,
-  consensus,
-  directionTradeCost,
-  sharesForBudget,
-  betTowardsValue,
-  directionSellProceeds,
   resolutionPayouts,
-  initialPool,
+  sharesForBudget,
 } from '../lib/amm';
 
 const B = 100; // liquidity parameter used throughout
@@ -75,7 +75,7 @@ describe('consensus', () => {
   });
 
   test('buying higher shares increases consensus', () => {
-    const before = consensus([0, 0], B, rangeMin, rangeMax);
+    const _before = consensus([0, 0], B, rangeMin, rangeMax);
     // [0,0] is untraded so returns undefined; use a tiny seed
     const c1 = consensus([1, 1], B, rangeMin, rangeMax)!;
     const c2 = consensus([1, 50], B, rangeMin, rangeMax)!;

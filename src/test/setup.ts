@@ -10,11 +10,19 @@ if (typeof globalThis.localStorage === 'undefined' || typeof globalThis.localSto
     configurable: true,
     value: {
       getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
-      setItem: (k: string, v: string) => { store.set(k, String(v)); },
-      removeItem: (k: string) => { store.delete(k); },
-      clear: () => { store.clear(); },
+      setItem: (k: string, v: string) => {
+        store.set(k, String(v));
+      },
+      removeItem: (k: string) => {
+        store.delete(k);
+      },
+      clear: () => {
+        store.clear();
+      },
       key: (i: number) => Array.from(store.keys())[i] ?? null,
-      get length() { return store.size; },
+      get length() {
+        return store.size;
+      },
     },
   });
 }
@@ -25,9 +33,14 @@ if (typeof globalThis.localStorage === 'undefined' || typeof globalThis.localSto
 // Default to desktop; a test that cares about the phone layout overrides it.
 if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
   window.matchMedia = ((query: string) => ({
-    matches: false, media: query, onchange: null,
-    addEventListener: () => {}, removeEventListener: () => {},
-    addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
   })) as unknown as typeof window.matchMedia;
 }
 
@@ -37,14 +50,33 @@ HTMLCanvasElement.prototype.getContext = (() => {
   const noop = () => {};
   const stub = {
     canvas: document.createElement('canvas'),
-    fillRect: noop, clearRect: noop, getImageData: () => ({ data: new Uint8ClampedArray() }),
-    putImageData: noop, createImageData: () => ({ data: new Uint8ClampedArray() }),
-    setTransform: noop, drawImage: noop, save: noop, restore: noop,
-    beginPath: noop, moveTo: noop, lineTo: noop, closePath: noop, stroke: noop,
-    fill: noop, translate: noop, scale: noop, rotate: noop, arc: noop,
-    fillText: noop, strokeText: noop, measureText: () => ({ width: 0 }),
-    setLineDash: noop, getLineDash: () => [], createLinearGradient: () => ({ addColorStop: noop }),
-    createRadialGradient: () => ({ addColorStop: noop }), createPattern: () => null,
+    fillRect: noop,
+    clearRect: noop,
+    getImageData: () => ({ data: new Uint8ClampedArray() }),
+    putImageData: noop,
+    createImageData: () => ({ data: new Uint8ClampedArray() }),
+    setTransform: noop,
+    drawImage: noop,
+    save: noop,
+    restore: noop,
+    beginPath: noop,
+    moveTo: noop,
+    lineTo: noop,
+    closePath: noop,
+    stroke: noop,
+    fill: noop,
+    translate: noop,
+    scale: noop,
+    rotate: noop,
+    arc: noop,
+    fillText: noop,
+    strokeText: noop,
+    measureText: () => ({ width: 0 }),
+    setLineDash: noop,
+    getLineDash: () => [],
+    createLinearGradient: () => ({ addColorStop: noop }),
+    createRadialGradient: () => ({ addColorStop: noop }),
+    createPattern: () => null,
   };
   return () => stub as unknown as CanvasRenderingContext2D;
 })();

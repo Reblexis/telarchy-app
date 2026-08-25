@@ -12,7 +12,10 @@
  */
 
 /** The one side a trader can hold (the server nets to a single net side). */
-export interface HeldPosition { direction: 'higher' | 'lower'; shares: number }
+export interface HeldPosition {
+  direction: 'higher' | 'lower';
+  shares: number;
+}
 
 function lmsrCost(q0: number, q1: number, b: number): number {
   const max = Math.max(q0, q1);
@@ -36,7 +39,10 @@ function bookFromProb(prob: number, b: number): [number, number] {
  * forced sale pays the trader, spendable inside the same trade.
  */
 function afterNettingClose(
-  book: [number, number], b: number, buyDirection: 'higher' | 'lower', held?: HeldPosition | null,
+  book: [number, number],
+  b: number,
+  buyDirection: 'higher' | 'lower',
+  held?: HeldPosition | null,
 ): { book: [number, number]; proceeds: number } {
   if (!held || held.shares <= 0 || held.direction === buyDirection) return { book, proceeds: 0 };
   const idx = held.direction === 'higher' ? 1 : 0;
@@ -50,18 +56,23 @@ function afterNettingClose(
     server's sharesForBudget, same 20x bound and iteration count). */
 function sharesFor(book: [number, number], dirIdx: 0 | 1, budget: number, b: number): number {
   const before = lmsrCost(book[0], book[1], b);
-  let lo = 0, hi = budget * 20;
+  let lo = 0,
+    hi = budget * 20;
   for (let i = 0; i < 60; i++) {
     const mid = (lo + hi) / 2;
     const after: [number, number] = [book[0], book[1]];
     after[dirIdx] += mid;
-    if (lmsrCost(after[0], after[1], b) - before < budget) lo = mid; else hi = mid;
+    if (lmsrCost(after[0], after[1], b) - before < budget) lo = mid;
+    else hi = mid;
   }
   return Math.round(lo * 1_000_000_000) / 1_000_000_000;
 }
 
 export function previewTrade(
-  prob: number, liquidity: number, direction: 'higher' | 'lower', amount: number,
+  prob: number,
+  liquidity: number,
+  direction: 'higher' | 'lower',
+  amount: number,
   held?: HeldPosition | null,
 ) {
   const b = liquidity;
@@ -83,9 +94,10 @@ export function previewTrade(
 export function previewSell(prob: number, liquidity: number, direction: 'higher' | 'lower', shares: number): number {
   const b = liquidity;
   const [q0, q1] = bookFromProb(prob, b);
-  const value = direction === 'higher'
-    ? lmsrCost(q0, q1, b) - lmsrCost(q0, q1 - shares, b)
-    : lmsrCost(q0, q1, b) - lmsrCost(q0 - shares, q1, b);
+  const value =
+    direction === 'higher'
+      ? lmsrCost(q0, q1, b) - lmsrCost(q0, q1 - shares, b)
+      : lmsrCost(q0, q1, b) - lmsrCost(q0 - shares, q1, b);
   return Math.max(0, Math.round(value * 1_000_000_000) / 1_000_000_000);
 }
 
@@ -100,8 +112,13 @@ export function previewSell(prob: number, liquidity: number, direction: 'higher'
  * value shown is the value landed (budget permitting) by construction.
  */
 export function previewTargetBet(
-  prob: number, liquidity: number, rangeMin: number, rangeMax: number,
-  targetValue: number, maxBudget: number, held?: HeldPosition | null,
+  prob: number,
+  liquidity: number,
+  rangeMin: number,
+  rangeMax: number,
+  targetValue: number,
+  maxBudget: number,
+  held?: HeldPosition | null,
 ): { direction: 'higher' | 'lower'; shares: number; cost: number; newProb: number; nettingProceeds: number } | null {
   const b = liquidity;
   const span = rangeMax - rangeMin;

@@ -79,22 +79,27 @@ export function seasonClock(season: PrizeSeason, now: Date = new Date()): Season
     ? 'settled'
     : season.status === 'draft'
       ? 'before'
-      : t < endsAt.getTime() ? 'during' : 'ended';
+      : t < endsAt.getTime()
+        ? 'during'
+        : 'ended';
 
   const target = phase === 'before' ? startsAt : phase === 'during' ? endsAt : null;
   const ms = target ? Math.max(0, target.getTime() - t) : 0;
 
   const remaining = target ? phrase(ms) : '';
-  const headline = phase === 'before'
-    // A draft whose start instant has already passed is waiting on the
-    // operator, and saying "starts in 0 sec" every second would be a lie that
-    // keeps getting louder.
-    ? (ms > 0 ? `Starts in ${remaining}` : 'Starting shortly')
-    : phase === 'during'
-      ? `${remaining} left`
-      : phase === 'ended'
-        ? 'Standings are being settled'
-        : 'Final standings';
+  const headline =
+    phase === 'before'
+      ? // A draft whose start instant has already passed is waiting on the
+        // operator, and saying "starts in 0 sec" every second would be a lie that
+        // keeps getting louder.
+        ms > 0
+        ? `Starts in ${remaining}`
+        : 'Starting shortly'
+      : phase === 'during'
+        ? `${remaining} left`
+        : phase === 'ended'
+          ? 'Standings are being settled'
+          : 'Final standings';
 
   return {
     phase,
@@ -139,10 +144,12 @@ export function clockTickMs(clock: SeasonClock): number {
 export function pickCurrentSeason(seasons: PrizeSeason[]): PrizeSeason | null {
   const running = seasons.find(s => s.status === 'running');
   if (running) return running;
-  const drafts = seasons.filter(s => s.status === 'draft')
+  const drafts = seasons
+    .filter(s => s.status === 'draft')
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
   if (drafts[0]) return drafts[0];
-  const settled = seasons.filter(s => s.status === 'settled')
+  const settled = seasons
+    .filter(s => s.status === 'settled')
     .sort((a, b) => new Date(b.endsAt).getTime() - new Date(a.endsAt).getTime());
   return settled[0] ?? null;
 }

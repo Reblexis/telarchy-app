@@ -24,14 +24,13 @@ jest.mock('../middleware/auth', () => ({
   getAuthWorkspaceMemberships: () => [],
 }));
 
-import request from 'supertest';
 import express from 'express';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, floorQuestions, workspaces } from '../db/schema';
+import request from 'supertest';
+import { agents, floorQuestions, permissionGroups, workspaces } from '../db/schema';
+import { renderSetupBrief } from '../lib/setup-brief';
 import { toUnits } from '../lib/validation';
 import { setupRouter } from '../routes/setup';
-import { renderSetupBrief } from '../lib/setup-brief';
-import { permissionGroups } from '../db/schema';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const OPERATOR = 'agent-operator-setup';
 
@@ -41,13 +40,18 @@ let onAsk: () => Promise<void> = async () => {};
 
 const app = express();
 app.use(express.json());
-app.use((req, _res, next) => { (req as any).auth = { ...authOverride }; next(); });
+app.use((req, _res, next) => {
+  (req as any).auth = { ...authOverride };
+  next();
+});
 app.use('/api/setup', setupRouter);
 
 const ORIGINAL_FETCH = global.fetch;
 const ORIGINAL_KEY = process.env.AI_GATEWAY_API_KEY;
 
-beforeAll(async () => { await ensureMigrations(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
 beforeEach(async () => {
   await truncateAll();
   await db.insert(agents).values({ id: OPERATOR, apiKeyHash: 'h-op', balance: toUnits(1000) });
@@ -80,7 +84,11 @@ describe('the setup conversation', () => {
   test('reports the floor that actually came into existence', async () => {
     onAsk = async () => {
       await db.insert(workspaces).values({
-        id: 'ws-new', name: 'Kleros', slug: 'kleros', createdBy: OPERATOR, visibility: 'unlisted',
+        id: 'ws-new',
+        name: 'Kleros',
+        slug: 'kleros',
+        createdBy: OPERATOR,
+        visibility: 'unlisted',
       });
     };
     const r = await ask({ question: 'set me up' });
@@ -104,10 +112,25 @@ describe('the setup conversation', () => {
     // opened. Both the brief and the handoff read the first row as "the floor
     // we are talking about".
     await db.insert(workspaces).values([
-      { id: 'ws-old', name: 'From March', slug: 'from-march', createdBy: OPERATOR, visibility: 'unlisted', createdAt: new Date('2026-03-01') },
-      { id: 'ws-new', name: 'Kleros', slug: 'kleros', createdBy: OPERATOR, visibility: 'unlisted', createdAt: new Date('2026-08-23') },
+      {
+        id: 'ws-old',
+        name: 'From March',
+        slug: 'from-march',
+        createdBy: OPERATOR,
+        visibility: 'unlisted',
+        createdAt: new Date('2026-03-01'),
+      },
+      {
+        id: 'ws-new',
+        name: 'Kleros',
+        slug: 'kleros',
+        createdBy: OPERATOR,
+        visibility: 'unlisted',
+        createdAt: new Date('2026-08-23'),
+      },
     ]);
-    const r = await request(app).post('/api/setup/handoff')
+    const r = await request(app)
+      .post('/api/setup/handoff')
       .send({ messages: [{ role: 'user', content: 'where were we' }] });
     expect(r.body.handoff).toMatch(/Kleros/);
     expect(r.body.handoff.indexOf('Kleros')).toBeLessThan(
@@ -117,7 +140,11 @@ describe('the setup conversation', () => {
 
   test('a floor the caller already ran is not reported as new', async () => {
     await db.insert(workspaces).values({
-      id: 'ws-old', name: 'Existing', slug: 'existing', createdBy: OPERATOR, visibility: 'unlisted',
+      id: 'ws-old',
+      name: 'Existing',
+      slug: 'existing',
+      createdBy: OPERATOR,
+      visibility: 'unlisted',
     });
     const r = await ask({ question: 'what do i have' });
     expect(r.body.opened).toEqual([]);
@@ -155,12 +182,15 @@ describe('the setup conversation', () => {
 });
 
 describe('the handoff, on its own request', () => {
-  const handoff = (body: Record<string, unknown>) =>
-    request(app).post('/api/setup/handoff').send(body);
+  const handoff = (body: Record<string, unknown>) => request(app).post('/api/setup/handoff').send(body);
 
   test('carries the real slug of a market that exists, not one Otto named', async () => {
     await db.insert(workspaces).values({
-      id: 'ws-new', name: 'Kleros', slug: 'kleros', createdBy: OPERATOR, visibility: 'unlisted',
+      id: 'ws-new',
+      name: 'Kleros',
+      slug: 'kleros',
+      createdBy: OPERATOR,
+      visibility: 'unlisted',
     });
     const r = await handoff({ messages: [{ role: 'user', content: 'set me up' }] });
     expect(r.status).toBe(200);
@@ -169,10 +199,12 @@ describe('the handoff, on its own request', () => {
   });
 
   test('carries the conversation, so the other agent has the context', async () => {
-    const r = await handoff({ messages: [
-      { role: 'user', content: 'we arbitrate disputes on chain' },
-      { role: 'assistant', content: 'Then the number is disputes.' },
-    ] });
+    const r = await handoff({
+      messages: [
+        { role: 'user', content: 'we arbitrate disputes on chain' },
+        { role: 'assistant', content: 'Then the number is disputes.' },
+      ],
+    });
     expect(r.body.handoff).toMatch(/Me: we arbitrate disputes on chain/);
     expect(r.body.handoff).toMatch(/Otto: Then the number is disputes\./);
   });
@@ -198,7 +230,8 @@ describe('what the brief tells him he may promise', () => {
 
   test('someone who already runs markets is named them', () => {
     const brief = renderSetupBrief({
-      signedIn: true, name: 'clement',
+      signedIn: true,
+      name: 'clement',
       workspaces: [{ name: 'Kleros', slug: 'kleros' }],
     });
     expect(brief).toMatch(/Kleros \(\/kleros\)/);
@@ -208,7 +241,6 @@ describe('what the brief tells him he may promise', () => {
   });
 });
 
-
 /**
  * GET /api/setup/checklist: the endpoint the handoff tells the operator's own
  * agent to call first, so it works from the floor's real state rather than
@@ -217,18 +249,29 @@ describe('what the brief tells him he may promise', () => {
 describe('the checklist endpoint', () => {
   const asOwner = () => {
     authOverride = {
-      agentId: OPERATOR, uid: OPERATOR, workspaceId: 'ws-c',
+      agentId: OPERATOR,
+      uid: OPERATOR,
+      workspaceId: 'ws-c',
       capabilities: new Set(['read', 'trade', 'manage']),
     };
   };
 
   beforeEach(async () => {
     await db.insert(workspaces).values({
-      id: 'ws-c', name: 'Kleros', slug: 'kleros', createdBy: OPERATOR, visibility: 'unlisted',
+      id: 'ws-c',
+      name: 'Kleros',
+      slug: 'kleros',
+      createdBy: OPERATOR,
+      visibility: 'unlisted',
     });
     await db.insert(permissionGroups).values({
-      id: 'grp-c', workspaceId: 'ws-c', name: 'Public', type: 'public',
-      memberIds: [], permissions: {}, capabilities: ['read'],
+      id: 'grp-c',
+      workspaceId: 'ws-c',
+      name: 'Public',
+      type: 'public',
+      memberIds: [],
+      permissions: {},
+      capabilities: ['read'],
     });
   });
 
@@ -246,7 +289,7 @@ describe('the checklist endpoint', () => {
     expect(bySlug.body.workspace.id).toBe('ws-c');
   });
 
-  test('needs manage, because the notes quote the owner\'s own settings', async () => {
+  test("needs manage, because the notes quote the owner's own settings", async () => {
     authOverride = { agentId: OPERATOR, uid: OPERATOR, workspaceId: 'ws-c', capabilities: new Set(['read']) };
     const r = await request(app).get('/api/setup/checklist?workspaceId=ws-c');
     expect(r.status).toBe(403);
@@ -254,7 +297,11 @@ describe('the checklist endpoint', () => {
 
   test('refuses to read another workspace than the one you authenticated for', async () => {
     await db.insert(workspaces).values({
-      id: 'ws-theirs', name: 'Someone else', slug: 'someone-else', createdBy: 'agent-other', visibility: 'public',
+      id: 'ws-theirs',
+      name: 'Someone else',
+      slug: 'someone-else',
+      createdBy: 'agent-other',
+      visibility: 'public',
     });
     asOwner();
     const r = await request(app).get('/api/setup/checklist?workspaceId=ws-theirs');

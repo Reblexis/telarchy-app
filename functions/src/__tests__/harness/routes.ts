@@ -5,7 +5,10 @@
  */
 import type { Express } from 'express';
 
-export interface RouteRef { method: string; path: string }
+export interface RouteRef {
+  method: string;
+  path: string;
+}
 
 function mountPathOf(layer: { regexp: RegExp }): string | null {
   const src = layer.regexp.source;
@@ -17,7 +20,12 @@ function mountPathOf(layer: { regexp: RegExp }): string | null {
 
 function collect(stack: unknown[], prefix: string, out: RouteRef[]): void {
   for (const raw of stack) {
-    const layer = raw as { route?: { path: string; methods: Record<string, boolean> }; name: string; handle: { stack?: unknown[] }; regexp: RegExp };
+    const layer = raw as {
+      route?: { path: string; methods: Record<string, boolean> };
+      name: string;
+      handle: { stack?: unknown[] };
+      regexp: RegExp;
+    };
     if (layer.route) {
       const path = prefix + layer.route.path;
       for (const method of Object.keys(layer.route.methods)) {
@@ -40,6 +48,11 @@ export function listApiRoutes(app: Express): RouteRef[] {
   const seen = new Set<string>();
   return out
     .filter(r => r.path.startsWith('/api'))
-    .filter(r => { const k = `${r.method} ${r.path}`; if (seen.has(k)) return false; seen.add(k); return true; })
+    .filter(r => {
+      const k = `${r.method} ${r.path}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
     .sort((a, b) => (a.path + a.method).localeCompare(b.path + b.method));
 }

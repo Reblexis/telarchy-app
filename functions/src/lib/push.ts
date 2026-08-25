@@ -15,8 +15,8 @@
  * rather than retried forever.
  */
 
-import webpush from 'web-push';
 import { and, eq } from 'drizzle-orm';
+import webpush from 'web-push';
 import { db } from '../db/client';
 import { pushSubscriptions } from '../db/schema';
 
@@ -53,8 +53,7 @@ export interface PushPayload {
 /** Send one payload to every subscription a participant holds. */
 export async function sendPushToParticipant(agentId: string, payload: PushPayload): Promise<void> {
   if (!ensureVapid()) return;
-  const subs = await db.select().from(pushSubscriptions)
-    .where(eq(pushSubscriptions.agentId, agentId));
+  const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.agentId, agentId));
   for (const sub of subs) {
     try {
       await webpush.sendNotification(
@@ -65,7 +64,8 @@ export async function sendPushToParticipant(agentId: string, payload: PushPayloa
       const status = (e as { statusCode?: number }).statusCode;
       if (status === 404 || status === 410) {
         // The browser revoked it; the address no longer exists.
-        await db.delete(pushSubscriptions)
+        await db
+          .delete(pushSubscriptions)
           .where(and(eq(pushSubscriptions.agentId, agentId), eq(pushSubscriptions.endpoint, sub.endpoint)))
           .catch(err => console.error('push subscription cleanup failed:', err));
       } else {

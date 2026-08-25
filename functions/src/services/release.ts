@@ -57,7 +57,7 @@ async function accessToken(): Promise<string | null> {
       { headers: { 'Metadata-Flavor': 'Google' }, signal: AbortSignal.timeout(3000) },
     );
     if (!res.ok) return null;
-    const body = await res.json() as { access_token?: string };
+    const body = (await res.json()) as { access_token?: string };
     return body.access_token ?? null;
   } catch {
     // Off Cloud Run there is no metadata server. Not an error worth logging on
@@ -92,7 +92,7 @@ async function fetchService(token: string): Promise<RunService | null> {
     console.error('release: Cloud Run describe failed', res.status, await res.text().catch(() => ''));
     return null;
   }
-  return await res.json() as RunService;
+  return (await res.json()) as RunService;
 }
 
 /**
@@ -130,14 +130,14 @@ async function computeReleaseState(): Promise<ReleaseState> {
   const traffic = svc.status?.traffic ?? [];
   // What the public actually gets: the entry carrying the traffic. A tagged
   // entry with 0 percent is a candidate, not the site.
-  const servingEntry = traffic.find(t => (t.percent ?? 0) > 0 && !t.tag)
-    ?? traffic.find(t => (t.percent ?? 0) > 0);
+  const servingEntry = traffic.find(t => (t.percent ?? 0) > 0 && !t.tag) ?? traffic.find(t => (t.percent ?? 0) > 0);
   const serving = servingEntry?.revisionName ?? null;
 
   const tagged = traffic.find(t => t.tag === 'candidate');
-  const candidate = tagged?.revisionName && tagged.revisionName !== serving
-    ? { revision: tagged.revisionName, url: tagged.url ?? '' }
-    : null;
+  const candidate =
+    tagged?.revisionName && tagged.revisionName !== serving
+      ? { revision: tagged.revisionName, url: tagged.url ?? '' }
+      : null;
 
   return {
     serving,
@@ -188,7 +188,9 @@ export async function publishRevision(revision?: string): Promise<{ published: s
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     console.error('release: publish failed', res.status, detail);
-    throw new Error(`Cloud Run refused the publish (${res.status}). Check the service account still holds the telarchyReleasePublisher role on this service.`);
+    throw new Error(
+      `Cloud Run refused the publish (${res.status}). Check the service account still holds the telarchyReleasePublisher role on this service.`,
+    );
   }
   clearReleaseCache();
   return { published: target };

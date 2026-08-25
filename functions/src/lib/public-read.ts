@@ -29,7 +29,8 @@ export const ANONYMOUS_CAPABILITIES: readonly Capability[] = ['read'];
  */
 export async function resolvePublicReadWorkspace(idOrSlug: string): Promise<string | null> {
   if (!idOrSlug) return null;
-  const [ws] = await db.select({ id: workspaces.id, visibility: workspaces.visibility })
+  const [ws] = await db
+    .select({ id: workspaces.id, visibility: workspaces.visibility })
     .from(workspaces)
     .where(or(eq(workspaces.id, idOrSlug), sql`lower(${workspaces.slug}) = lower(${idOrSlug})`))
     .limit(1);
@@ -38,7 +39,8 @@ export async function resolvePublicReadWorkspace(idOrSlug: string): Promise<stri
   // over whatever the groups happen to say.
   if (ws.visibility === 'private') return null;
 
-  const [publicGroup] = await db.select({ capabilities: permissionGroups.capabilities })
+  const [publicGroup] = await db
+    .select({ capabilities: permissionGroups.capabilities })
     .from(permissionGroups)
     .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
   const caps = (publicGroup?.capabilities as string[] | null) ?? [];

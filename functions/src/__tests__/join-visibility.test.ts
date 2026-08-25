@@ -26,7 +26,12 @@ jest.mock('../middleware/auth', () => {
       req.auth = {
         agentId: req.headers['x-test-agent-id'],
         workspaceId: req.headers['x-workspace-id'],
-        capabilities: new Set(capsHeader.split(',').map((c: string) => c.trim()).filter(Boolean)),
+        capabilities: new Set(
+          capsHeader
+            .split(',')
+            .map((c: string) => c.trim())
+            .filter(Boolean),
+        ),
       };
       next();
     },
@@ -34,16 +39,16 @@ jest.mock('../middleware/auth', () => {
   };
 });
 
-import request from 'supertest';
-import express from 'express';
 import { and, eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import express from 'express';
+import request from 'supertest';
 import { agents, permissionGroups } from '../db/schema';
+import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
+import { authMiddleware } from '../middleware/auth';
 import { marketplaceRouter } from '../routes/marketplace';
 import { workspacesRouter } from '../routes/workspaces';
-import { authMiddleware } from '../middleware/auth';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -56,8 +61,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(status).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const OWNER = 'agent-owner';
 const OUTSIDER = 'agent-outsider';
@@ -67,7 +76,11 @@ type Vis = 'public' | 'unlisted' | 'private';
 async function seedWorkspace(wsId: string, visibility: Vis) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId, name: `WS ${visibility}`, createdBy: OWNER, ownerAgentId: OWNER, visibility,
+    wsId,
+    name: `WS ${visibility}`,
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility,
   });
 }
 
@@ -79,20 +92,24 @@ async function seedAgents() {
 }
 
 function publicGroupOf(wsId: string) {
-  return db.select().from(permissionGroups)
+  return db
+    .select()
+    .from(permissionGroups)
     .where(and(eq(permissionGroups.workspaceId, wsId), eq(permissionGroups.type, 'public')))
     .then(rows => rows[0]);
 }
 
 function joinViaMarketplace(wsId: string, callerId: string) {
-  return request(app).post(`/api/marketplace/${wsId}/join`)
+  return request(app)
+    .post(`/api/marketplace/${wsId}/join`)
     .set('X-Test-Agent-Id', callerId)
     .set('X-Test-Caps', 'read')
     .send({});
 }
 
 function joinViaWorkspaces(wsId: string, callerId: string) {
-  return request(app).post(`/api/workspaces/${wsId}/join`)
+  return request(app)
+    .post(`/api/workspaces/${wsId}/join`)
     .set('X-Test-Agent-Id', callerId)
     .set('X-Test-Caps', 'read')
     .send({});
@@ -179,11 +196,13 @@ describe('taking a workspace private revokes open trading', () => {
 
     // Put the workspace in the "Open" configuration: public + Public group trades.
     const group = await publicGroupOf('ws-open');
-    await db.update(permissionGroups)
+    await db
+      .update(permissionGroups)
       .set({ capabilities: ['read', 'trade'] })
       .where(eq(permissionGroups.id, group.id));
 
-    const res = await request(app).put('/api/workspaces/ws-open/settings')
+    const res = await request(app)
+      .put('/api/workspaces/ws-open/settings')
       .set('X-Test-Agent-Id', OWNER)
       .set('X-Workspace-Id', 'ws-open')
       .send({ visibility: 'private' });
@@ -198,7 +217,8 @@ describe('taking a workspace private revokes open trading', () => {
     await seedAgents();
     await seedWorkspace('ws-view', 'private');
 
-    const res = await request(app).put('/api/workspaces/ws-view/settings')
+    const res = await request(app)
+      .put('/api/workspaces/ws-view/settings')
       .set('X-Test-Agent-Id', OWNER)
       .set('X-Workspace-Id', 'ws-view')
       .send({ visibility: 'public' });

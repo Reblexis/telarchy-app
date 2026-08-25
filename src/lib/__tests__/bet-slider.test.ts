@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { SLIDER_STEPS, amountToSlider, sliderToAmount } from '../bet-slider';
+import { amountToSlider, SLIDER_STEPS, sliderToAmount } from '../bet-slider';
 
 /**
  * The bet slider's logarithmic track (user report 2026-08-21: a linear
@@ -34,7 +34,7 @@ describe('bet slider scale', () => {
     for (let pos = 0; pos <= SLIDER_STEPS; pos += 7) {
       const a = sliderToAmount(pos, 23_400);
       if (a >= 100 && a !== 23_400) {
-        const mag = Math.pow(10, Math.floor(Math.log10(a)) - 1);
+        const mag = 10 ** (Math.floor(Math.log10(a)) - 1);
         expect(a % mag).toBe(0);
       }
     }

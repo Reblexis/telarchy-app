@@ -28,20 +28,20 @@ jest.mock('../middleware/auth', () => ({
   optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
+import { eq } from 'drizzle-orm';
+import express from 'express';
+import request from 'supertest';
+import { agents, markets, metrics, positions, workspaces } from '../db/schema';
+import { initialPool } from '../lib/amm';
+import { AppError } from '../lib/errors';
+import { provisionWorkspace } from '../lib/participants';
+import { fromUnits, toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { authMiddleware } from '../middleware/auth';
-import request from 'supertest';
-import express from 'express';
-import { eq } from 'drizzle-orm';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics, positions, workspaces } from '../db/schema';
-import { provisionWorkspace } from '../lib/participants';
-import { initialPool } from '../lib/amm';
-import { fromUnits, toUnits } from '../lib/validation';
 import { predictionsRouter } from '../routes/predictions';
 import { voidMarket } from '../services/markets';
-import { AppError } from '../lib/errors';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -51,8 +51,12 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
   res.status(err instanceof AppError ? err.status : 500).json({ error: err.message });
 });
 
-beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+beforeAll(async () => {
+  await ensureMigrations();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
 
 const WS = 'ws-void';
 const TRADER = 'agent-void-trader';
@@ -66,23 +70,45 @@ async function seed() {
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
-    wsId: WS, name: 'Void Test', createdBy: 'agent-owner-void', ownerAgentId: 'agent-owner-void', visibility: 'public',
+    wsId: WS,
+    name: 'Void Test',
+    createdBy: 'agent-owner-void',
+    ownerAgentId: 'agent-owner-void',
+    visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: 'metric-void', workspaceId: WS, name: 'Throughput', value: 0, formula: '0', marketRangeMax: 100,
+    id: 'metric-void',
+    workspaceId: WS,
+    name: 'Throughput',
+    value: 0,
+    formula: '0',
+    marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: MARKET, workspaceId: WS, metricId: 'metric-void', metricName: 'Throughput',
-    targetDate: '2028', rangeMin: 0, rangeMax: 100,
-    shares: [0, 0], liquidity: 200, pool: initialPool(200),
-    active: true, resolved: false, voided: false, proposalId: null,
+    id: MARKET,
+    workspaceId: WS,
+    metricId: 'metric-void',
+    metricName: 'Throughput',
+    targetDate: '2028',
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, 0],
+    liquidity: 200,
+    pool: initialPool(200),
+    active: true,
+    resolved: false,
+    voided: false,
+    proposalId: null,
   });
 }
 
 const trade = (body: Record<string, unknown>) =>
-  request(app).post('/api/predictions/trade')
-    .set('X-Test-Agent-Id', TRADER).set('X-Workspace-Id', WS)
-    .set('Content-Type', 'application/json').send({ marketId: MARKET, ...body });
+  request(app)
+    .post('/api/predictions/trade')
+    .set('X-Test-Agent-Id', TRADER)
+    .set('X-Workspace-Id', WS)
+    .set('Content-Type', 'application/json')
+    .send({ marketId: MARKET, ...body });
 
 async function balance(): Promise<number> {
   const [row] = await db.select().from(agents).where(eq(agents.id, TRADER));

@@ -10,7 +10,7 @@
  * The parser produces a small AST that the evaluator walks. Nothing here can
  * execute code: a formula is data until `evaluate` interprets it.
  */
-import { FormulaSyntaxError, tokenize, type Token } from './tokenize';
+import { FormulaSyntaxError, type Token, tokenize } from './tokenize';
 
 export type Ast =
   | { type: 'num'; value: number }
@@ -41,8 +41,12 @@ class Parser {
   private pos = 0;
   constructor(private readonly tokens: Token[]) {}
 
-  private peek(): Token { return this.tokens[this.pos]; }
-  private next(): Token { return this.tokens[this.pos++]; }
+  private peek(): Token {
+    return this.tokens[this.pos];
+  }
+  private next(): Token {
+    return this.tokens[this.pos++];
+  }
 
   parseAll(): Ast {
     const first = this.peek();
@@ -50,7 +54,10 @@ class Parser {
     const ast = this.expr();
     const tail = this.peek();
     if (tail.kind !== 'eof') {
-      throw new FormulaSyntaxError(tail.kind === 'comma' ? 'Unexpected comma outside a function call' : 'Unexpected input', tail.column);
+      throw new FormulaSyntaxError(
+        tail.kind === 'comma' ? 'Unexpected comma outside a function call' : 'Unexpected input',
+        tail.column,
+      );
     }
     return ast;
   }
@@ -129,12 +136,16 @@ class Parser {
           for (;;) {
             args.push(this.expr());
             const sep = this.peek();
-            if (sep.kind === 'comma') { this.next(); continue; }
+            if (sep.kind === 'comma') {
+              this.next();
+              continue;
+            }
             break;
           }
         }
         const close = this.next();
-        if (close.kind !== 'rparen') throw new FormulaSyntaxError('Expected ")" to close the argument list', close.column);
+        if (close.kind !== 'rparen')
+          throw new FormulaSyntaxError('Expected ")" to close the argument list', close.column);
         const arity = FUNCTIONS[t.name];
         if (arity === null ? args.length < 1 : args.length !== arity) {
           const want = arity === null ? 'at least 1 argument' : `${arity} argument${arity === 1 ? '' : 's'}`;
