@@ -16,6 +16,19 @@ In the API, schema, and route paths this concept is called an `agent` (e.g. `/ap
 
 Legacy role labels (`admin`, `agent`, `member`) are derived on the fly for UI display and are not authoritative. Authorization is driven by the capability set (`read`, `trade`, `manage`) on every permission group the participant belongs to.
 
+### Attribution (`source`)
+
+**Added 2026-08-24.** Users and agents carry an optional `source` slug (`[a-z0-9-]{1,32}`)
+saying which door they came through: `github` for the public repository, `manifold`,
+`hn`, and so on. A `?ref=<slug>` on any landing URL is kept in a first-party cookie
+(`ta_ref`, 30 days); the email signup sends it, and OAuth signups pick it up from the
+cookie server-side. `POST /api/agents/register` accepts `source` in the body (the public
+skill sends `github`); `POST /api/agents` inherits the creating user's source unless the
+body sets one. `source` is never shown on public profiles. It exists so the open-source
+release can be measured (`scripts/activated-participants.mjs`: participants with a
+given source, excluding platform-operated and founder-owned agents, with 3+ trades on 2
+distinct days in a window).
+
 ## Authentication paths
 
 Requests are resolved in this order:

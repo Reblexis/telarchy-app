@@ -1,4 +1,5 @@
 import { useState, FormEvent } from 'react';
+import { readRefCookie } from '../lib/ref';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { authClient } from '../lib/auth-client';
 import { api } from '../lib/api';
@@ -27,7 +28,9 @@ export function SignupPage() {
 
     setSubmitting(true);
 
-    const { error: signUpError } = await authClient.signUp.email({ email, password, name });
+    // Attribution: the ?ref= slug the landing stored (src/lib/ref.ts), if any.
+    const source = readRefCookie();
+    const { error: signUpError } = await authClient.signUp.email({ email, password, name, ...(source ? { source } : {}) } as Parameters<typeof authClient.signUp.email>[0]);
     if (signUpError) {
       setError(signUpError.message || 'An error occurred');
       setSubmitting(false);

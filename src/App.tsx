@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
+import { captureRefFromLocation } from './lib/ref';
 /* Eager: the two first-paint routes. `/` is the list, `/:slug` is the floor;
    between them they are what nearly every visitor lands on, so their code
    belongs in the entry bundle. */
@@ -83,6 +84,9 @@ function ResumeAfterOAuth() {
 }
 
 export function App() {
+  // Attribution: a `?ref=<slug>` on any landing URL is kept for 30 days so the
+  // signup that follows can say where it came from (src/lib/ref.ts).
+  useEffect(() => { captureRefFromLocation(); }, []);
   return (
     <BrowserRouter basename={BASE_PATH || '/'}>
       <ResumeAfterOAuth />

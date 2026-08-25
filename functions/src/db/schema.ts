@@ -17,6 +17,11 @@ export const authUser = pgTable('user', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   consentedAt: timestamp('consented_at'),
   consentedVersion: text('consented_version'),
+  /** Which door this human came through ('github' for the public repo, 'manifold',
+   *  'hn', ...): the `?ref=` slug the landing stored in the ta_ref cookie, or the
+   *  signup body's own `source`. Attribution for the open-source release; null
+   *  when nothing was tagged. Same idea as waitlist.source. */
+  source: text('source'),
 });
 
 export const authSession = pgTable('session', {
@@ -177,6 +182,10 @@ export const agents = pgTable('agents', {
    *  participants once created; ownership is just an attribution / discovery
    *  link surfaced in /api/agents/mine. */
   ownerUserId: text('owner_user_id').references(() => authUser.id, { onDelete: 'set null' }),
+  /** Attribution slug ('github', ...). Set from POST /api/agents/register's
+   *  optional `source`, or inherited from the creating user's source on
+   *  POST /api/agents. See authUser.source. */
+  source: text('source'),
   /** Agent id of the participant that created this one via POST /api/agents
    *  using an agent key (agent-spawned sub-bots, e.g. an evolver's
    *  population). Means "this agent OWNS this bot". Nullable; complementary

@@ -18,6 +18,7 @@ import {
   USDC_ON_BASE_MAINNET,
 } from '../lib/usdc';
 import { AppError } from '../lib/errors';
+import { isValidSourceSlug, creatorSource } from '../lib/attribution';
 import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { resolutionInstant } from '../lib/date-utils';
 import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits, SIGNUP_CREDITS, normalizeBio } from '../lib/validation';
@@ -89,8 +90,11 @@ function sanitizeAgentForViewer(
 }
 
 agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => {
-  const { agentId, workspaceId, nickname, bio } = req.body;
+  const { agentId, workspaceId, nickname, bio, source } = req.body;
   const agentIdError = validateAgentId(agentId);
+  if (source !== undefined && !isValidSourceSlug(source)) {
+    res.status(400).json({ error: 'source must match [a-z0-9-]{1,32}' }); return;
+  }
   if (agentIdError) { res.status(400).json({ error: agentIdError }); return; }
 
   const normalizedBio = bio !== undefined ? normalizeBio(bio) : null;
@@ -130,6 +134,8 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
       id: agentId, apiKeyHash: keyHash, balance: 0,
       bio: normalizedBio,
       authUserId: req.auth?.uid ?? null, createdAt: new Date(), approvedAt: new Date(),
+      // Attribution: the body's slug (the public skill sends 'github').
+      source: typeof source === 'string' ? source : null,
     });
     await applyCredits(tx, {
       agentId, workspaceId: PLATFORM_SCOPE,
@@ -752,7 +758,10 @@ agentsRouter.use(authMiddleware);
  *      what a bot is normally for, but can't, for example, drain the wallet.
  */
 agentsRouter.post('/', requireScope('account:agents'), wrap(async (req, res) => {
-  const { agentId, nickname, bio, keyLabel, keyScopes, memberships } = req.body ?? {};
+  const { agentId, nickname, bio, keyLabel, keyScopes, memberships, source } = req.body ?? {};
+  if (source !== undefined && !isValidSourceSlug(source)) {
+    throw new AppError('source must match [a-z0-9-]{1,32}', 400);
+  }
   const agentIdError = validateAgentId(agentId);
   if (agentIdError) { res.status(400).json({ error: agentIdError }); return; }
 
@@ -846,6 +855,10 @@ agentsRouter.post('/', requireScope('account:agents'), wrap(async (req, res) => 
       // Agent-key callers own their sub-bots by agent id (parent/children
       // lineage on the public profile). Master key sets neither.
       ownerAgentId: !req.auth!.uid && !req.auth!.isMasterKey ? req.auth!.agentId ?? null : null,
+      // Attribution: the body's slug, else the creating user's own source, so a
+      // bot registered by someone who arrived via the public repo counts as
+      // arriving via the public repo too (lib/attribution.ts).
+      source: typeof source === 'string' ? source : await creatorSource(tx, req.auth!.uid),
       createdAt: new Date(),
       approvedAt: new Date(),
     });
