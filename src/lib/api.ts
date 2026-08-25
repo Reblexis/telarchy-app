@@ -588,7 +588,7 @@ export interface PublicWorkspaceMarket {
   marketId: string;
   metricId: string;
   metricName: string;
-  /** The metric's display order (PUT /api/metrics/reorder): the headline
+  /** The metric's display order (POST /api/metrics/reorder): the headline
    *  tie-breaker between two metrics read on the same date, and the order the
    *  floor's metric stepper walks. Absent on an older payload. */
   metricOrder?: number | null;

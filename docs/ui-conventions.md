@@ -1274,7 +1274,7 @@ picks the furthest-resolving open market, and a tie on the settle instant
 (two metrics both read at month end) goes to the metric with the LOWER
 `order`, then the earlier name. Liquidity broke the tie before, which was
 harmless with one metric per date and would let a trade flip the headline
-with two. The owner sets the order with `PUT /api/metrics/reorder` (the floor
+with two. The owner sets the order with `POST /api/metrics/reorder` (the floor
 metric first), and the payload carries `metricOrder` on every market so the
 client mirror `primaryHorizonOf` and the metric stepper read the same rule.
 The metric stepper walks metrics in that order, primary first.

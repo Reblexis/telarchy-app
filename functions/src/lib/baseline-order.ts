@@ -10,7 +10,7 @@ import { periodEndInstant } from './date-utils';
  * steppers"). Liquidity broke the tie before, which was harmless with one
  * metric per date and would let a trade flip the headline with two. The tie
  * goes to the metric with the LOWER `order` (the owner sets it with
- * PUT /api/metrics/reorder, floor metric first), then the earlier name, then
+ * POST /api/metrics/reorder, floor metric first), then the earlier name, then
  * the market id, so the rule is total and the client mirror
  * (`primaryHorizonOf` in src/lib/floor-horizons.ts) can compute the same
  * answer from the payload alone.
