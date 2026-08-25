@@ -1240,6 +1240,13 @@ metrics x dates, and the caption carries two independent controls:
   so the settle day never leaves the page. It is above the price, not under
   it, for the reason recorded on 2026-08-20: a control next to the number
   reads as changing the number.
+- **Neither pair of arrows moves when the words between them change** (owner
+  ask 2026-08-26: "make sure the arrow buttons dont move with metric name
+  length"). The caption's arrows are pinned to the caption's edges, as since
+  2026-08-20; the date line is a fixed-width box (18rem, or the column on a
+  narrow screen) with its arrows pinned to that box's edges, wide enough for
+  the longest label the date helpers produce. A control that slides when you
+  use it is the thing both rules exist to prevent.
 - **Both steppers loop**, for the 2026-08-20 reason: a control that sometimes
   does nothing is worse than one that always moves.
 - **Stepping the metric keeps the date when it can.** A reader on "this week"

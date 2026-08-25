@@ -41,9 +41,17 @@ echo "replacing the beta store..."
 # public is dropped whole rather than truncated: a table that exists only in
 # the beta (a migration tried there first) would otherwise survive forever and
 # make the beta stop resembling production, which is its only job.
-"$PGBIN/psql" -h 127.0.0.1 -p "$PORT" -U telarchy -d telarchy_beta -v ON_ERROR_STOP=1 -q \
-  -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
-"$PGBIN/psql" -h 127.0.0.1 -p "$PORT" -U telarchy -d telarchy_beta -v ON_ERROR_STOP=1 -q -f "$DUMP"
+# drizzle (the migration journal) goes too: the dump recreates it, and on the
+# second refresh ever (2026-08-26) "schema drizzle already exists" stopped psql
+# with public already dropped, which is a beta with no tables at all.
+# One transaction for the drop and the restore. The beta serves traffic while
+# this runs, and its auth layer inserts the signed-in user's row on first use:
+# on 2026-08-26 such a request landed between the dump's CREATE TABLE "user"
+# and its COPY, the row went in twice, and the unique index at the end of the
+# dump refused to build. Inside one transaction the new tables are invisible
+# to other sessions until the commit, so nothing can interleave.
+{ echo 'DROP SCHEMA public CASCADE; DROP SCHEMA IF EXISTS drizzle CASCADE; CREATE SCHEMA public;'; cat "$DUMP"; } \
+  | "$PGBIN/psql" -h 127.0.0.1 -p "$PORT" -U telarchy -d telarchy_beta -v ON_ERROR_STOP=1 -q --single-transaction
 
 echo "beta now mirrors production:"
 "$PGBIN/psql" -h 127.0.0.1 -p "$PORT" -U telarchy -d telarchy_beta -t \

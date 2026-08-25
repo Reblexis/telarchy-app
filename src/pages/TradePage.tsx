@@ -942,7 +942,7 @@ export function TradePage() {
                 <div className="pubws-instrument-date pubws-enter pubws-enter--1">
                   {prevDate && (
                     <button
-                      className="pubws-dstep"
+                      className="pubws-dstep pubws-dstep--prev"
                       onClick={() => setHorizonId(prevDate.marketId)}
                       aria-label={`Show ${prevDate.metricLabel}, ${prevDate.label}`}
                     >
@@ -952,7 +952,7 @@ export function TradePage() {
                   <span className="pubws-instrument-at">{dateLineOf(hero)}</span>
                   {nextDate && (
                     <button
-                      className="pubws-dstep"
+                      className="pubws-dstep pubws-dstep--next"
                       onClick={() => setHorizonId(nextDate.marketId)}
                       aria-label={`Show ${nextDate.metricLabel}, ${nextDate.label}`}
                     >
