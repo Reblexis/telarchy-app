@@ -1,5 +1,6 @@
 import type { Metric } from '../types';
 import { sampleTimePoints, WEIGHT_T0 } from './time-preference';
+import { evaluate, parseFormulaCached } from './formula';
 
 export function evaluateFormula(
   formula: string,
@@ -7,36 +8,25 @@ export function evaluateFormula(
 ): number | null {
   if (!formula || formula.trim() === '0' || formula.trim() === '') return 0;
 
-  let expression = formula;
-
-  const metricRefs = expression.match(/\{([^}]+)\}/g);
-  if (metricRefs) {
-    for (const ref of metricRefs) {
-      const metricName = ref.slice(1, -1).trim();
-      const metric = metricsMap[metricName];
-      if (metric?.total === null) return null;
-      expression = expression.replace(ref, metric ? String(metric.total) : '0');
-    }
-  }
-
-  expression = expression.replace(/sqrt\(/g, 'Math.sqrt(');
-  expression = expression.replace(/abs\(/g, 'Math.abs(');
-  expression = expression.replace(/log10\(/g, 'Math.log10(');
-  expression = expression.replace(/log\(/g, 'Math.log(');
-  expression = expression.replace(/min\(/g, 'Math.min(');
-  expression = expression.replace(/max\(/g, 'Math.max(');
-  expression = expression.replace(/pow\(/g, 'Math.pow(');
-
-  const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+  // A metric that exists but has no value yet makes the result unknown (null);
+  // a reference to a metric that does not exist evaluates as 0. Grammar and the
+  // rest of the contract: docs/formulas.md.
+  const lookup = (name: string): number | null => {
+    const metric = metricsMap[name];
+    if (!metric) return 0;
+    if (metric.total === null) return null;
+    return metric.total;
+  };
   try {
-    const result = Function('clamp', 'return (' + expression + ')')(clamp);
+    const result = evaluate(parseFormulaCached(formula), lookup);
+    if (result === null) return null;
     if (isNaN(result)) {
-      console.error(`evaluateFormula: formula "${formula}" evaluated to NaN (expanded: "${expression}")`);
+      console.error(`evaluateFormula: formula "${formula}" evaluated to NaN`);
       return 0;
     }
     return result;
   } catch (e) {
-    console.error(`evaluateFormula: formula "${formula}" threw (expanded: "${expression}"):`, e);
+    console.error(`evaluateFormula: formula "${formula}" is invalid:`, (e as Error).message);
     return 0;
   }
 }
@@ -55,48 +45,29 @@ export function evaluateFormulaAtTime(
 ): number {
   if (!formula || formula.trim() === '0' || formula.trim() === '') return 0;
 
-  let expression = formula;
-
-  const metricRefs = expression.match(/\{([^}]+)\}/g);
-  if (metricRefs) {
-    for (const ref of metricRefs) {
-      const name = ref.slice(1, -1).trim();
-      const memoKey = `${name}:${targetDate}`;
-      let value: number;
-      if (memoKey in memo) {
-        value = memo[memoKey];
-      } else {
-        const childFormula = nameToFormula[name];
-        if (!childFormula || childFormula.trim() === '0' || childFormula.trim() === '') {
-          value = consensusMap[`${name}:${targetDate}`] ?? 0;
-        } else {
-          memo[memoKey] = 0; // break potential cycles
-          value = evaluateFormulaAtTime(childFormula, nameToFormula, consensusMap, targetDate, memo);
-        }
-        memo[memoKey] = value;
-      }
-      expression = expression.replace(ref, String(value));
+  const lookup = (name: string): number => {
+    const memoKey = `${name}:${targetDate}`;
+    if (memoKey in memo) return memo[memoKey];
+    const childFormula = nameToFormula[name];
+    let value: number;
+    if (!childFormula || childFormula.trim() === '0' || childFormula.trim() === '') {
+      value = consensusMap[`${name}:${targetDate}`] ?? 0;
+    } else {
+      memo[memoKey] = 0; // break potential cycles
+      value = evaluateFormulaAtTime(childFormula, nameToFormula, consensusMap, targetDate, memo);
     }
-  }
-
-  expression = expression.replace(/sqrt\(/g, 'Math.sqrt(');
-  expression = expression.replace(/abs\(/g, 'Math.abs(');
-  expression = expression.replace(/log10\(/g, 'Math.log10(');
-  expression = expression.replace(/log\(/g, 'Math.log(');
-  expression = expression.replace(/min\(/g, 'Math.min(');
-  expression = expression.replace(/max\(/g, 'Math.max(');
-  expression = expression.replace(/pow\(/g, 'Math.pow(');
-
-  const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+    memo[memoKey] = value;
+    return value;
+  };
   try {
-    const result = Function('clamp', 'return (' + expression + ')')(clamp);
-    if (isNaN(result)) {
-      console.error(`evaluateFormulaAtTime: formula "${formula}" evaluated to NaN at ${targetDate} (expanded: "${expression}")`);
+    const result = evaluate(parseFormulaCached(formula), lookup);
+    if (result === null || isNaN(result)) {
+      console.error(`evaluateFormulaAtTime: formula "${formula}" evaluated to NaN at ${targetDate}`);
       return 0;
     }
     return result;
   } catch (e) {
-    console.error(`evaluateFormulaAtTime: formula "${formula}" threw at ${targetDate} (expanded: "${expression}"):`, e);
+    console.error(`evaluateFormulaAtTime: formula "${formula}" is invalid at ${targetDate}:`, (e as Error).message);
     return 0;
   }
 }
@@ -117,43 +88,12 @@ export function validateFormula(formula: string, metricNames: Set<string>): Form
     }
   }
 
-  const stripCalls = (s: string): string => {
-    const fns = ['min', 'max', 'pow', 'sqrt', 'abs', 'clamp', 'log10', 'log'];
-    let r = s;
-    for (const fn of fns) {
-      const re = new RegExp(fn + '\\s*\\(', 'g');
-      const m = re.exec(r);
-      if (m) {
-        let d = 1;
-        let i = m.index + m[0].length;
-        while (i < r.length && d > 0) {
-          if (r[i] === '(') d++;
-          else if (r[i] === ')') d--;
-          i++;
-        }
-        r = r.slice(0, m.index) + '0' + r.slice(i);
-        return stripCalls(r);
-      }
-    }
-    return r;
-  };
-  if (stripCalls(formula).includes(',')) {
-    warnings.push({ type: 'syntax_error', message: 'Comma in formula discards left side (use + to add terms)' });
-  }
-
-  let testExpr = formula;
-  testExpr = testExpr.replace(/\{([^}]+)\}/g, '0');
-  testExpr = testExpr.replace(/sqrt\(/g, 'Math.sqrt(');
-  testExpr = testExpr.replace(/abs\(/g, 'Math.abs(');
-  testExpr = testExpr.replace(/log10\(/g, 'Math.log10(');
-  testExpr = testExpr.replace(/log\(/g, 'Math.log(');
-  testExpr = testExpr.replace(/min\(/g, 'Math.min(');
-  testExpr = testExpr.replace(/max\(/g, 'Math.max(');
-  testExpr = testExpr.replace(/pow\(/g, 'Math.pow(');
-  const clampFn = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+  // Parse against the grammar in docs/formulas.md; the error carries the column.
+  // Then evaluate with every reference at 0 to catch results that are NaN for
+  // any input (sqrt of a negative literal, log(0) style mistakes).
   try {
-    const result = Function('clamp', 'return (' + testExpr + ')')(clampFn);
-    if (typeof result !== 'number' || isNaN(result)) {
+    const result = evaluate(parseFormulaCached(formula), () => 0);
+    if (result === null || typeof result !== 'number' || isNaN(result)) {
       warnings.push({ type: 'syntax_error', message: 'Formula evaluates to NaN' });
     }
   } catch (e) {

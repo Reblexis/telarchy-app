@@ -35,7 +35,7 @@ re-read first.
 
 ### CRITICAL
 
-**C1 - Server-side RCE via metric formula evaluation.** `[ ]`
+**C1 - Server-side RCE via metric formula evaluation.** `[x]` **FIXED 2026-08-24**: `Function()` is gone; formulas go through the hand-written tokenizer, parser and evaluator in `functions/src/lib/formula/` that accept exactly the grammar in `docs/formulas.md`; a test fails the build if any JavaScript evaluation of a formula returns. Production held zero non-leaf formulas at the switch (`scripts/formula-parity.mjs`: no differences).
 `functions/src/lib/metrics-engine.ts` runs user-authored formulas with the
 `Function()` constructor and no character allowlist; `validateFormula` only
 warns. Any workspace owner/admin can store a formula that executes arbitrary
