@@ -467,11 +467,12 @@ as part of the platform" could reasonably wonder. The published rules now say
 it outright, in `docs/legal/season-0-rules.md`, the served copy in
 `routes/legal.ts`, and the season page's rule-change line. Their trades in
 their own workspace count like any other, because the score already runs over
-every public workspace. Added in the same edit, because an owner can set the
-metric their own position pays on: the disqualification clause now also names
-using control of a workspace's metrics or markets to move one's own score. No
-code change: eligibility was never enforced against owners, so there is
-nothing to relax.
+every public workspace. A clause naming "control of a workspace's metrics or
+markets to move one's own score" as grounds for disqualification was proposed
+in the same edit, because an owner can set the metric their own position pays
+on; **declined the same day (owner: "drop that too no restrictions")**, so the
+disqualification line stays as it was. No code change: eligibility was never
+enforced against owners, so there is nothing to relax.
 
 ## What shipped on 2026-08-19
 

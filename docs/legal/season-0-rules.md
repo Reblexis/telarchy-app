@@ -96,8 +96,7 @@ result on any recount.
   trades in that workspace count like any other; the score already runs over
   every public workspace. Being a workspace owner is not being the platform.
 - We may disqualify entries that we determine, acting reasonably, are one
-  person running several accounts, collude to distort prices, or use control
-  of a workspace's metrics or markets to move their own score.
+  person running several accounts, or collude to distort prices.
 
 ## Getting paid
 
