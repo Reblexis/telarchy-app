@@ -453,6 +453,14 @@ export const metrics = pgTable(
      * 2026-08-17).
      */
     resetsEvery: text('resets_every'),
+    /**
+     * While this metric has no logged reading at or before a market's
+     * resolution instant, that market voids (N/A, everyone refunded) instead
+     * of settling on `value`. For a number that does not exist until an event
+     * happens, e.g. the valuation implied by an investment (owner ask
+     * 2026-08-25). The first reading ends the state for good.
+     */
+    resolvesNaUntilMeasured: boolean('resolves_na_until_measured').notNull().default(false),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },

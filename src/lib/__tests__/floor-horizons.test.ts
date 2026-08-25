@@ -13,6 +13,7 @@ import {
   priceSeriesOf,
   primaryHorizonOf,
   settleDayOf,
+  settleNoteOf,
   settleShortOf,
   stepDate,
   stepMetric,
@@ -468,5 +469,47 @@ describe('a floor that prices several metrics', () => {
   test('a day that has ended is a date, not "today"', () => {
     const later = buildHorizonViews(ws({ markets: GRID, horizonHistories: [] }), new Date('2026-08-26T00:30:00Z'));
     expect(dateLineOf(horizonById(later, 'rev-day'))).toBe('@ 25 Aug');
+  });
+});
+
+/**
+ * A number that does not exist yet (owner ask 2026-08-25): the settle note
+ * says the market is N/A until the metric has a reading, and only then.
+ */
+describe('a market on a number that does not exist yet', () => {
+  const flagged = (measured: boolean) =>
+    buildHorizonViews(
+      ws({
+        markets: [YEAR],
+        horizonHistories: [
+          {
+            marketId: 'm-year',
+            metricName: YEAR.metricName,
+            targetDate: '2026-12',
+            resolvesNaUntilMeasured: true,
+            measured,
+            description: null,
+            points: [],
+          },
+        ],
+      }),
+    )[0];
+
+  test('unmeasured: the note says N/A and refunds', () => {
+    const v = flagged(false);
+    expect(v.settlesNaForNow).toBe(true);
+    expect(settleNoteOf(v)).toBe('resolves 31 December 2026, or N/A (all bets refunded) if there is still no reading');
+  });
+
+  test('measured once: a plain settle note, whatever the points array holds', () => {
+    const v = flagged(true);
+    expect(v.settlesNaForNow).toBe(false);
+    expect(settleNoteOf(v)).toBe('resolves 31 December 2026');
+  });
+
+  test('an ordinary metric never claims N/A', () => {
+    const v = buildHorizonViews(ws())[0];
+    expect(v.settlesNaForNow).toBe(false);
+    expect(settleNoteOf(null)).toBeUndefined();
   });
 });

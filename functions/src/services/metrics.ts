@@ -210,6 +210,7 @@ export async function getAllMetrics(workspaceId: string): Promise<Metric[]> {
         ? (row.timePreference as TimePreference)
         : undefined,
       marketRangeMax: row.marketRangeMax ?? undefined,
+      resolvesNaUntilMeasured: row.resolvesNaUntilMeasured ?? false,
     })),
     map,
     untradedKeys,

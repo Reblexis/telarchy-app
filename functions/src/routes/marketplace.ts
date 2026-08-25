@@ -380,6 +380,7 @@ async function buildFloorPayload(ws: PublicWs) {
       order: metrics.order,
       description: metrics.description,
       resetsEvery: metrics.resetsEvery,
+      resolvesNaUntilMeasured: metrics.resolvesNaUntilMeasured,
     })
     .from(metrics)
     .where(eq(metrics.workspaceId, workspaceId));
@@ -483,6 +484,8 @@ async function buildFloorPayload(ws: PublicWs) {
         targetDate: string;
         periodStart: string;
         resetsEvery: string | null;
+        resolvesNaUntilMeasured: boolean;
+        measured: boolean;
         description: string | null;
         points: Array<{ at: Date | null; value: number }>;
       }>
@@ -631,6 +634,11 @@ async function buildFloorPayload(ws: PublicWs) {
         targetDate: target,
         periodStart: periodStartInstant(target).toISOString(),
         resetsEvery: metricRow?.resetsEvery ?? null,
+        // The metric's N/A declaration and whether a reading exists at all,
+        // stated outright: the page must not infer "unmeasured" from an empty
+        // points array, which a resetting metric ships inside a fresh period.
+        resolvesNaUntilMeasured: metricRow?.resolvesNaUntilMeasured ?? false,
+        measured: rows.length > 0,
         description: metricRow?.description ?? null,
         points: rows.filter(r => inPeriod(r.at)),
       });

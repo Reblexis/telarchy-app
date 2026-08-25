@@ -471,6 +471,10 @@ export interface PublicWorkspace {
     /** The period this metric restarts on, or null when it never does. Set,
         `points` carries only readings from inside this market's own period. */
     resetsEvery?: string | null;
+    /** The metric voids its markets (N/A) while it has no reading at all. */
+    resolvesNaUntilMeasured?: boolean;
+    /** Whether any reading exists; never inferred from `points`. */
+    measured?: boolean;
     description: string | null;
     points: Array<{ at: string | null; value: number }>;
   }>;

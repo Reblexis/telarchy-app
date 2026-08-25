@@ -57,6 +57,14 @@ For agent-proposed proposals approved 90+ days ago, correlate the metric impact 
 - **How to compute:** Telarchy has no paid tier and no revenue rail today, so there is nothing to sync and the value is $0. Until a rail exists, the owner logs each payment by hand as a metric update with a note naming the payer category and amount; the metric log is public, so a trader can audit every reading. This is the one hero metric the owner CAN edit, and the market's description says so. When a rail exists (Stripe or the Wise business account), `scripts/telarchy-self-sync.js` pushes the trailing-30-day sum from it and the owner's hand is taken off, the same way `weeklyActiveVerifiedTraders` is pushed verbatim from `/api/marketplace/stats`.
 - **Markets:** today, this week, this month (`+0d`, `+0w`, `+0m`), like every metric on a public floor (docs/ui-conventions.md, "Two steppers"). Range 0 to 1,000.
 
+### Implied valuation (USD)
+
+**Added 2026-08-25 (Viktor: "another metric of telarchy should be valuation essentially if invested in what is the implied valuation.. if not invested.. it resovles N/A").** The post-money valuation implied by the most recent closed investment in Telarchy: a priced round at its post-money; a SAFE or convertible note at its valuation cap; a secondary sale at the price it implies. USD.
+
+- **Why this metric:** it is the market's answer to "what is this worth", asked on a date, and a forecaster can only be paid for it when the world answers too.
+- **How to compute:** nothing to sync. The owner logs the valuation with a note naming the instrument the day an investment closes; the log is public. Until then the metric has no reading and is declared `resolvesNaUntilMeasured`, so every market on it voids (N/A, all bets refunded) at its instant instead of settling on a number that does not exist (docs/ui-conventions.md, "A market on a number that does not exist yet").
+- **Markets:** today, this week, this month, like every floor metric. Range 0 to 20,000,000.
+
 ## Notes
 
 - **Why the revenue metric is a level, not ARR:** ARR, growth rate and NRR move to the top of this list once the paid managed tier is live. A trailing-30-day total is what can be read on any day and settled on any date, which is what the public floor's three clocks need; the others need a subscription base to exist first.

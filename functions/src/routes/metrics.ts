@@ -73,9 +73,23 @@ metricsRouter.post(
   requireCapability('manage'),
   wrap(async (req, res) => {
     const { workspaceId } = req.auth!;
-    const { name, description = '', value = 0, formula = '0', timePreference, marketRangeMax, resetsEvery } = req.body;
+    const {
+      name,
+      description = '',
+      value = 0,
+      formula = '0',
+      timePreference,
+      marketRangeMax,
+      resetsEvery,
+      resolvesNaUntilMeasured,
+    } = req.body;
     if (!name) {
       res.status(400).json({ error: 'name is required' });
+      return;
+    }
+    const naUntilMeasured = parseNaUntilMeasured(resolvesNaUntilMeasured);
+    if (naUntilMeasured instanceof Error) {
+      res.status(400).json({ error: naUntilMeasured.message });
       return;
     }
     const resets = parseResetsEvery(resetsEvery);
@@ -116,6 +130,7 @@ metricsRouter.post(
       timePreference: effectiveTP,
       marketRangeMax: marketRangeMax ?? 1000,
       resetsEvery: resets ?? null,
+      resolvesNaUntilMeasured: naUntilMeasured ?? false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -159,7 +174,19 @@ metricsRouter.put(
   wrap(async (req, res) => {
     const { workspaceId } = req.auth!;
     const id = req.params.id as string;
-    const { oldValue, updateNote = '', timePreference: rawTP, resetsEvery: rawResets, ...fields } = req.body;
+    const {
+      oldValue,
+      updateNote = '',
+      timePreference: rawTP,
+      resetsEvery: rawResets,
+      resolvesNaUntilMeasured: rawNa,
+      ...fields
+    } = req.body;
+    const newNa = parseNaUntilMeasured(rawNa);
+    if (newNa instanceof Error) {
+      res.status(400).json({ error: newNa.message });
+      return;
+    }
 
     const newTP = parseTimePreference(rawTP);
     if (newTP instanceof Error) {
@@ -186,7 +213,7 @@ metricsRouter.put(
     for (const key of allowed) {
       if (fields[key] !== undefined) update[key] = fields[key];
     }
-    if (Object.keys(update).length === 0 && rawTP === undefined && newResets === undefined) {
+    if (Object.keys(update).length === 0 && rawTP === undefined && newResets === undefined && newNa === undefined) {
       res.status(400).json({ error: 'No fields to update' });
       return;
     }
@@ -246,6 +273,7 @@ metricsRouter.put(
     if (update.marketRangeMax !== undefined) dbUpdate.marketRangeMax = (update.marketRangeMax as number | null) ?? 1000;
     if (update.timePreference !== undefined) dbUpdate.timePreference = update.timePreference as TimePreference | null;
     if (newResets !== undefined) dbUpdate.resetsEvery = newResets;
+    if (newNa !== undefined) dbUpdate.resolvesNaUntilMeasured = newNa;
     dbUpdate.updatedAt = new Date();
 
     const isLeafMetric = !effectiveFormula || effectiveFormula.trim() === '0';
@@ -516,6 +544,18 @@ export function parseResetsEvery(raw: unknown): ResetPeriod | null | undefined |
     return new Error(`resetsEvery must be null or one of ${RESET_PERIODS.join(', ')}`);
   }
   return raw as ResetPeriod;
+}
+/**
+ * Parse `resolvesNaUntilMeasured`. `undefined` = field absent (no change).
+ * A market on a never-measured metric voids instead of settling on the
+ * default 0 (docs/ui-conventions.md, "A market on a number that does not
+ * exist yet"); like resetsEvery, changing it never voids an open market by
+ * itself, it only changes what happens at the instant.
+ */
+export function parseNaUntilMeasured(raw: unknown): boolean | undefined | Error {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== 'boolean') return new Error('resolvesNaUntilMeasured must be a boolean');
+  return raw;
 }
 const RELATIVE_HORIZON_RE = /^\+(\d+)(h|d|w|m|y)$/;
 

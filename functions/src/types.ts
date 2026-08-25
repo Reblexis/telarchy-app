@@ -25,6 +25,8 @@ export interface Metric {
   updatedAt?: string;
   timePreference?: TimePreference;
   marketRangeMax?: number;
+  /** Markets void (N/A) while the metric has no logged reading; see schema. */
+  resolvesNaUntilMeasured?: boolean;
   timeSeries?: Array<{ date: string; value: number }>;
   missingMarkets?: string[];
   /** Half-life inherited from the nearest TP-enabled ancestor. Set on descendants

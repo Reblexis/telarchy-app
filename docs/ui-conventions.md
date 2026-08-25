@@ -1285,6 +1285,47 @@ three-date floor left the daily markets with no chart. The cap is gone; the
 metric log is read once per distinct metric, not once per market, so the cost
 is per metric and the cap had nothing left to protect.
 
+### A market on a number that does not exist yet resolves N/A (owner ask 2026-08-25)
+
+**The ask.** "another metric of telarchy should be valuation essentially if
+invested in what is the implied valuation.. if not invested.. it resovles N/A
+same for LookPilot".
+
+**The rule.** A metric can declare `resolvesNaUntilMeasured` (POST/PUT
+`/api/metrics`). While such a metric has NO logged reading at or before a
+market's resolution instant, that market does not settle on a number: it is
+VOIDED, every position refunded, with the reason published on the void. The
+first reading ends the state for good: from then on the metric is a level like
+any other and every later market settles on the value as of its instant. The
+metric's `value` column plays no part (a never-measured metric carries the
+default 0, and settling "no investment" as "$0 valuation" is the wrong answer
+the flag exists to prevent). Without the flag nothing changes: a market with
+no reading before its boundary still falls back to the live value, as it always
+did.
+
+Why a void and not a special resolution value: N/A is what the market IS when
+its question has no answer, and the engine already has exactly one honest
+shape for that (refund everyone, publish why). A "resolved at 0" would pay the
+LOWER side for an event that did not happen; a synthetic sentinel would need
+every surface that reads `actualValue` to know about it.
+
+**What the floor says.** Under the price, the settle note reads "resolves 30
+September 2026, or N/A (all bets refunded) if there is still no reading" for
+a flagged metric that has no reading yet; once a reading exists the note is
+the plain "resolves ..." again. The flag travels on `horizonHistories` as
+`resolvesNaUntilMeasured` beside `resetsEvery`, and `measured` says whether a
+reading exists, so the page never infers either from the points array (a
+resetting metric ships an empty array inside a fresh period, which is not
+"unmeasured").
+
+**The two valuation metrics.** "Implied valuation (USD)" on both public
+floors: the post-money valuation implied by the most recent closed
+investment (a priced round; a SAFE or note counts at its valuation cap; a
+secondary sale at its implied price), in USD. The owner logs it with a note
+when an investment closes, and the log is public. Read on the same three
+dates as every other floor metric, so "this month" asks: if money comes in by
+the 31st, at what valuation, and pays nobody if it does not.
+
 ## The data room
 
 `telarchy.com/data-room` (`DataRoomPage`, `.dr-*`) is a document, so it takes

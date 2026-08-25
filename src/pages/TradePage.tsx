@@ -34,7 +34,7 @@ import {
   type PriceSeries,
   priceSeriesIsInline,
   priceSeriesOf,
-  settleDayOf,
+  settleNoteOf,
   stepDate,
   stepMetric,
 } from '../lib/floor-horizons';
@@ -1321,7 +1321,7 @@ export function TradePage() {
                   series={active.history.length > 0 ? active.history : [{ at: new Date().toISOString(), consensus }]}
                   consensus={consensus}
                   unit={unit}
-                  note={settleDayOf(hero.targetDate) ? `resolves ${settleDayOf(hero.targetDate)}` : undefined}
+                  note={settleNoteOf(hero)}
                   preview={chartPreview}
                   orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
                   /* Only ever the other BRANCH: same metric, same window,

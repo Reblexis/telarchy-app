@@ -51,6 +51,20 @@ async function resolveMarketRow(
   // after the boundary count toward the next fixing, never this one.
   const boundary = periodEndInstant(market.targetDate);
   let rawValue = await metricValueAsOf(market.metricId, boundary, workspaceId);
+  if (rawValue === null && metric.resolvesNaUntilMeasured) {
+    // A number that does not exist yet has no fixing (owner ask 2026-08-25:
+    // "if not invested.. it resolves N/A"). The market is N/A: voided, every
+    // position refunded, the reason published. The default `value` of a
+    // never-measured metric is 0, and "$0 valuation" is the wrong answer this
+    // rule exists to prevent. docs/ui-conventions.md, "A market on a number
+    // that does not exist yet resolves N/A".
+    const voided = await voidMarket(
+      market,
+      workspaceId,
+      `N/A: "${market.metricName}" had no reading by ${boundary.toISOString()}, so there is nothing to settle on. Every position was refunded.`,
+    );
+    return { positions: voided.refunded, totalPayout: 0, skipped: true };
+  }
   if (rawValue === null) {
     // No logged value at-or-before the boundary (metric predates value
     // logging or was created after the boundary). Fall back to the live

@@ -64,6 +64,12 @@ export interface HorizonView {
   metricHistory: Array<{ at: string; value: number }>;
   /** The owner's definition of this horizon's number. */
   description: string | null;
+  /**
+   * True while this market would settle N/A: its metric is declared
+   * `resolvesNaUntilMeasured` and has no reading yet (owner ask 2026-08-25,
+   * the valuation that exists only once an investment closes).
+   */
+  settlesNaForNow: boolean;
 }
 
 /** The currency in a metric name's parenthetical tail: "revenue (monthly, USD)". */
@@ -218,6 +224,7 @@ export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: D
         .flatMap(p => (p.at && Number.isFinite(p.value) ? [{ at: p.at, value: p.value }] : []))
         .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()),
       description: row?.description ?? null,
+      settlesNaForNow: !!row?.resolvesNaUntilMeasured && !row?.measured,
     };
   });
   const primary = primaryOfViews(views);
@@ -309,6 +316,19 @@ export function datesOf(views: HorizonView[], metricId: string): HorizonView[] {
  * today (between midnight and the refresh that opens the next market) shows
  * the date alone rather than "today" about a day that has ended.
  */
+/**
+ * The settle note under the price: "resolves 30 September 2026", or, for a
+ * number that does not exist yet, the same with what happens if it still
+ * does not: "resolves 30 September 2026, or N/A (all bets refunded) if there
+ * is still no reading".
+ */
+export function settleNoteOf(v: HorizonView | null): string | undefined {
+  if (!v?.settleDay) return undefined;
+  return v.settlesNaForNow
+    ? `resolves ${v.settleDay}, or N/A (all bets refunded) if there is still no reading`
+    : `resolves ${v.settleDay}`;
+}
+
 export function dateLineOf(v: HorizonView | null): string {
   if (!v) return '';
   const at = v.settleShort ? `@ ${v.settleShort}` : '';
