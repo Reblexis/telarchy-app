@@ -1567,6 +1567,7 @@ export function TradePage() {
               proposals={ws.proposals}
               unit={unit}
               horizonDate={hero.targetDate}
+              horizonMetricId={hero.metricId}
               selectedId={selectedJobId}
               onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
               signedIn={!!user}

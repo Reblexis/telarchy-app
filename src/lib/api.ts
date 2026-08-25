@@ -550,7 +550,8 @@ export interface PublicProposal {
    *  The marker is public; the log itself is GET /api/proposals/:id/revisions
    *  (docs/market-integrity.md, I1b). */
   editedAt?: string | null;
-  /** Total conditional pairs; `markets` carries only the largest-impact few. */
+  /** Total conditional pairs; equals `markets.length` since 2026-08-26, when
+   *  the payload started shipping every pair of the metric x date grid. */
   marketPairCount: number;
   markets: PublicProposalMarketPair[];
 }

@@ -1370,6 +1370,38 @@ when an investment closes, and the log is public. Read on the same three
 dates as every other floor metric, so "this month" asks: if money comes in by
 the 31st, at what valuation, and pays nobody if it does not.
 
+### A contract ships every pair of the grid, and the board reads the pair on screen (owner report 2026-08-26)
+
+**The report.** "the impact shown doesn match the actual approved-declined
+result of the markets". Two causes, both born the day the floor became a grid:
+
+1. The payload shipped a contract's three largest-impact pairs and the count of
+   the rest. On a one-metric floor with two dates that was every pair; on a
+   two-metric, three-date floor it is half of six, and the pair of the market
+   on screen could be one of the missing three, in which case the board fell
+   back to the largest delta of any metric on any date.
+2. The board matched a pair by target date alone. Two metrics read on the
+   same date give two pairs with that date, and the first one in a list sorted
+   by impact won, so the board could print the reviews delta under the revenue
+   caption.
+
+**The rule.** A contract's `markets` carries EVERY pair the engine spawned for
+it, one per baseline market of the grid (metrics x dates is small by
+construction; `marketPairCount` stays equal to `markets.length` and is kept
+for readers that predate this). The board, the ticket and the chart all pick a
+contract's pair by (metric, date) of the horizon on screen, never by date
+alone and never by position; only a payload with no `metricId` on its pairs
+(older builds) falls back to date-only matching. The number the board prints
+is therefore, by construction, the approved consensus minus the declined
+consensus of the two markets the chart draws when that contract is opened.
+
+**Why the tests missed it.** Every fixture had one metric per date and at
+most two pairs per contract, so date-only matching was unambiguous and the
+cap never dropped anything. The suite now seeds a two-metric, three-date grid
+with six pairs per contract and asserts (a) the payload ships all six, (b)
+the board's printed impact equals approved minus declined of the pair for the
+metric AND date on screen, and (c) that pair is the one the ticket trades.
+
 ## The data room
 
 `telarchy.com/data-room` (`DataRoomPage`, `.dr-*`) is a document, so it takes

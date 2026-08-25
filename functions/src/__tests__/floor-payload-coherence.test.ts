@@ -88,6 +88,7 @@ type Horizon = {
   points: Array<{ at: string | null; value: number }>;
 };
 type Pair = {
+  metricId: string;
   metricName: string;
   targetDate: string;
   resolvesOn: string;
@@ -99,7 +100,7 @@ type Pair = {
   rangeMin: number;
   rangeMax: number;
 };
-type Proposal = { id: string; status: string; askUsd: number; markets: Pair[] };
+type Proposal = { id: string; status: string; askUsd: number; marketPairCount: number; markets: Pair[] };
 type Floor = {
   markets: Market[];
   horizonHistories: Horizon[];
@@ -461,6 +462,22 @@ describe('every horizon carries its own history', () => {
 });
 
 describe('a contract is priced on horizons this floor actually has', () => {
+  test('a contract ships every pair it was spawned with, one per baseline market', async () => {
+    // Owner report 2026-08-26: the payload shipped the three largest pairs, and
+    // on a grid of two metrics by three dates the pair of the market on screen
+    // could be one of the missing ones, so the board printed another metric's
+    // delta. marketPairCount is kept and must equal the list it counts.
+    const f = await floor();
+    const baseline = new Set(f.markets.map(m => `${m.metricId}|${m.targetDate}`));
+    for (const p of f.proposals) {
+      expect(p.markets.length).toBe(p.marketPairCount);
+      const keys = p.markets.map(m => `${m.metricId}|${m.targetDate}`);
+      expect(new Set(keys).size).toBe(keys.length);
+      for (const k of keys) expect(baseline.has(k)).toBe(true);
+      for (const m of p.markets) expect(typeof m.metricId).toBe('string');
+    }
+  });
+
   test('every pending pair sits on an open horizon', async () => {
     // The failure this pins: the weekly baseline rolled to a new week and the
     // contracts' weekly pairs stayed on the old one, so the ballot showed an

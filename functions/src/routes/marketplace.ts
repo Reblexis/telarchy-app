@@ -789,9 +789,13 @@ async function buildFloorPayload(ws: PublicWs) {
         rangeMin: g.rangeMin,
         rangeMax: g.rangeMax,
       }));
-      // A many-metric workspace spawns a pair per metric x horizon; the public
-      // page reads only the headline, so ship the largest-impact few and the
-      // total count instead of the whole matrix.
+      // Every pair, largest impact first. This used to ship the three largest
+      // of the matrix, which was all of them on a one-metric floor and half of
+      // them once a floor priced two metrics on three dates, so the pair of
+      // the market on screen could be missing and the board printed the
+      // largest delta of some other metric instead (owner report 2026-08-26,
+      // docs/ui-conventions.md "A contract ships every pair of the grid").
+      // The matrix is metrics x dates, small by construction.
       pairs.sort((a, b) => Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0));
       return {
         id: p.id,
@@ -809,7 +813,7 @@ async function buildFloorPayload(ws: PublicWs) {
         createdAt: p.createdAt,
         editedAt: editedAtById.get(p.id) ?? null,
         marketPairCount: pairs.length,
-        markets: pairs.slice(0, 3),
+        markets: pairs,
       };
     });
     // Pending jobs lead (the live ballot), decided ones follow (most recently

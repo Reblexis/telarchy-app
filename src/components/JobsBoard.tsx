@@ -45,6 +45,11 @@ interface Props {
       the ballot ranks and prints. Null before the markets arrive, where the
       largest-impact fallback stands. */
   horizonDate?: string | null;
+  /** The metric of that horizon. With two metrics read on one date a pair is
+      only identified by BOTH (owner report 2026-08-26: the board printed one
+      metric's delta under the other's caption). Absent on a payload that
+      predates metricId on pairs, where date alone still has to do. */
+  horizonMetricId?: string | null;
   /** Workspace name, for the "do something useful for X?" propose prompt. */
   workspaceName: string;
   /** The numbers this floor prices, for the form's placeholders. A proposer
@@ -89,11 +94,22 @@ function headlineDelta(p: PublicProposal): number | null {
   return deltas.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), deltas[0]);
 }
 
-/** This contract's priced impact on one horizon. */
-
-function deltaAt(p: PublicProposal, targetDate: string | null | undefined): number | null {
+/**
+ * This contract's priced impact on one horizon: the pair for the metric AND
+ * the date on screen. Date alone picked the first pair on that date, which
+ * on a floor with two metrics read on one date was whichever had the larger
+ * delta (owner report 2026-08-26).
+ */
+export function deltaAt(
+  p: PublicProposal,
+  targetDate: string | null | undefined,
+  metricId?: string | null,
+): number | null {
   if (!targetDate) return null;
-  return p.markets.find(m => m.targetDate === targetDate)?.delta ?? null;
+  const pair = p.markets.find(
+    m => m.targetDate === targetDate && (!metricId || m.metricId === undefined || m.metricId === metricId),
+  );
+  return pair?.delta ?? null;
 }
 
 export function JobsBoard({
@@ -107,11 +123,12 @@ export function JobsBoard({
   workspaceName,
   metricNames = [],
   horizonDate,
+  horizonMetricId,
 }: Props) {
   const navigate = useNavigate();
   // The number the charter funds on, falling back to the largest priced delta
   // before the floor's horizon is known.
-  const impactOf = (p: PublicProposal) => deltaAt(p, horizonDate) ?? headlineDelta(p);
+  const impactOf = (p: PublicProposal) => deltaAt(p, horizonDate, horizonMetricId) ?? headlineDelta(p);
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
   const [title, setTitle] = useState('');
