@@ -33,9 +33,6 @@ const statsCache = ttlCache({
 });
 
 /** Test seam. */
-export function clearPlatformStatsCache(): void {
-  statsCache.clear();
-}
 
 export function platformStats(): Promise<PlatformStats> {
   return statsCache.get();

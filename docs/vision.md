@@ -100,9 +100,9 @@ form that asks for a name, a number and a ceiling is the console's
 create-workspace flow with better typography, and the sentence above says the
 operator experience is being designed rather than restored. `/manage` therefore
 stays a door to a conversation, and the first operators are set up by a human,
-which is what `docs/outreach/concierge/` already assumes. The open question,
+which is what the concierge programme (private notes) already assumes. The open question,
 what Telarchy offers an operator and what setting one up consists of, is
-`docs/operator-setup.md`; the screen follows the answer, not the other way
+the operator-door design note (private notes); the screen follows the answer, not the other way
 round.
 
 Three mechanisms stack, always in this order:

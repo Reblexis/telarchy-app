@@ -1,5 +1,5 @@
 /**
- * Otto on the operator door (docs/operator-setup.md, owner direction
+ * Otto on the operator door (the operator-door design note, owner direction
  * 2026-08-22).
  *
  * Three things are pinned, and none of them is "the model answered":

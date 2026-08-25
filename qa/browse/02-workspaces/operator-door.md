@@ -19,7 +19,7 @@ goal-statement: |
 
 `POST /api/setup/ask`, `GET /api/setup/checklist`, `src/components/SetupChat.tsx`
 and the specification in `functions/src/lib/setup-spec.ts`. The behavioural
-contract is `docs/operator-setup.md`.
+contract is the operator-door design note (private notes).
 
 Three claims are worth a test, and none of them is "the model answered":
 
@@ -145,7 +145,7 @@ a map of what is not yet defended.
 
 - Nothing here asserts that the handoff is any GOOD, only that it is safe and
   present. Whether an agent can actually finish a setup from it was checked by
-  hand against beta on 2026-08-23 (see `docs/operator-setup.md`) and has no
+  hand against beta on 2026-08-23 (see the operator-door design note, private notes) and has no
   automated equivalent.
 - The clipboard path in T2 is asserted in `SetupChat.test.tsx` rather than
   here; headless clipboard permissions vary by runner.

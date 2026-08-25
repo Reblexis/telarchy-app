@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
 /**
- * Otto on the operator door (docs/operator-setup.md).
+ * Otto on the operator door (the operator-door design note).
  *
  * The behaviour worth pinning is what the page believes about the world. Otto
  * is a model: he can say "your floor is live" when nothing was created. The

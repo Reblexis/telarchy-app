@@ -336,7 +336,7 @@ app.use('/api/proposals', proposalsRouter);
 app.use(/^\/api\/marketplace\/[^/]+\/ask$/, askLimiter);
 app.use('/api/marketplace', marketplaceRouter);
 // The operator door's conversation spends the same money as the floor's, so
-// it sits behind the same narrow limiter (docs/operator-setup.md).
+// it sits behind the same narrow limiter (the operator-door design note).
 app.use('/api/setup/ask', askLimiter);
 // This door answers an anonymous visitor too, and it needs to KNOW which it is
 // talking to, since what Otto may promise depends on whether the caller can act

@@ -64,7 +64,6 @@ const CRYPTO_ADDRESS: Record<string, RegExp> = {
   solana: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
 };
 
-export const PAYOUT_PROVIDERS = ['paypal', 'bank', 'crypto', 'revolut', 'wise', 'other'] as const;
 export const CRYPTO_NETWORKS = ['ethereum', 'base', 'arbitrum', 'optimism', 'polygon', 'solana', 'bitcoin'] as const;
 export type CryptoNetwork = typeof CRYPTO_NETWORKS[number];
 

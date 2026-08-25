@@ -22,8 +22,8 @@ trading profit marked to current market prices (owner direction 2026-08-14;
 calibration and accuracy are reported per row but are not the ranking key),
 anonymous accessibility, and the path-to-register CTA.
 
-Maps to `docs/outreach/concierge/program.md` (CP1 stage 1) and persona 10
-(`docs/personas/10-polymarket-refugee.md` "looks for a leaderboard").
+Maps to the concierge programme (CP1 stage 1) and the polymarket-refugee persona
+("looks for a leaderboard"), both in the private notes.
 
 ## Preconditions
 

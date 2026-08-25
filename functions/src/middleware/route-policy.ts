@@ -44,7 +44,7 @@ export const OPTIONAL_AUTH_PREFIXES: ReadonlyArray<{ prefix: string; why: string
   { prefix: '/api/agents', why: 'register and public profiles are anonymous; agentsRouter.use(authMiddleware) fences the private half' },
   { prefix: '/api/events', why: 'SSE stream gates per route on req.auth' },
   { prefix: '/api/marketplace', why: 'public listing and floors; join/ask gate per route' },
-  { prefix: '/api/setup', why: 'the operator door answers anonymous visitors and must know it (docs/operator-setup.md)' },
+  { prefix: '/api/setup', why: 'the operator door answers anonymous visitors and must know it (the operator-door design note)' },
   { prefix: '/api/leaderboard', why: 'public board' },
   { prefix: '/api/seasons', why: 'public season pages; lifecycle routes gate on platform admin' },
   { prefix: '/api/notifications', why: 'per-route gates; consent applied at the mount' },

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { authClient } from '../lib/auth-client';
 import { setActiveWorkspace } from '../lib/api';
-import { clearCache, clearSessionCache } from '../lib/cache';
 
 export interface AppUser {
   id: string;
@@ -39,8 +38,6 @@ export function useAuth() {
     const prevUid = prevUidRef.current;
     if (prevUid && prevUid !== nextUid) {
       setActiveWorkspace(null);
-      clearCache();
-      clearSessionCache();
       localStorage.removeItem('inspectProposal');
     }
     prevUidRef.current = nextUid;

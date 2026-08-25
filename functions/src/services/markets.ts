@@ -240,27 +240,6 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
   return pending.length;
 }
 
-/**
- * Recreate markets for a standalone (non-TP-managed) metric at specific target dates.
- * Uses workspace auto-fund settings if available, otherwise falls back to AMM defaults.
- */
-export async function recreateMarketsForMetric(
-  metricId: string,
-  metricName: string,
-  targetDates: string[],
-  rangeMax: number,
-  workspaceId: string,
-): Promise<void> {
-  const pending: PendingMarket[] = targetDates.map(targetDate => ({
-    marketId: randomUUID(), metricId, metricName, targetDate, rangeMax,
-  }));
-  await insertPendingMarkets(pending, workspaceId);
-  for (const p of pending) {
-    emitEvent('market:created', { marketId: p.marketId, metricName, targetDate: p.targetDate }, workspaceId)
-      .catch(e => console.error('emitEvent failed:', e));
-  }
-}
-
 /** Acquire a named lock using systemConfig as a lock table. Returns true if acquired. */
 async function acquireLock(lockKey: string, ttlMs: number): Promise<boolean> {
   return db.transaction(async tx => {

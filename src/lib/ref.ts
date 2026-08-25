@@ -4,11 +4,11 @@
  * came from (docs/agent-economy.md, "Attribution"). The slug grammar matches the
  * backend's (functions/src/lib/attribution.ts): [a-z0-9-]{1,32}.
  */
-export const REF_COOKIE = 'ta_ref';
+const REF_COOKIE = 'ta_ref';
 export const REF_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 const SLUG = /^[a-z0-9-]{1,32}$/;
 
-export function isValidRef(v: string | null | undefined): v is string {
+function isValidRef(v: string | null | undefined): v is string {
   return typeof v === 'string' && SLUG.test(v);
 }
 

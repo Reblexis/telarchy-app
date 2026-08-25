@@ -716,37 +716,6 @@ async function agentRequest(path: string, apiKey: string, options: RequestInit =
   return data;
 }
 
-export const agentApi = {
-  register: async (agentId: string): Promise<{ agentId: string; apiKey: string }> => {
-    const res = await fetch(`${API_BASE}/api/agents/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agentId }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Registration failed');
-    return data;
-  },
-  getProfile: (_agentId: string, apiKey: string) =>
-    agentRequest('/api/agents/me', apiKey),
-  getDashboard: (_agentId: string, apiKey: string) =>
-    agentRequest('/api/agents/me/dashboard', apiKey),
-  getMarkets: (agentId: string, apiKey: string) =>
-    agentRequest('/api/predictions/markets', apiKey),
-  getPositions: (agentId: string, apiKey: string, marketId?: string) => {
-    const qs = marketId ? `?marketId=${marketId}` : '';
-    return agentRequest(`/api/predictions/positions${qs}`, apiKey);
-  },
-  trade: (agentId: string, apiKey: string, body: Record<string, unknown>) =>
-    agentRequest('/api/predictions/trade', apiKey, { method: 'POST', body: JSON.stringify(body) }),
-  setWallet: (_agentId: string, apiKey: string, walletAddress: string) =>
-    agentRequest('/api/agents/me/wallet', apiKey, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
-  deposit: (_agentId: string, apiKey: string, txHash: string) =>
-    agentRequest('/api/agents/me/deposit', apiKey, { method: 'POST', body: JSON.stringify({ txHash }) }),
-  withdraw: (_agentId: string, apiKey: string, amount: number) =>
-    agentRequest('/api/agents/me/withdraw', apiKey, { method: 'POST', body: JSON.stringify({ amount }) }),
-};
-
 const activeWorkspaceListeners = new Set<() => void>();
 
 export function setActiveWorkspace(id: string | null): void {
@@ -768,15 +737,8 @@ export function setActiveWorkspace(id: string | null): void {
 
 /** The last-used / URL-driven active workspace id. Used to upgrade flat routes
  *  (/metrics) to the namespaced /{ownerHandle}/{slug}/metrics form. */
-export function getActiveWorkspace(): string | null {
-  return activeWorkspaceId;
-}
 
 /** Subscribe to active-workspace changes. Returns an unsubscribe function. */
-export function onActiveWorkspaceChange(cb: () => void): () => void {
-  activeWorkspaceListeners.add(cb);
-  return () => { activeWorkspaceListeners.delete(cb); };
-}
 
 /**
  * Fired after any successful mutating API call. Mutations are how credits
@@ -1152,7 +1114,7 @@ export const api = {
     }, true),
 
   /** Otto on the operator door: the setup conversation for someone who does
-   *  not have a floor yet (docs/operator-setup.md). Same shape as askFloor,
+   *  not have a floor yet (the operator-door design note). Same shape as askFloor,
    *  no workspace. `opened` is any floor that came into existence during the
    *  turn, read back from the API rather than parsed out of his answer. */
   askSetup: (

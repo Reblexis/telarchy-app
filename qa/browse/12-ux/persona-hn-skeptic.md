@@ -38,7 +38,7 @@ grade-prompt: |
 
 ## What this tests
 
-Borrowed from `docs/personas/01-hn-skeptic.md`. As a runnable spec: walk
+Borrowed from the HN-skeptic persona fixture (private notes). As a runnable spec: walk
 a skeptic through landing → marketplace → guides → /api/help, capture
 their reaction notes, screenshot every screen.
 

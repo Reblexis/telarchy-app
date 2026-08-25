@@ -30,14 +30,6 @@ export const NOTIFICATION_CHANNELS = ['web', 'email', 'mobile'] as const;
 export type NotificationChannel = typeof NOTIFICATION_CHANNELS[number];
 
 /** What each kind means, one sentence, shared by /api/help and the dialog. */
-export const KIND_LABEL: Record<NotificationKindId, string> = {
-  comment: 'Someone comments on my contract',
-  reply: 'Someone replies in a thread I am in',
-  contract: 'A new contract goes on the ballot',
-  anyComment: 'Any comment, under any contract or market',
-  settled: 'A market I traded settles',
-  decision: 'A contract I traded or commented on is decided',
-};
 
 /**
  * The defaults are the design (docs/vision.md): personal kinds, the answers
@@ -55,14 +47,6 @@ export const CHANNEL_DEFAULTS: Record<NotificationKindId, Record<NotificationCha
 };
 
 /** The legacy email column that owns each kind's email cell. */
-export const EMAIL_COLUMN: Record<NotificationKindId, 'notifyCommentOnMyProposal' | 'notifyReplyToMyComment' | 'notifyNewProposal' | 'notifyAnyComment' | 'notifyMarketResolved' | 'notifyContractDecided'> = {
-  comment: 'notifyCommentOnMyProposal',
-  reply: 'notifyReplyToMyComment',
-  contract: 'notifyNewProposal',
-  anyComment: 'notifyAnyComment',
-  settled: 'notifyMarketResolved',
-  decision: 'notifyContractDecided',
-};
 
 /** The jsonb overrides, as stored. Unknown keys are ignored on read. */
 export type ChannelOverrides = Partial<Record<NotificationKindId, { web?: boolean; mobile?: boolean }>>;
