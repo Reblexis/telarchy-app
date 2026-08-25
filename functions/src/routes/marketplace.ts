@@ -20,6 +20,7 @@ import {
 } from '../db/schema';
 import { consensus, pHigher } from '../lib/amm';
 import { type AskTurn, askAboutWorkspace, askEnabled } from '../lib/ask';
+import { type BaselineOrderKey, compareSoonestFirst, primaryOf } from '../lib/baseline-order';
 import { type ContractorEntry, type ContractorJobPair, computeContractors } from '../lib/contractors';
 import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
@@ -42,14 +43,24 @@ export const marketplaceRouter = Router();
  * on: LookPilot is "net 2026 at $78,571", not "$213 so far this week".
  * Marketplace cards, the share card, the trader context and the contractor
  * score all read this, so a visitor meets the same headline wherever they
- * arrive, and since 2026-08-17 the floor shows this market and no other.
+ * arrive, and the floor opens on this market.
  *
- * Lists arrive soonest-first, so the primary is the last element. The
- * frontend mirror is `primaryHorizonOf` in lib/floor-horizons; the two must
- * agree or a card and its floor name different numbers.
+ * Lists arrive soonest-first under `compareSoonestFirst` (lib/baseline-order),
+ * so the primary is the last element, and a tie on the settle instant between
+ * two metrics goes to the lower metric `order`. The frontend mirror is
+ * `primaryHorizonOf` in lib/floor-horizons; the two must agree or a card and
+ * its floor name different numbers.
  */
-function primaryMarket<T>(soonestFirst: T[]): T | undefined {
-  return soonestFirst.length > 0 ? soonestFirst[soonestFirst.length - 1] : undefined;
+const primaryMarket = primaryOf;
+
+/** Metric display order per id, the tie-breaker `compareSoonestFirst` reads. */
+async function metricOrdersOf(workspaceIds: string[]): Promise<Map<string, number>> {
+  if (workspaceIds.length === 0) return new Map();
+  const rows = await db
+    .select({ id: metrics.id, order: metrics.order })
+    .from(metrics)
+    .where(inArray(metrics.workspaceId, workspaceIds));
+  return new Map(rows.map(r => [r.id, r.order]));
 }
 
 marketplaceRouter.get(
@@ -68,6 +79,7 @@ marketplaceRouter.get(
     }
 
     const allMarkets: Array<Record<string, unknown>> = [];
+    const orders = await metricOrdersOf(publicWs.map(w => w.id));
 
     await Promise.all(
       publicWs.map(async ws => {
@@ -83,7 +95,9 @@ marketplaceRouter.get(
             workspaceId: ws.id,
             workspaceName: ws.name,
             marketId: m.id,
+            metricId: m.metricId,
             metricName: m.metricName,
+            metricOrder: orders.get(m.metricId) ?? null,
             targetDate: m.targetDate,
             resolvesOn: resolutionInstant(m.targetDate),
             consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
@@ -96,15 +110,10 @@ marketplaceRouter.get(
       }),
     );
 
-    // Sort within-workspace by soonest target date, then by liquidity, then
+    // Sort within-workspace soonest-first (lib/baseline-order), then
     // round-robin across workspaces so one prolific workspace doesn't dominate
     // the public marketplace list. Anonymous visitors should see breadth.
-    allMarkets.sort((a, b) => {
-      const dateDiff =
-        periodEndInstant(a.targetDate as string).getTime() - periodEndInstant(b.targetDate as string).getTime();
-      if (dateDiff !== 0) return dateDiff;
-      return (b.liquidity as number) - (a.liquidity as number);
-    });
+    allMarkets.sort((a, b) => compareSoonestFirst(a as unknown as BaselineOrderKey, b as unknown as BaselineOrderKey));
     const byWs: Map<string, Array<Record<string, unknown>>> = new Map();
     for (const m of allMarkets) {
       const wsId = m.workspaceId as string;
@@ -168,6 +177,7 @@ marketplaceRouter.get(
         ),
       );
 
+    const featuredOrders = await metricOrdersOf(publicWs.map(w => w.id));
     const out = rows
       .filter(m => !m.proposalId)
       .map(m => {
@@ -176,7 +186,9 @@ marketplaceRouter.get(
           workspaceId: m.workspaceId,
           workspaceName: wsById.get(m.workspaceId) ?? m.workspaceId,
           marketId: m.id,
+          metricId: m.metricId,
           metricName: m.metricName,
+          metricOrder: featuredOrders.get(m.metricId) ?? null,
           targetDate: m.targetDate,
           resolvesOn: resolutionInstant(m.targetDate),
           consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
@@ -188,11 +200,7 @@ marketplaceRouter.get(
         };
       });
 
-    out.sort((a, b) => {
-      const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
-      if (dateDiff !== 0) return dateDiff;
-      return b.liquidity - a.liquidity;
-    });
+    out.sort(compareSoonestFirst);
 
     res.json(out);
   }),
@@ -364,6 +372,19 @@ async function buildFloorPayload(ws: PublicWs) {
     .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), eq(markets.active, true)));
 
+  // One read of the workspace's metric rows serves the order tie-break, the
+  // per-horizon description and the reset rule below.
+  const metricRows = await db
+    .select({
+      id: metrics.id,
+      order: metrics.order,
+      description: metrics.description,
+      resetsEvery: metrics.resetsEvery,
+    })
+    .from(metrics)
+    .where(eq(metrics.workspaceId, workspaceId));
+  const metricById = new Map(metricRows.map(r => [r.id, r]));
+
   const marketList = wsMarkets
     .filter(m => !m.proposalId)
     .map(m => {
@@ -372,6 +393,9 @@ async function buildFloorPayload(ws: PublicWs) {
         marketId: m.id,
         metricId: m.metricId,
         metricName: m.metricName,
+        // The headline tie-breaker and the metric stepper's order, so the
+        // client computes the same primary the server did.
+        metricOrder: metricById.get(m.metricId)?.order ?? null,
         targetDate: m.targetDate,
         resolvesOn: resolutionInstant(m.targetDate),
         consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
@@ -382,11 +406,7 @@ async function buildFloorPayload(ws: PublicWs) {
       };
     });
 
-  marketList.sort((a, b) => {
-    const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
-    if (dateDiff !== 0) return dateDiff;
-    return b.liquidity - a.liquidity;
-  });
+  marketList.sort(compareSoonestFirst);
 
   // Everything below is what a logged-out stranger sees when they open a shared
   // workspace link. It deliberately stops short of anything a member sees:
@@ -552,23 +572,25 @@ async function buildFloorPayload(ws: PublicWs) {
     // soonest one's (owner direction 2026-08-15). Keyed by marketId; the
     // hero's copy stays in heroHistory for consumers that predate this.
     horizonHistories = [];
-    // Bounded from the PRIMARY end. The list is soonest-first and the floor
-    // leads with the furthest-resolving market, so slicing the first four gave
-    // the decision horizon no history row on a floor with five or more open
-    // markets - and a horizon with no row draws no chart at all, which would
-    // have emptied the page's opening view.
-    for (const m of marketList.slice(-4)) {
-      const metricId = m.metricId as string;
+    // One row per open market, and NO cap. This was bounded to the four
+    // furthest-resolving markets, which on a two-metric, three-date floor
+    // (owner ask 2026-08-25) left the daily markets with no row, and a
+    // horizon with no row draws no chart. The log is read once per distinct
+    // metric, so the cost is per metric and the cap had nothing to protect.
+    const logsByMetric = new Map<string, Array<{ at: Date | null; value: number }>>();
+    for (const metricId of new Set(marketList.map(m => m.metricId as string))) {
       const rows = await db
         .select({ at: metricLogs.timestamp, value: metricLogs.value })
         .from(metricLogs)
         .where(and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, metricId)))
         .orderBy(desc(metricLogs.timestamp))
         .limit(500);
-      const [metricRow] = await db
-        .select({ description: metrics.description, resetsEvery: metrics.resetsEvery })
-        .from(metrics)
-        .where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, metricId)));
+      logsByMetric.set(metricId, rows.reverse());
+    }
+    for (const m of marketList) {
+      const metricId = m.metricId as string;
+      const rows = logsByMetric.get(metricId) ?? [];
+      const metricRow = metricById.get(metricId);
       // A horizon's chart draws its metric's history, unfiltered.
       //
       // 2026-08-16: this briefly filtered points to the market's own target
@@ -610,7 +632,7 @@ async function buildFloorPayload(ws: PublicWs) {
         periodStart: periodStartInstant(target).toISOString(),
         resetsEvery: metricRow?.resetsEvery ?? null,
         description: metricRow?.description ?? null,
-        points: rows.reverse().filter(r => inPeriod(r.at)),
+        points: rows.filter(r => inPeriod(r.at)),
       });
     }
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -675,6 +697,7 @@ async function buildFloorPayload(ws: PublicWs) {
     // the approved branch's id and price shape, so the same chart and the
     // same ticket can render and trade it.
     interface PairGroup {
+      metricId: string;
       metricName: string;
       targetDate: string;
       approved: number | null;
@@ -704,6 +727,7 @@ async function buildFloorPayload(ws: PublicWs) {
       const groups = byProposal.get(m.proposalId) ?? new Map<string, PairGroup>();
       const key = `${m.metricId}|${m.targetDate}`;
       const g: PairGroup = groups.get(key) ?? {
+        metricId: m.metricId,
         metricName: m.metricName,
         targetDate: m.targetDate,
         approved: null,
@@ -739,6 +763,9 @@ async function buildFloorPayload(ws: PublicWs) {
 
     openProposals = pending.map(p => {
       const pairs = [...(byProposal.get(p.id)?.values() ?? [])].map(g => ({
+        // With several metrics on one date, the floor picks a contract's
+        // pair by (metric, date), never by date alone.
+        metricId: g.metricId,
         metricName: g.metricName,
         targetDate: g.targetDate,
         resolvesOn: resolutionInstant(g.targetDate),
@@ -1422,12 +1449,11 @@ marketplaceRouter.get(
       .select()
       .from(markets)
       .where(and(eq(markets.workspaceId, ws.id), eq(markets.resolved, false), eq(markets.active, true)));
-    const baseline = wsMarkets.filter(m => !m.proposalId);
-    baseline.sort((a, b) => {
-      const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
-      if (dateDiff !== 0) return dateDiff;
-      return b.liquidity - a.liquidity;
-    });
+    const cardOrders = await metricOrdersOf([ws.id]);
+    const baseline = wsMarkets
+      .filter(m => !m.proposalId)
+      .map(m => ({ ...m, marketId: m.id, metricOrder: cardOrders.get(m.metricId) ?? null }));
+    baseline.sort(compareSoonestFirst);
     const hero = primaryMarket(baseline);
 
     let history: number[] = [];

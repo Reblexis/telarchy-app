@@ -113,6 +113,9 @@ describe('one definition of each label helper', () => {
     'buildHorizonViews',
     'priceSeriesOf',
     'primaryHorizonOf',
+    'stepMetric',
+    'stepDate',
+    'dateLineOf',
   ])('%s is defined once, in the model', name => {
     const definers = files.filter(f => new RegExp(`function ${name}\\b`).test(f.text)).map(f => f.path);
     expect(definers).toEqual([MODEL]);

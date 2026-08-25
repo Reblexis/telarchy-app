@@ -1208,6 +1208,83 @@ feature. Not having it here is consistent with that decision, not an oversight.
 - **With one open horizon nothing changes**: no arrows, same caption, same
   world line.
 
+### Two steppers: the metric, and its date (owner ask 2026-08-25)
+
+**The ask.** "could you make the date be separately switchable? so essentially
+every metric has two dates this way [...] one option is the metric that one can
+be moved and the other is time horizon that one can be moved too." Then, same
+hour: "unify the lookpilot metric to be monthly revenue on both horizons meaning
+[...] 30 day running total", "add revenue metric to telarchy and lets add
+reviews metric to lookpilot", "and also put daily resolving markets there".
+
+**What a floor is now.** A floor prices a SET of metrics, and every one of
+them is one number read on several dates. The horizon list is therefore a grid,
+metrics x dates, and the caption carries two independent controls:
+
+```
+        ‹   NET REVENUE, TRAILING 30 DAYS   ›        <- steps the METRIC
+              ‹  this week @ 31 Aug  ›               <- steps the DATE
+                        6,912
+                  [ HIGHER ]  [ LOWER ]
+```
+
+- **The metric arrows sit where the horizon arrows sat**, pinned to the
+  caption's edges inside the `h2`, and they render only when the floor
+  prices more than one metric. What they change is what the page is about,
+  which is exactly what a control on the name's own line reads as changing.
+- **The date line is directly under the caption, above the price.** It reads
+  `‹ this week @ 31 Aug ›`: the clock's name (`horizonLabel`) and its settle
+  day (`settleShortOf`), both COMPUTED from the market, never stored on the
+  metric. Its arrows render only when the metric on screen has more than one
+  open date, and with one date the line still shows `@ 31 Aug` without them,
+  so the settle day never leaves the page. It is above the price, not under
+  it, for the reason recorded on 2026-08-20: a control next to the number
+  reads as changing the number.
+- **Both steppers loop**, for the 2026-08-20 reason: a control that sometimes
+  does nothing is worse than one that always moves.
+- **Stepping the metric keeps the date when it can.** A reader on "this week"
+  who steps from revenue to reviews lands on reviews this week; only when the
+  next metric has no open market on that date does the page fall to that
+  metric's furthest-resolving one. Stepping the date never changes the metric.
+- **Selection is still one market id.** A (metric, date) pair IS a market, so
+  nothing new travels through state, `horizonById` still resolves it, and a
+  stale id still falls back to the primary. `stepMetric` and `stepDate` in
+  `floor-horizons.ts` are the only two ways to move; `stepHorizon`, the flat
+  walk, is gone, because a flat walk across a grid is the thing that reads as
+  confusing (2026-08-17) once there are more than two cells.
+
+**Every metric is a level, read on three dates.** The unification that came
+with this: a metric on a public floor is a number that exists at every
+instant (a trailing-30-day total, a count as of now), never a number that
+belongs to one calendar period (revenue "this week", "in September"). Then
+the same metric can be read today, this week and this month, and a market on
+it settles on `metricValueAsOf(resolvesOn)` with no per-period arithmetic.
+The per-period metrics were the 2026-08-16 bug family's other root: "weekly
+net revenue" and "monthly net revenue" were two metrics for one thing, their
+descriptions drifted (the weekly one described September for five days), and
+nothing on the floor could say they were the same number. With one metric and
+three dates the definition is written once. The horizons on both floors are
+`+0d`, `+0w`, `+0m` (today, this ISO week, this calendar month; each rolls
+over on its boundary like the weekly always did) plus any absolute date a
+running market already holds, so a season's hero market is never deactivated
+by the change that surrounds it.
+
+**Which market is THE number, with several metrics.** `primaryMarket` still
+picks the furthest-resolving open market, and a tie on the settle instant
+(two metrics both read at month end) goes to the metric with the LOWER
+`order`, then the earlier name. Liquidity broke the tie before, which was
+harmless with one metric per date and would let a trade flip the headline
+with two. The owner sets the order with `PUT /api/metrics/reorder` (the floor
+metric first), and the payload carries `metricOrder` on every market so the
+client mirror `primaryHorizonOf` and the metric stepper read the same rule.
+The metric stepper walks metrics in that order, primary first.
+
+**A floor with six markets ships six histories.** `horizonHistories` was
+capped at the four furthest-resolving markets, which on a two-metric,
+three-date floor left the daily markets with no chart. The cap is gone; the
+metric log is read once per distinct metric, not once per market, so the cost
+is per metric and the cap had nothing left to protect.
+
 ## The data room
 
 `telarchy.com/data-room` (`DataRoomPage`, `.dr-*`) is a document, so it takes

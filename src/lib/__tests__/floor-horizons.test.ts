@@ -4,14 +4,18 @@ import {
   buildHorizonViews,
   captionLabel,
   currencyOf,
+  dateLineOf,
+  datesOf,
   horizonById,
   horizonLabel,
   metricLabelOf,
+  metricsOf,
   priceSeriesOf,
   primaryHorizonOf,
   settleDayOf,
   settleShortOf,
-  stepHorizon,
+  stepDate,
+  stepMetric,
 } from '../floor-horizons';
 
 /**
@@ -210,6 +214,9 @@ describe('the label helpers', () => {
     ['2026', 'end of 2026'],
     ['2026-12', 'end of 2026'],
     ['2026-09', 'end of September'],
+    ['2026-08', 'this month'],
+    ['2026-08-19', 'today'],
+    ['2026-08-18', '18 Aug'],
   ])('horizonLabel(%s) is %s', (target, label) => {
     expect(horizonLabel(target, NOW)).toBe(label);
   });
@@ -290,36 +297,39 @@ describe('stepping between horizons', () => {
     expect(horizonById(views, 'm-gone')?.marketId).toBe('m-year');
   });
 
-  test('the arrows walk the list in reading order', () => {
-    expect(stepHorizon(views, 'm-year', 1)?.marketId).toBe('m-week');
-    expect(stepHorizon(views, 'm-week', -1)?.marketId).toBe('m-year');
-  });
-
-  test('and they loop, so an arrow never does nothing', () => {
+  test('two metrics on the fixture: the metric arrows walk them, and loop', () => {
+    // WEEK and YEAR are different metrics with one date each, so on this
+    // floor the metric stepper is the only one that moves.
+    expect(stepMetric(views, 'm-year', 1)?.marketId).toBe('m-week');
+    expect(stepMetric(views, 'm-week', -1)?.marketId).toBe('m-year');
     // Owner ask 2026-08-20. Off the end of the list is the other end of it.
-    expect(stepHorizon(views, 'm-year', -1)?.marketId).toBe('m-week');
-    expect(stepHorizon(views, 'm-week', 1)?.marketId).toBe('m-year');
+    expect(stepMetric(views, 'm-year', -1)?.marketId).toBe('m-week');
+    expect(stepMetric(views, 'm-week', 1)?.marketId).toBe('m-year');
   });
 
-  test('a floor with one market loops to itself, and never renders arrows', () => {
-    // The page gates on horizons.length > 1, so this case is unreachable on
-    // screen; it must still not crash or return nothing.
+  test('a metric with one open date has no date arrows', () => {
+    expect(stepDate(views, 'm-year', 1)).toBeNull();
+    expect(stepDate(views, 'm-week', -1)).toBeNull();
+  });
+
+  test('a floor with one market renders neither stepper', () => {
     const one = buildHorizonViews(ws({ markets: [YEAR] }));
-    expect(stepHorizon(one, 'm-year', 1)?.marketId).toBe('m-year');
-    expect(stepHorizon(one, 'm-year', -1)?.marketId).toBe('m-year');
+    expect(stepMetric(one, 'm-year', 1)).toBeNull();
+    expect(stepDate(one, 'm-year', 1)).toBeNull();
   });
 
   test('an empty floor steps to nothing instead of throwing', () => {
-    expect(stepHorizon([], 'm-year', 1)).toBeNull();
+    expect(stepMetric([], 'm-year', 1)).toBeNull();
+    expect(stepDate([], 'm-year', 1)).toBeNull();
     expect(horizonById([], 'm-year')).toBeNull();
   });
 });
 
 /**
- * The settle day the caption puts after the metric's name (owner ask
- * 2026-08-20). Computed from the market's target date, never stored on the
- * metric, which is the whole point: the weekly market rolls to a new target
- * every Monday and nothing has to be renamed.
+ * The settle day the caption's date line puts after the clock's name (owner
+ * ask 2026-08-20). Computed from the market's target date, never stored on
+ * the metric, which is the whole point: the weekly market rolls to a new
+ * target every Monday and nothing has to be renamed.
  */
 describe('settleShortOf', () => {
   const inYear = new Date('2026-08-20T12:00:00Z');
@@ -350,5 +360,113 @@ describe('settleShortOf', () => {
     // date lived in the stored metric name instead.
     expect(settleShortOf('2026-W34', inYear)).toBe('23 Aug');
     expect(settleShortOf('2026-W35', inYear)).toBe('30 Aug');
+  });
+});
+
+/**
+ * The grid (owner ask 2026-08-25): two metrics, each read today, this week
+ * and this month, plus the hero's absolute September market. Soonest-first
+ * as the API ships it, with ties on the settle instant between the metrics.
+ */
+const NOW_GRID = new Date('2026-08-25T12:00:00Z');
+const cell = (
+  marketId: string,
+  metricId: string,
+  metricName: string,
+  metricOrder: number | null,
+  targetDate: string,
+  resolvesOn: string,
+) => ({
+  marketId,
+  metricId,
+  metricName,
+  metricOrder,
+  targetDate,
+  resolvesOn,
+  consensus: 10,
+  probability: 0.5,
+  liquidity: 100,
+  rangeMin: 0,
+  rangeMax: 100,
+});
+const REV = 'LookPilot net revenue, trailing 30 days (USD)';
+const REVIEWS = 'LookPilot Steam reviews';
+const GRID = [
+  cell('rev-day', 'rev', REV, 1, '2026-08-25', '2026-08-26T00:00:00Z'),
+  cell('rvw-day', 'rvw', REVIEWS, 2, '2026-08-25', '2026-08-26T00:00:00Z'),
+  cell('rev-week', 'rev', REV, 1, '2026-W35', '2026-08-31T00:00:00Z'),
+  cell('rvw-week', 'rvw', REVIEWS, 2, '2026-W35', '2026-08-31T00:00:00Z'),
+  cell('rvw-month', 'rvw', REVIEWS, 2, '2026-08', '2026-09-01T00:00:00Z'),
+  cell('rev-month', 'rev', REV, 1, '2026-08', '2026-09-01T00:00:00Z'),
+  cell('rev-sep', 'rev', REV, 1, '2026-09', '2026-10-01T00:00:00Z'),
+];
+
+describe('a floor that prices several metrics', () => {
+  const grid = buildHorizonViews(ws({ markets: GRID, horizonHistories: [] }), NOW_GRID);
+
+  test('the primary is the furthest-resolving market, whatever the payload order', () => {
+    expect(primaryHorizonOf(grid)?.marketId).toBe('rev-sep');
+    const shuffled = buildHorizonViews(ws({ markets: [...GRID].reverse(), horizonHistories: [] }), NOW_GRID);
+    expect(primaryHorizonOf(shuffled)?.marketId).toBe('rev-sep');
+  });
+
+  test('a tie on the settle instant goes to the lower metric order, never to liquidity', () => {
+    // Drop September: both metrics now end on 1 September. Reviews has more
+    // liquidity in this payload and still loses on order.
+    const tied = GRID.filter(m => m.marketId !== 'rev-sep').map(m =>
+      m.marketId === 'rvw-month' ? { ...m, liquidity: 9_999 } : m,
+    );
+    expect(primaryHorizonOf(buildHorizonViews(ws({ markets: tied, horizonHistories: [] }), NOW_GRID))?.marketId).toBe(
+      'rev-month',
+    );
+    // Without orders at all, the earlier name wins the tie, and the rule is total.
+    const unordered = tied.map(m => ({ ...m, metricOrder: null }));
+    expect(
+      primaryHorizonOf(buildHorizonViews(ws({ markets: unordered, horizonHistories: [] }), NOW_GRID))?.marketId,
+    ).toBe('rvw-month');
+  });
+
+  test('the list is grouped by metric, primary metric first, dates furthest first', () => {
+    expect(grid.map(v => v.marketId)).toEqual([
+      'rev-sep',
+      'rev-month',
+      'rev-week',
+      'rev-day',
+      'rvw-month',
+      'rvw-week',
+      'rvw-day',
+    ]);
+    expect(metricsOf(grid).map(v => v.metricId)).toEqual(['rev', 'rvw']);
+    expect(datesOf(grid, 'rvw').map(v => v.targetDate)).toEqual(['2026-08', '2026-W35', '2026-08-25']);
+  });
+
+  test('the date arrows stay inside the metric, and loop', () => {
+    expect(stepDate(grid, 'rev-sep', 1)?.marketId).toBe('rev-month');
+    expect(stepDate(grid, 'rev-day', 1)?.marketId).toBe('rev-sep');
+    expect(stepDate(grid, 'rev-sep', -1)?.marketId).toBe('rev-day');
+    expect(stepDate(grid, 'rvw-day', -1)?.marketId).toBe('rvw-week');
+  });
+
+  test('the metric arrows keep the date when the next metric has it', () => {
+    expect(stepMetric(grid, 'rev-week', 1)?.marketId).toBe('rvw-week');
+    expect(stepMetric(grid, 'rvw-day', -1)?.marketId).toBe('rev-day');
+  });
+
+  test("and fall to that metric's furthest date when it does not", () => {
+    // Reviews has no September market.
+    expect(stepMetric(grid, 'rev-sep', 1)?.marketId).toBe('rvw-month');
+  });
+
+  test('the date line names the clock and its settle day, both computed', () => {
+    expect(dateLineOf(horizonById(grid, 'rev-day'))).toBe('today @ 25 Aug');
+    expect(dateLineOf(horizonById(grid, 'rev-week'))).toBe('this week @ 30 Aug');
+    expect(dateLineOf(horizonById(grid, 'rev-month'))).toBe('this month @ 31 Aug');
+    expect(dateLineOf(horizonById(grid, 'rev-sep'))).toBe('end of September @ 30 Sep');
+    expect(dateLineOf(null)).toBe('');
+  });
+
+  test('a day that has ended is a date, not "today"', () => {
+    const later = buildHorizonViews(ws({ markets: GRID, horizonHistories: [] }), new Date('2026-08-26T00:30:00Z'));
+    expect(dateLineOf(horizonById(later, 'rev-day'))).toBe('@ 25 Aug');
   });
 });

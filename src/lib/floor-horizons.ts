@@ -36,6 +36,8 @@ import type { PublicWorkspace } from './api';
 export interface HorizonView {
   marketId: string;
   metricId: string;
+  /** The metric's display order; the headline tie-breaker (see `primaryHorizonOf`). */
+  metricOrder: number | null;
   /** As stored, unit tail included: "LookPilot net 2026 (USD)". */
   metricName: string;
   /** Display name, tail stripped: "LookPilot net 2026". */
@@ -119,12 +121,19 @@ export function horizonLabel(targetDate: string, now: Date = new Date()): string
   if (/^\d{4}-W\d{2}$/.test(targetDate)) {
     return targetDate === isoWeekOf(now) ? 'this week' : `week to ${shortDay(targetDate)}`;
   }
+  // Same rule for a day: "today" only while it is today. Daily markets came
+  // with the two-stepper floor (owner ask 2026-08-25).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+    return targetDate === now.toISOString().slice(0, 10) ? 'today' : shortDay(targetDate);
+  }
   if (/^\d{4}$/.test(targetDate)) return `end of ${targetDate}`;
   const m = targetDate.match(/^(\d{4})-(\d{2})$/);
   if (m) {
     // December IS the year end: "end of 2026" is what the charter calls it,
     // and it beats "end of December" beside a metric named "net 2026".
     if (m[2] === '12') return `end of ${m[1]}`;
+    // And "this month" only while it is this month, like the week.
+    if (targetDate === now.toISOString().slice(0, 7)) return 'this month';
     const month = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1)).toLocaleDateString('en-GB', {
       month: 'long',
       timeZone: 'UTC',
@@ -173,22 +182,24 @@ function shortDay(targetDate: string): string {
 }
 
 /**
- * Every open horizon of a floor, FURTHEST-RESOLVING FIRST.
+ * Every open horizon of a floor, as a GRID read metric by metric.
  *
- * Index 0 is the one the floor shows. The payload ships soonest-first; the
- * order flip lives here and nowhere else, which is what makes
- * `primaryHorizonOf` a lookup rather than a decision each caller re-derives.
- * The rest of the list exists so a caller can still resolve a market it holds
- * an id for; no surface renders it.
+ * Index 0 is the primary, the one the floor opens on (see `primaryHorizonOf`
+ * for the rule). The list is grouped by metric, the primary's metric first
+ * and the rest by their display order, and inside a metric the dates run
+ * furthest-first, so the two steppers (`stepMetric`, `stepDate`) walk it
+ * without a second ordering of their own. The payload ships soonest-first;
+ * the order flip lives here and nowhere else.
  */
 export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: Date = new Date()): HorizonView[] {
   const markets = ws?.markets ?? [];
   const historyByMarket = new Map((ws?.horizonHistories ?? []).map(h => [h.marketId, h]));
-  return [...markets].reverse().map(m => {
+  const views = markets.map(m => {
     const row = historyByMarket.get(m.marketId);
     return {
       marketId: m.marketId,
       metricId: m.metricId,
+      metricOrder: m.metricOrder ?? null,
       metricName: m.metricName,
       metricLabel: metricLabelOf(m.metricName),
       unit: currencyOf(m.metricName),
@@ -209,15 +220,100 @@ export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: D
       description: row?.description ?? null,
     };
   });
+  const primary = primaryOfViews(views);
+  // One rank per METRIC ID, read off its furthest-resolving market: a metric
+  // renamed mid-life stores the old name on its older markets, and ranking
+  // by the name on each market would split one metric into two groups.
+  const rank = new Map<string, [number, number, string]>();
+  for (const v of [...views].sort((a, b) => settleInstantOf(b) - settleInstantOf(a))) {
+    if (!rank.has(v.metricId)) {
+      rank.set(v.metricId, [v.metricId === primary?.metricId ? 0 : 1, v.metricOrder ?? LAST_ORDER, v.metricName]);
+    }
+  }
+  return views.sort((a, b) => {
+    if (a.metricId !== b.metricId) {
+      const [pa, oa, na] = rank.get(a.metricId)!;
+      const [pb, ob, nb] = rank.get(b.metricId)!;
+      if (pa !== pb) return pa - pb;
+      if (oa !== ob) return oa - ob;
+      if (na !== nb) return na < nb ? -1 : 1;
+      return a.metricId < b.metricId ? -1 : 1;
+    }
+    const t = settleInstantOf(b) - settleInstantOf(a); // furthest first
+    if (t !== 0) return t;
+    return a.marketId < b.marketId ? -1 : 1;
+  });
+}
+
+const LAST_ORDER = 999;
+
+/** When a horizon settles, as a number; the payload's `resolvesOn` first. */
+function settleInstantOf(v: HorizonView): number {
+  const t = v.resolvesOn ? new Date(v.resolvesOn).getTime() : NaN;
+  if (Number.isFinite(t)) return t;
+  const day = v.settleDay ? new Date(`${v.settleDay} UTC`).getTime() : NaN;
+  return Number.isFinite(day) ? day : 0;
 }
 
 /**
- * The horizon the floor is about: the furthest-resolving open market, and the
- * only one any surface renders. The mirror of the server's `primaryMarket`,
- * so a card, a share image and the floor all name the same number.
+ * The furthest-resolving market; on a tie between metrics, the lower metric
+ * order, then the earlier name, then the market id. The exact mirror of the
+ * server's `compareSoonestFirst` (functions/src/lib/baseline-order.ts).
+ */
+function primaryOfViews(views: HorizonView[]): HorizonView | null {
+  let best: HorizonView | null = null;
+  for (const v of views) {
+    if (!best) {
+      best = v;
+      continue;
+    }
+    const t = settleInstantOf(v) - settleInstantOf(best);
+    if (t > 0) best = v;
+    else if (t === 0) {
+      const o = (v.metricOrder ?? LAST_ORDER) - (best.metricOrder ?? LAST_ORDER);
+      if (o < 0) best = v;
+      else if (o === 0) {
+        if (v.metricName < best.metricName) best = v;
+        else if (v.metricName === best.metricName && v.marketId < best.marketId) best = v;
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * The horizon the floor is about: the furthest-resolving open market, and with
+ * several metrics read on the same date, the one whose metric has the lower
+ * display order. The mirror of the server's `primaryMarket`, so a card, a
+ * share image and the floor all name the same number. `buildHorizonViews`
+ * puts it at index 0.
  */
 export function primaryHorizonOf(views: HorizonView[]): HorizonView | null {
   return views[0] ?? null;
+}
+
+/** The distinct metrics a floor prices, in stepper order (primary first). */
+export function metricsOf(views: HorizonView[]): HorizonView[] {
+  const seen = new Set<string>();
+  return views.filter(v => (seen.has(v.metricId) ? false : (seen.add(v.metricId), true)));
+}
+
+/** The open dates of one metric, furthest first. */
+export function datesOf(views: HorizonView[], metricId: string): HorizonView[] {
+  return views.filter(v => v.metricId === metricId);
+}
+
+/**
+ * The caption's second line: the clock's name and its settle day, both
+ * computed from the market ("this week @ 31 Aug"). A day that is no longer
+ * today (between midnight and the refresh that opens the next market) shows
+ * the date alone rather than "today" about a day that has ended.
+ */
+export function dateLineOf(v: HorizonView | null): string {
+  if (!v) return '';
+  const at = v.settleShort ? `@ ${v.settleShort}` : '';
+  const named = /^(today|this week|this month|end of )/.test(v.label) ? v.label : '';
+  return [named, at].filter(Boolean).join(' ');
 }
 
 /**
@@ -236,27 +332,40 @@ export function horizonById(views: HorizonView[], marketId: string | null | unde
 }
 
 /**
- * The next horizon in reading order, WRAPPING at both ends (owner ask
- * 2026-08-20: "the arrows should be clickable infinitely it will just loop").
- *
- * It stopped at the ends for half an hour first, on the argument that a dead
- * arrow is how a reader learns how many clocks there are. The owner's call is
- * that a control which sometimes does nothing is worse than one that always
- * moves, and on a floor with two markets the loop is one click either way to
- * the same place.
- *
- * A floor with one market never renders the arrows at all, so wrapping never
- * shows a reader the same number twice in a row.
+ * The next METRIC, wrapping (owner ask 2026-08-20: "the arrows should be
+ * clickable infinitely it will just loop"), keeping the date on screen when
+ * the next metric has an open market on it and falling to that metric's
+ * furthest-resolving one otherwise (docs/ui-conventions.md, "Two steppers").
+ * Null when the floor prices one metric, which is how the page knows not to
+ * render the arrows: a control that sometimes does nothing is worse than one
+ * that always moves, and one that never renders is neither.
  */
-export function stepHorizon(
+export function stepMetric(
   views: HorizonView[],
   marketId: string | null | undefined,
   delta: 1 | -1,
 ): HorizonView | null {
   const current = horizonById(views, marketId);
   if (!current) return null;
-  const at = views.findIndex(v => v.marketId === current.marketId);
-  return views[(at + delta + views.length) % views.length] ?? null;
+  const heads = metricsOf(views);
+  if (heads.length < 2) return null;
+  const at = heads.findIndex(v => v.metricId === current.metricId);
+  const next = heads[(at + delta + heads.length) % heads.length];
+  const dates = datesOf(views, next.metricId);
+  return dates.find(v => v.targetDate === current.targetDate) ?? dates[0] ?? null;
+}
+
+/**
+ * The next DATE of the metric on screen, wrapping, never changing the metric.
+ * Null when the metric has one open date, so the arrows do not render.
+ */
+export function stepDate(views: HorizonView[], marketId: string | null | undefined, delta: 1 | -1): HorizonView | null {
+  const current = horizonById(views, marketId);
+  if (!current) return null;
+  const dates = datesOf(views, current.metricId);
+  if (dates.length < 2) return null;
+  const at = dates.findIndex(v => v.marketId === current.marketId);
+  return dates[(at + delta + dates.length) % dates.length] ?? null;
 }
 
 export type PriceSeries = Array<{ at: string; consensus: number | null }>;

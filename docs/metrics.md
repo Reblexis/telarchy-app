@@ -47,8 +47,18 @@ For agent-proposed proposals approved 90+ days ago, correlate the metric impact 
   - `realized_lift(p)` = actual metric value at the same horizon minus the metric value at approval.
   - Pearson correlation across all such p.
 
+## Money
+
+### Revenue, trailing 30 days (USD)
+
+**Added 2026-08-25 (Viktor: "lets add revenue metric to telarchy").** Money Telarchy itself was paid in the trailing 30 days: managed-tier subscriptions, platform fees on contracts, federation fees, any invoice paid to Telarchy, in USD, net of refunds. Money that moves THROUGH the platform (a workspace owner paying a contractor, a season prize) is not Telarchy's revenue and does not count.
+
+- **Why this metric:** it is the number every other one on this page is a proxy for, and pricing it on the public floor is the honest way to say what the platform has (nothing yet) and let forecasters price when that changes.
+- **How to compute:** Telarchy has no paid tier and no revenue rail today, so there is nothing to sync and the value is $0. Until a rail exists, the owner logs each payment by hand as a metric update with a note naming the payer category and amount; the metric log is public, so a trader can audit every reading. This is the one hero metric the owner CAN edit, and the market's description says so. When a rail exists (Stripe or the Wise business account), `scripts/telarchy-self-sync.js` pushes the trailing-30-day sum from it and the owner's hand is taken off, the same way `weeklyActiveVerifiedTraders` is pushed verbatim from `/api/marketplace/stats`.
+- **Markets:** today, this week, this month (`+0d`, `+0w`, `+0m`), like every metric on a public floor (docs/ui-conventions.md, "Two steppers"). Range 0 to 1,000.
+
 ## Notes
 
-- **Why no revenue metrics on this list yet:** pre-launch, zero revenue. Once the paid managed tier is live, ARR + growth rate + NRR move to the top of this list, ahead of the wedge metric.
+- **Why the revenue metric is a level, not ARR:** ARR, growth rate and NRR move to the top of this list once the paid managed tier is live. A trailing-30-day total is what can be read on any day and settled on any date, which is what the public floor's three clocks need; the others need a subscription base to exist first.
 - **YC B2B benchmarking:** the engagement and retention metrics are deliberately framed in standard YC B2B vocabulary so investor conversations don't waste time on ontology. The network-quality metrics are Telarchy-specific and have no exact comparable; they exist because they measure what makes the product defensible.
 - **Where these are tracked:** Telarchy's own platform-internal workspace at telarchy.com. Each metric here exists as a KPI in that workspace, with conditional markets pricing the impact of every product decision against them.

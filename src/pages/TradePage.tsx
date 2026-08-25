@@ -27,6 +27,7 @@ import { indexBundleSrc } from '../lib/bundle-version';
 import {
   buildHorizonViews,
   captionLabel,
+  dateLineOf,
   type HorizonView,
   horizonById,
   metricLabelOf,
@@ -34,7 +35,8 @@ import {
   priceSeriesIsInline,
   priceSeriesOf,
   settleDayOf,
-  stepHorizon,
+  stepDate,
+  stepMetric,
 } from '../lib/floor-horizons';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
@@ -338,11 +340,17 @@ export function TradePage() {
   const horizons: HorizonView[] = useMemo(() => buildHorizonViews(ws), [ws]);
   const [horizonId, setHorizonId] = useState<string | null>(null);
   const hero = horizonById(horizons, horizonId);
-  const prevHorizon = stepHorizon(horizons, horizonId, -1);
+  // Two steppers, not one (owner ask 2026-08-25): the arrows on the caption
+  // step the METRIC, the arrows on the date line under it step the DATE of
+  // that metric. Each is null when there is nothing to step to, and the
+  // arrows do not render then. See docs/ui-conventions.md "Two steppers".
+  const prevMetric = stepMetric(horizons, horizonId, -1);
+  const nextMetric = stepMetric(horizons, horizonId, 1);
+  const prevDate = stepDate(horizons, horizonId, -1);
+  const nextDate = stepDate(horizons, horizonId, 1);
   // The arithmetic under the price: booked, missing, per day. Null for any
   // metric that does not accumulate inside its period, which is most of them.
   const gap = periodGapOf(hero);
-  const nextHorizon = stepHorizon(horizons, horizonId, 1);
   const unit = hero?.unit ?? '';
   const metricLabel = hero?.metricLabel ?? '';
   // The distinct numbers this floor prices, in the same label shape the rest
@@ -401,8 +409,15 @@ export function TradePage() {
 
   // The contract's pair for the horizon on screen, not whichever pair the
   // payload happened to list first.
+  // By (metric, date): with several metrics read on one date, the date alone
+  // would pick another metric's pair.
   const pair =
-    (hero && selectedJob?.markets.find(m => m.targetDate === hero.targetDate)) ?? selectedJob?.markets[0] ?? null;
+    (hero &&
+      selectedJob?.markets.find(
+        m => m.targetDate === hero.targetDate && (m.metricId === undefined || m.metricId === hero.metricId),
+      )) ??
+    selectedJob?.markets[0] ??
+    null;
   // A decided job is history: its markets are resolved, so trading is paused;
   // the page still shows the impact that was priced for it.
   const selectedJobDecided = !!selectedJob?.status && selectedJob.status !== 'pending';
@@ -897,30 +912,55 @@ export function TradePage() {
                off this line on 2026-08-18 as redundant, when a floor had one
                market and the metric's name carried its own horizon; with
                arrows it is the only thing telling two clocks apart. */}
+              {/* Two steppers (owner ask 2026-08-25): the caption's arrows
+               step the METRIC; the line under it carries the clock's name and
+               settle day and its own arrows step the DATE of that metric. A
+               (metric, date) pair is a market, so selection is still one
+               market id. */}
               <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
-                {horizons.length > 1 && (
+                {prevMetric && (
                   <button
                     className="pubws-hstep pubws-hstep--prev"
-                    onClick={() => prevHorizon && setHorizonId(prevHorizon.marketId)}
-                    aria-label={
-                      prevHorizon ? `Show ${prevHorizon.metricLabel}, ${prevHorizon.label}` : 'Previous market'
-                    }
+                    onClick={() => setHorizonId(prevMetric.marketId)}
+                    aria-label={`Show ${prevMetric.metricLabel}`}
                   >
                     ‹
                   </button>
                 )}
                 {captionLabel(metricLabel, ws.name)}
-                {hero?.settleShort && <span className="pubws-instrument-at"> @ {hero.settleShort}</span>}
-                {horizons.length > 1 && (
+                {nextMetric && (
                   <button
                     className="pubws-hstep pubws-hstep--next"
-                    onClick={() => nextHorizon && setHorizonId(nextHorizon.marketId)}
-                    aria-label={nextHorizon ? `Show ${nextHorizon.metricLabel}, ${nextHorizon.label}` : 'Next market'}
+                    onClick={() => setHorizonId(nextMetric.marketId)}
+                    aria-label={`Show ${nextMetric.metricLabel}`}
                   >
                     ›
                   </button>
                 )}
               </h2>
+              {hero && (
+                <div className="pubws-instrument-date pubws-enter pubws-enter--1">
+                  {prevDate && (
+                    <button
+                      className="pubws-dstep"
+                      onClick={() => setHorizonId(prevDate.marketId)}
+                      aria-label={`Show ${prevDate.metricLabel}, ${prevDate.label}`}
+                    >
+                      ‹
+                    </button>
+                  )}
+                  <span className="pubws-instrument-at">{dateLineOf(hero)}</span>
+                  {nextDate && (
+                    <button
+                      className="pubws-dstep"
+                      onClick={() => setHorizonId(nextDate.marketId)}
+                      aria-label={`Show ${nextDate.metricLabel}, ${nextDate.label}`}
+                    >
+                      ›
+                    </button>
+                  )}
+                </div>
+              )}
               {selectedJob && (
                 <>
                   <h2

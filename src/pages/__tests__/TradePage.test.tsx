@@ -569,10 +569,11 @@ test('the workspace name heads the page', async () => {
   expect(container.querySelector('.pubws-ws-name')!.tagName).toBe('H1');
   expect(container.querySelectorAll('h1').length).toBe(1);
   // And it does not say the company twice: the caption is what the number
-  // measures, with the name it already carries overhead stripped off, and the
-  // day it settles after it (owner ask 2026-08-20, so the arrows have
-  // something to tell two clocks apart by).
-  expect(container.querySelector('.pubws-instrument-label')!.textContent).toBe('revenue @ 31 Dec');
+  // measures, with the name it already carries overhead stripped off. The day
+  // it settles is the line under it (owner ask 2026-08-25, two steppers: the
+  // caption's arrows step the metric, the date line's arrows step the date).
+  expect(container.querySelector('.pubws-instrument-label')!.textContent).toBe('revenue');
+  expect(container.querySelector('.pubws-instrument-date')!.textContent).toBe('end of 2026 @ 31 Dec');
 });
 
 test('the workspace description is the company tagline, and is optional', async () => {
@@ -941,10 +942,11 @@ describe('a contract keeps the clock line', () => {
     await screen.findByRole('button', { name: 'if approved' });
 
     // The floor opens on the furthest-resolving market, so the month is on
-    // screen; the caption strips the leading workspace name.
+    // screen; the caption strips the leading workspace name, and the date
+    // line under it still carries the settle day.
     const caption = document.querySelector('.pubws-instrument-label');
     expect(caption?.textContent).toContain('monthly net revenue');
-    expect(caption?.textContent).toContain('@');
+    expect(document.querySelector('.pubws-instrument-date')?.textContent).toContain('@');
   });
 
   test('the contract states the world without repeating the metric name', async () => {

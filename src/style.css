@@ -2247,9 +2247,45 @@ button.notif-row-link {
 .pubws-hstep:focus-visible { color: var(--accent); outline: none; }
 
 
-/* The settle day after the metric's name. A register quieter than the name,
-   because the name is what the market is and the date is only which one. */
+/* The date line under the caption (owner ask 2026-08-25, "two steppers"):
+   the clock's name and its settle day, "this week @ 31 Aug", in a register
+   quieter than the name, because the name is what the market is and the date
+   is only which reading of it. Its arrows step the DATE of the metric on
+   screen; the caption's arrows above step the METRIC. It sits above the
+   price, not under it, for the 2026-08-20 reason: a control next to the
+   number reads as changing the number. The arrows are inline here, not
+   pinned, because this line's width barely moves between "today @ 25 Aug"
+   and "this week @ 31 Aug". */
+.pubws-instrument-date {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
 .pubws-instrument-at { color: var(--text-tertiary); font-weight: 500; }
+
+.pubws-dstep {
+  padding: 0 0.15rem;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+
+.pubws-dstep:hover:not(:disabled),
+.pubws-dstep:focus-visible { color: var(--accent); outline: none; }
 
 /* The gap to the price, directly under the number and above the bet. One
    sentence of arithmetic a reader can check in their head, which is the only
