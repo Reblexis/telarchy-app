@@ -302,7 +302,11 @@ export function primaryHorizonOf(views: HorizonView[]): HorizonView | null {
 /** The distinct metrics a floor prices, in stepper order (primary first). */
 export function metricsOf(views: HorizonView[]): HorizonView[] {
   const seen = new Set<string>();
-  return views.filter(v => (seen.has(v.metricId) ? false : (seen.add(v.metricId), true)));
+  return views.filter(v => {
+    if (seen.has(v.metricId)) return false;
+    seen.add(v.metricId);
+    return true;
+  });
 }
 
 /** The open dates of one metric, furthest first. */

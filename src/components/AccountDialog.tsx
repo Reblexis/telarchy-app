@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { agentPrompt, type FloorRef } from '../lib/agent-prompt';
 import {
@@ -337,8 +337,7 @@ export function AccountDialog({
     });
   };
 
-  const moveCrop = (dx: number, dy: number) =>
-    setCrop(c => (c ? clampCrop({ ...c, x: c.x + dx, y: c.y + dy }) : c));
+  const moveCrop = (dx: number, dy: number) => setCrop(c => (c ? clampCrop({ ...c, x: c.x + dx, y: c.y + dy }) : c));
 
   const zoomCrop = (zoom: number) => setCrop(c => (c ? clampCrop({ ...c, zoom }) : c));
 
