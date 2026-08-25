@@ -62,14 +62,6 @@ function formatValue(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-// The floor's built-in "What is <name>?" copy, shown until the workspace owner
-// writes their own (subjectAbout). Free text: description, then sources.
-const DEFAULT_SUBJECT_ABOUT = `LookPilot is a webcam head tracker for flight, trucking and racing sims, the best-reviewed one on Steam: look around in the game by moving your head, no hardware. It makes money by selling the app, $14.99 once per player, so every copy sold is what this market is betting on.
-
-Sources:
-- Steam store page: https://store.steampowered.com/app/3326890/LookPilot/
-- Data room, the numbers this settles on, updated once per day: https://lookpilot.app/data-room/
-- SteamDB, third-party sales estimates: https://steamdb.info/app/3326890/`;
 
 function formatDelta(delta: number, unit = ''): string {
   const abs = Math.abs(delta);
@@ -1378,7 +1370,7 @@ export function TradePage() {
           workspaceId={ws.workspaceId}
           name={ws.name}
           value={ws.subjectAbout}
-          defaultText={DEFAULT_SUBJECT_ABOUT}
+          defaultText=""
           canManage={canManage}
           onSaved={reload}
           onAsk={() => setAskingOtto(true)}

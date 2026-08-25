@@ -32,7 +32,9 @@ RUN npm run build
 # baked at build time, so serving one build under two prefixes is not
 # possible; this is the whole reason for the second pass. tsc already ran
 # above, so this is the bundler only.
-RUN npm run build:beta
+# The /beta surface is the managed instance's own preview lane; off by default.
+ARG BUILD_BETA=false
+RUN if [ "$BUILD_BETA" = "true" ]; then npm run build:beta; else mkdir -p dist-beta; fi
 
 # ── Runtime ────────────────────────────────────────────────────────────────────
 FROM node:22-alpine
@@ -41,6 +43,9 @@ WORKDIR /app
 COPY functions/package*.json ./
 RUN npm ci --omit=dev
 COPY --from=backend-builder /app/functions/lib ./lib
+COPY functions/drizzle ./drizzle
+COPY functions/drizzle.config.ts ./drizzle.config.ts
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
 # Fonts for the server-drawn share card (lib/lib/share-card.js resolves ../../assets)
 COPY functions/assets ./assets
 # Serve frontend static files — server.ts expects them at __dirname/public = lib/public
@@ -50,9 +55,7 @@ COPY --from=frontend-builder /app/dist-beta ./lib/public-beta
 ENV PORT=8080
 EXPOSE 8080
 
-# Required: DATABASE_URL, API_KEY
-# Optional: ALLOWED_ORIGIN, ADMIN_EMAILS, PORT,
-#           GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
-#           GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET,
-#           BETTER_AUTH_SECRET
+# Required: DATABASE_URL, API_KEY, BETTER_AUTH_SECRET. Everything else is
+# documented in .env.example. AUTO_MIGRATE=true runs the migrations first.
+ENTRYPOINT ["sh", "./docker-entrypoint.sh"]
 CMD ["node", "lib/server.js"]

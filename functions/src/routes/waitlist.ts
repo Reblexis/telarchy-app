@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { publicOrigin } from '../lib/origin';
 import { db } from '../db/client';
 import { waitlist } from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -33,7 +34,7 @@ waitlistRouter.post('/', wrap(async (req, res) => {
     `Telarchy: ${normalized} wants to get set up`,
     // The /admin cockpit page went with the old GUI (2026-08-19); its data
     // is still one authenticated call away, so the mail names the call.
-    `${normalized} left their email${from ? ` on ${from}` : ' on the floor'}.\n\nAll signups: curl -H "X-API-Key: $TELARCHY_MASTER_KEY" https://telarchy.com/api/admin/floor-stats`,
+    `${normalized} left their email${from ? ` on ${from}` : ' on the floor'}.\n\nAll signups: curl -H "X-API-Key: $TELARCHY_MASTER_KEY" ${publicOrigin()}/api/admin/floor-stats`,
   );
   res.status(201).json({ ok: true });
 }));

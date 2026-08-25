@@ -1,12 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { readFileSync, existsSync } from 'node:fs';
-
-const firebaseRc = existsSync('.firebaserc')
-  ? (JSON.parse(readFileSync('.firebaserc', 'utf8')) as { projects?: { default?: string } })
-  : {};
-const emulatorProjectId = firebaseRc.projects?.default || 'telarchy-e0043';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],

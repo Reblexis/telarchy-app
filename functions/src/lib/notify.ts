@@ -18,12 +18,10 @@
  */
 
 const RESEND_API = 'https://api.resend.com/emails';
-const FROM = 'Telarchy <floor@telarchy.com>';
-
-/** Public origin, for links inside an email. Same source as the claim URL. */
-export function publicOrigin(): string {
-  return process.env.BETTER_AUTH_URL?.trim() || 'https://telarchy.com';
-}
+// From address and public origin come from lib/origin.ts (PUBLIC_ORIGIN, MAIL_FROM),
+// so a self-hosted instance mails from its own domain and links to itself.
+export { publicOrigin } from './origin';
+import { mailFrom } from './origin';
 
 /**
  * Send one plain-text email. Resolves either way: a missing key, a 4xx from
@@ -37,7 +35,7 @@ export async function sendEmail(to: string, subject: string, text: string): Prom
     const res = await fetch(RESEND_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify({ from: FROM, to: [to], subject, text }),
+      body: JSON.stringify({ from: mailFrom(), to: [to], subject, text }),
     });
     if (!res.ok) {
       console.error(`email send failed: ${res.status} ${await res.text()}`);
