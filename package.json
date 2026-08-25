@@ -8,7 +8,9 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/build-guides.mjs && tsc -b && vite build",
+    "build:guides": "node scripts/build-guides.mjs",
+    "knip": "knip",
     "build:functions": "npm --prefix functions run build",
     "predeploy": "node scripts/build-changelog.mjs",
     "deploy": "gcloud run deploy api --source . --region us-central1 --allow-unauthenticated --memory 512Mi --cpu 1 --min-instances 0 --max-instances 4 --set-cloudsql-instances telarchy-e0043:us-central1:telarchy-pg --clear-base-image",
@@ -47,6 +49,7 @@
     "firebase-admin": "^13.7.0",
     "firebase-tools": "^15.6.0",
     "jsdom": "^29.0.2",
+    "knip": "^6.32.2",
     "pg": "^8.20.0",
     "tailwindcss": "^4.2.3",
     "typescript": "^5.7.0",

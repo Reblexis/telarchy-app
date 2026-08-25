@@ -226,7 +226,6 @@ describe('API parity: frontend goes through the public API', () => {
       '/api/auth/sign-up/email', // BetterAuth handles
       '/api/auth/sign-out',      // BetterAuth handles
       '/api/auth/session',       // BetterAuth handles
-      '/api/public-config',      // tiny client/server feature flag, not part of agent surface
     ]);
 
     const frontendPaths = readFrontendApiPaths().filter(p => !allowlist.has(p));
@@ -368,6 +367,8 @@ const UNDOCUMENTED_BY_DESIGN: Record<string, string> = {
 const SERVED_OUTSIDE_ROUTERS: Record<string, string> = {
   'GET /api/help':
     'The catalog itself, served by app.ts rather than by a mounted router, so it can never appear in the router scan.',
+  'GET /api/public-config':
+    'Instance feature flags, served inline by app.ts next to /api/help; documented in the catalog since 2026-08-24, invisible to the router scan.',
 };
 
 /** Param names differ between catalog and code (:id vs :proposalId); compare shapes. */
@@ -395,6 +396,13 @@ function readRegisteredRoutes(): Map<string, string> {
 }
 
 describe('API parity: /api/help is a complete map of the API', () => {
+  test('every router app.ts mounts is in ROUTER_MOUNTS, so the scan cannot silently skip a new one', () => {
+    const appTs = readFileSync(join(REPO_ROOT, 'functions/src/app.ts'), 'utf8');
+    const imported = [...appTs.matchAll(/from '\.\/routes\/([\w-]+)'/g)].map(m => `${m[1]}.ts`);
+    const missing = imported.filter(f => !(f in ROUTER_MOUNTS));
+    expect(missing).toEqual([]);
+  });
+
   let documented: DocumentedEndpoint[];
   let registered: Map<string, string>;
 

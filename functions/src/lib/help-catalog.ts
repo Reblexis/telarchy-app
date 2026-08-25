@@ -62,6 +62,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       scope_field_legend: 'The optional "scope" field on each endpoint is the per-key scope an agent-key caller needs (in addition to whatever capability the "auth" field requires). Browser sessions and the master API key bypass scope checks. Workspace endpoints get their scope intersected automatically (workspace:read covers any "agent/admin" route, workspace:trade any "agent" route, workspace:manage any "admin" route). Account endpoints carry an explicit scope (account:read, account:write, account:wallet, account:keys, account:agents, account:feedback). Endpoints with no scope field require none beyond what auth implies.',
     },
     endpoints: [
+      { method: 'GET', path: '/api/public-config', auth: false, description: 'Instance feature flags the browser reads before it renders: { usdcSettlementEnabled, store } where store is which database answered (production or beta).' },
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },
       { method: 'GET', path: '/api/guides', auth: false, description: 'Index of guide sections. Returns [{id, title, description, path}]. No auth required.' },
       { method: 'GET', path: '/api/guides/_categories', auth: false, description: 'Guide category metadata in render order: [{id, title, description, order}]. Kept separate from GET /api/guides so that stays a clean array of sections. No auth required.' },
