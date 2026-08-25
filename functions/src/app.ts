@@ -1,6 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { authMiddleware, optionalAuthMiddleware } from './middleware/auth';
+import { apiAuthPolicy } from './middleware/route-policy';
 import { requireConsentIfUser } from './middleware/consent';
 import { requireCapability } from './middleware/roles';
 import { metricsRouter } from './routes/metrics';
@@ -264,11 +264,17 @@ app.use(globalLimiter);
 // Throttle account creation so bulk signup farming cannot bypass the global limit.
 app.use('/api/auth/sign-up', registrationLimiter);
 
+// Deny by default: every /api request is authenticated here, first, before any
+// router. Which paths may answer anonymously is the explicit list in
+// middleware/route-policy.ts; everything else is 401 without credentials. Mount
+// order no longer decides anything (ARCHITECTURE.md, "Auth: deny by default").
+app.use('/api', apiAuthPolicy);
+
 // Our custom /api/auth/* routes (me, profile, export, delete) must be registered
-// BEFORE the BetterAuth handler, which never calls next(). optionalAuthMiddleware
-// resolves sessions without rejecting unauthenticated requests, so BetterAuth's
-// own sign-in/sign-up/sign-out paths still flow through when the router has no match.
-app.use('/api/auth', optionalAuthMiddleware, userauthRouter);
+// BEFORE the BetterAuth handler, which never calls next(). The policy resolved
+// the session without rejecting, so BetterAuth's own sign-in/sign-up/sign-out
+// paths still flow through when the router has no match.
+app.use('/api/auth', userauthRouter);
 
 // BetterAuth handles remaining /api/auth/* paths (sign-in, sign-up, session, callback…).
 // Must be mounted on a path prefix. toNodeHandler() does not call next(), so
@@ -332,21 +338,22 @@ app.use('/api/marketplace', marketplaceRouter);
 // The operator door's conversation spends the same money as the floor's, so
 // it sits behind the same narrow limiter (docs/operator-setup.md).
 app.use('/api/setup/ask', askLimiter);
-// optionalAuthMiddleware, not the global one below: this door answers an
-// anonymous visitor too, and it needs to KNOW which it is talking to, since
-// what Otto may promise depends on whether the caller can act at all.
-app.use('/api/setup', optionalAuthMiddleware, setupRouter);
+// This door answers an anonymous visitor too, and it needs to KNOW which it is
+// talking to, since what Otto may promise depends on whether the caller can act
+// at all; the policy resolves credentials without rejecting on this prefix.
+app.use('/api/setup', setupRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/seasons', seasonsRouter);
-app.use('/api/notifications', optionalAuthMiddleware, requireConsentIfUser, notificationsRouter);
+app.use('/api/notifications', requireConsentIfUser, notificationsRouter);
 app.use('/api/feedback', feedbackLimiter, feedbackRouter);
 
-// Sources: mounted before global authMiddleware because the GitHub OAuth
-// callback is a redirect from GitHub with no auth headers. Individual routes
-// that need auth use requireCapability (which checks req.auth from optionalAuth).
-app.use('/api/sources', optionalAuthMiddleware, requireConsentIfUser, sourcesRouter);
+// Sources: the GitHub OAuth callback is a redirect from GitHub with no auth
+// headers, so this prefix is optional-auth in the policy. Individual routes that
+// need auth use requireCapability (which checks the req.auth the policy set).
+app.use('/api/sources', requireConsentIfUser, sourcesRouter);
 
-app.use('/api', authMiddleware);
+// Routers below were once "behind global auth"; the policy now authenticates
+// them like everything else. Consent for browser sessions still applies here.
 app.use('/api', requireConsentIfUser);
 
 app.use('/api/metrics', metricsRouter);

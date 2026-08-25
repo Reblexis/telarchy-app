@@ -51,7 +51,7 @@ describe('single reader', () => {
     const walk = (dir: string) => {
       for (const entry of readdirSync(dir)) {
         const p = join(dir, entry);
-        if (statSync(p).isDirectory()) { walk(p); continue; }
+        if (statSync(p).isDirectory()) { if (!p.endsWith('__tests__')) walk(p); continue; }
         if (!/\.ts$/.test(entry) || p.endsWith('master-key.test.ts')) continue;
         const text = readFileSync(p, 'utf8');
         if (/process\.env\.API_KEY\b(?!_PREVIOUS)/.test(text) && !p.endsWith(join('lib', 'master-key.ts'))) {

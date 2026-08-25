@@ -6,7 +6,6 @@ import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
 import { agents, systemConfig } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { AppError } from '../lib/errors';
-import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { toUnits } from '../lib/validation';
 
@@ -34,7 +33,6 @@ import { toUnits } from '../lib/validation';
  */
 
 export const manifoldRouter = Router();
-manifoldRouter.use(authMiddleware);
 
 const MANIFOLD_API = 'https://api.manifold.markets/v0';
 // 100k (owner decision 2026-08-10, raised from 10k): a top Manifold record
