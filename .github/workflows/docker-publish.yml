@@ -33,7 +33,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/reblexis/telarchy
+          images: ghcr.io/reblexis/telarchy-app
           tags: |
             type=raw,value=latest
             type=sha,prefix=sha-,format=short
@@ -50,6 +50,6 @@ jobs:
       # delete the tail, so the package can never crawl toward the quota.
       - uses: actions/delete-package-versions@v5
         with:
-          package-name: telarchy
+          package-name: telarchy-app
           package-type: container
           min-versions-to-keep: 8

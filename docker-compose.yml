@@ -28,7 +28,7 @@ services:
 
   app:
     # The published image; `build: .` is the fallback when you change the code.
-    image: ghcr.io/reblexis/telarchy:latest
+    image: ghcr.io/reblexis/telarchy-app:latest
     build: .
     depends_on:
       db:
