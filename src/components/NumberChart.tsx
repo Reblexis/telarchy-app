@@ -33,8 +33,10 @@ interface Props {
   /** 'day' | 'week' | 'month' | 'other', from the selected market's target date. */
   granularity: Granularity;
   unit?: string;
-  /** The words in the top corner (the view toggle), rendered by the caller. */
+  /** The view toggle words, at the left of the control row. */
   corner?: ReactNode;
+  /** The centre of the control row: the time left until the market settles. */
+  center?: ReactNode;
   now?: Date;
   height?: number;
 }
@@ -156,6 +158,7 @@ export function NumberChart({
   granularity,
   unit = '',
   corner,
+  center,
   now = new Date(),
   height = 200,
 }: Props) {
@@ -199,26 +202,39 @@ export function NumberChart({
   for (let t = Math.ceil(y0 / step) * step; t <= y1; t += step) ticks.push(Number(t.toFixed(6)));
 
   const nowT = now.getTime();
-  let d = '';
-  drawn.forEach((p, i) => {
-    const px = x(new Date(p.at).getTime());
-    const py = y(p.value);
-    d += i === 0 ? `M${px} ${py}` : ` H${px} V${py}`;
-  });
+  // Readings joined by straight segments with a dot at each reading, then a
+  // dashed hold from the last reading to now: the value in force. A step
+  // line read as a staircase of a daily-synced level, which nobody meant.
+  const pts = drawn.map(p => [x(new Date(p.at).getTime()), y(p.value)] as const);
+  const d = pts.map(([px, py], i) => (i === 0 ? `M${px} ${py}` : `L${px} ${py}`)).join(' ');
   const last = drawn[drawn.length - 1];
-  if (last && nowT > new Date(last.at).getTime()) d += ` H${Math.min(x(nowT), W - PAD_R)}`;
-
+  const lastX = last ? x(new Date(last.at).getTime()) : 0;
+  const holdX = Math.min(x(nowT), W - PAD_R);
   const beyondLeft = markers.some(m => new Date(m.resolvesOn).getTime() < x0);
   const beyondRight = markers.some(m => new Date(m.resolvesOn).getTime() > x1);
 
   return (
     <div className="mchart nchart">
+      <div className="mchart-ranges" role="group" aria-label="Time range">
+        <span className="mchart-left">{corner && <span className="mchart-corner">{corner}</span>}</span>
+        <span className="mchart-center">{center}</span>
+        <span className="mchart-right">
+          {words.map((w, i) => {
+            const active = rangeKey ? rangeKey === w.key : i === 0;
+            return (
+              <button
+                key={w.key}
+                className={`mchart-range${active ? ' is-active' : ''}`}
+                aria-pressed={active}
+                onClick={() => setRangeKey(w.key)}
+              >
+                {w.key}
+              </button>
+            );
+          })}
+        </span>
+      </div>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label="The number and the market's calls">
-        {corner && (
-          <foreignObject x={W - 220} y={0} width={220 - PAD_R + 12} height={18}>
-            <div className="mchart-corner">{corner}</div>
-          </foreignObject>
-        )}
         {ticks.map(t => (
           <g key={t}>
             <line className="mchart-grid" x1={PAD_L} x2={W - PAD_R} y1={y(t)} y2={y(t)} />
@@ -243,14 +259,12 @@ export function NumberChart({
           </>
         )}
         {d && <path className="nchart-line" d={d} />}
-        {last && (
-          <circle
-            className="nchart-dot"
-            cx={Math.min(x(Math.max(new Date(last.at).getTime(), Math.min(nowT, x1))), W - PAD_R)}
-            cy={y(last.value)}
-            r={3.5}
-          />
+        {last && nowT > new Date(last.at).getTime() && holdX > lastX && (
+          <line className="nchart-hold" x1={lastX} x2={holdX} y1={y(last.value)} y2={y(last.value)} />
         )}
+        {visible.map(p => (
+          <circle key={p.at} className="nchart-dot" cx={x(new Date(p.at).getTime())} cy={y(p.value)} r={3} />
+        ))}
         {inWindow.map(m => {
           const mx = x(new Date(m.resolvesOn).getTime());
           const my = m.consensus === null ? null : y(m.consensus);
@@ -279,23 +293,6 @@ export function NumberChart({
         <text className="mchart-xlabel" x={PAD_L + 20} y={H - 8}>
           {dayLabel(x0)}
         </text>
-        <foreignObject x={W - 200} y={H - 18} width={200 - PAD_R + 18} height={18}>
-          <div className="mchart-corner mchart-corner--bottom" role="group" aria-label="Time range">
-            {words.map((w, i) => {
-              const active = rangeKey ? rangeKey === w.key : i === 0;
-              return (
-                <button
-                  key={w.key}
-                  className={`mchart-word${active ? ' is-active' : ''}`}
-                  aria-pressed={active}
-                  onClick={() => setRangeKey(w.key)}
-                >
-                  {w.key}
-                </button>
-              );
-            })}
-          </div>
-        </foreignObject>
       </svg>
     </div>
   );

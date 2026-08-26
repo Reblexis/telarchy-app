@@ -18,6 +18,7 @@ const week = (values: number[], start = '2026-08-17T10:00:00Z') =>
   }));
 
 const view = (o: Partial<HorizonView> = {}): HorizonView => ({
+  resetsEvery: 'week',
   marketId: 'm',
   metricId: 'x',
   metricName: 'LookPilot net this week (USD)',

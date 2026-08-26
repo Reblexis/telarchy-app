@@ -62,6 +62,8 @@ export interface HorizonView {
   rangeMax: number;
   /** The metric's own readings, oldest first. */
   metricHistory: Array<{ at: string; value: number }>;
+  /** The period the metric restarts on, or null for a level or accumulator. */
+  resetsEvery: string | null;
   /** The owner's definition of this horizon's number. */
   description: string | null;
   /**
@@ -224,6 +226,7 @@ export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: D
         .flatMap(p => (p.at && Number.isFinite(p.value) ? [{ at: p.at, value: p.value }] : []))
         .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()),
       description: row?.description ?? null,
+      resetsEvery: row?.resetsEvery ?? null,
       settlesNaForNow: !!row?.resolvesNaUntilMeasured && !row?.measured,
     };
   });

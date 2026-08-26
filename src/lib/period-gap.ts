@@ -54,6 +54,11 @@ export function accumulatesInPeriod(points: Array<{ at: string; value: number }>
 
 export function periodGapOf(h: HorizonView | null, now: Date = new Date()): PeriodGap | null {
   if (!h || h.consensus === null || !h.resolvesOn) return null;
+  // Only a metric that restarts each period has a "booked so far": a level
+  // such as a trailing-30-day total is never on its way to a number, and its
+  // rising readings after a redefinition read as accumulation to the
+  // heuristic below. The metric says which it is (resetsEvery).
+  if (!h.resetsEvery) return null;
   const points = h.metricHistory;
   if (!accumulatesInPeriod(points)) return null;
 

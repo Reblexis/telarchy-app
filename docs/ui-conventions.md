@@ -397,11 +397,13 @@ says how long. The one thing that still prints under the price is the N/A
 caveat of a metric with no reading yet ("N/A, all bets refunded, if there
 is still no reading by then"), because it changes what a bet is.
 
-**One chart slot, two views, switched by two words in the chart's own top
-corner: `MARKET · NUMBER`.** Nothing else on the page moves when the view
-switches. The slot opens on the market. The controls of a view are words in
-the chart's corners, never a row of chips above it: the top corner is the
-view, the bottom corner is the range.
+**One chart slot, two views, one control row above it in both.** The row
+is three cells that never move: the view words `MARKET · NUMBER` at the
+left, the time left until the market on screen settles in the centre
+("settles in 13h 12m"), and the range chips of the current view at the
+right. Nothing else on the page moves when the view switches, and the row
+itself does not either: a control that jumps when you use it is the thing
+this rule exists to prevent. The slot opens on the market.
 
 - **The market view** is the prediction chart (`MarketChart`): one amber
   step line of the market's call over its lifetime, gradient fill, labeled
@@ -409,18 +411,20 @@ view, the bottom corner is the range.
   stamped with its creation time, because a pair that opens anchored and
   has traded once is otherwise a single point, which draws as a flat line
   and a cliff at the live dot and reads as if every trade happened at once.
-  Its range words are `1D 1W ALL`; a range longer than the market's life is
+  Its range chips are `1D 1W ALL`; a range longer than the market's life is
   not offered.
 - **The number view** (`NumberChart`) is the metric's own trajectory: its
   readings as an ink step line up to a "now" rule, and, on the future side,
   every open market of this metric as a marker at its settle instant
-  carrying that market's current call. **It is about the market on
+  carrying that market's current call. Readings are joined by straight
+  segments with a dot at each reading and a dashed hold from the last one
+  to now (the value in force); a step line read as a staircase. **It is about the market on
   screen**: the selected market's marker is amber and labeled; the others
   are grey and unlabeled, and one that falls outside the window is a grey
   chevron at the edge it lies beyond. **The window follows the selected
   horizon** rather than stretching to show every marker: roughly two days
   for a day market, a week for a week market, a month for anything further,
-  always ending at the selected settle instant; the range words
+  always ending at the selected settle instant; the range chips
   (`2D 1W ALL`, `1W 1M ALL`, `1M 3M ALL` by granularity) override it.
   **Switching dates tweens the axis and the line** over about 400ms,
   ease-out, rather than snapping, so a reader sees where the window went.

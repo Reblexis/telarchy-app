@@ -26,6 +26,8 @@ interface Props {
   ranges?: string[];
   /** The view toggle words, rendered at the left of the range row. */
   corner?: ReactNode;
+  /** The centre of the range row: the time left until the market settles. */
+  center?: ReactNode;
   /** Top-left corner note ("resolves 31 December 2026"): the one market
       fact that belongs on the visualization itself. */
   note?: string;
@@ -108,6 +110,7 @@ export function MarketChart({
   height,
   ranges,
   corner,
+  center,
 }: Props) {
   // The range words a caller allows (docs/ui-conventions.md: the market view
   // offers 1D 1W ALL); undefined keeps the full set for older callers.
@@ -393,26 +396,31 @@ export function MarketChart({
   return (
     <div className="mchart">
       <div className="mchart-ranges" role="group" aria-label="Time range">
-        {note && <span className="mchart-note">{note}</span>}
-        {corner && <span className="mchart-corner mchart-corner--inline">{corner}</span>}
-        {rangeSet.map(r => (
+        <span className="mchart-left">
+          {corner && <span className="mchart-corner">{corner}</span>}
+          {note && <span className="mchart-note">{note}</span>}
+        </span>
+        <span className="mchart-center">{center}</span>
+        <span className="mchart-right">
+          {rangeSet.map(r => (
+            <button
+              key={r.key}
+              className={`mchart-range${range === r.ms ? ' is-active' : ''}`}
+              disabled={r.ms >= model.fullSpan}
+              aria-pressed={range === r.ms}
+              onClick={() => setRange(cur => (cur === r.ms ? null : r.ms))}
+            >
+              {r.key}
+            </button>
+          ))}
           <button
-            key={r.key}
-            className={`mchart-range${range === r.ms ? ' is-active' : ''}`}
-            disabled={r.ms >= model.fullSpan}
-            aria-pressed={range === r.ms}
-            onClick={() => setRange(cur => (cur === r.ms ? null : r.ms))}
+            className={`mchart-range${range === null ? ' is-active' : ''}`}
+            aria-pressed={range === null}
+            onClick={() => setRange(null)}
           >
-            {r.key}
+            ALL
           </button>
-        ))}
-        <button
-          className={`mchart-range${range === null ? ' is-active' : ''}`}
-          aria-pressed={range === null}
-          onClick={() => setRange(null)}
-        >
-          ALL
-        </button>
+        </span>
       </div>
       <svg
         ref={svgRef}

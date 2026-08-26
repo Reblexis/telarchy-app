@@ -39,6 +39,7 @@ import {
   priceSeriesIsInline,
   priceSeriesOf,
   settleNoteOf,
+  timeLeftOf,
 } from '../lib/floor-horizons';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
@@ -360,6 +361,14 @@ export function TradePage() {
   // The chart slot's view: the market's call or the number itself. Nothing
   // else on the page moves when it switches.
   const [chartView, setChartView] = useState<'market' | 'number'>('market');
+  // The centre of the chart's control row: how long until the market on
+  // screen settles (owner ask: "put the timer in the center here").
+  const settleLeft = hero ? timeLeftOf(hero, now) : null;
+  const settleCenter = hero ? (
+    <span title={hero.resolvesOn ? `settles ${new Date(hero.resolvesOn).toUTCString()}` : undefined}>
+      {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
+    </span>
+  ) : null;
   const chartViewWords = (
     <span role="group" aria-label="Chart view">
       <button
@@ -1379,6 +1388,7 @@ export function TradePage() {
                     unit={unit}
                     now={now}
                     corner={chartViewWords}
+                    center={settleCenter}
                   />
                 ) : (
                   <MarketChart
@@ -1388,6 +1398,7 @@ export function TradePage() {
                     unit={unit}
                     ranges={['1D', '1W']}
                     corner={chartViewWords}
+                    center={settleCenter}
                     note={hero?.settlesNaForNow ? settleNoteOf(hero) : undefined}
                     preview={chartPreview}
                     orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}

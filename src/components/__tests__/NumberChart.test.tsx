@@ -97,10 +97,6 @@ describe('the markers', () => {
         now={NOW}
       />,
     );
-    expect([...container.querySelectorAll('.mchart-corner--bottom .mchart-word')].map(b => b.textContent)).toEqual([
-      '2D',
-      '1W',
-      'ALL',
-    ]);
+    expect([...container.querySelectorAll('.mchart-range')].map(b => b.textContent)).toEqual(['2D', '1W', 'ALL']);
   });
 });
