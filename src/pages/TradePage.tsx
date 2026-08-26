@@ -17,6 +17,7 @@ import { MarketChart } from '../components/MarketChart';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart } from '../components/NumberChart';
 import { ReportButton } from '../components/ReportButton';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { type TicketPosition, TradeTicket } from '../components/TradeTicket';
 import { useAuth } from '../hooks/useAuth';
@@ -1853,6 +1854,7 @@ export function TopBar({
         <ManifoldButton signedIn={user} onRequireSignup={() => navigate(authPath('signup', location))} />
         <DiscordButton />
         <ReportButton />
+        <ThemeToggle />
         {/* Rendered only after the session check settles: while it is
             pending, user is still null, and a signed-in visitor would see
             "Log in" flash and vanish. Anonymous visitors get it fading in. */}

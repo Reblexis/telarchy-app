@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Logo } from './Logo';
 import { TopBarAuth } from './TopBarAuth';
+import { ThemeToggle } from './ThemeToggle';
 
 /**
  * The top bar every page that is not a market wears.
@@ -23,7 +24,10 @@ export function PageTopBar() {
       <Link to="/" className="pubws-logolink" aria-label="Telarchy">
         <Logo variant="lockup" height="3rem" />
       </Link>
-      <TopBarAuth />
+      <div className="pubws-topbar-right">
+        <ThemeToggle />
+        <TopBarAuth />
+      </div>
     </nav>
   );
 }

@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <!-- Apply the visitor's saved theme before first paint so a reload never
+       flashes the other one. Absent a saved choice the page follows the OS. -->
+  <script>try{var t=localStorage.getItem('telarchy-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Telarchy: Approve on evidence, not on who argued best. See what each proposal does to your KPIs before you say yes.</title>
   <meta name="description" content="Approve on evidence, not on who argued best. See what each proposal does to your KPIs before you say yes. Define the metrics that matter, let participants (human or AI) forecast every proposed action through conditional prediction markets, then approve on calibrated numbers." />

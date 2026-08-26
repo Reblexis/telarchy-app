@@ -130,6 +130,15 @@ The bar owns a stacking layer above the floor rails so the popover paints
 over them; the bar deliberately ignores the 660px content column. "Log in"
 never wraps.
 
+Left of the account, on every top bar, sits the theme toggle: one quiet
+icon in the same sliding-label treatment as the Discord and report
+buttons, showing the theme it would switch TO (a moon on a light page, a
+sun on a dark one). The site follows the OS theme until the visitor
+touches it; a click flips between light and dark and the choice is kept
+per browser (localStorage `telarchy-theme`, applied as `data-theme` on
+the html element before first paint, so a reload never flashes the other
+theme). Clearing the stored value returns to following the OS.
+
 The picture is saved via POST /api/auth/profile { image }: there is no
 blob store in this stack, so the account dialog renders the pick to a
 256px JPEG and sends it inline as a base64 data:image (png, jpeg or webp,

@@ -2095,6 +2095,38 @@ button.notif-row-link {
   opacity: 1;
 }
 
+/* Light / dark toggle, same icon-with-sliding-label treatment, so it joins
+   the control group instead of reading as a settings widget. */
+.pubws-theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  transition: color 120ms ease;
+}
+.pubws-theme:hover,
+.pubws-theme:focus-visible { color: var(--text-primary); outline: none; }
+.pubws-theme-icon { display: block; flex: none; }
+.pubws-theme-label {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0;
+  transition: max-width 200ms ease, opacity 160ms ease;
+}
+.pubws-theme:hover .pubws-theme-label,
+.pubws-theme:focus-visible .pubws-theme-label {
+  max-width: 7rem;
+  opacity: 1;
+}
+
 /* Report-a-bug / feedback button in the floor top bar: same quiet
    icon-with-sliding-label treatment as the Discord button, so the trio
    (Manifold, Discord, report) reads as one control group. */
