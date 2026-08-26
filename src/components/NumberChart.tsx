@@ -136,7 +136,12 @@ const PAD_B = 34;
 
 function fmt(v: number, unit: string): string {
   const abs = Math.abs(v);
-  const s = abs >= 1000 ? Math.round(v).toLocaleString('en-US') : abs >= 100 ? v.toFixed(0) : v.toFixed(1);
+  const s =
+    abs >= 1000
+      ? Math.round(v).toLocaleString('en-US')
+      : abs >= 100 || Number.isInteger(Number(v.toFixed(6)))
+        ? Number(v.toFixed(6)).toFixed(0)
+        : v.toFixed(1);
   return unit + s;
 }
 
