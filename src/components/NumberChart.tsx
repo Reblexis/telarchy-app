@@ -254,7 +254,9 @@ export function NumberChart({
         tip = {
           x: x(new Date(near.resolvesOn).getTime()),
           y: y(near.consensus),
-          date: dayLabel(new Date(near.resolvesOn).getTime()),
+          // The settle instant is the first moment after the period; the day a
+          // reader is forecasting is the one before it, as the picker says.
+          date: dayLabel(new Date(near.resolvesOn).getTime() - 1),
           label: near.selected ? 'the market says' : 'another market says',
           value: fmt(near.consensus, unit),
         };
