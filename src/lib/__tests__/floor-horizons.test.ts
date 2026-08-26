@@ -441,11 +441,11 @@ describe('a floor that prices several metrics', () => {
     expect(cellOf(grid, 'rvw', '2026-09')?.marketId).toBe('rvw-month');
   });
 
-  test('the date segments name the clock and its time left, both computed', () => {
-    expect(dateSegmentOf(horizonById(grid, 'rev-day'), NOW_GRID)).toBe('today · 12h 0m');
-    expect(dateSegmentOf(horizonById(grid, 'rev-week'), NOW_GRID)).toBe('this week · 5d 12h');
-    expect(dateSegmentOf(horizonById(grid, 'rev-month'), NOW_GRID)).toBe('this month · 6d 12h');
-    expect(dateSegmentOf(horizonById(grid, 'rev-sep'), NOW_GRID)).toBe('30 Sep · 36d');
+  test('the date segments name the clock and its settle day, both computed', () => {
+    expect(dateSegmentOf(horizonById(grid, 'rev-day'))).toBe('today · 25 Aug');
+    expect(dateSegmentOf(horizonById(grid, 'rev-week'))).toBe('this week · 30 Aug');
+    expect(dateSegmentOf(horizonById(grid, 'rev-month'))).toBe('this month · 31 Aug');
+    expect(dateSegmentOf(horizonById(grid, 'rev-sep'))).toBe('30 Sep');
     expect(dateSegmentOf(null)).toBe('');
   });
 
@@ -458,7 +458,7 @@ describe('a floor that prices several metrics', () => {
 
   test('a day that has ended is a date, not "today"', () => {
     const later = buildHorizonViews(ws({ markets: GRID, horizonHistories: [] }), new Date('2026-08-26T00:30:00Z'));
-    expect(dateSegmentOf(horizonById(later, 'rev-day'), new Date('2026-08-26T00:30:00Z'))).toBe('25 Aug · settling');
+    expect(dateSegmentOf(horizonById(later, 'rev-day'))).toBe('25 Aug');
   });
 });
 

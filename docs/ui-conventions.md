@@ -145,7 +145,7 @@ and the caption carries two independent pickers, both segmented rows:
 
 ```
         [ NET REVENUE ]  [ ACTIVE TRADERS ]  [ IMPLIED VALUATION ]   <- picks the METRIC
-        [ today · 13h 12m ]  [ this week · 4d 13h ]  [ 30 Sep · 35d ]   <- picks the DATE
+        [ today · 26 Aug ]  [ this week · 30 Aug ]  [ 30 Sep ]           <- picks the DATE
                         6,912
                   [ HIGHER ]  [ LOWER ]
 ```
@@ -388,12 +388,12 @@ e.g. "USD" -> "$"; the same prefix runs through every numeral in the
 chart). The since-open chip sits on the price's baseline a full `1rem` off
 the number, and drops centred underneath it below 480px.
 
-**When a market settles is said in the date picker, not under the price.**
-Every date segment carries its name and its time left, ticking by the
-minute: `TODAY · 13H 12M`, `THIS WEEK · 4D 13H`, `30 SEP · 35D`; the hover
-title is the exact instant (UTC). The former "resolves 30 September 2026"
-line is gone, because the picker already says which date and the timer
-says how long. The one thing that still prints under the price is the N/A
+**When a market settles is said once, in the chart's control row.** The
+date picker names each market by its clock and settle day (`TODAY · 26 AUG`,
+`THIS WEEK · 30 AUG`, `30 SEP`), and the centre of the control row counts
+down to the selected one ("settles in 13h 12m", ticking by the minute, the
+exact UTC instant as its hover title). The former "resolves 30 September
+2026" line is gone, and the segments do not repeat the timer. The one thing that still prints under the price is the N/A
 caveat of a metric with no reading yet ("N/A, all bets refunded, if there
 is still no reading by then"), because it changes what a bet is.
 

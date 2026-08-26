@@ -573,7 +573,7 @@ test('the workspace name heads the page', async () => {
   // it settles is the line under it (owner ask 2026-08-25, two steppers: the
   // caption's arrows step the metric, the date line's arrows step the date).
   expect(container.querySelector('.pubws-instrument-label')!.textContent).toBe('revenue');
-  expect(container.querySelector('.pubws-instrument-date')!.textContent).toMatch(/^31 Dec · \d+d$/);
+  expect(container.querySelector('.pubws-instrument-date')!.textContent).toBe('31 Dec');
 });
 
 test('the workspace description is the company tagline, and is optional', async () => {

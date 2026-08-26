@@ -994,7 +994,7 @@ export function TradePage() {
                           title={d.resolvesOn ? `settles ${new Date(d.resolvesOn).toUTCString()}` : undefined}
                           onClick={() => setHorizonId(d.marketId)}
                         >
-                          {dateSegmentOf(d, now)}
+                          {dateSegmentOf(d)}
                         </button>
                       ))}
                     </span>
@@ -1003,7 +1003,7 @@ export function TradePage() {
                       className="pubws-instrument-at"
                       title={hero.resolvesOn ? `settles ${new Date(hero.resolvesOn).toUTCString()}` : undefined}
                     >
-                      {dateSegmentOf(hero, now)}
+                      {dateSegmentOf(hero)}
                     </span>
                   )}
                 </div>

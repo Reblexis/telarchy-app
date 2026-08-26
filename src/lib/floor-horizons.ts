@@ -348,18 +348,17 @@ export function timeLeftOf(v: HorizonView | null, now: Date = new Date()): strin
 }
 
 /**
- * A date's label in the date picker: the clock's name and its time left,
- * "this week · 4d 13h". A named clock is "today", "this week" or "this
- * month"; any other date is its settle day ("30 Sep · 35d"). Both parts are
- * computed from the market, never stored on the metric; the exact instant is
- * the segment's hover title.
+ * A date's label in the date picker: the clock's name and its settle day,
+ * "this week · 30 Aug". A named clock is "today", "this week" or "this
+ * month"; any other date is its settle day alone ("30 Sep"). Both computed
+ * from the market, never stored on the metric. The time left lives in the
+ * chart's control row, not here.
  */
-export function dateSegmentOf(v: HorizonView | null, now: Date = new Date()): string {
+export function dateSegmentOf(v: HorizonView | null): string {
   if (!v) return '';
   const named = /^(today|this week|this month)$/.test(v.label) ? v.label : '';
-  const name = named || v.settleShort || v.targetDate;
-  const left = timeLeftOf(v, now);
-  return left ? `${name} · ${left}` : name;
+  if (!v.settleShort) return named || v.targetDate;
+  return named ? `${named} · ${v.settleShort}` : v.settleShort;
 }
 
 /**
