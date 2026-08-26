@@ -4078,7 +4078,7 @@ textarea.jobform-line--desc {
   stroke-dashoffset: 1;
   animation: mchart-draw 1.1s ease-out 0.15s both;
 }
-.nchart-dot, .nchart-hold, .nchart-marker, .nchart-empty { animation: mchart-appear 0.4s ease-out 1.1s both; }
+.nchart-dot, .nchart-hold, .nchart-marker, .nchart-empty, .nchart-legend { animation: mchart-appear 0.4s ease-out 1.1s both; }
 .nchart-empty { fill: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
 @media (prefers-reduced-motion: reduce) {
   .nchart-line { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
@@ -4091,6 +4091,38 @@ textarea.jobform-line--desc {
 .nchart-marker.is-selected line { stroke: var(--accent); opacity: 1; }
 .nchart-marker.is-selected circle { fill: var(--accent); stroke: var(--bg-primary); stroke-width: 2; opacity: 1; }
 .nchart-marker text { fill: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
+
+/* A contract's pair at a settle marker: green if approved, red if declined,
+   the bar between them is the priced impact; grey on the dates not on
+   screen, in the contract's colours on the selected one. */
+.nchart-pair-bar { stroke: var(--text-tertiary); stroke-width: 1; opacity: 0.5; }
+.nchart-pair-approved, .nchart-pair-declined { fill: var(--text-tertiary); opacity: 0.7; }
+.nchart-marker.is-selected .nchart-pair-bar { stroke: var(--text-primary); stroke-width: 2; opacity: 0.9; }
+.nchart-marker.is-selected .nchart-pair-approved { fill: var(--higher); opacity: 1; stroke: var(--bg-primary); stroke-width: 2; }
+.nchart-marker.is-selected .nchart-pair-declined { fill: var(--lower); opacity: 1; stroke: var(--bg-primary); stroke-width: 2; }
+.nchart-marker text.nchart-pair-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
+.nchart-marker text.nchart-pair-label--approved { fill: var(--higher); }
+.nchart-marker text.nchart-pair-label--declined { fill: var(--lower); }
+.nchart-marker text.nchart-pair-delta { fill: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
+.nchart-marker text { paint-order: stroke; stroke: var(--bg-primary); stroke-width: 3.5px; }
+.nchart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 1.1rem;
+  margin-top: 0.4rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.nchart-legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.nchart-legend-dot--approved { background: var(--higher); }
+.nchart-legend-dot--declined { background: var(--lower); }
+.nchart-legend-dot--now { background: var(--accent); }
+.nchart-tip-approved { color: var(--higher); }
+.nchart-tip-declined { color: var(--lower); }
 
 /* A resting order, drawn where it sits in the price. Faint enough to stay
    behind the market line, legible enough to prove the order is real. */
