@@ -238,23 +238,6 @@ export function NumberChart({
         tip = {
           x: x(cursor),
           y: (PAD_T + H - PAD_B) / 2,
-          date: new Date(cursor).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }),
-          label: 'no reading yet',
-          value: '',
-        };
-      } else {
-        tip = {
-          x: x(new Date(nearest.at).getTime()),
-          y: y(nearest.value),
-          date: new Date(nearest.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }),
-          label: 'reading',
-          value: fmt(nearest.value, unit),
-        };
-      }
-    } else {
-        tip = {
-          x: x(cursor),
-          y: y(inForce.value),
           date: new Date(cursor).toLocaleString('en-GB', {
             day: 'numeric',
             month: 'short',
@@ -262,8 +245,22 @@ export function NumberChart({
             minute: '2-digit',
             timeZone: 'UTC',
           }),
+          label: 'no reading yet',
+          value: '',
+        };
+      } else {
+        tip = {
+          x: x(new Date(nearest.at).getTime()),
+          y: y(nearest.value),
+          date: new Date(nearest.at).toLocaleString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'UTC',
+          }),
           label: 'reading',
-          value: fmt(inForce.value, unit),
+          value: fmt(nearest.value, unit),
         };
       }
     } else {

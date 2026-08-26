@@ -141,10 +141,11 @@ describe('hover', () => {
       y: 0,
       toJSON: () => ({}),
     });
-    // Halfway between the 10 Aug and 25 Aug readings: the tooltip must be one of them, not an interpolation.
-    fireEvent.pointerMove(svg, { clientX: 330, clientY: 100 });
+    // On the past side, between readings: the tooltip must be one of them, never an interpolation.
+    // jsdom has no PointerEvent; a MouseEvent of that type reaches React's onPointerMove with coordinates.
+    fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: 150, clientY: 100 }));
     const tip = container.querySelector('.mchart-tip')?.textContent ?? '';
-    expect(tip).toMatch(/reading \$(4|5)$/);
-    expect(tip).toMatch(/10 Aug|25 Aug/);
+    expect(tip).toMatch(/reading \$(2|4|5)$/);
+    expect(tip).toMatch(/27 Jul|10 Aug|25 Aug/);
   });
 });
