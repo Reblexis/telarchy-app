@@ -15,6 +15,7 @@ import { Logo } from '../components/Logo';
 import { ManifoldButton } from '../components/ManifoldButton';
 import { MarketChart } from '../components/MarketChart';
 import { NotificationsBell } from '../components/NotificationsBell';
+import { granularityOf, NumberChart } from '../components/NumberChart';
 import { ReportButton } from '../components/ReportButton';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { type TicketPosition, TradeTicket } from '../components/TradeTicket';
@@ -348,6 +349,36 @@ export function TradePage() {
   const metricHeads = metricsOf(horizons);
   // Soonest first in the row: today, this week, this month, then anything absolute.
   const heroDates = hero ? [...datesOf(horizons, hero.metricId)].reverse() : [];
+  // The date segments carry their time left and tick by the minute
+  // (docs/ui-conventions.md, "When a market settles is said in the date
+  // picker"). One clock for the page, so every segment agrees.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  // The chart slot's view: the market's call or the number itself. Nothing
+  // else on the page moves when it switches.
+  const [chartView, setChartView] = useState<'market' | 'number'>('market');
+  const chartViewWords = (
+    <span role="group" aria-label="Chart view">
+      <button
+        className={`mchart-word${chartView === 'market' ? ' is-active' : ''}`}
+        aria-pressed={chartView === 'market'}
+        onClick={() => setChartView('market')}
+      >
+        market
+      </button>
+      <span className="mchart-word-sep">·</span>
+      <button
+        className={`mchart-word${chartView === 'number' ? ' is-active' : ''}`}
+        aria-pressed={chartView === 'number'}
+        onClick={() => setChartView('number')}
+      >
+        number
+      </button>
+    </span>
+  );
   // The arithmetic under the price: booked, missing, per day. Null for any
   // metric that does not accumulate inside its period, which is most of them.
   const gap = periodGapOf(hero);
@@ -951,14 +982,20 @@ export function TradePage() {
                           className={`pubws-seg-btn${d.marketId === hero.marketId ? ' is-active' : ''}`}
                           aria-pressed={d.marketId === hero.marketId}
                           aria-label={`Show ${d.metricLabel}, ${d.label}`}
+                          title={d.resolvesOn ? `settles ${new Date(d.resolvesOn).toUTCString()}` : undefined}
                           onClick={() => setHorizonId(d.marketId)}
                         >
-                          {dateSegmentOf(d)}
+                          {dateSegmentOf(d, now)}
                         </button>
                       ))}
                     </span>
                   ) : (
-                    <span className="pubws-instrument-at">{dateSegmentOf(hero)}</span>
+                    <span
+                      className="pubws-instrument-at"
+                      title={hero.resolvesOn ? `settles ${new Date(hero.resolvesOn).toUTCString()}` : undefined}
+                    >
+                      {dateSegmentOf(hero, now)}
+                    </span>
                   )}
                 </div>
               )}
@@ -1317,30 +1354,60 @@ export function TradePage() {
                 </div>
               )}
               <div className="pubws-enter pubws-enter--3">
-                <MarketChart
-                  key={active.marketId}
-                  series={active.history.length > 0 ? active.history : [{ at: new Date().toISOString(), consensus }]}
-                  consensus={consensus}
-                  unit={unit}
-                  note={settleNoteOf(hero)}
-                  preview={chartPreview}
-                  orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
-                  /* Only ever the other BRANCH: same metric, same window,
+                {/* One chart slot, two views (docs/ui-conventions.md, "The
+                 price and the chart"): the market's call, or the number
+                 itself with every open market of this metric as a marker,
+                 the selected one amber. The N/A caveat is the only settle
+                 note left under the price. */}
+                {chartView === 'number' && hero ? (
+                  <NumberChart
+                    points={hero.metricHistory}
+                    markers={datesOf(horizons, hero.metricId).flatMap(d =>
+                      d.resolvesOn
+                        ? [
+                            {
+                              marketId: d.marketId,
+                              resolvesOn: d.resolvesOn,
+                              consensus: d.consensus,
+                              selected: d.marketId === hero.marketId,
+                            },
+                          ]
+                        : [],
+                    )}
+                    selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
+                    granularity={granularityOf(hero.targetDate)}
+                    unit={unit}
+                    now={now}
+                    corner={chartViewWords}
+                  />
+                ) : (
+                  <MarketChart
+                    key={active.marketId}
+                    series={active.history.length > 0 ? active.history : [{ at: new Date().toISOString(), consensus }]}
+                    consensus={consensus}
+                    unit={unit}
+                    ranges={['1D', '1W']}
+                    corner={chartViewWords}
+                    note={hero?.settlesNaForNow ? settleNoteOf(hero) : undefined}
+                    preview={chartPreview}
+                    orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
+                    /* Only ever the other BRANCH: same metric, same window,
                    two worlds, so the gap is the priced impact. The other
                    horizon measures a different window and shares no scale
                    with this one (2026-08-15), so it gets its own chart
                    below rather than a line on this axis. */
-                  secondary={
-                    selectedJob && otherBranch && otherBranch.consensus !== null
-                      ? {
-                          series: otherBranch.history,
-                          consensus: otherBranch.consensus,
-                          label: branch === 'approved' ? 'if declined' : 'if approved',
-                          tone: branch === 'approved' ? ('lower' as const) : ('higher' as const),
-                        }
-                      : null
-                  }
-                />
+                    secondary={
+                      selectedJob && otherBranch && otherBranch.consensus !== null
+                        ? {
+                            series: otherBranch.history,
+                            consensus: otherBranch.consensus,
+                            label: branch === 'approved' ? 'if declined' : 'if approved',
+                            tone: branch === 'approved' ? ('lower' as const) : ('higher' as const),
+                          }
+                        : null
+                    }
+                  />
+                )}
               </div>
             </section>
           )}

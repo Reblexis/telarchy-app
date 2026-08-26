@@ -116,6 +116,7 @@ describe('one definition of each label helper', () => {
     'cellOf',
     'metricsOf',
     'dateSegmentOf',
+    'timeLeftOf',
   ])('%s is defined once, in the model', name => {
     const definers = files.filter(f => new RegExp(`function ${name}\\b`).test(f.text)).map(f => f.path);
     expect(definers).toEqual([MODEL]);

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 /**
@@ -21,6 +22,10 @@ interface Props {
   consensus: number;
   /** Currency prefix for every numeral ('$' or ''), inferred by the caller. */
   unit?: string;
+  /** Which range words to offer, by key ('1D', '1W', ...); all when absent. */
+  ranges?: string[];
+  /** The view toggle words, rendered at the left of the range row. */
+  corner?: ReactNode;
   /** Top-left corner note ("resolves 31 December 2026"): the one market
       fact that belongs on the visualization itself. */
   note?: string;
@@ -101,7 +106,12 @@ export function MarketChart({
   orders = [],
   secondary = null,
   height,
+  ranges,
+  corner,
 }: Props) {
+  // The range words a caller allows (docs/ui-conventions.md: the market view
+  // offers 1D 1W ALL); undefined keeps the full set for older callers.
+  const rangeSet = ranges ? RANGES.filter(r => ranges.includes(r.key)) : RANGES;
   const [range, setRange] = useState<number | null>(null);
   const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
   useEffect(() => {
@@ -384,7 +394,8 @@ export function MarketChart({
     <div className="mchart">
       <div className="mchart-ranges" role="group" aria-label="Time range">
         {note && <span className="mchart-note">{note}</span>}
-        {RANGES.map(r => (
+        {corner && <span className="mchart-corner mchart-corner--inline">{corner}</span>}
+        {rangeSet.map(r => (
           <button
             key={r.key}
             className={`mchart-range${range === r.ms ? ' is-active' : ''}`}

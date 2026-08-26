@@ -145,7 +145,7 @@ and the caption carries two independent pickers, both segmented rows:
 
 ```
         [ NET REVENUE ]  [ ACTIVE TRADERS ]  [ IMPLIED VALUATION ]   <- picks the METRIC
-        [ today · 25 Aug ]  [ this week · 30 Aug ]  [ 30 Sep ]        <- picks the DATE
+        [ today · 13h 12m ]  [ this week · 4d 13h ]  [ 30 Sep · 35d ]   <- picks the DATE
                         6,912
                   [ HIGHER ]  [ LOWER ]
 ```
@@ -388,71 +388,49 @@ e.g. "USD" -> "$"; the same prefix runs through every numeral in the
 chart). The since-open chip sits on the price's baseline a full `1rem` off
 the number, and drops centred underneath it below 480px.
 
-The prediction chart (`MarketChart`) is one amber step line of the
-market's call over its lifetime, gradient fill, labeled end dot,
-crosshair. The series STARTS at the price the market opened at, stamped
-with its creation time, because a pair that opens anchored and has traded
-once is otherwise a single point, which draws as a flat line and a cliff
-at the live dot and reads as if every trade happened at once. The chart
-breaks out of the column to min(92vw, 760px), capped so the whole anonymous
-poster through the CTA fits a 900px-tall desktop viewport; phones get a
-taller, narrower canvas chosen at mount. On the three-column floor
+**When a market settles is said in the date picker, not under the price.**
+Every date segment carries its name and its time left, ticking by the
+minute: `TODAY · 13H 12M`, `THIS WEEK · 4D 13H`, `30 SEP · 35D`; the hover
+title is the exact instant (UTC). The former "resolves 30 September 2026"
+line is gone, because the picker already says which date and the timer
+says how long. The one thing that still prints under the price is the N/A
+caveat of a metric with no reading yet ("N/A, all bets refunded, if there
+is still no reading by then"), because it changes what a bet is.
+
+**One chart slot, two views, switched by two words in the chart's own top
+corner: `MARKET · NUMBER`.** Nothing else on the page moves when the view
+switches. The slot opens on the market. The controls of a view are words in
+the chart's corners, never a row of chips above it: the top corner is the
+view, the bottom corner is the range.
+
+- **The market view** is the prediction chart (`MarketChart`): one amber
+  step line of the market's call over its lifetime, gradient fill, labeled
+  end dot, crosshair. The series STARTS at the price the market opened at,
+  stamped with its creation time, because a pair that opens anchored and
+  has traded once is otherwise a single point, which draws as a flat line
+  and a cliff at the live dot and reads as if every trade happened at once.
+  Its range words are `1D 1W ALL`; a range longer than the market's life is
+  not offered.
+- **The number view** (`NumberChart`) is the metric's own trajectory: its
+  readings as an ink step line up to a "now" rule, and, on the future side,
+  every open market of this metric as a marker at its settle instant
+  carrying that market's current call. **It is about the market on
+  screen**: the selected market's marker is amber and labeled; the others
+  are grey and unlabeled, and one that falls outside the window is a grey
+  chevron at the edge it lies beyond. **The window follows the selected
+  horizon** rather than stretching to show every marker: roughly two days
+  for a day market, a week for a week market, a month for anything further,
+  always ending at the selected settle instant; the range words
+  (`2D 1W ALL`, `1W 1M ALL`, `1M 3M ALL` by granularity) override it.
+  **Switching dates tweens the axis and the line** over about 400ms,
+  ease-out, rather than snapping, so a reader sees where the window went.
+  The number view honours the actual-vs-forecast rule below: a resetting
+  metric shows only its own period.
+
+The chart breaks out of the column to min(92vw, 760px), capped so the whole
+anonymous poster through the CTA fits a 900px-tall desktop viewport; phones
+get a taller, narrower canvas chosen at mount. On the three-column floor
 (>=1120px) it stops breaking out (100% of the center column).
-
-The chart has a zoom row (`.mchart-ranges`: 1H/6H/1D/1W/1M/ALL,
-Manifold-style); every window is always clickable (a young market with
-every button disabled reads as broken; a window wider than the market's
-life just shows everything), and a windowed view enters at the call in
-force at its left edge so the step line never starts mid-air (the window
-defines the axis, not the data). The chart carries a top-left corner note
-on the zoom row's line: "resolves <settle day>".
-
-In contract mode the chart draws the OTHER branch as a quieter line in its
-colour, so the vertical gap between the two lines is the priced impact of
-approving.
-
-**The x-domain never extends into the future**: its right edge is always
-max(now, newest point). The 60-second minimum span (the guard that keeps a
-single-trade market from a zero-width axis) extends the window LEFT (t0 =
-right edge - 60s), never right; a domain pinned to [t0, t0 + 60s] puts
-dead future space on the right, labels x ticks with times that have not
-happened yet, and strands the primary line (which ends at now) mid-chart.
-In ALL mode the primary step line enters the window at the call in force
-at its left edge (the same carry rule zoom windows use), so an untraded
-branch (a single fallback point at now) draws as a flat held-call line
-ending in its dot at the right edge, symmetric with how the secondary
-branch renders its no-trades case, instead of a floating dot with no line.
-Spans under 10 minutes label x ticks with seconds so four ticks on a young
-market do not all print the same minute.
-
-**The y domain has a floor**: four label quanta, where a quantum is the
-smallest difference a tick label can express at that magnitude (100 for
-values labelled in thousands, 1 for whole units, 0.01 below that). Scaling
-to the data alone is right until the data barely moves, at which point it
-amplifies noise into a cliff: a market that ticks 25 -> 25.07 -> 25 would
-draw a full-height drop between two ticks both reading "25". The floor
-sits an order of magnitude below any real move (LookPilot's 5k band labels
-in hundreds, so its floor is 400), so it only ever catches noise, and an
-untouched market sits mid-plot instead of on an edge.
-
-**The plot clip is padded 4 units horizontally on each side**; its
-vertical bounds stay exact. The clip exists for Y excursions past the
-robust domain, and the step to the live call lands exactly ON the plot's
-right edge (the left edge likewise for a window's carried entry point), so
-an unpadded clip halves the width of a vertical stroke centered on the
-boundary.
-
-While a bet is composed in the ticket (side + amount picked, not yet
-placed), the chart draws its impact as a ghost: a dashed vertical off the
-live call dot to a hollow dot at the value the call would move to, tinted
---higher/--lower, labeled with the would-be value, updating live with the
-amount and vanishing when the side is deselected or the trade placed. The
-y domain stretches to include the ghost so a big bet's reach is visible.
-
-Motion is one entrance pass (label, then price, then the line drawing
-itself) plus a soft perpetual ripple on the call dot; loading is the amber
-call dot rippling where the market will appear; everything stops under
-prefers-reduced-motion. Signed-in visits join silently.
 
 ### The actual-vs-forecast chart
 

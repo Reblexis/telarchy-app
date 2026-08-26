@@ -322,22 +322,41 @@ export function datesOf(views: HorizonView[], metricId: string): HorizonView[] {
  */
 export function settleNoteOf(v: HorizonView | null): string | undefined {
   if (!v?.settleDay) return undefined;
-  return v.settlesNaForNow
-    ? `resolves ${v.settleDay}, or N/A (all bets refunded) if there is still no reading`
-    : `resolves ${v.settleDay}`;
+  return v.settlesNaForNow ? 'N/A, all bets refunded, if there is still no reading by then' : `resolves ${v.settleDay}`;
 }
 
 /**
- * A date's label in the date picker (owner choice 2026-08-26, both pickers as
- * segmented rows): a named clock reads "this week · 30 Aug"; any other date is
- * its settle day alone ("30 Sep" for a September market, "31 Dec", or a day
- * that has ended). Computed from the market, never stored on the metric.
+ * How long until a horizon settles, in the two largest units that matter:
+ * "13h 12m", "4d 13h", "35d", "3m" under an hour, "settling" once the instant
+ * has passed. Null when the payload carries no settle instant.
  */
-export function dateSegmentOf(v: HorizonView | null): string {
+export function timeLeftOf(v: HorizonView | null, now: Date = new Date()): string | null {
+  if (!v?.resolvesOn) return null;
+  const ms = new Date(v.resolvesOn).getTime() - now.getTime();
+  if (!Number.isFinite(ms)) return null;
+  if (ms <= 0) return 'settling';
+  const m = Math.floor(ms / 60_000);
+  const h = Math.floor(m / 60);
+  const d = Math.floor(h / 24);
+  if (d >= 7) return `${d}d`;
+  if (d >= 1) return `${d}d ${h % 24}h`;
+  if (h >= 1) return `${h}h ${m % 60}m`;
+  return `${Math.max(1, m)}m`;
+}
+
+/**
+ * A date's label in the date picker: the clock's name and its time left,
+ * "this week · 4d 13h". A named clock is "today", "this week" or "this
+ * month"; any other date is its settle day ("30 Sep · 35d"). Both parts are
+ * computed from the market, never stored on the metric; the exact instant is
+ * the segment's hover title.
+ */
+export function dateSegmentOf(v: HorizonView | null, now: Date = new Date()): string {
   if (!v) return '';
   const named = /^(today|this week|this month)$/.test(v.label) ? v.label : '';
-  if (!v.settleShort) return named || v.targetDate;
-  return named ? `${named} · ${v.settleShort}` : v.settleShort;
+  const name = named || v.settleShort || v.targetDate;
+  const left = timeLeftOf(v, now);
+  return left ? `${name} · ${left}` : name;
 }
 
 /**
