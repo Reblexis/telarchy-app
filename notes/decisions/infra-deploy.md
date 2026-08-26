@@ -4,7 +4,7 @@ Records evicted from `docs/infra/deploy.md` on 2026-08-25; the doc states the re
 
 ## 2026-08-26: Branch previews at /beta
 
-Owner: "could you add suppport to telarchy.com/beta to view different branches? how complex would that be?" On the connection budget: "how many connections would be needed? then I gues swe should go with raising, but at the same time we should cap and only show lets say 3 latest  or something like that". Trigger chosen: every pushed branch. Result: the "Branch previews" section of docs/infra/deploy.md; `max_connections` on telarchy-pg raised from 50 to 100 (the arithmetic is in "connection budget"); the cap is 3 previews. Follows the same-day adoption of branches and worktrees for all development (AGENTS.md, "Commit and push").
+Owner: "could you add suppport to telarchy.com/beta to view different branches? how complex would that be?" On the connection budget: "how many connections would be needed? then I gues swe should go with raising, but at the same time we should cap and only show lets say 3 latest  or something like that". Trigger chosen: every pushed branch. Result: the "Branch previews" section of docs/infra/deploy.md; `max_connections` on telarchy-pg raised from 50 to 100 (the arithmetic is in "connection budget"); the cap is 3 previews. The flag was patched on 2026-08-26 at 12:56:34Z (`gcloud sql instances patch telarchy-pg --database-flags max_connections=100`, RUNNABLE again by 12:57:13Z, production answering). Follows the same-day adoption of branches and worktrees for all development (AGENTS.md, "Commit and push").
 
 ## 2026-08-25: The permission behind the button
 
