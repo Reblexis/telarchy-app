@@ -4,12 +4,17 @@ import { previewSell } from '../../lib/amm';
 import { PositionSummary } from '../PositionSummary';
 
 /**
- * A held position in four numbers (docs/ui-conventions.md, "what your
- * position is worth"): the ceiling it can pay, what selling now fetches,
- * what it cost, and the difference.
+ * A held position as a card (docs/ui-conventions.md, "what your position is
+ * worth"): four labeled cells, Sell.
  */
+const fmt = (v: number) => (v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1));
+const cellTexts = (container: HTMLElement) =>
+  [...container.querySelectorAll('.pubws-poscard-cell')].map(c =>
+    [...c.children].map(x => x.textContent?.replace(/\s+/g, ' ').trim()).join(' '),
+  );
+
 describe('PositionSummary', () => {
-  test('states ceiling, worth now, cost and the difference', () => {
+  test('four cells: pays up to, worth now, spent, profit with its percentage', () => {
     const { container } = render(
       <PositionSummary
         positions={[{ direction: 'higher', shares: 100, totalCost: 40 }]}
@@ -19,16 +24,17 @@ describe('PositionSummary', () => {
         onManage={() => {}}
       />,
     );
-    const text = container.textContent ?? '';
     const worth = previewSell(0.6, 200, 'higher', 100);
-    expect(text).toContain('pays up to 100 cr');
-    expect(text).toContain(`worth ${worth >= 100 ? Math.round(worth).toLocaleString('en-US') : worth.toFixed(1)} cr`);
-    expect(text).toContain('spent 40.0 cr');
-    expect(text).toMatch(/[+-][\d,.]+ \([+-]?\d+%\)/);
-    expect(container.querySelector('.pubws-pos-profit')?.className).toContain(worth >= 40 ? 'is-up' : 'is-down');
+    const cells = cellTexts(container);
+    expect(cells[0]).toBe('Your position ▲ higher · 100 sh');
+    expect(cells[1]).toBe('Pays up to 100 cr');
+    expect(cells[2]).toBe(`Worth now ${fmt(worth)} cr`);
+    expect(cells[3]).toBe('Spent 40.0 cr');
+    expect(cells[4]).toMatch(/^Profit [+-][\d,.]+ [+-]?\d+%$/);
+    expect(container.querySelector('.pubws-poscard-btn')?.textContent).toBe('Sell');
   });
 
-  test('a lower position pays its ceiling at the bottom of the range', () => {
+  test('a lower position names the bottom of the range, and resting orders are counted', () => {
     const { container } = render(
       <PositionSummary
         positions={[{ direction: 'lower', shares: 50, totalCost: 30 }]}
@@ -39,6 +45,6 @@ describe('PositionSummary', () => {
       />,
     );
     expect(container.querySelector('[title*="bottom of the range"]')).toBeTruthy();
-    expect(container.textContent).toContain('2 resting orders');
+    expect(container.querySelector('.pubws-poscard-orders')?.textContent).toBe('2 resting orders');
   });
 });

@@ -2,6 +2,10 @@
 
 Records evicted from docs/ui-conventions.md on 2026-08-25; the doc states the resulting rules in present tense. Entries headed "When in doubt" sat in the revision log that followed that section. Verbatim, newest first.
 
+## 2026-08-26: Facts and position, second cut
+
+Owner on the first cut: "the curent version is horrible /design fix it using /design". Canvas https://claude.ai/code/artifact/d7eb9f6c-356d-41f5-a6ae-6b7a1839b77b, layout A chosen ("ok do A"): the facts as Manifold's three icons at the right of the tabs row; the position as a card with four labeled cells and Sell.
+
 ## 2026-08-26: Market facts and the position's worth, from Manifold
 
 Owner, with three Manifold screenshots (the header's traders/liquidity/volume, the position box Payout/Spent/Profit/Expected value, the bet panel's "To win M36 +23%"): "im missing this info from markets [...] idk what all this means.. first look at manifold code to see what means what then add what would be good to telarchy too". Read from manifold's source: contract-summary-stats (uniqueBettorCount, totalLiquidity, volume), user-bet-summary (payout = the larger side's shares, invested = cost basis, profit = value minus invested, expected value = payout at the current probability), bet-panel (currentPayout = shares if right, currentReturn on the amount). Telarchy's shares pay linearly in the settled value, so the payout is stated as a ceiling with its condition, and "expected value" as what selling now would fetch. The ticket's "Up to N cr +P%" line joins, not replaces, the 2026-08-10 breakeven-plus-slope statement.

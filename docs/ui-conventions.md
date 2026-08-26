@@ -1195,23 +1195,24 @@ edited.
 
 ### What a market says about itself, and what your position is worth
 
-Three facts sit under the bet buttons, in one quiet mono line: how many
+Three facts sit at the right end of the Discussion / Positions / Trades
+row, as three icons with bare numbers (people, drop, bars: the shape
+Manifold's market header uses): how many
 distinct participants have traded this market, how many credits are in its
 pool (the liquidity put up by the owner and others, which is what winnings
 come out of), and how many credits have been traded on it over its life.
-They are the three facts a Manifold market header carries (traders,
-liquidity, volume), in Telarchy's units, each with a hover that says what
-it means. A contract on screen hides the row, since the contract's markets
-are the pair, not the baseline.
+Each carries its meaning as a hover; none is a sentence, because they are
+counts on a row of counts. A contract on screen hides them, since the
+contract's markets are the pair, not the baseline.
 
-**A held position is stated in four numbers**, on the line that opens the
-manage dialog: what it pays at most ("pays up to N cr": one credit per
-share if the number lands at the range's edge the position bets on, less
-in between), what it is worth right now ("worth N cr": what selling the
-whole position would fetch at the market's current call, the honest
-analogue of Manifold's expected value), what it cost ("spent"), and the
-difference with its percentage, green or red. The manage dialog keeps the
-sell slider.
+**A held position is a card under the bet buttons**, label over number,
+four cells and a Sell button: "Your position" (side and shares), "Pays up
+to" (one credit per share if the number lands at the range's edge the
+position bets on, less in between), "Worth now" (what selling the whole
+position would fetch at the market's current call, the honest analogue of
+Manifold's expected value), "Spent" (what it cost) and "Profit" (the
+difference, with its percentage, green or red). Sell opens the manage
+dialog, which keeps the sell slider.
 
 **The ticket says the most a bet can pay** as "Up to N cr +P%" beside the
 breakeven and the slope: N is the shares bought (one credit each at the

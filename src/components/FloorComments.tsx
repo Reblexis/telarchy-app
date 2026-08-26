@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -70,6 +71,8 @@ interface Props {
    */
   focusCommentId?: string | null;
   onFocusHandled?: () => void;
+  /** Rendered at the right end of the tabs row: the market's facts. */
+  trailing?: ReactNode;
 }
 
 type Tab = 'comments' | 'positions' | 'trades' | null;
@@ -99,6 +102,7 @@ export function FloorComments({
   onRequireSignup,
   focusCommentId = null,
   onFocusHandled,
+  trailing,
 }: Props) {
   const [tab, setTab] = useState<Tab>(null);
   const activityReqRef = useRef(0);
@@ -251,6 +255,7 @@ export function FloorComments({
             </button>
           </>
         )}
+        {trailing}
       </div>
 
       {tab === 'comments' && (

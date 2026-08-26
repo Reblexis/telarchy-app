@@ -14,6 +14,7 @@ import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { Logo } from '../components/Logo';
 import { ManifoldButton } from '../components/ManifoldButton';
 import { MarketChart } from '../components/MarketChart';
+import { MarketFacts } from '../components/MarketFacts';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart } from '../components/NumberChart';
 import { PositionSummary } from '../components/PositionSummary';
@@ -1446,22 +1447,6 @@ export function TradePage() {
                   />
                 )}
               </div>
-              {/* What the market says about itself (docs/ui-conventions.md):
-             distinct traders, credits in the pool, credits traded. The same
-             three facts Manifold's header shows, in Telarchy's units. */}
-              {hero && !selectedJob && (
-                <p className="pubws-facts" aria-label="Market facts">
-                  <span title="Distinct participants who have traded this market">
-                    {hero.traderCount ?? 0} trader{(hero.traderCount ?? 0) === 1 ? '' : 's'}
-                  </span>
-                  <span title="Credits in the market's pool: the liquidity the owner and others have put up, which is what your winnings come out of">
-                    {fmtShares(hero.liquidity)} cr in the pool
-                  </span>
-                  <span title="Credits traded on this market over its life">
-                    {fmtShares(hero.tradedVolume ?? 0)} cr traded
-                  </span>
-                </p>
-              )}
             </section>
           )}
 
@@ -1519,6 +1504,15 @@ export function TradePage() {
               {idOrSlug && (
                 <FloorComments
                   idOrSlug={idOrSlug}
+                  trailing={
+                    hero && !selectedJob ? (
+                      <MarketFacts
+                        traders={hero.traderCount ?? 0}
+                        pool={hero.liquidity}
+                        volume={hero.tradedVolume ?? 0}
+                      />
+                    ) : null
+                  }
                   /* A contract passes its proposal AND both branch markets
                    (owner reports 2026-08-15 "if there is a trade why don't I
                    see it down here", 2026-08-21 "why dont i see any trades
