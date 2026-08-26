@@ -244,23 +244,30 @@ every migration to both databases in the same step, because a beta whose
 schema lags production fails on the code it exists to test.
 
 **And it shares the database's connection budget.** Cloud SQL `telarchy-pg` is
-a db-f1-micro with `max_connections=50` (a database flag; Cloud SQL's default
+a db-f1-micro with `max_connections=100` (a database flag; Cloud SQL's default
 of 25 is not enough for prod and candidate revisions each opening pg's default
-10-connection pool while instances failing their startup probe churn). The
-standing contract:
+10-connection pool while instances failing their startup probe churn, and 50
+left no room for branch previews). The standing contract:
 
-- Each API instance opens **at most 4** pooled connections to production, plus
-  **1** to the beta store and only if a beta request ever reaches that instance
-  (the beta pool is created lazily, so an instance serving the public site
-  never opens it). Five per instance either way. Both give up on an acquire
-  after 5 seconds instead of queuing forever (`functions/src/db/client.ts`); a
-  starved request fails fast as a 500, it does not hang for a minute.
+- Each API instance opens **at most 4** pooled connections to production
+  (`DB_POOL_MAX`, default 4), plus **1** to the beta store and only if a beta
+  request ever reaches that instance (the beta pool is created lazily, so an
+  instance serving the public site never opens it). Five per instance either
+  way. Both give up on an acquire after 5 seconds instead of queuing forever
+  (`functions/src/db/client.ts`); a starved request fails fast as a 500, it
+  does not hang for a minute.
 - Cloud Run runs **at most 4 instances** per revision (`--max-instances 4` in
-  the CI deploy). Worst case prod + candidate: 2 x 4 x 5 = 40 connections,
-  inside the 50 budget with room for cloud-sql-proxy and cron.
+  the CI deploy). Worst case prod + candidate: 2 x 4 x 5 = 40 connections.
+- A branch preview revision (below) runs **at most 1 instance** with
+  `DB_POOL_MAX=1`: 1 connection to production (sessions are looked up there,
+  `authDb`) plus 1 to the beta store, 2 per preview. At most 3 previews exist
+  at once: 3 x 1 x 2 = 6.
+- Worst case for everything: 40 + 6 = 46, inside a budget of 80 (100 minus
+  headroom for cloud-sql-proxy, cron, `psql` and the migration step).
 - Anything that raises one of these numbers must re-do this arithmetic in the
-  same commit. `scale-invariant.test.ts` pins it: prod + candidate at full
-  scale must fit in 40.
+  same commit. `scale-invariant.test.ts` pins it: prod, candidate and three
+  previews at full scale must fit in 80, and the `max_connections` figure it
+  reads here must be the one it budgets against.
 
 **The performance posture around that budget:**
 
@@ -348,6 +355,76 @@ hands a visitor an unpublished build in place of a market.
 The candidate's direct run.app URL still works (it serves its own beta bundle
 when it has nothing to forward to) and is printed in the GitHub job summary and
 in `GET /api/admin/release`.
+
+### Branch previews
+
+Every push to a branch other than `main` lands, after the same test gate, as a
+revision of the same service carrying no traffic and a URL tag named after the
+branch, and `telarchy.com/beta` can show it. That is how a change is looked at
+before anyone decides to merge it: an agent pushes its branch, CI turns green,
+and the reply names `https://telarchy.com/beta?branch=br-<name>`.
+
+**The tag.** `br-` plus the branch name lowercased, every character outside
+`[a-z0-9-]` replaced by `-`, runs of hyphens collapsed, no leading or trailing
+hyphen, at most 40 characters (Cloud Run tags are DNS labels, and the tag URL
+prefixes `---api-...` to it). `scripts/preview-tag.sh` is the one place that
+rule lives; the workflow, the retire job and the cap all call it.
+`oss/lane-i` becomes `br-oss-lane-i`.
+
+**The deploy.** The `preview` job runs the migrations against `telarchy_beta`
+only, never production (a branch's schema change belongs to the beta until it
+is on main; if two branches disagree about the schema, refresh the beta store
+and push again), then
+`gcloud run deploy api --no-traffic --tag br-<name> --min-instances 0
+--max-instances 1 --update-env-vars DB_POOL_MAX=1` with the same secrets and
+Cloud SQL binding as the candidate, smoke-tests the tag's own URL, and stops.
+`DB_POOL_MAX` is capacity, not store selection: the store is still chosen per
+request (`lib/request-env.ts`), and a preview revision can never be published
+(below), so the smaller pool never rides into production. The main deploy sets
+`DB_POOL_MAX=4`, `--min-instances 1` and `--max-instances 4` explicitly on
+every run, because `gcloud run deploy` starts from the previous revision's
+template and would otherwise inherit a preview's values.
+
+**The cap.** After each preview deploy the workflow keeps the 3 newest `br-*`
+tags (by revision number) and removes the rest with
+`gcloud run services update-traffic --remove-tags`. A `delete` event for a
+branch removes its tag at once. `candidate` is never counted and never
+removed; the published revision has no tag and is never touched. An untagged
+revision keeps no instances warm and holds no connections, so a removed
+preview costs nothing.
+
+**Choosing one at /beta.** The published revision decides where `/beta/*` goes
+from a cookie. `GET /beta?branch=br-<name>` (or `/beta/?branch=`) sets
+`telarchy_beta_branch=br-<name>` (path `/beta`, `SameSite=Lax`, `Secure`, 30
+days) and redirects to `/beta/`; from then on every `/beta/*` request, API and
+assets included, is forwarded to the revision carrying that tag. A cookie
+naming a tag that no longer exists is ignored and the candidate answers, so an
+expired link degrades to the main beta rather than to an error.
+`?branch=candidate` or an empty value clears the cookie. Nothing else about
+the beta changes for a preview: same origin, same session, same
+`telarchy_beta` store, same `/beta/` bundle (every container builds it), same
+noindex. The stripe on a preview says which branch it is
+(`GET /api/public-config` carries `preview`, the `br-` tag on the answering
+revision, or null), and a platform admin gets a picker on the stripe listing
+`main candidate` and the previews `GET /api/admin/release` returns as
+`previews`, newest first.
+
+**A preview cannot be published.** `publishRevision` refuses any revision that
+does not carry the `candidate` tag (409, "only the main candidate can be
+published"), and the stripe shows no Publish button on a preview. A branch
+reaches telarchy.com by merging to main, never by being published from the
+beta; the tag on the revision is what makes that a fact rather than a habit.
+
+**Concurrency.** The main deploy keeps concurrency group `cloud-run-deploy`;
+each branch has its own group, `cloud-run-preview-<ref>`. They are separate
+because a GitHub group holds only one pending run and a queued main deploy
+must never be the one cancelled by a burst of branch pushes. Two `gcloud run
+deploy` calls on the same service can therefore overlap; Cloud Run checks the
+service's `resourceVersion` on write, so the later writer fails instead of
+overwriting the other's tag, and `deploy-autorecover.yml` re-runs the failed
+job. A preview's direct tag URL exists but sign-in does not work there
+(`TRUSTED_ORIGINS` names the candidate's origin only); use it through
+`/beta?branch=`.
 
 ### Publishing without the button
 
@@ -486,30 +563,40 @@ real beta data keyed by the real account id.
 
 ## What the workflow does
 
-On `push` to `main` (or `workflow_dispatch`); pushes touching only `**/*.md`,
-`docs/**` or the self-sync workflow do not trigger it:
+On `push` to any branch (or `workflow_dispatch`); pushes touching only
+`**/*.md`, `docs/**` or the self-sync workflow do not trigger it. A branch
+`delete` event triggers only the `retire` job.
 
 1. `checks`: type check, frontend suite, production bundle (`npm run build`).
 2. `backend`: the backend suite in three shards (`npm run test:ci --shard=N/3`).
-3. `deploy` (needs both, GitHub environment `production`): auths to GCP (WIF
-   if configured, SA key otherwise), runs the migrations against production
-   and then the beta database, regenerates the change log, and runs
+3. On `main`, `deploy` (needs both, GitHub environment `production`): auths to
+   GCP (WIF if configured, SA key otherwise), runs the migrations against
+   production and then the beta database, regenerates the change log, and runs
    `gcloud run deploy --no-traffic --tag candidate`.
 4. Smoke-tests the candidate (`/api/public-config` on the candidate's own URL
    must answer 200 within 20 tries) and stops without promoting.
+5. On any other branch, `preview` (needs both, no environment: the
+   `production` environment's branch rule is main only, and the variables it
+   needs are repository-level): the same auth, migrations against the beta
+   database only, `gcloud run deploy --no-traffic --tag br-<name>` at one
+   instance, the smoke test on the tag's URL, then the cap ("Branch previews"
+   above). The job summary prints the `/beta?branch=` link.
+6. `retire`, on a branch `delete` event: removes the branch's `br-` tag.
 
 Cloud Build does the actual image build server-side (faster than running
 `docker build` on the runner because Cloud Build caches layers per-project).
 Typical end-to-end time: ~3-5 minutes.
 
-The workflow runs in concurrency group `cloud-run-deploy` with
-`cancel-in-progress: false`: one deploy at a time, and the in-flight run is
-never cancelled, it always finishes and lands a candidate. While it runs, a
+The main deploy runs in concurrency group `cloud-run-deploy` with
+`cancel-in-progress: false`: one main deploy at a time, and the in-flight run
+is never cancelled, it always finishes and lands a candidate. While it runs, a
 new push is held pending and GitHub cancels any older pending run, so only the
 newest queued commit waits and runs next. Forward progress is guaranteed and
-the build that runs next is always the latest. Two builds never run at once:
-there is a single shared `candidate` tag that two concurrent deploys would
-clobber.
+the build that runs next is always the latest. Two main builds never run at
+once: there is a single shared `candidate` tag that two concurrent deploys
+would clobber. Previews run in a group per branch (`cloud-run-preview-<ref>`)
+for the same reason in the other direction: a branch push must never cancel
+the queued main deploy.
 
 `.github/workflows/deploy-autorecover.yml` re-runs the failed jobs of a deploy
 run that ends in `failure` (a runner dying mid-test, not a red suite) while

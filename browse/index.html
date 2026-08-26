@@ -525,20 +525,21 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h5">Option B: Service-account JSON key (fallback)</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h6">Nothing reaches the public until you press Publish</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h7">Reaching it</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h8">Publishing without the button</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h9">Rolling back</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h10">Logging in on the beta</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h11">The beta is a public URL on production data</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h12">The permission behind the button</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h13">What the workflow does</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h14">Other workflows</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h15">The container</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h16">Runtime identity</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h17">Keyless deploys</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h18">Master key rotation</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h19">Cron schedule (Cloud Scheduler)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h20">Owner notifications (Resend)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h21">Memory</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h8">Branch previews</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h9">Publishing without the button</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h10">Rolling back</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h11">Logging in on the beta</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h12">The beta is a public URL on production data</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h13">The permission behind the button</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h14">What the workflow does</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h15">Other workflows</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h16">The container</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h17">Runtime identity</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h18">Keyless deploys</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h19">Master key rotation</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h20">Cron schedule (Cloud Scheduler)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h21">Owner notifications (Resend)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h22">Memory</a></li>
 </ul></details>
 </li>
 </ul></li>
@@ -2328,6 +2329,14 @@ set, else initials) opening a small popover that keeps only a glance
 The bar owns a stacking layer above the floor rails so the popover paints
 over them; the bar deliberately ignores the 660px content column. &quot;Log in&quot;
 never wraps.</p>
+<p>Left of the account, on every top bar, sits the theme toggle: one quiet
+icon in the same sliding-label treatment as the Discord and report
+buttons, showing the theme it would switch TO (a moon on a light page, a
+sun on a dark one). The site follows the OS theme until the visitor
+touches it; a click flips between light and dark and the choice is kept
+per browser (localStorage <code>telarchy-theme</code>, applied as <code>data-theme</code> on
+the html element before first paint, so a reload never flashes the other
+theme). Clearing the stored value returns to following the OS.</p>
 <p>The picture is saved via POST /api/auth/profile { image }: there is no
 blob store in this stack, so the account dialog renders the pick to a
 256px JPEG and sends it inline as a base64 data:image (png, jpeg or webp,
@@ -2339,7 +2348,7 @@ javascript: vector in an img src.</p>
 on several dates. The horizon list is therefore a grid, metrics x dates,
 and the caption carries two independent pickers, both segmented rows:</p>
 <pre><code>        [ NET REVENUE ]  [ ACTIVE TRADERS ]  [ IMPLIED VALUATION ]   &lt;- picks the METRIC
-        [ today · 25 Aug ]  [ this week · 30 Aug ]  [ 30 Sep ]        &lt;- picks the DATE
+        [ today · 26 Aug ]  [ this week · 30 Aug ]  [ 30 Sep ]           &lt;- picks the DATE
                         6,912
                   [ HIGHER ]  [ LOWER ]
 </code></pre>
@@ -2517,7 +2526,11 @@ alone and never by position; only a payload with no <code>metricId</code> on its
 (older builds) falls back to date-only matching. The number the board
 prints is therefore, by construction, the approved consensus minus the
 declined consensus of the two markets the chart draws when that contract
-is opened. The suite seeds a two-metric, three-date grid with six pairs per
+is opened, and when that pair is unpriced the board prints &quot;open&quot;, exactly
+as the ticket says &quot;impact not yet priced&quot;: the largest-delta fallback
+exists only for the moment before the markets arrive and no horizon is
+known, never for an unpriced pair, because a borrowed number under the
+wrong caption is the mismatch this section exists to prevent. The suite seeds a two-metric, three-date grid with six pairs per
 contract and asserts (a) the payload ships all six, (b) the board's
 printed impact equals approved minus declined of the pair for the metric
 AND date on screen, and (c) that pair is the one the ticket trades.</p>
@@ -2554,64 +2567,69 @@ the metric's currency symbol when the trimmed parenthetical tail names one,
 e.g. &quot;USD&quot; -&gt; &quot;$&quot;; the same prefix runs through every numeral in the
 chart). The since-open chip sits on the price's baseline a full <code>1rem</code> off
 the number, and drops centred underneath it below 480px.</p>
-<p>The prediction chart (<code>MarketChart</code>) is one amber step line of the
-market's call over its lifetime, gradient fill, labeled end dot,
-crosshair. The series STARTS at the price the market opened at, stamped
-with its creation time, because a pair that opens anchored and has traded
-once is otherwise a single point, which draws as a flat line and a cliff
-at the live dot and reads as if every trade happened at once. The chart
-breaks out of the column to min(92vw, 760px), capped so the whole anonymous
-poster through the CTA fits a 900px-tall desktop viewport; phones get a
-taller, narrower canvas chosen at mount. On the three-column floor
+<p><strong>When a market settles is said once, in the chart's control row.</strong> The
+date picker names each market by its clock and settle day (<code>TODAY · 26 AUG</code>,
+<code>THIS WEEK · 30 AUG</code>, <code>30 SEP</code>), and the centre of the control row counts
+down to the selected one (&quot;settles in 13h 12m&quot;, ticking by the minute, the
+exact UTC instant as its hover title). The former &quot;resolves 30 September
+2026&quot; line is gone, and the segments do not repeat the timer. The one thing that still prints under the price is the N/A
+caveat of a metric with no reading yet (&quot;N/A, all bets refunded, if there
+is still no reading by then&quot;), because it changes what a bet is.</p>
+<p><strong>One chart slot, two views, one control row above it in both.</strong> The row
+is three cells that never move: the view words <code>MARKET · NUMBER</code> at the
+left, the time left until the market on screen settles in the centre
+(&quot;settles in 13h 12m&quot;), and the range chips of the current view at the
+right. Nothing else on the page moves when the view switches, and the row
+itself does not either: a control that jumps when you use it is the thing
+this rule exists to prevent. The slot opens on the market.</p>
+<ul>
+<li><strong>The market view</strong> is the prediction chart (<code>MarketChart</code>): one amber
+step line of the market's call over its lifetime, gradient fill, labeled
+end dot, crosshair. The series STARTS at the price the market opened at,
+stamped with its creation time, because a pair that opens anchored and
+has traded once is otherwise a single point, which draws as a flat line
+and a cliff at the live dot and reads as if every trade happened at once.
+Its range chips are <code>1D 1W ALL</code>; a range longer than the market's life is
+not offered.</li>
+<li><strong>The number view</strong> (<code>NumberChart</code>) is the metric's own trajectory: its
+readings as an ink step line up to a &quot;now&quot; rule, and, on the future side,
+every open market of this metric as a marker at its settle instant
+carrying that market's current call. Readings are joined by straight
+segments with a dot at each reading and a dashed hold from the last one
+to now (the value in force); a step line read as a staircase. <strong>It is about the market on
+screen</strong>: the selected market's marker is amber and labeled; the others
+are grey and unlabeled, and one that falls outside the window is simply
+not drawn. Hovering snaps to the nearest reading on the past side (the dot sits on
+a real point of the line, the tooltip names that reading and its date), and the nearest market's call on the future side,
+in the same crosshair and tooltip the market view uses. <strong>The window follows the selected
+horizon</strong> rather than stretching to show every marker: roughly two days
+for a day market, a week for a week market, a month for anything further,
+always ending at the selected settle instant; the range chips
+(<code>2D 1W ALL</code>, <code>1W 1M ALL</code>, <code>1M 3M ALL</code> by granularity) override it.
+<strong>Switching dates tweens the axis and the line</strong> over about 400ms,
+ease-out, rather than snapping, so a reader sees where the window went.
+The number view honours the actual-vs-forecast rule below: a resetting
+metric shows only its own period. It animates as the market view does:
+the readings line draws itself with the same keyframes and timing, and
+the dots, markers and hold appear after it (none of it under reduced
+motion). <strong>A metric with no reading yet draws no line and no zero</strong>: the
+past side says &quot;no reading yet&quot;, the hover says the same, the future side
+still shows the markets' calls, and the N/A caveat under the price says
+what a bet on it is. A metric's creation is not a reading: a metric
+declared <code>resolvesNaUntilMeasured</code> logs nothing until its first real
+value, which is what lets its markets void rather than settle on 0.</li>
+</ul>
+<p>The chart breaks out of the column to min(92vw, 760px), capped so the whole
+anonymous poster through the CTA fits a 900px-tall desktop viewport; phones
+get a taller, narrower canvas chosen at mount. On the three-column floor
 (&gt;=1120px) it stops breaking out (100% of the center column).</p>
-<p>The chart has a zoom row (<code>.mchart-ranges</code>: 1H/6H/1D/1W/1M/ALL,
-Manifold-style); every window is always clickable (a young market with
-every button disabled reads as broken; a window wider than the market's
-life just shows everything), and a windowed view enters at the call in
-force at its left edge so the step line never starts mid-air (the window
-defines the axis, not the data). The chart carries a top-left corner note
-on the zoom row's line: &quot;resolves <settle day>&quot;.</p>
-<p>In contract mode the chart draws the OTHER branch as a quieter line in its
-colour, so the vertical gap between the two lines is the priced impact of
-approving.</p>
-<p><strong>The x-domain never extends into the future</strong>: its right edge is always
-max(now, newest point). The 60-second minimum span (the guard that keeps a
-single-trade market from a zero-width axis) extends the window LEFT (t0 =
-right edge - 60s), never right; a domain pinned to [t0, t0 + 60s] puts
-dead future space on the right, labels x ticks with times that have not
-happened yet, and strands the primary line (which ends at now) mid-chart.
-In ALL mode the primary step line enters the window at the call in force
-at its left edge (the same carry rule zoom windows use), so an untraded
-branch (a single fallback point at now) draws as a flat held-call line
-ending in its dot at the right edge, symmetric with how the secondary
-branch renders its no-trades case, instead of a floating dot with no line.
-Spans under 10 minutes label x ticks with seconds so four ticks on a young
-market do not all print the same minute.</p>
-<p><strong>The y domain has a floor</strong>: four label quanta, where a quantum is the
-smallest difference a tick label can express at that magnitude (100 for
-values labelled in thousands, 1 for whole units, 0.01 below that). Scaling
-to the data alone is right until the data barely moves, at which point it
-amplifies noise into a cliff: a market that ticks 25 -&gt; 25.07 -&gt; 25 would
-draw a full-height drop between two ticks both reading &quot;25&quot;. The floor
-sits an order of magnitude below any real move (LookPilot's 5k band labels
-in hundreds, so its floor is 400), so it only ever catches noise, and an
-untouched market sits mid-plot instead of on an edge.</p>
-<p><strong>The plot clip is padded 4 units horizontally on each side</strong>; its
-vertical bounds stay exact. The clip exists for Y excursions past the
-robust domain, and the step to the live call lands exactly ON the plot's
-right edge (the left edge likewise for a window's carried entry point), so
-an unpadded clip halves the width of a vertical stroke centered on the
-boundary.</p>
-<p>While a bet is composed in the ticket (side + amount picked, not yet
-placed), the chart draws its impact as a ghost: a dashed vertical off the
-live call dot to a hollow dot at the value the call would move to, tinted
---higher/--lower, labeled with the would-be value, updating live with the
-amount and vanishing when the side is deselected or the trade placed. The
-y domain stretches to include the ghost so a big bet's reach is visible.</p>
-<p>Motion is one entrance pass (label, then price, then the line drawing
-itself) plus a soft perpetual ripple on the call dot; loading is the amber
-call dot rippling where the market will appear; everything stops under
-prefers-reduced-motion. Signed-in visits join silently.</p>
+<p><strong>A metric's history is its definition's history.</strong> When a metric is
+redefined in place (a count becomes a percentage, a month-to-date total
+becomes a trailing level), the readings logged under the old definition are
+removed and the new definition's series is rebuilt from its source (the
+sync's daily caches for revenue, the evidence series for reviews, the trades
+table for active traders), so the number view never draws two definitions
+as one line. The rebuild is a record in <code>notes/decisions/ui-conventions.md</code>.</p>
 <h3 id="docs-ui-conventions-md--h17">The actual-vs-forecast chart</h3>
 <p><strong>A resetting metric's chart shows only the period it is measuring.</strong> The
 metric declares it (<code>resetsEvery</code>: null, or hour/day/week/month/year), and
@@ -6491,23 +6509,30 @@ exists only in the beta cannot outlive the experiment that made it. CI applies
 every migration to both databases in the same step, because a beta whose
 schema lags production fails on the code it exists to test.</p>
 <p><strong>And it shares the database's connection budget.</strong> Cloud SQL <code>telarchy-pg</code> is
-a db-f1-micro with <code>max_connections=50</code> (a database flag; Cloud SQL's default
+a db-f1-micro with <code>max_connections=100</code> (a database flag; Cloud SQL's default
 of 25 is not enough for prod and candidate revisions each opening pg's default
-10-connection pool while instances failing their startup probe churn). The
-standing contract:</p>
+10-connection pool while instances failing their startup probe churn, and 50
+left no room for branch previews). The standing contract:</p>
 <ul>
-<li>Each API instance opens <strong>at most 4</strong> pooled connections to production, plus
-<strong>1</strong> to the beta store and only if a beta request ever reaches that instance
-(the beta pool is created lazily, so an instance serving the public site
-never opens it). Five per instance either way. Both give up on an acquire
-after 5 seconds instead of queuing forever (<code>functions/src/db/client.ts</code>); a
-starved request fails fast as a 500, it does not hang for a minute.</li>
+<li>Each API instance opens <strong>at most 4</strong> pooled connections to production
+(<code>DB_POOL_MAX</code>, default 4), plus <strong>1</strong> to the beta store and only if a beta
+request ever reaches that instance (the beta pool is created lazily, so an
+instance serving the public site never opens it). Five per instance either
+way. Both give up on an acquire after 5 seconds instead of queuing forever
+(<code>functions/src/db/client.ts</code>); a starved request fails fast as a 500, it
+does not hang for a minute.</li>
 <li>Cloud Run runs <strong>at most 4 instances</strong> per revision (<code>--max-instances 4</code> in
-the CI deploy). Worst case prod + candidate: 2 x 4 x 5 = 40 connections,
-inside the 50 budget with room for cloud-sql-proxy and cron.</li>
+the CI deploy). Worst case prod + candidate: 2 x 4 x 5 = 40 connections.</li>
+<li>A branch preview revision (below) runs <strong>at most 1 instance</strong> with
+<code>DB_POOL_MAX=1</code>: 1 connection to production (sessions are looked up there,
+<code>authDb</code>) plus 1 to the beta store, 2 per preview. At most 3 previews exist
+at once: 3 x 1 x 2 = 6.</li>
+<li>Worst case for everything: 40 + 6 = 46, inside a budget of 80 (100 minus
+headroom for cloud-sql-proxy, cron, <code>psql</code> and the migration step).</li>
 <li>Anything that raises one of these numbers must re-do this arithmetic in the
-same commit. <code>scale-invariant.test.ts</code> pins it: prod + candidate at full
-scale must fit in 40.</li>
+same commit. <code>scale-invariant.test.ts</code> pins it: prod, candidate and three
+previews at full scale must fit in 80, and the <code>max_connections</code> figure it
+reads here must be the one it budgets against.</li>
 </ul>
 <p><strong>The performance posture around that budget:</strong></p>
 <ul>
@@ -6585,15 +6610,75 @@ hands a visitor an unpublished build in place of a market.</p>
 <p>The candidate's direct run.app URL still works (it serves its own beta bundle
 when it has nothing to forward to) and is printed in the GitHub job summary and
 in <code>GET /api/admin/release</code>.</p>
-<h3 id="docs-infra-deploy-md--h8">Publishing without the button</h3>
+<h3 id="docs-infra-deploy-md--h8">Branch previews</h3>
+<p>Every push to a branch other than <code>main</code> lands, after the same test gate, as a
+revision of the same service carrying no traffic and a URL tag named after the
+branch, and <code>telarchy.com/beta</code> can show it. That is how a change is looked at
+before anyone decides to merge it: an agent pushes its branch, CI turns green,
+and the reply names <code>https://telarchy.com/beta?branch=br-&lt;name&gt;</code>.</p>
+<p><strong>The tag.</strong> <code>br-</code> plus the branch name lowercased, every character outside
+<code>[a-z0-9-]</code> replaced by <code>-</code>, runs of hyphens collapsed, no leading or trailing
+hyphen, at most 40 characters (Cloud Run tags are DNS labels, and the tag URL
+prefixes <code>---api-...</code> to it). <code>scripts/preview-tag.sh</code> is the one place that
+rule lives; the workflow, the retire job and the cap all call it.
+<code>oss/lane-i</code> becomes <code>br-oss-lane-i</code>.</p>
+<p><strong>The deploy.</strong> The <code>preview</code> job runs the migrations against <code>telarchy_beta</code>
+only, never production (a branch's schema change belongs to the beta until it
+is on main; if two branches disagree about the schema, refresh the beta store
+and push again), then
+<code>gcloud run deploy api --no-traffic --tag br-&lt;name&gt; --min-instances 0 --max-instances 1 --update-env-vars DB_POOL_MAX=1</code> with the same secrets and
+Cloud SQL binding as the candidate, smoke-tests the tag's own URL, and stops.
+<code>DB_POOL_MAX</code> is capacity, not store selection: the store is still chosen per
+request (<code>lib/request-env.ts</code>), and a preview revision can never be published
+(below), so the smaller pool never rides into production. The main deploy sets
+<code>DB_POOL_MAX=4</code>, <code>--min-instances 1</code> and <code>--max-instances 4</code> explicitly on
+every run, because <code>gcloud run deploy</code> starts from the previous revision's
+template and would otherwise inherit a preview's values.</p>
+<p><strong>The cap.</strong> After each preview deploy the workflow keeps the 3 newest <code>br-*</code>
+tags (by revision number) and removes the rest with
+<code>gcloud run services update-traffic --remove-tags</code>. A <code>delete</code> event for a
+branch removes its tag at once. <code>candidate</code> is never counted and never
+removed; the published revision has no tag and is never touched. An untagged
+revision keeps no instances warm and holds no connections, so a removed
+preview costs nothing.</p>
+<p><strong>Choosing one at /beta.</strong> The published revision decides where <code>/beta/*</code> goes
+from a cookie. <code>GET /beta?branch=br-&lt;name&gt;</code> (or <code>/beta/?branch=</code>) sets
+<code>telarchy_beta_branch=br-&lt;name&gt;</code> (path <code>/beta</code>, <code>SameSite=Lax</code>, <code>Secure</code>, 30
+days) and redirects to <code>/beta/</code>; from then on every <code>/beta/*</code> request, API and
+assets included, is forwarded to the revision carrying that tag. A cookie
+naming a tag that no longer exists is ignored and the candidate answers, so an
+expired link degrades to the main beta rather than to an error.
+<code>?branch=candidate</code> or an empty value clears the cookie. Nothing else about
+the beta changes for a preview: same origin, same session, same
+<code>telarchy_beta</code> store, same <code>/beta/</code> bundle (every container builds it), same
+noindex. The stripe on a preview says which branch it is
+(<code>GET /api/public-config</code> carries <code>preview</code>, the <code>br-</code> tag on the answering
+revision, or null), and a platform admin gets a picker on the stripe listing
+<code>main candidate</code> and the previews <code>GET /api/admin/release</code> returns as
+<code>previews</code>, newest first.</p>
+<p><strong>A preview cannot be published.</strong> <code>publishRevision</code> refuses any revision that
+does not carry the <code>candidate</code> tag (409, &quot;only the main candidate can be
+published&quot;), and the stripe shows no Publish button on a preview. A branch
+reaches telarchy.com by merging to main, never by being published from the
+beta; the tag on the revision is what makes that a fact rather than a habit.</p>
+<p><strong>Concurrency.</strong> The main deploy keeps concurrency group <code>cloud-run-deploy</code>;
+each branch has its own group, <code>cloud-run-preview-&lt;ref&gt;</code>. They are separate
+because a GitHub group holds only one pending run and a queued main deploy
+must never be the one cancelled by a burst of branch pushes. Two <code>gcloud run deploy</code> calls on the same service can therefore overlap; Cloud Run checks the
+service's <code>resourceVersion</code> on write, so the later writer fails instead of
+overwriting the other's tag, and <code>deploy-autorecover.yml</code> re-runs the failed
+job. A preview's direct tag URL exists but sign-in does not work there
+(<code>TRUSTED_ORIGINS</code> names the candidate's origin only); use it through
+<code>/beta?branch=</code>.</p>
+<h3 id="docs-infra-deploy-md--h9">Publishing without the button</h3>
 <pre><code class="language-bash">gcloud run services update-traffic api --region us-central1 --to-latest
 </code></pre>
-<h3 id="docs-infra-deploy-md--h9">Rolling back</h3>
+<h3 id="docs-infra-deploy-md--h10">Rolling back</h3>
 <p>Same command, naming the revision:</p>
 <pre><code class="language-bash">gcloud run services update-traffic api --region us-central1 \
   --to-revisions &lt;PREVIOUS_REVISION&gt;=100
 </code></pre>
-<h3 id="docs-infra-deploy-md--h10">Logging in on the beta</h3>
+<h3 id="docs-infra-deploy-md--h11">Logging in on the beta</h3>
 <p>On <code>telarchy.com/beta</code> you are already logged in: same origin, same cookie jar.
 That is the main reason the beta lives there.</p>
 <p>On the candidate's direct run.app URL it is a different origin with its own
@@ -6610,13 +6695,13 @@ carrying credentials, so verify this in a browser or not at all.
 names the published site, and <code>publicOrigins()</code> uses it to decide which hosts
 get <code>X-Robots-Tag: noindex</code>. The beta is trusted enough to log in to and never
 indexable.</p>
-<h3 id="docs-infra-deploy-md--h11">The beta is a public URL on production data</h3>
+<h3 id="docs-infra-deploy-md--h12">The beta is a public URL on production data</h3>
 <p>Anyone who learns the candidate URL can open it, and it reads and writes the
 real database. It is not linked anywhere and it is noindexed, but it is not
 secret. If that becomes uncomfortable, the lockdown is to drop the
 <code>allUsers</code> invoker binding on the service and put the beta behind IAP, at the
 cost of the open-the-URL-and-look flow.</p>
-<h3 id="docs-infra-deploy-md--h12">The permission behind the button</h3>
+<h3 id="docs-infra-deploy-md--h13">The permission behind the button</h3>
 <p>The runtime service account (<code>telarchy-api@telarchy-e0043.iam.gserviceaccount.com</code>,
 see &quot;Runtime identity&quot;) holds two grants that Publish depends on, both scoped
 to the one resource they concern rather than the project:</p>
@@ -6698,37 +6783,47 @@ store on every <code>/beta/api</code> call, found nothing, and the caller comes 
 anonymous while the page says signed in. <code>auth-store-binding.test.ts</code> fails if
 that is tidied back. Everything else stays per-store, so a beta workspace is
 real beta data keyed by the real account id.</p>
-<h2 id="docs-infra-deploy-md--h13">What the workflow does</h2>
-<p>On <code>push</code> to <code>main</code> (or <code>workflow_dispatch</code>); pushes touching only <code>**/*.md</code>,
-<code>docs/**</code> or the self-sync workflow do not trigger it:</p>
+<h2 id="docs-infra-deploy-md--h14">What the workflow does</h2>
+<p>On <code>push</code> to any branch (or <code>workflow_dispatch</code>); pushes touching only
+<code>**/*.md</code>, <code>docs/**</code> or the self-sync workflow do not trigger it. A branch
+<code>delete</code> event triggers only the <code>retire</code> job.</p>
 <ol>
 <li><code>checks</code>: type check, frontend suite, production bundle (<code>npm run build</code>).</li>
 <li><code>backend</code>: the backend suite in three shards (<code>npm run test:ci --shard=N/3</code>).</li>
-<li><code>deploy</code> (needs both, GitHub environment <code>production</code>): auths to GCP (WIF
-if configured, SA key otherwise), runs the migrations against production
-and then the beta database, regenerates the change log, and runs
+<li>On <code>main</code>, <code>deploy</code> (needs both, GitHub environment <code>production</code>): auths to
+GCP (WIF if configured, SA key otherwise), runs the migrations against
+production and then the beta database, regenerates the change log, and runs
 <code>gcloud run deploy --no-traffic --tag candidate</code>.</li>
 <li>Smoke-tests the candidate (<code>/api/public-config</code> on the candidate's own URL
 must answer 200 within 20 tries) and stops without promoting.</li>
+<li>On any other branch, <code>preview</code> (needs both, no environment: the
+<code>production</code> environment's branch rule is main only, and the variables it
+needs are repository-level): the same auth, migrations against the beta
+database only, <code>gcloud run deploy --no-traffic --tag br-&lt;name&gt;</code> at one
+instance, the smoke test on the tag's URL, then the cap (&quot;Branch previews&quot;
+above). The job summary prints the <code>/beta?branch=</code> link.</li>
+<li><code>retire</code>, on a branch <code>delete</code> event: removes the branch's <code>br-</code> tag.</li>
 </ol>
 <p>Cloud Build does the actual image build server-side (faster than running
 <code>docker build</code> on the runner because Cloud Build caches layers per-project).
 Typical end-to-end time: ~3-5 minutes.</p>
-<p>The workflow runs in concurrency group <code>cloud-run-deploy</code> with
-<code>cancel-in-progress: false</code>: one deploy at a time, and the in-flight run is
-never cancelled, it always finishes and lands a candidate. While it runs, a
+<p>The main deploy runs in concurrency group <code>cloud-run-deploy</code> with
+<code>cancel-in-progress: false</code>: one main deploy at a time, and the in-flight run
+is never cancelled, it always finishes and lands a candidate. While it runs, a
 new push is held pending and GitHub cancels any older pending run, so only the
 newest queued commit waits and runs next. Forward progress is guaranteed and
-the build that runs next is always the latest. Two builds never run at once:
-there is a single shared <code>candidate</code> tag that two concurrent deploys would
-clobber.</p>
+the build that runs next is always the latest. Two main builds never run at
+once: there is a single shared <code>candidate</code> tag that two concurrent deploys
+would clobber. Previews run in a group per branch (<code>cloud-run-preview-&lt;ref&gt;</code>)
+for the same reason in the other direction: a branch push must never cancel
+the queued main deploy.</p>
 <p><code>.github/workflows/deploy-autorecover.yml</code> re-runs the failed jobs of a deploy
 run that ends in <code>failure</code> (a runner dying mid-test, not a red suite) while
 <code>run_attempt &lt; 5</code>, so a transient runner death self-heals within minutes and a
 genuinely red suite is still left red for a human after four retries. A run
 that loses the concurrency race ends as <code>cancelled</code>, not <code>failure</code>, so it never
 triggers this.</p>
-<h2 id="docs-infra-deploy-md--h14">Other workflows</h2>
+<h2 id="docs-infra-deploy-md--h15">Other workflows</h2>
 <ul>
 <li><code>docker-publish.yml</code> runs in parallel on every push to <code>main</code> and pushes the
 image to <code>ghcr.io/reblexis/telarchy-app</code> (tags <code>latest</code> and <code>sha-&lt;short&gt;</code>;
@@ -6744,7 +6839,7 @@ no separately hosted frontend.</li>
 <li><code>telarchy-self-sync.yml</code> pushes the dogfooding workspace's hero metric daily
 at 23:40 UTC.</li>
 </ul>
-<h2 id="docs-infra-deploy-md--h15">The container</h2>
+<h2 id="docs-infra-deploy-md--h16">The container</h2>
 <p><code>Dockerfile</code> builds the backend (<code>functions/</code>), the frontend at <code>/</code>, and the
 frontend a second time at <code>/beta/</code> (<code>npm run build:beta</code>, see &quot;Reaching it&quot;).
 The second bundle is built by default (<code>ARG BUILD_BETA=true</code>) because the
@@ -6759,7 +6854,7 @@ database migrations (<code>node lib/migrate.js</code>) before starting the serve
 unset and migrates in the deploy workflow instead, before the revision lands.
 Required env: <code>DATABASE_URL</code>, <code>API_KEY</code>, <code>BETTER_AUTH_SECRET</code>; everything
 else is documented in <code>.env.example</code>.</p>
-<h2 id="docs-infra-deploy-md--h16">Runtime identity</h2>
+<h2 id="docs-infra-deploy-md--h17">Runtime identity</h2>
 <p>The API runs as <code>telarchy-api@telarchy-e0043.iam.gserviceaccount.com</code>, not the
 default compute service account (which holds project Editor and still exists for
 Cloud Build). Its grants are the smallest set the app uses: project roles
@@ -6774,7 +6869,7 @@ no-traffic revision under the new account, smoke-tested through its own tag
 URL (DB, secrets, master key, release describe, <code>/beta</code>), then
 <code>update-traffic</code>. The default compute account keeps project Editor because
 Cloud Build (<code>deploy --source</code>) uses it; removing it is a separate step.</p>
-<h2 id="docs-infra-deploy-md--h17">Keyless deploys</h2>
+<h2 id="docs-infra-deploy-md--h18">Keyless deploys</h2>
 <p>The deploy workflow authenticates with Workload Identity Federation: pool
 <code>github</code>, OIDC provider <code>github</code> (issuer token.actions.githubusercontent.com,
 attribute condition <code>repository_owner == 'Reblexis'</code>), and
@@ -6786,7 +6881,7 @@ path in <code>deploy-cloudrun.yml</code>. No <code>GCP_SA_KEY</code> secret exis
 and <code>cloudrun-deployer</code> carries no user-managed key; the JSON-key path is only
 a bootstrap fallback, deleted from the repository and from the service account
 once a WIF deploy succeeds.</p>
-<h2 id="docs-infra-deploy-md--h18">Master key rotation</h2>
+<h2 id="docs-infra-deploy-md--h19">Master key rotation</h2>
 <p>The master key (<code>API_KEY</code>) is read by exactly one function, <code>isMasterKey</code> in
 <code>functions/src/lib/master-key.ts</code>, which also accepts <code>API_KEY_PREVIOUS</code> when it
 is set. That is the grace window: rotation is not a simultaneous cutover of every
@@ -6804,7 +6899,7 @@ The fleet instance has its own key and is unaffected.</li>
 <li>After 24 hours (and never mid-cycle: cut over between weekly market pairs during a
 season), unset <code>API_KEY_PREVIOUS</code>. The old key then returns 401 everywhere.</li>
 </ol>
-<h2 id="docs-infra-deploy-md--h19">Cron schedule (Cloud Scheduler)</h2>
+<h2 id="docs-infra-deploy-md--h20">Cron schedule (Cloud Scheduler)</h2>
 <p>The market lifecycle is driven by two endpoints, <code>POST /api/cron/resolve</code> and
 <code>POST /api/cron/refresh</code>, called with the master key. Both are idempotent and
 cheap when there is nothing to do, and the refresh holds a per-workspace
@@ -6858,7 +6953,7 @@ market against the wrong hour's reading.</p>
 gcloud scheduler jobs update http firebase-schedule-dailyMarketRefresh-us-central1 \
   --location=us-central1 --project=telarchy-e0043 --schedule=&quot;10 0 * * *&quot;
 </code></pre>
-<h2 id="docs-infra-deploy-md--h20">Owner notifications (Resend)</h2>
+<h2 id="docs-infra-deploy-md--h21">Owner notifications (Resend)</h2>
 <p>The <code>api</code> service sends mail through Resend (<code>functions/src/lib/notify.ts</code>):
 owner notifications (new waitlist signup, new proposal) and participant
 notifications (a comment under your contract, a reply in your thread, and
@@ -6911,7 +7006,7 @@ agent-economy umbrella does for agents; this is one more key on that team.</p>
 <p>Participant mail also needs <code>BETTER_AUTH_URL</code> (or it falls back to
 <code>https://telarchy.com</code>), because every one of those emails carries a link
 back to the floor and a link to the account settings that switch it off.</p>
-<h2 id="docs-infra-deploy-md--h21">Memory</h2>
+<h2 id="docs-infra-deploy-md--h22">Memory</h2>
 <p><strong>512Mi.</strong> At 256Mi the container is OOM-killed on almost no traffic, and
 Cloud Run answers a killed instance's in-flight requests with 503; the
 endpoint that takes it most often is <code>GET /api/marketplace/:slug</code>, i.e. the
