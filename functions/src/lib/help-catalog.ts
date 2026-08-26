@@ -589,6 +589,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
         "Cash Telarchy owes this participant from workspace prize pools: accrued and paid totals in cents, whether a transfer is due (accrued total at or above the $5 minimum and payout details on the account), and each item with its source. Amounts accrue at settlement and are transferred by bank transfer; small wins wait, they are never lost. 'me' resolves to the caller.",
     },
     {
+      method: 'POST',
+      path: '/api/admin/funding/grant',
+      auth: 'platform admin',
+      description:
+        "Grant a funding package to a workspace without a card payment: the invoice-plus-grant path (an owner who paid by bank transfer, or a package Telarchy sponsors) and the way to exercise budgets and pools where no payment provider is configured. Body: { workspaceId?: string (defaults to the header workspace), amountCents: integer, note?: string }. Same split and records as a purchase (1,000 credits per dollar into the liquidity budget, 80% into next month's pool), provider 'manual'.",
+    },
+    {
       method: 'GET',
       path: '/api/admin/payouts',
       auth: 'platform admin',

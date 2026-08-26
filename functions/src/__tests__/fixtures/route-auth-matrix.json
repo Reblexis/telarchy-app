@@ -1,4 +1,229 @@
 {
+  "GET /api/activity/": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/admin/activity": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/admin/agent-control": {
+    "anon": 401,
+    "agent": 403,
+    "master": 400
+  },
+  "GET /api/admin/agent-controls": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "POST /api/admin/agent-heartbeat": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/admin/agent-heartbeats": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/admin/agent-traces": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/admin/agent-traces": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "POST /api/admin/branches/build": {
+    "anon": 401,
+    "agent": 403,
+    "master": 400
+  },
+  "GET /api/admin/branches": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "GET /api/admin/floor-stats": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "POST /api/admin/funding/grant": {
+    "anon": 401,
+    "agent": 403,
+    "master": 400
+  },
+  "GET /api/admin/markets/featured": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "POST /api/admin/markets/featured": {
+    "anon": 401,
+    "agent": 403,
+    "master": 400
+  },
+  "GET /api/admin/participants": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "POST /api/admin/payouts/:agentId/paid": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "GET /api/admin/payouts": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "POST /api/admin/publish": {
+    "anon": 401,
+    "agent": 403,
+    "master": 502
+  },
+  "GET /api/admin/questions": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "GET /api/admin/release": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "GET /api/agents/:id/balance": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "POST /api/agents/:id/credit": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/agents/:id/dashboard": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "POST /api/agents/:id/deposit": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "DELETE /api/agents/:id/keys/:keyId": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "PATCH /api/agents/:id/keys/:keyId": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "GET /api/agents/:id/keys": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "POST /api/agents/:id/keys": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "GET /api/agents/:id/market-pnl": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "GET /api/agents/:id/payouts": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "POST /api/agents/:id/spend": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "GET /api/agents/:id/trades": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "PUT /api/agents/:id/wallet": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "POST /api/agents/:id/withdraw": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "DELETE /api/agents/:id": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/agents/:id": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "GET /api/agents/:idOrNickname/public": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/agents/deposit-address": {
+    "anon": 503,
+    "agent": 503,
+    "master": 503
+  },
+  "GET /api/agents/": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/agents/mine": {
+    "anon": 401,
+    "agent": 200,
+    "master": 404
+  },
+  "POST /api/agents/": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "POST /api/agents/register": {
+    "anon": 400,
+    "agent": 400,
+    "master": 400
+  },
+  "POST /api/agents/transfer": {
+    "anon": 401,
+    "agent": 400,
+    "master": 403
+  },
+  "GET /api/agents/transfers": {
+    "anon": 401,
+    "agent": 200,
+    "master": 403
+  },
+  "GET /api/agents/treasury": {
+    "anon": 401,
+    "agent": 503,
+    "master": 503
+  },
   "ACL /api/auth/*": {
     "anon": 404,
     "agent": 404,
@@ -24,515 +249,15 @@
     "agent": 404,
     "master": 404
   },
-  "DELETE /api/agents/:id": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "DELETE /api/agents/:id/keys/:keyId": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
   "DELETE /api/auth/*": {
     "anon": 404,
     "agent": 404,
     "master": 404
   },
-  "DELETE /api/auth/me": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
-  "DELETE /api/groups/:id": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "DELETE /api/metrics/:id": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "DELETE /api/notifications/push-subscriptions": {
-    "anon": 401,
-    "agent": 400,
-    "master": 403
-  },
-  "DELETE /api/predictions/limit-orders/:id": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "DELETE /api/proposals/:proposalId": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "DELETE /api/sources/:id": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "DELETE /api/workspaces/:id": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/activity/": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/admin/activity": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/admin/agent-controls": {
-    "anon": 401,
-    "agent": 403,
-    "master": 200
-  },
-  "GET /api/admin/agent-heartbeats": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/admin/agent-traces": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/admin/branches": {
-    "anon": 401,
-    "agent": 403,
-    "master": 200
-  },
-  "GET /api/admin/floor-stats": {
-    "anon": 401,
-    "agent": 403,
-    "master": 200
-  },
-  "GET /api/admin/markets/featured": {
-    "anon": 401,
-    "agent": 403,
-    "master": 200
-  },
-  "GET /api/admin/participants": {
-    "anon": 401,
-    "agent": 403,
-    "master": 200
-  },
-  "GET /api/admin/questions": {
-    "anon": 401,
-    "agent": 403,
-    "master": 200
-  },
-  "GET /api/admin/release": {
-    "anon": 401,
-    "agent": 403,
-    "master": 200
-  },
-  "GET /api/agents/": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/agents/:id": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
-  "GET /api/agents/:id/balance": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
-  "GET /api/agents/:id/dashboard": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
-  "GET /api/agents/:id/keys": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
-  "GET /api/agents/:id/market-pnl": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
-  "GET /api/agents/:id/trades": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
-  "GET /api/agents/:idOrNickname/public": {
-    "anon": 404,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/agents/deposit-address": {
-    "anon": 503,
-    "agent": 503,
-    "master": 503
-  },
-  "GET /api/agents/mine": {
-    "anon": 401,
-    "agent": 200,
-    "master": 404
-  },
-  "GET /api/agents/transfers": {
-    "anon": 401,
-    "agent": 200,
-    "master": 403
-  },
-  "GET /api/agents/treasury": {
-    "anon": 401,
-    "agent": 503,
-    "master": 503
-  },
   "GET /api/auth/*": {
     "anon": 404,
     "agent": 404,
     "master": 404
-  },
-  "GET /api/auth/me": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/auth/me/export": {
-    "anon": 401,
-    "agent": 200,
-    "master": 403
-  },
-  "GET /api/data-room/": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/events/": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "GET /api/events/hooks/status": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/feedback/": {
-    "anon": 403,
-    "agent": 403,
-    "master": 200
-  },
-  "GET /api/feedback/stats": {
-    "anon": 403,
-    "agent": 403,
-    "master": 200
-  },
-  "GET /api/groups/": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/guides/": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/guides/:section": {
-    "anon": 404,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/guides/_categories": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/help": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/leaderboard/": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/legal/": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/legal/privacy": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/legal/season-0": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/legal/season-1": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/legal/terms": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/marketplace/": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/marketplace/:workspaceId": {
-    "anon": 404,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/marketplace/:workspaceId/announcements": {
-    "anon": 404,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/marketplace/:workspaceId/card.png": {
-    "anon": 404,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/marketplace/:workspaceId/comments": {
-    "anon": 404,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/marketplace/:workspaceId/context": {
-    "anon": 404,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/marketplace/:workspaceId/market-activity": {
-    "anon": 404,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/marketplace/:workspaceId/markets/:marketId/history": {
-    "anon": 404,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/marketplace/featured": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/marketplace/stats": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/marketplace/workspaces/public": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/metrics/": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/metrics/:id": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/metrics/:id/logs": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/notifications/": {
-    "anon": 401,
-    "agent": 200,
-    "master": 403
-  },
-  "GET /api/notifications/push-key": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/onboard/claim/:token": {
-    "anon": 404,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/predictions/limit-orders": {
-    "anon": 401,
-    "agent": 200,
-    "master": 403
-  },
-  "GET /api/predictions/markets": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/predictions/markets/:id": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/predictions/markets/:id/context": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/predictions/markets/:id/liquidity-events": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/predictions/markets/:id/messages": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/predictions/markets/:id/positions": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/predictions/markets/:id/trades": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/predictions/positions": {
-    "anon": 401,
-    "agent": 200,
-    "master": 403
-  },
-  "GET /api/proposals/": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/proposals/:proposalId": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/proposals/:proposalId/messages": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/proposals/:proposalId/revisions": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/public-config": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/seasons/": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/seasons/:id/payouts": {
-    "anon": 403,
-    "agent": 403,
-    "master": 200
-  },
-  "GET /api/seasons/me": {
-    "anon": 401,
-    "agent": 200,
-    "master": 400
-  },
-  "GET /api/setup/checklist": {
-    "anon": 200,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/sources/": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/sources/:id": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/sources/:id/file": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/sources/:id/tree": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/sources/github/callback": {
-    "anon": 400,
-    "agent": 400,
-    "master": 400
-  },
-  "GET /api/sources/github/install": {
-    "anon": 401,
-    "agent": 503,
-    "master": 503
-  },
-  "GET /api/sources/github/repos": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "GET /api/status": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/updates/": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/workspaces/": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "GET /api/workspaces/:id": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/workspaces/:id/stats": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "GET /api/workspaces/resolve": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
   },
   "HEAD /api/auth/*": {
     "anon": -1,
@@ -589,363 +314,13 @@
     "agent": 204,
     "master": 204
   },
-  "PATCH /api/agents/:id/keys/:keyId": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
   "PATCH /api/auth/*": {
     "anon": 404,
     "agent": 404,
     "master": 404
   },
-  "PATCH /api/feedback/:id": {
-    "anon": 403,
-    "agent": 403,
-    "master": 400
-  },
-  "PATCH /api/proposals/:proposalId": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "PATCH /api/seasons/:id": {
-    "anon": 403,
-    "agent": 403,
-    "master": 404
-  },
-  "POST /api/admin/agent-control": {
-    "anon": 401,
-    "agent": 403,
-    "master": 400
-  },
-  "POST /api/admin/agent-heartbeat": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/admin/agent-traces": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/admin/branches/build": {
-    "anon": 401,
-    "agent": 403,
-    "master": 400
-  },
-  "POST /api/admin/markets/featured": {
-    "anon": 401,
-    "agent": 403,
-    "master": 400
-  },
-  "POST /api/admin/publish": {
-    "anon": 401,
-    "agent": 403,
-    "master": 502
-  },
-  "POST /api/agents/": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/agents/:id/credit": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "POST /api/agents/:id/deposit": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
-  "POST /api/agents/:id/keys": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
-  "POST /api/agents/:id/spend": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
-  "POST /api/agents/:id/withdraw": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
-  "POST /api/agents/register": {
-    "anon": 400,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/agents/transfer": {
-    "anon": 401,
-    "agent": 400,
-    "master": 403
-  },
   "POST /api/auth/*": {
     "anon": 404,
-    "agent": 404,
-    "master": 404
-  },
-  "POST /api/auth/consent": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
-  "POST /api/auth/profile": {
-    "anon": 401,
-    "agent": 200,
-    "master": 403
-  },
-  "POST /api/cron/refresh": {
-    "anon": 401,
-    "agent": 401,
-    "master": 200
-  },
-  "POST /api/cron/resolve": {
-    "anon": 401,
-    "agent": 401,
-    "master": 200
-  },
-  "POST /api/cron/seasons": {
-    "anon": 401,
-    "agent": 401,
-    "master": 200
-  },
-  "POST /api/events/hooks/heartbeat": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "POST /api/feedback/": {
-    "anon": 400,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/groups/": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/import/manifold/claim": {
-    "anon": 401,
-    "agent": 400,
-    "master": 403
-  },
-  "POST /api/import/manifold/start": {
-    "anon": 401,
-    "agent": 400,
-    "master": 403
-  },
-  "POST /api/marketplace/:workspaceId/ask": {
-    "anon": 503,
-    "agent": 503,
-    "master": 503
-  },
-  "POST /api/marketplace/:workspaceId/join": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "POST /api/metrics/": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/metrics/logs/purge": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "POST /api/metrics/migrate-leaf-types": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "POST /api/metrics/reorder": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/notifications/:itemId/read": {
-    "anon": 401,
-    "agent": 200,
-    "master": 403
-  },
-  "POST /api/notifications/push-subscriptions": {
-    "anon": 401,
-    "agent": 503,
-    "master": 403
-  },
-  "POST /api/notifications/seen": {
-    "anon": 401,
-    "agent": 200,
-    "master": 403
-  },
-  "POST /api/onboard/": {
-    "anon": 403,
-    "agent": 403,
-    "master": 403
-  },
-  "POST /api/onboard/claim": {
-    "anon": 401,
-    "agent": 401,
-    "master": 401
-  },
-  "POST /api/predictions/limit-orders": {
-    "anon": 401,
-    "agent": 400,
-    "master": 403
-  },
-  "POST /api/predictions/markets": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/predictions/markets/:id/liquidity": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/predictions/markets/:id/messages": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/predictions/markets/:id/resolve": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "POST /api/predictions/markets/:id/void": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "POST /api/predictions/markets/liquidity/bulk": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/predictions/markets/notify": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/predictions/markets/refresh": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "POST /api/predictions/resolve": {
-    "anon": 401,
-    "agent": 200,
-    "master": 200
-  },
-  "POST /api/predictions/trade": {
-    "anon": 401,
-    "agent": 400,
-    "master": 403
-  },
-  "POST /api/proposals/": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/proposals/:proposalId/approve": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "POST /api/proposals/:proposalId/decline": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "POST /api/proposals/:proposalId/decline-spam": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "POST /api/proposals/:proposalId/messages": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/proposals/:proposalId/withdraw": {
-    "anon": 401,
-    "agent": 404,
-    "master": 403
-  },
-  "POST /api/seasons/": {
-    "anon": 403,
-    "agent": 403,
-    "master": 400
-  },
-  "POST /api/seasons/:id/claim": {
-    "anon": 401,
-    "agent": 404,
-    "master": 400
-  },
-  "POST /api/seasons/:id/entries/:agentId/paid": {
-    "anon": 403,
-    "agent": 403,
-    "master": 404
-  },
-  "POST /api/seasons/:id/settle": {
-    "anon": 403,
-    "agent": 403,
-    "master": 404
-  },
-  "POST /api/seasons/:id/start": {
-    "anon": 403,
-    "agent": 403,
-    "master": 404
-  },
-  "POST /api/setup/ask": {
-    "anon": 503,
-    "agent": 503,
-    "master": 503
-  },
-  "POST /api/setup/handoff": {
-    "anon": 503,
-    "agent": 503,
-    "master": 503
-  },
-  "POST /api/sources/": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/sources/github/connect": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/waitlist/": {
-    "anon": 400,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/workspaces/": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "POST /api/workspaces/:id/announcements": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "POST /api/workspaces/:id/join": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "POST /api/workspaces/:id/members": {
-    "anon": 401,
     "agent": 404,
     "master": 404
   },
@@ -964,50 +339,10 @@
     "agent": 404,
     "master": 404
   },
-  "PUT /api/agents/:id/wallet": {
-    "anon": 401,
-    "agent": 403,
-    "master": 403
-  },
   "PUT /api/auth/*": {
     "anon": 404,
     "agent": 404,
     "master": 404
-  },
-  "PUT /api/groups/:id": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "PUT /api/metrics/:id": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "PUT /api/seasons/me": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
-  "PUT /api/sources/:id": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "PUT /api/workspaces/:id/announcements/:announcementId": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "PUT /api/workspaces/:id/settings": {
-    "anon": 401,
-    "agent": 404,
-    "master": 404
-  },
-  "PUT /api/workspaces/order": {
-    "anon": 401,
-    "agent": 400,
-    "master": 403
   },
   "QUERY /api/auth/*": {
     "anon": 404,
@@ -1063,5 +398,740 @@
     "anon": 404,
     "agent": 404,
     "master": 404
+  },
+  "POST /api/auth/consent": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "GET /api/auth/me/export": {
+    "anon": 401,
+    "agent": 200,
+    "master": 403
+  },
+  "DELETE /api/auth/me": {
+    "anon": 401,
+    "agent": 403,
+    "master": 403
+  },
+  "GET /api/auth/me": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/auth/profile": {
+    "anon": 401,
+    "agent": 200,
+    "master": 403
+  },
+  "POST /api/billing/stripe/webhook": {
+    "anon": 503,
+    "agent": 503,
+    "master": 503
+  },
+  "POST /api/cron/pools": {
+    "anon": 401,
+    "agent": 401,
+    "master": 200
+  },
+  "POST /api/cron/refresh": {
+    "anon": 401,
+    "agent": 401,
+    "master": 200
+  },
+  "POST /api/cron/resolve": {
+    "anon": 401,
+    "agent": 401,
+    "master": 200
+  },
+  "POST /api/cron/seasons": {
+    "anon": 401,
+    "agent": 401,
+    "master": 200
+  },
+  "GET /api/data-room/": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/events/": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "POST /api/events/hooks/heartbeat": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/events/hooks/status": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "PATCH /api/feedback/:id": {
+    "anon": 403,
+    "agent": 403,
+    "master": 400
+  },
+  "GET /api/feedback/": {
+    "anon": 403,
+    "agent": 403,
+    "master": 200
+  },
+  "POST /api/feedback/": {
+    "anon": 400,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/feedback/stats": {
+    "anon": 403,
+    "agent": 403,
+    "master": 200
+  },
+  "DELETE /api/groups/:id": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "PUT /api/groups/:id": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/groups/": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/groups/": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/guides/_categories": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/guides/:section": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/guides/": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/help": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/import/manifold/claim": {
+    "anon": 401,
+    "agent": 400,
+    "master": 403
+  },
+  "POST /api/import/manifold/start": {
+    "anon": 401,
+    "agent": 400,
+    "master": 403
+  },
+  "GET /api/leaderboard/": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/legal/": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/legal/pools/:workspaceId/:month": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/legal/privacy": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/legal/season-0": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/legal/season-1": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/legal/terms": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/marketplace/:workspaceId/announcements": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/marketplace/:workspaceId/ask": {
+    "anon": 503,
+    "agent": 503,
+    "master": 503
+  },
+  "GET /api/marketplace/:workspaceId/card.png": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/marketplace/:workspaceId/comments": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/marketplace/:workspaceId/context": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/marketplace/:workspaceId/join": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/marketplace/:workspaceId/market-activity": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/marketplace/:workspaceId/markets/:marketId/history": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/marketplace/:workspaceId": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/marketplace/featured": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/marketplace/": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/marketplace/stats": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/marketplace/workspaces/public": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/metrics/:id/logs": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "DELETE /api/metrics/:id": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/metrics/:id": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "PUT /api/metrics/:id": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/metrics/": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/metrics/logs/purge": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/metrics/migrate-leaf-types": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/metrics/": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "POST /api/metrics/reorder": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "POST /api/notifications/:itemId/read": {
+    "anon": 401,
+    "agent": 200,
+    "master": 403
+  },
+  "GET /api/notifications/": {
+    "anon": 401,
+    "agent": 200,
+    "master": 403
+  },
+  "GET /api/notifications/push-key": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "DELETE /api/notifications/push-subscriptions": {
+    "anon": 401,
+    "agent": 400,
+    "master": 403
+  },
+  "POST /api/notifications/push-subscriptions": {
+    "anon": 401,
+    "agent": 503,
+    "master": 403
+  },
+  "POST /api/notifications/seen": {
+    "anon": 401,
+    "agent": 200,
+    "master": 403
+  },
+  "GET /api/onboard/claim/:token": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/onboard/claim": {
+    "anon": 401,
+    "agent": 401,
+    "master": 401
+  },
+  "POST /api/onboard/": {
+    "anon": 403,
+    "agent": 403,
+    "master": 403
+  },
+  "DELETE /api/predictions/limit-orders/:id": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/predictions/limit-orders": {
+    "anon": 401,
+    "agent": 200,
+    "master": 403
+  },
+  "POST /api/predictions/limit-orders": {
+    "anon": 401,
+    "agent": 400,
+    "master": 403
+  },
+  "GET /api/predictions/markets/:id/context": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/predictions/markets/:id/liquidity-events": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/predictions/markets/:id/liquidity": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/predictions/markets/:id/messages": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/predictions/markets/:id/messages": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/predictions/markets/:id/positions": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/predictions/markets/:id/resolve": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/predictions/markets/:id/trades": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/predictions/markets/:id/void": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/predictions/markets/:id": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/predictions/markets/liquidity/bulk": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "POST /api/predictions/markets/notify": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "POST /api/predictions/markets/refresh": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/predictions/markets": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/predictions/markets": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/predictions/positions": {
+    "anon": 401,
+    "agent": 200,
+    "master": 403
+  },
+  "POST /api/predictions/resolve": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/predictions/trade": {
+    "anon": 401,
+    "agent": 400,
+    "master": 403
+  },
+  "POST /api/proposals/:proposalId/approve": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/proposals/:proposalId/decline-spam": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/proposals/:proposalId/decline": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/proposals/:proposalId/messages": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/proposals/:proposalId/messages": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/proposals/:proposalId/revisions": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/proposals/:proposalId/withdraw": {
+    "anon": 401,
+    "agent": 404,
+    "master": 403
+  },
+  "DELETE /api/proposals/:proposalId": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/proposals/:proposalId": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "PATCH /api/proposals/:proposalId": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/proposals/": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/proposals/": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/public-config": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/seasons/:id/claim": {
+    "anon": 401,
+    "agent": 404,
+    "master": 400
+  },
+  "POST /api/seasons/:id/entries/:agentId/paid": {
+    "anon": 403,
+    "agent": 403,
+    "master": 404
+  },
+  "GET /api/seasons/:id/payouts": {
+    "anon": 403,
+    "agent": 403,
+    "master": 200
+  },
+  "POST /api/seasons/:id/settle": {
+    "anon": 403,
+    "agent": 403,
+    "master": 404
+  },
+  "POST /api/seasons/:id/start": {
+    "anon": 403,
+    "agent": 403,
+    "master": 404
+  },
+  "PATCH /api/seasons/:id": {
+    "anon": 403,
+    "agent": 403,
+    "master": 404
+  },
+  "GET /api/seasons/": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/seasons/me": {
+    "anon": 401,
+    "agent": 200,
+    "master": 400
+  },
+  "PUT /api/seasons/me": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "POST /api/seasons/": {
+    "anon": 403,
+    "agent": 403,
+    "master": 400
+  },
+  "POST /api/setup/ask": {
+    "anon": 503,
+    "agent": 503,
+    "master": 503
+  },
+  "GET /api/setup/checklist": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/setup/handoff": {
+    "anon": 503,
+    "agent": 503,
+    "master": 503
+  },
+  "GET /api/sources/:id/file": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/sources/:id/tree": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "DELETE /api/sources/:id": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/sources/:id": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "PUT /api/sources/:id": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/sources/": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/sources/github/callback": {
+    "anon": 400,
+    "agent": 400,
+    "master": 400
+  },
+  "POST /api/sources/github/connect": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/sources/github/install": {
+    "anon": 401,
+    "agent": 503,
+    "master": 503
+  },
+  "GET /api/sources/github/repos": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "POST /api/sources/": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/status": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/updates/": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "POST /api/waitlist/": {
+    "anon": 400,
+    "agent": 400,
+    "master": 400
+  },
+  "PUT /api/workspaces/:id/announcements/:announcementId": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/workspaces/:id/announcements": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/workspaces/:id/funding/checkout": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/workspaces/:id/funding": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/workspaces/:id/join": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/workspaces/:id/liquidity/spread": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "PUT /api/workspaces/:id/liquidity/weights": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/workspaces/:id/liquidity": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/workspaces/:id/members": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/workspaces/:id/pools/:month": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/workspaces/:id/pools": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "PUT /api/workspaces/:id/settings": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/workspaces/:id/stats": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "DELETE /api/workspaces/:id": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/workspaces/:id": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/workspaces/": {
+    "anon": 401,
+    "agent": 200,
+    "master": 200
+  },
+  "PUT /api/workspaces/order": {
+    "anon": 401,
+    "agent": 400,
+    "master": 403
+  },
+  "POST /api/workspaces/": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api/workspaces/resolve": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
+  "GET /api": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
   }
 }

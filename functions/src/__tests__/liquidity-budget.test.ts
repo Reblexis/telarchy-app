@@ -8,13 +8,14 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { and, eq } from 'drizzle-orm';
+import { db } from '../db/client';
 import { agents, creditLedger, liquidityBudgetLedger, liquidityEvents, markets, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { toUnits } from '../lib/validation';
 import { applyBudget, applyBudgetIfSufficient, readBudgetUnits } from '../services/liquidityBudget';
 import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
 import { distributeLPLeftover, planOwnerFunding } from '../services/markets';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import { ensureMigrations, truncateAll } from './harness/test-db';
 
 const WS = 'ws-1';
 

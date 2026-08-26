@@ -212,3 +212,54 @@ export async function handleStripeWebhook(
   });
   return { handled: result.applied ? 'applied' : 'noop' };
 }
+
+/**
+ * A funding package granted by the operator without a card payment: the
+ * invoice-plus-grant path (an owner who paid by bank transfer, or a package
+ * Telarchy sponsors), and the way to exercise pools on an instance with no
+ * payment provider. Same split, same records, provider 'manual'.
+ */
+export async function grantFundingPackage(params: {
+  workspaceId: string;
+  amountCents: number;
+  note?: string | null;
+  grantedByAgentId?: string | null;
+}): Promise<{ purchaseId: string; poolMonth: string }> {
+  const { workspaceId, amountCents } = params;
+  if (!Number.isInteger(amountCents) || amountCents < MIN_PURCHASE_CENTS || amountCents > MAX_PURCHASE_CENTS) {
+    throw new AppError(`amountCents must be an integer between ${MIN_PURCHASE_CENTS} and ${MAX_PURCHASE_CENTS}`, 400);
+  }
+  const [ws] = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, workspaceId));
+  if (!ws) throw new AppError('Workspace not found', 404);
+  const purchaseId = randomUUID();
+  const { creditsUnits, poolCents } = splitPurchase(amountCents);
+  const now = new Date();
+  const poolMonth = assignPoolMonth(now);
+  await db.transaction(async tx => {
+    await tx.insert(fundingPurchases).values({
+      id: purchaseId,
+      workspaceId,
+      buyerAgentId: params.grantedByAgentId ?? null,
+      amountCents,
+      creditsUnits,
+      poolCents,
+      poolMonth,
+      creditsPerUsd: CREDITS_PER_USD,
+      poolFractionBp: POOL_FRACTION_BP,
+      provider: 'manual',
+      providerSessionId: `manual:${purchaseId}`,
+      providerPaymentRef: params.note ?? null,
+      status: 'paid',
+      paidAt: now,
+    });
+    await applyBudget(tx, {
+      workspaceId,
+      deltaUnits: creditsUnits,
+      reason: 'purchase',
+      refType: 'purchase',
+      refId: purchaseId,
+    });
+    await addToScheduledPool(tx, workspaceId, poolMonth, poolCents);
+  });
+  return { purchaseId, poolMonth };
+}

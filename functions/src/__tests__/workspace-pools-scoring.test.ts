@@ -6,10 +6,16 @@
 import { resolutionPayouts } from '../lib/amm';
 import { assignPoolMonth, finalWeekStart, monthBounds, nextMonthKey, splitPurchase } from '../lib/funding';
 import { CREDIT_PRECISION } from '../lib/validation';
-import { distributePool, meetsActivityFloor, payoutFingerprint, scorePoolTrades } from '../lib/workspace-pools';
+import {
+  distributePool,
+  meetsActivityFloor,
+  type PoolMarketRow,
+  payoutFingerprint,
+  scorePoolTrades,
+} from '../lib/workspace-pools';
 
-const M = { marketId: 'm1', voided: false, actualValue: 80, rangeMin: 0, rangeMax: 100 };
-const markets = new Map([['m1', M]]);
+const M: PoolMarketRow = { marketId: 'm1', voided: false, actualValue: 80, rangeMin: 0, rangeMax: 100 };
+const markets = new Map<string, PoolMarketRow>([['m1', M]]);
 const [lowerPay, higherPay] = resolutionPayouts(80, 0, 100);
 const week = finalWeekStart('2026-09');
 const d = (day: number) => new Date(Date.UTC(2026, 8, day));
@@ -66,7 +72,7 @@ test('selling shares held from before the month is outside the score', () => {
 });
 
 test('a voided market contributes zero and the lower leg pays the lower factor', () => {
-  const m = new Map([
+  const m = new Map<string, PoolMarketRow>([
     ['v', { marketId: 'v', voided: true, actualValue: null, rangeMin: 0, rangeMax: 100 }],
     ['m1', M],
   ]);

@@ -81,6 +81,29 @@ adminRouter.get(
   }),
 );
 
+/**
+ * Grant a funding package without a card payment (docs/liquidity.md): the
+ * invoice-plus-grant path, and the way to exercise budgets and pools where
+ * no payment provider is configured. Same split and records as a purchase,
+ * provider 'manual'. Platform admin.
+ */
+adminRouter.post(
+  '/funding/grant',
+  wrap(async (req, res) => {
+    if (!(await isPlatformAuthorized(req))) {
+      throw new AppError('Platform admin or master key required', 403);
+    }
+    const workspaceId = typeof req.body?.workspaceId === 'string' ? req.body.workspaceId : req.auth?.workspaceId;
+    if (!workspaceId) throw new AppError('workspaceId is required', 400);
+    const amountCents = Number(req.body?.amountCents);
+    const note = typeof req.body?.note === 'string' ? req.body.note.slice(0, 200) : null;
+    const { grantFundingPackage } = await import('../services/funding');
+    res.json(
+      await grantFundingPackage({ workspaceId, amountCents, note, grantedByAgentId: req.auth?.agentId ?? null }),
+    );
+  }),
+);
+
 /** Record that one participant's accrued total was transferred. Platform admin. */
 adminRouter.post(
   '/payouts/:agentId/paid',

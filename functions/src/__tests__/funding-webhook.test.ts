@@ -8,11 +8,12 @@ jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { createHmac } from 'crypto';
 import { and, eq } from 'drizzle-orm';
+import { db } from '../db/client';
 import { fundingPurchases, workspacePools, workspaces } from '../db/schema';
 import { assignPoolMonth, splitPurchase } from '../lib/funding';
-import { applyPaidSession, verifyStripeSignature } from '../services/funding';
+import { applyPaidSession, grantFundingPackage, verifyStripeSignature } from '../services/funding';
 import { readBudgetUnits } from '../services/liquidityBudget';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import { ensureMigrations, truncateAll } from './harness/test-db';
 
 const WS = 'ws-1';
 
@@ -87,4 +88,23 @@ test('an unpaid, unknown, or mismatched session credits nothing', async () => {
     /does not match/,
   );
   expect(await readBudgetUnits(db, WS)).toBe(0);
+});
+
+test('an operator grant is a paid package with provider manual', async () => {
+  const { purchaseId, poolMonth } = await grantFundingPackage({
+    workspaceId: WS,
+    amountCents: 2_500,
+    note: 'invoice 7',
+  });
+  expect(poolMonth).toBe(assignPoolMonth(new Date()));
+  expect(await readBudgetUnits(db, WS)).toBe(splitPurchase(2_500).creditsUnits);
+  const [purchase] = await db.select().from(fundingPurchases).where(eq(fundingPurchases.id, purchaseId));
+  expect(purchase.provider).toBe('manual');
+  expect(purchase.status).toBe('paid');
+  const [pool] = await db
+    .select()
+    .from(workspacePools)
+    .where(and(eq(workspacePools.workspaceId, WS), eq(workspacePools.month, poolMonth)));
+  expect(pool.poolCents).toBe(2_000);
+  await expect(grantFundingPackage({ workspaceId: 'nope', amountCents: 100 })).rejects.toThrow(/not found/);
 });

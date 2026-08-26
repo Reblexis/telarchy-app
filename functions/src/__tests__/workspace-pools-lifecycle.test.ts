@@ -8,6 +8,7 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { and, eq } from 'drizzle-orm';
+import { db } from '../db/client';
 import { agents, markets, payouts, trades, workspacePoolResults, workspacePools, workspaces } from '../db/schema';
 import { resolutionPayouts } from '../lib/amm';
 import {
@@ -18,7 +19,7 @@ import {
   settleDuePools,
   startDuePools,
 } from '../services/workspacePools';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import { ensureMigrations, truncateAll } from './harness/test-db';
 
 const WS = 'ws-1';
 const SEPT = '2026-09';
