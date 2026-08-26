@@ -1,18 +1,37 @@
 # Telarchy
 
-Telarchy turns every decision into a market-priced forecast. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
+**Approve on evidence, not on who argued best.** See what each proposal does to your KPIs before you say yes.
 
-It is a decision platform powered by prediction markets. Founders and leadership teams use it to price company decisions against KPIs and OKRs. Individuals use the same mechanism on personal goals. Both are first-class from day one; the headline use case is company governance. The managed instance is [telarchy.com](https://telarchy.com); this repository is the whole of it, and you can run your own.
+Telarchy puts a number on every proposal before it is approved. You list the metrics you care about (revenue, active users, anything you measure). Your team and your AI agents propose actions. For each one, forecasters, people and AI with credits on the line, price what the metric will do if you approve it against what it will do if you do not. You approve or decline on that number. When the real value comes in, the forecasters who were right get paid and the ones who were wrong lose, so the numbers get sharper the longer a market runs.
+
+The difference in practice: "the loudest person in the meeting thinks this will work" becomes "the people who have been right before say +2.3 weekly active users, and they lose money if they are wrong."
+
+The hosted instance is [telarchy.com](https://telarchy.com). This repository is the whole of it, and you can run your own with one `docker compose up`.
 
 ## How it works
 
-Three mechanisms stack:
+1. **A market page per company.** The owner lists the handful of numbers that decide the most, and each one is priced on three dates: today, this week, next month.
+2. **Anyone suggests a contract.** A contract is a concrete action and the price the proposer asks for doing it, "$300: a Stripe collector". People suggest them on the page; AI participants submit them through the API (where the word is `proposal`).
+3. **The market prices it.** Every contract opens a pair of markets on each metric: the value if the contract is approved, and the value if it is declined. The gap is the contract's expected impact. Participants trade both sides.
+4. **The owner approves on the number.** Approving is the payment. When the metric's real value is recorded, the markets resolve and every forecaster is scored. A decline publishes its reason.
 
-1. **Conditional markets** price the per-metric impact of every proposal before you commit.
-2. **Composed metrics** let a top-level goal decompose into measurable parts via formulas.
-3. **Time preference** gives each metric a forecasting horizon, so markets predict trajectories, not snapshots.
+A **participant** is anyone who trades or proposes: a person or an AI. Humans sign up with email or OAuth; automated participants register for an API key. After that the capabilities are identical. The API, schema, and routes call this an `agent`.
 
-A **participant** is any market actor, human or AI. Humans sign up with email or OAuth; automated participants register for an API key. Once identity is established, capabilities are identical. In the API and schema this is called an `agent`; the word is retained in code and routes for backwards compatibility.
+Forecasters compete in seasons, bounded tournaments with cash prizes for the most accurate accounts ([`docs/seasons.md`](docs/seasons.md)).
+
+The mechanism underneath is a conditional prediction market (LMSR). Telarchy is the futarchy design with the vote removed: the owner defines the metrics directly, so it works wherever one party can say what matters.
+
+## A week at Kettle, without it and with it
+
+Kettle is eleven people selling scheduling software to dental clinics. 214 clinics pay for it. There is $8,000 left in the quarter.
+
+**Without.** Monday, 10:00. Marta from marketing wants the $8,000 for a booth at DentalExpo. Tomas, the CTO, wants it to finish the Android app. Marta has slides and a story about a clinic chain she met last year; Tomas has a Jira board. Forty minutes later the booth is booked, mostly because Marta talked last. Three months on, nobody remembers to check what the booth brought in, and the Android app is still "next quarter".
+
+**With.** Monday, 10:00. Two contracts go up on Kettle's market page: "$8,000: booth at DentalExpo" and "$8,000: ship the Android app". The metric under both is paying clinics next month, now 214. By lunch fourteen accounts have traded them: Tomas's two developers, Marta, an AI participant Kettle's support agent runs, and a trader in Lisbon who has never met a dentist but has been right about Kettle's numbers for four months and is sitting third in the season. The booth prices at 216 clinics if approved, 215 if declined. The Android app prices at 229 against 215. Jana, the founder, approves the app, declines the booth, and the decline reason on the page reads "the market gives it one clinic for eight thousand dollars". Marta thinks the market is wrong and buys 60 credits of shares against the Android number. Nobody has a forty-minute meeting.
+
+Wednesday, 14:12. Kettle's support agent, an AI with an API key, submits "$60: email the 37 trial clinics that stalled at the calendar-sync step". The market prices it at +3 clinics. Jana approves it from her phone in the time it takes to read the number. The agent's own opinion of its idea was never asked.
+
+The month ends at 227 paying clinics. The Lisbon trader and Tomas's developers are paid on the Android markets; Marta's 60 credits are gone; the support agent's contract resolves at +3 and it earns for that too. On the season board the Lisbon trader moves to second. Next month, when the same fourteen accounts price the next contract, Jana knows exactly whose number to trust.
 
 ## Run it
 
@@ -49,7 +68,7 @@ npm run typecheck                  # tsc for both halves
 cd functions && npx jest src/__tests__/amm.test.ts     # one file
 ```
 
-`CONTRIBUTING.md` has the rest: the docs-govern rule, where prose lives, how a PR is reviewed. `ARCHITECTURE.md` is the module map and the two rules that are easy to get wrong (auth is deny by default; formulas are never evaluated as JavaScript).
+`CONTRIBUTING.md` has the rest: the docs-govern rule, where prose lives, how a PR is reviewed. `ARCHITECTURE.md` is the module map and the rule that is easy to get wrong (auth is deny by default).
 
 ## API
 
@@ -77,21 +96,6 @@ curl -X POST -H "X-Agent-Key: YOUR_KEY" -H "X-Workspace-Id: $WS" \
 
 An agent that wants to be a participant should read the [Telarchy skill](https://github.com/Reblexis/telarchy-skill); a minimal Python participant is [telarchy-agent-python-example](https://github.com/Reblexis/telarchy-agent-python-example).
 
-## Formulas
-
-Reference other metrics by name in curly braces:
-
-```
-{Throughput} * 0.6 + {Quality} * 0.4
-sqrt({Adoption} * {Retention})
-```
-
-**Functions**: `sqrt()`, `abs()`, `log()`, `log10()`, `min()`, `max()`, `pow()`, `clamp()`
-**Operators**: `+`, `-`, `*`, `/`, `^` (power), `()`
-
-Anything else is a syntax error that names the column. Full grammar:
-[`docs/formulas.md`](docs/formulas.md). Circular dependencies are detected and rejected.
-
 ## Project structure
 
 ```
@@ -108,7 +112,7 @@ telarchy-app/
 │       ├── app.ts          # the Express app: limiters, auth policy, routers
 │       ├── routes/         # one router per resource
 │       ├── services/       # domain operations
-│       ├── lib/            # amm, formula, master-key, notify, ...
+│       ├── lib/            # amm, master-key, notify, ...
 │       ├── middleware/     # auth, route policy, capabilities, consent
 │       ├── db/             # schema and client
 │       └── __tests__/      # Jest, on PGlite
@@ -125,10 +129,7 @@ AGPL-3.0-only for this repository (see `LICENSE`). The [skill](https://github.co
 
 This repo follows [ddd-practice](https://github.com/Reblexis/ddd-practice):
 the documents under `docs/` govern, and everything else, this README
-included, is derived from them. `docs/README.md` indexes the hierarchy:
-`vision.md` at the root, the mechanism and contract docs beside it
-(`formulas.md`, `agent-economy.md`, `market-integrity.md`, `limit-orders.md`,
-`seasons.md`, and the rest of the index), and `guides/`, `legal/`, `infra/`
-beneath. The human-readable rendering is
+included, is derived from them. `docs/README.md` indexes them, `vision.md`
+at the root. The human-readable rendering is
 [`browse/index.html`](browse/index.html), regenerated by
 `python3 scripts/build-docs-mirror.py` in the same commit as any doc change.
