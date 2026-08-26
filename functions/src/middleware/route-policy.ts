@@ -36,7 +36,11 @@ export const OPTIONAL_AUTH_PREFIXES: ReadonlyArray<{ prefix: string; why: string
   { prefix: '/api/public-config', why: 'which store answered, settlement flag; no data' },
   { prefix: '/api/auth', why: 'BetterAuth sign-in/sign-up and our /me routes resolve their own session' },
   { prefix: '/api/guides', why: 'documentation' },
-  { prefix: '/api/legal', why: 'terms, privacy, season rules' },
+  { prefix: '/api/legal', why: 'terms, privacy, season rules, workspace pool rules' },
+  {
+    prefix: '/api/billing',
+    why: 'payment-provider webhooks authenticate by signature, not by our credentials (routes/billing.ts)',
+  },
   { prefix: '/api/data-room', why: "Telarchy's own books, one anonymous read (docs/data-room.md)" },
   { prefix: '/api/cron', why: 'validates the master key itself, no workspace header (routes/cron.ts)' },
   { prefix: '/api/waitlist', why: 'anonymous email capture' },

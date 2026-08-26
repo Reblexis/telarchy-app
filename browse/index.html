@@ -178,6 +178,14 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h8">What this deliberately does not do</a></li>
 </ul></details>
 </li>
+<li><details><summary><a class="file" href="#file--docs-liquidity-md">docs/liquidity.md</a></summary>
+<ul>
+<li><a href="#docs-liquidity-md--h1">Liquidity: how a workspace owner funds their markets</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-md--h2">Funding packages</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-md--h3">The liquidity budget</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-md--h4">Allocation</a></li>
+</ul></details>
+</li>
 <li><details><summary><a class="file" href="#file--docs-market-integrity-md">docs/market-integrity.md</a></summary>
 <ul>
 <li><a href="#docs-market-integrity-md--h1">Market integrity</a></li>
@@ -334,6 +342,18 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-vision-md--h50">Tests</a></li>
 </ul></details>
 </li>
+<li><details><summary><a class="file" href="#file--docs-workspace-pools-md">docs/workspace-pools.md</a></summary>
+<ul>
+<li><a href="#docs-workspace-pools-md--h1">Workspace prize pools</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-workspace-pools-md--h2">Period and pool</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-workspace-pools-md--h3">Rules page</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-workspace-pools-md--h4">Scoring</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-workspace-pools-md--h5">Distribution</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-workspace-pools-md--h6">Eligibility</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-workspace-pools-md--h7">Board</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-workspace-pools-md--h8">Settlement and payment</a></li>
+</ul></details>
+</li>
 </ul></li>
 <li class="group">docs/guides/<ul>
 <li><details><summary><a class="file" href="#file--docs-guides-readme-md">docs/guides/README.md</a></summary>
@@ -420,11 +440,12 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h2">How credits flow</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h3">Why liquidity seeding matters</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h4">Auto-fund (workspace setting)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h5">Proposal subsidy</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h6">Manual injection</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h7">LP refunds at resolution and void</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h8">Humans and automated participants</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h9">Self-hosting</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h5">Funding packages and the liquidity budget (workspace owners)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h6">Proposal subsidy</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h7">Manual injection</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h8">LP refunds at resolution and void</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h9">Humans and automated participants</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h10">Self-hosting</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-feedback-md">docs/guides/feedback.md</a></summary>
@@ -612,13 +633,14 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h3">2. Credits</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h4">3. Paid job proposals</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h5">3a. Prize contests</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h6">4. Acceptable use</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h7">5. Your content</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h8">6. Disclaimers and liability</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h9">7. Termination</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h10">8. Changes</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h11">9. Governing law</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h12">10. Contact</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h6">3b. Workspace prize pools and funding packages</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h7">4. Acceptable use</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h8">5. Your content</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h9">6. Disclaimers and liability</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h10">7. Termination</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h11">8. Changes</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h12">9. Governing law</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-legal-terms-of-service-md--h13">10. Contact</a></li>
 </ul></details>
 </li>
 </ul></li>
@@ -674,6 +696,14 @@ the top.</p>
 <tr>
 <td><code>seasons.md</code></td>
 <td>Seasons: bounded cash tournaments for traders</td>
+</tr>
+<tr>
+<td><code>liquidity.md</code></td>
+<td>Funding packages, the liquidity budget, allocation: how an owner pays for and steers liquidity</td>
+</tr>
+<tr>
+<td><code>workspace-pools.md</code></td>
+<td>Workspace prize pools: one workspace, one month, the owner's money paid to traders by settled profit</td>
 </tr>
 <tr>
 <td><code>otto.md</code></td>
@@ -831,7 +861,7 @@ distinct days in a window).</p>
 <li>Balances are global per participant identity, not per workspace.</li>
 <li>Balances are stored in PostgreSQL as integer nanocredits (1 credit = 1,000,000,000 units).</li>
 <li>The signup credit grant is per-instance configuration: env <code>SIGNUP_CREDITS</code>, default 1000 (telarchy.com keeps the default). A self-hosted instance may set it to 0, in which case participants start empty and are funded via platform-admin crediting (<code>POST /api/agents/:id/credit</code>) or a transfer from a funded participant (<code>POST /api/agents/transfer</code>). Registration (<code>POST /api/agents/register</code>) succeeds regardless of the grant amount.</li>
-<li>Credits enter through the signup grant, deposit, or admin crediting and leave through withdrawal or explicit spending flows.</li>
+<li>Credits enter through the signup grant, deposit, or admin crediting and leave through withdrawal or explicit spending flows. A workspace owner's funding package (<code>liquidity.md</code>) does not enter a balance at all: it lands in the workspace's liquidity budget, which can only become market liquidity there, and its cash share funds a monthly prize pool (<code>workspace-pools.md</code>) that Telarchy pays to traders by settled profit.</li>
 <li>Trading, proposal payouts, and internal transfers are redistributive within the system.</li>
 </ul>
 <h2 id="docs-agent-economy-md--h7">Trading model</h2>
@@ -1815,6 +1845,89 @@ the price makes the abstraction concrete, and it costs one line per order.</li>
 good-till-date presets beyond a plain expiry, no stop orders. Those are
 exchange features for markets with counterparties; here they would be
 chrome on an AMM.</p>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-liquidity-md">
+<p class="filelabel">docs/liquidity.md</p>
+<h1 id="docs-liquidity-md--h1">Liquidity: how a workspace owner funds their markets</h1>
+<p>Liquidity is the owner's steering wheel (<code>vision.md</code>, &quot;The owner decides
+where the liquidity goes&quot;). This doc owns how an owner pays for liquidity
+with real money, where those credits may go, and how the owner allocates
+them. The cash side of the same purchase, the workspace prize pool, is
+owned by <code>workspace-pools.md</code>. Credits themselves stay play money
+(<code>legal/terms-of-service.md</code> section 2); nothing in this doc gives a credit
+cash value.</p>
+<h2 id="docs-liquidity-md--h2">Funding packages</h2>
+<p>An owner buys a <strong>funding package</strong> for one workspace: a USD amount of
+their choosing, paid by card through Stripe Checkout, non-refundable, with
+no minimum beyond the processor's own floor and no maximum. The purchase is
+a service: sharper prices on the owner's own markets and a sponsored
+forecasting contest on them. Nothing bought this way is ever returned to the
+owner as money, and no balance on the Service is ever paid out to an owner.</p>
+<p>One package does two things, at fixed rates published here:</p>
+<ul>
+<li><strong>Liquidity credits</strong>: 1,000 credits per dollar, into the workspace's
+liquidity budget (below).</li>
+<li><strong>Prize pool</strong>: 80% of the dollars, into that workspace's prize pool for
+the next calendar month that has not yet started (<code>workspace-pools.md</code>).
+The remaining 20% is Telarchy's, covering payout costs, withholding
+administration and margin.</li>
+</ul>
+<p>Purchases are recorded per workspace with amount, rates in force, the
+month the pool share was assigned to, and the processor's reference. The
+purchase surface lives on the workspace's owner page and the API
+(<code>POST /api/workspaces/:id/funding/checkout</code> returns the checkout URL;
+<code>GET /api/workspaces/:id/funding</code> lists purchases, the budget and the
+assigned pools). Purchases are switched on per instance
+(<code>FUNDING_ENABLED</code>); when off, the endpoints answer 503 and the surface
+says so. On telarchy.com purchases open when Season 0 ends (its rules say
+credits cannot be bought, and that stays true while it runs).</p>
+<h2 id="docs-liquidity-md--h3">The liquidity budget</h2>
+<p>Every workspace has a <strong>liquidity budget</strong>: a balance of credits that can
+be spent only by placing liquidity into that workspace's markets. It is
+separate from any account's tradeable balance:</p>
+<ul>
+<li>it cannot be traded, transferred, or spent on another workspace;</li>
+<li>it is credited by funding packages and by the pool remainder
+(<code>poolLeftover</code>) that comes back at resolution or void from any market
+it funded, pro rata to what it contributed, exactly as an LP's leftover
+returns today;</li>
+<li>it is debited by auto-fund and by owner injections on that workspace's
+markets.</li>
+</ul>
+<p>This wall is what keeps a bought credit from ever becoming a trader's
+stake: purchased liquidity enters market pools only, and reaches a
+tradeable balance only through market payouts under the market's own rules
+(a trader who is right takes part of the subsidy, as with any LP). Where
+auto-fund needs credits it draws the budget first and the owner's tradeable
+balance only when the budget is empty, so a workspace with play credits
+behaves as before.</p>
+<p>A liquidity event funded from the budget records the budget, not a person,
+as the LP, and its leftover returns to the budget. Injections by an
+individual account from their own tradeable balance keep working as they
+do today and stay attributed to that account.</p>
+<h2 id="docs-liquidity-md--h4">Allocation</h2>
+<p>The owner decides where the budget goes, per metric and horizon
+(<code>GET /api/workspaces/:id/liquidity</code> shows every active market with its
+pool and the budget remaining). Two controls:</p>
+<ul>
+<li><strong>Spread</strong>: fund every active market of the workspace up to a target
+pool from the budget, largest shortfall first, until the budget or the
+target is reached (<code>POST /api/workspaces/:id/liquidity/spread</code>
+<code>{ targetPool }</code>). This is the default action after a purchase.</li>
+<li><strong>Weights</strong>: a per-metric weight (<code>PUT /api/workspaces/:id/liquidity/ weights</code> <code>{ [metricId]: weight }</code>, default 1). Auto-fund of a new or
+re-created market, and the periodic top-up of under-pooled markets, use
+<code>newMarketLiquidityCredits x weight</code> for that market's metric. A weight
+of 0 means the owner funds that metric by hand or not at all.</li>
+</ul>
+<p>Per-market injection from the budget uses the existing endpoint
+(<code>POST /api/predictions/markets/:id/liquidity</code> with <code>source: &quot;budget&quot;</code>,
+manage_workspace capability on that workspace). Proposal markets keep the
+subsidy path and fall-through described in <code>vision.md</code>; where the owner is
+the fall-through funder, the budget is drawn before the tradeable balance.</p>
+<p>Allocation is the owner's; how the prize pool is distributed among traders
+is not (<code>workspace-pools.md</code>).</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
@@ -3806,10 +3919,10 @@ nothing more&quot; true by construction rather than by review.</p>
 <p><strong>The owner side is open.</strong> An owner who wants in gets in without a human doing it by hand once three things exist:</p>
 <ol>
 <li><strong>A workspace can be created by the person who wants one.</strong> The API creates workspaces (<code>createWorkspaceFromTemplate</code>) and the permission is open (above); the surface is the missing half. The owner path is: name the number, say where its value comes from, and land on the floor for it. It ends on a live floor, never on a settings page.</li>
-<li><strong>The owner decides where the liquidity goes.</strong> The primitives exist and the steering does not. A workspace has one blunt auto-fund setting (<code>autoFundNewMarkets</code> x <code>newMarketLiquidityCredits</code>, applied uniformly to every new market), and funding a specific market is possible (<code>POST /api/predictions/markets/:id/liquidity</code>, and the admin bulk form) but has no owner-facing surface. What is missing is the allocation view: what each market holds, and the ability to move credits onto the decision that matters this week and off the ones that do not. Liquidity is the owner's steering wheel (see &quot;Decision quality scales with capital&quot;): a pool is how an owner says which question is worth answering well, so leaving it as one global number per workspace throws away the signal.</li>
-<li><strong>Credits can be bought.</strong> This is the one that is not a UI problem. The USDC deposit path is implemented but the managed instance runs with settlement disabled (<code>GET /api/agents/deposit-address</code> returns 503) and managed credits are admin-granted play money, so an operator willing to pay cannot. Until this exists Telarchy cannot charge anyone for anything, and every pricing conversation is theoretical. It is legal-gated (see ToS section 6); the interim is an invoice-plus-admin-grant path run by a human, documented rather than improvised.</li>
+<li><strong>The owner decides where the liquidity goes.</strong> Specified in <code>liquidity.md</code>: a per-workspace liquidity budget, a spread action and per-metric weights over the existing injection primitives. Liquidity is the owner's steering wheel (see &quot;Decision quality scales with capital&quot;): a pool is how an owner says which question is worth answering well.</li>
+<li><strong>Credits can be bought.</strong> Resolved without giving credits cash value: an owner buys a funding package (<code>liquidity.md</code>), which places credits in the workspace's liquidity budget at 1,000 per dollar and funds a cash prize pool for that workspace's next month (<code>workspace-pools.md</code>), paid by Telarchy to traders by settled profit. Credits stay play money and are never redeemed; the money flows one way, owner to Telarchy to trader, which is a free-entry skill contest and needs no gambling or derivatives licence (record: the telarchy umbrella's <code>notes/real-money-economy-design-2026-08-26.md</code>). The USDC deposit path stays for self-hosted instances with settlement enabled.</li>
 </ol>
-<p>Sequencing: (1) is the only one that blocks a waiting operator, and it is a permission plus one screen. (2) is what makes an operator's second week worth anything, because without it their liquidity sits spread evenly across markets they do not care about. (3) cannot be first however much it matters.</p>
+<p>Sequencing: (1) is the only one that blocks a waiting operator, and it is a permission plus one screen. (2) is what makes an operator's second week worth anything, because without it their liquidity sits spread evenly across markets they do not care about. (3) is specified and ships behind <code>FUNDING_ENABLED</code>, switched on when Season 0 ends.</p>
 <p>Trader-first is not reversed by the owner side being open. Every account is still a trader by default and signup still lands in the trading surface; wanting to own a floor is not a request submitted to a waitlist.</p>
 <p>Three mechanisms stack, always in this order:</p>
 <ol>
@@ -4557,6 +4670,101 @@ documented in <code>GET /api/help</code>, and the operator drives it with the ma
 </code></pre>
 <p>Or via npm: <code>npm run test:integration</code> (set env vars first).</p>
 <p>The integration tests create their own workspace and data, and clean up after themselves. They are designed to pass on a fresh instance and to be extended by adding new <code>test()</code> calls in the appropriate <code>suite()</code> block.</p>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-workspace-pools-md">
+<p class="filelabel">docs/workspace-pools.md</p>
+<h1 id="docs-workspace-pools-md--h1">Workspace prize pools</h1>
+<p>A workspace prize pool is cash, funded by the workspace's owner through a
+funding package (<code>liquidity.md</code>), paid by Telarchy to the traders who took
+the most out of that workspace's markets in one calendar month, in
+proportion to how much they took. Nobody stakes anything: entry is free,
+credits keep no cash value, and the pool is fixed before its month starts.
+Seasons (<code>seasons.md</code>) are the platform's own tournaments across public
+workspaces; pools are one workspace, one month, the owner's money.</p>
+<h2 id="docs-workspace-pools-md--h2">Period and pool</h2>
+<ul>
+<li>A period is one calendar month, UTC, per workspace.</li>
+<li>The pool for a month is 80% of every funding package assigned to it. A
+package bought before the month starts is assigned to that month; one
+bought while a month runs is assigned to the next. A month's pool is
+fixed the instant the month starts; nothing added later changes it.</li>
+<li>A month with no eligible trader with a positive score keeps its pool,
+which rolls into the same workspace's next month. Money never returns to
+the owner.</li>
+</ul>
+<h2 id="docs-workspace-pools-md--h3">Rules page</h2>
+<p>Before a month starts, its rules page is generated from the record and
+frozen: sponsor (the workspace), operator (Telarchy), pool in USD, period,
+scoring rule, distribution rule, eligibility, minimum payout, how and when
+winners are paid, the tax line. It is served at
+<code>/legal/pools/&lt;workspace slug&gt;/&lt;YYYY-MM&gt;</code> and linked from the workspace's
+public floor while the month runs and until its payouts are done. What the
+page says binds; the platform's distribution rule may change between
+months, never inside one.</p>
+<h2 id="docs-workspace-pools-md--h4">Scoring</h2>
+<p>For each trader and month, the score <code>S</code> is the net settled profit from the
+trades they executed inside the month on that workspace's markets that
+resolved inside the month:</p>
+<ul>
+<li>only markets with <code>resolvedAt</code> in <code>[start, end)</code> count;</li>
+<li>on each such market, only the trades executed in <code>[start, end)</code> count:
+the settlement value of the net shares those trades acquired, plus any
+refund on them, minus the net cash those trades paid;</li>
+<li>shares held from before the month, and cash from selling them, are
+outside the score entirely;</li>
+<li>a voided market contributes zero; a market resolving after the month
+does not count; open positions are never marked.</li>
+</ul>
+<h2 id="docs-workspace-pools-md--h5">Distribution</h2>
+<p>Distribution is the platform's rule, published on the rules page, not an
+owner setting (decision 2026-08-26, <code>../notes/decisions/workspace-pools.md</code>).
+The rule in force:</p>
+<ul>
+<li>Eligible traders with <code>S &gt; 0</code> share the pool in proportion to <code>S^2</code>:
+<code>payout_i = pool x S_i^2 / sum_j S_j^2</code>. Squaring rewards being right
+across many markets over one lucky position.</li>
+<li>An activity floor is part of the rule: at least 10 trades on at least 2
+of the workspace's markets during the month, at least 3 of them before
+its final week.</li>
+</ul>
+<h2 id="docs-workspace-pools-md--h6">Eligibility</h2>
+<p>Platform rules, the same for every pool:</p>
+<ul>
+<li>An account that owns or administers any public workspace, or that shares
+payout details with such an account, is shown on the board and takes
+nothing. The sponsor's own agents and admins trade for credits like
+anyone else; they take no cash.</li>
+<li>Participants operated by Telarchy take nothing.</li>
+<li>One account per person; accounts we determine, acting reasonably, to be
+one person as several, or to collude to distort prices, are excluded.</li>
+<li>18+; void where prohibited; residents of sanctioned countries excluded.</li>
+</ul>
+<h2 id="docs-workspace-pools-md--h7">Board</h2>
+<p>Each workspace has a period board (<code>GET /api/workspaces/:id/pools/:month</code>):
+every trader's <code>S</code>, eligibility, share and projected payout, live during
+the month and final after settlement. It is the per-workspace leaderboard
+scoped to the month with settled scoring; the marked leaderboards stay as
+they are.</p>
+<h2 id="docs-workspace-pools-md--h8">Settlement and payment</h2>
+<ul>
+<li>A month settles once its end has passed: the board is computed once,
+written as final, and never recomputed.</li>
+<li>Each eligible trader's payout accrues on their account in USD
+(<code>GET /api/agents/me/payouts</code>). Accrued amounts are the trader's from
+settlement; a transfer is made whenever the accrued total reaches the
+minimum payout of $5 and the account holds payout details, so small
+wins are deferred, never lost.</li>
+<li>Telarchy pays from its own funds, by bank transfer to the stored payout
+details, within 30 days of the accrued total becoming payable. Winners
+are responsible for their own taxes; where Czech law requires it, 15%
+is withheld on a single payout above CZK 50,000 and the rules page says
+so. Until withholding is set up no single transfer exceeds that amount;
+the excess stays accrued.</li>
+<li>We may void a month for a declared error, announced on its rules page;
+its pool rolls to the next month.</li>
+</ul>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
@@ -5774,7 +5982,7 @@ curl -s -X DELETE -H &quot;X-Agent-Key: $NEW_KEY&quot; &quot;https://telarchy.co
 <p class="filelabel">docs/guides/credits.md</p>
 <dl class="frontmatter"><dt>title</dt><dd>Credits &amp; Liquidity</dd><dt>description</dt><dd>How credits are earned and spent, and how liquidity seeding pays participants to forecast.</dd><dt>category</dt><dd>forecast</dd><dt>order</dt><dd>20</dd></dl>
 <h1 id="docs-guides-credits-md--h1">Credits &amp; Liquidity</h1>
-<p>Credits are Telarchy's in-platform unit for markets and liquidity. Every participant (human or AI) receives <strong>1,000 credits on signup</strong>. The supply is fixed: there is no minting beyond signup grants, and on the managed instance (telarchy.com) there is no way to buy more. You gain credits by being right, and lose them by being wrong.</p>
+<p>Credits are Telarchy's in-platform unit for markets and liquidity. Every participant (human or AI) receives <strong>1,000 credits on signup</strong>. The supply is fixed for traders: there is no minting beyond signup grants, and no participant can buy credits. You gain credits by being right, and lose them by being wrong. A workspace owner can buy <strong>liquidity</strong> for their own markets (a funding package, below); that money becomes market pools and a monthly cash prize for the traders who take the most out of them, never a balance anyone can trade.</p>
 <h2 id="docs-guides-credits-md--h2">How credits flow</h2>
 <ul>
 <li><strong>Trading.</strong> Buying higher/lower shares on a prediction market costs credits. Correct predictions pay out proportionally at resolution; incorrect ones don't.</li>
@@ -5789,25 +5997,28 @@ curl -s -X DELETE -H &quot;X-Agent-Key: $NEW_KEY&quot; &quot;https://telarchy.co
 <li><strong><code>autoFundNewMarkets</code></strong> (boolean) - when true, every new non-proposal market is seeded from the workspace owner's balance.</li>
 <li><strong><code>newMarketLiquidityCredits</code></strong> (number) - credits to seed per market. Default: <code>0.5</code>. The enforced floor is only one nanocredit (<code>1e-9</code>), but pools well below ~<code>0.1</code> make markets butterfly-sensitive: a tiny trade slams consensus to a range extreme. Keep it at <code>0.1</code> or higher for a usable market; anyone with the <code>trade</code> capability can later top up a thin market via <code>POST /predictions/markets/:id/liquidity</code>.</li>
 </ul>
-<p>When the hourly market-refresh cron (minute 10) or a time-preference toggle spawns new markets, each one debits <code>newMarketLiquidityCredits</code> from the owner's balance and contributes it to the market's initial pool. If the owner's balance covers only some of the new markets, those are funded and the rest open with zero liquidity (trading paused) and the shortfall is logged; the hourly refresh funds an unfunded market as soon as the balance covers it, one market at a time, never waiting for all of them to become affordable at once.</p>
-<h2 id="docs-guides-credits-md--h5">Proposal subsidy</h2>
+<p>When the hourly market-refresh cron (minute 10) or a time-preference toggle spawns new markets, each one takes <code>newMarketLiquidityCredits</code> times the metric's weight from the workspace's liquidity budget first and the owner's balance second, and contributes it to the market's initial pool. Markets are funded in order for as long as the budget and the balance last; any the two cannot cover are still created, with zero liquidity (trading paused) and the shortfall logged, and the hourly refresh funds them one at a time as soon as there is money for them, never waiting for all of them to become affordable at once.</p>
+<h2 id="docs-guides-credits-md--h5">Funding packages and the liquidity budget (workspace owners)</h2>
+<p>An owner can pay real money for liquidity on their own workspace: one card payment through <code>POST /api/workspaces/:id/funding/checkout</code> becomes <strong>1,000 credits per dollar</strong> in the workspace's <strong>liquidity budget</strong> and <strong>80% of the dollars</strong> in that workspace's cash <strong>prize pool for the next calendar month</strong>. The budget is not a balance: it can only be placed into this workspace's markets (auto-fund draws it before the owner's own balance; <code>POST /api/workspaces/:id/liquidity/spread</code> funds every open market up to a target; <code>PUT /api/workspaces/:id/liquidity/weights</code> sets per-metric weights), and the pool remainder that comes back at resolution returns to it. Nothing bought this way is refunded or paid out to the owner.</p>
+<p>The prize pool is paid by Telarchy to traders in proportion to the square of their net settled profit on that workspace's markets in the month (only trades made inside the month on markets that resolved inside it; owners, admins and their payout twins take nothing). The board is <code>GET /api/workspaces/:id/pools/:month</code>; the frozen rules are at <code>/api/legal/pools/:workspaceId/:month</code>; what you are owed is <code>GET /api/agents/me/payouts</code>. Purchases are switched on per instance (<code>FUNDING_ENABLED</code>).</p>
+<h2 id="docs-guides-credits-md--h6">Proposal subsidy</h2>
 <p>Proposal-scoped conditional markets are NOT auto-funded by the workspace owner. Funding is opt-in from one of two sources:</p>
 <ol>
 <li><strong>The proposer</strong>, voluntarily, by passing <code>liquiditySubsidy</code> (credits per conditional market) on <code>POST /api/proposals</code>. The proposer is debited <code>liquiditySubsidy * N</code> (where N is the number of active leaf markets) and each conditional market gets a real LP row attributed to them. On decline the conditional markets are voided and the LP is refunded; on approve the markets continue trading until the metric resolves at its target date.</li>
 <li><strong>A workspace admin</strong>, post-hoc, via <code>POST /api/predictions/markets/liquidity/bulk</code> with <code>{ amount, proposalId }</code>. This is the canonical &quot;owner provides liquidity&quot; path. On a pending proposal the top-up is durable: it is recorded as a per-contributor subsidy on the proposal, so when conditional markets roll to new target dates the replacements are re-seeded with the same per-market amount (debiting the same contributor again; the voided generation's pool is refunded to them, so the cost does not compound).</li>
 </ol>
 <p>If both are zero, the conditional markets ship at zero liquidity (no trading, no signal) until someone tops them up. There is no automatic per-proposal owner debit by design: a workspace-owner-funded default would be a spam vector (any participant could drain the owner's balance by submitting empty proposals).</p>
-<h2 id="docs-guides-credits-md--h6">Manual injection</h2>
+<h2 id="docs-guides-credits-md--h7">Manual injection</h2>
 <p>Any admin can top up a market's pool directly. In the UI, use <strong>Inject Liquidity</strong> on the market card. Via API:</p>
 <pre><code>POST /api/predictions/markets/:id/liquidity
 { &quot;amount&quot;: 5 }
 </code></pre>
 <p>The <code>amount</code> is debited from the caller's balance, added to the pool, and recorded in <code>liquidityEvents</code>. Each injection must be at least <code>0.1</code> credits (below that, the LMSR <code>b</code> parameter is so small any trade swings consensus wildly). More liquidity makes consensus harder to move but more stable. Use it when a market looks under-traded for the decisions it's informing.</p>
-<h2 id="docs-guides-credits-md--h7">LP refunds at resolution and void</h2>
+<h2 id="docs-guides-credits-md--h8">LP refunds at resolution and void</h2>
 <p>Liquidity providers (auto-fund and manual injectors) are tracked per-market in <code>liquidityEvents.poolContribution</code>. When a market resolves or is voided, any pool remaining after paying out winning shares is distributed back to LPs proportionally to their contribution. The expected loss of seeding is bounded by the LMSR worst case, not by the full pool.</p>
-<h2 id="docs-guides-credits-md--h8">Humans and automated participants</h2>
+<h2 id="docs-guides-credits-md--h9">Humans and automated participants</h2>
 <p>Credits behave identically for browser-authenticated humans and API-authenticated automated participants: both resolve to the same participant identity with the same balance. Any of the flows above work under either auth method.</p>
-<h2 id="docs-guides-credits-md--h9">Self-hosting</h2>
+<h2 id="docs-guides-credits-md--h10">Self-hosting</h2>
 <p>Self-hosted deployments can optionally wire credits to on-chain USDC settlement on Base by configuring <code>TREASURY_PRIVATE_KEY</code> and related economy config. The managed instance does not offer this.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
@@ -7722,7 +7933,7 @@ standings rather than making it silently.</p>
 <h2 id="docs-legal-terms-of-service-md--h2">1. Eligibility and accounts</h2>
 <p>You must be at least 18 years old. You are responsible for your login credentials and for all activity under your account. We may suspend or terminate accounts that violate these Terms or put the Service or its users at risk.</p>
 <h2 id="docs-legal-terms-of-service-md--h3">2. Credits</h2>
-<p>Credits on the Service are play-money. They have no cash value, cannot be purchased, and cannot be exchanged for money, goods, or services; no deposits into or withdrawals out of credits exist. Markets on the Service are a forecasting game played with these credits; they are not securities, derivatives, or gambling products, and prices on them are not financial advice.</p>
+<p>Credits on the Service are play-money. They have no cash value, cannot be purchased, and cannot be exchanged for money, goods, or services; no deposits into or withdrawals out of credits exist. A workspace owner may buy market liquidity for their own workspace (section 3b): a non-refundable service that places credits in that workspace's market pools only, never in any account's balance, and that is never paid back. Markets on the Service are a forecasting game played with these credits; they are not securities, derivatives, or gambling products, and prices on them are not financial advice.</p>
 <h2 id="docs-legal-terms-of-service-md--h4">3. Paid job proposals</h2>
 <p>A participant may propose a job with a price in US dollars. Approving such a proposal is a commitment by the workspace owner (not by us) to pay the proposer that price, settled directly between them outside the Service using the payment details the proposer stored in their account. We are not a party to that payment: we hold, transmit, escrow, and process no funds, charge no fee on the payment, and are not a money transmitter, payment processor, or employer of record. The proposer is responsible for delivering the work and for taxes on amounts received; the owner is responsible for compliance with laws on commissioning and paying for services; disputes over payment or delivery are between them. Credits staked, traded, or rewarded around the jobs board remain play-money under section 2.</p>
 <p>A proposal must be lawful. Do not propose a job, action, or contract that is illegal, or whose performance would violate the terms, rules, or policies of any third-party platform or service it involves (for example, selling or transferring another platform's virtual currency against that platform's rules). We and the workspace owner may decline or remove such a proposal at any time, and repeat submissions are grounds for suspension under section 1.</p>
@@ -7731,20 +7942,22 @@ standings rather than making it silently.</p>
 <p>We may run contests (each a &quot;season&quot;) in which cash prizes are awarded for performance on the Service's forecasting markets. Seasons are optional and are entered only by explicit opt-in.</p>
 <p>Entry is free. There is no entry fee, no purchase, and no stake: you do not pay anything, and you do not risk anything you own, to enter or to compete. Credits are not exchanged for a prize and are never redeemed; section 2 continues to apply to them in full. A prize is awarded for where you place under a scoring rule published in advance, not in exchange for credits, so a season is a skill contest rather than a wager or a lottery.</p>
 <p>Before a season starts we publish its rules: the dates, the total prize pool, the prize for each place, the scoring rule, who is eligible, how ties are broken, and how and when winners are paid. Those rules do not change while the season runs, unless the season's own published rules state that they may change (an experimental season says so explicitly); any mid-season change is announced publicly before it takes effect. You must be at least 18 years old to enter. Participants operated by us or run as part of the platform are not eligible. We may disqualify entries that we determine, acting reasonably, are operated by one person as several accounts, or that collude to distort prices, and we may cancel or void a season, in which case no prize is owed.</p>
-<p>As with paid job proposals, we hold, transmit, escrow and process no funds. A prize is paid directly by the workspace owner to the winner, outside the Service, using the payment details the winner stored in their account. Winners are responsible for taxes on amounts received. We are not a party to that payment, are not a money transmitter or payment processor, and charge no fee on it.</p>
-<h2 id="docs-legal-terms-of-service-md--h6">4. Acceptable use</h2>
+<p>For a season whose published rules say the workspace owner pays, we hold, transmit, escrow and process no funds: the prize is paid directly by the workspace owner to the winner, outside the Service, using the payment details the winner stored in their account, and we are not a party to that payment, are not a money transmitter or payment processor, and charge no fee on it. For a season or pool whose published rules say we pay, we pay the prize ourselves from our own funds, by bank transfer to those payment details, as the contest's operator. Winners are responsible for taxes on amounts received; where the law of our seat requires it we withhold tax from a prize and the rules say so.</p>
+<h2 id="docs-legal-terms-of-service-md--h6">3b. Workspace prize pools and funding packages</h2>
+<p>A workspace owner may buy a funding package: a non-refundable payment that buys market liquidity on their own workspace (section 2) and sponsors a prize pool for that workspace for one calendar month. The pool is a prize contest under section 3a, with us as operator and payer: entry is free, nobody stakes anything, and traders who took the most out of that workspace's markets in the month, measured by the scoring rule on the pool's rules page, share the pool in the proportions that page states. The rules page for each workspace and month is published before the month starts and does not change while it runs. Accounts that own or administer any public workspace, or share payment details with such an account, take no prize. Nothing paid for a funding package is refunded or returned as money; an unclaimed or undistributable pool rolls into the same workspace's next month.</p>
+<h2 id="docs-legal-terms-of-service-md--h7">4. Acceptable use</h2>
 <p>Do not use the Service to break the law; do not submit unlawful, harassing, defamatory, or infringing content; do not probe or compromise the Service's security, circumvent rate limits, or interfere with other participants; do not collude to distort prices or defraud other participants; do not impersonate anyone; scrape only through the public API within its documented rate limits.</p>
-<h2 id="docs-legal-terms-of-service-md--h7">5. Your content</h2>
+<h2 id="docs-legal-terms-of-service-md--h8">5. Your content</h2>
 <p>You own the proposals, descriptions, and other content you submit, and grant us the license needed to store, process, and display it in order to operate the Service. Content on public floors (proposals, prices, decisions and their published reasons) is publicly visible by design.</p>
-<h2 id="docs-legal-terms-of-service-md--h8">6. Disclaimers and liability</h2>
+<h2 id="docs-legal-terms-of-service-md--h9">6. Disclaimers and liability</h2>
 <p>THE SERVICE IS PROVIDED &quot;AS IS&quot; WITHOUT WARRANTIES OF ANY KIND. To the maximum extent permitted by law, we are not liable for indirect, incidental, consequential, special, or punitive damages, or lost profits, revenue, data, or goodwill, and our total aggregate liability for any claim shall not exceed one hundred US dollars (USD 100). You will indemnify us against claims arising from your content, your use of the Service, or your violation of these Terms.</p>
-<h2 id="docs-legal-terms-of-service-md--h9">7. Termination</h2>
+<h2 id="docs-legal-terms-of-service-md--h10">7. Termination</h2>
 <p>You may delete your account at any time in the app. We may suspend or end your access for violations, legal requirements, or discontinuation of the Service.</p>
-<h2 id="docs-legal-terms-of-service-md--h10">8. Changes</h2>
+<h2 id="docs-legal-terms-of-service-md--h11">8. Changes</h2>
 <p>We may update these Terms; material changes are announced in-app or by email, and continued use after an update is acceptance.</p>
-<h2 id="docs-legal-terms-of-service-md--h11">9. Governing law</h2>
+<h2 id="docs-legal-terms-of-service-md--h12">9. Governing law</h2>
 <p>These Terms are governed by the laws of the State of Delaware, USA; disputes belong exclusively to the state or federal courts located in Delaware.</p>
-<h2 id="docs-legal-terms-of-service-md--h12">10. Contact</h2>
+<h2 id="docs-legal-terms-of-service-md--h13">10. Contact</h2>
 <p><code>viktor.cihal@gmail.com</code></p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>

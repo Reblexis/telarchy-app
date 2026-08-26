@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { LeaderboardEntry, PublicContractor } from '../lib/api';
-import { api, type PrizeSeason } from '../lib/api';
+import { api, type PrizeSeason, type WorkspacePool } from '../lib/api';
+import { floorPath, monthLabel, usd } from '../lib/money';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
 import { ManifoldLogo } from './ManifoldLogo';
@@ -53,6 +54,7 @@ export function LeaderboardRail({
   unit = '',
   signedIn = false,
   meId = null,
+  workspace = null,
 }: {
   /** THIS workspace's own board (owner decision 2026-08-22: the rail is local
    *  by default; the season and global boards live on /leaderboard, behind
@@ -68,6 +70,8 @@ export function LeaderboardRail({
   /** This visitor's participant id, so their own row can be marked and, when
    *  they are outside the ten shown, pinned underneath. */
   meId?: string | null;
+  /** This workspace, so the pool strip can link to its month's board. */
+  workspace?: { workspaceId: string; slug: string | null } | null;
 }) {
   // A row for someone who has never traded is a name and a zero: noise.
   // Ten, not five (owner direction 2026-08-17): five made the board look
@@ -263,6 +267,7 @@ export function LeaderboardRail({
         Show full leaderboard
       </Link>
       <SeasonStrip signedIn={signedIn} season={season} />
+      <PoolStrip workspace={workspace} />
     </aside>
   );
 }
@@ -312,6 +317,43 @@ function SeasonStrip({ signedIn, season }: { signedIn: boolean; season: PrizeSea
       </p>
       <Link className="pubws-lb-more" to="/season">
         {entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season'}
+      </Link>
+    </section>
+  );
+}
+
+/**
+ * The workspace's prize pool this month (docs/workspace-pools.md): one line
+ * and a link, the same shape as the season strip. Renders nothing when the
+ * workspace has no running pool, so most floors are unchanged.
+ */
+function PoolStrip({ workspace }: { workspace: { workspaceId: string; slug: string | null } | null }) {
+  const [pool, setPool] = useState<WorkspacePool | null>(null);
+  useEffect(() => {
+    if (!workspace) return;
+    let dead = false;
+    api
+      .getWorkspacePools(workspace.workspaceId)
+      .then(r => {
+        if (!dead) setPool(r.pools.find(p => p.status === 'running') ?? null);
+      })
+      .catch(e => console.error('pools fetch failed:', e));
+    return () => {
+      dead = true;
+    };
+  }, [workspace]);
+  if (!workspace || !pool || pool.totalCents <= 0) return null;
+  return (
+    <section className="pubws-lb-section">
+      <div className="pubws-lb-head pubws-lb-head--bare">
+        <h2 className="pubws-h2">Prize pool</h2>
+        <span className="pubws-lb-meta">{monthLabel(pool.month)}</span>
+      </div>
+      <p className="pubws-lb-empty">
+        {usd(pool.totalCents)} to the traders who take the most out of this market this month. Free to enter.
+      </p>
+      <Link className="pubws-lb-more" to={`${floorPath(workspace)}/pools/${pool.month}`}>
+        See the board
       </Link>
     </section>
   );

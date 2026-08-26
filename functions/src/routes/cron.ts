@@ -61,6 +61,23 @@ cronRouter.post(
   }),
 );
 
+/**
+ * Workspace prize pools (docs/workspace-pools.md): start every scheduled
+ * pool whose month has begun (freezing its rules) and settle every running
+ * pool whose month has ended. Idempotent; run it daily or more often.
+ */
+cronRouter.post(
+  '/pools',
+  wrap(async (req, res) => {
+    if (!validateApiKey(req, res)) return;
+    const { startDuePools, settleDuePools } = await import('../services/workspacePools');
+    const started = await startDuePools();
+    const settled = await settleDuePools();
+    console.log('[cron/pools]', JSON.stringify({ ...started, ...settled }));
+    res.json({ ok: true, ...started, ...settled });
+  }),
+);
+
 cronRouter.post(
   '/resolve',
   wrap(async (req, res) => {

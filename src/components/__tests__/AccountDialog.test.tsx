@@ -43,6 +43,7 @@ vi.mock('../../lib/api', () => ({
     getStatus: async () => ({ usdcSettlementEnabled: false }),
     getDepositAddress: async () => null,
     getMySeason: async () => null,
+    getMyPayouts: async () => ({ accruedCents: 0, paidCents: 0, payable: false, minPayoutCents: 500, items: [] }),
   },
 }));
 vi.mock('../../hooks/useAuth', () => ({

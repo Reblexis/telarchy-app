@@ -10,7 +10,8 @@ const mdStyles: React.CSSProperties = {
 };
 
 interface LegalPageProps {
-  document: 'terms' | 'privacy' | 'season-0' | 'season-1';
+  /** 'terms' | 'privacy' | 'season-0' | 'season-1' | 'pools/<workspaceId>/<YYYY-MM>' */
+  document: string;
 }
 
 export function LegalPage({ document }: LegalPageProps) {

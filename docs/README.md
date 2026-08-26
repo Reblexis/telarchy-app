@@ -19,6 +19,8 @@ the top.
 | `limit-orders.md` | Limit orders on the market ladder |
 | `market-integrity.md` | The three integrity rules for a live season |
 | `seasons.md` | Seasons: bounded cash tournaments for traders |
+| `liquidity.md` | Funding packages, the liquidity budget, allocation: how an owner pays for and steers liquidity |
+| `workspace-pools.md` | Workspace prize pools: one workspace, one month, the owner's money paid to traders by settled profit |
 | `otto.md` | Otto, the floor's assistant: surfaces, guarantees, tools and budgets, the eval as the conformance check |
 | `data-room.md` | The public data room: what telarchy.com publishes about itself |
 | `metrics.md` | The metrics Telarchy tracks about Telarchy |

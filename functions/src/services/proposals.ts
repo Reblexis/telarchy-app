@@ -22,6 +22,7 @@ import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { fromUnits, MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits } from '../lib/validation';
 import { applyCredits } from './credits';
 import { emitEvent } from './events';
+import { applyBudget, BUDGET_CONTRIBUTOR, readBudgetUnits } from './liquidityBudget';
 import { voidMarket } from './markets';
 
 type MarketRow = typeof markets.$inferSelect;
@@ -311,6 +312,14 @@ export async function createConditionalMarkets(
       // markets do in insertPendingMarkets. Only if that fails too do the
       // markets spawn unfunded, which then needs an admin liquidity
       // injection, same as an unfunded baseline market.
+      if (funded.length === 0 && autoFundCredits >= MIN_LIQUIDITY_CONTRIBUTION) {
+        // The workspace liquidity budget pays before the owner's own
+        // balance (docs/liquidity.md); the debit below is the check.
+        const budgetCost = Math.round(autoFundCredits * newMarkets.length * 1e6) / 1e6;
+        if ((await readBudgetUnits(tx, workspaceId)) >= toUnits(budgetCost)) {
+          funded.push([BUDGET_CONTRIBUTOR, autoFundCredits]);
+        }
+      }
       if (funded.length === 0 && autoFundOwnerId) {
         const credits = autoFundCredits;
         const cost = Math.round(credits * newMarkets.length * 1e6) / 1e6;
@@ -364,6 +373,16 @@ export async function createConditionalMarkets(
 
       for (const [contributorId, perMarket] of funded) {
         const cost = Math.round(perMarket * newMarkets.length * 1e6) / 1e6;
+        if (contributorId === BUDGET_CONTRIBUTOR) {
+          await applyBudget(tx, {
+            workspaceId,
+            deltaUnits: -toUnits(cost),
+            reason: 'auto_fund',
+            refType: 'proposal',
+            refId: proposalId,
+          });
+          continue;
+        }
         await applyCredits(tx, {
           agentId: contributorId,
           workspaceId,
@@ -384,7 +403,8 @@ export async function createConditionalMarkets(
             id: randomUUID(),
             workspaceId,
             marketId: m.id as string,
-            agentId: contributorId,
+            agentId: contributorId === BUDGET_CONTRIBUTOR ? null : contributorId,
+            fundedBy: contributorId === BUDGET_CONTRIBUTOR ? 'budget' : 'agent',
             amount: perMarket,
             poolContribution: perMarket,
             totalLiquidity: m.liquidity as number,

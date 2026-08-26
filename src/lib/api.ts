@@ -214,6 +214,93 @@ export interface LadderRung {
  * running (baselines pinned, entry open, standings computed live) or settled
  * (finals frozen, ladder assigned, standings read stored values).
  */
+/** A workspace's monthly prize pool (docs/workspace-pools.md). Cents throughout. */
+export interface WorkspacePool {
+  month: string;
+  poolCents: number;
+  rolloverCents: number;
+  totalCents: number;
+  status: 'scheduled' | 'running' | 'settled' | 'voided';
+  distributedCents: number;
+  rulesPath?: string | null;
+}
+
+export interface PoolBoardEntry {
+  agentId: string;
+  score: number;
+  tradeCount: number;
+  marketCount: number;
+  earlyTradeCount: number;
+  eligible: boolean;
+  exclusion: 'owner_or_admin' | 'shared_payout' | 'platform_operated' | 'activity_floor' | 'non_positive' | null;
+  share: number;
+  payoutCents: number;
+  rank: number | null;
+}
+
+export interface PoolBoard {
+  workspaceId: string;
+  month: string;
+  status: WorkspacePool['status'];
+  poolCents: number;
+  rolloverCents: number;
+  totalCents: number;
+  monthStart: string;
+  monthEnd: string;
+  entries: PoolBoardEntry[];
+  final: boolean;
+}
+
+/** The owner's funding view (docs/liquidity.md). */
+export interface WorkspaceFunding {
+  enabled: boolean;
+  rates: { creditsPerUsd: number; poolFractionBp: number; minPurchaseCents: number };
+  budget: { units: number; credits: number };
+  purchases: Array<{
+    id: string;
+    amountCents: number;
+    credits: number;
+    poolCents: number;
+    poolMonth: string;
+    status: 'pending' | 'paid';
+    createdAt: string;
+    paidAt: string | null;
+  }>;
+  pools: WorkspacePool[];
+}
+
+export interface WorkspaceLiquidity {
+  budget: { units: number; credits: number };
+  autoFund: { enabled: boolean; creditsPerMarket: number };
+  weights: Record<string, number>;
+  metrics: Array<{ id: string; name: string; weight: number }>;
+  markets: Array<{
+    id: string;
+    metricId: string;
+    metricName: string;
+    targetDate: string;
+    pool: number;
+    b: number;
+    proposalId: string | null;
+  }>;
+}
+
+export interface PayoutSummary {
+  accruedCents: number;
+  paidCents: number;
+  payable: boolean;
+  minPayoutCents: number;
+  items: Array<{
+    id: string;
+    amountCents: number;
+    sourceType: string;
+    sourceRef: string;
+    state: 'accrued' | 'paid';
+    createdAt: string;
+    paidAt: string | null;
+  }>;
+}
+
 export interface PrizeSeason {
   id: string;
   name: string;
@@ -1148,7 +1235,8 @@ export const api = {
    *  which store this build reads, and whether signups are open. */
   /** `preview` is the `br-` tag of the branch preview that answered, or null
    *  on the candidate and the published site (docs/infra/deploy.md). */
-  getPublicConfig: (): Promise<{ store?: string; preview?: string | null }> => request('/api/public-config'),
+  getPublicConfig: (): Promise<{ store?: string; preview?: string | null; fundingEnabled?: boolean }> =>
+    request('/api/public-config'),
 
   /** The served index.html, for the stale-tab check: a tab compares the
    *  bundle the server references now with the one it is running. Not an API
@@ -1553,6 +1641,50 @@ export const api = {
     if (!res.ok) throw new Error(`Featured markets request failed: ${res.status}`);
     return res.json();
   },
+  // ---- Funding packages, liquidity budget, workspace pools (docs/liquidity.md, docs/workspace-pools.md) ----
+
+  /** The owner's funding view: budget, purchases, monthly pools. manage_workspace on that workspace. */
+  getWorkspaceFunding: (workspaceId: string): Promise<WorkspaceFunding> =>
+    request(`/api/workspaces/${encodeURIComponent(workspaceId)}/funding`),
+  /** Start a funding package purchase; send the buyer to `url`. Nothing is credited until the provider confirms. */
+  createFundingCheckout: (
+    workspaceId: string,
+    amountCents: number,
+    returnPath: string,
+  ): Promise<{ purchaseId: string; url: string }> =>
+    request(`/api/workspaces/${encodeURIComponent(workspaceId)}/funding/checkout`, {
+      method: 'POST',
+      body: JSON.stringify({ amountCents, returnPath }),
+    }),
+  /** The allocation view: every active market's pool, the budget, the weights. */
+  getWorkspaceLiquidity: (workspaceId: string): Promise<WorkspaceLiquidity> =>
+    request(`/api/workspaces/${encodeURIComponent(workspaceId)}/liquidity`),
+  setLiquidityWeights: (
+    workspaceId: string,
+    weights: Record<string, number>,
+  ): Promise<{ weights: Record<string, number> }> =>
+    request(`/api/workspaces/${encodeURIComponent(workspaceId)}/liquidity/weights`, {
+      method: 'PUT',
+      body: JSON.stringify({ weights }),
+    }),
+  /** Fund every active market up to targetPool credits from the budget, largest shortfall first. */
+  spreadLiquidity: (
+    workspaceId: string,
+    targetPool: number,
+  ): Promise<{ funded: Array<{ marketId: string; amount: number }>; budgetRemaining: number }> =>
+    request(`/api/workspaces/${encodeURIComponent(workspaceId)}/liquidity/spread`, {
+      method: 'POST',
+      body: JSON.stringify({ targetPool }),
+    }),
+  /** A workspace's monthly pools. Anyone who can read the workspace. */
+  getWorkspacePools: (workspaceId: string): Promise<{ pools: WorkspacePool[] }> =>
+    request(`/api/workspaces/${encodeURIComponent(workspaceId)}/pools`),
+  /** The board for one month: live while it runs, final once settled. */
+  getWorkspacePool: (workspaceId: string, month: string): Promise<PoolBoard> =>
+    request(`/api/workspaces/${encodeURIComponent(workspaceId)}/pools/${encodeURIComponent(month)}`),
+  /** Cash Telarchy owes this participant from workspace pools. */
+  getMyPayouts: (): Promise<PayoutSummary> => request('/api/agents/me/payouts', {}, true),
+
   /** Every prize season, newest first. Public. */
   getSeasons: async (): Promise<{ seasons: PrizeSeason[] }> => {
     const res = await fetch(`${API_BASE}/api/seasons`);

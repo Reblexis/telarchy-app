@@ -117,6 +117,16 @@ export const workspaces = pgTable('workspaces', {
   autoFundNewMarkets: boolean('auto_fund_new_markets').notNull().default(false),
   /** Pool contribution (credits) per new market when auto-fund is on. */
   newMarketLiquidityCredits: doublePrecision('new_market_liquidity_credits').notNull().default(0),
+  /** The workspace's liquidity budget in nanocredits (docs/liquidity.md):
+   *  credits bought with a funding package, spendable only by placing
+   *  liquidity into this workspace's markets. Never traded, never
+   *  transferred, never paid out. Auto-fund draws it before the owner's
+   *  tradeable balance; LP leftover from markets it funded returns here. */
+  liquidityBudget: bigint('liquidity_budget', { mode: 'number' }).notNull().default(0),
+  /** Per-metric auto-fund weights, { [metricId]: weight } (default 1 where
+   *  absent, 0 = the owner funds that metric by hand). Auto-fund and the
+   *  top-up sweep use newMarketLiquidityCredits x weight. docs/liquidity.md. */
+  liquidityWeights: jsonb('liquidity_weights').notNull().default({}),
   /** Bounty paid by workspace owner to proposer when a proposal is approved. 0 = no reward. */
   proposalReward: doublePrecision('proposal_reward').notNull().default(0),
   /** Penalty deducted from proposer (paid to workspace owner) when a proposal is declined as spam. 0 = no penalty. */
@@ -560,9 +570,14 @@ export const liquidityEvents = pgTable(
     totalLiquidity: doublePrecision('total_liquidity').notNull(),
     /** 'initial' | 'injection' */
     type: text('type').notNull(),
-    /** Agent who provided liquidity (null for initial platform liquidity) */
+    /** Agent who provided liquidity (null for initial platform liquidity and
+     *  for budget-funded liquidity, see fundedBy) */
     agentId: text('agent_id'),
     poolContribution: doublePrecision('pool_contribution'),
+    /** 'agent' (from agentId's balance) | 'budget' (the workspace liquidity
+     *  budget, docs/liquidity.md) | 'platform' (initial, nobody's). Decides
+     *  where the pool leftover goes at resolution or void. */
+    fundedBy: text('funded_by').notNull().default('agent'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   t => [
@@ -1252,4 +1267,134 @@ export const seasonEntries = pgTable(
     paidAt: timestamp('paid_at'),
   },
   t => [primaryKey({ columns: [t.seasonId, t.agentId] })],
+);
+
+/**
+ * Every movement of a workspace's liquidity budget (docs/liquidity.md), the
+ * same shape as credit_ledger so the two can be audited side by side.
+ * Reasons: 'purchase' | 'injection' | 'auto_fund' | 'lp_leftover' | 'admin_adjustment'.
+ */
+export const liquidityBudgetLedger = pgTable(
+  'liquidity_budget_ledger',
+  {
+    id: text('id').primaryKey(),
+    workspaceId: text('workspace_id').notNull(),
+    deltaUnits: bigint('delta_units', { mode: 'number' }).notNull(),
+    balanceAfterUnits: bigint('balance_after_units', { mode: 'number' }).notNull(),
+    reason: text('reason').notNull(),
+    refType: text('ref_type'),
+    refId: text('ref_id'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [index('liquidity_budget_ledger_ws_created_idx').on(t.workspaceId, t.createdAt)],
+);
+
+/**
+ * A funding package (docs/liquidity.md): one card payment by a workspace
+ * owner, split at the rates in force into liquidity credits (into the
+ * budget) and a cash prize pool share (into workspace_pools for poolMonth).
+ * Non-refundable; the processor's session id makes the webhook idempotent.
+ */
+export const fundingPurchases = pgTable(
+  'funding_purchases',
+  {
+    id: text('id').primaryKey(),
+    workspaceId: text('workspace_id').notNull(),
+    /** The participant who bought it (the owner, or an admin acting for them). */
+    buyerAgentId: text('buyer_agent_id'),
+    amountCents: integer('amount_cents').notNull(),
+    currency: text('currency').notNull().default('usd'),
+    creditsUnits: bigint('credits_units', { mode: 'number' }).notNull(),
+    poolCents: integer('pool_cents').notNull(),
+    /** 'YYYY-MM' the pool share was assigned to (docs/workspace-pools.md). */
+    poolMonth: text('pool_month').notNull(),
+    creditsPerUsd: integer('credits_per_usd').notNull(),
+    poolFractionBp: integer('pool_fraction_bp').notNull(),
+    provider: text('provider').notNull().default('stripe'),
+    providerSessionId: text('provider_session_id').notNull(),
+    providerPaymentRef: text('provider_payment_ref'),
+    /** 'pending' | 'paid' */
+    status: text('status').notNull().default('pending'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    paidAt: timestamp('paid_at'),
+  },
+  t => [
+    uniqueIndex('funding_purchases_provider_session_idx').on(t.providerSessionId),
+    index('funding_purchases_ws_idx').on(t.workspaceId, t.createdAt),
+  ],
+);
+
+/**
+ * One workspace, one calendar month, the owner's money (docs/workspace-pools.md).
+ * poolCents is fixed the instant the month starts; rolloverCents is what
+ * arrived from the previous month (undistributable pool). rules is the
+ * frozen rules-page record.
+ * status: 'scheduled' | 'running' | 'settled' | 'voided'.
+ */
+export const workspacePools = pgTable(
+  'workspace_pools',
+  {
+    workspaceId: text('workspace_id').notNull(),
+    /** 'YYYY-MM', UTC calendar month. */
+    month: text('month').notNull(),
+    poolCents: integer('pool_cents').notNull().default(0),
+    rolloverCents: integer('rollover_cents').notNull().default(0),
+    status: text('status').notNull().default('scheduled'),
+    rules: jsonb('rules'),
+    frozenAt: timestamp('frozen_at'),
+    settledAt: timestamp('settled_at'),
+    distributedCents: integer('distributed_cents').notNull().default(0),
+    voidReason: text('void_reason'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.workspaceId, t.month] })],
+);
+
+/** The settled board of one workspace pool: written once, never recomputed. */
+export const workspacePoolResults = pgTable(
+  'workspace_pool_results',
+  {
+    workspaceId: text('workspace_id').notNull(),
+    month: text('month').notNull(),
+    agentId: text('agent_id').notNull(),
+    /** Net settled profit in nanocredits (docs/workspace-pools.md, Scoring). */
+    scoreUnits: bigint('score_units', { mode: 'number' }).notNull(),
+    tradeCount: integer('trade_count').notNull().default(0),
+    marketCount: integer('market_count').notNull().default(0),
+    earlyTradeCount: integer('early_trade_count').notNull().default(0),
+    eligible: boolean('eligible').notNull().default(false),
+    /** Why not eligible, when not: 'owner_or_admin' | 'shared_payout' |
+     *  'platform_operated' | 'activity_floor' | 'non_positive'. */
+    exclusion: text('exclusion'),
+    /** Share of the pool, 0..1. */
+    share: doublePrecision('share').notNull().default(0),
+    payoutCents: integer('payout_cents').notNull().default(0),
+    rank: integer('rank'),
+  },
+  t => [primaryKey({ columns: [t.workspaceId, t.month, t.agentId] })],
+);
+
+/**
+ * Cash owed to a participant by Telarchy (docs/workspace-pools.md, Settlement
+ * and payment). Accrues per source; paid in one transfer once the accrued
+ * total reaches the minimum payout and the account holds payout details.
+ * state: 'accrued' | 'paid'.
+ */
+export const payouts = pgTable(
+  'payouts',
+  {
+    id: text('id').primaryKey(),
+    agentId: text('agent_id').notNull(),
+    amountCents: integer('amount_cents').notNull(),
+    /** 'workspace_pool' today. */
+    sourceType: text('source_type').notNull(),
+    /** `${workspaceId}/${month}` for a workspace pool. */
+    sourceRef: text('source_ref').notNull(),
+    state: text('state').notNull().default('accrued'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    paidAt: timestamp('paid_at'),
+    /** Free text the operator leaves when marking paid (transfer reference). */
+    paidNote: text('paid_note'),
+  },
+  t => [index('payouts_agent_idx').on(t.agentId, t.state)],
 );

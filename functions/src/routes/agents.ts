@@ -1210,6 +1210,25 @@ agentsRouter.get(
   }),
 );
 
+/**
+ * Cash owed to a participant by Telarchy from workspace prize pools
+ * (docs/workspace-pools.md): what has accrued, what has been paid, and
+ * whether a transfer is due. Self or admin; 'me' resolves to the caller.
+ */
+agentsRouter.get(
+  '/:id/payouts',
+  requireSelfOrAdmin,
+  wrap(async (req, res) => {
+    const id = resolveRouteAgentId(req);
+    if (!id) {
+      res.status(403).json({ error: 'A participant identity is required' });
+      return;
+    }
+    const { payoutSummary } = await import('../services/workspacePools');
+    res.json(await payoutSummary(id));
+  }),
+);
+
 agentsRouter.get(
   '/:id/market-pnl',
   requireSelfOrAdmin,

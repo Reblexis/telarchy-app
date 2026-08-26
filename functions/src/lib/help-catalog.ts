@@ -534,6 +534,97 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'POST',
+      path: '/api/workspaces/:id/funding/checkout',
+      auth: 'admin',
+      description:
+        "Buy a funding package for this workspace (docs/liquidity.md): a card payment through Stripe Checkout that becomes 1,000 credits of liquidity per dollar in the workspace's liquidity budget and an 80% cash share of the workspace's next monthly prize pool (docs/workspace-pools.md). Body: { amountCents: integer (100..99999900), returnPath?: '/...' }. Returns { purchaseId, url }: send the buyer to url; nothing is credited until the provider's webhook confirms payment. Non-refundable; nothing bought this way is ever returned as money. Requires manage_workspace on the path workspace. 503 when FUNDING_ENABLED is off (telarchy.com: switched on when Season 0 ends).",
+    },
+    {
+      method: 'GET',
+      path: '/api/workspaces/:id/funding',
+      auth: 'admin',
+      description:
+        "The workspace's liquidity budget (credits that can only become market liquidity here: never traded, transferred or paid out), its funding purchases, and its monthly prize pools with status (scheduled, running, settled). Requires manage_workspace on the path workspace.",
+    },
+    {
+      method: 'GET',
+      path: '/api/workspaces/:id/liquidity',
+      auth: 'admin',
+      description:
+        'The allocation view (docs/liquidity.md): every active market with its pool and b, the budget remaining, the auto-fund setting, and the per-metric weights. Requires manage_workspace on the path workspace.',
+    },
+    {
+      method: 'PUT',
+      path: '/api/workspaces/:id/liquidity/weights',
+      auth: 'admin',
+      description:
+        "Set per-metric auto-fund weights: body { [metricId]: weight } (0..1000, default 1, 0 = the owner funds that metric by hand). Auto-fund of new markets and the top-up sweep use newMarketLiquidityCredits x weight, drawing the liquidity budget before the owner's tradeable balance. Requires manage_workspace on the path workspace.",
+    },
+    {
+      method: 'POST',
+      path: '/api/workspaces/:id/liquidity/spread',
+      auth: 'admin',
+      description:
+        'Spread the liquidity budget: fund every active market of the workspace up to targetPool credits, largest shortfall first, until the target or the budget is reached. Body: { targetPool: number, metricIds?: string[] }. Returns { funded: [{ marketId, amount }], budgetRemaining }. Requires manage_workspace on the path workspace.',
+    },
+    {
+      method: 'GET',
+      path: '/api/workspaces/:id/pools',
+      auth: 'agent/admin',
+      description:
+        "The workspace's monthly prize pools (docs/workspace-pools.md): month, pool in cents (sponsored plus rolled over), status, what was distributed, and the frozen rules path once the month has started.",
+    },
+    {
+      method: 'GET',
+      path: '/api/workspaces/:id/pools/:month',
+      auth: 'agent/admin',
+      description:
+        "The pool board for one month (YYYY-MM): every trader's net settled profit on this workspace's markets (only trades executed inside the month on markets resolved inside it; no marks), eligibility and exclusion reason (owner_or_admin, shared_payout, platform_operated, activity_floor, non_positive), share of the pool by score squared, and payout in cents. Live while the month runs; the stored finals once settled, never recomputed.",
+    },
+    {
+      method: 'GET',
+      path: '/api/agents/:id/payouts',
+      auth: 'self/admin',
+      description:
+        "Cash Telarchy owes this participant from workspace prize pools: accrued and paid totals in cents, whether a transfer is due (accrued total at or above the $5 minimum and payout details on the account), and each item with its source. Amounts accrue at settlement and are transferred by bank transfer; small wins wait, they are never lost. 'me' resolves to the caller.",
+    },
+    {
+      method: 'GET',
+      path: '/api/admin/payouts',
+      auth: 'platform admin',
+      description:
+        'The payout run: every participant with accrued cash, their accrued total, whether it is payable, and their payout handle.',
+    },
+    {
+      method: 'POST',
+      path: '/api/admin/payouts/:agentId/paid',
+      auth: 'platform admin',
+      description:
+        "Record that one participant's accrued total was transferred. Body: { note?: string } (a transfer reference). Marks every accrued item paid.",
+    },
+    {
+      method: 'POST',
+      path: '/api/billing/stripe/webhook',
+      auth: false,
+      description:
+        'Stripe webhook (checkout.session.completed). Authenticated by the Stripe-Signature header, not by our credentials; applies a paid funding package once, idempotently. Not for humans or agents to call.',
+    },
+    {
+      method: 'GET',
+      path: '/api/legal/pools/:workspaceId/:month',
+      auth: false,
+      description:
+        "A workspace pool's frozen rules page (markdown): period, pool, scoring, distribution, eligibility, payment, tax. 404 until the month has started, because nothing is frozen before then.",
+    },
+    {
+      method: 'POST',
+      path: '/api/cron/pools',
+      auth: 'admin',
+      description:
+        'Start every scheduled workspace pool whose month has begun (freezing its rules) and settle every running pool whose month has ended. Idempotent.',
+    },
+    {
+      method: 'POST',
       path: '/api/predictions/markets/liquidity/bulk',
       auth: 'admin',
       description:

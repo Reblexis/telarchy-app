@@ -29,6 +29,7 @@ import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { applyCredits } from '../services/credits';
 import { emitEvent } from '../services/events';
+import { metricWeight, readBudgetUnits } from '../services/liquidityBudget';
 import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
 import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
@@ -966,8 +967,11 @@ predictionsRouter.post(
     const marketId = randomUUID();
 
     if (useAutoFund) {
-      const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
-      if (!ownerAgentId) {
+      // Budget first, the owner's balance second (docs/liquidity.md).
+      const weighted = Math.round(credits * metricWeight(wsRow?.liquidityWeights, metricId) * 1e6) / 1e6;
+      const fromBudget = (await readBudgetUnits(db, workspaceId)) >= toUnits(weighted) && weighted > 0;
+      const ownerAgentId = fromBudget ? null : await resolveWorkspaceOwnerAgentId(workspaceId);
+      if (!fromBudget && !ownerAgentId) {
         res.status(500).json({ error: 'Workspace owner has no agent record' });
         return;
       }
@@ -994,7 +998,8 @@ predictionsRouter.post(
             workspaceId,
             marketId,
             agentId: ownerAgentId,
-            poolContribution: credits,
+            source: fromBudget ? 'budget' : 'agent',
+            poolContribution: weighted > 0 ? weighted : credits,
           });
         });
       } catch (e) {

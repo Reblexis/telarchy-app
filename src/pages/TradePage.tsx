@@ -44,6 +44,7 @@ import {
   settleNoteOf,
   timeLeftOf,
 } from '../lib/floor-horizons';
+import { floorPath } from '../lib/money';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
 import { useAnimatedNumber } from '../lib/useAnimatedNumber';
@@ -894,6 +895,7 @@ export function TradePage() {
           unit={unit}
           signedIn={!!user}
           meId={myParticipantId}
+          workspace={ws ? { workspaceId: ws.workspaceId, slug: ws.slug } : null}
         />
         <div className="pubws-center">
           {/* The company IS the page (owner direction 2026-08-18): a cold
@@ -909,6 +911,13 @@ export function TradePage() {
             <header className="pubws-ident pubws-enter">
               <h1 className="pubws-ws-name">{ws.name}</h1>
               {ws.description && <p className="pubws-ws-tagline">{ws.description}</p>}
+              {/* The owner's money page (docs/liquidity.md): only someone who
+                  can manage the workspace sees the way in. */}
+              {canManage && (
+                <Link className="pubws-ident-owner" to={`${floorPath(ws)}/funding`}>
+                  Liquidity and prize pool
+                </Link>
+              )}
             </header>
           )}
           {hero && active && (

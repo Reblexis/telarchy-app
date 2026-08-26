@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   agents,
@@ -20,6 +20,7 @@ import { MIN_LIQUIDITY_CONTRIBUTION, toUnits } from '../lib/validation';
 import type { TimePreference } from '../types';
 import { applyCredits } from './credits';
 import { emitEvent } from './events';
+import { applyBudget, metricWeight, readBudgetUnits } from './liquidityBudget';
 import { applyAgentLiquidityInjectionTx } from './marketLiquidity';
 import { releaseLimitOrdersForMarket } from './trading';
 
@@ -38,11 +39,17 @@ export async function distributeLPLeftover(
     .from(liquidityEvents)
     .where(and(eq(liquidityEvents.workspaceId, workspaceId), eq(liquidityEvents.marketId, marketId)));
 
+  // Keyed by agent id, or by the budget sentinel for budget-funded rows
+  // (docs/liquidity.md: leftover from liquidity the budget placed returns
+  // to the budget, never to a person's tradeable balance).
+  const BUDGET = '\u0000budget';
   const contributions = new Map<string, number>();
   let total = 0;
   for (const row of liqRows) {
-    if (!row.agentId || !row.poolContribution || row.poolContribution <= 0) continue;
-    contributions.set(row.agentId, (contributions.get(row.agentId) ?? 0) + row.poolContribution);
+    if (!row.poolContribution || row.poolContribution <= 0) continue;
+    const key = row.fundedBy === 'budget' ? BUDGET : row.agentId;
+    if (!key) continue;
+    contributions.set(key, (contributions.get(key) ?? 0) + row.poolContribution);
     total += row.poolContribution;
   }
   if (total <= 0) return;
@@ -57,6 +64,16 @@ export async function distributeLPLeftover(
         : Math.round(((poolAmount * contribution) / total) * 100) / 100;
     if (share <= 0) continue;
     distributed += share;
+    if (agentId === BUDGET) {
+      await applyBudget(tx, {
+        workspaceId,
+        deltaUnits: toUnits(share),
+        reason: 'lp_leftover',
+        refType: 'market',
+        refId: marketId,
+      });
+      continue;
+    }
     await applyCredits(tx, {
       agentId,
       workspaceId,
@@ -253,31 +270,22 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
     return insertWithDefaults();
   }
 
-  const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
-  if (!ownerAgentId) {
-    console.error('insertPendingMarkets: auto-fund on but workspace has no owner agent', workspaceId);
+  // Who pays each market: the workspace liquidity budget first, the owner's
+  // tradeable balance when the budget is empty (docs/liquidity.md). Per
+  // metric, the owner's weight scales the amount; weight 0 means by hand.
+  const plan = planOwnerFunding({
+    items: pending.map(p => ({ key: p.marketId, metricId: p.metricId })),
+    credits,
+    weights: wsRow.liquidityWeights,
+    budgetUnits: await readBudgetUnits(db, workspaceId),
+    ownerBalanceUnits: await ownerBalanceUnits(workspaceId),
+  });
+  if (plan.every(x => x.source === null)) {
+    console.error('insertPendingMarkets: nothing can fund auto-fund', { workspaceId });
     return insertWithDefaults();
   }
-
-  // Fund as many as the balance covers, in list order, and open the rest
-  // unfunded for a later refresh. All-or-nothing left every market of a
-  // rollover at zero when the balance was short of the whole day's need
-  // (2026-08-27: three LookPilot day markets, none funded, all morning).
-  const [ag] = await db.select().from(agents).where(eq(agents.id, ownerAgentId));
-  const balanceUnits = (ag?.balance as number | undefined) ?? 0;
-  const affordable = Math.max(0, Math.floor(balanceUnits / toUnits(credits)));
-  if (affordable === 0) {
-    console.error('insertPendingMarkets: insufficient balance for auto-fund', { workspaceId, needed: credits });
-    return insertWithDefaults();
-  }
-  if (affordable < pending.length) {
-    console.error('insertPendingMarkets: balance covers some of the new markets, the rest open unfunded', {
-      workspaceId,
-      funded: affordable,
-      unfunded: pending.length - affordable,
-    });
-  }
-  const fundedSet = new Set(pending.slice(0, affordable).map(p => p.marketId));
+  const ownerAgentId = plan.some(x => x.source === 'agent') ? await resolveWorkspaceOwnerAgentId(workspaceId) : null;
+  const planByKey = new Map(plan.map(x => [x.key, x]));
 
   const metricValues = new Map(
     (
@@ -308,7 +316,11 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
         pool: 0,
         createdAt: now,
       });
-      if (!fundedSet.has(p.marketId)) {
+      const funding = planByKey.get(p.marketId);
+      if (!funding || funding.source === null) {
+        // An unfunded market still gets its initial row, so the floor can tell
+        // "nobody has funded this yet" from "this market has no history"
+        // (2026-08-27: LookPilot's today market lost its pickers).
         await tx.insert(liquidityEvents).values({
           id: randomUUID(),
           workspaceId,
@@ -323,14 +335,15 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
       await applyAgentLiquidityInjectionTx(tx, {
         workspaceId,
         marketId: p.marketId,
-        agentId: ownerAgentId,
-        poolContribution: credits,
+        agentId: funding.source === 'agent' ? ownerAgentId : null,
+        source: funding.source,
+        poolContribution: funding.amount,
       });
       if (anchorP !== null) {
         // Same solvency sizing the conditional pairs use: the subsidy
         // covers the anchored worst case, so an off-center open buys its
         // anchor with a thinner book, never with unminted credits.
-        const anchored = anchoredMarketState(credits, anchorP);
+        const anchored = anchoredMarketState(funding.amount, anchorP);
         await tx
           .update(markets)
           .set({ shares: anchored.shares, liquidity: anchored.liquidity })
@@ -544,28 +557,33 @@ export async function refreshRelativeDateMarkets(
     const [wsRow] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
     const credits = wsRow?.newMarketLiquidityCredits ?? 0;
     if (wsRow?.autoFundNewMarkets && credits >= MIN_LIQUIDITY_CONTRIBUTION) {
-      const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
-      if (ownerAgentId) {
-        // As many as the balance covers, not all or nothing: an unfunded
-        // market waits for the next refresh rather than for every one of its
-        // siblings to become affordable at once.
-        const [ag] = await db.select().from(agents).where(eq(agents.id, ownerAgentId));
-        const affordable = Math.min(
-          toFund.length,
-          Math.floor(((ag?.balance as number | undefined) ?? 0) / toUnits(credits)),
-        );
-        if (affordable > 0) {
-          await db.transaction(async tx => {
-            for (const marketId of toFund.slice(0, affordable)) {
-              await applyAgentLiquidityInjectionTx(tx, {
-                workspaceId,
-                marketId,
-                agentId: ownerAgentId,
-                poolContribution: credits,
-              });
-            }
-          });
-        }
+      const rows = await db
+        .select({ id: markets.id, metricId: markets.metricId })
+        .from(markets)
+        .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.id, toFund)));
+      const plan = planOwnerFunding({
+        items: rows.map(r => ({ key: r.id, metricId: r.metricId })),
+        credits,
+        weights: wsRow.liquidityWeights,
+        budgetUnits: await readBudgetUnits(db, workspaceId),
+        ownerBalanceUnits: await ownerBalanceUnits(workspaceId),
+      });
+      const ownerAgentId = plan.some(x => x.source === 'agent')
+        ? await resolveWorkspaceOwnerAgentId(workspaceId)
+        : null;
+      const fundable = plan.filter(x => x.source !== null);
+      if (fundable.length > 0) {
+        await db.transaction(async tx => {
+          for (const x of fundable) {
+            await applyAgentLiquidityInjectionTx(tx, {
+              workspaceId,
+              marketId: x.key,
+              agentId: x.source === 'agent' ? ownerAgentId : null,
+              source: x.source ?? 'agent',
+              poolContribution: x.amount,
+            });
+          }
+        });
       }
     }
   }
@@ -619,4 +637,44 @@ export async function refreshRelativeDateMarkets(
   if (!opts.force) await setLockCooldown(lockKey, 5 * 60 * 1000);
 
   return { created, deactivated, deduplicated, conditionalRespawned };
+}
+
+/** The owner's tradeable balance in units, 0 when there is no owner agent. */
+async function ownerBalanceUnits(workspaceId: string): Promise<number> {
+  const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
+  if (!ownerAgentId) return 0;
+  const [ag] = await db.select({ balance: agents.balance }).from(agents).where(eq(agents.id, ownerAgentId));
+  return ag ? Number(ag.balance) : 0;
+}
+
+/**
+ * Decide, market by market, who auto-funds it: the liquidity budget while it
+ * lasts, then the owner's tradeable balance, then nobody (docs/liquidity.md).
+ * Amounts are newMarketLiquidityCredits x the metric's weight; a zero weight
+ * or a sub-minimum amount leaves the market to the owner's hand. Pure apart
+ * from its inputs, so the tests can cover the mixed case.
+ */
+export function planOwnerFunding(input: {
+  items: Array<{ key: string; metricId: string }>;
+  credits: number;
+  weights: unknown;
+  budgetUnits: number;
+  ownerBalanceUnits: number;
+}): Array<{ key: string; amount: number; source: 'budget' | 'agent' | null }> {
+  let budget = input.budgetUnits;
+  let owner = input.ownerBalanceUnits;
+  return input.items.map(item => {
+    const amount = Math.round(input.credits * metricWeight(input.weights, item.metricId) * 1e6) / 1e6;
+    if (amount < MIN_LIQUIDITY_CONTRIBUTION) return { key: item.key, amount, source: null };
+    const units = toUnits(amount);
+    if (budget >= units) {
+      budget -= units;
+      return { key: item.key, amount, source: 'budget' };
+    }
+    if (owner >= units) {
+      owner -= units;
+      return { key: item.key, amount, source: 'agent' };
+    }
+    return { key: item.key, amount, source: null };
+  });
 }

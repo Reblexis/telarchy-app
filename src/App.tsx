@@ -29,6 +29,9 @@ const ParticipantProfilePage = lazyPage(() => import('./pages/ParticipantProfile
 const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
 const DataRoomPage = lazyPage(() => import('./pages/DataRoomPage'), 'DataRoomPage');
 const LegalPage = lazyPage(() => import('./pages/LegalPage'), 'LegalPage');
+const PoolRulesPage = lazyPage(() => import('./pages/PoolRulesPage'), 'PoolRulesPage');
+const FundingPage = lazyPage(() => import('./pages/FundingPage'), 'FundingPage');
+const PoolPage = lazyPage(() => import('./pages/PoolPage'), 'PoolPage');
 const AboutPage = lazyPage(() => import('./pages/AboutPage'), 'AboutPage');
 const ContactPage = lazyPage(() => import('./pages/ContactPage'), 'ContactPage');
 const AudiencePage = lazyPage(() => import('./pages/AudiencePage'), 'AudiencePage');
@@ -138,6 +141,9 @@ export function App() {
             keeps working, because a rules link that has been quoted anywhere
             must not 404. */}
         <Route path="/legal/season-1" element={<LegalPage document="season-1" />} />
+        {/* A workspace pool's rules, frozen the instant its month starts
+            (docs/workspace-pools.md). */}
+        <Route path="/legal/pools/:workspaceId/:month" element={<PoolRulesPage />} />
 
         {/* The owner's cockpit: traffic, signups, the waitlist and the
             reports. Platform-admin only, gated server-side on every endpoint
@@ -184,6 +190,12 @@ export function App() {
 
         {/* telarchy.com/<slug> is a market. Last, so every named route above
             wins over a workspace that happens to share its name. */}
+        {/* The owner's money page and the month's prize pool board (docs/liquidity.md,
+            docs/workspace-pools.md), under the workspace's own path like announcements. */}
+        <Route path="/:slug/funding" element={<FundingPage />} />
+        <Route path="/:slug/pools/:month" element={<PoolPage />} />
+        <Route path="/marketplace/:workspaceId/funding" element={<FundingPage />} />
+        <Route path="/marketplace/:workspaceId/pools/:month" element={<PoolPage />} />
         <Route path="/:slug/announcements" element={<AnnouncementsPage />} />
         <Route path="/:slug" element={<TradePage />} />
 

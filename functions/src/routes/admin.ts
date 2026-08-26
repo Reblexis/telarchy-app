@@ -63,6 +63,37 @@ function parseTypes(raw: unknown): ActivityType[] | undefined {
  * question and its answer stay, because the gap a question names outlives
  * the visit that asked it.
  */
+/**
+ * The operator's payout run (docs/workspace-pools.md, Settlement and
+ * payment): every participant with accrued cash, whether their total is
+ * payable (at or above the minimum, payout details on file), and their
+ * handle. Payment details themselves stay on GET /api/seasons/:id/payouts'
+ * pattern: the handle summary only. Platform admin.
+ */
+adminRouter.get(
+  '/payouts',
+  wrap(async (req, res) => {
+    if (!(await isPlatformAuthorized(req))) {
+      throw new AppError('Platform admin or master key required', 403);
+    }
+    const { listAccruedPayouts } = await import('../services/workspacePools');
+    res.json({ payouts: await listAccruedPayouts() });
+  }),
+);
+
+/** Record that one participant's accrued total was transferred. Platform admin. */
+adminRouter.post(
+  '/payouts/:agentId/paid',
+  wrap(async (req, res) => {
+    if (!(await isPlatformAuthorized(req))) {
+      throw new AppError('Platform admin or master key required', 403);
+    }
+    const note = typeof req.body?.note === 'string' ? req.body.note.slice(0, 200) : null;
+    const { markPayoutsPaid } = await import('../services/workspacePools');
+    res.json(await markPayoutsPaid(String(req.params.agentId), note));
+  }),
+);
+
 adminRouter.get(
   '/questions',
   wrap(async (req, res) => {

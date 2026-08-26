@@ -7923,3 +7923,35 @@ textarea.jobform-line--desc {
 .pubws-aud-sib { color: var(--text-secondary); text-decoration: none; }
 .pubws-aud-sib:hover { color: var(--text-primary); text-decoration: underline; }
 .pubws-aud-sib--here { color: var(--text-tertiary); }
+
+/* ── Funding page and pool board (docs/liquidity.md, docs/workspace-pools.md) ──
+   Same hairline rows as the cockpit; nothing new to learn. */
+.pubws-ident .pubws-ident-owner {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  text-decoration: none;
+}
+.pubws-ident .pubws-ident-owner:hover {
+  color: var(--text-primary);
+}
+.fundp .fundp-weight {
+  width: 4.5rem;
+  text-align: right;
+}
+.fundp .jobform-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin: 0.75rem 0 0;
+}
+.acctdlg-payouts {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}

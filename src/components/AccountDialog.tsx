@@ -12,6 +12,7 @@ import {
 import { AccountCredits } from './AccountCredits';
 import { AccountPassword } from './AccountPassword';
 import { FloorModal } from './FloorModal';
+import { PayoutsPanel } from './PayoutsPanel';
 import { SeasonEntryPanel } from './SeasonEntryPanel';
 
 /**
@@ -915,6 +916,7 @@ export function AccountDialog({
                   {errors.pay && <p className="ticket-err">{errors.pay}</p>}
 
                   <AccountCredits me={participant} onChanged={loadParticipant} />
+                  <PayoutsPanel hasPayoutMethod={Boolean(participant?.payoutMethod)} />
                   <SeasonEntryPanel />
                 </>
               )}

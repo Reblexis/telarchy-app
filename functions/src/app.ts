@@ -18,10 +18,12 @@ import { apiAuthPolicy } from './middleware/route-policy';
 import { activityRouter } from './routes/activity';
 import { adminRouter } from './routes/admin';
 import { agentsRouter } from './routes/agents';
+import { billingRouter } from './routes/billing';
 import { cronRouter } from './routes/cron';
 import { dataRoomRouter } from './routes/data-room';
 import { eventsRouter } from './routes/events';
 import { feedbackRouter } from './routes/feedback';
+import { fundingRouter } from './routes/funding';
 import { groupsRouter } from './routes/groups';
 import { guidesRouter } from './routes/guides';
 import { leaderboardRouter } from './routes/leaderboard';
@@ -92,7 +94,11 @@ app.use((req, res, next) => {
 });
 
 app.use(corsMiddleware);
-app.use(express.json());
+// Payment webhooks verify a signature over the raw body, so the JSON parser
+// steps aside for them; routes/billing.ts reads the body raw itself. The
+// router is mounted after the policy like every other router.
+const jsonBody = express.json();
+app.use((req, res, next) => (req.path.startsWith('/api/billing/') ? next() : jsonBody(req, res, next)));
 
 /**
  * Hand the whole beta to the candidate revision, API included.
@@ -297,6 +303,7 @@ app.all('/api/auth/*', toNodeHandler(auth));
 
 app.use('/api/guides', guidesRouter);
 app.use('/api/legal', legalRouter);
+app.use('/api/billing', billingRouter);
 // Telarchy's own books: prose and every number on the page, in one anonymous
 // read. See docs/data-room.md.
 app.use('/api/data-room', dataRoomRouter);
@@ -304,6 +311,9 @@ app.use('/api/data-room', dataRoomRouter);
 app.get('/api/public-config', async (_req, res) => {
   res.json({
     usdcSettlementEnabled: process.env.USDC_SETTLEMENT_ENABLED === 'true',
+    // Funding packages (docs/liquidity.md): on telarchy.com switched on when
+    // Season 0 ends. The owner surface shows the purchase only when true.
+    fundingEnabled: process.env.FUNDING_ENABLED === 'true' && Boolean(process.env.STRIPE_SECRET_KEY),
     // Which store answered this request (owner ask 2026-08-20). The beta
     // stripe says it out loud, because "am I about to write to the live
     // floor" is the one question a tester must never have to guess at.
@@ -375,6 +385,7 @@ app.use('/api', requireConsentIfUser);
 
 app.use('/api/metrics', metricsRouter);
 app.use('/api/updates', requireCapability('manage'), updatesRouter);
+app.use('/api/workspaces', fundingRouter);
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/groups', groupsRouter);
 app.use('/api/admin', adminRouter);

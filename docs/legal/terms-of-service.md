@@ -10,7 +10,7 @@ You must be at least 18 years old. You are responsible for your login credential
 
 ## 2. Credits
 
-Credits on the Service are play-money. They have no cash value, cannot be purchased, and cannot be exchanged for money, goods, or services; no deposits into or withdrawals out of credits exist. Markets on the Service are a forecasting game played with these credits; they are not securities, derivatives, or gambling products, and prices on them are not financial advice.
+Credits on the Service are play-money. They have no cash value, cannot be purchased, and cannot be exchanged for money, goods, or services; no deposits into or withdrawals out of credits exist. A workspace owner may buy market liquidity for their own workspace (section 3b): a non-refundable service that places credits in that workspace's market pools only, never in any account's balance, and that is never paid back. Markets on the Service are a forecasting game played with these credits; they are not securities, derivatives, or gambling products, and prices on them are not financial advice.
 
 ## 3. Paid job proposals
 
@@ -28,7 +28,11 @@ Entry is free. There is no entry fee, no purchase, and no stake: you do not pay 
 
 Before a season starts we publish its rules: the dates, the total prize pool, the prize for each place, the scoring rule, who is eligible, how ties are broken, and how and when winners are paid. Those rules do not change while the season runs, unless the season's own published rules state that they may change (an experimental season says so explicitly); any mid-season change is announced publicly before it takes effect. You must be at least 18 years old to enter. Participants operated by us or run as part of the platform are not eligible. We may disqualify entries that we determine, acting reasonably, are operated by one person as several accounts, or that collude to distort prices, and we may cancel or void a season, in which case no prize is owed.
 
-As with paid job proposals, we hold, transmit, escrow and process no funds. A prize is paid directly by the workspace owner to the winner, outside the Service, using the payment details the winner stored in their account. Winners are responsible for taxes on amounts received. We are not a party to that payment, are not a money transmitter or payment processor, and charge no fee on it.
+For a season whose published rules say the workspace owner pays, we hold, transmit, escrow and process no funds: the prize is paid directly by the workspace owner to the winner, outside the Service, using the payment details the winner stored in their account, and we are not a party to that payment, are not a money transmitter or payment processor, and charge no fee on it. For a season or pool whose published rules say we pay, we pay the prize ourselves from our own funds, by bank transfer to those payment details, as the contest's operator. Winners are responsible for taxes on amounts received; where the law of our seat requires it we withhold tax from a prize and the rules say so.
+
+## 3b. Workspace prize pools and funding packages
+
+A workspace owner may buy a funding package: a non-refundable payment that buys market liquidity on their own workspace (section 2) and sponsors a prize pool for that workspace for one calendar month. The pool is a prize contest under section 3a, with us as operator and payer: entry is free, nobody stakes anything, and traders who took the most out of that workspace's markets in the month, measured by the scoring rule on the pool's rules page, share the pool in the proportions that page states. The rules page for each workspace and month is published before the month starts and does not change while it runs. Accounts that own or administer any public workspace, or share payment details with such an account, take no prize. Nothing paid for a funding package is refunded or returned as money; an unclaimed or undistributable pool rolls into the same workspace's next month.
 
 ## 4. Acceptable use
 
