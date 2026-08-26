@@ -57,7 +57,8 @@ interface Props {
 // copy of the desktop one. Tracked live via matchMedia so window resizes
 // and orientation changes swap geometry instead of leaving a squished
 // chart behind.
-const GEOM = {
+/** Shared with NumberChart, so both views of the chart slot have one geometry. */
+export const GEOM = {
   wide: { W: 720, PAD_L: 46, PAD_R: 58, H: 260 },
   compact: { W: 400, PAD_L: 40, PAD_R: 50, H: 300 },
 };

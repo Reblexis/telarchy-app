@@ -1,5 +1,6 @@
 import { fireEvent, render } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
+import { GEOM } from '../MarketChart';
 import { granularityOf, NumberChart, RANGE_WORDS, windowFor } from '../NumberChart';
 
 /**
@@ -147,5 +148,45 @@ describe('hover', () => {
     const tip = container.querySelector('.mchart-tip')?.textContent ?? '';
     expect(tip).toMatch(/reading \$(2|4|5)$/);
     expect(tip).toMatch(/27 Jul|10 Aug|25 Aug/);
+  });
+});
+
+describe('hover on a marker with a contract open', () => {
+  test('lists the pair in the tooltip', () => {
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={[
+          {
+            marketId: 'sep',
+            resolvesOn: '2026-10-01T00:00:00Z',
+            consensus: 19.8,
+            selected: true,
+            pair: { approved: 21, declined: 19.5 },
+          },
+        ]}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+      />,
+    );
+    const svg = container.querySelector('svg')!;
+    const { W, H } = GEOM.wide;
+    svg.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: W,
+      height: H,
+      right: W,
+      bottom: H,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: W - 70, clientY: 100 }));
+    const tip = container.querySelector('.mchart-tip')?.textContent ?? '';
+    expect(tip).toContain('the market says 19.8');
+    expect(tip).toContain('if approved 21');
+    expect(tip).toContain('if declined 19.5');
   });
 });

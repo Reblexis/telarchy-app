@@ -1,5 +1,6 @@
 import type { ReactNode, PointerEvent as ReactPointerEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { GEOM } from './MarketChart';
 
 /**
  * The number view of the floor's chart slot (docs/ui-conventions.md, "The
@@ -136,9 +137,6 @@ function useTweenedDomain(target: [number, number]): [number, number] {
   return dom;
 }
 
-const W = 660;
-const PAD_L = 40;
-const PAD_R = 22;
 const PAD_T = 24;
 const PAD_B = 34;
 
@@ -167,8 +165,20 @@ export function NumberChart({
   center,
   legend = null,
   now = new Date(),
-  height = 200,
+  height,
 }: Props) {
+  // Same geometry and breakpoint as the market view (GEOM is theirs), so the
+  // two views of the chart slot have one width, one plot area and one
+  // pointer mapping.
+  const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 519px)');
+    const onChange = () => setCompact(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  const { W, PAD_L, PAD_R, H: geomH } = GEOM[compact ? 'compact' : 'wide'];
+  const H = height ?? geomH;
   const words = RANGE_WORDS[granularity];
   const [rangeKey, setRangeKey] = useState<string | null>(null);
   // Hover: the reading in force at the cursor on the past side, the nearest
@@ -183,7 +193,6 @@ export function NumberChart({
   const span = (rangeKey ? words.find(w => w.key === rangeKey) : words[0])?.ms ?? null;
   const target = windowFor(selectedResolvesOn, span, points, now);
   const [x0, x1] = useTweenedDomain(target);
-  const H = height;
   const x = (t: number) => PAD_L + ((t - x0) / (x1 - x0)) * (W - PAD_L - PAD_R);
 
   const visible = points.filter(p => {
@@ -227,15 +236,25 @@ export function NumberChart({
   const lastX = last ? x(new Date(last.at).getTime()) : 0;
   const holdX = Math.min(x(nowT), W - PAD_R);
   const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
-    const box = svgRef.current?.getBoundingClientRect();
-    if (!box || box.width === 0) return;
-    const px = ((e.clientX - box.left) / box.width) * W;
-    const t = x0 + ((px - PAD_L) / (W - PAD_L - PAD_R)) * (x1 - x0);
-    setCursor(Math.max(x0, Math.min(x1, t)));
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return;
+    // The svg scales uniformly with its width (height auto), so the
+    // viewBox-to-pixel ratio is rect.width / W; then map through the plot
+    // area, not the whole svg, exactly as the market view does.
+    const mouseX = ((e.clientX - rect.left) / rect.width) * W;
+    const frac = (mouseX - PAD_L) / (W - PAD_L - PAD_R);
+    setCursor(x0 + Math.max(0, Math.min(1, frac)) * (x1 - x0));
   };
   const onLeave = () => setCursor(null);
   // What the cursor is over: a reading in force, or a market's call.
-  let tip: { x: number; y: number; date: string; label: string; value: string } | null = null;
+  let tip: {
+    x: number;
+    y: number;
+    date: string;
+    label: string;
+    value: string;
+    extra?: Array<{ label: string; value: string; tone: 'approved' | 'declined' }>;
+  } | null = null;
   if (cursor !== null) {
     if (cursor <= nowT) {
       // Snap to the nearest reading: the line is drawn through the readings,
@@ -290,6 +309,13 @@ export function NumberChart({
           date: dayLabel(new Date(near.resolvesOn).getTime() - 1),
           label: near.selected ? 'the market says' : 'another market says',
           value: fmt(near.consensus, unit),
+          extra:
+            near.pair && near.pair.approved !== null && near.pair.declined !== null
+              ? [
+                  { label: 'if approved', value: fmt(near.pair.approved, unit), tone: 'approved' },
+                  { label: 'if declined', value: fmt(near.pair.declined, unit), tone: 'declined' },
+                ]
+              : undefined,
         };
       }
     }
@@ -319,8 +345,7 @@ export function NumberChart({
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        width="100%"
-        height={H}
+        className="mchart-svg"
         role="img"
         aria-label="The number and the market's calls"
         onPointerMove={onMove}
@@ -451,6 +476,11 @@ export function NumberChart({
           <div>
             {tip.label} <span className="mchart-tip-v">{tip.value}</span>
           </div>
+          {tip.extra?.map(e => (
+            <div key={e.tone} className={`nchart-tip-${e.tone}`}>
+              {e.label} <span className="mchart-tip-v">{e.value}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
