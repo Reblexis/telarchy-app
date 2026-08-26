@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -143,17 +143,34 @@ describe('marketplace', () => {
     expect(container.querySelector('.mkt-new-mark')).toBeTruthy();
   });
 
-  test('it leads straight to the setup conversation, asking for nothing', async () => {
-    // It took an email in place while the owner side was a waitlist. There is
-    // a door now (owner direction 2026-08-24), and asking for an address in
-    // front of a door that opens turns someone ready to start into someone
-    // waiting to be contacted.
+  test('"Get set up" opens an email field in place and posts it to the waitlist', async () => {
+    // It led to Otto's setup door at /manage from 2026-08-24; the owner sent
+    // it back to the email on 2026-08-26 ("not otto yet"). The tile itself
+    // stays on the page: no link, no second page, one field that appears
+    // where the button was.
+    vi.mocked(api.joinWaitlist).mockResolvedValue({ alreadyListed: false });
     renderPage();
     const tile = await screen.findByText('List your own number');
-    const card = tile.closest('a');
-    expect(card).toHaveAttribute('href', '/manage');
+    expect(tile.closest('a')).toBeNull();
     expect(screen.queryByLabelText('Your email')).toBeNull();
-    expect(api.joinWaitlist).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Get set up' }));
+    const field = screen.getByLabelText('Your email');
+    expect(field.closest('.mkt-card--new')).toBe(tile.closest('.mkt-card--new'));
+
+    fireEvent.change(field, { target: { value: 'owner@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Get set up' }));
+    await waitFor(() =>
+      expect(api.joinWaitlist).toHaveBeenCalledWith({ email: 'owner@example.com', source: 'marketplace' }),
+    );
+    const answer = await screen.findByText(/Got it\. We will get back to you within a few days\./);
+    expect(answer.textContent).not.toMatch(/waitlist|queue/i);
+  });
+
+  test('the tile never names the setup conversation while it is not the door', async () => {
+    renderPage();
+    const card = (await screen.findByText('List your own number')).closest('.mkt-card--new');
+    expect(card?.textContent).not.toMatch(/otto/i);
   });
 
   test('it says a floor is not only for companies', async () => {

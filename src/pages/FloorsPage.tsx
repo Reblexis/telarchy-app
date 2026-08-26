@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import type { PrizeSeason } from '../lib/api';
@@ -138,21 +138,44 @@ function activityLine(r: Listing): string {
 /**
  * The listing tile: the last cell of the grid, and the only interactive one.
  *
- * It took an email in place from 2026-08-14, when the owner side was a
- * waitlist and there was nothing to send anyone to. There is now: Otto sets a
- * floor up in conversation at /manage (owner direction 2026-08-24, "when they
- * press get set up it shouldnt require mail anymore it should lead straight to
- * the chat interface where they just say what they wanna get set up with").
- * Asking for an address in front of a door that opens is worse than useless:
- * it turns someone ready to start into someone waiting to be contacted.
+ * "Get set up" opens an email field IN PLACE and posts it to /api/waitlist
+ * (docs/ui-conventions.md, "the marketplace"). The tile has led to Otto's
+ * setup door at /manage since 2026-08-24; the owner sent it back to the email
+ * on 2026-08-26 ("make get setup up lead to filling in email only again.. not
+ * otto yet", notes/decisions/ui-conventions.md). The setup conversation is
+ * still being hardened, and the first floors are set up with a person, so the
+ * honest promise on the front page is contact within days, not a chat that
+ * may not finish the job. Never queue language: an address here is a request
+ * that gets answered, not a place in line.
  *
  * Dual-scope on purpose. A person governing their own goal is as welcome as a
  * company (AGENTS.md, "Scope"), and the tile is the one place on the home page
  * where a visitor decides which side they are on.
  */
 function ListYourNumberCard() {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setBusy(true);
+    try {
+      // Already listed counts as success: the client resolves a 409.
+      await api.joinWaitlist({ email, source: 'marketplace' });
+      setDone(true);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <Link className="mkt-card mkt-card--new" to="/manage">
+    <div className="mkt-card mkt-card--new">
       <span className="mkt-new-mark" aria-hidden="true">
         <svg viewBox="0 0 100 100">
           <line x1="50" y1="22" x2="50" y2="78" />
@@ -161,10 +184,34 @@ function ListYourNumberCard() {
       </span>
       <span className="mkt-new-title">List your own number</span>
       <span className="mkt-new-sub">
-        A company, a project, or something you are running yourself. Say what it is and Otto opens the market for it.
+        A company, a project, or something you are running yourself. Leave an email and we set it up with you.
       </span>
-      <span className="mkt-new-cta">Get set up</span>
-    </Link>
+      {done ? (
+        <p className="pubws-setup-done">Got it. We will get back to you within a few days.</p>
+      ) : open ? (
+        <form className="mkt-new-form" onSubmit={e => void submit(e)}>
+          <div className="pubws-setup-row">
+            <input
+              type="email"
+              required
+              autoFocus
+              placeholder="you@example.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              aria-label="Your email"
+            />
+            <button type="submit" disabled={busy}>
+              {busy ? 'Sending…' : 'Get set up'}
+            </button>
+          </div>
+          {error && <p className="pubws-setup-err">{error}</p>}
+        </form>
+      ) : (
+        <button type="button" className="mkt-new-cta" onClick={() => setOpen(true)}>
+          Get set up
+        </button>
+      )}
+    </div>
   );
 }
 

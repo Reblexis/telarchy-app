@@ -5848,10 +5848,17 @@ textarea.jobform-line--desc {
   background: color-mix(in srgb, var(--accent) 4%, var(--bg-secondary));
 }
 .mkt-card--new:hover { transform: none; }
-/* The whole tile is the link (owner direction 2026-08-24), so the pill inside
-   it is a label rather than a control, and the hover belongs to the card. */
-.mkt-card--new { text-decoration: none; }
-.mkt-card--new:hover .mkt-new-cta { background: var(--accent); color: var(--bg-primary); }
+/* The email field, once "Get set up" opens it: the floor door's own row,
+   stacked to the tile's width. */
+.mkt-new-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.7rem;
+}
+.mkt-new-form .pubws-setup-row { width: min(20rem, 100%); }
 
 .mkt-new-mark {
   width: 4.75rem;
