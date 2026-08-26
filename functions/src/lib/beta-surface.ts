@@ -38,7 +38,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { releaseState } from '../services/release';
+import { isPreviewTag, type ReleaseState, releaseState } from '../services/release';
 
 export const BETA_PREFIX = '/beta';
 
@@ -48,8 +48,85 @@ export function isBetaPath(p: string): boolean {
 }
 
 /**
- * Forward one request to the candidate revision, unchanged apart from the
- * host it lands on.
+ * Which branch preview `/beta` shows, if not the main candidate
+ * (docs/infra/deploy.md, "Branch previews"). A cookie rather than a path
+ * segment because the beta bundle is built at `/beta/` in every container and
+ * its asset and API paths are baked in; a `/beta/<branch>/` mount would need a
+ * build per branch. The cookie leaves every path exactly as it is and only
+ * changes where the published revision forwards it.
+ */
+export const BETA_BRANCH_COOKIE = 'telarchy_beta_branch';
+const BETA_BRANCH_COOKIE_DAYS = 30;
+
+function cookieValue(header: string | undefined, name: string): string | null {
+  if (!header) return null;
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq < 0) continue;
+    if (part.slice(0, eq).trim() !== name) continue;
+    try {
+      return decodeURIComponent(part.slice(eq + 1).trim());
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** The preview tag a request asks for, or null when it wants the candidate.
+ *  Anything that is not a well-formed `br-` tag is treated as absent. */
+export function previewTagFromCookie(cookieHeader: string | undefined): string | null {
+  const v = cookieValue(cookieHeader, BETA_BRANCH_COOKIE);
+  return v && isPreviewTag(v) ? v : null;
+}
+
+/**
+ * Where `/beta/*` goes: the preview the cookie names when such a revision
+ * exists, else the candidate, else nowhere (serve locally). A cookie naming a
+ * retired preview degrades to the candidate rather than to an error, so a
+ * stale link from an old reply still opens the beta.
+ */
+export function resolveBetaTarget(state: ReleaseState, cookieHeader: string | undefined): string | null {
+  const wanted = previewTagFromCookie(cookieHeader);
+  const preview = wanted ? state.previews.find(p => p.tag === wanted) : undefined;
+  return preview?.url || state.candidate?.url || null;
+}
+
+/**
+ * `GET /beta?branch=br-<name>` picks a preview and lands on `/beta/`;
+ * `?branch=candidate` (or empty) goes back to the main candidate. This is the
+ * link an agent puts in its reply, so it has to be a plain GET that anyone
+ * signed in on telarchy.com can open. Mounted before the proxy, so the
+ * published revision answers it itself. Returns true when it handled the
+ * request.
+ */
+export function handleBetaBranchChoice(req: Request, res: Response): boolean {
+  if (req.method !== 'GET') return false;
+  if (req.path !== BETA_PREFIX && req.path !== `${BETA_PREFIX}/`) return false;
+  const raw = req.query.branch;
+  if (typeof raw !== 'string') return false;
+  const value = raw.trim();
+  const base = `${BETA_BRANCH_COOKIE}=`;
+  const attrs = `; Path=${BETA_PREFIX}; SameSite=Lax; Secure; HttpOnly`;
+  if (value === '' || value === 'candidate') {
+    res.setHeader('Set-Cookie', `${base}${attrs}; Max-Age=0`);
+  } else if (!isPreviewTag(value)) {
+    res.status(400).type('text/plain').send('Not a preview tag. Previews are named br-<branch>.');
+    return true;
+  } else {
+    res.setHeader(
+      'Set-Cookie',
+      `${base}${encodeURIComponent(value)}${attrs}; Max-Age=${BETA_BRANCH_COOKIE_DAYS * 86400}`,
+    );
+  }
+  res.setHeader('Cache-Control', 'no-store');
+  res.redirect(302, `${BETA_PREFIX}/`);
+  return true;
+}
+
+/**
+ * Forward one request to the candidate revision (or the branch preview the
+ * cookie names), unchanged apart from the host it lands on.
  *
  * Cookies pass straight through, which is the whole benefit of being on one
  * origin: the session a tester already has on telarchy.com is the session the
@@ -66,7 +143,7 @@ export async function proxyToCandidate(req: Request, res: Response): Promise<boo
     // Only the revision actually serving the site proxies. Without this the
     // candidate would forward /beta to itself, forever.
     if (!state.isServing) return false;
-    target = state.candidate?.url ?? null;
+    target = resolveBetaTarget(state, req.headers.cookie);
   } catch (e) {
     console.error('beta: could not resolve the candidate', e);
     return false;

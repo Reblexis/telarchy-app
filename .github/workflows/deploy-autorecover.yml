@@ -14,6 +14,10 @@ name: Auto-recover the deploy
 # only outlasts a bad runner, it never hides a real failure. Owner ask
 # 2026-08-22: "make it autorecover so it doesn't happen again."
 #
+# Main only: every pushed branch also runs the deploy workflow as a preview
+# (docs/infra/deploy.md, "Branch previews"), and a branch that is simply red
+# would otherwise be rebuilt four more times for nothing.
+#
 # Why this cannot storm the runners: the deploy workflow runs one build at a
 # time (concurrency cloud-run-deploy, cancel-in-progress:false), and a run that
 # loses the concurrency race ends as 'cancelled', not 'failure', so it never
@@ -43,6 +47,7 @@ jobs:
     # ride out.
     if: >-
       github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.run_attempt < 5
     runs-on: ubuntu-latest
     timeout-minutes: 5

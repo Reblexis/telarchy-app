@@ -17,7 +17,15 @@ jest.mock('./harness/test-db', () => require('./harness/test-db'));
 
 import express from 'express';
 import request from 'supertest';
-import { BETA_PREFIX, isBetaPath } from '../lib/beta-surface';
+import {
+  BETA_BRANCH_COOKIE,
+  BETA_PREFIX,
+  handleBetaBranchChoice,
+  isBetaPath,
+  previewTagFromCookie,
+  resolveBetaTarget,
+} from '../lib/beta-surface';
+import type { ReleaseState } from '../services/release';
 
 describe('what counts as the beta', () => {
   test('the prefix itself and everything under it', () => {
@@ -87,5 +95,108 @@ describe('the beta API prefix is stripped before routing', () => {
     expect((await request(app).get('/beta/api/status')).body).toEqual({ ok: true });
     // And a market whose name starts with the prefix is not swallowed.
     expect((await request(app).get('/betamax/api/status')).status).toBe(404);
+  });
+});
+
+/**
+ * Branch previews (docs/infra/deploy.md, "Branch previews"): a cookie names
+ * which tagged revision /beta forwards to. The interesting cases are the ones
+ * where the cookie must NOT win: a retired tag, a malformed value, no
+ * candidate at all.
+ */
+function state(over: Partial<ReleaseState> = {}): ReleaseState {
+  return {
+    serving: 'api-00100-aaa',
+    candidate: { revision: 'api-00101-bbb', url: 'https://candidate---x.run.app' },
+    previews: [
+      { tag: 'br-setup-door-email', revision: 'api-00103-ddd', url: 'https://br-setup-door-email---x.run.app' },
+      { tag: 'br-oss-lane-i', revision: 'api-00102-ccc', url: 'https://br-oss-lane-i---x.run.app' },
+    ],
+    running: 'api-00100-aaa',
+    runningTags: [],
+    isServing: true,
+    error: null,
+    ...over,
+  };
+}
+
+describe('which build /beta forwards to', () => {
+  test('no cookie: the candidate', () => {
+    expect(resolveBetaTarget(state(), undefined)).toBe('https://candidate---x.run.app');
+  });
+
+  test('a cookie naming a preview that exists: that preview', () => {
+    expect(resolveBetaTarget(state(), `${BETA_BRANCH_COOKIE}=br-oss-lane-i`)).toBe('https://br-oss-lane-i---x.run.app');
+    // Among other cookies, with spaces, as browsers send them.
+    expect(resolveBetaTarget(state(), `a=1; ${BETA_BRANCH_COOKIE}=br-setup-door-email; b=2`)).toBe(
+      'https://br-setup-door-email---x.run.app',
+    );
+  });
+
+  test('a cookie naming a retired preview degrades to the candidate, not an error', () => {
+    expect(resolveBetaTarget(state(), `${BETA_BRANCH_COOKIE}=br-gone`)).toBe('https://candidate---x.run.app');
+  });
+
+  test('a preview can be shown even when nothing is waiting on main', () => {
+    expect(resolveBetaTarget(state({ candidate: null }), `${BETA_BRANCH_COOKIE}=br-oss-lane-i`)).toBe(
+      'https://br-oss-lane-i---x.run.app',
+    );
+    expect(resolveBetaTarget(state({ candidate: null }), undefined)).toBeNull();
+  });
+
+  test('only a well-formed br- tag counts as a choice', () => {
+    expect(previewTagFromCookie(`${BETA_BRANCH_COOKIE}=br-oss-lane-i`)).toBe('br-oss-lane-i');
+    expect(previewTagFromCookie(`${BETA_BRANCH_COOKIE}=candidate`)).toBeNull();
+    expect(previewTagFromCookie(`${BETA_BRANCH_COOKIE}=br-Bad_Name`)).toBeNull();
+    expect(previewTagFromCookie(`${BETA_BRANCH_COOKIE}=https://evil`)).toBeNull();
+    expect(previewTagFromCookie(`${BETA_BRANCH_COOKIE}=`)).toBeNull();
+    expect(previewTagFromCookie(undefined)).toBeNull();
+  });
+});
+
+describe('choosing a build with ?branch=', () => {
+  function app() {
+    const a = express();
+    a.use((req, res, next) => {
+      if (handleBetaBranchChoice(req, res)) return;
+      next();
+    });
+    a.all('*', (_req, res) => {
+      res.json({ fellThrough: true });
+    });
+    return a;
+  }
+
+  test('sets the cookie for /beta and lands on /beta/', async () => {
+    const res = await request(app()).get('/beta?branch=br-oss-lane-i');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/beta/');
+    const cookie = String(res.headers['set-cookie']);
+    expect(cookie).toContain(`${BETA_BRANCH_COOKIE}=br-oss-lane-i`);
+    expect(cookie).toContain('Path=/beta');
+    expect(cookie).toContain('SameSite=Lax');
+    expect(cookie).toContain('Secure');
+  });
+
+  test('works on /beta/ as well, and clears with candidate or empty', async () => {
+    const back = await request(app()).get('/beta/?branch=candidate');
+    expect(back.status).toBe(302);
+    expect(String(back.headers['set-cookie'])).toContain('Max-Age=0');
+    const empty = await request(app()).get('/beta?branch=');
+    expect(empty.status).toBe(302);
+    expect(String(empty.headers['set-cookie'])).toContain('Max-Age=0');
+  });
+
+  test('a value that is not a preview tag is refused, never stored', async () => {
+    const res = await request(app()).get('/beta?branch=https://evil.example');
+    expect(res.status).toBe(400);
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
+  test('leaves every other beta request alone', async () => {
+    expect((await request(app()).get('/beta')).body).toEqual({ fellThrough: true });
+    expect((await request(app()).get('/beta/lookpilot?branch=br-x')).body).toEqual({ fellThrough: true });
+    expect((await request(app()).post('/beta?branch=br-x')).body).toEqual({ fellThrough: true });
+    expect((await request(app()).get('/?branch=br-x')).body).toEqual({ fellThrough: true });
   });
 });

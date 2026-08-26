@@ -11,7 +11,7 @@
  * keeping tagged entries so the beta URL survives the publish.
  */
 
-import { publishRevision } from '../services/release';
+import { clearReleaseCache, publishRevision, releaseState, revisionNumber } from '../services/release';
 
 const SERVICE_URL_PART = '/namespaces/telarchy-e0043/services/api';
 
@@ -105,5 +105,68 @@ describe('publishRevision speaks ReplaceService', () => {
       return inner(url, init);
     }) as typeof fetch;
     await expect(publishRevision()).rejects.toThrow(/404/);
+  });
+});
+
+/**
+ * Branch previews (docs/infra/deploy.md, "Branch previews"): a `br-` tagged
+ * revision is listed, newest first, and can never be published. The tag is
+ * the fact that keeps a branch off telarchy.com until it is on main.
+ */
+describe('branch previews', () => {
+  const service = {
+    apiVersion: 'serving.knative.dev/v1',
+    kind: 'Service',
+    metadata: { name: 'api', resourceVersion: 'rv-9' },
+    spec: { traffic: [{ revisionName: 'api-00998-old', percent: 100 }] },
+    status: {
+      traffic: [
+        { revisionName: 'api-00998-old', percent: 100 },
+        { revisionName: 'api-00999-new', tag: 'candidate', url: 'https://candidate---x.run.app' },
+        { revisionName: 'api-01001-bbb', tag: 'br-oss-lane-i', url: 'https://br-oss-lane-i---x.run.app' },
+        { revisionName: 'api-01003-ddd', tag: 'br-setup-door-email', url: 'https://br-setup-door-email---x.run.app' },
+        { revisionName: 'api-01002-ccc', tag: 'br-lane-k', url: 'https://br-lane-k---x.run.app' },
+      ],
+    },
+  };
+
+  test('a preview revision is refused with a reason, and nothing is written', async () => {
+    mockCloudRun(service);
+    process.env.K_REVISION = 'api-01003-ddd';
+    await expect(publishRevision()).rejects.toThrow(/candidate tag/);
+    expect(fetched.some(f => f.init?.method === 'PUT')).toBe(false);
+  });
+
+  test('naming a preview explicitly is refused the same way', async () => {
+    mockCloudRun(service);
+    await expect(publishRevision('api-01001-bbb')).rejects.toThrow(/merging to main/);
+  });
+
+  test('the candidate still publishes, previews keep their tags', async () => {
+    mockCloudRun(service);
+    const result = await publishRevision();
+    expect(result.published).toBe('api-00999-new');
+    const put = fetched.find(f => f.init?.method === 'PUT');
+    const body = JSON.parse(String(put!.init!.body));
+    expect(body.spec.traffic).toContainEqual({ revisionName: 'api-01003-ddd', tag: 'br-setup-door-email' });
+  });
+
+  test('the release lists previews newest first, and says what the running revision is tagged', async () => {
+    mockCloudRun(service);
+    clearReleaseCache();
+    process.env.K_REVISION = 'api-01002-ccc';
+    const state = await releaseState();
+    expect(state.previews.map(p => p.tag)).toEqual(['br-setup-door-email', 'br-lane-k', 'br-oss-lane-i']);
+    expect(state.previews[0].url).toBe('https://br-setup-door-email---x.run.app');
+    expect(state.runningTags).toEqual(['br-lane-k']);
+    expect(state.isServing).toBe(false);
+    expect(state.candidate?.revision).toBe('api-00999-new');
+    clearReleaseCache();
+  });
+
+  test('revision order comes from the counter in the name', () => {
+    expect(revisionNumber('api-00584-fim')).toBe(584);
+    expect(revisionNumber('api-01003-ddd')).toBe(1003);
+    expect(revisionNumber('something-else')).toBe(0);
   });
 });

@@ -5,7 +5,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { auth } from './auth';
 import { currentStoreName, runInBetaStore } from './db/client';
-import { isBetaPath, proxyToCandidate } from './lib/beta-surface';
+import { handleBetaBranchChoice, isBetaPath, proxyToCandidate } from './lib/beta-surface';
 import { corsMiddleware } from './lib/cors';
 import { AppError } from './lib/errors';
 import { HELP } from './lib/help-catalog';
@@ -40,6 +40,7 @@ import { updatesRouter } from './routes/updates';
 import { userauthRouter } from './routes/userauth';
 import { waitlistRouter } from './routes/waitlist';
 import { workspacesRouter } from './routes/workspaces';
+import { runningPreviewTag } from './services/release';
 
 export const app = express();
 
@@ -106,6 +107,10 @@ app.use(express.json());
  */
 app.use(async (req, res, next) => {
   if (!isBetaPath(req.path)) return next();
+  // `/beta?branch=br-<name>` picks which build /beta shows; the published
+  // revision answers it itself, before forwarding anything (docs/infra/
+  // deploy.md, "Branch previews").
+  if (handleBetaBranchChoice(req, res)) return;
   if (await proxyToCandidate(req, res)) return;
   // Nothing to forward to (this IS the candidate, or none is waiting): fall
   // through and serve the beta locally.
@@ -287,13 +292,16 @@ app.use('/api/legal', legalRouter);
 // read. See docs/data-room.md.
 app.use('/api/data-room', dataRoomRouter);
 
-app.get('/api/public-config', (_req, res) => {
+app.get('/api/public-config', async (_req, res) => {
   res.json({
     usdcSettlementEnabled: process.env.USDC_SETTLEMENT_ENABLED === 'true',
     // Which store answered this request (owner ask 2026-08-20). The beta
     // stripe says it out loud, because "am I about to write to the live
     // floor" is the one question a tester must never have to guess at.
     store: currentStoreName(),
+    // Which branch preview answered, if any: the `br-` tag on this revision,
+    // null for the candidate and the published site. The stripe names it.
+    preview: await runningPreviewTag(),
   });
 });
 

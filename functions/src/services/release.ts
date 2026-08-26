@@ -28,18 +28,51 @@ export function currentRevision(): string | null {
   return process.env.K_REVISION || null;
 }
 
+/** The one tag Publish accepts. CI puts it on every green build of main. */
+export const CANDIDATE_TAG = 'candidate';
+/** Every pushed branch lands under `br-<name>` (scripts/preview-tag.sh). */
+export const PREVIEW_TAG_PREFIX = 'br-';
+
+export function isPreviewTag(tag: string): boolean {
+  return /^br-[a-z0-9][a-z0-9-]{0,36}$/.test(tag);
+}
+
+export interface PreviewRevision {
+  tag: string;
+  revision: string;
+  url: string;
+}
+
 export interface ReleaseState {
   /** The revision serving telarchy.com right now, or null if unknown. */
   serving: string | null;
   /** The revision waiting to be published, if it is not the serving one. */
   candidate: { revision: string; url: string } | null;
+  /** Branch previews, newest revision first (docs/infra/deploy.md, "Branch
+   *  previews"). The picker on the beta stripe lists these. */
+  previews: PreviewRevision[];
   /** The revision answering THIS request. */
   running: string | null;
+  /** Every tag pointing at the running revision; `br-...` means this is a
+   *  branch preview and must not offer Publish. */
+  runningTags: string[];
   /** True when the process answering this request is the one serving the
    *  public site, i.e. you are not on the beta. */
   isServing: boolean;
   /** Set when Cloud Run could not be reached at all (local dev, missing IAM). */
   error: string | null;
+}
+
+/** Thrown when a revision without the candidate tag is asked to be published.
+ *  The route turns it into a 409: a branch reaches telarchy.com by merging to
+ *  main, never by being published from the beta. */
+export class PublishRefusedError extends Error {}
+
+/** The counter in a Cloud Run revision name (`api-00584-fim` is 584); 0 when
+ *  the name has another shape. Used to order previews, newest first. */
+export function revisionNumber(name: string): number {
+  const m = /-(\d+)-[a-z0-9]+$/.exec(name);
+  return m ? Number(m[1]) : 0;
 }
 
 /**
@@ -121,11 +154,11 @@ async function computeReleaseState(): Promise<ReleaseState> {
   const running = currentRevision();
   const token = await accessToken();
   if (!token) {
-    return { serving: null, candidate: null, running, isServing: false, error: 'no-metadata-server' };
+    return offline(running, 'no-metadata-server');
   }
   const svc = await fetchService(token);
   if (!svc) {
-    return { serving: null, candidate: null, running, isServing: false, error: 'describe-failed' };
+    return offline(running, 'describe-failed');
   }
   const traffic = svc.status?.traffic ?? [];
   // What the public actually gets: the entry carrying the traffic. A tagged
@@ -133,19 +166,43 @@ async function computeReleaseState(): Promise<ReleaseState> {
   const servingEntry = traffic.find(t => (t.percent ?? 0) > 0 && !t.tag) ?? traffic.find(t => (t.percent ?? 0) > 0);
   const serving = servingEntry?.revisionName ?? null;
 
-  const tagged = traffic.find(t => t.tag === 'candidate');
+  const tagged = traffic.find(t => t.tag === CANDIDATE_TAG);
   const candidate =
     tagged?.revisionName && tagged.revisionName !== serving
       ? { revision: tagged.revisionName, url: tagged.url ?? '' }
       : null;
 
+  const previews: PreviewRevision[] = traffic
+    .filter(t => t.tag?.startsWith(PREVIEW_TAG_PREFIX) && t.revisionName)
+    .map(t => ({ tag: t.tag as string, revision: t.revisionName as string, url: t.url ?? '' }))
+    .sort((a, b) => revisionNumber(b.revision) - revisionNumber(a.revision));
+  const runningTags = running ? traffic.filter(t => t.revisionName === running && t.tag).map(t => t.tag as string) : [];
+
   return {
     serving,
     candidate,
+    previews,
     running,
+    runningTags,
     isServing: !!serving && !!running && serving === running,
     error: null,
   };
+}
+
+function offline(running: string | null, error: string): ReleaseState {
+  return { serving: null, candidate: null, previews: [], running, runningTags: [], isServing: false, error };
+}
+
+/** The `br-` tag on the revision answering this request, or null: the stripe
+ *  names the branch from it. Null off Cloud Run without asking anything. */
+export async function runningPreviewTag(): Promise<string | null> {
+  if (!currentRevision()) return null;
+  try {
+    const state = await releaseState();
+    return state.runningTags.find(t => t.startsWith(PREVIEW_TAG_PREFIX)) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -164,6 +221,18 @@ export async function publishRevision(revision?: string): Promise<{ published: s
 
   const svc = await fetchService(token);
   if (!svc) throw new Error('Could not read the service to publish it');
+
+  // Only the main candidate is publishable. A branch preview carries a `br-`
+  // tag and no `candidate` tag, and publishing it would put a branch on
+  // telarchy.com without it ever touching main (docs/infra/deploy.md, "Branch
+  // previews"). The tag is the fact; the missing button on the stripe is only
+  // the courtesy.
+  const carriesCandidate = (svc.status?.traffic ?? []).some(t => t.revisionName === target && t.tag === CANDIDATE_TAG);
+  if (!carriesCandidate) {
+    throw new PublishRefusedError(
+      `Only the main candidate can be published: ${target} does not carry the candidate tag. A branch reaches telarchy.com by merging to main.`,
+    );
+  }
 
   // Keep the candidate TAG pointing where it points, so the beta URL stays
   // valid after a publish; only the untagged traffic split moves.

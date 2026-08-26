@@ -24,7 +24,7 @@ import { humanVisitFilter } from '../lib/visit-log';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { ACTIVITY_TYPES, type ActivityType, getActivityFeed } from '../services/activity';
-import { publishRevision, releaseState } from '../services/release';
+import { PublishRefusedError, publishRevision, releaseState } from '../services/release';
 
 export const adminRouter = Router();
 
@@ -691,6 +691,7 @@ adminRouter.post(
       console.log('release: published', result.published, 'by', req.auth?.uid ?? req.auth?.agentId ?? 'master-key');
       res.json({ ok: true, ...result });
     } catch (e) {
+      if (e instanceof PublishRefusedError) throw new AppError(e.message, 409);
       throw new AppError((e as Error).message, 502);
     }
   }),

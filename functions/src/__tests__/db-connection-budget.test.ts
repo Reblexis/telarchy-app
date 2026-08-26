@@ -30,3 +30,37 @@ describe('db pool connection budget', () => {
     expect(pool.options.idleTimeoutMillis).toBe(30_000);
   });
 });
+
+/**
+ * A branch preview revision runs with DB_POOL_MAX=1 (docs/infra/deploy.md,
+ * "Branch previews"): one production connection for sessions, one beta
+ * connection for data. The default must not move, and a nonsense value must
+ * fall back to it rather than to pg's 10.
+ */
+describe('DB_POOL_MAX', () => {
+  const orig = process.env.DB_POOL_MAX;
+  afterEach(() => {
+    if (orig === undefined) delete process.env.DB_POOL_MAX;
+    else process.env.DB_POOL_MAX = orig;
+  });
+
+  function poolMaxWith(value: string | undefined): number {
+    if (value === undefined) delete process.env.DB_POOL_MAX;
+    else process.env.DB_POOL_MAX = value;
+    let max = 0;
+    jest.isolateModules(() => {
+      max = (require('../db/client') as typeof import('../db/client')).POOL_MAX;
+    });
+    return max;
+  }
+
+  it('a preview runs a 1-connection pool', () => {
+    expect(poolMaxWith('1')).toBe(1);
+  });
+
+  it('unset, nonsense and zero all mean the default 4', () => {
+    expect(poolMaxWith(undefined)).toBe(4);
+    expect(poolMaxWith('lots')).toBe(4);
+    expect(poolMaxWith('0')).toBe(4);
+  });
+});

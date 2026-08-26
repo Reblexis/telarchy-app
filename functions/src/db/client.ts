@@ -30,8 +30,17 @@ import * as schema from './schema';
  */
 
 /** Per instance: 4 for the live site, plus 1 for the beta if it is ever used.
- *  scale-invariant.test.ts multiplies these by the deployed instance ceiling. */
-export const POOL_MAX = 4;
+ *  scale-invariant.test.ts multiplies these by the deployed instance ceiling.
+ *
+ *  `DB_POOL_MAX` overrides the 4. It is CAPACITY, not store selection (the
+ *  store is still chosen per request in lib/request-env.ts): a branch preview
+ *  revision runs one instance with a 1-connection pool so three of them cost
+ *  the budget 6 rather than 30 (docs/infra/deploy.md, "Branch previews"). It
+ *  is safe as a revision property only because a preview revision can never
+ *  be published (services/release.ts refuses anything without the candidate
+ *  tag), and the main deploy sets it to 4 explicitly on every run. */
+const envPoolMax = Number(process.env.DB_POOL_MAX);
+export const POOL_MAX = Number.isInteger(envPoolMax) && envPoolMax > 0 ? envPoolMax : 4;
 export const BETA_POOL_MAX = 1;
 
 const POOL_OPTIONS = {

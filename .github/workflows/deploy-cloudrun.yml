@@ -8,29 +8,39 @@ name: Deploy backend to Cloud Run
 # The suite runs FIRST and the deploy needs it (owner ask 2026-08-15). A red
 # suite means main simply does not ship; the previous revision keeps serving.
 
+# Every branch deploys (owner ask 2026-08-26, "add support to telarchy.com/beta
+# to view different branches"): main lands as the `candidate`, any other
+# branch as a `br-<name>` preview, both with no traffic. A deleted branch has
+# its preview tag retired. See docs/infra/deploy.md, "Branch previews".
 on:
   push:
-    branches: [main]
+    branches: ['**']
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
-      - '.github/workflows/deploy.yml'        # frontend-only gh-pages job
       - '.github/workflows/telarchy-self-sync.yml'
+  delete: {}
   workflow_dispatch: {}
 
-# A single in-flight deploy at a time, but the in-flight run is never cancelled:
-# it always finishes and lands a candidate (owner ask 2026-08-22, "one that does
-# not stop until a build is finished"). While it runs, a new push is held
-# pending, and GitHub cancels any older pending run so only the NEWEST queued
-# commit waits, then runs next and becomes the new stubborn one. That is the
-# stubborn+chaser design without a dispatcher: forward progress is guaranteed
-# (nothing starves the way cancel-in-progress:true did under heavy churn from
-# many concurrent sessions), and the build that runs next is always the latest.
-# We deliberately do NOT run two builds at once: the runners are the bottleneck
-# (self-hosted, often saturated), and there is a single shared `candidate` tag
-# that two concurrent deploys would clobber.
+# A single in-flight MAIN deploy at a time, but the in-flight run is never
+# cancelled: it always finishes and lands a candidate (owner ask 2026-08-22,
+# "one that does not stop until a build is finished"). While it runs, a new
+# push is held pending, and GitHub cancels any older pending run so only the
+# NEWEST queued commit waits, then runs next and becomes the new stubborn one.
+# That is the stubborn+chaser design without a dispatcher: forward progress is
+# guaranteed (nothing starves the way cancel-in-progress:true did under heavy
+# churn from many concurrent sessions), and the build that runs next is always
+# the latest. Two main builds never run at once: there is a single shared
+# `candidate` tag that two concurrent deploys would clobber.
+#
+# Branch previews get a group PER BRANCH, never this one: a group holds one
+# pending run, so sharing it would let a burst of branch pushes cancel the
+# queued main deploy. Two `gcloud run deploy` calls may then overlap on the
+# service; Cloud Run checks the resourceVersion on write, so the later writer
+# fails rather than overwriting the other's tag, and deploy-autorecover.yml
+# re-runs a failed main deploy. A branch delete gets its own group as well.
 concurrency:
-  group: cloud-run-deploy
+  group: ${{ github.event_name == 'delete' && format('cloud-run-retire-{0}', github.event.ref) || github.ref == 'refs/heads/main' && 'cloud-run-deploy' || format('cloud-run-preview-{0}', github.ref) }}
   cancel-in-progress: false
 
 permissions:
@@ -42,6 +52,7 @@ jobs:
   # failure than the test that would trip over it.
   checks:
     name: Type check and frontend tests
+    if: github.event_name != 'delete'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -66,6 +77,7 @@ jobs:
   # well inside the runner's memory.
   backend:
     name: Backend tests (shard ${{ matrix.shard }}/3)
+    if: github.event_name != 'delete'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -84,6 +96,7 @@ jobs:
 
   deploy:
     needs: [checks, backend]
+    if: github.event_name != 'delete' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # The production environment's deployment-branch rule is main only; its
     # secrets and variables are the managed instance's, never a fork's.
@@ -220,6 +233,13 @@ jobs:
       # so the config is reproducible in code, not only set imperatively on the
       # service (they are merged, so other secrets/env are untouched).
       #
+      # DB_POOL_MAX=4, --min-instances 1 and --max-instances 4 are stated on
+      # every run even though they are the defaults, because `gcloud run
+      # deploy` starts from the previous revision's template: after a branch
+      # preview (one instance, a 1-connection pool) the candidate would
+      # otherwise inherit the preview's values. scale-invariant.test.ts reads
+      # them from this block.
+      #
       # TRUSTED_ORIGINS is the beta's own origin. Without it BetterAuth answers
       # every sign-in there with 403 INVALID_ORIGIN, so nobody can log in on
       # the beta, so nobody sees the Publish button, so nothing can ever be
@@ -241,7 +261,7 @@ jobs:
             --min-instances 1 \
             --max-instances 4 \
             --set-cloudsql-instances ${{ vars.CLOUDSQL_INSTANCE }} \
-            --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app \
+            --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app,DB_POOL_MAX=4 \
             --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest \
             --clear-base-image \
             --quiet
@@ -293,3 +313,224 @@ jobs:
             echo "telarchy.com is still serving the previous build. Press **Publish this build**"
             echo "on the beta when it looks right."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # A branch preview: the same build, landed under a `br-<name>` tag with no
+  # traffic, one instance, a 1-connection pool, migrations against the beta
+  # store only. telarchy.com/beta?branch=<tag> shows it. See docs/infra/
+  # deploy.md, "Branch previews", for the cap, the cookie and the publish
+  # lock (a preview revision can never be published).
+  #
+  # No GitHub environment: `production` allows main only, and everything this
+  # job needs (the GCP variables, the WIF provider) is repository-level.
+  preview:
+    needs: [checks, backend]
+    if: github.event_name != 'delete' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check auth configured
+        id: auth_check
+        env:
+          HAS_SA_KEY: ${{ secrets.GCP_SA_KEY != '' }}
+        run: |
+          if [ "${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}" = "" ] && [ "$HAS_SA_KEY" != "true" ]; then
+            echo "::warning::No GCP auth configured, skipping the preview. See docs/infra/deploy.md."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 'gcloud auth (WIF)'
+        if: steps.auth_check.outputs.skip != 'true' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: 'gcloud auth (SA key)'
+        if: steps.auth_check.outputs.skip != 'true' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER == ''
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        if: steps.auth_check.outputs.skip != 'true'
+        with:
+          project_id: ${{ vars.GCP_PROJECT }}
+
+      - uses: actions/setup-node@v4
+        if: steps.auth_check.outputs.skip != 'true'
+        with:
+          node-version: '22'
+
+      - name: Name the tag
+        id: tag
+        run: |
+          TAG=$(sh scripts/preview-tag.sh "${GITHUB_REF_NAME}")
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Preview tag: $TAG"
+
+      # The beta store only. A branch's schema change belongs to the beta
+      # until the branch is on main; production is migrated by the main
+      # deploy and by nothing else.
+      - name: Apply pending migrations to the beta database
+        if: steps.auth_check.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          PROXY_VERSION=v2.20.0
+          curl -fsSL -o /tmp/cloud-sql-proxy \
+            "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/${PROXY_VERSION}/cloud-sql-proxy.linux.amd64"
+          chmod +x /tmp/cloud-sql-proxy
+          /tmp/cloud-sql-proxy ${{ vars.CLOUDSQL_INSTANCE }} --port=5435 > /tmp/proxy.log 2>&1 &
+          PROXY_PID=$!
+          trap 'kill $PROXY_PID 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            if nc -z 127.0.0.1 5435 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if ! nc -z 127.0.0.1 5435; then
+            echo "cloud-sql-proxy never came up; log:"; cat /tmp/proxy.log; exit 1
+          fi
+          PROD_URL=$(gcloud secrets versions access latest \
+            --secret=DATABASE_URL --project=${{ vars.GCP_PROJECT }})
+          PASSWORD=$(python3 -c "
+          import sys, urllib.parse
+          p = urllib.parse.urlparse('$PROD_URL')
+          print(p.password or '')
+          ")
+          if [ -z "$PASSWORD" ]; then
+            echo "Couldn't parse password from DATABASE_URL"; exit 1
+          fi
+          export DATABASE_URL="postgresql://telarchy:${PASSWORD}@127.0.0.1:5435/telarchy_beta"
+          cd functions
+          npm ci --no-audit --no-fund
+          npx drizzle-kit migrate
+
+      - name: Regenerate the change log
+        if: steps.auth_check.outputs.skip != 'true'
+        run: node scripts/build-changelog.mjs
+
+      # One instance, a 1-connection production pool: the budget in
+      # docs/infra/deploy.md counts 2 connections per preview, 3 previews.
+      - name: Deploy the preview (no traffic)
+        if: steps.auth_check.outputs.skip != 'true'
+        run: |
+          gcloud run deploy api \
+            --source . \
+            --region us-central1 \
+            --no-traffic --tag ${{ steps.tag.outputs.tag }} \
+            --allow-unauthenticated \
+            --memory 512Mi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 1 \
+            --set-cloudsql-instances ${{ vars.CLOUDSQL_INSTANCE }} \
+            --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app,DB_POOL_MAX=1 \
+            --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest \
+            --clear-base-image \
+            --quiet
+
+      - name: Smoke-test the preview revision
+        if: steps.auth_check.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          URL=$(gcloud run services describe api --region us-central1 --format=json \
+            | python3 -c "import sys,json,os; t=json.load(sys.stdin).get('status',{}).get('traffic',[]); print(next((x.get('url','') for x in t if x.get('tag')==os.environ['TAG']), ''))")
+          echo "Preview URL: $URL"
+          [ -n "$URL" ] || { echo "no URL for tag $TAG"; exit 1; }
+          ok=""
+          for _ in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/public-config" || true)
+            echo "  /api/public-config -> $code"
+            if [ "$code" = "200" ]; then ok=1; break; fi
+            sleep 3
+          done
+          [ -n "$ok" ] || { echo "preview failed its smoke test"; exit 1; }
+
+      # Keep the 3 newest previews (by revision number); drop the rest of the
+      # br- tags. `candidate` and the untagged published revision are never
+      # touched. An untagged no-traffic revision keeps no instance warm and
+      # holds no connection, so a retired preview costs nothing.
+      - name: Keep the 3 newest previews
+        if: steps.auth_check.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          DROP=$(gcloud run services describe api --region us-central1 --format=json | python3 -c "
+          import sys, json, re
+          KEEP = 3
+          traffic = json.load(sys.stdin).get('status', {}).get('traffic', [])
+          previews = [t for t in traffic if (t.get('tag') or '').startswith('br-')]
+          def num(name):
+              m = re.search(r'-(\d+)-[a-z0-9]+$', name or '')
+              return int(m.group(1)) if m else 0
+          previews.sort(key=lambda t: num(t.get('revisionName')), reverse=True)
+          print(','.join(t['tag'] for t in previews[KEEP:]))
+          ")
+          if [ -n "$DROP" ]; then
+            echo "Retiring previews past the cap: $DROP"
+            gcloud run services update-traffic api --region us-central1 --remove-tags "$DROP" --quiet
+          else
+            echo "Previews within the cap; nothing retired."
+          fi
+
+      - name: Report the preview
+        if: steps.auth_check.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          {
+            echo "### Branch preview"
+            echo ""
+            echo "Tests passed and this branch is up as a preview with no public traffic."
+            echo ""
+            echo "- <https://telarchy.com/beta?branch=$TAG>"
+            echo ""
+            echo "It reaches telarchy.com only by merging to main."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # A deleted branch loses its preview at once rather than waiting to fall
+  # off the cap.
+  retire:
+    if: github.event_name == 'delete' && github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 'gcloud auth (WIF)'
+        if: vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: 'gcloud auth (SA key)'
+        if: vars.GCP_WORKLOAD_IDENTITY_PROVIDER == ''
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT }}
+
+      - name: Remove the branch's preview tag
+        env:
+          BRANCH: ${{ github.event.ref }}
+        run: |
+          set -euo pipefail
+          TAG=$(sh scripts/preview-tag.sh "$BRANCH")
+          HAS=$(gcloud run services describe api --region us-central1 --format=json \
+            | python3 -c "import sys,json,os; t=json.load(sys.stdin).get('status',{}).get('traffic',[]); print('yes' if any(x.get('tag')==os.environ['TAG'] for x in t) else 'no')")
+          if [ "$HAS" = "yes" ]; then
+            gcloud run services update-traffic api --region us-central1 --remove-tags "$TAG" --quiet
+            echo "Retired $TAG"
+          else
+            echo "No preview tagged $TAG; nothing to retire."
+          fi
