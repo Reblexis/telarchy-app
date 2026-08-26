@@ -716,16 +716,19 @@ export function TradePage() {
   };
 
   // The prediction's own movement: for the baseline, the call vs the call
-  // after its first trade. For a job, the chip shows the impact itself
-  // (approved minus declined), which is the one number the job is about,
-  // and it stays the same whichever branch is on screen.
+  // after its first trade. For a job, the chip shows the impact itself,
+  // stated from the world on screen (owner ask 2026-08-26): approved minus
+  // declined on the approved branch, declined minus approved on the
+  // declined one, so "if declined" reads -7.8 where "if approved" read +7.8.
   const marketOpen = pair ? null : (active?.history.find(p => p.consensus !== null)?.consensus ?? null);
   // Impact is the delta on the floor's one horizon, which is also the only
   // market on screen, so `pair` already IS that pair. Kept as its own name
   // because the ballot passes the same target date and the two must agree.
   const jobImpact =
     pair && pair.approvedConsensus !== null && pair.declinedConsensus !== null
-      ? pair.approvedConsensus - pair.declinedConsensus
+      ? branch === 'declined'
+        ? pair.declinedConsensus - pair.approvedConsensus
+        : pair.approvedConsensus - pair.declinedConsensus
       : null;
   const impactUnit = unit;
   const consensus =
@@ -1391,6 +1394,7 @@ export function TradePage() {
                         },
                       ];
                     })}
+                    impactFrom={branch}
                     legend={
                       selectedJob
                         ? {

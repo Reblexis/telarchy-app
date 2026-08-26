@@ -41,6 +41,9 @@ interface Props {
   corner?: ReactNode;
   /** The centre of the control row: the time left until the market settles. */
   center?: ReactNode;
+  /** Which world the impact label is stated from: '+7.8' on the approved
+   *  branch becomes '-7.8' on the declined one (owner ask 2026-08-26). */
+  impactFrom?: 'approved' | 'declined';
   /** The legend under the chart when a contract is open, in its own words:
    *  "if Jason is paid $80" / "if not" / "the market now". */
   legend?: { approved: string; declined: string } | null;
@@ -164,6 +167,7 @@ export function NumberChart({
   corner,
   center,
   legend = null,
+  impactFrom = 'approved',
   now = new Date(),
   height,
 }: Props) {
@@ -418,7 +422,7 @@ export function NumberChart({
                         if declined {fmt(dc, unit)}
                       </text>
                       <text className="nchart-pair-delta" x={mx + 8} y={(ay + dy) / 2 + 4}>
-                        {ap - dc >= 0 ? '+' : '-'}
+                        {(impactFrom === 'declined' ? dc - ap : ap - dc) >= 0 ? '+' : '-'}
                         {fmt(Math.abs(ap - dc), unit)}
                       </text>
                     </>
