@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, PointerEvent as ReactPointerEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
 /**
@@ -164,6 +164,11 @@ export function NumberChart({
 }: Props) {
   const words = RANGE_WORDS[granularity];
   const [rangeKey, setRangeKey] = useState<string | null>(null);
+  // Hover: the reading in force at the cursor on the past side, the nearest
+  // market's call on the future side (owner ask: "when i hover over it i
+  // should see the value").
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [cursor, setCursor] = useState<number | null>(null);
   // The automatic window is the first range word of the granularity; the
   // key resets when the selected market changes so a new date opens on its
   // own default window.
@@ -210,8 +215,52 @@ export function NumberChart({
   const last = drawn[drawn.length - 1];
   const lastX = last ? x(new Date(last.at).getTime()) : 0;
   const holdX = Math.min(x(nowT), W - PAD_R);
-  const beyondLeft = markers.some(m => new Date(m.resolvesOn).getTime() < x0);
-  const beyondRight = markers.some(m => new Date(m.resolvesOn).getTime() > x1);
+  const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+    const box = svgRef.current?.getBoundingClientRect();
+    if (!box || box.width === 0) return;
+    const px = ((e.clientX - box.left) / box.width) * W;
+    const t = x0 + ((px - PAD_L) / (W - PAD_L - PAD_R)) * (x1 - x0);
+    setCursor(Math.max(x0, Math.min(x1, t)));
+  };
+  const onLeave = () => setCursor(null);
+  // What the cursor is over: a reading in force, or a market's call.
+  let tip: { x: number; y: number; date: string; label: string; value: string } | null = null;
+  if (cursor !== null) {
+    if (cursor <= nowT) {
+      const inForce = points.filter(p => new Date(p.at).getTime() <= cursor).pop();
+      if (inForce) {
+        tip = {
+          x: x(cursor),
+          y: y(inForce.value),
+          date: new Date(cursor).toLocaleString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'UTC',
+          }),
+          label: 'reading',
+          value: fmt(inForce.value, unit),
+        };
+      }
+    } else {
+      const near = inWindow
+        .filter(m => m.consensus !== null)
+        .sort(
+          (a, b) =>
+            Math.abs(new Date(a.resolvesOn).getTime() - cursor) - Math.abs(new Date(b.resolvesOn).getTime() - cursor),
+        )[0];
+      if (near && near.consensus !== null) {
+        tip = {
+          x: x(new Date(near.resolvesOn).getTime()),
+          y: y(near.consensus),
+          date: dayLabel(new Date(near.resolvesOn).getTime()),
+          label: near.selected ? 'the market says' : 'another market says',
+          value: fmt(near.consensus, unit),
+        };
+      }
+    }
+  }
 
   return (
     <div className="mchart nchart">
@@ -234,7 +283,16 @@ export function NumberChart({
           })}
         </span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label="The number and the market's calls">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        height={H}
+        role="img"
+        aria-label="The number and the market's calls"
+        onPointerMove={onMove}
+        onPointerLeave={onLeave}
+      >
         {ticks.map(t => (
           <g key={t}>
             <line className="mchart-grid" x1={PAD_L} x2={W - PAD_R} y1={y(t)} y2={y(t)} />
@@ -280,20 +338,24 @@ export function NumberChart({
             </g>
           );
         })}
-        {beyondLeft && (
-          <text className="nchart-beyond" x={PAD_L + 2} y={(PAD_T + H - PAD_B) / 2}>
-            ‹
-          </text>
-        )}
-        {beyondRight && (
-          <text className="nchart-beyond" x={W - PAD_R + 6} y={(PAD_T + H - PAD_B) / 2}>
-            ›
-          </text>
+        {tip && (
+          <g className="mchart-cross">
+            <line x1={tip.x} x2={tip.x} y1={PAD_T - 6} y2={H - PAD_B + 6} />
+            <circle className="mchart-cross-mkt" cx={tip.x} cy={tip.y} r={4} />
+          </g>
         )}
         <text className="mchart-xlabel" x={PAD_L + 20} y={H - 8}>
           {dayLabel(x0)}
         </text>
       </svg>
+      {tip && (
+        <div className={`mchart-tip${tip.x > W * 0.6 ? ' is-right' : ''}`} style={{ left: `${(tip.x / W) * 100}%` }}>
+          <div className="mchart-tip-date">{tip.date}</div>
+          <div>
+            {tip.label} <span className="mchart-tip-v">{tip.value}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

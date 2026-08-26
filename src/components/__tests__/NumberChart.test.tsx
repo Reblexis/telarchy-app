@@ -66,9 +66,8 @@ describe('the markers', () => {
     const selected = container.querySelectorAll('.nchart-marker.is-selected');
     expect(selected.length).toBe(1);
     expect(selected[0].textContent).toContain('6');
-    // Week and September lie beyond a two-day window: one chevron at the right edge.
-    expect(container.querySelectorAll('.nchart-beyond').length).toBe(1);
-    expect(container.querySelector('.nchart-beyond')?.textContent).toBe('›');
+    // Week and September lie beyond a two-day window and are simply not drawn.
+    expect(container.querySelectorAll('.nchart-marker').length).toBe(1);
   });
 
   test('with September selected the near markers are in the window, unlabeled and grey', () => {
@@ -84,7 +83,6 @@ describe('the markers', () => {
     );
     expect(container.querySelectorAll('.nchart-marker').length).toBe(3);
     expect(container.querySelectorAll('.nchart-marker text').length).toBe(1);
-    expect(container.querySelectorAll('.nchart-beyond').length).toBe(0);
   });
 
   test("the range words are the granularity's", () => {

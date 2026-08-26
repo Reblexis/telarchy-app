@@ -4031,7 +4031,6 @@ textarea.jobform-line--desc {
 .nchart-marker.is-selected line { stroke: var(--accent); opacity: 1; }
 .nchart-marker.is-selected circle { fill: var(--accent); stroke: var(--bg-primary); stroke-width: 2; opacity: 1; }
 .nchart-marker text { fill: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
-.nchart-beyond { fill: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; font-size: 14px; }
 
 /* A resting order, drawn where it sits in the price. Faint enough to stay
    behind the market line, legible enough to prove the order is real. */
@@ -4165,6 +4164,7 @@ textarea.jobform-line--desc {
 
 .mchart-tip.is-right { transform: translateX(calc(-100% - 10px)); }
 
+.nchart { position: relative; }
 .mchart-tip-date {
   font-weight: 600;
   color: var(--text-primary);

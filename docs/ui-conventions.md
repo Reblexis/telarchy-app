@@ -420,8 +420,10 @@ this rule exists to prevent. The slot opens on the market.
   segments with a dot at each reading and a dashed hold from the last one
   to now (the value in force); a step line read as a staircase. **It is about the market on
   screen**: the selected market's marker is amber and labeled; the others
-  are grey and unlabeled, and one that falls outside the window is a grey
-  chevron at the edge it lies beyond. **The window follows the selected
+  are grey and unlabeled, and one that falls outside the window is simply
+  not drawn. Hovering shows the reading in force at the cursor with its
+  date on the past side, and the nearest market's call on the future side,
+  in the same crosshair and tooltip the market view uses. **The window follows the selected
   horizon** rather than stretching to show every marker: roughly two days
   for a day market, a week for a week market, a month for anything further,
   always ending at the selected settle instant; the range chips
