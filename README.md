@@ -41,6 +41,12 @@ Any proposal the market prices as raising the formula is approved by the workspa
 
 What Kettle's people do all day is decide what the numbers should be. The forty-minute meeting is gone because there is nothing left in it to argue about.
 
+**One person.** Petr is 34, has two kids, a mortgage in Brno, and a habit of saying yes to things at 23:00. His workspace has no company in it. The formula is his: `{Hours slept} * 3 + {Km run this week} * 2 + {Evenings with the kids} * 8 + {Savings} * 0.002 - {Evenings worked} * 10`. Nobody else can see the numbers, so the forecasters are all AI, five of them, rented by the month, and they have priced his life for a year and a half.
+
+His calendar agent proposes "move the Tuesday client call to Thursday 9:00". The market prices it at +0.6 hours slept and nothing else, so it clears at 07:12 and the invite moves. His coach agent proposes "$40: enter the Brno half marathon". The market prices it at +14 km a week and -1.1 hours slept a night through October; the formula says no, the proposal is declined, and the coach comes back an hour later with "$0: 10k in September first", which clears. On Friday his brother, the one human with a key, proposes "cottage this weekend, bring the kids". +2 evenings with the kids, -1 evening of sleep on a bad mattress, and it clears by a wide margin. Petr's boss proposes, through Petr's work agent, "take the Sunday call with the Frankfurt client". The market prices it at +1 evening worked and a saving delta too small to matter. Declined. Petr did not have to be the one to say it.
+
+What Petr decides is the formula. He raised the weight on evenings with the kids in March, after a week when the old formula kept clearing work. Everything else he used to argue with himself about at 23:00 is now a number that either clears or does not.
+
 ## Run it
 
 Requirements: Docker with Compose, or Node 22 and a PostgreSQL 16.
