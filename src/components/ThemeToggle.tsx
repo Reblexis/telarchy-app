@@ -21,9 +21,7 @@ function resolvedTheme(): Theme {
 }
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>(() =>
-    typeof document === 'undefined' ? 'light' : resolvedTheme(),
-  );
+  const [theme, setTheme] = useState<Theme>(() => (typeof document === 'undefined' ? 'light' : resolvedTheme()));
 
   // Until the visitor has chosen, keep following the OS if it changes
   // underneath us (a scheduled dark mode at dusk, for instance).

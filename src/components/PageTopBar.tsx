@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Logo } from './Logo';
-import { TopBarAuth } from './TopBarAuth';
 import { ThemeToggle } from './ThemeToggle';
+import { TopBarAuth } from './TopBarAuth';
 
 /**
  * The top bar every page that is not a market wears.
