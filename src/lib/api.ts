@@ -1054,7 +1054,10 @@ export const api = {
     request('/api/admin/release') as Promise<{
       serving: string | null;
       candidate: { revision: string; url: string } | null;
+      /** Branch previews, newest first; the stripe's picker lists them. */
+      previews: Array<{ tag: string; revision: string; url: string }>;
       running: string | null;
+      runningTags: string[];
       isServing: boolean;
       error: string | null;
     }>,
@@ -1124,7 +1127,9 @@ export const api = {
 
   /** The handful of flags a page needs before it knows who is looking:
    *  which store this build reads, and whether signups are open. */
-  getPublicConfig: (): Promise<{ store?: string }> => request('/api/public-config'),
+  /** `preview` is the `br-` tag of the branch preview that answered, or null
+   *  on the candidate and the published site (docs/infra/deploy.md). */
+  getPublicConfig: (): Promise<{ store?: string; preview?: string | null }> => request('/api/public-config'),
 
   /** The served index.html, for the stale-tab check: a tab compares the
    *  bundle the server references now with the one it is running. Not an API

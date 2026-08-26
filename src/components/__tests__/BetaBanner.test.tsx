@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
@@ -13,7 +13,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const getRelease = vi.fn(async () => ({
   serving: 'api-00380',
   candidate: { revision: 'api-00381', url: 'https://candidate---api.run.app' },
+  previews: [] as Array<{ tag: string; revision: string; url: string }>,
   running: 'api-00381',
+  runningTags: ['candidate'],
   isServing: false,
   error: null,
 }));
@@ -21,7 +23,9 @@ const publishRelease = vi.fn(async () => ({ ok: true }));
 /** Which store this build writes to, read through the api client like every
  *  other call the frontend makes (AGENTS.md, "Frontend goes through the
  *  public API"). */
-const getPublicConfig = vi.fn(async () => ({ store: 'production' }));
+const getPublicConfig = vi.fn(
+  async (): Promise<{ store: string; preview?: string | null }> => ({ store: 'production' }),
+);
 
 vi.mock('../../lib/api', () => ({
   api: {
@@ -37,11 +41,12 @@ vi.mock('../../lib/api', () => ({
 let mockUser: { id: string } | null = { id: 'user-admin' };
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: mockUser, loading: false }) }));
 
-import { BetaBanner, isPublishedOrigin } from '../BetaBanner';
+import { BetaBanner, isPublishedOrigin, previewLabel } from '../BetaBanner';
 
+const assigned: string[] = [];
 function setHost(hostname: string, pathname = '/') {
   Object.defineProperty(window, 'location', {
-    value: { ...window.location, hostname, pathname },
+    value: { ...window.location, hostname, pathname, assign: (u: string) => assigned.push(u) },
     writable: true,
   });
 }
@@ -53,6 +58,7 @@ beforeEach(() => {
   getPublicConfig.mockClear();
   getPublicConfig.mockResolvedValue({ store: 'production' });
   mockUser = { id: 'user-admin' };
+  assigned.length = 0;
 });
 afterEach(() => {
   Object.defineProperty(window, 'location', { value: realLocation, writable: true });
@@ -220,5 +226,92 @@ describe('the store the beta writes to', () => {
     render(<BetaBanner />);
     const tag = await screen.findByText('LIVE database');
     expect(tag.className).toContain('is-live');
+  });
+});
+
+/**
+ * Branch previews (docs/infra/deploy.md, "Branch previews"): the stripe names
+ * the branch, never offers Publish on one, and on telarchy.com/beta gives an
+ * admin a picker that switches builds through `?branch=`.
+ */
+describe('a branch preview', () => {
+  const release = {
+    serving: 'api-00380',
+    candidate: { revision: 'api-00381', url: 'https://candidate---api.run.app' },
+    previews: [
+      { tag: 'br-setup-door-email', revision: 'api-00390', url: 'https://x' },
+      { tag: 'br-oss-lane-i', revision: 'api-00385', url: 'https://y' },
+    ],
+    running: 'api-00390',
+    runningTags: ['br-setup-door-email'],
+    isServing: false,
+    error: null,
+  };
+
+  test('names the branch and never offers Publish', async () => {
+    setHost('telarchy.com', '/beta/');
+    getPublicConfig.mockResolvedValue({ store: 'beta', preview: 'br-setup-door-email' });
+    getRelease.mockResolvedValue(release);
+    render(<BetaBanner />);
+    expect(await screen.findByText('branch setup-door-email')).toBeTruthy();
+    await waitFor(() => expect(getRelease).toHaveBeenCalled());
+    expect(await screen.findByText(/merging to main/)).toBeTruthy();
+    expect(screen.queryByText('Publish this build')).toBeNull();
+    expect(screen.queryByText(/still serving the previous build/)).toBeNull();
+  });
+
+  test('the main candidate still says nothing about a branch', async () => {
+    setHost('telarchy.com', '/beta/');
+    getPublicConfig.mockResolvedValue({ store: 'beta', preview: null });
+    render(<BetaBanner />);
+    await waitFor(() => expect(screen.getByText('Publish this build')).toBeTruthy());
+    expect(screen.queryByText(/^branch /)).toBeNull();
+  });
+
+  test('an admin on telarchy.com/beta gets a picker, and choosing goes through ?branch=', async () => {
+    setHost('telarchy.com', '/beta/lookpilot');
+    getPublicConfig.mockResolvedValue({ store: 'beta', preview: null });
+    getRelease.mockResolvedValue(release);
+    render(<BetaBanner />);
+    const pick = (await screen.findByLabelText('Which build the beta shows')) as HTMLSelectElement;
+    expect([...pick.options].map(o => o.textContent)).toEqual(['main candidate', 'setup-door-email', 'oss-lane-i']);
+    expect(pick.value).toBe('candidate');
+    fireEvent.change(pick, { target: { value: 'br-oss-lane-i' } });
+    expect(assigned).toEqual(['/?branch=br-oss-lane-i']);
+  });
+
+  test('on a preview the picker shows that preview as chosen', async () => {
+    setHost('telarchy.com', '/beta/');
+    getPublicConfig.mockResolvedValue({ store: 'beta', preview: 'br-oss-lane-i' });
+    getRelease.mockResolvedValue(release);
+    render(<BetaBanner />);
+    const pick = (await screen.findByLabelText('Which build the beta shows')) as HTMLSelectElement;
+    await waitFor(() => expect(pick.value).toBe('br-oss-lane-i'));
+  });
+
+  test('no picker without the release (not an admin): the label still names the branch', async () => {
+    setHost('telarchy.com', '/beta/');
+    getPublicConfig.mockResolvedValue({ store: 'beta', preview: 'br-oss-lane-i' });
+    getRelease.mockRejectedValueOnce(new Error('403'));
+    render(<BetaBanner />);
+    expect(await screen.findByText('branch oss-lane-i')).toBeTruthy();
+    await waitFor(() => expect(getRelease).toHaveBeenCalled());
+    expect(await screen.findByText(/merging to main/)).toBeTruthy();
+    expect(screen.queryByLabelText('Which build the beta shows')).toBeNull();
+  });
+
+  test("no picker on a revision's direct run.app URL, where ?branch= has nobody to answer it", async () => {
+    setHost('br-oss-lane-i---api-ksc7usrtbq-uc.a.run.app', '/');
+    getPublicConfig.mockResolvedValue({ store: 'beta', preview: 'br-oss-lane-i' });
+    getRelease.mockResolvedValue(release);
+    render(<BetaBanner />);
+    expect(await screen.findByText('branch oss-lane-i')).toBeTruthy();
+    await waitFor(() => expect(getRelease).toHaveBeenCalled());
+    expect(screen.queryByLabelText('Which build the beta shows')).toBeNull();
+  });
+
+  test('the label drops the tag prefix', () => {
+    expect(previewLabel('br-setup-door-email')).toBe('setup-door-email');
+    expect(previewLabel('candidate')).toBe('candidate');
   });
 });

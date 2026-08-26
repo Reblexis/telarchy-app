@@ -7170,6 +7170,27 @@ textarea.jobform-line--desc {
 .betabar-store.is-live { opacity: 1; font-weight: 700; }
 
 .betabar-text { flex: 1; min-width: 12rem; }
+/* A branch preview says which branch, and the admin's picker sits beside
+   it: the same pill as the store tag, a native select so it works on a
+   phone without a menu of our own. */
+.betabar-branch {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.12);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.betabar-pick {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.55);
+  color: inherit;
+  max-width: 14rem;
+}
 
 .betabar-go {
   padding: 0.3rem 0.9rem;

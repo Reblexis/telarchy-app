@@ -17,16 +17,41 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
+import { withBase } from '../lib/base-path';
 
 /** The one origin that is the real site. Everything else wears the stripe. */
 const PUBLIC_ORIGIN = 'telarchy.com';
 
+function onPublicHost(): boolean {
+  const h = window.location.hostname;
+  return h === PUBLIC_ORIGIN || h === `www.${PUBLIC_ORIGIN}`;
+}
+
+function underBetaPath(): boolean {
+  return window.location.pathname === '/beta' || window.location.pathname.startsWith('/beta/');
+}
+
 export function isPublishedOrigin(): boolean {
   if (typeof window === 'undefined') return true;
-  const h = window.location.hostname;
-  const onPublicHost = h === PUBLIC_ORIGIN || h === `www.${PUBLIC_ORIGIN}`;
-  const underBeta = window.location.pathname === '/beta' || window.location.pathname.startsWith('/beta/');
-  return onPublicHost && !underBeta;
+  return onPublicHost() && !underBetaPath();
+}
+
+/** telarchy.com/beta itself, where `?branch=` is answered by the published
+ *  revision and so the picker can do something. On a revision's direct URL
+ *  the choice has nobody to make it. */
+function onRealDomainBeta(): boolean {
+  if (typeof window === 'undefined') return false;
+  return onPublicHost() && underBetaPath();
+}
+
+/** The branch a `br-` tag names, for the stripe. */
+export function previewLabel(tag: string): string {
+  return tag.startsWith('br-') ? tag.slice(3) : tag;
+}
+
+/** The `?branch=` link that switches telarchy.com/beta to a build. */
+function chooseBuild(tag: string): void {
+  window.location.assign(withBase(`/?branch=${encodeURIComponent(tag)}`));
 }
 
 export function BetaBanner() {
@@ -48,6 +73,15 @@ export function BetaBanner() {
   // one question a tester must never have to guess at, and because a beta
   // that quietly shares production is exactly what this stripe used to mean.
   const [store, setStore] = useState<'beta' | 'production' | null>(null);
+  // Which build this is: the `br-` tag of a branch preview, or null for the
+  // main candidate (docs/infra/deploy.md, "Branch previews"). A preview never
+  // offers Publish: it reaches telarchy.com by merging to main, and the
+  // server refuses anyway; the stripe just does not pretend.
+  const [preview, setPreview] = useState<string | null>(null);
+  // The previews CI has up, for the picker. Admin only (it comes with the
+  // release, and without the list there is nothing to pick from), and only
+  // where choosing works.
+  const [previews, setPreviews] = useState<Array<{ tag: string }>>([]);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [err, setErr] = useState('');
@@ -56,7 +90,10 @@ export function BetaBanner() {
     if (isPublishedOrigin()) return;
     api
       .getPublicConfig()
-      .then(c => setStore(c.store === 'beta' ? 'beta' : 'production'))
+      .then(c => {
+        setStore(c.store === 'beta' ? 'beta' : 'production');
+        setPreview(c.preview ?? null);
+      })
       .catch(e => console.error('public-config fetch failed:', e));
   }, []);
 
@@ -76,12 +113,16 @@ export function BetaBanner() {
       .then(r => {
         setCanPublish(!r.isServing);
         setWaiting(r.isServing ? 'no' : 'yes');
+        setPreviews(r.previews ?? []);
       })
       .catch(() => {
         setCanPublish(false);
         setWaiting('unknown');
       });
   }, [user]);
+
+  const isPreview = preview !== null;
+  const canPick = onRealDomainBeta() && previews.length > 0;
 
   if (isPublishedOrigin()) return null;
 
@@ -102,6 +143,29 @@ export function BetaBanner() {
   return (
     <div className="betabar" role="status">
       <span className="betabar-label">Beta</span>
+      {isPreview && (
+        <span className="betabar-branch" title={`Branch preview, tag ${preview}`}>
+          branch {previewLabel(preview)}
+        </span>
+      )}
+      {canPick && (
+        <select
+          className="betabar-pick"
+          aria-label="Which build the beta shows"
+          value={preview ?? 'candidate'}
+          onChange={e => chooseBuild(e.target.value)}
+        >
+          <option value="candidate">main candidate</option>
+          {previews.map(p => (
+            <option key={p.tag} value={p.tag}>
+              {previewLabel(p.tag)}
+            </option>
+          ))}
+          {isPreview && !previews.some(p => p.tag === preview) && (
+            <option value={preview}>{previewLabel(preview)}</option>
+          )}
+        </select>
+      )}
       {/* "data" rather than "database", because only half of it is separate.
           The auth client is pinned to the origin's /api/auth (auth-client.ts),
           which is what makes Google login work on the real domain and is why
@@ -124,13 +188,15 @@ export function BetaBanner() {
       )}
       <span className="betabar-text">
         {note ||
-          (waiting === 'yes'
-            ? 'Not published. telarchy.com is still serving the previous build.'
-            : waiting === 'no'
-              ? 'Nothing is waiting. This is the build telarchy.com is serving.'
-              : 'The beta build. What telarchy.com serves may differ.')}
+          (isPreview
+            ? 'A branch preview. It reaches telarchy.com by merging to main.'
+            : waiting === 'yes'
+              ? 'Not published. telarchy.com is still serving the previous build.'
+              : waiting === 'no'
+                ? 'Nothing is waiting. This is the build telarchy.com is serving.'
+                : 'The beta build. What telarchy.com serves may differ.')}
       </span>
-      {canPublish && !note && (
+      {canPublish && !isPreview && !note && (
         <button
           className="betabar-go"
           disabled={busy}
