@@ -525,7 +525,9 @@ jobs:
           BRANCH: ${{ github.event.ref }}
         run: |
           set -euo pipefail
-          TAG=$(sh scripts/preview-tag.sh "$BRANCH")
+          # Exported: the python below reads it from the environment (the
+          # first live retire, 2026-08-26, died on a KeyError here).
+          export TAG=$(sh scripts/preview-tag.sh "$BRANCH")
           HAS=$(gcloud run services describe api --region us-central1 --format=json \
             | python3 -c "import sys,json,os; t=json.load(sys.stdin).get('status',{}).get('traffic',[]); print('yes' if any(x.get('tag')==os.environ['TAG'] for x in t) else 'no')")
           if [ "$HAS" = "yes" ]; then
