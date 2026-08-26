@@ -447,7 +447,11 @@ this rule exists to prevent. The slot opens on the market.
   the others show the pair small and grey. A one-line legend under the
   chart says it in the contract's words ("if Jason is paid $80" / "if not"
   / "the market now"). Whichever branch the markets price higher sits on
-  top. The number view honours the actual-vs-forecast rule below: a resetting
+  top. The impact is stated from the world on screen, on the chart and in
+  the chip beside the price alike: "+7.8" with "if approved" selected is
+  "-7.8" with "if declined" selected, because the number answers "what does
+  this world do to the metric compared with the other one". The number
+  view honours the actual-vs-forecast rule below: a resetting
   metric shows only its own period. It animates as the market view does:
   the readings line draws itself with the same keyframes and timing, and
   the dots, markers and hold appear after it (none of it under reduced

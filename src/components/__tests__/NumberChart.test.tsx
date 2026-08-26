@@ -190,3 +190,71 @@ describe('hover on a marker with a contract open', () => {
     expect(tip).toContain('if declined 19.5');
   });
 });
+
+describe('a contract open', () => {
+  const withPairs = [
+    {
+      marketId: 'today',
+      resolvesOn: '2026-08-26T00:00:00Z',
+      consensus: 6,
+      selected: false,
+      pair: { approved: 6.2, declined: 6 },
+    },
+    {
+      marketId: 'sep',
+      resolvesOn: '2026-10-01T00:00:00Z',
+      consensus: 19.8,
+      selected: true,
+      pair: { approved: 21, declined: 19.5 },
+    },
+  ];
+
+  test('every marker in the window carries the pair; only the selected one is labeled with the impact', () => {
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={withPairs}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+        legend={{ approved: 'if Jason is paid $80', declined: 'if not' }}
+      />,
+    );
+    expect(container.querySelectorAll('.nchart-pair').length).toBe(2);
+    expect(container.querySelectorAll('.nchart-pair-label').length).toBe(2);
+    const sel = container.querySelector('.nchart-marker.is-selected')!;
+    expect(sel.textContent).toContain('if approved 21');
+    expect(sel.textContent).toContain('if declined 19.5');
+    expect(sel.textContent).toContain('+1.5');
+    expect(sel.textContent).toContain('19.8 now');
+    expect(container.querySelector('.nchart-legend')?.textContent).toContain('if Jason is paid $80');
+  });
+
+  test('the impact is stated from the world on screen: declined flips the sign', () => {
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={withPairs}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+        impactFrom="declined"
+      />,
+    );
+    expect(container.querySelector('.nchart-pair-delta')?.textContent).toBe('-1.5');
+  });
+
+  test('no contract, no pair and no legend', () => {
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={withPairs.map(m => ({ ...m, pair: null }))}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+      />,
+    );
+    expect(container.querySelectorAll('.nchart-pair').length).toBe(0);
+    expect(container.querySelector('.nchart-legend')).toBeNull();
+  });
+});

@@ -2,6 +2,10 @@
 
 Records evicted from docs/ui-conventions.md on 2026-08-25; the doc states the resulting rules in present tense. Entries headed "When in doubt" sat in the revision log that followed that section. Verbatim, newest first.
 
+## 2026-08-26: The impact is stated from the branch on screen
+
+Owner: "if I pick the opposite option, so for example if declined, it should turn the things opposite [...] Outcome is +7.8, so if I click the 'if declined' button, then it should show -7.8, and not just on the graph but also [...] next to the big number showing the current market prediction." This revises the earlier rule that the chip "stays the same whichever branch is on screen".
+
 ## 2026-08-26: The contract pair on the number view
 
 Owner: "in the conditional markets in the nujmber graph visualization you can show the if approved an ddeclined points there too above and below green and red", then "do it" on the canvas draft (NumberContract artboard).
