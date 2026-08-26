@@ -997,3 +997,18 @@ describe('the floor pins its own workspace context', () => {
     await waitFor(() => expect(vi.mocked(setActiveWorkspace)).toHaveBeenCalledWith('ws-1'));
   });
 });
+
+describe('what a market says about itself, and what a position is worth', () => {
+  test('the facts row prints traders, pool and volume from the payload', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.markets = ws.markets.map(m => ({ ...m, traderCount: 12, tradedVolume: 5310, liquidity: 2000 }));
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-facts')).toBeTruthy());
+    const text = container.querySelector('.pubws-facts')!.textContent ?? '';
+    expect(text).toContain('12 traders');
+    expect(text).toContain('2,000 cr in the pool');
+    expect(text).toContain('5,310 cr traded');
+  });
+});

@@ -217,7 +217,7 @@ export function TradeTicket({
       const price = dir === 'higher' ? p : 1 - p;
       if (price <= 0.001) return null;
       const shares = amountNum / price;
-      return { breakeven: limitNum, slope: (shares * step) / span };
+      return { breakeven: limitNum, slope: (shares * step) / span, maxPayout: shares, spend: amountNum };
     }
     if (!composed || composed.shares <= 0 || amountNum <= 0) return null;
     // A typed target spends its computed cost, not the whole budget ceiling.
@@ -225,7 +225,9 @@ export function TradeTicket({
     if (spend <= 0) return null;
     const avg = spend / composed.shares;
     const breakeven = dir === 'higher' ? rangeMin + avg * span : rangeMin + (1 - avg) * span;
-    return { breakeven, slope: (composed.shares * step) / span };
+    // The most this bet can pay (one credit per share, if the number lands
+    // at the range's own edge) and that as a return on the spend.
+    return { breakeven, slope: (composed.shares * step) / span, maxPayout: composed.shares, spend };
   })();
 
   useEffect(() => {
@@ -633,6 +635,24 @@ export function TradeTicket({
                   <span className="ticket-fact-v">
                     {unit}
                     {fmtValue(winFacts.breakeven)}
+                  </span>
+                </div>
+                <div className="ticket-fact">
+                  <span
+                    className="ticket-fact-k"
+                    title={`One credit per share if the number lands at the ${dir === 'higher' ? 'top' : 'bottom'} of the range; less in between`}
+                  >
+                    Up to
+                  </span>
+                  <span className="ticket-fact-v">
+                    {fmt(winFacts.maxPayout)} cr{' '}
+                    <span className="ticket-fact-d is-up">
+                      +
+                      {Math.round(
+                        winFacts.spend > 0 ? ((winFacts.maxPayout - winFacts.spend) / winFacts.spend) * 100 : 0,
+                      )}
+                      %
+                    </span>
                   </span>
                 </div>
                 <div className="ticket-fact">

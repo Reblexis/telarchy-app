@@ -386,6 +386,14 @@ async function buildFloorPayload(ws: PublicWs) {
     .where(eq(metrics.workspaceId, workspaceId));
   const metricById = new Map(metricRows.map(r => [r.id, r]));
 
+  // Who has traded each market, for the floor's facts row ("12 traders").
+  const traderRows = await db
+    .select({ marketId: trades.marketId, n: sql<number>`count(distinct ${trades.agentId})::int` })
+    .from(trades)
+    .where(eq(trades.workspaceId, workspaceId))
+    .groupBy(trades.marketId);
+  const tradersByMarket = new Map(traderRows.map(r => [r.marketId, r.n]));
+
   const marketList = wsMarkets
     .filter(m => !m.proposalId)
     .map(m => {
@@ -394,6 +402,10 @@ async function buildFloorPayload(ws: PublicWs) {
         marketId: m.id,
         metricId: m.metricId,
         metricName: m.metricName,
+        // The market's facts (docs/ui-conventions.md, "What a market says
+        // about itself"): how many distinct traders, and credits traded.
+        traderCount: tradersByMarket.get(m.id) ?? 0,
+        tradedVolume: m.tradedVolume,
         // The headline tie-breaker and the metric stepper's order, so the
         // client computes the same primary the server did.
         metricOrder: metricById.get(m.metricId)?.order ?? null,

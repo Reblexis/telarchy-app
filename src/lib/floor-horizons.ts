@@ -58,6 +58,9 @@ export interface HorizonView {
   consensus: number | null;
   probability: number;
   liquidity: number;
+  /** Distinct traders and credits traded, for the facts row; absent on older payloads. */
+  traderCount: number | null;
+  tradedVolume: number | null;
   rangeMin: number;
   rangeMax: number;
   /** The metric's own readings, oldest first. */
@@ -220,6 +223,8 @@ export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: D
       consensus: m.consensus,
       probability: m.probability,
       liquidity: m.liquidity,
+      traderCount: m.traderCount ?? null,
+      tradedVolume: m.tradedVolume ?? null,
       rangeMin: m.rangeMin,
       rangeMax: m.rangeMax,
       metricHistory: (row?.points ?? [])

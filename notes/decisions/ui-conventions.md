@@ -2,6 +2,10 @@
 
 Records evicted from docs/ui-conventions.md on 2026-08-25; the doc states the resulting rules in present tense. Entries headed "When in doubt" sat in the revision log that followed that section. Verbatim, newest first.
 
+## 2026-08-26: Market facts and the position's worth, from Manifold
+
+Owner, with three Manifold screenshots (the header's traders/liquidity/volume, the position box Payout/Spent/Profit/Expected value, the bet panel's "To win M36 +23%"): "im missing this info from markets [...] idk what all this means.. first look at manifold code to see what means what then add what would be good to telarchy too". Read from manifold's source: contract-summary-stats (uniqueBettorCount, totalLiquidity, volume), user-bet-summary (payout = the larger side's shares, invested = cost basis, profit = value minus invested, expected value = payout at the current probability), bet-panel (currentPayout = shares if right, currentReturn on the amount). Telarchy's shares pay linearly in the settled value, so the payout is stated as a ceiling with its condition, and "expected value" as what selling now would fetch. The ticket's "Up to N cr +P%" line joins, not replaces, the 2026-08-10 breakeven-plus-slope statement.
+
 ## 2026-08-26: The impact is stated from the branch on screen
 
 Owner: "if I pick the opposite option, so for example if declined, it should turn the things opposite [...] Outcome is +7.8, so if I click the 'if declined' button, then it should show -7.8, and not just on the graph but also [...] next to the big number showing the current market prediction." This revises the earlier rule that the chip "stays the same whichever branch is on screen".

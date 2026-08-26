@@ -602,6 +602,10 @@ export interface PublicWorkspaceMarket {
   consensus: number | null;
   probability: number;
   liquidity: number;
+  /** Distinct participants who have traded this market. */
+  traderCount?: number;
+  /** Credits traded on this market over its life. */
+  tradedVolume?: number;
   rangeMin: number;
   rangeMax: number;
 }

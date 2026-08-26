@@ -1193,6 +1193,34 @@ edited.
 - Use a hairline before using a card.
 - Match an existing pattern before inventing one.
 
+### What a market says about itself, and what your position is worth
+
+Three facts sit under the bet buttons, in one quiet mono line: how many
+distinct participants have traded this market, how many credits are in its
+pool (the liquidity put up by the owner and others, which is what winnings
+come out of), and how many credits have been traded on it over its life.
+They are the three facts a Manifold market header carries (traders,
+liquidity, volume), in Telarchy's units, each with a hover that says what
+it means. A contract on screen hides the row, since the contract's markets
+are the pair, not the baseline.
+
+**A held position is stated in four numbers**, on the line that opens the
+manage dialog: what it pays at most ("pays up to N cr": one credit per
+share if the number lands at the range's edge the position bets on, less
+in between), what it is worth right now ("worth N cr": what selling the
+whole position would fetch at the market's current call, the honest
+analogue of Manifold's expected value), what it cost ("spent"), and the
+difference with its percentage, green or red. The manage dialog keeps the
+sell slider.
+
+**The ticket says the most a bet can pay** as "Up to N cr +P%" beside the
+breakeven and the slope: N is the shares bought (one credit each at the
+range's edge), P the return on the spend if it lands there. It is a ceiling
+with its condition in the hover, never the headline: the breakeven line
+stays first, because a share's payout is linear in the settled value and
+"to win N" alone, as Manifold prints it for a yes/no share, would read as
+a promise here.
+
 ## The data room
 
 `telarchy.com/data-room` (`DataRoomPage`, `.dr-*`) is a document, so it takes

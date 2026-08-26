@@ -3675,6 +3675,26 @@ textarea.jobform-line--desc {
   transition: color 120ms ease;
 }
 .pubws-pos-summary:hover { color: var(--accent); }
+.pubws-pos { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 0.2rem 0.8rem; margin: 0 0.6rem; }
+.pubws-pos-dir--higher { color: var(--higher); font-weight: 600; }
+.pubws-pos-dir--lower { color: var(--lower); font-weight: 600; }
+.pubws-pos-profit.is-up { color: var(--higher); }
+.pubws-pos-profit.is-down { color: var(--lower); }
+.pubws-pos-manage { color: var(--text-tertiary); }
+
+/* The market's own facts: traders, pool, volume. Quiet mono, one line. */
+.pubws-facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.2rem 1.2rem;
+  margin: 0.6rem auto 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+.pubws-facts span { cursor: help; }
 
 
 /* A selected job's pitch clamps at four lines; the full text is one click

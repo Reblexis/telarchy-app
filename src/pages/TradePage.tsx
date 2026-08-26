@@ -16,6 +16,7 @@ import { ManifoldButton } from '../components/ManifoldButton';
 import { MarketChart } from '../components/MarketChart';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart } from '../components/NumberChart';
+import { PositionSummary } from '../components/PositionSummary';
 import { ReportButton } from '../components/ReportButton';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -731,6 +732,12 @@ export function TradePage() {
         : pair.approvedConsensus - pair.declinedConsensus
       : null;
   const impactUnit = unit;
+  // The probability the position panel values a position at: the live one
+  // when the socket has spoken for this market, else the payload's.
+  const livePriceProb =
+    livePrice && livePrice.marketId === activeMarketId && active && active.rangeMax > active.rangeMin
+      ? Math.max(0, Math.min(1, (livePrice.value - active.rangeMin) / (active.rangeMax - active.rangeMin)))
+      : null;
   const consensus =
     (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null) ?? active?.consensus ?? null;
   // The number rolls to its new value (trade, branch switch, job select)
@@ -1439,6 +1446,22 @@ export function TradePage() {
                   />
                 )}
               </div>
+              {/* What the market says about itself (docs/ui-conventions.md):
+             distinct traders, credits in the pool, credits traded. The same
+             three facts Manifold's header shows, in Telarchy's units. */}
+              {hero && !selectedJob && (
+                <p className="pubws-facts" aria-label="Market facts">
+                  <span title="Distinct participants who have traded this market">
+                    {hero.traderCount ?? 0} trader{(hero.traderCount ?? 0) === 1 ? '' : 's'}
+                  </span>
+                  <span title="Credits in the market's pool: the liquidity the owner and others have put up, which is what your winnings come out of">
+                    {fmtShares(hero.liquidity)} cr in the pool
+                  </span>
+                  <span title="Credits traded on this market over its life">
+                    {fmtShares(hero.tradedVolume ?? 0)} cr traded
+                  </span>
+                </p>
+              )}
             </section>
           )}
 
@@ -1481,14 +1504,14 @@ export function TradePage() {
                 ))}
               {/* The held position stays visible on the floor; managing it
                 (selling, cancelling orders) happens in the same dialog. */}
-              {!selectedJobDecided && (positions.length > 0 || orders.length > 0) && (
-                <button className="pubws-pos-summary" onClick={() => setBetModal('manage')}>
-                  {positions
-                    .map(p => `${p.direction === 'higher' ? '▲' : '▼'} ${fmtShares(p.shares)} ${p.direction}`)
-                    .join(' · ')}
-                  {positions.length > 0 && orders.length > 0 ? ' · ' : ''}
-                  {orders.length > 0 ? `${orders.length} resting order${orders.length > 1 ? 's' : ''}` : ''} → manage
-                </button>
+              {!selectedJobDecided && (positions.length > 0 || orders.length > 0) && active && (
+                <PositionSummary
+                  positions={positions}
+                  orders={orders.length}
+                  probability={livePriceProb ?? active.probability}
+                  liquidity={active.liquidity}
+                  onManage={() => setBetModal('manage')}
+                />
               )}
               {/* The conversation under whatever the one view shows: the
                 baseline market's thread, or the selected job's (owner ask
