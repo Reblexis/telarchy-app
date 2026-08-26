@@ -430,8 +430,8 @@ this rule exists to prevent. The slot opens on the market.
   to now (the value in force); a step line read as a staircase. **It is about the market on
   screen**: the selected market's marker is amber and labeled; the others
   are grey and unlabeled, and one that falls outside the window is simply
-  not drawn. Hovering shows the reading in force at the cursor with its
-  date on the past side, and the nearest market's call on the future side,
+  not drawn. Hovering snaps to the nearest reading on the past side (the dot sits on
+  a real point of the line, the tooltip names that reading and its date), and the nearest market's call on the future side,
   in the same crosshair and tooltip the market view uses. **The window follows the selected
   horizon** rather than stretching to show every marker: roughly two days
   for a day market, a week for a week market, a month for anything further,

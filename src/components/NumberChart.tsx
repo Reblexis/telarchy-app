@@ -227,22 +227,31 @@ export function NumberChart({
   let tip: { x: number; y: number; date: string; label: string; value: string } | null = null;
   if (cursor !== null) {
     if (cursor <= nowT) {
-      const inForce = points.filter(p => new Date(p.at).getTime() <= cursor).pop();
-      if (!inForce) {
+      // Snap to the nearest reading: the line is drawn through the readings,
+      // so the only honest places for the dot are the readings themselves.
+      // A "value in force" dot between two readings floated off the line
+      // (owner report: "why is the dot not on the actual graph line").
+      const nearest = visible
+        .map(p => ({ p, dt: Math.abs(new Date(p.at).getTime() - cursor) }))
+        .sort((a, b) => a.dt - b.dt)[0]?.p;
+      if (!nearest) {
         tip = {
           x: x(cursor),
           y: (PAD_T + H - PAD_B) / 2,
-          date: new Date(cursor).toLocaleString('en-GB', {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZone: 'UTC',
-          }),
+          date: new Date(cursor).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }),
           label: 'no reading yet',
           value: '',
         };
       } else {
+        tip = {
+          x: x(new Date(nearest.at).getTime()),
+          y: y(nearest.value),
+          date: new Date(nearest.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }),
+          label: 'reading',
+          value: fmt(nearest.value, unit),
+        };
+      }
+    } else {
         tip = {
           x: x(cursor),
           y: y(inForce.value),

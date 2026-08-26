@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import { granularityOf, NumberChart, RANGE_WORDS, windowFor } from '../NumberChart';
 
@@ -114,5 +114,37 @@ describe('a metric with no reading yet', () => {
     expect(container.querySelector('.nchart-empty')?.textContent).toBe('no reading yet');
     expect(container.querySelector('.nchart-line')).toBeNull();
     expect(container.querySelector('.nchart-marker.is-selected')?.textContent).toContain('$10,000,000');
+  });
+});
+
+describe('hover', () => {
+  test('snaps to the nearest reading, so the dot is on the line and the tooltip names that reading', () => {
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={[]}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        unit="$"
+        now={NOW}
+      />,
+    );
+    const svg = container.querySelector('svg')!;
+    svg.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 660,
+      height: 200,
+      right: 660,
+      bottom: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    // Halfway between the 10 Aug and 25 Aug readings: the tooltip must be one of them, not an interpolation.
+    fireEvent.pointerMove(svg, { clientX: 330, clientY: 100 });
+    const tip = container.querySelector('.mchart-tip')?.textContent ?? '';
+    expect(tip).toMatch(/reading \$(4|5)$/);
+    expect(tip).toMatch(/10 Aug|25 Aug/);
   });
 });
