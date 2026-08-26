@@ -440,12 +440,28 @@ this rule exists to prevent. The slot opens on the market.
   **Switching dates tweens the axis and the line** over about 400ms,
   ease-out, rather than snapping, so a reader sees where the window went.
   The number view honours the actual-vs-forecast rule below: a resetting
-  metric shows only its own period.
+  metric shows only its own period. It animates as the market view does:
+  the readings line draws itself with the same keyframes and timing, and
+  the dots, markers and hold appear after it (none of it under reduced
+  motion). **A metric with no reading yet draws no line and no zero**: the
+  past side says "no reading yet", the hover says the same, the future side
+  still shows the markets' calls, and the N/A caveat under the price says
+  what a bet on it is. A metric's creation is not a reading: a metric
+  declared `resolvesNaUntilMeasured` logs nothing until its first real
+  value, which is what lets its markets void rather than settle on 0.
 
 The chart breaks out of the column to min(92vw, 760px), capped so the whole
 anonymous poster through the CTA fits a 900px-tall desktop viewport; phones
 get a taller, narrower canvas chosen at mount. On the three-column floor
 (>=1120px) it stops breaking out (100% of the center column).
+
+**A metric's history is its definition's history.** When a metric is
+redefined in place (a count becomes a percentage, a month-to-date total
+becomes a trailing level), the readings logged under the old definition are
+removed and the new definition's series is rebuilt from its source (the
+sync's daily caches for revenue, the evidence series for reviews, the trades
+table for active traders), so the number view never draws two definitions
+as one line. The rebuild is a record in `notes/decisions/ui-conventions.md`.
 
 ### The actual-vs-forecast chart
 

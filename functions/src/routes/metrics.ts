@@ -162,7 +162,12 @@ metricsRouter.post(
     }
 
     const allMetrics = await svc.getAllMetrics(workspaceId);
-    await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
+    // A metric that resolves N/A until measured has no reading at creation:
+    // its markets must void, not settle on the default 0 (the creation log
+    // counted as a reading on 2026-08-25 and would have paid "$0 valuation").
+    if (!naUntilMeasured) {
+      await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
+    }
 
     res.status(201).json({ ok: true, id, warnings });
   }),

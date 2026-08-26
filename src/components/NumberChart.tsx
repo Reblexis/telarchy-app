@@ -228,7 +228,21 @@ export function NumberChart({
   if (cursor !== null) {
     if (cursor <= nowT) {
       const inForce = points.filter(p => new Date(p.at).getTime() <= cursor).pop();
-      if (inForce) {
+      if (!inForce) {
+        tip = {
+          x: x(cursor),
+          y: (PAD_T + H - PAD_B) / 2,
+          date: new Date(cursor).toLocaleString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'UTC',
+          }),
+          label: 'no reading yet',
+          value: '',
+        };
+      } else {
         tip = {
           x: x(cursor),
           y: y(inForce.value),
@@ -318,7 +332,7 @@ export function NumberChart({
             </text>
           </>
         )}
-        {d && <path className="nchart-line" d={d} />}
+        {d && <path key={`line-${selectedResolvesOn}`} className="nchart-line" d={d} pathLength={1} />}
         {last && nowT > new Date(last.at).getTime() && holdX > lastX && (
           <line className="nchart-hold" x1={lastX} x2={holdX} y1={y(last.value)} y2={y(last.value)} />
         )}
@@ -340,6 +354,16 @@ export function NumberChart({
             </g>
           );
         })}
+        {points.length === 0 && (
+          <text
+            className="nchart-empty"
+            x={(PAD_L + Math.min(x(nowT), W - PAD_R)) / 2}
+            y={(PAD_T + H - PAD_B) / 2}
+            textAnchor="middle"
+          >
+            no reading yet
+          </text>
+        )}
         {tip && (
           <g className="mchart-cross">
             <line x1={tip.x} x2={tip.x} y1={PAD_T - 6} y2={H - PAD_B + 6} />

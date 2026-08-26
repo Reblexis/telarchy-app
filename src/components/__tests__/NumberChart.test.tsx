@@ -98,3 +98,21 @@ describe('the markers', () => {
     expect([...container.querySelectorAll('.mchart-range')].map(b => b.textContent)).toEqual(['2D', '1W', 'ALL']);
   });
 });
+
+describe('a metric with no reading yet', () => {
+  test('says so instead of drawing a line at zero', () => {
+    const { container } = render(
+      <NumberChart
+        points={[]}
+        markers={[{ marketId: 'sep', resolvesOn: '2026-10-01T00:00:00Z', consensus: 10_000_000, selected: true }]}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        unit="$"
+        now={NOW}
+      />,
+    );
+    expect(container.querySelector('.nchart-empty')?.textContent).toBe('no reading yet');
+    expect(container.querySelector('.nchart-line')).toBeNull();
+    expect(container.querySelector('.nchart-marker.is-selected')?.textContent).toContain('$10,000,000');
+  });
+});

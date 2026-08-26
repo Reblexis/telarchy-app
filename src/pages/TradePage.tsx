@@ -17,8 +17,8 @@ import { MarketChart } from '../components/MarketChart';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart } from '../components/NumberChart';
 import { ReportButton } from '../components/ReportButton';
-import { ThemeToggle } from '../components/ThemeToggle';
 import { SubjectAbout } from '../components/SubjectAbout';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { type TicketPosition, TradeTicket } from '../components/TradeTicket';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
@@ -1363,6 +1363,9 @@ export function TradePage() {
                   </button>
                 </div>
               )}
+              {hero?.settlesNaForNow && (
+                <p className="pubws-na-note pubws-enter pubws-enter--2">{settleNoteOf(hero)}</p>
+              )}
               <div className="pubws-enter pubws-enter--3">
                 {/* One chart slot, two views (docs/ui-conventions.md, "The
                  price and the chart"): the market's call, or the number
@@ -1400,7 +1403,6 @@ export function TradePage() {
                     ranges={['1D', '1W']}
                     corner={chartViewWords}
                     center={settleCenter}
-                    note={hero?.settlesNaForNow ? settleNoteOf(hero) : undefined}
                     preview={chartPreview}
                     orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
                     /* Only ever the other BRANCH: same metric, same window,
