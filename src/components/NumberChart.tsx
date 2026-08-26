@@ -23,6 +23,9 @@ export interface NumberMarker {
   resolvesOn: string;
   consensus: number | null;
   selected: boolean;
+  /** The open contract's conditional pair on this market, when one is open:
+   *  what the metric reads if the contract is approved and if it is declined. */
+  pair?: { approved: number | null; declined: number | null } | null;
 }
 
 interface Props {
@@ -37,6 +40,9 @@ interface Props {
   corner?: ReactNode;
   /** The centre of the control row: the time left until the market settles. */
   center?: ReactNode;
+  /** The legend under the chart when a contract is open, in its own words:
+   *  "if Jason is paid $80" / "if not" / "the market now". */
+  legend?: { approved: string; declined: string } | null;
   now?: Date;
   height?: number;
 }
@@ -159,6 +165,7 @@ export function NumberChart({
   unit = '',
   corner,
   center,
+  legend = null,
   now = new Date(),
   height = 200,
 }: Props) {
@@ -191,7 +198,11 @@ export function NumberChart({
     const t = new Date(m.resolvesOn).getTime();
     return t >= x0 && t <= x1;
   });
-  const ys = [...drawn.map(p => p.value), ...inWindow.flatMap(m => (m.consensus === null ? [] : [m.consensus]))];
+  const ys = [
+    ...drawn.map(p => p.value),
+    ...inWindow.flatMap(m => (m.consensus === null ? [] : [m.consensus])),
+    ...inWindow.flatMap(m => [m.pair?.approved, m.pair?.declined].filter((v): v is number => typeof v === 'number')),
+  ];
   const lo = ys.length ? Math.min(...ys) : 0;
   const hi = ys.length ? Math.max(...ys) : 1;
   const span_y = hi - lo || Math.max(1, Math.abs(hi) * 0.2);
@@ -348,13 +359,51 @@ export function NumberChart({
         {inWindow.map(m => {
           const mx = x(new Date(m.resolvesOn).getTime());
           const my = m.consensus === null ? null : y(m.consensus);
+          const ap = m.pair?.approved ?? null;
+          const dc = m.pair?.declined ?? null;
+          const hasPair = ap !== null && dc !== null;
+          const ay = ap === null ? null : y(ap);
+          const dy = dc === null ? null : y(dc);
           return (
             <g key={m.marketId} className={m.selected ? 'nchart-marker is-selected' : 'nchart-marker'}>
               <line x1={mx} x2={mx} y1={PAD_T - 6} y2={H - PAD_B + 6} />
+              {/* The contract's pair: green if approved, red if declined, a
+                bar between them whose length is the priced impact. */}
+              {hasPair && ay !== null && dy !== null && (
+                <g className="nchart-pair">
+                  <line className="nchart-pair-bar" x1={mx} x2={mx} y1={Math.min(ay, dy)} y2={Math.max(ay, dy)} />
+                  <circle className="nchart-pair-approved" cx={mx} cy={ay} r={m.selected ? 4.5 : 3} />
+                  <circle className="nchart-pair-declined" cx={mx} cy={dy} r={m.selected ? 4.5 : 3} />
+                  {m.selected && (
+                    <>
+                      <text
+                        className="nchart-pair-label nchart-pair-label--approved"
+                        x={mx - 9}
+                        y={ay + (ay <= dy ? -6 : 14)}
+                        textAnchor="end"
+                      >
+                        if approved {fmt(ap, unit)}
+                      </text>
+                      <text
+                        className="nchart-pair-label nchart-pair-label--declined"
+                        x={mx - 9}
+                        y={dy + (dy < ay ? -6 : 14)}
+                        textAnchor="end"
+                      >
+                        if declined {fmt(dc, unit)}
+                      </text>
+                      <text className="nchart-pair-delta" x={mx + 8} y={(ay + dy) / 2 + 4}>
+                        {ap - dc >= 0 ? '+' : '-'}
+                        {fmt(Math.abs(ap - dc), unit)}
+                      </text>
+                    </>
+                  )}
+                </g>
+              )}
               {my !== null && <circle cx={mx} cy={my} r={m.selected ? 4.5 : 3.5} />}
               {m.selected && my !== null && m.consensus !== null && (
                 <text x={mx - 8} y={my + 4} textAnchor="end">
-                  {fmt(m.consensus, unit)}
+                  {hasPair ? `${fmt(m.consensus, unit)} now` : fmt(m.consensus, unit)}
                 </text>
               )}
             </g>
@@ -380,6 +429,22 @@ export function NumberChart({
           {dayLabel(x0)}
         </text>
       </svg>
+      {legend && (
+        <div className="nchart-legend" aria-label="Legend">
+          <span>
+            <i className="nchart-legend-dot nchart-legend-dot--approved" />
+            {legend.approved}
+          </span>
+          <span>
+            <i className="nchart-legend-dot nchart-legend-dot--declined" />
+            {legend.declined}
+          </span>
+          <span>
+            <i className="nchart-legend-dot nchart-legend-dot--now" />
+            the market now
+          </span>
+        </div>
+      )}
       {tip && (
         <div className={`mchart-tip${tip.x > W * 0.6 ? ' is-right' : ''}`} style={{ left: `${(tip.x / W) * 100}%` }}>
           <div className="mchart-tip-date">{tip.date}</div>

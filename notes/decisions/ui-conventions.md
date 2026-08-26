@@ -2,6 +2,10 @@
 
 Records evicted from docs/ui-conventions.md on 2026-08-25; the doc states the resulting rules in present tense. Entries headed "When in doubt" sat in the revision log that followed that section. Verbatim, newest first.
 
+## 2026-08-26: The contract pair on the number view
+
+Owner: "in the conditional markets in the nujmber graph visualization you can show the if approved an ddeclined points there too above and below green and red", then "do it" on the canvas draft (NumberContract artboard).
+
 ## 2026-08-26: The listing tile takes an email again, not Otto
 
 Owner: "make get setup up lead to filling in email only again.. not otto yet". The marketplace tile's "Get set up" had led to Otto's setup door at /manage since 2026-08-24 ("when they press get set up it shouldnt require mail anymore it should lead straight to the chat interface"). Reversed: the button opens the email field in place and posts to /api/waitlist, as docs/ui-conventions.md "the marketplace" states (the doc never changed; the code had diverged from it). Otto's setup door stays at /manage, reachable from /contact, until the owner calls it ready.

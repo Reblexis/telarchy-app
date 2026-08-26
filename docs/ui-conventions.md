@@ -439,7 +439,15 @@ this rule exists to prevent. The slot opens on the market.
   (`2D 1W ALL`, `1W 1M ALL`, `1M 3M ALL` by granularity) override it.
   **Switching dates tweens the axis and the line** over about 400ms,
   ease-out, rather than snapping, so a reader sees where the window went.
-  The number view honours the actual-vs-forecast rule below: a resetting
+  **With a contract open, every marker in the window grows the contract's
+  pair on that market**: a green dot for the metric if the contract is
+  approved, a red dot if it is declined, joined by a bar whose length is
+  the priced impact, while the amber dot stays the market without the
+  contract. Only the selected date is labeled (both values and the impact);
+  the others show the pair small and grey. A one-line legend under the
+  chart says it in the contract's words ("if Jason is paid $80" / "if not"
+  / "the market now"). Whichever branch the markets price higher sits on
+  top. The number view honours the actual-vs-forecast rule below: a resetting
   metric shows only its own period. It animates as the market view does:
   the readings line draws itself with the same keyframes and timing, and
   the dots, markers and hold appear after it (none of it under reduced
