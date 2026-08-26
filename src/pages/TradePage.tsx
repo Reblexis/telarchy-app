@@ -1375,18 +1375,30 @@ export function TradePage() {
                 {chartView === 'number' && hero ? (
                   <NumberChart
                     points={hero.metricHistory}
-                    markers={datesOf(horizons, hero.metricId).flatMap(d =>
-                      d.resolvesOn
-                        ? [
-                            {
-                              marketId: d.marketId,
-                              resolvesOn: d.resolvesOn,
-                              consensus: d.consensus,
-                              selected: d.marketId === hero.marketId,
-                            },
-                          ]
-                        : [],
-                    )}
+                    markers={datesOf(horizons, hero.metricId).flatMap(d => {
+                      if (!d.resolvesOn) return [];
+                      // The open contract's pair on this date, by (metric, date).
+                      const pr = selectedJob?.markets.find(
+                        m => m.targetDate === d.targetDate && (m.metricId === undefined || m.metricId === d.metricId),
+                      );
+                      return [
+                        {
+                          marketId: d.marketId,
+                          resolvesOn: d.resolvesOn,
+                          consensus: d.consensus,
+                          selected: d.marketId === hero.marketId,
+                          pair: pr ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus } : null,
+                        },
+                      ];
+                    })}
+                    legend={
+                      selectedJob
+                        ? {
+                            approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
+                            declined: 'if not',
+                          }
+                        : null
+                    }
                     selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
                     granularity={granularityOf(hero.targetDate)}
                     unit={unit}
