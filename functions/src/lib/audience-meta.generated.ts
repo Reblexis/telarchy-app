@@ -17,6 +17,10 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
         "a": "The season prizes are. Credits are not."
       },
       {
+        "q": "I have never used a prediction market. Where do I start?",
+        "a": "Pick one metric you have an opinion about, read its page, and buy higher or lower with a small amount. Watch what the price does after you trade. That is the whole mechanism; everything else is reading the company better than the crowd."
+      },
+      {
         "q": "Do I need a wallet or crypto?",
         "a": "No. Email and a browser."
       },
