@@ -1886,7 +1886,12 @@ export function TopBar({
       <Link to="/marketplace" className="pubws-logolink" aria-label="Telarchy">
         {/* Same lockup treatment as the landing nav (3rem), so the page
             reads as the same site. */}
-        <Logo variant="lockup" height="var(--topbar-logo, 3rem)" />
+        <span className="pubws-logo-wide">
+          <Logo variant="lockup" height="3rem" />
+        </span>
+        <span className="pubws-logo-phone">
+          <Logo variant="mark" height="2rem" alt="" />
+        </span>
       </Link>
       <div className="pubws-topbar-right">
         <ManifoldButton signedIn={user} onRequireSignup={() => navigate(authPath('signup', location))} />
