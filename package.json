@@ -72,7 +72,7 @@
     "vitest": "^4.1.5"
   },
   "simple-git-hooks": {
-    "pre-commit": "npx lint-staged && sh scripts/check-docs-mirror-staged.sh"
+    "pre-commit": "sh scripts/check-not-main.sh && npx lint-staged && sh scripts/check-docs-mirror-staged.sh"
   },
   "lint-staged": {
     "*.{ts,tsx,mjs,cjs,json}": "biome check --write --no-errors-on-unmatched"

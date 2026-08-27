@@ -364,6 +364,17 @@ branch, and `telarchy.com/beta` can show it. That is how a change is looked at
 before anyone decides to merge it: an agent pushes its branch, CI turns green,
 and the reply names `https://telarchy.com/beta?branch=br-<name>`.
 
+**Main takes pull requests only.** The GitHub ruleset "main: branches only,
+green CI, no force push" (no bypass, not even the owner) requires every
+change to main to arrive as a pull request whose `Type check and frontend
+tests` and three `Backend tests` checks passed, and blocks force pushes and
+deletion. A direct `git push origin main` is refused by the server; a commit
+on main is refused earlier by the pre-commit hook (`scripts/check-not-main.sh`).
+Shipping is `gh pr create --fill` and `gh pr merge --rebase --auto
+--delete-branch`: the merge happens when the checks pass, the branch is
+deleted, its preview retired. Squash is not allowed, so the branch's commits
+land as they were made.
+
 **The tag.** `br-` plus the branch name lowercased, every character outside
 `[a-z0-9-]` replaced by `-`, runs of hyphens collapsed, no leading or trailing
 hyphen, at most 40 characters (Cloud Run tags are DNS labels, and the tag URL
