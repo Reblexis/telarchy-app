@@ -64,13 +64,25 @@ describe('framing the picture', () => {
     await pick();
     expect(upsertProfile).not.toHaveBeenCalled();
     expect(screen.getByText('Use this picture')).toBeTruthy();
-    expect(screen.getByText('1.0×')).toBeTruthy();
+    expect((screen.getByLabelText('Zoom') as HTMLInputElement).value).toBe('1');
+    // The step takes over the body: the identity head and the tabs step aside.
+    expect(screen.getByText('Frame your picture')).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Profile' })).toBeNull();
+  });
+
+  test('the zoom buttons step the slider and stop at the ends', async () => {
+    await pick();
+    expect((screen.getByLabelText('Zoom out') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText('Zoom in'));
+    expect((screen.getByLabelText('Zoom') as HTMLInputElement).value).toBe('1.25');
+    expect((screen.getByLabelText('Zoom out') as HTMLButtonElement).disabled).toBe(false);
   });
 
   test('cancel drops the pick without saving', async () => {
     await pick();
     fireEvent.click(screen.getByText('Cancel'));
     expect(screen.queryByLabelText('Zoom')).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Profile' })).toBeTruthy();
     expect(upsertProfile).not.toHaveBeenCalled();
   });
 
@@ -79,7 +91,7 @@ describe('framing the picture', () => {
     // Zoom 2x on a 400x200 picture in a 220px frame: scale 2.2, so the
     // frame covers a 100px square of the picture.
     fireEvent.change(screen.getByLabelText('Zoom'), { target: { value: '2' } });
-    expect(screen.getByText('2.0×')).toBeTruthy();
+    expect((screen.getByLabelText('Zoom') as HTMLInputElement).value).toBe('2');
     // Drag the picture 30px right and 10px down: the frame reads 30/2.2
     // and 10/2.2 picture pixels further up-left than centre.
     const frame = screen.getByLabelText('Drag to move the picture; arrow keys nudge it');

@@ -792,18 +792,23 @@ proposals snapshot.
 once per account pair, verified by a one-time code in the Manifold bio.
 
 **Framing the picture** (zoom plus x and y offset, not just a centre
-crop). Picking a file does not save it; it opens a framing step under the
-head: the picture inside a round 220px frame the size of the avatar's
-shape, a Zoom slider (1x, the short side filling the frame, up to 4x), and
-the picture itself draggable inside the frame (pointer drag, or arrow keys
-when the frame has focus) so any part of it can sit under the circle. The
-frame is never uncovered: offset and zoom clamp so the picture always
-fills it. "Use this picture" renders exactly what the frame shows to the
-256px square that POST /api/auth/profile stores; Cancel drops the pick and
-keeps the old picture. Nothing about the framing is stored separately: the
-stored image IS the framed result, so every viewer (rail avatar,
-leaderboards, participant page) sees the same crop with no per-surface
-math.
+crop). Picking a file does not save it; it opens a framing step that takes
+over the dialog body (the identity head, tabs and panel step aside; the
+title reads "Frame your picture" with the same close). The step is a
+wide stage showing the whole picture, with everything outside a round
+220px frame (the avatar's own shape) dimmed to the card colour, so what
+is being cut off is visible while it is being cut. Under it, one zoom row
+(a "−" and a "+" around the ticket slider, 1x with the short side filling
+the frame, up to 4x), a one-line hint, then Cancel and "Use this
+picture" right-aligned in one row. The picture is draggable on the stage
+(pointer drag, or arrow keys when the stage has focus), and the frame is
+never uncovered: offset and zoom clamp so the picture always fills it.
+"Use this picture" renders exactly what the frame shows to the 256px
+square that POST /api/auth/profile stores and returns to the dialog;
+Cancel drops the pick and returns with the old picture. Nothing about the
+framing is stored separately: the stored image IS the framed result, so
+every viewer (rail avatar, leaderboards, participant page) sees the same
+crop with no per-surface math.
 
 **The floor's one modal says when it has more below.** `FloorModal` fades
 its bottom edge into the card colour with a chevron under it, and both

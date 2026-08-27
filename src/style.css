@@ -3206,50 +3206,82 @@ textarea.jobform-line--desc {
   white-space: pre-wrap;
 }
 
-/* The framing step (owner ask 2026-08-25): the picked picture inside the
-   avatar's own round shape, dragged into place and zoomed with a slider.
-   The frame's size lives in the component (FRAME), since the same number
-   drives the stored crop; the circle only masks. */
+/* The framing step: takes over the dialog body while a picked picture is
+   being placed. The stage shows the whole picture; the mask is a circle
+   the avatar's size whose enormous shadow dims everything outside it to
+   the card colour, so the cut is visible while it is being made. The
+   frame's size lives in the component (FRAME), since the same number
+   drives the stored crop. */
 .acctdlg-crop {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.6rem 0 0.2rem;
+  gap: 0.85rem;
 }
-.acctdlg-crop-frame {
+.acctdlg-crop-stage {
   position: relative;
-  border-radius: 50%;
-  border: 1px solid var(--border-strong);
+  height: 272px;
+  border-radius: 12px;
   background: var(--bg-tertiary);
   overflow: hidden;
   cursor: grab;
   touch-action: none;
   user-select: none;
-  flex: none;
 }
-.acctdlg-crop-frame:active { cursor: grabbing; }
-.acctdlg-crop-frame:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.acctdlg-crop-frame img {
+.acctdlg-crop-stage:active { cursor: grabbing; }
+.acctdlg-crop-stage:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.acctdlg-crop-stage img {
   position: absolute;
-  left: 0;
-  top: 0;
+  left: 50%;
+  top: 50%;
   max-width: none;
   display: block;
+  pointer-events: none;
+}
+.acctdlg-crop-mask {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--bg-primary) 70%, transparent),
+    0 0 0 999px color-mix(in srgb, var(--bg-secondary) 74%, transparent);
   pointer-events: none;
 }
 .acctdlg-crop-zoom {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  width: 100%;
-  max-width: 320px;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
+  gap: 0.7rem;
+  padding: 0 0.15rem;
 }
 .acctdlg-crop-zoom .ticket-slider { flex: 1; margin: 0; }
-.acctdlg-crop-zoomval { min-width: 2.4em; text-align: right; font-variant-numeric: tabular-nums; }
-.acctdlg-crop .acctdlg-hint { margin: 0; text-align: center; }
+.acctdlg-crop-step {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: none;
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.acctdlg-crop-step:hover:not(:disabled) { color: var(--text-primary); border-color: var(--border-hover); }
+.acctdlg-crop-step:disabled { opacity: 0.4; cursor: default; }
+.acctdlg-crop-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.acctdlg-crop .acctdlg-hint { margin: 0; }
+.acctdlg-crop-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.6rem;
+}
+.acctdlg-crop-actions .acctdlg-ghost { align-self: auto; padding: 0.6rem 1rem; }
 
 /* The per-section confirm: the ticket's own, a size down. */
 .acctdlg-save { padding: 0.6rem 1rem; font-size: 0.88rem; }
