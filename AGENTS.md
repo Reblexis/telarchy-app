@@ -2,6 +2,16 @@ For more info about this project look into docs/vision.md.
 
 ## Canonical positioning (do not drift)
 
+**This repository is public. Records are not.** (Owner decision 2026-08-27.)
+`Reblexis/telarchy-app` is public under AGPL-3.0-only. Every dated record,
+owner quote, participant name, incident write-up and field report goes in the
+**telarchy umbrella's** `notes/`, which is private, and is referenced from here
+by path. Nothing that names a participant, quotes Viktor, or catalogues a live
+weakness may be committed to this repository. This is not filing tidiness: a
+season entrant's brother was named in `notes/decisions/seasons.md` here, and
+the repository had to be taken private on 2026-08-27 until it was resolved. The
+existing `notes/` tree stays as history; do not add to it.
+
 **Current slogan (owner decision 2026-08-25, Viktor: "ok im using this line.. can you save it everywhere as the current slogan"):** "Approve on evidence, not on who argued best. See what each proposal does to your KPIs before you say yes." This is the line for the X bio, the site title and share cards, and any headline slot aimed at people inside companies who want better decisions. It was chosen by a 20-profile simulation over 20 candidates (telarchy umbrella `notes/slogan-simulation-2026-08-25.md`): it names the pain instead of describing the mechanism, was the favourite of six of twenty readers and misread by the fewest, while the previous bio line ("the alignment layer for AI and humans") was misread by all twenty. The alignment line stays the mission-register zoom-out below; it is no longer the slogan.
 
 **Headline wedge (updated 2026-07-11, Viktor): "the approval layer for AI agents."** Lead everywhere with the approval-layer framing: your agent proposes an action, a market prices its expected impact on your KPI, and you approve on a calibrated number. **Never lead with "prediction markets"**: the term reads as gambling/crypto to AI buyers and drags the regulatory question to the front of every conversation; name the mechanism only after the job. "Alignment layer for AI and humans" remains the mission-level framing (the zoom-out), and the participant-symmetry rules below still hold. Campaign context and audience-specific pitches: the SF master plan record in the telarchy umbrella, `notes/sf-master-plan-2026-07.md`.

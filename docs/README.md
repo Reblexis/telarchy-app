@@ -31,7 +31,20 @@ the top.
 Code-facing maps live beside the code: `../ARCHITECTURE.md` (modules, request
 flow, the auth and formula rules), `../README.md` (running and developing).
 
-Records (dated decisions, owner quotes, incident and field reports) live
-outside this directory under `../notes/`: `../notes/decisions/<doc>.md` holds
-the records evicted from each governing doc, `../notes/conformance/` the audit
-records.
+Records (dated decisions, owner quotes, incident and field reports) live in
+the **telarchy umbrella**, which is private, under its `notes/`. **This
+repository is public** (AGPL-3.0-only since 2026-08-25), so nothing that names
+a participant, quotes the owner, or catalogues a live weakness belongs in it.
+That is the whole reason for the split, and it is not a filing preference:
+owner decision 2026-08-27, after the brother of a season entrant was named in
+`notes/decisions/seasons.md` here and the repository had to be taken private
+while it was sorted out.
+
+A governing doc under `docs/` therefore states its rules in the present tense
+and carries no dates, no quotes and no people. When a change needs a record,
+write it in the umbrella and reference it by path.
+
+`notes/decisions/` and `notes/conformance/` in this repository are the
+historical form of that practice, kept as they are (owner, 2026-08-27: the
+existing public history is fine). Do not add to them; their "History:"
+pointers from `docs/` still resolve.

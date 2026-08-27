@@ -711,10 +711,21 @@ the top.</p>
 </table></div>
 <p>Code-facing maps live beside the code: <code>../ARCHITECTURE.md</code> (modules, request
 flow, the auth and formula rules), <code>../README.md</code> (running and developing).</p>
-<p>Records (dated decisions, owner quotes, incident and field reports) live
-outside this directory under <code>../notes/</code>: <code>../notes/decisions/&lt;doc&gt;.md</code> holds
-the records evicted from each governing doc, <code>../notes/conformance/</code> the audit
-records.</p>
+<p>Records (dated decisions, owner quotes, incident and field reports) live in
+the <strong>telarchy umbrella</strong>, which is private, under its <code>notes/</code>. <strong>This
+repository is public</strong> (AGPL-3.0-only since 2026-08-25), so nothing that names
+a participant, quotes the owner, or catalogues a live weakness belongs in it.
+That is the whole reason for the split, and it is not a filing preference:
+owner decision 2026-08-27, after the brother of a season entrant was named in
+<code>notes/decisions/seasons.md</code> here and the repository had to be taken private
+while it was sorted out.</p>
+<p>A governing doc under <code>docs/</code> therefore states its rules in the present tense
+and carries no dates, no quotes and no people. When a change needs a record,
+write it in the umbrella and reference it by path.</p>
+<p><code>notes/decisions/</code> and <code>notes/conformance/</code> in this repository are the
+historical form of that practice, kept as they are (owner, 2026-08-27: the
+existing public history is fine). Do not add to them; their &quot;History:&quot;
+pointers from <code>docs/</code> still resolve.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
