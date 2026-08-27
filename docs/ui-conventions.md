@@ -184,6 +184,14 @@ and the caption carries two independent pickers, both segmented rows:
   settle day alone, so the settle day never leaves the page. It is above
   the price, not under it: a control next to the number reads as changing
   the number.
+- **Each date segment carries the market's own current value on a second
+  line** (the mono face, compact: 4,005,349 reads 4.0M, `compactValueOf`
+  in `lib/floor-horizons.ts`): the dates of one metric otherwise wear the
+  same face until traded, and a reader who moved one date on another
+  device reads its untouched siblings as "the price didn't change". A
+  small direction-coloured dot in the segment's corner marks a date the
+  signed-in visitor holds a position on; it is loaded once per metric and
+  refreshed after their own trades, never polled.
 - **Every option is on screen and the selected segment cannot move when
   the words change.** A control that slides when you use it is the thing
   this rule exists to prevent. The row wraps on a phone rather than

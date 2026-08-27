@@ -32,6 +32,7 @@ import {
   buildHorizonViews,
   captionLabel,
   cellOf,
+  compactValueOf,
   dateSegmentOf,
   datesOf,
   type HorizonView,
@@ -353,6 +354,37 @@ export function TradePage() {
   const metricHeads = metricsOf(horizons);
   // Soonest first in the row: today, this week, this month, then anything absolute.
   const heroDates = hero ? [...datesOf(horizons, hero.metricId)].reverse() : [];
+  // Which dates of this metric the visitor holds a position on, for the dot
+  // in the date picker (trader report 2026-08-27: after trading one date on
+  // another device, the untouched siblings read as "the price didn't
+  // change"; the dot plus the per-date value is what tells them apart).
+  // Loaded once per metric for the signed-in and joined, refreshed after
+  // their own trades; deliberately NOT in the poll (each date is a request,
+  // and the poll was already cut to 15s over connection count).
+  const [heldDates, setHeldDates] = useState<Record<string, 'higher' | 'lower'>>({});
+  const loadHeldDatesRef = useRef<() => void>(() => {});
+  loadHeldDatesRef.current = () => {
+    if (!joined || !ws || heroDates.length < 2) {
+      setHeldDates({});
+      return;
+    }
+    Promise.all(
+      heroDates.map(d =>
+        api
+          .getPositions(d.marketId, undefined, ws.workspaceId)
+          .then((rows: Array<{ direction: 'higher' | 'lower'; shares: number }>) => {
+            const top = (rows ?? []).filter(r => r.shares > 1e-9).sort((a, b) => b.shares - a.shares)[0];
+            return top ? ([d.marketId, top.direction] as const) : null;
+          })
+          .catch(() => null),
+      ),
+    ).then(entries =>
+      setHeldDates(Object.fromEntries(entries.filter((e): e is [string, 'higher' | 'lower'] => e !== null))),
+    );
+  };
+  const heroDateKey = heroDates.map(d => d.marketId).join(',');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => loadHeldDatesRef.current(), [joined, ws?.workspaceId, heroDateKey]);
   // The date segments carry their time left and tick by the minute
   // (docs/ui-conventions.md, "When a market settles is said in the date
   // picker"). One clock for the page, so every segment agrees.
@@ -683,6 +715,7 @@ export function TradePage() {
     }
     refreshMoney();
     reload();
+    loadHeldDatesRef.current();
     // The rail must show this trade too: the server drops its board cache
     // the moment a trade commits, so this read is guaranteed to include it
     // (owner report 2026-08-21: "not always showing the latest state").
@@ -1000,13 +1033,24 @@ export function TradePage() {
                       {heroDates.map(d => (
                         <button
                           key={d.marketId}
-                          className={`pubws-seg-btn${d.marketId === hero.marketId ? ' is-active' : ''}`}
+                          className={`pubws-seg-btn pubws-seg-btn--dated${d.marketId === hero.marketId ? ' is-active' : ''}`}
                           aria-pressed={d.marketId === hero.marketId}
-                          aria-label={`Show ${d.metricLabel}, ${d.label}`}
+                          aria-label={`Show ${d.metricLabel}, ${d.label}${
+                            compactValueOf(d.consensus, d.unit) ? `, now ${compactValueOf(d.consensus, d.unit)}` : ''
+                          }`}
                           title={d.resolvesOn ? `settles ${new Date(d.resolvesOn).toUTCString()}` : undefined}
                           onClick={() => setHorizonId(d.marketId)}
                         >
-                          {dateSegmentOf(d)}
+                          <span>{dateSegmentOf(d)}</span>
+                          {compactValueOf(d.consensus, d.unit) !== null && (
+                            <span className="pubws-seg-val">{compactValueOf(d.consensus, d.unit)}</span>
+                          )}
+                          {heldDates[d.marketId] && (
+                            <span
+                              className={`pubws-seg-dot pubws-seg-dot--${heldDates[d.marketId]}`}
+                              aria-hidden="true"
+                            />
+                          )}
                         </button>
                       ))}
                     </span>
