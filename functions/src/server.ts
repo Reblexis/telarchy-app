@@ -317,7 +317,25 @@ import('./app')
           'settings',
           'check-in',
           'participants',
+          // The audience pages (docs/audience-pages.md); /compare/* is two segments and never matches a slug.
+          'forecast',
+          'for-agents',
+          'owners',
         ]);
+        // The audience pages carry their own title, description and FAQ
+        // structured data in the head: they exist to be found from a search
+        // or an AI answer, and neither reads the SPA.
+        try {
+          const { isAudienceRoute, injectAudienceMeta } = await import('./lib/audience-meta');
+          if (isAudienceRoute(req.path)) {
+            const html = fs.readFileSync(indexPath, 'utf8');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.type('html').send(injectAudienceMeta(html, req.path, `${publicOrigin()}${req.path}`));
+            return;
+          }
+        } catch (e) {
+          console.error('audience-meta injection failed:', e);
+        }
         const rootMatch = req.path.match(/^\/([^/.]+)$/);
         const shareMatch =
           req.path.match(/^\/marketplace\/([^/]+)$/) ?? (rootMatch && !RESERVED.has(rootMatch[1]) ? rootMatch : null);

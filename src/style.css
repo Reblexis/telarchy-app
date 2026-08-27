@@ -7856,3 +7856,31 @@ textarea.jobform-line--desc {
   .instr--strip { flex-wrap: wrap; gap: 12px; }
   .instr--strip .instr-band { order: 3; flex-basis: 100%; }
 }
+
+/* ---- Audience pages (/forecast, /for-agents, /owners, /compare/*) ----
+   Poster pages in the .pubws language with one extra shape, the side-by-side
+   table. Copy: docs/audience-pages.md. */
+.pubws-aud .pubws-name { max-width: 16ch; }
+.pubws-aud-h2 { margin-top: 2.2rem; }
+.pubws-aud-p { margin: 0 0 1rem; line-height: 1.55; }
+.pubws-aud-lead { font-weight: 600; color: var(--text-primary); }
+.pubws-aud-ul { margin: 0 0 1rem; padding-left: 1.2rem; }
+.pubws-aud-ul li { margin-bottom: 0.45rem; }
+.pubws-aud-scroll { overflow-x: auto; margin: 0.4rem 0 1.4rem; border-top: 1px solid var(--border); }
+.pubws-aud-table { width: 100%; min-width: 30em; border-collapse: collapse; font-size: 0.9rem; line-height: 1.4; }
+.pubws-aud-table th,
+.pubws-aud-table td { text-align: left; vertical-align: top; padding: 0.55rem 0.6rem 0.55rem 0; border-bottom: 1px solid var(--border); }
+.pubws-aud-table th { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); }
+.pubws-aud-table td:first-child { font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-tertiary); white-space: nowrap; padding-right: 1rem; }
+.pubws-aud-faq { margin: 0; }
+.pubws-aud-qa { padding: 0.8rem 0; border-top: 1px solid var(--border); }
+.pubws-aud-qa dt { margin: 0 0 0.3rem; font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.05rem; }
+.pubws-aud-qa dd { margin: 0; }
+.pubws-aud-cta { margin: 2.2rem 0 0; display: flex; flex-wrap: wrap; gap: 0.9rem 1.4rem; align-items: center; }
+.pubws-aud-link { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 3px; }
+.pubws-aud-nav { border-top: 1px solid var(--border); padding-top: 1.4rem; }
+.pubws-aud-sibs { margin: 0 0 0.9rem; display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; align-items: baseline; font-size: 0.9rem; }
+.pubws-aud-sibs .pubws-contact-label { width: 100%; }
+.pubws-aud-sib { color: var(--text-secondary); text-decoration: none; }
+.pubws-aud-sib:hover { color: var(--text-primary); text-decoration: underline; }
+.pubws-aud-sib--here { color: var(--text-tertiary); }

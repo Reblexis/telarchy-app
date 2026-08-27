@@ -14,6 +14,13 @@
   <url><loc>https://telarchy.com/.well-known/ai-plugin.json</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://telarchy.com/.well-known/agent.json</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://telarchy.com/.well-known/agents.json</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://telarchy.com/forecast</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://telarchy.com/for-agents</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://telarchy.com/owners</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://telarchy.com/compare/manifold</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://telarchy.com/compare/polymarket</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://telarchy.com/compare/metaculus</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://telarchy.com/compare/futarchy-fi</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://telarchy.com/terms</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
   <url><loc>https://telarchy.com/privacy</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
 </urlset>
