@@ -22,7 +22,12 @@ export function PageTopBar() {
   return (
     <nav className="pubws-topbar">
       <Link to="/" className="pubws-logolink" aria-label="Telarchy">
-        <Logo variant="lockup" height="var(--topbar-logo, 3rem)" />
+        <span className="pubws-logo-wide">
+          <Logo variant="lockup" height="3rem" />
+        </span>
+        <span className="pubws-logo-phone">
+          <Logo variant="mark" height="2rem" alt="" />
+        </span>
       </Link>
       <div className="pubws-topbar-right">
         <ThemeToggle />

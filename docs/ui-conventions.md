@@ -131,10 +131,12 @@ over them; the bar deliberately ignores the 660px content column. "Log in"
 never wraps.
 
 On a phone (640px and under) the bar stays at the top of the viewport while
-the page scrolls: sticky, on the page background, one thin row (the lockup
-at 2.25rem, half the vertical padding). A floor is nine screens tall on a
-390px display and the logo is the only way back to the floors list, so a
-bar that scrolls away leaves a phone reader with no way home short of
+the page scrolls: sticky, on the page background, one thin row. The mark
+stands in for the lockup there, at 2rem: the lockup is 4.4 times as wide as
+it is tall, and beside six controls (Manifold, Discord, report, theme, the
+bell, the avatar) it does not fit a 390px screen. A floor is nine screens
+tall on that display and the logo is the only way back to the floors list,
+so a bar that scrolls away leaves a phone reader with no way home short of
 scrolling to the top. On wider screens it scrolls with the page as before.
 
 Left of the account, on every top bar, sits the theme toggle: one quiet

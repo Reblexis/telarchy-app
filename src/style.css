@@ -1487,20 +1487,27 @@ code, pre, kbd, samp {
   gap: 0.9rem;
 }
 
+/* The two faces of the logo in the bar: the lockup on a wide screen, the
+   mark alone on a phone. Both are rendered and one is hidden, because the
+   Logo picks its image by prop and a stylesheet cannot swap a src; the wrap
+   is what toggles, so the light/dark rules inside stay untouched. */
+.pubws-logo-phone { display: none; }
+
 /* On a phone the bar stays put while the page scrolls (docs/ui-conventions.md,
    "The top bar and the account menu"): a floor runs nine screens on a 390px
    display and the logo is the only way back to the floors list. One thin row:
-   the lockup drops to 2.25rem through the variable both bars pass to the
-   Logo, the padding halves, and the page background paints under it so the
-   content scrolls beneath rather than through. */
+   the mark at 2rem instead of the 4.4:1 lockup, which beside six controls
+   does not fit 390px; the padding halves; the page background paints under
+   it so the content scrolls beneath rather than through. */
 @media (max-width: 640px) {
   .pubws-topbar {
     position: sticky;
     top: 0;
-    --topbar-logo: 2.25rem;
     background: var(--bg-primary);
     padding: 0.6rem 1rem;
   }
+  .pubws-logo-wide { display: none; }
+  .pubws-logo-phone { display: inline-flex; }
   /* The beta stripe (previews only) is sticky too; two things stuck at the
      same edge overlap, and the bar is the one a reader needs. On a phone the
      stripe scrolls with the page. */
