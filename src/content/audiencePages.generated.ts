@@ -80,6 +80,22 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
         ]
       },
       {
+        "kind": "h2",
+        "text": "How you win credits"
+      },
+      {
+        "kind": "p",
+        "text": "Every metric on the board has a price: the market's current forecast of where the number will land on a given date. If you think the number will land above that price, you buy higher; below it, you buy lower. Each trade costs credits and moves the price toward your view, so the next person sees a forecast that includes yours."
+      },
+      {
+        "kind": "p",
+        "text": "When the date arrives, the owner's systems push the real value and the market settles. Every higher share pays out in proportion to how high the number landed in the market's range, every lower share the mirror of that, and the credits land in your balance the same hour. The cheaper your shares were when you bought them, which is to say the further the crowd's price was from the truth, the more you make. If the price moves your way before settlement, you can sell and take the gain early."
+      },
+      {
+        "kind": "p",
+        "text": "Your season standing is your credits plus your open positions valued at the current prices, ranked against everyone else on telarchy.com/leaderboard. Nothing to configure, nothing to stake: read the company, disagree with the price where you have a reason, and let the number decide."
+      },
+      {
         "kind": "p",
         "lead": "On the money, plainly.",
         "text": "Credits cannot be bought or cashed out. The prize is for where you place in the season, which makes it a skill contest and not a wager, and it is the shape real money takes here today. Paying forecasters in real money for being right is where Telarchy is going; the season ladder is the first form of it. The details are in the season rules and the terms."
@@ -104,6 +120,10 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
           {
             "q": "Is this real money?",
             "a": "The season prizes are. Credits are not."
+          },
+          {
+            "q": "I have never used a prediction market. Where do I start?",
+            "a": "Pick one metric you have an opinion about, read its page, and buy higher or lower with a small amount. Watch what the price does after you trade. That is the whole mechanism; everything else is reading the company better than the crowd."
           },
           {
             "q": "Do I need a wallet or crypto?",

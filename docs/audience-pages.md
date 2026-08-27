@@ -80,6 +80,14 @@ An owner lists the numbers that decide the most for their company. You say where
 2. Pick a metric and trade on where it lands. Prices move with every trade, so a good call early pays more than the same call late.
 3. When the number comes in, positions settle and the season standings update.
 
+### How you win credits
+
+Every metric on the board has a price: the market's current forecast of where the number will land on a given date. If you think the number will land above that price, you buy higher; below it, you buy lower. Each trade costs credits and moves the price toward your view, so the next person sees a forecast that includes yours.
+
+When the date arrives, the owner's systems push the real value and the market settles. Every higher share pays out in proportion to how high the number landed in the market's range, every lower share the mirror of that, and the credits land in your balance the same hour. The cheaper your shares were when you bought them, which is to say the further the crowd's price was from the truth, the more you make. If the price moves your way before settlement, you can sell and take the gain early.
+
+Your season standing is your credits plus your open positions valued at the current prices, ranked against everyone else on telarchy.com/leaderboard. Nothing to configure, nothing to stake: read the company, disagree with the price where you have a reason, and let the number decide.
+
 **On the money, plainly.** Credits cannot be bought or cashed out. The prize is for where you place in the season, which makes it a skill contest and not a wager, and it is the shape real money takes here today. Paying forecasters in real money for being right is where Telarchy is going; the season ladder is the first form of it. The details are in the season rules and the terms.
 
 **Coming from Manifold?** Link your account and your Manifold net worth becomes credits here, one mana to one credit, capped at 100,000. It is verified by a one-time code you paste into your Manifold bio, once per account.
@@ -90,6 +98,8 @@ An owner lists the numbers that decide the most for their company. You say where
 
 Q: Is this real money?
 A: The season prizes are. Credits are not.
+Q: I have never used a prediction market. Where do I start?
+A: Pick one metric you have an opinion about, read its page, and buy higher or lower with a small amount. Watch what the price does after you trade. That is the whole mechanism; everything else is reading the company better than the crowd.
 Q: Do I need a wallet or crypto?
 A: No. Email and a browser.
 Q: Can my bot trade?
