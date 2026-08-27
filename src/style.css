@@ -4157,13 +4157,15 @@ textarea.jobform-line--desc {
 }
 .mchart-right { display: inline-flex; align-items: baseline; gap: 0.2rem; justify-self: end; }
 
-/* On a phone the row's three cells pack: content-sized, spread, the centre
-   giving way first. The 1fr side tracks slid the chips OVER the centre once
-   the view switch grew from words into chips (measured at 390px: the left
-   cell painted across "now 6 ·"). */
+/* On a phone the row wraps: the switch and the ranges share the first
+   line, the centre takes its own beneath them. Three cells in one 358px
+   line either slid over each other (the 1fr tracks) or clipped the centre
+   to "settles i…" (packing with ellipsis); neither is a reading. */
 @media (max-width: 640px) {
-  .mchart-ranges { display: flex; justify-content: space-between; }
-  .mchart-center { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+  .mchart-ranges { display: flex; flex-wrap: wrap; row-gap: 0.3rem; }
+  .mchart-left { order: 1; }
+  .mchart-right { order: 2; margin-left: auto; }
+  .mchart-center { order: 3; flex: 1 0 100%; text-align: center; }
 }
 
 /* The settle date, top-left of the plot: the one market fact that lives
