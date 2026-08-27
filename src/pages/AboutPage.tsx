@@ -78,6 +78,16 @@ export function AboutPage() {
             Telarchy is built by Viktor Cihal. LookPilot, his previous company, runs its numbers in the open here today.
             Questions, bugs, and numbers you want listed: <Link to="/contact">contact</Link>.
           </p>
+
+          <h2 className="pubws-h2">The code</h2>
+          <p>
+            Telarchy is open source (AGPL-3.0): the same code that serves this site is at{' '}
+            <a href="https://github.com/Reblexis/telarchy-app?ref=about" rel="noopener">
+              github.com/Reblexis/telarchy-app
+            </a>
+            , with docker compose for your own instance and the market mechanics readable in full. The moat is the
+            record of who was right, not the code.
+          </p>
         </section>
 
         <footer className="pubws-foot">
