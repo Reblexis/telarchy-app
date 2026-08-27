@@ -51,8 +51,10 @@ describe('audience pages', () => {
 
   test('the sibling navigation on the pages covers every route once', () => {
     const src = read('src/pages/AudiencePage.tsx');
+    const lists = src.slice(src.indexOf('FORECASTER_ROUTES ='), src.indexOf('SIBLING_LABELS'));
     for (const r of routes) {
-      expect(src.split(`'${r}'`).length - 1).toBe(1);
+      expect(lists.split(`'${r}'`).length - 1).toBe(1);
+      expect(src).toContain(`'${r}': `);
     }
   });
 
