@@ -42,7 +42,7 @@
     "prepare": "simple-git-hooks"
   },
   "dependencies": {
-    "better-auth": "^1.5.6",
+    "better-auth": "^1.7.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",

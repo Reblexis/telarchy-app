@@ -96,12 +96,15 @@ describe('copy rules', () => {
     expect(contactSrc).not.toMatch(/[–—]/);
   });
 
-  test('no "startup", no "floor", no open-source claim shown to a visitor', () => {
-    // AGENTS.md canonical positioning + the no-old-UI vocabulary rule.
+  test('no "startup", no "floor"; the open-source claim names the repository', () => {
+    // AGENTS.md canonical positioning + the no-old-UI vocabulary rule. The
+    // repository is public (AGPL-3.0) since 2026-08-25, so the claim is allowed
+    // exactly where it links the code; contact stays silent on it.
     for (const src of [aboutSrc, contactSrc]) {
       expect(src).not.toMatch(/startup/i);
-      expect(src).not.toMatch(/open[- ]source/i);
     }
+    expect(aboutSrc).toMatch(/github\.com\/Reblexis\/telarchy-app/);
+    expect(contactSrc).not.toMatch(/open[- ]source/i);
     // "floor" is fine in code comments (it names files); never in rendered text.
     render(
       <MemoryRouter>
