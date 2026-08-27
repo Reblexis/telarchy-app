@@ -16,7 +16,7 @@ import { emitPricesChanged } from '../lib/market-events';
 import { nearHorizonAnchorP } from '../lib/market-open';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { desiredMarketDates, generatesMarkets, getLeafDescendantNames } from '../lib/time-preference';
-import { MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits } from '../lib/validation';
+import { MIN_LIQUIDITY_CONTRIBUTION, toUnits } from '../lib/validation';
 import type { TimePreference } from '../types';
 import { applyCredits } from './credits';
 import { emitEvent } from './events';
@@ -259,12 +259,25 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
     return insertWithDefaults();
   }
 
-  const totalCost = Math.round(credits * pending.length * 1e6) / 1e6;
+  // Fund as many as the balance covers, in list order, and open the rest
+  // unfunded for a later refresh. All-or-nothing left every market of a
+  // rollover at zero when the balance was short of the whole day's need
+  // (2026-08-27: three LookPilot day markets, none funded, all morning).
   const [ag] = await db.select().from(agents).where(eq(agents.id, ownerAgentId));
-  if (!ag || !sufficientBalance(ag.balance as number, totalCost)) {
-    console.error('insertPendingMarkets: insufficient balance for auto-fund', { workspaceId, needed: totalCost });
+  const balanceUnits = (ag?.balance as number | undefined) ?? 0;
+  const affordable = Math.max(0, Math.floor(balanceUnits / toUnits(credits)));
+  if (affordable === 0) {
+    console.error('insertPendingMarkets: insufficient balance for auto-fund', { workspaceId, needed: credits });
     return insertWithDefaults();
   }
+  if (affordable < pending.length) {
+    console.error('insertPendingMarkets: balance covers some of the new markets, the rest open unfunded', {
+      workspaceId,
+      funded: affordable,
+      unfunded: pending.length - affordable,
+    });
+  }
+  const fundedSet = new Set(pending.slice(0, affordable).map(p => p.marketId));
 
   const metricValues = new Map(
     (
@@ -295,6 +308,18 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
         pool: 0,
         createdAt: now,
       });
+      if (!fundedSet.has(p.marketId)) {
+        await tx.insert(liquidityEvents).values({
+          id: randomUUID(),
+          workspaceId,
+          marketId: p.marketId,
+          amount: 0,
+          totalLiquidity: 0,
+          type: 'initial' as const,
+          createdAt: now,
+        });
+        continue;
+      }
       await applyAgentLiquidityInjectionTx(tx, {
         workspaceId,
         marketId: p.marketId,
@@ -521,11 +546,17 @@ export async function refreshRelativeDateMarkets(
     if (wsRow?.autoFundNewMarkets && credits >= MIN_LIQUIDITY_CONTRIBUTION) {
       const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
       if (ownerAgentId) {
-        const totalCost = Math.round(credits * toFund.length * 1e6) / 1e6;
+        // As many as the balance covers, not all or nothing: an unfunded
+        // market waits for the next refresh rather than for every one of its
+        // siblings to become affordable at once.
         const [ag] = await db.select().from(agents).where(eq(agents.id, ownerAgentId));
-        if (ag && sufficientBalance(ag.balance as number, totalCost)) {
+        const affordable = Math.min(
+          toFund.length,
+          Math.floor(((ag?.balance as number | undefined) ?? 0) / toUnits(credits)),
+        );
+        if (affordable > 0) {
           await db.transaction(async tx => {
-            for (const marketId of toFund) {
+            for (const marketId of toFund.slice(0, affordable)) {
               await applyAgentLiquidityInjectionTx(tx, {
                 workspaceId,
                 marketId,

@@ -997,3 +997,17 @@ describe('the floor pins its own workspace context', () => {
     await waitFor(() => expect(vi.mocked(setActiveWorkspace)).toHaveBeenCalledWith('ws-1'));
   });
 });
+
+describe('a market with no price yet', () => {
+  test('keeps the pickers on screen and says so where the price would be', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.markets = ws.markets.map(m => ({ ...m, consensus: null, liquidity: 0 }));
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-label')).toBeTruthy());
+    expect(container.querySelector('.pubws-price')?.textContent).toBe('no price yet');
+    expect(container.querySelector('.pubws-instrument-date')).toBeTruthy();
+    expect(container.querySelector('.mchart')).toBeNull();
+  });
+});

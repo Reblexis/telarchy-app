@@ -412,7 +412,10 @@ left, the time left until the market on screen settles in the centre
 ("settles in 13h 12m"), and the range chips of the current view at the
 right. Nothing else on the page moves when the view switches, and the row
 itself does not either: a control that jumps when you use it is the thing
-this rule exists to prevent. The slot opens on the market.
+this rule exists to prevent. The slot opens on the market. A market with no price yet (no liquidity) keeps
+the pickers, prints "no price yet" where the price would be and the
+no-liquidity note where the bets would be, and draws no chart: the
+pickers are how a reader leaves it for a market that has one.
 
 - **The market view** is the prediction chart (`MarketChart`): one amber
   step line of the market's call over its lifetime, gradient fill, labeled

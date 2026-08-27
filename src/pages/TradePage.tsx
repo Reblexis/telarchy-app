@@ -911,7 +911,7 @@ export function TradePage() {
               {ws.description && <p className="pubws-ws-tagline">{ws.description}</p>}
             </header>
           )}
-          {hero && active && consensus !== null && (
+          {hero && active && (
             <section className="pubws-instrument" aria-label="The market">
               {/* Selecting a job re-points this one view at its conditional
                 market; the condition is stated above the same headline so
@@ -1279,10 +1279,9 @@ export function TradePage() {
               )}
               <div className="pubws-headline pubws-enter pubws-enter--2">
                 <span className="pubws-price">
-                  {unit}
-                  {formatValue(shownConsensus ?? consensus)}
+                  {consensus === null ? 'no price yet' : `${unit}${formatValue(shownConsensus ?? consensus)}`}
                 </span>
-                {!selectedJob && marketOpen !== null && consensus !== marketOpen && (
+                {!selectedJob && consensus !== null && marketOpen !== null && consensus !== marketOpen && (
                   <span
                     key={`open-${Math.round(consensus - marketOpen)}`}
                     className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}
@@ -1377,76 +1376,80 @@ export function TradePage() {
               {hero?.settlesNaForNow && (
                 <p className="pubws-na-note pubws-enter pubws-enter--2">{settleNoteOf(hero)}</p>
               )}
-              <div className="pubws-enter pubws-enter--3">
-                {/* One chart slot, two views (docs/ui-conventions.md, "The
+              {consensus !== null && (
+                <div className="pubws-enter pubws-enter--3">
+                  {/* One chart slot, two views (docs/ui-conventions.md, "The
                  price and the chart"): the market's call, or the number
                  itself with every open market of this metric as a marker,
                  the selected one amber. The N/A caveat is the only settle
                  note left under the price. */}
-                {chartView === 'number' && hero ? (
-                  <NumberChart
-                    points={hero.metricHistory}
-                    markers={datesOf(horizons, hero.metricId).flatMap(d => {
-                      if (!d.resolvesOn) return [];
-                      // The open contract's pair on this date, by (metric, date).
-                      const pr = selectedJob?.markets.find(
-                        m => m.targetDate === d.targetDate && (m.metricId === undefined || m.metricId === d.metricId),
-                      );
-                      return [
-                        {
-                          marketId: d.marketId,
-                          resolvesOn: d.resolvesOn,
-                          consensus: d.consensus,
-                          selected: d.marketId === hero.marketId,
-                          pair: pr ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus } : null,
-                        },
-                      ];
-                    })}
-                    impactFrom={branch}
-                    legend={
-                      selectedJob
-                        ? {
-                            approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
-                            declined: 'if not',
-                          }
-                        : null
-                    }
-                    selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
-                    granularity={granularityOf(hero.targetDate)}
-                    unit={unit}
-                    now={now}
-                    corner={chartViewWords}
-                    center={settleCenter}
-                  />
-                ) : (
-                  <MarketChart
-                    key={active.marketId}
-                    series={active.history.length > 0 ? active.history : [{ at: new Date().toISOString(), consensus }]}
-                    consensus={consensus}
-                    unit={unit}
-                    ranges={['1D', '1W']}
-                    corner={chartViewWords}
-                    center={settleCenter}
-                    preview={chartPreview}
-                    orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
-                    /* Only ever the other BRANCH: same metric, same window,
+                  {chartView === 'number' && hero ? (
+                    <NumberChart
+                      points={hero.metricHistory}
+                      markers={datesOf(horizons, hero.metricId).flatMap(d => {
+                        if (!d.resolvesOn) return [];
+                        // The open contract's pair on this date, by (metric, date).
+                        const pr = selectedJob?.markets.find(
+                          m => m.targetDate === d.targetDate && (m.metricId === undefined || m.metricId === d.metricId),
+                        );
+                        return [
+                          {
+                            marketId: d.marketId,
+                            resolvesOn: d.resolvesOn,
+                            consensus: d.consensus,
+                            selected: d.marketId === hero.marketId,
+                            pair: pr ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus } : null,
+                          },
+                        ];
+                      })}
+                      impactFrom={branch}
+                      legend={
+                        selectedJob
+                          ? {
+                              approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
+                              declined: 'if not',
+                            }
+                          : null
+                      }
+                      selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
+                      granularity={granularityOf(hero.targetDate)}
+                      unit={unit}
+                      now={now}
+                      corner={chartViewWords}
+                      center={settleCenter}
+                    />
+                  ) : (
+                    <MarketChart
+                      key={active.marketId}
+                      series={
+                        active.history.length > 0 ? active.history : [{ at: new Date().toISOString(), consensus }]
+                      }
+                      consensus={consensus}
+                      unit={unit}
+                      ranges={['1D', '1W']}
+                      corner={chartViewWords}
+                      center={settleCenter}
+                      preview={chartPreview}
+                      orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
+                      /* Only ever the other BRANCH: same metric, same window,
                    two worlds, so the gap is the priced impact. The other
                    horizon measures a different window and shares no scale
                    with this one (2026-08-15), so it gets its own chart
                    below rather than a line on this axis. */
-                    secondary={
-                      selectedJob && otherBranch && otherBranch.consensus !== null
-                        ? {
-                            series: otherBranch.history,
-                            consensus: otherBranch.consensus,
-                            label: branch === 'approved' ? 'if declined' : 'if approved',
-                            tone: branch === 'approved' ? ('lower' as const) : ('higher' as const),
-                          }
-                        : null
-                    }
-                  />
-                )}
-              </div>
+                      secondary={
+                        selectedJob && otherBranch && otherBranch.consensus !== null
+                          ? {
+                              series: otherBranch.history,
+                              consensus: otherBranch.consensus,
+                              label: branch === 'approved' ? 'if declined' : 'if approved',
+                              tone: branch === 'approved' ? ('lower' as const) : ('higher' as const),
+                            }
+                          : null
+                      }
+                    />
+                  )}
+                </div>
+              )}
             </section>
           )}
 

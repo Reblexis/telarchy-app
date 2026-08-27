@@ -26,7 +26,7 @@ New workspaces default to **auto-fund on**, with **0.5 credits per market**. Two
 - **`autoFundNewMarkets`** (boolean) - when true, every new non-proposal market is seeded from the workspace owner's balance.
 - **`newMarketLiquidityCredits`** (number) - credits to seed per market. Default: `0.5`. The enforced floor is only one nanocredit (`1e-9`), but pools well below ~`0.1` make markets butterfly-sensitive: a tiny trade slams consensus to a range extreme. Keep it at `0.1` or higher for a usable market; anyone with the `trade` capability can later top up a thin market via `POST /predictions/markets/:id/liquidity`.
 
-When the hourly market-refresh cron (minute 10) or a time-preference toggle spawns new markets, each one debits `newMarketLiquidityCredits` from the owner's balance and contributes it to the market's initial pool. If the owner can't cover the cost, the market is still created but with zero liquidity (trading paused) and the shortfall is logged.
+When the hourly market-refresh cron (minute 10) or a time-preference toggle spawns new markets, each one debits `newMarketLiquidityCredits` from the owner's balance and contributes it to the market's initial pool. If the owner's balance covers only some of the new markets, those are funded and the rest open with zero liquidity (trading paused) and the shortfall is logged; the hourly refresh funds an unfunded market as soon as the balance covers it, one market at a time, never waiting for all of them to become affordable at once.
 
 ## Proposal subsidy
 
