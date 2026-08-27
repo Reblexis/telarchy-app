@@ -1487,6 +1487,26 @@ code, pre, kbd, samp {
   gap: 0.9rem;
 }
 
+/* On a phone the bar stays put while the page scrolls (docs/ui-conventions.md,
+   "The top bar and the account menu"): a floor runs nine screens on a 390px
+   display and the logo is the only way back to the floors list. One thin row:
+   the lockup drops to 2.25rem through the variable both bars pass to the
+   Logo, the padding halves, and the page background paints under it so the
+   content scrolls beneath rather than through. */
+@media (max-width: 640px) {
+  .pubws-topbar {
+    position: sticky;
+    top: 0;
+    --topbar-logo: 2.25rem;
+    background: var(--bg-primary);
+    padding: 0.6rem 1rem;
+  }
+  /* The beta stripe (previews only) is sticky too; two things stuck at the
+     same edge overlap, and the bar is the one a reader needs. On a phone the
+     stripe scrolls with the page. */
+  .betabar { position: static; }
+}
+
 /* ---------------------------------------------------------------------------
    Otto, the floor's market maker, in the corner (owner direction 2026-08-20).
 
