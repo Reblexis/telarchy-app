@@ -2,6 +2,10 @@
 
 Records evicted from `docs/infra/deploy.md` on 2026-08-25; the doc states the resulting rules in present tense.
 
+## 2026-08-27: The beta is admin only, and any branch can be built
+
+Owner: "also it should be possible for me to load up any branch i might just have to rebuild or whatever.. and also make sure that /beta is admin gated.. not availble to everyoen", then, doubting the second half, "if that even helps considering its opensource..". Answer recorded in docs/infra/deploy.md ("The beta is admin only"): the code is public, a running unpublished build on a copy of production data is not. Result: `lib/beta-gate.ts` on both surfaces, `GET /api/admin/branches` + `POST /api/admin/branches/:name/build` behind an optional `GITHUB_ACTIONS_TOKEN`, the picker lists every branch.
+
 ## 2026-08-27: Main takes pull requests only
 
 Owner: "poleasemake sure that all agents working on telarchy have to work onb ranches rather than main drieclty". Enforced twice: a GitHub ruleset on main (pull request required, the four CI checks required, no force push, no deletion, no bypass actors, created 2026-08-27 via the API, id 21649333) and `scripts/check-not-main.sh` in the pre-commit hook. The `git push origin <branch>:main` fast-forward of 2026-08-26 is gone; the ship is `gh pr merge --rebase --auto --delete-branch`.

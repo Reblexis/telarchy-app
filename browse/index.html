@@ -530,7 +530,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h9">Publishing without the button</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h10">Rolling back</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h11">Logging in on the beta</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h12">The beta is a public URL on production data</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h12">The beta is admin only</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h13">The permission behind the button</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h14">What the workflow does</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h15">Other workflows</a></li>
@@ -6710,6 +6710,18 @@ noindex. The stripe on a preview says which branch it is
 revision, or null), and a platform admin gets a picker on the stripe listing
 <code>main candidate</code> and the previews <code>GET /api/admin/release</code> returns as
 <code>previews</code>, newest first.</p>
+<p><strong>Any branch can be built.</strong> CI builds a preview on push, so a branch pushed
+before this existed, or one that fell off the cap, has none; the picker on the
+stripe lists every branch of the repository (<code>GET /api/admin/branches</code>, read
+from GitHub's public branches API and cached a minute) and marks which ones
+are built. Choosing an unbuilt one asks <code>POST /api/admin/branches/:name/build</code>
+to dispatch the deploy workflow for that ref (<code>workflow_dispatch</code> on any ref
+other than main runs the preview job), which needs a GitHub token with
+Actions write on the repository in <code>GITHUB_ACTIONS_TOKEN</code> (Secret Manager,
+mounted like the other secrets). Without the token the endpoint answers 501
+with the command that does the same by hand:
+<code>gh workflow run deploy-cloudrun.yml --ref &lt;branch&gt;</code>. About eight minutes
+later the branch is built and appears in the picker as such.</p>
 <p><strong>A preview cannot be published.</strong> <code>publishRevision</code> refuses any revision that
 does not carry the <code>candidate</code> tag (409, &quot;only the main candidate can be
 published&quot;), and the stripe shows no Publish button on a preview. A branch
@@ -6749,12 +6761,32 @@ carrying credentials, so verify this in a browser or not at all.
 names the published site, and <code>publicOrigins()</code> uses it to decide which hosts
 get <code>X-Robots-Tag: noindex</code>. The beta is trusted enough to log in to and never
 indexable.</p>
-<h3 id="docs-infra-deploy-md--h12">The beta is a public URL on production data</h3>
-<p>Anyone who learns the candidate URL can open it, and it reads and writes the
-real database. It is not linked anywhere and it is noindexed, but it is not
-secret. If that becomes uncomfortable, the lockdown is to drop the
-<code>allUsers</code> invoker binding on the service and put the beta behind IAP, at the
-cost of the open-the-URL-and-look flow.</p>
+<h3 id="docs-infra-deploy-md--h12">The beta is admin only</h3>
+<p>Every beta surface is gated to a platform admin (or the master key); everyone
+else gets a 404 that says nothing, and a signed-out visitor asking for a page
+is sent to <code>/login?next=&lt;where they were going&gt;</code> and comes back through the
+gate once signed in. Owner ask 2026-08-27: &quot;make sure that /beta is admin
+gated, not available to everyone&quot;. The code being public does not make an
+unpublished build public: what the gate keeps private is a running build of
+unreleased work, on a copy of production data, with a store anyone could write
+into. Two surfaces, one gate (<code>lib/beta-gate.ts</code>, mounted in <code>app.ts</code> before
+the proxy so the published revision answers for every preview):</p>
+<ul>
+<li><code>telarchy.com/beta/*</code> on the published origin, whichever build the cookie
+points it at.</li>
+<li>Every request on a host that is not a production host (the candidate's and
+the previews' own run.app URLs), on a managed instance (one with
+<code>DATABASE_BETA_URL</code>; a self-hosted instance with one store has no beta and
+no gate).</li>
+</ul>
+<p>Left open on both, because signing in and CI's smoke test need them:
+<code>/api/auth/*</code>, <code>/login</code>, <code>/api/public-config</code>, <code>/assets/*</code> and <code>/beta/assets/*</code>
+(hashed bundles), <code>/favicon*</code>, <code>/logo.png</code>, <code>/robots.txt</code>. Cloud Scheduler
+never calls the <code>api</code> run.app host (its jobs target telarchy.com or the two
+legacy services), so cron is unaffected. Both gates check the same session
+against the production user table, so a forwarded request passes the
+candidate's gate with the same cookie that passed the published revision's.
+<code>beta-gate.test.ts</code> pins every branch of this.</p>
 <h3 id="docs-infra-deploy-md--h13">The permission behind the button</h3>
 <p>The runtime service account (<code>telarchy-api@telarchy-e0043.iam.gserviceaccount.com</code>,
 see &quot;Runtime identity&quot;) holds two grants that Publish depends on, both scoped
