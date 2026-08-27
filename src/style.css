@@ -1508,10 +1508,6 @@ code, pre, kbd, samp {
   }
   .pubws-logo-wide { display: none; }
   .pubws-logo-phone { display: inline-flex; }
-  /* The beta stripe (previews only) is sticky too; two things stuck at the
-     same edge overlap, and the bar is the one a reader needs. On a phone the
-     stripe scrolls with the page. */
-  .betabar { position: static; }
 }
 
 /* ---------------------------------------------------------------------------
@@ -7307,6 +7303,13 @@ textarea.jobform-line--desc {
   background: var(--accent);
   color: var(--button-text, #fff);
   font-size: 0.8rem;
+}
+/* On a phone the stripe scrolls with the page: the top bar is sticky there
+   (docs/ui-conventions.md, "The top bar and the account menu"), two things
+   stuck at the same edge overlap, and the bar is the one a reader needs.
+   Sits after the rule above on purpose: same specificity, later wins. */
+@media (max-width: 640px) {
+  .betabar { position: static; }
 }
 
 .betabar-label {
