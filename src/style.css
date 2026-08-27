@@ -2308,38 +2308,6 @@ button.notif-row-link {
   box-shadow: 0 1px 2px rgba(23, 23, 28, 0.08);
 }
 
-/* A date segment wears its market's current value (docs/ui-conventions.md,
-   "Two steppers"): sibling dates otherwise share one face until traded. The
-   dot marks a date the visitor holds a position on, in the side's colour. */
-.pubws-seg-btn--dated {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.2rem;
-  line-height: 1;
-  padding-right: 0.95rem;
-}
-.pubws-seg-val {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--text-secondary);
-}
-.pubws-seg-btn.is-active .pubws-seg-val { color: var(--text-primary); }
-.pubws-seg-dot {
-  position: absolute;
-  top: 0.32rem;
-  right: 0.32rem;
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-}
-.pubws-seg-dot--higher { background: var(--higher); }
-.pubws-seg-dot--lower { background: var(--lower); }
-
 /* The date picker under the caption. With one open date it is the settle
    day alone, in a register quieter than the name, because the name is what
    the market is and the date is only which reading of it. Above the price,
