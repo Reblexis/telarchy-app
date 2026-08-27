@@ -7993,3 +7993,126 @@ textarea.jobform-line--desc {
 .pubws-aud-sib { color: var(--text-secondary); text-decoration: none; }
 .pubws-aud-sib:hover { color: var(--text-primary); text-decoration: underline; }
 .pubws-aud-sib--here { color: var(--text-tertiary); }
+
+/* ---- The owner's metrics page (docs/metrics-page.md) ----
+   Same hairline sections and mono numerals as the rest of the owner surface.
+   A chip is a market: the date it settles on above, its pool below. */
+.mpg-top { margin-bottom: 0.4rem; }
+
+.mpg-metric { padding: 1.35rem 0 1.25rem; border-bottom: 1px solid var(--border-color); }
+
+.mpg-metric-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.mpg-metric-name { font-size: 1rem; font-weight: 600; letter-spacing: -0.005em; }
+.mpg-metric-range {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.mpg-metric-sub {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.25rem;
+}
+.mpg-metric-desc { font-size: 0.82rem; line-height: 1.5; color: var(--text-tertiary); }
+
+.mpg-credits { display: inline-flex; align-items: baseline; gap: 0.35rem; white-space: nowrap; }
+.mpg-credits-input {
+  width: 4.5rem;
+  padding: 0.1rem 0;
+  border-bottom-color: var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: right;
+}
+.mpg-credits-input:focus { outline: none; border-bottom-color: var(--accent); }
+.mpg-credits-unit { font-size: 0.72rem; color: var(--text-tertiary); }
+
+.mpg-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.85rem; }
+
+.mpg-chip { position: relative; display: inline-flex; }
+.mpg-chip-body {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast);
+}
+.mpg-chip-body:hover { border-color: var(--border-hover); color: var(--text-primary); }
+.mpg-chip-when { font-size: 0.69rem; letter-spacing: 0.02em; color: var(--text-tertiary); white-space: nowrap; }
+.mpg-chip-pool {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mpg-chip-x {
+  position: absolute;
+  top: -0.45rem;
+  right: -0.45rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-primary);
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.mpg-chip:hover .mpg-chip-x,
+.mpg-chip-x:focus-visible { opacity: 1; }
+.mpg-chip-x:hover { color: var(--delete-color); border-color: var(--delete-color); }
+
+.mpg-add,
+.mpg-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+.mpg-add:hover,
+.mpg-picker-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+.mpg-picker { display: inline-flex; flex-wrap: wrap; gap: 0.4rem; }
+.mpg-picker-btn { border-style: solid; }
+.mpg-picker-cancel { border-color: transparent; }
+
+.mpg-none { margin: 0.75rem 0 0; font-size: 0.8rem; color: var(--accent); }
+.mpg-curve { margin: 0.7rem 0 0; font-size: 0.78rem; color: var(--text-tertiary); }
+.mpg-err { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--error-text); }
+.mpg-foot {
+  margin: 1.8rem auto 0;
+  max-width: 34rem;
+  text-align: center;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 560px) {
+  .mpg-metric-sub { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .mpg-credits-input { text-align: left; }
+  .mpg-chip-x { opacity: 1; }
+}

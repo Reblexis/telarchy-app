@@ -159,6 +159,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     { method: 'GET', path: '/api/metrics/:id', auth: 'public-read', description: 'Get a single metric by ID.' },
     {
+      method: 'GET',
+      path: '/api/metrics/overview',
+      auth: 'public-read',
+      description:
+        "Everything the owner's metrics page draws (docs/metrics-page.md): { defaultCredits, autoFund, metrics: [{ id, name, description, rangeMin, rangeMax, credits, curve, horizons: [{ marketId, targetDate, settlesOn, pool, trades }] }] }. Horizons are this metric's OPEN baseline markets only: resolved markets are history and a proposal's conditional markets are not the owner's horizons. `credits` is null when the metric uses the workspace default; `curve` is true when timePreference.enabled picks the dates, which makes the horizon list read-only for that metric.",
+    },
+    {
       method: 'POST',
       path: '/api/metrics',
       auth: 'admin',
@@ -182,7 +189,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/metrics/:id',
       auth: 'admin',
       description:
-        'Update a metric. name and description may change at any time: they never void a market, and every change is written to an append-only revision log rendered on the public floor beside the definition (docs/market-integrity.md). formula and marketRangeMax are what an open market settles on, so changing either is REFUSED with 409 while any market on this metric is open; wait for it to resolve, or void it deliberately first. Changing timePreference (curve or customHorizons) reconciles markets: stale dates are deactivated, new desired dates are created; pass timePreference: null to clear it.',
+        'Update a metric. name and description may change at any time: they never void a market, and every change is written to an append-only revision log rendered on the public floor beside the definition (docs/market-integrity.md). formula and marketRangeMax are what an open market settles on, so changing either is REFUSED with 409 while any market on this metric is open; wait for it to resolve, or void it deliberately first. Changing timePreference (curve or customHorizons) reconciles markets: stale dates are deactivated, new desired dates are created; pass timePreference: null to clear it. `liquidityCredits` (a non-negative number, or null for the workspace default) is what a NEW market on this metric opens with; it never touches a market already open.',
       body: {
         name: 'string',
         description: 'string',

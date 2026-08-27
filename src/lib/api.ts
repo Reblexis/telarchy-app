@@ -791,6 +791,34 @@ function notifyMutation() {
   }
 }
 
+/** One market on the owner's metrics page: a date, and what it holds. */
+export interface MetricsOverviewHorizon {
+  marketId: string;
+  targetDate: string;
+  settlesOn: string;
+  pool: number;
+  trades: number;
+}
+
+export interface MetricsOverviewRow {
+  id: string;
+  name: string;
+  description: string;
+  rangeMin: number;
+  rangeMax: number;
+  /** null = the workspace default stated at the top of the page. */
+  credits: number | null;
+  /** The decay curve picks this metric's dates, so its chips are read-only. */
+  curve: boolean;
+  horizons: MetricsOverviewHorizon[];
+}
+
+export interface MetricsOverview {
+  defaultCredits: number;
+  autoFund: boolean;
+  metrics: MetricsOverviewRow[];
+}
+
 async function request(path: string, options: RequestInit = {}, skipWorkspaceHeader = false) {
   return requestWithWorkspace(path, options, { skipWorkspaceHeader });
 }
@@ -908,6 +936,16 @@ export const api = {
       marketRangeMax?: number;
     },
   ) => request(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  /** Everything the owner's metrics page draws (docs/metrics-page.md). */
+  getMetricsOverview: (workspaceId: string): Promise<MetricsOverview> =>
+    requestWithWorkspace('/api/metrics/overview', {}, { workspaceId }),
+  /** Partial metric update. The full-object `updateMetric` is for the editor;
+   *  the metrics page changes one field at a time and must not resend the rest. */
+  patchMetric: (
+    workspaceId: string,
+    id: string,
+    body: { liquidityCredits?: number | null; timePreference?: TimePreference | null },
+  ) => requestWithWorkspace(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }, { workspaceId }),
   deleteMetric: (id: string) => request(`/api/metrics/${id}`, { method: 'DELETE' }),
   reorderMetrics: (ids: string[]) => request('/api/metrics/reorder', { method: 'POST', body: JSON.stringify({ ids }) }),
   getMetricLogs: (metricId: string) => request(`/api/metrics/${metricId}/logs`),

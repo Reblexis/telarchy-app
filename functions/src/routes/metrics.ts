@@ -29,6 +29,15 @@ metricsRouter.get(
   }),
 );
 
+// Before '/:id', or Express reads "overview" as a metric id.
+metricsRouter.get(
+  '/overview',
+  requireCapability('read'),
+  wrap(async (req, res) => {
+    res.json(await svc.getMetricsOverview(req.auth!.workspaceId));
+  }),
+);
+
 metricsRouter.get(
   '/:id',
   requireCapability('read'),
@@ -213,11 +222,26 @@ metricsRouter.put(
     }
     // marketRangeMax leaf-only check happens after oldRow is fetched (effectiveFormula needed)
 
+    // What a NEW market on this metric opens with (docs/metrics-page.md). null
+    // puts the metric back on the workspace default; it never touches a market
+    // that is already open, which is what the page tells the owner.
+    const hasCredits = Object.prototype.hasOwnProperty.call(fields, 'liquidityCredits');
+    if (hasCredits && fields.liquidityCredits !== null) {
+      const v = fields.liquidityCredits;
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
+        res
+          .status(400)
+          .json({ error: 'liquidityCredits must be a non-negative number, or null for the workspace default' });
+        return;
+      }
+    }
+
     const allowed = ['name', 'description', 'value', 'formula', 'marketRangeMax'] as const;
     const update: Record<string, unknown> = {};
     for (const key of allowed) {
       if (fields[key] !== undefined) update[key] = fields[key];
     }
+    if (hasCredits) update.liquidityCredits = fields.liquidityCredits;
     if (Object.keys(update).length === 0 && rawTP === undefined && newResets === undefined && newNa === undefined) {
       res.status(400).json({ error: 'No fields to update' });
       return;
@@ -277,6 +301,10 @@ metricsRouter.put(
     if (update.formula !== undefined) dbUpdate.formula = update.formula as string;
     if (update.marketRangeMax !== undefined) dbUpdate.marketRangeMax = (update.marketRangeMax as number | null) ?? 1000;
     if (update.timePreference !== undefined) dbUpdate.timePreference = update.timePreference as TimePreference | null;
+    // hasOwnProperty, not !== undefined: null is the meaningful value here
+    // (back to the workspace default), and it must reach the column.
+    if (Object.prototype.hasOwnProperty.call(update, 'liquidityCredits'))
+      dbUpdate.liquidityCredits = update.liquidityCredits as number | null;
     if (newResets !== undefined) dbUpdate.resetsEvery = newResets;
     if (newNa !== undefined) dbUpdate.resolvesNaUntilMeasured = newNa;
     dbUpdate.updatedAt = new Date();

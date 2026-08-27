@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   agents,
@@ -265,19 +265,20 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
   // (2026-08-27: three LookPilot day markets, none funded, all morning).
   const [ag] = await db.select().from(agents).where(eq(agents.id, ownerAgentId));
   const balanceUnits = (ag?.balance as number | undefined) ?? 0;
-  const affordable = Math.max(0, Math.floor(balanceUnits / toUnits(credits)));
-  if (affordable === 0) {
+  const perMetric = await metricCreditsMap(workspaceId, credits);
+  const funded = planAffordable(pending, p => perMetric.get(p.metricId) ?? credits, balanceUnits);
+  if (funded.length === 0) {
     console.error('insertPendingMarkets: insufficient balance for auto-fund', { workspaceId, needed: credits });
     return insertWithDefaults();
   }
-  if (affordable < pending.length) {
+  if (funded.length < pending.length) {
     console.error('insertPendingMarkets: balance covers some of the new markets, the rest open unfunded', {
       workspaceId,
-      funded: affordable,
-      unfunded: pending.length - affordable,
+      funded: funded.length,
+      unfunded: pending.length - funded.length,
     });
   }
-  const fundedSet = new Set(pending.slice(0, affordable).map(p => p.marketId));
+  const fundedCredits = new Map(funded.map(f => [f.item.marketId, f.credits]));
 
   const metricValues = new Map(
     (
@@ -308,7 +309,8 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
         pool: 0,
         createdAt: now,
       });
-      if (!fundedSet.has(p.marketId)) {
+      const poolContribution = fundedCredits.get(p.marketId);
+      if (poolContribution === undefined) {
         await tx.insert(liquidityEvents).values({
           id: randomUUID(),
           workspaceId,
@@ -324,13 +326,13 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
         workspaceId,
         marketId: p.marketId,
         agentId: ownerAgentId,
-        poolContribution: credits,
+        poolContribution,
       });
       if (anchorP !== null) {
         // Same solvency sizing the conditional pairs use: the subsidy
         // covers the anchored worst case, so an off-center open buys its
         // anchor with a thinner book, never with unminted credits.
-        const anchored = anchoredMarketState(credits, anchorP);
+        const anchored = anchoredMarketState(poolContribution, anchorP);
         await tx
           .update(markets)
           .set({ shares: anchored.shares, liquidity: anchored.liquidity })
@@ -339,6 +341,43 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
     }
   });
   return pending.length;
+}
+
+/**
+ * What each metric's new market opens with: its own `liquidityCredits` when the
+ * owner set one on the metrics page, the workspace default otherwise
+ * (docs/metrics-page.md).
+ */
+async function metricCreditsMap(workspaceId: string, fallback: number): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ id: metricsTable.id, credits: metricsTable.liquidityCredits })
+    .from(metricsTable)
+    .where(eq(metricsTable.workspaceId, workspaceId));
+  return new Map(rows.map(r => [r.id, r.credits == null ? fallback : (r.credits as number)]));
+}
+
+/**
+ * Walk the list in order, funding each market at its own price while the
+ * balance lasts. Order matters and all-or-nothing does not: an unfunded market
+ * waits for the next refresh rather than for every sibling to become
+ * affordable at once (2026-08-27: three LookPilot day markets, none funded).
+ */
+export function planAffordable<T>(
+  items: T[],
+  costOf: (item: T) => number,
+  balanceUnits: number,
+): Array<{ item: T; credits: number }> {
+  let left = balanceUnits;
+  const out: Array<{ item: T; credits: number }> = [];
+  for (const item of items) {
+    const credits = costOf(item);
+    if (credits < MIN_LIQUIDITY_CONTRIBUTION) continue;
+    const units = toUnits(credits);
+    if (left < units) continue;
+    left -= units;
+    out.push({ item, credits });
+  }
+  return out;
 }
 
 /** Acquire a named lock using systemConfig as a lock table. Returns true if acquired. */
@@ -550,18 +589,25 @@ export async function refreshRelativeDateMarkets(
         // market waits for the next refresh rather than for every one of its
         // siblings to become affordable at once.
         const [ag] = await db.select().from(agents).where(eq(agents.id, ownerAgentId));
-        const affordable = Math.min(
-          toFund.length,
-          Math.floor(((ag?.balance as number | undefined) ?? 0) / toUnits(credits)),
+        const perMetric = await metricCreditsMap(workspaceId, credits);
+        const rows = await db
+          .select({ id: markets.id, metricId: markets.metricId })
+          .from(markets)
+          .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.id, toFund)));
+        const byId = new Map(rows.map(r => [r.id, r.metricId]));
+        const funded = planAffordable(
+          toFund,
+          marketId => perMetric.get(byId.get(marketId) ?? '') ?? credits,
+          (ag?.balance as number | undefined) ?? 0,
         );
-        if (affordable > 0) {
+        if (funded.length > 0) {
           await db.transaction(async tx => {
-            for (const marketId of toFund.slice(0, affordable)) {
+            for (const f of funded) {
               await applyAgentLiquidityInjectionTx(tx, {
                 workspaceId,
-                marketId,
+                marketId: f.item,
                 agentId: ownerAgentId,
-                poolContribution: credits,
+                poolContribution: f.credits,
               });
             }
           });
