@@ -420,6 +420,19 @@ revision, or null), and a platform admin gets a picker on the stripe listing
 `main candidate` and the previews `GET /api/admin/release` returns as
 `previews`, newest first.
 
+**Any branch can be built.** CI builds a preview on push, so a branch pushed
+before this existed, or one that fell off the cap, has none; the picker on the
+stripe lists every branch of the repository (`GET /api/admin/branches`, read
+from GitHub's public branches API and cached a minute) and marks which ones
+are built. Choosing an unbuilt one asks `POST /api/admin/branches/:name/build`
+to dispatch the deploy workflow for that ref (`workflow_dispatch` on any ref
+other than main runs the preview job), which needs a GitHub token with
+Actions write on the repository in `GITHUB_ACTIONS_TOKEN` (Secret Manager,
+mounted like the other secrets). Without the token the endpoint answers 501
+with the command that does the same by hand:
+`gh workflow run deploy-cloudrun.yml --ref <branch>`. About eight minutes
+later the branch is built and appears in the picker as such.
+
 **A preview cannot be published.** `publishRevision` refuses any revision that
 does not carry the `candidate` tag (409, "only the main candidate can be
 published"), and the stripe shows no Publish button on a preview. A branch
@@ -473,13 +486,33 @@ names the published site, and `publicOrigins()` uses it to decide which hosts
 get `X-Robots-Tag: noindex`. The beta is trusted enough to log in to and never
 indexable.
 
-### The beta is a public URL on production data
+### The beta is admin only
 
-Anyone who learns the candidate URL can open it, and it reads and writes the
-real database. It is not linked anywhere and it is noindexed, but it is not
-secret. If that becomes uncomfortable, the lockdown is to drop the
-`allUsers` invoker binding on the service and put the beta behind IAP, at the
-cost of the open-the-URL-and-look flow.
+Every beta surface is gated to a platform admin (or the master key); everyone
+else gets a 404 that says nothing, and a signed-out visitor asking for a page
+is sent to `/login?next=<where they were going>` and comes back through the
+gate once signed in. Owner ask 2026-08-27: "make sure that /beta is admin
+gated, not available to everyone". The code being public does not make an
+unpublished build public: what the gate keeps private is a running build of
+unreleased work, on a copy of production data, with a store anyone could write
+into. Two surfaces, one gate (`lib/beta-gate.ts`, mounted in `app.ts` before
+the proxy so the published revision answers for every preview):
+
+- `telarchy.com/beta/*` on the published origin, whichever build the cookie
+  points it at.
+- Every request on a host that is not a production host (the candidate's and
+  the previews' own run.app URLs), on a managed instance (one with
+  `DATABASE_BETA_URL`; a self-hosted instance with one store has no beta and
+  no gate).
+
+Left open on both, because signing in and CI's smoke test need them:
+`/api/auth/*`, `/login`, `/api/public-config`, `/assets/*` and `/beta/assets/*`
+(hashed bundles), `/favicon*`, `/logo.png`, `/robots.txt`. Cloud Scheduler
+never calls the `api` run.app host (its jobs target telarchy.com or the two
+legacy services), so cron is unaffected. Both gates check the same session
+against the production user table, so a forwarded request passes the
+candidate's gate with the same cookie that passed the published revision's.
+`beta-gate.test.ts` pins every branch of this.
 
 ### The permission behind the button
 
