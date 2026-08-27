@@ -31,6 +31,7 @@ const DataRoomPage = lazyPage(() => import('./pages/DataRoomPage'), 'DataRoomPag
 const LegalPage = lazyPage(() => import('./pages/LegalPage'), 'LegalPage');
 const AboutPage = lazyPage(() => import('./pages/AboutPage'), 'AboutPage');
 const ContactPage = lazyPage(() => import('./pages/ContactPage'), 'ContactPage');
+const AudiencePage = lazyPage(() => import('./pages/AudiencePage'), 'AudiencePage');
 
 /* The whole app is the public surface (owner decision 2026-08-19: get rid of
    the old GUI). Every route below renders a standalone `.pubws` page. There
@@ -111,6 +112,20 @@ export function App() {
             canonical in docs/about-page.md. */}
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        {/* The audience pages: copy in docs/audience-pages.md, one component,
+            seven routes. They sit above /:slug so a workspace named "owners"
+            can never shadow them (the server reserves the names too). */}
+        {[
+          '/forecast',
+          '/for-agents',
+          '/owners',
+          '/compare/manifold',
+          '/compare/polymarket',
+          '/compare/metaculus',
+          '/compare/futarchy-fi',
+        ].map(r => (
+          <Route key={r} path={r} element={<AudiencePage route={r} />} />
+        ))}
 
         {/* Legal, served as markdown by the API */}
         <Route path="/terms" element={<LegalPage document="terms" />} />

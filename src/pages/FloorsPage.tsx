@@ -405,8 +405,8 @@ export function FloorsPage() {
             reach them, findable from the front page without competing with
             the markets above. */}
         <footer className="pubws-foot">
-          <Link to="/about">About</Link> · <Link to="/contact">Contact</Link> · <Link to="/terms">Terms</Link> ·{' '}
-          <Link to="/privacy">Privacy</Link>
+          <Link to="/forecast">Forecasters</Link> · <Link to="/owners">Owners</Link> · <Link to="/about">About</Link> ·{' '}
+          <Link to="/contact">Contact</Link> · <Link to="/terms">Terms</Link> · <Link to="/privacy">Privacy</Link>
           {/* Set VITE_PUBLIC_REPO_URL once the source is public; until then no link. */}
           {import.meta.env.VITE_PUBLIC_REPO_URL ? (
             <>

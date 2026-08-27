@@ -18,8 +18,9 @@
   },
   "scripts": {
     "dev": "concurrently -n api,web -c blue,green \"npm --prefix functions run dev\" \"vite\"",
-    "build": "node scripts/build-guides.mjs && tsc -b && vite build",
+    "build": "node scripts/build-guides.mjs && node scripts/build-audience-pages.mjs && tsc -b && vite build",
     "build:guides": "node scripts/build-guides.mjs",
+    "build:audience": "node scripts/build-audience-pages.mjs",
     "knip": "knip",
     "build:functions": "npm --prefix functions run build",
     "predeploy": "node scripts/build-changelog.mjs",

@@ -24,6 +24,7 @@ the top.
 | `metrics.md` | The metrics Telarchy tracks about Telarchy |
 | `ui-conventions.md` | The one frontend design doc |
 | `about-page.md` | Copy for `/about` and `/contact` |
+| `audience-pages.md` | Copy for `/forecast`, `/for-agents`, `/owners` and the `/compare/*` pages; the build step derives the page data and the head meta from it |
 | `legal/` | Terms, privacy, season rules, as served at `/terms`, `/privacy`, `/legal/season-0` |
 | `infra/deploy.md` | Deploying the managed instance (Cloud Run), key rotation, cron |
 

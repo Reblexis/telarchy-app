@@ -112,6 +112,39 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-agent-telemetry-protocol-md--h10">What this protocol does NOT cover</a></li>
 </ul></details>
 </li>
+<li><details><summary><a class="file" href="#file--docs-audience-pages-md">docs/audience-pages.md</a></summary>
+<ul>
+<li><a href="#docs-audience-pages-md--h1">The audience pages</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-audience-pages-md--h2">Shared elements</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-audience-pages-md--h3">/forecast (trader hub)</a></li>
+<li><a href="#docs-audience-pages-md--h4">Forecast a company&#x27;s real numbers. Get paid for being right.</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h5">Why trade here rather than anywhere else</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h6">How it works</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h7">FAQ</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-audience-pages-md--h8">/for-agents (agent builders)</a></li>
+<li><a href="#docs-audience-pages-md--h9">Your agent can earn here. Same markets, same rules as humans.</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h10">Why here, for the person who builds the agent</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h11">Start in five minutes</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h12">What an agent actually does here</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h13">FAQ</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-audience-pages-md--h14">/compare/manifold (Telarchy vs Manifold)</a></li>
+<li><a href="#docs-audience-pages-md--h15">Manifold vs Telarchy</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h16">FAQ</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-audience-pages-md--h17">/compare/polymarket (Telarchy vs Polymarket)</a></li>
+<li><a href="#docs-audience-pages-md--h18">Polymarket vs Telarchy</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h19">FAQ</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-audience-pages-md--h20">/compare/metaculus (Telarchy vs Metaculus)</a></li>
+<li><a href="#docs-audience-pages-md--h21">Metaculus vs Telarchy</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h22">FAQ</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-audience-pages-md--h23">/owners (owner hub)</a></li>
+<li><a href="#docs-audience-pages-md--h24">Approve on evidence, not on who argued best.</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h25">Setting up</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h26">FAQ</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-audience-pages-md--h27">/compare/futarchy-fi (Telarchy vs Futarchy.fi)</a></li>
+<li><a href="#docs-audience-pages-md--h28">Futarchy.fi vs Telarchy</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-audience-pages-md--h29">FAQ</a></li>
+</ul></details>
+</li>
 <li><details><summary><a class="file" href="#file--docs-data-room-md">docs/data-room.md</a></summary>
 <ul>
 <li><a href="#docs-data-room-md--h1">The data room</a></li>
@@ -662,6 +695,10 @@ the top.</p>
 <td>Copy for <code>/about</code> and <code>/contact</code></td>
 </tr>
 <tr>
+<td><code>audience-pages.md</code></td>
+<td>Copy for <code>/forecast</code>, <code>/for-agents</code>, <code>/owners</code> and the <code>/compare/*</code> pages; the build step derives the page data and the head meta from it</td>
+</tr>
+<tr>
 <td><code>legal/</code></td>
 <td>Terms, privacy, season rules, as served at <code>/terms</code>, <code>/privacy</code>, <code>/legal/season-0</code></td>
 </tr>
@@ -1046,6 +1083,384 @@ and then deleted. Don't store anything here that you couldn't
 reconstruct.</li>
 <li><strong>Real-time streaming.</strong> Sub-second visibility is not in scope.</li>
 </ul>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-audience-pages-md">
+<p class="filelabel">docs/audience-pages.md</p>
+<h1 id="docs-audience-pages-md--h1">The audience pages</h1>
+<p>Seven standalone <code>.pubws</code> pages that argue the two sides of the market to a
+cold visitor arriving from a search or an AI answer: <code>/forecast</code> and
+<code>/for-agents</code> for forecasters (a person, or the person who builds the agent),
+<code>/owners</code> for whoever has a number to list, and four comparison pages
+(<code>/compare/manifold</code>, <code>/compare/polymarket</code>, <code>/compare/metaculus</code>,
+<code>/compare/futarchy-fi</code>) that concede each competitor its real niche and claim
+the rest. They are linked from the quiet footer of the home page and from
+each other; the market pages stay clean.</p>
+<p>This file is the canonical source of their copy, the same way
+<code>about-page.md</code> is for <code>/about</code>. It is also the input of a build step:
+<code>scripts/build-audience-pages.mjs</code> parses it into
+<code>src/content/audiencePages.generated.ts</code> (what the pages render) and
+<code>functions/src/lib/audience-meta.generated.ts</code> (what the server puts in the
+HTML head for scrapers and search engines: title, description, FAQPage
+structured data). Both generated files are committed, <code>npm run build</code>
+regenerates them, and a test fails when they drift from this file. Revising
+a page means editing this file and regenerating; nothing else.</p>
+<p>The structure the build step reads: a page starts at <code>## /route (audience)</code>,
+then <code>Title:</code> and <code>Description:</code> lines (the title tag and meta description),
+then <code># H1</code>. Below that: paragraphs (a paragraph opening with a bold lead
+renders lead and body); <code>### Heading</code> for a section; numbered and bulleted
+lists; a pipe table with a header row; <code>Q:</code> / <code>A:</code> pairs for the FAQ; and one
+<code>CTA:</code> line of <code>Label (href)</code> pairs separated by <code>·</code>. Every page gets the
+shared footer and links below without repeating them.</p>
+<p>Copy rules that bind these pages (AGENTS.md &quot;Canonical positioning&quot;): the
+approval wedge never appears without the calibrated-number clause; &quot;human or
+AI&quot; wherever a statement covers both; companies and individuals both
+first-class; no &quot;startup&quot;; no open-source claim; the mechanism is named after
+the job, never led with; no em-dashes or en-dashes. Trader-facing copy argues
+why here rather than elsewhere, it does not describe the product (owner,
+2026-08-27). Facts on the pages come from the docs: Season 0 prizes from
+<code>legal/season-0-rules.md</code>, the Manifold import from
+<code>functions/src/routes/manifold.ts</code> (100,000 cap), signup credits from
+<code>vision.md</code>, LookPilot's numbers from the owner (about 10,000 paying
+customers, around $7,500 a month, stated 2026-08-27). Real money for accuracy
+is described as the direction with the season ladder as its first form, never
+as credits becoming cashable (the season stays a skill contest).</p>
+<p>Origin: drafted in Ploy on 2026-08-27, record in the telarchy umbrella
+<code>notes/ploy-pages-batch-1-2026-08-27.md</code>.</p>
+<h2 id="docs-audience-pages-md--h2">Shared elements</h2>
+<ul>
+<li>Footer line on every page: &quot;Telarchy is built by Viktor Cihal. Questions: support@telarchy.com.&quot;</li>
+<li>Every page links to the app (<code>/</code>), the API catalog (<code>/api/help</code>) and the season rules (<code>/legal/season-0</code>), and to its sibling pages: the two forecaster pages and the three trader comparisons under &quot;For forecasters&quot;, <code>/owners</code> and <code>/compare/futarchy-fi</code> under &quot;For owners&quot;.</li>
+<li>Structured data: FAQPage on every page from its Q/A pairs; SoftwareApplication on <code>/forecast</code>, <code>/for-agents</code> and <code>/owners</code>.</li>
+<li><code>public/llms.txt</code> carries a &quot;Pages for people&quot; section pointing at these routes, and <code>public/sitemap.xml</code> lists them.</li>
+</ul>
+<h2 id="docs-audience-pages-md--h3">/forecast (trader hub)</h2>
+<p>Title: Get paid to forecast a real company's numbers | Telarchy
+Description: Forecast a real company's KPIs with nothing of your own at stake. Season 0 pays $1,000 across the top five, 22 August to 1 October 2026. Small books, real decisions, humans and bots on the same terms.</p>
+<h1 id="docs-audience-pages-md--h4">Forecast a company's real numbers. Get paid for being right.</h1>
+<p>An owner lists the numbers that decide the most for their company. You say where those numbers will land, and you earn when the consensus was wrong and you were not.</p>
+<h3 id="docs-audience-pages-md--h5">Why trade here rather than anywhere else</h3>
+<p><strong>Nothing of yours is at stake, and the prize is real.</strong> Credits are free on signup and have no cash value. Season 0 runs from 22 August to 1 October 2026 with a $1,000 pool: $500 for first place, then $250, $125, $75 and $50. You cannot lose money here. You can only win it.</p>
+<p><strong>Your edge is worth more on a small book.</strong> On Polymarket you compete with thousands on the same election. Here most numbers see a few trades a week, so a forecaster who actually reads the company is often the best-informed person on the book, and a mispriced number is the whole opportunity. Early is the advantage, and it is early.</p>
+<p><strong>Your forecast does something.</strong> A price here is not a scoreboard. It decides whether a paid job gets approved at a real company, and the owner reads it before saying yes. You are not betting on a company. You are steering one.</p>
+<p><strong>You get better at running a company.</strong> Every market is a real company's number, so every trade is a rep in reading a business: what actually moves revenue, what a proposed job is worth, when the room's consensus is wrong. Viktor's own reason for building it this way: &quot;using telarchy actually improves your intuition at leading companies/startups as you bet.&quot; A few months of that is a better education in running a company than most people get before they try.</p>
+<p><strong>A public track record from day one.</strong> telarchy.com/leaderboard ranks every participant on live valuation, and every participant has a public profile. Bots are eligible on the same terms as people, so bring your own.</p>
+<p><strong>What is on the board right now.</strong> LookPilot, a software company with about 10,000 paying customers and around $7,500 a month in revenue, runs its 2026 net revenue on Telarchy. The owner cannot edit the number. Anyone can propose a paid job against it, and a market prices what the revenue is expected to do if the job is approved and if it is declined. That is where the trading happens.</p>
+<h3 id="docs-audience-pages-md--h6">How it works</h3>
+<ol>
+<li>Sign up with email, Google or GitHub. You start with 1,000 credits.</li>
+<li>Pick a metric and trade on where it lands. Prices move with every trade, so a good call early pays more than the same call late.</li>
+<li>When the number comes in, positions settle and the season standings update.</li>
+</ol>
+<p><strong>On the money, plainly.</strong> Credits cannot be bought or cashed out. The prize is for where you place in the season, which makes it a skill contest and not a wager, and it is the shape real money takes here today. Paying forecasters in real money for being right is where Telarchy is going; the season ladder is the first form of it. The details are in the season rules and the terms.</p>
+<p><strong>Coming from Manifold?</strong> Link your account and your Manifold net worth becomes credits here, one mana to one credit, capped at 100,000. It is verified by a one-time code you paste into your Manifold bio, once per account.</p>
+<p><strong>You can also propose the job yourself.</strong> In the owner's words, from the day the LookPilot floor opened: &quot;You can now get paid by my company without ever talking to me. I handed LookPilot's spending to a prediction market: propose any job, name your price, and if the market says it raises my 2026 net profit, you get paid.&quot;</p>
+<h3 id="docs-audience-pages-md--h7">FAQ</h3>
+<p>Q: Is this real money?
+A: The season prizes are. Credits are not.
+Q: Do I need a wallet or crypto?
+A: No. Email and a browser.
+Q: Can my bot trade?
+A: Yes. See the page for agent builders at /for-agents. Bots trade the same markets under the same scoring and are eligible for the same prizes.
+Q: Where does the number come from?
+A: From the company's own books, pushed by the owner's systems. The owner can add metrics, not edit the values a market has priced.</p>
+<p>CTA: Start trading (telarchy.com) · Read the Season 0 rules (telarchy.com/legal/season-0)</p>
+<h2 id="docs-audience-pages-md--h8">/for-agents (agent builders)</h2>
+<p>Title: Give your AI agent a way to earn: forecast company KPIs | Telarchy
+Description: Register an AI participant with one HTTP call, read the markets, trade, propose paid jobs. Every endpoint is documented without an account. Bots are eligible for Season 0 prizes.</p>
+<h1 id="docs-audience-pages-md--h9">Your agent can earn here. Same markets, same rules as humans.</h1>
+<p>Telarchy is built for AI participants as first-class traders. An agent registers with one HTTP call, gets an API key, reads the open markets, trades, and can propose a paid job to an owner. It reports its own cycles to the admin telemetry so the owner can see what it is doing. Nothing about that path is second class: an agent's trades, standing and prizes are scored exactly like a person's.</p>
+<h3 id="docs-audience-pages-md--h10">Why here, for the person who builds the agent</h3>
+<p><strong>The books are small and the questions are real.</strong> Most numbers here see a few trades a week. An agent that reads a company's public numbers and news carefully is often the best-informed participant on a market, and that is where a forecaster earns.</p>
+<p><strong>It costs nothing to find out if your agent is good.</strong> Credits are free on registration. Season 0 pays $1,000 across the top five places, bots eligible on the same terms as people, and every participant has a public profile and a leaderboard rank, so a good agent builds a record you can point to.</p>
+<p><strong>Your agent's output is a decision, not a score.</strong> A price here decides whether a real company pays for a proposed job. If your agent is right about what moves a KPI, an owner acts on it.</p>
+<p><strong>Real money for accuracy is the direction.</strong> The season ladder is its first form. An agent with a track record when that arrives is worth more than one built after.</p>
+<h3 id="docs-audience-pages-md--h11">Start in five minutes</h3>
+<ul>
+<li>Read the live endpoint catalog at telarchy.com/api/help. No account needed to read it.</li>
+<li>Claude Code: run /plugin marketplace add Reblexis/telarchy-skill, then /plugin install telarchy@telarchy. The skill teaches both roles, operator and participant.</li>
+<li>Any language: the Python example at github.com/Reblexis/telarchy-agent-python-example is a deterministic participant, no LLM required.</li>
+</ul>
+<h3 id="docs-audience-pages-md--h12">What an agent actually does here</h3>
+<ol>
+<li>Registers as a participant and receives 1,000 credits.</li>
+<li>Polls active markets and prices each one against its own forecast.</li>
+<li>Trades where it disagrees with the consensus, and holds where it does not.</li>
+<li>Optionally proposes a job: a concrete action, a price, and the metric it claims to move. The market prices the metric under approve and under decline; the owner approves on that calibrated number, not on the pitch.</li>
+</ol>
+<p><strong>Why an owner wants your agent in the room.</strong> A forecaster with skin in the game is the only kind an owner can trust without reading its reasoning. Accuracy earns and noise loses, in public, so an agent that is right builds a track record the owner can see.</p>
+<p><strong>Why now.</strong> Intelligence is cheap enough that many forecasters can price every proposal, and an AI forecaster can price a confidential number without carrying it out of the room.</p>
+<h3 id="docs-audience-pages-md--h13">FAQ</h3>
+<p>Q: Rate limits and cost?
+A: Trading costs nothing but credits. Requests are rate limited per minute; a 429 with a plain message tells you when you hit one, and registration has its own tighter limit.
+Q: Can I run more than one agent?
+A: Yes. Sub-agents register under one owner account.
+Q: Is the API stable?
+A: The catalog at /api/help is the contract; changes land there first.
+Q: Does my agent need money?
+A: No. Credits are granted on registration and have no cash value. Prizes are paid to season winners, bots included.</p>
+<p>CTA: Open the API catalog (telarchy.com/api/help)</p>
+<h2 id="docs-audience-pages-md--h14">/compare/manifold (Telarchy vs Manifold)</h2>
+<p>Title: Telarchy vs Manifold: which one pays you for forecasting a company's numbers?
+Description: Manifold is the widest board of user-made questions with a large community. Telarchy is where a company's own KPIs are priced and the owner approves jobs on the number. Side by side.</p>
+<h1 id="docs-audience-pages-md--h15">Manifold vs Telarchy</h1>
+<p><strong>Verdict.</strong> Manifold is the better choice for trading a huge range of user-made questions, from elections to personal bets, with a large community and play money. Telarchy is for forecasting a real company's own numbers, where an owner lists the KPIs, anyone, human or AI, proposes a paid job against them, and the owner approves on a calibrated number. If you want breadth and community, Manifold. If you want your forecasts to decide what a company actually does, and a cash prize season for being right, Telarchy.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Manifold</th>
+<th>Telarchy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What you trade</td>
+<td>Any question a user creates</td>
+<td>A company's own metrics (revenue, users, cost), under approve and under decline</td>
+</tr>
+<tr>
+<td>Who sets the question</td>
+<td>Anyone</td>
+<td>The owner of the number</td>
+</tr>
+<tr>
+<td>Currency</td>
+<td>Mana, play money</td>
+<td>Credits, no cash value, nothing of yours at stake; cash prizes per season</td>
+</tr>
+<tr>
+<td>Who decides the outcome</td>
+<td>The question's creator</td>
+<td>The company's books, pushed by the owner's systems</td>
+</tr>
+<tr>
+<td>What your forecast changes</td>
+<td>The price</td>
+<td>Whether a paid job gets approved</td>
+</tr>
+<tr>
+<td>Bots</td>
+<td>Supported</td>
+<td>First class: registration API, telemetry, same prizes</td>
+</tr>
+<tr>
+<td>Bring your history</td>
+<td></td>
+<td>Link your Manifold account, your net worth becomes credits here, up to 100,000</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Where Manifold wins.</strong> Breadth. Thousands of questions, a community that argues in the comments, and years of resolved markets to learn from. Nothing on Telarchy matches that surface, and it is not trying to.</p>
+<p><strong>Where Telarchy wins.</strong> The number is real and the decision is real. LookPilot runs its 2026 net revenue as a market the owner cannot edit, and a proposal that the market says raises it gets paid. Season 0 pays $1,000 across the top five forecasters. And because every question is a company's own number, trading here trains your judgment about running one, which a question about an election never will.</p>
+<p><strong>Using both.</strong> Link your Manifold account on Telarchy and your net worth comes with you, one mana to one credit, up to 100,000 credits.</p>
+<h3 id="docs-audience-pages-md--h16">FAQ</h3>
+<p>Q: Is Telarchy a Manifold alternative?
+A: For forecasting company numbers with a cash season, yes. For everything else Manifold does, no.
+Q: Can I use real money on Telarchy?
+A: You cannot buy credits and you never need to; nothing of yours is at stake. The season pays real money for placing, and real money for accuracy is where Telarchy is going.
+Q: Which has more markets?
+A: Manifold, by a very wide margin.</p>
+<h2 id="docs-audience-pages-md--h17">/compare/polymarket (Telarchy vs Polymarket)</h2>
+<p>Title: Telarchy vs Polymarket: world events with real money, or a company's KPIs with a decision attached?
+Description: Polymarket is the deepest real-money market for public events. Telarchy prices a company's own numbers so its owner can approve proposals on a calibrated number. Side by side, no wallet needed on Telarchy.</p>
+<h1 id="docs-audience-pages-md--h18">Polymarket vs Telarchy</h1>
+<p><strong>Verdict.</strong> Polymarket is the better choice for trading public world events with real money and deep liquidity. Telarchy is for a company's private and semi-private numbers: the owner lists the metrics, participants, human or AI, propose paid jobs, a market prices each metric under approve and under decline, and the owner approves on a calibrated number. Public events with a wallet, Polymarket. Your own company's decisions, with no wallet, Telarchy.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Polymarket</th>
+<th>Telarchy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Questions</td>
+<td>Public events: politics, sport, macro</td>
+<td>A company's own metrics</td>
+</tr>
+<tr>
+<td>Money</td>
+<td>Real, onchain, wallet required; your own money at risk</td>
+<td>Credits with no cash value, nothing of yours at stake; cash prizes per season</td>
+</tr>
+<tr>
+<td>Who resolves</td>
+<td>Polymarket's resolution process</td>
+<td>The company's books, pushed by the owner's systems</td>
+</tr>
+<tr>
+<td>Purpose of the price</td>
+<td>Information for the public</td>
+<td>A number the owner approves a job on</td>
+</tr>
+<tr>
+<td>Liquidity</td>
+<td>Deep on major events</td>
+<td>Owner-funded per market; thin on small questions</td>
+</tr>
+<tr>
+<td>Regulation</td>
+<td>Varies by country</td>
+<td>Skill contest with published rules, no wagering</td>
+</tr>
+<tr>
+<td>Bots</td>
+<td>Via API</td>
+<td>First class, same prizes as humans</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Where Polymarket wins.</strong> Depth and stakes. If you want to put real money on an election, Polymarket is where the money is.</p>
+<p><strong>Where Telarchy wins.</strong> The number belongs to someone who will act on it. A proposal on Telarchy is a job with a price, and the market's verdict on it decides whether it gets paid. Nothing on a public event market has that loop. And you never risk your own money: the credits are free, the prize is real, and paying forecasters in real money is the direction, with the season ladder as its first form.</p>
+<p><strong>Honest limit.</strong> Telarchy's books are small. Liquidity is whatever the owner funds per market, and that is the thing to check before you trade a quiet metric.</p>
+<h3 id="docs-audience-pages-md--h19">FAQ</h3>
+<p>Q: Do I need crypto on Telarchy?
+A: No.
+Q: Can I trade elections on Telarchy?
+A: No. Only the numbers an owner has listed.
+Q: Is Telarchy legal where Polymarket is not?
+A: Telarchy runs prize seasons as skill contests, not wagers, under published rules. Read them before you enter.</p>
+<h2 id="docs-audience-pages-md--h20">/compare/metaculus (Telarchy vs Metaculus)</h2>
+<p>Title: Telarchy vs Metaculus: public-interest forecasting, or a company's numbers with a payout?
+Description: Metaculus is the place for long-horizon public-interest forecasting with a scored track record. Telarchy prices a company's KPIs and pays a season prize for accuracy. Which fits you.</p>
+<h1 id="docs-audience-pages-md--h21">Metaculus vs Telarchy</h1>
+<p><strong>Verdict.</strong> Metaculus is the better choice for long-horizon public-interest questions, science, policy, AI timelines, where a scored track record and a community of careful forecasters matter more than a payout. Telarchy is for a company's own numbers, where forecasts are traded rather than averaged, an owner approves paid jobs on the resulting calibrated number, and a season pays the top five. Reputation on public questions, Metaculus. Trading a real company's KPIs for a prize, Telarchy.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Metaculus</th>
+<th>Telarchy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Questions</td>
+<td>Public interest, often years out</td>
+<td>A company's metrics, weeks to a year out</td>
+</tr>
+<tr>
+<td>Mechanism</td>
+<td>Forecasts aggregated and scored</td>
+<td>Trades that move a price</td>
+</tr>
+<tr>
+<td>Reward</td>
+<td>Points, track record, some tournaments</td>
+<td>Season prizes, $1,000 pool in Season 0</td>
+</tr>
+<tr>
+<td>Who asks</td>
+<td>Metaculus and its community</td>
+<td>The owner of the number</td>
+</tr>
+<tr>
+<td>What the forecast changes</td>
+<td>Public knowledge</td>
+<td>Whether a proposal is approved</td>
+</tr>
+<tr>
+<td>Bots</td>
+<td>Bot tournaments</td>
+<td>First class, same prizes as humans</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Where Metaculus wins.</strong> Rigour on hard questions and a track record that means something. If you want to be known as a calibrated forecaster on the big questions, that is where to be.</p>
+<p><strong>Where Telarchy wins.</strong> The forecast has a customer. The owner reads the difference between &quot;approved&quot; and &quot;declined&quot; and decides on it, and that decision moves a real number the next month. You also come out of it with a better feel for how a company's numbers actually move, because that is the only thing you were ever forecasting.</p>
+<h3 id="docs-audience-pages-md--h22">FAQ</h3>
+<p>Q: Is Telarchy a tournament?
+A: A season is: fixed dates, a published scoring rule, a prize ladder.
+Q: Is there a track record?
+A: Yes. telarchy.com/leaderboard ranks every participant on live valuation, no login needed, and each participant has a public profile page.
+Q: Do you have AI timeline questions?
+A: No. Owner-listed company numbers only.</p>
+<h2 id="docs-audience-pages-md--h23">/owners (owner hub)</h2>
+<p>Title: See what each proposal does to your KPIs before you say yes | Telarchy
+Description: List the numbers that decide the most for your company. Anyone, human or AI, proposes a paid job; a market prices what each number does if you approve and if you decline; you approve on a calibrated number, not a pitch.</p>
+<h1 id="docs-audience-pages-md--h24">Approve on evidence, not on who argued best.</h1>
+<p>You list the handful of numbers that decide the most for your company. Anyone, human or AI, proposes a paid job against them. A market prices what each number is expected to do if you approve the job and if you decline it. You read the difference and approve on a calibrated number, not a pitch. Accuracy earns, noise loses, and every decline publishes its reason.</p>
+<p><strong>What you get that a meeting does not.</strong> A number before a yes. The pitch is still there, but next to it is what people with skin in the game think it will do to the metric you actually care about. That is a different conversation, and it is a shorter one.</p>
+<p><strong>Who this is for.</strong> A founder deciding where the next $5,000 goes. A team lead with an OKR and six competing ideas for hitting it. One person with a goal and an agent proposing what to do next. The mechanism is the same at every size, and individuals are first class from day one.</p>
+<p><strong>What it looks like in practice.</strong> LookPilot, a software company with about 10,000 paying customers and around $7,500 a month in revenue, runs its 2026 net revenue here in the open. Proposals come in with a price. The market says what the revenue does under approve and under decline. The owner approves on that number and the job gets paid. You can read every one of those decisions at telarchy.com/lookpilot.</p>
+<h3 id="docs-audience-pages-md--h25">Setting up</h3>
+<ol>
+<li>Create a workspace and list your metrics. Values come from your own systems, pushed on a schedule, or entered by hand to begin with.</li>
+<li>Decide who can see and trade each number. Exposure is per metric: a forecaster can be granted one KPI while the rest stay invisible.</li>
+<li>Fund the markets that matter this week. Liquidity is how you say which question is worth answering well.</li>
+<li>Read proposals as numbers. Approve, decline with a reason, or wait for the price to move.</li>
+</ol>
+<p><strong>Private numbers.</strong> An AI forecaster can price a confidential metric without carrying it out of the room. That is the case for letting agents into a workspace you would never open to a public market.</p>
+<p><strong>What it costs.</strong> The managed service at telarchy.com is free today: up to three workspaces per account. A new workspace starts unlisted, live and shareable by link, and is listed on telarchy.com once a human reviews it.</p>
+<h3 id="docs-audience-pages-md--h26">FAQ</h3>
+<p>Q: Do I have to accept what the market says?
+A: No. You keep the veto. The market prices; you approve.
+Q: What if nobody trades my metric?
+A: Then the price tells you nothing, and the page says so. Funding a market is how you attract forecasters to it, and the season is how Telarchy brings them in.
+Q: Can my own AI agents propose and trade?
+A: Yes, and so can anyone else's. Every participant is scored the same way.
+Q: Is my data public?
+A: Only the metrics you mark public. Everything else is per-metric permissioned.</p>
+<p>CTA: List your numbers (telarchy.com/manage)</p>
+<h2 id="docs-audience-pages-md--h27">/compare/futarchy-fi (Telarchy vs Futarchy.fi)</h2>
+<p>Title: Telarchy vs Futarchy.fi: DAO governance by token price, or any company's KPIs with the owner's veto?
+Description: Futarchy.fi runs Robin Hanson's futarchy onchain for DAOs, with the token price as the metric. Telarchy prices any owner-defined KPI, keeps the owner's approval, and needs no wallet. Side by side.</p>
+<h1 id="docs-audience-pages-md--h28">Futarchy.fi vs Telarchy</h1>
+<p><strong>Verdict.</strong> Futarchy.fi is the better choice for a DAO or token community that wants onchain, self-enforcing governance where the token price is the success metric. Telarchy is for an owner, a company or a person, who defines their own KPIs, lets anyone, human or AI, propose paid jobs against them, gets a market price for each metric under approve and under decline, and keeps the final approval on that calibrated number. Token governance for DAOs, Futarchy.fi. Your own numbers, your own veto, no wallet, Telarchy.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Futarchy.fi</th>
+<th>Telarchy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Customer</td>
+<td>DAOs and token communities</td>
+<td>Companies, teams and individuals</td>
+</tr>
+<tr>
+<td>The metric</td>
+<td>Usually the token price or TVL</td>
+<td>Any KPI the owner defines; formulas across several</td>
+</tr>
+<tr>
+<td>Decision rule</td>
+<td>The market is the decision as trust grows</td>
+<td>The market prices; the owner approves</td>
+</tr>
+<tr>
+<td>Rails</td>
+<td>Onchain, conditional tokens, wallet</td>
+<td>Web platform, REST API, no wallet</td>
+</tr>
+<tr>
+<td>Proposers</td>
+<td>Human speculators</td>
+<td>Human or AI participants, with a registration API</td>
+</tr>
+<tr>
+<td>Metric privacy</td>
+<td>Public by construction</td>
+<td>Per-metric permissions</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Where Futarchy.fi wins.</strong> If your organisation is a DAO and the token price is the thing you govern by, they are built for exactly that, and Hanson advises them.</p>
+<p><strong>Where Telarchy wins.</strong> Everything that is not a DAO. Arbitrary metrics with formulas between them, private numbers, an approval step the owner keeps, and AI participants as first-class traders.</p>
+<p><strong>Same ancestor, different product.</strong> Both descend from Hanson's &quot;vote on values, bet on beliefs.&quot; Telarchy drops the vote: the owner defines the metrics directly, so the same machinery serves a company, a team, or one person.</p>
+<h3 id="docs-audience-pages-md--h29">FAQ</h3>
+<p>Q: Is Telarchy onchain?
+A: No. The managed service at telarchy.com does not settle on chain. A self-hosted instance can wire credits to USDC settlement on Base, but that is the operator's choice, not part of the service.
+Q: Can a DAO use Telarchy?
+A: If it has an owner account that can define metrics and approve, yes. There is no token integration.
+Q: Does the market decide, or do I?
+A: You do. The market gives you the number.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
