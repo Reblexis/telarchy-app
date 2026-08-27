@@ -159,13 +159,6 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     { method: 'GET', path: '/api/metrics/:id', auth: 'public-read', description: 'Get a single metric by ID.' },
     {
-      method: 'GET',
-      path: '/api/metrics/overview',
-      auth: 'public-read',
-      description:
-        "Everything the owner's metrics page draws (docs/metrics-page.md): { defaultCredits, autoFund, metrics: [{ id, name, description, rangeMin, rangeMax, credits, curve, horizons: [{ marketId, targetDate, settlesOn, pool, trades }] }] }. Horizons are this metric's OPEN baseline markets only: resolved markets are history and a proposal's conditional markets are not the owner's horizons. `credits` is null when the metric uses the workspace default; `curve` is true when timePreference.enabled picks the dates, which makes the horizon list read-only for that metric.",
-    },
-    {
       method: 'POST',
       path: '/api/metrics',
       auth: 'admin',

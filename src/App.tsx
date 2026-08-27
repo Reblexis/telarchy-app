@@ -23,7 +23,6 @@ const SignupPage = lazyPage(() => import('./pages/SignupPage'), 'SignupPage');
 const WaitlistPage = lazyPage(() => import('./pages/WaitlistPage'), 'WaitlistPage');
 const LeaderPage = lazyPage(() => import('./pages/LeaderPage'), 'LeaderPage');
 const AnnouncementsPage = lazyPage(() => import('./pages/AnnouncementsPage'), 'AnnouncementsPage');
-const MetricsPage = lazyPage(() => import('./pages/MetricsPage'), 'MetricsPage');
 const SeasonPage = lazyPage(() => import('./pages/SeasonPage'), 'SeasonPage');
 const ManagePage = lazyPage(() => import('./pages/ManagePage'), 'ManagePage');
 const ParticipantProfilePage = lazyPage(() => import('./pages/ParticipantProfilePage'), 'ParticipantProfilePage');
@@ -186,9 +185,6 @@ export function App() {
         {/* telarchy.com/<slug> is a market. Last, so every named route above
             wins over a workspace that happens to share its name. */}
         <Route path="/:slug/announcements" element={<AnnouncementsPage />} />
-        {/* The owner's page: metrics, their dates, and the depth behind each
-            (docs/metrics-page.md). Above /:slug for the same reason. */}
-        <Route path="/:slug/metrics" element={<MetricsPage />} />
         <Route path="/:slug" element={<TradePage />} />
 
         {/* Anything else, every dead console URL included, is not an error

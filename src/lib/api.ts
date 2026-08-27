@@ -791,34 +791,6 @@ function notifyMutation() {
   }
 }
 
-/** One market on the owner's metrics page: a date, and what it holds. */
-export interface MetricsOverviewHorizon {
-  marketId: string;
-  targetDate: string;
-  settlesOn: string;
-  pool: number;
-  trades: number;
-}
-
-export interface MetricsOverviewRow {
-  id: string;
-  name: string;
-  description: string;
-  rangeMin: number;
-  rangeMax: number;
-  /** null = the workspace default stated at the top of the page. */
-  credits: number | null;
-  /** The decay curve picks this metric's dates, so its chips are read-only. */
-  curve: boolean;
-  horizons: MetricsOverviewHorizon[];
-}
-
-export interface MetricsOverview {
-  defaultCredits: number;
-  autoFund: boolean;
-  metrics: MetricsOverviewRow[];
-}
-
 async function request(path: string, options: RequestInit = {}, skipWorkspaceHeader = false) {
   return requestWithWorkspace(path, options, { skipWorkspaceHeader });
 }
@@ -915,6 +887,14 @@ export function seasonStandingToEntry(s: SeasonStanding): LeaderboardEntry {
 
 export const api = {
   getMetrics: () => request('/api/metrics'),
+  /** One metric, with its stored timePreference. The floor's "+ date" control
+   *  needs the STORED horizons, not the dates of the markets on screen: a
+   *  curve-generated date written back as a custom horizon would freeze it. */
+  getMetric: (
+    workspaceId: string,
+    id: string,
+  ): Promise<{ id: string; name: string; timePreference?: TimePreference | null }> =>
+    requestWithWorkspace(`/api/metrics/${id}`, {}, { workspaceId }),
   createMetric: (body: {
     name: string;
     description: string;
@@ -936,11 +916,9 @@ export const api = {
       marketRangeMax?: number;
     },
   ) => request(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  /** Everything the owner's metrics page draws (docs/metrics-page.md). */
-  getMetricsOverview: (workspaceId: string): Promise<MetricsOverview> =>
-    requestWithWorkspace('/api/metrics/overview', {}, { workspaceId }),
   /** Partial metric update. The full-object `updateMetric` is for the editor;
-   *  the metrics page changes one field at a time and must not resend the rest. */
+   *  the floor's owner controls change one field at a time and must not
+   *  resend the rest (docs/owner-on-the-floor.md). */
   patchMetric: (
     workspaceId: string,
     id: string,
@@ -1069,8 +1047,14 @@ export const api = {
       { workspaceId },
     ),
 
-  injectLiquidity: (marketId: string, amount: number) =>
-    request(`/api/predictions/markets/${marketId}/liquidity`, { method: 'POST', body: JSON.stringify({ amount }) }),
+  /** workspaceId is passed when the caller is on a floor rather than in the
+   *  active workspace, which is every owner control on the floor itself. */
+  injectLiquidity: (marketId: string, amount: number, workspaceId?: string) =>
+    requestWithWorkspace(
+      `/api/predictions/markets/${marketId}/liquidity`,
+      { method: 'POST', body: JSON.stringify({ amount }) },
+      { workspaceId },
+    ),
   injectLiquidityBulk: (amount: number, proposalId?: string) =>
     request('/api/predictions/markets/liquidity/bulk', {
       method: 'POST',

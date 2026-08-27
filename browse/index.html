@@ -192,16 +192,6 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">Reconstruction</a></li>
 </ul></details>
 </li>
-<li><details><summary><a class="file" href="#file--docs-metrics-page-md">docs/metrics-page.md</a></summary>
-<ul>
-<li><a href="#docs-metrics-page-md--h1">The metrics page</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-metrics-page-md--h2">Who sees it</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-metrics-page-md--h3">What it shows</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-metrics-page-md--h4">What it changes</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-metrics-page-md--h5">API</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-metrics-page-md--h6">Why credits and not weights</a></li>
-</ul></details>
-</li>
 <li><details><summary><a class="file" href="#file--docs-metrics-md">docs/metrics.md</a></summary>
 <ul>
 <li><a href="#docs-metrics-md--h1">Telarchy metrics</a></li>
@@ -225,6 +215,15 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-otto-md--h2">Guarantees</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-otto-md--h3">Tools and budgets</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-otto-md--h4">The conformance check</a></li>
+</ul></details>
+</li>
+<li><details><summary><a class="file" href="#file--docs-owner-on-the-floor-md">docs/owner-on-the-floor.md</a></summary>
+<ul>
+<li><a href="#docs-owner-on-the-floor-md--h1">The owner works on the floor</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h2">The rule</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h3">What sits where</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h4">What is deliberately not here</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h5">Why not a management page</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-seasons-md">docs/seasons.md</a></summary>
@@ -2109,78 +2108,6 @@ not done.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
-<section class="docfile" id="file--docs-metrics-page-md">
-<p class="filelabel">docs/metrics-page.md</p>
-<h1 id="docs-metrics-page-md--h1">The metrics page</h1>
-<p><code>/{owner}/{slug}/metrics</code> is the owner's page. It answers the whole of their
-recurring job in one screen: what this workspace is measured on, which dates
-each number gets priced for, and how deep each of those markets runs.</p>
-<p>It is not a settings page and it is not a cockpit. Everything on it is one of
-those three things; anything else belongs elsewhere.</p>
-<h2 id="docs-metrics-page-md--h2">Who sees it</h2>
-<p>The <code>manage</code> capability. A signed-in visitor without it gets the floor. There
-is no link to it from a public page; the owner reaches it from the floor's own
-account menu and from <code>/manage</code>.</p>
-<h2 id="docs-metrics-page-md--h3">What it shows</h2>
-<p>One section per metric, in the workspace's metric order. Each carries:</p>
-<ul>
-<li><strong>The name</strong>, as the floor prints it.</li>
-<li><strong>The description</strong>, the sentence the market settles on, shown under the
-name. It is the metric's public definition, so the page renders it rather
-than a source label of its own.</li>
-<li><strong>The range</strong>, <code>0 - marketRangeMax</code>, right-aligned in mono. A market prices
-a number inside a range; the owner cannot read a pool without it.</li>
-<li><strong>The credits a new market on this metric opens with.</strong> Typed in credits,
-not in a multiplier. Empty means &quot;the workspace default&quot;, which is stated
-once at the top of the page and is <code>newMarketLiquidityCredits</code>.</li>
-<li><strong>A chip per horizon</strong>, one for every market this metric has open. The chip
-carries the date the market settles on, in words plus the resolved date
-(<code>This week - to 30 Aug</code>), and the market's current pool. A chip is a
-market: it links to it.</li>
-</ul>
-<p>A metric with no horizon opens no market, and the page says so in place of the
-chips: <em>&quot;No market. Add a date and this number gets a price.&quot;</em> That sentence
-is the page's only accent-coloured text, because it is the only state on the
-page that costs the owner something.</p>
-<h2 id="docs-metrics-page-md--h4">What it changes</h2>
-<ul>
-<li><strong>Add a date.</strong> Appends to <code>timePreference.customHorizons</code>; the refresh
-opens the market. The picker offers this week, this month, this quarter and
-this year, plus a typed date in any format the API takes (<code>YYYY</code>,
-<code>YYYY-MM</code>, <code>YYYY-Www</code>, <code>YYYY-MM-DD</code>, <code>YYYY-MM-DDTHH</code>). Dates already open on
-that metric are not offered twice.</li>
-<li><strong>Remove a date.</strong> Drops it from <code>customHorizons</code>; the reconcile deactivates
-that market. A market with trades on it is not removed silently: the page
-says how many trades stand on it and asks again.</li>
-<li><strong>Set the credits.</strong> Writes <code>liquidityCredits</code> on the metric. It applies to
-markets opened from then on, never retroactively, and the page says so.</li>
-<li><strong>New metric.</strong> Name, description, range, and at least one date. A metric
-created without a date would be a settings row, not a market, so the date is
-required here even though the API allows it to be omitted.</li>
-</ul>
-<p>Curve metrics (<code>timePreference.enabled</code>) keep working: their dates are
-generated by the decay curve rather than listed, so their chips are read-only
-and the section carries one control, <em>&quot;use exact dates&quot;</em>, which copies the
-curve's current dates into <code>customHorizons</code> and turns the curve off. The
-reverse is an API call, not a button; nobody has asked for it from a page.</p>
-<h2 id="docs-metrics-page-md--h5">API</h2>
-<ul>
-<li><code>GET /api/metrics/overview</code> (read) returns exactly what the page draws:
-<code>{ defaultCredits, metrics: [{ id, name, description, rangeMin, rangeMax, credits, curve, horizons: [{ marketId, targetDate, label, pool, trades }] }] }</code>.
-Composing this in the browser would take two calls and a join over markets
-the client has no other use for.</li>
-<li><code>PUT /api/metrics/:id</code> takes <code>liquidityCredits</code> (a number, or <code>null</code> to fall
-back to the workspace default) alongside the fields it already takes.
-Horizon edits go through the <code>timePreference</code> it already accepts.</li>
-</ul>
-<h2 id="docs-metrics-page-md--h6">Why credits and not weights</h2>
-<p>A weight is a multiplier on a number set on another screen. To know what a
-market opens with, the owner has to hold two numbers and multiply. Credits are
-what the pool is denominated in and what the chip shows, so the control and
-its effect are in the same unit on the same screen.</p>
-
-<p class="backtop"><a href="#toc">&uarr; contents</a></p>
-</section>
 <section class="docfile" id="file--docs-metrics-md">
 <p class="filelabel">docs/metrics.md</p>
 <h1 id="docs-metrics-md--h1">Telarchy metrics</h1>
@@ -2323,6 +2250,104 @@ answer is not a trade. One sample per scenario is not a measurement:
 <code>--repeat</code> runs each scenario several times and prints the pass rate.</p>
 <p>Research and measurements behind these choices (why no agent harness, which
 models were tried, eval results): <code>notes/otto-harness-research-2026-08-24.md</code>.</p>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-owner-on-the-floor-md">
+<p class="filelabel">docs/owner-on-the-floor.md</p>
+<h1 id="docs-owner-on-the-floor-md--h1">The owner works on the floor</h1>
+<p>Telarchy has no management screen. An owner changes their workspace from the
+floor itself, the same page every visitor sees, with the controls sitting on
+the thing they change (owner decision 2026-08-27). Nothing about a workspace
+is configured blind, and there is no second surface that can drift out of
+agreement with the first.</p>
+<p>This follows what the product already is: there is no app shell, every page is
+standalone (<code>vision.md</code>, &quot;Navigation&quot;), setup ends on a live floor and never on
+a settings page, and the owner's decision controls have lived on the floor
+since 2026-08-11.</p>
+<h2 id="docs-owner-on-the-floor-md--h2">The rule</h2>
+<p>A control appears on the floor when, and only when, the caller holds the
+capability the server checks for that action, and it sits with what it
+changes. It is inert for everyone else, not hidden behind a mode: the owner
+reads their own floor the way a visitor does, and the controls are additions
+to that page rather than a different page.</p>
+<p>Anything the owner can do here, Otto can do too, through the same API. The two
+never get their own endpoints; if a control needs something new, the API grows
+once and both use it.</p>
+<h2 id="docs-owner-on-the-floor-md--h3">What sits where</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>On the floor</th>
+<th>The control</th>
+<th>What it calls</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The metric's definition</td>
+<td><code>Edit</code>, in place, in the &quot;What is this market?&quot; block</td>
+<td><code>PUT /api/metrics/:id</code> (name, description)</td>
+</tr>
+<tr>
+<td>The date row (the horizon stepper)</td>
+<td><code>+ date</code> opens a market on a date this metric does not price yet</td>
+<td><code>GET</code> then <code>PUT /api/metrics/:id</code>, appending to <code>timePreference.customHorizons</code></td>
+</tr>
+<tr>
+<td>The pool, under the price</td>
+<td>What this market holds, and <code>Deepen</code></td>
+<td><code>POST /api/predictions/markets/:id/liquidity</code></td>
+</tr>
+<tr>
+<td>A contract</td>
+<td>Approve, decline, edit</td>
+<td>the proposal endpoints</td>
+</tr>
+</tbody>
+</table></div>
+<p>A date the owner adds opens a market at that metric's own depth
+(<code>metrics.liquidityCredits</code>), falling back to the workspace default
+(<code>newMarketLiquidityCredits</code>) when the metric has none. The floor does not
+state that number before opening the market: it shows it a second later, in
+the pool, which is the same number and the one the owner already reads. Saying
+it twice would mean carrying the workspace default into the floor's payload
+for a label.</p>
+<p>The <code>+</code> reads the metric's STORED horizons before it writes. The dates on
+screen are not the same list: a decay curve generates dates that were never
+written down, and echoing one back as a custom horizon would freeze it in
+place. Reading first also means the curve keeps working: the new date is added
+beside whatever the curve already produces.</p>
+<p>The four dates offered (this week, this month, next month, end of year) are
+the horizons a company plans against. Anything else is an API call, which is
+the honest place for it until someone asks for a date picker.</p>
+<p><strong>Closing a market is not a floor control.</strong> It voids other people's positions
+and refunds them, and that does not belong one click from a control that buys
+liquidity. It stays on the API (<code>PUT /api/metrics/:id</code> without the date) until
+the interaction is designed properly.</p>
+<h2 id="docs-owner-on-the-floor-md--h4">What is deliberately not here</h2>
+<ul>
+<li><strong>Rare and dangerous settings</strong> (visibility, deleting a workspace, permission
+groups) are not floor controls. They are not part of reading the number, and
+a control that destroys a workspace does not belong beside one that buys
+liquidity. They stay on the API, and reach a surface only when someone asks
+for one.</li>
+<li><strong>A metrics list.</strong> The floor prices one metric at a time and the stepper
+already names the others; a table of every metric is a management screen by
+another name.</li>
+<li><strong>Bulk anything.</strong> One floor, one owner, one change at a time is the whole of
+the current need.</li>
+</ul>
+<h2 id="docs-owner-on-the-floor-md--h5">Why not a management page</h2>
+<p>A settings page asks the owner to configure a product while looking at a form
+instead of at the product. It also doubles the surface: the floor says what a
+market holds, the page says what it will hold, and the day those two disagree
+the owner believes the wrong one. Keeping the controls on the floor makes that
+class of disagreement impossible to write.</p>
+<p>The cost, stated honestly: an owner with many metrics steps through them one at
+a time, and there is no single place that answers &quot;what am I paying for across
+this whole workspace&quot;. When that question is asked for real, the answer is a
+read-only summary, not an editor.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>

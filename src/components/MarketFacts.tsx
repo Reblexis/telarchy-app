@@ -1,8 +1,15 @@
+import { useState } from 'react';
+import { api } from '../lib/api';
+
 /**
  * What a market says about itself (docs/ui-conventions.md): distinct
  * traders, credits in the pool, credits traded. Three icons and bare
  * numbers, the shape Manifold's market header uses, at the right end of the
  * Discussion / Positions / Trades row. Each carries its meaning as a hover.
+ *
+ * For an owner, the pool is also a control (docs/owner-on-the-floor.md):
+ * deepening a market happens beside the number it changes, on the page the
+ * visitor is looking at, and never on a settings screen.
  */
 function short(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`;
@@ -61,7 +68,49 @@ const Bars = () => (
   </svg>
 );
 
-export function MarketFacts({ traders, pool, volume }: { traders: number; pool: number; volume: number }) {
+export function MarketFacts({
+  traders,
+  pool,
+  volume,
+  canManage = false,
+  marketId,
+  workspaceId,
+  onDeepened,
+}: {
+  traders: number;
+  pool: number;
+  volume: number;
+  /** The `trade` capability is what the server checks; `manage` is who this is for. */
+  canManage?: boolean;
+  marketId?: string;
+  workspaceId?: string;
+  onDeepened?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState('1000');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const deepen = async () => {
+    const n = Number(amount.replace(/,/g, ''));
+    if (!Number.isFinite(n) || n <= 0) {
+      setErr('A number of credits.');
+      return;
+    }
+    if (!marketId) return;
+    setBusy(true);
+    setErr('');
+    try {
+      await api.injectLiquidity(marketId, n, workspaceId);
+      setOpen(false);
+      onDeepened?.();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <span className="pubws-facts" aria-label="Market facts">
       <span title={`${traders} distinct participant${traders === 1 ? '' : 's'} have traded this market`}>
@@ -75,6 +124,35 @@ export function MarketFacts({ traders, pool, volume }: { traders: number; pool: 
       <span title={`${short(volume)} credits traded on this market over its life`}>
         <Bars /> {short(volume)}
       </span>
+      {canManage && marketId && !open && (
+        <button type="button" className="pubws-facts-act" onClick={() => setOpen(true)}>
+          Deepen
+        </button>
+      )}
+      {canManage && marketId && open && (
+        <span className="pubws-facts-deepen">
+          <input
+            className="pubws-facts-input"
+            type="text"
+            inputMode="decimal"
+            aria-label="Credits to add to the pool"
+            value={amount}
+            disabled={busy}
+            onChange={e => setAmount(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') void deepen();
+              if (e.key === 'Escape') setOpen(false);
+            }}
+          />
+          <button type="button" className="pubws-facts-act" disabled={busy} onClick={() => void deepen()}>
+            {busy ? 'Adding…' : 'Add'}
+          </button>
+          <button type="button" className="pubws-facts-act" disabled={busy} onClick={() => setOpen(false)}>
+            cancel
+          </button>
+          {err && <span className="pubws-facts-err">{err}</span>}
+        </span>
+      )}
     </span>
   );
 }

@@ -41,6 +41,7 @@ import {
   horizonById,
   metricLabelOf,
   metricsOf,
+  openableDates,
   type PriceSeries,
   possessiveOf,
   priceSeriesIsInline,
@@ -68,10 +69,6 @@ import { periodGapOf } from '../lib/period-gap';
  * A signed-in visitor on an Open workspace is joined silently; membership is
  * bookkeeping, not a decision.
  */
-
-function fmtShares(v: number): string {
-  return v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1);
-}
 
 // Hoisted so ReactMarkdown's props keep their identity across renders;
 // inline literals re-ran the whole unified parse pipeline per page render.
@@ -196,6 +193,13 @@ export function TradePage() {
   // floor). manage capability on this workspace reveals them on a selected
   // job; everyone else never sees the bar.
   const [canManage, setCanManage] = useState(false);
+
+  // "+ date" on the horizon row (docs/owner-on-the-floor.md). The owner opens a
+  // market where the dates already are, on the page a visitor sees, rather than
+  // on a settings screen.
+  const [addingDate, setAddingDate] = useState(false);
+  const [dateBusy, setDateBusy] = useState(false);
+  const [dateErr, setDateErr] = useState('');
   // Who the viewer is as a participant, so the floor can tell "my contract"
   // from someone else's. A proposer edits their own; a manager edits any.
   const [myAgentId, setMyAgentId] = useState<string | null>(null);
@@ -300,6 +304,38 @@ export function TradePage() {
     // the login or the floor, so key on their identities, not the object.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, ws?.workspaceId]);
+
+  /**
+   * Open a market on a date this metric does not price yet. The stored
+   * customHorizons are the source of truth, never the dates on screen: a
+   * curve-generated date written back as a custom horizon would freeze it in
+   * place, and the owner never asked for that.
+   */
+  const addDate = async (targetDate: string) => {
+    if (!hero?.metricId || !ws?.workspaceId) return;
+    setDateBusy(true);
+    setDateErr('');
+    try {
+      const metric = await api.getMetric(ws.workspaceId, hero.metricId);
+      const tp = metric.timePreference ?? null;
+      const existing = tp?.customHorizons ?? [];
+      if (!existing.includes(targetDate)) {
+        await api.patchMetric(ws.workspaceId, hero.metricId, {
+          timePreference: {
+            enabled: tp?.enabled ?? false,
+            halfLife: tp?.halfLife ?? 1,
+            customHorizons: [...existing, targetDate],
+          },
+        });
+      }
+      setAddingDate(false);
+      reload();
+    } catch (e) {
+      setDateErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDateBusy(false);
+    }
+  };
 
   const decide = async (action: 'approve' | 'decline', refund = false) => {
     if (!selectedJobId || !ws) return;
@@ -1045,6 +1081,47 @@ export function TradePage() {
                       {dateSegmentOf(hero)}
                     </span>
                   )}
+                  {/* The owner opens a market where the dates are, not on a
+                    settings page (docs/owner-on-the-floor.md). */}
+                  {canManage && !addingDate && (
+                    <button
+                      type="button"
+                      className="pubws-date-add"
+                      aria-label="Price this metric on another date"
+                      onClick={() => {
+                        setDateErr('');
+                        setAddingDate(true);
+                      }}
+                    >
+                      + date
+                    </button>
+                  )}
+                  {canManage && addingDate && (
+                    <span className="pubws-date-picker">
+                      {openableDates()
+                        .filter(o => !heroDates.some(d => d.targetDate === o.targetDate))
+                        .map(o => (
+                          <button
+                            key={o.targetDate}
+                            type="button"
+                            className="pubws-date-opt"
+                            disabled={dateBusy}
+                            onClick={() => void addDate(o.targetDate)}
+                          >
+                            {o.label}
+                          </button>
+                        ))}
+                      <button
+                        type="button"
+                        className="pubws-date-opt pubws-date-cancel"
+                        disabled={dateBusy}
+                        onClick={() => setAddingDate(false)}
+                      >
+                        cancel
+                      </button>
+                    </span>
+                  )}
+                  {dateErr && <span className="pubws-date-err">{dateErr}</span>}
                 </div>
               )}
               {/* The question line (owner ask 2026-08-28): under the pickers,
@@ -1579,6 +1656,10 @@ export function TradePage() {
                         traders={hero.traderCount ?? 0}
                         pool={hero.liquidity}
                         volume={hero.tradedVolume ?? 0}
+                        canManage={canManage}
+                        marketId={hero.marketId}
+                        workspaceId={ws?.workspaceId}
+                        onDeepened={reload}
                       />
                     ) : null
                   }

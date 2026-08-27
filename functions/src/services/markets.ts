@@ -346,7 +346,7 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
 /**
  * What each metric's new market opens with: its own `liquidityCredits` when the
  * owner set one on the metrics page, the workspace default otherwise
- * (docs/metrics-page.md).
+ * (docs/owner-on-the-floor.md).
  */
 async function metricCreditsMap(workspaceId: string, fallback: number): Promise<Map<string, number>> {
   const rows = await db

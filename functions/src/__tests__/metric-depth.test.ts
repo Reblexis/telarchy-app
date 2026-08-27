@@ -1,16 +1,14 @@
 /**
- * The owner's metrics page (docs/metrics-page.md).
+ * Per-metric market depth (docs/owner-on-the-floor.md).
  *
- * Two things this covers that nothing else does:
+ * `liquidityCredits` is what a NEW market on this metric opens with, and the
+ * thing worth pinning is that it REACHES THE COLUMN: the first draft validated
+ * it and then dropped it, which is the exact shape of a silent failure. The
+ * owner sets 2,400, the database keeps nothing, the next market opens at the
+ * workspace default, and nothing anywhere reports an error.
  *
- *   1. `GET /api/metrics/overview` returns exactly what the page draws, and
- *      only what it draws: open baseline markets, with their pool and the
- *      number of trades standing on them. A proposal's conditional markets are
- *      not the owner's horizons and must not appear.
- *   2. `liquidityCredits` REACHES THE COLUMN. It was validated and then
- *      dropped on the floor in the first draft, which is the exact shape of a
- *      silent failure: the page says 2,400, the database says nothing, and the
- *      next market opens at the workspace default with no error anywhere.
+ * The second half covers the funding plan: each market is priced at its own
+ * metric's depth, and the batch funds in metric order while the balance lasts.
  */
 
 jest.mock('../db/client', () => require('./harness/test-db'));
@@ -28,7 +26,7 @@ jest.mock('../middleware/roles', () => ({
 import { and, eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, markets, metrics, trades } from '../db/schema';
+import { agents, markets, metrics } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
 import { toUnits } from '../lib/validation';
@@ -133,71 +131,6 @@ async function seed() {
   ]);
 }
 
-describe('GET /api/metrics/overview', () => {
-  test('returns each metric with its open horizons, pool and trade count', async () => {
-    await db.insert(trades).values({
-      id: 't1',
-      workspaceId: WS,
-      marketId: 'mkt-open',
-      agentId: TRADER,
-      direction: 'higher',
-      shares: 1,
-      cost: toUnits(10),
-    });
-    await db.insert(trades).values({
-      id: 't2',
-      workspaceId: WS,
-      marketId: 'mkt-open',
-      agentId: TRADER,
-      direction: 'lower',
-      shares: 1,
-      cost: toUnits(5),
-    });
-
-    const res = await request(app).get('/api/metrics/overview').expect(200);
-
-    expect(res.body.metrics).toHaveLength(2);
-    const priced = res.body.metrics.find((m: any) => m.id === 'm-priced');
-    expect(priced.horizons).toHaveLength(1); // the resolved one is not a horizon
-    expect(priced.horizons[0]).toMatchObject({ marketId: 'mkt-open', targetDate: '2026-09', pool: 1200, trades: 2 });
-    expect(priced.horizons[0].settlesOn).toMatch(/^2026-(09|10)/);
-    expect(priced.rangeMax).toBe(5000);
-    expect(priced.credits).toBeNull(); // unset means the workspace default
-    expect(priced.curve).toBe(false);
-
-    const bare = res.body.metrics.find((m: any) => m.id === 'm-bare');
-    expect(bare.horizons).toEqual([]);
-  });
-
-  test('a proposal market is not one of the owner horizons', async () => {
-    await db.insert(markets).values({
-      id: 'mkt-conditional',
-      workspaceId: WS,
-      metricId: 'm-priced',
-      metricName: 'Paying customers',
-      targetDate: '2026-10',
-      proposalId: 'some-proposal',
-      resolved: false,
-      active: true,
-      rangeMin: 0,
-      rangeMax: 5000,
-      shares: [0, 0],
-      liquidity: 1000,
-      pool: 500,
-    });
-
-    const res = await request(app).get('/api/metrics/overview').expect(200);
-    const priced = res.body.metrics.find((m: any) => m.id === 'm-priced');
-    expect(priced.horizons.map((h: any) => h.marketId)).toEqual(['mkt-open']);
-  });
-
-  test('reports the workspace default and whether auto-fund is on', async () => {
-    const res = await request(app).get('/api/metrics/overview').expect(200);
-    expect(typeof res.body.defaultCredits).toBe('number');
-    expect(typeof res.body.autoFund).toBe('boolean');
-  });
-});
-
 describe('PUT /api/metrics/:id liquidityCredits', () => {
   test('writes the column, and null puts the metric back on the default', async () => {
     await request(app).put('/api/metrics/m-priced').send({ liquidityCredits: 2400 }).expect(200);
@@ -206,9 +139,6 @@ describe('PUT /api/metrics/:id liquidityCredits', () => {
       .from(metrics)
       .where(and(eq(metrics.id, 'm-priced'), eq(metrics.workspaceId, WS)));
     expect(row.liquidityCredits).toBe(2400);
-
-    const shown = await request(app).get('/api/metrics/overview').expect(200);
-    expect(shown.body.metrics.find((m: any) => m.id === 'm-priced').credits).toBe(2400);
 
     await request(app).put('/api/metrics/m-priced').send({ liquidityCredits: null }).expect(200);
     [row] = await db

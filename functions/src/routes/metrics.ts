@@ -29,15 +29,6 @@ metricsRouter.get(
   }),
 );
 
-// Before '/:id', or Express reads "overview" as a metric id.
-metricsRouter.get(
-  '/overview',
-  requireCapability('read'),
-  wrap(async (req, res) => {
-    res.json(await svc.getMetricsOverview(req.auth!.workspaceId));
-  }),
-);
-
 metricsRouter.get(
   '/:id',
   requireCapability('read'),
@@ -222,7 +213,7 @@ metricsRouter.put(
     }
     // marketRangeMax leaf-only check happens after oldRow is fetched (effectiveFormula needed)
 
-    // What a NEW market on this metric opens with (docs/metrics-page.md). null
+    // What a NEW market on this metric opens with (docs/owner-on-the-floor.md). null
     // puts the metric back on the workspace default; it never touches a market
     // that is already open, which is what the page tells the owner.
     const hasCredits = Object.prototype.hasOwnProperty.call(fields, 'liquidityCredits');
