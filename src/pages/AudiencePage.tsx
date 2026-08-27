@@ -94,8 +94,18 @@ function Block({ block }: { block: AudienceBlock }) {
   }
 }
 
+const SIBLING_LABELS: Record<string, string> = {
+  '/forecast': 'For forecasters',
+  '/for-agents': 'For agent builders',
+  '/compare/manifold': 'vs Manifold',
+  '/compare/polymarket': 'vs Polymarket',
+  '/compare/metaculus': 'vs Metaculus',
+  '/owners': 'For owners',
+  '/compare/futarchy-fi': 'vs Futarchy.fi',
+};
+
 function Siblings({ current }: { current: string }) {
-  const name = (r: string) => AUDIENCE_PAGES.find(p => p.route === r)?.h1.split('.')[0] ?? r;
+  const name = (r: string) => SIBLING_LABELS[r] ?? r;
   const group = (label: string, routes: string[]) => (
     <p className="pubws-aud-sibs">
       <span className="pubws-contact-label">{label}</span>
@@ -114,8 +124,8 @@ function Siblings({ current }: { current: string }) {
   );
   return (
     <section className="pubws-section pubws-aud-nav">
-      {group('For forecasters', FORECASTER_ROUTES)}
-      {group('For owners', OWNER_ROUTES)}
+      {group('Forecasters', FORECASTER_ROUTES)}
+      {group('Owners', OWNER_ROUTES)}
     </section>
   );
 }

@@ -7866,7 +7866,8 @@ textarea.jobform-line--desc {
    table. Copy: docs/audience-pages.md. */
 .pubws-aud .pubws-name { max-width: 16ch; }
 .pubws-aud-h2 { margin-top: 2.2rem; }
-.pubws-aud-p { margin: 0 0 1rem; line-height: 1.55; }
+.pubws-story .pubws-aud-p { margin: 0 0 1.05rem; }
+.pubws-aud-h2 + .pubws-aud-p { margin-top: 0.2rem; }
 .pubws-aud-lead { font-weight: 600; color: var(--text-primary); }
 .pubws-aud-ul { margin: 0 0 1rem; padding-left: 1.2rem; }
 .pubws-aud-ul li { margin-bottom: 0.45rem; }
@@ -7879,7 +7880,9 @@ textarea.jobform-line--desc {
 .pubws-aud-faq { margin: 0; }
 .pubws-aud-qa { padding: 0.8rem 0; border-top: 1px solid var(--border); }
 .pubws-aud-qa dt { margin: 0 0 0.3rem; font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.05rem; }
-.pubws-aud-qa dd { margin: 0; }
+.pubws-aud-qa dd { margin: 0; font-size: 0.875rem; line-height: 1.7; color: var(--text-secondary); }
+.pubws-story .pubws-aud-ul li { font-size: 0.875rem; line-height: 1.7; color: var(--text-secondary); }
+.pubws-story .pubws-aud-table td { color: var(--text-secondary); }
 .pubws-aud-cta { margin: 2.2rem 0 0; display: flex; flex-wrap: wrap; gap: 0.9rem 1.4rem; align-items: center; }
 .pubws-aud-link { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 3px; }
 .pubws-aud-nav { border-top: 1px solid var(--border); padding-top: 1.4rem; }
