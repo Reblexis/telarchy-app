@@ -241,8 +241,9 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h33">The cockpit (/admin)</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h34">Reusing a component&#x27;s classes: mind the cascade order</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h35">When in doubt</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h36">The data room</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h37">The frontend never speaks HTTP directly</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h36">What a market says about itself, and what your position is worth</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h37">The data room</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h38">The frontend never speaks HTTP directly</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-vision-md">docs/vision.md</a></summary>
@@ -2581,7 +2582,10 @@ left, the time left until the market on screen settles in the centre
 (&quot;settles in 13h 12m&quot;), and the range chips of the current view at the
 right. Nothing else on the page moves when the view switches, and the row
 itself does not either: a control that jumps when you use it is the thing
-this rule exists to prevent. The slot opens on the market.</p>
+this rule exists to prevent. The slot opens on the market. A market with no price yet (no liquidity) keeps
+the pickers, prints &quot;no price yet&quot; where the price would be and the
+no-liquidity note where the bets would be, and draws no chart: the
+pickers are how a reader leaves it for a market that has one.</p>
 <ul>
 <li><strong>The market view</strong> is the prediction chart (<code>MarketChart</code>): one amber
 step line of the market's call over its lifetime, gradient fill, labeled
@@ -2608,7 +2612,19 @@ always ending at the selected settle instant; the range chips
 (<code>2D 1W ALL</code>, <code>1W 1M ALL</code>, <code>1M 3M ALL</code> by granularity) override it.
 <strong>Switching dates tweens the axis and the line</strong> over about 400ms,
 ease-out, rather than snapping, so a reader sees where the window went.
-The number view honours the actual-vs-forecast rule below: a resetting
+<strong>With a contract open, every marker in the window grows the contract's
+pair on that market</strong>: a green dot for the metric if the contract is
+approved, a red dot if it is declined, joined by a bar whose length is
+the priced impact, while the amber dot stays the market without the
+contract. Only the selected date is labeled (both values and the impact);
+the others show the pair small and grey. A one-line legend under the
+chart says it in the contract's words (&quot;if Jason is paid $80&quot; / &quot;if not&quot;
+/ &quot;the market now&quot;). Whichever branch the markets price higher sits on
+top. The impact is stated from the world on screen, on the chart and in
+the chip beside the price alike: &quot;+7.8&quot; with &quot;if approved&quot; selected is
+&quot;-7.8&quot; with &quot;if declined&quot; selected, because the number answers &quot;what does
+this world do to the metric compared with the other one&quot;. The number
+view honours the actual-vs-forecast rule below: a resetting
 metric shows only its own period. It animates as the market view does:
 the readings line draws itself with the same keyframes and timing, and
 the dots, markers and hold appear after it (none of it under reduced
@@ -3267,7 +3283,32 @@ edited.</p>
 <li>Use a hairline before using a card.</li>
 <li>Match an existing pattern before inventing one.</li>
 </ul>
-<h2 id="docs-ui-conventions-md--h36">The data room</h2>
+<h3 id="docs-ui-conventions-md--h36">What a market says about itself, and what your position is worth</h3>
+<p>Three facts sit at the right end of the Discussion / Positions / Trades
+row, as three icons with bare numbers (people, drop, bars: the shape
+Manifold's market header uses): how many
+distinct participants have traded this market, how many credits are in its
+pool (the liquidity put up by the owner and others, which is what winnings
+come out of), and how many credits have been traded on it over its life.
+Each carries its meaning as a hover; none is a sentence, because they are
+counts on a row of counts. A contract on screen hides them, since the
+contract's markets are the pair, not the baseline.</p>
+<p><strong>A held position is a card under the bet buttons</strong>, label over number,
+four cells and a Sell button: &quot;Your position&quot; (side and shares), &quot;Pays up
+to&quot; (one credit per share if the number lands at the range's edge the
+position bets on, less in between), &quot;Worth now&quot; (what selling the whole
+position would fetch at the market's current call, the honest analogue of
+Manifold's expected value), &quot;Spent&quot; (what it cost) and &quot;Profit&quot; (the
+difference, with its percentage, green or red). Sell opens the manage
+dialog, which keeps the sell slider.</p>
+<p><strong>The ticket says the most a bet can pay</strong> as &quot;Up to N cr +P%&quot; beside the
+breakeven and the slope: N is the shares bought (one credit each at the
+range's edge), P the return on the spend if it lands there. It is a ceiling
+with its condition in the hover, never the headline: the breakeven line
+stays first, because a share's payout is linear in the settled value and
+&quot;to win N&quot; alone, as Manifold prints it for a yes/no share, would read as
+a promise here.</p>
+<h2 id="docs-ui-conventions-md--h37">The data room</h2>
 <p><code>telarchy.com/data-room</code> (<code>DataRoomPage</code>, <code>.dr-*</code>) is a document, so it takes
 the 760px column, not the poster's 660px. It is one scrolling page with a
 sticky index of its own sections under the top bar, not a sidebar and not a
@@ -3279,7 +3320,7 @@ charts hand-rolled as inline SVG (a bar per day, one line for a metric's
 readings) rather than a chart library, because the only shapes needed are a
 column and a line. A number the feed refused to compute renders as &quot;not
 published&quot;, never as zero. Spec: <code>docs/data-room.md</code>.</p>
-<h2 id="docs-ui-conventions-md--h37">The frontend never speaks HTTP directly</h2>
+<h2 id="docs-ui-conventions-md--h38">The frontend never speaks HTTP directly</h2>
 <p><code>src/lib/api.ts</code> is the one module that calls <code>fetch</code>. Everything else, page
 or component, calls a method on <code>api</code>. That is not tidiness: the parity guard
 that proves the UI has no capability the public API lacks reads that single
@@ -5306,7 +5347,7 @@ curl -s -X DELETE -H &quot;X-Agent-Key: $NEW_KEY&quot; &quot;https://telarchy.co
 <li><strong><code>autoFundNewMarkets</code></strong> (boolean) - when true, every new non-proposal market is seeded from the workspace owner's balance.</li>
 <li><strong><code>newMarketLiquidityCredits</code></strong> (number) - credits to seed per market. Default: <code>0.5</code>. The enforced floor is only one nanocredit (<code>1e-9</code>), but pools well below ~<code>0.1</code> make markets butterfly-sensitive: a tiny trade slams consensus to a range extreme. Keep it at <code>0.1</code> or higher for a usable market; anyone with the <code>trade</code> capability can later top up a thin market via <code>POST /predictions/markets/:id/liquidity</code>.</li>
 </ul>
-<p>When the hourly market-refresh cron (minute 10) or a time-preference toggle spawns new markets, each one debits <code>newMarketLiquidityCredits</code> from the owner's balance and contributes it to the market's initial pool. If the owner can't cover the cost, the market is still created but with zero liquidity (trading paused) and the shortfall is logged.</p>
+<p>When the hourly market-refresh cron (minute 10) or a time-preference toggle spawns new markets, each one debits <code>newMarketLiquidityCredits</code> from the owner's balance and contributes it to the market's initial pool. If the owner's balance covers only some of the new markets, those are funded and the rest open with zero liquidity (trading paused) and the shortfall is logged; the hourly refresh funds an unfunded market as soon as the balance covers it, one market at a time, never waiting for all of them to become affordable at once.</p>
 <h2 id="docs-guides-credits-md--h5">Proposal subsidy</h2>
 <p>Proposal-scoped conditional markets are NOT auto-funded by the workspace owner. Funding is opt-in from one of two sources:</p>
 <ol>
@@ -6616,6 +6657,14 @@ revision of the same service carrying no traffic and a URL tag named after the
 branch, and <code>telarchy.com/beta</code> can show it. That is how a change is looked at
 before anyone decides to merge it: an agent pushes its branch, CI turns green,
 and the reply names <code>https://telarchy.com/beta?branch=br-&lt;name&gt;</code>.</p>
+<p><strong>Main takes pull requests only.</strong> The GitHub ruleset &quot;main: branches only,
+green CI, no force push&quot; (no bypass, not even the owner) requires every
+change to main to arrive as a pull request whose <code>Type check and frontend tests</code> and three <code>Backend tests</code> checks passed, and blocks force pushes and
+deletion. A direct <code>git push origin main</code> is refused by the server; a commit
+on main is refused earlier by the pre-commit hook (<code>scripts/check-not-main.sh</code>).
+Shipping is <code>gh pr create --fill</code> and <code>gh pr merge --rebase --auto --delete-branch</code>: the merge happens when the checks pass, the branch is
+deleted, its preview retired. Squash is not allowed, so the branch's commits
+land as they were made.</p>
 <p><strong>The tag.</strong> <code>br-</code> plus the branch name lowercased, every character outside
 <code>[a-z0-9-]</code> replaced by <code>-</code>, runs of hyphens collapsed, no leading or trailing
 hyphen, at most 40 characters (Cloud Run tags are DNS labels, and the tag URL
