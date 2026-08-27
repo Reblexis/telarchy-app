@@ -399,23 +399,31 @@ export function TradePage() {
   // The centre of the chart's control row: how long until the market on
   // screen settles (owner ask: "put the timer in the center here").
   const settleLeft = hero ? timeLeftOf(hero, now) : null;
+  // The metric's value in force (its latest reading), said in the centre
+  // beside the countdown, so the number the market is guessing at sits one
+  // glance from the guess (owner ask 2026-08-27). Absent while the period
+  // has no reading yet, which is also when the number view has nothing to
+  // hold a dashed rule to.
+  const nowReading =
+    hero && hero.metricHistory.length > 0 ? hero.metricHistory[hero.metricHistory.length - 1].value : null;
+  const nowText = hero && nowReading !== null ? compactValueOf(nowReading, hero.unit) : null;
   const settleCenter = hero ? (
     <span title={hero.resolvesOn ? `settles ${new Date(hero.resolvesOn).toUTCString()}` : undefined}>
+      {nowText !== null && <>now {nowText} · </>}
       {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
     </span>
   ) : null;
   const chartViewWords = (
-    <span role="group" aria-label="Chart view">
+    <span className="mchart-views" role="group" aria-label="Chart view">
       <button
-        className={`mchart-word${chartView === 'market' ? ' is-active' : ''}`}
+        className={`mchart-view${chartView === 'market' ? ' is-active' : ''}`}
         aria-pressed={chartView === 'market'}
         onClick={() => setChartView('market')}
       >
         market
       </button>
-      <span className="mchart-word-sep">·</span>
       <button
-        className={`mchart-word${chartView === 'number' ? ' is-active' : ''}`}
+        className={`mchart-view${chartView === 'number' ? ' is-active' : ''}`}
         aria-pressed={chartView === 'number'}
         onClick={() => setChartView('number')}
       >

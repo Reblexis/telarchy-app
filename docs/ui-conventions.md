@@ -424,10 +424,15 @@ caveat of a metric with no reading yet ("N/A, all bets refunded, if there
 is still no reading by then"), because it changes what a bet is.
 
 **One chart slot, two views, one control row above it in both.** The row
-is three cells that never move: the view words `MARKET · NUMBER` at the
-left, the time left until the market on screen settles in the centre
-("settles in 13h 12m"), and the range chips of the current view at the
-right. Nothing else on the page moves when the view switches, and the row
+is three cells that never move: the view switch at the left, the centre
+line, and the range chips of the current view at the right. The view
+switch is `MARKET` and `NUMBER` as two chips in the same language as the
+range chips (the active one on the raised background), because as bare
+words the pair read as the row's caption and nobody pressed them. The
+centre line carries the metric's value in force before the countdown,
+"now 19.75 · settles in 13h 12m" (`compactValueOf`, from the latest
+reading; omitted while the period has no reading), so the number the
+market is guessing at sits one glance from the guess. Nothing else on the page moves when the view switches, and the row
 itself does not either: a control that jumps when you use it is the thing
 this rule exists to prevent. The slot opens on the market. A market with no price yet (no liquidity) keeps
 the pickers, prints "no price yet" where the price would be and the
