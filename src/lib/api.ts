@@ -887,6 +887,18 @@ export function seasonStandingToEntry(s: SeasonStanding): LeaderboardEntry {
 
 export const api = {
   getMetrics: () => request('/api/metrics'),
+  /** Create a metric on a floor the caller manages (docs/owner-on-the-floor.md,
+   *  dialog 1). Name and description only: value starts at 0, range defaults
+   *  and is correctable until the first trade, and the date comes next. */
+  createMetricIn: (
+    workspaceId: string,
+    body: { name: string; description: string },
+  ): Promise<{ id: string; name: string }> =>
+    requestWithWorkspace(
+      '/api/metrics',
+      { method: 'POST', body: JSON.stringify({ ...body, value: 0, formula: '' }) },
+      { workspaceId },
+    ),
   /** One metric, with its stored timePreference. The floor's "+ date" control
    *  needs the STORED horizons, not the dates of the markets on screen: a
    *  curve-generated date written back as a custom horizon would freeze it. */

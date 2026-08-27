@@ -1,8 +1,8 @@
 import { randomUUID } from 'crypto';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
-import { markets, metricDefinitionRevisions, metricLogs, metrics, updates } from '../db/schema';
+import { markets, metricDefinitionRevisions, metricLogs, metrics, trades, updates } from '../db/schema';
 import { isValidCalendarDate, periodEndInstant } from '../lib/date-utils';
 import { assertMetricMarketsUntraded } from '../lib/market-freeze';
 import {
@@ -312,22 +312,46 @@ metricsRouter.put(
     // and nothing silently diverges; get the range right before opening, or
     // wait for the market to settle.
     const settlementFields = settlementFieldChanges(oldRow, update, effectiveFormula);
+    // Refused while anyone is in the market, respawned while nobody is
+    // (docs/market-integrity.md). A traded market's range cannot move under
+    // its positions; an untraded book protects nobody, so it is voided (its
+    // pool refunds to its funders) and respawned below at the new machinery.
+    // This is what lets a metric be created from a name and a description
+    // alone and get its range right before the first trade.
+    let respawnAfterMachineryChange = false;
     if (settlementFields.length > 0) {
-      const [openMarket] = await db
+      const openMarkets = await db
         .select({ id: markets.id, targetDate: markets.targetDate })
         .from(markets)
-        .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)))
-        .limit(1);
-      if (openMarket) {
-        res.status(409).json({
-          error:
-            `Cannot change ${settlementFields.join(' or ')} while a market on this metric is open: ` +
-            'that is what the open market settles on. Wait for it to resolve, or void it deliberately first.',
-          fields: settlementFields,
-          openMarketId: openMarket.id,
-          targetDate: openMarket.targetDate,
-        });
-        return;
+        .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)));
+      if (openMarkets.length > 0) {
+        const [traded] = await db
+          .select({ id: trades.id, marketId: trades.marketId })
+          .from(trades)
+          .where(
+            and(
+              eq(trades.workspaceId, workspaceId),
+              inArray(
+                trades.marketId,
+                openMarkets.map(m => m.id),
+              ),
+            ),
+          )
+          .limit(1);
+        if (traded) {
+          const openMarket = openMarkets.find(m => m.id === traded.marketId) ?? openMarkets[0];
+          res.status(409).json({
+            error:
+              `Cannot change ${settlementFields.join(' or ')} while a market on this metric has trades: ` +
+              'that is what the open market settles on. Wait for it to resolve, or void it deliberately first.',
+            fields: settlementFields,
+            openMarketId: openMarket.id,
+            targetDate: openMarket.targetDate,
+          });
+          return;
+        }
+        await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
+        respawnAfterMachineryChange = true;
       }
     }
 
@@ -373,7 +397,7 @@ metricsRouter.put(
     // doesn't, then ensure the new desired set (creates missing markets and
     // reactivates inactive-but-desired ones). Covers enable, disable, curve
     // parameter changes, custom horizon edits, and explicit clear alike.
-    if (rawTP !== undefined) {
+    if (rawTP !== undefined || respawnAfterMachineryChange) {
       const oldDesired = generatesMarkets(oldTP) ? desiredMarketDates(oldTP) : [];
       const newDesired = generatesMarkets(effectiveTPRecord)
         ? new Set(desiredMarketDates(effectiveTPRecord))

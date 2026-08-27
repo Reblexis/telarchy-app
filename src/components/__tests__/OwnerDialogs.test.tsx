@@ -1,0 +1,186 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+/**
+ * The owner's three dialogs (docs/owner-on-the-floor.md, "The v1 controls").
+ *
+ * What matters: a metric is a name and what it is, nothing else reaches the
+ * API from dialog 1; the add-date dialog appends to the STORED horizons and
+ * writes the liquidity as the metric's own; calendar picks are rolling
+ * entries, a typed date is absolute; and the inject dialog moves exactly the
+ * amount typed. The dialogs never lie about money: buttons carry their cost.
+ */
+
+const createMetricIn = vi.fn(async () => ({ id: 'm-new', name: 'Steam wishlists' }));
+const getMetric = vi.fn(async () => ({
+  id: 'm1',
+  name: 'LookPilot net 2026 (USD)',
+  timePreference: { enabled: false, halfLife: 1, customHorizons: ['2026-12'] },
+}));
+const patchMetric = vi.fn(async () => ({}));
+const injectLiquidity = vi.fn(async () => ({}));
+
+vi.mock('../../lib/api', () => ({
+  api: {
+    createMetricIn: (...a: unknown[]) => createMetricIn(...(a as [])),
+    getMetric: (...a: unknown[]) => getMetric(...(a as [])),
+    patchMetric: (...a: unknown[]) => patchMetric(...(a as [])),
+    injectLiquidity: (...a: unknown[]) => injectLiquidity(...(a as [])),
+  },
+}));
+
+import { MarketFacts } from '../MarketFacts';
+import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog } from '../OwnerDialogs';
+
+beforeEach(() => {
+  createMetricIn.mockClear();
+  getMetric.mockClear();
+  patchMetric.mockClear();
+  injectLiquidity.mockClear();
+});
+
+describe('dialog 1: new metric', () => {
+  test('sends the name and the settlement words, nothing else', async () => {
+    const onCreated = vi.fn();
+    render(<NewMetricDialog workspaceId="ws" onClose={() => {}} onCreated={onCreated} />);
+    fireEvent.change(screen.getByPlaceholderText('Steam wishlists'), { target: { value: '  Steam wishlists  ' } });
+    fireEvent.change(screen.getByPlaceholderText(/Where the number comes from/), {
+      target: { value: 'Total outstanding wishlists, deletions netted out.' },
+    });
+    fireEvent.click(screen.getByText('Add the metric'));
+    await waitFor(() =>
+      expect(createMetricIn).toHaveBeenCalledWith('ws', {
+        name: 'Steam wishlists',
+        description: 'Total outstanding wishlists, deletions netted out.',
+      }),
+    );
+    expect(onCreated).toHaveBeenCalledWith({ id: 'm-new', name: 'Steam wishlists' });
+  });
+
+  test('a nameless metric never reaches the API', async () => {
+    render(<NewMetricDialog workspaceId="ws" onClose={() => {}} onCreated={() => {}} />);
+    fireEvent.click(screen.getByText('Add the metric'));
+    await waitFor(() => expect(screen.getByText('A name.')).toBeTruthy());
+    expect(createMetricIn).not.toHaveBeenCalled();
+  });
+
+  test('says what happens next, because the flow does not stop before a date', () => {
+    render(<NewMetricDialog workspaceId="ws" onClose={() => {}} onCreated={() => {}} />);
+    expect(screen.getByText('Next: give it a date. A metric with no date has no market.')).toBeTruthy();
+  });
+});
+
+describe('dialog 2: add a date', () => {
+  const renderIt = (onDone = vi.fn()) =>
+    render(
+      <AddDateDialog
+        workspaceId="ws"
+        metricId="m1"
+        metricName="LookPilot net 2026 (USD)"
+        defaultCredits={1200}
+        onClose={() => {}}
+        onDone={onDone}
+      />,
+    );
+
+  test('a calendar pick is a ROLLING entry appended to the stored horizons, with the liquidity as the metric depth', async () => {
+    renderIt();
+    // "this week" is preselected; the button carries the prefilled cost.
+    fireEvent.click(screen.getByText(/Open the market · 1,200 cr/));
+    await waitFor(() => expect(patchMetric).toHaveBeenCalled());
+    const [wsId, id, body] = patchMetric.mock.calls[0] as unknown as [
+      string,
+      string,
+      { liquidityCredits: number; timePreference: { enabled: boolean; customHorizons: string[] } },
+    ];
+    expect(wsId).toBe('ws');
+    expect(id).toBe('m1');
+    expect(body.liquidityCredits).toBe(1200);
+    // The stored '2026-12' survives; the rolling entry joins it.
+    expect(body.timePreference.customHorizons).toEqual(['2026-12', '+0w']);
+    expect(body.timePreference.enabled).toBe(false);
+  });
+
+  test('a typed date is the one-shot absolute it is, and a malformed one never reaches the API', async () => {
+    renderIt();
+    fireEvent.click(screen.getByText('a date…'));
+    const input = screen.getByLabelText('Typed date');
+    fireEvent.change(input, { target: { value: 'sometime soon' } });
+    fireEvent.click(screen.getByText(/Open the market/));
+    await waitFor(() => expect(screen.getByText(/A date like 2026-09-30/)).toBeTruthy());
+    expect(patchMetric).not.toHaveBeenCalled();
+
+    fireEvent.change(input, { target: { value: '2026-W40' } });
+    fireEvent.click(screen.getByText(/Open the market/));
+    await waitFor(() => expect(patchMetric).toHaveBeenCalled());
+    const [, , body] = patchMetric.mock.calls[0] as unknown as [
+      string,
+      string,
+      { timePreference: { customHorizons: string[] } },
+    ];
+    expect(body.timePreference.customHorizons).toEqual(['2026-12', '2026-W40']);
+  });
+
+  test('the liquidity typed is the liquidity sent, and the button restates it', async () => {
+    renderIt();
+    const amount = screen.getByLabelText('Credits behind the market');
+    fireEvent.change(amount, { target: { value: '2,500' } });
+    expect(screen.getByText(/Open the market · 2,500 cr/)).toBeTruthy();
+    fireEvent.click(screen.getByText(/Open the market · 2,500 cr/));
+    await waitFor(() => expect(patchMetric).toHaveBeenCalled());
+    const [, , body] = patchMetric.mock.calls[0] as unknown as [string, string, { liquidityCredits: number }];
+    expect(body.liquidityCredits).toBe(2500);
+  });
+});
+
+describe('dialog 3: inject liquidity', () => {
+  test('moves exactly the amount typed, into the named market, on the named floor', async () => {
+    const onDone = vi.fn();
+    render(
+      <InjectLiquidityDialog
+        workspaceId="ws"
+        marketId="mkt-1"
+        marketLabel="LookPilot net 2026 (USD) · this week"
+        pool={9800}
+        traders={9}
+        onClose={() => {}}
+        onDone={onDone}
+      />,
+    );
+    expect(screen.getByText('9,800')).toBeTruthy();
+    const input = screen.getByLabelText('Credits to add to the pool');
+    fireEvent.change(input, { target: { value: '2000' } });
+    // The consequence is said before the injection: the pool after.
+    expect(screen.getByText(/11,800 cr after/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Add 2,000 cr'));
+    await waitFor(() => expect(injectLiquidity).toHaveBeenCalledWith('mkt-1', 2000, 'ws'));
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  test('a non-number never reaches the API', async () => {
+    render(
+      <InjectLiquidityDialog
+        workspaceId="ws"
+        marketId="mkt-1"
+        marketLabel="x"
+        pool={100}
+        traders={0}
+        onClose={() => {}}
+        onDone={() => {}}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('Credits to add to the pool'), { target: { value: 'lots' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(screen.getByText('A number of credits.')).toBeTruthy());
+    expect(injectLiquidity).not.toHaveBeenCalled();
+  });
+});
+
+describe('the facts row', () => {
+  test('a visitor sees the numbers and no way to change them; the owner gets Inject', () => {
+    const { rerender } = render(<MarketFacts traders={3} pool={1200} volume={800} />);
+    expect(screen.queryByText('Inject')).toBeNull();
+    rerender(<MarketFacts traders={3} pool={1200} volume={800} canManage onInject={() => {}} />);
+    expect(screen.getByText('Inject')).toBeTruthy();
+  });
+});

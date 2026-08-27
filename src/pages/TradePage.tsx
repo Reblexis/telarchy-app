@@ -18,6 +18,7 @@ import { MarketChart } from '../components/MarketChart';
 import { MarketFacts } from '../components/MarketFacts';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart } from '../components/NumberChart';
+import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog } from '../components/OwnerDialogs';
 import { PositionSummary } from '../components/PositionSummary';
 import { ReportButton } from '../components/ReportButton';
 import { SubjectAbout } from '../components/SubjectAbout';
@@ -41,7 +42,6 @@ import {
   horizonById,
   metricLabelOf,
   metricsOf,
-  openableDates,
   type PriceSeries,
   possessiveOf,
   priceSeriesIsInline,
@@ -194,12 +194,15 @@ export function TradePage() {
   // job; everyone else never sees the bar.
   const [canManage, setCanManage] = useState(false);
 
-  // "+ date" on the horizon row (docs/owner-on-the-floor.md). The owner opens a
-  // market where the dates already are, on the page a visitor sees, rather than
-  // on a settings screen.
-  const [addingDate, setAddingDate] = useState(false);
-  const [dateBusy, setDateBusy] = useState(false);
-  const [dateErr, setDateErr] = useState('');
+  // The owner's three dialogs (docs/owner-on-the-floor.md, "The v1 controls").
+  // One slot: they never stack, and adding a metric flows straight into adding
+  // its date, because a metric with no date has no market.
+  const [ownerDialog, setOwnerDialog] = useState<
+    | null
+    | { kind: 'new-metric' }
+    | { kind: 'add-date'; metricId: string; metricName: string }
+    | { kind: 'inject'; marketId: string; marketLabel: string; pool: number; traders: number }
+  >(null);
   // Who the viewer is as a participant, so the floor can tell "my contract"
   // from someone else's. A proposer edits their own; a manager edits any.
   const [myAgentId, setMyAgentId] = useState<string | null>(null);
@@ -305,37 +308,19 @@ export function TradePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, ws?.workspaceId]);
 
-  /**
-   * Open a market on a date this metric does not price yet. The stored
-   * customHorizons are the source of truth, never the dates on screen: a
-   * curve-generated date written back as a custom horizon would freeze it in
-   * place, and the owner never asked for that.
-   */
-  const addDate = async (targetDate: string) => {
-    if (!hero?.metricId || !ws?.workspaceId) return;
-    setDateBusy(true);
-    setDateErr('');
-    try {
-      const metric = await api.getMetric(ws.workspaceId, hero.metricId);
-      const tp = metric.timePreference ?? null;
-      const existing = tp?.customHorizons ?? [];
-      if (!existing.includes(targetDate)) {
-        await api.patchMetric(ws.workspaceId, hero.metricId, {
-          timePreference: {
-            enabled: tp?.enabled ?? false,
-            halfLife: tp?.halfLife ?? 1,
-            customHorizons: [...existing, targetDate],
-          },
-        });
-      }
-      setAddingDate(false);
-      reload();
-    } catch (e) {
-      setDateErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setDateBusy(false);
-    }
-  };
+  // What a new market opens with, prefilled into the add-date dialog. Owner
+  // only, and the member-gated workspace read is the row that carries it.
+  const [defaultCredits, setDefaultCredits] = useState(1000);
+  useEffect(() => {
+    if (!canManage || !ws?.workspaceId) return;
+    api
+      .getWorkspace(ws.workspaceId)
+      .then(w => {
+        const c = (w as { newMarketLiquidityCredits?: number }).newMarketLiquidityCredits;
+        if (typeof c === 'number' && c > 0) setDefaultCredits(c);
+      })
+      .catch(() => {});
+  }, [canManage, ws?.workspaceId]);
 
   const decide = async (action: 'approve' | 'decline', refund = false) => {
     if (!selectedJobId || !ws) return;
@@ -1051,9 +1036,31 @@ export function TradePage() {
                         {captionLabel(m.metricLabel, ws.name)}
                       </button>
                     ))}
+                    {canManage && (
+                      <button
+                        type="button"
+                        className="pubws-seg-btn pubws-seg-add"
+                        aria-label="Add a metric"
+                        onClick={() => setOwnerDialog({ kind: 'new-metric' })}
+                      >
+                        + metric
+                      </button>
+                    )}
                   </span>
                 ) : (
-                  captionLabel(metricLabel, ws.name)
+                  <>
+                    {captionLabel(metricLabel, ws.name)}
+                    {canManage && (
+                      <button
+                        type="button"
+                        className="pubws-date-add"
+                        aria-label="Add a metric"
+                        onClick={() => setOwnerDialog({ kind: 'new-metric' })}
+                      >
+                        + metric
+                      </button>
+                    )}
+                  </>
                 )}
               </h2>
               {hero && (
@@ -1083,45 +1090,18 @@ export function TradePage() {
                   )}
                   {/* The owner opens a market where the dates are, not on a
                     settings page (docs/owner-on-the-floor.md). */}
-                  {canManage && !addingDate && (
+                  {canManage && hero?.metricId && (
                     <button
                       type="button"
                       className="pubws-date-add"
                       aria-label="Price this metric on another date"
-                      onClick={() => {
-                        setDateErr('');
-                        setAddingDate(true);
-                      }}
+                      onClick={() =>
+                        setOwnerDialog({ kind: 'add-date', metricId: hero.metricId, metricName: metricLabel })
+                      }
                     >
                       + date
                     </button>
                   )}
-                  {canManage && addingDate && (
-                    <span className="pubws-date-picker">
-                      {openableDates()
-                        .filter(o => !heroDates.some(d => d.targetDate === o.targetDate))
-                        .map(o => (
-                          <button
-                            key={o.targetDate}
-                            type="button"
-                            className="pubws-date-opt"
-                            disabled={dateBusy}
-                            onClick={() => void addDate(o.targetDate)}
-                          >
-                            {o.label}
-                          </button>
-                        ))}
-                      <button
-                        type="button"
-                        className="pubws-date-opt pubws-date-cancel"
-                        disabled={dateBusy}
-                        onClick={() => setAddingDate(false)}
-                      >
-                        cancel
-                      </button>
-                    </span>
-                  )}
-                  {dateErr && <span className="pubws-date-err">{dateErr}</span>}
                 </div>
               )}
               {/* The question line (owner ask 2026-08-28): under the pickers,
@@ -1657,9 +1637,15 @@ export function TradePage() {
                         pool={hero.liquidity}
                         volume={hero.tradedVolume ?? 0}
                         canManage={canManage}
-                        marketId={hero.marketId}
-                        workspaceId={ws?.workspaceId}
-                        onDeepened={reload}
+                        onInject={() =>
+                          setOwnerDialog({
+                            kind: 'inject',
+                            marketId: hero.marketId,
+                            marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}`,
+                            pool: hero.liquidity,
+                            traders: hero.traderCount ?? 0,
+                          })
+                        }
                       />
                     ) : null
                   }
@@ -1995,6 +1981,41 @@ export function TradePage() {
         <button className="pubws-update" onClick={() => window.location.reload()}>
           new version · reload
         </button>
+      )}
+
+      {ownerDialog?.kind === 'new-metric' && ws && (
+        <NewMetricDialog
+          workspaceId={ws.workspaceId}
+          onClose={() => setOwnerDialog(null)}
+          onCreated={m => setOwnerDialog({ kind: 'add-date', metricId: m.id, metricName: m.name })}
+        />
+      )}
+      {ownerDialog?.kind === 'add-date' && ws && (
+        <AddDateDialog
+          workspaceId={ws.workspaceId}
+          metricId={ownerDialog.metricId}
+          metricName={ownerDialog.metricName}
+          defaultCredits={defaultCredits}
+          onClose={() => setOwnerDialog(null)}
+          onDone={() => {
+            setOwnerDialog(null);
+            reload();
+          }}
+        />
+      )}
+      {ownerDialog?.kind === 'inject' && ws && (
+        <InjectLiquidityDialog
+          workspaceId={ws.workspaceId}
+          marketId={ownerDialog.marketId}
+          marketLabel={ownerDialog.marketLabel}
+          pool={ownerDialog.pool}
+          traders={ownerDialog.traders}
+          onClose={() => setOwnerDialog(null)}
+          onDone={() => {
+            setOwnerDialog(null);
+            reload();
+          }}
+        />
       )}
     </div>
   );

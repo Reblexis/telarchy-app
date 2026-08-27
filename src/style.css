@@ -7997,8 +7997,7 @@ textarea.jobform-line--desc {
 /* ---- The owner's controls, on the floor (docs/owner-on-the-floor.md) ----
    Additions to the page a visitor sees, sitting on the thing they change.
    Quiet by default: they must never outrank the price. */
-.pubws-date-add,
-.pubws-date-opt {
+.pubws-date-add {
   margin-left: 0.4rem;
   padding: 0.25rem 0.55rem;
   border: 1px dashed var(--border-strong);
@@ -8012,12 +8011,7 @@ textarea.jobform-line--desc {
   cursor: pointer;
   transition: border-color var(--transition-fast), color var(--transition-fast);
 }
-.pubws-date-add:hover,
-.pubws-date-opt:hover { border-color: var(--border-hover); color: var(--text-primary); }
-.pubws-date-picker { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; vertical-align: middle; }
-.pubws-date-opt { border-style: solid; }
-.pubws-date-cancel { border-color: transparent; }
-.pubws-date-err { display: block; margin-top: 0.4rem; font-size: 0.75rem; color: var(--error-text); }
+.pubws-date-add:hover { border-color: var(--border-hover); color: var(--text-primary); }
 
 .pubws-facts-act {
   padding: 0.1rem 0.45rem;
@@ -8031,15 +8025,70 @@ textarea.jobform-line--desc {
   transition: border-color var(--transition-fast), color var(--transition-fast);
 }
 .pubws-facts-act:hover { border-color: var(--border-hover); color: var(--text-primary); }
-.pubws-facts-deepen { display: inline-flex; align-items: center; gap: 0.3rem; }
-.pubws-facts-input {
-  width: 4.5rem;
-  padding: 0.1rem 0.3rem;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xs);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
+
+/* ---- The owner's three dialogs (docs/owner-on-the-floor.md) ----
+   The bet ticket's anatomy in the floor's modal: centered tertiary labels,
+   bottom-line inputs, one full-width ink button that carries its own cost. */
+.odlg-title {
+  margin: 0 0 0.2rem;
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: 1.3rem;
+  letter-spacing: -0.01em;
 }
-.pubws-facts-err { font-size: 0.7rem; color: var(--error-text); }
+.odlg-sub { margin: 0 0 0.4rem; font-size: 0.78rem; color: var(--text-tertiary); }
+.odlg-stack { display: flex; flex-direction: column; gap: 1.1rem; margin-top: 0.9rem; }
+.odlg-field { display: flex; flex-direction: column; align-items: center; gap: 0.45rem; }
+.odlg-center { text-align: center; }
+.odlg-seg { justify-content: center; }
+.odlg-datetyped { max-width: 16rem; font-family: var(--font-mono); font-size: 0.9rem; }
+.odlg-amount { display: inline-flex; align-items: baseline; gap: 0.4rem; }
+.odlg-amount-input {
+  width: 7rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 1.15rem;
+}
+.odlg-unit { font-size: 0.8rem; color: var(--text-tertiary); }
+.odlg-textarea {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.odlg-note { margin: 0; text-align: center; font-size: 0.75rem; line-height: 1.55; color: var(--text-tertiary); }
+.odlg-err { margin: 0; text-align: center; font-size: 0.8rem; color: var(--error-text); }
+.odlg-facts {
+  display: flex;
+  justify-content: center;
+  gap: 2.4rem;
+  padding: 0.8rem 0 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.odlg-facts span { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; }
+.odlg-facts strong {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+.odlg-facts em {
+  font-style: normal;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* + metric inside the metric seg: the one ember segment, never active. */
+.pubws-seg-add { color: var(--accent); font-weight: 600; }
+.pubws-seg-add:hover { color: var(--accent-hover); }

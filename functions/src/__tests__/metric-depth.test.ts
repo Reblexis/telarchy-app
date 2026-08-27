@@ -26,7 +26,7 @@ jest.mock('../middleware/roles', () => ({
 import { and, eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, markets, metrics } from '../db/schema';
+import { agents, markets, metrics, trades } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
 import { toUnits } from '../lib/validation';
@@ -190,5 +190,46 @@ describe("auto-fund at each metric's own price", () => {
       toUnits(10000),
     );
     expect(funded.map(f => f.item.id)).toEqual(['real']);
+  });
+});
+
+describe('machinery edits and open markets (docs/market-integrity.md)', () => {
+  test('a range change with only untraded open markets voids and respawns them at the new range', async () => {
+    // Give the metric a horizon so the reconcile knows what to respawn.
+    await db
+      .update(metrics)
+      .set({ timePreference: { enabled: false, halfLife: 1, customHorizons: ['2026-09'] } })
+      .where(and(eq(metrics.id, 'm-priced'), eq(metrics.workspaceId, WS)));
+
+    await request(app).put('/api/metrics/m-priced').send({ marketRangeMax: 50000 }).expect(200);
+
+    // The old market is gone from the open set...
+    const [old] = await db.select().from(markets).where(eq(markets.id, 'mkt-open'));
+    expect(old.resolved).toBe(true);
+    // ...and a fresh one stands at the same date with the new machinery.
+    const open = await db
+      .select()
+      .from(markets)
+      .where(and(eq(markets.workspaceId, WS), eq(markets.metricId, 'm-priced'), eq(markets.resolved, false)));
+    expect(open).toHaveLength(1);
+    expect(open[0].targetDate).toBe('2026-09');
+    expect(open[0].rangeMax).toBe(50000);
+  });
+
+  test('a range change is still refused the moment anyone has money in a market', async () => {
+    await db.insert(trades).values({
+      id: 't-freeze',
+      workspaceId: WS,
+      marketId: 'mkt-open',
+      agentId: TRADER,
+      direction: 'higher',
+      shares: 1,
+      cost: toUnits(10),
+    });
+    const res = await request(app).put('/api/metrics/m-priced').send({ marketRangeMax: 50000 }).expect(409);
+    expect(res.body.error).toMatch(/has trades/);
+    const [mkt] = await db.select().from(markets).where(eq(markets.id, 'mkt-open'));
+    expect(mkt.resolved).toBe(false);
+    expect(mkt.rangeMax).toBe(5000);
   });
 });
