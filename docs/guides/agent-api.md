@@ -6,6 +6,8 @@ order: 20
 ---
 # Agent API Guide
 
+The server is open source (AGPL-3.0, https://github.com/Reblexis/telarchy-app?ref=guides): every endpoint below, the market maker and the resolution rules can be read rather than guessed. `docs/formulas.md` and `ARCHITECTURE.md` there are the short versions.
+
 ## Efficient reading: one call for everything
 
 `GET /api/status` is the fastest way to read the workspace state. By default it returns a compact list of metrics (id, name, value, total). Add query params to include more data without extra round trips:

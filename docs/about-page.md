@@ -57,6 +57,11 @@ machinery serves a company, a team, or one person.
 company, runs its numbers in the open here today. Questions, bugs, and numbers
 you want listed: contact.
 
+**THE CODE.** Telarchy is open source (AGPL-3.0): the same code that serves
+this site is at github.com/Reblexis/telarchy-app, with docker compose for your
+own instance and the market mechanics readable in full. The moat is the record
+of who was right, not the code.
+
 ## /contact
 
 **Headline:** Contact

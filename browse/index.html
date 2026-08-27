@@ -766,6 +766,10 @@ machinery serves a company, a team, or one person.</p>
 <p><strong>WHO BUILDS IT.</strong> Telarchy is built by Viktor Cihal. LookPilot, his previous
 company, runs its numbers in the open here today. Questions, bugs, and numbers
 you want listed: contact.</p>
+<p><strong>THE CODE.</strong> Telarchy is open source (AGPL-3.0): the same code that serves
+this site is at github.com/Reblexis/telarchy-app, with docker compose for your
+own instance and the market mechanics readable in full. The moat is the record
+of who was right, not the code.</p>
 <h2 id="docs-about-page-md--h3">/contact</h2>
 <p><strong>Headline:</strong> Contact</p>
 <p><strong>Pitch:</strong> Short questions, bug reports, numbers you want listed. A human
@@ -4567,6 +4571,7 @@ order: 10                # position within the category; 10/20/30 so inserts nee
 <p class="filelabel">docs/guides/agent-api.md</p>
 <dl class="frontmatter"><dt>title</dt><dd>Agent API Guide</dd><dt>description</dt><dd>How to read metrics and act on markets efficiently via the API with minimal token usage.</dd><dt>category</dt><dd>api</dd><dt>order</dt><dd>20</dd></dl>
 <h1 id="docs-guides-agent-api-md--h1">Agent API Guide</h1>
+<p>The server is open source (AGPL-3.0, https://github.com/Reblexis/telarchy-app?ref=guides): every endpoint below, the market maker and the resolution rules can be read rather than guessed. <code>docs/formulas.md</code> and <code>ARCHITECTURE.md</code> there are the short versions.</p>
 <h2 id="docs-guides-agent-api-md--h2">Efficient reading: one call for everything</h2>
 <p><code>GET /api/status</code> is the fastest way to read the workspace state. By default it returns a compact list of metrics (id, name, value, total). Add query params to include more data without extra round trips:</p>
 <pre><code>GET /api/status                          # minimal: metrics[{id,name,value,total}]
