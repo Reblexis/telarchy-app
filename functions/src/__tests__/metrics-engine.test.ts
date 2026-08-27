@@ -298,3 +298,22 @@ describe('getAffectedMetrics', () => {
     expect(affected).toContain('3');
   });
 });
+
+// ─── N/A readings (owner direction 2026-08-27) ───────────────────────────────
+
+describe('an N/A reading (value null)', () => {
+  test('a leaf reading N/A totals N/A, and every composite referencing it reads N/A too', () => {
+    const out = recalculateMetrics([
+      metric({ id: 'v', name: 'Valuation', value: null }),
+      metric({ id: 'r', name: 'Revenue', value: 100, total: 100 }),
+      metric({ id: 'c', name: 'Blend', formula: '{Valuation} + {Revenue}' }),
+      metric({ id: 'u', name: 'Unrelated', formula: '{Revenue} * 2' }),
+    ]);
+    const by = Object.fromEntries(out.map(m => [m.id, m]));
+    expect(by.v.value).toBeNull();
+    expect(by.v.total).toBeNull();
+    expect(by.c.value).toBeNull();
+    expect(by.c.total).toBeNull();
+    expect(by.u.total).toBe(200);
+  });
+});

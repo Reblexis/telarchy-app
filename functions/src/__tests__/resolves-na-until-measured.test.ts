@@ -134,3 +134,51 @@ test('without the flag nothing changes: no reading falls back to the live value'
   expect(m.resolved).toBe(true);
   expect(m.actualValue).toBe(0);
 });
+
+// ── The general case (owner direction 2026-08-27): any update may supply N/A ──
+
+const naLog = (id: string, secondsBeforeBoundary: number, value: number | null) =>
+  db.insert(metricLogs).values({
+    id,
+    workspaceId: WS,
+    metricId: METRIC,
+    metricName: 'Implied valuation (USD)',
+    value,
+    outlook: value,
+    timestamp: new Date(BOUNDARY.getTime() - secondsBeforeBoundary * 1000),
+  });
+
+test('an explicit N/A reading at the boundary voids, even after earlier numbers', async () => {
+  await seed({ flagged: false, reading: 12_000_000 });
+  await naLog('log-na-explicit', 30, null);
+  const out = await resolvePredictions(undefined, WS);
+  const m = await market();
+  expect(m.voided).toBe(true);
+  expect(m.actualValue).toBeNull();
+  expect(out.resolved).toBe(0);
+  const [trader] = await db.select().from(agents).where(eq(agents.id, TRADER));
+  expect(Number(trader.balance)).toBeGreaterThan(0);
+});
+
+test('a number after an N/A reading settles the market on the number', async () => {
+  await seed({ flagged: false });
+  await naLog('log-na-first', 120, null);
+  await naLog('log-num-after', 30, 12_000_000);
+  await resolvePredictions(undefined, WS);
+  const m = await market();
+  expect(m.voided).toBe(false);
+  expect(m.resolved).toBe(true);
+  expect(m.actualValue).toBe(12_000_000);
+});
+
+test('with no log at all, a live reading of N/A voids instead of falling back to a number', async () => {
+  await seed({ flagged: false });
+  await db
+    .update(metrics)
+    .set({ value: null })
+    .where(and(eq(metrics.id, METRIC), eq(metrics.workspaceId, WS)));
+  await resolvePredictions(undefined, WS);
+  const m = await market();
+  expect(m.voided).toBe(true);
+  expect(m.actualValue).toBeNull();
+});

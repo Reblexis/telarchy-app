@@ -132,3 +132,29 @@ test('the workspace and its groups survive all of this', async () => {
     0,
   );
 });
+
+test('an N/A update writes one reading with value null, and the metric reads N/A', async () => {
+  // Owner direction 2026-08-27: whoever updates a metric may say the number
+  // does not exist right now. The reading IS the N/A, logged like any other.
+  const res = await put({
+    value: null,
+    oldValue: 1_179.72,
+    updateNote: 'reporting pipeline down; no number this week',
+  });
+  expect(res.status).toBe(200);
+  const rows = await logs();
+  expect(rows).toHaveLength(1);
+  expect(rows[0].value).toBeNull();
+  expect(rows[0].outlook).toBeNull();
+  const [m] = await db
+    .select()
+    .from(metrics)
+    .where(and(eq(metrics.id, METRIC), eq(metrics.workspaceId, WS)));
+  expect(m.value).toBeNull();
+});
+
+test('a value that is neither a number nor null is refused, and writes nothing', async () => {
+  const res = await put({ value: 'N/A', oldValue: 1_179.72, updateNote: 'typed the letters' });
+  expect(res.status).toBe(400);
+  expect(await logs()).toHaveLength(0);
+});

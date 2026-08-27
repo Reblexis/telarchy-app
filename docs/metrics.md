@@ -69,7 +69,7 @@ Money Telarchy itself was paid in the trailing 30 days: managed-tier subscriptio
 The post-money valuation implied by the most recent closed investment in Telarchy: a priced round at its post-money; a SAFE or convertible note at its valuation cap; a secondary sale at the price it implies. USD.
 
 - **Why this metric:** it is the market's answer to "what is this worth", asked on a date, and a forecaster can only be paid for it when the world answers too.
-- **How to compute:** nothing to sync. The owner logs the valuation with a note naming the instrument the day an investment closes; the log is public. Until then the metric has no reading and is declared `resolvesNaUntilMeasured`, so every market on it voids (N/A, all bets refunded) at its instant instead of settling on a number that does not exist (docs/ui-conventions.md, "A market on a number that does not exist yet").
+- **How to compute:** nothing to sync. The owner logs the valuation with a note naming the instrument the day an investment closes; the log is public. Until then the metric's reading is N/A (it is declared `resolvesNaUntilMeasured`), so every market on it voids (N/A, all bets refunded) at its instant instead of settling on a number that does not exist; the owner can also log N/A again later, the same way any metric updater can (docs/ui-conventions.md, "A market on a number that does not exist resolves N/A").
 - **Markets:** today, this week, next month, like every floor metric. Range 0 to 20,000,000.
 
 ## Notes

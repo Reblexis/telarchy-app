@@ -435,7 +435,9 @@ export const metrics = pgTable(
     workspaceId: text('workspace_id').notNull(),
     name: text('name').notNull(),
     description: text('description').notNull().default(''),
-    value: doublePrecision('value').notNull().default(0),
+    /** The current reading. NULL is an explicit N/A reading (docs/ui-conventions.md,
+     *  "A market on a number that does not exist resolves N/A"). */
+    value: doublePrecision('value').default(0),
     formula: text('formula').notNull().default('0'),
     /** Display order within workspace */
     order: integer('order').notNull().default(0),
@@ -958,8 +960,9 @@ export const updates = pgTable(
     id: text('id').notNull(),
     workspaceId: text('workspace_id').notNull(),
     metricName: text('metric_name').notNull(),
-    oldValue: doublePrecision('old_value').notNull(),
-    newValue: doublePrecision('new_value').notNull(),
+    /** NULL on either side is an N/A reading, not a missing field. */
+    oldValue: doublePrecision('old_value'),
+    newValue: doublePrecision('new_value'),
     description: text('description').notNull().default(''),
     timestamp: timestamp('timestamp').notNull().defaultNow(),
   },
@@ -973,8 +976,9 @@ export const metricLogs = pgTable(
     workspaceId: text('workspace_id').notNull(),
     metricId: text('metric_id').notNull(),
     metricName: text('metric_name').notNull(),
-    /** User-authored current value for leaves (0 for composites, since the PUT route zeroes value on non-leaf rows). */
-    value: doublePrecision('value').notNull(),
+    /** User-authored current value for leaves (0 for composites, since the PUT route zeroes value on non-leaf rows).
+     *  NULL is an explicit N/A reading: the number did not exist at this instant, and a market settling here voids. */
+    value: doublePrecision('value'),
     /** Computed outlook (m.total). For composites this is the formula result; for leaves with Time Preference enabled
      *  it is the blend of value and future market consensus, so it differs from value. NULL on rows written before
      *  migration 0018. */

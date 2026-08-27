@@ -245,25 +245,39 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
 
   sorted.forEach(metric => {
     const isLeaf = !metric.formula || metric.formula.trim() === '0';
+    // An N/A reading (value null) has no number to blend, total or project:
+    // the metric reads N/A, and so does every composite that references one
+    // (docs/ui-conventions.md, "A market on a number that does not exist
+    // resolves N/A"). `sorted` is topological, so dependencies settle first.
+    const readsNa = isLeaf
+      ? metric.value === null
+      : extractMetricReferences(metric.formula).some(n => nameToMetric[n]?.value === null);
+    const value = metric.value;
+    if (readsNa || value === null) {
+      metric.value = null;
+      metric.total = null;
+      metric.currentTotal = null;
+      return;
+    }
     if (isLeaf && metric.timePreference?.enabled) {
       // Leaf with TP: blend current value with market consensus at future dates
-      metric.currentTotal = metric.value;
+      metric.currentTotal = value;
       if (metric.missingMarkets?.length) {
         metric.total = null;
       } else {
         const { halfLife, density } = metric.timePreference;
-        let weightedSum = WEIGHT_T0 * metric.value;
+        let weightedSum = WEIGHT_T0 * value;
         let totalWeight = WEIGHT_T0;
         for (const { date, weight } of sampleTimePoints(halfLife, density)) {
-          const consensusAtT = consensusMap[`${metric.name}:${date}`] ?? metric.value;
+          const consensusAtT = consensusMap[`${metric.name}:${date}`] ?? value;
           weightedSum += weight * consensusAtT;
           totalWeight += weight;
         }
-        metric.total = totalWeight > 0 ? weightedSum / totalWeight : metric.value;
+        metric.total = totalWeight > 0 ? weightedSum / totalWeight : value;
       }
     } else if (isLeaf) {
-      metric.total = metric.value;
-      metric.currentTotal = metric.value;
+      metric.total = value;
+      metric.currentTotal = value;
     } else if (metric.timePreference?.enabled) {
       if (metric.missingMarkets?.length) {
         metric.total = null;

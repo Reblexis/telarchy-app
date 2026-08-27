@@ -12,7 +12,9 @@ export interface Metric {
   id: string;
   name: string;
   description: string;
-  value: number;
+  /** The current reading; null is an explicit N/A reading (no number exists).
+   *  A composite reads N/A when any metric its formula references does. */
+  value: number | null;
   total: number | null;
   /** The metric's value evaluated at "now" (formula result with no time-
    *  preference projection applied). For leaves this equals `value`; for
@@ -38,16 +40,17 @@ export interface Metric {
 export interface MetricLog {
   metricId: string;
   metricName: string;
-  value: number;
-  /** Computed outlook (m.total) captured at log time. NULL for rows written before migration 0018. */
+  /** Null is an explicit N/A reading. */
+  value: number | null;
+  /** Computed outlook (m.total) captured at log time. NULL for rows written before migration 0018, and on N/A readings. */
   outlook: number | null;
   timestamp: Date;
 }
 
 export interface UpdateEntry {
   metricName: string;
-  oldValue: number;
-  newValue: number;
+  oldValue: number | null;
+  newValue: number | null;
   description: string;
   timestamp: Date;
 }

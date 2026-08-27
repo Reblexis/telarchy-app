@@ -1378,3 +1378,16 @@ capped at the four furthest-resolving markets, which on a two-metric,
 three-date floor left the daily markets with no chart. The cap is gone; the
 metric log is read once per distinct metric, not once per market, so the cost
 is per metric and the cap had nothing left to protect.
+
+## 2026-08-27: A market on a number that does not exist resolves N/A
+
+**Generalised 2026-08-27 (Viktor: "btw it should be generally supported for
+metric updaters/ worksapce owners to supply metric value as n/a instead of an
+a tual number").** Until now only a never-measured metric could be N/A, via
+`resolvesNaUntilMeasured`. Now any update may carry `value: null`: the
+reading is logged as N/A, the metric shows N/A, dependents read N/A, and a
+market whose boundary reading is N/A voids with the reason published. The
+flag stays as the "starts N/A" case of the same rule. Context: the audit of
+the same day (telarchy umbrella, `notes/resolution-audit-2026-08-27.md`)
+found five Implied valuation markets settled at $0 by a build that predated
+the flag.

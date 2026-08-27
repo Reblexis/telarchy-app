@@ -379,6 +379,7 @@ async function buildFloorPayload(ws: PublicWs) {
       id: metrics.id,
       order: metrics.order,
       description: metrics.description,
+      value: metrics.value,
       resetsEvery: metrics.resetsEvery,
       resolvesNaUntilMeasured: metrics.resolvesNaUntilMeasured,
     })
@@ -580,7 +581,8 @@ async function buildFloorPayload(ws: PublicWs) {
         .where(and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, heroMetricId)))
         .orderBy(desc(metricLogs.timestamp))
         .limit(500);
-      heroHistory = logs.reverse();
+      // An N/A reading is a gap on the chart, not a point.
+      heroHistory = logs.reverse().filter((r): r is { at: Date; value: number } => r.value !== null);
     }
     // Every open horizon's own metric history, so a two-clock workspace can
     // draw one actual-vs-forecast chart per horizon instead of only the
@@ -592,7 +594,9 @@ async function buildFloorPayload(ws: PublicWs) {
     // (owner ask 2026-08-25) left the daily markets with no row, and a
     // horizon with no row draws no chart. The log is read once per distinct
     // metric, so the cost is per metric and the cap had nothing to protect.
-    const logsByMetric = new Map<string, Array<{ at: Date | null; value: number }>>();
+    // Kept unfiltered: the latest row may be an N/A reading (value null),
+    // which `measured` below must see; the chart points filter it out.
+    const logsByMetric = new Map<string, Array<{ at: Date | null; value: number | null }>>();
     for (const metricId of new Set(marketList.map(m => m.metricId as string))) {
       const rows = await db
         .select({ at: metricLogs.timestamp, value: metricLogs.value })
@@ -646,13 +650,20 @@ async function buildFloorPayload(ws: PublicWs) {
         targetDate: target,
         periodStart: periodStartInstant(target).toISOString(),
         resetsEvery: metricRow?.resetsEvery ?? null,
-        // The metric's N/A declaration and whether a reading exists at all,
-        // stated outright: the page must not infer "unmeasured" from an empty
-        // points array, which a resetting metric ships inside a fresh period.
+        // The metric's N/A declaration and whether its CURRENT reading is a
+        // number, stated outright: the page must not infer "unmeasured" from
+        // an empty points array, which a resetting metric ships inside a
+        // fresh period. The latest log row decides (a null value is an
+        // explicit N/A reading); with no rows at all, the live value stands
+        // in unless the metric is declared N/A-until-measured.
         resolvesNaUntilMeasured: metricRow?.resolvesNaUntilMeasured ?? false,
-        measured: rows.length > 0,
+        measured:
+          rows.length > 0
+            ? rows[rows.length - 1].value !== null
+            : !(metricRow?.resolvesNaUntilMeasured ?? false) && (metricRow?.value ?? null) !== null,
         description: metricRow?.description ?? null,
-        points: rows.filter(r => inPeriod(r.at)),
+        // An N/A reading is a gap on the chart, not a point.
+        points: rows.filter((r): r is { at: Date | null; value: number } => r.value !== null && inPeriod(r.at)),
       });
     }
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);

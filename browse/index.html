@@ -254,7 +254,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h12">Two steppers: the metric, and its date</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h13">A contract keeps the clock line, and says which world it is</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h14">A contract ships every pair of the grid, and the board reads the pair on screen</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h15">A market on a number that does not exist yet resolves N/A</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h15">A market on a number that does not exist resolves N/A</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h16">The price and the chart</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h17">The actual-vs-forecast chart</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h18">Two tiers: poster and desk</a></li>
@@ -2142,7 +2142,7 @@ not done.</p>
 <p>The post-money valuation implied by the most recent closed investment in Telarchy: a priced round at its post-money; a SAFE or convertible note at its valuation cap; a secondary sale at the price it implies. USD.</p>
 <ul>
 <li><strong>Why this metric:</strong> it is the market's answer to &quot;what is this worth&quot;, asked on a date, and a forecaster can only be paid for it when the world answers too.</li>
-<li><strong>How to compute:</strong> nothing to sync. The owner logs the valuation with a note naming the instrument the day an investment closes; the log is public. Until then the metric has no reading and is declared <code>resolvesNaUntilMeasured</code>, so every market on it voids (N/A, all bets refunded) at its instant instead of settling on a number that does not exist (docs/ui-conventions.md, &quot;A market on a number that does not exist yet&quot;).</li>
+<li><strong>How to compute:</strong> nothing to sync. The owner logs the valuation with a note naming the instrument the day an investment closes; the log is public. Until then the metric's reading is N/A (it is declared <code>resolvesNaUntilMeasured</code>), so every market on it voids (N/A, all bets refunded) at its instant instead of settling on a number that does not exist; the owner can also log N/A again later, the same way any metric updater can (docs/ui-conventions.md, &quot;A market on a number that does not exist resolves N/A&quot;).</li>
 <li><strong>Markets:</strong> today, this week, next month, like every floor metric. Range 0 to 20,000,000.</li>
 </ul>
 <h2 id="docs-metrics-md--h13">Notes</h2>
@@ -2969,33 +2969,40 @@ wrong caption is the mismatch this section exists to prevent. The suite seeds a 
 contract and asserts (a) the payload ships all six, (b) the board's
 printed impact equals approved minus declined of the pair for the metric
 AND date on screen, and (c) that pair is the one the ticket trades.</p>
-<h3 id="docs-ui-conventions-md--h15">A market on a number that does not exist yet resolves N/A</h3>
-<p><strong>The rule.</strong> A metric can declare <code>resolvesNaUntilMeasured</code> (POST/PUT
-<code>/api/metrics</code>). While such a metric has NO logged reading at or before a
-market's resolution instant, that market does not settle on a number: it is
-VOIDED, every position refunded, with the reason published on the void. The
-first reading ends the state for good: from then on the metric is a level
-like any other and every later market settles on the value as of its
-instant. The metric's <code>value</code> column plays no part (a never-measured metric
-carries the default 0, and settling &quot;no investment&quot; as &quot;$0 valuation&quot; is
-the wrong answer the flag exists to prevent). Without the flag nothing
-changes: a market with no reading before its boundary falls back to the
-live value.</p>
+<h3 id="docs-ui-conventions-md--h15">A market on a number that does not exist resolves N/A</h3>
+<p><strong>A reading can be N/A.</strong> Whoever updates a metric (the owner, an updater,
+a sync script) supplies either a number or N/A (<code>value: null</code> on POST/PUT
+<code>/api/metrics</code>, the &quot;N/A&quot; choice in the update form), with the usual
+<code>updateNote</code> saying why. An N/A reading is logged like any other reading, at
+its instant, and it is the metric's current reading until the next numeric
+one: the metric shows &quot;N/A&quot; where its number would be, its history shows a
+gap for that stretch, and a composite whose formula reads an N/A input is
+N/A itself. Nothing is inferred from a 0.</p>
+<p><strong>The rule.</strong> A market settles on the metric's reading as of its resolution
+instant. When that reading is N/A, the market does not settle on a number: it
+is VOIDED, every position refunded, with the reason published on the void.
+When it is a number, the market settles on it as ever. &quot;No reading yet&quot; is
+the same case: a metric can declare <code>resolvesNaUntilMeasured</code> (POST/PUT
+<code>/api/metrics</code>), which means its reading is N/A until the first logged one;
+the first numeric reading ends that state for good. Without the flag, a
+market with no logged reading at all before its boundary falls back to the
+live value, and a live value of N/A voids the same way.</p>
 <p>A void and not a special resolution value, because N/A is what the market
 IS when its question has no answer, and the engine has exactly one honest
 shape for that (refund everyone, publish why). A &quot;resolved at 0&quot; would pay
 the LOWER side for an event that did not happen; a synthetic sentinel would
 need every surface that reads <code>actualValue</code> to know about it.</p>
 <p><strong>What the floor says.</strong> Under the price, the settle note reads &quot;resolves
-30 September 2026, or N/A (all bets refunded) if there is still no reading&quot;
-for a flagged metric that has no reading yet; once a reading exists the
-note is the plain &quot;resolves ...&quot; again. The flag travels on
-<code>horizonHistories</code> as <code>resolvesNaUntilMeasured</code> beside <code>resetsEvery</code>, and
-<code>measured</code> says whether a reading exists, so the page never infers either
-from the points array (a resetting metric ships an empty array inside a
-fresh period, which is not &quot;unmeasured&quot;).</p>
-<p>The metrics that use the flag (&quot;Implied valuation (USD)&quot; on both public
-floors) are defined in docs/metrics.md.</p>
+30 September 2026, or N/A (all bets refunded) if the reading is still N/A&quot;
+while the metric's current reading is N/A (flagged and never measured, or
+last updated to N/A); once a numeric reading exists the note is the plain
+&quot;resolves ...&quot; again. The flag travels on <code>horizonHistories</code> as
+<code>resolvesNaUntilMeasured</code> beside <code>resetsEvery</code>, and <code>measured</code> says whether
+the current reading is a number, so the page never infers either from the
+points array (a resetting metric ships an empty array inside a fresh
+period, which is not &quot;unmeasured&quot;).</p>
+<p>The metrics that start N/A (&quot;Implied valuation (USD)&quot; on both public floors)
+are defined in docs/metrics.md.</p>
 <h3 id="docs-ui-conventions-md--h16">The price and the chart</h3>
 <p>The consensus is a large mono price with a since-open chip (both carrying
 the metric's currency symbol when the trimmed parenthetical tail names one,
@@ -4626,7 +4633,7 @@ GET /api/predictions/markets/:id/context?historyLimit=10&amp;updatesLimit=5
 </code></pre>
 <p>Returns: market info, metric formula + dependencies, value history, recent updates, related markets at other target dates.</p>
 <h2 id="docs-guides-agent-api-md--h7">Reading historical trends</h2>
-<p><code>GET /api/status?trends=1</code> returns the last 20 log points per metric as <code>[[unixTimestamp, value]]</code>, where <code>value</code> is the outlook (formula result for composites, or value/consensus blend for leaves with time preference) when present, falling back to the user-authored leaf value otherwise. For full history of a single metric: <code>GET /api/metrics/:id/logs</code>, which returns each row as <code>{ metricId, metricName, value, outlook, timestamp }</code> (<code>value</code> is the user-authored leaf number or 0 for composites; <code>outlook</code> is the computed total; <code>outlook</code> may be null on older rows).</p>
+<p><code>GET /api/status?trends=1</code> returns the last 20 log points per metric as <code>[[unixTimestamp, value]]</code>, where <code>value</code> is the outlook (formula result for composites, or value/consensus blend for leaves with time preference) when present, falling back to the user-authored leaf value otherwise. For full history of a single metric: <code>GET /api/metrics/:id/logs</code>, which returns each row as <code>{ metricId, metricName, value, outlook, timestamp }</code> (<code>value</code> is the user-authored leaf number or 0 for composites; <code>outlook</code> is the computed total; <code>outlook</code> may be null on older rows). A row with <code>value: null</code> is an explicit N/A reading: the number did not exist at that instant, and a market whose boundary lands on it voids (all positions refunded) instead of settling.</p>
 <h2 id="docs-guides-agent-api-md--h8">Checking your balance and active positions</h2>
 <pre><code>GET /api/agents/me/dashboard    # balance + top liquid markets
 GET /api/predictions/positions  # your open positions (shares held)
@@ -6246,6 +6253,9 @@ curl -s -b ~/.telarchy/cookies.txt -X POST https://telarchy.com/api/agents/me/ke
   -H &quot;Content-Type: application/json&quot; \
   -d '{&quot;name&quot;:&quot;&lt;echoed&gt;&quot;,&quot;description&quot;:&quot;&lt;echoed&gt;&quot;,&quot;formula&quot;:&quot;&lt;echoed&gt;&quot;,&quot;value&quot;:53400,&quot;oldValue&quot;:50000,&quot;updateNote&quot;:&quot;daily ingest 2026-07-12&quot;}'
 # oldValue = the value you just read back; updateNote is required and feeds the audit log.
+# value may be null: an explicit N/A reading (&quot;no number exists right now&quot;).
+# The metric then reads N/A and a market settling on an N/A reading VOIDS
+# (all positions refunded) instead of settling on a number.
 </code></pre>
 <p>Schedule it with whatever already exists (cron, GitHub Actions, launchd, Windows Task Scheduler, the user's own agent routine); a laptop-only scheduler only fires when the laptop is on, so prefer something hosted for boundary-sensitive metrics. Timing rules that matter (from <em>Markets &amp; Forecasting</em>): markets settle on the metric's last value at-or-before each market's <code>resolvesOn</code> boundary, so push frequently, and make sure a push lands shortly <strong>before</strong> each boundary (for an hourly ladder, run at :59, not :00). Prefer trailing-window computations for frequently synced metrics.</p>
 <p><strong>Check-in-triggered sync (data exists, no scheduler, or the source itself is refreshed by hand).</strong> Common for exports (Apple Health, a weekly spreadsheet dump): write the same script, but run it at check-in time, by the user or by their agent in a session, right after the export lands. Cron against a manually refreshed source fakes freshness; human-triggered is the honest design. Pair it with a calendar reminder at the agreed cadence.</p>

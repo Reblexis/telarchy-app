@@ -180,6 +180,9 @@ curl -s -X PUT https://telarchy.com/api/metrics/$METRIC_ID \
   -H "Content-Type: application/json" \
   -d '{"name":"<echoed>","description":"<echoed>","formula":"<echoed>","value":53400,"oldValue":50000,"updateNote":"daily ingest 2026-07-12"}'
 # oldValue = the value you just read back; updateNote is required and feeds the audit log.
+# value may be null: an explicit N/A reading ("no number exists right now").
+# The metric then reads N/A and a market settling on an N/A reading VOIDS
+# (all positions refunded) instead of settling on a number.
 ```
 
 Schedule it with whatever already exists (cron, GitHub Actions, launchd, Windows Task Scheduler, the user's own agent routine); a laptop-only scheduler only fires when the laptop is on, so prefer something hosted for boundary-sensitive metrics. Timing rules that matter (from *Markets & Forecasting*): markets settle on the metric's last value at-or-before each market's `resolvesOn` boundary, so push frequently, and make sure a push lands shortly **before** each boundary (for an hourly ladder, run at :59, not :00). Prefer trailing-window computations for frequently synced metrics.

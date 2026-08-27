@@ -568,6 +568,13 @@
       "when": 1787669511172,
       "tag": "0080_proposal_revisions_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1787860943538,
+      "tag": "0081_metric_na_reading",
+      "breakpoints": true
     }
   ]
 }

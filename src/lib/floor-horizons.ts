@@ -70,9 +70,10 @@ export interface HorizonView {
   /** The owner's definition of this horizon's number. */
   description: string | null;
   /**
-   * True while this market would settle N/A: its metric is declared
-   * `resolvesNaUntilMeasured` and has no reading yet (owner ask 2026-08-25,
-   * the valuation that exists only once an investment closes).
+   * True while this market would settle N/A: its metric's current reading is
+   * N/A, either declared `resolvesNaUntilMeasured` with no reading yet (owner
+   * ask 2026-08-25, the valuation that exists only once an investment
+   * closes), or last updated to an explicit N/A (owner ask 2026-08-27).
    */
   settlesNaForNow: boolean;
 }
@@ -232,7 +233,9 @@ export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: D
         .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()),
       description: row?.description ?? null,
       resetsEvery: row?.resetsEvery ?? null,
-      settlesNaForNow: !!row?.resolvesNaUntilMeasured && !row?.measured,
+      // `measured` says whether the current reading is a number; a payload
+      // predating it falls back to the flag alone.
+      settlesNaForNow: row ? (row.measured === undefined ? !!row.resolvesNaUntilMeasured : !row.measured) : false,
     };
   });
   const primary = primaryOfViews(views);
@@ -330,7 +333,7 @@ export function datesOf(views: HorizonView[], metricId: string): HorizonView[] {
  */
 export function settleNoteOf(v: HorizonView | null): string | undefined {
   if (!v?.settleDay) return undefined;
-  return v.settlesNaForNow ? 'N/A, all bets refunded, if there is still no reading by then' : `resolves ${v.settleDay}`;
+  return v.settlesNaForNow ? 'N/A, all bets refunded, if the reading is still N/A by then' : `resolves ${v.settleDay}`;
 }
 
 /**

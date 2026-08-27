@@ -332,6 +332,22 @@ export async function deleteMetric(id: string, workspaceId: string): Promise<voi
  * live value and log the gap.
  */
 export async function metricValueAsOf(metricId: string, instant: Date, workspaceId: string): Promise<number | null> {
+  const reading = await metricReadingAsOf(metricId, instant, workspaceId);
+  return reading ? reading.value : null;
+}
+
+/**
+ * The reading itself, distinguishing "no log row at-or-before the instant"
+ * (null: the caller decides whether to fall back to the live value) from an
+ * explicit N/A reading ({ value: null }: the number did not exist at that
+ * instant, and a market settling on it voids). metricValueAsOf collapses the
+ * two for callers that never see N/A.
+ */
+export async function metricReadingAsOf(
+  metricId: string,
+  instant: Date,
+  workspaceId: string,
+): Promise<{ value: number | null; at: Date } | null> {
   const [row] = await db
     .select()
     .from(metricLogs)
@@ -345,7 +361,7 @@ export async function metricValueAsOf(metricId: string, instant: Date, workspace
     .orderBy(desc(metricLogs.timestamp))
     .limit(1);
   if (!row) return null;
-  return row.outlook ?? row.value;
+  return { value: row.value === null ? null : (row.outlook ?? row.value), at: row.timestamp };
 }
 
 export async function getMetricLogs(metricId: string, workspaceId: string): Promise<MetricLog[]> {
@@ -389,6 +405,8 @@ export async function logSpecificMetrics(
   // modal renders both as two lines. When `total` is null (e.g. a TP-enabled
   // leaf whose markets have not spawned yet), fall back to `value` — the
   // history row should still exist; the chart can show the gap visually.
+  // An N/A reading (value null after recalculation) writes value AND outlook
+  // null: the row is the reading, and the reading is "no number exists".
   const toInsert = metricIds
     .map(id => allMetrics.find(m => m.id === id))
     .filter((m): m is Metric => m !== undefined)
@@ -398,7 +416,7 @@ export async function logSpecificMetrics(
       metricId: m.id,
       metricName: m.name,
       value: m.value,
-      outlook: m.total ?? m.value,
+      outlook: m.value === null ? null : (m.total ?? m.value),
       timestamp: new Date(),
     }));
 
@@ -431,13 +449,13 @@ export function getStatus(allMetrics: Metric[]) {
 /** Fetch all metric logs for a workspace in one query, grouped by metricId. */
 export async function getAllMetricLogsGrouped(
   workspaceId: string,
-): Promise<Record<string, Array<{ value: number; outlook: number | null; timestamp: Date }>>> {
+): Promise<Record<string, Array<{ value: number | null; outlook: number | null; timestamp: Date }>>> {
   const rows = await db
     .select()
     .from(metricLogs)
     .where(eq(metricLogs.workspaceId, workspaceId))
     .orderBy(asc(metricLogs.timestamp));
-  const grouped: Record<string, Array<{ value: number; outlook: number | null; timestamp: Date }>> = {};
+  const grouped: Record<string, Array<{ value: number | null; outlook: number | null; timestamp: Date }>> = {};
   for (const r of rows) {
     if (!grouped[r.metricId]) grouped[r.metricId] = [];
     grouped[r.metricId].push({ value: r.value, outlook: r.outlook, timestamp: r.timestamp });

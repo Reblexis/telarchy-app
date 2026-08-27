@@ -58,9 +58,10 @@ export interface WorkspaceContext {
   metrics: Array<{
     name: string;
     description: string;
-    value: number;
+    /** Null is an explicit N/A reading. */
+    value: number | null;
     resetsEvery: string | null;
-    history: Array<{ at: string; value: number }>;
+    history: Array<{ at: string; value: number | null }>;
   }>;
   markets: Array<{
     marketId: string;
@@ -281,7 +282,9 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
   out.push('', '## The numbers');
   for (const m of ctx.metrics) {
     out.push('', `### ${m.name}`);
-    out.push(`Current: ${num(m.value)}${m.resetsEvery ? ` (restarts every ${m.resetsEvery})` : ''}`);
+    out.push(
+      `Current: ${m.value === null ? 'N/A (no reading exists)' : num(m.value)}${m.resetsEvery ? ` (restarts every ${m.resetsEvery})` : ''}`,
+    );
     if (m.description) out.push(`Definition: ${m.description}`);
     if (m.history.length > 0) {
       out.push(`History: ${m.history.map(h => `${h.at}=${num(h.value)}`).join(', ')}`);

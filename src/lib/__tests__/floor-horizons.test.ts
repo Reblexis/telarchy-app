@@ -488,13 +488,37 @@ describe('a market on a number that does not exist yet', () => {
   test('unmeasured: the note says N/A and refunds', () => {
     const v = flagged(false);
     expect(v.settlesNaForNow).toBe(true);
-    expect(settleNoteOf(v)).toBe('N/A, all bets refunded, if there is still no reading by then');
+    expect(settleNoteOf(v)).toBe('N/A, all bets refunded, if the reading is still N/A by then');
   });
 
   test('measured once: a plain settle note, whatever the points array holds', () => {
     const v = flagged(true);
     expect(v.settlesNaForNow).toBe(false);
     expect(settleNoteOf(v)).toBe('resolves 31 December 2026');
+  });
+
+  test('an ordinary metric whose latest reading is an explicit N/A claims N/A too', () => {
+    // Owner direction 2026-08-27: any update may supply N/A, not only a
+    // never-measured flagged metric. `measured: false` is the payload's word
+    // for "the current reading is not a number".
+    const v = buildHorizonViews(
+      ws({
+        markets: [YEAR],
+        horizonHistories: [
+          {
+            marketId: 'm-year',
+            metricName: YEAR.metricName,
+            targetDate: '2026-12',
+            resolvesNaUntilMeasured: false,
+            measured: false,
+            description: null,
+            points: [],
+          },
+        ],
+      }),
+    )[0];
+    expect(v.settlesNaForNow).toBe(true);
+    expect(settleNoteOf(v)).toBe('N/A, all bets refunded, if the reading is still N/A by then');
   });
 
   test('an ordinary metric never claims N/A', () => {

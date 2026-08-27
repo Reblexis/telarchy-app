@@ -74,7 +74,8 @@ systemRouter.get(
       const result: Record<string, unknown> = { ...m };
 
       if (includeTrends && logsGrouped) {
-        const logs = (logsGrouped[m.id] ?? []).slice(-trendsLimit);
+        // An N/A reading (value null) is a gap, not a sparkline point.
+        const logs = (logsGrouped[m.id] ?? []).filter(l => l.value !== null).slice(-trendsLimit);
         // Sparkline prefers outlook (composite total / leaf+TP blend) when stored,
         // falls back to the raw value for pre-0018 rows and leaves without TP.
         result.trend = logs.map(

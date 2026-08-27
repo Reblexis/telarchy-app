@@ -72,7 +72,7 @@ Returns: market info, metric formula + dependencies, value history, recent updat
 
 ## Reading historical trends
 
-`GET /api/status?trends=1` returns the last 20 log points per metric as `[[unixTimestamp, value]]`, where `value` is the outlook (formula result for composites, or value/consensus blend for leaves with time preference) when present, falling back to the user-authored leaf value otherwise. For full history of a single metric: `GET /api/metrics/:id/logs`, which returns each row as `{ metricId, metricName, value, outlook, timestamp }` (`value` is the user-authored leaf number or 0 for composites; `outlook` is the computed total; `outlook` may be null on older rows).
+`GET /api/status?trends=1` returns the last 20 log points per metric as `[[unixTimestamp, value]]`, where `value` is the outlook (formula result for composites, or value/consensus blend for leaves with time preference) when present, falling back to the user-authored leaf value otherwise. For full history of a single metric: `GET /api/metrics/:id/logs`, which returns each row as `{ metricId, metricName, value, outlook, timestamp }` (`value` is the user-authored leaf number or 0 for composites; `outlook` is the computed total; `outlook` may be null on older rows). A row with `value: null` is an explicit N/A reading: the number did not exist at that instant, and a market whose boundary lands on it voids (all positions refunded) instead of settling.
 
 ## Checking your balance and active positions
 

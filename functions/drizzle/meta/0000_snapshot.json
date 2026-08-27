@@ -905,7 +905,7 @@
           "name": "value",
           "type": "double precision",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "timestamp": {
           "name": "timestamp",
@@ -964,7 +964,7 @@
           "name": "value",
           "type": "double precision",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "default": 0
         },
         "formula": {
@@ -1453,13 +1453,13 @@
           "name": "old_value",
           "type": "double precision",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "new_value": {
           "name": "new_value",
           "type": "double precision",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "description": {
           "name": "description",

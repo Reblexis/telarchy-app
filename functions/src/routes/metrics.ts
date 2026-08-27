@@ -87,6 +87,10 @@ metricsRouter.post(
       res.status(400).json({ error: 'name is required' });
       return;
     }
+    if (value !== null && !Number.isFinite(value)) {
+      res.status(400).json({ error: 'value must be a finite number, or null for an N/A reading' });
+      return;
+    }
     const naUntilMeasured = parseNaUntilMeasured(resolvesNaUntilMeasured);
     if (naUntilMeasured instanceof Error) {
       res.status(400).json({ error: naUntilMeasured.message });
@@ -123,7 +127,8 @@ metricsRouter.post(
       id,
       workspaceId,
       name,
-      value: isDefinition ? 0 : value || 0,
+      // null is an explicit N/A reading; see PUT below. A composite gets 0.
+      value: isDefinition ? 0 : value === null ? null : value || 0,
       formula,
       description,
       order: 999,
@@ -211,6 +216,17 @@ metricsRouter.put(
       res.status(400).json({ error: 'marketRangeMax must be a positive number' });
       return;
     }
+    // null is an explicit N/A reading (the number does not exist right now);
+    // markets settling on it void. docs/ui-conventions.md, "A market on a
+    // number that does not exist resolves N/A".
+    if (fields.value !== undefined && fields.value !== null && !Number.isFinite(fields.value)) {
+      res.status(400).json({ error: 'value must be a finite number, or null for an N/A reading' });
+      return;
+    }
+    if (oldValue !== undefined && oldValue !== null && !Number.isFinite(oldValue)) {
+      res.status(400).json({ error: 'oldValue must be a finite number, or null when the previous reading was N/A' });
+      return;
+    }
     // marketRangeMax leaf-only check happens after oldRow is fetched (effectiveFormula needed)
 
     const allowed = ['name', 'description', 'value', 'formula', 'marketRangeMax'] as const;
@@ -273,7 +289,7 @@ metricsRouter.put(
     const dbUpdate: Partial<typeof metrics.$inferInsert> = {};
     if (update.name !== undefined) dbUpdate.name = update.name as string;
     if (update.description !== undefined) dbUpdate.description = update.description as string;
-    if (update.value !== undefined) dbUpdate.value = update.value as number;
+    if (update.value !== undefined) dbUpdate.value = update.value as number | null;
     if (update.formula !== undefined) dbUpdate.formula = update.formula as string;
     if (update.marketRangeMax !== undefined) dbUpdate.marketRangeMax = (update.marketRangeMax as number | null) ?? 1000;
     if (update.timePreference !== undefined) dbUpdate.timePreference = update.timePreference as TimePreference | null;
@@ -323,8 +339,8 @@ metricsRouter.put(
           id: randomUUID(),
           workspaceId,
           metricName: effectiveName,
-          oldValue,
-          newValue: update.value as number,
+          oldValue: oldValue as number | null,
+          newValue: update.value as number | null,
           description: updateNote || 'Value updated',
           timestamp: new Date(),
         });

@@ -12,7 +12,8 @@ export interface Metric {
   id: string;
   name: string;
   description: string;
-  value: number;
+  /** The current reading; null is an explicit N/A reading (no number exists). */
+  value: number | null;
   total: number | null;
   /** Formula result evaluated at "now" (no time-preference projection).
    *  Equals `value` for leaves; for derived metrics it's the formula
@@ -35,7 +36,8 @@ export interface Metric {
 export interface MetricLog {
   metricId: string;
   metricName: string;
-  value: number;
+  /** Null is an explicit N/A reading. */
+  value: number | null;
   /** Computed outlook (m.total) captured at log time. Null on rows written before migration 0018. */
   outlook: number | null;
   timestamp: Date;
@@ -43,8 +45,9 @@ export interface MetricLog {
 
 export interface UpdateEntry {
   metricName: string;
-  oldValue: number;
-  newValue: number;
+  /** Null on either side is an N/A reading. */
+  oldValue: number | null;
+  newValue: number | null;
   description: string;
   timestamp: Date;
 }

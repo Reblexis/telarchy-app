@@ -366,19 +366,26 @@ contract and asserts (a) the payload ships all six, (b) the board's
 printed impact equals approved minus declined of the pair for the metric
 AND date on screen, and (c) that pair is the one the ticket trades.
 
-### A market on a number that does not exist yet resolves N/A
+### A market on a number that does not exist resolves N/A
 
-**The rule.** A metric can declare `resolvesNaUntilMeasured` (POST/PUT
-`/api/metrics`). While such a metric has NO logged reading at or before a
-market's resolution instant, that market does not settle on a number: it is
-VOIDED, every position refunded, with the reason published on the void. The
-first reading ends the state for good: from then on the metric is a level
-like any other and every later market settles on the value as of its
-instant. The metric's `value` column plays no part (a never-measured metric
-carries the default 0, and settling "no investment" as "$0 valuation" is
-the wrong answer the flag exists to prevent). Without the flag nothing
-changes: a market with no reading before its boundary falls back to the
-live value.
+**A reading can be N/A.** Whoever updates a metric (the owner, an updater,
+a sync script) supplies either a number or N/A (`value: null` on POST/PUT
+`/api/metrics`, the "N/A" choice in the update form), with the usual
+`updateNote` saying why. An N/A reading is logged like any other reading, at
+its instant, and it is the metric's current reading until the next numeric
+one: the metric shows "N/A" where its number would be, its history shows a
+gap for that stretch, and a composite whose formula reads an N/A input is
+N/A itself. Nothing is inferred from a 0.
+
+**The rule.** A market settles on the metric's reading as of its resolution
+instant. When that reading is N/A, the market does not settle on a number: it
+is VOIDED, every position refunded, with the reason published on the void.
+When it is a number, the market settles on it as ever. "No reading yet" is
+the same case: a metric can declare `resolvesNaUntilMeasured` (POST/PUT
+`/api/metrics`), which means its reading is N/A until the first logged one;
+the first numeric reading ends that state for good. Without the flag, a
+market with no logged reading at all before its boundary falls back to the
+live value, and a live value of N/A voids the same way.
 
 A void and not a special resolution value, because N/A is what the market
 IS when its question has no answer, and the engine has exactly one honest
@@ -387,16 +394,17 @@ the LOWER side for an event that did not happen; a synthetic sentinel would
 need every surface that reads `actualValue` to know about it.
 
 **What the floor says.** Under the price, the settle note reads "resolves
-30 September 2026, or N/A (all bets refunded) if there is still no reading"
-for a flagged metric that has no reading yet; once a reading exists the
-note is the plain "resolves ..." again. The flag travels on
-`horizonHistories` as `resolvesNaUntilMeasured` beside `resetsEvery`, and
-`measured` says whether a reading exists, so the page never infers either
-from the points array (a resetting metric ships an empty array inside a
-fresh period, which is not "unmeasured").
+30 September 2026, or N/A (all bets refunded) if the reading is still N/A"
+while the metric's current reading is N/A (flagged and never measured, or
+last updated to N/A); once a numeric reading exists the note is the plain
+"resolves ..." again. The flag travels on `horizonHistories` as
+`resolvesNaUntilMeasured` beside `resetsEvery`, and `measured` says whether
+the current reading is a number, so the page never infers either from the
+points array (a resetting metric ships an empty array inside a fresh
+period, which is not "unmeasured").
 
-The metrics that use the flag ("Implied valuation (USD)" on both public
-floors) are defined in docs/metrics.md.
+The metrics that start N/A ("Implied valuation (USD)" on both public floors)
+are defined in docs/metrics.md.
 
 ### The price and the chart
 

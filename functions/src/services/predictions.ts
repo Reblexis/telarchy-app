@@ -10,7 +10,7 @@ import type { Metric } from '../types';
 import { applyCredits } from './credits';
 import { emitEvent } from './events';
 import { distributeLPLeftover, voidMarket } from './markets';
-import { getAllMetrics, metricValueAsOf } from './metrics';
+import { getAllMetrics, metricReadingAsOf } from './metrics';
 import { notifyMarketResolved } from './notifications';
 import { releaseLimitOrdersForMarket } from './trading';
 
@@ -50,7 +50,20 @@ async function resolveMarketRow(
   // depending on that race. The fixing is deterministic: updates landing
   // after the boundary count toward the next fixing, never this one.
   const boundary = periodEndInstant(market.targetDate);
-  let rawValue = await metricValueAsOf(market.metricId, boundary, workspaceId);
+  const reading = await metricReadingAsOf(market.metricId, boundary, workspaceId);
+  if (reading !== null && reading.value === null) {
+    // The reading at the boundary was an explicit N/A: whoever updates this
+    // metric said the number did not exist then (docs/ui-conventions.md, "A
+    // market on a number that does not exist resolves N/A"). Same shape as
+    // the never-measured case below: void, refund, publish why.
+    const voided = await voidMarket(
+      market,
+      workspaceId,
+      `N/A: "${market.metricName}" read N/A at ${boundary.toISOString()}, so there is nothing to settle on. Every position was refunded.`,
+    );
+    return { positions: voided.refunded, totalPayout: 0, skipped: true };
+  }
+  let rawValue = reading ? reading.value : null;
   if (rawValue === null && metric.resolvesNaUntilMeasured) {
     // A number that does not exist yet has no fixing (owner ask 2026-08-25:
     // "if not invested.. it resolves N/A"). The market is N/A: voided, every
@@ -67,9 +80,18 @@ async function resolveMarketRow(
   }
   if (rawValue === null) {
     // No logged value at-or-before the boundary (metric predates value
-    // logging or was created after the boundary). Fall back to the live
-    // value, but make the gap visible: this is the only path where cron
-    // timing can still affect the settled value.
+    // logging or was created after the boundary). A live reading of N/A is
+    // still N/A; a live number is the fallback, with the gap made visible:
+    // this is the only path where cron timing can still affect the settled
+    // value.
+    if (metric.value === null) {
+      const voided = await voidMarket(
+        market,
+        workspaceId,
+        `N/A: "${market.metricName}" reads N/A, so there is nothing to settle on. Every position was refunded.`,
+      );
+      return { positions: voided.refunded, totalPayout: 0, skipped: true };
+    }
     console.error(
       `Market ${market.id} (${market.metricName}): no metric log at-or-before ${boundary.toISOString()}, falling back to live value ${metric.total}`,
     );
