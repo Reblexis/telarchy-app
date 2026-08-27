@@ -11,9 +11,11 @@ dist
 dist-beta
 docs/*
 !docs/guides
+!docs/audience-pages.md
 qa
 scripts/*
 !scripts/build-changelog.mjs
 !scripts/build-guides.mjs
+!scripts/build-audience-pages.mjs
 *.md
 !README.md
