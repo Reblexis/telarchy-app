@@ -130,6 +130,13 @@ The bar owns a stacking layer above the floor rails so the popover paints
 over them; the bar deliberately ignores the 660px content column. "Log in"
 never wraps.
 
+On a phone (640px and under) the bar stays at the top of the viewport while
+the page scrolls: sticky, on the page background, one thin row (the lockup
+at 2.25rem, half the vertical padding). A floor is nine screens tall on a
+390px display and the logo is the only way back to the floors list, so a
+bar that scrolls away leaves a phone reader with no way home short of
+scrolling to the top. On wider screens it scrolls with the page as before.
+
 Left of the account, on every top bar, sits the theme toggle: one quiet
 icon in the same sliding-label treatment as the Discord and report
 buttons, showing the theme it would switch TO (a moon on a light page, a
