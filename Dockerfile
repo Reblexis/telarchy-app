@@ -25,6 +25,10 @@ COPY functions/src/types.ts ./functions/src/types.ts
 # `npm run build` regenerates the guides module from docs/guides first.
 COPY scripts/build-guides.mjs ./scripts/build-guides.mjs
 COPY docs/guides ./docs/guides
+# ...and the audience pages from docs/audience-pages.md (docs govern; the
+# generated modules are committed, but the build regenerates them).
+COPY scripts/build-audience-pages.mjs ./scripts/build-audience-pages.mjs
+COPY docs/audience-pages.md ./docs/audience-pages.md
 RUN mkdir -p functions/src/content
 # Empty VITE_API_URL means frontend calls the same origin (self-hosted mode)
 ARG VITE_API_URL=""
