@@ -2924,18 +2924,23 @@ proposals snapshot.</p>
 <p>&quot;Import Manifold balance&quot;: net worth at 1 mana = 1 cr, capped at 10,000,
 once per account pair, verified by a one-time code in the Manifold bio.</p>
 <p><strong>Framing the picture</strong> (zoom plus x and y offset, not just a centre
-crop). Picking a file does not save it; it opens a framing step under the
-head: the picture inside a round 220px frame the size of the avatar's
-shape, a Zoom slider (1x, the short side filling the frame, up to 4x), and
-the picture itself draggable inside the frame (pointer drag, or arrow keys
-when the frame has focus) so any part of it can sit under the circle. The
-frame is never uncovered: offset and zoom clamp so the picture always
-fills it. &quot;Use this picture&quot; renders exactly what the frame shows to the
-256px square that POST /api/auth/profile stores; Cancel drops the pick and
-keeps the old picture. Nothing about the framing is stored separately: the
-stored image IS the framed result, so every viewer (rail avatar,
-leaderboards, participant page) sees the same crop with no per-surface
-math.</p>
+crop). Picking a file does not save it; it opens a framing step that takes
+over the dialog body (the identity head, tabs and panel step aside; the
+title reads &quot;Frame your picture&quot; with the same close). The step is a
+wide stage showing the whole picture, with everything outside a round
+220px frame (the avatar's own shape) dimmed to the card colour, so what
+is being cut off is visible while it is being cut. Under it, one zoom row
+(a &quot;−&quot; and a &quot;+&quot; around the ticket slider, 1x with the short side filling
+the frame, up to 4x), a one-line hint, then Cancel and &quot;Use this
+picture&quot; right-aligned in one row. The picture is draggable on the stage
+(pointer drag, or arrow keys when the stage has focus), and the frame is
+never uncovered: offset and zoom clamp so the picture always fills it.
+&quot;Use this picture&quot; renders exactly what the frame shows to the 256px
+square that POST /api/auth/profile stores and returns to the dialog;
+Cancel drops the pick and returns with the old picture. Nothing about the
+framing is stored separately: the stored image IS the framed result, so
+every viewer (rail avatar, leaderboards, participant page) sees the same
+crop with no per-surface math.</p>
 <p><strong>The floor's one modal says when it has more below.</strong> <code>FloorModal</code> fades
 its bottom edge into the card colour with a chevron under it, and both
 vanish at the end of the scroll. The cue is drawn on a wrapper, never
