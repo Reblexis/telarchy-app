@@ -4183,36 +4183,26 @@ textarea.jobform-line--desc {
 .mchart-range:disabled { opacity: 0.35; cursor: default; }
 .mchart-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* The words in the chart's corners (docs/ui-conventions.md, "One chart slot,
-   two views"): the view toggle at the top, the range at the bottom of the
-   number view. Words, not chips: the chart owns its controls and the page
-   above it stays still. */
-.mchart-corner {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.66rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  line-height: 1;
-}
-.mchart-corner--bottom { justify-content: flex-end; width: 100%; }
-.mchart-word {
-  padding: 0.15rem 0.1rem;
+/* The view switch in the chart's corner (docs/ui-conventions.md, "One
+   chart slot, two views, one control row above it in both"): MARKET and
+   NUMBER as chips in the range chips' own language, because as bare words
+   the pair read as the row's caption and nobody pressed them. */
+.mchart-views { display: inline-flex; gap: 0.2rem; }
+.mchart-view {
+  padding: 0.18rem 0.5rem;
   border: none;
+  border-radius: 6px;
   background: none;
   font: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
   color: var(--text-tertiary);
-  opacity: 0.7;
   cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
 }
-.mchart-word:hover { color: var(--text-primary); opacity: 1; }
-.mchart-word.is-active { color: var(--text-primary); font-weight: 600; opacity: 1; }
-.mchart-word:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.mchart-word-sep { color: var(--border-strong); }
+.mchart-view:hover:not(.is-active) { color: var(--text-primary); }
+.mchart-view.is-active { background: var(--bg-tertiary); color: var(--text-primary); font-weight: 600; }
+.mchart-view:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* The number view. Ink for what happened, amber for the market on screen,
    grey for the other open markets. */

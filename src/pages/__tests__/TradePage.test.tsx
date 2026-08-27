@@ -95,7 +95,12 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: f
 // The chart itself is covered elsewhere; here it is a probe that records what
 // the page handed it on every render.
 vi.mock('../../components/MarketChart', () => ({
-  MarketChart: (props: { series: Array<{ consensus: number | null }>; consensus: number }) => {
+  MarketChart: (props: {
+    series: Array<{ consensus: number | null }>;
+    consensus: number;
+    corner?: unknown;
+    center?: unknown;
+  }) => {
     h.chartRenders.push({ marketId: 'current', seriesLen: props.series.length });
     return (
       <div
@@ -104,7 +109,12 @@ vi.mock('../../components/MarketChart', () => ({
         // What the page actually handed the chart. A series belongs to ONE
         // market; plotting another market's is the bug these expose.
         data-series={props.series.map(p => p.consensus ?? '').join(',')}
-      />
+      >
+        {/* The control row rides in as props; the row's own tests below
+            need it rendered, the probe tests ignore it. */}
+        {props.corner as React.ReactNode}
+        {props.center as React.ReactNode}
+      </div>
     );
   },
 }));
@@ -1009,5 +1019,80 @@ describe('a market with no price yet', () => {
     expect(container.querySelector('.pubws-price')?.textContent).toBe('no price yet');
     expect(container.querySelector('.pubws-instrument-date')).toBeTruthy();
     expect(container.querySelector('.mchart')).toBeNull();
+  });
+});
+
+describe('the chart control row', () => {
+  test('the view switch is two chips and the centre carries the value in force', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.markets = [
+      {
+        marketId: 'm-hero',
+        metricId: 'metric-1',
+        metricName: 'LookPilot net 2026 (USD)',
+        targetDate: '2026-12',
+        resolvesOn: '2026-12-31T00:00:00Z',
+        consensus: 78_571,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 150_000,
+      },
+    ];
+    ws.horizonHistories = [
+      {
+        marketId: 'm-hero',
+        metricName: 'LookPilot net 2026 (USD)',
+        targetDate: '2026-12',
+        description: 'The year.',
+        points: [{ at: '2026-08-15T09:00:00Z', value: 45_339 }],
+      },
+    ];
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    renderFloor();
+    const market = await screen.findByRole('button', { name: 'market' });
+    const number = screen.getByRole('button', { name: 'number' });
+    // Chips in the range chips' language, the active one raised: as bare
+    // words the pair read as the row's caption (trader feedback 2026-08-27).
+    expect(market.className).toContain('mchart-view');
+    expect(market.className).toContain('is-active');
+    expect(number.className).toContain('mchart-view');
+    expect(number.className).not.toContain('is-active');
+    // The metric's latest reading, beside the countdown.
+    expect(screen.getByText(/now \$45\.3k · settles in/)).toBeTruthy();
+  });
+
+  test('no reading yet means no "now" in the centre', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.markets = [
+      {
+        marketId: 'm-hero',
+        metricId: 'metric-1',
+        metricName: 'LookPilot net 2026 (USD)',
+        targetDate: '2026-12',
+        resolvesOn: '2026-12-31T00:00:00Z',
+        consensus: 78_571,
+        probability: 0.5,
+        liquidity: 200,
+        rangeMin: 0,
+        rangeMax: 150_000,
+      },
+    ];
+    ws.horizonHistories = [
+      {
+        marketId: 'm-hero',
+        metricName: 'LookPilot net 2026 (USD)',
+        targetDate: '2026-12',
+        description: 'The year.',
+        points: [],
+      },
+    ];
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    renderFloor();
+    await screen.findByRole('button', { name: 'market' });
+    expect(screen.queryByText(/now /)).toBeNull();
+    expect(screen.getByText(/settles in/)).toBeTruthy();
   });
 });
