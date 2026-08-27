@@ -139,11 +139,8 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open
           <>
             <p className="otto-msg otto-msg--otto">
               {signedIn
-                ? `I watch this floor. Ask me what the company does or where the price
-                   should be, and I can do it for you as well: place a bet, offer a
-                   contract, tell you what you are holding.`
-                : `I watch this floor. Ask me what the company does, whether the price
-                   looks right, or which contract I would take.`}
+                ? 'I watch this floor. Ask me what the company does or where the price should be, and I can do it for you as well: place a bet, offer a contract, tell you what you are holding.'
+                : 'I watch this floor. Ask me what the company does, whether the price looks right, or which contract I would take.'}
             </p>
             <div className="otto-openers">
               {openers.map(o => (
