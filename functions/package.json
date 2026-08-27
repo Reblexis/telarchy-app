@@ -24,7 +24,7 @@
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "@types/web-push": "^3.6.4",
-    "better-auth": "^1.7.2",
+    "better-auth": "~1.6.30",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
     "defu": "^6.1.7",
