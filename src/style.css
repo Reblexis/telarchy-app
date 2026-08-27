@@ -4853,12 +4853,16 @@ textarea.jobform-line--desc {
 .ticket-amt--price input { font-size: 1.4rem; }
 
 /* The same amount again, as a track in the chosen side's colour. The fill
-   fraction comes from the component (--slider-pct). */
+   fraction comes from the component (--slider-pct). Padding must be zero:
+   the global input rule pads 12px, the fill paints across the padding box
+   while the thumb travels the content box, and the two drift apart by up
+   to 12px depending on the value. */
 .ticket-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
   height: 6px;
+  padding: 0;
   margin: 0.35rem 0;
   border: none;
   border-radius: 3px;
