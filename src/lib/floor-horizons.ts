@@ -452,3 +452,22 @@ export function captionLabel(metricLabel: string, workspaceName: string | null |
   const trimmed = rest.replace(/^[\s:,-]+/, '').trim();
   return trimmed.length > 0 ? trimmed : metricLabel;
 }
+
+/**
+ * A market value at caption size: "4.0M", "$1.2B", "6,912", "20.9". One
+ * decimal through k/M/B so sibling dates line up; small values stay exact,
+ * because rounding 20.9 to 21 on a metric that IS 20.9 misquotes it.
+ */
+export function compactValueOf(value: number | null, unit: string): string | null {
+  if (value === null || !Number.isFinite(value)) return null;
+  const sign = value < 0 ? '-' : '';
+  const v = Math.abs(value);
+  const one = (n: number) => (n >= 100 ? Math.round(n).toString() : n.toFixed(1));
+  let body: string;
+  if (v >= 1e9) body = `${one(v / 1e9)}B`;
+  else if (v >= 1e6) body = `${one(v / 1e6)}M`;
+  else if (v >= 10_000) body = `${one(v / 1e3)}k`;
+  else if (v >= 100) body = Math.round(v).toLocaleString('en-US');
+  else body = String(Math.round(v * 10) / 10);
+  return `${sign}${unit}${body}`;
+}

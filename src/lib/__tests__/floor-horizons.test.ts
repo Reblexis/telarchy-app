@@ -4,6 +4,7 @@ import {
   buildHorizonViews,
   captionLabel,
   cellOf,
+  compactValueOf,
   currencyOf,
   dateSegmentOf,
   datesOf,
@@ -501,5 +502,23 @@ describe('a market on a number that does not exist yet', () => {
     const v = buildHorizonViews(ws())[0];
     expect(v.settlesNaForNow).toBe(false);
     expect(settleNoteOf(null)).toBeUndefined();
+  });
+});
+
+describe('compactValueOf', () => {
+  test('millions read with one decimal, unit kept', () => {
+    expect(compactValueOf(4_005_349.39, '$')).toBe('$4.0M');
+    expect(compactValueOf(10_000_000, '$')).toBe('$10.0M');
+    expect(compactValueOf(1_200_000_000, '$')).toBe('$1.2B');
+  });
+  test('small values stay exact, thousands compact from 10k', () => {
+    expect(compactValueOf(20.9, '')).toBe('20.9');
+    expect(compactValueOf(6_912, '')).toBe('6,912');
+    expect(compactValueOf(69_120, '')).toBe('69.1k');
+    expect(compactValueOf(-4_000_000, '$')).toBe('-$4.0M');
+  });
+  test('null and non-finite give nothing', () => {
+    expect(compactValueOf(null, '$')).toBeNull();
+    expect(compactValueOf(Number.NaN, '')).toBeNull();
   });
 });
