@@ -1065,6 +1065,21 @@ export const api = {
       isServing: boolean;
       error: string | null;
     }>,
+  /** Every branch of the repository and whether it is built as a preview
+   *  (docs/infra/deploy.md, "Any branch can be built"). Platform admin only. */
+  getBranches: () =>
+    request('/api/admin/branches') as Promise<{
+      branches: Array<{ name: string; sha: string; tag: string | null; built: boolean }>;
+      error: string | null;
+      buildConfigured: boolean;
+    }>,
+  /** Ask CI to build a branch as a preview. 501 names the terminal command
+   *  when the instance holds no GitHub token. */
+  buildBranch: (branch: string) =>
+    request('/api/admin/branches/build', { method: 'POST', body: JSON.stringify({ branch }) }) as Promise<{
+      ok: true;
+      tag: string;
+    }>,
   /** Give the revision answering this request 100% of the traffic. Pressed on
    *  the beta, so it publishes the build you are looking at. */
   publishRelease: () => request('/api/admin/publish', { method: 'POST', body: JSON.stringify({}) }),

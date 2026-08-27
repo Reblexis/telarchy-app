@@ -962,7 +962,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/admin/release',
       auth: 'admin',
       description:
-        'What is published and what is waiting (platform admin only). Returns { serving, candidate: { revision, url } | null, running, isServing, error }. A push to main lands a Cloud Run revision carrying NO traffic; telarchy.com keeps serving the previous one until someone publishes, so `candidate` is the build waiting and `url` is where to look at it (telarchy.com/beta redirects there). `running` is the revision answering this very request and `isServing` says whether that is the published site, which is how the beta knows to wear its stripe. Everything reads null off Cloud Run, with `error` set. See docs/infra/deploy.md.',
+        'What is published and what is waiting (platform admin only). Returns { serving, candidate: { revision, url } | null, previews: [{ tag, revision, url }] (branch previews, newest first), running, runningTags, isServing, error }. A push to main lands a Cloud Run revision carrying NO traffic; telarchy.com keeps serving the previous one until someone publishes, so `candidate` is the build waiting and `url` is where to look at it (telarchy.com/beta redirects there). `running` is the revision answering this very request and `isServing` says whether that is the published site, which is how the beta knows to wear its stripe. Everything reads null off Cloud Run, with `error` set. See docs/infra/deploy.md.',
     },
     {
       method: 'POST',
@@ -970,6 +970,20 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       auth: 'admin',
       description:
         'Publish: give the revision answering this request 100% of the traffic (platform admin only). Body: {} or { revision }. Deliberately not "promote latest": the button lives on the beta, so what goes live is the build the owner just looked at, and anything CI landed meanwhile waits its turn. 409 if this revision is already serving, 502 if Cloud Run refuses (check the runtime service account still holds the telarchyReleasePublisher role on the service). The equivalent by hand is `gcloud run services update-traffic api --region us-central1 --to-latest`.',
+    },
+    {
+      method: 'GET',
+      path: '/api/admin/branches',
+      auth: 'admin',
+      description:
+        'Every branch of the repository and whether it is built as a preview (platform admin only). Returns { branches: [{ name, sha, tag, built }], error, buildConfigured }. `error` names why GitHub could not be read, with `branches` empty. `tag` is the Cloud Run tag the branch carries when built (br-<name>, scripts/preview-tag.sh); `built` means a revision with that tag exists now, so telarchy.com/beta?branch=<tag> shows it. Built first, then by name; main is not listed. `buildConfigured` says whether this instance can ask CI to build one (below). Read from GitHub, cached a minute. See docs/infra/deploy.md, "Branch previews".',
+    },
+    {
+      method: 'POST',
+      path: '/api/admin/branches/build',
+      auth: 'admin',
+      description:
+        'Build a branch as a preview (platform admin only): dispatches the deploy workflow on that ref, which lands it as a no-traffic revision tagged br-<name> about eight minutes later. Body: { branch }. Returns { ok, tag }. 501 when the instance has no GITHUB_ACTIONS_TOKEN, with the terminal equivalent in the message (`gh workflow run deploy-cloudrun.yml --ref <branch>`); 502 if GitHub refuses; 400 for main or a malformed name.',
     },
     {
       method: 'GET',

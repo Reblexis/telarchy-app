@@ -24,6 +24,7 @@ import { humanVisitFilter } from '../lib/visit-log';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { ACTIVITY_TYPES, type ActivityType, getActivityFeed } from '../services/activity';
+import { BuildNotConfiguredError, buildConfigured, dispatchBuild, listBranches } from '../services/branches';
 import { PublishRefusedError, publishRevision, releaseState } from '../services/release';
 
 export const adminRouter = Router();
@@ -692,6 +693,48 @@ adminRouter.post(
       res.json({ ok: true, ...result });
     } catch (e) {
       if (e instanceof PublishRefusedError) throw new AppError(e.message, 409);
+      throw new AppError((e as Error).message, 502);
+    }
+  }),
+);
+
+/**
+ * Every branch of the repository and whether it is built as a preview, for
+ * the picker on the beta stripe (docs/infra/deploy.md, "Any branch can be
+ * built").
+ */
+adminRouter.get(
+  '/branches',
+  wrap(async (req, res) => {
+    if (!(await isPlatformAuthorized(req))) {
+      throw new AppError('Platform admin or master key required', 403);
+    }
+    const { branches, error } = await listBranches();
+    res.json({ branches, error, buildConfigured: buildConfigured() });
+  }),
+);
+
+/**
+ * Build a branch as a preview: dispatch the deploy workflow on that ref. The
+ * branch name travels in the body because names carry slashes (`oss/lane-i`).
+ * 501 with the terminal command when this instance holds no token.
+ */
+adminRouter.post(
+  '/branches/build',
+  wrap(async (req, res) => {
+    if (!(await isPlatformAuthorized(req))) {
+      throw new AppError('Platform admin or master key required', 403);
+    }
+    const branch = typeof req.body?.branch === 'string' ? req.body.branch.trim() : '';
+    if (!branch || branch === 'main' || !/^[\w./-]{1,120}$/.test(branch)) {
+      throw new AppError('Name a branch other than main', 400);
+    }
+    try {
+      const result = await dispatchBuild(branch);
+      console.log('preview: build dispatched for', branch, 'by', req.auth?.uid ?? 'master-key');
+      res.json({ ok: true, ...result });
+    } catch (e) {
+      if (e instanceof BuildNotConfiguredError) throw new AppError(e.message, 501);
       throw new AppError((e as Error).message, 502);
     }
   }),

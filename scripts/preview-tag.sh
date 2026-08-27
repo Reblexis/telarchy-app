@@ -8,6 +8,11 @@
 #
 #   sh scripts/preview-tag.sh 'oss/lane-i'   ->  br-oss-lane-i
 set -eu
+# Bytes, not collation: in a UTF-8 locale sed's [a-z] can admit letters like
+# "ß" that are not a DNS label, and tr's [:upper:] leaves "Ü" alone. In the C
+# locale every non-ASCII byte becomes "-", which is what the TypeScript port
+# (services/branches.ts) does too; branches.test.ts pins the two together.
+export LC_ALL=C
 branch="${1:?usage: preview-tag.sh <branch-name>}"
 name=$(printf '%s' "$branch" \
   | tr '[:upper:]' '[:lower:]' \
