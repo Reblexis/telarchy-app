@@ -35,13 +35,16 @@ jobs:
           exit 1
       - name: Use it
         run: |
-          set -e
-          curl -sf http://localhost:8080/api/help >/dev/null
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/marketplace)" = "200"
+          # Every probe prints its status before the verdict, so a red run says why.
+          HELP=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/help)
+          MKT=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/marketplace)
           # Registration reaches the handler (404 is the workspace lookup, not auth).
-          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8080/api/agents/register -H 'Content-Type: application/json' -d '{"agentId":"fresh-bot","workspaceId":"none","source":"github"}')" = "404"
-          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8080/api/auth/sign-in/email -H 'Content-Type: application/json' -H 'Origin: http://localhost:8080' -d '{"email":"admin@example.com","password":"fresh-clone-admin-password"}')" = "200"
-          docker compose logs app | grep -q "applying database migrations"
+          REG=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8080/api/agents/register -H 'Content-Type: application/json' -d '{"agentId":"fresh-bot","workspaceId":"none","source":"github"}')
+          SIGNIN=$(curl -s -w ' %{http_code}' -X POST http://localhost:8080/api/auth/sign-in/email -H 'Content-Type: application/json' -H 'Origin: http://localhost:8080' -d '{"email":"admin@example.com","password":"fresh-clone-admin-password"}')
+          MIG=$(docker compose logs app 2>&1 | grep -c "applying database migrations" || true)
+          echo "help=$HELP marketplace=$MKT register=$REG signin=$SIGNIN migrations=$MIG"
+          docker compose logs app 2>&1 | grep -iE "admin|error|warn" | grep -v "npm warn" | head -20 || true
+          test "$HELP" = "200" && test "$MKT" = "200" && test "$REG" = "404" && test "${SIGNIN##* }" = "200" && test "$MIG" -ge 1
       - name: Down
         if: always()
         run: docker compose down -v
