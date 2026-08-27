@@ -36,6 +36,12 @@ export function LoginPage() {
     // product, and after the console was deleted it is also all there is.
     const home = next ?? (await tradeHome());
     setSubmitting(false);
+    // The beta is another bundle under /beta (docs/infra/deploy.md): a
+    // client-side navigate there would land on this bundle's floor fallback.
+    if (home === '/beta' || home.startsWith('/beta/')) {
+      window.location.assign(home);
+      return;
+    }
     navigate(home);
   };
 

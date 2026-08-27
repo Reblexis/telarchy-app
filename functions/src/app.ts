@@ -5,6 +5,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { auth } from './auth';
 import { currentStoreName, runInBetaStore } from './db/client';
+import { betaGate } from './lib/beta-gate';
 import { handleBetaBranchChoice, isBetaPath, proxyToCandidate } from './lib/beta-surface';
 import { corsMiddleware } from './lib/cors';
 import { AppError } from './lib/errors';
@@ -105,6 +106,14 @@ app.use(express.json());
  *
  * After express.json(), because a proxied POST has to carry its body.
  */
+/**
+ * The beta is admin only (lib/beta-gate.ts; docs/infra/deploy.md, "The beta
+ * is admin only"). Before the proxy, so the published revision decides for
+ * every build it forwards to, and before the store swap, so the session is
+ * read where identity lives.
+ */
+app.use(betaGate());
+
 app.use(async (req, res, next) => {
   if (!isBetaPath(req.path)) return next();
   // `/beta?branch=br-<name>` picks which build /beta shows; the published
