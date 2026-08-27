@@ -100,7 +100,7 @@ export function NewMetricDialog({
           />
         </label>
         <label className="odlg-field">
-          <span className="ticket-label">What is it — the market settles on these words</span>
+          <span className="ticket-label">What is it? The market settles on these words</span>
           <textarea
             className="odlg-textarea"
             rows={3}
@@ -331,8 +331,8 @@ export function InjectLiquidityDialog({
             <span className="odlg-unit">cr</span>
           </span>
           <p className="odlg-note">
-            {amountNum ? `${fmtCr(pool + amountNum)} cr after — ` : ''}the price gets harder to move and being right
-            pays more. One way only: a pool never thins back out.
+            {amountNum ? `${fmtCr(pool + amountNum)} cr after. ` : ''}The price gets harder to move and being right pays
+            more. One way only: a pool never thins back out.
           </p>
         </div>
         {err && <p className="odlg-err">{err}</p>}

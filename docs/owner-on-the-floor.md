@@ -12,7 +12,7 @@ control needs something new, the API grows once and both use it.
 
 ## The v1 controls: three dialogs
 
-Owner direction 2026-08-27: start as simple as possible — a metric is a name
+Owner direction 2026-08-27: start as simple as possible: a metric is a name
 and what it is; right after it is added, one date and the liquidity behind
 it; and an inject-liquidity button per market. Each dialog is the floor's own
 modal (the bet ticket's anatomy: centered tertiary labels, bottom-line
@@ -20,7 +20,7 @@ inputs, one full-width ink button that carries its own cost, the segmented
 picker). All three appear only to callers with the `manage` capability, as
 additions to the page a visitor sees.
 
-**1. New metric** — opened from `+ metric` at the end of the metric picker
+**1. New metric**, opened from `+ metric` at the end of the metric picker
 row. Two fields: the name, and what it is. The description is the settlement
 sentence, so the dialog says so: the market settles on these words, they can
 be refined later, and every edit is kept and shown. Nothing else is asked;
@@ -29,7 +29,7 @@ starts at zero, and the first reading is what makes the number real. Adding
 the metric immediately opens dialog 2 for it, because a metric with no date
 has no market and the flow does not let the owner stop before one.
 
-**2. Add a date** — the same dialog whether it follows dialog 1 or is opened
+**2. Add a date**, the same dialog whether it follows dialog 1 or is opened
 from `+ date` on the date row of any metric. One date: a segmented pick of
 this week, this month, next month, end of the year, or a typed date in any
 granularity the API takes. Under it, the liquidity the market opens with,
@@ -44,7 +44,7 @@ liquidity writes `metrics.liquidityCredits`, and the reconcile that runs on
 the same request opens the market funded at that number. One request, one
 market, no second call to forget.
 
-**3. Inject liquidity** — a button beside the pool on every open market. The
+**3. Inject liquidity**, a button beside the pool on every open market. The
 dialog states the pool now and the traders on it, takes an amount, and says
 the two true things before the first injection, not after: deepening makes
 the price harder to move and being right pay more, and a pool never thins
