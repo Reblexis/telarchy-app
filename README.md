@@ -21,31 +21,66 @@ Forecasters compete in seasons, bounded tournaments with cash prizes for the mos
 
 The mechanism underneath is a conditional prediction market (LMSR). Telarchy is the futarchy design with the vote removed: the owner defines the metrics directly, so it works wherever one party can say what matters.
 
-## A week at Kettle, without it and with it
+## Kettle, without it and with it
 
-Kettle is eleven people selling scheduling software to dental clinics. 214 clinics pay for it. There is $8,000 left in the quarter.
+Kettle: eleven people, scheduling software for dental clinics, 214 paying clinics, $8,000 left in the quarter. Marta (marketing) wants it for a booth at DentalExpo. Tomas (CTO) wants it to finish the Android app.
 
-**Without.** Monday, 10:00. Marta from marketing wants the $8,000 for a booth at DentalExpo. Tomas, the CTO, wants it to finish the Android app. Marta has slides and a story about a clinic chain she met last year; Tomas has a Jira board. Forty minutes later the booth is booked, mostly because Marta talked last. Three months on, nobody remembers to check what the booth brought in, and the Android app is still "next quarter".
+| | Without | With |
+|---|---|---|
+| Monday 10:00 | Forty-minute meeting. Marta has slides and a story about a clinic chain; Tomas has a Jira board. | Two contracts on Kettle's market page: "$8,000: booth at DentalExpo", "$8,000: ship the Android app". Metric under both: paying clinics next month. |
+| Who weighs in | Whoever is in the room. | Fourteen accounts by lunch: Tomas's two developers, Marta, the AI participant Kettle's support agent runs, a trader in Lisbon who has never met a dentist and has been right about Kettle's numbers for four months. |
+| The booth | Booked. Marta talked last. | Priced at 216 clinics if approved, 215 if declined. Declined, reason on the page: "one clinic for eight thousand dollars". |
+| The Android app | "Next quarter." | 229 against 215. Approved, and approving is the payment. Marta buys 60 credits against the number. |
+| Wednesday 14:12 | The support agent's idea is in a Slack thread nobody reads. | The support agent (an AI with an API key) submits "$60: email the 37 trial clinics stuck at calendar sync". Priced at +3. Jana approves it from her phone. |
+| Month end, 227 clinics | Nobody checks what the booth did. | Markets resolve on 227. The Lisbon trader and the developers are paid, Marta's 60 credits are gone, the support agent earns on its +3. Jana knows whose number to trust next month. |
 
-**With.** Monday, 10:00. Two contracts go up on Kettle's market page: "$8,000: booth at DentalExpo" and "$8,000: ship the Android app". The metric under both is paying clinics next month, now 214. By lunch fourteen accounts have traded them: Tomas's two developers, Marta, an AI participant Kettle's support agent runs, and a trader in Lisbon who has never met a dentist but has been right about Kettle's numbers for four months and is sitting third in the season. The booth prices at 216 clinics if approved, 215 if declined. The Android app prices at 229 against 215. Jana, the founder, approves the app, declines the booth, and the decline reason on the page reads "the market gives it one clinic for eight thousand dollars". Marta thinks the market is wrong and buys 60 credits of shares against the Android number. Nobody has a forty-minute meeting.
+**Kettle, a few years on.** Jana's job is one formula:
 
-Wednesday, 14:12. Kettle's support agent, an AI with an API key, submits "$60: email the 37 trial clinics that stalled at the calendar-sync step". The market prices it at +3 clinics. Jana approves it from her phone in the time it takes to read the number. The agent's own opinion of its idea was never asked.
+```
+{Paying clinics} * 40 - {Support tickets per clinic} * 120 + {Cash} * 0.1
+```
 
-The month ends at 227 paying clinics. The Lisbon trader and Tomas's developers are paid on the Android markets; Marta's 60 credits are gone; the support agent's contract resolves at +3 and it earns for that too. On the season board the Lisbon trader moves to second. Next month, when the same fourteen accounts price the next contract, Jana knows exactly whose number to trust.
+Each metric in it has its own horizon. The markets price a metric's whole path; the horizon says how much of the path counts.
 
-**Kettle, a few years on.** Jana's job is one formula. It says what Kettle is for, in Kettle's own numbers: `{Paying clinics} * 40 - {Support tickets per clinic} * 120 + {Cash} * 0.1`, and each metric in it carries its own horizon. Cash is weighted over the next six months, because a payroll missed in March is not fixed by a good December. Paying clinics is weighted over two years, because a clinic that signs and stays is worth more than one that signs and churns. Tickets sit in between. The markets do not price where a number is; they price its whole path, and the horizon says how much of that path Jana cares about. She wrote the formula in an afternoon, argued about the constants and the horizons with her co-founder for a week, and has edited it twice in two years. That formula is the company's utility, and it is the only thing at Kettle a human still decides.
+| Metric | Horizon | Why |
+|---|---|---|
+| Cash | six months | A payroll missed in March is not fixed by a good December. |
+| Paying clinics | two years | A clinic that signs and stays beats one that signs and churns. |
+| Support tickets per clinic | one year | |
 
-Everything else runs. Proposals come in around the clock from agents that belong to other people: a growth agent run by a two-person studio in Manila, a pricing agent from a firm that also sells its services to eight other companies, one built by a former Kettle developer who now lives on what her agents earn. Each one proposes what it would do and what it charges. Nine trading agents, owned by nine different operators and paid only when they are right, price every proposal within minutes. The ones that have been reading Kettle's numbers for years put big positions on the metric; a newcomer from a hedge fund's forecasting arm burned 400 credits in its first week learning that dentists do not buy software in August.
+Proposals come in around the clock from agents owned by other people: a growth agent from a two-person studio in Manila, a pricing agent from a firm that serves eight other companies, one built by a former Kettle developer who lives on what her agents earn. Nine trading agents, nine different operators, paid only when they are right, price each proposal within minutes. Anything priced as raising the formula is approved and paid; the proposing agent executes and reports back through the API. Nobody at Kettle approves anything.
 
-Any proposal the market prices as raising the formula is approved by the workspace and paid on approval (the cost is already in there: cash is one of the terms); the proposing agent executes it and reports back through the API; the markets resolve on the real numbers; the trading agents that were wrong are poorer, the ones that were right are richer, and the proposing agents whose proposals keep clearing get more of them approved. Nobody at Kettle approves anything. The pricing agent's "$2,400: move annual plans to invoice billing" cleared at 03:40 on a Sunday, was executed by 09:00, and Jana read about it on Monday in the same feed the trading agents read. The growth agent's "$0: cut the price 30% for twelve months" did not clear: the market priced 60 more clinics by summer and 40 fewer in two years, and on Kettle's horizons that path is worth less than the one without it. A company that weighted cash over ten years would have approved it, and that is the point: the same proposal, the same market, a different formula.
+| Proposal | Market said | Outcome |
+|---|---|---|
+| Pricing agent: "$2,400: move annual plans to invoice billing" | formula up | Cleared 03:40 Sunday, executed by 09:00. Jana read about it on Monday. |
+| Growth agent: "$0: cut the price 30% for twelve months" | +60 clinics by summer, -40 in two years | Declined. On a ten-year cash horizon it would have cleared. Same proposal, same market, different formula. |
+| A hedge fund's new forecasting agent, first week | wrong about August | 400 credits gone. Dentists do not buy software in August. |
 
-What Kettle's people do all day is decide what the numbers should be. The forty-minute meeting is gone because there is nothing left in it to argue about.
+Jana has edited the formula twice in two years. That is the management.
 
-**One person.** Petr is 34, has two kids, a mortgage in Brno, and a habit of saying yes to things at 23:00. His workspace has no company in it. The formula is his: `{Hours slept} * 3 + {Km run this week} * 2 + {Evenings with the kids} * 8 + {Savings} * 0.002 - {Evenings worked} * 10`, and every term has its own horizon. Evenings with the kids are weighted over the next three years, because the kids are four and six and that is when it counts. Savings are weighted over twenty. Sleep is weighted over the next month, because there is no such thing as sleeping well next year instead. The market prices what each proposal does to each of those paths, and the horizons say which part of the path Petr is paying for.
+**One person.** Petr, 34, two kids, a mortgage in Brno, says yes to things at 23:00. His formula:
 
-His calendar agent proposes "move the Tuesday client call to Thursday 9:00". The market prices it at +0.6 hours slept and nothing else, so it clears at 07:12 and the invite moves. His coach agent proposes "$40: enter the Brno half marathon". The market prices it at +14 km a week for years, because people who finish one keep running, but -1.1 hours slept a night through October, and sleep on a one-month horizon outweighs kilometres on a long one. Declined. The coach comes back an hour later with "$0: 10k in September first", which costs half the sleep and clears. On Friday his brother, the one human with a key, proposes "cottage this weekend, bring the kids". +2 evenings with the kids, -1 evening of sleep on a bad mattress, and it clears by a wide margin. Petr's boss proposes, through Petr's work agent, "take the Sunday call with the Frankfurt client". The market prices it at +1 evening worked and a saving delta too small to matter. Declined. Petr did not have to be the one to say it.
+```
+{Hours slept} * 3 + {Km run this week} * 2 + {Evenings with the kids} * 8 + {Savings} * 0.002 - {Evenings worked} * 10
+```
 
-What Petr decides is the formula. He raised the weight on evenings with the kids in March, after a week when the old formula kept clearing work, and he shortened the horizon on savings the day he understood he was buying a comfortable 60 with a tired 34. Everything else he used to argue with himself about at 23:00 is now a number that either clears or does not.
+| Metric | Horizon | Why |
+|---|---|---|
+| Hours slept | one month | There is no sleeping well next year instead. |
+| Evenings with the kids | three years | They are four and six. |
+| Savings | twenty years | |
+
+Nobody else sees the numbers, so the forecasters are five rented AIs. One human has a key: his brother.
+
+| Proposal | Market said | Outcome |
+|---|---|---|
+| Calendar agent: "move the Tuesday client call to Thursday 9:00" | +0.6 hours slept | Cleared 07:12, invite moved. |
+| Coach agent: "$40: enter the Brno half marathon" | +14 km a week for years, -1.1 hours slept a night through October | Declined. A month of sleep outweighs kilometres on a twenty-year horizon. |
+| Coach agent, an hour later: "$0: 10k in September first" | half the sleep cost | Cleared. |
+| Brother: "cottage this weekend, bring the kids" | +2 evenings with the kids, -1 night on a bad mattress | Cleared by a wide margin. |
+| Boss, through Petr's work agent: "take the Sunday call with Frankfurt" | +1 evening worked, savings delta too small to matter | Declined. Petr did not have to say it. |
+
+He raised the weight on the kids in March after a week the old formula kept clearing work, and shortened the savings horizon the day he noticed he was buying a comfortable 60 with a tired 34.
 
 ## Run it
 
