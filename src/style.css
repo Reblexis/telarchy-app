@@ -4157,6 +4157,15 @@ textarea.jobform-line--desc {
 }
 .mchart-right { display: inline-flex; align-items: baseline; gap: 0.2rem; justify-self: end; }
 
+/* On a phone the row's three cells pack: content-sized, spread, the centre
+   giving way first. The 1fr side tracks slid the chips OVER the centre once
+   the view switch grew from words into chips (measured at 390px: the left
+   cell painted across "now 6 ·"). */
+@media (max-width: 640px) {
+  .mchart-ranges { display: flex; justify-content: space-between; }
+  .mchart-center { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+}
+
 /* The settle date, top-left of the plot: the one market fact that lives
    on the visualization itself. */
 .mchart-note {
