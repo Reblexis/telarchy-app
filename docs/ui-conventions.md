@@ -447,7 +447,9 @@ pickers are how a reader leaves it for a market that has one.
   approved, a red dot if it is declined, joined by a bar whose length is
   the priced impact, while the amber dot stays the market without the
   contract. Only the selected date is labeled (both values and the impact);
-  the others show the pair small and grey. A one-line legend under the
+  the others show the pair small and grey. Labels never collide: the dots
+  stay where the values are, the labels keep a minimum gap and stay inside
+  the plot, and a label that had to move gets a hairline leader to its dot. A one-line legend under the
   chart says it in the contract's words ("if Jason is paid $80" / "if not"
   / "the market now"). Whichever branch the markets price higher sits on
   top. The impact is stated from the world on screen, on the chart and in

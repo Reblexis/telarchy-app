@@ -106,6 +106,31 @@ export function windowFor(
   return [start, end + pad];
 }
 
+/**
+ * Label dodging: the dots stay where the values are, the labels keep a
+ * minimum gap. Labels are sorted by their anchor, pushed apart to `gap`,
+ * then pulled back inside [top, bottom]. A label that moved gets a leader
+ * line to its dot (owner report 2026-08-27: "avoid text colliding").
+ */
+export function dodge<T extends { at: number }>(
+  labels: T[],
+  top: number,
+  bottom: number,
+  gap = 13,
+): Array<T & { y: number }> {
+  const sorted = [...labels].sort((a, b) => a.at - b.at).map(l => ({ ...l, y: l.at }));
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].y - sorted[i - 1].y < gap) sorted[i].y = sorted[i - 1].y + gap;
+  }
+  const overflow = sorted.length ? sorted[sorted.length - 1].y - bottom : 0;
+  if (overflow > 0) for (const l of sorted) l.y -= overflow;
+  for (let i = 0; i < sorted.length; i++) {
+    if (sorted[i].y < top) sorted[i].y = top;
+    if (i > 0 && sorted[i].y - sorted[i - 1].y < gap) sorted[i].y = sorted[i - 1].y + gap;
+  }
+  return sorted;
+}
+
 function easeOut(t: number): number {
   return 1 - (1 - t) ** 3;
 }
@@ -404,37 +429,65 @@ export function NumberChart({
                   <circle className="nchart-pair-approved" cx={mx} cy={ay} r={m.selected ? 4.5 : 3} />
                   <circle className="nchart-pair-declined" cx={mx} cy={dy} r={m.selected ? 4.5 : 3} />
                   {m.selected && (
-                    <>
-                      <text
-                        className="nchart-pair-label nchart-pair-label--approved"
-                        x={mx - 9}
-                        y={ay + (ay <= dy ? -6 : 14)}
-                        textAnchor="end"
-                      >
-                        if approved {fmt(ap, unit)}
-                      </text>
-                      <text
-                        className="nchart-pair-label nchart-pair-label--declined"
-                        x={mx - 9}
-                        y={dy + (dy < ay ? -6 : 14)}
-                        textAnchor="end"
-                      >
-                        if declined {fmt(dc, unit)}
-                      </text>
-                      <text className="nchart-pair-delta" x={mx + 8} y={(ay + dy) / 2 + 4}>
-                        {(impactFrom === 'declined' ? dc - ap : ap - dc) >= 0 ? '+' : '-'}
-                        {fmt(Math.abs(ap - dc), unit)}
-                      </text>
-                    </>
+                    <text
+                      className="nchart-pair-delta"
+                      x={mx + 40 <= W ? mx + 8 : mx - 8}
+                      y={(ay + dy) / 2 + 4}
+                      textAnchor={mx + 40 <= W ? 'start' : 'end'}
+                    >
+                      {(impactFrom === 'declined' ? dc - ap : ap - dc) >= 0 ? '+' : '-'}
+                      {fmt(Math.abs(ap - dc), unit)}
+                    </text>
                   )}
                 </g>
               )}
               {my !== null && <circle cx={mx} cy={my} r={m.selected ? 4.5 : 3.5} />}
-              {m.selected && my !== null && m.consensus !== null && (
-                <text x={mx - 8} y={my + 4} textAnchor="end">
-                  {hasPair ? `${fmt(m.consensus, unit)} now` : fmt(m.consensus, unit)}
-                </text>
-              )}
+              {m.selected &&
+                dodge(
+                  [
+                    ...(hasPair && ay !== null && ap !== null
+                      ? [
+                          {
+                            key: 'approved',
+                            at: ay,
+                            text: `if approved ${fmt(ap, unit)}`,
+                            cls: 'nchart-pair-label nchart-pair-label--approved',
+                          },
+                        ]
+                      : []),
+                    ...(my !== null && m.consensus !== null
+                      ? [
+                          {
+                            key: 'now',
+                            at: my,
+                            text: hasPair ? `${fmt(m.consensus, unit)} now` : fmt(m.consensus, unit),
+                            cls: 'nchart-now-label',
+                          },
+                        ]
+                      : []),
+                    ...(hasPair && dy !== null && dc !== null
+                      ? [
+                          {
+                            key: 'declined',
+                            at: dy,
+                            text: `if declined ${fmt(dc, unit)}`,
+                            cls: 'nchart-pair-label nchart-pair-label--declined',
+                          },
+                        ]
+                      : []),
+                  ],
+                  PAD_T + 4,
+                  H - PAD_B - 4,
+                ).map(l => (
+                  <g key={l.key}>
+                    {Math.abs(l.y - l.at) > 4 && (
+                      <line className="nchart-leader" x1={mx - 6} x2={mx - 34} y1={l.at} y2={l.y} />
+                    )}
+                    <text className={l.cls} x={mx - (Math.abs(l.y - l.at) > 4 ? 38 : 9)} y={l.y + 4} textAnchor="end">
+                      {l.text}
+                    </text>
+                  </g>
+                ))}
             </g>
           );
         })}

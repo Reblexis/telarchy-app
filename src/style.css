@@ -4199,6 +4199,8 @@ textarea.jobform-line--desc {
 .nchart-marker text.nchart-pair-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
 .nchart-marker text.nchart-pair-label--approved { fill: var(--higher); }
 .nchart-marker text.nchart-pair-label--declined { fill: var(--lower); }
+.nchart-marker text.nchart-now-label { fill: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
+.nchart-leader { stroke: var(--text-tertiary); stroke-width: 1; opacity: 0.6; }
 .nchart-marker text.nchart-pair-delta { fill: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
 .nchart-marker text { paint-order: stroke; stroke: var(--bg-primary); stroke-width: 3.5px; }
 .nchart-legend {
