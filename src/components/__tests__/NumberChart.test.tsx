@@ -1,7 +1,7 @@
 import { fireEvent, render } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import { GEOM } from '../MarketChart';
-import { granularityOf, NumberChart, RANGE_WORDS, windowFor } from '../NumberChart';
+import { dodge, granularityOf, NumberChart, RANGE_WORDS, windowFor } from '../NumberChart';
 
 /**
  * The number view follows the market on screen (docs/ui-conventions.md,
@@ -256,5 +256,57 @@ describe('a contract open', () => {
     );
     expect(container.querySelectorAll('.nchart-pair').length).toBe(0);
     expect(container.querySelector('.nchart-legend')).toBeNull();
+  });
+});
+
+describe('labels never collide', () => {
+  test('dodge keeps a minimum gap and stays inside the plot', () => {
+    const out = dodge(
+      [
+        { key: 'a', at: 100 },
+        { key: 'b', at: 103 },
+        { key: 'c', at: 106 },
+      ],
+      20,
+      180,
+    );
+    expect(out.map(l => l.y)).toEqual([100, 113, 126]);
+    const low = dodge(
+      [
+        { key: 'a', at: 175 },
+        { key: 'b', at: 178 },
+      ],
+      20,
+      180,
+    );
+    expect(low[1].y).toBeLessThanOrEqual(180);
+    expect(low[1].y - low[0].y).toBeGreaterThanOrEqual(13);
+  });
+
+  test('three labels at nearly the same value render at distinct heights', () => {
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={[
+          {
+            marketId: 'sep',
+            resolvesOn: '2026-10-01T00:00:00Z',
+            consensus: 13.1,
+            selected: true,
+            pair: { approved: 13.4, declined: 12.9 },
+          },
+        ]}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+      />,
+    );
+    const ys = [...container.querySelectorAll('.nchart-marker.is-selected text')]
+      .filter(t => !t.classList.contains('nchart-pair-delta'))
+      .map(t => Number(t.getAttribute('y')))
+      .sort((a, b) => a - b);
+    expect(ys.length).toBe(3);
+    expect(ys[1] - ys[0]).toBeGreaterThanOrEqual(12);
+    expect(ys[2] - ys[1]).toBeGreaterThanOrEqual(12);
   });
 });
