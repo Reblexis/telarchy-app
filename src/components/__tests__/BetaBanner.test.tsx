@@ -26,12 +26,22 @@ const publishRelease = vi.fn(async () => ({ ok: true }));
 const getPublicConfig = vi.fn(
   async (): Promise<{ store: string; preview?: string | null }> => ({ store: 'production' }),
 );
+const getBranches = vi.fn(
+  async (): Promise<{
+    branches: Array<{ name: string; sha: string; tag: string | null; built: boolean }>;
+    error: string | null;
+    buildConfigured: boolean;
+  }> => ({ branches: [], error: null, buildConfigured: true }),
+);
+const buildBranch = vi.fn(async (_branch: string) => ({ ok: true as const, tag: 'br-x' }));
 
 vi.mock('../../lib/api', () => ({
   api: {
     getRelease: () => getRelease(),
     publishRelease: () => publishRelease(),
     getPublicConfig: () => getPublicConfig(),
+    getBranches: () => getBranches(),
+    buildBranch: (b: string) => buildBranch(b),
   },
 }));
 
@@ -59,6 +69,9 @@ beforeEach(() => {
   getPublicConfig.mockResolvedValue({ store: 'production' });
   mockUser = { id: 'user-admin' };
   assigned.length = 0;
+  getBranches.mockClear();
+  getBranches.mockResolvedValue({ branches: [], error: null, buildConfigured: true });
+  buildBranch.mockClear();
 });
 afterEach(() => {
   Object.defineProperty(window, 'location', { value: realLocation, writable: true });
@@ -313,5 +326,80 @@ describe('a branch preview', () => {
   test('the label drops the tag prefix', () => {
     expect(previewLabel('br-setup-door-email')).toBe('setup-door-email');
     expect(previewLabel('candidate')).toBe('candidate');
+  });
+});
+
+/**
+ * Any branch can be built (docs/infra/deploy.md): the picker lists every
+ * branch, the built ones by name, the rest as a pick that asks CI to build.
+ */
+describe('building a branch from the picker', () => {
+  const release = {
+    serving: 'api-00380',
+    candidate: { revision: 'api-00381', url: 'https://candidate---api.run.app' },
+    previews: [{ tag: 'br-oss-lane-i', revision: 'api-00385', url: 'https://y' }],
+    running: 'api-00381',
+    runningTags: ['candidate'],
+    isServing: false,
+    error: null,
+  };
+
+  test('lists built branches by name and unbuilt ones as a build', async () => {
+    setHost('telarchy.com', '/beta/');
+    getPublicConfig.mockResolvedValue({ store: 'beta', preview: null });
+    getRelease.mockResolvedValue(release);
+    getBranches.mockResolvedValue({
+      branches: [
+        { name: 'oss/lane-i', sha: 'a', tag: 'br-oss-lane-i', built: true },
+        { name: 'setup-door-email', sha: 'b', tag: 'br-setup-door-email', built: false },
+      ],
+      error: null,
+      buildConfigured: true,
+    });
+    render(<BetaBanner />);
+    const pick = (await screen.findByLabelText('Which build the beta shows')) as HTMLSelectElement;
+    await waitFor(() => expect(pick.options.length).toBe(3));
+    expect([...pick.options].map(o => o.textContent)).toEqual([
+      'main candidate',
+      'oss/lane-i',
+      'setup-door-email (not built, pick to build)',
+    ]);
+  });
+
+  test('picking an unbuilt branch asks CI to build it and says so', async () => {
+    setHost('telarchy.com', '/beta/');
+    getPublicConfig.mockResolvedValue({ store: 'beta', preview: null });
+    getRelease.mockResolvedValue(release);
+    getBranches.mockResolvedValue({
+      branches: [{ name: 'setup-door-email', sha: 'b', tag: 'br-setup-door-email', built: false }],
+      error: null,
+      buildConfigured: true,
+    });
+    render(<BetaBanner />);
+    const pick = (await screen.findByLabelText('Which build the beta shows')) as HTMLSelectElement;
+    await waitFor(() => expect(pick.options.length).toBe(3));
+    fireEvent.change(pick, { target: { value: 'build:setup-door-email' } });
+    await waitFor(() => expect(buildBranch).toHaveBeenCalledWith('setup-door-email'));
+    expect(await screen.findByText(/Building setup-door-email/)).toBeTruthy();
+    expect(assigned).toEqual([]);
+  });
+
+  test('a refused build shows the reason (the command, when there is no token)', async () => {
+    setHost('telarchy.com', '/beta/');
+    getPublicConfig.mockResolvedValue({ store: 'beta', preview: null });
+    getRelease.mockResolvedValue(release);
+    getBranches.mockResolvedValue({
+      branches: [{ name: 'x', sha: 'b', tag: 'br-x', built: false }],
+      error: null,
+      buildConfigured: false,
+    });
+    buildBranch.mockRejectedValueOnce(
+      new Error('no GITHUB_ACTIONS_TOKEN: gh workflow run deploy-cloudrun.yml --ref x'),
+    );
+    render(<BetaBanner />);
+    const pick = (await screen.findByLabelText('Which build the beta shows')) as HTMLSelectElement;
+    await waitFor(() => expect(pick.options.length).toBe(3));
+    fireEvent.change(pick, { target: { value: 'build:x' } });
+    expect(await screen.findByText(/gh workflow run deploy-cloudrun.yml --ref x/)).toBeTruthy();
   });
 });

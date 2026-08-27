@@ -82,6 +82,9 @@ export function BetaBanner() {
   // release, and without the list there is nothing to pick from), and only
   // where choosing works.
   const [previews, setPreviews] = useState<Array<{ tag: string }>>([]);
+  // Every branch of the repository, built or not: an unbuilt one can be
+  // built from here (docs/infra/deploy.md, "Any branch can be built").
+  const [branches, setBranches] = useState<Array<{ name: string; tag: string | null; built: boolean }>>([]);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [err, setErr] = useState('');
@@ -114,6 +117,12 @@ export function BetaBanner() {
         setCanPublish(!r.isServing);
         setWaiting(r.isServing ? 'no' : 'yes');
         setPreviews(r.previews ?? []);
+        // Only once the release answered: that is the admin check, and the
+        // branch list is admin only for the same reason.
+        api
+          .getBranches()
+          .then(b => setBranches(b.branches))
+          .catch(e => console.error('branches fetch failed:', e));
       })
       .catch(() => {
         setCanPublish(false);
@@ -122,7 +131,23 @@ export function BetaBanner() {
   }, [user]);
 
   const isPreview = preview !== null;
-  const canPick = onRealDomainBeta() && previews.length > 0;
+  const canPick = onRealDomainBeta() && (previews.length > 0 || branches.length > 0);
+  // Built previews first (by tag, whether or not their branch still exists),
+  // then every branch that is not built, which picking asks CI to build.
+  const builtTags = new Set(previews.map(p => p.tag));
+  const labelOf = (tag: string) => branches.find(b => b.tag === tag)?.name ?? previewLabel(tag);
+  const unbuilt = branches.filter(b => b.tag && !builtTags.has(b.tag));
+
+  const build = async (name: string) => {
+    setErr('');
+    setNote('');
+    try {
+      await api.buildBranch(name);
+      setNote(`Building ${name}. About eight minutes; it appears here as built when done.`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not start the build');
+    }
+  };
 
   if (isPublishedOrigin()) return null;
 
@@ -153,17 +178,26 @@ export function BetaBanner() {
           className="betabar-pick"
           aria-label="Which build the beta shows"
           value={preview ?? 'candidate'}
-          onChange={e => chooseBuild(e.target.value)}
+          onChange={e => {
+            const v = e.target.value;
+            if (v.startsWith('build:')) void build(v.slice('build:'.length));
+            else chooseBuild(v);
+          }}
         >
           <option value="candidate">main candidate</option>
           {previews.map(p => (
             <option key={p.tag} value={p.tag}>
-              {previewLabel(p.tag)}
+              {labelOf(p.tag)}
             </option>
           ))}
           {isPreview && !previews.some(p => p.tag === preview) && (
             <option value={preview}>{previewLabel(preview)}</option>
           )}
+          {unbuilt.map(b => (
+            <option key={b.name} value={`build:${b.name}`}>
+              {b.name} (not built, pick to build)
+            </option>
+          ))}
         </select>
       )}
       {/* "data" rather than "database", because only half of it is separate.
