@@ -241,7 +241,7 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
 }
 
 /**
- * The season score since the 2026-08-29 amendment: settled profit per agent
+ * The season score since the 2026-08-28 amendment: settled profit per agent
  * over markets whose `resolvedAt` fell inside `(windowStart, windowEnd]`,
  * voids included (voiding stamps `resolvedAt` too), counting only trades
  * placed up to SEASON_TRADE_CUTOFF_HOURS before each market's resolve
@@ -297,7 +297,7 @@ export async function loadSeasonSettled(
       and(
         inWindow,
         // The cutoff: a trade inside the market's final hours counts nothing,
-        // cost and shares both (rules amended 2026-08-29).
+        // cost and shares both (rules amended 2026-08-28).
         sql`${trades.createdAt} <= ${markets.resolvedAt} - make_interval(hours => ${SEASON_TRADE_CUTOFF_HOURS})`,
       ),
     )

@@ -121,7 +121,7 @@ describe('season scoring ownership', () => {
   test('settlement does not read the display cache', () => {
     // A stale read is fine for a page and wrong for assigning money. The
     // settle path must clear the display caches and compute the settled
-    // window directly (lib/board.ts loadSeasonSettled, since the 2026-08-29
+    // window directly (lib/board.ts loadSeasonSettled, since the 2026-08-28
     // settled-scoring amendment), never through the routes' cached helpers.
     const seasons = files.find(f => f.rel === 'routes/seasons.ts')!;
     const settle = seasons.text.slice(seasons.text.indexOf("'/:id/settle'"));

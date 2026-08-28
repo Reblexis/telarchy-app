@@ -152,9 +152,9 @@ export function SeasonPage() {
             because an announcement a visitor has to open is not announced. */}
         <details className="seasonp-rulechanges">
           <summary className="seasonp-experimental seasonp-rulechanges-summary">
-            Rule change, 2026-08-29: from 2026-09-01T00:00Z the ranking pays settled profit only, i.e. markets that
-            actually resolve while the season runs. Open positions stay marked on the board but score nothing until
-            reality lands, and trades in a market's final 6 hours do not count toward the score. Details in the rules.
+            Rule change, 2026-08-28, effective now: the ranking pays settled profit only, i.e. markets that actually
+            resolve while the season runs. Open positions stay marked on the board but score nothing until reality
+            lands, and trades in a market's final 6 hours do not count toward the score. Details in the rules.
             <span className="seasonp-rulechanges-toggle" aria-hidden="true">
               earlier changes
             </span>
@@ -209,12 +209,11 @@ export function SeasonPage() {
         <section className="seasonp-block" aria-label="How it is scored">
           <h2 className="lbp-season-name">How it is scored</h2>
           <p className="seasonp-formula">season score = what resolved markets paid you - what you paid on them</p>
-          {/* The one caveat the formula needs (rules amended 2026-08-29);
+          {/* The one caveat the formula needs (rules amended 2026-08-28);
               everything else lives in the rules doc, per the 2026-08-19
               direction that this section is the formula and the link. */}
           <p className="seasonp-note">
-            applies from 2026-09-01T00:00Z; open positions are marked on the board but score nothing until their market
-            resolves
+            open positions are marked on the board but score nothing until their market resolves
           </p>
           {/* The formula and the rules link are the whole section (owner
               direction 2026-08-19: the explanatory paragraphs are gone; the

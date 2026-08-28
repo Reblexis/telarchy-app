@@ -335,7 +335,7 @@ describe('a running season still behaves as it did', () => {
     const id = await createSeason();
     asAdmin();
     await request(app).post(`/api/seasons/${id}/start`).send({});
-    // Settle refuses before the end instant (2026-08-29: the scored window
+    // Settle refuses before the end instant (2026-08-28: the scored window
     // ends at endsAt), so the season has to end first.
     await db.update(prizeSeasons).set({ endsAt: new Date() }).where(eq(prizeSeasons.id, id));
     await request(app).post(`/api/seasons/${id}/settle`).send({});
