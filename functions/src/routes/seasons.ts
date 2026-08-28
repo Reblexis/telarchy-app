@@ -5,7 +5,7 @@ import { db } from '../db/client';
 import { agents, authUser, prizeSeasons, seasonEntries, workspaces } from '../db/schema';
 import { loadSeasonSettled } from '../lib/board';
 import { AppError } from '../lib/errors';
-import { platformOperatedIds } from '../lib/participants';
+import { payoutHandlesById, platformOperatedIds, publicWorkspaceOperatorIds } from '../lib/participants';
 import { isPlatformAuthorized } from '../lib/platform-admin';
 import {
   claimDeadline,
@@ -121,6 +121,7 @@ function publicSeason(s: typeof prizeSeasons.$inferSelect) {
     poolUsd: s.poolUsd,
     payoutMode: (s.payoutMode ?? 'ladder') as SeasonPayoutMode,
     minPayoutUsd: s.minPayoutUsd ?? 0,
+    strictEligibility: s.strictEligibility ?? false,
     ladder: (s.ladder ?? []) as LadderRung[],
     rulesUrl: s.rulesUrl,
   };
@@ -447,6 +448,10 @@ seasonsRouter.post(
     );
     const minPayoutUsd = req.body?.minPayoutUsd !== undefined ? asMinPayout(req.body.minPayoutUsd, pool) : 0;
 
+    // Default ON for new seasons; Season 0 predates the rule (migration
+    // 0082). Off is for a deliberately open season, stated in its rules.
+    const strictEligibility = req.body?.strictEligibility === undefined ? true : req.body.strictEligibility === true;
+
     const ladder = payoutMode === 'ladder' ? asLadder(req.body?.ladder) : [];
     if (payoutMode === 'ladder') {
       const total = ladderTotal(ladder);
@@ -462,6 +467,7 @@ seasonsRouter.post(
       poolUsd: pool,
       payoutMode,
       minPayoutUsd,
+      strictEligibility,
       ladder,
       workspaceIds: [],
       rulesUrl: rulesUrl.trim(),
@@ -557,6 +563,7 @@ seasonsRouter.patch(
     const mode = asPayoutMode(req.body?.payoutMode ?? season.payoutMode ?? 'ladder');
     if (req.body?.payoutMode !== undefined) patch.payoutMode = mode;
     if (req.body?.minPayoutUsd !== undefined) patch.minPayoutUsd = asMinPayout(req.body.minPayoutUsd, pool);
+    if (req.body?.strictEligibility !== undefined) patch.strictEligibility = req.body.strictEligibility === true;
 
     const ladder = req.body?.ladder !== undefined ? asLadder(req.body.ladder) : ((season.ladder ?? []) as LadderRung[]);
     if (mode === 'ladder') {
@@ -656,7 +663,12 @@ seasonsRouter.post(
       .where(and(eq(seasonEntries.seasonId, seasonId), eq(seasonEntries.optedIn, true)));
 
     const settledAt = new Date();
-    const house = await platformOperatedIds(entries.map(e => e.agentId));
+    const entrantIds = entries.map(e => e.agentId);
+    const house = await platformOperatedIds(entrantIds);
+    // The strict-eligibility inputs are loaded here even when the flag is
+    // off so the query path is exercised the same way for every season.
+    const operators = await publicWorkspaceOperatorIds(entrantIds);
+    const handles = await payoutHandlesById(entrantIds);
     const { ranked, rolloverUsd } = settleSeason(
       entries.map(e => ({
         agentId: e.agentId,
@@ -666,10 +678,16 @@ seasonsRouter.post(
         currentProfit: settledById.get(e.agentId) ?? 0,
         enteredAt: e.enteredAt ? new Date(e.enteredAt) : new Date(0),
         platformOperated: house.has(e.agentId),
+        workspaceOperator: operators.has(e.agentId),
+        payoutHandle: handles.get(e.agentId) ?? null,
       })),
       (season.ladder ?? []) as LadderRung[],
       season.poolUsd,
-      { payoutMode: (season.payoutMode ?? 'ladder') as SeasonPayoutMode, minPayoutUsd: season.minPayoutUsd ?? 0 },
+      {
+        payoutMode: (season.payoutMode ?? 'ladder') as SeasonPayoutMode,
+        minPayoutUsd: season.minPayoutUsd ?? 0,
+        strictEligibility: season.strictEligibility === true,
+      },
     );
 
     await db.transaction(async tx => {

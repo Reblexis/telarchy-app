@@ -123,6 +123,7 @@ describe('the season prize beside an entrant', () => {
     poolUsd: 1000,
     payoutMode: 'ladder' as const,
     minPayoutUsd: 0,
+    strictEligibility: false,
     ladder: [
       { place: 1, prizeUsd: 500 },
       { place: 2, prizeUsd: 250 },

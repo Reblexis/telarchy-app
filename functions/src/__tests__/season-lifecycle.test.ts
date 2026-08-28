@@ -296,6 +296,12 @@ async function createSeason(overrides: Record<string, unknown> = {}) {
       poolUsd: 1000,
       ladder: LADDER,
       rulesUrl: '/legal/season-1',
+      // The Season 0 configuration: seedFloor makes the first trader the
+      // workspace creator, so under the post-Season-0 default (strict on)
+      // they would take no payout and every assertion here would be about
+      // eligibility instead of what it tests. Strict behaviour has its own
+      // tests below.
+      strictEligibility: false,
       ...overrides,
     });
   return res;
@@ -707,6 +713,46 @@ describe('settling', () => {
     expect(pool.status).toBe(409);
     const mixed = await request(app).patch(`/api/seasons/${season.id}`).send({ payoutMode: 'ladder', poolUsd: 2000 });
     expect(mixed.status).toBe(409);
+  });
+
+  test('strict eligibility: the workspace creator is ranked but paid nothing (seasons after Season 0)', async () => {
+    const season = await runSeasonWith(
+      [
+        ['gold', 30], // seedFloor makes 'gold' the workspace creator
+        ['silver', 10],
+      ],
+      { payoutMode: 'proportional', strictEligibility: true },
+    );
+    const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
+    expect(res.status).toBe(200);
+    // The creator's 30 of settled profit earns nothing and does not dilute
+    // silver's share; standings still rank them first.
+    expect(res.body.winners.map((w: { agentId: string; prizeUsd: number }) => [w.agentId, w.prizeUsd])).toEqual([
+      ['silver', 1000],
+    ]);
+    const standings = await request(app).get(`/api/leaderboard?seasonId=${season.id}`);
+    const gold = standings.body.participants.find((p: { id: string }) => p.id === 'gold');
+    expect(gold.rank).toBe(1);
+  });
+
+  test('strict eligibility: entries sharing a payout handle collapse to the best-placed one', async () => {
+    await seedFloor(['alpha', 'beta', 'shadow']);
+    // 'alpha' created the workspace (seedFloor), so the two entrants under
+    // test are beta and shadow: one person, two accounts, one handle.
+    await db.update(agents).set({ payoutHandle: 'paypal:same@person.example' }).where(eq(agents.id, 'beta'));
+    await db.update(agents).set({ payoutHandle: 'PAYPAL:same@person.example' }).where(eq(agents.id, 'shadow'));
+    const season = (await createSeason({ payoutMode: 'proportional', strictEligibility: true })).body.season;
+    await startSeason(season.id);
+    for (const id of ['beta', 'shadow']) await optIn(season.id, id);
+    await giveSettledProfit('beta', 30, 'beta');
+    await giveSettledProfit('shadow', 10, 'shadow');
+    await closeSeason(season.id);
+
+    const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.winners.map((w: { agentId: string; prizeUsd: number }) => [w.agentId, w.prizeUsd])).toEqual([
+      ['beta', 1000],
+    ]);
   });
 
   test('settlement scores over the workspaces public at settle time, not the pinned set', async () => {

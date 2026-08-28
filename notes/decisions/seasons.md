@@ -417,3 +417,17 @@ without cap). Payer flips from "the workspace owner" to Telarchy as contest
 operator (ToS 1.6). Rationale, the wheel discussion, and the Sybil linearity
 argument: telarchy umbrella notes/wheel-vs-proportional-legality-2026-08-28.md
 and notes/trader-rewards-design-2026-08-28.md.
+
+
+## 2026-08-28: strict eligibility for seasons after Season 0
+
+**DONE 2026-08-28:** `prize_seasons.strict_eligibility` (migration 0082,
+default on for new seasons, off for Season 0) implements the two platform
+rules the approved real-money design fixed on 2026-08-26 (telarchy umbrella,
+notes/real-money-economy-design-2026-08-26.md, premise 4, accepted by
+Viktor): accounts that own or administer any public workspace are shown but
+take no payout, and entries sharing a payout handle collapse to the
+best-placed one (an entrant whose handle matches an operator's or a house
+account's included). Season 0 keeps its published owners-eligible rule to
+the end; the flag is a per-season rule so an operator can still run a
+deliberately open season and say so in its rules.

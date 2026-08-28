@@ -116,13 +116,24 @@ protected from deletion until Season 1.
   colluding accounts changes the coalition's total by nothing, which is the
   Sybil property the rank ladder lacked (design record: telarchy umbrella
   notes/trader-rewards-design-2026-08-28.md).
-- Only `agents.platform_operated` disqualifies (migration 0069 carries the
+- `agents.platform_operated` always disqualifies (migration 0069 carries the
   column; it flags the platform's trading agent, the sync jobs, the admin
   account, and the QA accounts used for entry-flow testing). A house account
   still scores, still ranks and still appears on every board (nobody is
   excluded); it simply never consumes a rung, so a stranger below it takes
   first money rather than second. A season made entirely of house accounts pays
   nothing and rolls the whole pool.
+- Seasons after Season 0 add the two platform rules
+  (`prize_seasons.strict_eligibility`, default on, migration 0082; the
+  platform fixes these two because workspace owners resolve the metrics,
+  everything else is the operator's published choice): an account that owns
+  or administers any PUBLIC workspace is shown on the board but takes no
+  payout; and one payout handle takes one prize, so entries sharing a
+  handle collapse to the best-placed one, an entrant whose handle matches
+  an operator's or a house account's included. Season 0 runs with the flag
+  off: its published rules (amended 2026-08-25) made owners explicitly
+  eligible, and an eligibility flip mid-season would reduce standings,
+  which the amendment clause forbids.
 - `lib/participants.ts` `platformOperatedIds` is the only reader on the money
   path (standings, prize column, settlement), because the three have to agree
   about who may take money and three copies of a nickname check is how they
@@ -351,9 +362,9 @@ Two brakes, in order of how much they help:
   email address, not one more payout identity.
 - `maxPositionCostPerMarket` bounds how far any one account can push.
 
-Deferred to Season 1: **entries sharing a payout handle are one entry.** Cheap
-to check at settlement, and it is the natural reading of "one person, one
-prize."
+Implemented for seasons after Season 0 (2026-08-28, `strict_eligibility`):
+**entries sharing a payout handle are one entry**, checked at settlement and
+in the live projection, the natural reading of "one person, one prize."
 
 ### F3. Settlement-instant sniping
 
@@ -413,7 +424,8 @@ voiding markets during a running season except to correct a declared error.
 | Item | Season 1 rule | Season 0 |
 |---|---|---|
 | Prize eligibility floor | 10 trades / 2 markets / 3 before the final week (F5) | none |
-| Duplicate payout handles | one entry per payout handle (F2) | not checked |
+| Duplicate payout handles | DONE 2026-08-28: one entry per payout handle (F2), `strict_eligibility` | not checked (flag off) |
+| Workspace operators | DONE 2026-08-28: public-workspace owners/admins take no payout, `strict_eligibility` | eligible (rules amended 2026-08-25, flag off) |
 | Auto top-up on impact | a single trade moving a market's consensus by more than 10% of its range tops the book back up to the season `b` after the trade | not built; the ramp script and the cap do the work |
 | Rules immutability | frozen at the start instant | may change if announced first |
 | Deletion freeze set | the live public set, same as scoring | the pinned set |

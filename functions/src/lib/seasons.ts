@@ -147,6 +147,18 @@ export interface SeasonEntrant {
   enteredAt: Date;
   /** Operated by us: ranks and scores like anyone, never takes a rung. */
   platformOperated?: boolean;
+  /** Owns or administers any PUBLIC workspace. Under strict eligibility
+   *  (seasons after Season 0) such an account is shown but takes no payout,
+   *  because workspace operators resolve the metrics the season is scored
+   *  on (platform rule accepted 2026-08-26, applied 2026-08-28; design
+   *  record in the telarchy umbrella,
+   *  notes/real-money-economy-design-2026-08-26.md, premise 4). */
+  workspaceOperator?: boolean;
+  /** The account's payout handle, for the one-payout-identity rule under
+   *  strict eligibility: entries sharing a handle collapse to the
+   *  best-placed one. Null/absent when none is set (none is required until
+   *  claim time). */
+  payoutHandle?: string | null;
 }
 
 /** An entrant after scoring and ranking. */
@@ -219,6 +231,15 @@ export interface SettleOptions {
    *  rolls forward (the Metaculus shape; dust payouts cost more to send
    *  than they are worth). 0 pays every cent. */
   minPayoutUsd?: number;
+  /** The two platform rules for seasons after Season 0
+   *  (`prize_seasons.strict_eligibility`, default on for new seasons):
+   *  accounts that own or administer any public workspace take no payout,
+   *  and entries sharing a payout handle collapse to the best-placed one
+   *  ("one person, one prize"). Season 0 runs with this off, because its
+   *  published rules (amended 2026-08-25) made owners explicitly eligible
+   *  and a mid-season eligibility flip would reduce standings, which the
+   *  amendment clause forbids. */
+  strictEligibility?: boolean;
 }
 
 /**
@@ -254,6 +275,8 @@ export function settleSeason(
     agentId: e.agentId,
     enteredAt: e.enteredAt,
     platformOperated: e.platformOperated === true,
+    workspaceOperator: e.workspaceOperator === true,
+    payoutHandle: (e.payoutHandle ?? '').trim().toLowerCase(),
     score: seasonScore(e.currentProfit, e.baselineProfit),
   }));
 
@@ -265,19 +288,45 @@ export function settleSeason(
     return a.agentId < b.agentId ? -1 : a.agentId > b.agentId ? 1 : 0;
   });
 
+  // Eligibility, decided before either payout branch so both pay the same
+  // people. The base rule is isPrizeEligible (platform-operated accounts
+  // never take money). Strict eligibility adds the two platform rules for
+  // seasons after Season 0: a public-workspace operator takes no payout;
+  // an entrant whose payout handle matches an operator's (or a house
+  // account's) is treated as the same person ("shares payout details with
+  // such an account"); and among the remaining eligibles, entries sharing
+  // a handle collapse to the best-placed one, in the published sort order
+  // so a recount agrees.
+  const eligibleAt: boolean[] = [];
+  if (opts.strictEligibility) {
+    const operatorHandles = new Set(
+      scored.filter(e => (e.workspaceOperator || e.platformOperated) && e.payoutHandle).map(e => e.payoutHandle),
+    );
+    const seenHandles = new Set<string>();
+    for (const e of scored) {
+      let eligible = isPrizeEligible(e.score, e.platformOperated) && !e.workspaceOperator;
+      if (eligible && e.payoutHandle) {
+        if (operatorHandles.has(e.payoutHandle) || seenHandles.has(e.payoutHandle)) eligible = false;
+        else seenHandles.add(e.payoutHandle);
+      }
+      eligibleAt.push(eligible);
+    }
+  } else {
+    for (const e of scored) eligibleAt.push(isPrizeEligible(e.score, e.platformOperated));
+  }
+
   let ranked: RankedEntrant[];
   if (payoutMode === 'proportional') {
     // Only a positive score earns a share. Negative scores are not clamped in
     // the standings, but a share must not be negative and must not dilute the
     // denominator, or a big loser would enlarge everyone else's payout.
-    const weightOf = (e: (typeof scored)[number]) =>
-      isPrizeEligible(e.score, e.platformOperated) && e.score > 0 ? e.score : 0;
-    const denominator = scored.reduce((sum, e) => sum + weightOf(e), 0);
+    const weightOf = (e: (typeof scored)[number], i: number) => (eligibleAt[i] && e.score > 0 ? e.score : 0);
+    const denominator = scored.reduce((sum, e, i) => sum + weightOf(e, i), 0);
     ranked = scored.map((e, i) => {
-      const eligible = isPrizeEligible(e.score, e.platformOperated);
+      const eligible = eligibleAt[i];
       let prizeUsd = 0;
       if (denominator > 0) {
-        prizeUsd = round2((poolUsd * weightOf(e)) / denominator);
+        prizeUsd = round2((poolUsd * weightOf(e, i)) / denominator);
         if (prizeUsd < minPayoutUsd) prizeUsd = 0;
         if (prizeUsd > MAX_SINGLE_PAYOUT_USD) prizeUsd = MAX_SINGLE_PAYOUT_USD;
       }
@@ -291,7 +340,7 @@ export function settleSeason(
     // an eligible one does not burn a rung.
     let place = 0;
     ranked = scored.map((e, i) => {
-      const eligible = isPrizeEligible(e.score, e.platformOperated);
+      const eligible = eligibleAt[i];
       let prizeUsd = 0;
       if (eligible) {
         place += 1;
