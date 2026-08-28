@@ -146,6 +146,7 @@ function renderFloor(entries: string[] = ['/lookpilot']) {
   return render(
     <MemoryRouter initialEntries={entries}>
       <Routes>
+        <Route path="/marketplace/:workspaceId" element={<TradePage />} />
         <Route path="/:slug" element={<TradePage />} />
       </Routes>
       <BellStandIn />
@@ -1135,6 +1136,32 @@ describe('the chart control row', () => {
 });
 
 describe('the owner of a not-public floor', () => {
+  test('/marketplace/{id} does NOT canonicalize a private floor to its slug', async () => {
+    // Slug resolution excludes private floors, so the slug URL 404s. The
+    // canonicalizer rewriting the address anyway meant loading your own
+    // floor immediately refetched it into a 404 (owner report 2026-08-28).
+    const { api } = await import('../../lib/api');
+    const ws = { ...h.workspace(), visibility: 'private', slug: 'my-life' };
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    renderFloor([`/marketplace/${ws.workspaceId}`]);
+    await screen.findByText(h.workspace().name);
+    // Still at the id address: the loads stayed on the id, never the slug.
+    const loads = vi.mocked(api.getMarketplaceWorkspace).mock.calls.map(c => c[0]);
+    expect(loads).not.toContain('my-life');
+  });
+
+  test('/marketplace/{id} still canonicalizes a PUBLIC floor to its slug', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = { ...h.workspace(), visibility: 'public', slug: 'lookpilot' };
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    renderFloor([`/marketplace/${ws.workspaceId}`]);
+    await screen.findByText(h.workspace().name);
+    await waitFor(() => {
+      const loads = vi.mocked(api.getMarketplaceWorkspace).mock.calls.map(c => c[0]);
+      expect(loads).toContain('lookpilot');
+    });
+  });
+
   test('reads "only you can see this" with its one fix, and a visitor reads nothing of it', async () => {
     const { api } = await import('../../lib/api');
     const ws = { ...h.workspace(), visibility: 'private' };

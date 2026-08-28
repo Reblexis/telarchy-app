@@ -243,9 +243,12 @@ export function TradePage() {
   useEffect(reload, [idOrSlug]);
 
   // Canonical URL is the root-level slug; shared /marketplace/<x> links
-  // keep working and quietly become /<slug>.
+  // keep working and quietly become /<slug>. PUBLIC floors only: slug
+  // resolution excludes a private floor, so canonicalizing one rewrote the
+  // owner's own page into an address that 404'd it one render later (owner
+  // report 2026-08-28, "trade page fetch failed: 404" in triplicate).
   useEffect(() => {
-    if (!ws?.slug) return;
+    if (!ws?.slug || ws.visibility !== 'public') return;
     if (location.pathname.startsWith('/marketplace/')) {
       navigate(`/${ws.slug}`, { replace: true });
     }
