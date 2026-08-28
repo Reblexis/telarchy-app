@@ -48,9 +48,9 @@ true, and every change to this feature must preserve all three:
 
 ## Pricing
 
-Provisional, to be confirmed by the owner before the first sale (open
-question carried from the approved design): **$1 = 100 credits of pool
-liquidity** (`LIQUIDITY_CREDITS_PER_USD`, per-instance env). The rate is
+**$1 = 1,000 credits of pool liquidity** (`LIQUIDITY_CREDITS_PER_USD`,
+per-instance env), the owner-confirmed number (2026-08-26, liquidity
+funding design; it supersedes the earlier provisional 100). The rate is
 stamped on each purchase row at creation, so a price change never rewrites
 an old purchase.
 

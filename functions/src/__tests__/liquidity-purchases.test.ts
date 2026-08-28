@@ -129,7 +129,7 @@ describe('checkout', () => {
     const res = await request(app).post(`/api/workspaces/${WS}/liquidity/checkout`).send({ usdAmount: 100 });
     expect(res.status).toBe(201);
     expect(res.body.url).toContain('checkout.stripe.com');
-    expect(res.body.credits).toBe(10000); // $1 = 100 credits, provisional
+    expect(res.body.credits).toBe(100000); // $1 = 1,000 credits, owner-confirmed
     const [row] = await db.select().from(liquidityPurchases).where(eq(liquidityPurchases.id, res.body.purchaseId));
     expect(row.status).toBe('pending');
     expect(row.stripeSessionId).toBe('cs_test_1');
@@ -174,12 +174,12 @@ describe('the webhook', () => {
       .send(payload);
     expect(res.status).toBe(200);
 
-    // 10,000 credits over two open markets: 5,000 of pool contribution each.
-    expect(await poolOf('m1')).toBeCloseTo(before + 5000, 6);
-    expect(await poolOf('m2')).toBeCloseTo(before + 5000, 6);
+    // 100,000 credits over two open markets: 50,000 of pool contribution each.
+    expect(await poolOf('m1')).toBeCloseTo(before + 50000, 6);
+    expect(await poolOf('m2')).toBeCloseTo(before + 50000, 6);
     const [row] = await db.select().from(liquidityPurchases).where(eq(liquidityPurchases.id, purchaseId));
     expect(row.status).toBe('completed');
-    expect(row.allocation).toEqual({ m1: 5000, m2: 5000 });
+    expect(row.allocation).toEqual({ m1: 50000, m2: 50000 });
 
     // Stripe redelivers; the pools must not grow again.
     const again = await request(app)
@@ -188,7 +188,7 @@ describe('the webhook', () => {
       .set('content-type', 'application/json')
       .send(payload);
     expect(again.status).toBe(200);
-    expect(await poolOf('m1')).toBeCloseTo(before + 5000, 6);
+    expect(await poolOf('m1')).toBeCloseTo(before + 50000, 6);
   });
 
   test('a bad signature mints nothing and is refused', async () => {
