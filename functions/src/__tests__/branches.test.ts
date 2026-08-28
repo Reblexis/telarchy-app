@@ -96,3 +96,33 @@ describe('building', () => {
     await expect(dispatchBuild('oss/lane-i')).rejects.toThrow(/422/);
   });
 });
+
+describe('the error a not-configured build reaches the admin with', () => {
+  test('a deliberate 5xx AppError keeps its message through the app error handler', async () => {
+    // The 501 from dispatchBuild carries the terminal command to run instead.
+    // The generic >=500 mask exists for UNEXPECTED errors (driver text,
+    // stacks); masking a deliberate AppError hid the instruction behind
+    // "Internal error" (owner report 2026-08-28).
+    const { AppError } = await import('../lib/errors');
+    const express = (await import('express')).default;
+    const request = (await import('supertest')).default;
+    const app = express();
+    app.get('/boom-app', () => {
+      throw new AppError('This instance has no GITHUB_ACTIONS_TOKEN: run gh workflow run ...', 501);
+    });
+    app.get('/boom-raw', () => {
+      throw new Error('pg: relation "secrets" does not exist');
+    });
+    // The real handler, verbatim shape from app.ts.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    app.use((err: any, _req: any, res: any, _next: any) => {
+      const status = err instanceof AppError ? err.status : 500;
+      const message = status >= 500 && !(err instanceof AppError) ? 'Internal error' : err.message;
+      res.status(status).json({ error: message });
+    });
+    const kept = await request(app).get('/boom-app').expect(501);
+    expect(kept.body.error).toMatch(/GITHUB_ACTIONS_TOKEN/);
+    const masked = await request(app).get('/boom-raw').expect(500);
+    expect(masked.body.error).toBe('Internal error');
+  });
+});

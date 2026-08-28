@@ -391,7 +391,11 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   const extra = err instanceof AppError && err.extra ? err.extra : {};
   // AppError messages are caller-facing by construction. An unexpected 5xx can
   // carry driver / internal detail (Postgres text, stack context), so return a
-  // generic string; the real error is already logged above.
-  const message = status >= 500 ? 'Internal error' : err.message;
+  // generic string; the real error is already logged above. A deliberate
+  // AppError 5xx keeps its message: 501 "not configured on this instance"
+  // exists to tell the admin what to run instead, and masking it to
+  // "Internal error" hid exactly that (owner report 2026-08-28, the beta
+  // branch picker).
+  const message = status >= 500 && !(err instanceof AppError) ? 'Internal error' : err.message;
   res.status(status).json({ error: message, ...extra });
 });
