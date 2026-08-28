@@ -24,7 +24,7 @@ import { type BaselineOrderKey, compareSoonestFirst, primaryOf } from '../lib/ba
 import { type ContractorEntry, type ContractorJobPair, computeContractors } from '../lib/contractors';
 import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
-import { SIGNUP_CREDITS } from '../lib/validation';
+import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
@@ -954,7 +954,12 @@ async function buildFloorPayload(ws: PublicWs) {
     // ("no account can put more than N credits into one market") instead of
     // asking visitors to take it on faith. 0 = no cap.
     maxPositionCostPerMarket: ws.maxPositionCostPerMarket,
+    // What a USER signup starts with. API registrations start with
+    // agentSignupCredits (default 0 since 2026-08-28) and are funded by
+    // their owner's transfers, so a bot reading this page knows the stakes
+    // it can actually bring.
     signupCredits: SIGNUP_CREDITS,
+    agentSignupCredits: AGENT_SIGNUP_CREDITS,
     metricCount: metricCountRow?.n ?? 0,
     openMarketCount: marketList.length,
     participantCount: participantIds.size,

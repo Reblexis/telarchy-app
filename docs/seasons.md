@@ -175,12 +175,17 @@ b  =  0.5 x (typical bankroll) / (target price impact as a fraction of range)
 (at p = 0.5, spending `X` credits buys about `2X` shares and moves `p` by about
 `0.5 X / b`.)
 
-With the 1,000-credit signup grant and a target of "a full bankroll moves the
-consensus about 3% of the range":
+With the 1,000-credit signup grant of the time and a target of "a full
+bankroll moves the consensus about 3% of the range":
 
 ```
 b = 0.5 x 1000 / 0.03  ≈  16,700 credits      house exposure ≈ 11,600 cr
 ```
+
+(Since 2026-08-28 a user signup grants 10,000 credits; what bounds one
+account's deployment into one book is now the per-market position cap,
+5,000, not the grant, so Season 0's published ramp stands and the next
+season's sizing should target the cap rather than the grant.)
 
 `b = 16,700` is the ramp's DESTINATION, not its opening. A single trader can
 still move that book enough to be worth doing (a confident 5,000-credit
@@ -242,9 +247,10 @@ not the rule (see F1).
    destination `b`, 5,000 credits for Season 0, so no single account can own
    the book and the sybil arithmetic in F2 stays unattractive. Bankrolls on the
    floor differ by orders of magnitude (a Manifold import grants against a
-   proven record), and uncapped, the largest of them pins any book this side
-   of `b = 200,000`; the cap is what makes one sizing work for a floor whose
-   bankrolls differ by 100x.
+   proven record; its cap is 10,000 since 2026-08-28, and the largest
+   existing import predates that at about 101,000), and uncapped, the
+   largest of them pins any book this side of `b = 200,000`; the cap is what
+   makes one sizing work for a floor whose bankrolls differ by 100x.
 
 ## Lifecycle
 

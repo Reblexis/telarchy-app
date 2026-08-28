@@ -72,13 +72,17 @@ export function validateTxHash(hash: unknown): string | undefined {
 export const CREDIT_PRECISION = 1_000_000_000;
 
 /**
- * Credits granted to every new participant (human or agent) on signup.
- * Per-instance configuration via the SIGNUP_CREDITS env var; defaults to 1000
- * (the managed-instance value). Instances that issue credits only through
- * admin crediting or transfers set it to 0. An invalid value falls back to
- * the default with a boot warning.
+ * Credits granted to a new USER account (a browser signup: email/password,
+ * Google, or GitHub) on signup. Per-instance configuration via the
+ * SIGNUP_CREDITS env var; defaults to 10,000 (raised from 1,000 on
+ * 2026-08-28: grants are priced at the brought value of a real person
+ * arriving, and API registrations now start at zero, so the user grant is
+ * the working bankroll; design record in the telarchy umbrella,
+ * notes/trader-rewards-design-2026-08-28.md). Instances that issue credits
+ * only through admin crediting or transfers set it to 0. An invalid value
+ * falls back to the default with a boot warning.
  */
-export function parseSignupCredits(raw: string | undefined, fallback = 1000): number {
+export function parseSignupCredits(raw: string | undefined, fallback = 10000): number {
   if (raw === undefined || raw.trim() === '') return fallback;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed < 0 || !Number.isSafeInteger(parsed * CREDIT_PRECISION)) {
@@ -89,6 +93,18 @@ export function parseSignupCredits(raw: string | undefined, fallback = 1000): nu
 }
 
 export const SIGNUP_CREDITS = parseSignupCredits(process.env.SIGNUP_CREDITS);
+
+/**
+ * Credits granted to a participant registered through the API with no
+ * browser account (`POST /api/agents/register`, and sub-bots created via
+ * `POST /api/agents`). Default 0 since 2026-08-28: an API identity is free
+ * to mint, so a grant on it prices the real-money season's cheapest input
+ * at the cost of a curl call (the grant-farming vector in the design record
+ * above). An agent trades on credits transferred from its owner
+ * (`POST /api/agents/transfer`) or granted by a workspace admin
+ * (`POST /api/agents/:id/credit`). Env: AGENT_SIGNUP_CREDITS.
+ */
+export const AGENT_SIGNUP_CREDITS = parseSignupCredits(process.env.AGENT_SIGNUP_CREDITS, 0);
 
 /**
  * Credits granted to a key-first identity created via POST /api/onboard
