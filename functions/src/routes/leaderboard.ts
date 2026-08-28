@@ -4,7 +4,13 @@ import { db } from '../db/client';
 import { agents, authUser, prizeSeasons, seasonEntries, systemConfig, workspaces } from '../db/schema';
 import { loadBoard, loadSeasonSettled } from '../lib/board';
 import { getParticipantDisplayNames, platformOperatedIds } from '../lib/participants';
-import { type LadderRung, seasonScore, settledScoringActive, settleSeason } from '../lib/seasons';
+import {
+  type LadderRung,
+  type SeasonPayoutMode,
+  seasonScore,
+  settledScoringActive,
+  settleSeason,
+} from '../lib/seasons';
 import { ttlCache } from '../lib/ttl-cache';
 import { wrap } from '../lib/wrap';
 
@@ -330,6 +336,7 @@ async function currentSeasonPrizes(): Promise<{
     })),
     (season.ladder ?? []) as LadderRung[],
     season.poolUsd,
+    { payoutMode: (season.payoutMode ?? 'ladder') as SeasonPayoutMode, minPayoutUsd: season.minPayoutUsd ?? 0 },
   );
 
   return {
@@ -488,6 +495,7 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
     })),
     ladder,
     season.poolUsd,
+    { payoutMode: (season.payoutMode ?? 'ladder') as SeasonPayoutMode, minPayoutUsd: season.minPayoutUsd ?? 0 },
   );
   const projectedById = new Map(projection.ranked.map(r => [r.agentId, r.prizeUsd]));
 

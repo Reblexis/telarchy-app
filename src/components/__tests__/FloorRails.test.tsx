@@ -121,6 +121,8 @@ describe('the season prize beside an entrant', () => {
     endsAt: '2026-10-16T00:00:00.000Z',
     settledAt: null,
     poolUsd: 1000,
+    payoutMode: 'ladder' as const,
+    minPayoutUsd: 0,
     ladder: [
       { place: 1, prizeUsd: 500 },
       { place: 2, prizeUsd: 250 },

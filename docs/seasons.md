@@ -16,7 +16,8 @@ instant. Anything that changes what an entrant is scored on lands in
 `docs/legal/season-0-rules.md` before it takes effect.
 
 Season 0 runs from 2026-08-22T00:00Z to 2026-10-01T00:00Z with a $1,000 pool
-on the five-rung ladder the rules publish, and one hero workspace (the
+split among entrants in proportion to positive settled score (amended
+2026-08-28; originally a five-rung ladder), and one hero workspace (the
 `SEASON_WORKSPACE` default of `scripts/season-liquidity-ramp.mjs`) whose books
 the liquidity policy below ramps.
 
@@ -83,11 +84,12 @@ board's #1 stood at +1425 marked with 0.00 settled). The two boards showing
 different keys is deliberate and each says which it ranks. Calibration and
 accuracy are reported per row; they are never the key.
 
-The one thing profit-only ranking does badly is the endgame: with a free
-entry, free credits and a five-rung ladder, the rational move in the last week
-is maximum variance, because being 6th and being 60th pay the same. That is a
-tournament effect, not a scoring bug, and it is cheap to blunt (see F5);
-settled scoring at least forces the long shot to survive a real resolution.
+The endgame problem the original ladder had (being 6th and being 60th paid
+the same, so the rational last-week move was maximum variance) is mostly
+gone under the proportional split: payout is linear in score, so a coin
+flip's expected prize equals its expected score contribution and a long
+shot buys nothing in expectation. What remains of F5 is the residue that a
+loss costs nothing; the eligibility floor stays deferred to Season 1.
 
 **Scoring set.** The season scores over ALL public workspaces, live, not the
 set pinned at the start instant. A floor published mid-season counts from the
@@ -102,10 +104,18 @@ protected from deletion until Season 1.
 
 `docs/legal/season-0-rules.md` owns eligibility. What the design relies on:
 
-- Place alone decides the prize, negative scores included: the entrant in 1st
-  place is paid the 1st rung whatever their score. A rung with no eligible
-  entrant to take it, and anything otherwise unassigned, rolls into the next
-  season's pool.
+- The pool is split among eligible entrants in proportion to positive
+  settled score (`payout_mode = 'proportional'`, amended 2026-08-28; the
+  original ladder mode, where place alone decided the prize, remains
+  implemented for seasons that publish rungs). A zero or negative score is
+  paid nothing and does not shrink anyone else's share. Shares below the
+  season's published minimum ($50 for Season 0), anything above the $2,000
+  single-payout cap (`MAX_SINGLE_PAYOUT_USD`, the Czech withholding line),
+  and anything otherwise unassigned roll into the next season's pool.
+  Linear-in-score on purpose: under a linear payout, moving score between
+  colluding accounts changes the coalition's total by nothing, which is the
+  Sybil property the rank ladder lacked (design record: telarchy umbrella
+  notes/trader-rewards-design-2026-08-28.md).
 - Only `agents.platform_operated` disqualifies (migration 0069 carries the
   column; it flags the platform's trading agent, the sync jobs, the admin
   account, and the QA accounts used for entry-flow testing). A house account
@@ -240,24 +250,31 @@ not the rule (see F1).
 
 `docs/legal/season-0-rules.md` and the `/api/help` catalog own the lifecycle
 (draft, running, settled; 30-day claim window; claim requires payout details;
-pool below 5,000 USD; ladder within pool). The shape, for the design's sake
+ladder within pool in ladder mode). The shape, for the design's sake
 (`functions/src/lib/seasons.ts`):
 
-- **Draft.** Pool, ladder, dates and rules URL are editable (`PATCH
-  /api/seasons/:id`); this is the only time a start or end date may move. No
-  baselines exist, entry is open, and standings list entrants in entry order
-  with no score rather than answering empty. Creation and edits reject `endsAt
-  <= startsAt`, a ladder promising more than the pool, and a pool at or above
-  5,000 USD (the threshold that keeps a season sweepstakes-registration-free in
-  every US state).
+- **Draft.** Pool, payout mode, ladder, dates and rules URL are editable
+  (`PATCH /api/seasons/:id`); this is the only time a start or end date may
+  move. No baselines exist, entry is open, and standings list entrants in
+  entry order with no score rather than answering empty. Creation and edits
+  reject `endsAt <= startsAt` and, in ladder mode, a ladder promising more
+  than the pool. The pool has no ceiling (retired 2026-08-28): the old
+  sub-5,000 rule was the NY/FL registration-and-bonding line for CHANCE
+  sweepstakes and never applied to a deterministic skill-scored payout,
+  which scales uncapped; the cap that remains is per single payout
+  (`MAX_SINGLE_PAYOUT_USD`, $2,000, the Czech withholding line).
 - **Start.** A draft starts at its published instant through `POST
   /api/cron/seasons`, which starts due drafts and is a no-op otherwise.
   Starting pins the workspace set and snapshots a baseline profit for every
   participant, whether or not they have entered, so opting in late is not a
   free option on a drawdown; an account that did not exist at the start
   baselines at zero.
-- **Running.** Nothing is editable, standings are computed live, entry stays
-  open until the end instant.
+- **Running.** Standings are computed live and entry stays open until the
+  end instant. Nothing is editable except the one published amendment path:
+  `payoutMode` and `minPayoutUsd` may change mid-season where the season's
+  own rules reserve amendment (Season 0's experimental clause), and only
+  after the change is announced on the season page; pool and dates stay
+  frozen even then.
 - **Settle.** `POST /api/seasons/:id/settle` is reachable only from running
   and only once `endsAt` has passed (guard added 2026-08-28: the scored
   window ends at `endsAt`, so settling early would truncate it silently).
@@ -357,9 +374,13 @@ window and is deliberately unscored this season.
 
 ### F5. Endgame variance farming
 
-**MEDIUM.** Free entry, no downside, five paying rungs: in the last week the
-correct play from 8th place is to bet everything on one long shot. Honest
-forecasters lose rungs to lottery tickets.
+**MEDIUM under the ladder; LOW under the proportional split (2026-08-28).**
+Free entry, no downside, five paying rungs made the correct last-week play
+from 8th place one long shot: being 6th and 60th paid the same. The
+proportional payout removes the discontinuity: payout is linear in score,
+so a coin flip's expected prize equals its expected score contribution and
+buys nothing in expectation. The residue is that a loss still costs
+nothing, so pure variance is free to attempt even if worthless on average.
 
 **Mitigation, deferred to Season 1: an eligibility floor rather than a scoring
 change.** To be ranked for a prize, require some minimum activity spread across

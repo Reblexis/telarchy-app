@@ -2261,7 +2261,8 @@ carry the matching exception. From Season 1 the rules are frozen at the start
 instant. Anything that changes what an entrant is scored on lands in
 <code>docs/legal/season-0-rules.md</code> before it takes effect.</p>
 <p>Season 0 runs from 2026-08-22T00:00Z to 2026-10-01T00:00Z with a $1,000 pool
-on the five-rung ladder the rules publish, and one hero workspace (the
+split among entrants in proportion to positive settled score (amended
+2026-08-28; originally a five-rung ladder), and one hero workspace (the
 <code>SEASON_WORKSPACE</code> default of <code>scripts/season-liquidity-ramp.mjs</code>) whose books
 the liquidity policy below ramps.</p>
 <h2 id="docs-seasons-md--h2">What a season is for</h2>
@@ -2317,11 +2318,12 @@ notes/season-0-gaming-review-2026-08-28.md in the telarchy umbrella: the
 board's #1 stood at +1425 marked with 0.00 settled). The two boards showing
 different keys is deliberate and each says which it ranks. Calibration and
 accuracy are reported per row; they are never the key.</p>
-<p>The one thing profit-only ranking does badly is the endgame: with a free
-entry, free credits and a five-rung ladder, the rational move in the last week
-is maximum variance, because being 6th and being 60th pay the same. That is a
-tournament effect, not a scoring bug, and it is cheap to blunt (see F5);
-settled scoring at least forces the long shot to survive a real resolution.</p>
+<p>The endgame problem the original ladder had (being 6th and being 60th paid
+the same, so the rational last-week move was maximum variance) is mostly
+gone under the proportional split: payout is linear in score, so a coin
+flip's expected prize equals its expected score contribution and a long
+shot buys nothing in expectation. What remains of F5 is the residue that a
+loss costs nothing; the eligibility floor stays deferred to Season 1.</p>
 <p><strong>Scoring set.</strong> The season scores over ALL public workspaces, live, not the
 set pinned at the start instant. A floor published mid-season counts from the
 moment it is public. Standings (<code>routes/leaderboard.ts</code> seasonStandings), the
@@ -2333,10 +2335,18 @@ protected from deletion until Season 1.</p>
 <h2 id="docs-seasons-md--h4">Eligibility</h2>
 <p><code>docs/legal/season-0-rules.md</code> owns eligibility. What the design relies on:</p>
 <ul>
-<li>Place alone decides the prize, negative scores included: the entrant in 1st
-place is paid the 1st rung whatever their score. A rung with no eligible
-entrant to take it, and anything otherwise unassigned, rolls into the next
-season's pool.</li>
+<li>The pool is split among eligible entrants in proportion to positive
+settled score (<code>payout_mode = 'proportional'</code>, amended 2026-08-28; the
+original ladder mode, where place alone decided the prize, remains
+implemented for seasons that publish rungs). A zero or negative score is
+paid nothing and does not shrink anyone else's share. Shares below the
+season's published minimum ($50 for Season 0), anything above the $2,000
+single-payout cap (<code>MAX_SINGLE_PAYOUT_USD</code>, the Czech withholding line),
+and anything otherwise unassigned roll into the next season's pool.
+Linear-in-score on purpose: under a linear payout, moving score between
+colluding accounts changes the coalition's total by nothing, which is the
+Sybil property the rank ladder lacked (design record: telarchy umbrella
+notes/trader-rewards-design-2026-08-28.md).</li>
 <li>Only <code>agents.platform_operated</code> disqualifies (migration 0069 carries the
 column; it flags the platform's trading agent, the sync jobs, the admin
 account, and the QA accounts used for entry-flow testing). A house account
@@ -2495,21 +2505,30 @@ bankrolls differ by 100x.</li>
 <h2 id="docs-seasons-md--h9">Lifecycle</h2>
 <p><code>docs/legal/season-0-rules.md</code> and the <code>/api/help</code> catalog own the lifecycle
 (draft, running, settled; 30-day claim window; claim requires payout details;
-pool below 5,000 USD; ladder within pool). The shape, for the design's sake
+ladder within pool in ladder mode). The shape, for the design's sake
 (<code>functions/src/lib/seasons.ts</code>):</p>
 <ul>
-<li><strong>Draft.</strong> Pool, ladder, dates and rules URL are editable (<code>PATCH /api/seasons/:id</code>); this is the only time a start or end date may move. No
-baselines exist, entry is open, and standings list entrants in entry order
-with no score rather than answering empty. Creation and edits reject <code>endsAt &lt;= startsAt</code>, a ladder promising more than the pool, and a pool at or above
-5,000 USD (the threshold that keeps a season sweepstakes-registration-free in
-every US state).</li>
+<li><strong>Draft.</strong> Pool, payout mode, ladder, dates and rules URL are editable
+(<code>PATCH /api/seasons/:id</code>); this is the only time a start or end date may
+move. No baselines exist, entry is open, and standings list entrants in
+entry order with no score rather than answering empty. Creation and edits
+reject <code>endsAt &lt;= startsAt</code> and, in ladder mode, a ladder promising more
+than the pool. The pool has no ceiling (retired 2026-08-28): the old
+sub-5,000 rule was the NY/FL registration-and-bonding line for CHANCE
+sweepstakes and never applied to a deterministic skill-scored payout,
+which scales uncapped; the cap that remains is per single payout
+(<code>MAX_SINGLE_PAYOUT_USD</code>, $2,000, the Czech withholding line).</li>
 <li><strong>Start.</strong> A draft starts at its published instant through <code>POST /api/cron/seasons</code>, which starts due drafts and is a no-op otherwise.
 Starting pins the workspace set and snapshots a baseline profit for every
 participant, whether or not they have entered, so opting in late is not a
 free option on a drawdown; an account that did not exist at the start
 baselines at zero.</li>
-<li><strong>Running.</strong> Nothing is editable, standings are computed live, entry stays
-open until the end instant.</li>
+<li><strong>Running.</strong> Standings are computed live and entry stays open until the
+end instant. Nothing is editable except the one published amendment path:
+<code>payoutMode</code> and <code>minPayoutUsd</code> may change mid-season where the season's
+own rules reserve amendment (Season 0's experimental clause), and only
+after the change is announced on the season page; pool and dates stay
+frozen even then.</li>
 <li><strong>Settle.</strong> <code>POST /api/seasons/:id/settle</code> is reachable only from running
 and only once <code>endsAt</code> has passed (guard added 2026-08-28: the scored
 window ends at <code>endsAt</code>, so settling early would truncate it silently).
@@ -2597,9 +2616,13 @@ continuously. That steady cadence is what made settled-only scoring viable
 (The score, 2026-08-28); the hero long-horizon market remains outside the
 window and is deliberately unscored this season.</p>
 <h3 id="docs-seasons-md--h15">F5. Endgame variance farming</h3>
-<p><strong>MEDIUM.</strong> Free entry, no downside, five paying rungs: in the last week the
-correct play from 8th place is to bet everything on one long shot. Honest
-forecasters lose rungs to lottery tickets.</p>
+<p><strong>MEDIUM under the ladder; LOW under the proportional split (2026-08-28).</strong>
+Free entry, no downside, five paying rungs made the correct last-week play
+from 8th place one long shot: being 6th and 60th paid the same. The
+proportional payout removes the discontinuity: payout is linear in score,
+so a coin flip's expected prize equals its expected score contribution and
+buys nothing in expectation. The residue is that a loss still costs
+nothing, so pure variance is free to attempt even if worthless on average.</p>
 <p><strong>Mitigation, deferred to Season 1: an eligibility floor rather than a scoring
 change.</strong> To be ranked for a prize, require some minimum activity spread across
 the season, for example 10 trades on at least 2 markets, at least 3 of them
@@ -7703,13 +7726,22 @@ minus what you paid on them. Open positions are still marked on the boards,
 but a mark scores nothing until its market resolves. Trades placed in a
 market's final 6 hours no longer count toward the season score. Announced on
 the season page; the Scoring section below has the details.</em></p>
+<p><em>Amended 2026-08-28, mid-season (second amendment that day): prizes are no
+longer fixed amounts by place. The $1,000 pool is split among entrants in
+proportion to positive settled season score, so every entrant in the green
+is paid their share rather than only the top five. Shares below $50 are not
+paid and roll into the next season's pool; no single prize exceeds $2,000.
+Prizes are now paid by Telarchy directly, from its own funds, rather than by
+the workspace owner. Effective on announcement on the season page; the
+Prizes and Getting paid sections below have the details.</em></p>
 <p><strong>Season 0 is the first one, and the platform is still being launched.</strong> Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
 the feedback channel in the app; where a bug affects standings we say so
 publicly and publish the correction.</p>
 <h2 id="docs-legal-season-0-rules-md--h2">The deal</h2>
-<p>Trade on the public Telarchy floor; the five entrants who earn the most
-settled trading profit while the season runs are paid real money. The season runs from
+<p>Trade on the public Telarchy floor; entrants are paid real money in
+proportion to the settled trading profit they earn while the season runs
+(amended 2026-08-28; originally a five-place prize ladder). The season runs from
 its published start instant to its published end instant, both UTC, shown on
 the season page. Entries close when the season ends; settlement and prizes
 follow.</p>
@@ -7720,40 +7752,23 @@ or redeemed. A prize is for where you place under the scoring rule, not for
 credits, and your credit balance is unaffected by winning or losing.</p>
 <h2 id="docs-legal-season-0-rules-md--h4">Prizes</h2>
 <p>Total pool: <strong>$1,000 USD</strong>.</p>
-<div class="tablewrap"><table>
-<thead>
-<tr>
-<th>Place</th>
-<th>Prize</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1st</td>
-<td>$500</td>
-</tr>
-<tr>
-<td>2nd</td>
-<td>$250</td>
-</tr>
-<tr>
-<td>3rd</td>
-<td>$125</td>
-</tr>
-<tr>
-<td>4th</td>
-<td>$75</td>
-</tr>
-<tr>
-<td>5th</td>
-<td>$50</td>
-</tr>
-</tbody>
-</table></div>
-<p><strong>Place decides the prize, whatever the score</strong> (amended 2026-08-22, see
-above): the entrant in 1st place is paid the 1st rung even if their season
-score is zero or negative. A rung with no entrant to take it, and anything
-otherwise unassigned, rolls into the next season's pool.</p>
+<pre><code>your prize = pool x your positive settled season score
+                  / the sum of all entrants' positive settled season scores
+</code></pre>
+<p>(Amended 2026-08-28, replacing the original fixed ladder of $500 / $250 /
+$125 / $75 / $50 by place.) The pool is split in proportion to settled
+season score: earn twice the settled profit of another entrant, be paid
+twice their prize. A zero or negative score is paid nothing and does not
+shrink anyone else's share. Three boundary rules:</p>
+<ul>
+<li>A computed share below <strong>$50</strong> is not paid and rolls into the next
+season's pool (a prize smaller than the cost of sending it helps nobody).</li>
+<li>No single prize exceeds <strong>$2,000</strong> (the Czech tax-withholding line for
+prizes; irrelevant at this pool size, stated so the rule exists before it
+matters). The excess rolls into the next season's pool.</li>
+<li>Anything otherwise unassigned, including the whole pool if no entrant has
+a positive score, rolls into the next season's pool.</li>
+</ul>
 <h2 id="docs-legal-season-0-rules-md--h5">Scoring</h2>
 <pre><code>season score = what the season's resolved markets paid you - what you paid on them
 </code></pre>
@@ -7786,9 +7801,10 @@ workspaces that become public while the season runs, as before.</li>
 a gain on the boards the moment it lands. That marked gain is display, not
 score: nothing enters your season score until a market you traded actually
 resolves.</p>
-<p>Only entrants who explicitly opted in are ranked or paid. Ties are broken by
-earlier entry, then by participant id; both are automatic and give the same
-result on any recount.</p>
+<p>Only entrants who explicitly opted in are ranked or paid. Equal scores are
+paid equal shares, so a tie needs no breaking for money; the displayed rank
+order breaks ties by earlier entry, then by participant id, both automatic
+and identical on any recount.</p>
 <h2 id="docs-legal-season-0-rules-md--h6">Entering</h2>
 <ul>
 <li>18 or older, with a Telarchy account, explicitly opted in. Entry opens when
@@ -7805,12 +7821,15 @@ every public workspace. Being a workspace owner is not being the platform.</li>
 person running several accounts, or collude to distort prices.</li>
 </ul>
 <h2 id="docs-legal-season-0-rules-md--h7">Getting paid</h2>
-<p>Telarchy holds, transmits, escrows and processes no funds. Winners have <strong>30
-days</strong> after settlement to claim, by adding payment details to their account
-and pressing claim; the workspace owner then pays them directly, outside the
-Service, the same arrangement paid job proposals use (Terms of Service section
-3). An unclaimed prize rolls into the next season's pool. Winners are
-responsible for taxes on amounts received.</p>
+<p>Winners have <strong>30 days</strong> after settlement to claim, by adding payment
+details to their account and pressing claim; Telarchy then pays them
+directly, from its own funds, outside the Service, using those details
+(amended 2026-08-28; previously the workspace owner paid). Telarchy holds,
+transmits, escrows and processes no third-party funds: a prize is our own
+money paid as a contest prize. An unclaimed prize rolls into the next
+season's pool. Winners are responsible for taxes on amounts received; where
+Czech law requires withholding on a prize (above CZK 50,000), we withhold
+and say so, which is why no single prize exceeds $2,000 for now.</p>
 <h2 id="docs-legal-season-0-rules-md--h8">The operator's side</h2>
 <p>We do not void markets during a running season, except to correct a declared
 error, and we announce it if we do. We may end or void a season; if we do, we
@@ -7823,7 +7842,7 @@ standings rather than making it silently.</p>
 <section class="docfile" id="file--docs-legal-terms-of-service-md">
 <p class="filelabel">docs/legal/terms-of-service.md</p>
 <h1 id="docs-legal-terms-of-service-md--h1">Terms of Service</h1>
-<p><em>Last updated: 2026-08-21 (version 1.5)</em></p>
+<p><em>Last updated: 2026-08-28 (version 1.6)</em></p>
 <p>These Terms govern your use of <code>telarchy.com</code> (the &quot;Service&quot;), operated by the Telarchy team (&quot;we&quot;, &quot;us&quot;). By creating an account or using the Service you agree to them; if you do not agree, do not use the Service.</p>
 <h2 id="docs-legal-terms-of-service-md--h2">1. Eligibility and accounts</h2>
 <p>You must be at least 18 years old. You are responsible for your login credentials and for all activity under your account. We may suspend or terminate accounts that violate these Terms or put the Service or its users at risk.</p>
@@ -7835,9 +7854,9 @@ standings rather than making it silently.</p>
 <p>Approving or declining a proposal is the workspace owner's decision alone, made at their sole discretion. Market prices on the Service are forecasts, not votes: however a market prices a proposal's expected impact, that price creates no obligation on the owner or on us to approve it, and no participant acquires a right to approval, payment, or any other outcome by trading on a proposal's markets.</p>
 <h2 id="docs-legal-terms-of-service-md--h5">3a. Prize contests</h2>
 <p>We may run contests (each a &quot;season&quot;) in which cash prizes are awarded for performance on the Service's forecasting markets. Seasons are optional and are entered only by explicit opt-in.</p>
-<p>Entry is free. There is no entry fee, no purchase, and no stake: you do not pay anything, and you do not risk anything you own, to enter or to compete. Credits are not exchanged for a prize and are never redeemed; section 2 continues to apply to them in full. A prize is awarded for where you place under a scoring rule published in advance, not in exchange for credits, so a season is a skill contest rather than a wager or a lottery.</p>
-<p>Before a season starts we publish its rules: the dates, the total prize pool, the prize for each place, the scoring rule, who is eligible, how ties are broken, and how and when winners are paid. Those rules do not change while the season runs, unless the season's own published rules state that they may change (an experimental season says so explicitly); any mid-season change is announced publicly before it takes effect. You must be at least 18 years old to enter. Participants operated by us or run as part of the platform are not eligible. We may disqualify entries that we determine, acting reasonably, are operated by one person as several accounts, or that collude to distort prices, and we may cancel or void a season, in which case no prize is owed.</p>
-<p>As with paid job proposals, we hold, transmit, escrow and process no funds. A prize is paid directly by the workspace owner to the winner, outside the Service, using the payment details the winner stored in their account. Winners are responsible for taxes on amounts received. We are not a party to that payment, are not a money transmitter or payment processor, and charge no fee on it.</p>
+<p>Entry is free. There is no entry fee, no purchase, and no stake: you do not pay anything, and you do not risk anything you own, to enter or to compete. Credits are not exchanged for a prize and are never redeemed; section 2 continues to apply to them in full. A prize is awarded for your performance under a scoring rule published in advance (a place on a ladder, or a share of the pool in proportion to your score), not in exchange for credits and never as a function of your credit balance, so a season is a skill contest rather than a wager or a lottery. No element of chance decides who is paid or how much.</p>
+<p>Before a season starts we publish its rules: the dates, the total prize pool, how the pool is divided (the prize for each place, or the formula for each entrant's share), the scoring rule, who is eligible, how ties are broken, and how and when winners are paid. Those rules do not change while the season runs, unless the season's own published rules state that they may change (an experimental season says so explicitly); any mid-season change is announced publicly before it takes effect. You must be at least 18 years old to enter. Participants operated by us or run as part of the platform are not eligible. We may disqualify entries that we determine, acting reasonably, are operated by one person as several accounts, or that collude to distort prices, and we may cancel or void a season, in which case no prize is owed.</p>
+<p>We run seasons as the contest operator and pay prizes ourselves, from our own funds, outside the Service, using the payment details the winner stored in their account. We hold, transmit, escrow and process no third-party funds in doing so: a prize is our own money paid as a contest prize, not a payment we process for anyone else, and we are not a money transmitter or payment processor. Winners are responsible for taxes on amounts received; where the law applicable to us requires withholding on a prize, we withhold the required amount and the season's rules say so.</p>
 <h2 id="docs-legal-terms-of-service-md--h6">4. Acceptable use</h2>
 <p>Do not use the Service to break the law; do not submit unlawful, harassing, defamatory, or infringing content; do not probe or compromise the Service's security, circumvent rate limits, or interfere with other participants; do not collude to distort prices or defraud other participants; do not impersonate anyone; scrape only through the public API within its documented rate limits.</p>
 <h2 id="docs-legal-terms-of-service-md--h7">5. Your content</h2>

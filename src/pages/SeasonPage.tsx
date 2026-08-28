@@ -133,8 +133,9 @@ export function SeasonPage() {
         <section className="seasonp-hero" aria-label="Prize pool">
           <p className="seasonp-pool">${season.poolUsd.toLocaleString()}</p>
           <p className="seasonp-pool-sub">
-            in real money, paid to the five whose trading profit grows the most while the season runs. Free to enter: no
-            purchase, no stake, your credits are never spent or exchanged.
+            {season.payoutMode === 'proportional'
+              ? 'in real money, split among entrants in proportion to the settled trading profit they earn while the season runs. Free to enter: no purchase, no stake, your credits are never spent or exchanged.'
+              : 'in real money, paid by place to those whose settled trading profit is highest while the season runs. Free to enter: no purchase, no stake, your credits are never spent or exchanged.'}
           </p>
         </section>
 
@@ -152,13 +153,20 @@ export function SeasonPage() {
             because an announcement a visitor has to open is not announced. */}
         <details className="seasonp-rulechanges">
           <summary className="seasonp-experimental seasonp-rulechanges-summary">
-            Rule change, 2026-08-28, effective now: the ranking pays settled profit only, i.e. markets that actually
-            resolve while the season runs. Open positions stay marked on the board but score nothing until reality
-            lands, and trades in a market's final 6 hours do not count toward the score. Details in the rules.
+            {season.payoutMode === 'proportional'
+              ? 'Rule change, 2026-08-28, effective now: the pool is split among entrants in proportion to positive settled profit, replacing the fixed prizes by place. Every entrant in the green is paid their share; details in the rules.'
+              : "Rule change, 2026-08-28, effective now: the ranking pays settled profit only, i.e. markets that actually resolve while the season runs. Open positions stay marked on the board but score nothing until reality lands, and trades in a market's final 6 hours do not count toward the score. Details in the rules."}
             <span className="seasonp-rulechanges-toggle" aria-hidden="true">
               earlier changes
             </span>
           </summary>
+          {season.payoutMode === 'proportional' && (
+            <p className="seasonp-experimental">
+              Rule change, 2026-08-28: the ranking pays settled profit only, i.e. markets that actually resolve while
+              the season runs. Open positions stay marked on the board but score nothing until reality lands, and trades
+              in a market's final 6 hours do not count toward the score.
+            </p>
+          )}
           <p className="seasonp-experimental">
             Rule change, 2026-08-25: accounts that own or administer a workspace are explicitly eligible, and their
             trades in it count like any other. The change widens who may enter and reduces nobody's standing.
@@ -183,27 +191,42 @@ export function SeasonPage() {
 
         <section className="seasonp-block" aria-label="Prizes">
           <h2 className="lbp-season-name">Prizes</h2>
-          {/* Each rung's bar length IS the prize, scaled to first place, so
+          {season.payoutMode === 'proportional' ? (
+            /* No rungs to draw: the payout curve IS the standings. The one
+               number worth stating beside the pool is the dust floor, so
+               nobody wonders why a $0.40 share was not paid. */
+            <p className="seasonp-note">
+              The ${season.poolUsd.toLocaleString()} pool is split among entrants in proportion to positive settled
+              profit: earn twice the settled profit, be paid twice the share. Losses pay nothing and shrink nobody
+              else's share
+              {season.minPayoutUsd > 0
+                ? `; a share below $${season.minPayoutUsd.toLocaleString()} rolls into the next season's pool instead of being paid`
+                : ''}
+              . Your projected share is on the standings below.
+            </p>
+          ) : (
+            /* Each rung's bar length IS the prize, scaled to first place, so
               the halving ladder (500, 250, 125...) is visible as a shape
               rather than a column of numbers to compare. Monochrome bars,
-              accent only on the rung being fought over. */}
-          <ol className="seasonp-ladder">
-            {season.ladder.map(rung => {
-              const top = Math.max(...season.ladder.map(r => r.prizeUsd));
-              return (
-                <li key={rung.place} className="seasonp-rung">
-                  <span className="seasonp-place">{rung.place}</span>
-                  <span className="seasonp-bar" aria-hidden="true">
-                    <span
-                      className={`seasonp-bar-fill${rung.place === 1 ? ' is-top' : ''}`}
-                      style={{ width: `${Math.max(4, (rung.prizeUsd / top) * 100)}%` }}
-                    />
-                  </span>
-                  <span className="seasonp-prize">${rung.prizeUsd.toLocaleString()}</span>
-                </li>
-              );
-            })}
-          </ol>
+              accent only on the rung being fought over. */
+            <ol className="seasonp-ladder">
+              {season.ladder.map(rung => {
+                const top = Math.max(...season.ladder.map(r => r.prizeUsd));
+                return (
+                  <li key={rung.place} className="seasonp-rung">
+                    <span className="seasonp-place">{rung.place}</span>
+                    <span className="seasonp-bar" aria-hidden="true">
+                      <span
+                        className={`seasonp-bar-fill${rung.place === 1 ? ' is-top' : ''}`}
+                        style={{ width: `${Math.max(4, (rung.prizeUsd / top) * 100)}%` }}
+                      />
+                    </span>
+                    <span className="seasonp-prize">${rung.prizeUsd.toLocaleString()}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </section>
 
         <section className="seasonp-block" aria-label="How it is scored">

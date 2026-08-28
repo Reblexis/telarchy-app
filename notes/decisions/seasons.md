@@ -401,3 +401,19 @@ not rely on it.
 Anything that changes what an entrant is scored on must also land in
 `docs/legal/season-0-rules.md` before the start instant, because that document
 promises it will not change while the season runs.
+
+## 2026-08-28: proportional payout replaces the ladder (owner decision)
+
+**DONE 2026-08-28 (Viktor):** "ok lets just do it as payouts proportional to
+profit" and, on amending the live season, "cant we just change the rules of
+season 0?". Season 0's pool is split among entrants in proportion to
+positive settled season score (min payout $50, single-payout cap $2,000, the
+Czech withholding line), replacing the five-rung ladder; the amendment rides
+Season 0's experimental clause and is announced on the season page before
+the PATCH flips `payout_mode`. The sub-5,000 pool ceiling is retired the
+same day: it was the NY/FL chance-sweepstakes bonding line and never applied
+to a deterministic skill-scored payout (the owner wants pools that scale
+without cap). Payer flips from "the workspace owner" to Telarchy as contest
+operator (ToS 1.6). Rationale, the wheel discussion, and the Sybil linearity
+argument: telarchy umbrella notes/wheel-vs-proportional-legality-2026-08-28.md
+and notes/trader-rewards-design-2026-08-28.md.

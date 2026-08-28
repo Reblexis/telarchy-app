@@ -64,9 +64,11 @@ export function SeasonEntryPanel() {
       <span className="ticket-label">{season.name}</span>
 
       <p className="acctdlg-hint">
-        ${season.poolUsd.toLocaleString()} in prizes across {season.ladder.length} places
-        {top ? `, $${top.prizeUsd.toLocaleString()} for first` : ''}. {clock.headline}. Ranked on how much your marked
-        profit grows while the season runs. <Link to={season.rulesUrl}>Rules</Link>.
+        {season.payoutMode === 'proportional'
+          ? `$${season.poolUsd.toLocaleString()} pool, split in proportion to settled profit earned while the season runs`
+          : `$${season.poolUsd.toLocaleString()} in prizes across ${season.ladder.length} places${top ? `, $${top.prizeUsd.toLocaleString()} for first` : ''}`}
+        . {clock.headline}. Ranked on settled profit: markets that resolve while the season runs.{' '}
+        <Link to={season.rulesUrl}>Rules</Link>.
       </p>
 
       {/* No entry toggle here. Entering moved to SeasonEntryButton on the
