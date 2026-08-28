@@ -172,14 +172,20 @@ function useTweenedDomain(target: [number, number]): [number, number] {
 const PAD_T = 24;
 const PAD_B = 34;
 
-function fmt(v: number, unit: string): string {
+export function fmt(v: number, unit: string): string {
   const abs = Math.abs(v);
+  // Millions and billions compact (a $10,000,000 marker label ran off the
+  // plot, owner report 2026-08-28); thousands stay exact, they are quotes.
   const s =
-    abs >= 1000
-      ? Math.round(v).toLocaleString('en-US')
-      : abs >= 100 || Number.isInteger(Number(v.toFixed(6)))
-        ? Number(v.toFixed(6)).toFixed(0)
-        : v.toFixed(1);
+    abs >= 1e9
+      ? `${(v / 1e9).toLocaleString('en-US', { maximumFractionDigits: 1 })}B`
+      : abs >= 1e6
+        ? `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 })}M`
+        : abs >= 1000
+          ? Math.round(v).toLocaleString('en-US')
+          : abs >= 100 || Number.isInteger(Number(v.toFixed(6)))
+            ? Number(v.toFixed(6)).toFixed(0)
+            : v.toFixed(1);
   return unit + s;
 }
 

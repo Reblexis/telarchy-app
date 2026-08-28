@@ -133,7 +133,7 @@ describe('a metric with no reading yet', () => {
     );
     expect(container.querySelector('.nchart-empty')?.textContent).toBe('no reading yet');
     expect(container.querySelector('.nchart-line')).toBeNull();
-    expect(container.querySelector('.nchart-marker.is-selected')?.textContent).toContain('$10,000,000');
+    expect(container.querySelector('.nchart-marker.is-selected')?.textContent).toContain('$10M');
   });
 });
 
@@ -327,5 +327,17 @@ describe('labels never collide', () => {
     expect(ys.length).toBe(3);
     expect(ys[1] - ys[0]).toBeGreaterThanOrEqual(12);
     expect(ys[2] - ys[1]).toBeGreaterThanOrEqual(12);
+  });
+});
+
+describe('the label number tiers', () => {
+  // "$10,000,000" as a marker label ran off the plot (owner report
+  // 2026-08-28); quotes below a million stay exact.
+  test('millions compact, thousands stay exact', async () => {
+    const { fmt } = await import('../NumberChart');
+    expect(fmt(10_000_000, '$')).toBe('$10M');
+    expect(fmt(1_150_000_000, '$')).toBe('$1.2B');
+    expect(fmt(7_146, '$')).toBe('$7,146');
+    expect(fmt(19.8, '')).toBe('19.8');
   });
 });

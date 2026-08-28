@@ -384,9 +384,10 @@ export function TradePage() {
       expected · {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
     </span>
   ) : null;
-  // Both charts render whenever the metric has readings; without them the
-  // number chart would be an empty axis.
-  const showNumberChart = !!hero && hero.metricHistory.length > 0;
+  // The number chart renders even with no readings: it draws its own
+  // "no reading yet" state with the market's marker (owner report
+  // 2026-08-28, implied valuation: hiding it read as the graph
+  // collapsing).
   // The arithmetic under the price: booked, missing, per day. Null for any
   // metric that does not accumulate inside its period, which is most of them.
   const gap = periodGapOf(hero);
@@ -1403,7 +1404,7 @@ export function TradePage() {
                     ask 2026-08-28, replacing the MARKET/NUMBER toggle): the
                     metric's own trajectory at a quieter height, its reading
                     and its age as the row's left stat, its title centred. */}
-                  {showNumberChart && hero && (
+                  {hero && (
                     <div className="pubws-numchart">
                       <NumberChart
                         points={hero.metricHistory}

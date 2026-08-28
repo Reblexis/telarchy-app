@@ -1161,9 +1161,12 @@ describe('the chart control row', () => {
     ];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
-    // No reading: no number chart; the countdown beside the price stays.
+    // No reading: the number chart stays, in its own "no reading yet"
+    // state (hiding it read as the graph collapsing, owner report
+    // 2026-08-28), and its stat shows no value and no age.
     await screen.findByText(/settles in/);
     expect(screen.queryByText(/now /)).toBeNull();
-    expect(container.querySelector('.pubws-numchart')).toBeNull();
+    expect(container.querySelector('.pubws-numchart .nchart-empty')?.textContent).toBe('no reading yet');
+    expect(container.querySelector('.pubws-numchart .pubws-updated')).toBeNull();
   });
 });

@@ -3094,7 +3094,11 @@ picker names each market by its clock and settle day (<code>TODAY · 26 AUG</cod
 (&quot;today&quot;, &quot;this week&quot;, &quot;on 30 Sep&quot;, the exact UTC settle instant as the
 word's hover title), and the countdown rides the stat row next to the
 price, whether or not the metric has readings, so the settle clock never
-leaves the page. The former &quot;resolves 30 September 2026&quot; line is gone,
+leaves the page. A metric with no reading yet keeps its number chart
+too, in the component's own &quot;no reading yet&quot; state with the market's
+marker (hiding it read as the graph collapsing, owner report
+2026-08-28); its stat shows no value and no age. The former &quot;resolves 30
+September 2026&quot; line is gone,
 and neither the segments nor the question repeat the timer. The one
 thing that still prints under the stat row is the N/A caveat of a metric
 with no reading yet (&quot;N/A, all bets refunded, if there is still no
