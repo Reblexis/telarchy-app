@@ -227,6 +227,9 @@ export interface PrizeSeason {
   payoutMode: 'ladder' | 'proportional';
   /** Proportional only: a computed share below this is not paid. */
   minPayoutUsd: number;
+  /** Seasons after Season 0: public-workspace operators take no payout and
+   *  entries sharing a payout handle collapse to one. */
+  strictEligibility: boolean;
   /** Empty for a proportional season. */
   ladder: LadderRung[];
   rulesUrl: string;

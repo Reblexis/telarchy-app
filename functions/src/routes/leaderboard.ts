@@ -3,7 +3,12 @@ import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, authUser, prizeSeasons, seasonEntries, systemConfig, workspaces } from '../db/schema';
 import { loadBoard, loadSeasonSettled } from '../lib/board';
-import { getParticipantDisplayNames, platformOperatedIds } from '../lib/participants';
+import {
+  getParticipantDisplayNames,
+  payoutHandlesById,
+  platformOperatedIds,
+  publicWorkspaceOperatorIds,
+} from '../lib/participants';
 import {
   type LadderRung,
   type SeasonPayoutMode,
@@ -325,7 +330,10 @@ async function currentSeasonPrizes(): Promise<{
     : null;
   const board = settled ? null : await cachedBoard(publicIds);
 
-  const house = await platformOperatedIds(entries.map(e => e.agentId));
+  const entrantIds = entries.map(e => e.agentId);
+  const house = await platformOperatedIds(entrantIds);
+  const operators = await publicWorkspaceOperatorIds(entrantIds);
+  const handles = await payoutHandlesById(entrantIds);
   const projection = settleSeason(
     entries.map(e => ({
       agentId: e.agentId,
@@ -333,10 +341,16 @@ async function currentSeasonPrizes(): Promise<{
       currentProfit: settled ? (settled.get(e.agentId) ?? 0) : (board?.profitById.get(e.agentId) ?? 0),
       enteredAt: e.enteredAt ? new Date(e.enteredAt) : new Date(0),
       platformOperated: house.has(e.agentId),
+      workspaceOperator: operators.has(e.agentId),
+      payoutHandle: handles.get(e.agentId) ?? null,
     })),
     (season.ladder ?? []) as LadderRung[],
     season.poolUsd,
-    { payoutMode: (season.payoutMode ?? 'ladder') as SeasonPayoutMode, minPayoutUsd: season.minPayoutUsd ?? 0 },
+    {
+      payoutMode: (season.payoutMode ?? 'ladder') as SeasonPayoutMode,
+      minPayoutUsd: season.minPayoutUsd ?? 0,
+      strictEligibility: season.strictEligibility === true,
+    },
   );
 
   return {
@@ -482,7 +496,10 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
   // rather than in the client, so the number a standing shows and the number
   // a settlement pays can never drift apart: a second copy of "who gets which
   // rung" is a promise the payout might not keep.
-  const house = await platformOperatedIds(rows.map(r => r.id));
+  const rowIds = rows.map(r => r.id);
+  const house = await platformOperatedIds(rowIds);
+  const operators = await publicWorkspaceOperatorIds(rowIds);
+  const handles = await payoutHandlesById(rowIds);
   const projection = settleSeason(
     rows.map(r => ({
       agentId: r.id,
@@ -492,10 +509,16 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
       currentProfit: r.score,
       enteredAt: r.enteredAt ? new Date(r.enteredAt) : new Date(0),
       platformOperated: house.has(r.id),
+      workspaceOperator: operators.has(r.id),
+      payoutHandle: handles.get(r.id) ?? null,
     })),
     ladder,
     season.poolUsd,
-    { payoutMode: (season.payoutMode ?? 'ladder') as SeasonPayoutMode, minPayoutUsd: season.minPayoutUsd ?? 0 },
+    {
+      payoutMode: (season.payoutMode ?? 'ladder') as SeasonPayoutMode,
+      minPayoutUsd: season.minPayoutUsd ?? 0,
+      strictEligibility: season.strictEligibility === true,
+    },
   );
   const projectedById = new Map(projection.ranked.map(r => [r.agentId, r.prizeUsd]));
 

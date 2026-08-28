@@ -264,6 +264,81 @@ describe('settleSeason, proportional mode (rules amended 2026-08-28)', () => {
   });
 });
 
+describe('settleSeason, strict eligibility (seasons after Season 0, 2026-08-28)', () => {
+  const P = { payoutMode: 'proportional' as const, strictEligibility: true };
+  const op = (id: string, current: number, handle: string | null = null): SeasonEntrant => ({
+    ...entrant(id, 0, current),
+    workspaceOperator: true,
+    payoutHandle: handle,
+  });
+  const withHandle = (id: string, current: number, handle: string): SeasonEntrant => ({
+    ...entrant(id, 0, current),
+    payoutHandle: handle,
+  });
+
+  test('with the flag OFF a workspace operator is paid (the Season 0 rule)', () => {
+    const result = settleSeason([op('owner', 300), entrant('b', 0, 100)], [], POOL, {
+      payoutMode: 'proportional',
+    });
+    expect(result.ranked.map(r => [r.agentId, r.prizeUsd])).toEqual([
+      ['owner', 750],
+      ['b', 250],
+    ]);
+  });
+
+  test('a public-workspace operator is ranked but takes no payout and does not dilute', () => {
+    const result = settleSeason([op('owner', 300), entrant('b', 0, 100)], [], POOL, P);
+    expect(result.ranked.map(r => [r.agentId, r.eligible, r.prizeUsd])).toEqual([
+      ['owner', false, 0],
+      ['b', true, 1000],
+    ]);
+  });
+
+  test('entries sharing a payout handle collapse to the best-placed one', () => {
+    const result = settleSeason(
+      [withHandle('first', 300, 'PayPal:me@x.com'), withHandle('second', 100, 'paypal:me@x.com')],
+      [],
+      POOL,
+      P,
+    );
+    // Handles compare case-insensitively; the second entry is one person
+    // entering twice, so the pool is not diluted by the collapsed entry.
+    expect(result.ranked.map(r => [r.agentId, r.prizeUsd])).toEqual([
+      ['first', 1000],
+      ['second', 0],
+    ]);
+  });
+
+  test("an entrant sharing an operator's handle takes nothing either", () => {
+    const result = settleSeason(
+      [op('owner', 0, 'iban:cz123'), withHandle('friend', 300, 'iban:cz123'), entrant('b', 0, 100)],
+      [],
+      POOL,
+      P,
+    );
+    const friend = result.ranked.find(r => r.agentId === 'friend');
+    const b = result.ranked.find(r => r.agentId === 'b');
+    expect(friend?.prizeUsd).toBe(0);
+    expect(b?.prizeUsd).toBe(1000);
+  });
+
+  test('entrants with no payout handle never collapse into each other', () => {
+    const result = settleSeason([entrant('a', 0, 300), entrant('b', 0, 100)], [], POOL, P);
+    expect(result.ranked.map(r => r.prizeUsd)).toEqual([750, 250]);
+  });
+
+  test('in ladder mode an operator does not burn a rung', () => {
+    const result = settleSeason([op('owner', 300), entrant('b', 0, 100)], LADDER, POOL, {
+      payoutMode: 'ladder',
+      strictEligibility: true,
+    });
+    expect(result.ranked.map(r => [r.agentId, r.prizeUsd])).toEqual([
+      ['owner', 0],
+      ['b', 500],
+    ]);
+  });
+});
+
 describe('ladderTotal', () => {
   test('sums the rungs, which is what a season is validated against', () => {
     expect(ladderTotal(LADDER)).toBe(1000);

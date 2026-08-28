@@ -1195,6 +1195,13 @@ export const prizeSeasons = pgTable('prize_seasons', {
   /** Proportional mode: a computed share below this is not paid and rolls
    *  forward, because a $0.40 prize costs more to send than it is worth. */
   minPayoutUsd: doublePrecision('min_payout_usd').notNull().default(0),
+  /** The two platform rules for seasons after Season 0 (lib/seasons.ts,
+   *  SettleOptions.strictEligibility): public-workspace operators take no
+   *  payout, and entries sharing a payout handle collapse to one. Default
+   *  on for new seasons; migration 0082 sets Season 0 (and every
+   *  pre-existing row) off, because its published rules made owners
+   *  explicitly eligible (amendment of 2026-08-25). */
+  strictEligibility: boolean('strict_eligibility').notNull().default(true),
   /** Published ladder, [{ place, prizeUsd }, ...]. Frozen once running.
    *  Empty for a proportional season. */
   ladder: jsonb('ladder').notNull(),

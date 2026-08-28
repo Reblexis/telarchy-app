@@ -29,6 +29,7 @@ function season(over: Partial<PrizeSeason> = {}): PrizeSeason {
     poolUsd: 1000,
     payoutMode: 'ladder' as const,
     minPayoutUsd: 0,
+    strictEligibility: false,
     ladder: [{ place: 1, prizeUsd: 500 }],
     rulesUrl: '/legal/season-1',
     ...over,
