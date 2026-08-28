@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ManifoldLogo } from '../components/ManifoldLogo';
+import { AllTimeTable, initialOf, SeasonTable } from '../components/LeaderTables';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
-import { api, type LeaderboardEntry, type PrizeSeason, type PublicContractor, seasonStandingToEntry } from '../lib/api';
+import { api, type LeaderboardEntry, type PrizeSeason, type PublicContractor, type SeasonStanding } from '../lib/api';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
 import { TopBar } from './TradePage';
@@ -14,29 +14,13 @@ import { TopBar } from './TradePage';
  * adapted from the console's leaderboard, because nothing public-facing
  * renders the console UI and that page belongs to a different design.
  *
- * The rail on a market page shows ten and links here; this page shows
- * everyone, and gives each row the numbers a visitor would otherwise have
- * to open a profile to read.
+ * Since 2026-08-28 the boards are TABLES with labeled columns
+ * (components/LeaderTables.tsx, owner ask: "more like a table showing the
+ * different statistics in different columns, so it's more clear what the
+ * season is scoring on"): the season board leads with its settled-profit
+ * column marked as the scoring key, and the all-time board splits
+ * Settled / Open / Total so a marks-only leader is legible at a glance.
  */
-
-function initialOf(name: string): string {
-  return name.replace(/^@/, '')[0]?.toUpperCase() ?? '?';
-}
-
-function signed(n: number): string {
-  // Round FIRST: a loss of a hundredth of a credit printed "-0 cr", which
-  // reads as a bug rather than as a rounding.
-  const r = Math.round(n);
-  return `${r > 0 ? '+' : ''}${r === 0 ? 0 : r.toLocaleString('en-US')}`;
-}
-
-/** Accuracy is only meaningful once a few markets have actually settled. */
-function accuracyLabel(e: LeaderboardEntry): string | null {
-  if (e.accuracy === null || e.accuracy === undefined) return null;
-  if (e.resolvedMarkets < 3) return null;
-  return `${Math.round(e.accuracy * 100)}% accurate`;
-}
-
 export function LeaderPage() {
   const { user, loading: authLoading } = useAuth();
   const [traders, setTraders] = useState<LeaderboardEntry[] | null>(null);
@@ -49,7 +33,7 @@ export function LeaderPage() {
   // separate season section, scored on the season metric), rendered above
   // the all-time board while the season runs and after it settles. Null
   // until a fetch answers; a draft season has no scores to show.
-  const [seasonBoard, setSeasonBoard] = useState<LeaderboardEntry[] | null>(null);
+  const [seasonBoard, setSeasonBoard] = useState<SeasonStanding[] | null>(null);
   const clock = useSeasonClock(season);
   const meId = useMyParticipantId(!!user);
   const [entered, setEntered] = useState(false);
@@ -78,7 +62,7 @@ export function LeaderPage() {
             api
               .getSeasonStandings(s.id, 100)
               .then(b => {
-                if (!cancelled) setSeasonBoard((b.participants ?? []).map(seasonStandingToEntry));
+                if (!cancelled) setSeasonBoard(b.participants ?? []);
               })
               .catch(e => console.error('season standings fetch failed:', e));
           }
@@ -167,88 +151,7 @@ export function LeaderPage() {
   const pinned =
     meId && traders && !traders.some(e => e.id === meId) ? (traders.find(e => e.id === meId) ?? null) : null;
 
-  /**
-   * One row, used by the list and by the pinned "you" row underneath it, so
-   * the two cannot drift into showing different things about the same person.
-   */
-  function row(e: LeaderboardEntry, rank: number, isPinned = false, seasonRow = false) {
-    const name = e.nickname || 'anonymous';
-    const acc = accuracyLabel(e);
-    const mine = e.id === meId;
-    return (
-      <li
-        key={`${isPinned ? 'pin-' : ''}${e.id}`}
-        className={`lbp-row${mine ? ' is-me' : ''}${isPinned ? ' is-pinned' : ''}`}
-      >
-        <span className="lbp-rank">{rank || '—'}</span>
-        <Link className="lbp-who" to={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
-          <span className="lbp-avatar">{e.image ? <img src={e.image} alt="" /> : <span>{initialOf(name)}</span>}</span>
-          <span className="lbp-stack">
-            <span className="lbp-name">
-              {name}
-              {e.manifoldUsername && (
-                <span className="lbp-manifold" title={`Imported from Manifold: @${e.manifoldUsername}`}>
-                  <ManifoldLogo size={12} strokeWidth={1.6} />
-                </span>
-              )}
-            </span>
-            {/* Lifetime trade count and accuracy are a property of the all-time
-                board, not of a season standing (the season rows carry no such
-                counts), so the sub-line is hidden on a season row. */}
-            {!seasonRow && (
-              <span className="lbp-sub">
-                {e.totalTrades.toLocaleString('en-US')} {e.totalTrades === 1 ? 'trade' : 'trades'}
-                {e.resolvedMarkets > 0 && ` · ${e.resolvedMarkets} settled`}
-                {acc && ` · ${acc}`}
-              </span>
-            )}
-          </span>
-        </Link>
-        {/* What the season would pay this person if it settled now. Only for
-            entrants. Before the season starts there are no baselines and no
-            rank, so there is nothing to project; painting the ladder's top
-            rung ($500) on every entrant read as "this person wins $500" when
-            two people were entered (owner report 2026-08-21). A neutral
-            "entered" marker until the season runs; the rank-based dollar
-            appears the moment a score exists to rank on. */}
-        {e.seasonEntered &&
-          (e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined ? (
-            <span
-              className="lbp-prize lbp-prize--in"
-              title={`Entered ${season?.name ?? 'the season'}; prizes are set once it starts`}
-            >
-              entered
-            </span>
-          ) : e.seasonPrizeUsd > 0 ? (
-            <span className="lbp-prize" title="What this season would pay at the current standing">
-              ${e.seasonPrizeUsd.toLocaleString()}
-            </span>
-          ) : (
-            <span className="lbp-prize lbp-prize--in" title="Entered the season, currently outside the prizes">
-              entered
-            </span>
-          ))}
-        <span className="lbp-scorestack">
-          <span
-            className={`lbp-score${Math.round(e.totalEarnings) > 0 ? ' is-up' : Math.round(e.totalEarnings) < 0 ? ' is-down' : ''}`}
-          >
-            {signed(e.totalEarnings)} cr
-          </span>
-          {/* What of that is final and what is still a mark (owner direction
-              2026-08-24, docs/seasons.md "The score"). Season rows carry no
-              split: a season score is a difference of two marks. */}
-          {!seasonRow && e.settledEarnings !== undefined && e.openEarnings !== undefined && (
-            <span
-              className="lbp-split"
-              title="Settled: resolutions and refunds, final. Open: what open positions are worth right now."
-            >
-              {signed(e.settledEarnings)} settled · {signed(e.openEarnings)} open
-            </span>
-          )}
-        </span>
-      </li>
-    );
-  }
+  const seasonLive = season && season.status !== 'draft';
 
   return (
     <div className="pubws">
@@ -256,13 +159,13 @@ export function LeaderPage() {
       <main className="lbp">
         <h1 className="lbp-head">Leaderboard</h1>
         <p className="lbp-lead">
-          Everyone trading the public markets, ranked by profit in credits: settled bets plus what open positions are
-          worth right now.
+          Two boards, two questions. The season board pays real money on <strong>settled profit</strong>; the all-time
+          board ranks everyone on total profit, open marks included.
         </p>
 
-        {/* One line and a link. The pool, the ladder, the scoring rules and
-            the entry flow live on /season (owner direction 2026-08-19); this
-            page is the all-time board, and the competition was crowding it. */}
+        {/* One line and a link. The pool, the rules and the entry flow live on
+            /season (owner direction 2026-08-19); this page is the boards, and
+            the competition was crowding it. */}
         {season && clock && (
           <p className="lbp-season-line-only">
             <strong>{season.name}</strong>: ${season.poolUsd.toLocaleString()} in prizes,{' '}
@@ -277,34 +180,50 @@ export function LeaderPage() {
         )}
 
         {/* The season's own board, above the all-time field (owner ask
-            2026-08-22): entrants only, scored on growth since the season
-            started, with what the season would pay at each standing. Kept
+            2026-08-22): entrants only, on the season's scoring key. Kept
             SEPARATE from the all-time board below rather than replacing it,
             which is what the reverted season-mode tried. */}
-        {season && season.status !== 'draft' && seasonBoard && seasonBoard.length > 0 && (
+        {seasonLive && seasonBoard && seasonBoard.length > 0 && (
           <section className="lbp-section" aria-label="Season standings">
             <h2 className="pubws-h2">{season.name} standings</h2>
             <p className="lbp-note">
-              Entrants only, scored on profit growth since the season started. The dollar figure is what the season
-              would pay at the current standing{clock?.phase === 'settled' ? ', now final' : ''}.
+              {season.payoutMode === 'proportional' ? (
+                <>
+                  The <strong>${season.poolUsd.toLocaleString()} pool</strong> is split in proportion to positive{' '}
+                  <strong>settled profit</strong>: what markets that resolved during the season paid you, minus what you
+                  paid on them. Open positions score nothing until they resolve.
+                </>
+              ) : (
+                <>
+                  Entrants only, ranked on <strong>settled profit</strong> inside the season window. The dollar figure
+                  is what the season would pay at the current standing.
+                </>
+              )}
+              {clock?.phase === 'settled' ? ' Now final.' : ''}
             </p>
-            <ol className="lbp-list">{seasonBoard.map((e, i) => row(e, e.rank ?? i + 1, false, true))}</ol>
+            <SeasonTable
+              rows={seasonBoard}
+              season={season}
+              mode={season.status === 'settled' ? 'settled' : 'running'}
+              meId={meId}
+            />
           </section>
         )}
 
         <section className="lbp-section" aria-label="Traders">
-          <h2 className="pubws-h2">Traders</h2>
+          <h2 className="pubws-h2">All-time</h2>
+          <p className="lbp-note">
+            Every trader, ranked on <strong>total profit</strong>: settled bets plus what open positions are worth right
+            now, over their whole history. Only settled profit inside the season wins season money.
+          </p>
           {traders === null ? null : traders.length === 0 ? (
             <p className="lbp-empty">Nobody has traded yet.</p>
           ) : (
-            <ol className="lbp-list">
-              {traders.map((e, i) => row(e, e.rank ?? i + 1))}
-              {/* Pinned underneath when the visitor is not in the list above.
-                  A board that shows the leaders and nothing else answers "who
-                  is winning" but not "where am I", which is the question the
-                  person reading it actually has. */}
-              {pinned && row(pinned, pinned.rank ?? 0, true)}
-            </ol>
+            /* Pinned underneath when the visitor is not in the list above.
+               A board that shows the leaders and nothing else answers "who
+               is winning" but not "where am I", which is the question the
+               person reading it actually has. */
+            <AllTimeTable rows={traders} pinned={pinned} meId={meId} season={season} />
           )}
         </section>
 
@@ -319,39 +238,53 @@ export function LeaderPage() {
               No contracts on the board yet. Offer one and the market prices what it is worth.
             </p>
           ) : (
-            <ol className="lbp-list">
-              {contractors.map((c, i) => {
-                const name = c.name || 'anonymous';
-                const scored = c.impact !== null && c.pricedJobs > 0;
-                const parts: string[] = [];
-                const approved = Math.max(0, c.jobs - c.pendingJobs);
-                if (approved > 0) parts.push(`${approved} approved`);
-                if (c.pendingJobs > 0) parts.push(`${c.pendingJobs} live`);
-                if (c.earnedUsd > 0) parts.push(`$${Math.round(c.earnedUsd).toLocaleString('en-US')} earned`);
-                return (
-                  <li key={c.id} className="lbp-row">
-                    <span className="lbp-rank">{i + 1}</span>
-                    <Link className="lbp-who" to={`/participants/${encodeURIComponent(c.id)}`}>
-                      <span className="lbp-avatar">
-                        <span>{initialOf(name)}</span>
-                      </span>
-                      <span className="lbp-stack">
-                        <span className="lbp-name">{name}</span>
-                        <span className="lbp-sub">{parts.join(' · ') || 'no contracts priced yet'}</span>
-                      </span>
-                    </Link>
-                    {scored ? (
-                      <span className={`lbp-score${c.impact! > 0 ? ' is-up' : c.impact! < 0 ? ' is-down' : ''}`}>
-                        {c.impact! > 0 ? '▲ ' : c.impact! < 0 ? '▼ ' : ''}
-                        {Math.abs(Math.round(c.impact!)).toLocaleString('en-US')}
-                      </span>
-                    ) : (
-                      <span className="lbp-score lbp-score--muted">not priced yet</span>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
+            <table className="lbt">
+              <thead>
+                <tr>
+                  <th className="lbt-h is-left lbt-h-rank">#</th>
+                  <th className="lbt-h is-left">Contractor</th>
+                  <th className="lbt-h lbt-desk">Approved</th>
+                  <th className="lbt-h lbt-desk">Live</th>
+                  <th className="lbt-h lbt-desk">Earned</th>
+                  <th className="lbt-h">Impact ↓</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contractors.map((c, i) => {
+                  const name = c.name || 'anonymous';
+                  const scored = c.impact !== null && c.pricedJobs > 0;
+                  const approved = Math.max(0, c.jobs - c.pendingJobs);
+                  return (
+                    <tr key={c.id}>
+                      <td className="lbt-rank">{i + 1}</td>
+                      <td className="lbt-cell is-left">
+                        <Link className="lbt-who" to={`/participants/${encodeURIComponent(c.id)}`}>
+                          <span className="lbp-avatar">
+                            <span>{initialOf(name)}</span>
+                          </span>
+                          <span className="lbt-stack">
+                            <span className="lbt-name">{name}</span>
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="lbt-num lbt-desk is-plain">{approved || '—'}</td>
+                      <td className="lbt-num lbt-desk is-plain">{c.pendingJobs || '—'}</td>
+                      <td className="lbt-num lbt-desk is-plain">
+                        {c.earnedUsd > 0 ? `$${Math.round(c.earnedUsd).toLocaleString('en-US')}` : '—'}
+                      </td>
+                      {scored ? (
+                        <td className={`lbt-num${c.impact! > 0 ? ' is-up' : c.impact! < 0 ? ' is-down' : ' is-zero'}`}>
+                          {c.impact! > 0 ? '▲ ' : c.impact! < 0 ? '▼ ' : ''}
+                          {Math.abs(Math.round(c.impact!)).toLocaleString('en-US')}
+                        </td>
+                      ) : (
+                        <td className="lbt-num is-zero">not priced yet</td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </section>
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { SeasonTable } from '../components/LeaderTables';
 import { ReportButton } from '../components/ReportButton';
 import { SeasonEntryButton } from '../components/SeasonEntryButton';
 import { useAuth } from '../hooks/useAuth';
@@ -22,18 +23,6 @@ import { TopBar } from './TradePage';
  * console's: every public route lands on that design and a visitor should not
  * be able to tell which page was built when.
  */
-
-function initialOf(name: string): string {
-  return name.replace(/^@/, '')[0]?.toUpperCase() ?? '?';
-}
-
-function formatScore(v: number): string {
-  const sign = v < 0 ? '-' : v > 0 ? '+' : '';
-  const abs = Math.abs(v);
-  if (abs >= 1000) return `${sign}${Math.round(abs).toLocaleString('en-US')}`;
-  if (abs >= 10) return `${sign}${abs.toFixed(1)}`;
-  return `${sign}${abs.toFixed(2)}`;
-}
 
 export function SeasonPage() {
   const { user, loading: authLoading } = useAuth();
@@ -251,91 +240,13 @@ export function SeasonPage() {
           {rows === null ? null : rows.length === 0 ? (
             <p className="lbp-empty">Nobody has entered yet.</p>
           ) : (
-            <>
-              {/* The right column needed a name: "$500" beside a score read as
-                a balance until hovered. Mirrors the row's own cell widths. */}
-              <div className="seasonp-cols" aria-hidden="true">
-                <span className="seasonp-cols-rank">#</span>
-                <span className="seasonp-cols-who">participant</span>
-                <span className="seasonp-cols-score">{draft ? '' : 'score'}</span>
-                <span className="seasonp-cols-pays">{draft ? '' : settled ? 'prize' : 'pays now'}</span>
-              </div>
-              <ol className="lbp-list">
-                {rows.map(r => {
-                  const name = r.nickname || 'anonymous';
-                  return (
-                    <li key={r.id} className={`lbp-row${r.id === meId ? ' is-me' : ''}`}>
-                      <span className="lbp-rank">{r.rank}</span>
-                      <Link className="lbp-who" to={`/participants/${encodeURIComponent(r.nickname ?? r.id)}`}>
-                        <span className="lbp-avatar">
-                          {r.image ? <img src={r.image} alt="" /> : <span>{initialOf(name)}</span>}
-                        </span>
-                        <span className="lbp-stack">
-                          <span className="lbp-name">{name}</span>
-                        </span>
-                      </Link>
-                      <span
-                        className={`lbp-score${(r.score ?? 0) > 0 ? ' is-up' : (r.score ?? 0) < 0 ? ' is-down' : ''}`}
-                      >
-                        {r.score === null ? '' : formatScore(r.score)}
-                      </span>
-                      {/* Settled shows what was actually assigned. Running shows
-                        what this standing would pay if it settled now, from the
-                        same function settlement uses, so the two can never
-                        promise different amounts. */}
-                      <span
-                        className="seasonp-won"
-                        title={
-                          draft
-                            ? undefined
-                            : settled
-                              ? 'Prize'
-                              : 'What this standing would pay if the season settled now'
-                        }
-                      >
-                        {draft
-                          ? ''
-                          : settled
-                            ? r.prizeUsd && r.prizeUsd > 0
-                              ? `$${r.prizeUsd.toLocaleString()}`
-                              : '—'
-                            : r.projectedPrizeUsd && r.projectedPrizeUsd > 0
-                              ? `$${r.projectedPrizeUsd.toLocaleString()}`
-                              : '—'}
-                      </span>
-                    </li>
-                  );
-                })}
-                {/* Pinned when the entrant is not in the list above: "where am
-                  I" is the question an entrant reads standings to answer. */}
-                {meId && !rows.some(r => r.id === meId) && myStanding && (
-                  <li className="lbp-row is-me is-pinned">
-                    <span className="lbp-rank">{myStanding.rank}</span>
-                    <Link
-                      className="lbp-who"
-                      to={`/participants/${encodeURIComponent(myStanding.nickname ?? myStanding.id)}`}
-                    >
-                      <span className="lbp-avatar">
-                        <span>{initialOf(myStanding.nickname || 'you')}</span>
-                      </span>
-                      <span className="lbp-stack">
-                        <span className="lbp-name">{myStanding.nickname || 'you'}</span>
-                      </span>
-                    </Link>
-                    <span
-                      className={`lbp-score${(myStanding.score ?? 0) > 0 ? ' is-up' : (myStanding.score ?? 0) < 0 ? ' is-down' : ''}`}
-                    >
-                      {myStanding.score === null ? '' : formatScore(myStanding.score)}
-                    </span>
-                    <span className="seasonp-won">
-                      {myStanding.projectedPrizeUsd && myStanding.projectedPrizeUsd > 0
-                        ? `$${myStanding.projectedPrizeUsd.toLocaleString()}`
-                        : '—'}
-                    </span>
-                  </li>
-                )}
-              </ol>
-            </>
+            <SeasonTable
+              rows={rows}
+              season={season}
+              mode={draft ? 'draft' : settled ? 'settled' : 'running'}
+              meId={meId}
+              pinned={meId && !rows.some(r => r.id === meId) ? myStanding : null}
+            />
           )}
         </section>
       </main>
