@@ -7,11 +7,11 @@ export const legalRouter = Router();
 // files; update both when revising legal text. Inlined here so the runtime
 // image does not need `docs/` copied in.
 
-const CONSENT_VERSION = '1.5';
+const CONSENT_VERSION = '1.7';
 
 const TERMS_OF_SERVICE = `# Terms of Service
 
-_Last updated: 2026-08-21 (version ${CONSENT_VERSION})_
+_Last updated: 2026-08-28 (version ${CONSENT_VERSION})_
 
 These Terms govern your use of \`telarchy.com\` (the "Service"), operated by the Telarchy team ("we", "us"). By creating an account or using the Service you agree to them; if you do not agree, do not use the Service.
 
@@ -21,7 +21,7 @@ You must be at least 18 years old. You are responsible for your login credential
 
 ## 2. Credits
 
-Credits on the Service are play-money. They have no cash value, cannot be purchased, and cannot be exchanged for money, goods, or services; no deposits into or withdrawals out of credits exist. Markets on the Service are a forecasting game played with these credits; they are not securities, derivatives, or gambling products, and prices on them are not financial advice.
+Credits on the Service are play-money. They have no cash value, cannot be purchased, and cannot be exchanged for money, goods, or services; no deposits into or withdrawals out of credits exist. A workspace manager may buy market liquidity for their workspace: a non-refundable service that places credits into that workspace's market pools only, never into any account balance, purchased to sharpen prices on their own markets. Buying liquidity is not buying credits, confers no contest entry, standing, or score, and accounts that manage a workspace take no prize in seasons whose rules say so (section 3a). Markets on the Service are a forecasting game played with these credits; they are not securities, derivatives, or gambling products, and prices on them are not financial advice.
 
 ## 3. Paid job proposals
 
@@ -35,11 +35,11 @@ Approving or declining a proposal is the workspace owner's decision alone, made 
 
 We may run contests (each a "season") in which cash prizes are awarded for performance on the Service's forecasting markets. Seasons are optional and are entered only by explicit opt-in.
 
-Entry is free. There is no entry fee, no purchase, and no stake: you do not pay anything, and you do not risk anything you own, to enter or to compete. Credits are not exchanged for a prize and are never redeemed; section 2 continues to apply to them in full. A prize is awarded for where you place under a scoring rule published in advance, not in exchange for credits, so a season is a skill contest rather than a wager or a lottery.
+Entry is free. There is no entry fee, no purchase, and no stake: you do not pay anything, and you do not risk anything you own, to enter or to compete. Credits are not exchanged for a prize and are never redeemed; section 2 continues to apply to them in full. A prize is awarded for your performance under a scoring rule published in advance (a place on a ladder, or a share of the pool in proportion to your score), not in exchange for credits and never as a function of your credit balance, so a season is a skill contest rather than a wager or a lottery. No element of chance decides who is paid or how much.
 
-Before a season starts we publish its rules: the dates, the total prize pool, the prize for each place, the scoring rule, who is eligible, how ties are broken, and how and when winners are paid. Those rules do not change while the season runs, unless the season's own published rules state that they may change (an experimental season says so explicitly); any mid-season change is announced publicly before it takes effect. You must be at least 18 years old to enter. Participants operated by us or run as part of the platform are not eligible. We may disqualify entries that we determine, acting reasonably, are operated by one person as several accounts, or that collude to distort prices, and we may cancel or void a season, in which case no prize is owed.
+Before a season starts we publish its rules: the dates, the total prize pool, how the pool is divided (the prize for each place, or the formula for each entrant's share), the scoring rule, who is eligible, how ties are broken, and how and when winners are paid. Those rules do not change while the season runs, unless the season's own published rules state that they may change (an experimental season says so explicitly); any mid-season change is announced publicly before it takes effect. You must be at least 18 years old to enter. Participants operated by us or run as part of the platform are not eligible. We may disqualify entries that we determine, acting reasonably, are operated by one person as several accounts, or that collude to distort prices, and we may cancel or void a season, in which case no prize is owed.
 
-As with paid job proposals, we hold, transmit, escrow and process no funds. A prize is paid directly by the workspace owner to the winner, outside the Service, using the payment details the winner stored in their account. Winners are responsible for taxes on amounts received. We are not a party to that payment, are not a money transmitter or payment processor, and charge no fee on it.
+We run seasons as the contest operator and pay prizes ourselves, from our own funds, outside the Service, using the payment details the winner stored in their account. We hold, transmit, escrow and process no third-party funds in doing so: a prize is our own money paid as a contest prize, not a payment we process for anyone else, and we are not a money transmitter or payment processor. Winners are responsible for taxes on amounts received; where the law applicable to us requires withholding on a prize, we withhold the required amount and the season's rules say so.
 
 ## 4. Acceptable use
 
@@ -153,6 +153,15 @@ but a mark scores nothing until its market resolves. Trades placed in a
 market's final 6 hours no longer count toward the season score. Announced on
 the season page; the Scoring section below has the details._
 
+_Amended 2026-08-28, mid-season (second amendment that day): prizes are no
+longer fixed amounts by place. The $1,000 pool is split among entrants in
+proportion to positive settled season score, so every entrant in the green
+is paid their share rather than only the top five. Shares below $50 are not
+paid and roll into the next season's pool; no single prize exceeds $2,000.
+Prizes are now paid by Telarchy directly, from its own funds, rather than by
+the workspace owner. Effective on announcement on the season page; the
+Prizes and Getting paid sections below have the details._
+
 **Season 0 is the first one, and the platform is still being launched.** Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
 the feedback channel in the app; where a bug affects standings we say so
@@ -160,8 +169,9 @@ publicly and publish the correction.
 
 ## The deal
 
-Trade on the public Telarchy floor; the five entrants who earn the most
-settled trading profit while the season runs are paid real money. The season runs from
+Trade on the public Telarchy floor; entrants are paid real money in
+proportion to the settled trading profit they earn while the season runs
+(amended 2026-08-28; originally a five-place prize ladder). The season runs from
 its published start instant to its published end instant, both UTC, shown on
 the season page. Entries close when the season ends; settlement and prizes
 follow.
@@ -177,18 +187,24 @@ credits, and your credit balance is unaffected by winning or losing.
 
 Total pool: **$1,000 USD**.
 
-| Place | Prize |
-|---|---|
-| 1st | $500 |
-| 2nd | $250 |
-| 3rd | $125 |
-| 4th | $75 |
-| 5th | $50 |
+\`\`\`
+your prize = pool x your positive settled season score
+                  / the sum of all entrants' positive settled season scores
+\`\`\`
 
-**Place decides the prize, whatever the score** (amended 2026-08-22, see
-above): the entrant in 1st place is paid the 1st rung even if their season
-score is zero or negative. A rung with no entrant to take it, and anything
-otherwise unassigned, rolls into the next season's pool.
+(Amended 2026-08-28, replacing the original fixed ladder of $500 / $250 /
+$125 / $75 / $50 by place.) The pool is split in proportion to settled
+season score: earn twice the settled profit of another entrant, be paid
+twice their prize. A zero or negative score is paid nothing and does not
+shrink anyone else's share. Three boundary rules:
+
+- A computed share below **$50** is not paid and rolls into the next
+  season's pool (a prize smaller than the cost of sending it helps nobody).
+- No single prize exceeds **$2,000** (the Czech tax-withholding line for
+  prizes; irrelevant at this pool size, stated so the rule exists before it
+  matters). The excess rolls into the next season's pool.
+- Anything otherwise unassigned, including the whole pool if no entrant has
+  a positive score, rolls into the next season's pool.
 
 ## Scoring
 
@@ -227,9 +243,10 @@ a gain on the boards the moment it lands. That marked gain is display, not
 score: nothing enters your season score until a market you traded actually
 resolves.
 
-Only entrants who explicitly opted in are ranked or paid. Ties are broken by
-earlier entry, then by participant id; both are automatic and give the same
-result on any recount.
+Only entrants who explicitly opted in are ranked or paid. Equal scores are
+paid equal shares, so a tie needs no breaking for money; the displayed rank
+order breaks ties by earlier entry, then by participant id, both automatic
+and identical on any recount.
 
 ## Entering
 
@@ -248,12 +265,15 @@ result on any recount.
 
 ## Getting paid
 
-Telarchy holds, transmits, escrows and processes no funds. Winners have **30
-days** after settlement to claim, by adding payment details to their account
-and pressing claim; the workspace owner then pays them directly, outside the
-Service, the same arrangement paid job proposals use (Terms of Service section
-3). An unclaimed prize rolls into the next season's pool. Winners are
-responsible for taxes on amounts received.
+Winners have **30 days** after settlement to claim, by adding payment
+details to their account and pressing claim; Telarchy then pays them
+directly, from its own funds, outside the Service, using those details
+(amended 2026-08-28; previously the workspace owner paid). Telarchy holds,
+transmits, escrows and processes no third-party funds: a prize is our own
+money paid as a contest prize. An unclaimed prize rolls into the next
+season's pool. Winners are responsible for taxes on amounts received; where
+Czech law requires withholding on a prize (above CZK 50,000), we withhold
+and say so, which is why no single prize exceeds $2,000 for now.
 
 ## The operator's side
 
