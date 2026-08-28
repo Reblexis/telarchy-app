@@ -2431,12 +2431,10 @@ button.notif-row-link {
   color: var(--text-tertiary);
 }
 
-/* The number chart's own stat: the current reading, a register under the
-   price, with its age beside it (a reading is only trustworthy with its
-   age on it) - and the settle countdown beside the price above, in the
-   same quiet register. */
-.pubws-price--reading { font-size: clamp(1.15rem, 3.6vw, 1.45rem); }
-
+/* The two stat rows are symmetric (owner ask 2026-08-28): the price and
+   the reading share one size, and their qualifiers ("expected", "as of
+   2d 4h ago", "settles in 33d") share one quiet register. */
+.pubws-stat-tag,
 .pubws-updated,
 .pubws-settle-in {
   font-family: 'JetBrains Mono', monospace;
@@ -3787,9 +3785,9 @@ textarea.jobform-line--desc {
    charts above stay visible while the bet is composed and its ghost is on
    the market chart. */
 .pubws-ticket-inline {
-  width: min(30rem, 100%);
-  margin: 1.1rem auto 0;
-  padding: 1.2rem 1.3rem 1.3rem;
+  width: 100%;
+  margin: 1rem auto 0;
+  padding: 0.9rem 1.1rem 1rem;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 16px;

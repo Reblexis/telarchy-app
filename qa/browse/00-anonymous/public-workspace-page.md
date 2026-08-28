@@ -188,15 +188,17 @@ word and the promise is unverifiable.
 - The price is a compact mono stat (`.pubws-stat .pubws-price`, ~2rem,
   amended 2026-08-28: Manifold scale, the chart is the hero) sitting as the
   LEFT cell of the market chart's control row, equal to the selected
-  market's consensus, with the settle countdown beside it
-  (`.pubws-settle-in`, "settles in <t>"); the since-open delta chip is gone.
+  market's consensus, read as "$7,146 expected ·
+  settles in <t>" (`.pubws-stat-tag`, `.pubws-settle-in`); the since-open
+  delta chip is gone.
   Each chart carries its centred title in its control row
   (`.pubws-chart-cap`: MARKET on the prediction, the metric's caption name
   on the number chart). There is no MARKET/NUMBER view
   switch: the market chart renders with the number chart
-  (`.pubws-numchart .nchart`, quieter height) always below it, whose left
-  cell is the value in force (`.pubws-price--reading`) plus its age
-  ("updated <t> ago", `.pubws-updated`).
+  (`.pubws-numchart .nchart`, the market chart's own geometry) always below
+  it, whose left cell is the value in force at the price's size, read as
+  "$6,391 as of <t> ago" (`.pubws-updated`). A bet being composed draws
+  its ghost on both charts.
 - The market SVG chart is the PREDICTION only, Manifold-style: one amber
   step line (consensus is piecewise constant between trades; every step is
   a trade) from the market's first trade to now, with a soft amber gradient

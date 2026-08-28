@@ -429,14 +429,16 @@ floors) are defined in docs/metrics.md.
 The consensus is a compact stat, not a poster number (owner ask
 2026-08-28, Manifold scale: the chart is the hero, the price a reading on
 it). It renders as the LEFT cell of the market chart's own control row,
-`.pubws-price` at roughly a third of its old size, with the settle
-countdown beside it ("settles in 33d", ticking by the minute, the exact
-UTC instant as its hover title) where the since-open chip used to sit;
-the chip is gone (owner ask 2026-08-28: "instead of the arrow and down
-since"). A selected contract's impact chip still renders there, because
-the impact is the contract's one number. The price carries the metric's
-currency symbol when the trimmed parenthetical tail names one (e.g.
-"USD" -> "$"; the same prefix runs through every numeral in the chart).
+`.pubws-price` at roughly a third of its old size, read as "$7,146
+expected · settles in 33d": the word "expected" and the countdown share
+one quiet register (`.pubws-stat-tag`, `.pubws-settle-in`; the countdown
+ticks by the minute, exact UTC instant on hover) where the since-open
+chip used to sit; the chip is gone (owner ask 2026-08-28: "instead of
+the arrow and down since"). A selected contract's impact chip still
+renders there, because the impact is the contract's one number. The
+price carries the metric's currency symbol when the trimmed
+parenthetical tail names one (e.g. "USD" -> "$"; the same prefix runs
+through every numeral in the chart).
 A market with no price yet (no liquidity) keeps the pickers, prints a
 centred "no price yet" where the stat row would be and the no-liquidity
 note where the bets would be, and draws no charts: the pickers are how a
@@ -445,19 +447,23 @@ reader leaves it for a market that has one.
 **Both charts always render; there is no view toggle** (owner ask
 2026-08-28, replacing the MARKET/NUMBER switch of 2026-08-27: a newcomer
 never found the number behind it). The market chart is the hero, directly
-under the stat row; the number chart follows at a quieter height (~170
-viewBox px against the market's 260). Each chart names itself in the
+under the stat row; the number chart follows at the SAME geometry (one
+`GEOM`, one width, one height; owner ask 2026-08-28, "the two graphs
+should have same dimensions"). Each chart names itself in the
 CENTRE of its own control row (`.pubws-chart-cap`, the tiny-uppercase
 register): "market" on the prediction, and the METRIC'S OWN NAME on the
 number chart (`captionLabel`, the leading company name stripped, the
 same caption shape the question line uses; owner ask 2026-08-28), and
 each keeps its own range chips at its
 row's right, in each chart's own range vocabulary. The number chart's
-left cell is its own stat (owner ask 2026-08-28): the value in force
-(`.pubws-price--reading`, a register under the price) with its age
-beside it, "updated 3h 30m ago" (`timeAgoOf` from the latest reading's
-instant, the exact UTC instant as its hover title), because a reading is
-only trustworthy with its age on it.
+left cell is its own stat (owner ask 2026-08-28), symmetric with the
+price: the value in force at the price's own size, read as "$6,391 as
+of 2d 4h ago" (`timeAgoOf` from the latest reading's instant, the exact
+UTC instant as its hover title), because a reading is only trustworthy
+with its age on it. The composed bet's ghost draws on BOTH charts: the
+market chart moves its live dot's ghost, and the number chart draws the
+same ghost on the selected market's marker (`preview` on both
+components, one value from the ticket).
 
 **When a market settles is said once, beside the price.** The date
 picker names each market by its clock and settle day (`TODAY · 26 AUG`,
@@ -601,11 +607,14 @@ the bug this rule exists to prevent.
 **The ticket opens INLINE under the bet verbs** (owner ask 2026-08-28,
 replacing the modal of 2026-08-10): pressing "Bet Higher" or "Bet Lower"
 grows the ticket in the page's flow (`.pubws-ticket-inline`, the modal
-card's own chrome), so the charts above stay on screen while the bet is
-composed and the composed bet's ghost draws on the market chart. Pressing
-the other verb re-seeds the ticket's side rather than being a dead click;
-its close control collapses it and drops the ghost. Managing a held
-position opens the same inline ticket in manage mode.
+card's own chrome at the column's FULL width, after Manifold's bet
+panel), so the charts above stay on screen while the bet is composed and
+the composed bet's ghost draws on both charts. The bet ticket carries NO
+held-position row and no resting orders (owner ask 2026-08-28: selling
+is the position panel's job, and the strip made the card tall); managing
+a held position opens the same inline ticket in manage mode, which keeps
+both. Pressing the other verb re-seeds the ticket's side rather than
+being a dead click; its close control collapses it and drops the ghost.
 
 The ticket (`TradeTicket`) follows Manifold's bet-panel layout: a card
 (`--bg-secondary`, 14px radius) with the Lower/Higher pills top left and a

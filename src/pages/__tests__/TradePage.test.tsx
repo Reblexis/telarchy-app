@@ -1125,11 +1125,12 @@ describe('the chart control row', () => {
     // say the name too.
     expect(container.querySelector('.pubws-numchart .pubws-chart-cap')?.textContent).toBe('net 2026');
     expect(container.querySelector('.pubws-stat .pubws-settle-in')?.textContent).toMatch(/settles in/);
-    // The metric's latest reading is the number chart's own stat, with its
-    // age beside it.
-    expect(container.querySelector('.pubws-numchart .pubws-price--reading')?.textContent).toBe('$45,339');
+    expect(container.querySelector('.pubws-stat .pubws-stat-tag')?.textContent).toContain('expected');
+    // The metric's latest reading is the number chart's own stat, the same
+    // register as the price, with its age beside it.
+    expect(container.querySelector('.pubws-numchart .pubws-price')?.textContent).toBe('$45,339');
     expect(container.querySelector('.pubws-numchart .pubws-updated')?.textContent).toMatch(
-      /^updated .+ ago$|^updated just now$/,
+      /^as of .+ ago$|^as of just now$/,
     );
   });
 

@@ -86,6 +86,25 @@ describe('the markers', () => {
     expect(container.querySelectorAll('.nchart-marker text').length).toBe(1);
   });
 
+  test("the composed bet's ghost draws on the selected marker", () => {
+    // Owner ask 2026-08-28: the impact of the bet being composed is visible
+    // on the metric chart too, in the market chart's ghost vocabulary.
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={markers}
+        selectedResolvesOn="2026-08-26T00:00:00Z"
+        granularity="day"
+        now={NOW}
+        preview={{ value: 9, direction: 'higher' }}
+      />,
+    );
+    const ghost = container.querySelector('.nchart-marker.is-selected .mchart-ghost');
+    expect(ghost).toBeTruthy();
+    expect(ghost?.querySelector('.mchart-ghost-dot')).toBeTruthy();
+    expect(container.querySelector('.nchart-marker.is-selected')?.textContent).toContain('▲ 9');
+  });
+
   test("the range words are the granularity's", () => {
     const { container } = render(
       <NumberChart

@@ -1359,6 +1359,7 @@ export function TradePage() {
                     corner={
                       <span className="pubws-stat">
                         <span className="pubws-price">{`${unit}${formatValue(shownConsensus ?? consensus)}`}</span>
+                        <span className="pubws-stat-tag">expected ·</span>
                         {/* The impact is the job's one number, so it is always
                           said: priced, zero-so-far, or not yet priced. Silence
                           read as a broken page. */}
@@ -1436,7 +1437,7 @@ export function TradePage() {
                         granularity={granularityOf(hero.targetDate)}
                         unit={unit}
                         now={now}
-                        height={170}
+                        preview={chartPreview}
                         /* The reading is the number chart's own stat (owner
                           ask 2026-08-28): the current value where the market
                           chart carries its price, with its age beside it,
@@ -1444,12 +1445,12 @@ export function TradePage() {
                           on it. */
                         corner={
                           <span className="pubws-stat">
-                            <span className="pubws-price pubws-price--reading">
+                            <span className="pubws-price">
                               {nowReading !== null ? `${unit}${formatValue(nowReading)}` : ''}
                             </span>
                             {lastReading?.at && (
                               <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
-                                updated {timeAgoOf(lastReading.at, now) ?? ''}
+                                as of {timeAgoOf(lastReading.at, now) ?? ''}
                               </span>
                             )}
                           </span>
@@ -1554,7 +1555,7 @@ export function TradePage() {
                   <TradeTicket
                     probability={active.probability}
                     liquidity={active.liquidity}
-                    positions={trading ? positions : []}
+                    positions={trading && betModal === 'manage' ? positions : []}
                     onTrade={placeTrade}
                     onTradeTarget={placeTargetTrade}
                     onSell={sellPosition}
@@ -1564,7 +1565,7 @@ export function TradePage() {
                     consensus={consensus}
                     rangeMin={active.rangeMin}
                     rangeMax={active.rangeMax}
-                    orders={trading ? orders : []}
+                    orders={trading && betModal === 'manage' ? orders : []}
                     onPlaceLimit={trading ? placeLimit : async () => {}}
                     onCancelLimit={trading ? cancelLimit : undefined}
                     onRequireSignup={trading ? undefined : () => navigate(authPath('signup', location))}

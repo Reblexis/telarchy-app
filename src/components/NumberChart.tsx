@@ -49,6 +49,10 @@ interface Props {
   legend?: { approved: string; declined: string } | null;
   now?: Date;
   height?: number;
+  /** The composed bet's ghost (owner ask 2026-08-28): where the SELECTED
+   *  market's call would move, drawn on its marker in the market chart's
+   *  own ghost vocabulary. */
+  preview?: { value: number; direction: 'higher' | 'lower' } | null;
 }
 
 export type Granularity = 'day' | 'week' | 'month' | 'other';
@@ -195,6 +199,7 @@ export function NumberChart({
   impactFrom = 'approved',
   now = new Date(),
   height,
+  preview = null,
 }: Props) {
   // Same geometry and breakpoint as the market view (GEOM is theirs), so the
   // two views of the chart slot have one width, one plot area and one
@@ -240,6 +245,7 @@ export function NumberChart({
     ...drawn.map(p => p.value),
     ...inWindow.flatMap(m => (m.consensus === null ? [] : [m.consensus])),
     ...inWindow.flatMap(m => [m.pair?.approved, m.pair?.declined].filter((v): v is number => typeof v === 'number')),
+    ...(preview ? [preview.value] : []),
   ];
   const lo = ys.length ? Math.min(...ys) : 0;
   const hi = ys.length ? Math.max(...ys) : 1;
@@ -442,9 +448,25 @@ export function NumberChart({
                 </g>
               )}
               {my !== null && <circle cx={mx} cy={my} r={m.selected ? 4.5 : 3.5} />}
+              {m.selected && preview && (
+                <g className={`mchart-ghost mchart-ghost--${preview.direction}`}>
+                  {my !== null && <line className="mchart-ghost-line" x1={mx} x2={mx} y1={my} y2={y(preview.value)} />}
+                  <circle className="mchart-ghost-dot" cx={mx} cy={y(preview.value)} r="4.5" />
+                </g>
+              )}
               {m.selected &&
                 dodge(
                   [
+                    ...(preview
+                      ? [
+                          {
+                            key: 'preview',
+                            at: y(preview.value),
+                            text: `${preview.direction === 'higher' ? '▲' : '▼'} ${fmt(preview.value, unit)}`,
+                            cls: `mchart-ghost-label mchart-ghost--${preview.direction}`,
+                          },
+                        ]
+                      : []),
                     ...(hasPair && ay !== null && ap !== null
                       ? [
                           {
