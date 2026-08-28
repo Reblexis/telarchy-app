@@ -3782,6 +3782,24 @@ textarea.jobform-line--desc {
   margin: 0 auto;
 }
 
+/* The ticket, inline under the verbs (owner ask 2026-08-28, replacing the
+   bet modal): the modal card's own chrome, in the page's flow, so the
+   charts above stay visible while the bet is composed and its ghost is on
+   the market chart. */
+.pubws-ticket-inline {
+  width: min(30rem, 100%);
+  margin: 1.1rem auto 0;
+  padding: 1.2rem 1.3rem 1.3rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  text-align: left;
+  animation: modal-lift 200ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pubws-ticket-inline { animation: none; }
+}
+
 .pubws-bet-btn {
   flex: 1;
   padding: 0.85rem 1rem;

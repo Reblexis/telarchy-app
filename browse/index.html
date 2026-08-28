@@ -3067,8 +3067,11 @@ reader leaves it for a market that has one.</p>
 never found the number behind it). The market chart is the hero, directly
 under the stat row; the number chart follows at a quieter height (~170
 viewBox px against the market's 260). Each chart names itself in the
-CENTRE of its own control row (<code>.pubws-chart-cap</code>, &quot;market&quot; / &quot;number&quot;,
-the tiny-uppercase register), and each keeps its own range chips at its
+CENTRE of its own control row (<code>.pubws-chart-cap</code>, the tiny-uppercase
+register): &quot;market&quot; on the prediction, and the METRIC'S OWN NAME on the
+number chart (<code>captionLabel</code>, the leading company name stripped, the
+same caption shape the question line uses; owner ask 2026-08-28), and
+each keeps its own range chips at its
 row's right, in each chart's own range vocabulary. The number chart's
 left cell is its own stat (owner ask 2026-08-28): the value in force
 (<code>.pubws-price--reading</code>, a register under the price) with its age
@@ -3204,6 +3207,14 @@ one line saying nobody has funded a market for this contract yet.
 Composing a bet and meeting &quot;this market has no liquidity&quot; at submit is
 the bug this rule exists to prevent.</p>
 <h3 id="docs-ui-conventions-md--h19">The ticket</h3>
+<p><strong>The ticket opens INLINE under the bet verbs</strong> (owner ask 2026-08-28,
+replacing the modal of 2026-08-10): pressing &quot;Bet Higher&quot; or &quot;Bet Lower&quot;
+grows the ticket in the page's flow (<code>.pubws-ticket-inline</code>, the modal
+card's own chrome), so the charts above stay on screen while the bet is
+composed and the composed bet's ghost draws on the market chart. Pressing
+the other verb re-seeds the ticket's side rather than being a dead click;
+its close control collapses it and drops the ghost. Managing a held
+position opens the same inline ticket in manage mode.</p>
 <p>The ticket (<code>TradeTicket</code>) follows Manifold's bet-panel layout: a card
 (<code>--bg-secondary</code>, 14px radius) with the Lower/Higher pills top left and a
 Quick/Limit toggle top right. It is the one card on the poster, and

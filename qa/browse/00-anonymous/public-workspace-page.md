@@ -191,7 +191,8 @@ word and the promise is unverifiable.
   market's consensus, with the settle countdown beside it
   (`.pubws-settle-in`, "settles in <t>"); the since-open delta chip is gone.
   Each chart carries its centred title in its control row
-  (`.pubws-chart-cap`, MARKET / NUMBER). There is no MARKET/NUMBER view
+  (`.pubws-chart-cap`: MARKET on the prediction, the metric's caption name
+  on the number chart). There is no MARKET/NUMBER view
   switch: the market chart renders with the number chart
   (`.pubws-numchart .nchart`, quieter height) always below it, whose left
   cell is the value in force (`.pubws-price--reading`) plus its age

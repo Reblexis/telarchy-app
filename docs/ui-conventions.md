@@ -447,8 +447,11 @@ reader leaves it for a market that has one.
 never found the number behind it). The market chart is the hero, directly
 under the stat row; the number chart follows at a quieter height (~170
 viewBox px against the market's 260). Each chart names itself in the
-CENTRE of its own control row (`.pubws-chart-cap`, "market" / "number",
-the tiny-uppercase register), and each keeps its own range chips at its
+CENTRE of its own control row (`.pubws-chart-cap`, the tiny-uppercase
+register): "market" on the prediction, and the METRIC'S OWN NAME on the
+number chart (`captionLabel`, the leading company name stripped, the
+same caption shape the question line uses; owner ask 2026-08-28), and
+each keeps its own range chips at its
 row's right, in each chart's own range vocabulary. The number chart's
 left cell is its own stat (owner ask 2026-08-28): the value in force
 (`.pubws-price--reading`, a register under the price) with its age
@@ -594,6 +597,15 @@ Composing a bet and meeting "this market has no liquidity" at submit is
 the bug this rule exists to prevent.
 
 ### The ticket
+
+**The ticket opens INLINE under the bet verbs** (owner ask 2026-08-28,
+replacing the modal of 2026-08-10): pressing "Bet Higher" or "Bet Lower"
+grows the ticket in the page's flow (`.pubws-ticket-inline`, the modal
+card's own chrome), so the charts above stay on screen while the bet is
+composed and the composed bet's ghost draws on the market chart. Pressing
+the other verb re-seeds the ticket's side rather than being a dead click;
+its close control collapses it and drops the ghost. Managing a held
+position opens the same inline ticket in manage mode.
 
 The ticket (`TradeTicket`) follows Manifold's bet-panel layout: a card
 (`--bg-secondary`, 14px radius) with the Lower/Higher pills top left and a

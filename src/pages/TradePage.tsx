@@ -8,7 +8,6 @@ import { DiscordButton } from '../components/DiscordButton';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorChat } from '../components/FloorChat';
 import { FloorComments } from '../components/FloorComments';
-import { FloorModal } from '../components/FloorModal';
 import { LeaderboardRail } from '../components/FloorRails';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { Logo } from '../components/Logo';
@@ -175,8 +174,9 @@ export function TradePage() {
   // The price straight from a trade response, so the headline moves before
   // the reload lands. Keyed by market so it never leaks across a switch.
   const [livePrice, setLivePrice] = useState<{ marketId: string; value: number } | null>(null);
-  // The bet dialog (owner direction 2026-08-10, after Manifold): the floor
-  // shows two buttons; composing the bet happens in a modal. null = closed,
+  // The bet ticket (owner ask 2026-08-28, replacing the 2026-08-10 modal):
+  // the floor shows two verbs; composing the bet happens inline under them,
+  // with the charts still on screen. null = closed,
   // 'manage' = opened from the position summary with no side preset.
   const [betModal, setBetModal] = useState<'higher' | 'lower' | 'manage' | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
@@ -1454,7 +1454,10 @@ export function TradePage() {
                             )}
                           </span>
                         }
-                        center={<span className="pubws-chart-cap">number</span>}
+                        /* Titled by the metric itself (owner ask 2026-08-28:
+                          "instead of number use the metric name"), the same
+                          caption shape the question line uses. */
+                        center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
                       />
                     </div>
                   )}
@@ -1514,8 +1517,8 @@ export function TradePage() {
             >
               {/* Prominent, Manifold-style (owner direction 2026-08-10):
                 the two filled verbs ARE the floor's call to action, green
-                up first like the reference. The dialog they open keeps its
-                own side pills for switching.
+                up first like the reference. The inline ticket they open
+                keeps its own side pills for switching.
 
                 Unless the market has no liquidity, in which case there is
                 nothing to trade against and the server refuses the bet. Say
@@ -1540,8 +1543,43 @@ export function TradePage() {
                       : 'This market has no liquidity yet, so there is nothing to trade against.'}
                   </p>
                 ))}
+              {/* The ticket opens INLINE under the verbs (owner ask
+                2026-08-28, replacing the modal of 2026-08-10): the charts
+                stay on screen while the bet is composed, so the ghost of
+                where the call would move is visible on the market chart
+                above. Keyed by the side, so pressing the other verb
+                re-seeds the ticket instead of being a dead click. */}
+              {betModal && active && !selectedJobDecided && (
+                <div className="pubws-ticket-inline" key={betModal}>
+                  <TradeTicket
+                    probability={active.probability}
+                    liquidity={active.liquidity}
+                    positions={trading ? positions : []}
+                    onTrade={placeTrade}
+                    onTradeTarget={placeTargetTrade}
+                    onSell={sellPosition}
+                    balance={balance}
+                    onPreview={setTicketPreview}
+                    unit={unit}
+                    consensus={consensus}
+                    rangeMin={active.rangeMin}
+                    rangeMax={active.rangeMax}
+                    orders={trading ? orders : []}
+                    onPlaceLimit={trading ? placeLimit : async () => {}}
+                    onCancelLimit={trading ? cancelLimit : undefined}
+                    onRequireSignup={trading ? undefined : () => navigate(authPath('signup', location))}
+                    initialDir={betModal === 'manage' ? undefined : betModal}
+                    manageMode={betModal === 'manage'}
+                    onClose={() => {
+                      setBetModal(null);
+                      setTicketPreview(null);
+                    }}
+                  />
+                </div>
+              )}
               {/* The held position stays visible on the floor; managing it
-                (selling, cancelling orders) happens in the same dialog. */}
+                (selling, cancelling orders) happens in the same inline
+                ticket. */}
               {!selectedJobDecided && (positions.length > 0 || orders.length > 0) && active && (
                 <PositionSummary
                   positions={positions}
@@ -1764,32 +1802,6 @@ export function TradePage() {
           <aside className="pubws-rail pubws-rail--right" aria-hidden="true" />
         )}
       </main>
-
-      {betModal && active && (
-        <FloorModal onClose={() => setBetModal(null)} label="Place a trade">
-          <TradeTicket
-            probability={active.probability}
-            liquidity={active.liquidity}
-            positions={trading ? positions : []}
-            onTrade={placeTrade}
-            onTradeTarget={placeTargetTrade}
-            onSell={sellPosition}
-            balance={balance}
-            onPreview={setTicketPreview}
-            unit={unit}
-            consensus={consensus}
-            rangeMin={active.rangeMin}
-            rangeMax={active.rangeMax}
-            orders={trading ? orders : []}
-            onPlaceLimit={trading ? placeLimit : async () => {}}
-            onCancelLimit={trading ? cancelLimit : undefined}
-            onRequireSignup={trading ? undefined : () => navigate(authPath('signup', location))}
-            initialDir={betModal === 'manage' ? undefined : betModal}
-            manageMode={betModal === 'manage'}
-            onClose={() => setBetModal(null)}
-          />
-        </FloorModal>
-      )}
 
       {/* Below the floor: why this exists, in three drawings and three
           sentences (owner direction 2026-08-10: about section under the

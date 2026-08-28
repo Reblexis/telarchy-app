@@ -303,6 +303,22 @@ describe('an unfunded market does not offer a bet it cannot take', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /Bet Higher/ })).toBeTruthy());
     expect(screen.queryByText(/no market yet/i)).toBeNull();
   });
+
+  test('a bet verb opens the ticket inline, not in a modal', async () => {
+    // Owner ask 2026-08-28: composing the bet must not cover the charts,
+    // because the composed bet's ghost draws on the market chart above.
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.joinAs = 'trader';
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Bet Higher ↑' }));
+    await waitFor(() => expect(container.querySelector('.pubws-ticket-inline')).toBeTruthy());
+    expect(document.querySelector('.floor-modal-overlay')).toBeNull();
+    // The ticket sits inside the floor's action section, under the verbs.
+    expect(container.querySelector('.pubws-act .pubws-ticket-inline')).toBeTruthy();
+  });
 });
 
 /**
@@ -1104,7 +1120,10 @@ describe('the chart control row', () => {
     // Each chart names itself in its centred title; the countdown sits
     // beside the price, where the since-open chip used to be.
     expect(screen.getByText('market').className).toContain('pubws-chart-cap');
-    expect(screen.getByText('number').className).toContain('pubws-chart-cap');
+    // The number chart is titled by the metric itself, caption-shaped (the
+    // leading company name stripped). Scoped: the caption and question line
+    // say the name too.
+    expect(container.querySelector('.pubws-numchart .pubws-chart-cap')?.textContent).toBe('net 2026');
     expect(container.querySelector('.pubws-stat .pubws-settle-in')?.textContent).toMatch(/settles in/);
     // The metric's latest reading is the number chart's own stat, with its
     // age beside it.
