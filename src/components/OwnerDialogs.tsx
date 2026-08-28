@@ -193,25 +193,26 @@ export function AddDateDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  // Manifold's close-date shape (their close-time-section): preset chips above
+  // an always-visible date picker, the chips being shortcuts, never a second
+  // mode. Ours differ in one semantic: a chip is a ROLLING entry, a picked day
+  // is one-shot, so a day in the picker deselects the chips and clearing it
+  // hands them back.
   const [picked, setPicked] = useState<string>('+0w');
-  const [typing, setTyping] = useState(false);
-  const [typed, setTyped] = useState('');
+  const [day, setDay] = useState('');
   const [credits, setCredits] = useState(fmtCr(defaultCredits || 1000));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
   const quick = useMemo(() => quickDates(), []);
-  const entry = typing ? typed.trim() : picked;
-  const previewDate = typing
-    ? DATE_SHAPE.test(typed.trim())
-      ? typed.trim()
-      : null
-    : (quick.find(q => q.entry === picked)?.preview ?? null);
-  const settleDay = previewDate ? settleDayOf(previewDate) : null;
+  const usingDay = day !== '';
+  const entry = usingDay ? day : picked;
+  const previewDate = usingDay ? day : (quick.find(q => q.entry === picked)?.preview ?? null);
+  const settleDay = previewDate && DATE_SHAPE.test(previewDate) ? settleDayOf(previewDate) : null;
   const creditsNum = parseCredits(credits);
 
   const open = async () => {
-    if (typing && !DATE_SHAPE.test(typed.trim())) {
+    if (usingDay && !DATE_SHAPE.test(day)) {
       setErr('Pick a date.');
       return;
     }
@@ -261,39 +262,30 @@ export function AddDateDialog({
               <button
                 key={q.entry}
                 type="button"
-                className={`pubws-seg-btn${!typing && picked === q.entry ? ' is-active' : ''}`}
-                aria-pressed={!typing && picked === q.entry}
+                className={`pubws-seg-btn${!usingDay && picked === q.entry ? ' is-active' : ''}`}
+                aria-pressed={!usingDay && picked === q.entry}
                 disabled={busy}
                 onClick={() => {
-                  setTyping(false);
+                  setDay('');
                   setPicked(q.entry);
                 }}
               >
                 {q.label}
               </button>
             ))}
-            <button
-              type="button"
-              className={`pubws-seg-btn${typing ? ' is-active' : ''}`}
-              aria-pressed={typing}
-              disabled={busy}
-              onClick={() => setTyping(true)}
-            >
-              a date…
-            </button>
           </span>
-          {typing && (
+          <span className="odlg-dayrow">
+            <span className="odlg-or">or an exact day</span>
             <input
-              className="jobform-line odlg-mono"
+              className="jobform-line odlg-mono odlg-day"
               type="date"
-              value={typed}
-              autoFocus
+              value={day}
               disabled={busy}
               min={new Date().toISOString().slice(0, 10)}
-              onChange={e => setTyped(e.target.value)}
+              onChange={e => setDay(e.target.value)}
               aria-label="Pick a date"
             />
-          )}
+          </span>
         </div>
 
         {settleDay && (

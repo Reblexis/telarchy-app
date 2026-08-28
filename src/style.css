@@ -8031,6 +8031,11 @@ textarea.jobform-line--desc {
    only what the ticket has no equivalent for lives here. */
 .odlg-seg { align-self: flex-start; }
 .odlg-mono { font-family: var(--font-mono); font-size: 0.88rem; }
+/* Manifold's close-date shape: the picker sits under the chips, always
+   visible, with a quiet "or" joining them. */
+.odlg-dayrow { display: flex; align-items: baseline; gap: 0.6rem; }
+.odlg-or { font-size: 0.74rem; color: var(--text-tertiary); white-space: nowrap; }
+.odlg-day { width: auto; }
 
 /* + metric inside the metric seg: the one ember segment, never active. */
 .pubws-seg-add { color: var(--accent); font-weight: 600; }

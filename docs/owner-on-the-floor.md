@@ -30,9 +30,12 @@ the metric immediately opens dialog 2 for it, because a metric with no date
 has no market and the flow does not let the owner stop before one.
 
 **2. Add a date**, the same dialog whether it follows dialog 1 or is opened
-from `+ date` on the date row of any metric. One date: a segmented pick of
-this week, this month, next month, end of the year, or a day from a date
-picker (nobody types a date by hand; owner ask 2026-08-28). Under it, the liquidity the market opens with,
+from `+ date` on the date row of any metric. One date, in Manifold's
+close-date shape (owner ask 2026-08-28, from their open-source
+close-time-section): preset chips of this week, this month, next month and
+end of the year above an always-visible date picker, never a second mode.
+A chip is the selection until a day is picked; picking a day deselects the
+chips, and clicking a chip clears the day. Under it, the liquidity the market opens with,
 prefilled with the workspace default, with the translation that makes the
 number mean something ("a 100 cr trade moves it about 2%"). The open button
 carries the cost.
