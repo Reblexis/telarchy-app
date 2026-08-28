@@ -119,14 +119,15 @@ describe('season scoring ownership', () => {
   });
 
   test('settlement does not read the display cache', () => {
-    // A 30-second-stale board is fine for a page and wrong for assigning
-    // money. The settle path must clear it, and must call loadBoard directly
-    // rather than the route's cachedBoard helper.
+    // A stale read is fine for a page and wrong for assigning money. The
+    // settle path must clear the display caches and compute the settled
+    // window directly (lib/board.ts loadSeasonSettled, since the 2026-08-29
+    // settled-scoring amendment), never through the routes' cached helpers.
     const seasons = files.find(f => f.rel === 'routes/seasons.ts')!;
     const settle = seasons.text.slice(seasons.text.indexOf("'/:id/settle'"));
     expect(settle).toMatch(/clearBoardCache\(\)/);
-    expect(settle).toMatch(/loadBoard\(/);
-    expect(settle).not.toMatch(/cachedBoard\(/);
+    expect(settle).toMatch(/loadSeasonSettled\(/);
+    expect(settle).not.toMatch(/cachedBoard\(|cachedSeasonSettled\(/);
   });
 
   test('the season standings path still reads the pinned set, to report what dropped out', () => {

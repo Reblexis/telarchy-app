@@ -146,15 +146,28 @@ export function SeasonPage() {
           If something looks wrong, tell us: where a bug affects standings we publish the correction.
         </p>
         {/* The rules require every mid-season change to be announced HERE
-            before it takes effect. Remove when Season 0 settles. */}
-        <p className="seasonp-experimental">
-          Rule change, 2026-08-22: a prize no longer requires a positive score; place alone decides it. The change only
-          increases what is paid.
-        </p>
-        <p className="seasonp-experimental">
-          Rule change, 2026-08-25: accounts that own or administer a workspace are explicitly eligible, and their trades
-          in it count like any other. The change widens who may enter and reduces nobody's standing.
-        </p>
+            before it takes effect. Remove when Season 0 settles. Collapsed by
+            default (owner ask 2026-08-28: "the rule changes are way too
+            many"), with the NEWEST change as the always-visible summary line,
+            because an announcement a visitor has to open is not announced. */}
+        <details className="seasonp-rulechanges">
+          <summary className="seasonp-experimental seasonp-rulechanges-summary">
+            Rule change, 2026-08-29: from 2026-09-01T00:00Z the ranking pays settled profit only, i.e. markets that
+            actually resolve while the season runs. Open positions stay marked on the board but score nothing until
+            reality lands, and trades in a market's final 6 hours do not count toward the score. Details in the rules.
+            <span className="seasonp-rulechanges-toggle" aria-hidden="true">
+              earlier changes
+            </span>
+          </summary>
+          <p className="seasonp-experimental">
+            Rule change, 2026-08-25: accounts that own or administer a workspace are explicitly eligible, and their
+            trades in it count like any other. The change widens who may enter and reduces nobody's standing.
+          </p>
+          <p className="seasonp-experimental">
+            Rule change, 2026-08-22: a prize no longer requires a positive score; place alone decides it. The change
+            only increases what is paid.
+          </p>
+        </details>
         {/* The real channel, inline, rather than a sentence pointing at an icon
             in the top bar. Anonymous reports are accepted, so a visitor who hit
             a bug before signing up can still send one. */}
@@ -195,7 +208,14 @@ export function SeasonPage() {
 
         <section className="seasonp-block" aria-label="How it is scored">
           <h2 className="lbp-season-name">How it is scored</h2>
-          <p className="seasonp-formula">season score = trading profit now - trading profit at season start</p>
+          <p className="seasonp-formula">season score = what resolved markets paid you - what you paid on them</p>
+          {/* The one caveat the formula needs (rules amended 2026-08-29);
+              everything else lives in the rules doc, per the 2026-08-19
+              direction that this section is the formula and the link. */}
+          <p className="seasonp-note">
+            applies from 2026-09-01T00:00Z; open positions are marked on the board but score nothing until their market
+            resolves
+          </p>
           {/* The formula and the rules link are the whole section (owner
               direction 2026-08-19: the explanatory paragraphs are gone; the
               rules doc carries the detail). */}

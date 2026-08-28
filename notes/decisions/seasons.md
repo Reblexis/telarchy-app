@@ -2,6 +2,33 @@
 
 Records evicted from `docs/seasons.md` on 2026-08-25 (first conformance audit); the doc states the resulting rules in present tense. Entries newest first, text verbatim as it stood in the doc.
 
+## 2026-08-28: The season ranks settled profit (owner decision)
+
+Owner, 2026-08-28, on being shown that the season's #1 stood at +1425.12
+marked with 0.00 settled and zero resolved markets (verbatim): "it's
+supposed to be scored on the settled profit, and that's not clear, right?
+Because right now the ordering is based off of the predicted profit, you
+could say. But that doesn't really make sense." After a gaming review and a
+drafted amendment (telarchy umbrella,
+notes/season-0-gaming-review-2026-08-28.md and
+notes/season-0-settled-scoring-draft-2026-08-28.md), the owner approved the
+draft: "ship and modify ranking to be on settled profit", with the season
+page's rule-change block collapsed by default ("the rule changes are way too
+many can you like make them collapsed by default and expandable").
+
+What shipped, per the approved draft: from 2026-09-01T00:00Z the season
+score is settled profit on markets resolving inside `(startsAt, endsAt]`,
+with trades inside a market's final 6 hours not counting (scoring-side only;
+markets do not close early); the hero 2026-10-15 resolution scores nothing
+this season; resolutions exactly at the end instant count; settle gains an
+`endsAt` gate. Before the effective instant the standings keep the old
+marked key, so the change was announced (2026-08-29) before it took effect,
+per the rules' own clause. An earlier same-day implementation of different
+mitigations (48h time-weighted mark, activity floor, payout dedup,
+scoring-set lock) was built unasked and reverted on sight (owner: "these are
+just ridiculous. I wanted you to more like just propose"); its reference sha
+e1815e8e is noted in the gaming review.
+
 ## 2026-08-25: What shipped on 2026-08-20
 
 **Amended 2026-08-25 (Viktor): workspace owners are explicitly eligible.**

@@ -2,9 +2,9 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, authUser, prizeSeasons, seasonEntries, systemConfig, workspaces } from '../db/schema';
-import { loadBoard } from '../lib/board';
+import { loadBoard, loadSeasonSettled } from '../lib/board';
 import { getParticipantDisplayNames, platformOperatedIds } from '../lib/participants';
-import { type LadderRung, seasonScore, settleSeason } from '../lib/seasons';
+import { type LadderRung, seasonScore, settledScoringActive, settleSeason } from '../lib/seasons';
 import { ttlCache } from '../lib/ttl-cache';
 import { wrap } from '../lib/wrap';
 
@@ -94,6 +94,33 @@ const cachedBoard = (workspaceIds: string[]) => boardCache.get(workspaceIds);
  *  next read to see them rather than a cached answer. */
 export function clearBoardCache(): void {
   boardCache.clear();
+  settledCache.clear();
+}
+
+/**
+ * The settled-window season score (rules amended 2026-08-29; lib/board.ts
+ * loadSeasonSettled), briefly cached beside the board cache: the standings
+ * poll every few seconds and the settled score only moves when a market
+ * resolves. Settlement never reads this cache; it computes its own final
+ * (routes/seasons.ts).
+ */
+const settledCache = ttlCache({
+  ttlMs: 5_000,
+  keyOf: (seasonId: string, _workspaceIds: string[], _from: Date, _to: Date) => seasonId,
+  load: (_seasonId: string, workspaceIds: string[], from: Date, to: Date) => loadSeasonSettled(workspaceIds, from, to),
+});
+
+/** The season's settled-scoring window as standings read it live: from the
+ *  start instant to now, capped at the end instant (a resolution after the
+ *  end can never count, however late the season settles). */
+function cachedSeasonSettled(
+  seasonId: string,
+  workspaceIds: string[],
+  startsAt: Date,
+  endsAt: Date,
+): Promise<Map<string, number>> {
+  const to = new Date(Math.min(Date.now(), endsAt.getTime()));
+  return settledCache.get(seasonId, workspaceIds, startsAt, to);
 }
 
 /** Nickname, avatar and Manifold handle for a set of agents. Pure presentation;
@@ -280,14 +307,24 @@ async function currentSeasonPrizes(): Promise<{
   // scored the pinned set while the standings scored the live one, so the two
   // could name different winners for the same season on the same day.
   const publicNow = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.visibility, 'public'));
-  const board = await cachedBoard(publicNow.map(w => w.id));
+  const publicIds = publicNow.map(w => w.id);
+
+  // Since 2026-09-01T00:00Z the season ranks SETTLED profit over the season
+  // window; before that instant the previous marked-growth rule applies
+  // (rules amended 2026-08-29; lib/seasons.ts settledScoringActive). The
+  // prize column and seasonStandings must flip together, which they do by
+  // both asking the same function.
+  const settled = settledScoringActive()
+    ? await cachedSeasonSettled(season.id, publicIds, new Date(season.startsAt), new Date(season.endsAt))
+    : null;
+  const board = settled ? null : await cachedBoard(publicIds);
 
   const house = await platformOperatedIds(entries.map(e => e.agentId));
   const projection = settleSeason(
     entries.map(e => ({
       agentId: e.agentId,
-      baselineProfit: e.baselineProfit,
-      currentProfit: board.profitById.get(e.agentId) ?? 0,
+      baselineProfit: settled ? 0 : e.baselineProfit,
+      currentProfit: settled ? (settled.get(e.agentId) ?? 0) : (board?.profitById.get(e.agentId) ?? 0),
       enteredAt: e.enteredAt ? new Date(e.enteredAt) : new Date(0),
       platformOperated: house.has(e.agentId),
     })),
@@ -409,11 +446,20 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
   const publicIds = new Set(publicNow.map(w => w.id));
   const scoring = publicNow.map(w => w.id);
 
-  const board = await cachedBoard(scoring);
+  // The scoring key (rules amended 2026-08-29): SETTLED profit over the
+  // season window from the effective instant, the previous marked-growth
+  // rule before it. Same switch as currentSeasonPrizes, so the prize column
+  // on the all-time board and these standings can never disagree.
+  const settled = settledScoringActive()
+    ? await cachedSeasonSettled(season.id, scoring, new Date(season.startsAt), new Date(season.endsAt))
+    : null;
+  const board = settled ? null : await cachedBoard(scoring);
   const rows = entries.map(e => ({
     id: e.agentId,
     ...dress(e.agentId),
-    score: seasonScore(board.profitById.get(e.agentId) ?? 0, e.baselineProfit),
+    score: settled
+      ? (settled.get(e.agentId) ?? 0)
+      : seasonScore(board?.profitById.get(e.agentId) ?? 0, e.baselineProfit),
     enteredAt: e.enteredAt,
   }));
   rows.sort((a, b) => {

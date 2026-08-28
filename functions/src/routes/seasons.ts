@@ -3,7 +3,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, authUser, prizeSeasons, seasonEntries, workspaces } from '../db/schema';
-import { loadBoard } from '../lib/board';
+import { loadSeasonSettled } from '../lib/board';
 import { AppError } from '../lib/errors';
 import { platformOperatedIds } from '../lib/participants';
 import { isPlatformAuthorized } from '../lib/platform-admin';
@@ -541,12 +541,19 @@ seasonsRouter.post(
 /**
  * Settle: freeze the finals, rank, assign the ladder.
  *
- * Reachable ONLY from `running`. A second settle would read new prices and
- * could reassign a prize that has already been paid, with nothing in the
- * record saying the winner changed. That guard is the reason `status` exists.
+ * Reachable ONLY from `running`, and only once `endsAt` has passed (guard
+ * added 2026-08-29: the scored window is `(startsAt, endsAt]` on market
+ * resolve instants, so settling early would silently truncate it). A second
+ * settle would recompute and could reassign a prize that has already been
+ * paid, with nothing in the record saying the winner changed. That guard is
+ * the reason `status` exists.
  *
- * Reads the board fresh rather than from the display cache, and writes every
- * final inside one transaction, so the whole ladder is decided at one instant.
+ * The score is SETTLED profit over the season window (rules amended
+ * 2026-08-29, docs/seasons.md "The score"): what markets resolving inside
+ * the window paid, minus the net cash paid on them, trades inside each
+ * market's final 6 hours not counting. Nothing marked enters a final.
+ * Computed fresh, never from a display cache, and every final is written
+ * inside one transaction.
  */
 seasonsRouter.post(
   '/:id/settle',
@@ -558,6 +565,10 @@ seasonsRouter.post(
     if (!season) throw new AppError('Season not found', 404);
     if (season.status !== 'running')
       throw new AppError(`Season is ${season.status}; only a running season can settle`, 409);
+    const endsAt = new Date(season.endsAt);
+    if (new Date() < endsAt) {
+      throw new AppError(`Season runs until ${endsAt.toISOString()}; it can only settle after it ends`, 409);
+    }
 
     // Settlement reads the same scoring set standings show: every workspace
     // public at this instant, not the set pinned at the start (owner decision
@@ -568,7 +579,11 @@ seasonsRouter.post(
       .from(workspaces)
       .where(eq(workspaces.visibility, 'public'));
     clearBoardCache();
-    const board = await loadBoard(publicNow.map(w => w.id));
+    const settledById = await loadSeasonSettled(
+      publicNow.map(w => w.id),
+      new Date(season.startsAt),
+      endsAt,
+    );
 
     const entries = await db
       .select()
@@ -580,8 +595,10 @@ seasonsRouter.post(
     const { ranked, rolloverUsd } = settleSeason(
       entries.map(e => ({
         agentId: e.agentId,
-        baselineProfit: e.baselineProfit,
-        currentProfit: board.profitById.get(e.agentId) ?? 0,
+        // The window is the baseline under settled scoring; the snapshotted
+        // baselineProfit belongs to the pre-2026-09-01 rule and is a record.
+        baselineProfit: 0,
+        currentProfit: settledById.get(e.agentId) ?? 0,
         enteredAt: e.enteredAt ? new Date(e.enteredAt) : new Date(0),
         platformOperated: house.has(e.agentId),
       })),
@@ -594,7 +611,7 @@ seasonsRouter.post(
         await tx
           .update(seasonEntries)
           .set({
-            finalProfit: board.profitById.get(r.agentId) ?? 0,
+            finalProfit: settledById.get(r.agentId) ?? 0,
             finalScore: r.score,
             finalRank: r.rank,
             prizeUsd: r.prizeUsd,

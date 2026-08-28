@@ -1,15 +1,17 @@
-import { and, eq, gt, inArray, isNotNull, or, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { markets, positions, trades } from '../db/schema';
 import {
   type CalibrationStats,
   computeCalibrationStats,
   computeProfitBreakdown,
+  computeSettledWindowProfit,
   type LeaderboardPosition,
   type ProfitBreakdown,
   type ProfitMarket,
   voidedStakeKey,
 } from './leaderboard';
+import { SEASON_TRADE_CUTOFF_HOURS } from './seasons';
 
 /**
  * The board: everyone's trading profit marked to market, over ONE named set of
@@ -236,4 +238,73 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
     positions: positionRows,
     agentIds: Array.from(agentIdsSeen),
   };
+}
+
+/**
+ * The season score since the 2026-08-29 amendment: settled profit per agent
+ * over markets whose `resolvedAt` fell inside `(windowStart, windowEnd]`,
+ * voids included (voiding stamps `resolvedAt` too), counting only trades
+ * placed up to SEASON_TRADE_CUTOFF_HOURS before each market's resolve
+ * instant (docs/seasons.md, "The score"; rules,
+ * docs/legal/season-0-rules.md, Scoring).
+ *
+ * The arithmetic is `computeSettledWindowProfit` (lib/leaderboard.ts, pure);
+ * this is its SQL side, aggregated in the database for the same OOM reason
+ * as everything above. Positions are NOT read from the positions table: the
+ * scored holding is the position at each market's cutoff instant, which only
+ * the trade ledger knows.
+ */
+export async function loadSeasonSettled(
+  workspaceIds: string[],
+  windowStart: Date,
+  windowEnd: Date,
+): Promise<Map<string, number>> {
+  if (workspaceIds.length === 0) return new Map();
+
+  const inWindow = and(
+    inArray(markets.workspaceId, workspaceIds),
+    isNotNull(markets.resolvedAt),
+    gt(markets.resolvedAt, windowStart),
+    lte(markets.resolvedAt, windowEnd),
+    or(eq(markets.voided, true), and(eq(markets.resolved, true), isNotNull(markets.actualValue))),
+  );
+
+  const marketRows = await db
+    .select({
+      id: markets.id,
+      workspaceId: markets.workspaceId,
+      rangeMin: markets.rangeMin,
+      rangeMax: markets.rangeMax,
+      actualValue: markets.actualValue,
+      voided: markets.voided,
+    })
+    .from(markets)
+    .where(inWindow);
+  if (marketRows.length === 0) return new Map();
+
+  const aggs = await db
+    .select({
+      agentId: trades.agentId,
+      workspaceId: trades.workspaceId,
+      marketId: trades.marketId,
+      direction: trades.direction,
+      shares: sql<number>`coalesce(sum(${trades.shares}), 0)::float`,
+      cost: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
+    })
+    .from(trades)
+    .innerJoin(markets, and(eq(markets.id, trades.marketId), eq(markets.workspaceId, trades.workspaceId)))
+    .where(
+      and(
+        inWindow,
+        // The cutoff: a trade inside the market's final hours counts nothing,
+        // cost and shares both (rules amended 2026-08-29).
+        sql`${trades.createdAt} <= ${markets.resolvedAt} - make_interval(hours => ${SEASON_TRADE_CUTOFF_HOURS})`,
+      ),
+    )
+    .groupBy(trades.agentId, trades.workspaceId, trades.marketId, trades.direction);
+
+  return computeSettledWindowProfit(
+    marketRows.map(m => ({ ...m, actualValue: m.voided ? null : m.actualValue })),
+    aggs.map(a => ({ ...a, shares: Number(a.shares), cost: Number(a.cost) })),
+  );
 }

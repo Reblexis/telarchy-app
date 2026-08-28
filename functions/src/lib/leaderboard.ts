@@ -136,6 +136,102 @@ export function isSettledMarket(m: Pick<ProfitMarket, 'resolved' | 'actualValue'
   return m.voided || (m.resolved && m.actualValue !== null);
 }
 
+/** A market as the season's settled-window score needs it: what it resolved
+ *  to (null when it was cancelled instead). */
+export interface SettledWindowMarket {
+  id: string;
+  workspaceId: string;
+  rangeMin: number;
+  rangeMax: number;
+  /** Null exactly when the market was voided: it paid a refund, not a price. */
+  actualValue: number | null;
+  voided: boolean;
+}
+
+/** Per (agent, market, direction) sums over the COUNTED trades of one
+ *  settled-window market: every trade up to the cutoff before its resolve
+ *  instant. Sells are stored negative, so `shares` is the position held at
+ *  the cutoff and `cost` the net cash paid for it. The SQL side is
+ *  `lib/board.ts` loadSeasonSettled. */
+export interface SettledWindowTradeAgg {
+  agentId: string;
+  workspaceId: string;
+  marketId: string;
+  direction: string;
+  shares: number;
+  cost: number;
+}
+
+/**
+ * The season score since the 2026-08-29 amendment (docs/seasons.md, "The
+ * score"): settled profit over the markets that resolved, or were cancelled
+ * and refunded, inside the season window.
+ *
+ *   score = resolution payouts on counted shares
+ *         + void refunds on counted net cash
+ *         - counted net cash
+ *
+ * "Counted" excludes each market's final SEASON_TRADE_CUTOFF_HOURS
+ * (lib/seasons.ts): the caller aggregates only trades up to the cutoff, so
+ * an entrant's scored position is what they held when the cutoff fell.
+ * A void contributes max(0, netCash) - netCash: exactly zero for anyone
+ * still in the market, and the realised gain for anyone who sold out above
+ * cost, the same convention computeTradingProfit uses. Nothing marked ever
+ * enters: a market absent from `marketsList` (still open, or resolved
+ * outside the window) contributes nothing.
+ */
+export function computeSettledWindowProfit(
+  marketsList: SettledWindowMarket[],
+  aggs: SettledWindowTradeAgg[],
+): Map<string, number> {
+  const marketByKey = new Map<string, SettledWindowMarket>();
+  const factorsByKey = new Map<string, [number, number]>();
+  for (const m of marketsList) {
+    const k = marketKey(m.workspaceId, m.id);
+    marketByKey.set(k, m);
+    if (!m.voided && m.actualValue !== null) {
+      factorsByKey.set(k, resolutionPayouts(Math.min(m.actualValue, m.rangeMax), m.rangeMin, m.rangeMax));
+    }
+  }
+
+  // A void refunds NET cash per (agent, market), both directions summed and
+  // floored at zero, so voided markets accumulate cash per agent-market
+  // before the flooring.
+  const out = new Map<string, number>();
+  const voidedCash = new Map<string, { agentId: string; netCash: number }>();
+  const add = (agentId: string, amount: number) => {
+    out.set(agentId, (out.get(agentId) ?? 0) + amount);
+  };
+
+  for (const a of aggs) {
+    const k = marketKey(a.workspaceId, a.marketId);
+    const m = marketByKey.get(k);
+    if (!m) continue;
+    if (m.voided) {
+      const vk = `${a.agentId} ${k}`;
+      const v = voidedCash.get(vk) ?? { agentId: a.agentId, netCash: 0 };
+      v.netCash += a.cost;
+      voidedCash.set(vk, v);
+      continue;
+    }
+    const factors = factorsByKey.get(k);
+    if (!factors) continue;
+    // Counted shares cannot go negative for an honestly built ledger (a sell
+    // never precedes the buys it unwinds), but the participant-deletion
+    // unwind gap can leave orphans; never pay a negative holding.
+    const held = Math.max(0, a.shares);
+    const payout = held * (a.direction === 'higher' ? factors[1] : factors[0]);
+    add(a.agentId, payout - a.cost);
+  }
+
+  for (const v of voidedCash.values()) {
+    add(v.agentId, Math.max(0, v.netCash) - v.netCash);
+  }
+
+  for (const [id, profit] of out) out.set(id, Math.round(profit * 100) / 100);
+  return out;
+}
+
 /** What each agent's holdings are worth, split by whether that worth is
  *  final (resolution payouts, void refunds) or a mark at the current call. */
 function positionValues(

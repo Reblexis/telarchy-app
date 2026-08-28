@@ -6686,6 +6686,31 @@ textarea.jobform-line--desc {
   color: var(--text-tertiary);
   text-align: center;
 }
+/* The rule-change block collapses to its newest line (owner ask 2026-08-28:
+   "the rule changes are way too many"): the summary IS the current
+   announcement, so nothing announced is hidden, and the disclosure holds the
+   history. Same quiet register as the experimental notice; a hairline-free
+   inline affordance, not a card. */
+.seasonp-rulechanges {
+  margin: 0;
+}
+.seasonp-rulechanges-summary {
+  cursor: pointer;
+  list-style: none;
+}
+.seasonp-rulechanges-summary::-webkit-details-marker {
+  display: none;
+}
+.seasonp-rulechanges-toggle {
+  margin-left: 0.4rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+.seasonp-rulechanges[open] .seasonp-rulechanges-toggle {
+  display: none;
+}
+
 .seasonp-report {
   margin: 0 0 0.4rem;
   text-align: center;
