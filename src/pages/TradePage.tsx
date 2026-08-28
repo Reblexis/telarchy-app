@@ -33,13 +33,14 @@ import {
   captionLabel,
   cellOf,
   compactValueOf,
-  dateSegmentOf,
+  dateQuestionOf,
   datesOf,
   type HorizonView,
   horizonById,
   metricLabelOf,
   metricsOf,
   type PriceSeries,
+  possessiveOf,
   priceSeriesIsInline,
   priceSeriesOf,
   settleNoteOf,
@@ -347,16 +348,14 @@ export function TradePage() {
   const horizons: HorizonView[] = useMemo(() => buildHorizonViews(ws), [ws]);
   const [horizonId, setHorizonId] = useState<string | null>(null);
   const hero = horizonById(horizons, horizonId);
-  // Two pickers, not one (owner ask 2026-08-25, both as segmented rows since
-  // 2026-08-26): the caption row picks the METRIC, the row under it picks the
-  // DATE of that metric. Every option is on screen and the selected cell is a
-  // market id. See docs/ui-conventions.md "Two pickers".
+  // Two cycle words in one question line (owner ask 2026-08-28): the metric
+  // word steps the METRIC, the date word steps the DATE of that metric. The
+  // selected cell is a market id. See docs/ui-conventions.md "The question
+  // line".
   const metricHeads = metricsOf(horizons);
-  // Soonest first in the row: today, this week, this month, then anything absolute.
+  // Soonest first in the cycle: today, this week, this month, then anything absolute.
   const heroDates = hero ? [...datesOf(horizons, hero.metricId)].reverse() : [];
-  // The date segments carry their time left and tick by the minute
-  // (docs/ui-conventions.md, "When a market settles is said in the date
-  // picker"). One clock for the page, so every segment agrees.
+  // One clock for the page, so the countdown and every settle tooltip agree.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -948,87 +947,47 @@ export function TradePage() {
                 to be on before they clicked in. Rendered once here, never
                 copied into the branch below, because a second copy is how the
                 two drift. */}
-              {/* The metric name alone: it carries its own horizon
-               ("September 2026 net revenue"), so a settle date beside it
-               was redundant and confusing when the two differ (a September
-               metric settling 14 October read as an October market; owner
-               direction 2026-08-18). The chart caption below still says
-               when it lands. It is a caption, not a headline: with the
-               company named above, this line's only job is to say what
-               the big number underneath measures. */}
-              {/* One clock at a time, with a way to the others. The arrows
-               render whenever the floor has more than one market and they
-               LOOP (owner ask 2026-08-20): a control that sometimes does
-               nothing is worse than one that always moves, and with one
-               market they do not render at all, so looping never shows the
-               same number twice in a row. */}
-              {/* The arrows live INSIDE the caption, not in a wrapper around
-               it. Wrapping the h2 in a flex row put it in a 59px column
-               beside the price on the live floor, four words tall and
-               overlapping the leaderboard rail: this heading's placement
-               comes from rules that assume it is a block child of
-               .pubws-center, and a new element between them broke that. The
-               settle day rides on it too (owner ask 2026-08-20), computed
-               from the market and never stored on the metric. It was taken
-               off this line on 2026-08-18 as redundant, when a floor had one
-               market and the metric's name carried its own horizon; with
-               arrows it is the only thing telling two clocks apart. */}
-              {/* Two pickers (owner ask 2026-08-25; both segmented rows, owner
-               choice 2026-08-26): the caption row picks the METRIC, the row
-               under it picks the DATE of that metric. Every option is visible
-               and the selected segment never moves, which is what the pinned
-               arrows were for. A (metric, date) pair is a market, so
-               selection is still one market id. The caption stays an h2 that
-               is a block child of .pubws-center (layout rule, 2026-08-20). */}
-              <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
-                {metricHeads.length > 1 ? (
-                  <span className="pubws-seg" role="group" aria-label="Metric">
-                    {metricHeads.map(m => (
-                      <button
-                        key={m.metricId}
-                        className={`pubws-seg-btn${hero?.metricId === m.metricId ? ' is-active' : ''}`}
-                        aria-pressed={hero?.metricId === m.metricId}
-                        aria-label={`Show ${m.metricLabel}`}
-                        onClick={() => {
-                          const cell = cellOf(horizons, m.metricId, hero?.targetDate);
-                          if (cell) setHorizonId(cell.marketId);
-                        }}
-                      >
-                        {captionLabel(m.metricLabel, ws.name)}
-                      </button>
-                    ))}
-                  </span>
-                ) : (
-                  captionLabel(metricLabel, ws.name)
-                )}
+              {/* The question line (owner ask 2026-08-28, replacing the two
+               segmented rows of 2026-08-26): the caption over the price is
+               the market's own sentence, "What will be {company}'s {metric}
+               {date}?", so a newcomer is not left assembling the question
+               from an uppercase caption and a row of tabs. The metric and
+               the date are cycle words: clicking one steps to the next
+               option and LOOPS (the 2026-08-20 arrow rule: a control that
+               sometimes does nothing is worse than one that always moves);
+               with one option the word is plain text. A (metric, date) pair
+               is a market, so selection is still one market id. The
+               question stays an h2 that is a block child of .pubws-center
+               (layout rule, 2026-08-20: a wrapper around it drops it into a
+               narrow column beside the price). Doc: docs/ui-conventions.md,
+               "The question line". */}
+              <h2 className="pubws-instrument-ask pubws-enter pubws-enter--1">
+                What will be {ws.name ? `${possessiveOf(ws.name)} ` : ''}
+                <CycleWord
+                  what="Metric"
+                  options={metricHeads.map(m => ({
+                    key: m.metricId,
+                    label: captionLabel(m.metricLabel, ws.name),
+                  }))}
+                  activeKey={hero.metricId}
+                  onStep={metricId => {
+                    const cell = cellOf(horizons, metricId, hero?.targetDate);
+                    if (cell) setHorizonId(cell.marketId);
+                  }}
+                />
+                {dateQuestionOf(hero).on ? ' on ' : ' '}
+                <CycleWord
+                  what="Date"
+                  options={heroDates.map(d => ({
+                    key: d.marketId,
+                    label: dateQuestionOf(d).word,
+                    title: d.resolvesOn ? `settles ${new Date(d.resolvesOn).toUTCString()}` : undefined,
+                  }))}
+                  activeKey={hero.marketId}
+                  onStep={marketId => setHorizonId(marketId)}
+                />
+                ?
               </h2>
-              {hero && (
-                <div className="pubws-instrument-date pubws-enter pubws-enter--1">
-                  {heroDates.length > 1 ? (
-                    <span className="pubws-seg" role="group" aria-label="Date">
-                      {heroDates.map(d => (
-                        <button
-                          key={d.marketId}
-                          className={`pubws-seg-btn${d.marketId === hero.marketId ? ' is-active' : ''}`}
-                          aria-pressed={d.marketId === hero.marketId}
-                          aria-label={`Show ${d.metricLabel}, ${d.label}`}
-                          title={d.resolvesOn ? `settles ${new Date(d.resolvesOn).toUTCString()}` : undefined}
-                          onClick={() => setHorizonId(d.marketId)}
-                        >
-                          {dateSegmentOf(d)}
-                        </button>
-                      ))}
-                    </span>
-                  ) : (
-                    <span
-                      className="pubws-instrument-at"
-                      title={hero.resolvesOn ? `settles ${new Date(hero.resolvesOn).toUTCString()}` : undefined}
-                    >
-                      {dateSegmentOf(hero)}
-                    </span>
-                  )}
-                </div>
-              )}
               {selectedJob && (
                 <>
                   <h2
@@ -1937,6 +1896,52 @@ export function TopBar({
  * stands, the other waits below it, and a click crossfades them and
  * re-points the whole view at the other branch.
  */
+/** A word of the question line that steps through its options. One option
+ *  renders as a plain word; more get a button that advances to the next
+ *  and LOOPS (the 2026-08-20 arrow rule), wearing the world word's dotted
+ *  underline so a clickable word looks the same everywhere on the floor.
+ *  The inner span re-mounts (keyed) and slides in, so a changed word is
+ *  seen changing. */
+function CycleWord({
+  what,
+  options,
+  activeKey,
+  onStep,
+}: {
+  what: string;
+  options: Array<{ key: string; label: string; title?: string }>;
+  activeKey: string;
+  onStep: (key: string) => void;
+}) {
+  const idx = Math.max(
+    0,
+    options.findIndex(o => o.key === activeKey),
+  );
+  const active = options[idx];
+  if (!active) return null;
+  if (options.length < 2) {
+    return (
+      <span className="pubws-ask-word" title={active.title}>
+        {active.label}
+      </span>
+    );
+  }
+  const next = options[(idx + 1) % options.length];
+  return (
+    <button
+      type="button"
+      className="pubws-ask-word pubws-ask-word--live"
+      title={active.title}
+      onClick={() => onStep(next.key)}
+      aria-label={`${what}: ${active.label}. Show ${next.label}`}
+    >
+      <span key={active.key} className="pubws-ask-word-inner">
+        {active.label}
+      </span>
+    </button>
+  );
+}
+
 function WorldWord({
   branch,
   approvedText,

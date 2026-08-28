@@ -578,12 +578,14 @@ test('the workspace name heads the page', async () => {
   // name is only the caption over the number (owner direction 2026-08-18).
   expect(container.querySelector('.pubws-ws-name')!.tagName).toBe('H1');
   expect(container.querySelectorAll('h1').length).toBe(1);
-  // And it does not say the company twice: the caption is what the number
-  // measures, with the name it already carries overhead stripped off. The day
-  // it settles is the line under it (owner ask 2026-08-25, two steppers: the
-  // caption's arrows step the metric, the date line's arrows step the date).
-  expect(container.querySelector('.pubws-instrument-label')!.textContent).toBe('revenue');
-  expect(container.querySelector('.pubws-instrument-date')!.textContent).toBe('31 Dec');
+  // The caption is the market's own question (owner ask 2026-08-28): the
+  // company as the sentence's subject, the metric with the leading copy of
+  // the name stripped off, the settle day as the date. One metric and one
+  // date on this floor, so neither word is a control.
+  expect(container.querySelector('.pubws-instrument-ask')!.textContent).toBe(
+    "What will be LookPilot's revenue on 31 Dec?",
+  );
+  expect(container.querySelector('.pubws-ask-word--live')).toBeNull();
 });
 
 test('the workspace description is the company tagline, and is optional', async () => {
@@ -865,8 +867,8 @@ describe('the floor carries Otto', () => {
  * moved with state nobody could see.
  *
  * The rule these pin (docs/ui-conventions.md, "A contract keeps the clock
- * line"): the caption and its arrows render in BOTH states, and the contract
- * adds one sentence underneath naming the world.
+ * line"): the question line and its cycle words render in BOTH states, and
+ * the contract adds one sentence underneath naming the world.
  */
 describe('a contract keeps the clock line', () => {
   /** A floor with two open horizons, and a contract priced on both. */
@@ -932,15 +934,15 @@ describe('a contract keeps the clock line', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
 
-    // Both metrics are on the picker before anything is selected.
-    expect((await screen.findAllByRole('button', { name: /^Show / })).length).toBe(2);
+    // One metric on two dates, so the date word is a cycle button.
+    expect(await screen.findByRole('button', { name: /^Date: / })).toBeTruthy();
 
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
     await screen.findByRole('button', { name: 'if approved' });
 
-    // The regression: this used to be 0, because the caption and its arrows
-    // lived in the branch that a selected contract replaced.
-    expect(screen.getAllByRole('button', { name: /^Show / }).length).toBe(2);
+    // The regression: this used to be gone, because the caption and its
+    // controls lived in the branch that a selected contract replaced.
+    expect(screen.getByRole('button', { name: /^Date: / })).toBeTruthy();
   });
 
   test('the clock line still names the metric and its settle day on a contract', async () => {
@@ -951,11 +953,11 @@ describe('a contract keeps the clock line', () => {
     await screen.findByRole('button', { name: 'if approved' });
 
     // The floor opens on the furthest-resolving market, so the month is on
-    // screen; the caption strips the leading workspace name, and the date
-    // line under it still carries the settle day.
-    const caption = document.querySelector('.pubws-instrument-label');
-    expect(caption?.textContent).toContain('monthly net revenue');
-    expect(document.querySelector('.pubws-instrument-date')?.textContent).toMatch(/\d/);
+    // screen; the question strips the leading workspace name from the
+    // metric word and still carries the settle day as the date word.
+    const ask = document.querySelector('.pubws-instrument-ask');
+    expect(ask?.textContent).toContain('monthly net revenue');
+    expect(ask?.textContent).toMatch(/ on \d/);
   });
 
   test('the contract states the world without repeating the metric name', async () => {
@@ -981,13 +983,32 @@ describe('a contract keeps the clock line', () => {
     // Opens on the furthest-resolving horizon, so the month's approved branch.
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-month-approved'));
 
-    // The fixture's two markets share one metric, so this is the DATE row;
-    // the week's segment is the one not on screen.
-    fireEvent.click(screen.getByRole('button', { name: /^Show .*(this week|week to)/ }));
+    // The date word cycles: one click steps from the month's reading to
+    // the week's.
+    fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
 
     // pair resolves by (metric, date), so the week's pair is now the one on
     // screen.
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-week-approved'));
+  });
+
+  test('the date word cycles and LOOPS back to where it started', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    const { container } = renderFloor();
+
+    const ask = () => container.querySelector('.pubws-instrument-ask')!.textContent ?? '';
+    await waitFor(() => expect(ask()).toContain('monthly net revenue'));
+    // The whole sentence, so the scaffold and both words are pinned once.
+    expect(ask()).toBe("What will be LookPilot's monthly net revenue on 30 Sep?");
+
+    fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
+    await waitFor(() => expect(ask()).toContain('23 Aug'));
+
+    // Two options, so the next step is the start again (the 2026-08-20
+    // arrow rule: a control that always moves).
+    fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
+    await waitFor(() => expect(ask()).toContain('30 Sep'));
   });
 });
 
@@ -1009,15 +1030,15 @@ describe('the floor pins its own workspace context', () => {
 });
 
 describe('a market with no price yet', () => {
-  test('keeps the pickers on screen and says so where the price would be', async () => {
+  test('keeps the question line on screen and says so where the price would be', async () => {
     const { api } = await import('../../lib/api');
     const ws = h.workspace();
     ws.markets = ws.markets.map(m => ({ ...m, consensus: null, liquidity: 0 }));
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-instrument-label')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-ask')).toBeTruthy());
     expect(container.querySelector('.pubws-price')?.textContent).toBe('no price yet');
-    expect(container.querySelector('.pubws-instrument-date')).toBeTruthy();
+    expect(container.querySelector('.pubws-instrument-ask')?.textContent).toContain(' on ');
     expect(container.querySelector('.mchart')).toBeNull();
   });
 });

@@ -115,8 +115,12 @@ function renderFloor() {
   );
 }
 
-/** Which market is on screen, read from the caption (never the animated price). */
-const caption = (container: HTMLElement) => container.querySelector('.pubws-instrument-label')?.textContent ?? '';
+/** Which market is on screen, read from the question line (never the animated price). */
+const caption = (container: HTMLElement) => container.querySelector('.pubws-instrument-ask')?.textContent ?? '';
+
+/** One click on the metric cycle word steps to the other metric. */
+const stepMetric = (container: HTMLElement) =>
+  fireEvent.click(container.querySelector('button[aria-label^="Metric:"]')!);
 
 /** The "What is this market?" section, so queries never leak into the
  *  workspace-about section, which has its own Edit button and prose. */
@@ -149,9 +153,7 @@ describe('the definition editor edits the market on screen', () => {
     await waitFor(() => expect(defSection(container).getByRole('button', { name: 'Edit' })).toBeTruthy());
 
     // Step to the week market and confirm it is the one on screen.
-    fireEvent.click(
-      [...container.querySelectorAll('.pubws-seg-btn')].find(b => b.textContent?.includes('Signups this week'))!,
-    );
+    stepMetric(container);
     await waitFor(() => expect(caption(container)).toContain('Signups this week'));
 
     fireEvent.click(defSection(container).getByRole('button', { name: 'Edit' }));
@@ -204,9 +206,7 @@ describe('the definition editor edits the market on screen', () => {
     await waitFor(() => expect(caption(container)).toContain('Net 2026'));
     expect(defSection(container).getByText('The year definition.')).toBeTruthy();
 
-    fireEvent.click(
-      [...container.querySelectorAll('.pubws-seg-btn')].find(b => b.textContent?.includes('Signups this week'))!,
-    );
+    stepMetric(container);
     await waitFor(() => expect(caption(container)).toContain('Signups this week'));
     expect(defSection(container).queryByText('The year definition.')).toBeNull();
   });
