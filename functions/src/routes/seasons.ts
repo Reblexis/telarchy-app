@@ -542,14 +542,14 @@ seasonsRouter.post(
  * Settle: freeze the finals, rank, assign the ladder.
  *
  * Reachable ONLY from `running`, and only once `endsAt` has passed (guard
- * added 2026-08-29: the scored window is `(startsAt, endsAt]` on market
+ * added 2026-08-28: the scored window is `(startsAt, endsAt]` on market
  * resolve instants, so settling early would silently truncate it). A second
  * settle would recompute and could reassign a prize that has already been
  * paid, with nothing in the record saying the winner changed. That guard is
  * the reason `status` exists.
  *
  * The score is SETTLED profit over the season window (rules amended
- * 2026-08-29, docs/seasons.md "The score"): what markets resolving inside
+ * 2026-08-28, docs/seasons.md "The score"): what markets resolving inside
  * the window paid, minus the net cash paid on them, trades inside each
  * market's final 6 hours not counting. Nothing marked enters a final.
  * Computed fresh, never from a display cache, and every final is written
@@ -596,7 +596,7 @@ seasonsRouter.post(
       entries.map(e => ({
         agentId: e.agentId,
         // The window is the baseline under settled scoring; the snapshotted
-        // baselineProfit belongs to the pre-2026-09-01 rule and is a record.
+        // baselineProfit belongs to the pre-amendment marked rule and is a record.
         baselineProfit: 0,
         currentProfit: settledById.get(e.agentId) ?? 0,
         enteredAt: e.enteredAt ? new Date(e.enteredAt) : new Date(0),

@@ -98,7 +98,7 @@ export function clearBoardCache(): void {
 }
 
 /**
- * The settled-window season score (rules amended 2026-08-29; lib/board.ts
+ * The settled-window season score (rules amended 2026-08-28; lib/board.ts
  * loadSeasonSettled), briefly cached beside the board cache: the standings
  * poll every few seconds and the settled score only moves when a market
  * resolves. Settlement never reads this cache; it computes its own final
@@ -309,9 +309,9 @@ async function currentSeasonPrizes(): Promise<{
   const publicNow = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.visibility, 'public'));
   const publicIds = publicNow.map(w => w.id);
 
-  // Since 2026-09-01T00:00Z the season ranks SETTLED profit over the season
-  // window; before that instant the previous marked-growth rule applies
-  // (rules amended 2026-08-29; lib/seasons.ts settledScoringActive). The
+  // Since the 2026-08-28 amendment the season ranks SETTLED profit over the
+  // season window; before its effective instant the previous marked-growth
+  // rule applied (lib/seasons.ts settledScoringActive). The
   // prize column and seasonStandings must flip together, which they do by
   // both asking the same function.
   const settled = settledScoringActive()
@@ -446,7 +446,7 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
   const publicIds = new Set(publicNow.map(w => w.id));
   const scoring = publicNow.map(w => w.id);
 
-  // The scoring key (rules amended 2026-08-29): SETTLED profit over the
+  // The scoring key (rules amended 2026-08-28): SETTLED profit over the
   // season window from the effective instant, the previous marked-growth
   // rule before it. Same switch as currentSeasonPrizes, so the prize column
   // on the all-time board and these standings can never disagree.

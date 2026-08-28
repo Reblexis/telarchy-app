@@ -145,8 +145,8 @@ are explicitly eligible. The rule never excluded them, but it did not say so;
 this change widens who may enter and reduces nobody's standing or prize. It is
 announced on the season page._
 
-_Amended 2026-08-29, mid-season: the ranking now pays for being right, not
-for holding marks. From 2026-09-01T00:00Z the season score is SETTLED
+_Amended 2026-08-28, mid-season: the ranking now pays for being right, not
+for holding marks. Effective immediately, the season score is SETTLED
 profit: what markets that actually resolved during the season paid you,
 minus what you paid on them. Open positions are still marked on the boards,
 but a mark scores nothing until its market resolves. Trades placed in a
@@ -196,8 +196,8 @@ otherwise unassigned, rolls into the next season's pool.
 season score = what the season's resolved markets paid you - what you paid on them
 \`\`\`
 
-(In force from 2026-09-01T00:00Z, amended 2026-08-29; before that instant
-the previous marked-to-market rule applied.)
+(Amended and in force 2026-08-28; before that day the previous
+marked-to-market rule applied.)
 
 Your score counts only markets that RESOLVED, or were cancelled and
 refunded, inside the season window: resolution payouts on your shares, plus

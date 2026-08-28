@@ -77,7 +77,7 @@ beforeEach(async () => {
   clearBoardCache();
   caller = { isMasterKey: true };
   // This suite tests the CURRENT scoring rule, settled profit (amended
-  // 2026-08-29), so the effective instant is pinned to the past; the tests
+  // 2026-08-28), so the effective instant is pinned to the past; the tests
   // must not change behaviour when the wall clock crosses the real instant.
   // The switch itself is pinned in settled-window-scoring.test.ts and the
   // legacy marked branch below ("before the effective instant").
@@ -198,7 +198,7 @@ async function giveSettledProfit(
 }
 
 /** End the season NOW: settle refuses to run before `endsAt` (guard of
- *  2026-08-29), and the scored window ends there, so tests end the season at
+ *  2026-08-28), and the scored window ends there, so tests end the season at
  *  the instant they settle. */
 async function closeSeason(seasonId: string) {
   await db.update(prizeSeasons).set({ endsAt: new Date() }).where(eq(prizeSeasons.id, seasonId));
@@ -215,7 +215,7 @@ async function closeSeason(seasonId: string) {
  * where one person bought actually looks like. Worth is the position valued as
  * if the market resolved at its current call (owner decision 2026-08-19,
  * docs/seasons.md F1, revised), so the fixture prices it the same way. Under
- * settled season scoring (2026-08-29) this mark scores ZERO for the season;
+ * settled season scoring (2026-08-28) this mark scores ZERO for the season;
  * the helper stays for the baseline snapshots, the all-time board, and for
  * proving exactly that zero.
  */
@@ -492,7 +492,7 @@ describe('standings', () => {
     expect(res.body.participants.every((p: { score: unknown }) => p.score === null)).toBe(true);
   });
 
-  test('a running season scores ONLY what resolved inside its window (amended 2026-08-29)', async () => {
+  test('a running season scores ONLY what resolved inside its window (amended 2026-08-28)', async () => {
     await seedFloor(['veteran', 'newcomer']);
     // The veteran banked 15 on a market that resolved BEFORE the season
     // started; the newcomer settles 6 inside the window.
@@ -513,7 +513,7 @@ describe('standings', () => {
     expect(res.body.participants[0].id).toBe('newcomer');
   });
 
-  test('an open position scores nothing, however high the board marks it (amended 2026-08-29)', async () => {
+  test('an open position scores nothing, however high the board marks it (amended 2026-08-28)', async () => {
     await seedFloor(['marker', 'earner']);
     const season = (await createSeason()).body.season;
     await startSeason(season.id);
@@ -531,9 +531,10 @@ describe('standings', () => {
   });
 
   test('BEFORE the effective instant the previous marked rule still applies', async () => {
-    // The transition window (announced 2026-08-29, in force 2026-09-01):
-    // until the instant passes, standings keep the marked key the entrants
-    // watched all week.
+    // The pre-amendment era (before 2026-08-28): until the effective instant
+    // passes, standings keep the marked key the entrants watched all week.
+    // Dead in production since the owner made the amendment effective on
+    // announcement; kept because the switch itself must stay correct.
     process.env.SEASON_SETTLED_SCORING_AT = '2100-01-01T00:00:00Z';
     await seedFloor(['marker']);
     const season = (await createSeason()).body.season;
@@ -679,7 +680,7 @@ describe('settling', () => {
     expect(res.body.error).toMatch(/runs until/);
   });
 
-  test('a monster open mark settles at zero; the settled earner takes the rung (amended 2026-08-29)', async () => {
+  test('a monster open mark settles at zero; the settled earner takes the rung (amended 2026-08-28)', async () => {
     await seedFloor(['marker', 'earner']);
     const season = (await createSeason()).body.season;
     await startSeason(season.id);
@@ -699,7 +700,7 @@ describe('settling', () => {
     expect(marker.score).toBe(0);
   });
 
-  test('A TRADE INSIDE THE FINAL 6 HOURS OF A MARKET COUNTS NOTHING (amended 2026-08-29)', async () => {
+  test('A TRADE INSIDE THE FINAL 6 HOURS OF A MARKET COUNTS NOTHING (amended 2026-08-28)', async () => {
     await seedFloor(['sniper']);
     const season = (await createSeason()).body.season;
     await startSeason(season.id);

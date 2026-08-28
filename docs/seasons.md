@@ -36,8 +36,9 @@ the operator's family).
 season score = settled profit on markets that resolved inside the season window
 ```
 
-In force from 2026-09-01T00:00Z (amendment announced 2026-08-29; decision
-record in notes/decisions/seasons.md). A season ranks and pays what
+Amended and in force 2026-08-28 (effective on announcement at the owner's
+direction, like the 2026-08-22 and 2026-08-25 amendments; decision record in
+notes/decisions/seasons.md). A season ranks and pays what
 RESOLVED: resolution payouts on the entrant's shares, plus refunds from
 markets cancelled inside the window, minus the net cash paid on those
 markets. Nothing marked enters the score: a position still open at the end
@@ -68,7 +69,7 @@ those markets), and `openEarnings`, the part that is still a mark (what open
 positions are worth now minus their net cash); `totalEarnings =
 settledEarnings + openEarnings` exactly, and the ranking stays on the total. A
 participant's own profile reports the same two numbers. Season standings do
-not split, because since the 2026-08-29 amendment a season score IS the
+not split, because since the 2026-08-28 amendment a season score IS the
 settled part, windowed to the season: there is nothing to split it against.
 
 The ALL-TIME board's ranking key stays trading profit marked to market: it
@@ -258,7 +259,7 @@ pool below 5,000 USD; ladder within pool). The shape, for the design's sake
 - **Running.** Nothing is editable, standings are computed live, entry stays
   open until the end instant.
 - **Settle.** `POST /api/seasons/:id/settle` is reachable only from running
-  and only once `endsAt` has passed (guard added 2026-08-29: the scored
+  and only once `endsAt` has passed (guard added 2026-08-28: the scored
   window ends at `endsAt`, so settling early would truncate it silently).
   Settlement computes the settled-window score once, uncached, over the
   workspaces public at that instant, then writes every final in one
@@ -277,7 +278,7 @@ can beat an honest forecaster.
 ### F1. Marked-to-market profit can be manufactured, with no information
 
 **CRITICAL for the display boards, accepted there; NO LONGER DECIDES MONEY
-(2026-08-29).** Since the settled-scoring amendment the season pays only
+(2026-08-28).** Since the settled-scoring amendment the season pays only
 resolved markets, so the manufactured mark below still moves the all-time
 board and the live season page reads, but never a prize. The board values an open position at `shares x current
 payout factor` (`currentPayoutFactors` in `functions/src/lib/leaderboard.ts`),
@@ -298,7 +299,7 @@ eventually resolves at the correct value. What that costs:
 
 - The exploit is live on the display boards. The position cap
   (`maxPositionCostPerMarket = 5000`) bounds it per market rather than
-  killing it; since 2026-08-29 the season score simply never reads the mark.
+  killing it; since 2026-08-28 the season score simply never reads the mark.
 - F2 (sybil pumping) lacks the brake the liquidation mark would provide;
   settled scoring removed most of its payoff instead.
 - F3 (settlement-instant sniping) died with the mark's role in settlement.
@@ -311,7 +312,7 @@ eventually resolves at the correct value. What that costs:
 ### F2. Sybil pumping
 
 **HIGH under the marked key; MOSTLY DEFUSED by settled scoring
-(2026-08-29).** Credits are free and accounts are cheap. Sacrificial
+(2026-08-28).** Credits are free and accounts are cheap. Sacrificial
 accounts buy the side the target account holds, pushing the price up and
 marking the target up; the cost is credits, which are worthless, and the
 prize is $500. Under settled scoring a pumped price changes no resolution
@@ -333,7 +334,7 @@ prize."
 
 ### F3. Settlement-instant sniping
 
-**CLOSED by settled scoring (2026-08-29).** Under the marked key, whoever
+**CLOSED by settled scoring (2026-08-28).** Under the marked key, whoever
 pushed prices hardest in the final minutes owned the marks the ladder was
 paid on, and the hero market resolving 2026-10-15 (after the end)
 guaranteed the largest position was a mark at settlement. Under settled
@@ -345,13 +346,13 @@ reading is effectively known, is the 6h trade cutoff's job (see The score).
 
 ### F4. Nothing resolves inside most of the window
 
-**RESOLVED BY EVENTS (stale since 2026-08-25, corrected 2026-08-29).** When
+**RESOLVED BY EVENTS (stale since 2026-08-25, corrected 2026-08-28).** When
 this was written the floors carried one long horizon and nothing settled
 in-window. Since the metric x date grid reshape (2026-08-25) every floor
 prices day / week / month horizons: day markets resolve daily and week
 markets each Monday, so ground truth arrives inside the window
 continuously. That steady cadence is what made settled-only scoring viable
-(The score, 2026-08-29); the hero long-horizon market remains outside the
+(The score, 2026-08-28); the hero long-horizon market remains outside the
 window and is deliberately unscored this season.
 
 ### F5. Endgame variance farming
@@ -390,7 +391,7 @@ voiding markets during a running season except to correct a declared error.
 | Rules immutability | frozen at the start instant | may change if announced first |
 | Deletion freeze set | the live public set, same as scoring | the pinned set |
 
-Two rows retired 2026-08-29 by the settled-scoring amendment: "settlement
+Two rows retired 2026-08-28 by the settled-scoring amendment: "settlement
 and baseline mark" (there is no settlement mark to time-average, and the
 baseline is a record now) and "mid-season resolution" (F4, resolved by the
 2026-08-25 grid).

@@ -2,6 +2,23 @@
 
 Records evicted from `docs/seasons.md` on 2026-08-25 (first conformance audit); the doc states the resulting rules in present tense. Entries newest first, text verbatim as it stood in the doc.
 
+## 2026-08-28, later that day: effective immediately, and the rule-change collapse
+
+Owner, on being told the settled ranking would only take effect
+2026-09-01T00:00Z: "why, change them now". The notice period was the
+implementing agent's caution (announce-before-effect plus not re-ranking
+the leader without warning), not an owner ask; the 2026-08-22 and
+2026-08-25 amendments had both taken effect the day they were announced, so
+same-day effect is the house style. `SETTLED_SCORING_DEFAULT_AT` moved to
+2026-08-28T00:00Z, and every published surface now says "amended and in
+force 2026-08-28". Correction to the entry below: it dates the amendment
+2026-08-29, written when the deploy was expected the next day; the
+amendment actually published and took effect on 2026-08-28. Also from the
+same conversation, on the season page's announcement stack: "the rule
+changes are way too many can you like make them collapsed by default and
+expandable" - shipped as the newest change standing as the always-visible
+summary line with the older ones behind it.
+
 ## 2026-08-28: The season ranks settled profit (owner decision)
 
 Owner, 2026-08-28, on being shown that the season's #1 stood at +1425.12

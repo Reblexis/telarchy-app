@@ -23,7 +23,7 @@
  *
  * THE SCORE
  *
- * From SETTLED_SCORING_EFFECTIVE_AT (rules amended 2026-08-29):
+ * From SETTLED_SCORING_EFFECTIVE_AT (rules amended 2026-08-28):
  *
  *   season_score(agent) = settled profit on markets resolved inside the
  *                         season window (lib/leaderboard.ts,
@@ -56,7 +56,7 @@
  *    participant can move a price, have their own position marked up, and top
  *    the standings without any market resolving. Raised three times and kept,
  *    until the live Season 0 board showed +1425 marked with 0.00 settled at
- *    rank 1; since 2026-08-29 the season ranks settled profit and the mark
+ *    rank 1; since 2026-08-28 the season ranks settled profit and the mark
  *    is display only (docs/seasons.md, "The score").
  *  - No Sybil defence. Credits are free, entry is free, and a new account
  *    baselines at 0, so one person running several accounts is the cheapest way
@@ -69,15 +69,17 @@
  */
 
 /**
- * When the settled-profit season score takes effect (rules amended
- * 2026-08-29, announced on the season page before effect per the rules' own
- * clause; decision record notes/decisions/seasons.md, 2026-08-28). Before
- * this instant the standings rank the previous marked-to-market growth;
- * from it, they rank settled profit on markets resolved inside the season
- * window. The env override exists for tests, which must not change
- * behaviour with the wall clock.
+ * When the settled-profit season score takes effect: the day it was
+ * announced (rules amended 2026-08-28, effective immediately at the owner's
+ * direction, "why, change them now", same-day effect like the 2026-08-22
+ * and 2026-08-25 amendments; a 2026-09-01 notice period shipped for a few
+ * hours and was dropped the same day; decision record
+ * notes/decisions/seasons.md). Before this instant the standings rank the
+ * previous marked-to-market growth; from it, they rank settled profit on
+ * markets resolved inside the season window. The env override exists for
+ * tests, which must not change behaviour with the wall clock.
  */
-export const SETTLED_SCORING_DEFAULT_AT = '2026-09-01T00:00:00Z';
+export const SETTLED_SCORING_DEFAULT_AT = '2026-08-28T00:00:00Z';
 
 /** Read per call, not at import, so tests can pin either era without
  *  fighting module-load order. */
@@ -91,7 +93,7 @@ export function settledScoringActive(now: Date = new Date()): boolean {
 
 /**
  * Trades inside a market's final hours do not count toward the season score
- * (rules amended 2026-08-29): the market stays tradeable, because late
+ * (rules amended 2026-08-28): the market stays tradeable, because late
  * trading keeps the floor's number honest, but a reading that is already
  * visible cannot be farmed for prize money. Scoring-side only; nothing
  * closes a market early.
