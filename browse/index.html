@@ -7445,7 +7445,16 @@ Cloud Build). Its grants are the smallest set the app uses: project roles
 <code>cloudtrace.agent</code>; <code>secretmanager.secretAccessor</code> on each secret the service
 references (a NEW secret needs the same binding or the revision fails to start);
 <code>run.developer</code> on the <code>api</code> service itself and <code>artifactregistry.reader</code> on
-the image repository (see &quot;The permission behind the button&quot;).
+the image repository (see &quot;The permission behind the button&quot;); and
+<code>iam.serviceAccountUser</code> ON ITSELF (an SA-level binding on <code>telarchy-api@</code>
+naming <code>telarchy-api@</code> as the member). That last one is what makes the
+Publish button work: publishRevision PUTs the WHOLE service object back, the
+object's template names the runtime account, and Cloud Run requires
+<code>iam.serviceaccounts.actAs</code> on any account a service update names, traffic
+change or not. Without it every press answers &quot;Cloud Run refused the publish
+(403)&quot; while <code>run.developer</code> looks sufficient on paper; the button was broken
+this way from the 2026-08-25 identity cutover until 2026-08-28
+(notes/decisions/infra-deploy.md).
 <code>cloudrun-deployer</code> holds <code>iam.serviceAccountUser</code> so deploys can set it. A
 change of runtime account is done the same way as any other change: a
 no-traffic revision under the new account, smoke-tested through its own tag

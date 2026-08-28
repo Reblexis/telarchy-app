@@ -2,6 +2,32 @@
 
 Records evicted from `docs/infra/deploy.md` on 2026-08-25; the doc states the resulting rules in present tense.
 
+## 2026-08-28: The Publish button had been broken since the identity cutover
+
+Found while shipping the settled-scoring amendment (PR #25): every press of
+Publish answered "Cloud Run refused the publish (403)" since the 2026-08-25
+runtime-identity cutover to `telarchy-api@`. The 2026-08-25 record below had
+already noticed the loose end ("the custom `telarchyReleasePublisher` role
+remains bound only to the old default compute account") but the real gap was
+narrower than the role: `publishRevision` PUTs the whole service object, the
+object's template names the runtime account, and Cloud Run demands
+`iam.serviceaccounts.actAs` on any named account for ANY service update,
+traffic-only included. `run.developer` on the service does not contain it,
+and nothing granted `telarchy-api@` actAs on itself.
+
+Diagnosed by impersonating `telarchy-api@` and replaying the exact GET+PUT
+publishRevision performs (a no-op PUT of the unchanged object): 403 naming
+`iam.serviceaccounts.actAs`. Fixed 2026-08-28 by an SA-level binding of
+`roles/iam.serviceAccountUser` on `telarchy-api@` with `telarchy-api@`
+itself as the member; the same no-op PUT then answered 200. The temporary
+`serviceAccountTokenCreator` grant used for the diagnosis was removed after.
+The settled-scoring build itself was published by hand
+(`gcloud run services update-traffic api --region us-central1 --to-latest`)
+before the fix, after verifying the candidate through /beta. The
+`telarchyReleasePublisher` binding on the old compute account is now inert
+and can be dropped whenever that account's project-Editor role is next
+reviewed.
+
 ## 2026-08-27: The beta is admin only, and any branch can be built
 
 Owner: "also it should be possible for me to load up any branch i might just have to rebuild or whatever.. and also make sure that /beta is admin gated.. not availble to everyoen", then, doubting the second half, "if that even helps considering its opensource..". Answer recorded in docs/infra/deploy.md ("The beta is admin only"): the code is public, a running unpublished build on a copy of production data is not. Result: `lib/beta-gate.ts` on both surfaces, `GET /api/admin/branches` + `POST /api/admin/branches/:name/build` behind an optional `GITHUB_ACTIONS_TOKEN`, the picker lists every branch.
