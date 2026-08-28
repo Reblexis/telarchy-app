@@ -6,11 +6,13 @@ import { FloorModal } from './FloorModal';
 /**
  * The owner's three dialogs (docs/owner-on-the-floor.md, "The v1 controls").
  *
- * Each is the floor's own modal wearing the bet ticket's anatomy, and each
- * does exactly one thing: a metric is a name and what it is; a date is one
- * date and the liquidity behind it; an injection is an amount. Everything a
- * form could also have asked for is either defaulted (range, corrected any
- * time before the first trade) or lives where its effect is visible.
+ * Each wears the contract dialog's anatomy exactly (JobsBoard's jobform: the
+ * ticket head with the hero amount and the close, 2px jobform underlines,
+ * the ruled ticket-facts rows, one ticket-go whose sub-line carries the
+ * consequence), so the owner's dialogs read as siblings of the one dialog
+ * every trader already knows. Each does exactly one thing: a metric is a
+ * name and what it is; a date is one date and the liquidity behind it; an
+ * injection is an amount.
  */
 
 /** The dates the segmented row offers, in the API's own grammar.
@@ -49,6 +51,48 @@ function parseCredits(raw: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** The contract dialog's hero amount, in credits: same head, same block, the
+ *  unit after the number the way the floor writes credits. */
+function CreditsHero({
+  label,
+  value,
+  onChange,
+  disabled,
+  ariaLabel,
+  onClose,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled: boolean;
+  ariaLabel: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="ticket-head jobform-head">
+      <div className="jobform-askblock">
+        <p className="ticket-label">{label}</p>
+        <label className="ticket-amt ticket-amt--price jobform-ask">
+          <input
+            value={value}
+            style={{ width: `${Math.max(4, value.length)}ch` }}
+            onChange={e => onChange(e.target.value.replace(/[^0-9,]/g, ''))}
+            placeholder="0"
+            inputMode="numeric"
+            aria-label={ariaLabel}
+            disabled={disabled}
+            required
+          />
+          <span className="ticket-amt-unit">cr</span>
+        </label>
+      </div>
+      <button className="ticket-close" aria-label="Close" onClick={onClose}>
+        ×
+      </button>
+    </div>
+  );
+}
+
 /** Dialog 1: a metric is a name and what it is. Nothing else is asked. */
 export function NewMetricDialog({
   workspaceId,
@@ -85,36 +129,48 @@ export function NewMetricDialog({
 
   return (
     <FloorModal onClose={onClose} label="New metric">
-      <h2 className="odlg-title">New metric</h2>
-      <div className="odlg-stack">
-        <label className="odlg-field">
+      <div className="jobform">
+        <div className="ticket-head jobform-head">
+          <div className="jobform-askblock">
+            <p className="ticket-label">New metric</p>
+          </div>
+          <button className="ticket-close" aria-label="Close" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        <label className="jobform-field">
           <span className="ticket-label">Name</span>
           <input
-            className="pubws-field-line odlg-center"
-            type="text"
+            className="jobform-line jobform-line--title"
             value={name}
             autoFocus
             disabled={busy}
             onChange={e => setName(e.target.value)}
             placeholder="Steam wishlists"
+            maxLength={70}
+            aria-label="Metric name"
           />
         </label>
-        <label className="odlg-field">
+
+        <label className="jobform-field">
           <span className="ticket-label">What is it? The market settles on these words</span>
           <textarea
-            className="odlg-textarea"
-            rows={3}
+            className="jobform-line jobform-line--desc"
             value={description}
             disabled={busy}
             onChange={e => setDescription(e.target.value)}
             placeholder="Where the number comes from and what counts, in the words it settles on."
+            rows={3}
+            aria-label="What the metric is"
           />
         </label>
-        {err && <p className="odlg-err">{err}</p>}
-        <button type="button" className="ticket-go" disabled={busy} onClick={() => void create()}>
+
+        {err && <p className="ticket-err">{err}</p>}
+        <button className="ticket-go" disabled={busy} onClick={() => void create()}>
           {busy ? 'Adding…' : 'Add the metric'}
+          <span className="ticket-go-sub">Next: give it a date. A metric with no date has no market.</span>
         </button>
-        <p className="odlg-note">Next: give it a date. A metric with no date has no market.</p>
       </div>
     </FloorModal>
   );
@@ -140,7 +196,7 @@ export function AddDateDialog({
   const [picked, setPicked] = useState<string>('+0w');
   const [typing, setTyping] = useState(false);
   const [typed, setTyped] = useState('');
-  const [credits, setCredits] = useState(String(Math.round(defaultCredits) || 1000));
+  const [credits, setCredits] = useState(fmtCr(defaultCredits || 1000));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -188,10 +244,17 @@ export function AddDateDialog({
 
   return (
     <FloorModal onClose={onClose} label="Add a date">
-      <h2 className="odlg-title">Add a date</h2>
-      <p className="odlg-sub">{metricName}</p>
-      <div className="odlg-stack">
-        <div className="odlg-field">
+      <div className="jobform">
+        <CreditsHero
+          label={`Liquidity behind it, from your balance · ${metricName}`}
+          value={credits}
+          onChange={setCredits}
+          disabled={busy}
+          ariaLabel="Credits behind the market"
+          onClose={onClose}
+        />
+
+        <div className="jobform-field">
           <span className="ticket-label">Priced for</span>
           <span className="pubws-seg odlg-seg" role="group" aria-label="Date">
             {quick.map(q => (
@@ -221,8 +284,7 @@ export function AddDateDialog({
           </span>
           {typing && (
             <input
-              className="pubws-field-line odlg-center odlg-datetyped"
-              type="text"
+              className="jobform-line odlg-mono"
               value={typed}
               autoFocus
               disabled={busy}
@@ -231,31 +293,25 @@ export function AddDateDialog({
               aria-label="Typed date"
             />
           )}
-          {settleDay && <p className="odlg-note">settles {settleDay}, 23:59 UTC, on your last reading before then</p>}
         </div>
 
-        <div className="odlg-field">
-          <span className="ticket-label">Liquidity behind it</span>
-          <span className="odlg-amount">
-            <input
-              className="pubws-field-line odlg-center odlg-amount-input"
-              type="text"
-              inputMode="decimal"
-              value={credits}
-              disabled={busy}
-              onChange={e => setCredits(e.target.value)}
-              aria-label="Credits behind the market"
-            />
-            <span className="odlg-unit">cr</span>
-          </span>
-          <p className="odlg-note">what traders can win, and how steady the price holds</p>
-        </div>
+        {settleDay && (
+          <div className="ticket-facts">
+            <div className="ticket-fact">
+              <span className="ticket-fact-k">Settles</span>
+              <span className="ticket-fact-v">{settleDay}, 23:59 UTC, on your last reading</span>
+            </div>
+          </div>
+        )}
 
-        {err && <p className="odlg-err">{err}</p>}
-        <button type="button" className="ticket-go" disabled={busy} onClick={() => void open()}>
+        {err && <p className="ticket-err">{err}</p>}
+        <button className="ticket-go" disabled={busy} onClick={() => void open()}>
           {busy ? 'Opening…' : `Open the market${creditsNum ? ` · ${fmtCr(creditsNum)} cr` : ''}`}
+          <span className="ticket-go-sub">
+            What traders can win, and how steady the price holds. Whatever the market doesn't pay out comes back when it
+            settles.
+          </span>
         </button>
-        <p className="odlg-note">Whatever the market doesn't pay out comes back to you when it settles.</p>
       </div>
     </FloorModal>
   );
@@ -302,44 +358,40 @@ export function InjectLiquidityDialog({
 
   return (
     <FloorModal onClose={onClose} label="Inject liquidity">
-      <h2 className="odlg-title">Inject liquidity</h2>
-      <p className="odlg-sub">{marketLabel}</p>
-      <div className="odlg-facts">
-        <span>
-          <strong>{fmtCr(pool)}</strong>
-          <em>in the pool now</em>
-        </span>
-        <span>
-          <strong>{fmtCr(traders)}</strong>
-          <em>{traders === 1 ? 'trader on it' : 'traders on it'}</em>
-        </span>
-      </div>
-      <div className="odlg-stack">
-        <div className="odlg-field">
-          <span className="ticket-label">Add</span>
-          <span className="odlg-amount">
-            <input
-              className="pubws-field-line odlg-center odlg-amount-input"
-              type="text"
-              inputMode="decimal"
-              value={amount}
-              autoFocus
-              disabled={busy}
-              onChange={e => setAmount(e.target.value)}
-              aria-label="Credits to add to the pool"
-            />
-            <span className="odlg-unit">cr</span>
-          </span>
-          <p className="odlg-note">
-            {amountNum ? `${fmtCr(pool + amountNum)} cr after. ` : ''}The price gets harder to move and being right pays
-            more. One way only: a pool never thins back out.
-          </p>
+      <div className="jobform">
+        <CreditsHero
+          label={`Inject liquidity, from your balance · ${marketLabel}`}
+          value={amount}
+          onChange={setAmount}
+          disabled={busy}
+          ariaLabel="Credits to add to the pool"
+          onClose={onClose}
+        />
+
+        <div className="ticket-facts">
+          <div className="ticket-fact">
+            <span className="ticket-fact-k">In the pool now</span>
+            <span className="ticket-fact-v">{fmtCr(pool)} cr</span>
+          </div>
+          {amountNum !== null && (
+            <div className="ticket-fact">
+              <span className="ticket-fact-k">After</span>
+              <span className="ticket-fact-v">{fmtCr(pool + amountNum)} cr</span>
+            </div>
+          )}
+          <div className="ticket-fact">
+            <span className="ticket-fact-k">Traders on it</span>
+            <span className="ticket-fact-v">{fmtCr(traders)}</span>
+          </div>
         </div>
-        {err && <p className="odlg-err">{err}</p>}
-        <button type="button" className="ticket-go" disabled={busy} onClick={() => void inject()}>
+
+        {err && <p className="ticket-err">{err}</p>}
+        <button className="ticket-go" disabled={busy} onClick={() => void inject()}>
           {busy ? 'Adding…' : amountNum ? `Add ${fmtCr(amountNum)} cr` : 'Add'}
+          <span className="ticket-go-sub">
+            The price gets harder to move and being right pays more. One way only: a pool never thins back out.
+          </span>
         </button>
-        <p className="odlg-note">From your balance now; what the market doesn't pay out returns when it settles.</p>
       </div>
     </FloorModal>
   );

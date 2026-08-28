@@ -147,11 +147,11 @@ describe('dialog 3: inject liquidity', () => {
         onDone={onDone}
       />,
     );
-    expect(screen.getByText('9,800')).toBeTruthy();
+    expect(screen.getByText('9,800 cr')).toBeTruthy();
     const input = screen.getByLabelText('Credits to add to the pool');
     fireEvent.change(input, { target: { value: '2000' } });
     // The consequence is said before the injection: the pool after.
-    expect(screen.getByText(/11,800 cr after/)).toBeTruthy();
+    expect(screen.getByText('11,800 cr')).toBeTruthy();
     fireEvent.click(screen.getByText('Add 2,000 cr'));
     await waitFor(() => expect(injectLiquidity).toHaveBeenCalledWith('mkt-1', 2000, 'ws'));
     expect(onDone).toHaveBeenCalled();
@@ -170,7 +170,7 @@ describe('dialog 3: inject liquidity', () => {
       />,
     );
     fireEvent.change(screen.getByLabelText('Credits to add to the pool'), { target: { value: 'lots' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Add/ }));
     await waitFor(() => expect(screen.getByText('A number of credits.')).toBeTruthy());
     expect(injectLiquidity).not.toHaveBeenCalled();
   });
