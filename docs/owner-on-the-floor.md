@@ -21,7 +21,10 @@ Signed out, the same button is the door to signing up.
 
 A floor of yours that is not public yet is still not hidden from you: it
 joins the grid first, among the others, as a normal card wearing one badge,
-"Yours · not public yet", linked by id. No private side lists.
+"Yours · not public yet", linked by id. No private side lists. The floor
+itself answers its owner and members even while private (strangers keep the
+403), and says under its name "Only you can see this floor. Make it
+public", because a state named without its fix is a dead end.
 
 It lands the owner on their empty floor at `/marketplace/{id}`, by id and
 never by slug: bare-slug resolution answers an ambiguous slug with none

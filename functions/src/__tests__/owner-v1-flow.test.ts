@@ -237,6 +237,29 @@ describe('from zero: create the floor itself, then find it', () => {
     expect(await resolvePublicWorkspace(created.body.id)).toBeTruthy();
     expect(await resolvePublicWorkspace(second.body.id)).toBeTruthy();
 
+    // A PRIVATE floor still answers its own owner at the marketplace door
+    // and keeps refusing strangers (owner report 2026-08-28: clicking your
+    // own card answered 403).
+    const marketplaceMod = await import('../routes/marketplace');
+    const mkApp = (auth: object | null) => {
+      const a = express();
+      a.use(express.json());
+      a.use((req, _res, next) => {
+        (req as any).auth = auth;
+        next();
+      });
+      a.use('/api/marketplace', marketplaceMod.marketplaceRouter);
+      return a;
+    };
+    const priv = await request(app2).post('/api/workspaces').send({ name: 'Quiet', visibility: 'private' }).expect(201);
+    await request(mkApp({ uid: 'user-creator', agentId: null }))
+      .get(`/api/marketplace/${priv.body.id}`)
+      .expect(200);
+    await request(mkApp({ uid: 'user-other', agentId: null }))
+      .get(`/api/marketplace/${priv.body.id}`)
+      .expect(403);
+    await request(mkApp(null)).get(`/api/marketplace/${priv.body.id}`).expect(403);
+
     // And the creator can FIND it: GET /api/workspaces lists the fresh floor
     // for its owner, which is what the home page's "Yours" strip draws.
     // Until 2026-08-28 an unlisted floor was invisible everywhere, its own

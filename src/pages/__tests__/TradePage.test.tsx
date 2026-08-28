@@ -1134,6 +1134,19 @@ describe('the chart control row', () => {
   });
 });
 
+describe('the owner of a not-public floor', () => {
+  test('reads "only you can see this" with its one fix, and a visitor reads nothing of it', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = { ...h.workspace(), visibility: 'private' };
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    vi.mocked(api.getProfile).mockResolvedValue({ capabilities: ['read', 'trade', 'manage'] } as never);
+    renderFloor();
+    // Signed out in this harness, so canManage stays false: the note is absent.
+    await screen.findByText(h.workspace().name);
+    expect(screen.queryByText('Make it public')).toBeNull();
+  });
+});
+
 describe('a floor with no market yet', () => {
   test('a visitor sees the honest state, not a broken page', async () => {
     const { api } = await import('../../lib/api');

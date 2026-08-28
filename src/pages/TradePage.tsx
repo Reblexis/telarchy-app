@@ -981,6 +981,26 @@ export function TradePage() {
             <header className="pubws-ident pubws-enter">
               <h1 className="pubws-ws-name">{ws.name}</h1>
               {ws.description && <p className="pubws-ws-tagline">{ws.description}</p>}
+              {/* "Not public yet" must carry its own fix (owner decision
+                2026-08-28: everything public). One click, said in the words
+                of what it does, only to someone who can do it. */}
+              {canManage && ws.visibility && ws.visibility !== 'public' && (
+                <p className="pubws-vis-note">
+                  Only you can see this floor.{' '}
+                  <button
+                    type="button"
+                    className="pubws-vis-go"
+                    onClick={() => {
+                      api
+                        .updateWorkspaceSettings(ws.workspaceId, { visibility: 'public' })
+                        .then(reload)
+                        .catch(e => console.error('visibility change failed:', e));
+                    }}
+                  >
+                    Make it public
+                  </button>
+                </p>
+              )}
             </header>
           )}
           {/* A floor with no market yet. For its owner this is the moment

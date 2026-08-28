@@ -95,6 +95,15 @@ workspacesRouter.post(
      *    account. Listing stays a human decision until that is closed.
      */
     let requestedVisibility = req.body.visibility;
+    // Public by default for EVERYONE, admins and the master key included
+    // (owner decision 2026-08-28: "everything should be public fully by
+    // default for now"). The first cut put this default inside the
+    // non-admin branch below, so a platform admin's floor fell through to
+    // the service default, private, and 403'd its own owner at the door
+    // (owner report, same day). Only an explicit unlisted/private opts out.
+    if (requestedVisibility === undefined) {
+      requestedVisibility = 'public';
+    }
     if (!isMasterKey) {
       const callerId = agentId ?? uid;
       const [caller] = callerId
@@ -112,17 +121,9 @@ workspacesRouter.post(
           });
           return;
         }
-        // Public by default, and public is allowed (owner decision
-        // 2026-08-28: "nothing should be private.. everything should be
-        // public fully by default for now"). This deliberately retires the
-        // 2026-08-21 unlisted clamp; the subsidy-extraction concern it
-        // guarded (a prize season scores every public floor) is accepted
-        // for now and stays flagged in vision.md. Only an explicit ask for
-        // unlisted or private is honoured, because the door's promise is a
-        // floor on the front list.
-        if (requestedVisibility === undefined) {
-          requestedVisibility = 'public';
-        }
+        // The 2026-08-21 unlisted clamp used to live here; retired (owner
+        // decision 2026-08-28), with the subsidy-extraction risk it guarded
+        // recorded as accepted in vision.md.
       }
     }
 

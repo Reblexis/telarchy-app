@@ -77,6 +77,18 @@ describe('an ordinary signed-in person may open a floor', () => {
     expect(row.visibility).toBe('public');
   });
 
+  test('a PLATFORM ADMIN asking for nothing also gets a public floor', async () => {
+    // The first cut of the default sat inside the non-admin branch, so an
+    // admin's floor fell through to the service default, private, and
+    // 403'd its own owner at the door (owner report 2026-08-28).
+    await db.update(agents).set({ platformAdmin: true }).where(eq(agents.id, OPERATOR));
+    const r = await create({ name: 'Admin floor', template: 'blank' });
+    expect(r.status).toBe(201);
+    const [row] = await db.select().from(workspaces).where(eq(workspaces.id, r.body.id));
+    expect(row.visibility).toBe('public');
+    await db.update(agents).set({ platformAdmin: false }).where(eq(agents.id, OPERATOR));
+  });
+
   test('asking for nothing gets a PUBLIC floor, on the front list', async () => {
     // The service defaults to private, which made every market Otto opened
     // invisible at the address he had just handed over. Since 2026-08-28 the
