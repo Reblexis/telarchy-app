@@ -975,7 +975,10 @@ export function TradePage() {
                     if (cell) setHorizonId(cell.marketId);
                   }}
                 />
-                {dateQuestionOf(hero).on ? ' on ' : ' '}
+                {/* No-break space after "on": the preposition belongs to its
+                 date, and a wrap between them read broken on the desktop
+                 column. */}
+                {dateQuestionOf(hero).on ? ' on\u00A0' : ' '}
                 <CycleWord
                   what="Date"
                   options={heroDates.map(d => ({

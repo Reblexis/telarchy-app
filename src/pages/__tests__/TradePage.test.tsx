@@ -583,7 +583,7 @@ test('the workspace name heads the page', async () => {
   // the name stripped off, the settle day as the date. One metric and one
   // date on this floor, so neither word is a control.
   expect(container.querySelector('.pubws-instrument-ask')!.textContent).toBe(
-    "What will be LookPilot's revenue on 31 Dec?",
+    "What will be LookPilot's revenue on\u00A031 Dec?",
   );
   expect(container.querySelector('.pubws-ask-word--live')).toBeNull();
 });
@@ -957,7 +957,7 @@ describe('a contract keeps the clock line', () => {
     // metric word and still carries the settle day as the date word.
     const ask = document.querySelector('.pubws-instrument-ask');
     expect(ask?.textContent).toContain('monthly net revenue');
-    expect(ask?.textContent).toMatch(/ on \d/);
+    expect(ask?.textContent).toMatch(/ on\u00A0\d/);
   });
 
   test('the contract states the world without repeating the metric name', async () => {
@@ -1000,7 +1000,7 @@ describe('a contract keeps the clock line', () => {
     const ask = () => container.querySelector('.pubws-instrument-ask')!.textContent ?? '';
     await waitFor(() => expect(ask()).toContain('monthly net revenue'));
     // The whole sentence, so the scaffold and both words are pinned once.
-    expect(ask()).toBe("What will be LookPilot's monthly net revenue on 30 Sep?");
+    expect(ask()).toBe("What will be LookPilot's monthly net revenue on\u00A030 Sep?");
 
     fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
     await waitFor(() => expect(ask()).toContain('23 Aug'));
@@ -1038,7 +1038,7 @@ describe('a market with no price yet', () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-instrument-ask')).toBeTruthy());
     expect(container.querySelector('.pubws-price')?.textContent).toBe('no price yet');
-    expect(container.querySelector('.pubws-instrument-ask')?.textContent).toContain(' on ');
+    expect(container.querySelector('.pubws-instrument-ask')?.textContent).toContain(' on\u00A0');
     expect(container.querySelector('.mchart')).toBeNull();
   });
 });
