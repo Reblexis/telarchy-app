@@ -145,6 +145,14 @@ are explicitly eligible. The rule never excluded them, but it did not say so;
 this change widens who may enter and reduces nobody's standing or prize. It is
 announced on the season page._
 
+_Amended 2026-08-29, mid-season: the ranking now pays for being right, not
+for holding marks. From 2026-09-01T00:00Z the season score is SETTLED
+profit: what markets that actually resolved during the season paid you,
+minus what you paid on them. Open positions are still marked on the boards,
+but a mark scores nothing until its market resolves. Trades placed in a
+market's final 6 hours no longer count toward the season score. Announced on
+the season page; the Scoring section below has the details._
+
 **Season 0 is the first one, and the platform is still being launched.** Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
 the feedback channel in the app; where a bug affects standings we say so
@@ -152,8 +160,8 @@ publicly and publish the correction.
 
 ## The deal
 
-Trade on the public Telarchy floor; the five entrants whose trading profit
-grows the most while the season runs are paid real money. The season runs from
+Trade on the public Telarchy floor; the five entrants who earn the most
+settled trading profit while the season runs are paid real money. The season runs from
 its published start instant to its published end instant, both UTC, shown on
 the season page. Entries close when the season ends; settlement and prizes
 follow.
@@ -185,28 +193,39 @@ otherwise unassigned, rolls into the next season's pool.
 ## Scoring
 
 \`\`\`
-season score = your trading profit now - your trading profit when the season started
+season score = what the season's resolved markets paid you - what you paid on them
 \`\`\`
 
-Trading profit is what your positions are worth, plus refunds from cancelled
-markets, minus the net cash you paid. An open position is worth what it would
-pay if the market resolved right now at its current call: your shares times
-that number. It is the same number as the public leaderboard, it moves before
-anything resolves, and credits the platform granted you never enter it. The
-score is computed over every public workspace on the platform, including
-workspaces that become public while the season runs.
+(In force from 2026-09-01T00:00Z, amended 2026-08-29; before that instant
+the previous marked-to-market rule applied.)
 
-Worth knowing before you trade: buying moves the price, so a large buy shows a
-gain the moment it lands and loses it if the market comes back; the per-market
-position cap is what bounds this. The trading desk's "worth" line beside a
-position is a different, lower number (what a sell would actually pay today);
-the board and your season score use the resolve-now value.
+Your score counts only markets that RESOLVED, or were cancelled and
+refunded, inside the season window: resolution payouts on your shares, plus
+refunds from cancelled markets, minus the net cash you paid on those
+markets. A position still open when the season ends counts nothing, however
+high the board marks it: a prediction is paid when reality arrives, not
+before. Resolutions at the season's end instant count; anything resolving
+later does not.
 
-- **Everyone's baseline is read when the season starts, not when they enter**,
-  so entering late cannot pick a favourable starting point, and entering early
-  buys nothing except not having to remember.
-- **An account that did not exist at the start has a baseline of zero** and
-  keeps everything it earns inside the window.
+- **Credits the platform granted you never enter the score**, as before.
+- **Trades placed within 6 hours of a market's resolve instant do not count
+  toward the season score.** The market stays open and tradeable, because
+  late trading keeps the floor's number honest; it just cannot farm the
+  prize off a reading that is already visible. Your scored position in a
+  market is what you held 6 hours before it resolved.
+- **Entering late changes nothing**: the score counts what resolved inside
+  the window, whenever you opted in.
+- **The boards keep showing your open positions at their marked value.** The
+  mark is information for the owner and other traders; the score is what
+  settled. The all-time leaderboard is unchanged and still ranks total
+  profit including open marks; only the season ranking pays out.
+- The score runs over every public workspace on the platform, including
+  workspaces that become public while the season runs, as before.
+
+Worth knowing before you trade: buying moves the price, so a large buy shows
+a gain on the boards the moment it lands. That marked gain is display, not
+score: nothing enters your season score until a market you traded actually
+resolves.
 
 Only entrants who explicitly opted in are ranked or paid. Ties are broken by
 earlier entry, then by participant id; both are automatic and give the same

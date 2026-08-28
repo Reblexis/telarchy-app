@@ -95,11 +95,15 @@ nothing at all, not an empty box), or the pool renders as `$NaN` or `$undefined`
 **Expected:** the page contains, at minimum:
 - "No entry fee, no purchase, no stake"
 - the full ladder table, $500 through $50
-- the scoring rule, including "Your baseline is taken when the season starts,
-  not when you enter"
-- "strictly greater than zero"
+- the settled scoring rule (amended 2026-08-29): the score counts "only
+  markets that RESOLVED", a still-open position "counts nothing", and trades
+  "within 6 hours of a market's resolve instant do not count"
+- the in-force instant, 2026-09-01T00:00Z
 - the 30-day claim window
-- "Participants operated by us or run as part of the platform are not eligible"
+- "Participants operated by us or run as part of the platform are not
+  eligible" (stale expectations removed with the amendments: the
+  positive-score bar went 2026-08-22, the start-instant baseline went
+  2026-08-29 with settled scoring)
 
 **Fails if:** any of those is missing. Each one is a commitment the contest
 rests on, and the rules document is the only place they are binding.

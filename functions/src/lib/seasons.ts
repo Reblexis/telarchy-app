@@ -23,15 +23,24 @@
  *
  * THE SCORE
  *
+ * From SETTLED_SCORING_EFFECTIVE_AT (rules amended 2026-08-29):
+ *
+ *   season_score(agent) = settled profit on markets resolved inside the
+ *                         season window (lib/leaderboard.ts,
+ *                         computeSettledWindowProfit)
+ *
+ * The window on `markets.resolvedAt` is the baseline: nothing marked enters
+ * the score, entering late changes nothing, and trades inside a market's
+ * final SEASON_TRADE_CUTOFF_HOURS do not count. Before the effective
+ * instant the previous rule applied:
+ *
  *   season_score(agent) = board_profit(now) - baseline_profit(agent)
  *
- * `baseline_profit` is snapshotted for EVERY participant at the instant the
- * season starts, not at the instant they opt in. Baseline-at-entry would make
- * opting in a free option: a trader sitting on an unrealised loss could wait
- * for their trough, enter there, and bank the rebound as season profit, while
- * a trader who entered on day one ate the same drawdown for nothing. An account
- * that did not exist at season start has no baseline row, which reads as 0, so
- * newcomers are scored on exactly what they earn inside the window.
+ * where `baseline_profit` was snapshotted for EVERY participant at the
+ * instant the season started, not at the instant they opted in
+ * (baseline-at-entry would have made opting in a free option on a
+ * drawdown). Start still snapshots those baselines; under settled scoring
+ * they are a record, not an input.
  *
  * THE LADDER
  *
@@ -45,9 +54,10 @@
  *
  *  - Ranking on marked-to-market profit is exploitable on a thin book: a
  *    participant can move a price, have their own position marked up, and top
- *    the standings without any market resolving. Raised three times and kept
- *    ("we will mitigate later by improving markets design"). The hedge is to
- *    end a season only after at least one of its markets resolves.
+ *    the standings without any market resolving. Raised three times and kept,
+ *    until the live Season 0 board showed +1425 marked with 0.00 settled at
+ *    rank 1; since 2026-08-29 the season ranks settled profit and the mark
+ *    is display only (docs/seasons.md, "The score").
  *  - No Sybil defence. Credits are free, entry is free, and a new account
  *    baselines at 0, so one person running several accounts is the cheapest way
  *    to farm the ladder. Season 0 relies on manual settlement and a
@@ -57,6 +67,36 @@
  *    published rules commit the operator to not voiding during a running season
  *    except for a declared, announced error.
  */
+
+/**
+ * When the settled-profit season score takes effect (rules amended
+ * 2026-08-29, announced on the season page before effect per the rules' own
+ * clause; decision record notes/decisions/seasons.md, 2026-08-28). Before
+ * this instant the standings rank the previous marked-to-market growth;
+ * from it, they rank settled profit on markets resolved inside the season
+ * window. The env override exists for tests, which must not change
+ * behaviour with the wall clock.
+ */
+export const SETTLED_SCORING_DEFAULT_AT = '2026-09-01T00:00:00Z';
+
+/** Read per call, not at import, so tests can pin either era without
+ *  fighting module-load order. */
+export function settledScoringEffectiveAt(): Date {
+  return new Date(process.env.SEASON_SETTLED_SCORING_AT ?? SETTLED_SCORING_DEFAULT_AT);
+}
+
+export function settledScoringActive(now: Date = new Date()): boolean {
+  return now >= settledScoringEffectiveAt();
+}
+
+/**
+ * Trades inside a market's final hours do not count toward the season score
+ * (rules amended 2026-08-29): the market stays tradeable, because late
+ * trading keeps the floor's number honest, but a reading that is already
+ * visible cannot be farmed for prize money. Scoring-side only; nothing
+ * closes a market early.
+ */
+export const SEASON_TRADE_CUTOFF_HOURS = 6;
 
 /** One rung of the published prize ladder. */
 export interface LadderRung {

@@ -2254,33 +2254,54 @@ here.&quot; The season's falsifier is five outside entrants: entrants with no
 connection to the operator (not the operator, not the operator's agents, not
 the operator's family).</p>
 <h2 id="docs-seasons-md--h3">The score</h2>
-<pre><code>season score = trading profit now - trading profit at the season's start instant
+<pre><code>season score = settled profit on markets that resolved inside the season window
 </code></pre>
-<p>Trading profit is marked to market and grant-blind: payouts on resolved
-markets, plus what open positions are worth now, plus refunds from cancelled
-markets, minus the net cash paid for those positions. Platform grants never
-enter it, which is what lets the operator and the market maker sit on the same
-board as everyone else instead of being excluded by name
-(<code>functions/src/lib/leaderboard.ts</code>, <code>computeTradingProfit</code>). An open position
-is worth what it would pay if the market resolved right now at its current
-call; see F1 for what that costs.</p>
+<p>In force from 2026-09-01T00:00Z (amendment announced 2026-08-29; decision
+record in notes/decisions/seasons.md). A season ranks and pays what
+RESOLVED: resolution payouts on the entrant's shares, plus refunds from
+markets cancelled inside the window, minus the net cash paid on those
+markets. Nothing marked enters the score: a position still open at the end
+counts zero, however the board values it. The window is <code>(startsAt, endsAt]</code>
+on <code>markets.resolvedAt</code> (a resolution exactly at the end instant counts; the
+hero market resolving after the end scores nothing that season). Trades
+placed within <code>SEASON_TRADE_CUTOFF_HOURS</code> (6) of a market's resolve instant
+do not count, cost and shares both: the market stays tradeable to keep the
+floor's number honest, but a reading that is already visible cannot be
+farmed for prize money. An entrant's scored position in a market is what
+they held 6 hours before it resolved. Before the effective instant the
+previous rule (marked-to-market growth over a start-instant baseline)
+applied, and the standings switch keys at that instant
+(<code>functions/src/lib/seasons.ts</code>, <code>settledScoringActive</code>).</p>
+<p>Settled profit is grant-blind, like everything the boards rank: platform
+grants never enter it, which is what lets the operator and the market maker
+sit on the same board as everyone else instead of being excluded by name.
+The baseline snapshot taken at the season start
+(<code>season_entries.baselineProfit</code>) belongs to the previous rule and is now a
+record, not an input: under resolution-window scoring the window itself is
+the baseline.</p>
 <p>The board reports the split beside the ranking number. Every all-time row
 carries <code>settledEarnings</code>, the part of the profit that is final (payouts on
 resolved markets and refunds on cancelled ones, minus the net cash paid on
 those markets), and <code>openEarnings</code>, the part that is still a mark (what open
 positions are worth now minus their net cash); <code>totalEarnings = settledEarnings + openEarnings</code> exactly, and the ranking stays on the total. A
 participant's own profile reports the same two numbers. Season standings do
-not split: a season score is a difference of two marks, not a sum of
-settlements.</p>
-<p>The ranking key is trading profit alone. It is the one number a trader can see
-moving, it is the same number both public boards rank, and every alternative
-(calibration, Brier, accuracy) ranks a statistic most people cannot compute in
-their head while deciding whether to place a bet. Calibration and accuracy are
-reported per row; they are not the key.</p>
+not split, because since the 2026-08-29 amendment a season score IS the
+settled part, windowed to the season: there is nothing to split it against.</p>
+<p>The ALL-TIME board's ranking key stays trading profit marked to market: it
+is the one number a trader can see moving, and a board that only moves on
+resolution days ranks nobody between them (the 2026-08-19 liquidation-mark
+lesson). The SEASON's key is settled profit, because the season is the one
+place the number buys real money, and a mark can be manufactured while a
+resolution cannot (the 2026-08-28 gaming review,
+notes/season-0-gaming-review-2026-08-28.md in the telarchy umbrella: the
+board's #1 stood at +1425 marked with 0.00 settled). The two boards showing
+different keys is deliberate and each says which it ranks. Calibration and
+accuracy are reported per row; they are never the key.</p>
 <p>The one thing profit-only ranking does badly is the endgame: with a free
 entry, free credits and a five-rung ladder, the rational move in the last week
 is maximum variance, because being 6th and being 60th pay the same. That is a
-tournament effect, not a scoring bug, and it is cheap to blunt (see F5).</p>
+tournament effect, not a scoring bug, and it is cheap to blunt (see F5);
+settled scoring at least forces the long shot to survive a real resolution.</p>
 <p><strong>Scoring set.</strong> The season scores over ALL public workspaces, live, not the
 set pinned at the start instant. A floor published mid-season counts from the
 moment it is public. Standings (<code>routes/leaderboard.ts</code> seasonStandings), the
@@ -2469,12 +2490,13 @@ free option on a drawdown; an account that did not exist at the start
 baselines at zero.</li>
 <li><strong>Running.</strong> Nothing is editable, standings are computed live, entry stays
 open until the end instant.</li>
-<li><strong>Settle.</strong> <code>POST /api/seasons/:id/settle</code> is reachable only from running and
-is gated on status alone (no <code>endsAt</code> guard). Settlement reads the board
-once, uncached, over the workspaces public at that instant, then writes every
-final in one transaction; the read itself is not snapshot-isolated. A settled
-season reads its stored finals and never recomputes, so a published winner
-cannot change after the money is sent.</li>
+<li><strong>Settle.</strong> <code>POST /api/seasons/:id/settle</code> is reachable only from running
+and only once <code>endsAt</code> has passed (guard added 2026-08-29: the scored
+window ends at <code>endsAt</code>, so settling early would truncate it silently).
+Settlement computes the settled-window score once, uncached, over the
+workspaces public at that instant, then writes every final in one
+transaction. A settled season reads its stored finals and never recomputes,
+so a published winner cannot change after the money is sent.</li>
 <li><strong>Claim.</strong> Winners have 30 days after settlement to claim; a claim requires
 <code>payoutMethod</code> on the account; an expired claim rolls the prize into the next
 season's pool. Payment happens outside the Service, between the owner and
@@ -2484,7 +2506,10 @@ the winner.</li>
 <p>Rated by whether a competent bad actor with free credits and a couple of hours
 can beat an honest forecaster.</p>
 <h3 id="docs-seasons-md--h11">F1. Marked-to-market profit can be manufactured, with no information</h3>
-<p><strong>CRITICAL, accepted.</strong> The board values an open position at <code>shares x current payout factor</code> (<code>currentPayoutFactors</code> in <code>functions/src/lib/leaderboard.ts</code>),
+<p><strong>CRITICAL for the display boards, accepted there; NO LONGER DECIDES MONEY
+(2026-08-29).</strong> Since the settled-scoring amendment the season pays only
+resolved markets, so the manufactured mark below still moves the all-time
+board and the live season page reads, but never a prize. The board values an open position at <code>shares x current payout factor</code> (<code>currentPayoutFactors</code> in <code>functions/src/lib/leaderboard.ts</code>),
 as if the market resolved right now at its current call, one path whether or
 not the market has resolved. In an LMSR the average price paid while buying is
 strictly below the price the buy ends at, so <em>every</em> buy books an instant
@@ -2499,12 +2524,12 @@ most rows read 0.00 and the top row falls to whoever traded most recently. The
 resolve-now mark is therefore the rule, on the reasoning that every market
 eventually resolves at the correct value. What that costs:</p>
 <ul>
-<li>The exploit is live. The position cap (<code>maxPositionCostPerMarket = 5000</code>)
-bounds it per market rather than killing it.</li>
-<li>F2 (sybil pumping) lacks the brake the liquidation mark would provide; the
-payout-handle rule and the position cap are what remain.</li>
-<li>F3 (settlement-instant sniping) is exposed on every market still open at the
-end, which is the argument for the 48h time-weighted settlement mark.</li>
+<li>The exploit is live on the display boards. The position cap
+(<code>maxPositionCostPerMarket = 5000</code>) bounds it per market rather than
+killing it; since 2026-08-29 the season score simply never reads the mark.</li>
+<li>F2 (sybil pumping) lacks the brake the liquidation mark would provide;
+settled scoring removed most of its payoff instead.</li>
+<li>F3 (settlement-instant sniping) died with the mark's role in settlement.</li>
 <li>The desk and the board disagree: <code>TradeTicket.tsx</code> shows position worth from
 <code>previewSell</code>, what a sell would really pay; the board shows the resolve-now
 value. Both are true answers to different questions, and the published rules
@@ -2512,9 +2537,16 @@ say which is which; <code>GET /api/help</code> says the same thing to an API
 participant.</li>
 </ul>
 <h3 id="docs-seasons-md--h12">F2. Sybil pumping</h3>
-<p><strong>HIGH.</strong> Credits are free and accounts are cheap. Sacrificial accounts buy the
-side the target account holds, pushing the price up and marking the target up.
-The cost is credits, which are worthless; the prize is $500.</p>
+<p><strong>HIGH under the marked key; MOSTLY DEFUSED by settled scoring
+(2026-08-29).</strong> Credits are free and accounts are cheap. Sacrificial
+accounts buy the side the target account holds, pushing the price up and
+marking the target up; the cost is credits, which are worthless, and the
+prize is $500. Under settled scoring a pumped price changes no resolution
+payout, so the pump buys nothing unless the sybils trade AGAINST the
+champion on a market that resolves, i.e. deliberately lose settled money to
+him inside the window and before the 6h cutoff. That residual wealth
+transfer is real but bounded by the position cap and visible in the trade
+ledger, and remains covered by the disqualification clause.</p>
 <p>Two brakes, in order of how much they help:</p>
 <ul>
 <li>Entry requires rules acceptance, an 18+ confirmation and a contact email;
@@ -2526,26 +2558,24 @@ email address, not one more payout identity.</li>
 to check at settlement, and it is the natural reading of &quot;one person, one
 prize.&quot;</p>
 <h3 id="docs-seasons-md--h13">F3. Settlement-instant sniping</h3>
-<p><strong>HIGH, not mitigated in Season 0.</strong> Settlement reads the board once, uncached,
-then writes every final in one transaction; the read itself is not
-snapshot-isolated. Under the resolve-now mark, whoever pushes the price
-hardest in the final minutes wins.</p>
-<p>The hero market resolves 2026-10-15, two weeks after the season ends, so at
-settlement it is marked, not paid, and it is the largest position anyone
-holds. Every contract branch still open at the end is exposed the same way.</p>
-<p>Mitigation, deferred to Season 1: <strong>settle on a time-weighted average of the
-last 48 hours</strong>, not on an instant. Same for the baseline at the start instant,
-and for the same reason in reverse: an instant baseline can be pushed down by
-the entrant himself, and a season score is the difference of two marks.</p>
+<p><strong>CLOSED by settled scoring (2026-08-29).</strong> Under the marked key, whoever
+pushed prices hardest in the final minutes owned the marks the ladder was
+paid on, and the hero market resolving 2026-10-15 (after the end)
+guaranteed the largest position was a mark at settlement. Under settled
+scoring there is no mark to push: the season pays only resolutions inside
+<code>(startsAt, endsAt]</code>, the hero market scores nothing this season, and
+settlement is refused before <code>endsAt</code> so the settle-press instant cannot
+widen the window. The successor vector, trading a short market once its
+reading is effectively known, is the 6h trade cutoff's job (see The score).</p>
 <h3 id="docs-seasons-md--h14">F4. Nothing resolves inside most of the window</h3>
-<p><strong>MEDIUM.</strong> A forecasting contest pays for being right. Season 0 has no
-resolution inside its window; the ramp and the marks decide it.</p>
-<p><strong>Mitigation for Season 1: at least one market that resolves mid-season.</strong>
-This is in tension with the rule that a floor shows one clock, not two (a
-second horizon confuses visitors), and the tension is real. The cheapest
-resolution is a season-scoped market set that is not the floor's own headline,
-so the floor keeps its single clock and the contest still has ground truth
-arriving while people are playing.</p>
+<p><strong>RESOLVED BY EVENTS (stale since 2026-08-25, corrected 2026-08-29).</strong> When
+this was written the floors carried one long horizon and nothing settled
+in-window. Since the metric x date grid reshape (2026-08-25) every floor
+prices day / week / month horizons: day markets resolve daily and week
+markets each Monday, so ground truth arrives inside the window
+continuously. That steady cadence is what made settled-only scoring viable
+(The score, 2026-08-29); the hero long-horizon market remains outside the
+window and is deliberately unscored this season.</p>
 <h3 id="docs-seasons-md--h15">F5. Endgame variance farming</h3>
 <p><strong>MEDIUM.</strong> Free entry, no downside, five paying rungs: in the last week the
 correct play from 8th place is to bet everything on one long shot. Honest
@@ -2576,11 +2606,6 @@ voiding markets during a running season except to correct a declared error.</p>
 </thead>
 <tbody>
 <tr>
-<td>Settlement and baseline mark</td>
-<td>48h time-weighted average (F3)</td>
-<td>one instant</td>
-</tr>
-<tr>
 <td>Prize eligibility floor</td>
 <td>10 trades / 2 markets / 3 before the final week (F5)</td>
 <td>none</td>
@@ -2596,11 +2621,6 @@ voiding markets during a running season except to correct a declared error.</p>
 <td>not built; the ramp script and the cap do the work</td>
 </tr>
 <tr>
-<td>Mid-season resolution</td>
-<td>at least one market resolving inside the window (F4)</td>
-<td>none</td>
-</tr>
-<tr>
 <td>Rules immutability</td>
 <td>frozen at the start instant</td>
 <td>may change if announced first</td>
@@ -2612,6 +2632,10 @@ voiding markets during a running season except to correct a declared error.</p>
 </tr>
 </tbody>
 </table></div>
+<p>Two rows retired 2026-08-29 by the settled-scoring amendment: &quot;settlement
+and baseline mark&quot; (there is no settlement mark to time-average, and the
+baseline is a record now) and &quot;mid-season resolution&quot; (F4, resolved by the
+2026-08-25 grid).</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
@@ -7643,13 +7667,20 @@ page.</em></p>
 are explicitly eligible. The rule never excluded them, but it did not say so;
 this change widens who may enter and reduces nobody's standing or prize. It is
 announced on the season page.</em></p>
+<p><em>Amended 2026-08-29, mid-season: the ranking now pays for being right, not
+for holding marks. From 2026-09-01T00:00Z the season score is SETTLED
+profit: what markets that actually resolved during the season paid you,
+minus what you paid on them. Open positions are still marked on the boards,
+but a mark scores nothing until its market resolves. Trades placed in a
+market's final 6 hours no longer count toward the season score. Announced on
+the season page; the Scoring section below has the details.</em></p>
 <p><strong>Season 0 is the first one, and the platform is still being launched.</strong> Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
 the feedback channel in the app; where a bug affects standings we say so
 publicly and publish the correction.</p>
 <h2 id="docs-legal-season-0-rules-md--h2">The deal</h2>
-<p>Trade on the public Telarchy floor; the five entrants whose trading profit
-grows the most while the season runs are paid real money. The season runs from
+<p>Trade on the public Telarchy floor; the five entrants who earn the most
+settled trading profit while the season runs are paid real money. The season runs from
 its published start instant to its published end instant, both UTC, shown on
 the season page. Entries close when the season ends; settlement and prizes
 follow.</p>
@@ -7695,27 +7726,37 @@ above): the entrant in 1st place is paid the 1st rung even if their season
 score is zero or negative. A rung with no entrant to take it, and anything
 otherwise unassigned, rolls into the next season's pool.</p>
 <h2 id="docs-legal-season-0-rules-md--h5">Scoring</h2>
-<pre><code>season score = your trading profit now - your trading profit when the season started
+<pre><code>season score = what the season's resolved markets paid you - what you paid on them
 </code></pre>
-<p>Trading profit is what your positions are worth, plus refunds from cancelled
-markets, minus the net cash you paid. An open position is worth what it would
-pay if the market resolved right now at its current call: your shares times
-that number. It is the same number as the public leaderboard, it moves before
-anything resolves, and credits the platform granted you never enter it. The
-score is computed over every public workspace on the platform, including
-workspaces that become public while the season runs.</p>
-<p>Worth knowing before you trade: buying moves the price, so a large buy shows a
-gain the moment it lands and loses it if the market comes back; the per-market
-position cap is what bounds this. The trading desk's &quot;worth&quot; line beside a
-position is a different, lower number (what a sell would actually pay today);
-the board and your season score use the resolve-now value.</p>
+<p>(In force from 2026-09-01T00:00Z, amended 2026-08-29; before that instant
+the previous marked-to-market rule applied.)</p>
+<p>Your score counts only markets that RESOLVED, or were cancelled and
+refunded, inside the season window: resolution payouts on your shares, plus
+refunds from cancelled markets, minus the net cash you paid on those
+markets. A position still open when the season ends counts nothing, however
+high the board marks it: a prediction is paid when reality arrives, not
+before. Resolutions at the season's end instant count; anything resolving
+later does not.</p>
 <ul>
-<li><strong>Everyone's baseline is read when the season starts, not when they enter</strong>,
-so entering late cannot pick a favourable starting point, and entering early
-buys nothing except not having to remember.</li>
-<li><strong>An account that did not exist at the start has a baseline of zero</strong> and
-keeps everything it earns inside the window.</li>
+<li><strong>Credits the platform granted you never enter the score</strong>, as before.</li>
+<li><strong>Trades placed within 6 hours of a market's resolve instant do not count
+toward the season score.</strong> The market stays open and tradeable, because
+late trading keeps the floor's number honest; it just cannot farm the
+prize off a reading that is already visible. Your scored position in a
+market is what you held 6 hours before it resolved.</li>
+<li><strong>Entering late changes nothing</strong>: the score counts what resolved inside
+the window, whenever you opted in.</li>
+<li><strong>The boards keep showing your open positions at their marked value.</strong> The
+mark is information for the owner and other traders; the score is what
+settled. The all-time leaderboard is unchanged and still ranks total
+profit including open marks; only the season ranking pays out.</li>
+<li>The score runs over every public workspace on the platform, including
+workspaces that become public while the season runs, as before.</li>
 </ul>
+<p>Worth knowing before you trade: buying moves the price, so a large buy shows
+a gain on the boards the moment it lands. That marked gain is display, not
+score: nothing enters your season score until a market you traded actually
+resolves.</p>
 <p>Only entrants who explicitly opted in are ranked or paid. Ties are broken by
 earlier entry, then by participant id; both are automatic and give the same
 result on any recount.</p>

@@ -76,6 +76,15 @@ beforeEach(async () => {
   await truncateAll();
   clearBoardCache();
   caller = { isMasterKey: true };
+  // This suite tests the CURRENT scoring rule, settled profit (amended
+  // 2026-08-29), so the effective instant is pinned to the past; the tests
+  // must not change behaviour when the wall clock crosses the real instant.
+  // The switch itself is pinned in settled-window-scoring.test.ts and the
+  // legacy marked branch below ("before the effective instant").
+  process.env.SEASON_SETTLED_SCORING_AT = '2000-01-01T00:00:00Z';
+});
+afterAll(() => {
+  delete process.env.SEASON_SETTLED_SCORING_AT;
 });
 
 /** One public workspace, one market, and traders who can be moved. */
@@ -124,6 +133,78 @@ async function seedFloor(traderIds: string[]) {
   });
 }
 
+const DAY = 24 * 60 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
+
+/**
+ * Give `agentId` a SETTLED season profit of exactly `profit`: their own
+ * market, resolved inside the season window, one counted trade well before
+ * the 6h cutoff. Range 0..100 resolved at 50, so 40 'higher' shares pay 20
+ * and the cost is set to 20 - profit (the settled-window formula,
+ * lib/leaderboard.ts computeSettledWindowProfit).
+ */
+async function giveSettledProfit(
+  agentId: string,
+  profit: number,
+  tag: string,
+  ws: string = WS,
+  opts: { resolvedAt?: Date; tradeAt?: Date } = {},
+) {
+  const SHARES = 40;
+  const ACTUAL = 50;
+  const marketId = `mkt-${tag}`;
+  const resolvedAt = opts.resolvedAt ?? new Date(Date.now() - 1 * HOUR);
+  const tradeAt = opts.tradeAt ?? new Date(resolvedAt.getTime() - 2 * DAY);
+  const payout = SHARES * (ACTUAL / 100);
+  const cost = payout - profit;
+  await db.insert(markets).values({
+    id: marketId,
+    workspaceId: ws,
+    metricId: 'metric-1',
+    metricName: 'Revenue',
+    targetDate: `res-${tag}`,
+    rangeMin: 0,
+    rangeMax: 100,
+    shares: [0, SHARES],
+    liquidity: 200,
+    pool: 0,
+    active: false,
+    resolved: true,
+    actualValue: ACTUAL,
+    resolvedAt,
+    voided: false,
+    proposalId: null,
+  });
+  await db.insert(trades).values({
+    id: `trade-${tag}`,
+    workspaceId: ws,
+    agentId,
+    marketId,
+    direction: 'higher',
+    shares: SHARES,
+    cost,
+    createdAt: tradeAt,
+  });
+  await db.insert(positions).values({
+    id: `pos-${tag}`,
+    workspaceId: ws,
+    agentId,
+    marketId,
+    direction: 'higher',
+    shares: SHARES,
+    totalCost: cost,
+  });
+  clearBoardCache();
+}
+
+/** End the season NOW: settle refuses to run before `endsAt` (guard of
+ *  2026-08-29), and the scored window ends there, so tests end the season at
+ *  the instant they settle. */
+async function closeSeason(seasonId: string) {
+  await db.update(prizeSeasons).set({ endsAt: new Date() }).where(eq(prizeSeasons.id, seasonId));
+  clearBoardCache();
+}
+
 /**
  * Give `agentId` a position worth exactly `profit` more than it cost.
  *
@@ -133,7 +214,10 @@ async function seedFloor(traderIds: string[]) {
  * The book holds exactly the shares the position holds, which is what a market
  * where one person bought actually looks like. Worth is the position valued as
  * if the market resolved at its current call (owner decision 2026-08-19,
- * docs/seasons.md F1, revised), so the fixture prices it the same way.
+ * docs/seasons.md F1, revised), so the fixture prices it the same way. Under
+ * settled season scoring (2026-08-29) this mark scores ZERO for the season;
+ * the helper stays for the baseline snapshots, the all-time board, and for
+ * proving exactly that zero.
  */
 async function giveProfit(agentId: string, profit: number, tag: string, ws: string = WS) {
   const B = 200;
@@ -200,12 +284,15 @@ async function seedSecondFloor(createdBy: string) {
 }
 
 async function createSeason(overrides: Record<string, unknown> = {}) {
+  // Started ten days back and ending tomorrow, so entry is open, the
+  // fixtures' resolved markets (resolvedAt about an hour ago) sit inside the
+  // scored window, and closeSeason() can end it at the settle instant.
   const res = await request(app)
     .post('/api/seasons')
     .send({
       name: 'Season 1',
-      startsAt: '2026-09-01T00:00:00Z',
-      endsAt: '2026-09-29T00:00:00Z',
+      startsAt: new Date(Date.now() - 10 * DAY).toISOString(),
+      endsAt: new Date(Date.now() + 1 * DAY).toISOString(),
       poolUsd: 1000,
       ladder: LADDER,
       rulesUrl: '/legal/season-1',
@@ -250,7 +337,7 @@ describe('creating a season', () => {
   });
 
   test('rejects an end date at or before the start', async () => {
-    const res = await createSeason({ endsAt: '2026-09-01T00:00:00Z' });
+    const res = await createSeason({ startsAt: '2026-09-01T00:00:00Z', endsAt: '2026-09-01T00:00:00Z' });
     expect(res.status).toBe(400);
   });
 
@@ -310,12 +397,12 @@ describe('entering', () => {
     expect(entry.optedIn).toBe(true);
   });
 
-  test('an account with no history baselines at zero and keeps everything it earns', async () => {
+  test('a newcomer keeps everything that settles for them inside the window', async () => {
     await seedFloor(['newcomer']);
     const season = (await createSeason()).body.season;
     await startSeason(season.id);
     await optIn(season.id, 'newcomer');
-    await giveProfit('newcomer', 30, 'a');
+    await giveSettledProfit('newcomer', 30, 'a');
 
     const res = await request(app).get(`/api/leaderboard?seasonId=${season.id}`);
     expect(res.body.participants[0].score).toBeCloseTo(30, 5);
@@ -405,24 +492,57 @@ describe('standings', () => {
     expect(res.body.participants.every((p: { score: unknown }) => p.score === null)).toBe(true);
   });
 
-  test('a running season scores the growth since the baseline, not the profit', async () => {
+  test('a running season scores ONLY what resolved inside its window (amended 2026-08-29)', async () => {
     await seedFloor(['veteran', 'newcomer']);
-    await giveProfit('veteran', 15, 'vet');
+    // The veteran banked 15 on a market that resolved BEFORE the season
+    // started; the newcomer settles 6 inside the window.
+    await giveSettledProfit('veteran', 15, 'vet', WS, { resolvedAt: new Date(Date.now() - 20 * DAY) });
 
-    const season = (await createSeason()).body.season;
+    const season = (await createSeason()).body.season; // starts 10 days back
     await startSeason(season.id);
     await optIn(season.id, 'veteran');
     await optIn(season.id, 'newcomer');
-    // The newcomer earns 6 inside the window; the veteran earns nothing more.
-    await giveProfit('newcomer', 6, 'new');
+    await giveSettledProfit('newcomer', 6, 'new');
 
     const res = await request(app).get(`/api/leaderboard?seasonId=${season.id}`);
     const byId = Object.fromEntries(res.body.participants.map((p: { id: string; score: number }) => [p.id, p.score]));
     expect(byId.newcomer).toBeCloseTo(6, 5);
-    // 15 of lifetime profit, 0 of season profit. Ranking on raw profit would
-    // have put the veteran first.
+    // 15 of lifetime settled profit, 0 of season profit: the window is the
+    // baseline now.
     expect(byId.veteran).toBeCloseTo(0, 5);
     expect(res.body.participants[0].id).toBe('newcomer');
+  });
+
+  test('an open position scores nothing, however high the board marks it (amended 2026-08-29)', async () => {
+    await seedFloor(['marker', 'earner']);
+    const season = (await createSeason()).body.season;
+    await startSeason(season.id);
+    await optIn(season.id, 'marker');
+    await optIn(season.id, 'earner');
+    // marker holds a monster UNRESOLVED mark; earner settles a modest 5.
+    await giveProfit('marker', 1425, 'mark');
+    await giveSettledProfit('earner', 5, 'earn');
+
+    const res = await request(app).get(`/api/leaderboard?seasonId=${season.id}`);
+    const byId = Object.fromEntries(res.body.participants.map((p: { id: string; score: number }) => [p.id, p.score]));
+    expect(byId.marker).toBeCloseTo(0, 5);
+    expect(byId.earner).toBeCloseTo(5, 5);
+    expect(res.body.participants[0].id).toBe('earner');
+  });
+
+  test('BEFORE the effective instant the previous marked rule still applies', async () => {
+    // The transition window (announced 2026-08-29, in force 2026-09-01):
+    // until the instant passes, standings keep the marked key the entrants
+    // watched all week.
+    process.env.SEASON_SETTLED_SCORING_AT = '2100-01-01T00:00:00Z';
+    await seedFloor(['marker']);
+    const season = (await createSeason()).body.season;
+    await startSeason(season.id);
+    await optIn(season.id, 'marker');
+    await giveProfit('marker', 25, 'mark');
+
+    const res = await request(app).get(`/api/leaderboard?seasonId=${season.id}`);
+    expect(res.body.participants[0].score).toBeCloseTo(25, 5);
   });
 
   test('a workspace that goes private mid-season stops contributing to public standings', async () => {
@@ -430,7 +550,7 @@ describe('standings', () => {
     const season = (await createSeason()).body.season;
     await startSeason(season.id);
     await optIn(season.id, 't');
-    await giveProfit('t', 25, 'a');
+    await giveSettledProfit('t', 25, 'a');
 
     await db.update(workspaces).set({ visibility: 'private' }).where(eq(workspaces.id, WS));
     clearBoardCache();
@@ -450,7 +570,7 @@ describe('standings', () => {
     await startSeason(season.id); // pins only WS; ws-2 is private
     await optIn(season.id, 't');
     await db.update(workspaces).set({ visibility: 'public' }).where(eq(workspaces.id, 'ws-2'));
-    await giveProfit('t', 25, 'a', 'ws-2');
+    await giveSettledProfit('t', 25, 'a', 'ws-2');
 
     const res = await request(app).get(`/api/leaderboard?seasonId=${season.id}`);
     expect(res.body.participants[0].score).toBeCloseTo(25, 5);
@@ -467,9 +587,9 @@ describe('standings', () => {
     await startSeason(season.id); // pins only WS; ws-2 is private
     await optIn(season.id, 't');
     await optIn(season.id, 'u');
-    await giveProfit('u', 10, 'u-home'); // on the pinned floor
+    await giveSettledProfit('u', 10, 'u-home'); // on the pinned floor
     await db.update(workspaces).set({ visibility: 'public' }).where(eq(workspaces.id, 'ws-2'));
-    await giveProfit('t', 25, 't-second', 'ws-2'); // only on the floor published mid-season
+    await giveSettledProfit('t', 25, 't-second', 'ws-2'); // only on the floor published mid-season
 
     const res = await request(app).get('/api/leaderboard');
     const prize = new Map(
@@ -510,7 +630,8 @@ describe('settling', () => {
     const season = (await createSeason()).body.season;
     await startSeason(season.id);
     for (const [id] of profits) await optIn(season.id, id);
-    for (const [id, profit] of profits) await giveProfit(id, profit, id);
+    for (const [id, profit] of profits) await giveSettledProfit(id, profit, id);
+    await closeSeason(season.id);
     return season;
   }
 
@@ -540,11 +661,102 @@ describe('settling', () => {
     await startSeason(season.id); // pins only WS; ws-2 is private
     await optIn(season.id, 'gold');
     await db.update(workspaces).set({ visibility: 'public' }).where(eq(workspaces.id, 'ws-2'));
-    await giveProfit('gold', 30, 'gold', 'ws-2');
+    await giveSettledProfit('gold', 30, 'gold', 'ws-2');
+    await closeSeason(season.id);
 
     const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
     expect(res.status).toBe(200);
     expect(res.body.winners).toEqual([expect.objectContaining({ agentId: 'gold', prizeUsd: 500 })]);
+  });
+
+  test('SETTLING BEFORE THE END INSTANT IS REFUSED: the scored window ends at endsAt', async () => {
+    await seedFloor(['gold']);
+    const season = (await createSeason()).body.season; // ends tomorrow
+    await startSeason(season.id);
+    await optIn(season.id, 'gold');
+    const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/runs until/);
+  });
+
+  test('a monster open mark settles at zero; the settled earner takes the rung (amended 2026-08-29)', async () => {
+    await seedFloor(['marker', 'earner']);
+    const season = (await createSeason()).body.season;
+    await startSeason(season.id);
+    await optIn(season.id, 'marker');
+    await optIn(season.id, 'earner');
+    await giveProfit('marker', 5000, 'mark'); // unresolved, marked only
+    await giveSettledProfit('earner', 5, 'earn');
+    await closeSeason(season.id);
+
+    const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.winners.map((w: { agentId: string; prizeUsd: number }) => [w.agentId, w.prizeUsd])).toEqual([
+      ['earner', 500],
+      ['marker', 250],
+    ]);
+    const marker = res.body.winners.find((w: { agentId: string }) => w.agentId === 'marker');
+    expect(marker.score).toBe(0);
+  });
+
+  test('A TRADE INSIDE THE FINAL 6 HOURS OF A MARKET COUNTS NOTHING (amended 2026-08-29)', async () => {
+    await seedFloor(['sniper']);
+    const season = (await createSeason()).body.season;
+    await startSeason(season.id);
+    await optIn(season.id, 'sniper');
+    // An honest trade two days out: 40 shares at cost 10, resolution pays 20.
+    const resolvedAt = new Date(Date.now() - 1 * HOUR);
+    await giveSettledProfit('sniper', 10, 'snipe', WS, { resolvedAt });
+    // The snipe: two hours before resolution, when the reading is knowable,
+    // 40 more shares for almost nothing. Counted, it would add ~19 of score.
+    await db.insert(trades).values({
+      id: 'trade-snipe-late',
+      workspaceId: WS,
+      agentId: 'sniper',
+      marketId: 'mkt-snipe',
+      direction: 'higher',
+      shares: 40,
+      cost: 1,
+      createdAt: new Date(resolvedAt.getTime() - 2 * HOUR),
+    });
+    clearBoardCache();
+    await closeSeason(season.id);
+
+    const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
+    expect(res.status).toBe(200);
+    // Only the early trade scores: 20 of payout minus 10 of cost.
+    expect(res.body.winners[0].score).toBeCloseTo(10, 5);
+  });
+
+  test('a resolution after the season end scores nothing, however soon after', async () => {
+    await seedFloor(['late']);
+    const season = (await createSeason()).body.season;
+    await startSeason(season.id);
+    await optIn(season.id, 'late');
+    const end = new Date();
+    await db.update(prizeSeasons).set({ endsAt: end }).where(eq(prizeSeasons.id, season.id));
+    // Resolves one second past the end: outside `(startsAt, endsAt]`.
+    await giveSettledProfit('late', 30, 'after', WS, { resolvedAt: new Date(end.getTime() + 1000) });
+    clearBoardCache();
+
+    const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.winners[0].score).toBe(0);
+  });
+
+  test('a resolution exactly at the end instant counts (the published boundary)', async () => {
+    await seedFloor(['edge']);
+    const season = (await createSeason()).body.season;
+    await startSeason(season.id);
+    await optIn(season.id, 'edge');
+    const end = new Date();
+    await db.update(prizeSeasons).set({ endsAt: end }).where(eq(prizeSeasons.id, season.id));
+    await giveSettledProfit('edge', 30, 'edge', WS, { resolvedAt: end });
+    clearBoardCache();
+
+    const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.winners[0].score).toBeCloseTo(30, 5);
   });
 
   test('SETTLING TWICE IS REFUSED, so a paid prize can never be reassigned', async () => {
@@ -595,6 +807,7 @@ describe('settling', () => {
     await seedFloor(['t']);
     const season = (await createSeason()).body.season;
     await startSeason(season.id);
+    await closeSeason(season.id);
     const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
     expect(res.status).toBe(200);
     expect(res.body.rolloverUsd).toBe(1000);
@@ -623,7 +836,8 @@ describe('claiming', () => {
     await startSeason(season.id);
     await optIn(season.id, 'winner');
     await optIn(season.id, 'alsoran');
-    await giveProfit('winner', 30, 'w');
+    await giveSettledProfit('winner', 30, 'w');
+    await closeSeason(season.id);
     await request(app).post(`/api/seasons/${season.id}/settle`).send({});
     return season;
   }
