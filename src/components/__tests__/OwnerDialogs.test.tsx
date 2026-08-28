@@ -233,30 +233,24 @@ describe('the facts row', () => {
 });
 
 describe('dialog 0: create your own floor', () => {
-  test('a floor is a name, and the caller is handed its path', async () => {
+  test('a floor is a name, and the caller is handed its path BY ID, never by slug', async () => {
+    // A bare slug resolves an ambiguous slug to none (unique per owner, not
+    // globally), so a stranger's unlisted floor sharing the slug would 404
+    // the fresh owner's landing. The id form always resolves.
     const onCreated = vi.fn();
     render(<CreateWorkspaceDialog onClose={() => {}} onCreated={onCreated} />);
     fireEvent.change(screen.getByLabelText('Floor name'), { target: { value: '  Meridian  ' } });
     fireEvent.click(screen.getByText('Open my floor'));
     await waitFor(() => expect(createWorkspace).toHaveBeenCalledWith({ name: 'Meridian' }));
-    // Single-segment: the app routes floors as '/:slug' and nothing else, and
-    // a path no route matches bounces to the floors list.
-    expect(onCreated).toHaveBeenCalledWith('/meridian');
+    expect(onCreated).toHaveBeenCalledWith('/marketplace/ws-new');
   });
 
-  test('a nameless floor never reaches the API, and a handle-less one still lands somewhere real', async () => {
+  test('a nameless floor never reaches the API', async () => {
     const onCreated = vi.fn();
-    const { unmount } = render(<CreateWorkspaceDialog onClose={() => {}} onCreated={onCreated} />);
+    render(<CreateWorkspaceDialog onClose={() => {}} onCreated={onCreated} />);
     fireEvent.click(screen.getByText('Open my floor'));
     await waitFor(() => expect(screen.getByText('A name.')).toBeTruthy());
     expect(createWorkspace).not.toHaveBeenCalled();
-    unmount();
-
-    createWorkspace.mockResolvedValueOnce({ id: 'ws-bare' } as never);
-    render(<CreateWorkspaceDialog onClose={() => {}} onCreated={onCreated} />);
-    fireEvent.change(screen.getByLabelText('Floor name'), { target: { value: 'Bare' } });
-    fireEvent.click(screen.getByText('Open my floor'));
-    await waitFor(() => expect(onCreated).toHaveBeenCalledWith('/marketplace/ws-bare'));
   });
 
   test('every path this dialog can hand back has a route behind it', () => {

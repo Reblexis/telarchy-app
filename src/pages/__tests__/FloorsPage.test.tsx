@@ -171,7 +171,7 @@ describe('marketplace', () => {
     fireEvent.click(screen.getByText('Open my floor'));
     await waitFor(() => expect(api.createWorkspace).toHaveBeenCalledWith({ name: 'Meridian' }));
     // The dialog said where it goes; the router got sent there.
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/meridian'));
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/marketplace/ws-new'));
   });
 
   test('"Create your own" signed out is the door to signing up', async () => {

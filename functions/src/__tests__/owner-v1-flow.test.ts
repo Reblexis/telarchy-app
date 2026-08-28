@@ -168,3 +168,62 @@ describe('the v1 flow, in order', () => {
     expect(withHour.map(m => m.targetDate)).toContain('2026-12-31T18');
   });
 });
+
+describe('from zero: create the floor itself, then find it', () => {
+  test('a browser identity creates a floor and its id resolves where the app lands', async () => {
+    const { workspacesRouter } = await import('../routes/workspaces');
+    const { resolvePublicWorkspace } = await import('../routes/marketplace');
+    const app2 = express();
+    app2.use(express.json());
+    app2.use((req, _res, next) => {
+      (req as any).auth = {
+        agentId: null,
+        uid: 'user-creator',
+        workspaceId: null,
+        capabilities: new Set(['read']),
+        isMasterKey: false,
+      };
+      next();
+    });
+    app2.use('/api/workspaces', workspacesRouter);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    app2.use((err: Error, _req: any, res: any, _next: any) => {
+      res.status(err instanceof AppError ? err.status : 500).json({ error: err.message });
+    });
+
+    // Exactly what the create dialog sends.
+    const created = await request(app2).post('/api/workspaces').send({ name: 'Meridian' }).expect(201);
+    expect(created.body.id).toBeTruthy();
+    expect(created.body.visibility).toBe('unlisted');
+
+    // The app lands on /marketplace/{id}; that lookup must resolve.
+    const byId = await resolvePublicWorkspace(created.body.id);
+    expect(byId?.id).toBe(created.body.id);
+
+    // And the reason it lands by id, pinned: the same owner creating the same
+    // name again gets a deduped slug, but a DIFFERENT owner's unlisted floor
+    // with the same slug makes the bare slug ambiguous, which resolves to
+    // NONE. Landing by slug would 404 the fresh owner (owner report
+    // 2026-08-28: "There is no market at this address").
+    const app3 = express();
+    app3.use(express.json());
+    app3.use((req, _res, next) => {
+      (req as any).auth = {
+        agentId: null,
+        uid: 'user-other',
+        workspaceId: null,
+        capabilities: new Set(['read']),
+        isMasterKey: false,
+      };
+      next();
+    });
+    app3.use('/api/workspaces', workspacesRouter);
+    const second = await request(app3).post('/api/workspaces').send({ name: 'Meridian' }).expect(201);
+    expect(second.body.id).not.toBe(created.body.id);
+
+    const bySlug = await resolvePublicWorkspace(created.body.slug ?? 'meridian');
+    expect(bySlug).toBeUndefined();
+    expect(await resolvePublicWorkspace(created.body.id)).toBeTruthy();
+    expect(await resolvePublicWorkspace(second.body.id)).toBeTruthy();
+  });
+});

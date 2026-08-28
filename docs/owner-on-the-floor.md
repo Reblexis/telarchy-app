@@ -20,6 +20,11 @@ and the dialog says the honest state on its button: the floor starts
 unlisted, live and tradeable by link, listed when a human lists it. Signed
 out, the same button is the door to signing up.
 
+It lands the owner on their empty floor at `/marketplace/{id}`, by id and
+never by slug: bare-slug resolution answers an ambiguous slug with none
+(slugs are unique per owner, not globally), so anyone's unlisted floor
+sharing the slug would 404 the fresh owner's landing.
+
 It lands the owner on their empty floor, where the empty state is the next
 step rather than a dead end: "No number here yet. A floor starts when you
 add one", with the add-first-metric button chaining into dialogs 1 and 2

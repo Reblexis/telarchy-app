@@ -433,16 +433,13 @@ export function CreateWorkspaceDialog({
     setBusy(true);
     setErr('');
     try {
-      const ws = (await api.createWorkspace({ name: name.trim() })) as {
-        id: string;
-        slug?: string | null;
-      };
-      // The floor's route is single-segment /{slug} (App.tsx: '/:slug'; the
-      // /{owner}/{slug} form in the API docs has no route in this app), so a
-      // two-segment path here bounced the fresh owner to the floors list via
-      // the catch-all (owner report 2026-08-28: "nothing happened .. i just
-      // got spawned back to telarchy.com").
-      onCreated(ws.slug ? `/${ws.slug}` : `/marketplace/${ws.id}`);
+      const ws = (await api.createWorkspace({ name: name.trim() })) as { id: string };
+      // By id, never by slug. Two 2026-08-28 bounces taught the same lesson
+      // twice: /{owner}/{slug} has no route in this app, and the bare /{slug}
+      // route resolves an AMBIGUOUS slug to none (slugs are unique per owner,
+      // not globally, so anyone's unlisted floor sharing the slug 404s the
+      // fresh owner's too). /marketplace/{id} resolves by id, always.
+      onCreated(`/marketplace/${ws.id}`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
       setBusy(false);
