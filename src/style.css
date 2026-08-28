@@ -8040,3 +8040,11 @@ textarea.jobform-line--desc {
 /* + metric inside the metric seg: the one ember segment, never active. */
 .pubws-seg-add { color: var(--accent); font-weight: 600; }
 .pubws-seg-add:hover { color: var(--accent-hover); }
+
+/* The owner's own floors on the marketplace tile (docs/owner-on-the-floor.md):
+   an unlisted floor is invisible on the grid, so its owner finds it here. */
+.mkt-mine { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.9rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); }
+.mkt-mine-label { font-size: 0.66rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); }
+.mkt-mine-link { font-size: 0.85rem; font-weight: 500; color: var(--text-primary); text-decoration: none; }
+.mkt-mine-link:hover { color: var(--accent); }
+.mkt-mine-vis { font-size: 0.72rem; color: var(--text-tertiary); }

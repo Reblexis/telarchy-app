@@ -20,6 +20,11 @@ and the dialog says the honest state on its button: the floor starts
 unlisted, live and tradeable by link, listed when a human lists it. Signed
 out, the same button is the door to signing up.
 
+The owner's own floors, public or not, appear on the marketplace tile under
+"Yours", linked by id. An unlisted floor is hidden from the grid for
+everyone else; hiding it from its own owner too left them with a floor and
+no trace of it anywhere (owner report 2026-08-28).
+
 It lands the owner on their empty floor at `/marketplace/{id}`, by id and
 never by slug: bare-slug resolution answers an ambiguous slug with none
 (slugs are unique per owner, not globally), so anyone's unlisted floor

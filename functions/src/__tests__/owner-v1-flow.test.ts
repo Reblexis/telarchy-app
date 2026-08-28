@@ -23,6 +23,17 @@ jest.mock('../middleware/auth', () => ({
   hashKey: (raw: string) => raw,
   authMiddleware: (_req: any, _res: any, next: any) => next(),
   optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
+  // The workspaces routes also import this from here. Delegate to the REAL
+  // membership lookup in lib/participants (the middleware itself only
+  // forwards to it), so the "find your floor" half of this spec runs the
+  // real query instead of a stub. requireActual on the middleware would drag
+  // in better-auth's ESM, which jest cannot load.
+  getAuthWorkspaceMemberships: async (authInfo: { uid?: string; agentId?: string }) => {
+    const participants = jest.requireActual('../lib/participants');
+    if (authInfo.uid) return participants.getUserWorkspaceMemberships(authInfo.uid);
+    if (authInfo.agentId) return participants.getAgentWorkspaceMemberships?.(authInfo.agentId) ?? [];
+    return [];
+  },
 }));
 jest.mock('../middleware/roles', () => ({
   requireCapability: () => (_req: any, _res: any, next: any) => next(),
@@ -225,5 +236,14 @@ describe('from zero: create the floor itself, then find it', () => {
     expect(bySlug).toBeUndefined();
     expect(await resolvePublicWorkspace(created.body.id)).toBeTruthy();
     expect(await resolvePublicWorkspace(second.body.id)).toBeTruthy();
+
+    // And the creator can FIND it: GET /api/workspaces lists the fresh floor
+    // for its owner, which is what the home page's "Yours" strip draws.
+    // Until 2026-08-28 an unlisted floor was invisible everywhere, its own
+    // owner included ("it doesnt appear on telarchy.com/beta").
+    const listed = await request(app2).get('/api/workspaces').expect(200);
+    expect(listed.body.map((w: { id: string }) => w.id)).toContain(created.body.id);
+    const otherList = await request(app3).get('/api/workspaces').expect(200);
+    expect(otherList.body.map((w: { id: string }) => w.id)).not.toContain(created.body.id);
   });
 });

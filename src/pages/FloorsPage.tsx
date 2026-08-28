@@ -156,6 +156,34 @@ function ListYourNumberCard() {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
 
+  // The owner's own floors, on the page where every other floor lives. An
+  // unlisted floor is hidden from the grid for everyone else, and until
+  // 2026-08-28 that included its own owner, who created one and then had no
+  // trace of it anywhere ("it doesnt appear on telarchy.com/beta"). Only the
+  // floors the caller belongs to that the public grid does not already show.
+  const [mine, setMine] = useState<Array<{ id: string; name: string; visibility: string }>>([]);
+  useEffect(() => {
+    if (!user) {
+      setMine([]);
+      return;
+    }
+    let cancelled = false;
+    api
+      .listWorkspaces()
+      .then(list => {
+        if (cancelled || !Array.isArray(list)) return;
+        setMine(
+          (list as Array<{ id: string; name: string; visibility?: string }>)
+            .filter(w => w.visibility !== 'public')
+            .map(w => ({ id: w.id, name: w.name, visibility: w.visibility ?? 'private' })),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   return (
     <div className="mkt-card mkt-card--new">
       <span className="mkt-new-mark" aria-hidden="true">
@@ -176,6 +204,17 @@ function ListYourNumberCard() {
         <Link className="mkt-new-cta" to="/signup">
           Create your own
         </Link>
+      )}
+      {mine.length > 0 && (
+        <span className="mkt-mine">
+          <span className="mkt-mine-label">Yours</span>
+          {mine.map(w => (
+            <Link key={w.id} className="mkt-mine-link" to={`/marketplace/${w.id}`}>
+              {w.name}
+              <span className="mkt-mine-vis"> · {w.visibility}</span>
+            </Link>
+          ))}
+        </span>
       )}
       {creating && <CreateWorkspaceDialog onClose={() => setCreating(false)} onCreated={path => navigate(path)} />}
     </div>

@@ -9,6 +9,7 @@ vi.mock('../../lib/api', () => ({
     getSeasons: vi.fn(),
     joinWaitlist: vi.fn(),
     createWorkspace: vi.fn(),
+    listWorkspaces: vi.fn(),
   },
 }));
 let signedIn = false;
@@ -63,6 +64,7 @@ function LocationProbe() {
 
 beforeEach(() => {
   signedIn = false;
+  vi.mocked(api.listWorkspaces).mockResolvedValue([] as never);
   vi.mocked(api.getPublicWorkspaces).mockResolvedValue([listing] as never);
   vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(payload as never);
   vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [season] } as never);
@@ -172,6 +174,19 @@ describe('marketplace', () => {
     await waitFor(() => expect(api.createWorkspace).toHaveBeenCalledWith({ name: 'Meridian' }));
     // The dialog said where it goes; the router got sent there.
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/marketplace/ws-new'));
+  });
+
+  test('a signed-in owner sees their unlisted floors on the tile, linked by id', async () => {
+    signedIn = true;
+    vi.mocked(api.listWorkspaces).mockResolvedValue([
+      { id: 'ws-mine', name: 'Meridian', visibility: 'unlisted' },
+      { id: 'ws1', name: 'LookPilot', visibility: 'public' },
+    ] as never);
+    renderPage();
+    const link = await screen.findByText('Meridian');
+    expect(link.closest('a')?.getAttribute('href')).toBe('/marketplace/ws-mine');
+    // The public one is already on the grid; the strip does not repeat it.
+    expect(screen.getByText('Yours').parentElement?.textContent).not.toContain('LookPilot');
   });
 
   test('"Create your own" signed out is the door to signing up', async () => {
