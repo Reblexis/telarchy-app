@@ -101,16 +101,16 @@ describe('dialog 2: add a date', () => {
     expect(body.timePreference.enabled).toBe(false);
   });
 
-  test('a typed date is the one-shot absolute it is, and a malformed one never reaches the API', async () => {
+  test('a picked date is the one-shot absolute it is, and no date never reaches the API', async () => {
     renderIt();
     fireEvent.click(screen.getByText('a date…'));
-    const input = screen.getByLabelText('Typed date');
-    fireEvent.change(input, { target: { value: 'sometime soon' } });
+    const input = screen.getByLabelText('Pick a date');
+    // Nothing picked yet: the open is refused before the API.
     fireEvent.click(screen.getByText(/Open the market/));
-    await waitFor(() => expect(screen.getByText(/A date like 2026-09-30/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Pick a date.')).toBeTruthy());
     expect(patchMetric).not.toHaveBeenCalled();
 
-    fireEvent.change(input, { target: { value: '2026-W40' } });
+    fireEvent.change(input, { target: { value: '2026-09-30' } });
     fireEvent.click(screen.getByText(/Open the market/));
     await waitFor(() => expect(patchMetric).toHaveBeenCalled());
     const [, , body] = patchMetric.mock.calls[0] as unknown as [
@@ -118,7 +118,7 @@ describe('dialog 2: add a date', () => {
       string,
       { timePreference: { customHorizons: string[] } },
     ];
-    expect(body.timePreference.customHorizons).toEqual(['2026-12', '2026-W40']);
+    expect(body.timePreference.customHorizons).toEqual(['2026-12', '2026-09-30']);
   });
 
   test('the liquidity typed is the liquidity sent, and the button restates it', async () => {

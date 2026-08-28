@@ -17,7 +17,7 @@ import { FloorModal } from './FloorModal';
 
 /** The dates the segmented row offers, in the API's own grammar.
  *  Calendar picks are ROLLING entries (+0w rolls into next week's market when
- *  this week's resolves); a typed date is the one-shot absolute it is. */
+ *  this week's resolves); the picker's day is the one-shot absolute it is. */
 function quickDates(now: Date = new Date()): Array<{ label: string; entry: string; preview: string }> {
   const y = now.getUTCFullYear();
   const m = now.getUTCMonth();
@@ -212,7 +212,7 @@ export function AddDateDialog({
 
   const open = async () => {
     if (typing && !DATE_SHAPE.test(typed.trim())) {
-      setErr('A date like 2026-09-30, 2026-W40, 2026-11 or 2027.');
+      setErr('Pick a date.');
       return;
     }
     if (creditsNum === null) {
@@ -285,12 +285,13 @@ export function AddDateDialog({
           {typing && (
             <input
               className="jobform-line odlg-mono"
+              type="date"
               value={typed}
               autoFocus
               disabled={busy}
+              min={new Date().toISOString().slice(0, 10)}
               onChange={e => setTyped(e.target.value)}
-              placeholder="2026-09-30 · 2026-W40 · 2026-11 · 2027"
-              aria-label="Typed date"
+              aria-label="Pick a date"
             />
           )}
         </div>

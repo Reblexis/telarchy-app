@@ -31,15 +31,15 @@ has no market and the flow does not let the owner stop before one.
 
 **2. Add a date**, the same dialog whether it follows dialog 1 or is opened
 from `+ date` on the date row of any metric. One date: a segmented pick of
-this week, this month, next month, end of the year, or a typed date in any
-granularity the API takes. Under it, the liquidity the market opens with,
+this week, this month, next month, end of the year, or a day from a date
+picker (nobody types a date by hand; owner ask 2026-08-28). Under it, the liquidity the market opens with,
 prefilled with the workspace default, with the translation that makes the
 number mean something ("a 100 cr trade moves it about 2%"). The open button
 carries the cost.
 
 The picks write `timePreference.customHorizons` on the metric: the calendar
 picks as ROLLING entries (`+0w`, `+0m`, `+1m`) so this week's market is
-followed by next week's, a typed date as the one-shot absolute it is. The
+followed by next week's, a picked day as the one-shot absolute it is. The
 liquidity writes `metrics.liquidityCredits`, and the reconcile that runs on
 the same request opens the market funded at that number. One request, one
 market, no second call to forget.
