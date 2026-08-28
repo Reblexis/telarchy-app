@@ -84,16 +84,21 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
   page (`.pubws-ident`) with the company's name as the only `h1`
   (`.pubws-ws-name`, serif) and the workspace `description` under it
   (`.pubws-ws-tagline`, absent when the workspace has none); no counts line, no
-  hook line, no settle fineprint. The caption over the number is the market's
-  own question (`.pubws-instrument-ask`, serif, amended 2026-08-28): "What
-  will be <company>'s <metric> <date>?", the metric with a leading copy of
-  the company's name stripped ("LookPilot net 2026" reads as "net 2026"), the
-  date as the clock's name ("today", "this week") or "on <settle day>". With
-  more than one metric or date the word is a cycle button (dotted underline,
+  hook line, no settle fineprint. The metric caption over the number
+  (`.pubws-instrument-label`, mono uppercase, a segmented picker with several
+  metrics) and the date row under it (`.pubws-instrument-date`, segments like
+  `TODAY · 26 AUG`) still stand, and under them the selected cell is stated
+  as the market's own question (`.pubws-instrument-ask`, serif, amended
+  2026-08-28, both surfaces stay): "What will be <company>'s <metric>
+  <date>?", the metric with a leading copy of the company's name stripped
+  ("LookPilot net 2026" reads as "net 2026"), the date as the clock's name
+  ("today", "this week") or "on <settle day>". With more than one metric or
+  date the sentence's word is a cycle button (dotted underline,
   `.pubws-ask-word--live`) that steps to the next option and loops; with one
-  option it is plain text. Selecting a contract keeps that question line and
-  adds the conditional sentence under it as `.pubws-instrument-title` (an
-  `h2`, serif), leaving the identity block in place. The metric-trajectory charts were removed
+  option it is plain text. Selecting a contract keeps the pickers and the
+  question line and adds the conditional sentence under them as
+  `.pubws-instrument-title` (an `h2`, serif), leaving the identity block in
+  place. The metric-trajectory charts were removed
   from the "What is this market?" section the same day (the section shows the
   definition only; history fields stay in the API), and a manager sees an
   Edit button there. Amended 2026-08-18: saving no longer voids anything. The

@@ -155,21 +155,39 @@ at most ~96KB encoded), and the endpoint otherwise accepts only http(s)
 URLs (what OAuth providers populate), so the value can never become a
 javascript: vector in an img src.
 
-### The question line: the metric, and its date
+### The question line: the pickers, and the sentence
 
 The floor prices a SET of metrics, and every one of them is one number read
-on several dates. The horizon list is therefore a grid, metrics x dates,
-and the caption over the price is the market's own question, one sentence
-in the display face (owner ask 2026-08-28, replacing the two segmented
-rows of 2026-08-26, which read as furniture and left a newcomer to
-assemble the question themselves):
+on several dates. The horizon list is therefore a grid, metrics x dates.
+The caption carries two independent pickers, both segmented rows, and
+under them the selected cell stated as the market's own question, one
+sentence in the display face (owner ask 2026-08-28: both stay; the rows
+are where every option is visible, the sentence is what the selection
+means, so a newcomer is not left assembling the question from an
+uppercase caption and a row of tabs):
 
 ```
+        [ NET REVENUE ]  [ ACTIVE TRADERS ]  [ IMPLIED VALUATION ]   <- picks the METRIC
+        [ today · 26 Aug ]  [ this week · 30 Aug ]  [ 30 Sep ]           <- picks the DATE
         What will be LookPilot's net revenue this week?
                         6,912
                   [ HIGHER ]  [ LOWER ]
 ```
 
+- **The caption row is a segmented control over the floor's metrics**
+  (`.pubws-seg`, primary metric first, the selected segment in ink on a
+  bone tab). It renders as a control only when the floor prices more than
+  one metric; with one metric the caption is plain text.
+- **The date row is directly under the caption**, the same control over
+  the metric's dates, soonest first: `today · 25 Aug`, `this week · 30
+  Aug`, `30 Sep` (`dateSegmentOf`: the clock's name and its settle day,
+  both COMPUTED from the market, never stored on the metric; a stored
+  date would be correct until Monday, when `+0w` opens next week's market
+  on the same metric and the name still names last Sunday). With one open
+  date the row is the settle day alone, so the settle day never leaves
+  the page. Every option is on screen and the selected segment cannot
+  move when the words change; the rows wrap on a phone rather than
+  shrinking their labels.
 - **The sentence is "What will be {company}'s {metric} {date}?"** The
   scaffold words sit a register quieter (`.pubws-instrument-ask`); the
   metric and the date are the sentence's ink. The company is named
@@ -177,19 +195,15 @@ assemble the question themselves):
   because the sentence needs its subject (a deliberate relaxation of the
   2026-08-18 say-it-once rule, for grammar; the metric word still strips a
   leading copy of the company's name via `captionLabel`).
-- **The metric and the date are cycle words** (`.pubws-ask-word`, the
-  world word's dotted underline, so a clickable word looks the same
+- **The sentence's metric and date are cycle words** (`.pubws-ask-word`,
+  the world word's dotted underline, so a clickable word looks the same
   everywhere on the floor). Clicking one steps to the next option and
   LOOPS (the 2026-08-20 arrow rule: a control that sometimes does nothing
   is worse than one that always moves); with one option the word is plain
   text and no control. A named clock reads as its own adverb, "today",
   "this week", "this month", with no preposition; any other date reads as
-  "on" plus its settle day ("on 30 Sep"), both COMPUTED from the market,
-  never stored on the metric (`dateQuestionOf`; a stored date would be
-  correct until Monday, when `+0w` opens next week's market on the same
-  metric and the name still names last Sunday). The word's tooltip carries
-  the full settle instant and the settle note under the price still reads
-  "resolves <settle day>", so the settle day never leaves the page.
+  "on" plus its settle day ("on 30 Sep"), computed by `dateQuestionOf`.
+  The word's tooltip carries the full settle instant.
 - **Picking a metric keeps the date when it can.** A reader on "this week"
   who moves from revenue to reviews lands on reviews this week; only when
   the next metric has no open market on that date does the page fall to
@@ -202,12 +216,12 @@ assemble the question themselves):
   role enum exists, and no surface reads meaning out of a position. There
   is no flat walk across the grid: a flat walk across a grid reads as
   confusing once there are more than two cells.
-- **The question is an `h2` that is a block child of `.pubws-center`.**
-  Controls on that line go INSIDE the heading, never in a wrapper around
-  it: a flex row between `.pubws-center` and the heading drops the caption
-  into a narrow column beside the price, four words tall and over the
-  leaderboard rail, because the heading's placement comes from rules that
-  assume it is a block child of the column.
+- **The caption and the question are each an `h2` that is a block child
+  of `.pubws-center`.** Controls on those lines go INSIDE the heading,
+  never in a wrapper around it: a flex row between `.pubws-center` and a
+  heading drops it into a narrow column beside the price, four words tall
+  and over the leaderboard rail, because the heading's placement comes
+  from rules that assume it is a block child of the column.
 - **With a contract selected the question line stays** (the 2026-08-20
   both-states rule) and the conditional sentence renders under it, "if
   {who} is paid ${ask} to do: {task}", so the two lines read as one
@@ -218,8 +232,9 @@ assemble the question themselves):
   ballot.** One clock at a time, with a way to the others, is the whole
   rule, on the headline and on a contract alike.
 
-**Metric names are short handles.** A cycle word has to scan inside one
-sentence, so a floor metric's name is the noun a reader would say
+**Metric names are short handles.** A segment has to fit beside its
+siblings and the metric word has to scan inside the sentence, so a floor
+metric's name is the noun a reader would say
 ("LookPilot net revenue (USD)", "Active traders", "Implied valuation
 (USD)"): about twenty characters before the unit tail, three of them side
 by side in the 660px column. The definition, including the window
@@ -236,12 +251,12 @@ the sync).
 The question names the prediction: the metric's name, its parenthetical
 unit tail trimmed for display, inside the sentence, set in the Fraunces
 display face (an exception to the tiny-uppercase-label rule: it is the
-page's only statement of what the market is). A named clock's settle day
-is not printed in the sentence (the tooltip and the settle note under the
-price carry it, `settleNoteOf`), which is also what keeps the year
-boundary honest: a settle date printed beside a name that carries its own
-horizon reads a day late, the 2026 period ending at the instant January 1
-begins.
+page's statement of what the market is). A named clock's settle day is
+not printed in the sentence; the date row and the word's tooltip carry
+it, and the settle note under the price reads "resolves <settle day>"
+(`settleNoteOf`). That division is also what keeps the year boundary
+honest: a settle date printed beside a name that carries its own horizon
+reads a day late, the 2026 period ending at the instant January 1 begins.
 
 **Every metric is a level, read on three dates.** A metric on a public
 floor is a number that exists at every instant (a trailing-30-day total, a
@@ -294,11 +309,13 @@ market, so the cost is per metric.
 
 ### A contract keeps the clock line, and says which world it is
 
-The question line does not change when a contract is opened. Same
-sentence, same cycle words in the same positions. The contract adds ONE
+The caption block does not change when a contract is opened. Same
+pickers, same sentence, in the same positions. The contract adds ONE
 line underneath, naming the world the number belongs to:
 
 ```
+        [ WEEKLY ACTIVE TRADERS ]  ...
+        [ this week · 30 Aug ]  [ 30 Sep ]
         What will be LookPilot's weekly active traders this week?
     if Jason is paid $100 for making a market
 
@@ -415,12 +432,14 @@ chart). The since-open chip sits on the price's baseline a full `1rem` off
 the number, and drops centred underneath it below 480px.
 
 **When a market settles is said once, in the chart's control row.** The
-question line names each market by its clock ("today", "this week", "on
-30 Sep", the exact UTC settle instant as the word's hover title), and the
-centre of the control row counts down to the selected one ("settles in
-13h 12m", ticking by the minute, the exact UTC instant as its hover
-title). The former "resolves 30 September 2026" line is gone, and the
-question does not repeat the timer. The one thing that still prints under the price is the N/A
+date picker names each market by its clock and settle day (`TODAY · 26
+AUG`, `THIS WEEK · 30 AUG`, `30 SEP`), the question line by its clock
+alone ("today", "this week", "on 30 Sep", the exact UTC settle instant
+as the word's hover title), and the centre of the control row counts
+down to the selected one ("settles in 13h 12m", ticking by the minute,
+the exact UTC instant as its hover title). The former "resolves 30
+September 2026" line is gone, and neither the segments nor the question
+repeat the timer. The one thing that still prints under the price is the N/A
 caveat of a metric with no reading yet ("N/A, all bets refunded, if there
 is still no reading by then"), because it changes what a bet is.
 

@@ -2235,17 +2235,90 @@ button.notif-row-link {
   color: var(--text-primary);
 }
 
-/* The question line over the number (owner ask 2026-08-28, replacing the
-   two segmented rows): "What will be LookPilot's net revenue this week?",
+/* The metric caption over the number: with several metrics it holds the
+   METRIC PICKER, a segmented row (owner choice 2026-08-26): every metric
+   is visible and the selected segment cannot move when the words change.
+   It is a block child of .pubws-center and must stay one: wrapping it in a
+   flex row once dropped it into a 59px column beside the price
+   (2026-08-20). */
+.pubws-instrument-label {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: var(--text-secondary);
+}
+
+/* A segmented row: one for the metric, one for the date under it. Wraps on
+   a narrow screen rather than shrinking the labels below reading size. */
+.pubws-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  vertical-align: middle;
+}
+
+.pubws-seg-btn {
+  padding: 0.4rem 0.65rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+
+.pubws-seg-btn:hover { color: var(--text-primary); }
+.pubws-seg-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pubws-seg-btn.is-active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(23, 23, 28, 0.08);
+}
+
+/* The date picker under the caption. With one open date it is the settle
+   day alone, in a register quieter than the name. Above the price, not
+   under it (2026-08-20): a control next to the number reads as changing
+   the number. */
+.pubws-instrument-date {
+  margin: 0.35rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.pubws-instrument-at { color: var(--text-tertiary); font-weight: 500; }
+
+/* The question line under the pickers (owner ask 2026-08-28, both stay:
+   the rows are where every option is visible, the sentence is what the
+   selection means): "What will be LookPilot's net revenue this week?",
    display face at the question register, scaffold words a register quieter
    with the metric and the date in ink. Roomier than the old caption stack
    on purpose (line-height, a clear gap to the price): the stack read
    cramped (owner report 2026-08-28).
-   It is a block child of .pubws-center and must stay one: wrapping it in a
-   flex row once dropped it into a 59px column beside the price
-   (2026-08-20). */
+   A block child of .pubws-center, same rule as the caption above. */
 .pubws-instrument-ask {
-  margin: 0 auto 0.6rem;
+  margin: 0.85rem auto 0.6rem;
   max-width: 30ch;
   font-family: 'Fraunces', serif;
   font-optical-sizing: auto;

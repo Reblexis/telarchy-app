@@ -116,6 +116,7 @@ describe('one definition of each label helper', () => {
     'cellOf',
     'metricsOf',
     'dateQuestionOf',
+    'dateSegmentOf',
     'possessiveOf',
     'timeLeftOf',
   ])('%s is defined once, in the model', name => {

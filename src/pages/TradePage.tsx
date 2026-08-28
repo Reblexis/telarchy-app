@@ -34,6 +34,7 @@ import {
   cellOf,
   compactValueOf,
   dateQuestionOf,
+  dateSegmentOf,
   datesOf,
   type HorizonView,
   horizonById,
@@ -947,19 +948,73 @@ export function TradePage() {
                 to be on before they clicked in. Rendered once here, never
                 copied into the branch below, because a second copy is how the
                 two drift. */}
-              {/* The question line (owner ask 2026-08-28, replacing the two
-               segmented rows of 2026-08-26): the caption over the price is
-               the market's own sentence, "What will be {company}'s {metric}
-               {date}?", so a newcomer is not left assembling the question
-               from an uppercase caption and a row of tabs. The metric and
-               the date are cycle words: clicking one steps to the next
-               option and LOOPS (the 2026-08-20 arrow rule: a control that
-               sometimes does nothing is worse than one that always moves);
-               with one option the word is plain text. A (metric, date) pair
-               is a market, so selection is still one market id. The
-               question stays an h2 that is a block child of .pubws-center
-               (layout rule, 2026-08-20: a wrapper around it drops it into a
-               narrow column beside the price). Doc: docs/ui-conventions.md,
+              {/* Two pickers (owner ask 2026-08-25; both segmented rows, owner
+               choice 2026-08-26, KEPT beside the question line, owner ask
+               2026-08-28): the caption row picks the METRIC, the row under it
+               picks the DATE of that metric. Every option is visible and the
+               selected segment never moves. A (metric, date) pair is a
+               market, so selection is still one market id. The caption stays
+               an h2 that is a block child of .pubws-center (layout rule,
+               2026-08-20). */}
+              <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
+                {metricHeads.length > 1 ? (
+                  <span className="pubws-seg" role="group" aria-label="Metric">
+                    {metricHeads.map(m => (
+                      <button
+                        key={m.metricId}
+                        className={`pubws-seg-btn${hero?.metricId === m.metricId ? ' is-active' : ''}`}
+                        aria-pressed={hero?.metricId === m.metricId}
+                        aria-label={`Show ${m.metricLabel}`}
+                        onClick={() => {
+                          const cell = cellOf(horizons, m.metricId, hero?.targetDate);
+                          if (cell) setHorizonId(cell.marketId);
+                        }}
+                      >
+                        {captionLabel(m.metricLabel, ws.name)}
+                      </button>
+                    ))}
+                  </span>
+                ) : (
+                  captionLabel(metricLabel, ws.name)
+                )}
+              </h2>
+              {hero && (
+                <div className="pubws-instrument-date pubws-enter pubws-enter--1">
+                  {heroDates.length > 1 ? (
+                    <span className="pubws-seg" role="group" aria-label="Date">
+                      {heroDates.map(d => (
+                        <button
+                          key={d.marketId}
+                          className={`pubws-seg-btn${d.marketId === hero.marketId ? ' is-active' : ''}`}
+                          aria-pressed={d.marketId === hero.marketId}
+                          aria-label={`Show ${d.metricLabel}, ${d.label}`}
+                          title={d.resolvesOn ? `settles ${new Date(d.resolvesOn).toUTCString()}` : undefined}
+                          onClick={() => setHorizonId(d.marketId)}
+                        >
+                          {dateSegmentOf(d)}
+                        </button>
+                      ))}
+                    </span>
+                  ) : (
+                    <span
+                      className="pubws-instrument-at"
+                      title={hero.resolvesOn ? `settles ${new Date(hero.resolvesOn).toUTCString()}` : undefined}
+                    >
+                      {dateSegmentOf(hero)}
+                    </span>
+                  )}
+                </div>
+              )}
+              {/* The question line (owner ask 2026-08-28): under the pickers,
+               the selected cell stated as the market's own sentence, "What
+               will be {company}'s {metric} {date}?", so a newcomer is not
+               left assembling the question from an uppercase caption and a
+               row of tabs. The pickers STAY above it (owner ask 2026-08-28,
+               "they both should be there"): the rows are where every option
+               is visible, the sentence is what the selection means. Its
+               metric and date are cycle words too: clicking one steps to the
+               next option and LOOPS (the 2026-08-20 arrow rule); with one
+               option the word is plain text. Doc: docs/ui-conventions.md,
                "The question line". */}
               <h2 className="pubws-instrument-ask pubws-enter pubws-enter--1">
                 What will be {ws.name ? `${possessiveOf(ws.name)} ` : ''}
