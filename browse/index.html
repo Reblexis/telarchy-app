@@ -2840,12 +2840,13 @@ never in a wrapper around it: a flex row between <code>.pubws-center</code> and 
 heading drops it into a narrow column beside the price, four words tall
 and over the leaderboard rail, because the heading's placement comes
 from rules that assume it is a block child of the column.</li>
-<li><strong>With a contract selected the question line stays</strong> (the 2026-08-20
-both-states rule) and the conditional sentence renders under it, &quot;if
-{who} is paid ${ask} to do: {task}&quot;, so the two lines read as one
-question about one number. Both share the question register's roomier
-line-height and width; the contract question read cramped before
-(owner report 2026-08-28).</li>
+<li><strong>With a contract selected the SAME sentence carries the condition</strong>
+(owner ask 2026-08-28: modify the question, never add a second line
+under it): &quot;What will be {company}'s {metric} {date} if {who} is paid
+${ask} to do: {task}?&quot;, the &quot;?&quot; at the true end. The world phrase (&quot;is
+paid&quot; / &quot;is not paid&quot;) stays the branch toggle inside it, and the
+sentence takes a wider measure (<code>.pubws-instrument-ask--cond</code>) instead
+of a taller stack.</li>
 <li><strong>No per-horizon role caption, and no cross-horizon conflict mark on the
 ballot.</strong> One clock at a time, with a way to the others, is the whole
 rule, on the headline and on a contract alike.</li>
@@ -2919,22 +2920,22 @@ any of it.</p>
 not capped; the metric log is read once per distinct metric, not once per
 market, so the cost is per metric.</p>
 <h3 id="docs-ui-conventions-md--h13">A contract keeps the clock line, and says which world it is</h3>
-<p>The caption block does not change when a contract is opened. Same
-pickers, same sentence, in the same positions. The contract adds ONE
-line underneath, naming the world the number belongs to:</p>
+<p>The caption block does not change shape when a contract is opened. Same
+pickers, same one sentence, in the same positions; the sentence itself
+grows the condition, naming the world the number belongs to:</p>
 <pre><code>        [ WEEKLY ACTIVE TRADERS ]  ...
         [ this week · 30 Aug ]  [ 30 Sep ]
-        What will be LookPilot's weekly active traders this week?
-    if Jason is paid $100 for making a market
+        What will be LookPilot's weekly active traders this week
+                if Jason is paid $100 for making a market?
 
                     17.5
               [ HIGHER ]  [ LOWER ]
 </code></pre>
 <p>Everything the floor already does then works unchanged: the pickers change
 the horizon and the conditional pair follows, because <code>pair</code> resolves by
-the horizon on screen. The world line is the branch toggle: <code>WorldWord</code>
+the horizon on screen. The world phrase is the branch toggle: <code>WorldWord</code>
 renders <code>is paid $100</code> / <code>is not paid $100</code> with both phrases in one grid
-cell so the headline cannot reflow on a switch. One rule everywhere: <strong>one
+cell so the sentence cannot reflow on a switch. One rule everywhere: <strong>one
 clock at a time, with a way to the others</strong>, on the headline and on a
 contract alike; the big number stays the metric's own number in the
 metric's own unit, never an &quot;impact&quot; abstraction that exists nowhere else

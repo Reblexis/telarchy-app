@@ -222,12 +222,13 @@ uppercase caption and a row of tabs):
   heading drops it into a narrow column beside the price, four words tall
   and over the leaderboard rail, because the heading's placement comes
   from rules that assume it is a block child of the column.
-- **With a contract selected the question line stays** (the 2026-08-20
-  both-states rule) and the conditional sentence renders under it, "if
-  {who} is paid ${ask} to do: {task}", so the two lines read as one
-  question about one number. Both share the question register's roomier
-  line-height and width; the contract question read cramped before
-  (owner report 2026-08-28).
+- **With a contract selected the SAME sentence carries the condition**
+  (owner ask 2026-08-28: modify the question, never add a second line
+  under it): "What will be {company}'s {metric} {date} if {who} is paid
+  ${ask} to do: {task}?", the "?" at the true end. The world phrase ("is
+  paid" / "is not paid") stays the branch toggle inside it, and the
+  sentence takes a wider measure (`.pubws-instrument-ask--cond`) instead
+  of a taller stack.
 - **No per-horizon role caption, and no cross-horizon conflict mark on the
   ballot.** One clock at a time, with a way to the others, is the whole
   rule, on the headline and on a contract alike.
@@ -309,15 +310,15 @@ market, so the cost is per metric.
 
 ### A contract keeps the clock line, and says which world it is
 
-The caption block does not change when a contract is opened. Same
-pickers, same sentence, in the same positions. The contract adds ONE
-line underneath, naming the world the number belongs to:
+The caption block does not change shape when a contract is opened. Same
+pickers, same one sentence, in the same positions; the sentence itself
+grows the condition, naming the world the number belongs to:
 
 ```
         [ WEEKLY ACTIVE TRADERS ]  ...
         [ this week · 30 Aug ]  [ 30 Sep ]
-        What will be LookPilot's weekly active traders this week?
-    if Jason is paid $100 for making a market
+        What will be LookPilot's weekly active traders this week
+                if Jason is paid $100 for making a market?
 
                     17.5
               [ HIGHER ]  [ LOWER ]
@@ -325,9 +326,9 @@ line underneath, naming the world the number belongs to:
 
 Everything the floor already does then works unchanged: the pickers change
 the horizon and the conditional pair follows, because `pair` resolves by
-the horizon on screen. The world line is the branch toggle: `WorldWord`
+the horizon on screen. The world phrase is the branch toggle: `WorldWord`
 renders `is paid $100` / `is not paid $100` with both phrases in one grid
-cell so the headline cannot reflow on a switch. One rule everywhere: **one
+cell so the sentence cannot reflow on a switch. One rule everywhere: **one
 clock at a time, with a way to the others**, on the headline and on a
 contract alike; the big number stays the metric's own number in the
 metric's own unit, never an "impact" abstraction that exists nowhere else
