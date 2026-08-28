@@ -1021,6 +1021,35 @@ export const permissionGroups = pgTable(
   t => [primaryKey({ columns: [t.id, t.workspaceId] })],
 );
 
+/**
+ * One paid liquidity purchase (Stripe Checkout): the only path by which
+ * real money enters the managed instance. `status` walks pending ->
+ * completed; fulfilment (the webhook) allocates `credits` evenly across the
+ * workspace's open markets, records the split in `allocation`
+ * ({ marketId: credits }), and is idempotent on both the row status and the
+ * session id. Completed rows are the platform's liquidity revenue, which
+ * sizes the next season's pool (docs/liquidity-purchases.md).
+ */
+export const liquidityPurchases = pgTable('liquidity_purchases', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  /** The purchasing account. Under strict season eligibility a purchaser is
+   *  a workspace operator and takes no season payout, which is what keeps
+   *  the purchase a service rather than contest consideration. */
+  agentId: text('agent_id').notNull(),
+  usdAmount: doublePrecision('usd_amount').notNull(),
+  credits: doublePrecision('credits').notNull(),
+  /** The rate at purchase time, so a later price change never rewrites an
+   *  old row's meaning. */
+  creditsPerUsd: doublePrecision('credits_per_usd').notNull(),
+  stripeSessionId: text('stripe_session_id'),
+  /** 'pending' | 'completed' */
+  status: text('status').notNull().default('pending'),
+  allocation: jsonb('allocation'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+});
+
 // ---------------------------------------------------------------------------
 // Sources (workspace-scoped information stores, static or live)
 // type='text': free-text content stored in `content`.

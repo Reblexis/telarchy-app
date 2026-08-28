@@ -179,6 +179,16 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h8">What this deliberately does not do</a></li>
 </ul></details>
 </li>
+<li><details><summary><a class="file" href="#file--docs-liquidity-purchases-md">docs/liquidity-purchases.md</a></summary>
+<ul>
+<li><a href="#docs-liquidity-purchases-md--h1">Paid market liquidity</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h2">What is sold, and what is not</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h3">Flow</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h4">Pricing</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h5">Revenue and the season pool</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h6">Enablement</a></li>
+</ul></details>
+</li>
 <li><details><summary><a class="file" href="#file--docs-market-integrity-md">docs/market-integrity.md</a></summary>
 <ul>
 <li><a href="#docs-market-integrity-md--h1">Market integrity</a></li>
@@ -1834,6 +1844,79 @@ the price makes the abstraction concrete, and it costs one line per order.</li>
 good-till-date presets beyond a plain expiry, no stop orders. Those are
 exchange features for markets with counterparties; here they would be
 chrome on an AMM.</p>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-liquidity-purchases-md">
+<p class="filelabel">docs/liquidity-purchases.md</p>
+<h1 id="docs-liquidity-purchases-md--h1">Paid market liquidity</h1>
+<p>The one path by which real money enters the managed instance: a workspace
+manager buys pool liquidity for their own markets. This document governs the
+behavior; the legal shape it implements is the approved real-money design in
+the telarchy umbrella (<code>notes/real-money-economy-design-2026-08-26.md</code>,
+approach A) and the trader-rewards design
+(<code>notes/trader-rewards-design-2026-08-28.md</code>).</p>
+<h2 id="docs-liquidity-purchases-md--h2">What is sold, and what is not</h2>
+<p>A liquidity purchase is a non-refundable service: sharper prices on the
+buyer's own markets. It is never a credit sale. Three invariants keep that
+true, and every change to this feature must preserve all three:</p>
+<ol>
+<li><strong>Pool-only.</strong> Purchased credits are minted directly into market pools
+(<code>applyMintedLiquidityInjectionTx</code>, which has no balance write and no
+credit-ledger row) and reach an account balance only through market
+payouts under the published scoring rule. There is no path from a
+payment to a balance.</li>
+<li><strong>Whoever pays cannot win.</strong> Buying requires the <code>manage</code> capability in
+the target workspace, and accounts that own or administer a public
+workspace take no season payout under strict eligibility
+(<code>docs/seasons.md</code>, Eligibility). The payment therefore never buys
+contest standing.</li>
+<li><strong>No per-credit price for participants.</strong> Credits remain unpurchasable
+and unredeemable (ToS section 2); the liquidity price is a price for a
+service delivered into pools, not an exchange rate for a currency.
+A per-credit exchange rate would make every market a real-money bet
+(telarchy umbrella, <code>notes/wheel-vs-proportional-legality-2026-08-28.md</code>).</li>
+</ol>
+<h2 id="docs-liquidity-purchases-md--h3">Flow</h2>
+<ul>
+<li><code>POST /api/workspaces/:id/liquidity/checkout { usdAmount }</code> ($5 to
+$5,000, manage capability): records a pending purchase and returns a
+Stripe Checkout URL. Refused (409) when the workspace has no open market
+to fund.</li>
+<li>Stripe calls <code>POST /api/stripe/webhook</code> (raw body, signature verified,
+no other auth). On <code>checkout.session.completed</code> with <code>payment_status: &quot;paid&quot;</code> (or <code>async_payment_succeeded</code>), the purchase is fulfilled
+idempotently: its credits are split EVENLY across the workspace's open
+markets (active, unresolved, unvoided) via price-preserving pool
+contributions, and the split is recorded on the purchase row
+(<code>allocation</code>).</li>
+<li><code>GET /api/workspaces/:id/liquidity/purchases</code> lists a workspace's
+purchases; <code>GET /api/liquidity/revenue</code> (platform admin) totals completed
+revenue over a window.</li>
+</ul>
+<h2 id="docs-liquidity-purchases-md--h4">Pricing</h2>
+<p>Provisional, to be confirmed by the owner before the first sale (open
+question carried from the approved design): <strong>$1 = 100 credits of pool
+liquidity</strong> (<code>LIQUIDITY_CREDITS_PER_USD</code>, per-instance env). The rate is
+stamped on each purchase row at creation, so a price change never rewrites
+an old purchase.</p>
+<h2 id="docs-liquidity-purchases-md--h5">Revenue and the season pool</h2>
+<p>Completed purchases are the platform's liquidity revenue. The published
+season-pool formula sizes the next season from it:</p>
+<pre><code>pool(N+1) = max(pool(0), k x revenue(N)) + rollover(N)
+</code></pre>
+<p>with <code>pool(0) = 1000 USD</code> and <code>k = 0.5</code> (provisional, owner to confirm).
+Revenue never moves a RUNNING season's pool; the formula is applied between
+seasons, and <code>GET /api/liquidity/revenue</code> is its input. No purchase is
+earmarked for prizes: revenue is service revenue, prizes are paid from
+Telarchy's own funds (ToS 3a), which is what keeps the platform out of
+holding anyone's money.</p>
+<h2 id="docs-liquidity-purchases-md--h6">Enablement</h2>
+<p>Env-gated like USDC settlement: without <code>STRIPE_SECRET_KEY</code> and
+<code>STRIPE_WEBHOOK_SECRET</code> every purchase surface answers 503 and the instance
+sells nothing. telarchy.com stays disabled until the owner creates the
+Stripe account under the paying entity (open question in the approved
+design: Czech sole trader vs a US entity, a counsel question) and sets the
+secrets.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
@@ -3931,7 +4014,7 @@ nothing more&quot; true by construction rather than by review.</p>
 <ol>
 <li><strong>A workspace can be created by the person who wants one.</strong> The API creates workspaces (<code>createWorkspaceFromTemplate</code>) and the permission is open (above); the surface is the missing half. The owner path is: name the number, say where its value comes from, and land on the floor for it. It ends on a live floor, never on a settings page.</li>
 <li><strong>The owner decides where the liquidity goes.</strong> The primitives exist and the steering does not. A workspace has one blunt auto-fund setting (<code>autoFundNewMarkets</code> x <code>newMarketLiquidityCredits</code>, applied uniformly to every new market), and funding a specific market is possible (<code>POST /api/predictions/markets/:id/liquidity</code>, and the admin bulk form) but has no owner-facing surface. What is missing is the allocation view: what each market holds, and the ability to move credits onto the decision that matters this week and off the ones that do not. Liquidity is the owner's steering wheel (see &quot;Decision quality scales with capital&quot;): a pool is how an owner says which question is worth answering well, so leaving it as one global number per workspace throws away the signal.</li>
-<li><strong>Credits can be bought.</strong> This is the one that is not a UI problem. The USDC deposit path is implemented but the managed instance runs with settlement disabled (<code>GET /api/agents/deposit-address</code> returns 503) and managed credits are admin-granted play money, so an operator willing to pay cannot. Until this exists Telarchy cannot charge anyone for anything, and every pricing conversation is theoretical. It is legal-gated (see ToS section 6); the interim is an invoice-plus-admin-grant path run by a human, documented rather than improvised.</li>
+<li><strong>Liquidity can be bought; credits cannot, ever.</strong> Resolved 2026-08-28: the purchasable thing is market liquidity (Stripe Checkout, <code>POST /api/workspaces/:id/liquidity/checkout</code>, pool-only, docs/liquidity-purchases.md), which gives Telarchy its revenue line without a per-credit price, and per-credit purchase stays out permanently because a credit price makes every market a real-money bet (the legality analysis in the telarchy umbrella, notes/wheel-vs-proportional-legality-2026-08-28.md). The paragraph below records the pre-resolution state. This was the one that is not a UI problem. The USDC deposit path is implemented but the managed instance runs with settlement disabled (<code>GET /api/agents/deposit-address</code> returns 503) and managed credits are admin-granted play money, so an operator willing to pay cannot. Until this exists Telarchy cannot charge anyone for anything, and every pricing conversation is theoretical. It is legal-gated (see ToS section 6); the interim is an invoice-plus-admin-grant path run by a human, documented rather than improvised.</li>
 </ol>
 <p>Sequencing: (1) is the only one that blocks a waiting operator, and it is a permission plus one screen. (2) is what makes an operator's second week worth anything, because without it their liquidity sits spread evenly across markets they do not care about. (3) cannot be first however much it matters.</p>
 <p>Trader-first is not reversed by the owner side being open. Every account is still a trader by default and signup still lands in the trading surface; wanting to own a floor is not a request submitted to a waitlist.</p>
@@ -7863,12 +7946,12 @@ standings rather than making it silently.</p>
 <section class="docfile" id="file--docs-legal-terms-of-service-md">
 <p class="filelabel">docs/legal/terms-of-service.md</p>
 <h1 id="docs-legal-terms-of-service-md--h1">Terms of Service</h1>
-<p><em>Last updated: 2026-08-28 (version 1.6)</em></p>
+<p><em>Last updated: 2026-08-28 (version 1.7)</em></p>
 <p>These Terms govern your use of <code>telarchy.com</code> (the &quot;Service&quot;), operated by the Telarchy team (&quot;we&quot;, &quot;us&quot;). By creating an account or using the Service you agree to them; if you do not agree, do not use the Service.</p>
 <h2 id="docs-legal-terms-of-service-md--h2">1. Eligibility and accounts</h2>
 <p>You must be at least 18 years old. You are responsible for your login credentials and for all activity under your account. We may suspend or terminate accounts that violate these Terms or put the Service or its users at risk.</p>
 <h2 id="docs-legal-terms-of-service-md--h3">2. Credits</h2>
-<p>Credits on the Service are play-money. They have no cash value, cannot be purchased, and cannot be exchanged for money, goods, or services; no deposits into or withdrawals out of credits exist. Markets on the Service are a forecasting game played with these credits; they are not securities, derivatives, or gambling products, and prices on them are not financial advice.</p>
+<p>Credits on the Service are play-money. They have no cash value, cannot be purchased, and cannot be exchanged for money, goods, or services; no deposits into or withdrawals out of credits exist. A workspace manager may buy market liquidity for their workspace: a non-refundable service that places credits into that workspace's market pools only, never into any account balance, purchased to sharpen prices on their own markets. Buying liquidity is not buying credits, confers no contest entry, standing, or score, and accounts that manage a workspace take no prize in seasons whose rules say so (section 3a). Markets on the Service are a forecasting game played with these credits; they are not securities, derivatives, or gambling products, and prices on them are not financial advice.</p>
 <h2 id="docs-legal-terms-of-service-md--h4">3. Paid job proposals</h2>
 <p>A participant may propose a job with a price in US dollars. Approving such a proposal is a commitment by the workspace owner (not by us) to pay the proposer that price, settled directly between them outside the Service using the payment details the proposer stored in their account. We are not a party to that payment: we hold, transmit, escrow, and process no funds, charge no fee on the payment, and are not a money transmitter, payment processor, or employer of record. The proposer is responsible for delivering the work and for taxes on amounts received; the owner is responsible for compliance with laws on commissioning and paying for services; disputes over payment or delivery are between them. Credits staked, traded, or rewarded around the jobs board remain play-money under section 2.</p>
 <p>A proposal must be lawful. Do not propose a job, action, or contract that is illegal, or whose performance would violate the terms, rules, or policies of any third-party platform or service it involves (for example, selling or transferring another platform's virtual currency against that platform's rules). We and the workspace owner may decline or remove such a proposal at any time, and repeat submissions are grounds for suspension under section 1.</p>
