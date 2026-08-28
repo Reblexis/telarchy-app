@@ -5,6 +5,7 @@
   <url><loc>https://telarchy.com/signup</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://telarchy.com/login</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
   <url><loc>https://telarchy.com/guides</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://telarchy.com/season</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
   <url><loc>https://telarchy.com/leaderboard</loc><changefreq>daily</changefreq><priority>0.5</priority></url>
   <url><loc>https://telarchy.com/api/help</loc><changefreq>daily</changefreq><priority>0.95</priority></url>
   <url><loc>https://telarchy.com/api/guides</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
