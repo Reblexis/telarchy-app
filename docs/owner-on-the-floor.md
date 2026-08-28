@@ -14,10 +14,14 @@ control needs something new, the API grows once and both use it.
 
 The marketplace tile's "Create your own" opens dialog 0: a floor is a name,
 nothing else (owner ask 2026-08-28, superseding the 2026-08-26 email field;
-the record is notes/decisions/ui-conventions.md). A new floor is PUBLIC and
-on the front list from the start (owner decision 2026-08-28, vision.md
-carries the accepted risk); the one brake left is three floors per account.
-Signed out, the same button is the door to signing up.
+the record is notes/decisions/ui-conventions.md). A new floor starts
+UNLISTED and publishing is its own visible step: a band under the floor's
+name, a card with one ink button ("Publish this floor"), shown only to the
+owner of a not-yet-public floor. The flip is gated on the first metric
+existing, server-side, and the band says the precondition instead of
+offering a button the server would refuse: no metric, no publish button,
+just "add a number first". The one brake left is three floors per account.
+Signed out, the tile is the door to signing up.
 
 A floor of yours that is not public yet is still not hidden from you: it
 joins the grid first, among the others, as a normal card wearing one badge,

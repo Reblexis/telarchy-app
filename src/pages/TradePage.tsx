@@ -197,6 +197,7 @@ export function TradePage() {
   // The owner's three dialogs (docs/owner-on-the-floor.md, "The v1 controls").
   // One slot: they never stack, and adding a metric flows straight into adding
   // its date, because a metric with no date has no market.
+  const [publishBusy, setPublishBusy] = useState(false);
   const [ownerDialog, setOwnerDialog] = useState<
     | null
     | { kind: 'new-metric' }
@@ -984,27 +985,44 @@ export function TradePage() {
             <header className="pubws-ident pubws-enter">
               <h1 className="pubws-ws-name">{ws.name}</h1>
               {ws.description && <p className="pubws-ws-tagline">{ws.description}</p>}
-              {/* "Not public yet" must carry its own fix (owner decision
-                2026-08-28: everything public). One click, said in the words
-                of what it does, only to someone who can do it. */}
-              {canManage && ws.visibility && ws.visibility !== 'public' && (
-                <p className="pubws-vis-note">
-                  Only you can see this floor.{' '}
+            </header>
+          )}
+          {/* The publish band (owner asks 2026-08-28: a real, visible
+            button, and nothing publishes without a metric). Only the owner
+            sees it, only on a not-yet-public floor, and it says the one
+            precondition honestly instead of offering a button that the
+            server would refuse. */}
+          {canManage && ws.visibility && ws.visibility !== 'public' && (
+            <section className="pubws-publish pubws-enter" aria-label="Publish this floor">
+              <p className="pubws-publish-title">Only people with the link can see this floor</p>
+              {(ws.metricCount ?? 0) > 0 ? (
+                <>
+                  <p className="pubws-publish-sub">
+                    Publish it and it joins the telarchy.com list, open for anyone to trade.
+                  </p>
                   <button
                     type="button"
-                    className="pubws-vis-go"
+                    className="pubws-cta pubws-publish-go"
+                    disabled={publishBusy}
                     onClick={() => {
+                      setPublishBusy(true);
                       api
                         .updateWorkspaceSettings(ws.workspaceId, { visibility: 'public' })
                         .then(reload)
-                        .catch(e => console.error('visibility change failed:', e));
+                        .catch(e => console.error('publish failed:', e))
+                        .finally(() => setPublishBusy(false));
                     }}
                   >
-                    Make it public
+                    {publishBusy ? 'Publishing…' : 'Publish this floor'}
                   </button>
+                </>
+              ) : (
+                <p className="pubws-publish-sub">
+                  Add a number first: a floor with no metric has nothing to trade. The publish button appears the moment
+                  one exists.
                 </p>
               )}
-            </header>
+            </section>
           )}
           {/* A floor with no market yet. For its owner this is the moment
             after "Create your own" (docs/owner-on-the-floor.md): the first

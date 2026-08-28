@@ -1396,3 +1396,11 @@ and on the front list immediately, and an owner's not-yet-public floor shows
 IN the grid to them, first among the others, badged "Yours · not public
 yet", never in a private side list. The season subsidy-extraction risk the
 clamp guarded is accepted knowingly and recorded in vision.md.
+
+**revised 2026-08-28 (Viktor, later)**: publishing is a visible gated step.
+"1. the publish button should be better designe and more visible 2. there
+should be at least one metric for ittob e publishable". A new floor starts
+unlisted (not public at birth: it cannot satisfy the metric gate), the floor
+carries a publish band card with one ink button for its owner, and the flip
+to public is refused server-side while the floor has no metric. Supersedes
+the same-day public-at-creation default.

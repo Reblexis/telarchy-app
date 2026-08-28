@@ -476,7 +476,7 @@ export function CreateWorkspaceDialog({
         <button className="ticket-go" disabled={busy} onClick={() => void create()}>
           {busy ? 'Opening…' : 'Open my floor'}
           <span className="ticket-go-sub">
-            Public from the start, on the front list with everyone else. You add the first number right there.
+            You add the first number right there, then publish it onto the telarchy.com list with one button.
           </span>
         </button>
       </div>

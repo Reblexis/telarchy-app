@@ -43,7 +43,7 @@ jest.mock('../middleware/roles', () => ({
 import { and, eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, markets, workspaces } from '../db/schema';
+import { agents, markets, metrics as metricsTable, workspaces } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
 import { toUnits } from '../lib/validation';
@@ -180,6 +180,29 @@ describe('the v1 flow, in order', () => {
   });
 });
 
+/** A workspaces-router app whose caller manages the given workspace. */
+function mkSettingsApp(uid: string, workspaceId: string) {
+  const a = express();
+  a.use(express.json());
+  a.use((req, _res, next) => {
+    (req as any).auth = {
+      agentId: null,
+      uid,
+      workspaceId,
+      capabilities: new Set(['read', 'trade', 'manage', 'manage_workspace']),
+      isMasterKey: false,
+    };
+    next();
+  });
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  a.use('/api/workspaces', require('../routes/workspaces').workspacesRouter);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  a.use((err: Error, _req: any, res: any, _next: any) => {
+    res.status(err instanceof AppError ? err.status : 500).json({ error: err.message });
+  });
+  return a;
+}
+
 describe('from zero: create the floor itself, then find it', () => {
   test('a browser identity creates a floor and its id resolves where the app lands', async () => {
     const { workspacesRouter } = await import('../routes/workspaces');
@@ -205,7 +228,7 @@ describe('from zero: create the floor itself, then find it', () => {
     // Exactly what the create dialog sends.
     const created = await request(app2).post('/api/workspaces').send({ name: 'Meridian' }).expect(201);
     expect(created.body.id).toBeTruthy();
-    expect(created.body.visibility).toBe('public');
+    expect(created.body.visibility).toBe('unlisted');
 
     // The app lands on /marketplace/{id}; that lookup must resolve.
     const byId = await resolvePublicWorkspace(created.body.id);
@@ -259,6 +282,26 @@ describe('from zero: create the floor itself, then find it', () => {
       .get(`/api/marketplace/${priv.body.id}`)
       .expect(403);
     await request(mkApp(null)).get(`/api/marketplace/${priv.body.id}`).expect(403);
+
+    // Publishing is gated on the first metric (owner ask 2026-08-28). The
+    // fresh floor has none, so the flip to public is refused with the reason;
+    // after a metric exists it goes through.
+    const wsApp = mkSettingsApp('user-creator', created.body.id);
+    const refused = await request(wsApp)
+      .put(`/api/workspaces/${created.body.id}/settings`)
+      .send({ visibility: 'public' })
+      .expect(400);
+    expect(refused.body.error).toMatch(/Add a number first/);
+    await db.insert(metricsTable).values({
+      id: 'm-publish',
+      workspaceId: created.body.id,
+      name: 'A number',
+      description: '',
+      value: 0,
+      formula: '',
+      order: 0,
+    });
+    await request(wsApp).put(`/api/workspaces/${created.body.id}/settings`).send({ visibility: 'public' }).expect(200);
 
     // And the creator can FIND it: GET /api/workspaces lists the fresh floor
     // for its owner, which is what the home page's "Yours" strip draws.

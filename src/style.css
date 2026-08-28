@@ -8056,16 +8056,35 @@ textarea.jobform-line--desc {
   white-space: nowrap;
 }
 
-/* The owner's not-public note under the floor's name, with its one fix. */
-.pubws-vis-note { margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--text-tertiary); }
-.pubws-vis-go {
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-  font-weight: 600;
-  color: var(--accent-text);
-  border-bottom: 1px solid var(--accent);
-  cursor: pointer;
+/* The publish band: the owner's one visible step between a floor only they
+   can see and one on the front list. A card, not a whisper (owner ask
+   2026-08-28), and honest about its precondition when no metric exists. */
+.pubws-publish {
+  margin: clamp(1.2rem, 3vh, 1.8rem) 0 0;
+  padding: 1.1rem 1.3rem 1.2rem;
+  border: 1px solid var(--border-color);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  text-align: center;
 }
-.pubws-vis-go:hover { color: var(--accent); }
+.pubws-publish-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+.pubws-publish-sub {
+  margin: 0.5rem auto 0;
+  max-width: 30rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.pubws-publish-go {
+  margin-top: 0.9rem;
+  padding: 0.75rem 1.8rem;
+  font-size: 0.95rem;
+}

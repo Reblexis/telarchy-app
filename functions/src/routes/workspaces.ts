@@ -95,14 +95,15 @@ workspacesRouter.post(
      *    account. Listing stays a human decision until that is closed.
      */
     let requestedVisibility = req.body.visibility;
-    // Public by default for EVERYONE, admins and the master key included
-    // (owner decision 2026-08-28: "everything should be public fully by
-    // default for now"). The first cut put this default inside the
-    // non-admin branch below, so a platform admin's floor fell through to
-    // the service default, private, and 403'd its own owner at the door
-    // (owner report, same day). Only an explicit unlisted/private opts out.
+    // UNLISTED by default, for everyone including admins: visible to its
+    // owner (badged on the home grid), live at its link, and one Publish
+    // away from the front list. Not private (a private floor 403'd its own
+    // owner all day on 2026-08-28) and not public either, because publishing
+    // requires at least one metric (owner ask, same day: "there should be at
+    // least one metric for it to be publishable") and a floor is born with
+    // none. An explicit visibility in the request is honoured as ever.
     if (requestedVisibility === undefined) {
-      requestedVisibility = 'public';
+      requestedVisibility = 'unlisted';
     }
     if (!isMasterKey) {
       const callerId = agentId ?? uid;
@@ -461,6 +462,22 @@ workspacesRouter.put(
     }
 
     if (hasVisibilityKey) {
+      // Publishing needs something to trade (owner ask 2026-08-28): a floor
+      // with no metric on the public list is an empty shopfront, so the flip
+      // to public is refused until the first number exists. Unlisted and
+      // private stay unconditional; unpublishing is never blocked.
+      if (visibility === 'public') {
+        const [{ n } = { n: 0 }] = await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(metrics)
+          .where(eq(metrics.workspaceId, wsId));
+        if ((n ?? 0) === 0) {
+          res.status(400).json({
+            error: 'Add a number first: a floor with no metric has nothing to trade. Publish once one exists.',
+          });
+          return;
+        }
+      }
       const parsed = parseVisibility(visibility);
       if (!parsed.ok) {
         res.status(400).json({ error: parsed.error });

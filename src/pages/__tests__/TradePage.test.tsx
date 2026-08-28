@@ -1162,15 +1162,16 @@ describe('the owner of a not-public floor', () => {
     });
   });
 
-  test('reads "only you can see this" with its one fix, and a visitor reads nothing of it', async () => {
+  test('the publish band never renders for a visitor', async () => {
     const { api } = await import('../../lib/api');
-    const ws = { ...h.workspace(), visibility: 'private' };
+    const ws = { ...h.workspace(), visibility: 'unlisted' };
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     vi.mocked(api.getProfile).mockResolvedValue({ capabilities: ['read', 'trade', 'manage'] } as never);
     renderFloor();
-    // Signed out in this harness, so canManage stays false: the note is absent.
+    // Signed out in this harness, so canManage stays false: no band, no button.
     await screen.findByText(h.workspace().name);
-    expect(screen.queryByText('Make it public')).toBeNull();
+    expect(screen.queryByText('Publish this floor')).toBeNull();
+    expect(screen.queryByText(/Only people with the link/)).toBeNull();
   });
 });
 
