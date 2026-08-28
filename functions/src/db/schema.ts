@@ -1182,10 +1182,21 @@ export const prizeSeasons = pgTable('prize_seasons', {
   name: text('name').notNull(),
   startsAt: timestamp('starts_at').notNull(),
   endsAt: timestamp('ends_at').notNull(),
-  /** Total promised, in USD. Kept under 5000 deliberately: above that,
-   *  New York and Florida require sweepstakes registration and bonding. */
+  /** Total promised, in USD. No ceiling: a deterministic skill-scored payout
+   *  needs no sweepstakes registration at any size (the old sub-5000 rule was
+   *  the NY/FL chance-sweepstakes bonding line and never applied to a skill
+   *  contest; retired 2026-08-28, design record in the telarchy umbrella,
+   *  notes/wheel-vs-proportional-legality-2026-08-28.md). */
   poolUsd: doublePrecision('pool_usd').notNull(),
-  /** Published ladder, [{ place, prizeUsd }, ...]. Frozen once running. */
+  /** 'ladder' pays the published rungs by place; 'proportional' splits the
+   *  pool by positive settled score (lib/seasons.ts, THE PAYOUT). Existing
+   *  rows default to 'ladder', the only mode that existed before. */
+  payoutMode: text('payout_mode').notNull().default('ladder'),
+  /** Proportional mode: a computed share below this is not paid and rolls
+   *  forward, because a $0.40 prize costs more to send than it is worth. */
+  minPayoutUsd: doublePrecision('min_payout_usd').notNull().default(0),
+  /** Published ladder, [{ place, prizeUsd }, ...]. Frozen once running.
+   *  Empty for a proportional season. */
   ladder: jsonb('ladder').notNull(),
   /** The workspace ids this season scores over, PINNED when it starts rather
    *  than derived from workspaces.visibility at query time. Without this, an

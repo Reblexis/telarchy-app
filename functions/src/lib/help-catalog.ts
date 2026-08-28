@@ -1129,7 +1129,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/seasons',
       auth: false,
       description:
-        'Prize seasons, newest first. A season is a bounded cash tournament over the trading board: it has a start, an end, a total pool in USD, a published ladder of [{ place, prizeUsd }], and a rules URL. Returns { seasons: [{ id, name, status, startsAt, endsAt, settledAt, poolUsd, ladder, rulesUrl }] }. status is draft (parameters still editable, no baselines taken, standings read empty), running (baselines pinned, entry open, standings computed live) or settled (finals frozen, ladder assigned, standings read the stored values and never recompute). Entry is free: no purchase, no stake, and credits are never redeemed, so the pool is a skill-contest prize rather than an exchange of credits (Terms of Service section 3a). STANDINGS ARE NOT HERE: ask GET /api/leaderboard?seasonId=<id>, because a season standing and a leaderboard row are the same fact about the same participant and come out of the same code.',
+        'Prize seasons, newest first. A season is a bounded cash tournament over the trading board: it has a start, an end, a total pool in USD, a payoutMode ("proportional" splits the pool among entrants in proportion to positive settled score, shares under minPayoutUsd rolling forward; "ladder" pays a published ladder of [{ place, prizeUsd }] by place), and a rules URL. Returns { seasons: [{ id, name, status, startsAt, endsAt, settledAt, poolUsd, ladder, rulesUrl }] }. status is draft (parameters still editable, no baselines taken, standings read empty), running (baselines pinned, entry open, standings computed live) or settled (finals frozen, ladder assigned, standings read the stored values and never recompute). Entry is free: no purchase, no stake, and credits are never redeemed, so the pool is a skill-contest prize rather than an exchange of credits (Terms of Service section 3a). STANDINGS ARE NOT HERE: ask GET /api/leaderboard?seasonId=<id>, because a season standing and a leaderboard row are the same fact about the same participant and come out of the same code.',
     },
     {
       method: 'GET',
@@ -1157,14 +1157,14 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/seasons',
       auth: 'platform admin',
       description:
-        'Create a season (status draft). Body { name, startsAt, endsAt, poolUsd, ladder: [{ place, prizeUsd }], rulesUrl }. Rejects endsAt <= startsAt, a ladder promising more than the pool, and poolUsd >= 5000 (at or above that total prize value, New York and Florida require sweepstakes registration and bonding, 30 and 7 days ahead respectively; staying under it keeps a season registration-free in every US state).',
+        'Create a season (status draft). Body { name, startsAt, endsAt, poolUsd, payoutMode?, minPayoutUsd?, ladder?, rulesUrl }. payoutMode "proportional" (the default when no ladder is sent) splits the pool by positive settled score and needs no ladder; "ladder" requires ladder: [{ place, prizeUsd }]. Rejects endsAt <= startsAt and a ladder promising more than the pool. The pool has no ceiling: a deterministic skill-scored payout needs no sweepstakes registration at any size (the old sub-5000 rule was the chance-sweepstakes bonding line; retired 2026-08-28). No single payout ever exceeds $2,000 (the Czech withholding line); the excess rolls forward.',
     },
     {
       method: 'PATCH',
       path: '/api/seasons/:id',
       auth: 'platform admin',
       description:
-        'Edit a DRAFT season: any of { name, startsAt, endsAt, poolUsd, ladder, rulesUrl }. Same validation as create, including the sub-5000 sweepstakes ceiling, and the dates are checked as a pair against what the season will be after the patch (so moving only the start is still refused if it lands after the end). 409 unless the season is draft: once it is running its baselines are pinned to its start instant and its ladder is published.',
+        'Edit a DRAFT season: any of { name, startsAt, endsAt, poolUsd, payoutMode, minPayoutUsd, ladder, rulesUrl }. Same validation as create, and the dates are checked as a pair against what the season will be after the patch (so moving only the start is still refused if it lands after the end). On a RUNNING season exactly one amendment is possible: payoutMode and minPayoutUsd, under the published mid-season amendment clause, and only after the change has been announced on the season page. Everything else is 409 once running (baselines pinned, pool and dates frozen); a settled season takes nothing.',
     },
     {
       method: 'POST',
@@ -1178,7 +1178,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/seasons/:id/settle',
       auth: 'platform admin',
       description:
-        "Freeze finals, rank entrants, assign the ladder. Reachable ONLY from running, and only once endsAt has passed (409 before it; the scored window ends at endsAt). SCORES SETTLED PROFIT (rules amended 2026-08-28): resolution payouts plus void refunds minus net cash over markets resolving inside the season window, trades within each market's final 6 hours not counting; nothing marked enters a final. Computed fresh rather than from any display cache, and every final is written in one transaction so the whole ladder is decided at one instant. Place alone decides the prize, whatever the score (amended 2026-08-22); rungs nobody takes, and anything left over, roll into the next season. Returns { settled, settledAt, rolloverUsd, winners }.",
+        "Freeze finals, rank entrants, assign the pool. Reachable ONLY from running, and only once endsAt has passed (409 before it; the scored window ends at endsAt). SCORES SETTLED PROFIT (rules amended 2026-08-28): resolution payouts plus void refunds minus net cash over markets resolving inside the season window, trades within each market's final 6 hours not counting; nothing marked enters a final. Computed fresh rather than from any display cache, and every final is written in one transaction so the whole payout is decided at one instant. Proportional mode pays each entrant pool x their positive settled score / sum of positive settled scores (shares under minPayoutUsd, and anything above the $2,000 single-payout cap, roll forward); ladder mode pays rungs by place, whatever the score (amended 2026-08-22). Anything unassigned rolls into the next season. Returns { settled, settledAt, rolloverUsd, winners }.",
     },
     {
       method: 'GET',
@@ -1255,7 +1255,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/legal/season-0',
       auth: false,
       description:
-        'Season 0 competition rules (markdown): window, prize ladder, eligibility, and the disqualification clause. Published because a trader deciding whether to enter has to be able to read the rules without an account.',
+        'Season 0 competition rules (markdown): window, the proportional prize split, eligibility, and the disqualification clause. Published because a trader deciding whether to enter has to be able to read the rules without an account.',
     },
     {
       method: 'GET',

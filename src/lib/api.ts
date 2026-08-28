@@ -222,6 +222,12 @@ export interface PrizeSeason {
   endsAt: string;
   settledAt: string | null;
   poolUsd: number;
+  /** 'proportional' splits the pool by positive settled score; 'ladder' pays
+   *  the published rungs by place (Season 0's original shape). */
+  payoutMode: 'ladder' | 'proportional';
+  /** Proportional only: a computed share below this is not paid. */
+  minPayoutUsd: number;
+  /** Empty for a proportional season. */
   ladder: LadderRung[];
   rulesUrl: string;
   /** Pinned workspaces that are no longer public, and so no longer counted in

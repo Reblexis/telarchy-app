@@ -321,13 +321,32 @@ async function optIn(seasonId: string, agentId: string, optedIn = true) {
 // ---------------------------------------------------------------------------
 
 describe('creating a season', () => {
-  test('rejects a pool at or above the $5,000 registration threshold', async () => {
-    // Above this, New York wants 30 days notice and a bond and Florida 7.
-    // Staying under keeps a season registration-free in every US state, so
-    // the limit is enforced here rather than remembered.
-    const res = await createSeason({ poolUsd: 5000 });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/registration/i);
+  test('a pool at or above $5,000 is accepted: the old ceiling is retired (2026-08-28)', async () => {
+    // The sub-5000 rule was the NY/FL registration-and-bonding threshold for
+    // CHANCE sweepstakes; a deterministic skill-scored payout is a skill
+    // contest and scales uncapped (owner decision 2026-08-28, design record
+    // notes/wheel-vs-proportional-legality-2026-08-28.md in the telarchy
+    // umbrella). The cap that remains is per single payout, in lib/seasons.ts.
+    const res = await createSeason({ poolUsd: 25000, ladder: [{ place: 1, prizeUsd: 2000 }] });
+    expect(res.status).toBe(201);
+    expect(res.body.season.poolUsd).toBe(25000);
+  });
+
+  test('a season created without a ladder defaults to the proportional payout', async () => {
+    const res = await request(app)
+      .post('/api/seasons')
+      .send({
+        name: 'Proportional',
+        startsAt: new Date(Date.now() - 10 * DAY).toISOString(),
+        endsAt: new Date(Date.now() + 1 * DAY).toISOString(),
+        poolUsd: 1000,
+        minPayoutUsd: 50,
+        rulesUrl: '/legal/season-1',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.season.payoutMode).toBe('proportional');
+    expect(res.body.season.minPayoutUsd).toBe(50);
+    expect(res.body.season.ladder).toEqual([]);
   });
 
   test('rejects a ladder that promises more than the pool', async () => {
@@ -626,9 +645,9 @@ describe('standings', () => {
 });
 
 describe('settling', () => {
-  async function runSeasonWith(profits: Array<[string, number]>) {
+  async function runSeasonWith(profits: Array<[string, number]>, overrides: Record<string, unknown> = {}) {
     await seedFloor(profits.map(([id]) => id));
-    const season = (await createSeason()).body.season;
+    const season = (await createSeason(overrides)).body.season;
     await startSeason(season.id);
     for (const [id] of profits) await optIn(season.id, id);
     for (const [id, profit] of profits) await giveSettledProfit(id, profit, id);
@@ -650,6 +669,44 @@ describe('settling', () => {
       ['bronze', 125],
     ]);
     expect(res.body.rolloverUsd).toBe(125);
+  });
+
+  test('a proportional season settles pool x score / total, not a ladder (amended 2026-08-28)', async () => {
+    const season = await runSeasonWith(
+      [
+        ['gold', 30],
+        ['silver', 10],
+      ],
+      { payoutMode: 'proportional' },
+    );
+    const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.winners.map((w: { agentId: string; prizeUsd: number }) => [w.agentId, w.prizeUsd])).toEqual([
+      ['gold', 750],
+      ['silver', 250],
+    ]);
+    expect(res.body.rolloverUsd).toBe(0);
+  });
+
+  test('a running season can amend payoutMode (the Season 0 clause), and nothing else', async () => {
+    await seedFloor(['gold']);
+    const season = (await createSeason()).body.season; // ladder mode
+    await startSeason(season.id);
+
+    // The one allowed mid-season amendment: the payout arithmetic, announced
+    // first (the announcement is operational, not enforceable here).
+    const amend = await request(app)
+      .patch(`/api/seasons/${season.id}`)
+      .send({ payoutMode: 'proportional', minPayoutUsd: 50 });
+    expect(amend.status).toBe(200);
+    expect(amend.body.season.payoutMode).toBe('proportional');
+    expect(amend.body.season.minPayoutUsd).toBe(50);
+
+    // Pool and dates stay frozen even under the clause.
+    const pool = await request(app).patch(`/api/seasons/${season.id}`).send({ poolUsd: 2000 });
+    expect(pool.status).toBe(409);
+    const mixed = await request(app).patch(`/api/seasons/${season.id}`).send({ payoutMode: 'ladder', poolUsd: 2000 });
+    expect(mixed.status).toBe(409);
   });
 
   test('settlement scores over the workspaces public at settle time, not the pinned set', async () => {

@@ -12,6 +12,7 @@ import {
   isOpenForEntry,
   type LadderRung,
   ladderTotal,
+  type SeasonPayoutMode,
   type SeasonStatus,
   settleSeason,
 } from '../lib/seasons';
@@ -29,16 +30,17 @@ import { clearBoardCache } from './leaderboard';
  * season standing and a leaderboard row are the same fact about the same
  * participant and must come out of the same code. See routes/leaderboard.ts.
  *
- * WHERE THE MONEY IS NOT: nowhere in this file. Telarchy holds, transmits and
- * escrows nothing. Settlement decides who is owed what; the owner then pays
- * them directly against the payment details already on their account
- * (`agents.payout_method`), the same rail ToS section 3 uses for paid jobs, and
- * records it with POST /:id/entries/:agentId/paid.
+ * WHERE THE MONEY IS NOT: nowhere in this file. Settlement decides who is
+ * owed what; Telarchy, as the contest operator, then pays winners directly
+ * from its own funds, outside the Service, against the payment details on
+ * their account (`agents.payout_method`; ToS 3a since v1.6, 2026-08-28), and
+ * records it with POST /:id/entries/:agentId/paid. No third-party funds are
+ * ever held or transmitted.
  *
  *   draft ──start──► running ──settle──► settled ──claim──► paid
  *           │                    │                   │
  *           │ pins workspaceIds  │ freezes finals    │ 30 days, then the
- *           │ baselines EVERYONE │ assigns ladder    │ prize rolls forward
+ *           │ baselines EVERYONE │ assigns the pool  │ prize rolls forward
  */
 export const seasonsRouter = Router();
 
@@ -117,9 +119,25 @@ function publicSeason(s: typeof prizeSeasons.$inferSelect) {
     endsAt: s.endsAt,
     settledAt: s.settledAt,
     poolUsd: s.poolUsd,
+    payoutMode: (s.payoutMode ?? 'ladder') as SeasonPayoutMode,
+    minPayoutUsd: s.minPayoutUsd ?? 0,
     ladder: (s.ladder ?? []) as LadderRung[],
     rulesUrl: s.rulesUrl,
   };
+}
+
+function asPayoutMode(raw: unknown): SeasonPayoutMode {
+  if (raw !== 'ladder' && raw !== 'proportional') {
+    throw new AppError("payoutMode must be 'ladder' or 'proportional'", 400);
+  }
+  return raw;
+}
+
+function asMinPayout(raw: unknown, pool: number): number {
+  const min = Number(raw);
+  if (!Number.isFinite(min) || min < 0) throw new AppError('minPayoutUsd must be a non-negative number', 400);
+  if (min >= pool) throw new AppError('minPayoutUsd must be below the pool, or nobody can ever be paid', 400);
+  return min;
 }
 
 // ---------------------------------------------------------------------------
@@ -414,14 +432,26 @@ seasonsRouter.post(
 
     const pool = Number(poolUsd);
     if (!Number.isFinite(pool) || pool <= 0) throw new AppError('poolUsd must be a positive number', 400);
-    // The threshold that keeps a season registration-free in every US state.
-    // Above it, New York wants 30 days notice and a bond, Florida 7.
-    if (pool >= 5000)
-      throw new AppError('poolUsd must stay under 5000; above that a season needs state sweepstakes registration', 400);
+    // No pool ceiling. The old sub-5000 rule was the NY/FL registration and
+    // bonding threshold for CHANCE sweepstakes; a deterministic skill-scored
+    // payout is a skill contest and scales uncapped (retired 2026-08-28,
+    // design record notes/wheel-vs-proportional-legality-2026-08-28.md in
+    // the telarchy umbrella). MAX_SINGLE_PAYOUT_USD in lib/seasons.ts is the
+    // cap that still matters, per payout rather than per pool.
 
-    const ladder = asLadder(req.body?.ladder);
-    const total = ladderTotal(ladder);
-    if (total > pool) throw new AppError(`ladder promises ${total} but the pool is ${pool}`, 400);
+    // Mode defaults from the body's shape so existing ladder-shaped callers
+    // keep working: a ladder sent means ladder mode, nothing sent means
+    // proportional, and an explicit payoutMode always wins.
+    const payoutMode = asPayoutMode(
+      req.body?.payoutMode ?? (req.body?.ladder !== undefined ? 'ladder' : 'proportional'),
+    );
+    const minPayoutUsd = req.body?.minPayoutUsd !== undefined ? asMinPayout(req.body.minPayoutUsd, pool) : 0;
+
+    const ladder = payoutMode === 'ladder' ? asLadder(req.body?.ladder) : [];
+    if (payoutMode === 'ladder') {
+      const total = ladderTotal(ladder);
+      if (total > pool) throw new AppError(`ladder promises ${total} but the pool is ${pool}`, 400);
+    }
 
     const id = randomUUID();
     await db.insert(prizeSeasons).values({
@@ -430,6 +460,8 @@ seasonsRouter.post(
       startsAt: start,
       endsAt: end,
       poolUsd: pool,
+      payoutMode,
+      minPayoutUsd,
       ladder,
       workspaceIds: [],
       rulesUrl: rulesUrl.trim(),
@@ -441,16 +473,25 @@ seasonsRouter.post(
 );
 
 /**
- * Edit a DRAFT season.
+ * Edit a DRAFT season; amend the payout of a RUNNING one.
  *
  * The state machine has always said a draft's pool, ladder and dates are
  * editable, and until now nothing implemented it: moving a start date meant a
  * hand-written UPDATE against production, which is the operation this file
- * exists to make unnecessary. Draft only, because once a season is running its
- * baselines are pinned to its start instant and its ladder is published.
+ * exists to make unnecessary. Draft-only for everything positional (dates,
+ * pool, name, rules URL), because once a season is running its baselines are
+ * pinned to its start instant.
+ *
+ * The one running-season exception is `payoutMode` + `minPayoutUsd`
+ * (2026-08-28): Season 0's published rules reserve the right to amend
+ * mid-season provided the change is announced on the season page before it
+ * takes effect, and the ladder-to-proportional amendment is exactly such a
+ * change. The pool and dates stay frozen even then; a settled season takes
+ * nothing at all. ANNOUNCE FIRST: this endpoint flips the arithmetic, and the
+ * clause it leans on requires the announcement to precede the flip.
  *
  * Same validation as create, deliberately: a rule that only guards the front
- * door is not a rule. The 5000 sweepstakes threshold especially.
+ * door is not a rule.
  */
 seasonsRouter.patch(
   '/:id',
@@ -460,6 +501,24 @@ seasonsRouter.patch(
 
     const [season] = await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, seasonId)).limit(1);
     if (!season) throw new AppError('Season not found', 404);
+    if (season.status === 'running') {
+      const allowed = new Set(['payoutMode', 'minPayoutUsd']);
+      const sent = Object.keys(req.body ?? {});
+      const refused = sent.filter(k => !allowed.has(k));
+      if (refused.length > 0 || sent.length === 0) {
+        throw new AppError(
+          'Season is running; only payoutMode and minPayoutUsd may be amended mid-season, under the published amendment clause, after the change is announced on the season page',
+          409,
+        );
+      }
+      const patch: Partial<typeof prizeSeasons.$inferInsert> = {};
+      if (req.body?.payoutMode !== undefined) patch.payoutMode = asPayoutMode(req.body.payoutMode);
+      if (req.body?.minPayoutUsd !== undefined) patch.minPayoutUsd = asMinPayout(req.body.minPayoutUsd, season.poolUsd);
+      await db.update(prizeSeasons).set(patch).where(eq(prizeSeasons.id, seasonId));
+      const [updated] = await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, seasonId)).limit(1);
+      res.json({ season: publicSeason(updated) });
+      return;
+    }
     if (season.status !== 'draft') {
       throw new AppError(`Season is ${season.status}; only a draft can be edited`, 409);
     }
@@ -491,13 +550,19 @@ seasonsRouter.patch(
 
     const pool = poolUsd !== undefined ? Number(poolUsd) : season.poolUsd;
     if (!Number.isFinite(pool) || pool <= 0) throw new AppError('poolUsd must be a positive number', 400);
-    if (pool >= 5000)
-      throw new AppError('poolUsd must stay under 5000; above that a season needs state sweepstakes registration', 400);
     if (poolUsd !== undefined) patch.poolUsd = pool;
 
+    // Validated against what the season will BE after the patch, like the
+    // dates: the mode decides whether a ladder is required at all.
+    const mode = asPayoutMode(req.body?.payoutMode ?? season.payoutMode ?? 'ladder');
+    if (req.body?.payoutMode !== undefined) patch.payoutMode = mode;
+    if (req.body?.minPayoutUsd !== undefined) patch.minPayoutUsd = asMinPayout(req.body.minPayoutUsd, pool);
+
     const ladder = req.body?.ladder !== undefined ? asLadder(req.body.ladder) : ((season.ladder ?? []) as LadderRung[]);
-    const total = ladderTotal(ladder);
-    if (total > pool) throw new AppError(`ladder promises ${total} but the pool is ${pool}`, 400);
+    if (mode === 'ladder') {
+      const total = ladderTotal(ladder);
+      if (total > pool) throw new AppError(`ladder promises ${total} but the pool is ${pool}`, 400);
+    }
     if (req.body?.ladder !== undefined) patch.ladder = ladder;
 
     if (Object.keys(patch).length === 0) throw new AppError('Nothing to change', 400);
@@ -604,6 +669,7 @@ seasonsRouter.post(
       })),
       (season.ladder ?? []) as LadderRung[],
       season.poolUsd,
+      { payoutMode: (season.payoutMode ?? 'ladder') as SeasonPayoutMode, minPayoutUsd: season.minPayoutUsd ?? 0 },
     );
 
     await db.transaction(async tx => {
