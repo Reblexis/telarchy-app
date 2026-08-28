@@ -353,6 +353,20 @@ export function timeLeftOf(v: HorizonView | null, now: Date = new Date()): strin
 }
 
 /**
+ * A date's label in the date picker: the clock's name and its settle day,
+ * "this week · 30 Aug". A named clock is "today", "this week" or "this
+ * month"; any other date is its settle day alone ("30 Sep"). Both computed
+ * from the market, never stored on the metric. The time left lives in the
+ * chart's control row, not here.
+ */
+export function dateSegmentOf(v: HorizonView | null): string {
+  if (!v) return '';
+  const named = /^(today|this week|this month)$/.test(v.label) ? v.label : '';
+  if (!v.settleShort) return named || v.targetDate;
+  return named ? `${named} · ${v.settleShort}` : v.settleShort;
+}
+
+/**
  * A date as it reads inside the question line ("What will be LookPilot's
  * net revenue this week?"): a named clock is its own adverb ("today",
  * "this week", "this month") and takes no preposition; any other date
@@ -396,8 +410,8 @@ export function horizonById(views: HorizonView[], marketId: string | null | unde
  * The cell of the grid a reader picked: the market on `metricId` read on
  * `targetDate`. Picking a metric keeps the date on screen when that metric has
  * a market on it and falls to the metric's furthest-resolving one otherwise;
- * picking a date never changes the metric (docs/ui-conventions.md, "Two
- * pickers"). Null only when the metric has no open market at all.
+ * picking a date never changes the metric (docs/ui-conventions.md, "The
+ * question line"). Null only when the metric has no open market at all.
  */
 export function cellOf(
   views: HorizonView[],

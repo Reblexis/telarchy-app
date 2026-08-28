@@ -578,10 +578,14 @@ test('the workspace name heads the page', async () => {
   // name is only the caption over the number (owner direction 2026-08-18).
   expect(container.querySelector('.pubws-ws-name')!.tagName).toBe('H1');
   expect(container.querySelectorAll('h1').length).toBe(1);
-  // The caption is the market's own question (owner ask 2026-08-28): the
-  // company as the sentence's subject, the metric with the leading copy of
-  // the name stripped off, the settle day as the date. One metric and one
-  // date on this floor, so neither word is a control.
+  // The caption is what the number measures, with the name it already
+  // carries overhead stripped off, and the day it settles is the line under
+  // it (owner ask 2026-08-25, two steppers).
+  expect(container.querySelector('.pubws-instrument-label')!.textContent).toBe('revenue');
+  expect(container.querySelector('.pubws-instrument-date')!.textContent).toBe('31 Dec');
+  // And under the pickers, the same cell stated as the market's own
+  // question (owner ask 2026-08-28, both stay). One metric and one date on
+  // this floor, so neither word of the sentence is a control.
   expect(container.querySelector('.pubws-instrument-ask')!.textContent).toBe(
     "What will be LookPilot's revenue on 31 Dec?",
   );
@@ -934,14 +938,17 @@ describe('a contract keeps the clock line', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
 
-    // One metric on two dates, so the date word is a cycle button.
-    expect(await screen.findByRole('button', { name: /^Date: / })).toBeTruthy();
+    // One metric on two dates: both date segments are on the picker, and
+    // the sentence's date word is a cycle button.
+    expect((await screen.findAllByRole('button', { name: /^Show / })).length).toBe(2);
+    expect(screen.getByRole('button', { name: /^Date: / })).toBeTruthy();
 
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
     await screen.findByRole('button', { name: 'if approved' });
 
-    // The regression: this used to be gone, because the caption and its
+    // The regression: this used to be 0, because the caption and its
     // controls lived in the branch that a selected contract replaced.
+    expect(screen.getAllByRole('button', { name: /^Show / }).length).toBe(2);
     expect(screen.getByRole('button', { name: /^Date: / })).toBeTruthy();
   });
 
@@ -953,8 +960,12 @@ describe('a contract keeps the clock line', () => {
     await screen.findByRole('button', { name: 'if approved' });
 
     // The floor opens on the furthest-resolving market, so the month is on
-    // screen; the question strips the leading workspace name from the
-    // metric word and still carries the settle day as the date word.
+    // screen; the caption strips the leading workspace name, the date row
+    // still carries the settle day, and the question line says the same
+    // cell as a sentence.
+    const caption = document.querySelector('.pubws-instrument-label');
+    expect(caption?.textContent).toContain('monthly net revenue');
+    expect(document.querySelector('.pubws-instrument-date')?.textContent).toMatch(/\d/);
     const ask = document.querySelector('.pubws-instrument-ask');
     expect(ask?.textContent).toContain('monthly net revenue');
     expect(ask?.textContent).toMatch(/ on \d/);
@@ -983,9 +994,9 @@ describe('a contract keeps the clock line', () => {
     // Opens on the furthest-resolving horizon, so the month's approved branch.
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-month-approved'));
 
-    // The date word cycles: one click steps from the month's reading to
-    // the week's.
-    fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
+    // The fixture's two markets share one metric, so this is the DATE row;
+    // the week's segment is the one not on screen.
+    fireEvent.click(screen.getByRole('button', { name: /^Show .*(this week|week to)/ }));
 
     // pair resolves by (metric, date), so the week's pair is now the one on
     // screen.
@@ -1036,8 +1047,9 @@ describe('a market with no price yet', () => {
     ws.markets = ws.markets.map(m => ({ ...m, consensus: null, liquidity: 0 }));
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-instrument-ask')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-label')).toBeTruthy());
     expect(container.querySelector('.pubws-price')?.textContent).toBe('no price yet');
+    expect(container.querySelector('.pubws-instrument-date')).toBeTruthy();
     expect(container.querySelector('.pubws-instrument-ask')?.textContent).toContain(' on ');
     expect(container.querySelector('.mchart')).toBeNull();
   });
