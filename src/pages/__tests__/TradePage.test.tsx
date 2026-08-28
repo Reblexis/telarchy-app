@@ -676,15 +676,15 @@ describe('the price series belongs to the market on screen', () => {
     expect(vi.mocked(api.getPublicMarketHistory)).not.toHaveBeenCalledWith('lookpilot', 'm-hero');
   });
 
-  test('never the other market\'s numbers, and "since open" is this market\'s open', async () => {
+  test("never the other market's numbers", async () => {
     // The cliff this guards: the page once drew the year's 73,600 -> 78,571
-    // line and then dropped to the week's 213 call, with "-$73,387 since
-    // open" underneath (owner report 2026-08-17). With one horizon the mix is
-    // structurally impossible, so what is pinned is the number itself.
+    // line and then dropped to the week's 213 call (owner report 2026-08-17).
+    // The since-open chip that once restated it is gone (owner ask
+    // 2026-08-28); the price and the series still pin the one-market rule.
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(payload() as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-delta-chip')?.textContent).toContain('4,971'));
+    await waitFor(() => expect(container.querySelector('.pubws-stat .pubws-price')?.textContent).toBe('$78,571'));
     expect(series(container)).not.toContain('213');
   });
 });
@@ -1101,9 +1101,17 @@ describe('the chart control row', () => {
     expect(screen.queryByRole('button', { name: 'market' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'number' })).toBeNull();
     expect(container.querySelector('.pubws-numchart .nchart')).toBeTruthy();
-    // The metric's latest reading, beside the countdown, in the number
-    // chart's own row.
-    expect(screen.getByText(/now \$45\.3k · settles in/)).toBeTruthy();
+    // Each chart names itself in its centred title; the countdown sits
+    // beside the price, where the since-open chip used to be.
+    expect(screen.getByText('market').className).toContain('pubws-chart-cap');
+    expect(screen.getByText('number').className).toContain('pubws-chart-cap');
+    expect(container.querySelector('.pubws-stat .pubws-settle-in')?.textContent).toMatch(/settles in/);
+    // The metric's latest reading is the number chart's own stat, with its
+    // age beside it.
+    expect(container.querySelector('.pubws-numchart .pubws-price--reading')?.textContent).toBe('$45,339');
+    expect(container.querySelector('.pubws-numchart .pubws-updated')?.textContent).toMatch(
+      /^updated .+ ago$|^updated just now$/,
+    );
   });
 
   test('no reading yet means no "now" in the centre', async () => {
@@ -1134,8 +1142,7 @@ describe('the chart control row', () => {
     ];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
-    // No reading: no number chart, and the clock falls back to the market
-    // row's centre so it never leaves the page.
+    // No reading: no number chart; the countdown beside the price stays.
     await screen.findByText(/settles in/);
     expect(screen.queryByText(/now /)).toBeNull();
     expect(container.querySelector('.pubws-numchart')).toBeNull();

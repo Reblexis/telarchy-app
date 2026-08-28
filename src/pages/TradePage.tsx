@@ -32,7 +32,6 @@ import {
   buildHorizonViews,
   captionLabel,
   cellOf,
-  compactValueOf,
   dateQuestionOf,
   dateSegmentOf,
   datesOf,
@@ -45,6 +44,7 @@ import {
   priceSeriesIsInline,
   priceSeriesOf,
   settleNoteOf,
+  timeAgoOf,
   timeLeftOf,
 } from '../lib/floor-horizons';
 import { authPath } from '../lib/nextPath';
@@ -362,23 +362,25 @@ export function TradePage() {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
-  // How long until the market on screen settles (owner ask: "put the
-  // timer in the center here"). It rides the number chart's control row
-  // (owner ask 2026-08-28, both charts always on), and falls back to the
-  // market chart's centre while the metric has no reading yet, because
-  // then there is no number chart and the clock must not leave the page.
+  // How long until the market on screen settles: beside the price in the
+  // market chart's row (owner ask 2026-08-28), so the clock never leaves
+  // the page.
   const settleLeft = hero ? timeLeftOf(hero, now) : null;
   // The metric's value in force (its latest reading), said in the centre
   // beside the countdown, so the number the market is guessing at sits one
   // glance from its own chart (owner ask 2026-08-27). Absent while the
   // period has no reading yet, which is also when the number chart has
   // nothing to hold a dashed rule to.
-  const nowReading =
-    hero && hero.metricHistory.length > 0 ? hero.metricHistory[hero.metricHistory.length - 1].value : null;
-  const nowText = hero && nowReading !== null ? compactValueOf(nowReading, hero.unit) : null;
-  const settleCenter = hero ? (
-    <span title={hero.resolvesOn ? `settles ${new Date(hero.resolvesOn).toUTCString()}` : undefined}>
-      {nowText !== null && <>now {nowText} · </>}
+  const lastReading = hero && hero.metricHistory.length > 0 ? hero.metricHistory[hero.metricHistory.length - 1] : null;
+  const nowReading = lastReading?.value ?? null;
+  // Beside the price, where the since-open chip used to be (owner ask
+  // 2026-08-28, "the settles should be above the market graph next to the
+  // market number"): the exact UTC instant stays on the hover.
+  const settleNote = hero ? (
+    <span
+      className="pubws-settle-in"
+      title={hero.resolvesOn ? `settles ${new Date(hero.resolvesOn).toUTCString()}` : undefined}
+    >
       {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
     </span>
   ) : null;
@@ -716,7 +718,6 @@ export function TradePage() {
   // stated from the world on screen (owner ask 2026-08-26): approved minus
   // declined on the approved branch, declined minus approved on the
   // declined one, so "if declined" reads -7.8 where "if approved" read +7.8.
-  const marketOpen = pair ? null : (active?.history.find(p => p.consensus !== null)?.consensus ?? null);
   // Impact is the delta on the floor's one horizon, which is also the only
   // market on screen, so `pair` already IS that pair. Kept as its own name
   // because the ballot passes the same target date and the two must agree.
@@ -1349,22 +1350,15 @@ export function TradePage() {
                     unit={unit}
                     ranges={['1D', '1W']}
                     /* The stat row (owner ask 2026-08-28, Manifold scale): the
-                     price and its chip are the row's left cell, so the chart
-                     is the hero and the number a reading on it. The clock
-                     rides the number chart's row below; it falls back here
-                     only while the metric has no reading (no number chart),
-                     so it never leaves the page. */
+                     price is the row's left cell with the settle countdown
+                     beside it, where the since-open chip used to be (owner
+                     ask 2026-08-28: "instead of the arrow and down since").
+                     A contract's impact chip still renders, because the
+                     impact is the contract's one number. The centre is the
+                     chart's own title. */
                     corner={
                       <span className="pubws-stat">
                         <span className="pubws-price">{`${unit}${formatValue(shownConsensus ?? consensus)}`}</span>
-                        {!selectedJob && marketOpen !== null && consensus !== marketOpen && (
-                          <span
-                            key={`open-${Math.round(consensus - marketOpen)}`}
-                            className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}
-                          >
-                            {consensus >= marketOpen ? '▲' : '▼'} {formatDelta(consensus - marketOpen, unit)} since open
-                          </span>
-                        )}
                         {/* The impact is the job's one number, so it is always
                           said: priced, zero-so-far, or not yet priced. Silence
                           read as a broken page. */}
@@ -1382,9 +1376,10 @@ export function TradePage() {
                               {hero ? ` by ${hero.label}` : ''}
                             </span>
                           ))}
+                        {settleNote}
                       </span>
                     }
-                    center={showNumberChart ? null : settleCenter}
+                    center={<span className="pubws-chart-cap">market</span>}
                     preview={chartPreview}
                     orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
                     /* Only ever the other BRANCH: same metric, same window,
@@ -1405,8 +1400,8 @@ export function TradePage() {
                   />
                   {/* The number chart, always on below the market chart (owner
                     ask 2026-08-28, replacing the MARKET/NUMBER toggle): the
-                    metric's own trajectory at a quieter height, its corner a
-                    tiny "number" label, the settle clock in its centre. */}
+                    metric's own trajectory at a quieter height, its reading
+                    and its age as the row's left stat, its title centred. */}
                   {showNumberChart && hero && (
                     <div className="pubws-numchart">
                       <NumberChart
@@ -1442,8 +1437,24 @@ export function TradePage() {
                         unit={unit}
                         now={now}
                         height={170}
-                        corner={<span>number</span>}
-                        center={settleCenter}
+                        /* The reading is the number chart's own stat (owner
+                          ask 2026-08-28): the current value where the market
+                          chart carries its price, with its age beside it,
+                          because a reading is only trustworthy with its age
+                          on it. */
+                        corner={
+                          <span className="pubws-stat">
+                            <span className="pubws-price pubws-price--reading">
+                              {nowReading !== null ? `${unit}${formatValue(nowReading)}` : ''}
+                            </span>
+                            {lastReading?.at && (
+                              <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
+                                updated {timeAgoOf(lastReading.at, now) ?? ''}
+                              </span>
+                            )}
+                          </span>
+                        }
+                        center={<span className="pubws-chart-cap">number</span>}
                       />
                     </div>
                   )}

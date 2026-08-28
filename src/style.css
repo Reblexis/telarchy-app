@@ -2421,6 +2421,31 @@ button.notif-row-link {
    quieter plot (its height comes from the component). */
 .pubws-numchart { margin-top: 1.1rem; }
 
+/* Each chart's title, centred in its control row: the same tiny uppercase
+   register as section labels, so the two plots name themselves without
+   competing with the stats beside them. */
+.pubws-chart-cap {
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* The number chart's own stat: the current reading, a register under the
+   price, with its age beside it (a reading is only trustworthy with its
+   age on it) - and the settle countdown beside the price above, in the
+   same quiet register. */
+.pubws-price--reading { font-size: clamp(1.15rem, 3.6vw, 1.45rem); }
+
+.pubws-updated,
+.pubws-settle-in {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
 
 
 

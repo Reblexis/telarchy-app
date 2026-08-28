@@ -429,38 +429,43 @@ floors) are defined in docs/metrics.md.
 The consensus is a compact stat, not a poster number (owner ask
 2026-08-28, Manifold scale: the chart is the hero, the price a reading on
 it). It renders as the LEFT cell of the market chart's own control row,
-`.pubws-price` at roughly a third of its old size, with the since-open
-chip on its baseline beside it; both carry the metric's currency symbol
-when the trimmed parenthetical tail names one (e.g. "USD" -> "$"; the
-same prefix runs through every numeral in the chart). A market with no
-price yet (no liquidity) keeps the pickers, prints a centred "no price
-yet" where the stat row would be and the no-liquidity note where the bets
-would be, and draws no charts: the pickers are how a reader leaves it for
-a market that has one.
+`.pubws-price` at roughly a third of its old size, with the settle
+countdown beside it ("settles in 33d", ticking by the minute, the exact
+UTC instant as its hover title) where the since-open chip used to sit;
+the chip is gone (owner ask 2026-08-28: "instead of the arrow and down
+since"). A selected contract's impact chip still renders there, because
+the impact is the contract's one number. The price carries the metric's
+currency symbol when the trimmed parenthetical tail names one (e.g.
+"USD" -> "$"; the same prefix runs through every numeral in the chart).
+A market with no price yet (no liquidity) keeps the pickers, prints a
+centred "no price yet" where the stat row would be and the no-liquidity
+note where the bets would be, and draws no charts: the pickers are how a
+reader leaves it for a market that has one.
 
 **Both charts always render; there is no view toggle** (owner ask
 2026-08-28, replacing the MARKET/NUMBER switch of 2026-08-27: a newcomer
 never found the number behind it). The market chart is the hero, directly
 under the stat row; the number chart follows at a quieter height (~170
-viewBox px against the market's 260), its control row carrying a tiny
-"number" corner label. Each chart keeps its own range chips at its row's
-right, in each chart's own range vocabulary.
+viewBox px against the market's 260). Each chart names itself in the
+CENTRE of its own control row (`.pubws-chart-cap`, "market" / "number",
+the tiny-uppercase register), and each keeps its own range chips at its
+row's right, in each chart's own range vocabulary. The number chart's
+left cell is its own stat (owner ask 2026-08-28): the value in force
+(`.pubws-price--reading`, a register under the price) with its age
+beside it, "updated 3h 30m ago" (`timeAgoOf` from the latest reading's
+instant, the exact UTC instant as its hover title), because a reading is
+only trustworthy with its age on it.
 
-**When a market settles is said once, in the number chart's row.** The
-date picker names each market by its clock and settle day (`TODAY · 26
-AUG`, `THIS WEEK · 30 AUG`, `30 SEP`), the question line by its clock
-alone ("today", "this week", "on 30 Sep", the exact UTC settle instant
-as the word's hover title), and the centre of the number chart's control
-row carries the value in force and the countdown, "now 19.75 · settles in
-13h 12m" (`compactValueOf` from the latest reading; ticking by the
-minute, the exact UTC instant as its hover title), so the number the
-market is guessing at sits one glance from its own chart. While the
-metric has no reading yet there is no number chart, and the countdown
-stays in the centre of the market chart's row instead, so the settle
-clock never leaves the page. The former "resolves 30 September 2026" line
-is gone, and neither the segments nor the question repeat the timer. The
-one thing that still prints under the stat row is the N/A caveat of a
-metric with no reading yet ("N/A, all bets refunded, if there is still no
+**When a market settles is said once, beside the price.** The date
+picker names each market by its clock and settle day (`TODAY · 26 AUG`,
+`THIS WEEK · 30 AUG`, `30 SEP`), the question line by its clock alone
+("today", "this week", "on 30 Sep", the exact UTC settle instant as the
+word's hover title), and the countdown rides the stat row next to the
+price, whether or not the metric has readings, so the settle clock never
+leaves the page. The former "resolves 30 September 2026" line is gone,
+and neither the segments nor the question repeat the timer. The one
+thing that still prints under the stat row is the N/A caveat of a metric
+with no reading yet ("N/A, all bets refunded, if there is still no
 reading by then"), because it changes what a bet is.
 
 - **The market chart** is the prediction (`MarketChart`): one amber

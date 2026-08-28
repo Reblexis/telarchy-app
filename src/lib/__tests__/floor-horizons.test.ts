@@ -19,6 +19,7 @@ import {
   settleDayOf,
   settleNoteOf,
   settleShortOf,
+  timeAgoOf,
   timeLeftOf,
 } from '../floor-horizons';
 
@@ -473,6 +474,17 @@ describe('a floor that prices several metrics', () => {
     expect(dateQuestionOf(horizonById(grid, 'rev-month'))).toEqual({ word: 'this month', on: false });
     expect(dateQuestionOf(horizonById(grid, 'rev-sep'))).toEqual({ word: '30 Sep', on: true });
     expect(dateQuestionOf(null)).toEqual({ word: '', on: false });
+  });
+
+  test('time ago mirrors time left, with "just now" under a minute', () => {
+    const now = new Date('2026-08-25T12:00:00Z');
+    expect(timeAgoOf('2026-08-25T11:59:30Z', now)).toBe('just now');
+    expect(timeAgoOf('2026-08-25T11:14:00Z', now)).toBe('46m ago');
+    expect(timeAgoOf('2026-08-25T08:30:00Z', now)).toBe('3h 30m ago');
+    expect(timeAgoOf('2026-08-22T10:00:00Z', now)).toBe('3d 2h ago');
+    expect(timeAgoOf('2026-08-10T12:00:00Z', now)).toBe('15d ago');
+    expect(timeAgoOf(null, now)).toBeNull();
+    expect(timeAgoOf('not a date', now)).toBeNull();
   });
 
   test('time left is the two largest units that matter, and "settling" once past', () => {
