@@ -6335,6 +6335,22 @@ textarea.jobform-line--desc {
   .lbt-h:first-child, .lbt-rank { padding-left: 0; }
 }
 
+/* The liquidity-wallet package picker in the account dialog (the second
+   currency, 2026-08-28): ghost chips plus one custom field, ticket voice. */
+.lqw-packs { display: flex; gap: 0.4rem; margin: 0.2rem 0 0.5rem; }
+.lqw-packs .acctdlg-ghost.is-on { border-color: var(--text-primary); color: var(--text-primary); }
+.lqw-custom {
+  width: 6rem;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.2rem;
+}
+.lqw-custom:focus { outline: none; border-bottom-color: var(--accent); }
+
 .lbp-foot { margin-top: 2.5rem; text-align: center; font-size: 0.9rem; }
 .lbp-foot a { color: var(--accent); text-decoration: none; }
 .lbp-foot a:hover { text-decoration: underline; }

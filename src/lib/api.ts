@@ -925,6 +925,15 @@ export const api = {
 
   // Agents
   getParticipant: () => request('/api/agents/me'),
+  /** Start a liquidity-credits purchase (the second currency): returns the
+   *  Stripe Checkout url to send the buyer to. Manage capability in the
+   *  workspace required; 503 while the instance has no Stripe config. */
+  buyLiquidityCredits: (workspaceId: string, usdAmount: number): Promise<{ url: string; credits: number }> =>
+    request(`/api/workspaces/${encodeURIComponent(workspaceId)}/liquidity/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usdAmount }),
+    }),
   getAgents: () => request('/api/agents'),
   getAgentTrades: (agentId: string, limit = 100) =>
     request(`/api/agents/${encodeURIComponent(agentId)}/trades?limit=${limit}`),

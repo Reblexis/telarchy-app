@@ -1,23 +1,21 @@
-import { and, eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { liquidityPurchases, markets } from '../db/schema';
-import { applyMintedLiquidityInjectionTx } from './marketLiquidity';
+import { agents, liquidityPurchases } from '../db/schema';
+import { toUnits } from '../lib/validation';
 
 /**
- * Fulfil a paid liquidity purchase: mint its credits evenly into the
- * workspace's OPEN market pools.
+ * Fulfil a paid liquidity purchase: credit the buyer's LIQUIDITY WALLET
+ * (owner decision 2026-08-28, the two-currencies model). Nothing touches a
+ * market here: the wallet spends later, through the normal injection path,
+ * market by market, at the owner's hand. The wallet is walled - it can only
+ * ever become pool contributions, and LP leftovers from wallet-funded
+ * injections return to it (services/marketLiquidity.ts,
+ * services/markets.ts) - which is what keeps a purchase a service rather
+ * than a credit sale.
  *
  * Runs from the Stripe webhook, so it must be idempotent (Stripe retries
  * deliveries): the purchase row is locked, and a row already completed
- * returns without touching a pool. Even-split across open markets is the
- * published allocation policy (docs/liquidity-purchases.md): credits are
- * free to move between books via trading anyway, and any cleverer policy
- * would be a judgement the purchase page never showed the buyer.
- *
- * A workspace with no open market at fulfilment time (checkout refuses
- * this, so it takes a race between payment and every market resolving)
- * completes with an empty allocation; the money is service revenue either
- * way and the operator can inject by hand.
+ * returns without crediting again.
  */
 export async function fulfillLiquidityPurchase(
   purchaseId: string,
@@ -38,34 +36,13 @@ export async function fulfillLiquidityPurchase(
       return { fulfilled: false, alreadyCompleted: false, credits: 0 };
     }
 
-    const open = await tx
-      .select({ id: markets.id })
-      .from(markets)
-      .where(
-        and(
-          eq(markets.workspaceId, purchase.workspaceId),
-          eq(markets.active, true),
-          eq(markets.resolved, false),
-          eq(markets.voided, false),
-        ),
-      );
-
-    const allocation: Record<string, number> = {};
-    if (open.length > 0) {
-      const per = purchase.credits / open.length;
-      for (const m of open) {
-        await applyMintedLiquidityInjectionTx(tx, {
-          workspaceId: purchase.workspaceId,
-          marketId: m.id,
-          poolContribution: per,
-        });
-        allocation[m.id] = per;
-      }
-    }
-
+    await tx
+      .update(agents)
+      .set({ liquidityBalance: sql`${agents.liquidityBalance} + ${toUnits(purchase.credits)}` })
+      .where(eq(agents.id, purchase.agentId));
     await tx
       .update(liquidityPurchases)
-      .set({ status: 'completed', completedAt: new Date(), allocation, stripeSessionId })
+      .set({ status: 'completed', completedAt: new Date(), stripeSessionId })
       .where(eq(liquidityPurchases.id, purchaseId));
     return { fulfilled: true, alreadyCompleted: false, credits: purchase.credits };
   });

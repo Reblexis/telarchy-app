@@ -12,6 +12,7 @@ import {
 import { AccountCredits } from './AccountCredits';
 import { AccountPassword } from './AccountPassword';
 import { FloorModal } from './FloorModal';
+import { LiquidityWallet } from './LiquidityWallet';
 import { SeasonEntryPanel } from './SeasonEntryPanel';
 
 /**
@@ -30,6 +31,9 @@ interface Participant {
   walletAddress?: string;
   spentBetting: number | null;
   balance: number | null;
+  /** The second currency: bought liquidity credits, spendable only as
+   *  market-pool injections (owner decision 2026-08-28). */
+  liquidityBalance?: number | null;
   earnedBetting: number | null;
   payoutHandle: string | null;
   payoutMethod: PayoutMethod | null;
@@ -548,6 +552,7 @@ export function AccountDialog({
               {user?.email && <span className="acctdlg-email">{user.email}</span>}
               <span className="acctdlg-stats">
                 {participant?.balance != null ? `${fmtCr(participant.balance)} cr to trade` : ''}
+                {participant?.liquidityBalance ? ` · ${fmtCr(participant.liquidityBalance)} liquidity cr` : ''}
                 {participant?.earnedBetting != null
                   ? ` · ${participant.earnedBetting > 0 ? '+' : ''}${fmtCr(participant.earnedBetting)} cr earned`
                   : ''}
@@ -914,6 +919,11 @@ export function AccountDialog({
                   )}
                   {errors.pay && <p className="ticket-err">{errors.pay}</p>}
 
+                  <LiquidityWallet
+                    balance={participant?.liquidityBalance ?? 0}
+                    workspaceIdOrSlug={floor?.idOrSlug ?? null}
+                    floorName={floor?.name ?? null}
+                  />
                   <AccountCredits me={participant} onChanged={loadParticipant} />
                   <SeasonEntryPanel />
                 </>

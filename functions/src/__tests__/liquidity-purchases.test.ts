@@ -10,11 +10,14 @@ import { createHmac } from 'crypto';
 import { eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { liquidityPurchases, markets, metrics, workspaces } from '../db/schema';
+import { agents, liquidityEvents, liquidityPurchases, markets, metrics, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
+import { fromUnits, toUnits } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { liquidityPurchasesRouter, stripeWebhookHandler } from '../routes/liquidityPurchases';
+import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
+import { voidMarket } from '../services/markets';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const WS = 'ws-liq';
@@ -66,6 +69,7 @@ afterAll(() => {
 });
 
 async function seedWorkspace(marketIds: string[]) {
+  await db.insert(agents).values({ id: 'buyer', apiKeyHash: 'h-buyer', balance: toUnits(500) });
   await db
     .insert(workspaces)
     .values({ id: WS, name: 'Floor', slug: 'floor', createdBy: 'buyer', visibility: 'public' });
@@ -133,14 +137,21 @@ describe('checkout', () => {
     const [row] = await db.select().from(liquidityPurchases).where(eq(liquidityPurchases.id, res.body.purchaseId));
     expect(row.status).toBe('pending');
     expect(row.stripeSessionId).toBe('cs_test_1');
-    // Nothing minted before the webhook: paying is what mints.
-    expect(await poolOf('m1')).toBeCloseTo(initialPool(200), 6);
+    // Nothing credited before the webhook: paying is what mints.
+    const [buyer] = await db.select().from(agents).where(eq(agents.id, 'buyer'));
+    expect(buyer.liquidityBalance).toBe(0);
   });
 
-  test('refuses a workspace with no open market (money with nowhere to go)', async () => {
+  test('a workspace with no open market can still buy: the wallet holds until markets exist', async () => {
     await seedWorkspace([]);
     const res = await request(app).post(`/api/workspaces/${WS}/liquidity/checkout`).send({ usdAmount: 100 });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
+  });
+
+  test('the slug reaches the same checkout as the id', async () => {
+    await seedWorkspace(['m1']);
+    const res = await request(app).post('/api/workspaces/floor/liquidity/checkout').send({ usdAmount: 100 });
+    expect(res.status).toBe(201);
   });
 
   test('bounds the amount', async () => {
@@ -160,11 +171,11 @@ describe('checkout', () => {
 });
 
 describe('the webhook', () => {
-  test('mints the purchase evenly into open pools, once, however often Stripe retries', async () => {
+  test("credits the buyer's liquidity wallet, once, however often Stripe retries", async () => {
     await seedWorkspace(['m1', 'm2']);
     const checkout = await request(app).post(`/api/workspaces/${WS}/liquidity/checkout`).send({ usdAmount: 100 });
     const purchaseId = checkout.body.purchaseId as string;
-    const before = await poolOf('m1');
+    const poolBefore = await poolOf('m1');
 
     const { payload, header } = signedWebhook(completedEvent(purchaseId));
     const res = await request(app)
@@ -174,21 +185,79 @@ describe('the webhook', () => {
       .send(payload);
     expect(res.status).toBe(200);
 
-    // 100,000 credits over two open markets: 50,000 of pool contribution each.
-    expect(await poolOf('m1')).toBeCloseTo(before + 50000, 6);
-    expect(await poolOf('m2')).toBeCloseTo(before + 50000, 6);
+    // The two-currencies model (owner decision 2026-08-28): the purchase is
+    // wallet credits, and NO market moves until the owner places them.
+    const [buyer] = await db.select().from(agents).where(eq(agents.id, 'buyer'));
+    expect(fromUnits(buyer.liquidityBalance as number)).toBe(100000);
+    expect(await poolOf('m1')).toBeCloseTo(poolBefore, 6);
     const [row] = await db.select().from(liquidityPurchases).where(eq(liquidityPurchases.id, purchaseId));
     expect(row.status).toBe('completed');
-    expect(row.allocation).toEqual({ m1: 50000, m2: 50000 });
 
-    // Stripe redelivers; the pools must not grow again.
+    // Stripe redelivers; the wallet must not grow again.
     const again = await request(app)
       .post('/api/stripe/webhook')
       .set('stripe-signature', signedWebhook(completedEvent(purchaseId)).header)
       .set('content-type', 'application/json')
       .send(payload);
     expect(again.status).toBe(200);
-    expect(await poolOf('m1')).toBeCloseTo(before + 50000, 6);
+    const [buyer2] = await db.select().from(agents).where(eq(agents.id, 'buyer'));
+    expect(fromUnits(buyer2.liquidityBalance as number)).toBe(100000);
+  });
+
+  test('an injection spends the wallet first, and a void returns the leftover to the wallet', async () => {
+    await seedWorkspace(['m1']);
+    await db
+      .update(agents)
+      .set({ liquidityBalance: toUnits(1000) })
+      .where(eq(agents.id, 'buyer'));
+    const poolBefore = await poolOf('m1');
+
+    await db.transaction(async tx => {
+      await applyAgentLiquidityInjectionTx(tx as never, {
+        workspaceId: WS,
+        marketId: 'm1',
+        agentId: 'buyer',
+        poolContribution: 600,
+      });
+    });
+    let [buyer] = await db.select().from(agents).where(eq(agents.id, 'buyer'));
+    expect(fromUnits(buyer.liquidityBalance as number)).toBe(400);
+    // The tradeable balance never moved: the wallet paid.
+    expect(fromUnits(buyer.balance as number)).toBe(500);
+    expect(await poolOf('m1')).toBeCloseTo(poolBefore + 600, 6);
+    const [ev] = await db
+      .select()
+      .from(liquidityEvents)
+      .where(eq(liquidityEvents.marketId, 'm1'))
+      .orderBy(liquidityEvents.createdAt);
+    expect(ev.fundedFrom ?? 'liquidity').toBe('liquidity');
+
+    // Void the market: the pool leftover routes back BY SOURCE, so the
+    // wallet-funded share returns to the wallet and never becomes stake.
+    const [market] = await db.select().from(markets).where(eq(markets.id, 'm1'));
+    await voidMarket(market, WS);
+    [buyer] = await db.select().from(agents).where(eq(agents.id, 'buyer'));
+    expect(fromUnits(buyer.liquidityBalance as number)).toBeGreaterThan(400);
+    expect(fromUnits(buyer.balance as number)).toBe(500);
+  });
+
+  test('a wallet too small for the whole amount falls back to the tradeable balance', async () => {
+    await seedWorkspace(['m1']);
+    await db
+      .update(agents)
+      .set({ liquidityBalance: toUnits(100) })
+      .where(eq(agents.id, 'buyer'));
+    await db.transaction(async tx => {
+      await applyAgentLiquidityInjectionTx(tx as never, {
+        workspaceId: WS,
+        marketId: 'm1',
+        agentId: 'buyer',
+        poolContribution: 300,
+      });
+    });
+    const [buyer] = await db.select().from(agents).where(eq(agents.id, 'buyer'));
+    expect(fromUnits(buyer.liquidityBalance as number)).toBe(100);
+    expect(fromUnits(buyer.balance as number)).toBe(200);
   });
 
   test('a bad signature mints nothing and is refused', async () => {
@@ -235,6 +304,8 @@ describe('the webhook', () => {
       .set('content-type', 'application/json')
       .send(payload);
     expect(await poolOf('m1')).toBeCloseTo(before, 6);
+    const [buyer] = await db.select().from(agents).where(eq(agents.id, 'buyer'));
+    expect(buyer.liquidityBalance).toBe(0);
   });
 });
 

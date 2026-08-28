@@ -1861,11 +1861,12 @@ approach A) and the trader-rewards design
 buyer's own markets. It is never a credit sale. Three invariants keep that
 true, and every change to this feature must preserve all three:</p>
 <ol>
-<li><strong>Pool-only.</strong> Purchased credits are minted directly into market pools
-(<code>applyMintedLiquidityInjectionTx</code>, which has no balance write and no
-credit-ledger row) and reach an account balance only through market
-payouts under the published scoring rule. There is no path from a
-payment to a balance.</li>
+<li><strong>Walled wallet.</strong> A purchase credits the buyer's LIQUIDITY WALLET
+(<code>agents.liquidity_balance</code>, the second currency; owner decision
+2026-08-28): spendable only as market-pool injections, never tradeable,
+never transferable, and LP leftovers from wallet-funded injections
+return to the wallet (<code>liquidity_events.funded_from</code> routes them).
+There is no path from a payment to the tradeable balance.</li>
 <li><strong>Whoever pays cannot win.</strong> Buying requires the <code>manage</code> capability in
 the target workspace, and accounts that own or administer a public
 workspace take no season payout under strict eligibility
@@ -1880,15 +1881,13 @@ A per-credit exchange rate would make every market a real-money bet
 <h2 id="docs-liquidity-purchases-md--h3">Flow</h2>
 <ul>
 <li><code>POST /api/workspaces/:id/liquidity/checkout { usdAmount }</code> ($5 to
-$5,000, manage capability): records a pending purchase and returns a
-Stripe Checkout URL. Refused (409) when the workspace has no open market
-to fund.</li>
+$5,000, manage capability + a participant identity): records a pending
+purchase and returns a Stripe Checkout URL.</li>
 <li>Stripe calls <code>POST /api/stripe/webhook</code> (raw body, signature verified,
 no other auth). On <code>checkout.session.completed</code> with <code>payment_status: &quot;paid&quot;</code> (or <code>async_payment_succeeded</code>), the purchase is fulfilled
-idempotently: its credits are split EVENLY across the workspace's open
-markets (active, unresolved, unvoided) via price-preserving pool
-contributions, and the split is recorded on the purchase row
-(<code>allocation</code>).</li>
+idempotently: its credits land in the buyer's liquidity wallet. Placing
+them is the owner's hand on the floor: the market liquidity endpoint
+spends the wallet first whenever it covers the whole amount.</li>
 <li><code>GET /api/workspaces/:id/liquidity/purchases</code> lists a workspace's
 purchases; <code>GET /api/liquidity/revenue</code> (platform admin) totals completed
 revenue over a window.</li>

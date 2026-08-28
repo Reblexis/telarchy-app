@@ -1171,7 +1171,11 @@ agentsRouter.get(
       return;
     }
     const data = sanitizeAgentForViewer(agent, req.auth);
-    res.json({ ...data, balance: fromUnits(agent.balance as number) });
+    res.json({
+      ...data,
+      balance: fromUnits(agent.balance as number),
+      liquidityBalance: fromUnits((agent.liquidityBalance as number) ?? 0),
+    });
   }),
 );
 
@@ -1189,7 +1193,10 @@ agentsRouter.get(
       res.status(404).json({ error: 'Agent not found' });
       return;
     }
-    res.json({ balance: fromUnits(agent.balance as number) });
+    res.json({
+      balance: fromUnits(agent.balance as number),
+      liquidityBalance: fromUnits((agent.liquidityBalance as number) ?? 0),
+    });
   }),
 );
 
@@ -1218,7 +1225,11 @@ agentsRouter.get(
       res.status(404).json({ error: 'Agent not found' });
       return;
     }
-    res.json({ balance: fromUnits(agent.balance as number), markets: mkts });
+    res.json({
+      balance: fromUnits(agent.balance as number),
+      liquidityBalance: fromUnits((agent.liquidityBalance as number) ?? 0),
+      markets: mkts,
+    });
   }),
 );
 
