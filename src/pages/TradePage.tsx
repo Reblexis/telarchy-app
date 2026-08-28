@@ -381,7 +381,7 @@ export function TradePage() {
       className="pubws-settle-in"
       title={hero.resolvesOn ? `settles ${new Date(hero.resolvesOn).toUTCString()}` : undefined}
     >
-      {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
+      expected · {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
     </span>
   ) : null;
   // Both charts render whenever the metric has readings; without them the
@@ -1359,7 +1359,6 @@ export function TradePage() {
                     corner={
                       <span className="pubws-stat">
                         <span className="pubws-price">{`${unit}${formatValue(shownConsensus ?? consensus)}`}</span>
-                        <span className="pubws-stat-tag">expected ·</span>
                         {/* The impact is the job's one number, so it is always
                           said: priced, zero-so-far, or not yet priced. Silence
                           read as a broken page. */}

@@ -2434,7 +2434,6 @@ button.notif-row-link {
 /* The two stat rows are symmetric (owner ask 2026-08-28): the price and
    the reading share one size, and their qualifiers ("expected", "as of
    2d 4h ago", "settles in 33d") share one quiet register. */
-.pubws-stat-tag,
 .pubws-updated,
 .pubws-settle-in {
   font-family: 'JetBrains Mono', monospace;

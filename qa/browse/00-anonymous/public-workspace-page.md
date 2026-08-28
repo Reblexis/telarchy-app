@@ -189,8 +189,8 @@ word and the promise is unverifiable.
   amended 2026-08-28: Manifold scale, the chart is the hero) sitting as the
   LEFT cell of the market chart's control row, equal to the selected
   market's consensus, read as "$7,146 expected ·
-  settles in <t>" (`.pubws-stat-tag`, `.pubws-settle-in`); the since-open
-  delta chip is gone.
+  settles in <t>" (`.pubws-settle-in`, one non-breaking unit); the
+  since-open delta chip is gone.
   Each chart carries its centred title in its control row
   (`.pubws-chart-cap`: MARKET on the prediction, the metric's caption name
   on the number chart). There is no MARKET/NUMBER view

@@ -1124,8 +1124,7 @@ describe('the chart control row', () => {
     // leading company name stripped). Scoped: the caption and question line
     // say the name too.
     expect(container.querySelector('.pubws-numchart .pubws-chart-cap')?.textContent).toBe('net 2026');
-    expect(container.querySelector('.pubws-stat .pubws-settle-in')?.textContent).toMatch(/settles in/);
-    expect(container.querySelector('.pubws-stat .pubws-stat-tag')?.textContent).toContain('expected');
+    expect(container.querySelector('.pubws-stat .pubws-settle-in')?.textContent).toMatch(/expected · settles in/);
     // The metric's latest reading is the number chart's own stat, the same
     // register as the price, with its age beside it.
     expect(container.querySelector('.pubws-numchart .pubws-price')?.textContent).toBe('$45,339');

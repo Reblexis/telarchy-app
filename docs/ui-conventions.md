@@ -430,9 +430,10 @@ The consensus is a compact stat, not a poster number (owner ask
 2026-08-28, Manifold scale: the chart is the hero, the price a reading on
 it). It renders as the LEFT cell of the market chart's own control row,
 `.pubws-price` at roughly a third of its old size, read as "$7,146
-expected · settles in 33d": the word "expected" and the countdown share
-one quiet register (`.pubws-stat-tag`, `.pubws-settle-in`; the countdown
-ticks by the minute, exact UTC instant on hover) where the since-open
+expected · settles in 33d": the qualifier is ONE non-breaking unit in
+the quiet register (`.pubws-settle-in`; the countdown ticks by the
+minute, exact UTC instant on hover), so a tight column wraps it whole
+under the price, never mid-phrase. It sits where the since-open
 chip used to sit; the chip is gone (owner ask 2026-08-28: "instead of
 the arrow and down since"). A selected contract's impact chip still
 renders there, because the impact is the contract's one number. The
