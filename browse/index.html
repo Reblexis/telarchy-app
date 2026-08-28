@@ -2423,9 +2423,11 @@ settled score (<code>payout_mode = 'proportional'</code>, amended 2026-08-28; th
 original ladder mode, where place alone decided the prize, remains
 implemented for seasons that publish rungs). A zero or negative score is
 paid nothing and does not shrink anyone else's share. Shares below the
-season's published minimum ($50 for Season 0), anything above the $2,000
-single-payout cap (<code>MAX_SINGLE_PAYOUT_USD</code>, the Czech withholding line),
-and anything otherwise unassigned roll into the next season's pool.
+season's published minimum ($1 for Season 0, third 2026-08-28 amendment)
+and anything otherwise unassigned roll into the next season's pool. There
+is no upper cap on a single payout (owner decision 2026-08-28): a prize
+above the Czech withholding line (CZK 50,000) is paid net of the required
+15% withholding rather than clipped.
 Linear-in-score on purpose: under a linear payout, moving score between
 colluding accounts changes the coalition's total by nothing, which is the
 Sybil property the rank ladder lacked (design record: telarchy umbrella
@@ -2615,8 +2617,9 @@ reject <code>endsAt &lt;= startsAt</code> and, in ladder mode, a ladder promisin
 than the pool. The pool has no ceiling (retired 2026-08-28): the old
 sub-5,000 rule was the NY/FL registration-and-bonding line for CHANCE
 sweepstakes and never applied to a deterministic skill-scored payout,
-which scales uncapped; the cap that remains is per single payout
-(<code>MAX_SINGLE_PAYOUT_USD</code>, $2,000, the Czech withholding line).</li>
+which scales uncapped, and no per-payout cap remains either (owner
+decision 2026-08-28): a payout above the Czech withholding line
+(CZK 50,000) is paid net of the required withholding.</li>
 <li><strong>Start.</strong> A draft starts at its published instant through <code>POST /api/cron/seasons</code>, which starts due drafts and is a no-op otherwise.
 Starting pins the workspace set and snapshots a baseline profit for every
 participant, whether or not they have entered, so opting in late is not a
@@ -7838,6 +7841,11 @@ paid and roll into the next season's pool; no single prize exceeds $2,000.
 Prizes are now paid by Telarchy directly, from its own funds, rather than by
 the workspace owner. Effective on announcement on the season page; the
 Prizes and Getting paid sections below have the details.</em></p>
+<p><em>Amended 2026-08-28, mid-season (third amendment that day): the minimum
+paid share drops from $50 to $1, and the $2,000 single-prize cap is
+removed. Where the law requires withholding on a prize (Czech law does,
+above CZK 50,000), we withhold the required amount and pay the rest. Both
+changes only increase what can be paid; nobody's share shrinks.</em></p>
 <p><strong>Season 0 is the first one, and the platform is still being launched.</strong> Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
 the feedback channel in the app; where a bug affects standings we say so
@@ -7865,11 +7873,12 @@ season score: earn twice the settled profit of another entrant, be paid
 twice their prize. A zero or negative score is paid nothing and does not
 shrink anyone else's share. Three boundary rules:</p>
 <ul>
-<li>A computed share below <strong>$50</strong> is not paid and rolls into the next
-season's pool (a prize smaller than the cost of sending it helps nobody).</li>
-<li>No single prize exceeds <strong>$2,000</strong> (the Czech tax-withholding line for
-prizes; irrelevant at this pool size, stated so the rule exists before it
-matters). The excess rolls into the next season's pool.</li>
+<li>A computed share below <strong>$1</strong> is not paid and rolls into the next
+season's pool (a prize smaller than the cost of sending it helps nobody;
+lowered from $50 by the third 2026-08-28 amendment).</li>
+<li>There is no upper cap on a single prize. A prize large enough to trigger
+a legal withholding duty (Czech law: 15% above CZK 50,000) is paid net
+of the required withholding.</li>
 <li>Anything otherwise unassigned, including the whole pool if no entrant has
 a positive score, rolls into the next season's pool.</li>
 </ul>
@@ -7933,7 +7942,7 @@ transmits, escrows and processes no third-party funds: a prize is our own
 money paid as a contest prize. An unclaimed prize rolls into the next
 season's pool. Winners are responsible for taxes on amounts received; where
 Czech law requires withholding on a prize (above CZK 50,000), we withhold
-and say so, which is why no single prize exceeds $2,000 for now.</p>
+the required amount and pay the rest.</p>
 <h2 id="docs-legal-season-0-rules-md--h8">The operator's side</h2>
 <p>We do not void markets during a running season, except to correct a declared
 error, and we announce it if we do. We may end or void a season; if we do, we

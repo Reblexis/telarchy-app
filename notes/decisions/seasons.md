@@ -431,3 +431,17 @@ best-placed one (an entrant whose handle matches an operator's or a house
 account's included). Season 0 keeps its published owners-eligible rule to
 the end; the flag is a per-season rule so an operator can still run a
 deliberately open season and say so in its rules.
+
+
+## 2026-08-28: minimum share $1, payout cap removed (owner decision)
+
+**DONE 2026-08-28 (Viktor, verbatim):** "there should be more like $1
+dollar minimum share and no payout cap..". Season 0's minPayoutUsd drops
+from the provisional $50 to $1, and MAX_SINGLE_PAYOUT_USD is removed from
+the settlement arithmetic entirely. The Czech withholding duty the cap
+guarded (15% above CZK 50,000 per prize) moves to payment time: the rules
+now say a prize above the line is paid net of the required withholding,
+which means withholding must actually be set up with an accountant before
+any season where a single prize can exceed about $2,100. Third mid-season
+amendment of the day, announced on the rules page before the PATCH; both
+changes only increase what can be paid.
