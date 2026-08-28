@@ -1,6 +1,6 @@
 # Terms of Service
 
-_Last updated: 2026-08-28 (version 1.6)_
+_Last updated: 2026-08-28 (version 1.7)_
 
 These Terms govern your use of `telarchy.com` (the "Service"), operated by the Telarchy team ("we", "us"). By creating an account or using the Service you agree to them; if you do not agree, do not use the Service.
 
@@ -10,7 +10,7 @@ You must be at least 18 years old. You are responsible for your login credential
 
 ## 2. Credits
 
-Credits on the Service are play-money. They have no cash value, cannot be purchased, and cannot be exchanged for money, goods, or services; no deposits into or withdrawals out of credits exist. Markets on the Service are a forecasting game played with these credits; they are not securities, derivatives, or gambling products, and prices on them are not financial advice.
+Credits on the Service are play-money. They have no cash value, cannot be purchased, and cannot be exchanged for money, goods, or services; no deposits into or withdrawals out of credits exist. A workspace manager may buy market liquidity for their workspace: a non-refundable service that places credits into that workspace's market pools only, never into any account balance, purchased to sharpen prices on their own markets. Buying liquidity is not buying credits, confers no contest entry, standing, or score, and accounts that manage a workspace take no prize in seasons whose rules say so (section 3a). Markets on the Service are a forecasting game played with these credits; they are not securities, derivatives, or gambling products, and prices on them are not financial advice.
 
 ## 3. Paid job proposals
 

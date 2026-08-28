@@ -352,6 +352,7 @@ const ROUTER_MOUNTS: Record<string, string> = {
   'admin.ts': '/api/admin',
   'activity.ts': '/api/activity',
   'system.ts': '/api',
+  'liquidityPurchases.ts': '/api',
 };
 
 /**
@@ -366,6 +367,8 @@ const UNDOCUMENTED_BY_DESIGN: Record<string, string> = {
 
 /** Catalog entries with no router behind them, permitted only where app.ts serves the path itself. */
 const SERVED_OUTSIDE_ROUTERS: Record<string, string> = {
+  'POST /api/stripe/webhook':
+    'Mounted directly in app.ts with express.raw BEFORE the JSON parser, because Stripe signature verification needs the exact signed bytes; authenticated by that signature, not by the auth policy.',
   'GET /api/help':
     'The catalog itself, served by app.ts rather than by a mounted router, so it can never appear in the router scan.',
   'GET /api/public-config':

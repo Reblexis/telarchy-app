@@ -534,6 +534,34 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'POST',
+      path: '/api/workspaces/:id/liquidity/checkout',
+      auth: 'identity',
+      description:
+        "Buy market liquidity for a workspace with real money (Stripe Checkout; the ONLY path by which money enters the managed instance). Requires the manage capability in that workspace. Body: { usdAmount } ($5-$5,000). Returns 201 { purchaseId, url, credits, creditsPerUsd, openMarkets }; send the buyer to url. On payment the webhook mints the credits EVENLY INTO THE WORKSPACE'S OPEN MARKET POOLS - never into any balance: a liquidity purchase is a non-refundable service (sharper prices on your own markets), not a credit sale, and credits remain unpurchasable and unredeemable (Terms of Service section 2). Provisional price $1 = 100 pool credits (LIQUIDITY_CREDITS_PER_USD). 503 when the instance has no Stripe configuration; 409 when the workspace has no open market to fund. Purchasers hold manage on the workspace, and under strict season eligibility such accounts take no season payout.",
+    },
+    {
+      method: 'GET',
+      path: '/api/workspaces/:id/liquidity/purchases',
+      auth: 'identity',
+      description:
+        'Purchase history for one workspace (manage capability required): [{ id, usdAmount, credits, creditsPerUsd, status: "pending"|"completed", allocation ({ marketId: credits }, set at fulfilment), createdAt, completedAt }].',
+    },
+    {
+      method: 'POST',
+      path: '/api/stripe/webhook',
+      auth: false,
+      description:
+        'Stripe event delivery for liquidity purchases. Authenticated by the Stripe-Signature header over the raw payload (never call it yourself); on checkout.session.completed with payment_status "paid" it fulfils the referenced purchase idempotently. 503 when the instance has no Stripe configuration; 400 on a bad signature.',
+    },
+    {
+      method: 'GET',
+      path: '/api/liquidity/revenue',
+      auth: 'platform admin',
+      description:
+        'Completed liquidity revenue over a window (?from=&to=, ISO dates, default all time): { totalUsd, purchases, from, to }. This is revenue(N) in the published season-pool formula pool(N+1) = max(pool(0), k x revenue(N)) + rollover(N) (docs/liquidity-purchases.md).',
+    },
+    {
+      method: 'POST',
       path: '/api/predictions/markets/liquidity/bulk',
       auth: 'admin',
       description:

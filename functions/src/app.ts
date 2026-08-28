@@ -12,6 +12,7 @@ import { AppError } from './lib/errors';
 import { HELP } from './lib/help-catalog';
 import { publicOrigins } from './lib/origins';
 import { isBetaRequest } from './lib/request-env';
+import { wrap } from './lib/wrap';
 import { requireConsentIfUser } from './middleware/consent';
 import { requireCapability } from './middleware/roles';
 import { apiAuthPolicy } from './middleware/route-policy';
@@ -26,6 +27,7 @@ import { groupsRouter } from './routes/groups';
 import { guidesRouter } from './routes/guides';
 import { leaderboardRouter } from './routes/leaderboard';
 import { legalRouter } from './routes/legal';
+import { liquidityPurchasesRouter, stripeWebhookHandler } from './routes/liquidityPurchases';
 import { manifoldRouter } from './routes/manifold';
 import { marketplaceRouter } from './routes/marketplace';
 import { metricsRouter } from './routes/metrics';
@@ -92,6 +94,10 @@ app.use((req, res, next) => {
 });
 
 app.use(corsMiddleware);
+// The Stripe webhook needs the exact bytes Stripe signed, so its raw-body
+// route is mounted BEFORE the JSON parser; everything else gets JSON as
+// before. No auth: the signature IS the authentication.
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), wrap(stripeWebhookHandler));
 app.use(express.json());
 
 /**
@@ -376,6 +382,10 @@ app.use('/api', requireConsentIfUser);
 app.use('/api/metrics', metricsRouter);
 app.use('/api/updates', requireCapability('manage'), updatesRouter);
 app.use('/api/workspaces', workspacesRouter);
+// Paid liquidity: checkout + purchase history under /api/workspaces/:id/...,
+// revenue under /api/liquidity/revenue. The webhook itself is mounted above
+// the JSON parser (raw body).
+app.use('/api', liquidityPurchasesRouter);
 app.use('/api/groups', groupsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/activity', activityRouter);

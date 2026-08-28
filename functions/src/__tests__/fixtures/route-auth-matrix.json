@@ -294,6 +294,11 @@
     "agent": 200,
     "master": 200
   },
+  "GET /api/liquidity/revenue": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
   "GET /api/marketplace/": {
     "anon": 200,
     "agent": 200,
@@ -523,6 +528,11 @@
     "anon": 401,
     "agent": 404,
     "master": 404
+  },
+  "GET /api/workspaces/:id/liquidity/purchases": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
   },
   "GET /api/workspaces/:id/stats": {
     "anon": 401,
@@ -924,6 +934,11 @@
     "agent": 400,
     "master": 400
   },
+  "POST /api/stripe/webhook": {
+    "anon": 503,
+    "agent": 503,
+    "master": 503
+  },
   "POST /api/waitlist/": {
     "anon": 400,
     "agent": 400,
@@ -943,6 +958,11 @@
     "anon": 401,
     "agent": 404,
     "master": 404
+  },
+  "POST /api/workspaces/:id/liquidity/checkout": {
+    "anon": 401,
+    "agent": 503,
+    "master": 503
   },
   "POST /api/workspaces/:id/members": {
     "anon": 401,
