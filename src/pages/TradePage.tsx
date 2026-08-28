@@ -975,21 +975,24 @@ export function TradePage() {
                     if (cell) setHorizonId(cell.marketId);
                   }}
                 />
-                {/* No-break space after "on": the preposition belongs to its
-                 date, and a wrap between them read broken on the desktop
-                 column. */}
-                {dateQuestionOf(hero).on ? ' on\u00A0' : ' '}
-                <CycleWord
-                  what="Date"
-                  options={heroDates.map(d => ({
-                    key: d.marketId,
-                    label: dateQuestionOf(d).word,
-                    title: d.resolvesOn ? `settles ${new Date(d.resolvesOn).toUTCString()}` : undefined,
-                  }))}
-                  activeKey={hero.marketId}
-                  onStep={marketId => setHorizonId(marketId)}
-                />
-                ?
+                {/* The tail never breaks inside: "on 30 Sep?" wrapping after
+                 the preposition read broken on the desktop column, and an
+                 inline-block child ignores a no-break space before it, so
+                 the group is held together by nowrap instead. */}{' '}
+                <span className="pubws-ask-tail">
+                  {dateQuestionOf(hero).on ? 'on ' : ''}
+                  <CycleWord
+                    what="Date"
+                    options={heroDates.map(d => ({
+                      key: d.marketId,
+                      label: dateQuestionOf(d).word,
+                      title: d.resolvesOn ? `settles ${new Date(d.resolvesOn).toUTCString()}` : undefined,
+                    }))}
+                    activeKey={hero.marketId}
+                    onStep={marketId => setHorizonId(marketId)}
+                  />
+                  ?
+                </span>
               </h2>
               {selectedJob && (
                 <>

@@ -2275,6 +2275,11 @@ button.notif-row-link {
 .pubws-ask-word--live:hover { border-bottom-color: var(--text-primary); }
 .pubws-ask-word--live:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
+/* The date tail ("on 30 Sep?", "this week?") never breaks inside: a wrap
+   after the preposition read broken, and a no-break space cannot glue text
+   to an inline-block neighbour. */
+.pubws-ask-tail { white-space: nowrap; }
+
 /* A stepped word re-mounts (keyed) and slides in, so a moved selection is
    seen moving; same motion as the impact chip. */
 .pubws-ask-word-inner { display: inline-block; animation: chip-in 200ms ease-out; }
