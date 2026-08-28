@@ -124,6 +124,10 @@ export function seasonClock(season: PrizeSeason, now: Date = new Date()): Season
 export function clockTickMs(clock: SeasonClock): number {
   if (!clock.target) return 0;
   const ms = clock.days * DAY + clock.hours * HOUR + clock.minutes * MINUTE + clock.seconds * 1000;
+  // A countdown that already hit zero has nothing left to count: a draft
+  // season whose start date passed otherwise re-rendered its rail every
+  // second, forever, hidden tab included.
+  if (ms <= 0) return MINUTE;
   if (ms < HOUR) return 1000;
   if (ms < DAY) return MINUTE;
   return 15 * MINUTE;
