@@ -435,10 +435,14 @@ export function CreateWorkspaceDialog({
     try {
       const ws = (await api.createWorkspace({ name: name.trim() })) as {
         id: string;
-        ownerHandle?: string | null;
         slug?: string | null;
       };
-      onCreated(ws.ownerHandle && ws.slug ? `/${ws.ownerHandle}/${ws.slug}` : `/marketplace/${ws.id}`);
+      // The floor's route is single-segment /{slug} (App.tsx: '/:slug'; the
+      // /{owner}/{slug} form in the API docs has no route in this app), so a
+      // two-segment path here bounced the fresh owner to the floors list via
+      // the catch-all (owner report 2026-08-28: "nothing happened .. i just
+      // got spawned back to telarchy.com").
+      onCreated(ws.slug ? `/${ws.slug}` : `/marketplace/${ws.id}`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
       setBusy(false);

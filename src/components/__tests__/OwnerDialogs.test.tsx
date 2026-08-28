@@ -31,6 +31,8 @@ vi.mock('../../lib/api', () => ({
   },
 }));
 
+// Raw source, for the invariant that is about the route itself.
+import appSrc from '../../App.tsx?raw';
 import { MarketFacts } from '../MarketFacts';
 import { AddDateDialog, CreateWorkspaceDialog, InjectLiquidityDialog, NewMetricDialog } from '../OwnerDialogs';
 
@@ -237,7 +239,9 @@ describe('dialog 0: create your own floor', () => {
     fireEvent.change(screen.getByLabelText('Floor name'), { target: { value: '  Meridian  ' } });
     fireEvent.click(screen.getByText('Open my floor'));
     await waitFor(() => expect(createWorkspace).toHaveBeenCalledWith({ name: 'Meridian' }));
-    expect(onCreated).toHaveBeenCalledWith('/viktor/meridian');
+    // Single-segment: the app routes floors as '/:slug' and nothing else, and
+    // a path no route matches bounces to the floors list.
+    expect(onCreated).toHaveBeenCalledWith('/meridian');
   });
 
   test('a nameless floor never reaches the API, and a handle-less one still lands somewhere real', async () => {
@@ -253,5 +257,14 @@ describe('dialog 0: create your own floor', () => {
     fireEvent.change(screen.getByLabelText('Floor name'), { target: { value: 'Bare' } });
     fireEvent.click(screen.getByText('Open my floor'));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith('/marketplace/ws-bare'));
+  });
+
+  test('every path this dialog can hand back has a route behind it', () => {
+    // The 2026-08-28 bug: onCreated handed back /{owner}/{slug}, no route
+    // matched, and the fresh owner bounced to the floors list. The dialog
+    // produces exactly two shapes; both must exist in App.tsx.
+    expect(appSrc).toContain('path="/:slug"');
+    expect(appSrc).toContain('path="/marketplace/:workspaceId"');
+    expect(appSrc).not.toContain('path="/:owner/:slug"');
   });
 });
