@@ -1133,3 +1133,14 @@ describe('the chart control row', () => {
     expect(screen.getByText(/settles in/)).toBeTruthy();
   });
 });
+
+describe('a floor with no market yet', () => {
+  test('a visitor sees the honest state, not a broken page', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = { ...h.workspace(), markets: [], marketHistory: [], marketHistoryMarketId: null };
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    renderFloor();
+    expect(await screen.findByText('Nothing is priced here yet. The owner has not added a number.')).toBeTruthy();
+    expect(screen.queryByText('Higher')).toBeNull();
+  });
+});

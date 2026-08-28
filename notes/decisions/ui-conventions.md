@@ -1378,3 +1378,13 @@ capped at the four furthest-resolving markets, which on a two-metric,
 three-date floor left the daily markets with no chart. The cap is gone; the
 metric log is read once per distinct metric, not once per market, so the cost
 is per metric and the cap had nothing left to protect.
+
+**revised 2026-08-28 (Viktor)**: the marketplace tile is "Create your own"
+and opens the self-serve create-floor dialog (a name, nothing else), landing
+on the empty floor where the first metric is one dialog away. Supersedes the
+2026-08-26 "email only, not otto yet" state: creation no longer needs a
+person, so the tile's promise is a floor in a minute, not contact within
+days. Signed out, the button leads to signup. ("okay now add support for new
+workspace craeteion from telarchy.com when instead of get setup there should
+be create your own or something like that and that lead to the empty
+worksapce where you can add metric .. add mniimumm stuff")

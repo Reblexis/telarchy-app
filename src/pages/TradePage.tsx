@@ -983,6 +983,27 @@ export function TradePage() {
               {ws.description && <p className="pubws-ws-tagline">{ws.description}</p>}
             </header>
           )}
+          {/* A floor with no market yet. For its owner this is the moment
+            after "Create your own" (docs/owner-on-the-floor.md): the first
+            metric is one dialog away, and it chains straight into its date,
+            because a metric with no date has no market. Everyone else sees
+            the honest state, not a broken page. */}
+          {!hero && (
+            <section className="pubws-instrument pubws-enter" aria-label="No market yet">
+              {canManage ? (
+                <>
+                  <p className="pubws-na-note">No number here yet. A floor starts when you add one.</p>
+                  <div className="pubws-act">
+                    <button type="button" className="pubws-cta" onClick={() => setOwnerDialog({ kind: 'new-metric' })}>
+                      Add your first metric
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="pubws-na-note">Nothing is priced here yet. The owner has not added a number.</p>
+              )}
+            </section>
+          )}
           {hero && active && (
             <section className="pubws-instrument" aria-label="The market">
               {/* Selecting a job re-points this one view at its conditional

@@ -10,6 +10,22 @@ Otto can do everything on this page by conversation; the controls here are
 the buttons for the same actions. Neither gets its own endpoints: if a
 control needs something new, the API grows once and both use it.
 
+## Creating a floor
+
+The marketplace tile's "Create your own" opens dialog 0: a floor is a name,
+nothing else (owner ask 2026-08-28, superseding the 2026-08-26 email field;
+the record is notes/decisions/ui-conventions.md). `POST /api/workspaces`
+already carries the brakes (three per account, public clamped to unlisted),
+and the dialog says the honest state on its button: the floor starts
+unlisted, live and tradeable by link, listed when a human lists it. Signed
+out, the same button is the door to signing up.
+
+It lands the owner on their empty floor, where the empty state is the next
+step rather than a dead end: "No number here yet. A floor starts when you
+add one", with the add-first-metric button chaining into dialogs 1 and 2
+below. A visitor on the same empty floor reads the honest state instead
+("Nothing is priced here yet. The owner has not added a number.").
+
 ## The v1 controls: three dialogs
 
 Owner direction 2026-08-27: start as simple as possible: a metric is a name

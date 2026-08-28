@@ -409,3 +409,77 @@ export function InjectLiquidityDialog({
     </FloorModal>
   );
 }
+
+/** Dialog 0: a floor is a name. Everything else happens on the floor itself:
+ *  the first metric, its date, its depth. Opened from the marketplace tile
+ *  (owner ask 2026-08-28: "create your own", leading to the empty workspace). */
+export function CreateWorkspaceDialog({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  /** Receives the new floor's path; the caller navigates. */
+  onCreated: (path: string) => void;
+}) {
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const create = async () => {
+    if (!name.trim()) {
+      setErr('A name.');
+      return;
+    }
+    setBusy(true);
+    setErr('');
+    try {
+      const ws = (await api.createWorkspace({ name: name.trim() })) as {
+        id: string;
+        ownerHandle?: string | null;
+        slug?: string | null;
+      };
+      onCreated(ws.ownerHandle && ws.slug ? `/${ws.ownerHandle}/${ws.slug}` : `/marketplace/${ws.id}`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <FloorModal onClose={onClose} label="Create your own">
+      <div className="jobform">
+        <div className="ticket-head jobform-head">
+          <div className="jobform-askblock">
+            <p className="ticket-label">Your own floor</p>
+          </div>
+          <button className="ticket-close" aria-label="Close" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        <label className="jobform-field">
+          <span className="ticket-label">Name: the company, the project, or you</span>
+          <input
+            className="jobform-line jobform-line--title"
+            value={name}
+            autoFocus
+            disabled={busy}
+            onChange={e => setName(e.target.value)}
+            placeholder="Meridian"
+            maxLength={60}
+            aria-label="Floor name"
+          />
+        </label>
+
+        {err && <p className="ticket-err">{err}</p>}
+        <button className="ticket-go" disabled={busy} onClick={() => void create()}>
+          {busy ? 'Opening…' : 'Open my floor'}
+          <span className="ticket-go-sub">
+            It starts unlisted: live and tradeable by link, listed on telarchy.com when a human lists it. You add the
+            first number right there.
+          </span>
+        </button>
+      </div>
+    </FloorModal>
+  );
+}

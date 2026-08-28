@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
  */
 
 const createMetricIn = vi.fn(async () => ({ id: 'm-new', name: 'Steam wishlists' }));
+const createWorkspace = vi.fn(async () => ({ id: 'ws-new', ownerHandle: 'viktor', slug: 'meridian' }));
 const getMetric = vi.fn(async () => ({
   id: 'm1',
   name: 'LookPilot net 2026 (USD)',
@@ -23,6 +24,7 @@ const injectLiquidity = vi.fn(async () => ({}));
 vi.mock('../../lib/api', () => ({
   api: {
     createMetricIn: (...a: unknown[]) => createMetricIn(...(a as [])),
+    createWorkspace: (...a: unknown[]) => createWorkspace(...(a as [])),
     getMetric: (...a: unknown[]) => getMetric(...(a as [])),
     patchMetric: (...a: unknown[]) => patchMetric(...(a as [])),
     injectLiquidity: (...a: unknown[]) => injectLiquidity(...(a as [])),
@@ -30,10 +32,11 @@ vi.mock('../../lib/api', () => ({
 }));
 
 import { MarketFacts } from '../MarketFacts';
-import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog } from '../OwnerDialogs';
+import { AddDateDialog, CreateWorkspaceDialog, InjectLiquidityDialog, NewMetricDialog } from '../OwnerDialogs';
 
 beforeEach(() => {
   createMetricIn.mockClear();
+  createWorkspace.mockClear();
   getMetric.mockClear();
   patchMetric.mockClear();
   injectLiquidity.mockClear();
@@ -224,5 +227,31 @@ describe('the facts row', () => {
     expect(screen.queryByText('Inject')).toBeNull();
     rerender(<MarketFacts traders={3} pool={1200} volume={800} canManage onInject={() => {}} />);
     expect(screen.getByText('Inject')).toBeTruthy();
+  });
+});
+
+describe('dialog 0: create your own floor', () => {
+  test('a floor is a name, and the caller is handed its path', async () => {
+    const onCreated = vi.fn();
+    render(<CreateWorkspaceDialog onClose={() => {}} onCreated={onCreated} />);
+    fireEvent.change(screen.getByLabelText('Floor name'), { target: { value: '  Meridian  ' } });
+    fireEvent.click(screen.getByText('Open my floor'));
+    await waitFor(() => expect(createWorkspace).toHaveBeenCalledWith({ name: 'Meridian' }));
+    expect(onCreated).toHaveBeenCalledWith('/viktor/meridian');
+  });
+
+  test('a nameless floor never reaches the API, and a handle-less one still lands somewhere real', async () => {
+    const onCreated = vi.fn();
+    const { unmount } = render(<CreateWorkspaceDialog onClose={() => {}} onCreated={onCreated} />);
+    fireEvent.click(screen.getByText('Open my floor'));
+    await waitFor(() => expect(screen.getByText('A name.')).toBeTruthy());
+    expect(createWorkspace).not.toHaveBeenCalled();
+    unmount();
+
+    createWorkspace.mockResolvedValueOnce({ id: 'ws-bare' } as never);
+    render(<CreateWorkspaceDialog onClose={() => {}} onCreated={onCreated} />);
+    fireEvent.change(screen.getByLabelText('Floor name'), { target: { value: 'Bare' } });
+    fireEvent.click(screen.getByText('Open my floor'));
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith('/marketplace/ws-bare'));
   });
 });
