@@ -1,14 +1,14 @@
 import { toNodeHandler } from 'better-auth/node';
 import compression from 'compression';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { auth } from './auth';
 import { currentStoreName, runInBetaStore } from './db/client';
+import { apiErrorHandler } from './lib/api-error-handler';
 import { betaGate } from './lib/beta-gate';
 import { handleBetaBranchChoice, isBetaPath, proxyToCandidate } from './lib/beta-surface';
 import { corsMiddleware } from './lib/cors';
-import { AppError } from './lib/errors';
 import { HELP } from './lib/help-catalog';
 import { publicOrigins } from './lib/origins';
 import { isBetaRequest } from './lib/request-env';
@@ -395,13 +395,4 @@ app.use('/api', (req: Request, res: Response) => {
   res.status(404).json({ error: 'Not found', path: req.originalUrl });
 });
 
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  const status = err instanceof AppError ? err.status : 500;
-  if (status >= 500) console.error(err);
-  const extra = err instanceof AppError && err.extra ? err.extra : {};
-  // AppError messages are caller-facing by construction. An unexpected 5xx can
-  // carry driver / internal detail (Postgres text, stack context), so return a
-  // generic string; the real error is already logged above.
-  const message = status >= 500 ? 'Internal error' : err.message;
-  res.status(status).json({ error: message, ...extra });
-});
+app.use(apiErrorHandler);
