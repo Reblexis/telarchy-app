@@ -176,17 +176,26 @@ describe('marketplace', () => {
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/marketplace/ws-new'));
   });
 
-  test('a signed-in owner sees their unlisted floors on the tile, linked by id', async () => {
+  test('a not-yet-public floor of yours is IN the grid, first, badged, linked by id', async () => {
+    // Owner decision 2026-08-28: everything public by default, and what is
+    // not public yet still shows in the grid to its own owner rather than in
+    // a private side list.
     signedIn = true;
     vi.mocked(api.listWorkspaces).mockResolvedValue([
       { id: 'ws-mine', name: 'Meridian', visibility: 'unlisted' },
       { id: 'ws1', name: 'LookPilot', visibility: 'public' },
     ] as never);
     renderPage();
-    const link = await screen.findByText('Meridian');
-    expect(link.closest('a')?.getAttribute('href')).toBe('/marketplace/ws-mine');
-    // The public one is already on the grid; the strip does not repeat it.
-    expect(screen.getByText('Yours').parentElement?.textContent).not.toContain('LookPilot');
+    const name = await screen.findByText('Meridian');
+    const card = name.closest('a');
+    expect(card?.getAttribute('href')).toBe('/marketplace/ws-mine');
+    expect(card?.className).toContain('mkt-card');
+    expect(screen.getByText('Yours · not public yet')).toBeTruthy();
+    // First among the others: the badge card precedes the public one.
+    const grid = card?.parentElement;
+    expect(grid?.firstElementChild).toBe(card);
+    // The caller's PUBLIC floor is not duplicated: one LookPilot card only.
+    expect(screen.getAllByText('LookPilot')).toHaveLength(1);
   });
 
   test('"Create your own" signed out is the door to signing up', async () => {

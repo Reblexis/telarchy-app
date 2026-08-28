@@ -112,18 +112,16 @@ workspacesRouter.post(
           });
           return;
         }
-        // Unlisted, both ways: asking for public is clamped down to it, and
-        // asking for nothing lands on it rather than on private.
-        //
-        // The default in createWorkspaceFromTemplate is 'private', which is the
-        // safe answer for a self-hosted or API-only caller and the wrong one
-        // here: Otto passes no visibility, so every market he opened was born
-        // invisible at its own address, including to the person who had just
-        // watched him open it (found on the beta, 2026-08-24). Unlisted is what
-        // this door has promised in writing since it opened: live, joinable and
-        // shareable by link, simply not on the front page.
-        if (requestedVisibility === undefined || requestedVisibility === 'public') {
-          requestedVisibility = 'unlisted';
+        // Public by default, and public is allowed (owner decision
+        // 2026-08-28: "nothing should be private.. everything should be
+        // public fully by default for now"). This deliberately retires the
+        // 2026-08-21 unlisted clamp; the subsidy-extraction concern it
+        // guarded (a prize season scores every public floor) is accepted
+        // for now and stays flagged in vision.md. Only an explicit ask for
+        // unlisted or private is honoured, because the door's promise is a
+        // floor on the front list.
+        if (requestedVisibility === undefined) {
+          requestedVisibility = 'public';
         }
       }
     }

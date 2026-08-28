@@ -1388,3 +1388,11 @@ days. Signed out, the button leads to signup. ("okay now add support for new
 workspace craeteion from telarchy.com when instead of get setup there should
 be create your own or something like that and that lead to the empty
 worksapce where you can add metric .. add mniimumm stuff")
+
+**revised 2026-08-28 (Viktor)**: everything public by default. "nothing
+should be private.. everything should be public fully by default for now"
+retires the 2026-08-21 public-to-unlisted clamp: a created floor is public
+and on the front list immediately, and an owner's not-yet-public floor shows
+IN the grid to them, first among the others, badged "Yours · not public
+yet", never in a private side list. The season subsidy-extraction risk the
+clamp guarded is accepted knowingly and recorded in vision.md.

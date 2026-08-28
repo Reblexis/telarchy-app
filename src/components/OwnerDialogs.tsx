@@ -476,8 +476,7 @@ export function CreateWorkspaceDialog({
         <button className="ticket-go" disabled={busy} onClick={() => void create()}>
           {busy ? 'Opening…' : 'Open my floor'}
           <span className="ticket-go-sub">
-            It starts unlisted: live and tradeable by link, listed on telarchy.com when a human lists it. You add the
-            first number right there.
+            Public from the start, on the front list with everyone else. You add the first number right there.
           </span>
         </button>
       </div>

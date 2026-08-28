@@ -14,16 +14,14 @@ control needs something new, the API grows once and both use it.
 
 The marketplace tile's "Create your own" opens dialog 0: a floor is a name,
 nothing else (owner ask 2026-08-28, superseding the 2026-08-26 email field;
-the record is notes/decisions/ui-conventions.md). `POST /api/workspaces`
-already carries the brakes (three per account, public clamped to unlisted),
-and the dialog says the honest state on its button: the floor starts
-unlisted, live and tradeable by link, listed when a human lists it. Signed
-out, the same button is the door to signing up.
+the record is notes/decisions/ui-conventions.md). A new floor is PUBLIC and
+on the front list from the start (owner decision 2026-08-28, vision.md
+carries the accepted risk); the one brake left is three floors per account.
+Signed out, the same button is the door to signing up.
 
-The owner's own floors, public or not, appear on the marketplace tile under
-"Yours", linked by id. An unlisted floor is hidden from the grid for
-everyone else; hiding it from its own owner too left them with a floor and
-no trace of it anywhere (owner report 2026-08-28).
+A floor of yours that is not public yet is still not hidden from you: it
+joins the grid first, among the others, as a normal card wearing one badge,
+"Yours · not public yet", linked by id. No private side lists.
 
 It lands the owner on their empty floor at `/marketplace/{id}`, by id and
 never by slug: bare-slug resolution answers an ambiguous slug with none

@@ -205,7 +205,7 @@ describe('from zero: create the floor itself, then find it', () => {
     // Exactly what the create dialog sends.
     const created = await request(app2).post('/api/workspaces').send({ name: 'Meridian' }).expect(201);
     expect(created.body.id).toBeTruthy();
-    expect(created.body.visibility).toBe('unlisted');
+    expect(created.body.visibility).toBe('public');
 
     // The app lands on /marketplace/{id}; that lookup must resolve.
     const byId = await resolvePublicWorkspace(created.body.id);

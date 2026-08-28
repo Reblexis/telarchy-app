@@ -2271,15 +2271,13 @@ control needs something new, the API grows once and both use it.</p>
 <h2 id="docs-owner-on-the-floor-md--h2">Creating a floor</h2>
 <p>The marketplace tile's &quot;Create your own&quot; opens dialog 0: a floor is a name,
 nothing else (owner ask 2026-08-28, superseding the 2026-08-26 email field;
-the record is notes/decisions/ui-conventions.md). <code>POST /api/workspaces</code>
-already carries the brakes (three per account, public clamped to unlisted),
-and the dialog says the honest state on its button: the floor starts
-unlisted, live and tradeable by link, listed when a human lists it. Signed
-out, the same button is the door to signing up.</p>
-<p>The owner's own floors, public or not, appear on the marketplace tile under
-&quot;Yours&quot;, linked by id. An unlisted floor is hidden from the grid for
-everyone else; hiding it from its own owner too left them with a floor and
-no trace of it anywhere (owner report 2026-08-28).</p>
+the record is notes/decisions/ui-conventions.md). A new floor is PUBLIC and
+on the front list from the start (owner decision 2026-08-28, vision.md
+carries the accepted risk); the one brake left is three floors per account.
+Signed out, the same button is the door to signing up.</p>
+<p>A floor of yours that is not public yet is still not hidden from you: it
+joins the grid first, among the others, as a normal card wearing one badge,
+&quot;Yours · not public yet&quot;, linked by id. No private side lists.</p>
 <p>It lands the owner on their empty floor at <code>/marketplace/{id}</code>, by id and
 never by slug: bare-slug resolution answers an ambiguous slug with none
 (slugs are unique per owner, not globally), so anyone's unlisted floor
@@ -3987,7 +3985,7 @@ nothing more&quot; true by construction rather than by review.</p>
 <p>A two-sided marketplace is bootstrapped one side at a time, and Telarchy solves the <strong>trader side first</strong>. The product IS the trader experience:</p>
 <ul>
 <li><strong>Every account is a trader by default.</strong> Signup lands in the trading surface with the signup grant; there is no intent picker and no owner onboarding in the product.</li>
-<li><strong>Workspace creation is open at the API.</strong> <code>POST /api/workspaces</code> is open to any identity: a browser session or a participant key, no invite. Two brakes apply to callers who are not platform admins, both about the shopfront rather than about trust: three workspaces per account, and <code>public</code> clamped to <code>unlisted</code> at creation, so a new floor is live, joinable and tradeable by link but is not listed on telarchy.com until a human lists it. The clamp is not tidiness. A running prize season scores over every public workspace (<code>docs/seasons.md</code>), so self-serve listing would let someone open a floor, subsidise it out of signup grants and extract that subsidy into an entered account; listing stays a human decision until that hole is closed. <code>POST /api/onboard</code>, the unauthenticated one-call variant, is paused: it mints an identity and a workspace together, so there is no account for the cap to count.</li>
+<li><strong>Workspace creation is open at the API, and a new floor is public.</strong> <code>POST /api/workspaces</code> is open to any identity: a browser session or a participant key, no invite. One brake applies to callers who are not platform admins: three workspaces per account. A new floor defaults to <code>public</code> and lands on the telarchy.com list with everyone else (owner decision 2026-08-28: everything public by default for now); an explicit <code>unlisted</code> or <code>private</code> is honoured, and a signed-in owner's not-yet-public floors still appear to them, first in the grid, badged rather than hidden. ACCEPTED RISK, stated so it is not forgotten: a running prize season scores over every public workspace (<code>docs/seasons.md</code>), so self-serve listing lets someone open a floor, subsidise it out of signup grants and extract that subsidy into an entered account. The 2026-08-21 unlisted clamp existed to close that; retiring it reopens it, knowingly, while Telarchy is small enough to watch by hand. <code>POST /api/onboard</code>, the unauthenticated one-call variant, is paused: it mints an identity and a workspace together, so there is no account for the cap to count.</li>
 <li><strong><code>/manage</code> is a door to a conversation, not a creation wizard.</strong> It is the owner side's surface, and the whole of it is Otto: he interviews the visitor, makes the setup decisions as them, and hands them a prompt their own agent can run. The decisions he covers are the governing list in <code>functions/src/lib/setup-spec.ts</code>, their state is read from rows (<code>GET /api/setup/checklist</code>), and the path ends on a live floor rather than on a settings page. There is no form and no waitlist box under him: every field a form could ask for (which number, what ceiling, what horizon) is a question Telarchy answers better than a stranger on their first minute, and a form cannot argue with the answer. Anyone who wants a human has <code>/contact</code>. What Telarchy offers an operator, and what setting one up consists of, is the operator-door design note (private notes); the screen follows that answer, not the other way round.</li>
 <li><strong>There is no app shell.</strong> Every page is standalone (see &quot;Navigation&quot;); workspace administration lives in the API.</li>
 </ul>
