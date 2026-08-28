@@ -426,44 +426,44 @@ floors) are defined in docs/metrics.md.
 
 ### The price and the chart
 
-The consensus is a large mono price with a since-open chip (both carrying
-the metric's currency symbol when the trimmed parenthetical tail names one,
-e.g. "USD" -> "$"; the same prefix runs through every numeral in the
-chart). The since-open chip sits on the price's baseline a full `1rem` off
-the number, and drops centred underneath it below 480px.
+The consensus is a compact stat, not a poster number (owner ask
+2026-08-28, Manifold scale: the chart is the hero, the price a reading on
+it). It renders as the LEFT cell of the market chart's own control row,
+`.pubws-price` at roughly a third of its old size, with the since-open
+chip on its baseline beside it; both carry the metric's currency symbol
+when the trimmed parenthetical tail names one (e.g. "USD" -> "$"; the
+same prefix runs through every numeral in the chart). A market with no
+price yet (no liquidity) keeps the pickers, prints a centred "no price
+yet" where the stat row would be and the no-liquidity note where the bets
+would be, and draws no charts: the pickers are how a reader leaves it for
+a market that has one.
 
-**When a market settles is said once, in the chart's control row.** The
+**Both charts always render; there is no view toggle** (owner ask
+2026-08-28, replacing the MARKET/NUMBER switch of 2026-08-27: a newcomer
+never found the number behind it). The market chart is the hero, directly
+under the stat row; the number chart follows at a quieter height (~170
+viewBox px against the market's 260), its control row carrying a tiny
+"number" corner label. Each chart keeps its own range chips at its row's
+right, in each chart's own range vocabulary.
+
+**When a market settles is said once, in the number chart's row.** The
 date picker names each market by its clock and settle day (`TODAY · 26
 AUG`, `THIS WEEK · 30 AUG`, `30 SEP`), the question line by its clock
 alone ("today", "this week", "on 30 Sep", the exact UTC settle instant
-as the word's hover title), and the centre of the control row counts
-down to the selected one ("settles in 13h 12m", ticking by the minute,
-the exact UTC instant as its hover title). The former "resolves 30
-September 2026" line is gone, and neither the segments nor the question
-repeat the timer. The one thing that still prints under the price is the N/A
-caveat of a metric with no reading yet ("N/A, all bets refunded, if there
-is still no reading by then"), because it changes what a bet is.
+as the word's hover title), and the centre of the number chart's control
+row carries the value in force and the countdown, "now 19.75 · settles in
+13h 12m" (`compactValueOf` from the latest reading; ticking by the
+minute, the exact UTC instant as its hover title), so the number the
+market is guessing at sits one glance from its own chart. While the
+metric has no reading yet there is no number chart, and the countdown
+stays in the centre of the market chart's row instead, so the settle
+clock never leaves the page. The former "resolves 30 September 2026" line
+is gone, and neither the segments nor the question repeat the timer. The
+one thing that still prints under the stat row is the N/A caveat of a
+metric with no reading yet ("N/A, all bets refunded, if there is still no
+reading by then"), because it changes what a bet is.
 
-**One chart slot, two views, one control row above it in both.** The row
-is three cells that never move: the view switch at the left, the centre
-line, and the range chips of the current view at the right. The view
-switch is `MARKET` and `NUMBER` as two chips in the same language as the
-range chips (the active one on the raised background), because as bare
-words the pair read as the row's caption and nobody pressed them. The
-centre line carries the metric's value in force before the countdown,
-"now 19.75 · settles in 13h 12m" (`compactValueOf`, from the latest
-reading; omitted while the period has no reading), so the number the
-market is guessing at sits one glance from the guess. On a phone the
-row wraps: the switch and the ranges share the first line and the centre
-takes its own beneath them, because three cells in one 358px line either
-overlap or clip the countdown. Nothing else on the page moves when the view switches, and the row
-itself does not either: a control that jumps when you use it is the thing
-this rule exists to prevent. The slot opens on the market. A market with no price yet (no liquidity) keeps
-the pickers, prints "no price yet" where the price would be and the
-no-liquidity note where the bets would be, and draws no chart: the
-pickers are how a reader leaves it for a market that has one.
-
-- **The market view** is the prediction chart (`MarketChart`): one amber
+- **The market chart** is the prediction (`MarketChart`): one amber
   step line of the market's call over its lifetime, gradient fill, labeled
   end dot, crosshair. The series STARTS at the price the market opened at,
   stamped with its creation time, because a pair that opens anchored and
@@ -471,7 +471,7 @@ pickers are how a reader leaves it for a market that has one.
   and a cliff at the live dot and reads as if every trade happened at once.
   Its range chips are `1D 1W ALL`; a range longer than the market's life is
   not offered.
-- **The number view** (`NumberChart`) is the metric's own trajectory: its
+- **The number chart** (`NumberChart`) is the metric's own trajectory: its
   readings as an ink step line up to a "now" rule, and, on the future side,
   every open market of this metric as a marker at its settle instant
   carrying that market's current call. Readings are joined by straight

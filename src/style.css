@@ -2392,15 +2392,34 @@ button.notif-row-link {
 .pubws-gap b { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-primary); }
 
 
+/* Manifold scale (owner ask 2026-08-28): a compact stat in the market
+   chart's own control row, not a poster number. The chart is the hero. */
 .pubws-price {
-  margin: 0.4rem 0 0.2rem;
+  margin: 0;
   font-family: 'JetBrains Mono', monospace;
   font-weight: 600;
-  font-size: clamp(3.4rem, 13vw, 5.6rem);
+  font-size: clamp(1.6rem, 5vw, 2.15rem);
   line-height: 1;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
 }
+
+/* The stat cell: price plus its chip in the row's left cell. Undoes the
+   corner's tiny-uppercase register, wraps on a phone so the chip drops
+   under the price instead of pushing the range chips out. */
+.pubws-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* The number chart under the market chart: one clear step of air, and a
+   quieter plot (its height comes from the component). */
+.pubws-numchart { margin-top: 1.1rem; }
 
 
 

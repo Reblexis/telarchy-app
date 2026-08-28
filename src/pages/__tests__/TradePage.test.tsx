@@ -95,6 +95,11 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: f
 // The chart itself is covered elsewhere; here it is a probe that records what
 // the page handed it on every render.
 vi.mock('../../components/MarketChart', () => ({
+  // NumberChart (not mocked) imports the shared geometry from this module.
+  GEOM: {
+    wide: { W: 720, PAD_L: 46, PAD_R: 58, H: 260 },
+    compact: { W: 400, PAD_L: 40, PAD_R: 50, H: 300 },
+  },
   MarketChart: (props: {
     series: Array<{ consensus: number | null }>;
     consensus: number;
@@ -1060,7 +1065,7 @@ describe('a market with no price yet', () => {
 });
 
 describe('the chart control row', () => {
-  test('the view switch is two chips and the centre carries the value in force', async () => {
+  test('the price rides the market row and the number chart is always on', async () => {
     const { api } = await import('../../lib/api');
     const ws = h.workspace();
     ws.markets = [
@@ -1087,16 +1092,17 @@ describe('the chart control row', () => {
       },
     ];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-    renderFloor();
-    const market = await screen.findByRole('button', { name: 'market' });
-    const number = screen.getByRole('button', { name: 'number' });
-    // Chips in the range chips' language, the active one raised: as bare
-    // words the pair read as the row's caption (trader feedback 2026-08-27).
-    expect(market.className).toContain('mchart-view');
-    expect(market.className).toContain('is-active');
-    expect(number.className).toContain('mchart-view');
-    expect(number.className).not.toContain('is-active');
-    // The metric's latest reading, beside the countdown.
+    const { container } = renderFloor();
+    // The stat row (owner ask 2026-08-28): the price is the left cell of
+    // the market chart's control row, and there is no MARKET/NUMBER
+    // switch, because the number chart renders below, always.
+    await waitFor(() => expect(container.querySelector('.pubws-stat .pubws-price')).toBeTruthy());
+    expect(container.querySelector('.pubws-stat .pubws-price')?.textContent).toBe('$78,571');
+    expect(screen.queryByRole('button', { name: 'market' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'number' })).toBeNull();
+    expect(container.querySelector('.pubws-numchart .nchart')).toBeTruthy();
+    // The metric's latest reading, beside the countdown, in the number
+    // chart's own row.
     expect(screen.getByText(/now \$45\.3k · settles in/)).toBeTruthy();
   });
 
@@ -1127,9 +1133,11 @@ describe('the chart control row', () => {
       },
     ];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-    renderFloor();
-    await screen.findByRole('button', { name: 'market' });
+    const { container } = renderFloor();
+    // No reading: no number chart, and the clock falls back to the market
+    // row's centre so it never leaves the page.
+    await screen.findByText(/settles in/);
     expect(screen.queryByText(/now /)).toBeNull();
-    expect(screen.getByText(/settles in/)).toBeTruthy();
+    expect(container.querySelector('.pubws-numchart')).toBeNull();
   });
 });

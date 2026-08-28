@@ -362,17 +362,17 @@ export function TradePage() {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
-  // The chart slot's view: the market's call or the number itself. Nothing
-  // else on the page moves when it switches.
-  const [chartView, setChartView] = useState<'market' | 'number'>('market');
-  // The centre of the chart's control row: how long until the market on
-  // screen settles (owner ask: "put the timer in the center here").
+  // How long until the market on screen settles (owner ask: "put the
+  // timer in the center here"). It rides the number chart's control row
+  // (owner ask 2026-08-28, both charts always on), and falls back to the
+  // market chart's centre while the metric has no reading yet, because
+  // then there is no number chart and the clock must not leave the page.
   const settleLeft = hero ? timeLeftOf(hero, now) : null;
   // The metric's value in force (its latest reading), said in the centre
   // beside the countdown, so the number the market is guessing at sits one
-  // glance from the guess (owner ask 2026-08-27). Absent while the period
-  // has no reading yet, which is also when the number view has nothing to
-  // hold a dashed rule to.
+  // glance from its own chart (owner ask 2026-08-27). Absent while the
+  // period has no reading yet, which is also when the number chart has
+  // nothing to hold a dashed rule to.
   const nowReading =
     hero && hero.metricHistory.length > 0 ? hero.metricHistory[hero.metricHistory.length - 1].value : null;
   const nowText = hero && nowReading !== null ? compactValueOf(nowReading, hero.unit) : null;
@@ -382,24 +382,9 @@ export function TradePage() {
       {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
     </span>
   ) : null;
-  const chartViewWords = (
-    <span className="mchart-views" role="group" aria-label="Chart view">
-      <button
-        className={`mchart-view${chartView === 'market' ? ' is-active' : ''}`}
-        aria-pressed={chartView === 'market'}
-        onClick={() => setChartView('market')}
-      >
-        market
-      </button>
-      <button
-        className={`mchart-view${chartView === 'number' ? ' is-active' : ''}`}
-        aria-pressed={chartView === 'number'}
-        onClick={() => setChartView('number')}
-      >
-        number
-      </button>
-    </span>
-  );
+  // Both charts render whenever the metric has readings; without them the
+  // number chart would be an empty axis.
+  const showNumberChart = !!hero && hero.metricHistory.length > 0;
   // The arithmetic under the price: booked, missing, per day. Null for any
   // metric that does not accumulate inside its period, which is most of them.
   const gap = periodGapOf(hero);
@@ -1313,36 +1298,157 @@ export function TradePage() {
                   )}
                 </>
               )}
-              <div className="pubws-headline pubws-enter pubws-enter--2">
-                <span className="pubws-price">
-                  {consensus === null ? 'no price yet' : `${unit}${formatValue(shownConsensus ?? consensus)}`}
-                </span>
-                {!selectedJob && consensus !== null && marketOpen !== null && consensus !== marketOpen && (
-                  <span
-                    key={`open-${Math.round(consensus - marketOpen)}`}
-                    className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}
+              {/* The live price rides the market chart's control row (owner
+                ask 2026-08-28, Manifold scale); only a market with no price
+                yet keeps the centred line, where the charts would be. */}
+              {consensus === null && (
+                <div className="pubws-headline pubws-enter pubws-enter--2">
+                  <span className="pubws-price">no price yet</span>
+                </div>
+              )}
+              {/* A market nobody has traded yet has no replayed history, which
+                used to mean no chart at all: selecting a fresh job showed a
+                price and blank space. A market always has a call, so fall
+                back to that single point and let the chart hold it. */}
+              {/* Every proposal branches into two worlds and both are on the
+                page (owner decision 2026-08-10): the toggle picks which one
+                the ticket trades, the chart draws the other as a quiet
+                second line, and the gap between the lines is the impact. */}
+              {selectedJob && pair?.declinedMarketId && (
+                <div className="pubws-branch pubws-enter pubws-enter--2" role="group" aria-label="Branch">
+                  <button
+                    className={`pubws-branch-opt pubws-branch-opt--approved${branch === 'approved' ? ' is-active' : ''}`}
+                    aria-pressed={branch === 'approved'}
+                    onClick={() => setBranch('approved')}
                   >
-                    {consensus >= marketOpen ? '▲' : '▼'} {formatDelta(consensus - marketOpen, unit)} since open
-                  </span>
-                )}
-                {/* The impact is the job's one number, so it is always said:
-                  priced, zero-so-far, or not yet priced. Silence read as a
-                  broken page. */}
-                {selectedJob &&
-                  (jobImpact === null ? (
-                    <span className="pubws-delta-chip">impact not yet priced</span>
-                  ) : jobImpact === 0 ? (
-                    <span className="pubws-delta-chip">±{impactUnit}0 impact so far</span>
-                  ) : (
-                    <span
-                      key={`imp-${Math.round(jobImpact)}`}
-                      className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}
-                    >
-                      {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)} impact
-                      {hero ? ` by ${hero.label}` : ''}
-                    </span>
-                  ))}
-              </div>
+                    if approved
+                  </button>
+                  <button
+                    className={`pubws-branch-opt pubws-branch-opt--declined${branch === 'declined' ? ' is-active' : ''}`}
+                    aria-pressed={branch === 'declined'}
+                    onClick={() => setBranch('declined')}
+                  >
+                    if declined
+                  </button>
+                </div>
+              )}
+              {hero?.settlesNaForNow && (
+                <p className="pubws-na-note pubws-enter pubws-enter--2">{settleNoteOf(hero)}</p>
+              )}
+              {consensus !== null && (
+                <div className="pubws-enter pubws-enter--3">
+                  {/* Both charts, always (docs/ui-conventions.md, "The price
+                 and the chart"): the market's call as the hero, the number
+                 itself below it with every open market of this metric as a
+                 marker, the selected one amber. The N/A caveat is the only
+                 settle note left under the stat row. */}
+                  <MarketChart
+                    key={active.marketId}
+                    series={active.history.length > 0 ? active.history : [{ at: new Date().toISOString(), consensus }]}
+                    consensus={consensus}
+                    unit={unit}
+                    ranges={['1D', '1W']}
+                    /* The stat row (owner ask 2026-08-28, Manifold scale): the
+                     price and its chip are the row's left cell, so the chart
+                     is the hero and the number a reading on it. The clock
+                     rides the number chart's row below; it falls back here
+                     only while the metric has no reading (no number chart),
+                     so it never leaves the page. */
+                    corner={
+                      <span className="pubws-stat">
+                        <span className="pubws-price">{`${unit}${formatValue(shownConsensus ?? consensus)}`}</span>
+                        {!selectedJob && marketOpen !== null && consensus !== marketOpen && (
+                          <span
+                            key={`open-${Math.round(consensus - marketOpen)}`}
+                            className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}
+                          >
+                            {consensus >= marketOpen ? '▲' : '▼'} {formatDelta(consensus - marketOpen, unit)} since open
+                          </span>
+                        )}
+                        {/* The impact is the job's one number, so it is always
+                          said: priced, zero-so-far, or not yet priced. Silence
+                          read as a broken page. */}
+                        {selectedJob &&
+                          (jobImpact === null ? (
+                            <span className="pubws-delta-chip">impact not yet priced</span>
+                          ) : jobImpact === 0 ? (
+                            <span className="pubws-delta-chip">±{impactUnit}0 impact so far</span>
+                          ) : (
+                            <span
+                              key={`imp-${Math.round(jobImpact)}`}
+                              className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}
+                            >
+                              {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)} impact
+                              {hero ? ` by ${hero.label}` : ''}
+                            </span>
+                          ))}
+                      </span>
+                    }
+                    center={showNumberChart ? null : settleCenter}
+                    preview={chartPreview}
+                    orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
+                    /* Only ever the other BRANCH: same metric, same window,
+                     two worlds, so the gap is the priced impact. The other
+                     horizon measures a different window and shares no scale
+                     with this one (2026-08-15), so it gets its own chart
+                     below rather than a line on this axis. */
+                    secondary={
+                      selectedJob && otherBranch && otherBranch.consensus !== null
+                        ? {
+                            series: otherBranch.history,
+                            consensus: otherBranch.consensus,
+                            label: branch === 'approved' ? 'if declined' : 'if approved',
+                            tone: branch === 'approved' ? ('lower' as const) : ('higher' as const),
+                          }
+                        : null
+                    }
+                  />
+                  {/* The number chart, always on below the market chart (owner
+                    ask 2026-08-28, replacing the MARKET/NUMBER toggle): the
+                    metric's own trajectory at a quieter height, its corner a
+                    tiny "number" label, the settle clock in its centre. */}
+                  {showNumberChart && hero && (
+                    <div className="pubws-numchart">
+                      <NumberChart
+                        points={hero.metricHistory}
+                        markers={datesOf(horizons, hero.metricId).flatMap(d => {
+                          if (!d.resolvesOn) return [];
+                          // The open contract's pair on this date, by (metric, date).
+                          const pr = selectedJob?.markets.find(
+                            m =>
+                              m.targetDate === d.targetDate && (m.metricId === undefined || m.metricId === d.metricId),
+                          );
+                          return [
+                            {
+                              marketId: d.marketId,
+                              resolvesOn: d.resolvesOn,
+                              consensus: d.consensus,
+                              selected: d.marketId === hero.marketId,
+                              pair: pr ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus } : null,
+                            },
+                          ];
+                        })}
+                        impactFrom={branch}
+                        legend={
+                          selectedJob
+                            ? {
+                                approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
+                                declined: 'if not',
+                              }
+                            : null
+                        }
+                        selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
+                        granularity={granularityOf(hero.targetDate)}
+                        unit={unit}
+                        now={now}
+                        height={170}
+                        corner={<span>number</span>}
+                        center={settleCenter}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
               {/* What is left to reach the price, in the reader's own arithmetic
                 (codex, 2026-08-20). A base rate stated as a multiplier asks
                 someone to compute a ratio before they are allowed to have a
@@ -1382,109 +1488,6 @@ export function TradePage() {
                     </>
                   )}
                 </p>
-              )}
-              {/* A market nobody has traded yet has no replayed history, which
-                used to mean no chart at all: selecting a fresh job showed a
-                price and blank space. A market always has a call, so fall
-                back to that single point and let the chart hold it. */}
-              {/* Every proposal branches into two worlds and both are on the
-                page (owner decision 2026-08-10): the toggle picks which one
-                the ticket trades, the chart draws the other as a quiet
-                second line, and the gap between the lines is the impact. */}
-              {selectedJob && pair?.declinedMarketId && (
-                <div className="pubws-branch pubws-enter pubws-enter--2" role="group" aria-label="Branch">
-                  <button
-                    className={`pubws-branch-opt pubws-branch-opt--approved${branch === 'approved' ? ' is-active' : ''}`}
-                    aria-pressed={branch === 'approved'}
-                    onClick={() => setBranch('approved')}
-                  >
-                    if approved
-                  </button>
-                  <button
-                    className={`pubws-branch-opt pubws-branch-opt--declined${branch === 'declined' ? ' is-active' : ''}`}
-                    aria-pressed={branch === 'declined'}
-                    onClick={() => setBranch('declined')}
-                  >
-                    if declined
-                  </button>
-                </div>
-              )}
-              {hero?.settlesNaForNow && (
-                <p className="pubws-na-note pubws-enter pubws-enter--2">{settleNoteOf(hero)}</p>
-              )}
-              {consensus !== null && (
-                <div className="pubws-enter pubws-enter--3">
-                  {/* One chart slot, two views (docs/ui-conventions.md, "The
-                 price and the chart"): the market's call, or the number
-                 itself with every open market of this metric as a marker,
-                 the selected one amber. The N/A caveat is the only settle
-                 note left under the price. */}
-                  {chartView === 'number' && hero ? (
-                    <NumberChart
-                      points={hero.metricHistory}
-                      markers={datesOf(horizons, hero.metricId).flatMap(d => {
-                        if (!d.resolvesOn) return [];
-                        // The open contract's pair on this date, by (metric, date).
-                        const pr = selectedJob?.markets.find(
-                          m => m.targetDate === d.targetDate && (m.metricId === undefined || m.metricId === d.metricId),
-                        );
-                        return [
-                          {
-                            marketId: d.marketId,
-                            resolvesOn: d.resolvesOn,
-                            consensus: d.consensus,
-                            selected: d.marketId === hero.marketId,
-                            pair: pr ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus } : null,
-                          },
-                        ];
-                      })}
-                      impactFrom={branch}
-                      legend={
-                        selectedJob
-                          ? {
-                              approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
-                              declined: 'if not',
-                            }
-                          : null
-                      }
-                      selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
-                      granularity={granularityOf(hero.targetDate)}
-                      unit={unit}
-                      now={now}
-                      corner={chartViewWords}
-                      center={settleCenter}
-                    />
-                  ) : (
-                    <MarketChart
-                      key={active.marketId}
-                      series={
-                        active.history.length > 0 ? active.history : [{ at: new Date().toISOString(), consensus }]
-                      }
-                      consensus={consensus}
-                      unit={unit}
-                      ranges={['1D', '1W']}
-                      corner={chartViewWords}
-                      center={settleCenter}
-                      preview={chartPreview}
-                      orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
-                      /* Only ever the other BRANCH: same metric, same window,
-                   two worlds, so the gap is the priced impact. The other
-                   horizon measures a different window and shares no scale
-                   with this one (2026-08-15), so it gets its own chart
-                   below rather than a line on this axis. */
-                      secondary={
-                        selectedJob && otherBranch && otherBranch.consensus !== null
-                          ? {
-                              series: otherBranch.history,
-                              consensus: otherBranch.consensus,
-                              label: branch === 'approved' ? 'if declined' : 'if approved',
-                              tone: branch === 'approved' ? ('lower' as const) : ('higher' as const),
-                            }
-                          : null
-                      }
-                    />
-                  )}
-                </div>
               )}
             </section>
           )}
