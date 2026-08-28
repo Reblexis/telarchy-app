@@ -155,5 +155,16 @@ describe('the v1 flow, in order', () => {
     const open = await openMarkets();
     expect(open).toHaveLength(2);
     expect(open.map(m => m.targetDate).sort()).toEqual([expect.stringMatching(/^\d{4}-W\d{2}$/), '2026-12'].sort());
+
+    // An hour entry (day + UTC hour from the picker) opens an hour market.
+    await request(app)
+      .put(`/api/metrics/${metricId}`)
+      .send({
+        liquidityCredits: 2400,
+        timePreference: { enabled: false, halfLife: 1, customHorizons: ['+0w', '2026-12', '2026-12-31T18'] },
+      })
+      .expect(200);
+    const withHour = await openMarkets();
+    expect(withHour.map(m => m.targetDate)).toContain('2026-12-31T18');
   });
 });

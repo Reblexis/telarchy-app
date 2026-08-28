@@ -40,7 +40,7 @@ function isoWeekOf(d: Date): string {
   return `${t.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-const DATE_SHAPE = /^(\d{4}|\d{4}-\d{2}|\d{4}-W\d{2}|\d{4}-\d{2}-\d{2})$/;
+const DATE_SHAPE = /^(\d{4}|\d{4}-\d{2}|\d{4}-W\d{2}|\d{4}-\d{2}-\d{2}(T\d{2})?)$/;
 
 function fmtCr(n: number): string {
   return Math.round(n).toLocaleString('en-US');
@@ -200,15 +200,19 @@ export function AddDateDialog({
   // hands them back.
   const [picked, setPicked] = useState<string>('+0w');
   const [day, setDay] = useState('');
+  // A UTC hour, '' meaning the whole day. Markets settle on the hour
+  // (targetDate YYYY-MM-DDTHH), so the time field carries hours only.
+  const [hour, setHour] = useState('');
   const [credits, setCredits] = useState(fmtCr(defaultCredits || 1000));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
   const quick = useMemo(() => quickDates(), []);
   const usingDay = day !== '';
-  const entry = usingDay ? day : picked;
+  const entry = usingDay ? (hour ? `${day}T${hour.slice(0, 2)}` : day) : picked;
   const previewDate = usingDay ? day : (quick.find(q => q.entry === picked)?.preview ?? null);
   const settleDay = previewDate && DATE_SHAPE.test(previewDate) ? settleDayOf(previewDate) : null;
+  const settleClock = usingDay && hour ? `${hour.slice(0, 2)}:59` : '23:59';
   const creditsNum = parseCredits(credits);
 
   const open = async () => {
@@ -267,6 +271,7 @@ export function AddDateDialog({
                 disabled={busy}
                 onClick={() => {
                   setDay('');
+                  setHour('');
                   setPicked(q.entry);
                 }}
               >
@@ -285,6 +290,19 @@ export function AddDateDialog({
               onChange={e => setDay(e.target.value)}
               aria-label="Pick a date"
             />
+            <span className="odlg-or">at</span>
+            <input
+              className="jobform-line odlg-mono odlg-day"
+              type="time"
+              step={3600}
+              value={hour}
+              disabled={busy || !usingDay}
+              // Markets settle on the hour; minutes typed in a browser that
+              // ignores step are snapped rather than silently kept.
+              onChange={e => setHour(e.target.value ? `${e.target.value.slice(0, 2)}:00` : '')}
+              aria-label="Pick an hour, UTC"
+            />
+            <span className="odlg-or">UTC, optional</span>
           </span>
         </div>
 
@@ -292,7 +310,9 @@ export function AddDateDialog({
           <div className="ticket-facts">
             <div className="ticket-fact">
               <span className="ticket-fact-k">Settles</span>
-              <span className="ticket-fact-v">{settleDay}, 23:59 UTC, on your last reading</span>
+              <span className="ticket-fact-v">
+                {settleDay}, {settleClock} UTC, on your last reading
+              </span>
             </div>
           </div>
         )}

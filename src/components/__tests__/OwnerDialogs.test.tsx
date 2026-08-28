@@ -118,6 +118,35 @@ describe('dialog 2: add a date', () => {
     expect(body.timePreference.customHorizons).toEqual(['2026-12', '2026-09-30']);
   });
 
+  test('an hour makes an hour market: the entry gains its UTC hour and the fact says when', async () => {
+    renderIt();
+    fireEvent.change(screen.getByLabelText('Pick a date'), { target: { value: '2026-09-30' } });
+    const time = screen.getByLabelText('Pick an hour, UTC');
+    // Minutes snap to the hour: markets settle on the hour, never at :30.
+    fireEvent.change(time, { target: { value: '14:30' } });
+    expect(screen.getByText(/14:59 UTC/)).toBeTruthy();
+    fireEvent.click(screen.getByText(/Open the market/));
+    await waitFor(() => expect(patchMetric).toHaveBeenCalled());
+    const [, , body] = patchMetric.mock.calls[0] as unknown as [
+      string,
+      string,
+      { timePreference: { customHorizons: string[] } },
+    ];
+    expect(body.timePreference.customHorizons).toEqual(['2026-12', '2026-09-30T14']);
+  });
+
+  test('the hour is disabled until a day is picked, and a chip clears both', () => {
+    renderIt();
+    const time = screen.getByLabelText('Pick an hour, UTC') as HTMLInputElement;
+    expect(time.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Pick a date'), { target: { value: '2026-09-30' } });
+    expect(time.disabled).toBe(false);
+    fireEvent.change(time, { target: { value: '14:00' } });
+    fireEvent.click(screen.getByText('this month'));
+    expect(time.value).toBe('');
+    expect(time.disabled).toBe(true);
+  });
+
   test('clicking a chip clears the picked day and goes back to rolling', async () => {
     renderIt();
     const input = screen.getByLabelText('Pick a date') as HTMLInputElement;

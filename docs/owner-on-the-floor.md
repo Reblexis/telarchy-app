@@ -35,7 +35,10 @@ close-date shape (owner ask 2026-08-28, from their open-source
 close-time-section): preset chips of this week, this month, next month and
 end of the year above an always-visible date picker, never a second mode.
 A chip is the selection until a day is picked; picking a day deselects the
-chips, and clicking a chip clears the day. Under it, the liquidity the market opens with,
+chips, and clicking a chip clears the day. Beside the day sits an optional
+UTC hour (owner ask 2026-08-28): markets settle on the hour, so the time
+field carries hours only and a day with an hour opens an hour market
+(`YYYY-MM-DDTHH`). Under it, the liquidity the market opens with,
 prefilled with the workspace default, with the translation that makes the
 number mean something ("a 100 cr trade moves it about 2%"). The open button
 carries the cost.
