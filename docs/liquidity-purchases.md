@@ -13,11 +13,12 @@ A liquidity purchase is a non-refundable service: sharper prices on the
 buyer's own markets. It is never a credit sale. Three invariants keep that
 true, and every change to this feature must preserve all three:
 
-1. **Pool-only.** Purchased credits are minted directly into market pools
-   (`applyMintedLiquidityInjectionTx`, which has no balance write and no
-   credit-ledger row) and reach an account balance only through market
-   payouts under the published scoring rule. There is no path from a
-   payment to a balance.
+1. **Walled wallet.** A purchase credits the buyer's LIQUIDITY WALLET
+   (`agents.liquidity_balance`, the second currency; owner decision
+   2026-08-28): spendable only as market-pool injections, never tradeable,
+   never transferable, and LP leftovers from wallet-funded injections
+   return to the wallet (`liquidity_events.funded_from` routes them).
+   There is no path from a payment to the tradeable balance.
 2. **Whoever pays cannot win.** Buying requires the `manage` capability in
    the target workspace, and accounts that own or administer a public
    workspace take no season payout under strict eligibility
@@ -32,16 +33,14 @@ true, and every change to this feature must preserve all three:
 ## Flow
 
 - `POST /api/workspaces/:id/liquidity/checkout { usdAmount }` ($5 to
-  $5,000, manage capability): records a pending purchase and returns a
-  Stripe Checkout URL. Refused (409) when the workspace has no open market
-  to fund.
+  $5,000, manage capability + a participant identity): records a pending
+  purchase and returns a Stripe Checkout URL.
 - Stripe calls `POST /api/stripe/webhook` (raw body, signature verified,
   no other auth). On `checkout.session.completed` with `payment_status:
   "paid"` (or `async_payment_succeeded`), the purchase is fulfilled
-  idempotently: its credits are split EVENLY across the workspace's open
-  markets (active, unresolved, unvoided) via price-preserving pool
-  contributions, and the split is recorded on the purchase row
-  (`allocation`).
+  idempotently: its credits land in the buyer's liquidity wallet. Placing
+  them is the owner's hand on the floor: the market liquidity endpoint
+  spends the wallet first whenever it covers the whole amount.
 - `GET /api/workspaces/:id/liquidity/purchases` lists a workspace's
   purchases; `GET /api/liquidity/revenue` (platform admin) totals completed
   revenue over a window.

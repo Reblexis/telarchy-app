@@ -1,8 +1,8 @@
 import { randomUUID } from 'crypto';
-import { and, desc, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { type Request, type Response, Router } from 'express';
 import { db } from '../db/client';
-import { liquidityPurchases, markets, workspaces } from '../db/schema';
+import { liquidityPurchases, workspaces } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { publicOrigins } from '../lib/origins';
 import { isPlatformAuthorized } from '../lib/platform-admin';
@@ -26,8 +26,9 @@ import { fulfillLiquidityPurchase } from '../services/liquidityPurchases';
  *
  * Money-vs-contest boundary, stated once: the payment buys a service
  * (sharper prices on the buyer's own markets), not contest entry. What
- * keeps that true in code: credits land pool-only
- * (applyMintedLiquidityInjectionTx has no balance write), and purchasers
+ * keeps that true in code: a purchase lands in the walled liquidity
+ * WALLET (agents.liquidity_balance), which spends only as pool
+ * contributions and never reaches the tradeable balance, and purchasers
  * hold manage on a public workspace, which is exactly the class strict
  * season eligibility pays nothing (lib/seasons.ts).
  */
@@ -74,39 +75,36 @@ liquidityPurchasesRouter.post(
   requireIdentity,
   wrap(async (req, res) => {
     requireEnabled();
-    const workspaceId = req.params.id as string;
-    await requireManageOn(req, workspaceId);
+    const idOrSlug = req.params.id as string;
 
     const usdAmount = Number(req.body?.usdAmount);
     if (!Number.isFinite(usdAmount) || usdAmount < MIN_PURCHASE_USD || usdAmount > MAX_PURCHASE_USD) {
       throw new AppError(`usdAmount must be between ${MIN_PURCHASE_USD} and ${MAX_PURCHASE_USD} US dollars`, 400);
     }
 
-    const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1);
+    // Accept the slug too: the account dialog reaches this from a floor and
+    // a floor knows itself by slug. Ambiguous slugs resolve to nobody, same
+    // as the marketplace.
+    let [ws] = await db.select().from(workspaces).where(eq(workspaces.id, idOrSlug)).limit(1);
+    if (!ws) {
+      const bySlug = await db.select().from(workspaces).where(eq(workspaces.slug, idOrSlug)).limit(2);
+      if (bySlug.length === 1) ws = bySlug[0];
+    }
     if (!ws) throw new AppError('Workspace not found', 404);
+    const workspaceId = ws.id;
+    await requireManageOn(req, workspaceId);
 
-    // Refuse a purchase that could not be allocated: the webhook splits the
-    // credits across open markets, and money with nowhere to go is a
-    // support ticket, not a feature.
-    const open = await db
-      .select({ id: markets.id })
-      .from(markets)
-      .where(
-        and(
-          eq(markets.workspaceId, workspaceId),
-          eq(markets.active, true),
-          eq(markets.resolved, false),
-          eq(markets.voided, false),
-        ),
-      );
-    if (open.length === 0) throw new AppError('This workspace has no open markets to fund', 409);
+    // The wallet needs a participant to belong to. A master-key caller has
+    // none, and inventing one would strand paid money.
+    const buyerId = req.auth?.agentId;
+    if (!buyerId) throw new AppError('No participant identity on this request; buy from your own account', 400);
 
     const creditsPerUsd = liquidityCreditsPerUsd();
     const purchaseId = randomUUID();
     await db.insert(liquidityPurchases).values({
       id: purchaseId,
       workspaceId,
-      agentId: req.auth?.agentId ?? req.auth?.uid ?? 'unknown',
+      agentId: buyerId,
       usdAmount,
       credits: usdAmount * creditsPerUsd,
       creditsPerUsd,
@@ -130,7 +128,6 @@ liquidityPurchasesRouter.post(
       url: session.url,
       credits: usdAmount * creditsPerUsd,
       creditsPerUsd,
-      openMarkets: open.length,
     });
   }),
 );

@@ -61,9 +61,17 @@ export async function applyAgentLiquidityInjectionTx(
 
   const [agentRow] = await tx.select().from(agents).where(eq(agents.id, params.agentId)).for('update');
   if (!agentRow) throw new AppError('Agent not found', 404);
-  if (!sufficientBalance(agentRow.balance as number, params.poolContribution)) {
+
+  // The bought liquidity wallet spends first (owner decision 2026-08-28,
+  // two currencies): a purchase exists only to become depth, so any wallet
+  // that covers the whole contribution pays it. No mixing within one
+  // injection - a contribution part-wallet part-balance would need its LP
+  // leftover split two ways for one event, and simplicity is the contract.
+  const wantUnits = toUnits(params.poolContribution);
+  const fromWallet = (agentRow.liquidityBalance as number) >= wantUnits;
+  if (!fromWallet && !sufficientBalance(agentRow.balance as number, params.poolContribution)) {
     throw new AppError(
-      `Insufficient balance: need ${params.poolContribution}, have ${fromUnits(agentRow.balance as number)}`,
+      `Insufficient balance: need ${params.poolContribution}, have ${fromUnits(agentRow.balance as number)} tradeable and ${fromUnits(agentRow.liquidityBalance as number)} liquidity credits`,
       400,
     );
   }
@@ -72,76 +80,36 @@ export async function applyAgentLiquidityInjectionTx(
     .update(markets)
     .set({ liquidity: newLiquidity, shares: newShares, pool: newPool })
     .where(and(eq(markets.id, params.marketId), eq(markets.workspaceId, params.workspaceId)));
-  await applyCredits(tx, {
-    agentId: params.agentId,
-    workspaceId: params.workspaceId,
-    deltaUnits: -toUnits(params.poolContribution),
-    reason: 'liquidity',
-    refType: 'market',
-    refId: params.marketId,
-    also: { spentBetting: sql`${agents.spentBetting} + ${params.poolContribution}` },
-  });
-  await tx.insert(liquidityEvents).values({
-    id: randomUUID(),
-    workspaceId: params.workspaceId,
-    marketId: params.marketId,
-    agentId: params.agentId,
-    amount: params.poolContribution,
-    poolContribution: params.poolContribution,
-    totalLiquidity: newLiquidity,
-    type: 'injection',
-    createdAt: new Date(),
-  });
-  emitPricesChanged(params.workspaceId, params.marketId);
-}
-
-/**
- * Add MINTED liquidity to one market: the paid-liquidity path (Stripe
- * checkout fulfilment). Unlike applyAgentLiquidityInjectionTx there is no
- * balance debit and no credit_ledger row, because the credits are created
- * by the purchase directly INTO the pool and exist nowhere else, which is
- * the design invariant that keeps a liquidity purchase a service rather
- * than a credit sale: purchased liquidity enters market pools only and
- * reaches a balance only through market payouts under the published
- * scoring rule (telarchy umbrella,
- * notes/real-money-economy-design-2026-08-26.md, legal point 3). The
- * liquidity event carries agentId null, same as the platform's own initial
- * subsidy, which it economically is.
- */
-export async function applyMintedLiquidityInjectionTx(
-  tx: DbTx,
-  params: { workspaceId: string; marketId: string; poolContribution: number },
-): Promise<void> {
-  if (params.poolContribution < MIN_LIQUIDITY_CONTRIBUTION) {
-    throw new AppError(`Liquidity contribution must be at least ${MIN_LIQUIDITY_CONTRIBUTION} credits`, 400);
+  if (fromWallet) {
+    // The wallet is not the credit ledger's currency: its audit trail is
+    // liquidity_purchases (inflow) and liquidity_events with
+    // funded_from='liquidity' (outflow), so no ledger row is written and
+    // spentBetting (a trading stat) does not move.
+    await tx
+      .update(agents)
+      .set({ liquidityBalance: sql`${agents.liquidityBalance} - ${wantUnits}` })
+      .where(eq(agents.id, params.agentId));
+  } else {
+    await applyCredits(tx, {
+      agentId: params.agentId,
+      workspaceId: params.workspaceId,
+      deltaUnits: -wantUnits,
+      reason: 'liquidity',
+      refType: 'market',
+      refId: params.marketId,
+      also: { spentBetting: sql`${agents.spentBetting} + ${params.poolContribution}` },
+    });
   }
-  const [market] = await tx
-    .select()
-    .from(markets)
-    .where(and(eq(markets.id, params.marketId), eq(markets.workspaceId, params.workspaceId)))
-    .for('update');
-  if (!market) throw new AppError('Market not found', 404);
-
-  const oldShares = (market.shares as [number, number]) || [0, 0];
-  const { newPool, newLiquidity, newShares } = liquidityStateAfterPoolContribution(
-    oldShares,
-    market.liquidity,
-    market.pool ?? 0,
-    params.poolContribution,
-  );
-  await tx
-    .update(markets)
-    .set({ liquidity: newLiquidity, shares: newShares, pool: newPool })
-    .where(and(eq(markets.id, params.marketId), eq(markets.workspaceId, params.workspaceId)));
   await tx.insert(liquidityEvents).values({
     id: randomUUID(),
     workspaceId: params.workspaceId,
     marketId: params.marketId,
-    agentId: null,
+    agentId: params.agentId,
     amount: params.poolContribution,
     poolContribution: params.poolContribution,
     totalLiquidity: newLiquidity,
     type: 'injection',
+    fundedFrom: fromWallet ? 'liquidity' : 'balance',
     createdAt: new Date(),
   });
   emitPricesChanged(params.workspaceId, params.marketId);

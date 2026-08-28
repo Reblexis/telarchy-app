@@ -226,6 +226,14 @@ export const agents = pgTable(
     claimTokenHash: text('claim_token_hash'),
     /** Balance in nanocredits (1 credit = 1_000_000_000 units) */
     balance: bigint('balance', { mode: 'number' }).notNull().default(0),
+    /** The SECOND currency (owner decision 2026-08-28): liquidity credits,
+     *  bought with real money, spendable ONLY as market-pool injections.
+     *  Nanocredits like `balance`. Walled both ways: purchases land here and
+     *  nowhere else, and LP leftovers from wallet-funded injections return
+     *  here, never to the tradeable balance - that wall is what keeps a
+     *  liquidity purchase a service rather than a credit sale
+     *  (docs/liquidity-purchases.md). */
+    liquidityBalance: bigint('liquidity_balance', { mode: 'number' }).notNull().default(0),
     earnedBetting: doublePrecision('earned_betting').notNull().default(0),
     spentBetting: doublePrecision('spent_betting').notNull().default(0),
     spentTokens: doublePrecision('spent_tokens').notNull().default(0),
@@ -562,6 +570,10 @@ export const liquidityEvents = pgTable(
     type: text('type').notNull(),
     /** Agent who provided liquidity (null for initial platform liquidity) */
     agentId: text('agent_id'),
+    /** Which purse funded it: 'balance' | 'liquidity' (the bought wallet).
+     *  Null on rows that predate the wallet, which read as 'balance'. LP
+     *  leftovers are routed back to the purse they came from. */
+    fundedFrom: text('funded_from'),
     poolContribution: doublePrecision('pool_contribution'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },

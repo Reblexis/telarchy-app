@@ -530,21 +530,21 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/predictions/markets/:id/liquidity',
       auth: 'agent',
       description:
-        "Inject liquidity into a market from your own balance (any participant with the trade capability - providing liquidity is a first-class trader action, refunded proportionally to LPs at resolution and void). Body: { amount: number, agentId?: string }. amount must be positive (any amount down to 1e-9, one nanocredit; no 0.1 floor). agentId defaults to the caller; funding another participant's balance requires the manage capability. agentId is required for master-key callers since master key has no implicit participant.",
+        "Inject liquidity into a market (any participant with the trade capability - providing liquidity is a first-class trader action, refunded proportionally to LPs at resolution and void). SPENDS THE LIQUIDITY WALLET FIRST: when the caller's bought liquidity credits (agents.liquidityBalance) cover the whole amount they pay for it and the LP leftover returns to that wallet; otherwise the tradeable balance pays and leftovers return there. Body: { amount: number, agentId?: string }. amount must be positive (any amount down to 1e-9, one nanocredit; no 0.1 floor). agentId defaults to the caller; funding another participant's balance requires the manage capability. agentId is required for master-key callers since master key has no implicit participant.",
     },
     {
       method: 'POST',
       path: '/api/workspaces/:id/liquidity/checkout',
       auth: 'identity',
       description:
-        "Buy market liquidity for a workspace with real money (Stripe Checkout; the ONLY path by which money enters the managed instance). Requires the manage capability in that workspace. Body: { usdAmount } ($5-$5,000). Returns 201 { purchaseId, url, credits, creditsPerUsd, openMarkets }; send the buyer to url. On payment the webhook mints the credits EVENLY INTO THE WORKSPACE'S OPEN MARKET POOLS - never into any balance: a liquidity purchase is a non-refundable service (sharper prices on your own markets), not a credit sale, and credits remain unpurchasable and unredeemable (Terms of Service section 2). Price $1 = 1,000 pool credits (LIQUIDITY_CREDITS_PER_USD; owner-confirmed 2026-08-26). 503 when the instance has no Stripe configuration; 409 when the workspace has no open market to fund. Purchasers hold manage on the workspace, and under strict season eligibility such accounts take no season payout.",
+        "Buy LIQUIDITY CREDITS with real money (Stripe Checkout; the ONLY path by which money enters the managed instance). Requires the manage capability in the workspace and a participant identity. Body: { usdAmount } ($5-$5,000). Returns 201 { purchaseId, url, credits, creditsPerUsd }; send the buyer to url. On payment the webhook credits the buyer's liquidity WALLET (the second currency, agents.liquidityBalance): walled credits spendable ONLY as market-pool injections - POST /api/predictions/markets/:id/liquidity spends the wallet first, and LP leftovers from wallet-funded injections return to the wallet, never to the tradeable balance. A liquidity purchase is a non-refundable service (depth on your own markets), not a credit sale; tradeable credits remain unpurchasable and unredeemable (Terms of Service section 2). Price $1 = 1,000 liquidity credits (LIQUIDITY_CREDITS_PER_USD; owner-confirmed 2026-08-26). 503 when the instance has no Stripe configuration. Purchasers hold manage on the workspace, and under strict season eligibility such accounts take no season payout.",
     },
     {
       method: 'GET',
       path: '/api/workspaces/:id/liquidity/purchases',
       auth: 'identity',
       description:
-        'Purchase history for one workspace (manage capability required): [{ id, usdAmount, credits, creditsPerUsd, status: "pending"|"completed", allocation ({ marketId: credits }, set at fulfilment), createdAt, completedAt }].',
+        'Purchase history for one workspace (manage capability required): [{ id, usdAmount, credits, creditsPerUsd, status: "pending"|"completed", createdAt, completedAt }]. Completed purchases were credited to the buyer\'s liquidity wallet.',
     },
     {
       method: 'POST',
