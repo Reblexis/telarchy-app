@@ -109,9 +109,11 @@ protected from deletion until Season 1.
   original ladder mode, where place alone decided the prize, remains
   implemented for seasons that publish rungs). A zero or negative score is
   paid nothing and does not shrink anyone else's share. Shares below the
-  season's published minimum ($50 for Season 0), anything above the $2,000
-  single-payout cap (`MAX_SINGLE_PAYOUT_USD`, the Czech withholding line),
-  and anything otherwise unassigned roll into the next season's pool.
+  season's published minimum ($1 for Season 0, third 2026-08-28 amendment)
+  and anything otherwise unassigned roll into the next season's pool. There
+  is no upper cap on a single payout (owner decision 2026-08-28): a prize
+  above the Czech withholding line (CZK 50,000) is paid net of the required
+  15% withholding rather than clipped.
   Linear-in-score on purpose: under a linear payout, moving score between
   colluding accounts changes the coalition's total by nothing, which is the
   Sybil property the rank ladder lacked (design record: telarchy umbrella
@@ -278,8 +280,9 @@ ladder within pool in ladder mode). The shape, for the design's sake
   than the pool. The pool has no ceiling (retired 2026-08-28): the old
   sub-5,000 rule was the NY/FL registration-and-bonding line for CHANCE
   sweepstakes and never applied to a deterministic skill-scored payout,
-  which scales uncapped; the cap that remains is per single payout
-  (`MAX_SINGLE_PAYOUT_USD`, $2,000, the Czech withholding line).
+  which scales uncapped, and no per-payout cap remains either (owner
+  decision 2026-08-28): a payout above the Czech withholding line
+  (CZK 50,000) is paid net of the required withholding.
 - **Start.** A draft starts at its published instant through `POST
   /api/cron/seasons`, which starts due drafts and is a no-op otherwise.
   Starting pins the workspace set and snapshots a baseline profit for every

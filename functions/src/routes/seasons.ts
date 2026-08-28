@@ -437,8 +437,9 @@ seasonsRouter.post(
     // bonding threshold for CHANCE sweepstakes; a deterministic skill-scored
     // payout is a skill contest and scales uncapped (retired 2026-08-28,
     // design record notes/wheel-vs-proportional-legality-2026-08-28.md in
-    // the telarchy umbrella). MAX_SINGLE_PAYOUT_USD in lib/seasons.ts is the
-    // cap that still matters, per payout rather than per pool.
+    // the telarchy umbrella). No per-payout cap either (owner decision
+    // 2026-08-28): a prize above the Czech withholding line is paid net of
+    // the required withholding, per the published rules.
 
     // Mode defaults from the body's shape so existing ladder-shaped callers
     // keep working: a ladder sent means ladder mode, nothing sent means

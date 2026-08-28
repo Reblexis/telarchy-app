@@ -226,15 +226,15 @@ describe('settleSeason, proportional mode (rules amended 2026-08-28)', () => {
     expect(result.rolloverUsd).toBe(1);
   });
 
-  test('no single payout exceeds MAX_SINGLE_PAYOUT_USD; the excess rolls', () => {
-    // The Czech withholding line: nothing is set up to withhold, so the rule
-    // clips rather than pays and hopes.
+  test('there is no upper payout cap: a dominant score takes its full share (owner decision 2026-08-28)', () => {
+    // Withholding above the CZK 50,000 line happens at payment time, per
+    // the published rules; the settlement arithmetic never clips.
     const result = settleSeason([entrant('a', 0, 100), entrant('b', 0, 1)], [], 5000, P);
     const a = result.ranked.find(r => r.agentId === 'a');
     const b = result.ranked.find(r => r.agentId === 'b');
-    expect(a?.prizeUsd).toBe(2000);
+    expect(a?.prizeUsd).toBe(4950.5);
     expect(b?.prizeUsd).toBe(49.5);
-    expect(result.rolloverUsd).toBe(2950.5);
+    expect(result.rolloverUsd).toBe(0);
   });
 
   test('a platform-operated account is paid nothing and does not dilute anyone', () => {

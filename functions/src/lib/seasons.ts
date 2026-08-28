@@ -55,8 +55,11 @@
  *    changes the coalition's total expected payout by nothing, which is the
  *    licence-free Sybil property the rank ladder lacked (design record:
  *    telarchy umbrella notes/trader-rewards-design-2026-08-28.md). Shares
- *    below the season's `min_payout_usd` and anything above
- *    MAX_SINGLE_PAYOUT_USD roll forward instead of being paid.
+ *    below the season's `min_payout_usd` roll forward instead of being
+ *    paid; there is no upper cap (owner decision 2026-08-28, "no payout
+ *    cap") - where Czech law requires withholding on a prize above
+ *    CZK 50,000, the operator withholds at payment time instead of
+ *    clipping the prize.
  *  - `ladder` (Season 0 as originally published): prizes go to eligible
  *    entrants in rank order until the rungs run out.
  *
@@ -115,16 +118,6 @@ export const SEASON_TRADE_CUTOFF_HOURS = 6;
 
 /** How a season's pool is assigned at settlement. See THE PAYOUT above. */
 export type SeasonPayoutMode = 'ladder' | 'proportional';
-
-/**
- * No single payout may exceed the CZK 50,000 tax-withholding line (about
- * $2,100; Czech law has the organizer withhold 15% above it, and nothing is
- * set up to withhold yet). Kept safely under the line rather than at it,
- * because the koruna rate moves and the constant does not. The clipped
- * remainder rolls into the next season's pool. Design record:
- * telarchy umbrella notes/real-money-economy-design-2026-08-26.md, point 7.
- */
-export const MAX_SINGLE_PAYOUT_USD = 2000;
 
 /** One rung of the published prize ladder. */
 export interface LadderRung {
@@ -258,8 +251,10 @@ export interface SettleOptions {
  *
  * PROPORTIONAL mode: each eligible entrant with a positive score is paid
  * `pool x score / sum of positive eligible scores`, rounded to cents, then
- * zeroed under `minPayoutUsd` and clipped at MAX_SINGLE_PAYOUT_USD. The
- * ladder plays no part. Ties need no breaking for money (equal scores pay
+ * zeroed under `minPayoutUsd`; there is no upper cap (owner decision
+ * 2026-08-28) - a prize large enough to trigger Czech withholding
+ * (above CZK 50,000) is paid net of the required withholding, per the
+ * published rules, rather than clipped. The ladder plays no part. Ties need no breaking for money (equal scores pay
  * equal shares); the sort order still decides the published rank.
  */
 export function settleSeason(
@@ -328,7 +323,6 @@ export function settleSeason(
       if (denominator > 0) {
         prizeUsd = round2((poolUsd * weightOf(e, i)) / denominator);
         if (prizeUsd < minPayoutUsd) prizeUsd = 0;
-        if (prizeUsd > MAX_SINGLE_PAYOUT_USD) prizeUsd = MAX_SINGLE_PAYOUT_USD;
       }
       return { agentId: e.agentId, score: e.score, rank: i + 1, eligible, prizeUsd };
     });
