@@ -3780,19 +3780,16 @@ textarea.jobform-line--desc {
 }
 
 /* The ticket, inline under the verbs (owner ask 2026-08-28, replacing the
-   bet modal): the modal card's own chrome, in the page's flow, so the
-   charts above stay visible while the bet is composed and its ghost is on
-   the market chart. */
+   bet modal): the wrapper carries NO chrome of its own - the ticket's own
+   card is the one card, at the column's full width (a card inside a card
+   is what shipped first and read as a joke, owner report 2026-08-28). */
 .pubws-ticket-inline {
   width: 100%;
   margin: 1rem auto 0;
-  padding: 0.9rem 1.1rem 1rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
   text-align: left;
   animation: modal-lift 200ms ease-out;
 }
+.pubws-ticket-inline .ticket { width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .pubws-ticket-inline { animation: none; }
 }

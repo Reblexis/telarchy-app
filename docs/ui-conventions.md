@@ -607,9 +607,11 @@ the bug this rule exists to prevent.
 
 **The ticket opens INLINE under the bet verbs** (owner ask 2026-08-28,
 replacing the modal of 2026-08-10): pressing "Bet Higher" or "Bet Lower"
-grows the ticket in the page's flow (`.pubws-ticket-inline`, the modal
-card's own chrome at the column's FULL width, after Manifold's bet
-panel), so the charts above stay on screen while the bet is composed and
+grows the ticket in the page's flow (`.pubws-ticket-inline`, a chromeless
+wrapper: the ticket's OWN card is the one card, at the column's full
+width, after Manifold's bet panel - a card inside a card is the shipped
+mistake this sentence exists to prevent), so the charts above stay on
+screen while the bet is composed and
 the composed bet's ghost draws on both charts. The bet ticket carries NO
 held-position row and no resting orders (owner ask 2026-08-28: selling
 is the position panel's job, and the strip made the card tall); managing
