@@ -115,7 +115,8 @@ describe('one definition of each label helper', () => {
     'primaryHorizonOf',
     'cellOf',
     'metricsOf',
-    'dateSegmentOf',
+    'dateQuestionOf',
+    'possessiveOf',
     'timeLeftOf',
   ])('%s is defined once, in the model', name => {
     const definers = files.filter(f => new RegExp(`function ${name}\\b`).test(f.text)).map(f => f.path);

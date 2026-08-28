@@ -353,17 +353,28 @@ export function timeLeftOf(v: HorizonView | null, now: Date = new Date()): strin
 }
 
 /**
- * A date's label in the date picker: the clock's name and its settle day,
- * "this week · 30 Aug". A named clock is "today", "this week" or "this
- * month"; any other date is its settle day alone ("30 Sep"). Both computed
- * from the market, never stored on the metric. The time left lives in the
- * chart's control row, not here.
+ * A date as it reads inside the question line ("What will be LookPilot's
+ * net revenue this week?"): a named clock is its own adverb ("today",
+ * "this week", "this month") and takes no preposition; any other date
+ * reads as "on" plus its settle day ("on 30 Sep"). Both computed from the
+ * market, never stored on the metric. The settle instant lives in the
+ * word's tooltip and the time left in the chart's control row, not here.
  */
-export function dateSegmentOf(v: HorizonView | null): string {
-  if (!v) return '';
-  const named = /^(today|this week|this month)$/.test(v.label) ? v.label : '';
-  if (!v.settleShort) return named || v.targetDate;
-  return named ? `${named} · ${v.settleShort}` : v.settleShort;
+export function dateQuestionOf(v: HorizonView | null): { word: string; on: boolean } {
+  if (!v) return { word: '', on: false };
+  if (/^(today|this week|this month)$/.test(v.label)) return { word: v.label, on: false };
+  return { word: v.settleShort || v.targetDate, on: true };
+}
+
+/**
+ * The workspace's name as the question's subject: "LookPilot's"; a name
+ * already ending in s takes the bare apostrophe ("Vans'"). ASCII quote,
+ * like every other string on the floor.
+ */
+export function possessiveOf(name: string | null | undefined): string {
+  const n = (name ?? '').trim();
+  if (!n) return '';
+  return /s$/i.test(n) ? `${n}'` : `${n}'s`;
 }
 
 /**

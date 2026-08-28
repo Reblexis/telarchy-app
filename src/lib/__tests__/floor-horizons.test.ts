@@ -6,12 +6,13 @@ import {
   cellOf,
   compactValueOf,
   currencyOf,
-  dateSegmentOf,
+  dateQuestionOf,
   datesOf,
   horizonById,
   horizonLabel,
   metricLabelOf,
   metricsOf,
+  possessiveOf,
   priceSeriesOf,
   primaryHorizonOf,
   settleDayOf,
@@ -280,6 +281,21 @@ describe('captionLabel', () => {
   });
 });
 
+describe('possessiveOf', () => {
+  // The question line's subject: "What will be LookPilot's ...".
+  test("appends 's, and only the apostrophe after a trailing s", () => {
+    expect(possessiveOf('LookPilot')).toBe("LookPilot's");
+    expect(possessiveOf('Vans')).toBe("Vans'");
+  });
+
+  test('an absent name is an absent subject, not a dangling apostrophe', () => {
+    expect(possessiveOf('')).toBe('');
+    expect(possessiveOf('   ')).toBe('');
+    expect(possessiveOf(null)).toBe('');
+    expect(possessiveOf(undefined)).toBe('');
+  });
+});
+
 /**
  * Stepping between clocks (owner ask 2026-08-20: arrows beside the metric's
  * name). Selection is a market id, never an index, so the cases that matter
@@ -442,12 +458,12 @@ describe('a floor that prices several metrics', () => {
     expect(cellOf(grid, 'rvw', '2026-09')?.marketId).toBe('rvw-month');
   });
 
-  test('the date segments name the clock and its settle day, both computed', () => {
-    expect(dateSegmentOf(horizonById(grid, 'rev-day'))).toBe('today · 25 Aug');
-    expect(dateSegmentOf(horizonById(grid, 'rev-week'))).toBe('this week · 30 Aug');
-    expect(dateSegmentOf(horizonById(grid, 'rev-month'))).toBe('this month · 31 Aug');
-    expect(dateSegmentOf(horizonById(grid, 'rev-sep'))).toBe('30 Sep');
-    expect(dateSegmentOf(null)).toBe('');
+  test('the date word reads as the clock, or as "on" its settle day', () => {
+    expect(dateQuestionOf(horizonById(grid, 'rev-day'))).toEqual({ word: 'today', on: false });
+    expect(dateQuestionOf(horizonById(grid, 'rev-week'))).toEqual({ word: 'this week', on: false });
+    expect(dateQuestionOf(horizonById(grid, 'rev-month'))).toEqual({ word: 'this month', on: false });
+    expect(dateQuestionOf(horizonById(grid, 'rev-sep'))).toEqual({ word: '30 Sep', on: true });
+    expect(dateQuestionOf(null)).toEqual({ word: '', on: false });
   });
 
   test('time left is the two largest units that matter, and "settling" once past', () => {
@@ -459,7 +475,7 @@ describe('a floor that prices several metrics', () => {
 
   test('a day that has ended is a date, not "today"', () => {
     const later = buildHorizonViews(ws({ markets: GRID, horizonHistories: [] }), new Date('2026-08-26T00:30:00Z'));
-    expect(dateSegmentOf(horizonById(later, 'rev-day'))).toBe('25 Aug');
+    expect(dateQuestionOf(horizonById(later, 'rev-day'))).toEqual({ word: '25 Aug', on: true });
   });
 });
 

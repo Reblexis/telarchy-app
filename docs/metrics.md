@@ -62,7 +62,7 @@ Money Telarchy itself was paid in the trailing 30 days: managed-tier subscriptio
 
 - **Why this metric:** it is the number every other one on this page is a proxy for, and pricing it on the public floor is the honest way to say what the platform has (nothing yet) and let forecasters price when that changes.
 - **How to compute:** while Telarchy has no paid tier and no revenue rail there is nothing to sync and the value is $0. Until a rail exists, the owner logs each payment by hand as a metric update with a note naming the payer category and amount; the metric log is public, so a trader can audit every reading. This is the one hero metric the owner CAN edit, and the market's description says so. When a rail exists (Stripe or the Wise business account), `scripts/telarchy-self-sync.js` pushes the trailing-30-day sum from it and the owner's hand is taken off, the same way `weeklyActiveVerifiedTraders` is pushed verbatim from `/api/marketplace/stats`.
-- **Markets:** today, this week, next month (`+0d`, `+0w`, and the absolute next-month date every floor metric carries), like every metric on a public floor (docs/ui-conventions.md, "Two steppers"). Range 0 to 1,000.
+- **Markets:** today, this week, next month (`+0d`, `+0w`, and the absolute next-month date every floor metric carries), like every metric on a public floor (docs/ui-conventions.md, "The question line"). Range 0 to 1,000.
 
 ### Implied valuation (USD)
 
