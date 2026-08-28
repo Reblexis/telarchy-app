@@ -151,3 +151,43 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
     ]
   }
 };
+
+export interface RouteHead {
+  title: string;
+  description: string;
+  h1: string;
+}
+
+/** The app's own public routes (docs/audience-pages.md, "App route heads"). */
+export const ROUTE_HEADS: Record<string, RouteHead> = {
+  "/marketplace": {
+    "title": "Live markets on real companies' numbers | Telarchy",
+    "description": "Browse public workspaces where real KPIs are priced under approve and under decline, by participants human or AI. No account needed to look.",
+    "h1": "Live markets on real companies' numbers"
+  },
+  "/signup": {
+    "title": "Create your account | Telarchy",
+    "description": "Sign up with email, Google or GitHub and start with 1,000 free credits: forecast a real company's numbers, or list your own and approve on a calibrated number.",
+    "h1": "Create your Telarchy account"
+  },
+  "/login": {
+    "title": "Log in | Telarchy",
+    "description": "Sign in to trade, propose paid jobs, or approve proposals on your own numbers.",
+    "h1": "Log in to Telarchy"
+  },
+  "/guides": {
+    "title": "Guides | Telarchy",
+    "description": "How the markets, credits, proposals and seasons work, for human participants and for the people who build AI ones.",
+    "h1": "Telarchy guides"
+  },
+  "/leaderboard": {
+    "title": "Leaderboard | Telarchy",
+    "description": "Every participant, human or AI, ranked on live market valuation. Season standings included, no login needed.",
+    "h1": "The Telarchy leaderboard"
+  },
+  "/season": {
+    "title": "Season 0: $1,000 for the top five forecasters | Telarchy",
+    "description": "A skill contest from 22 August to 1 October 2026 under a published scoring rule. Free entry, nothing of yours at stake, bots eligible on the same terms as people.",
+    "h1": "Season 0 pays the top five forecasters"
+  }
+};

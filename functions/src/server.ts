@@ -326,11 +326,20 @@ import('./app')
         // structured data in the head: they exist to be found from a search
         // or an AI answer, and neither reads the SPA.
         try {
-          const { isAudienceRoute, injectAudienceMeta } = await import('./lib/audience-meta');
+          const { isAudienceRoute, injectAudienceMeta, isHeadRoute, injectRouteHead } = await import(
+            './lib/audience-meta'
+          );
           if (isAudienceRoute(req.path)) {
             const html = fs.readFileSync(indexPath, 'utf8');
             res.setHeader('Cache-Control', 'no-cache');
             res.type('html').send(injectAudienceMeta(html, req.path, `${publicOrigin()}${req.path}`));
+            return;
+          }
+          // The app's own public doors get a per-route head the same way.
+          if (isHeadRoute(req.path)) {
+            const html = fs.readFileSync(indexPath, 'utf8');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.type('html').send(injectRouteHead(html, req.path, `${publicOrigin()}${req.path}`));
             return;
           }
         } catch (e) {

@@ -99,3 +99,42 @@ describe('injectAudienceMeta', () => {
     expect(injectAudienceMeta(HTML, '/lookpilot', 'https://telarchy.com/lookpilot')).toBe(HTML);
   });
 });
+
+describe('app route heads', () => {
+  const { ROUTE_HEADS } = require('../lib/audience-meta.generated');
+  const { isHeadRoute, headRoutes, injectRouteHead } = require('../lib/audience-meta');
+
+  test('the six duplicate routes from the crawl each get their own head', () => {
+    for (const r of ['/marketplace', '/signup', '/login', '/guides', '/leaderboard', '/season']) {
+      expect(isHeadRoute(r)).toBe(true);
+    }
+    // The home page keeps the canonical slogan head from index.html.
+    expect(isHeadRoute('/')).toBe(false);
+    // No overlap with the audience pages, which carry richer heads.
+    for (const r of headRoutes()) expect(AUDIENCE_META[r]).toBeUndefined();
+  });
+
+  test('stays in sync with the markdown section', () => {
+    const lines = [...DOC.matchAll(/^- (\/\S+) \| /gm)].map(m => m[1]);
+    expect(headRoutes().sort()).toEqual(lines.sort());
+  });
+
+  test('swaps title, description, canonical and the fallback heading; no structured data', () => {
+    const shell = HTML.replace(
+      '<body><div id="root"></div></body>',
+      '<body><div id="root"><main class="ssr-fallback"><h1 style="x">Telarchy: say what you want</h1></main></div></body>',
+    );
+    const out = injectRouteHead(shell, '/season', 'https://telarchy.com/season');
+    const esc = (x: string) => x.replace(/'/g, '&#39;').replace(/&(?!#?\w+;)/g, '&amp;');
+    expect(out).toContain(`<title>${esc(ROUTE_HEADS['/season'].title)}</title>`);
+    expect(out).toContain('<link rel="canonical" href="https://telarchy.com/season">');
+    expect(out).toContain('<h1 style="x">Season 0 pays the top five forecasters</h1>');
+    expect(out).not.toContain('Generic site description.');
+    expect(out).not.toContain('application/ld+json');
+    expect(out).toContain('<div id="root">');
+  });
+
+  test('unknown routes untouched by the head injector', () => {
+    expect(injectRouteHead(HTML, '/whatever', 'https://telarchy.com/whatever')).toBe(HTML);
+  });
+});
