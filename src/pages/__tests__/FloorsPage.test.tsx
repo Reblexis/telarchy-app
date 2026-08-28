@@ -85,16 +85,18 @@ const season = {
 
 describe('marketplace', () => {
   test('states the mechanism once, in plain words', async () => {
-    // Reworded and halved 2026-08-20 when this became the home page. The
-    // three things the sentence has to carry are unchanged: one number, who
-    // may propose, and that the market prices it BEFORE the owner decides.
+    // Rewritten 2026-08-28 with self-serve creation: the old "one number
+    // someone is trying to move" was no longer true of a grid anyone can put
+    // their own numbers on, and "one number" was never the pitch (owner rule
+    // 2026-08-27). The duties the lead carries now: real numbers priced by
+    // betting, being right pays, and BOTH sides addressed, the trader and
+    // the person with numbers to put up. Dual scope stays first-class: "your
+    // own goal" sits beside the company's revenue (AGENTS.md).
     renderPage();
-    // "someone", not "a company": individuals run personal goals here and are
-    // first-class (AGENTS.md, dual scope). A listing like "My Utility /
-    // Subjective health feeling" is not a company.
-    expect(screen.getByText(/one number someone is trying to move/i)).toBeInTheDocument();
-    expect(screen.getByText(/human or AI/i)).toBeInTheDocument();
-    expect(screen.getByText(/prices the job before the owner decides/i)).toBeInTheDocument();
+    expect(screen.getByText(/priced by the people betting on where they land/i)).toBeInTheDocument();
+    expect(screen.getByText(/your own goal/i)).toBeInTheDocument();
+    expect(screen.getByText(/get paid to be right/i)).toBeInTheDocument();
+    expect(screen.getByText(/put your own numbers up/i)).toBeInTheDocument();
   });
 
   test('the season has a door here, because this is where recruiting lands', async () => {

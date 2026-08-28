@@ -380,14 +380,15 @@ export function FloorsPage() {
             So the sentence IS the opening, set in the display face, and the
             cards under it are the evidence.
 
-            The mechanism, said once, in the terms of the thing on screen:
-            every listing is one number someone is trying to move, and the way
-            to move it is a paid job the market prices before the owner pays
-            for it. */}
-        <h1 className="mkt-thesis">Every market here is one number someone is trying to move.</h1>
+            The mechanism, said once, to both sides of the page
+            (docs/ui-conventions.md; owner 2026-08-28: the old "one number
+            someone is trying to move" line was no longer true of a grid
+            anyone can put their own numbers on, and "one number" was never
+            the pitch). */}
+        <h1 className="mkt-thesis">Real numbers, priced by the people betting on where they land.</h1>
         <p className="mkt-lead">
-          Anyone, human or AI, can propose a paid job that would move it, and the market prices the job before the owner
-          decides.
+          A company's revenue, a project's users, your own goal. Trade them and get paid to be right, or put your own
+          numbers up and get live forecasts before you decide.
         </p>
 
         <SeasonDoor />

@@ -313,3 +313,68 @@ describe('from zero: create the floor itself, then find it', () => {
     expect(otherList.body.map((w: { id: string }) => w.id)).not.toContain(created.body.id);
   });
 });
+
+describe('and then someone trades it', () => {
+  test('the creator funds the market from a real balance, then both sides trade it', async () => {
+    const { workspacesRouter } = await import('../routes/workspaces');
+    const { predictionsRouter } = await import('../routes/predictions');
+    const mk = (uid: string, workspaceId: string, caps: string[]) => {
+      const a = express();
+      a.use(express.json());
+      a.use((req, _res, next) => {
+        (req as any).auth = { agentId: uid, uid, workspaceId, capabilities: new Set(caps), isMasterKey: false };
+        next();
+      });
+      a.use('/api/workspaces', workspacesRouter);
+      a.use('/api/predictions', predictionsRouter);
+      a.use('/api/metrics', metricsRouter);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      a.use((err: Error, _req: any, res: any, _next: any) => {
+        res.status(err instanceof AppError ? err.status : 500).json({ error: err.message });
+      });
+      return a;
+    };
+
+    // The creator's agent row exists from signup (ensureParticipant), with
+    // an empty balance here to reproduce the owner's exact state.
+    await db.insert(agents).values({ id: 'user-creator', apiKeyHash: 'h-user-creator', balance: 0 });
+    const created = await request(mk('user-creator', '', ['read']))
+      .post('/api/workspaces')
+      .send({ name: 'Tradeable' })
+      .expect(201);
+    const wsId = created.body.id as string;
+    const ownerApp = mk('user-creator', wsId, ['read', 'trade', 'manage', 'manage_workspace']);
+    const m = await request(ownerApp).post('/api/metrics').send(DIALOG1_BODY).expect(201);
+
+    // A creator with NO credits is refused at the dialog, with both numbers,
+    // instead of being handed an unfunded market that refuses every trade
+    // (owner report 2026-08-28: "why cant i trade on it?").
+    const broke = await request(ownerApp).put(`/api/metrics/${m.body.id}`).send(dialog2Body([])).expect(400);
+    expect(broke.body.error).toMatch(/You hold 0 credits/);
+    expect(await db.select().from(markets).where(eq(markets.workspaceId, wsId))).toHaveLength(0);
+
+    // Funded, the same request opens a funded market.
+    await db
+      .update(agents)
+      .set({ balance: toUnits(10000) })
+      .where(eq(agents.id, 'user-creator'));
+    await request(ownerApp).put(`/api/metrics/${m.body.id}`).send(dialog2Body([])).expect(200);
+    const [mkt] = await db
+      .select()
+      .from(markets)
+      .where(and(eq(markets.workspaceId, wsId), eq(markets.resolved, false)));
+    expect(mkt.pool).toBeCloseTo(2400, 5);
+
+    // The owner trades their own market...
+    await request(ownerApp)
+      .post('/api/predictions/trade')
+      .send({ marketId: mkt.id, direction: 'higher', amount: 50 })
+      .expect(201);
+    // ...and so does a joined stranger with the trade capability.
+    await db.insert(agents).values({ id: 'stranger-1', apiKeyHash: 'h-stranger', balance: toUnits(1000) });
+    await request(mk('stranger-1', wsId, ['read', 'trade']))
+      .post('/api/predictions/trade')
+      .send({ marketId: mkt.id, direction: 'lower', amount: 50 })
+      .expect(201);
+  });
+});

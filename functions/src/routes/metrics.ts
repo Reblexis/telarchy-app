@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
-import { markets, metricDefinitionRevisions, metricLogs, metrics, trades, updates } from '../db/schema';
+import { agents, markets, metricDefinitionRevisions, metricLogs, metrics, trades, updates } from '../db/schema';
 import { isValidCalendarDate, periodEndInstant } from '../lib/date-utils';
 import { assertMetricMarketsUntraded } from '../lib/market-freeze';
 import {
@@ -11,7 +11,9 @@ import {
   getAffectedMetrics,
   getTransitiveDependencyNames,
 } from '../lib/metrics-engine';
+import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { desiredMarketDates, generatesMarkets, getLeafDescendantNames } from '../lib/time-preference';
+import { fromUnits } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { emitEvent } from '../services/events';
@@ -224,6 +226,24 @@ metricsRouter.put(
           .status(400)
           .json({ error: 'liquidityCredits must be a non-negative number, or null for the workspace default' });
         return;
+      }
+      // The add-date dialog promises "leaves your balance the moment it
+      // opens". When the balance cannot keep that promise, refuse HERE with
+      // both numbers rather than opening an unfunded market that answers
+      // every trade with "no liquidity" (owner report 2026-08-28: "why cant
+      // i trade on it?"). Lowering the number is always allowed.
+      if (v > 0) {
+        const ownerId = await resolveWorkspaceOwnerAgentId(workspaceId);
+        const [owner] = ownerId
+          ? await db.select({ balance: agents.balance }).from(agents).where(eq(agents.id, ownerId))
+          : [];
+        const balance = fromUnits(Number(owner?.balance ?? 0));
+        if (balance < v) {
+          res.status(400).json({
+            error: `You hold ${Math.floor(balance).toLocaleString('en-US')} credits and this market would open with ${Math.round(v).toLocaleString('en-US')}. Lower the liquidity, or top up first.`,
+          });
+          return;
+        }
       }
     }
 
