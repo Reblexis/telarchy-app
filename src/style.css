@@ -2405,14 +2405,17 @@ button.notif-row-link {
   color: var(--text-primary);
 }
 
-/* The stat cell: price plus its chip in the row's left cell. Undoes the
-   corner's tiny-uppercase register, wraps on a phone so the chip drops
-   under the price instead of pushing the range chips out. */
+/* The stat cell: price, chip and qualifier in the row's left cell, ONE
+   line (owner ask 2026-08-28, "next to it ... not below"): the row's fr
+   tracks honour min-content, so the centre title yields the room. Undoes
+   the corner's tiny-uppercase register. Below 640px the whole control row
+   already wraps, so the stat takes its own full line there. */
 .pubws-stat {
   display: inline-flex;
   align-items: baseline;
   gap: 0.7rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   letter-spacing: normal;
   text-transform: none;
 }

@@ -436,7 +436,10 @@ minute, exact UTC instant on hover), so a tight column wraps it whole
 under the price, never mid-phrase. It sits where the since-open
 chip used to sit; the chip is gone (owner ask 2026-08-28: "instead of
 the arrow and down since"). A selected contract's impact chip still
-renders there, because the impact is the contract's one number. The
+renders there as the bare arrow and delta ("▲ +7.8"; the "impact by
+<date>" prose wrapped the stat to three lines, owner report 2026-08-28),
+because the impact is the contract's one number - and the whole stat is
+ONE line: price, chip, qualifier, never stacked. The
 price carries the metric's currency symbol when the trimmed
 parenthetical tail names one (e.g. "USD" -> "$"; the same prefix runs
 through every numeral in the chart).

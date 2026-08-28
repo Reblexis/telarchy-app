@@ -1361,19 +1361,20 @@ export function TradePage() {
                         <span className="pubws-price">{`${unit}${formatValue(shownConsensus ?? consensus)}`}</span>
                         {/* The impact is the job's one number, so it is always
                           said: priced, zero-so-far, or not yet priced. Silence
-                          read as a broken page. */}
+                          read as a broken page. Bare arrow + delta (owner ask
+                          2026-08-28, "just show the arrow and +num"): the
+                          prose around it made the stat wrap to three lines. */}
                         {selectedJob &&
                           (jobImpact === null ? (
-                            <span className="pubws-delta-chip">impact not yet priced</span>
+                            <span className="pubws-delta-chip">not yet priced</span>
                           ) : jobImpact === 0 ? (
-                            <span className="pubws-delta-chip">±{impactUnit}0 impact so far</span>
+                            <span className="pubws-delta-chip">±{impactUnit}0</span>
                           ) : (
                             <span
                               key={`imp-${Math.round(jobImpact)}`}
                               className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}
                             >
-                              {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)} impact
-                              {hero ? ` by ${hero.label}` : ''}
+                              {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)}
                             </span>
                           ))}
                         {settleNote}
