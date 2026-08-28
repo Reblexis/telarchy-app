@@ -23,13 +23,15 @@ export function isLiquidityPurchaseEnabled(): boolean {
 }
 
 /**
- * Provisional price (approved design open question: "$1 = 100 credits of
- * pool liquidity", Viktor to confirm before the first sale). Env override
- * so confirming the number is a config change, not a deploy.
+ * $1 = 1,000 credits of pool liquidity: the owner-confirmed number
+ * (Viktor, 2026-08-26, in the liquidity funding design - "L = 1000 x P",
+ * confirmed; it supersedes the earlier provisional 100 the first cut of
+ * this file shipped with). Env override so a price change is config, not
+ * a deploy.
  */
 export function liquidityCreditsPerUsd(): number {
-  const raw = Number(process.env.LIQUIDITY_CREDITS_PER_USD ?? 100);
-  return Number.isFinite(raw) && raw > 0 ? raw : 100;
+  const raw = Number(process.env.LIQUIDITY_CREDITS_PER_USD ?? 1000);
+  return Number.isFinite(raw) && raw > 0 ? raw : 1000;
 }
 
 const STRIPE_API = 'https://api.stripe.com/v1';
