@@ -43,7 +43,7 @@ For workspace-scoped APIs, the effective capability set comes from workspace mem
 
 - Balances are global per participant identity, not per workspace.
 - Balances are stored in PostgreSQL as integer nanocredits (1 credit = 1,000,000,000 units).
-- The signup credit grant is per-instance configuration: env `SIGNUP_CREDITS`, default 1000 (telarchy.com keeps the default). A self-hosted instance may set it to 0, in which case participants start empty and are funded via platform-admin crediting (`POST /api/agents/:id/credit`) or a transfer from a funded participant (`POST /api/agents/transfer`). Registration (`POST /api/agents/register`) succeeds regardless of the grant amount.
+- The signup credit grant is priced at the brought value of the signal behind the account (owner decision 2026-08-28; design record in the telarchy umbrella, notes/trader-rewards-design-2026-08-28.md): a USER signup (email/password, Google, or GitHub) starts with `SIGNUP_CREDITS` (default 10,000); an API registration or sub-bot starts with `AGENT_SIGNUP_CREDITS` (default 0) and is funded by a transfer from its owner (`POST /api/agents/transfer`) or platform-admin crediting (`POST /api/agents/:id/credit`); a linked Manifold account grants its net worth capped at 10,000, once per Manifold account ever. Registration (`POST /api/agents/register`) succeeds regardless of the grant amount. Both grants are per-instance env configuration.
 - Credits enter through the signup grant, deposit, or admin crediting and leave through withdrawal or explicit spending flows.
 - Trading, proposal payouts, and internal transfers are redistributive within the system.
 

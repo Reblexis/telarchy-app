@@ -1,7 +1,7 @@
 /**
  * The Manifold import: proven calibration converts to starting credits,
  * once. The money properties under test: the grant is net worth capped at
- * 100,000 and floored at 0; one Manifold account funds one Telarchy account
+ * 10,000 (lowered 2026-08-28) and floored at 0; one Manifold account funds one Telarchy account
  * ever, in either direction; and nothing is granted before the bio proves
  * ownership. Manifold's API is mocked; the flow is exercised end-to-end
  * through the real routes against a real database.
@@ -128,12 +128,12 @@ describe('the import', () => {
     expect(await balanceOf('agent-mf-a')).toBeCloseTo(3500, 5);
   });
 
-  test('the grant caps at 100,000 and floors at 0', async () => {
+  test('the grant caps at 10,000 (lowered 2026-08-28) and floors at 0', async () => {
     manifoldBalance = 5_000_000;
     const s1 = await as('agent-mf-a').start('CalibratedCarol');
     manifoldBio = s1.body.code;
     const big = await as('agent-mf-a').claim();
-    expect(big.body.granted).toBe(100_000);
+    expect(big.body.granted).toBe(10_000);
 
     // A negative account (Manifold loans allow it) imports as zero, and the
     // record is still burned for reuse.

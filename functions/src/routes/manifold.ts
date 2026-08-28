@@ -11,9 +11,8 @@ import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
 
 /**
  * Import a Manifold record (owner decision 2026-08-10): a proven Manifold
- * trader should start here with more weight than the 1000-credit signup
- * grant, because their track record is real information about their
- * calibration. Their Manifold net worth (balance + invested), one mana to
+ * trader should start here with more weight than the plain signup grant,
+ * because their track record is real information about their calibration. Their Manifold net worth (balance + invested), one mana to
  * one credit, capped at MANIFOLD_GRANT_CAP, is granted once per Manifold
  * account and once per Telarchy account.
  *
@@ -35,10 +34,14 @@ import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
 export const manifoldRouter = Router();
 
 const MANIFOLD_API = 'https://api.manifold.markets/v0';
-// 100k (owner decision 2026-08-10, raised from 10k): a top Manifold record
-// should translate into real weight here, not a rounding error above the
-// 1000-credit signup grant.
-export const MANIFOLD_GRANT_CAP = 100_000;
+// 10k (owner decision 2026-08-28, lowered from the 100k of 2026-08-10, which
+// had been raised from 10k): with real-money season payouts proportional to
+// settled profit, a grant is bankroll and bankroll is score-generating
+// capital, so the cap returns to the same order as the user signup grant.
+// Existing imports keep what they were granted; net worth above the cap can
+// no longer be shuttled between Manifold accounts for extra grants (each
+// Manifold account backs at most one grant, ever, whatever its size).
+export const MANIFOLD_GRANT_CAP = 10_000;
 
 const pendingKey = (agentId: string) => `manifold-claim:${agentId}`;
 const claimedUserKey = (manifoldUserId: string) => `manifold-claimed:user:${manifoldUserId}`;

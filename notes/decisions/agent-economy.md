@@ -19,3 +19,19 @@ saying which door they came through: `github` for the public repository, `manifo
 ## undated: Operational rule
 
 This doc describes the current system only. If the participant economy changes, update this file and `docs/vision.md` immediately rather than leaving historical or superseded behavior documented here.
+
+## 2026-08-28: grants priced at brought value (owner decision)
+
+**DONE 2026-08-28 (Viktor):** "deafult to 10k to new users and cap manifold
+to 10k per account linked no need to introduce anything new imo other than
+that.. for now" plus retroactive top-up ("yes add that support"). User
+signups (email/password, Google, GitHub) grant 10,000 credits
+(SIGNUP_CREDITS default raised from 1,000); API registrations and sub-bots
+grant 0 (new AGENT_SIGNUP_CREDITS, owners fund agents by transfer); the
+Manifold import cap returns to 10,000 (from the 100,000 of 2026-08-10),
+existing imports keeping what they got; existing user accounts are topped
+up to 10,000 by scripts/topup-user-grants.mjs (idempotent, excludes
+Manifold rows). Rationale: with real-money season payouts proportional to
+settled profit, a grant is bankroll, so each grant is priced at the
+verifiable acquisition value of the signal behind it. Design record:
+telarchy umbrella notes/trader-rewards-design-2026-08-28.md.
