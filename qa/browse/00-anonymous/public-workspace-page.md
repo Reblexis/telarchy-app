@@ -95,10 +95,11 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
   ("today", "this week") or "on <settle day>". With more than one metric or
   date the sentence's word is a cycle button (dotted underline,
   `.pubws-ask-word--live`) that steps to the next option and loops; with one
-  option it is plain text. Selecting a contract keeps the pickers and the
-  question line and adds the conditional sentence under them as
-  `.pubws-instrument-title` (an `h2`, serif), leaving the identity block in
-  place. The metric-trajectory charts were removed
+  option it is plain text. Selecting a contract keeps the pickers and folds
+  the condition into the SAME sentence ("What will be <company>'s <metric>
+  <date> if <proposer> is paid $<ask> to do: <task>?", `?` at the end, the
+  sentence on a wider measure), leaving the identity block in place; there
+  is no second question heading. The metric-trajectory charts were removed
   from the "What is this market?" section the same day (the section shows the
   definition only; history fields stay in the API), and a manager sees an
   Edit button there. Amended 2026-08-18: saving no longer voids anything. The
@@ -318,10 +319,9 @@ ticket ("Jobs": hairline rows carrying title, proposer and USD ask, with
 ONE number each, the impact (if-done minus if-not-done) under a single
 right-aligned "impact if done" column label; ranked by impact; selecting a row
 re-points the page's single market view and ticket at that job's
-conditional branch (under the question line the headline becomes the
-condition, "if <proposer> is paid $<ask> to do: <task>", with the job's
-description under it and a "← Back to the market" link back to the
-baseline; price becomes the conditional call, the chip reads "impact", the
+conditional branch (the question sentence grows the condition, "... if
+<proposer> is paid $<ask> to do: <task>?", with the job's description
+under it and a "← Back to the market" link back to the baseline; price becomes the conditional call, the chip reads "impact", the
 chart draws the branch's own history, and the ticket trades it) rather than growing a second market underneath; and the "+ Suggest a
 job" form whose USD ask is required and composes into the title as
 "$N: ...", and whose confirm button carries the deal as a quieter

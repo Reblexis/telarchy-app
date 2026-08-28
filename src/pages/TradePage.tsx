@@ -1014,9 +1014,15 @@ export function TradePage() {
                is visible, the sentence is what the selection means. Its
                metric and date are cycle words too: clicking one steps to the
                next option and LOOPS (the 2026-08-20 arrow rule); with one
-               option the word is plain text. Doc: docs/ui-conventions.md,
+               option the word is plain text. With a contract selected the
+               SAME sentence carries the condition ("...if Ada is paid $80
+               to do: rewrite the store page?", owner ask 2026-08-28: modify
+               the question, do not add a second line under it), which is
+               why the "?" moves to the true end. Doc: docs/ui-conventions.md,
                "The question line". */}
-              <h2 className="pubws-instrument-ask pubws-enter pubws-enter--1">
+              <h2
+                className={`pubws-instrument-ask${selectedJob ? ' pubws-instrument-ask--cond' : ''} pubws-enter pubws-enter--1${flashContract ? ' is-flashed' : ''}`}
+              >
                 What will be {ws.name ? `${possessiveOf(ws.name)} ` : ''}
                 <CycleWord
                   what="Metric"
@@ -1046,20 +1052,17 @@ export function TradePage() {
                     activeKey={hero.marketId}
                     onStep={marketId => setHorizonId(marketId)}
                   />
-                  ?
+                  {selectedJob ? null : '?'}
                 </span>
-              </h2>
-              {selectedJob && (
-                <>
-                  <h2
-                    className={`pubws-instrument-title pubws-question pubws-enter pubws-enter--1${flashContract ? ' is-flashed' : ''}`}
-                  >
-                    if {selectedJob.proposedByName ?? 'someone'}{' '}
+                {selectedJob && (
+                  <>
+                    {' if '}
+                    {selectedJob.proposedByName ?? 'someone'}{' '}
                     {/* The phrase IS the world: green "is paid" in the
                       approved branch, red "is not paid" in the declined one,
                       and clicking it flips to the other world (owner
                       direction 2026-08-10). Both phrases share one grid
-                      cell, so the headline sizes to the longer one and
+                      cell, so the sentence sizes to the longer one and
                       never reflows on a switch, whatever the ask's width. */}
                     <WorldWord
                       branch={branch}
@@ -1079,9 +1082,13 @@ export function TradePage() {
                           : null
                       }
                     />
-                    {splitAsk(selectedJob.title).ask !== null ? ' to do:' : ':'}{' '}
-                    <span className="pubws-question-task">{splitAsk(selectedJob.title).rest}</span>
-                  </h2>
+                    {splitAsk(selectedJob.title).ask !== null ? ' to do: ' : ': '}
+                    <span className="pubws-question-task">{splitAsk(selectedJob.title).rest}</span>?
+                  </>
+                )}
+              </h2>
+              {selectedJob && (
+                <>
                   {editingJob ? (
                     /* Editing a contract in place (owner ask 2026-08-20). The
                      words save without touching the market; the price only

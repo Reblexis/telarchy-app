@@ -2329,6 +2329,11 @@ button.notif-row-link {
   color: var(--text-secondary);
 }
 
+/* Carrying a contract's condition the sentence runs long, so it gets a
+   wider measure instead of a taller stack (owner ask 2026-08-28: modify
+   the question, do not add a line). */
+.pubws-instrument-ask--cond { max-width: 40ch; }
+
 /* A cycle word: the metric or the date inside the question. Live ones wear
    the world word's dotted underline, so a clickable word looks the same
    everywhere on the floor; plain ones are just the sentence's ink. */
@@ -3912,17 +3917,6 @@ textarea.jobform-line--desc {
   .pubws-delta-chip { animation: none; }
 }
 
-/* Shares the question register with the ask line above it: looser
-   line-height and a step of air, because the sentence read cramped at the
-   headline's 1.2 (owner report 2026-08-28). */
-.pubws-question {
-  max-width: 36ch;
-  margin-left: auto;
-  margin-right: auto;
-  font-size: clamp(1.15rem, 3.4vw, 1.45rem);
-  line-height: 1.35;
-  color: var(--text-secondary);
-}
 .pubws-question-task { color: var(--text-primary); }
 
 /* The paid / not-paid phrase as the world toggle. Both phrases stack in
@@ -5391,7 +5385,6 @@ textarea.jobform-line--desc {
   overflow-wrap: anywhere;
 }
 .pubws-question-task { overflow-wrap: anywhere; }
-.pubws-question { overflow-wrap: anywhere; }
 .pubws-rail .pubws-ballot-facts { font-size: 0.72rem; }
 
 .pubws-know {

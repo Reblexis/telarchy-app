@@ -971,18 +971,22 @@ describe('a contract keeps the clock line', () => {
     expect(ask?.textContent).toMatch(/ on \d/);
   });
 
-  test('the contract states the world without repeating the metric name', async () => {
+  test('the contract folds its condition into the one question sentence', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
 
     const question = await screen.findByRole('heading', { name: /is paid \$80/ });
-    // "What is <metric> if ..." moved into the caption above, so the sentence
-    // starts at the condition. Two copies of the metric name in adjacent lines
-    // is what this replaced.
-    expect(question.textContent?.trim().startsWith('if ')).toBe(true);
-    expect(question.textContent).not.toMatch(/net revenue/i);
+    // One sentence carries the market AND the condition (owner ask
+    // 2026-08-28: modify the question, do not add a line under it): "What
+    // will be ... if Ada is paid $80 to do: rewrite the store page?".
+    expect(question.className).toContain('pubws-instrument-ask');
+    expect(question.textContent?.startsWith('What will be')).toBe(true);
+    expect(question.textContent).toMatch(/net revenue/i);
+    expect(question.textContent?.trim().endsWith('?')).toBe(true);
+    // And no second question heading under it.
+    expect(document.querySelector('.pubws-question')).toBeNull();
   });
 
   test('picking the other metric re-points the contract at that market', async () => {
