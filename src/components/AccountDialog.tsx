@@ -12,7 +12,6 @@ import {
 import { AccountCredits } from './AccountCredits';
 import { AccountPassword } from './AccountPassword';
 import { FloorModal } from './FloorModal';
-import { LiquidityWallet } from './LiquidityWallet';
 import { SeasonEntryPanel } from './SeasonEntryPanel';
 
 /**
@@ -552,7 +551,6 @@ export function AccountDialog({
               {user?.email && <span className="acctdlg-email">{user.email}</span>}
               <span className="acctdlg-stats">
                 {participant?.balance != null ? `${fmtCr(participant.balance)} cr to trade` : ''}
-                {participant?.liquidityBalance ? ` · ${fmtCr(participant.liquidityBalance)} liquidity cr` : ''}
                 {participant?.earnedBetting != null
                   ? ` · ${participant.earnedBetting > 0 ? '+' : ''}${fmtCr(participant.earnedBetting)} cr earned`
                   : ''}
@@ -919,11 +917,6 @@ export function AccountDialog({
                   )}
                   {errors.pay && <p className="ticket-err">{errors.pay}</p>}
 
-                  <LiquidityWallet
-                    balance={participant?.liquidityBalance ?? 0}
-                    workspaceIdOrSlug={floor?.idOrSlug ?? null}
-                    floorName={floor?.name ?? null}
-                  />
                   <AccountCredits me={participant} onChanged={loadParticipant} />
                   <SeasonEntryPanel />
                 </>
