@@ -30,3 +30,23 @@ spends the wallet first, LP leftovers route back to the purse that funded
 them (liquidity_events.funded_from), and the v1 UI is exactly a wallet
 line plus a Buy button (package -> Stripe checkout) in the account dialog.
 This also settles the funding-canvas open decision toward owner placement.
+
+## 2026-08-29: the wallet leaves account settings (owner decision)
+
+**DONE 2026-08-29 (Viktor, verbatim):** "liquiidty creddits purchase should
+definitely not be in acccount settings figure out a better design using
+/design how they appear and at what point.." The v1 buy flow shipped in
+Account > Money on 2026-08-28; it is removed here, plumbing kept (wallet
+column, spend-first injection, refund routing, checkout endpoint, the
+liquidityBalance field on the balance endpoints).
+
+Where it goes instead, designed on
+https://claude.ai/code/artifact/b8d1b6d1-1fdb-42a6-b084-f77424d50e09:
+the wallet appears where depth is SPENT (the owner's own floor in manage
+mode: a liquidity strip beside markets that each show their depth), and
+the purchase appears at the MOMENT OF SHORTFALL, inside the deepen sheet
+that needed it (packages inline, Stripe, back to finish the injection);
+add-a-date pays a new market's opening depth from the same wallet. Nothing
+liquidity-shaped appears in account settings, and nothing appears for a
+visitor or a pure trader. Building it belongs with manage mode
+(branch owner-metrics-screen), which owns the floor's owner controls.
