@@ -121,11 +121,14 @@ app.use(express.json());
 app.use(betaGate());
 
 app.use(async (req, res, next) => {
-  if (!isBetaPath(req.path)) return next();
-  // `/beta?branch=br-<name>` picks which build /beta shows; the published
-  // revision answers it itself, before forwarding anything (docs/infra/
-  // deploy.md, "Branch previews").
+  // `?branch=br-<name>` picks which build /beta shows and lands on the beta
+  // twin of the page asked for, from ANYWHERE on the public site: a preview
+  // link that silently served production is the one thing it must never do
+  // (owner report 2026-08-29). Before the beta-path gate for that reason,
+  // and the published revision answers it itself, before forwarding anything
+  // (docs/infra/deploy.md, "Branch previews").
   if (handleBetaBranchChoice(req, res)) return;
+  if (!isBetaPath(req.path)) return next();
   if (await proxyToCandidate(req, res)) return;
   // Nothing to forward to (this IS the candidate, or none is waiting): fall
   // through and serve the beta locally.

@@ -404,11 +404,24 @@ removed; the published revision has no tag and is never touched. An untagged
 revision keeps no instances warm and holds no connections, so a removed
 preview costs nothing.
 
-**Choosing one at /beta.** The published revision decides where `/beta/*` goes
-from a cookie. `GET /beta?branch=br-<name>` (or `/beta/?branch=`) sets
+**Choosing one, from anywhere on the site.** The published revision decides
+where `/beta/*` goes from a cookie. `GET <any page>?branch=br-<name>` sets
 `telarchy_beta_branch=br-<name>` (path `/beta`, `SameSite=Lax`, `Secure`, 30
-days) and redirects to `/beta/`; from then on every `/beta/*` request, API and
-assets included, is forwarded to the revision carrying that tag. A cookie
+days) and redirects to the BETA TWIN of the page asked for: `/` and `/beta`
+land on `/beta/`, and a real page keeps its path, so
+`telarchy.com/lookpilot?branch=br-x` opens that floor on that branch in one
+hop. From then on every `/beta/*` request, API and
+assets included, is forwarded to the revision carrying that tag.
+
+It answers anywhere because the alternative is worse than an error:
+`telarchy.com/?branch=br-instrument-stat-row` used to serve PRODUCTION while
+looking like a preview link, and every link from that page walked further
+into production (owner report 2026-08-29). Off the beta's own door an
+unrecognised `?branch=` value falls through untouched, so this can never
+hijack another page's query param; at `/beta` itself a bad value is still
+refused with 400, because there it can only be a mistyped preview. The API
+is never redirected. **The handler runs on the PUBLISHED revision**, so a
+change to it reaches visitors only once that build is published. A cookie
 naming a tag that no longer exists is ignored and the candidate answers, so an
 expired link degrades to the main beta rather than to an error.
 `?branch=candidate` or an empty value clears the cookie. Nothing else about
