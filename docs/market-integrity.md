@@ -9,7 +9,7 @@ history, are the two ways a season becomes unarguable-about. Nothing may reset
 a market, and every trade, transaction and liquidity injection is logged so
 that the state can be recreated. History: notes/decisions/market-integrity.md.
 
-## The three invariants
+## The four invariants
 
 **I1. A live market is never reset as a side effect.** (Applies to a
 contract's definition as well as a metric's: see I1b.) Destroying a market is a
@@ -24,6 +24,16 @@ refused while those people are in the market.
 balance, from any code path, writes an append-only ledger entry saying how
 much moved, why, and what it referred to. The stored balance is a cache of that
 ledger's sum, and a test proves it.
+
+**I4. Every change of a market's b leaves a row.** The book's depth
+(`markets.liquidity`, LMSR b) is only ever what the liquidity ledger says it
+became: an injection, a subsidy, or an anchored open's thinner sizing
+(`type: 'anchor'`, amount 0, recording the b the anchor bought). The price
+chart REPLAYS the ledger, so an unledgered b change makes the chart quote
+prices the book never printed: the LookPilot weekly market drew a smooth
+climb to $9,990 while every trade actually executed on a thinner anchored
+book around $5-7k, and the chart ended in a cliff onto the live price
+(owner report 2026-08-29). A replay must end where the market stands.
 
 ## I1: a definition edit splits in two
 

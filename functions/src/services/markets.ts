@@ -350,6 +350,22 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
           .update(markets)
           .set({ shares: anchored.shares, liquidity: anchored.liquidity })
           .where(eq(markets.id, p.marketId));
+        // The anchored open changes the book's b, so it leaves a ledger row
+        // (docs/market-integrity.md I4): no credits move (amount 0), but the
+        // replay prices every later trade with the b recorded here. Without
+        // it the chart replays the injection's fatter b and quotes prices
+        // the book never printed (owner report 2026-08-29, the LookPilot
+        // weekly cliff). A millisecond after the injection row, so the
+        // replay's event order never ties.
+        await tx.insert(liquidityEvents).values({
+          id: randomUUID(),
+          workspaceId,
+          marketId: p.marketId,
+          amount: 0,
+          totalLiquidity: anchored.liquidity,
+          type: 'anchor',
+          createdAt: new Date(Date.now() + 1),
+        });
       }
     }
   });
