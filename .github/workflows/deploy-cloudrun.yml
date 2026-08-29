@@ -262,7 +262,7 @@ jobs:
             --max-instances 4 \
             --set-cloudsql-instances ${{ vars.CLOUDSQL_INSTANCE }} \
             --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app,DB_POOL_MAX=4 \
-            --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest \
+            --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest,GITHUB_ACTIONS_TOKEN=GITHUB_ACTIONS_TOKEN:latest \
             --clear-base-image \
             --quiet
 
@@ -430,7 +430,7 @@ jobs:
             --max-instances 1 \
             --set-cloudsql-instances ${{ vars.CLOUDSQL_INSTANCE }} \
             --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app,DB_POOL_MAX=1 \
-            --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest \
+            --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest,GITHUB_ACTIONS_TOKEN=GITHUB_ACTIONS_TOKEN:latest \
             --clear-base-image \
             --quiet
 

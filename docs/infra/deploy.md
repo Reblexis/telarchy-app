@@ -440,8 +440,19 @@ from GitHub's public branches API and cached a minute) and marks which ones
 are built. Choosing an unbuilt one asks `POST /api/admin/branches/:name/build`
 to dispatch the deploy workflow for that ref (`workflow_dispatch` on any ref
 other than main runs the preview job), which needs a GitHub token with
-Actions write on the repository in `GITHUB_ACTIONS_TOKEN` (Secret Manager,
-mounted like the other secrets). Without the token the endpoint answers 501
+Actions write on the repository in `GITHUB_ACTIONS_TOKEN`. That secret is a
+FINE-GRAINED PAT scoped to `Reblexis/telarchy-app` alone with one permission,
+Actions: Read and write (owner decision 2026-08-29: the `gh` CLI's own token
+would have carried repo + delete_repo across every Reblexis repo into a
+server env var). It lives in Secret Manager and is mounted by both deploy
+jobs' `--update-secrets`; the runtime service account is granted
+`secretAccessor` on the secret itself, the way every other secret here is
+granted. Rotation: add a new version, redeploy (the mount resolves `latest`
+when a revision starts).
+
+The mount must not reach main before the secret has a version: Cloud Run
+refuses to deploy a revision naming a secret that does not exist, so the
+order is create the secret, grant the binding, then merge. Without the token the endpoint answers 501
 with the command that does the same by hand:
 `gh workflow run deploy-cloudrun.yml --ref <branch>`. About eight minutes
 later the branch is built and appears in the picker as such.
