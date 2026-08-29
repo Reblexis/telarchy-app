@@ -7350,11 +7350,23 @@ branch removes its tag at once. <code>candidate</code> is never counted and neve
 removed; the published revision has no tag and is never touched. An untagged
 revision keeps no instances warm and holds no connections, so a removed
 preview costs nothing.</p>
-<p><strong>Choosing one at /beta.</strong> The published revision decides where <code>/beta/*</code> goes
-from a cookie. <code>GET /beta?branch=br-&lt;name&gt;</code> (or <code>/beta/?branch=</code>) sets
+<p><strong>Choosing one, from anywhere on the site.</strong> The published revision decides
+where <code>/beta/*</code> goes from a cookie. <code>GET &lt;any page&gt;?branch=br-&lt;name&gt;</code> sets
 <code>telarchy_beta_branch=br-&lt;name&gt;</code> (path <code>/beta</code>, <code>SameSite=Lax</code>, <code>Secure</code>, 30
-days) and redirects to <code>/beta/</code>; from then on every <code>/beta/*</code> request, API and
-assets included, is forwarded to the revision carrying that tag. A cookie
+days) and redirects to the BETA TWIN of the page asked for: <code>/</code> and <code>/beta</code>
+land on <code>/beta/</code>, and a real page keeps its path, so
+<code>telarchy.com/lookpilot?branch=br-x</code> opens that floor on that branch in one
+hop. From then on every <code>/beta/*</code> request, API and
+assets included, is forwarded to the revision carrying that tag.</p>
+<p>It answers anywhere because the alternative is worse than an error:
+<code>telarchy.com/?branch=br-instrument-stat-row</code> used to serve PRODUCTION while
+looking like a preview link, and every link from that page walked further
+into production (owner report 2026-08-29). Off the beta's own door an
+unrecognised <code>?branch=</code> value falls through untouched, so this can never
+hijack another page's query param; at <code>/beta</code> itself a bad value is still
+refused with 400, because there it can only be a mistyped preview. The API
+is never redirected. <strong>The handler runs on the PUBLISHED revision</strong>, so a
+change to it reaches visitors only once that build is published. A cookie
 naming a tag that no longer exists is ignored and the candidate answers, so an
 expired link degrades to the main beta rather than to an error.
 <code>?branch=candidate</code> or an empty value clears the cookie. Nothing else about
