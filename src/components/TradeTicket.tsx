@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useEarnAvailable } from '../hooks/useEarnAvailable';
 import { previewSell, previewTargetBet, previewTrade } from '../lib/amm';
 import type { LimitOrder } from '../lib/api';
 import { amountToSlider, SLIDER_STEPS, sliderToAmount } from '../lib/bet-slider';
@@ -162,6 +164,7 @@ export function TradeTicket({
   // liquidation it replaced it cannot fund the buy itself. Someone who
   // wants their position's cash first sells it, which is the panel below.
   const maxBet = Math.max(1, Math.floor(balance != null && balance > 0 ? balance : 250));
+  const earnAvailable = useEarnAvailable(balance != null);
 
   const amountNum = Math.max(0, Math.floor(parseFloat(amount) || 0));
   const limitNum = limit.trim() === '' ? null : parseFloat(limit.replace(/,/g, ''));
@@ -676,6 +679,19 @@ export function TradeTicket({
               </div>
             )}
           </div>
+
+          {/* The ceiling, where it is felt (owner ask 2026-08-30). The
+              slider maxes at the balance, so a trader meets this wall the
+              first time they try to say something meaningful, and that is
+              the one honest place to mention there is more to earn. Shown
+              only at the ceiling, so it never nags somebody with room, and
+              only when this account actually has something unclaimed. */}
+          {earnAvailable !== null && balance != null && balance > 0 && amountNum >= balance && (
+            <p className="ticket-ceiling">
+              That is your whole balance &middot;{' '}
+              <Link to="/earn">earn {Math.round(earnAvailable).toLocaleString('en-US')} more</Link>
+            </p>
+          )}
 
           <button
             className={`ticket-go${placed ? ' is-placed' : ''} ticket-go--${dir}`}

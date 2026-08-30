@@ -292,6 +292,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h38">What a market says about itself, and what your position is worth</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h39">The data room</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h40">The frontend never speaks HTTP directly</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h41">Telling somebody there are credits to earn</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-vision-md">docs/vision.md</a></summary>
@@ -4137,6 +4138,26 @@ file, so a component doing its own <code>fetch</code> is a capability nobody can
 is also what makes &quot;an assistant acting as you can do what you can do, and
 nothing more&quot; true by construction rather than by review.</p>
 <p><code>api-parity.test.ts</code> fails the build on a <code>fetch(</code> anywhere else under <code>src/</code>.</p>
+<h2 id="docs-ui-conventions-md--h41">Telling somebody there are credits to earn</h2>
+<p>Discovery goes where the lack is felt, not where attention is cheapest
+(owner ask 2026-08-30; design
+https://claude.ai/code/artifact/9794469a-2222-4fb9-938a-c519b412d771).
+Three surfaces, no banners:</p>
+<ul>
+<li><strong>The bet ticket's ceiling.</strong> The stake slider maxes at the balance, so
+a trader meets that wall the first time they try to say something
+meaningful. The line appears only when the stake has reached the
+balance, and names the number they could have rather than the tasks.</li>
+<li><strong>The balance itself.</strong> Everywhere the balance is shown it links to
+<code>/earn</code> and carries what is unclaimed in the accent colour.</li>
+<li><strong>The top bar's earn door</strong>, for signed-in accounts only.</li>
+</ul>
+<p>Every one of them renders nothing when the account has nothing left to
+earn, and nothing when the read fails. That absence is the rule: a
+permanent &quot;earn credits&quot; affordance is furniture, while one that appears
+because there is money on the table and leaves once it is taken is
+information. A signed-out visitor keeps the Manifold pitch in the top bar
+instead, because that is the recruiting line that brought them.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>

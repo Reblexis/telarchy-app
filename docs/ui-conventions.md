@@ -1414,3 +1414,25 @@ is also what makes "an assistant acting as you can do what you can do, and
 nothing more" true by construction rather than by review.
 
 `api-parity.test.ts` fails the build on a `fetch(` anywhere else under `src/`.
+
+## Telling somebody there are credits to earn
+
+Discovery goes where the lack is felt, not where attention is cheapest
+(owner ask 2026-08-30; design
+https://claude.ai/code/artifact/9794469a-2222-4fb9-938a-c519b412d771).
+Three surfaces, no banners:
+
+- **The bet ticket's ceiling.** The stake slider maxes at the balance, so
+  a trader meets that wall the first time they try to say something
+  meaningful. The line appears only when the stake has reached the
+  balance, and names the number they could have rather than the tasks.
+- **The balance itself.** Everywhere the balance is shown it links to
+  `/earn` and carries what is unclaimed in the accent colour.
+- **The top bar's earn door**, for signed-in accounts only.
+
+Every one of them renders nothing when the account has nothing left to
+earn, and nothing when the read fails. That absence is the rule: a
+permanent "earn credits" affordance is furniture, while one that appears
+because there is money on the table and leaves once it is taken is
+information. A signed-out visitor keeps the Manifold pitch in the top bar
+instead, because that is the recruiting line that brought them.
