@@ -1485,6 +1485,10 @@ code, pre, kbd, samp {
   display: flex;
   align-items: center;
   gap: 0.9rem;
+  /* Shrinks so the logo does not have to, and a long balance can narrow
+     instead of pushing the row past the viewport. */
+  min-width: 0;
+  flex: 0 1 auto;
 }
 
 /* The two faces of the logo in the bar: the lockup on a wide screen, the
@@ -1505,10 +1509,18 @@ code, pre, kbd, samp {
     top: 0;
     background: var(--bg-primary);
     padding: 0.6rem 1rem;
+    /* A gap the flexbox can honour, so the mark and the controls never
+       touch even when the row is at its tightest. */
+    gap: 0.5rem;
   }
   .pubws-logo-wide { display: none; }
   .pubws-logo-phone { display: inline-flex; }
+  .pubws-topbar-right { gap: 0.55rem; }
 }
+@media (max-width: 480px) {
+  .pubws-topbar-right { gap: 0.4rem; }
+}
+
 
 /* ---------------------------------------------------------------------------
    Otto, the floor's market maker, in the corner (owner direction 2026-08-20).
@@ -2972,6 +2984,13 @@ button.notif-row-link {
   color: var(--text-secondary);
   white-space: nowrap;
 }
+/* Under 480px the controls and the balance together need more room than
+   the viewport has (the row measures 278px of controls beside a 46px mark
+   inside a 320px screen), and something has to fold. The balance folds
+   rather than a control: the account panel right beside it prints the
+   same figure with the earned line under it, so nothing becomes
+   unreachable. */
+@media (max-width: 480px) { .acctmenu-credits { display: none; } }
 
 .acctmenu-avatar {
   display: grid;
@@ -4556,7 +4575,20 @@ textarea.jobform-line--desc {
 .pubws-delta-chip.is-up { color: var(--higher); }
 .pubws-delta-chip.is-down { color: var(--lower); }
 
-.pubws-logolink { display: inline-flex; align-items: center; }
+/* The logo is never the thing that gives way. As a plain flex item it
+   shrank with the bar and the mark rendered at 0 x 32 on a 360px screen:
+   present in the DOM, invisible on the glass, and the wordmark squashed
+   before that (owner report 2026-08-30). Fixed size, and the right-hand
+   cluster is what adapts. */
+.pubws-logolink {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.pubws-logolink .logo-img {
+  flex: none;
+  max-width: none;
+}
 /* No display rule for .logo-img here: the light/dark pair is switched by
    .logo-img-light / .logo-img-dark (0,1,0), and a descendant rule on the
    shared class (0,2,0) outranks both, which painted BOTH lockups on every

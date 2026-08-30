@@ -142,6 +142,15 @@ tall on that display and the logo is the only way back to the floors list,
 so a bar that scrolls away leaves a phone reader with no way home short of
 scrolling to the top. On wider screens it scrolls with the page as before.
 
+The logo is never what gives way. Whatever the viewport, the mark keeps its
+own proportions and its full 2rem height: it is not squeezed narrower than
+it is drawn, and a bar too tight for everything on it narrows the controls
+instead. In order, the row sheds the Manifold door (under 520px, its pitch
+being the least urgent thing on a phone) and then the credit balance (under
+480px, the account popover beside it printing the same figure with the
+earned line under it). Every control survives every width, and no width
+pushes the bar past the edge of the screen.
+
 Left of the account, on every top bar, sits the theme toggle: one quiet
 icon in the same sliding-label treatment as the Discord and report
 buttons, showing the theme it would switch TO (a moon on a light page, a
