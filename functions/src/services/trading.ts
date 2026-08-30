@@ -378,6 +378,10 @@ async function redeemMatchedPairs(
     also: { earnedBetting: sql`${agents.earnedBetting} + ${pairs}` },
   });
 
+  // ONE instant for both rows: the replay prices rows written at the same
+  // instant as a single move, which is what stops the pair drawing a dip
+  // the market never printed.
+  const at = new Date();
   await tx.insert(trades).values([
     {
       id: randomUUID(),
@@ -387,7 +391,7 @@ async function redeemMatchedPairs(
       direction: 'higher',
       shares: -pairs,
       cost: -higherPart,
-      createdAt: new Date(),
+      createdAt: at,
     },
     {
       id: randomUUID(),
@@ -397,7 +401,7 @@ async function redeemMatchedPairs(
       direction: 'lower',
       shares: -pairs,
       cost: -lowerPart,
-      createdAt: new Date(),
+      createdAt: at,
     },
   ]);
   return pairs;

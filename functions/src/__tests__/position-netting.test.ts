@@ -256,6 +256,10 @@ describe('a redemption is on the record, and the replay can see it', () => {
     // And the redemption itself printed no new price: the point it added
     // sits at the same value as the buy that preceded it.
     expect(series[series.length - 1].consensus).toBeCloseTo(res.body.consensus, 2);
+    // Neither did the first of its two rows. Priced row by row, the higher
+    // row alone drew a dip the market never printed, and the lower row
+    // undid it one point later: a sawtooth on every redemption.
+    expect(series[series.length - 2].consensus).toBeCloseTo(res.body.consensus, 2);
   });
 
   test('the credits redeemed leave a ledger row that says why', async () => {
