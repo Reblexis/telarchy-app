@@ -111,13 +111,23 @@ and a preview taking a payment nothing credits is worse than a preview that
 refuses. Both secrets are `:latest`, so a key rotation is a new secret
 version plus a redeploy, never a workflow edit.
 
-**The keys are Stripe TEST keys today** (account `acct_1UAC7kRK31zITseN`,
-"Telarchy sandbox", CZ, Managed Payments so Stripe carries the VAT). While
-they are, only Stripe's test cards pay: `4242 4242 4242 4242`, any future
-expiry, any CVC. Going live is three moves, in this order, because the
-webhook secret belongs to the endpoint and the endpoint belongs to the mode:
-register a live-mode endpoint on `https://telarchy.com/api/stripe/webhook`
-for `checkout.session.completed` and `checkout.session.async_payment_succeeded`,
-add the live `sk_live_` and that endpoint's `whsec_` as new versions of the
-two secrets, then redeploy. The test endpoint stays where it is, pointed at
-the candidate, so the flow can still be exercised without a real card.
+**telarchy.com takes real cards** (live account `acct_1UAC7ZEilg3s7qOW`,
+"Telarchy", CZ, Managed Payments so Stripe is merchant of record and carries
+the VAT on cross-border digital sales, Radar Lite). The live pair is version
+2 of both secrets and the live webhook endpoint is
+`https://telarchy.com/api/stripe/webhook`.
+
+The sandbox account is version 1 of the same two secrets, kept for rehearsal:
+pointing the test endpoint back at the candidate and rolling both secrets to
+version 1 puts an instance in test mode, where only `4242 4242 4242 4242`
+pays. Either direction is the same three moves, in this order, because a
+webhook secret belongs to its endpoint and an endpoint belongs to its mode:
+register the endpoint for `checkout.session.completed` and
+`checkout.session.async_payment_succeeded`, add the key and that endpoint's
+`whsec_` as new secret versions, then redeploy so a revision starts with
+them (`:latest` is read when a revision starts, never after).
+
+One number is worth knowing before rehearsing anything against production: a
+completed purchase enters `revenue30dUsd`, which is the settlement source of
+the public "Telarchy revenue (USD)" market, so a test payment there would put
+money that does not exist into a number other people are trading.
