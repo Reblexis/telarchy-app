@@ -1916,7 +1916,9 @@ A per-credit exchange rate would make every market a real-money bet
 $5,000, manage capability + a participant identity): records a pending
 purchase and returns a Stripe Checkout URL.</li>
 <li>Stripe calls <code>POST /api/stripe/webhook</code> (raw body, signature verified,
-no other auth). On <code>checkout.session.completed</code> with <code>payment_status: &quot;paid&quot;</code> (or <code>async_payment_succeeded</code>), the purchase is fulfilled
+no other auth; the route picks its store from the request host, because it
+is mounted before the swap that does it for everything else, and a purchase
+rehearsed on the candidate belongs to the beta store). On <code>checkout.session.completed</code> with <code>payment_status: &quot;paid&quot;</code> (or <code>async_payment_succeeded</code>), the purchase is fulfilled
 idempotently: its credits land in the buyer's liquidity wallet. Placing
 them is the owner's hand on the floor: the market liquidity endpoint
 spends the wallet first whenever it covers the whole amount.</li>

@@ -43,7 +43,9 @@ true, and every change to this feature must preserve all three:
   $5,000, manage capability + a participant identity): records a pending
   purchase and returns a Stripe Checkout URL.
 - Stripe calls `POST /api/stripe/webhook` (raw body, signature verified,
-  no other auth). On `checkout.session.completed` with `payment_status:
+  no other auth; the route picks its store from the request host, because it
+  is mounted before the swap that does it for everything else, and a purchase
+  rehearsed on the candidate belongs to the beta store). On `checkout.session.completed` with `payment_status:
   "paid"` (or `async_payment_succeeded`), the purchase is fulfilled
   idempotently: its credits land in the buyer's liquidity wallet. Placing
   them is the owner's hand on the floor: the market liquidity endpoint
