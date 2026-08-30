@@ -1378,3 +1378,29 @@ capped at the four furthest-resolving markets, which on a two-metric,
 three-date floor left the daily markets with no chart. The cap is gone; the
 metric log is read once per distinct metric, not once per market, so the cost
 is per metric and the cap had nothing left to protect.
+
+**revised 2026-08-28 (Viktor)**: the marketplace tile is "Create your own"
+and opens the self-serve create-floor dialog (a name, nothing else), landing
+on the empty floor where the first metric is one dialog away. Supersedes the
+2026-08-26 "email only, not otto yet" state: creation no longer needs a
+person, so the tile's promise is a floor in a minute, not contact within
+days. Signed out, the button leads to signup. ("okay now add support for new
+workspace craeteion from telarchy.com when instead of get setup there should
+be create your own or something like that and that lead to the empty
+worksapce where you can add metric .. add mniimumm stuff")
+
+**revised 2026-08-28 (Viktor)**: everything public by default. "nothing
+should be private.. everything should be public fully by default for now"
+retires the 2026-08-21 public-to-unlisted clamp: a created floor is public
+and on the front list immediately, and an owner's not-yet-public floor shows
+IN the grid to them, first among the others, badged "Yours · not public
+yet", never in a private side list. The season subsidy-extraction risk the
+clamp guarded is accepted knowingly and recorded in vision.md.
+
+**revised 2026-08-28 (Viktor, later)**: publishing is a visible gated step.
+"1. the publish button should be better designe and more visible 2. there
+should be at least one metric for ittob e publishable". A new floor starts
+unlisted (not public at birth: it cannot satisfy the metric gate), the floor
+carries a publish band card with one ink button for its owner, and the flip
+to public is refused server-side while the floor has no metric. Supersedes
+the same-day public-at-creation default.

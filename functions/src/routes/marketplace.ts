@@ -26,7 +26,7 @@ import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
 import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
 import { wrap } from '../lib/wrap';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, getAuthWorkspaceMemberships } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { dataRoomTool } from '../services/data-room';
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
@@ -357,8 +357,23 @@ marketplaceRouter.get(
       return;
     }
     if (ws.visibility === 'private') {
-      res.status(403).json({ error: 'This workspace is private' });
-      return;
+      // A private floor is still ITS OWNER'S floor. The route is optionally
+      // authed (route-policy), so a signed-in owner or member arrives with
+      // req.auth; refusing them 403'd the person who had just created it
+      // (owner report 2026-08-28). Everyone else keeps the 403.
+      const { uid, agentId, isMasterKey } = req.auth ?? {};
+      let allowed = isMasterKey === true;
+      if (!allowed && (uid || agentId)) {
+        if (ws.createdBy === (uid ?? agentId)) allowed = true;
+        else {
+          const memberships = await getAuthWorkspaceMemberships({ uid, agentId });
+          allowed = memberships.some(m => m.workspaceId === ws.id);
+        }
+      }
+      if (!allowed) {
+        res.status(403).json({ error: 'This workspace is private' });
+        return;
+      }
     }
     res.json(await buildFloorPayload(ws));
   }),

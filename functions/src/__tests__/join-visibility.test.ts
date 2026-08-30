@@ -42,7 +42,7 @@ jest.mock('../middleware/auth', () => {
 import { and, eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, permissionGroups } from '../db/schema';
+import { agents, metrics, permissionGroups } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
 import { authMiddleware } from '../middleware/auth';
@@ -81,6 +81,18 @@ async function seedWorkspace(wsId: string, visibility: Vis) {
     createdBy: OWNER,
     ownerAgentId: OWNER,
     visibility,
+  });
+  // Going public is gated on a metric existing (docs/vision.md, 2026-08-28);
+  // this spec is about the Public group's capabilities, so every workspace
+  // it seeds satisfies the gate.
+  await db.insert(metrics).values({
+    id: `metric-${wsId}`,
+    workspaceId: wsId,
+    name: 'A number',
+    description: '',
+    value: 0,
+    formula: '',
+    order: 0,
   });
 }
 

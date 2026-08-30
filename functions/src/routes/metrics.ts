@@ -1,8 +1,8 @@
 import { randomUUID } from 'crypto';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
-import { markets, metricDefinitionRevisions, metricLogs, metrics, updates } from '../db/schema';
+import { agents, markets, metricDefinitionRevisions, metricLogs, metrics, trades, updates } from '../db/schema';
 import { isValidCalendarDate, periodEndInstant } from '../lib/date-utils';
 import { assertMetricMarketsUntraded } from '../lib/market-freeze';
 import {
@@ -11,7 +11,9 @@ import {
   getAffectedMetrics,
   getTransitiveDependencyNames,
 } from '../lib/metrics-engine';
+import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { desiredMarketDates, generatesMarkets, getLeafDescendantNames } from '../lib/time-preference';
+import { fromUnits, liquiditySpendableUnits } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { emitEvent } from '../services/events';
@@ -213,11 +215,51 @@ metricsRouter.put(
     }
     // marketRangeMax leaf-only check happens after oldRow is fetched (effectiveFormula needed)
 
+    // What a NEW market on this metric opens with (docs/owner-on-the-floor.md). null
+    // puts the metric back on the workspace default; it never touches a market
+    // that is already open, which is what the page tells the owner.
+    const hasCredits = Object.prototype.hasOwnProperty.call(fields, 'liquidityCredits');
+    if (hasCredits && fields.liquidityCredits !== null) {
+      const v = fields.liquidityCredits;
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
+        res
+          .status(400)
+          .json({ error: 'liquidityCredits must be a non-negative number, or null for the workspace default' });
+        return;
+      }
+      // The add-date dialog promises "leaves your balance the moment it
+      // opens". When the balance cannot keep that promise, refuse HERE with
+      // both numbers rather than opening an unfunded market that answers
+      // every trade with "no liquidity" (owner report 2026-08-28: "why cant
+      // i trade on it?"). Lowering the number is always allowed.
+      if (v > 0) {
+        const ownerId = await resolveWorkspaceOwnerAgentId(workspaceId);
+        const [owner] = ownerId
+          ? await db
+              .select({ balance: agents.balance, liquidityBalance: agents.liquidityBalance })
+              .from(agents)
+              .where(eq(agents.id, ownerId))
+          : [];
+        // What can go into a POOL: the bought liquidity wallet plus the
+        // tradeable balance, in the order an injection spends them
+        // (lib/validation, two currencies since 2026-08-28). Reading
+        // `balance` alone refused an owner sitting on a funded wallet.
+        const balance = fromUnits(owner ? liquiditySpendableUnits(owner) : 0);
+        if (balance < v) {
+          res.status(400).json({
+            error: `You hold ${Math.floor(balance).toLocaleString('en-US')} credits and this market would open with ${Math.round(v).toLocaleString('en-US')}. Lower the liquidity, or top up first.`,
+          });
+          return;
+        }
+      }
+    }
+
     const allowed = ['name', 'description', 'value', 'formula', 'marketRangeMax'] as const;
     const update: Record<string, unknown> = {};
     for (const key of allowed) {
       if (fields[key] !== undefined) update[key] = fields[key];
     }
+    if (hasCredits) update.liquidityCredits = fields.liquidityCredits;
     if (Object.keys(update).length === 0 && rawTP === undefined && newResets === undefined && newNa === undefined) {
       res.status(400).json({ error: 'No fields to update' });
       return;
@@ -277,6 +319,10 @@ metricsRouter.put(
     if (update.formula !== undefined) dbUpdate.formula = update.formula as string;
     if (update.marketRangeMax !== undefined) dbUpdate.marketRangeMax = (update.marketRangeMax as number | null) ?? 1000;
     if (update.timePreference !== undefined) dbUpdate.timePreference = update.timePreference as TimePreference | null;
+    // hasOwnProperty, not !== undefined: null is the meaningful value here
+    // (back to the workspace default), and it must reach the column.
+    if (Object.prototype.hasOwnProperty.call(update, 'liquidityCredits'))
+      dbUpdate.liquidityCredits = update.liquidityCredits as number | null;
     if (newResets !== undefined) dbUpdate.resetsEvery = newResets;
     if (newNa !== undefined) dbUpdate.resolvesNaUntilMeasured = newNa;
     dbUpdate.updatedAt = new Date();
@@ -293,22 +339,46 @@ metricsRouter.put(
     // and nothing silently diverges; get the range right before opening, or
     // wait for the market to settle.
     const settlementFields = settlementFieldChanges(oldRow, update, effectiveFormula);
+    // Refused while anyone is in the market, respawned while nobody is
+    // (docs/market-integrity.md). A traded market's range cannot move under
+    // its positions; an untraded book protects nobody, so it is voided (its
+    // pool refunds to its funders) and respawned below at the new machinery.
+    // This is what lets a metric be created from a name and a description
+    // alone and get its range right before the first trade.
+    let respawnAfterMachineryChange = false;
     if (settlementFields.length > 0) {
-      const [openMarket] = await db
+      const openMarkets = await db
         .select({ id: markets.id, targetDate: markets.targetDate })
         .from(markets)
-        .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)))
-        .limit(1);
-      if (openMarket) {
-        res.status(409).json({
-          error:
-            `Cannot change ${settlementFields.join(' or ')} while a market on this metric is open: ` +
-            'that is what the open market settles on. Wait for it to resolve, or void it deliberately first.',
-          fields: settlementFields,
-          openMarketId: openMarket.id,
-          targetDate: openMarket.targetDate,
-        });
-        return;
+        .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)));
+      if (openMarkets.length > 0) {
+        const [traded] = await db
+          .select({ id: trades.id, marketId: trades.marketId })
+          .from(trades)
+          .where(
+            and(
+              eq(trades.workspaceId, workspaceId),
+              inArray(
+                trades.marketId,
+                openMarkets.map(m => m.id),
+              ),
+            ),
+          )
+          .limit(1);
+        if (traded) {
+          const openMarket = openMarkets.find(m => m.id === traded.marketId) ?? openMarkets[0];
+          res.status(409).json({
+            error:
+              `Cannot change ${settlementFields.join(' or ')} while a market on this metric has trades: ` +
+              'that is what the open market settles on. Wait for it to resolve, or void it deliberately first.',
+            fields: settlementFields,
+            openMarketId: openMarket.id,
+            targetDate: openMarket.targetDate,
+          });
+          return;
+        }
+        await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
+        respawnAfterMachineryChange = true;
       }
     }
 
@@ -354,7 +424,7 @@ metricsRouter.put(
     // doesn't, then ensure the new desired set (creates missing markets and
     // reactivates inactive-but-desired ones). Covers enable, disable, curve
     // parameter changes, custom horizon edits, and explicit clear alike.
-    if (rawTP !== undefined) {
+    if (rawTP !== undefined || respawnAfterMachineryChange) {
       const oldDesired = generatesMarkets(oldTP) ? desiredMarketDates(oldTP) : [];
       const newDesired = generatesMarkets(effectiveTPRecord)
         ? new Set(desiredMarketDates(effectiveTPRecord))

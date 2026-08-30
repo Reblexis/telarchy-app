@@ -151,6 +151,7 @@ function renderFloor(entries: string[] = ['/lookpilot']) {
   return render(
     <MemoryRouter initialEntries={entries}>
       <Routes>
+        <Route path="/marketplace/:workspaceId" element={<TradePage />} />
         <Route path="/:slug" element={<TradePage />} />
       </Routes>
       <BellStandIn />
@@ -1168,5 +1169,56 @@ describe('the chart control row', () => {
     expect(screen.queryByText(/now /)).toBeNull();
     expect(container.querySelector('.pubws-numchart .nchart-empty')?.textContent).toBe('no reading yet');
     expect(container.querySelector('.pubws-numchart .pubws-updated')).toBeNull();
+  });
+});
+
+describe('the owner of a not-public floor', () => {
+  test('/marketplace/{id} does NOT canonicalize a private floor to its slug', async () => {
+    // Slug resolution excludes private floors, so the slug URL 404s. The
+    // canonicalizer rewriting the address anyway meant loading your own
+    // floor immediately refetched it into a 404 (owner report 2026-08-28).
+    const { api } = await import('../../lib/api');
+    const ws = { ...h.workspace(), visibility: 'private', slug: 'my-life' };
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    renderFloor([`/marketplace/${ws.workspaceId}`]);
+    await screen.findByText(h.workspace().name);
+    // Still at the id address: the loads stayed on the id, never the slug.
+    const loads = vi.mocked(api.getMarketplaceWorkspace).mock.calls.map(c => c[0]);
+    expect(loads).not.toContain('my-life');
+  });
+
+  test('/marketplace/{id} still canonicalizes a PUBLIC floor to its slug', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = { ...h.workspace(), visibility: 'public', slug: 'lookpilot' };
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    renderFloor([`/marketplace/${ws.workspaceId}`]);
+    await screen.findByText(h.workspace().name);
+    await waitFor(() => {
+      const loads = vi.mocked(api.getMarketplaceWorkspace).mock.calls.map(c => c[0]);
+      expect(loads).toContain('lookpilot');
+    });
+  });
+
+  test('the publish band never renders for a visitor', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = { ...h.workspace(), visibility: 'unlisted' };
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    vi.mocked(api.getProfile).mockResolvedValue({ capabilities: ['read', 'trade', 'manage'] } as never);
+    renderFloor();
+    // Signed out in this harness, so canManage stays false: no band, no button.
+    await screen.findByText(h.workspace().name);
+    expect(screen.queryByText('Publish this floor')).toBeNull();
+    expect(screen.queryByText(/Only people with the link/)).toBeNull();
+  });
+});
+
+describe('a floor with no market yet', () => {
+  test('a visitor sees the honest state, not a broken page', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = { ...h.workspace(), markets: [], marketHistory: [], marketHistoryMarketId: null };
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    renderFloor();
+    expect(await screen.findByText('Nothing is priced here yet. The owner has not added a number.')).toBeTruthy();
+    expect(screen.queryByText('Higher')).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
-import { type FormEvent, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { CreateWorkspaceDialog } from '../components/OwnerDialogs';
 import { useAuth } from '../hooks/useAuth';
 import type { PrizeSeason } from '../lib/api';
 import { api } from '../lib/api';
@@ -46,6 +47,9 @@ interface Listing {
   } | null;
   participants: number | null;
   tradesThisWeek: number | null;
+  /** Set for the caller's own floors: 'unlisted' | 'private' badges the card
+   *  "Yours · not public yet"; a public own floor is a card like any other. */
+  mineVisibility?: string;
 }
 
 function fmtHero(v: number, unit: string): string {
@@ -138,41 +142,22 @@ function activityLine(r: Listing): string {
 /**
  * The listing tile: the last cell of the grid, and the only interactive one.
  *
- * "Get set up" opens an email field IN PLACE and posts it to /api/waitlist
- * (docs/ui-conventions.md, "the marketplace"). The tile has led to Otto's
- * setup door at /manage since 2026-08-24; the owner sent it back to the email
- * on 2026-08-26 ("make get setup up lead to filling in email only again.. not
- * otto yet", notes/decisions/ui-conventions.md). The setup conversation is
- * still being hardened, and the first floors are set up with a person, so the
- * honest promise on the front page is contact within days, not a chat that
- * may not finish the job. Never queue language: an address here is a request
- * that gets answered, not a place in line.
+ * "Create your own" opens the create-floor dialog and lands the owner on
+ * their empty floor, where the first metric is one more dialog away (owner
+ * ask 2026-08-28, replacing the 2026-08-26 email field: creation is
+ * self-serve now, so the honest promise on the front page is a floor in a
+ * minute, not contact within days; notes/decisions/ui-conventions.md).
+ * Signed out, the same button is the door to signing up, because a floor
+ * needs an owner to belong to.
  *
  * Dual-scope on purpose. A person governing their own goal is as welcome as a
  * company (AGENTS.md, "Scope"), and the tile is the one place on the home page
  * where a visitor decides which side they are on.
  */
 function ListYourNumberCard() {
-  const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(false);
-  const [error, setError] = useState('');
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setBusy(true);
-    try {
-      // Already listed counts as success: the client resolves a 409.
-      await api.joinWaitlist({ email, source: 'marketplace' });
-      setDone(true);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const [creating, setCreating] = useState(false);
 
   return (
     <div className="mkt-card mkt-card--new">
@@ -184,33 +169,18 @@ function ListYourNumberCard() {
       </span>
       <span className="mkt-new-title">List your own number</span>
       <span className="mkt-new-sub">
-        A company, a project, or something you are running yourself. Leave an email and we set it up with you.
+        A company, a project, or something you are running yourself. Name it, add the number, share the link.
       </span>
-      {done ? (
-        <p className="pubws-setup-done">Got it. We will get back to you within a few days.</p>
-      ) : open ? (
-        <form className="mkt-new-form" onSubmit={e => void submit(e)}>
-          <div className="pubws-setup-row">
-            <input
-              type="email"
-              required
-              autoFocus
-              placeholder="you@example.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              aria-label="Your email"
-            />
-            <button type="submit" disabled={busy}>
-              {busy ? 'Sending…' : 'Get set up'}
-            </button>
-          </div>
-          {error && <p className="pubws-setup-err">{error}</p>}
-        </form>
-      ) : (
-        <button type="button" className="mkt-new-cta" onClick={() => setOpen(true)}>
-          Get set up
+      {user || loading ? (
+        <button type="button" className="mkt-new-cta" disabled={loading} onClick={() => setCreating(true)}>
+          Create your own
         </button>
+      ) : (
+        <Link className="mkt-new-cta" to="/signup">
+          Create your own
+        </Link>
       )}
+      {creating && <CreateWorkspaceDialog onClose={() => setCreating(false)} onCreated={path => navigate(path)} />}
     </div>
   );
 }
@@ -265,6 +235,80 @@ function SeasonDoor() {
 export function FloorsPage() {
   const { user, loading: authLoading } = useAuth();
   const [listings, setListings] = useState<Listing[] | null>(null);
+
+  // The caller's own not-yet-public floors join the grid, first, among the
+  // others, badged "Yours · not public yet" (owner decision 2026-08-28:
+  // everything public by default; what is not public yet is still not hidden
+  // from the person it belongs to). Public own floors are already in the
+  // grid like anyone else's.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    api
+      .listWorkspaces()
+      .then(list => {
+        if (cancelled || !Array.isArray(list)) return;
+        const mine = (
+          list as Array<{
+            id: string;
+            name: string;
+            slug?: string | null;
+            description?: string | null;
+            visibility?: string;
+          }>
+        )
+          .filter(w => w.visibility !== 'public')
+          .map(w => ({
+            workspaceId: w.id,
+            slug: null,
+            name: w.name,
+            description: w.description ?? null,
+            pendingJobs: 0,
+            hero: null,
+            participants: null,
+            tradesThisWeek: null,
+            mineVisibility: w.visibility ?? 'private',
+          }));
+        if (mine.length === 0) return;
+        setListings(cur => [
+          ...mine.filter(m => !(cur ?? []).some(r => r.workspaceId === m.workspaceId)),
+          ...(cur ?? []),
+        ]);
+        mine.forEach(row => {
+          api
+            .getMarketplaceWorkspace(row.workspaceId)
+            .then(ws => {
+              if (cancelled) return;
+              const m = primaryHorizonOf(buildHorizonViews(ws));
+              setListings(cur =>
+                (cur ?? []).map(r =>
+                  r.workspaceId === row.workspaceId
+                    ? {
+                        ...r,
+                        participants: ws.participantCount ?? null,
+                        tradesThisWeek: ws.tradesThisWeek ?? null,
+                        hero: m
+                          ? {
+                              metricName: m.metricName,
+                              consensus: m.consensus,
+                              unit: m.unit,
+                              settles: m.settleDay,
+                              history: priceSeriesOf(m.marketId, ws, {}),
+                            }
+                          : r.hero,
+                      }
+                    : r,
+                ),
+              );
+            })
+            .catch(() => {});
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -336,14 +380,15 @@ export function FloorsPage() {
             So the sentence IS the opening, set in the display face, and the
             cards under it are the evidence.
 
-            The mechanism, said once, in the terms of the thing on screen:
-            every listing is one number someone is trying to move, and the way
-            to move it is a paid job the market prices before the owner pays
-            for it. */}
-        <h1 className="mkt-thesis">Every market here is one number someone is trying to move.</h1>
+            The mechanism, said once, to both sides of the page
+            (docs/ui-conventions.md; owner 2026-08-28: the old "one number
+            someone is trying to move" line was no longer true of a grid
+            anyone can put their own numbers on, and "one number" was never
+            the pitch). */}
+        <h1 className="mkt-thesis">Real numbers, priced by the people betting on where they land.</h1>
         <p className="mkt-lead">
-          Anyone, human or AI, can propose a paid job that would move it, and the market prices the job before the owner
-          decides.
+          A company's revenue, a project's users, your own goal. Trade them and get paid to be right, or put your own
+          numbers up and get live forecasts before you decide.
         </p>
 
         <SeasonDoor />
@@ -361,6 +406,7 @@ export function FloorsPage() {
               <Link key={r.workspaceId} className="mkt-card" to={`/${r.slug || `marketplace/${r.workspaceId}`}`}>
                 <span className="mkt-card-head">
                   <span className="mkt-card-name">{r.name}</span>
+                  {r.mineVisibility && <span className="mkt-card-mine">Yours · not public yet</span>}
                   {r.hero?.consensus != null && (
                     <span className="mkt-card-price">{fmtHero(r.hero.consensus, r.hero.unit)}</span>
                   )}

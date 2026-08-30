@@ -17,6 +17,7 @@ import { MarketChart } from '../components/MarketChart';
 import { MarketFacts } from '../components/MarketFacts';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart } from '../components/NumberChart';
+import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog } from '../components/OwnerDialogs';
 import { PositionSummary } from '../components/PositionSummary';
 import { ReportButton } from '../components/ReportButton';
 import { SubjectAbout } from '../components/SubjectAbout';
@@ -67,10 +68,6 @@ import { periodGapOf } from '../lib/period-gap';
  * A signed-in visitor on an Open workspace is joined silently; membership is
  * bookkeeping, not a decision.
  */
-
-function fmtShares(v: number): string {
-  return v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1);
-}
 
 // Hoisted so ReactMarkdown's props keep their identity across renders;
 // inline literals re-ran the whole unified parse pipeline per page render.
@@ -196,6 +193,17 @@ export function TradePage() {
   // floor). manage capability on this workspace reveals them on a selected
   // job; everyone else never sees the bar.
   const [canManage, setCanManage] = useState(false);
+
+  // The owner's three dialogs (docs/owner-on-the-floor.md, "The v1 controls").
+  // One slot: they never stack, and adding a metric flows straight into adding
+  // its date, because a metric with no date has no market.
+  const [publishBusy, setPublishBusy] = useState(false);
+  const [ownerDialog, setOwnerDialog] = useState<
+    | null
+    | { kind: 'new-metric' }
+    | { kind: 'add-date'; metricId: string; metricName: string }
+    | { kind: 'inject'; marketId: string; marketLabel: string; pool: number; traders: number }
+  >(null);
   // Who the viewer is as a participant, so the floor can tell "my contract"
   // from someone else's. A proposer edits their own; a manager edits any.
   const [myAgentId, setMyAgentId] = useState<string | null>(null);
@@ -236,9 +244,12 @@ export function TradePage() {
   useEffect(reload, [idOrSlug]);
 
   // Canonical URL is the root-level slug; shared /marketplace/<x> links
-  // keep working and quietly become /<slug>.
+  // keep working and quietly become /<slug>. PUBLIC floors only: slug
+  // resolution excludes a private floor, so canonicalizing one rewrote the
+  // owner's own page into an address that 404'd it one render later (owner
+  // report 2026-08-28, "trade page fetch failed: 404" in triplicate).
   useEffect(() => {
-    if (!ws?.slug) return;
+    if (!ws?.slug || ws.visibility !== 'public') return;
     if (location.pathname.startsWith('/marketplace/')) {
       navigate(`/${ws.slug}`, { replace: true });
     }
@@ -300,6 +311,20 @@ export function TradePage() {
     // the login or the floor, so key on their identities, not the object.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, ws?.workspaceId]);
+
+  // What a new market opens with, prefilled into the add-date dialog. Owner
+  // only, and the member-gated workspace read is the row that carries it.
+  const [defaultCredits, setDefaultCredits] = useState(1000);
+  useEffect(() => {
+    if (!canManage || !ws?.workspaceId) return;
+    api
+      .getWorkspace(ws.workspaceId)
+      .then(w => {
+        const c = (w as { newMarketLiquidityCredits?: number }).newMarketLiquidityCredits;
+        if (typeof c === 'number' && c > 0) setDefaultCredits(c);
+      })
+      .catch(() => {});
+  }, [canManage, ws?.workspaceId]);
 
   const decide = async (action: 'approve' | 'decline', refund = false) => {
     if (!selectedJobId || !ws) return;
@@ -949,6 +974,64 @@ export function TradePage() {
               {ws.description && <p className="pubws-ws-tagline">{ws.description}</p>}
             </header>
           )}
+          {/* The publish band (owner asks 2026-08-28: a real, visible
+            button, and nothing publishes without a metric). Only the owner
+            sees it, only on a not-yet-public floor, and it says the one
+            precondition honestly instead of offering a button that the
+            server would refuse. */}
+          {canManage && ws.visibility && ws.visibility !== 'public' && (
+            <section className="pubws-publish pubws-enter" aria-label="Publish this floor">
+              <p className="pubws-publish-title">Only people with the link can see this floor</p>
+              {(ws.metricCount ?? 0) > 0 ? (
+                <>
+                  <p className="pubws-publish-sub">
+                    Publish it and it joins the telarchy.com list, open for anyone to trade.
+                  </p>
+                  <button
+                    type="button"
+                    className="pubws-cta pubws-publish-go"
+                    disabled={publishBusy}
+                    onClick={() => {
+                      setPublishBusy(true);
+                      api
+                        .updateWorkspaceSettings(ws.workspaceId, { visibility: 'public' })
+                        .then(reload)
+                        .catch(e => console.error('publish failed:', e))
+                        .finally(() => setPublishBusy(false));
+                    }}
+                  >
+                    {publishBusy ? 'Publishing…' : 'Publish this floor'}
+                  </button>
+                </>
+              ) : (
+                <p className="pubws-publish-sub">
+                  Add a number first: a floor with no metric has nothing to trade. The publish button appears the moment
+                  one exists.
+                </p>
+              )}
+            </section>
+          )}
+          {/* A floor with no market yet. For its owner this is the moment
+            after "Create your own" (docs/owner-on-the-floor.md): the first
+            metric is one dialog away, and it chains straight into its date,
+            because a metric with no date has no market. Everyone else sees
+            the honest state, not a broken page. */}
+          {!hero && (
+            <section className="pubws-instrument pubws-enter" aria-label="No market yet">
+              {canManage ? (
+                <>
+                  <p className="pubws-na-note">No number here yet. A floor starts when you add one.</p>
+                  <div className="pubws-act">
+                    <button type="button" className="pubws-cta" onClick={() => setOwnerDialog({ kind: 'new-metric' })}>
+                      Add your first metric
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="pubws-na-note">Nothing is priced here yet. The owner has not added a number.</p>
+              )}
+            </section>
+          )}
           {hero && active && (
             <section className="pubws-instrument" aria-label="The market">
               {/* Selecting a job re-points this one view at its conditional
@@ -1002,9 +1085,31 @@ export function TradePage() {
                         {captionLabel(m.metricLabel, ws.name)}
                       </button>
                     ))}
+                    {canManage && (
+                      <button
+                        type="button"
+                        className="pubws-seg-btn pubws-seg-add"
+                        aria-label="Add a metric"
+                        onClick={() => setOwnerDialog({ kind: 'new-metric' })}
+                      >
+                        + metric
+                      </button>
+                    )}
                   </span>
                 ) : (
-                  captionLabel(metricLabel, ws.name)
+                  <>
+                    {captionLabel(metricLabel, ws.name)}
+                    {canManage && (
+                      <button
+                        type="button"
+                        className="pubws-date-add"
+                        aria-label="Add a metric"
+                        onClick={() => setOwnerDialog({ kind: 'new-metric' })}
+                      >
+                        + metric
+                      </button>
+                    )}
+                  </>
                 )}
               </h2>
               {hero && (
@@ -1031,6 +1136,20 @@ export function TradePage() {
                     >
                       {dateSegmentOf(hero)}
                     </span>
+                  )}
+                  {/* The owner opens a market where the dates are, not on a
+                    settings page (docs/owner-on-the-floor.md). */}
+                  {canManage && hero?.metricId && (
+                    <button
+                      type="button"
+                      className="pubws-date-add"
+                      aria-label="Price this metric on another date"
+                      onClick={() =>
+                        setOwnerDialog({ kind: 'add-date', metricId: hero.metricId, metricName: metricLabel })
+                      }
+                    >
+                      + date
+                    </button>
                   )}
                 </div>
               )}
@@ -1640,6 +1759,16 @@ export function TradePage() {
                         traders={hero.traderCount ?? 0}
                         pool={hero.liquidity}
                         volume={hero.tradedVolume ?? 0}
+                        canManage={canManage}
+                        onInject={() =>
+                          setOwnerDialog({
+                            kind: 'inject',
+                            marketId: hero.marketId,
+                            marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}`,
+                            pool: hero.liquidity,
+                            traders: hero.traderCount ?? 0,
+                          })
+                        }
                       />
                     ) : null
                   }
@@ -1950,6 +2079,41 @@ export function TradePage() {
         <button className="pubws-update" onClick={() => window.location.reload()}>
           new version · reload
         </button>
+      )}
+
+      {ownerDialog?.kind === 'new-metric' && ws && (
+        <NewMetricDialog
+          workspaceId={ws.workspaceId}
+          onClose={() => setOwnerDialog(null)}
+          onCreated={m => setOwnerDialog({ kind: 'add-date', metricId: m.id, metricName: m.name })}
+        />
+      )}
+      {ownerDialog?.kind === 'add-date' && ws && (
+        <AddDateDialog
+          workspaceId={ws.workspaceId}
+          metricId={ownerDialog.metricId}
+          metricName={ownerDialog.metricName}
+          defaultCredits={defaultCredits}
+          onClose={() => setOwnerDialog(null)}
+          onDone={() => {
+            setOwnerDialog(null);
+            reload();
+          }}
+        />
+      )}
+      {ownerDialog?.kind === 'inject' && ws && (
+        <InjectLiquidityDialog
+          workspaceId={ws.workspaceId}
+          marketId={ownerDialog.marketId}
+          marketLabel={ownerDialog.marketLabel}
+          pool={ownerDialog.pool}
+          traders={ownerDialog.traders}
+          onClose={() => setOwnerDialog(null)}
+          onDone={() => {
+            setOwnerDialog(null);
+            reload();
+          }}
+        />
       )}
     </div>
   );

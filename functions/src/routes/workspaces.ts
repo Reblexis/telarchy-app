@@ -95,6 +95,16 @@ workspacesRouter.post(
      *    account. Listing stays a human decision until that is closed.
      */
     let requestedVisibility = req.body.visibility;
+    // UNLISTED by default, for everyone including admins: visible to its
+    // owner (badged on the home grid), live at its link, and one Publish
+    // away from the front list. Not private (a private floor 403'd its own
+    // owner all day on 2026-08-28) and not public either, because publishing
+    // requires at least one metric (owner ask, same day: "there should be at
+    // least one metric for it to be publishable") and a floor is born with
+    // none. An explicit visibility in the request is honoured as ever.
+    if (requestedVisibility === undefined) {
+      requestedVisibility = 'unlisted';
+    }
     if (!isMasterKey) {
       const callerId = agentId ?? uid;
       const [caller] = callerId
@@ -112,19 +122,9 @@ workspacesRouter.post(
           });
           return;
         }
-        // Unlisted, both ways: asking for public is clamped down to it, and
-        // asking for nothing lands on it rather than on private.
-        //
-        // The default in createWorkspaceFromTemplate is 'private', which is the
-        // safe answer for a self-hosted or API-only caller and the wrong one
-        // here: Otto passes no visibility, so every market he opened was born
-        // invisible at its own address, including to the person who had just
-        // watched him open it (found on the beta, 2026-08-24). Unlisted is what
-        // this door has promised in writing since it opened: live, joinable and
-        // shareable by link, simply not on the front page.
-        if (requestedVisibility === undefined || requestedVisibility === 'public') {
-          requestedVisibility = 'unlisted';
-        }
+        // The 2026-08-21 unlisted clamp used to live here; retired (owner
+        // decision 2026-08-28), with the subsidy-extraction risk it guarded
+        // recorded as accepted in vision.md.
       }
     }
 
@@ -462,6 +462,22 @@ workspacesRouter.put(
     }
 
     if (hasVisibilityKey) {
+      // Publishing needs something to trade (owner ask 2026-08-28): a floor
+      // with no metric on the public list is an empty shopfront, so the flip
+      // to public is refused until the first number exists. Unlisted and
+      // private stay unconditional; unpublishing is never blocked.
+      if (visibility === 'public') {
+        const [{ n } = { n: 0 }] = await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(metrics)
+          .where(eq(metrics.workspaceId, wsId));
+        if ((n ?? 0) === 0) {
+          res.status(400).json({
+            error: 'Add a number first: a floor with no metric has nothing to trade. Publish once one exists.',
+          });
+          return;
+        }
+      }
       const parsed = parseVisibility(visibility);
       if (!parsed.ok) {
         res.status(400).json({ error: parsed.error });

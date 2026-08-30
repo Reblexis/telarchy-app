@@ -213,8 +213,9 @@ describe('the words half: edits apply and are logged', () => {
 });
 
 describe('the machinery half: refused while a market is open', () => {
-  test('the formula cannot change under an open market', async () => {
+  test('the formula cannot change under a traded market', async () => {
     await seed();
+    await buy(50);
     const res = await put({ formula: 'other * 2' });
     expect(res.status).toBe(409);
     expect(res.body.fields).toEqual(['the formula']);
@@ -226,8 +227,9 @@ describe('the machinery half: refused while a market is open', () => {
     expect((await market()).resolved).toBe(false);
   });
 
-  test('the market range cannot change under an open market', async () => {
+  test('the market range cannot change under a traded market', async () => {
     await seed();
+    await buy(50);
     const res = await put({ marketRangeMax: 500 });
     expect(res.status).toBe(409);
     expect(res.body.fields).toEqual(['the market range']);

@@ -617,6 +617,13 @@
       "when": 1788300000000,
       "tag": "0087_earn_claims",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1788300001000,
+      "tag": "0088_metric_liquidity_credits",
+      "breakpoints": true
     }
   ]
 }
