@@ -1868,7 +1868,14 @@ true, and every change to this feature must preserve all three:</p>
 2026-08-28): spendable only as market-pool injections, never tradeable,
 never transferable, and LP leftovers from wallet-funded injections
 return to the wallet (<code>liquidity_events.funded_from</code> routes them).
-There is no path from a payment to the tradeable balance.</li>
+There is no path from a payment to the tradeable balance.
+<strong>Every decision to fund a market counts the wallet</strong>, in the order the
+injection spends it (wallet first, then tradeable):
+<code>liquiditySpendableUnits</code>, used by auto-fund and by the conditional
+pair subsidy. A gate that reads <code>balance</code> alone leaves the house
+spawning dead markets while sitting on pool money it will not look at
+(owner report 2026-08-30, after granting the admin account 1,000,000
+liquidity credits).</li>
 <li><strong>Whoever pays cannot win.</strong> Buying requires the <code>manage</code> capability in
 the target workspace, and accounts that own or administer a public
 workspace take no season payout under strict eligibility
@@ -7760,7 +7767,20 @@ cooldown lock. Who calls them depends on the instance:</p>
 <ul>
 <li>
 <p><strong>Managed instance</strong>: two Cloud Scheduler jobs (project <code>telarchy-e0043</code>,
-region <code>us-central1</code>, legacy <code>firebase-schedule-*</code> names):</p>
+region <code>us-central1</code>, legacy <code>firebase-schedule-*</code> names). They POST to
+<code>https://telarchy.com/api/cron/*</code> with the master key in <code>X-API-Key</code>, the
+same shape as <code>seasons-autostart</code>. <strong>Check the target, not just the
+schedule</strong>: until 2026-08-30 both still pointed at the retired
+<code>dailyresolve</code> / <code>dailymarketrefresh</code> Cloud Run services, whose images
+dated from March and April and answered 500 on every run (one could not
+reach Cloud SQL at all, the other queried a <code>markets.task_id</code> column that
+no longer exists). Nothing rolled or resolved on a schedule for months;
+markets only kept moving because the agent fleet calls
+<code>POST /api/predictions/markets/refresh</code> as it works. Repoint with
+<code>gcloud scheduler jobs update http &lt;job&gt; --uri=... --update-headers=...</code>
+and confirm a 200 in the <code>api</code> service's logs, because a broken cron here
+is silent: the jobs report their own success, the failure is a 5xx inside
+a service nothing else watches.</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>

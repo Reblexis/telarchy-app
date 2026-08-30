@@ -16,7 +16,7 @@ import { emitPricesChanged } from '../lib/market-events';
 import { nearHorizonAnchorP } from '../lib/market-open';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { desiredMarketDates, generatesMarkets, getLeafDescendantNames } from '../lib/time-preference';
-import { MIN_LIQUIDITY_CONTRIBUTION, toUnits } from '../lib/validation';
+import { liquiditySpendableUnits, MIN_LIQUIDITY_CONTRIBUTION, toUnits } from '../lib/validation';
 import type { TimePreference } from '../types';
 import { applyCredits } from './credits';
 import { emitEvent } from './events';
@@ -279,8 +279,12 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
   // rollover at zero when the balance was short of the whole day's need
   // (2026-08-27: three LookPilot day markets, none funded, all morning).
   const [ag] = await db.select().from(agents).where(eq(agents.id, ownerAgentId));
-  const balanceUnits = (ag?.balance as number | undefined) ?? 0;
-  const affordable = Math.max(0, Math.floor(balanceUnits / toUnits(credits)));
+  // The bought liquidity wallet counts: pool money is what this spends, and
+  // the injection itself spends the wallet first (owner report 2026-08-30,
+  // a house sitting on a million liquidity credits still spawning dead
+  // markets because the gate read `balance` alone).
+  const spendableUnits = ag ? liquiditySpendableUnits(ag) : 0;
+  const affordable = Math.max(0, Math.floor(spendableUnits / toUnits(credits)));
   if (affordable === 0) {
     console.error('insertPendingMarkets: insufficient balance for auto-fund', { workspaceId, needed: credits });
     return insertWithDefaults();

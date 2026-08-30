@@ -152,6 +152,24 @@ export function sufficientBalance(balanceUnits: number, cost: number): boolean {
   return balanceUnits >= toUnits(cost);
 }
 
+/**
+ * What an account can put into a market's POOL, in units: the bought
+ * liquidity wallet plus the tradeable balance, because that is the order
+ * `applyAgentLiquidityInjectionTx` spends them in (owner decision
+ * 2026-08-28, two currencies).
+ *
+ * Funding decisions have to ask this rather than reading `balance`, or the
+ * house sits on a full liquidity wallet while new markets spawn dead for
+ * want of tradeable credits (owner report 2026-08-30, after granting the
+ * admin account 1,000,000 liquidity credits and finding the gates blind to
+ * them).
+ */
+export function liquiditySpendableUnits(agent: { balance: unknown; liquidityBalance?: unknown }): number {
+  const tradeable = typeof agent.balance === 'number' ? agent.balance : 0;
+  const wallet = typeof agent.liquidityBalance === 'number' ? agent.liquidityBalance : 0;
+  return tradeable + wallet;
+}
+
 export const MAX_BIO_LENGTH = 500;
 
 /**
