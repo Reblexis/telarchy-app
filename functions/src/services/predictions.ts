@@ -142,6 +142,18 @@ async function resolveMarketRow(
   return { positions: positionCount, totalPayout };
 }
 
+/**
+ * Which branch of a conditional pair settles, given the proposal's status.
+ * `approved` and `declined` are the two decided worlds; everything else
+ * (pending, withdrawn, spam, removed) decided nothing, so no branch settles
+ * and both are voided.
+ */
+export function conditionalBranchToSettle(status: string | undefined): 'approved' | 'declined' | null {
+  if (status === 'approved') return 'approved';
+  if (status === 'declined') return 'declined';
+  return null;
+}
+
 export async function resolvePredictions(
   targetDate: string | undefined,
   workspaceId: string,
@@ -177,7 +189,31 @@ export async function resolvePredictions(
   let resolvedCount = 0;
 
   for (const market of marketsToResolve) {
-    if (market.proposalId && proposalStatusMap.get(market.proposalId) !== 'approved') {
+    // A conditional pair is symmetric: whichever branch the owner chose settles
+    // against the metric like any other market, and the branch they did not
+    // choose is the counterfactual, which has nothing to settle against and is
+    // voided. Approve and the approved branch pays; decline and the declined
+    // branch pays.
+    //
+    // Until 2026-08-30 this voided every conditional whose proposal was not
+    // `approved`, so a declined proposal's surviving branch was voided at its
+    // date instead of paying the people who priced it. That silently withheld
+    // the calibration record on declines that /api/help and the guides both
+    // promise (owner, 2026-08-30: "on the declined branch it's the other way
+    // around, so the declined market goes further, and the approved one is
+    // voided").
+    //
+    // A proposal still pending at the settle instant decided nothing, so
+    // neither branch has a world to settle in and both void.
+    const decidedBranch = market.proposalId
+      ? conditionalBranchToSettle(proposalStatusMap.get(market.proposalId))
+      : null;
+    // `branch` is NULL on natural-trajectory markets, and on conditional rows
+    // old enough to predate the column. The trade router already reads a
+    // missing branch as "approved" for back-compat, so settlement does too:
+    // a legacy pair keeps resolving exactly as it did.
+    const marketBranch = market.branch ?? 'approved';
+    if (market.proposalId && marketBranch !== decidedBranch) {
       await voidMarket(market, workspaceId);
     } else {
       const result = await resolveMarketRow(market, metricMap, workspaceId);

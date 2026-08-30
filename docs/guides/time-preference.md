@@ -1,30 +1,32 @@
 ---
 title: Pick which future dates get a market
-description: How half-life chooses the horizons, what the blended outlook is, and how to pin an exact date.
+description: How half-life chooses which future dates open markets, and how to pin an exact date.
 category: run
 order: 50
 ---
 # Pick which future dates get a market
 
 A metric on its own tells you where you stand right now. Time preference is how
-you say which futures you care about, and it does two things:
+you say which futures you care about: it decides **which future dates open
+markets** on this metric, and that is all it decides.
 
-1. It decides **which future dates open markets** on this metric.
-2. It produces the **outlook**, a single number blending today's reading with
-   what the crowd says those dates will hold.
+It does not change what the metric reads. A leaf reads the value you measured;
+a computed metric reads its formula over those values. Market prices never feed
+back into either, which is what lets a market settle honestly: the number a
+market settles on is a measurement, and the market's own price is not part of
+it. If prices could move the reading, traders would be moving the number they
+are scored against.
 
-The resolver never reads your half-life. A market settles on the metric's logged
-reading at its own resolution instant, so changing your mind about horizons
-never changes how an existing market pays: a date you drop deactivates its
-market, and that market still resolves normally with every position intact.
+The resolver never reads your half-life either. A market settles on the metric's
+logged reading at its own resolution instant, so changing your mind about
+horizons never changes how an existing market pays: a date you drop deactivates
+its market, and that market still resolves normally with every position intact.
 
-One coupling is indirect and worth knowing before you enable the curve. The
-reading written to the log is the metric's outlook, and on a leaf whose curve is
-**enabled** the outlook is the blend, not your raw entry. So a market on such a
-leaf settles against a figure that already contains market consensus. A leaf
-with the curve off, using custom horizons only, logs the number you entered and
-is unaffected. If you want the market to settle on your reading and nothing
-else, that is the configuration to use.
+*(Until 2026-08-30 a curve-enabled metric published a blended "outlook" that
+averaged your reading with the consensus at each sampled date, and settlement
+preferred that blend. A market on such a metric settled partly against its own
+price. The blend is gone; nothing in the product blends a reading with a
+forecast now.)*
 
 It is a field on the metric, `timePreference`, set through `POST /api/metrics`
 or `PUT /api/metrics/:id`. There is no toggle in a browser.
@@ -53,31 +55,21 @@ year whose bucket is no wider than the smallest gap between adjacent samples.
 That is what stops two samples landing in overlapping buckets, where a weekly
 market and a monthly market would both cover the same day on the same metric.
 
-The blend is a plain average across today and the sampled dates, each counted
-once, because equal probability mass per bin is what the quantile sampling is
-for. Half-life decides *where* the samples fall, not how heavily each one counts.
-
 Omitting `timePreference` entirely on `POST /api/metrics` gives you
 `{ enabled: true, halfLife: 1 }`. Pass `null` to keep a metric with no curve.
 
 ## Leaf, computed, and above
 
 - **A leaf with time preference** opens markets on itself at each sampled date.
-  Its outlook blends its own reading with those prices. This is the simplest
-  useful setup and it is what the templates do.
+  This is the simplest useful setup and it is what the templates do.
 - **A computed metric with time preference** opens markets on all of its leaf
-  descendants, evaluates its formula at each future date from those prices, and
-  blends the results. A leaf with no market at a sampled date contributes 0 to
-  that evaluation, which is worth remembering when half your leaves are
-  unfunded.
-- **A metric above a time-preferenced one** is purely compositional. It is
-  forward-looking already, because each child it combines is.
+  descendants at each sampled date, so the futures you care about are priced at
+  the level where they are actually measured.
+- **A metric above a time-preferenced one** adds nothing of its own. Its
+  children already have the horizons.
 
-**At most one metric on any path may carry the curve.** A second one inside the
-subtree would blend its own leaves into a future value and hand it upward as if
-it were today's reading, and the outer node would then sample that already
-blended number at further future dates. There is no coherent reading of a
-future of a future.
+**At most one metric on any path may carry the curve**, so that one subtree does
+not open two competing sets of dates on the same leaves.
 
 Enabling it on a metric whose ancestor already has it returns 400 from
 `PUT /api/metrics/:id`, naming the ancestor. Enabling it on a parent removes the
@@ -117,9 +109,9 @@ rather than rejected, so re-saving an old config never fails.
 
 Two properties to plan around:
 
-- **Custom horizons do not feed the outlook.** They are pure forecasting
-  instruments: they appear on the chart and in the market list, and the blended
-  number stays defined by the curve.
+- **A custom horizon is just another date to price.** It appears on the chart
+  and in the market list and settles like any other market. Like the curve, it
+  changes nothing about what the metric reads today.
 - **Removing an entry deactivates its market rather than voiding it.** Trading
   stops, existing positions are kept, and it resolves normally. Changing
   `timePreference` in general reconciles: stale dates deactivate, newly desired

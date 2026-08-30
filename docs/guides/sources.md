@@ -56,11 +56,11 @@ inside the new week.
 ## The fixing: what a market actually settles on
 
 **A market settles on the metric's last logged reading at or before its
-`resolvesOn` instant.** Not the value at the moment the resolver happens to run.
-On a plain leaf that reading is exactly the number you pushed; on a leaf with
-the time-preference curve enabled it is the blended outlook, which is one more
-reason to read [time preference](/guides/time-preference) before turning the
-curve on.
+`resolvesOn` instant.** Not the value at the moment the resolver happens to run,
+and not any forecast: on a leaf it is exactly the number you pushed, and on a
+computed metric it is your formula over the numbers its leaves were pushed.
+Market prices never enter it, so nobody can move the number they are being
+scored against.
 
 That distinction is the whole point. The resolve job drifts, observed anywhere
 from twelve seconds to eighty minutes late, and settling on the live value would

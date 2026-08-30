@@ -588,7 +588,7 @@ A per-node **time preference** property handles forward-looking evaluation and m
 
 **Core model**:
 - `timePreference: { enabled: boolean, halfLife: number }` - **enabled by default** on new metrics (half-life 1 year). Without TP, a metric has no markets and cannot be tracked over time.
-- When enabled, the node's value is a decay-weighted blend of: the current value (at t=0) plus market consensus values at 10 sampled future time points.
+- When enabled, the node samples future dates on a decay curve and opens a market at each one. It does not change what the node reads: a metric's value is its measurement (leaf) or its formula over measurements (computed), never a blend with market consensus. Blending was removed on 2026-08-30 because the blended figure reached settlement, so a market could settle partly against its own price.
 - **Formulas stay simple**: only `{MetricName}` references and math. No `consensus()` calls.
 - **Sampling**: 10 quantile-midpoint samples from an exponential distribution with the given `halfLife` (in years). Each sample covers equal probability mass; weights are uniform. The median sample falls at `t = halfLife`.
 - **Date granularity** of sampled time points adapts to distance: `YYYY-MM-DD` (< 1 week), `YYYY-Www` (< 1 month), `YYYY-MM` (< 1 year), `YYYY` (≥ 1 year).
@@ -601,10 +601,10 @@ value = sum(weight(t_i) * formula_eval_at_t_i) / sum(weight(t_i))
 Non-leaf intermediate nodes in the subtree are evaluated deterministically from their formulas given predicted leaf values; no markets needed for them.
 
 **Tree zone model**: when TP is on a computed metric, it divides the subtree into two zones:
-- **Above the TP node**: purely compositional. These metrics combine TP-blended children via formulas and are forward-looking as a result. They don't interact with markets directly.
+- **Above the TP node**: purely compositional. These metrics combine their children via formulas; the horizons live on the children. They don't interact with markets directly.
 - **Below the TP node** (leaf metrics and intermediate computed metrics in the subtree): represent the *current state only*. Leaves are updated directly; computed nodes below TP evaluate deterministically from current values. The TP node above them handles all temporal expansion.
 
-Any metric, leaf or computed, can have time preference enabled. A leaf with TP creates markets for itself and blends its current value with market consensus at future dates. A computed metric with TP creates markets for all its leaf descendants.
+Any metric, leaf or computed, can have time preference enabled. A leaf with TP creates markets for itself at each sampled date; a computed metric with TP creates markets for all its leaf descendants. Neither changes what the metric reads today.
 
 **Constraints**:
 - **One time-preferenced node per path**: on any path through the metric graph, at most one node may have time preference enabled. Parent TP overrides children; enabling TP on a parent automatically removes TP from its descendants (with a warning). Enabling TP on a child when an ancestor already has TP is rejected.
@@ -694,7 +694,7 @@ The Metrics tab uses a single Chart.js graph engine for both inline card charts 
 - **Unified date model**: mixed target date formats normalized into canonical timestamps before plotting.
 - **Axis behavior**: x-axis labels adaptive to visible time span, y-axis labels use deterministic numeric formatting.
 - **Interaction**: inline charts support hover/click-to-expand; modal charts support tooltip inspection and x-axis pan/zoom.
-- **Single realized-value history line**: the Graph modal draws one line, the metric's realized value over time. For leaves that is `value` (the user-authored "Now:" number); for composites `value` is always 0, so the line is sourced from the logged `outlook` (the computed formula result). The value/future-consensus blend is not drawn as a separate "outlook" line; market-informed future consensus is shown on demand via the "Show future predictions" toggle, which overlays the forward-dated `timeSeries` as a dashed forecast. Each `metric_logs` row still stores both `value` and `outlook`.
+- **Single realized-value history line**: the Graph modal draws one line, the metric's realized value over time. For leaves that is `value` (the user-authored "Now:" number); for composites `value` is always 0, so the line is sourced from the logged `outlook`, which since 2026-08-30 holds the computed formula result and nothing else. There is no value/future-consensus blend anywhere: market-informed future consensus is shown only on demand via the "Show future predictions" toggle, which overlays the forward-dated `timeSeries` as a dashed forecast, and it never enters what a market settles on.
 
 ## Planned Phases
 

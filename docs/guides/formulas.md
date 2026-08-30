@@ -96,10 +96,12 @@ full edit rules.
 ## Where the markets go
 
 Markets are created on leaves, never on computed metrics. A computed metric with
-time preference spawns markets for its leaf descendants, evaluates the formula
-at each future date from those market prices, and blends the results. So a
-formula is how you say "these are the parts", and time preference is how you say
-"and I care about where they land". See
+time preference spawns markets for its leaf descendants at each of its sampled
+dates, so the futures you care about get priced where they are measured. The
+computed metric itself always reads your formula over what its leaves currently
+measure; market prices never enter that number. So a formula is how you say
+"these are the parts", and time preference is how you say "and I care about
+where they land". See
 [time preference](/guides/time-preference).
 
 One consequence worth planning around: a leaf with no market contributes 0 to a

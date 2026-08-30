@@ -524,7 +524,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h3">The four ways it ends</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h4">Approving is the payment</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h5">Declining, and why the reason is enforced</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h6">What the declined branch actually does</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h6">What the declined branch does</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h7">Two habits that make the delta mean something</a></li>
 </ul></details>
 </li>
@@ -4670,7 +4670,7 @@ p(higher) = 1 / (1 + exp(-(q_higher - q_lower) / b))
 <p><strong>Core model</strong>:</p>
 <ul>
 <li><code>timePreference: { enabled: boolean, halfLife: number }</code> - <strong>enabled by default</strong> on new metrics (half-life 1 year). Without TP, a metric has no markets and cannot be tracked over time.</li>
-<li>When enabled, the node's value is a decay-weighted blend of: the current value (at t=0) plus market consensus values at 10 sampled future time points.</li>
+<li>When enabled, the node samples future dates on a decay curve and opens a market at each one. It does not change what the node reads: a metric's value is its measurement (leaf) or its formula over measurements (computed), never a blend with market consensus. Blending was removed on 2026-08-30 because the blended figure reached settlement, so a market could settle partly against its own price.</li>
 <li><strong>Formulas stay simple</strong>: only <code>{MetricName}</code> references and math. No <code>consensus()</code> calls.</li>
 <li><strong>Sampling</strong>: 10 quantile-midpoint samples from an exponential distribution with the given <code>halfLife</code> (in years). Each sample covers equal probability mass; weights are uniform. The median sample falls at <code>t = halfLife</code>.</li>
 <li><strong>Date granularity</strong> of sampled time points adapts to distance: <code>YYYY-MM-DD</code> (&lt; 1 week), <code>YYYY-Www</code> (&lt; 1 month), <code>YYYY-MM</code> (&lt; 1 year), <code>YYYY</code> (≥ 1 year).</li>
@@ -4682,10 +4682,10 @@ p(higher) = 1 / (1 + exp(-(q_higher - q_lower) / b))
 <p>Non-leaf intermediate nodes in the subtree are evaluated deterministically from their formulas given predicted leaf values; no markets needed for them.</p>
 <p><strong>Tree zone model</strong>: when TP is on a computed metric, it divides the subtree into two zones:</p>
 <ul>
-<li><strong>Above the TP node</strong>: purely compositional. These metrics combine TP-blended children via formulas and are forward-looking as a result. They don't interact with markets directly.</li>
+<li><strong>Above the TP node</strong>: purely compositional. These metrics combine their children via formulas; the horizons live on the children. They don't interact with markets directly.</li>
 <li><strong>Below the TP node</strong> (leaf metrics and intermediate computed metrics in the subtree): represent the <em>current state only</em>. Leaves are updated directly; computed nodes below TP evaluate deterministically from current values. The TP node above them handles all temporal expansion.</li>
 </ul>
-<p>Any metric, leaf or computed, can have time preference enabled. A leaf with TP creates markets for itself and blends its current value with market consensus at future dates. A computed metric with TP creates markets for all its leaf descendants.</p>
+<p>Any metric, leaf or computed, can have time preference enabled. A leaf with TP creates markets for itself at each sampled date; a computed metric with TP creates markets for all its leaf descendants. Neither changes what the metric reads today.</p>
 <p><strong>Constraints</strong>:</p>
 <ul>
 <li><strong>One time-preferenced node per path</strong>: on any path through the metric graph, at most one node may have time preference enabled. Parent TP overrides children; enabling TP on a parent automatically removes TP from its descendants (with a warning). Enabling TP on a child when an ancestor already has TP is rejected.</li>
@@ -4781,7 +4781,7 @@ Overall (formula: {Health} + {Career})
 <li><strong>Unified date model</strong>: mixed target date formats normalized into canonical timestamps before plotting.</li>
 <li><strong>Axis behavior</strong>: x-axis labels adaptive to visible time span, y-axis labels use deterministic numeric formatting.</li>
 <li><strong>Interaction</strong>: inline charts support hover/click-to-expand; modal charts support tooltip inspection and x-axis pan/zoom.</li>
-<li><strong>Single realized-value history line</strong>: the Graph modal draws one line, the metric's realized value over time. For leaves that is <code>value</code> (the user-authored &quot;Now:&quot; number); for composites <code>value</code> is always 0, so the line is sourced from the logged <code>outlook</code> (the computed formula result). The value/future-consensus blend is not drawn as a separate &quot;outlook&quot; line; market-informed future consensus is shown on demand via the &quot;Show future predictions&quot; toggle, which overlays the forward-dated <code>timeSeries</code> as a dashed forecast. Each <code>metric_logs</code> row still stores both <code>value</code> and <code>outlook</code>.</li>
+<li><strong>Single realized-value history line</strong>: the Graph modal draws one line, the metric's realized value over time. For leaves that is <code>value</code> (the user-authored &quot;Now:&quot; number); for composites <code>value</code> is always 0, so the line is sourced from the logged <code>outlook</code>, which since 2026-08-30 holds the computed formula result and nothing else. There is no value/future-consensus blend anywhere: market-informed future consensus is shown only on demand via the &quot;Show future predictions&quot; toggle, which overlays the forward-dated <code>timeSeries</code> as a dashed forecast, and it never enters what a market settles on.</li>
 </ul>
 <h2 id="docs-vision-md--h43">Planned Phases</h2>
 <h3 id="docs-vision-md--h44">Time Preference Future Extensions</h3>
@@ -6070,10 +6070,12 @@ time, with the market untouched. See <a href="/guides/creating">open a floor</a>
 full edit rules.</p>
 <h2 id="docs-guides-formulas-md--h6">Where the markets go</h2>
 <p>Markets are created on leaves, never on computed metrics. A computed metric with
-time preference spawns markets for its leaf descendants, evaluates the formula
-at each future date from those market prices, and blends the results. So a
-formula is how you say &quot;these are the parts&quot;, and time preference is how you say
-&quot;and I care about where they land&quot;. See
+time preference spawns markets for its leaf descendants at each of its sampled
+dates, so the futures you care about get priced where they are measured. The
+computed metric itself always reads your formula over what its leaves currently
+measure; market prices never enter that number. So a formula is how you say
+&quot;these are the parts&quot;, and time preference is how you say &quot;and I care about
+where they land&quot;. See
 <a href="/guides/time-preference">time preference</a>.</p>
 <p>One consequence worth planning around: a leaf with no market contributes 0 to a
 projected formula. A composite whose leaves are half unpriced reads low for a
@@ -6779,22 +6781,27 @@ There is no button for it on the floor; it is an API call.</p>
 <p><strong>Remove</strong> takes a contract off the board entirely: a duplicate, a test row,
 something that should never have been there. Every stake is refunded first. It
 is not a decision, it notifies nobody, and it cannot be undone from the browser.</p>
-<h2 id="docs-guides-proposals-md--h6">What the declined branch actually does</h2>
-<p>State this one plainly, because the design intent and the running code disagree
-and you should not plan around the intent.</p>
-<p><strong>The design intent</strong> was that a declined contract's surviving branch resolves
-against the metric later, producing a counterfactual record: we said this would
-happen if you declined, here is what happened. Several docs and <code>GET /api/help</code>
-still describe it that way.</p>
-<p><strong>What the resolver does</strong> is void it. When a conditional market reaches its
-resolution instant, it settles against the metric only if its contract is
-<code>approved</code>. Anything else, declined included, is voided and every position
-refunded at net cash. So today a declined branch is a live price until its date
-and then a refund. There is no calibration record, nobody is scored on it, and
-nobody is paid on it.</p>
-<p>That is a gap in the product, not a rule you should design around. It does not
-change what the delta is worth at decision time: both branches were priced by
-people with money at stake, and the price is the point.</p>
+<h2 id="docs-guides-proposals-md--h6">What the declined branch does</h2>
+<p>Both branches are real markets and both can pay. Whichever world the decision
+creates is the one that settles against the metric; the other is a
+counterfactual with nothing to settle against, so it voids and every position
+in it is refunded at net cash.</p>
+<ul>
+<li><strong>You approve.</strong> The approved branch stays live and settles at its date on
+what the metric actually read. The declined branch voids.</li>
+<li><strong>You decline.</strong> The declined branch stays live and settles at its date on
+what the metric actually read. The approved branch voids.</li>
+</ul>
+<p>That symmetry is the point of pricing both. A decline is not a dead end for the
+people who priced it: they said what would happen if you said no, you said no,
+and the number arrives to prove them right or wrong. It is also what makes a
+decline auditable later, because &quot;we declined and the metric did what the
+market said it would&quot; is a record you can point at.</p>
+<p>Neither branch settles if you never decided. A contract still pending at a
+market's resolution instant created no world, so both branches void there and
+everyone is refunded.</p>
+<p><em>(Until 2026-08-30 the resolver voided a declined proposal's surviving branch
+too, so a decline paid nobody. Fixed; the behaviour above is what runs.)</em></p>
 <h2 id="docs-guides-proposals-md--h7">Two habits that make the delta mean something</h2>
 <p><strong>Publish a charter.</strong> Forecasters are being asked to price a stranger's
 decisions with their own credits. A floor that has not said what their work
@@ -7124,11 +7131,11 @@ Monday morning once did exactly that, filing last week's total as a reading
 inside the new week.</p>
 <h2 id="docs-guides-sources-md--h4">The fixing: what a market actually settles on</h2>
 <p><strong>A market settles on the metric's last logged reading at or before its
-<code>resolvesOn</code> instant.</strong> Not the value at the moment the resolver happens to run.
-On a plain leaf that reading is exactly the number you pushed; on a leaf with
-the time-preference curve enabled it is the blended outlook, which is one more
-reason to read <a href="/guides/time-preference">time preference</a> before turning the
-curve on.</p>
+<code>resolvesOn</code> instant.</strong> Not the value at the moment the resolver happens to run,
+and not any forecast: on a leaf it is exactly the number you pushed, and on a
+computed metric it is your formula over the numbers its leaves were pushed.
+Market prices never enter it, so nobody can move the number they are being
+scored against.</p>
 <p>That distinction is the whole point. The resolve job drifts, observed anywhere
 from twelve seconds to eighty minutes late, and settling on the live value would
 make an hourly market resolve against the previous or the next hour depending on
@@ -7211,26 +7218,26 @@ public as a side effect.</p>
 </section>
 <section class="docfile" id="file--docs-guides-time-preference-md">
 <p class="filelabel">docs/guides/time-preference.md</p>
-<dl class="frontmatter"><dt>title</dt><dd>Pick which future dates get a market</dd><dt>description</dt><dd>How half-life chooses the horizons, what the blended outlook is, and how to pin an exact date.</dd><dt>category</dt><dd>run</dd><dt>order</dt><dd>50</dd></dl>
+<dl class="frontmatter"><dt>title</dt><dd>Pick which future dates get a market</dd><dt>description</dt><dd>How half-life chooses which future dates open markets, and how to pin an exact date.</dd><dt>category</dt><dd>run</dd><dt>order</dt><dd>50</dd></dl>
 <h1 id="docs-guides-time-preference-md--h1">Pick which future dates get a market</h1>
 <p>A metric on its own tells you where you stand right now. Time preference is how
-you say which futures you care about, and it does two things:</p>
-<ol>
-<li>It decides <strong>which future dates open markets</strong> on this metric.</li>
-<li>It produces the <strong>outlook</strong>, a single number blending today's reading with
-what the crowd says those dates will hold.</li>
-</ol>
-<p>The resolver never reads your half-life. A market settles on the metric's logged
-reading at its own resolution instant, so changing your mind about horizons
-never changes how an existing market pays: a date you drop deactivates its
-market, and that market still resolves normally with every position intact.</p>
-<p>One coupling is indirect and worth knowing before you enable the curve. The
-reading written to the log is the metric's outlook, and on a leaf whose curve is
-<strong>enabled</strong> the outlook is the blend, not your raw entry. So a market on such a
-leaf settles against a figure that already contains market consensus. A leaf
-with the curve off, using custom horizons only, logs the number you entered and
-is unaffected. If you want the market to settle on your reading and nothing
-else, that is the configuration to use.</p>
+you say which futures you care about: it decides <strong>which future dates open
+markets</strong> on this metric, and that is all it decides.</p>
+<p>It does not change what the metric reads. A leaf reads the value you measured;
+a computed metric reads its formula over those values. Market prices never feed
+back into either, which is what lets a market settle honestly: the number a
+market settles on is a measurement, and the market's own price is not part of
+it. If prices could move the reading, traders would be moving the number they
+are scored against.</p>
+<p>The resolver never reads your half-life either. A market settles on the metric's
+logged reading at its own resolution instant, so changing your mind about
+horizons never changes how an existing market pays: a date you drop deactivates
+its market, and that market still resolves normally with every position intact.</p>
+<p><em>(Until 2026-08-30 a curve-enabled metric published a blended &quot;outlook&quot; that
+averaged your reading with the consensus at each sampled date, and settlement
+preferred that blend. A market on such a metric settled partly against its own
+price. The blend is gone; nothing in the product blends a reading with a
+forecast now.)</em></p>
 <p>It is a field on the metric, <code>timePreference</code>, set through <code>POST /api/metrics</code>
 or <code>PUT /api/metrics/:id</code>. There is no toggle in a browser.</p>
 <pre><code class="language-json">{ &quot;timePreference&quot;: { &quot;enabled&quot;: true, &quot;halfLife&quot;: 1, &quot;density&quot;: 3,
@@ -7252,29 +7259,20 @@ them needs liquidity to have a price at all, so raise it deliberately.</p>
 year whose bucket is no wider than the smallest gap between adjacent samples.
 That is what stops two samples landing in overlapping buckets, where a weekly
 market and a monthly market would both cover the same day on the same metric.</p>
-<p>The blend is a plain average across today and the sampled dates, each counted
-once, because equal probability mass per bin is what the quantile sampling is
-for. Half-life decides <em>where</em> the samples fall, not how heavily each one counts.</p>
 <p>Omitting <code>timePreference</code> entirely on <code>POST /api/metrics</code> gives you
 <code>{ enabled: true, halfLife: 1 }</code>. Pass <code>null</code> to keep a metric with no curve.</p>
 <h2 id="docs-guides-time-preference-md--h3">Leaf, computed, and above</h2>
 <ul>
 <li><strong>A leaf with time preference</strong> opens markets on itself at each sampled date.
-Its outlook blends its own reading with those prices. This is the simplest
-useful setup and it is what the templates do.</li>
+This is the simplest useful setup and it is what the templates do.</li>
 <li><strong>A computed metric with time preference</strong> opens markets on all of its leaf
-descendants, evaluates its formula at each future date from those prices, and
-blends the results. A leaf with no market at a sampled date contributes 0 to
-that evaluation, which is worth remembering when half your leaves are
-unfunded.</li>
-<li><strong>A metric above a time-preferenced one</strong> is purely compositional. It is
-forward-looking already, because each child it combines is.</li>
+descendants at each sampled date, so the futures you care about are priced at
+the level where they are actually measured.</li>
+<li><strong>A metric above a time-preferenced one</strong> adds nothing of its own. Its
+children already have the horizons.</li>
 </ul>
-<p><strong>At most one metric on any path may carry the curve.</strong> A second one inside the
-subtree would blend its own leaves into a future value and hand it upward as if
-it were today's reading, and the outer node would then sample that already
-blended number at further future dates. There is no coherent reading of a
-future of a future.</p>
+<p><strong>At most one metric on any path may carry the curve</strong>, so that one subtree does
+not open two competing sets of dates on the same leaves.</p>
 <p>Enabling it on a metric whose ancestor already has it returns 400 from
 <code>PUT /api/metrics/:id</code>, naming the ancestor. Enabling it on a parent removes the
 curve from its descendants and warns you which ones. Custom horizons are an
@@ -7304,9 +7302,9 @@ never recreated. Dates whose period has already passed are pruned on save
 rather than rejected, so re-saving an old config never fails.</p>
 <p>Two properties to plan around:</p>
 <ul>
-<li><strong>Custom horizons do not feed the outlook.</strong> They are pure forecasting
-instruments: they appear on the chart and in the market list, and the blended
-number stays defined by the curve.</li>
+<li><strong>A custom horizon is just another date to price.</strong> It appears on the chart
+and in the market list and settles like any other market. Like the curve, it
+changes nothing about what the metric reads today.</li>
 <li><strong>Removing an entry deactivates its market rather than voiding it.</strong> Trading
 stops, existing positions are kept, and it resolves normally. Changing
 <code>timePreference</code> in general reconciles: stale dates deactivate, newly desired

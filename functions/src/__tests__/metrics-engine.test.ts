@@ -210,7 +210,7 @@ describe('recalculateMetrics', () => {
     expect(util.total).toBeCloseTo(8 * 0.7 + 5 * 0.3);
   });
 
-  test('null propagates through formula chain from TP metric with missing markets', () => {
+  test('missing markets no longer null a total: a reading does not depend on a market', () => {
     // A TP metric with missingMarkets becomes null; a composite that references it also becomes null
     const metrics = [
       metric({
@@ -226,8 +226,12 @@ describe('recalculateMetrics', () => {
       metric({ id: '3', name: 'B', formula: '{A} + 1', value: 0, total: 0 }),
     ];
     recalculateMetrics(metrics);
-    expect(metrics.find(m => m.name === 'A')!.total).toBeNull();
-    expect(metrics.find(m => m.name === 'B')!.total).toBeNull();
+    // Missing markets used to null a total, because a blended total needed
+    // every market to exist. Nothing is blended now: A is its formula over the
+    // reading, and B follows. A metric reads what it reads whether or not its
+    // markets have spawned.
+    expect(metrics.find(m => m.name === 'A')!.total).toBe(8);
+    expect(metrics.find(m => m.name === 'B')!.total).toBe(9);
   });
 
   test('consensusMap overrides leaf total for future time points', () => {
