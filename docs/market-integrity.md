@@ -71,7 +71,7 @@ rule:
 |---|---|---|
 | what it is | words a reader is told | machinery the market prices inside |
 | computed from? | nothing | the LMSR consensus, and settlement |
-| on edit | applies, market untouched | **409 while any market is open** |
+| on edit | applies, market untouched | **409 while any market on it has trades; untraded open markets are voided and respawned at the new machinery** |
 | on the record | a `metric_definition_revisions` row per field | n/a, the edit never happens |
 
 - **Words never void.** The market keeps its price, its pool, its trades and
@@ -86,13 +86,16 @@ rule:
   `proposal_revisions` are served and rendered; the metric's are the half that
   is missing.) Saving unchanged text writes nothing, because a log full of
   non-changes makes "did anything move?" harder to answer, not easier.
-- **Machinery is refused, not voided.** A market stores its own
-  `rangeMin`/`rangeMax` and prices inside them, so changing the metric's range
-  under an open market makes the stated range and the traded range disagree
-  with nothing on screen saying so. Rather than void-and-respawn or
-  sync-and-hope, the edit is refused with a 409 naming the field
-  and the open market. Get the range right before opening, or wait for it to
-  settle.
+- **Machinery is refused while anyone is in the market, respawned while
+  nobody is.** A market stores its own `rangeMin`/`rangeMax` and prices inside
+  them, so changing the metric's range under a traded market makes the stated
+  range and the traded range disagree with nothing on screen saying so; that
+  edit is refused with a 409 naming the field and the market. But a book
+  nobody has money in protects nobody: while every open market on the metric
+  is untraded, the edit voids them (each pool refunds to its funders) and the
+  reconcile respawns them at the new machinery. This is what lets a metric be
+  created with only a name and a description and get its range right
+  afterwards, before the first trade.
 - **A leaf metric's `value` is a measurement, not a definition.** It is always
   allowed; the daily sync depends on it. On a computed metric `value` is not
   settable: a value in the request is ignored and the stored value is the

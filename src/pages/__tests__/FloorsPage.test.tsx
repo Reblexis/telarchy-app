@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('../../lib/api', () => ({
@@ -8,9 +8,12 @@ vi.mock('../../lib/api', () => ({
     getMarketplaceWorkspace: vi.fn(),
     getSeasons: vi.fn(),
     joinWaitlist: vi.fn(),
+    createWorkspace: vi.fn(),
+    listWorkspaces: vi.fn(),
   },
 }));
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: false }) }));
+let signedIn = false;
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: signedIn ? { id: 'u' } : null, loading: false }) }));
 // The top bar drags in the whole floor page; the marketplace grid is what
 // this spec is about.
 vi.mock('../TradePage', () => ({ TopBar: () => null }));
@@ -48,10 +51,20 @@ const renderPage = () =>
   render(
     <MemoryRouter>
       <FloorsPage />
+      {/* Where a navigate() landed, so the create flow's destination is
+          assertable without mounting the floor. */}
+      <LocationProbe />
     </MemoryRouter>,
   );
 
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="location">{location.pathname}</span>;
+}
+
 beforeEach(() => {
+  signedIn = false;
+  vi.mocked(api.listWorkspaces).mockResolvedValue([] as never);
   vi.mocked(api.getPublicWorkspaces).mockResolvedValue([listing] as never);
   vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(payload as never);
   vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [season] } as never);
@@ -72,16 +85,18 @@ const season = {
 
 describe('marketplace', () => {
   test('states the mechanism once, in plain words', async () => {
-    // Reworded and halved 2026-08-20 when this became the home page. The
-    // three things the sentence has to carry are unchanged: one number, who
-    // may propose, and that the market prices it BEFORE the owner decides.
+    // Rewritten 2026-08-28 with self-serve creation: the old "one number
+    // someone is trying to move" was no longer true of a grid anyone can put
+    // their own numbers on, and "one number" was never the pitch (owner rule
+    // 2026-08-27). The duties the lead carries now: real numbers priced by
+    // betting, being right pays, and BOTH sides addressed, the trader and
+    // the person with numbers to put up. Dual scope stays first-class: "your
+    // own goal" sits beside the company's revenue (AGENTS.md).
     renderPage();
-    // "someone", not "a company": individuals run personal goals here and are
-    // first-class (AGENTS.md, dual scope). A listing like "My Utility /
-    // Subjective health feeling" is not a company.
-    expect(screen.getByText(/one number someone is trying to move/i)).toBeInTheDocument();
-    expect(screen.getByText(/human or AI/i)).toBeInTheDocument();
-    expect(screen.getByText(/prices the job before the owner decides/i)).toBeInTheDocument();
+    expect(screen.getByText(/priced by the people betting on where they land/i)).toBeInTheDocument();
+    expect(screen.getByText(/your own goal/i)).toBeInTheDocument();
+    expect(screen.getByText(/get paid to be right/i)).toBeInTheDocument();
+    expect(screen.getByText(/put your own numbers up/i)).toBeInTheDocument();
   });
 
   test('the season has a door here, because this is where recruiting lands', async () => {
@@ -143,28 +158,56 @@ describe('marketplace', () => {
     expect(container.querySelector('.mkt-new-mark')).toBeTruthy();
   });
 
-  test('"Get set up" opens an email field in place and posts it to the waitlist', async () => {
-    // It led to Otto's setup door at /manage from 2026-08-24; the owner sent
-    // it back to the email on 2026-08-26 ("not otto yet"). The tile itself
-    // stays on the page: no link, no second page, one field that appears
-    // where the button was.
-    vi.mocked(api.joinWaitlist).mockResolvedValue({ alreadyListed: false });
+  test('"Create your own" signed in opens the create dialog and lands on the new floor', async () => {
+    // The email field of 2026-08-26 is superseded (owner ask 2026-08-28):
+    // creation is self-serve, so the tile's promise is a floor in a minute,
+    // not contact within days.
+    signedIn = true;
+    vi.mocked(api.createWorkspace).mockResolvedValue({
+      id: 'ws-new',
+      ownerHandle: 'viktor',
+      slug: 'meridian',
+    } as never);
     renderPage();
-    const tile = await screen.findByText('List your own number');
-    expect(tile.closest('a')).toBeNull();
-    expect(screen.queryByLabelText('Your email')).toBeNull();
+    await screen.findByText('List your own number');
+    fireEvent.click(screen.getByRole('button', { name: 'Create your own' }));
+    fireEvent.change(screen.getByLabelText('Floor name'), { target: { value: 'Meridian' } });
+    fireEvent.click(screen.getByText('Open my floor'));
+    await waitFor(() => expect(api.createWorkspace).toHaveBeenCalledWith({ name: 'Meridian' }));
+    // The dialog said where it goes; the router got sent there.
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/marketplace/ws-new'));
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Get set up' }));
-    const field = screen.getByLabelText('Your email');
-    expect(field.closest('.mkt-card--new')).toBe(tile.closest('.mkt-card--new'));
+  test('a not-yet-public floor of yours is IN the grid, first, badged, linked by id', async () => {
+    // Owner decision 2026-08-28: everything public by default, and what is
+    // not public yet still shows in the grid to its own owner rather than in
+    // a private side list.
+    signedIn = true;
+    vi.mocked(api.listWorkspaces).mockResolvedValue([
+      { id: 'ws-mine', name: 'Meridian', visibility: 'unlisted' },
+      { id: 'ws1', name: 'LookPilot', visibility: 'public' },
+    ] as never);
+    renderPage();
+    const name = await screen.findByText('Meridian');
+    const card = name.closest('a');
+    expect(card?.getAttribute('href')).toBe('/marketplace/ws-mine');
+    expect(card?.className).toContain('mkt-card');
+    expect(screen.getByText('Yours · not public yet')).toBeTruthy();
+    // First among the others: the badge card precedes the public one.
+    const grid = card?.parentElement;
+    expect(grid?.firstElementChild).toBe(card);
+    // The caller's PUBLIC floor is not duplicated: one LookPilot card only.
+    expect(screen.getAllByText('LookPilot')).toHaveLength(1);
+  });
 
-    fireEvent.change(field, { target: { value: 'owner@example.com' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Get set up' }));
-    await waitFor(() =>
-      expect(api.joinWaitlist).toHaveBeenCalledWith({ email: 'owner@example.com', source: 'marketplace' }),
-    );
-    const answer = await screen.findByText(/Got it\. We will get back to you within a few days\./);
-    expect(answer.textContent).not.toMatch(/waitlist|queue/i);
+  test('"Create your own" signed out is the door to signing up', async () => {
+    signedIn = false;
+    vi.mocked(api.createWorkspace).mockClear();
+    renderPage();
+    await screen.findByText('List your own number');
+    const cta = screen.getByText('Create your own');
+    expect(cta.closest('a')?.getAttribute('href')).toBe('/signup');
+    expect(api.createWorkspace).not.toHaveBeenCalled();
   });
 
   test('the tile never names the setup conversation while it is not the door', async () => {

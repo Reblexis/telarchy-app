@@ -228,6 +228,16 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-otto-md--h4">The conformance check</a></li>
 </ul></details>
 </li>
+<li><details><summary><a class="file" href="#file--docs-owner-on-the-floor-md">docs/owner-on-the-floor.md</a></summary>
+<ul>
+<li><a href="#docs-owner-on-the-floor-md--h1">The owner works on the floor</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h2">Creating a floor</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h3">The v1 controls: three dialogs</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h4">What already lived on the floor</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h5">Machinery, and the trap v1 refuses to ship</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h6">What is deliberately not here</a></li>
+</ul></details>
+</li>
 <li><details><summary><a class="file" href="#file--docs-seasons-md">docs/seasons.md</a></summary>
 <ul>
 <li><a href="#docs-seasons-md--h1">Season design</a></li>
@@ -2023,7 +2033,7 @@ rule:</p>
 <tr>
 <td>on edit</td>
 <td>applies, market untouched</td>
-<td><strong>409 while any market is open</strong></td>
+<td><strong>409 while any market on it has trades; untraded open markets are voided and respawned at the new machinery</strong></td>
 </tr>
 <tr>
 <td>on the record</td>
@@ -2045,13 +2055,16 @@ see whether the goalposts moved after they took their position. (A contract's
 <code>proposal_revisions</code> are served and rendered; the metric's are the half that
 is missing.) Saving unchanged text writes nothing, because a log full of
 non-changes makes &quot;did anything move?&quot; harder to answer, not easier.</li>
-<li><strong>Machinery is refused, not voided.</strong> A market stores its own
-<code>rangeMin</code>/<code>rangeMax</code> and prices inside them, so changing the metric's range
-under an open market makes the stated range and the traded range disagree
-with nothing on screen saying so. Rather than void-and-respawn or
-sync-and-hope, the edit is refused with a 409 naming the field
-and the open market. Get the range right before opening, or wait for it to
-settle.</li>
+<li><strong>Machinery is refused while anyone is in the market, respawned while
+nobody is.</strong> A market stores its own <code>rangeMin</code>/<code>rangeMax</code> and prices inside
+them, so changing the metric's range under a traded market makes the stated
+range and the traded range disagree with nothing on screen saying so; that
+edit is refused with a 409 naming the field and the market. But a book
+nobody has money in protects nobody: while every open market on the metric
+is untraded, the edit voids them (each pool refunds to its funders) and the
+reconcile respawns them at the new machinery. This is what lets a metric be
+created with only a name and a description and get its range right
+afterwards, before the first trade.</li>
 <li><strong>A leaf metric's <code>value</code> is a measurement, not a definition.</strong> It is always
 allowed; the daily sync depends on it. On a computed metric <code>value</code> is not
 settable: a value in the request is ignored and the stored value is the
@@ -2379,6 +2392,109 @@ answer is not a trade. One sample per scenario is not a measurement:
 <code>--repeat</code> runs each scenario several times and prints the pass rate.</p>
 <p>Research and measurements behind these choices (why no agent harness, which
 models were tried, eval results): <code>notes/otto-harness-research-2026-08-24.md</code>.</p>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-owner-on-the-floor-md">
+<p class="filelabel">docs/owner-on-the-floor.md</p>
+<h1 id="docs-owner-on-the-floor-md--h1">The owner works on the floor</h1>
+<p>Telarchy has no management screen. An owner changes their workspace from the
+floor itself, the same page every visitor sees, with the controls sitting on
+the thing they change (owner decision 2026-08-27). Nothing about a workspace
+is configured blind, and there is no second surface that can drift out of
+agreement with the first.</p>
+<p>Otto can do everything on this page by conversation; the controls here are
+the buttons for the same actions. Neither gets its own endpoints: if a
+control needs something new, the API grows once and both use it.</p>
+<h2 id="docs-owner-on-the-floor-md--h2">Creating a floor</h2>
+<p>The marketplace tile's &quot;Create your own&quot; opens dialog 0: a floor is a name,
+nothing else (owner ask 2026-08-28, superseding the 2026-08-26 email field;
+the record is notes/decisions/ui-conventions.md). A new floor starts
+UNLISTED and publishing is its own visible step: a band under the floor's
+name, a card with one ink button (&quot;Publish this floor&quot;), shown only to the
+owner of a not-yet-public floor. The flip is gated on the first metric
+existing, server-side, and the band says the precondition instead of
+offering a button the server would refuse: no metric, no publish button,
+just &quot;add a number first&quot;. The one brake left is three floors per account.
+Signed out, the tile is the door to signing up.</p>
+<p>A floor of yours that is not public yet is still not hidden from you: it
+joins the grid first, among the others, as a normal card wearing one badge,
+&quot;Yours · not public yet&quot;, linked by id. No private side lists. The floor
+itself answers its owner and members even while private (strangers keep the
+403), and says under its name &quot;Only you can see this floor. Make it
+public&quot;, because a state named without its fix is a dead end.</p>
+<p>It lands the owner on their empty floor at <code>/marketplace/{id}</code>, by id and
+never by slug: bare-slug resolution answers an ambiguous slug with none
+(slugs are unique per owner, not globally), so anyone's unlisted floor
+sharing the slug would 404 the fresh owner's landing.</p>
+<p>It lands the owner on their empty floor, where the empty state is the next
+step rather than a dead end: &quot;No number here yet. A floor starts when you
+add one&quot;, with the add-first-metric button chaining into dialogs 1 and 2
+below. A visitor on the same empty floor reads the honest state instead
+(&quot;Nothing is priced here yet. The owner has not added a number.&quot;).</p>
+<h2 id="docs-owner-on-the-floor-md--h3">The v1 controls: three dialogs</h2>
+<p>Owner direction 2026-08-27: start as simple as possible: a metric is a name
+and what it is; right after it is added, one date and the liquidity behind
+it; and an inject-liquidity button per market. Each dialog is the floor's own
+modal (the bet ticket's anatomy: centered tertiary labels, bottom-line
+inputs, one full-width ink button that carries its own cost, the segmented
+picker). All three appear only to callers with the <code>manage</code> capability, as
+additions to the page a visitor sees.</p>
+<p><strong>1. New metric</strong>, opened from <code>+ metric</code> at the end of the metric picker
+row. Two fields: the name, and what it is. The description is the settlement
+sentence, so the dialog says so: the market settles on these words, they can
+be refined later, and every edit is kept and shown. Nothing else is asked;
+the range defaults and is corrected later (see &quot;machinery&quot; below), value
+starts at zero, and the first reading is what makes the number real. Adding
+the metric immediately opens dialog 2 for it, because a metric with no date
+has no market and the flow does not let the owner stop before one.</p>
+<p><strong>2. Add a date</strong>, the same dialog whether it follows dialog 1 or is opened
+from <code>+ date</code> on the date row of any metric. One date, in Manifold's
+close-date shape (owner ask 2026-08-28, from their open-source
+close-time-section): preset chips of this week, this month, next month and
+end of the year above an always-visible date picker, never a second mode.
+A chip is the selection until a day is picked; picking a day deselects the
+chips, and clicking a chip clears the day. Beside the day sits an optional
+UTC hour (owner ask 2026-08-28): markets settle on the hour, so the time
+field carries hours only and a day with an hour opens an hour market
+(<code>YYYY-MM-DDTHH</code>). Under it, the liquidity the market opens with,
+prefilled with the workspace default, with the translation that makes the
+number mean something (&quot;a 100 cr trade moves it about 2%&quot;). The open button
+carries the cost.</p>
+<p>The picks write <code>timePreference.customHorizons</code> on the metric: the calendar
+picks as ROLLING entries (<code>+0w</code>, <code>+0m</code>, <code>+1m</code>) so this week's market is
+followed by next week's, a picked day as the one-shot absolute it is. The
+liquidity writes <code>metrics.liquidityCredits</code>, and the reconcile that runs on
+the same request opens the market funded at that number. One request, one
+market, no second call to forget.</p>
+<p><strong>3. Inject liquidity</strong>, a button beside the pool on every open market. The
+dialog states the pool now and the traders on it, takes an amount, and says
+the two true things before the first injection, not after: deepening makes
+the price harder to move and being right pay more, and a pool never thins
+back out. <code>POST /api/predictions/markets/:id/liquidity</code>.</p>
+<h2 id="docs-owner-on-the-floor-md--h4">What already lived on the floor</h2>
+<p>The definition edit (words free, every change recorded in
+<code>metric_definition_revisions</code>, though nothing renders those rows to a trader
+yet, <code>docs/market-integrity.md</code>) and the contract
+decisions (approve, decline, edit) predate this doc and stay as they are.</p>
+<h2 id="docs-owner-on-the-floor-md--h5">Machinery, and the trap v1 refuses to ship</h2>
+<p>A metric created from two fields gets a default range, and the range is what
+its markets price inside. <code>docs/market-integrity.md</code> governs: machinery is
+refused with a 409 while anyone has money in a market, but while every open
+market on the metric is untraded, a machinery edit voids them (pools refund
+to their funders) and respawns them at the new machinery. So the two-field
+metric is not a trap: the owner, or Otto, corrects the range any time before
+the first trade, and nobody's money ever moves under a changed rule.</p>
+<h2 id="docs-owner-on-the-floor-md--h6">What is deliberately not here</h2>
+<ul>
+<li><strong>Closing a market</strong> is not a floor control: it voids other people's
+positions, which does not belong one click from a button that buys
+liquidity. API only, until the interaction is designed.</li>
+<li><strong>Rare and dangerous settings</strong> (visibility, deleting a workspace,
+permission groups) stay on the API and reach a surface only when someone
+asks for one.</li>
+<li><strong>Bulk anything.</strong> One floor, one owner, one change at a time.</li>
+</ul>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
@@ -4030,10 +4146,14 @@ nothing jumps when the number arrives, and the footer's activity line is
 joined from the facts that exist, so a count still in flight never leaves
 a separator hanging.</p>
 <p>Above the grid, the lead paragraph is the one place the whole mechanism is
-stated in plain words: every market is one number someone is trying to
-move, anyone human or AI can propose a paid contract to move it, the
-market prices what that contract would do, and the owner pays only for the
-ones worth it.</p>
+stated in plain words: real numbers priced by people betting on where they
+land, being right pays, and anyone can put their own numbers up the same
+way. Dual scope stays first-class in the lead itself: a personal goal sits
+beside a company's revenue. Never &quot;one number&quot;: the pitch is the set a company
+cares about (owner rule 2026-08-27), and since self-serve creation
+(2026-08-28) the lead speaks to both sides, the trader and the person with
+a number to put up. The paid-contract mechanism belongs to each market's
+own page, not the front door.</p>
 <h2 id="docs-ui-conventions-md--h35">The cockpit (/admin)</h2>
 <p><code>telarchy.com/admin</code> is the owner's own page: who showed up, where they
 came from, who signed up, who is waiting, and what people reported. It is
@@ -4166,7 +4286,7 @@ nothing more&quot; true by construction rather than by review.</p>
 <p>A two-sided marketplace is bootstrapped one side at a time, and Telarchy solves the <strong>trader side first</strong>. The product IS the trader experience:</p>
 <ul>
 <li><strong>Every account is a trader by default.</strong> Signup lands in the trading surface with the signup grant; there is no intent picker and no owner onboarding in the product.</li>
-<li><strong>Workspace creation is open at the API.</strong> <code>POST /api/workspaces</code> is open to any identity: a browser session or a participant key, no invite. Two brakes apply to callers who are not platform admins, both about the shopfront rather than about trust: three workspaces per account, and <code>public</code> clamped to <code>unlisted</code> at creation, so a new floor is live, joinable and tradeable by link but is not listed on telarchy.com until a human lists it. The clamp is not tidiness. A running prize season scores over every public workspace (<code>docs/seasons.md</code>), so self-serve listing would let someone open a floor, subsidise it out of signup grants and extract that subsidy into an entered account; listing stays a human decision until that hole is closed. <code>POST /api/onboard</code>, the unauthenticated one-call variant, is paused: it mints an identity and a workspace together, so there is no account for the cap to count.</li>
+<li><strong>Workspace creation is open at the API, and publishing is one gated step.</strong> <code>POST /api/workspaces</code> is open to any identity: a browser session or a participant key, no invite. One brake applies to callers who are not platform admins: three workspaces per account. A new floor defaults to <code>unlisted</code>: visible to its owner (first in the home grid, badged &quot;Yours · not public yet&quot;), live and tradeable at its link, and one Publish button away from the telarchy.com list. The flip to <code>public</code> is refused while the floor has no metric (owner asks 2026-08-28: a visible publish button, and at least one metric to be publishable), because an empty shopfront on the front list serves nobody; an explicit visibility at creation is honoured for API and template callers. ACCEPTED RISK, stated so it is not forgotten: a running prize season scores over every public workspace (<code>docs/seasons.md</code>), so self-serve publishing lets someone open a floor, subsidise it out of signup grants and extract that subsidy into an entered account; the metric gate raises the effort without closing the hole, knowingly, while Telarchy is small enough to watch by hand. <code>POST /api/onboard</code>, the unauthenticated one-call variant, is paused: it mints an identity and a workspace together, so there is no account for the cap to count.</li>
 <li><strong><code>/manage</code> is a door to a conversation, not a creation wizard.</strong> It is the owner side's surface, and the whole of it is Otto: he interviews the visitor, makes the setup decisions as them, and hands them a prompt their own agent can run. The decisions he covers are the governing list in <code>functions/src/lib/setup-spec.ts</code>, their state is read from rows (<code>GET /api/setup/checklist</code>), and the path ends on a live floor rather than on a settings page. There is no form and no waitlist box under him: every field a form could ask for (which number, what ceiling, what horizon) is a question Telarchy answers better than a stranger on their first minute, and a form cannot argue with the answer. Anyone who wants a human has <code>/contact</code>. What Telarchy offers an operator, and what setting one up consists of, is the operator-door design note (private notes); the screen follows that answer, not the other way round.</li>
 <li><strong>There is no app shell.</strong> Every page is standalone (see &quot;Navigation&quot;); workspace administration lives in the API.</li>
 </ul>

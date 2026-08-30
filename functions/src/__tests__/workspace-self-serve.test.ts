@@ -2,13 +2,11 @@
  * Who may open a floor (vision.md, "The owner side reopens", 2026-08-21).
  *
  * Creation was platform-admin-only from 2026-08-08 while Telarchy was
- * trader-first. It is open again, with two brakes that are about the shopfront
- * rather than about trust: a per-account cap, and a new floor starting
- * unlisted so nobody can list themselves onto the home page or into a running
- * prize season's scoring set.
- *
- * Unlisted still means live: these tests assert the floor is created and
- * reachable, not that it is hidden away.
+ * trader-first. It is open again with one brake, the per-account cap. A new
+ * floor starts UNLISTED, visible to its owner and live at its link, and
+ * publishing to the front list is one explicit step gated on the first
+ * metric existing (owner asks 2026-08-28: a visible publish button, and "at
+ * least one metric for it to be publishable").
  */
 
 jest.mock('../db/client', () => require('./harness/test-db'));
@@ -73,26 +71,42 @@ describe('an ordinary signed-in person may open a floor', () => {
     expect(row.createdBy).toBe(OPERATOR);
   });
 
-  test('the floor starts unlisted even when public is asked for', async () => {
+  test('explicit public at creation is honoured (API and template callers)', async () => {
     const r = await create({ name: 'Kleros', template: 'blank', visibility: 'public' });
     expect(r.status).toBe(201);
     const [row] = await db.select().from(workspaces).where(eq(workspaces.id, r.body.id));
-    expect(row.visibility).toBe('unlisted');
+    expect(row.visibility).toBe('public');
   });
 
-  test('asking for nothing gets a market that is live at its address', async () => {
+  test('a PLATFORM ADMIN asking for nothing also gets an unlisted floor, never private', async () => {
+    // The first cut of the default sat inside the non-admin branch, so an
+    // admin's floor fell through to the service default, private, and
+    // 403'd its own owner at the door (owner report 2026-08-28).
+    await db.update(agents).set({ platformAdmin: true }).where(eq(agents.id, OPERATOR));
+    const r = await create({ name: 'Admin floor', template: 'blank' });
+    expect(r.status).toBe(201);
+    const [row] = await db.select().from(workspaces).where(eq(workspaces.id, r.body.id));
+    expect(row.visibility).toBe('unlisted');
+    await db.update(agents).set({ platformAdmin: false }).where(eq(agents.id, OPERATOR));
+  });
+
+  test('asking for nothing gets an UNLISTED floor: live at its link, one publish from the list', async () => {
     // The service defaults to private, which made every market Otto opened
-    // invisible at the address he had just handed over. This door has
-    // promised unlisted in writing since it opened.
+    // invisible at the address he had just handed over. Unlisted is the
+    // resting default now: publishing is an explicit step gated on the
+    // first metric existing (owner asks 2026-08-28).
     const r = await create({ name: 'Kleros', template: 'blank' });
     const [row] = await db.select().from(workspaces).where(eq(workspaces.id, r.body.id));
     expect(row.visibility).toBe('unlisted');
   });
 
-  test('private is still honoured: the clamp only removes listing', async () => {
-    const r = await create({ name: 'Quiet', template: 'blank', visibility: 'private' });
-    const [row] = await db.select().from(workspaces).where(eq(workspaces.id, r.body.id));
-    expect(row.visibility).toBe('private');
+  test('an explicit unlisted or private is still honoured', async () => {
+    const q = await create({ name: 'Quiet', template: 'blank', visibility: 'private' });
+    const [qr] = await db.select().from(workspaces).where(eq(workspaces.id, q.body.id));
+    expect(qr.visibility).toBe('private');
+    const u = await create({ name: 'Linky', template: 'blank', visibility: 'unlisted' });
+    const [ur] = await db.select().from(workspaces).where(eq(workspaces.id, u.body.id));
+    expect(ur.visibility).toBe('unlisted');
   });
 });
 

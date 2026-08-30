@@ -3,6 +3,10 @@
  * traders, credits in the pool, credits traded. Three icons and bare
  * numbers, the shape Manifold's market header uses, at the right end of the
  * Discussion / Positions / Trades row. Each carries its meaning as a hover.
+ *
+ * For an owner, the pool is also where its control lives
+ * (docs/owner-on-the-floor.md): the Inject button opens the inject-liquidity
+ * dialog beside the number it changes, never on a settings screen.
  */
 function short(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`;
@@ -61,7 +65,20 @@ const Bars = () => (
   </svg>
 );
 
-export function MarketFacts({ traders, pool, volume }: { traders: number; pool: number; volume: number }) {
+export function MarketFacts({
+  traders,
+  pool,
+  volume,
+  canManage = false,
+  onInject,
+}: {
+  traders: number;
+  pool: number;
+  volume: number;
+  canManage?: boolean;
+  /** Opens the inject-liquidity dialog; the parent owns it. */
+  onInject?: () => void;
+}) {
   return (
     <span className="pubws-facts" aria-label="Market facts">
       <span title={`${traders} distinct participant${traders === 1 ? '' : 's'} have traded this market`}>
@@ -75,6 +92,11 @@ export function MarketFacts({ traders, pool, volume }: { traders: number; pool: 
       <span title={`${short(volume)} credits traded on this market over its life`}>
         <Bars /> {short(volume)}
       </span>
+      {canManage && onInject && (
+        <button type="button" className="pubws-facts-act" onClick={onInject}>
+          Inject
+        </button>
+      )}
     </span>
   );
 }

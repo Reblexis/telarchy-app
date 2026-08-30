@@ -1287,10 +1287,14 @@ joined from the facts that exist, so a count still in flight never leaves
 a separator hanging.
 
 Above the grid, the lead paragraph is the one place the whole mechanism is
-stated in plain words: every market is one number someone is trying to
-move, anyone human or AI can propose a paid contract to move it, the
-market prices what that contract would do, and the owner pays only for the
-ones worth it.
+stated in plain words: real numbers priced by people betting on where they
+land, being right pays, and anyone can put their own numbers up the same
+way. Dual scope stays first-class in the lead itself: a personal goal sits
+beside a company's revenue. Never "one number": the pitch is the set a company
+cares about (owner rule 2026-08-27), and since self-serve creation
+(2026-08-28) the lead speaks to both sides, the trader and the person with
+a number to put up. The paid-contract mechanism belongs to each market's
+own page, not the front door.
 
 ## The cockpit (/admin)
 

@@ -155,7 +155,7 @@ export function horizonLabel(targetDate: string, now: Date = new Date()): string
 }
 
 /** The ISO week a moment falls in, as YYYY-Www. The Thursday rule, in UTC. */
-function isoWeekOf(d: Date): string {
+export function isoWeekOf(d: Date): string {
   const day = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7) + 3); // this week's Thursday
   const isoYear = day.getUTCFullYear();
@@ -515,4 +515,22 @@ export function compactValueOf(value: number | null, unit: string): string | nul
   else if (v >= 100) body = Math.round(v).toLocaleString('en-US');
   else body = String(Math.round(v * 10) / 10);
   return `${sign}${unit}${body}`;
+}
+
+/**
+ * The calendar dates an owner can open a market on from the floor, in the
+ * formats the API takes (docs/owner-on-the-floor.md). Deliberately four: the
+ * horizons a company actually plans against. Anything else is an API call.
+ */
+export function openableDates(now: Date = new Date()): Array<{ label: string; targetDate: string }> {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const next = new Date(Date.UTC(y, m + 1, 1));
+  return [
+    { label: 'this week', targetDate: isoWeekOf(now) },
+    { label: 'this month', targetDate: `${y}-${pad(m + 1)}` },
+    { label: 'next month', targetDate: `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}` },
+    { label: `end of ${y}`, targetDate: String(y) },
+  ];
 }

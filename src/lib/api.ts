@@ -931,6 +931,28 @@ export function seasonStandingToEntry(s: SeasonStanding): LeaderboardEntry {
 
 export const api = {
   getMetrics: () => request('/api/metrics'),
+  /** Create a metric on a floor the caller manages (docs/owner-on-the-floor.md,
+   *  dialog 1). Name and description only: value starts at 0, range defaults
+   *  and is correctable until the first trade, and the date comes next.
+   *  timePreference is EXPLICITLY null: omitted, the server defaults the decay
+   *  curve on and markets open before the owner ever picked a date. */
+  createMetricIn: (
+    workspaceId: string,
+    body: { name: string; description: string },
+  ): Promise<{ id: string; name: string }> =>
+    requestWithWorkspace(
+      '/api/metrics',
+      { method: 'POST', body: JSON.stringify({ ...body, value: 0, formula: '', timePreference: null }) },
+      { workspaceId },
+    ),
+  /** One metric, with its stored timePreference. The floor's "+ date" control
+   *  needs the STORED horizons, not the dates of the markets on screen: a
+   *  curve-generated date written back as a custom horizon would freeze it. */
+  getMetric: (
+    workspaceId: string,
+    id: string,
+  ): Promise<{ id: string; name: string; timePreference?: TimePreference | null }> =>
+    requestWithWorkspace(`/api/metrics/${id}`, {}, { workspaceId }),
   createMetric: (body: {
     name: string;
     description: string;
@@ -952,6 +974,14 @@ export const api = {
       marketRangeMax?: number;
     },
   ) => request(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  /** Partial metric update. The full-object `updateMetric` is for the editor;
+   *  the floor's owner controls change one field at a time and must not
+   *  resend the rest (docs/owner-on-the-floor.md). */
+  patchMetric: (
+    workspaceId: string,
+    id: string,
+    body: { liquidityCredits?: number | null; timePreference?: TimePreference | null },
+  ) => requestWithWorkspace(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }, { workspaceId }),
   deleteMetric: (id: string) => request(`/api/metrics/${id}`, { method: 'DELETE' }),
   reorderMetrics: (ids: string[]) => request('/api/metrics/reorder', { method: 'POST', body: JSON.stringify({ ids }) }),
   getMetricLogs: (metricId: string) => request(`/api/metrics/${metricId}/logs`),
@@ -1108,8 +1138,14 @@ export const api = {
       { workspaceId },
     ),
 
-  injectLiquidity: (marketId: string, amount: number) =>
-    request(`/api/predictions/markets/${marketId}/liquidity`, { method: 'POST', body: JSON.stringify({ amount }) }),
+  /** workspaceId is passed when the caller is on a floor rather than in the
+   *  active workspace, which is every owner control on the floor itself. */
+  injectLiquidity: (marketId: string, amount: number, workspaceId?: string) =>
+    requestWithWorkspace(
+      `/api/predictions/markets/${marketId}/liquidity`,
+      { method: 'POST', body: JSON.stringify({ amount }) },
+      { workspaceId },
+    ),
   injectLiquidityBulk: (amount: number, proposalId?: string) =>
     request('/api/predictions/markets/liquidity/bulk', {
       method: 'POST',

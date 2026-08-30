@@ -469,6 +469,14 @@ export const metrics = pgTable(
      * 2026-08-25). The first reading ends the state for good.
      */
     resolvesNaUntilMeasured: boolean('resolves_na_until_measured').notNull().default(false),
+    /**
+     * Credits a new market on this metric opens with (docs/owner-on-the-floor.md).
+     * NULL falls back to the workspace's `newMarketLiquidityCredits`, which is
+     * what every metric did before the owner could say otherwise. Credits, not
+     * a weight: the owner reads a pool in credits, so the control and the thing
+     * it moves share a unit.
+     */
+    liquidityCredits: doublePrecision('liquidity_credits'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },

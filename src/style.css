@@ -8223,3 +8223,98 @@ textarea.jobform-line--desc {
 }
 .pubws-guide-link:hover { text-decoration: underline; }
 .pubws-guide-desc { display: block; margin-top: 0.15rem; font-size: 0.875rem; color: var(--text-secondary); }
+
+/* ---- The owner's controls, on the floor (docs/owner-on-the-floor.md) ----
+   Additions to the page a visitor sees, sitting on the thing they change.
+   Quiet by default: they must never outrank the price. */
+.pubws-date-add {
+  margin-left: 0.4rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+.pubws-date-add:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+.pubws-facts-act {
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+.pubws-facts-act:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+/* ---- The owner's three dialogs (docs/owner-on-the-floor.md) ----
+   They wear the contract dialog's anatomy (.jobform + the ticket classes);
+   only what the ticket has no equivalent for lives here. */
+.odlg-seg { align-self: flex-start; }
+.odlg-mono { font-family: var(--font-mono); font-size: 0.88rem; }
+/* Manifold's close-date shape: the picker sits under the chips, always
+   visible, with a quiet "or" joining them. */
+.odlg-dayrow { display: flex; align-items: baseline; gap: 0.6rem; }
+.odlg-or { font-size: 0.74rem; color: var(--text-tertiary); white-space: nowrap; }
+.odlg-day { width: auto; }
+
+/* + metric inside the metric seg: the one ember segment, never active. */
+.pubws-seg-add { color: var(--accent); font-weight: 600; }
+.pubws-seg-add:hover { color: var(--accent-hover); }
+
+/* The caller's own not-yet-public floor, in the grid with everyone else's
+   (docs/owner-on-the-floor.md). The badge is the only difference. */
+.mkt-card-mine {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  white-space: nowrap;
+}
+
+/* The publish band: the owner's one visible step between a floor only they
+   can see and one on the front list. A card, not a whisper (owner ask
+   2026-08-28), and honest about its precondition when no metric exists. */
+.pubws-publish {
+  margin: clamp(1.2rem, 3vh, 1.8rem) 0 0;
+  padding: 1.1rem 1.3rem 1.2rem;
+  border: 1px solid var(--border-color);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  text-align: center;
+}
+.pubws-publish-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+.pubws-publish-sub {
+  margin: 0.5rem auto 0;
+  max-width: 30rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.pubws-publish-go {
+  margin-top: 0.9rem;
+  padding: 0.75rem 1.8rem;
+  font-size: 0.95rem;
+}
