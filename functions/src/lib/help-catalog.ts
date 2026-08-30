@@ -998,6 +998,20 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'GET',
+      path: '/api/earn/me',
+      auth: 'identity',
+      description:
+        "The earn table with the caller's own state on it: { earned, available, rules: [{ key, label, credits, kind, note, claimed }] }. `earned` sums what this participant has already taken, `available` what is still open to them. Bot registrations are omitted (an API identity cannot claim them).",
+    },
+    {
+      method: 'POST',
+      path: '/api/earn/links/sync',
+      auth: 'identity',
+      description:
+        'Pay for any provider account attached to the caller and not yet paid for. Returns { granted, paid: [key], takenElsewhere: [key] }. Called after BetterAuth account linking returns, and safe to re-run: it reconciles against the accounts actually linked rather than trusting a claim. takenElsewhere names a link that earned nothing because THAT PROVIDER ACCOUNT ALREADY PAID OUT on another Telarchy account, which is the rule that stops one Google account funding ten accounts; it is reported rather than silently granting zero.',
+    },
+    {
+      method: 'GET',
       path: '/api/admin/earn',
       auth: 'platform admin',
       description:

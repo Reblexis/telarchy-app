@@ -231,6 +231,11 @@ export interface EarnRule {
   updatedAt?: string;
 }
 
+/** An earn rule with the viewer's own state on it. */
+export interface MyEarnRule extends EarnRule {
+  claimed: boolean;
+}
+
 /** One rung of a prize season's published ladder. */
 export interface LadderRung {
   place: number;
@@ -959,6 +964,12 @@ export const api = {
    *  Public, because a contest whose grants decide standings owes its
    *  entrants a readable price list. */
   getEarnTable: (): Promise<{ rules: EarnRule[] }> => request('/api/earn'),
+  /** The same list with the viewer's own state on it. */
+  getMyEarn: (): Promise<{ earned: number; available: number; rules: MyEarnRule[] }> => request('/api/earn/me'),
+  /** Pay for any attached provider account not yet paid for. Safe to
+   *  re-run: it reconciles against the accounts actually linked. */
+  syncEarnLinks: (): Promise<{ granted: number; paid: string[]; takenElsewhere: string[] }> =>
+    request('/api/earn/links/sync', { method: 'POST' }),
   /** The operator's view: disabled rows and the last-changed stamp too. */
   getAdminEarnTable: (): Promise<{ rules: EarnRule[] }> => request('/api/admin/earn'),
   /** Re-price one task. Takes effect on the next grant and is appended to

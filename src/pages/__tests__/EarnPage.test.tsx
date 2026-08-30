@@ -1,9 +1,14 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('../../lib/api', () => ({ api: { getEarnTable: vi.fn() } }));
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: false }) }));
+vi.mock('../../lib/api', () => ({
+  api: { getEarnTable: vi.fn(), getMyEarn: vi.fn(), syncEarnLinks: vi.fn() },
+}));
+const linkSocial = vi.fn();
+vi.mock('../../lib/auth-client', () => ({ authClient: { linkSocial: (...a: unknown[]) => linkSocial(...a) } }));
+let authUser: { id: string } | null = null;
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: authUser, loading: false }) }));
 vi.mock('../TradePage', () => ({ TopBar: () => null }));
 
 import { api } from '../../lib/api';
@@ -35,7 +40,21 @@ const renderPage = () =>
   );
 
 beforeEach(() => {
+  authUser = null;
+  linkSocial.mockReset();
+  linkSocial.mockResolvedValue({ error: null });
   vi.mocked(api.getEarnTable).mockResolvedValue({ rules } as never);
+  vi.mocked(api.syncEarnLinks).mockResolvedValue({ granted: 0, paid: [], takenElsewhere: [] } as never);
+  vi.mocked(api.getMyEarn).mockResolvedValue({
+    earned: 300,
+    available: 5200,
+    rules: [
+      { ...rules[1], key: 'signup_user', label: 'Create an account', claimed: true },
+      { key: 'link_google', label: 'Connect a Google account', credits: 200, kind: 'flat', note: '', claimed: true },
+      { key: 'link_github', label: 'Connect a GitHub account', credits: 200, kind: 'flat', note: '', claimed: false },
+      { ...rules[0], claimed: false },
+    ],
+  } as never);
 });
 
 describe('/earn', () => {
@@ -64,5 +83,47 @@ describe('/earn', () => {
     await screen.findByText('Register through the API (a bot)');
     expect(screen.getByText('none')).toBeInTheDocument();
     expect(screen.getByText('up to')).toBeInTheDocument();
+  });
+});
+
+describe('/earn, signed in', () => {
+  test('shows the tally and marks what is already earned', async () => {
+    authUser = { id: 'u1' };
+    renderPage();
+    expect(await screen.findByText('300')).toBeInTheDocument();
+    expect(screen.getByText('5,200')).toBeInTheDocument();
+    expect(screen.getAllByText('✓ earned').length).toBe(2);
+  });
+
+  test('an unclaimed provider offers a connect button that starts the link', async () => {
+    authUser = { id: 'u1' };
+    renderPage();
+    const btn = await screen.findByRole('button', { name: 'Connect GitHub' });
+    btn.click();
+    await waitFor(() => expect(linkSocial).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/earn' }));
+  });
+
+  test('coming back from a provider, the sync runs first and reports the credit', async () => {
+    // The link exists before it is paid for, so the page reconciles on
+    // load; otherwise a returning reader sees no credits and links again.
+    authUser = { id: 'u1' };
+    vi.mocked(api.syncEarnLinks).mockResolvedValue({
+      granted: 200,
+      paid: ['link_github'],
+      takenElsewhere: [],
+    } as never);
+    renderPage();
+    expect(await screen.findByText('+200 credits')).toBeInTheDocument();
+  });
+
+  test('an account already used elsewhere says so, rather than failing silently', async () => {
+    authUser = { id: 'u1' };
+    vi.mocked(api.syncEarnLinks).mockResolvedValue({
+      granted: 0,
+      paid: [],
+      takenElsewhere: ['link_google'],
+    } as never);
+    renderPage();
+    expect(await screen.findByText(/already earned this on another Telarchy account/)).toBeInTheDocument();
   });
 });

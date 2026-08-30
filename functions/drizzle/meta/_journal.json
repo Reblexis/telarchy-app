@@ -610,6 +610,13 @@
       "when": 1788200000000,
       "tag": "0086_earn_prices",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1788300000000,
+      "tag": "0087_earn_claims",
+      "breakpoints": true
     }
   ]
 }

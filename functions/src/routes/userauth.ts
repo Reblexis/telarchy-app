@@ -26,7 +26,7 @@ import { wrap } from '../lib/wrap';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships, hashKey } from '../middleware/auth';
 import { requireIdentity, requireScope, requireUser } from '../middleware/roles';
 import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
-import { signupCreditsFor } from '../services/earnRules';
+import { claimEarn, earnCredits } from '../services/earnRules';
 import { CURRENT_CONSENT_VERSION } from './legal';
 
 export const userauthRouter = Router();
@@ -47,18 +47,11 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
   // when the user creates their first workspace.
   const keyHash = hashKey(randomBytes(32).toString('hex'));
 
-  // What a person arriving is worth today, read from the earn table the
-  // operator edits (services/earnRules.ts), priced by the provider they
-  // actually came through: an email address costs a farmer nothing, an
-  // aged OAuth account costs about a dollar, so they are not worth the
-  // same. Read BEFORE the transaction: it is a cached read, and holding a
-  // transaction open across it buys nothing.
-  const [acct] = await db
-    .select({ providerId: authAccount.providerId })
-    .from(authAccount)
-    .where(eq(authAccount.userId, uid))
-    .limit(1);
-  const grant = await signupCreditsFor(acct?.providerId ?? null);
+  // Creating an account pays its own price; the provider the person came
+  // through is paid for separately, by its link earn below (owner ask
+  // 2026-08-30). Read BEFORE the transaction: it is a cached read, and
+  // holding a transaction open across it buys nothing.
+  const grant = await earnCredits('signup_user');
 
   // One transaction: an identity created without its grant, or a grant
   // without its identity, are both states nothing later would repair.
@@ -82,6 +75,25 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
       });
     }
   });
+
+  // The earns, recorded so the /earn page can show what is left and so
+  // nothing pays twice. Claiming the signup itself is what makes it
+  // idempotent; the provider link pays separately, keyed on the provider
+  // account so one Google account can never fund two Telarchy accounts.
+  await claimEarn({ agentId: participantId, key: 'signup_user' }).catch(e =>
+    console.error('signup earn claim failed:', e),
+  );
+  const links = await db
+    .select({ providerId: authAccount.providerId, accountId: authAccount.accountId })
+    .from(authAccount)
+    .where(eq(authAccount.userId, uid));
+  for (const l of links) {
+    const key = l.providerId === 'google' ? 'link_google' : l.providerId === 'github' ? 'link_github' : null;
+    if (!key) continue;
+    await claimEarn({ agentId: participantId, key, refId: l.accountId }).catch(e =>
+      console.error('link earn claim failed:', e),
+    );
+  }
 
   // The public identity must be UNIQUE (owner direction 2026-08-11): the
   // signup "display name" is free text two people can share, so it never
