@@ -119,7 +119,7 @@ describe('the setup conversation', () => {
 
   test('signed out, he says he cannot open anything and offers the door', () => {
     renderChat(false);
-    expect(screen.getByText(/create nothing/i)).toBeTruthy();
+    expect(screen.getByText(/he creates nothing/i)).toBeTruthy();
     expect(screen.getByRole('link', { name: /create an account/i })).toBeTruthy();
   });
 });

@@ -90,6 +90,40 @@ hairline. Do not wrap sections in `bg-secondary` cards with shadow and
 radius; those read as heavyweight panels. The exceptions are the real
 interactive surfaces: the trade ticket, the account dialog, a modal.
 
+## How much a page says
+
+**A sentence earns its place by helping the reader act, never by
+defending the design.** Every page is written for someone deciding what
+to press, so what belongs on it is what this thing is, what it costs,
+what it gives back, and where the button is. The reasoning behind a
+price, a rule or a mechanism belongs to the docs and the records, and a
+reader who wants it can read them.
+
+Concretely, the sentences to cut on sight:
+
+- **Why the mechanism is the way it is.** "because the market opened at
+  that number", "which is what pulls forecasters to your number", "the
+  change widens who may enter". The rule stands without its defence.
+- **The same fact explained twice on one page**, or once per page across
+  four pages. One surface owns it; the rest link.
+- **The closing note that restates the page.** A footnote under a table
+  that says how the table works is the table failing.
+- **Pricing or fairness philosophy.** What a thing is worth is a number
+  on the row. Why it is worth that is a design record.
+
+What never gets cut for length: a disclaimer's operative words ("not
+advice from X"), the consequence of an irreversible action, eligibility
+rules, and the claims that keep a purchase a purchase rather than a
+contest entry (the funding page's "can only ever go into your own market
+pools", "does not enter you into the prize season"). Trimming those is
+not concision; it is a different statement.
+
+The house benchmark is the login page and the market list's headline.
+Adopted 2026-08-30 (owner: "less words.. everywher on the website.. i
+feel like ther eare useless explanations not releevant to users"); the
+survey of what was cut and the outside evidence behind the rule are in
+the telarchy umbrella, `notes/yc-website-copy-2026-08-30.md`.
+
 ## Vocabulary a visitor reads
 
 **User-facing copy says MARKET, never "floor".** The word is internal
@@ -1436,6 +1470,13 @@ Three surfaces, no banners:
 - **The balance itself.** Everywhere the balance is shown it links to
   `/earn` and carries what is unclaimed in the accent colour.
 - **The top bar's earn door**, for signed-in accounts only.
+
+`/earn` itself is the price list and nothing else: a row per earn, its
+number, and the button that does it. Two of its rows are not one-time
+grants and are shown differently: trading profit has no ceiling and no
+number ("no limit"), and the daily streak shows the range its multiplier
+spans. Neither counts toward "earned" or "left to claim", because that
+tally has to mean a number somebody can finish.
 
 Every one of them renders nothing when the account has nothing left to
 earn, and nothing when the read fails. That absence is the rule: a

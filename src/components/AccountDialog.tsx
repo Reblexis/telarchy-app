@@ -921,8 +921,8 @@ export function AccountDialog({
                   <div className="jobform-field">
                     <span className="ticket-label">Credits</span>
                     <p className="acctdlg-hint">
-                      Credits are what you trade with. They are never bought or cashed out; you earn them by bringing
-                      something the floor needs. <Link to="/earn">What each way is worth</Link>.
+                      Credits are what you trade with, never bought or cashed out.{' '}
+                      <Link to="/earn">How to get them</Link>.
                     </p>
                   </div>
                   <AccountCredits me={participant} onChanged={loadParticipant} />
@@ -971,8 +971,7 @@ export function AccountDialog({
                     </div>
                     <p className="acctdlg-hint">
                       Email goes to {user?.email ?? 'your account email'}; every one says how to turn it off. Mobile is
-                      a push notification from this browser: switching one on asks the browser's permission, and works
-                      on a phone when Telarchy is installed from the browser menu.
+                      a push from this browser, and works on a phone once Telarchy is installed from the browser menu.
                     </p>
                   </div>
                   {errors.emails && <p className="ticket-err">{errors.emails}</p>}
@@ -990,8 +989,8 @@ export function AccountDialog({
                     <span className="ticket-label">Point your own AI at Telarchy</span>
                     <p className="acctdlg-hint">
                       {floor
-                        ? `Paste this into Claude, ChatGPT or your own agent. It reads ${floor.name}'s public brief: the company, every number with its history, what the markets currently predict, and every contract with its priced impact.`
-                        : "Paste this into Claude, ChatGPT or your own agent. It reads a floor's public brief: the company, every number with its history, what the markets currently predict, and every contract with its priced impact."}
+                        ? `Paste this into Claude, ChatGPT or your own agent. It reads ${floor.name}'s public brief: every number with its history, what the markets predict, and every contract with its priced impact.`
+                        : "Paste this into Claude, ChatGPT or your own agent. It reads a floor's public brief: every number with its history, what the markets predict, and every contract with its priced impact."}
                     </p>
                     <pre className="acctdlg-prompt">{agentPrompt(window.location.origin, floor)}</pre>
                     <button

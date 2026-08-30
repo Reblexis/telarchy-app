@@ -123,8 +123,8 @@ export function FundingPage() {
         </Link>
         <h1 className="annp-head">Funding</h1>
         <p className="annp-lead">
-          Credits are what your markets run on. Deeper pools mean a price that is harder to move and worth more to be
-          right about, which is what pulls forecasters to your number rather than someone else's.
+          Credits are what your markets run on. A deeper pool is harder to move and pays more to be right about, which
+          is what pulls forecasters to your number.
         </p>
 
         {loadErr && <p className="adm-err">{loadErr}</p>}
@@ -154,9 +154,9 @@ export function FundingPage() {
                 <span className="pubws-lb-meta">1,000 credits per dollar</span>
               </div>
               <p className="adm-note">
-                They can only ever go into your own market pools: never a tradeable balance, never a withdrawal, and
-                what a market does not pay out at settlement comes back to the wallet. Buying does not enter you into
-                the prize season, and as the operator here you are not eligible for it either way.
+                They can only ever go into your own market pools: never a balance you can trade or withdraw, and
+                whatever a market does not pay out comes back to the wallet. Buying does not enter you into the prize
+                season.
               </p>
 
               <div className="fundp-presets">
@@ -201,8 +201,7 @@ export function FundingPage() {
                 </button>
               </div>
               <p className="adm-note fundp-fine">
-                Between $5 and $5,000. Card details are handled by Stripe, never by us, and nothing changes on any
-                market until Stripe confirms the payment.
+                Between $5 and $5,000. Stripe handles the card, and nothing changes until it confirms.
               </p>
               {err && <p className="ticket-err">{err}</p>}
             </section>

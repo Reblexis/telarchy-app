@@ -123,8 +123,8 @@ export function SeasonPage() {
           <p className="seasonp-pool">${season.poolUsd.toLocaleString()}</p>
           <p className="seasonp-pool-sub">
             {season.payoutMode === 'proportional'
-              ? 'in real money, split among entrants in proportion to the settled trading profit they earn while the season runs. Free to enter: no purchase, no stake, your credits are never spent or exchanged.'
-              : 'in real money, paid by place to those whose settled trading profit is highest while the season runs. Free to enter: no purchase, no stake, your credits are never spent or exchanged.'}
+              ? 'in real money, split by settled trading profit. Free to enter, nothing of yours at stake.'
+              : 'in real money, paid by place on settled trading profit. Free to enter, nothing of yours at stake.'}
           </p>
         </section>
 
@@ -132,8 +132,8 @@ export function SeasonPage() {
             whether to spend eight weeks on this deserves to know the platform
             is still being launched before they decide, not after. */}
         <p className="seasonp-experimental">
-          Season 0 is the first one, and the platform is still being launched. Expect rough edges, apologies in advance.
-          If something looks wrong, tell us: where a bug affects standings we publish the correction.
+          Season 0 is the first one and the platform is still launching. Expect rough edges, and tell us if something
+          looks wrong: where a bug affects standings we publish the correction.
         </p>
         {/* The rules require every mid-season change to be announced HERE
             before it takes effect. Remove when Season 0 settles. Collapsed by
@@ -143,22 +143,21 @@ export function SeasonPage() {
         <details className="seasonp-rulechanges">
           <summary className="seasonp-experimental seasonp-rulechanges-summary">
             {season.payoutMode === 'proportional'
-              ? 'Rule change, 2026-08-28, effective now: the pool is split among entrants in proportion to positive settled profit, replacing the fixed prizes by place. Every entrant in the green is paid their share; details in the rules.'
-              : "Rule change, 2026-08-28, effective now: the ranking pays settled profit only, i.e. markets that actually resolve while the season runs. Open positions stay marked on the board but score nothing until reality lands, and trades in a market's final 6 hours do not count toward the score. Details in the rules."}
+              ? 'Rule change, 2026-08-28, effective now: the pool is split in proportion to positive settled profit, replacing the fixed prizes by place. Every entrant in the green is paid a share.'
+              : "Rule change, 2026-08-28, effective now: only markets that resolve during the season score. Open positions score nothing until they do, and trades in a market's final 6 hours do not count."}
             <span className="seasonp-rulechanges-toggle" aria-hidden="true">
               earlier changes
             </span>
           </summary>
           {season.payoutMode === 'proportional' && (
             <p className="seasonp-experimental">
-              Rule change, 2026-08-28: the ranking pays settled profit only, i.e. markets that actually resolve while
-              the season runs. Open positions stay marked on the board but score nothing until reality lands, and trades
-              in a market's final 6 hours do not count toward the score.
+              Rule change, 2026-08-28: only markets that resolve during the season score. Open positions score nothing
+              until they do, and trades in a market's final 6 hours do not count.
             </p>
           )}
           <p className="seasonp-experimental">
-            Rule change, 2026-08-25: accounts that own or administer a workspace are explicitly eligible, and their
-            trades in it count like any other. The change widens who may enter and reduces nobody's standing.
+            Rule change, 2026-08-25: workspace owners and admins are eligible, and their trades count like any other.
+            It widens who may enter and reduces nobody's standing.
           </p>
           <p className="seasonp-experimental">
             Rule change, 2026-08-22: a prize no longer requires a positive score; place alone decides it. The change
@@ -185,13 +184,11 @@ export function SeasonPage() {
                number worth stating beside the pool is the dust floor, so
                nobody wonders why a $0.40 share was not paid. */
             <p className="seasonp-note">
-              The ${season.poolUsd.toLocaleString()} pool is split among entrants in proportion to positive settled
-              profit: earn twice the settled profit, be paid twice the share. Losses pay nothing and shrink nobody
-              else's share
+              Split in proportion to positive settled profit: twice the profit, twice the share. Losses pay nothing
               {season.minPayoutUsd > 0
-                ? `; a share below $${season.minPayoutUsd.toLocaleString()} rolls into the next season's pool instead of being paid`
+                ? `, and a share under $${season.minPayoutUsd.toLocaleString()} rolls into the next season's pool`
                 : ''}
-              . Your projected share is on the standings below.
+              . Your projected share is in the standings below.
             </p>
           ) : (
             /* Each rung's bar length IS the prize, scaled to first place, so

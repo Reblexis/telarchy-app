@@ -139,8 +139,8 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open
           <>
             <p className="otto-msg otto-msg--otto">
               {signedIn
-                ? 'I watch this floor. Ask me what the company does or where the price should be, and I can do it for you as well: place a bet, offer a contract, tell you what you are holding.'
-                : 'I watch this floor. Ask me what the company does, whether the price looks right, or which contract I would take.'}
+                ? 'I watch this floor. Ask what the company does or where the price should be, and I can act for you: place a bet, offer a contract, tell you what you hold.'
+                : 'I watch this floor. Ask what the company does, whether the price looks right, or which contract I would take.'}
             </p>
             <div className="otto-openers">
               {openers.map(o => (
@@ -184,13 +184,11 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open
       <p className="otto-note">
         {signedIn ? (
           <>
-            Otto acts with your account, so he can do what you can do and nothing more. The opinions are his, not advice
-            from {workspaceName}.
+            Otto acts with your account and can do only what you can. His opinions are not advice from {workspaceName}.
           </>
         ) : (
           <>
-            Otto reads this floor&rsquo;s public brief and has his own opinions. They are not advice from{' '}
-            {workspaceName}. Sign up and he can act for you too.
+            Otto&rsquo;s opinions are not advice from {workspaceName}. Sign up and he can act for you too.
           </>
         )}
       </p>

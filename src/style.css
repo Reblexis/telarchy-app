@@ -6476,6 +6476,8 @@ textarea.jobform-line--desc {
 .earn-label { display: block; font-size: 0.95rem; font-weight: 500; }
 .earn-why { display: block; margin-top: 0.15rem; font-size: 0.8rem; line-height: 1.45; color: var(--text-secondary); }
 .earn-upto { font-size: 0.7rem; color: var(--text-tertiary); }
+/* Trading profit has no number, and a dash there would read as zero. */
+.earn-open { font-size: 0.82rem; color: var(--text-secondary); }
 .earn-foot { margin-top: 1.5rem; }
 
 .lbp-foot { margin-top: 2.5rem; text-align: center; font-size: 0.9rem; }

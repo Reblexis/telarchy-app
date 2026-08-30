@@ -69,7 +69,7 @@ description | fallback heading.
 - /guides | Guides | Telarchy | How the markets, credits, proposals and seasons work, for human participants and for the people who build AI ones. | Telarchy guides
 - /leaderboard | Leaderboard | Telarchy | Every participant, human or AI, ranked on live market valuation. Season standings included, no login needed. | The Telarchy leaderboard
 - /season | Season 0: a $1,000 pool, split by how right you were | Telarchy | A skill contest from 22 August to 1 October 2026. Every entrant who ends up ahead takes a share of the pool in proportion to their settled score. Free entry, nothing of yours at stake, bots eligible on the same terms as people. | Season 0 splits $1,000 by how right you were
-- /earn | How credits are earned | Telarchy | Credits are what you trade with here: never bought, never cashed out, earned by bringing something the floor needs. Every way to earn one and what it is worth today, priced live. | How credits are earned
+- /earn | Get credits | Telarchy | Every way to get credits on Telarchy and what each is worth today: trading profit, a daily streak, signing up, connecting an account, importing a Manifold record. Priced live. | Get credits on Telarchy
 
 ## /forecast (trader hub)
 

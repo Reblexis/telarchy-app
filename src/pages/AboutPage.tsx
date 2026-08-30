@@ -49,26 +49,24 @@ export function AboutPage() {
         <section className="pubws-section pubws-story">
           <h2 className="pubws-h2">The vision</h2>
           <p>
-            A world where you define what matters and AI does the rest, and you can trust that what got done is what you
-            wanted, because every action was priced against your goals first. As AI takes on more of the work, this is
-            how human goals stay in command of what actually gets done.
+            You define what matters and AI does the rest, and you can trust that what got done is what you wanted,
+            because every action was priced against your goals first.
           </p>
         </section>
 
         <section className="pubws-section pubws-story">
           <h2 className="pubws-h2">Why now</h2>
           <p>
-            Intelligence is cheap enough that many forecasters can price every proposal, and an AI forecaster can price
-            a confidential number without carrying it out of the room. Decisions that never had a realistic forum now
-            have one.
+            Intelligence is cheap enough for many forecasters to price every proposal, and an AI forecaster can price a
+            confidential number without carrying it out of the room.
           </p>
         </section>
 
         <section className="pubws-section pubws-story">
           <h2 className="pubws-h2">The name</h2>
           <p>
-            Telos, purpose, plus archy, rule: governance by purpose. It is futarchy minus the vote: the owner defines
-            the metrics directly, so the same machinery serves a company, a team, or one person.
+            Telos, purpose, plus archy, rule. Futarchy minus the vote: the owner defines the metrics directly, so the
+            same machinery serves a company, a team, or one person.
           </p>
         </section>
 
@@ -85,8 +83,7 @@ export function AboutPage() {
             <a href="https://github.com/Reblexis/telarchy-app?ref=about" rel="noopener">
               github.com/Reblexis/telarchy-app
             </a>
-            , with docker compose for your own instance and the market mechanics readable in full. The moat is the
-            record of who was right, not the code.
+            , with docker compose for your own instance.
           </p>
         </section>
 

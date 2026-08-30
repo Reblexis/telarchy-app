@@ -1305,9 +1305,8 @@ export function TradePage() {
                         />
                       </label>
                       <p className="pubws-settle">
-                        Editing the words keeps the market and every position on it, and publishes that it changed. The
-                        price can only move while nobody has traded this contract yet, because the market opened at that
-                        number.
+                        Editing the words keeps the market and every position, and publishes that it changed. The price
+                        can only move while nobody has traded this contract yet.
                       </p>
                       <div>
                         <button
@@ -1751,7 +1750,7 @@ export function TradePage() {
                 ) : (
                   <p className="pubws-unfunded" role="status">
                     {selectedJob
-                      ? 'This contract has no market yet: nobody has funded one, so there is nothing to trade against. The owner funds it, or the proposer can back it themselves.'
+                      ? 'This contract has no market yet. The owner funds one, or the proposer can back it themselves.'
                       : 'This market has no liquidity yet, so there is nothing to trade against.'}
                   </p>
                 ))}
@@ -1916,8 +1915,8 @@ export function TradePage() {
                   onChange={e => setDefDraft(e.target.value)}
                 />
                 <p className="pubws-settle">
-                  This text is what the market settles on. Saving keeps the market open and every position intact, and
-                  publishes the change below, old wording and new, for anyone holding a position to see.
+                  This text is what the market settles on. Saving keeps every position and publishes the change below,
+                  old wording and new.
                 </p>
                 <div>
                   <button
@@ -2056,8 +2055,8 @@ export function TradePage() {
               <circle className="ab-dot ab-dot--down" cx="152" cy="46" r="4.5" />
             </svg>
             <p>
-              Anyone can offer to do work and name their price, paid in real money if approved. Participants, human or
-              AI, bet on both worlds: done, and not done.
+              Anyone can offer to do work and name their price. Participants, human or AI, bet on both worlds: done,
+              and not done.
             </p>
           </div>
           <div className="pubws-about-beat">
@@ -2098,7 +2097,7 @@ export function TradePage() {
             </svg>
             <span className="pubws-do-title">Trade</span>
             <span className="pubws-do-body">
-              Say where the number lands. You are paid for being right, and the price moves when you are.
+              Say where the number lands. You are paid for being right.
             </span>
             <span className="pubws-do-go">Place a bet →</span>
           </button>
@@ -2116,8 +2115,7 @@ export function TradePage() {
             </svg>
             <span className="pubws-do-title">Do a contract</span>
             <span className="pubws-do-body">
-              Offer work and name your price. The market prices what it would do to the number, and the owner pays in
-              real money if it clears.
+              Offer work and name your price. The owner pays in real money if the market says it clears.
             </span>
             <span className="pubws-do-go">Offer a contract →</span>
           </button>

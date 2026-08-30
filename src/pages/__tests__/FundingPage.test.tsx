@@ -79,7 +79,7 @@ describe('the funding page', () => {
     await screen.findByText('128,400');
     const note = screen.getByText(/can only ever go into your own market pools/);
     // The three claims that keep this a service rather than contest entry.
-    expect(note.textContent).toMatch(/never a tradeable balance/);
+    expect(note.textContent).toMatch(/never a balance you can trade or withdraw/);
     expect(note.textContent).toMatch(/comes back to the wallet/);
     expect(note.textContent).toMatch(/does not enter you into the prize season/);
   });
@@ -97,7 +97,7 @@ describe('the funding page', () => {
     await screen.findByText('128,400');
     fireEvent.click(screen.getByText('Pay $50.00 for 50,000 credits'));
     await waitFor(() => expect(buyLiquidityCredits).toHaveBeenCalledWith('ws', 50));
-    expect(screen.getByText(/nothing changes on any market until Stripe confirms/i)).toBeTruthy();
+    expect(screen.getByText(/nothing changes until it confirms/i)).toBeTruthy();
   });
 
   test('an amount outside the API bounds cannot be submitted', async () => {

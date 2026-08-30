@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import { withBase } from '../lib/base-path';
 import { FloorModal } from './FloorModal';
 import { ManifoldLogo } from './ManifoldLogo';
 
@@ -92,10 +92,9 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
             ) : step === 'ask' ? (
               <>
                 <p className="mfimport-lead">
-                  A proven record starts you with real weight here. Link an established Manifold account once and it is
-                  worth a fixed grant of credits: the account has to be at least 90 days old, not a bot, and either
-                  traded in the last 60 days or have markets other people traded. What the grant is worth right now is
-                  published at <a href={withBase('/api/earn')}>/api/earn</a>.
+                  Link an established Manifold account once for a fixed grant: at least 90 days old, not a bot, and
+                  either traded in the last 60 days or with markets other people traded. Today's grant is on{' '}
+                  <Link to="/earn">the earn page</Link>.
                 </p>
                 <label className="jobform-field">
                   <span className="ticket-label">Your Manifold username</span>

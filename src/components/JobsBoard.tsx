@@ -408,7 +408,11 @@ export function JobsBoard({
                     : 'Suggest a contract'}
               {!placed && (
                 <span className="ticket-go-sub">
-                  Free to post. Approved means you are paid in real money, plus 500&nbsp;cr.
+                  {/* The bounty is the workspace's own proposalReward, like
+                      the board above: a hardcoded 500 cr promised what most
+                      floors do not pay. */}
+                  Free to post. Approved means you are paid in real money
+                  {proposalReward > 0 ? <>, plus {proposalReward.toLocaleString()}&nbsp;cr</> : null}.
                 </span>
               )}
             </button>
