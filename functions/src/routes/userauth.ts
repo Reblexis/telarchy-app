@@ -2,7 +2,16 @@ import { randomBytes } from 'crypto';
 import { eq } from 'drizzle-orm';
 import { type Request, Router } from 'express';
 import { db } from '../db/client';
-import { agentApiKeys, agents, authUser, positions, proposalMessages, proposals, trades } from '../db/schema';
+import {
+  agentApiKeys,
+  agents,
+  authAccount,
+  authUser,
+  positions,
+  proposalMessages,
+  proposals,
+  trades,
+} from '../db/schema';
 import { AppError } from '../lib/errors';
 import {
   applyMatrixUpdate,
@@ -17,7 +26,7 @@ import { wrap } from '../lib/wrap';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships, hashKey } from '../middleware/auth';
 import { requireIdentity, requireScope, requireUser } from '../middleware/roles';
 import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
-import { earnCredits } from '../services/earnRules';
+import { signupCreditsFor } from '../services/earnRules';
 import { CURRENT_CONSENT_VERSION } from './legal';
 
 export const userauthRouter = Router();
@@ -39,10 +48,17 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
   const keyHash = hashKey(randomBytes(32).toString('hex'));
 
   // What a person arriving is worth today, read from the earn table the
-  // operator edits (services/earnRules.ts). Read BEFORE the transaction:
-  // it is a cached read, and holding a transaction open across it buys
-  // nothing.
-  const grant = await earnCredits('signup_user');
+  // operator edits (services/earnRules.ts), priced by the provider they
+  // actually came through: an email address costs a farmer nothing, an
+  // aged OAuth account costs about a dollar, so they are not worth the
+  // same. Read BEFORE the transaction: it is a cached read, and holding a
+  // transaction open across it buys nothing.
+  const [acct] = await db
+    .select({ providerId: authAccount.providerId })
+    .from(authAccount)
+    .where(eq(authAccount.userId, uid))
+    .limit(1);
+  const grant = await signupCreditsFor(acct?.providerId ?? null);
 
   // One transaction: an identity created without its grant, or a grant
   // without its identity, are both states nothing later would repair.

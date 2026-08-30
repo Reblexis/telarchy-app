@@ -57,13 +57,70 @@ async function configSet(key: string, value: unknown): Promise<void> {
   await db.insert(systemConfig).values({ key, value }).onConflictDoUpdate({ target: systemConfig.key, set: { value } });
 }
 
-async function fetchManifoldUser(username: string): Promise<{ id: string; username: string; bio: string }> {
+interface ManifoldUser {
+  id: string;
+  username: string;
+  bio: string;
+  createdTime: number | null;
+  lastBetTime: number | null;
+  creatorTraders: number;
+  isBot: boolean;
+}
+
+async function fetchManifoldUser(username: string): Promise<ManifoldUser> {
   const res = await fetch(`${MANIFOLD_API}/user/${encodeURIComponent(username)}`);
   if (res.status === 404) throw new AppError(`No Manifold user named "${username}"`, 404);
   if (!res.ok) throw new AppError('Manifold API is unreachable right now; try again in a minute', 502);
-  const u = (await res.json()) as { id?: string; username?: string; bio?: string };
+  const u = (await res.json()) as {
+    id?: string;
+    username?: string;
+    bio?: string;
+    createdTime?: number;
+    lastBetTime?: number;
+    isBot?: boolean;
+    creatorTraders?: number | { allTime?: number };
+  };
   if (!u.id) throw new AppError('Manifold returned an unexpected shape', 502);
-  return { id: u.id, username: u.username ?? username, bio: u.bio ?? '' };
+  const ct = u.creatorTraders;
+  return {
+    id: u.id,
+    username: u.username ?? username,
+    bio: u.bio ?? '',
+    createdTime: typeof u.createdTime === 'number' ? u.createdTime : null,
+    lastBetTime: typeof u.lastBetTime === 'number' ? u.lastBetTime : null,
+    creatorTraders: typeof ct === 'number' ? ct : (ct?.allTime ?? 0),
+    isBot: u.isBot === true,
+  };
+}
+
+/**
+ * What the grant is actually paying for (owner decision 2026-08-30): an
+ * ESTABLISHED forecaster, not a balance. Mana transfers between Manifold
+ * accounts, so net worth is the one input a farmer can concentrate into a
+ * fresh account; account age, a recent bet and other people trading your
+ * markets cannot be concentrated that way. A bot flag disqualifies
+ * outright: a bot brings no person.
+ */
+const MIN_ACCOUNT_AGE_DAYS = 90;
+const RECENT_BET_DAYS = 60;
+
+function qualifies(u: ManifoldUser, now = Date.now()): { ok: true } | { ok: false; why: string } {
+  if (u.isBot) return { ok: false, why: 'That Manifold account is flagged as a bot.' };
+  const ageDays = u.createdTime ? (now - u.createdTime) / 86_400_000 : 0;
+  if (ageDays < MIN_ACCOUNT_AGE_DAYS) {
+    return {
+      ok: false,
+      why: `That Manifold account is ${Math.floor(ageDays)} days old; the import needs ${MIN_ACCOUNT_AGE_DAYS}.`,
+    };
+  }
+  const betDays = u.lastBetTime ? (now - u.lastBetTime) / 86_400_000 : Infinity;
+  if (betDays > RECENT_BET_DAYS && u.creatorTraders <= 0) {
+    return {
+      ok: false,
+      why: `That Manifold account has not traded in ${RECENT_BET_DAYS} days and has no markets others traded.`,
+    };
+  }
+  return { ok: true };
 }
 
 async function fetchManifoldNetWorth(userId: string): Promise<number> {
@@ -157,11 +214,13 @@ manifoldRouter.post(
     const netWorth = await fetchManifoldNetWorth(user.id);
     // Negative and micro accounts import as zero: the record is still linked
     // (and burned for reuse), but only real standing moves credits.
-    // The cap is priced in the earn table (services/earnRules.ts), so the
-    // operator can move it without a deploy; MANIFOLD_GRANT_CAP is the
-    // fallback for an instance whose table was never seeded.
-    const cap = await earnCredits('manifold_link');
-    const granted = Math.max(0, Math.min(cap, Math.round(netWorth)));
+    // FLAT, not scaled by net worth (owner decision 2026-08-30): what is
+    // scarce is the established account itself, and net worth is the part
+    // a farmer can move between accounts. Priced in the earn table, so the
+    // operator can change it without a deploy.
+    const q = qualifies(user);
+    if (!q.ok) throw new AppError(q.why, 400);
+    const granted = Math.max(0, Math.round(await earnCredits('manifold_link')));
 
     await db.transaction(async tx => {
       if (granted > 0) {
@@ -189,9 +248,9 @@ manifoldRouter.post(
     res.json({
       ok: true,
       username: user.username,
+      // Reported for context, no longer what decides the grant.
       netWorth: Math.round(netWorth),
       granted,
-      cap,
     });
   }),
 );

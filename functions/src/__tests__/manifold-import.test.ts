@@ -54,6 +54,9 @@ beforeAll(async () => {
 let manifoldBio = '';
 let manifoldBalance = 0;
 let manifoldInvested = 0;
+let manifoldCreated = 0;
+let manifoldLastBet = 0;
+let manifoldIsBot = false;
 const MUSER = { id: 'mf-user-1', username: 'CalibratedCarol' };
 
 const realFetch = global.fetch;
@@ -66,12 +69,27 @@ beforeEach(async () => {
   manifoldBio = '';
   manifoldBalance = 0;
   manifoldInvested = 0;
+  // The import pays for an ESTABLISHED account (2026-08-30), so the
+  // fixture is one: aged past 90 days and traded this week. The tests
+  // that care about the gates set these themselves.
+  manifoldCreated = Date.now() - 200 * 86_400_000;
+  manifoldLastBet = Date.now() - 3 * 86_400_000;
+  manifoldIsBot = false;
   global.fetch = jest.fn(async (url: any) => {
     const u = String(url);
     if (u.includes('/v0/user/')) {
-      return new Response(JSON.stringify({ id: MUSER.id, username: MUSER.username, bio: manifoldBio }), {
-        status: 200,
-      });
+      return new Response(
+        JSON.stringify({
+          id: MUSER.id,
+          username: MUSER.username,
+          bio: manifoldBio,
+          createdTime: manifoldCreated,
+          lastBetTime: manifoldLastBet,
+          isBot: manifoldIsBot,
+          creatorTraders: 0,
+        }),
+        { status: 200 },
+      );
     }
     if (u.includes('/v0/get-user-portfolio')) {
       return new Response(JSON.stringify({ balance: manifoldBalance, investmentValue: manifoldInvested }), {
@@ -109,7 +127,7 @@ async function balanceOf(agentId: string): Promise<number> {
 }
 
 describe('the import', () => {
-  test('grants net worth in credits once the bio carries the code', async () => {
+  test('grants the flat established-account price once the bio carries the code', async () => {
     manifoldBalance = 1800;
     manifoldInvested = 700;
     const started = await as('agent-mf-a').start('CalibratedCarol');
@@ -124,23 +142,41 @@ describe('the import', () => {
     manifoldBio = `hello ${started.body.code} world`;
     const claimed = await as('agent-mf-a').claim();
     expect(claimed.status).toBe(200);
-    expect(claimed.body.granted).toBe(2500);
-    expect(await balanceOf('agent-mf-a')).toBeCloseTo(3500, 5);
+    // Flat price for an established account, whatever the balance says.
+    expect(claimed.body.granted).toBe(10_000);
+    expect(await balanceOf('agent-mf-a')).toBeCloseTo(11_000, 5);
   });
 
-  test('the grant caps at 10,000 (lowered 2026-08-28) and floors at 0', async () => {
+  test('the grant is flat: a whale and a modest account are worth the same (2026-08-30)', async () => {
+    // Net worth stopped deciding the grant because mana moves between
+    // Manifold accounts, so it is the one input a farmer can concentrate.
     manifoldBalance = 5_000_000;
     const s1 = await as('agent-mf-a').start('CalibratedCarol');
     manifoldBio = s1.body.code;
-    const big = await as('agent-mf-a').claim();
-    expect(big.body.granted).toBe(10_000);
+    const whale = await as('agent-mf-a').claim();
+    expect(whale.body.granted).toBe(10_000);
+  });
 
-    // A negative account (Manifold loans allow it) imports as zero, and the
-    // record is still burned for reuse.
-    manifoldBalance = -50_000;
-    manifoldBio = '';
-    const s2 = await as('agent-mf-b').start('CalibratedCarol');
-    expect(s2.status).toBe(409); // Carol is already claimed by A
+  test('a fresh, idle or bot account earns nothing at all', async () => {
+    manifoldBalance = 50_000;
+    manifoldCreated = Date.now() - 10 * 86_400_000; // 10 days old
+    const s = await as('agent-mf-a').start('CalibratedCarol');
+    manifoldBio = s.body.code;
+    const young = await as('agent-mf-a').claim();
+    expect(young.status).toBe(400);
+    expect(young.body.error).toMatch(/days old/);
+
+    manifoldCreated = Date.now() - 200 * 86_400_000;
+    manifoldIsBot = true;
+    const bot = await as('agent-mf-a').claim();
+    expect(bot.status).toBe(400);
+    expect(bot.body.error).toMatch(/bot/i);
+
+    manifoldIsBot = false;
+    manifoldLastBet = Date.now() - 400 * 86_400_000;
+    const idle = await as('agent-mf-a').claim();
+    expect(idle.status).toBe(400);
+    expect(idle.body.error).toMatch(/not traded/);
   });
 
   test('one Manifold account cannot fund two Telarchy accounts', async () => {
@@ -165,6 +201,6 @@ describe('the import', () => {
     // And a stale claim replay grants nothing.
     const replay = await as('agent-mf-a').claim();
     expect(replay.status).not.toBe(200);
-    expect(await balanceOf('agent-mf-a')).toBeCloseTo(1100, 5);
+    expect(await balanceOf('agent-mf-a')).toBeCloseTo(11_000, 5);
   });
 });

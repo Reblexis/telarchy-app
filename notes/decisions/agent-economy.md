@@ -85,3 +85,23 @@ history table is what keeps such a change reconstructable. The pricing
 principle and the measured base rates behind it (median Manifold balance
 600 mana against Telarchy's 10,000 grant on books of b = 330 to 2,000) are
 in the telarchy umbrella, notes/earn-table-design-2026-08-30.md.
+
+## 2026-08-30: the earn table gets its prices (owner decision)
+
+**DONE 2026-08-30 (Viktor):** "i agree witht hte table for now.. lets set
+it up". Migration 0086 applies the priced table from the telarchy
+umbrella's notes/earn-table-design-2026-08-30.md, section 8, where each
+row is min(value to us, a fraction of what the signal costs to fake) at
+the internal accounting rate of 1,000 credits = $1:
+
+- Signup splits by provider: email + password 100, Google/GitHub 300. The
+  old single `signup_user` row survives as the fallback, priced at the
+  cheaper of the two so it can never be the generous path.
+- The Manifold import becomes a FLAT 5,000 for a QUALIFIED account (not a
+  bot, 90+ days old, a bet in the last 60 days or markets others traded)
+  instead of net worth capped at 10,000. Net worth stopped deciding it
+  because mana transfers between Manifold accounts, which makes it the one
+  input a farmer can concentrate into a fresh account.
+- Referral is deliberately NOT shipped: a flat bounty is self-referrable
+  (see the umbrella note for the fix, which is to pay a share of the
+  referred trader's earned value rather than a bounty).
