@@ -92,7 +92,7 @@ run it on a cron, and the script does one `GET /api/metrics` to find the id and
 one `PUT` per number it measured.
 
 Telarchy does this to itself, hourly, against the same public endpoint its own
-markets settle on. Three habits are worth copying:
+markets settle on. Four habits are worth copying:
 
 1. **Push every reading you actually took, changed or not.** The reading log is
    the "actual so far" line on your floor, so a number that comes back the same

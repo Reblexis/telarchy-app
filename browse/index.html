@@ -7163,7 +7163,7 @@ good.</li>
 run it on a cron, and the script does one <code>GET /api/metrics</code> to find the id and
 one <code>PUT</code> per number it measured.</p>
 <p>Telarchy does this to itself, hourly, against the same public endpoint its own
-markets settle on. Three habits are worth copying:</p>
+markets settle on. Four habits are worth copying:</p>
 <ol>
 <li><strong>Push every reading you actually took, changed or not.</strong> The reading log is
 the &quot;actual so far&quot; line on your floor, so a number that comes back the same
@@ -8112,7 +8112,10 @@ floor, and it runs here rather than in GitHub Actions because GitHub's
 scheduler cannot hold an hourly cadence: a <code>40 23 * * *</code> job fired at 01:36,
 04:17, 04:59 and 07:03 UTC on four consecutive days, and changing it to
 <code>40 * * * *</code> produced no run at all in the four hours that followed. It is a
-no-op on any instance that has not set <code>SELF_SYNC_WORKSPACE_ID</code>.</p>
+no-op on any instance that has not set <code>SELF_SYNC_WORKSPACE_ID</code>, which names
+the workspace whose metrics ARE the platform's own numbers. That id is public
+and is passed by <code>deploy-cloudrun.yml</code> in <code>--update-env-vars</code>, not set by hand,
+so no revision can come up without it and quietly stop recording them.</p>
 <p>Hour-granularity markets (<code>YYYY-MM-DDTHH</code> target dates, <code>+Nh</code> custom
 horizons) need at least hourly resolution and rolling, so the managed
 cadence is never coarser than hourly.</p>
