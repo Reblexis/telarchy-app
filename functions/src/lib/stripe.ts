@@ -34,6 +34,25 @@ export function liquidityCreditsPerUsd(): number {
   return Number.isFinite(raw) && raw > 0 ? raw : 1000;
 }
 
+/**
+ * The product tax code on every line item.
+ *
+ * Managed Payments (Stripe as merchant of record, which is what carries the
+ * VAT on cross-border digital sales) REFUSES a checkout session whose line
+ * item has no tax code: "the product tax code is missing", a 502 out of this
+ * route and a Buy button that cannot be pressed. Test mode does not ask for
+ * it, so the first live checkout is where it shows up (2026-08-30).
+ *
+ * `txcd_10000000` is "General - Electronically Supplied Services", which is
+ * what a liquidity purchase is: a service delivered entirely online, bought
+ * by businesses and by individuals running their own numbers, so a code that
+ * splits business from personal use would be wrong half the time. Env
+ * override for a self-hosted instance selling something else.
+ */
+export function liquidityTaxCode(): string {
+  return process.env.STRIPE_TAX_CODE || 'txcd_10000000';
+}
+
 const STRIPE_API = 'https://api.stripe.com/v1';
 
 /**
@@ -62,6 +81,7 @@ export async function createCheckoutSession(params: {
     'line_items[0][price_data][product_data][name]': `Market liquidity: ${params.workspaceName}`,
     'line_items[0][price_data][product_data][description]':
       'Non-refundable. Credits enter market pools only and never a balance.',
+    'line_items[0][price_data][product_data][tax_code]': liquidityTaxCode(),
   });
   const res = await fetch(`${STRIPE_API}/checkout/sessions`, {
     method: 'POST',
