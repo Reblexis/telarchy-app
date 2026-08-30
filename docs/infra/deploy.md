@@ -404,11 +404,24 @@ removed; the published revision has no tag and is never touched. An untagged
 revision keeps no instances warm and holds no connections, so a removed
 preview costs nothing.
 
-**Choosing one at /beta.** The published revision decides where `/beta/*` goes
-from a cookie. `GET /beta?branch=br-<name>` (or `/beta/?branch=`) sets
+**Choosing one, from anywhere on the site.** The published revision decides
+where `/beta/*` goes from a cookie. `GET <any page>?branch=br-<name>` sets
 `telarchy_beta_branch=br-<name>` (path `/beta`, `SameSite=Lax`, `Secure`, 30
-days) and redirects to `/beta/`; from then on every `/beta/*` request, API and
-assets included, is forwarded to the revision carrying that tag. A cookie
+days) and redirects to the BETA TWIN of the page asked for: `/` and `/beta`
+land on `/beta/`, and a real page keeps its path, so
+`telarchy.com/lookpilot?branch=br-x` opens that floor on that branch in one
+hop. From then on every `/beta/*` request, API and
+assets included, is forwarded to the revision carrying that tag.
+
+It answers anywhere because the alternative is worse than an error:
+`telarchy.com/?branch=br-instrument-stat-row` used to serve PRODUCTION while
+looking like a preview link, and every link from that page walked further
+into production (owner report 2026-08-29). Off the beta's own door an
+unrecognised `?branch=` value falls through untouched, so this can never
+hijack another page's query param; at `/beta` itself a bad value is still
+refused with 400, because there it can only be a mistyped preview. The API
+is never redirected. **The handler runs on the PUBLISHED revision**, so a
+change to it reaches visitors only once that build is published. A cookie
 naming a tag that no longer exists is ignored and the candidate answers, so an
 expired link degrades to the main beta rather than to an error.
 `?branch=candidate` or an empty value clears the cookie. Nothing else about
@@ -427,8 +440,32 @@ from GitHub's public branches API and cached a minute) and marks which ones
 are built. Choosing an unbuilt one asks `POST /api/admin/branches/:name/build`
 to dispatch the deploy workflow for that ref (`workflow_dispatch` on any ref
 other than main runs the preview job), which needs a GitHub token with
-Actions write on the repository in `GITHUB_ACTIONS_TOKEN` (Secret Manager,
-mounted like the other secrets). Without the token the endpoint answers 501
+Actions write on the repository in `GITHUB_ACTIONS_TOKEN`. It lives in Secret
+Manager and is mounted by both deploy jobs' `--update-secrets`; the runtime
+service account is granted `secretAccessor` on the secret itself, the way
+every other secret here is granted.
+
+**What it currently holds, and what it should hold.** Version 1 is the
+owner's own `gh` CLI token (owner direction 2026-08-29, "you can do it", after
+three sessions blocked on the button). That token carries `repo` and
+`delete_repo` across EVERY `Reblexis` repository, so a compromise of the Cloud
+Run service is org-wide rather than one repo. The intended credential is a
+fine-grained PAT scoped to `Reblexis/telarchy-app` alone with one permission,
+Actions: Read and write. Swapping is one command and needs no code change:
+
+```bash
+gcloud secrets versions add GITHUB_ACTIONS_TOKEN \
+  --project=telarchy-e0043 --data-file=-   # paste the PAT, then Ctrl-D
+```
+
+Then redeploy (any push to main): the mount resolves `latest` when a revision
+starts, so a new version reaches the service on its next revision, not
+immediately.
+
+The mount must not reach main before the secret has a version: Cloud Run
+refuses to deploy a revision naming a secret that does not exist, so the
+order is create the secret, grant the binding, then merge. Done in that
+order on 2026-08-29. Without the token the endpoint answers 501
 with the command that does the same by hand:
 `gh workflow run deploy-cloudrun.yml --ref <branch>`. About eight minutes
 later the branch is built and appears in the picker as such.
@@ -692,7 +729,16 @@ Cloud Build). Its grants are the smallest set the app uses: project roles
 `cloudtrace.agent`; `secretmanager.secretAccessor` on each secret the service
 references (a NEW secret needs the same binding or the revision fails to start);
 `run.developer` on the `api` service itself and `artifactregistry.reader` on
-the image repository (see "The permission behind the button").
+the image repository (see "The permission behind the button"); and
+`iam.serviceAccountUser` ON ITSELF (an SA-level binding on `telarchy-api@`
+naming `telarchy-api@` as the member). That last one is what makes the
+Publish button work: publishRevision PUTs the WHOLE service object back, the
+object's template names the runtime account, and Cloud Run requires
+`iam.serviceaccounts.actAs` on any account a service update names, traffic
+change or not. Without it every press answers "Cloud Run refused the publish
+(403)" while `run.developer` looks sufficient on paper; the button was broken
+this way from the 2026-08-25 identity cutover until 2026-08-28
+(notes/decisions/infra-deploy.md).
 `cloudrun-deployer` holds `iam.serviceAccountUser` so deploys can set it. A
 change of runtime account is done the same way as any other change: a
 no-traffic revision under the new account, smoke-tested through its own tag

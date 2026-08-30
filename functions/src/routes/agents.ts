@@ -36,9 +36,9 @@ import {
   verifyUsdcDeposit,
 } from '../lib/usdc';
 import {
+  AGENT_SIGNUP_CREDITS,
   fromUnits,
   normalizeBio,
-  SIGNUP_CREDITS,
   sufficientBalance,
   toUnits,
   validateAgentId,
@@ -201,12 +201,19 @@ agentsRouter.post(
         // Attribution: the body's slug (the public skill sends 'github').
         source: typeof source === 'string' ? source : null,
       });
-      await applyCredits(tx, {
-        agentId,
-        workspaceId: PLATFORM_SCOPE,
-        deltaUnits: toUnits(SIGNUP_CREDITS),
-        reason: 'signup_grant',
-      });
+      // API registrations start at AGENT_SIGNUP_CREDITS (default 0 since
+      // 2026-08-28: an identity that costs a curl call must not mint a
+      // bankroll; the owner funds their agents by transfer). No zero-credit
+      // ledger row is written: the ledger records movements, and zero is not
+      // one.
+      if (AGENT_SIGNUP_CREDITS > 0) {
+        await applyCredits(tx, {
+          agentId,
+          workspaceId: PLATFORM_SCOPE,
+          deltaUnits: toUnits(AGENT_SIGNUP_CREDITS),
+          reason: 'signup_grant',
+        });
+      }
       // Third-party registration keeps the legacy wildcard scope so existing
       // bots that POST /register and expect full access aren't broken. Scoped
       // keys are minted from the authenticated /api/agents and /api/agents/:id/keys
@@ -1089,12 +1096,17 @@ agentsRouter.post(
         createdAt: new Date(),
         approvedAt: new Date(),
       });
-      await applyCredits(tx, {
-        agentId,
-        workspaceId: PLATFORM_SCOPE,
-        deltaUnits: toUnits(SIGNUP_CREDITS),
-        reason: 'signup_grant',
-      });
+      // Sub-bots start at AGENT_SIGNUP_CREDITS (default 0, 2026-08-28): the
+      // owner funds them from their own grant via POST /api/agents/transfer,
+      // so a bot's bankroll always traces to a person's.
+      if (AGENT_SIGNUP_CREDITS > 0) {
+        await applyCredits(tx, {
+          agentId,
+          workspaceId: PLATFORM_SCOPE,
+          deltaUnits: toUnits(AGENT_SIGNUP_CREDITS),
+          reason: 'signup_grant',
+        });
+      }
       await tx.insert(agentApiKeys).values({
         hash: keyHash,
         keyId,
@@ -1159,7 +1171,11 @@ agentsRouter.get(
       return;
     }
     const data = sanitizeAgentForViewer(agent, req.auth);
-    res.json({ ...data, balance: fromUnits(agent.balance as number) });
+    res.json({
+      ...data,
+      balance: fromUnits(agent.balance as number),
+      liquidityBalance: fromUnits((agent.liquidityBalance as number) ?? 0),
+    });
   }),
 );
 
@@ -1177,7 +1193,10 @@ agentsRouter.get(
       res.status(404).json({ error: 'Agent not found' });
       return;
     }
-    res.json({ balance: fromUnits(agent.balance as number) });
+    res.json({
+      balance: fromUnits(agent.balance as number),
+      liquidityBalance: fromUnits((agent.liquidityBalance as number) ?? 0),
+    });
   }),
 );
 
@@ -1206,7 +1225,11 @@ agentsRouter.get(
       res.status(404).json({ error: 'Agent not found' });
       return;
     }
-    res.json({ balance: fromUnits(agent.balance as number), markets: mkts });
+    res.json({
+      balance: fromUnits(agent.balance as number),
+      liquidityBalance: fromUnits((agent.liquidityBalance as number) ?? 0),
+      markets: mkts,
+    });
   }),
 );
 

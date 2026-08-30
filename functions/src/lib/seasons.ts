@@ -1,11 +1,12 @@
 /**
  * Prize seasons: a bounded cash tournament over the trading board.
  *
- * A season pays real money to the entrants whose marked trading profit grew
- * most while it ran. This module owns the arithmetic and the rules; it touches
- * no database, so every rule below is testable in milliseconds. The SQL side is
- * `lib/board.ts`, and the money side is manual: the owner pays winners directly,
- * outside the Service, exactly as ToS section 3 already describes for paid jobs.
+ * A season pays real money for settled trading profit earned while it ran.
+ * This module owns the arithmetic and the rules; it touches no database, so
+ * every rule below is testable in milliseconds. The SQL side is
+ * `lib/board.ts`, and the money side is manual: Telarchy, as contest
+ * operator, pays winners directly from its own funds, outside the Service
+ * (ToS 3a since v1.6, 2026-08-28).
  *
  * THE STATE MACHINE
  *
@@ -23,7 +24,7 @@
  *
  * THE SCORE
  *
- * From SETTLED_SCORING_EFFECTIVE_AT (rules amended 2026-08-29):
+ * From SETTLED_SCORING_EFFECTIVE_AT (rules amended 2026-08-28):
  *
  *   season_score(agent) = settled profit on markets resolved inside the
  *                         season window (lib/leaderboard.ts,
@@ -42,12 +43,27 @@
  * drawdown). Start still snapshots those baselines; under settled scoring
  * they are a record, not an input.
  *
- * THE LADDER
+ * THE PAYOUT
  *
- * Prizes go to eligible entrants in rank order until the rungs run out.
- * Eligible means a season score strictly above zero: without that, a season
- * where nobody moved would still pay out the whole ladder to entrants sitting
- * at exactly 0.00, ordered by a tiebreak. Anything unassigned rolls forward.
+ * Two modes (`prize_seasons.payout_mode`):
+ *
+ *  - `proportional` (rules amended 2026-08-28, the shape from Season 0's
+ *    second amendment onward): the pool is split among eligible entrants in
+ *    proportion to their positive season score. Negative and zero scores are
+ *    paid nothing and do not shrink anyone else's share. Linear-in-score on
+ *    purpose: under a linear payout, moving score between colluding accounts
+ *    changes the coalition's total expected payout by nothing, which is the
+ *    licence-free Sybil property the rank ladder lacked (design record:
+ *    telarchy umbrella notes/trader-rewards-design-2026-08-28.md). Shares
+ *    below the season's `min_payout_usd` roll forward instead of being
+ *    paid; there is no upper cap (owner decision 2026-08-28, "no payout
+ *    cap") - where Czech law requires withholding on a prize above
+ *    CZK 50,000, the operator withholds at payment time instead of
+ *    clipping the prize.
+ *  - `ladder` (Season 0 as originally published): prizes go to eligible
+ *    entrants in rank order until the rungs run out.
+ *
+ * Anything unassigned rolls into the next season's pool in both modes.
  *
  * KNOWN AND ACCEPTED (owner decisions, 2026-08-17). Recorded here because the
  * next person to read this file should not have to rediscover them:
@@ -56,7 +72,7 @@
  *    participant can move a price, have their own position marked up, and top
  *    the standings without any market resolving. Raised three times and kept,
  *    until the live Season 0 board showed +1425 marked with 0.00 settled at
- *    rank 1; since 2026-08-29 the season ranks settled profit and the mark
+ *    rank 1; since 2026-08-28 the season ranks settled profit and the mark
  *    is display only (docs/seasons.md, "The score").
  *  - No Sybil defence. Credits are free, entry is free, and a new account
  *    baselines at 0, so one person running several accounts is the cheapest way
@@ -69,15 +85,17 @@
  */
 
 /**
- * When the settled-profit season score takes effect (rules amended
- * 2026-08-29, announced on the season page before effect per the rules' own
- * clause; decision record notes/decisions/seasons.md, 2026-08-28). Before
- * this instant the standings rank the previous marked-to-market growth;
- * from it, they rank settled profit on markets resolved inside the season
- * window. The env override exists for tests, which must not change
- * behaviour with the wall clock.
+ * When the settled-profit season score takes effect: the day it was
+ * announced (rules amended 2026-08-28, effective immediately at the owner's
+ * direction, "why, change them now", same-day effect like the 2026-08-22
+ * and 2026-08-25 amendments; a 2026-09-01 notice period shipped for a few
+ * hours and was dropped the same day; decision record
+ * notes/decisions/seasons.md). Before this instant the standings rank the
+ * previous marked-to-market growth; from it, they rank settled profit on
+ * markets resolved inside the season window. The env override exists for
+ * tests, which must not change behaviour with the wall clock.
  */
-export const SETTLED_SCORING_DEFAULT_AT = '2026-09-01T00:00:00Z';
+export const SETTLED_SCORING_DEFAULT_AT = '2026-08-28T00:00:00Z';
 
 /** Read per call, not at import, so tests can pin either era without
  *  fighting module-load order. */
@@ -91,12 +109,15 @@ export function settledScoringActive(now: Date = new Date()): boolean {
 
 /**
  * Trades inside a market's final hours do not count toward the season score
- * (rules amended 2026-08-29): the market stays tradeable, because late
+ * (rules amended 2026-08-28): the market stays tradeable, because late
  * trading keeps the floor's number honest, but a reading that is already
  * visible cannot be farmed for prize money. Scoring-side only; nothing
  * closes a market early.
  */
 export const SEASON_TRADE_CUTOFF_HOURS = 6;
+
+/** How a season's pool is assigned at settlement. See THE PAYOUT above. */
+export type SeasonPayoutMode = 'ladder' | 'proportional';
 
 /** One rung of the published prize ladder. */
 export interface LadderRung {
@@ -119,6 +140,18 @@ export interface SeasonEntrant {
   enteredAt: Date;
   /** Operated by us: ranks and scores like anyone, never takes a rung. */
   platformOperated?: boolean;
+  /** Owns or administers any PUBLIC workspace. Under strict eligibility
+   *  (seasons after Season 0) such an account is shown but takes no payout,
+   *  because workspace operators resolve the metrics the season is scored
+   *  on (platform rule accepted 2026-08-26, applied 2026-08-28; design
+   *  record in the telarchy umbrella,
+   *  notes/real-money-economy-design-2026-08-26.md, premise 4). */
+  workspaceOperator?: boolean;
+  /** The account's payout handle, for the one-payout-identity rule under
+   *  strict eligibility: entries sharing a handle collapse to the
+   *  best-placed one. Null/absent when none is set (none is required until
+   *  claim time). */
+  payoutHandle?: string | null;
 }
 
 /** An entrant after scoring and ranking. */
@@ -183,25 +216,62 @@ export function isPrizeEligible(_score: number, platformOperated = false): boole
   return !platformOperated;
 }
 
+export interface SettleOptions {
+  /** Defaults to 'ladder', the mode every season row carried before the
+   *  column existed. */
+  payoutMode?: SeasonPayoutMode;
+  /** Proportional mode only: a computed share below this is not paid and
+   *  rolls forward (the Metaculus shape; dust payouts cost more to send
+   *  than they are worth). 0 pays every cent. */
+  minPayoutUsd?: number;
+  /** The two platform rules for seasons after Season 0
+   *  (`prize_seasons.strict_eligibility`, default on for new seasons):
+   *  accounts that own or administer any public workspace take no payout,
+   *  and entries sharing a payout handle collapse to the best-placed one
+   *  ("one person, one prize"). Season 0 runs with this off, because its
+   *  published rules (amended 2026-08-25) made owners explicitly eligible
+   *  and a mid-season eligibility flip would reduce standings, which the
+   *  amendment clause forbids. */
+  strictEligibility?: boolean;
+}
+
 /**
- * Rank entrants and assign the ladder.
+ * Rank entrants and assign the pool.
  *
  * Order is score descending, then earlier entry, then agent id. All three are
- * published in the rules: a cash ladder cannot break a tie by whatever order
+ * published in the rules: a cash prize cannot break a tie by whatever order
  * the database happened to return, and the last key guarantees the same
  * standings on a repeat run even if two people entered in the same millisecond.
  *
- * Rungs are consumed in place order by ELIGIBLE entrants only, and since the
- * 2026-08-22 amendment every entrant except a platform-operated account is
- * eligible, whatever their score. If three entrants are eligible and the
- * ladder has five rungs, places 4 and 5 pay nothing and their money rolls
- * forward; a rung nobody consumes rolls into the next season's pool.
+ * LADDER mode: rungs are consumed in place order by ELIGIBLE entrants only,
+ * and since the 2026-08-22 amendment every entrant except a platform-operated
+ * account is eligible, whatever their score. If three entrants are eligible
+ * and the ladder has five rungs, places 4 and 5 pay nothing and their money
+ * rolls forward.
+ *
+ * PROPORTIONAL mode: each eligible entrant with a positive score is paid
+ * `pool x score / sum of positive eligible scores`, rounded to cents, then
+ * zeroed under `minPayoutUsd`; there is no upper cap (owner decision
+ * 2026-08-28) - a prize large enough to trigger Czech withholding
+ * (above CZK 50,000) is paid net of the required withholding, per the
+ * published rules, rather than clipped. The ladder plays no part. Ties need no breaking for money (equal scores pay
+ * equal shares); the sort order still decides the published rank.
  */
-export function settleSeason(entrants: SeasonEntrant[], ladder: LadderRung[], poolUsd: number): SettlementResult {
+export function settleSeason(
+  entrants: SeasonEntrant[],
+  ladder: LadderRung[],
+  poolUsd: number,
+  opts: SettleOptions = {},
+): SettlementResult {
+  const payoutMode: SeasonPayoutMode = opts.payoutMode ?? 'ladder';
+  const minPayoutUsd = opts.minPayoutUsd ?? 0;
+
   const scored = entrants.map(e => ({
     agentId: e.agentId,
     enteredAt: e.enteredAt,
     platformOperated: e.platformOperated === true,
+    workspaceOperator: e.workspaceOperator === true,
+    payoutHandle: (e.payoutHandle ?? '').trim().toLowerCase(),
     score: seasonScore(e.currentProfit, e.baselineProfit),
   }));
 
@@ -213,21 +283,66 @@ export function settleSeason(entrants: SeasonEntrant[], ladder: LadderRung[], po
     return a.agentId < b.agentId ? -1 : a.agentId > b.agentId ? 1 : 0;
   });
 
-  const rungByPlace = new Map(ladder.map(r => [r.place, r.prizeUsd]));
-
-  // Rungs are consumed by eligible entrants in finishing order. `place` walks
-  // the ladder independently of `rank`, so an ineligible entrant sitting above
-  // an eligible one does not burn a rung.
-  let place = 0;
-  const ranked: RankedEntrant[] = scored.map((e, i) => {
-    const eligible = isPrizeEligible(e.score, e.platformOperated);
-    let prizeUsd = 0;
-    if (eligible) {
-      place += 1;
-      prizeUsd = rungByPlace.get(place) ?? 0;
+  // Eligibility, decided before either payout branch so both pay the same
+  // people. The base rule is isPrizeEligible (platform-operated accounts
+  // never take money). Strict eligibility adds the two platform rules for
+  // seasons after Season 0: a public-workspace operator takes no payout;
+  // an entrant whose payout handle matches an operator's (or a house
+  // account's) is treated as the same person ("shares payout details with
+  // such an account"); and among the remaining eligibles, entries sharing
+  // a handle collapse to the best-placed one, in the published sort order
+  // so a recount agrees.
+  const eligibleAt: boolean[] = [];
+  if (opts.strictEligibility) {
+    const operatorHandles = new Set(
+      scored.filter(e => (e.workspaceOperator || e.platformOperated) && e.payoutHandle).map(e => e.payoutHandle),
+    );
+    const seenHandles = new Set<string>();
+    for (const e of scored) {
+      let eligible = isPrizeEligible(e.score, e.platformOperated) && !e.workspaceOperator;
+      if (eligible && e.payoutHandle) {
+        if (operatorHandles.has(e.payoutHandle) || seenHandles.has(e.payoutHandle)) eligible = false;
+        else seenHandles.add(e.payoutHandle);
+      }
+      eligibleAt.push(eligible);
     }
-    return { agentId: e.agentId, score: e.score, rank: i + 1, eligible, prizeUsd };
-  });
+  } else {
+    for (const e of scored) eligibleAt.push(isPrizeEligible(e.score, e.platformOperated));
+  }
+
+  let ranked: RankedEntrant[];
+  if (payoutMode === 'proportional') {
+    // Only a positive score earns a share. Negative scores are not clamped in
+    // the standings, but a share must not be negative and must not dilute the
+    // denominator, or a big loser would enlarge everyone else's payout.
+    const weightOf = (e: (typeof scored)[number], i: number) => (eligibleAt[i] && e.score > 0 ? e.score : 0);
+    const denominator = scored.reduce((sum, e, i) => sum + weightOf(e, i), 0);
+    ranked = scored.map((e, i) => {
+      const eligible = eligibleAt[i];
+      let prizeUsd = 0;
+      if (denominator > 0) {
+        prizeUsd = round2((poolUsd * weightOf(e, i)) / denominator);
+        if (prizeUsd < minPayoutUsd) prizeUsd = 0;
+      }
+      return { agentId: e.agentId, score: e.score, rank: i + 1, eligible, prizeUsd };
+    });
+  } else {
+    const rungByPlace = new Map(ladder.map(r => [r.place, r.prizeUsd]));
+
+    // Rungs are consumed by eligible entrants in finishing order. `place` walks
+    // the ladder independently of `rank`, so an ineligible entrant sitting above
+    // an eligible one does not burn a rung.
+    let place = 0;
+    ranked = scored.map((e, i) => {
+      const eligible = eligibleAt[i];
+      let prizeUsd = 0;
+      if (eligible) {
+        place += 1;
+        prizeUsd = rungByPlace.get(place) ?? 0;
+      }
+      return { agentId: e.agentId, score: e.score, rank: i + 1, eligible, prizeUsd };
+    });
+  }
 
   const assigned = ranked.reduce((sum, r) => sum + r.prizeUsd, 0);
   return { ranked, rolloverUsd: round2(poolUsd - assigned) };

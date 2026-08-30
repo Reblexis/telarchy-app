@@ -408,3 +408,52 @@ export async function platformOperatedIds(agentIds: string[]): Promise<Set<strin
     .where(inArray(agents.id, unique));
   return new Set(rows.filter(r => r.platformOperated).map(r => r.id));
 }
+
+/**
+ * Which of these accounts own or administer any PUBLIC workspace: the
+ * workspace's creator, or a member of any of its permission groups whose
+ * capabilities include 'manage'. The strict-eligibility rule reads this on
+ * the season money path (standings projection and settlement, which must
+ * agree), because workspace operators resolve the metrics a season is
+ * scored on. Private and unlisted workspaces do not count: the season
+ * scores only public ones, so operating a private floor gives no leverage
+ * over any scored market.
+ */
+export async function publicWorkspaceOperatorIds(agentIds: string[]): Promise<Set<string>> {
+  const unique = new Set(agentIds.filter(Boolean));
+  if (unique.size === 0) return new Set();
+  const publicWs = await db
+    .select({ id: workspaces.id, createdBy: workspaces.createdBy })
+    .from(workspaces)
+    .where(eq(workspaces.visibility, 'public'));
+  const operators = new Set<string>();
+  for (const ws of publicWs) if (unique.has(ws.createdBy)) operators.add(ws.createdBy);
+  if (publicWs.length > 0) {
+    const groups = await db
+      .select({ memberIds: permissionGroups.memberIds, capabilities: permissionGroups.capabilities })
+      .from(permissionGroups)
+      .where(
+        inArray(
+          permissionGroups.workspaceId,
+          publicWs.map(w => w.id),
+        ),
+      );
+    for (const g of groups) {
+      if (!(g.capabilities ?? []).includes('manage')) continue;
+      for (const id of g.memberIds ?? []) if (unique.has(id)) operators.add(id);
+    }
+  }
+  return operators;
+}
+
+/** payoutHandle per account, for the one-payout-identity rule. Accounts with
+ *  no handle map to null (nothing is required until claim time). */
+export async function payoutHandlesById(agentIds: string[]): Promise<Map<string, string | null>> {
+  const unique = [...new Set(agentIds.filter(Boolean))];
+  if (unique.length === 0) return new Map();
+  const rows = await db
+    .select({ id: agents.id, payoutHandle: agents.payoutHandle })
+    .from(agents)
+    .where(inArray(agents.id, unique));
+  return new Map(rows.map(r => [r.id, r.payoutHandle ?? null]));
+}

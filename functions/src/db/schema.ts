@@ -226,6 +226,14 @@ export const agents = pgTable(
     claimTokenHash: text('claim_token_hash'),
     /** Balance in nanocredits (1 credit = 1_000_000_000 units) */
     balance: bigint('balance', { mode: 'number' }).notNull().default(0),
+    /** The SECOND currency (owner decision 2026-08-28): liquidity credits,
+     *  bought with real money, spendable ONLY as market-pool injections.
+     *  Nanocredits like `balance`. Walled both ways: purchases land here and
+     *  nowhere else, and LP leftovers from wallet-funded injections return
+     *  here, never to the tradeable balance - that wall is what keeps a
+     *  liquidity purchase a service rather than a credit sale
+     *  (docs/liquidity-purchases.md). */
+    liquidityBalance: bigint('liquidity_balance', { mode: 'number' }).notNull().default(0),
     earnedBetting: doublePrecision('earned_betting').notNull().default(0),
     spentBetting: doublePrecision('spent_betting').notNull().default(0),
     spentTokens: doublePrecision('spent_tokens').notNull().default(0),
@@ -562,6 +570,10 @@ export const liquidityEvents = pgTable(
     type: text('type').notNull(),
     /** Agent who provided liquidity (null for initial platform liquidity) */
     agentId: text('agent_id'),
+    /** Which purse funded it: 'balance' | 'liquidity' (the bought wallet).
+     *  Null on rows that predate the wallet, which read as 'balance'. LP
+     *  leftovers are routed back to the purse they came from. */
+    fundedFrom: text('funded_from'),
     poolContribution: doublePrecision('pool_contribution'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
@@ -1021,6 +1033,35 @@ export const permissionGroups = pgTable(
   t => [primaryKey({ columns: [t.id, t.workspaceId] })],
 );
 
+/**
+ * One paid liquidity purchase (Stripe Checkout): the only path by which
+ * real money enters the managed instance. `status` walks pending ->
+ * completed; fulfilment (the webhook) allocates `credits` evenly across the
+ * workspace's open markets, records the split in `allocation`
+ * ({ marketId: credits }), and is idempotent on both the row status and the
+ * session id. Completed rows are the platform's liquidity revenue, which
+ * sizes the next season's pool (docs/liquidity-purchases.md).
+ */
+export const liquidityPurchases = pgTable('liquidity_purchases', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  /** The purchasing account. Under strict season eligibility a purchaser is
+   *  a workspace operator and takes no season payout, which is what keeps
+   *  the purchase a service rather than contest consideration. */
+  agentId: text('agent_id').notNull(),
+  usdAmount: doublePrecision('usd_amount').notNull(),
+  credits: doublePrecision('credits').notNull(),
+  /** The rate at purchase time, so a later price change never rewrites an
+   *  old row's meaning. */
+  creditsPerUsd: doublePrecision('credits_per_usd').notNull(),
+  stripeSessionId: text('stripe_session_id'),
+  /** 'pending' | 'completed' */
+  status: text('status').notNull().default('pending'),
+  allocation: jsonb('allocation'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+});
+
 // ---------------------------------------------------------------------------
 // Sources (workspace-scoped information stores, static or live)
 // type='text': free-text content stored in `content`.
@@ -1182,10 +1223,28 @@ export const prizeSeasons = pgTable('prize_seasons', {
   name: text('name').notNull(),
   startsAt: timestamp('starts_at').notNull(),
   endsAt: timestamp('ends_at').notNull(),
-  /** Total promised, in USD. Kept under 5000 deliberately: above that,
-   *  New York and Florida require sweepstakes registration and bonding. */
+  /** Total promised, in USD. No ceiling: a deterministic skill-scored payout
+   *  needs no sweepstakes registration at any size (the old sub-5000 rule was
+   *  the NY/FL chance-sweepstakes bonding line and never applied to a skill
+   *  contest; retired 2026-08-28, design record in the telarchy umbrella,
+   *  notes/wheel-vs-proportional-legality-2026-08-28.md). */
   poolUsd: doublePrecision('pool_usd').notNull(),
-  /** Published ladder, [{ place, prizeUsd }, ...]. Frozen once running. */
+  /** 'ladder' pays the published rungs by place; 'proportional' splits the
+   *  pool by positive settled score (lib/seasons.ts, THE PAYOUT). Existing
+   *  rows default to 'ladder', the only mode that existed before. */
+  payoutMode: text('payout_mode').notNull().default('ladder'),
+  /** Proportional mode: a computed share below this is not paid and rolls
+   *  forward, because a $0.40 prize costs more to send than it is worth. */
+  minPayoutUsd: doublePrecision('min_payout_usd').notNull().default(0),
+  /** The two platform rules for seasons after Season 0 (lib/seasons.ts,
+   *  SettleOptions.strictEligibility): public-workspace operators take no
+   *  payout, and entries sharing a payout handle collapse to one. Default
+   *  on for new seasons; migration 0082 sets Season 0 (and every
+   *  pre-existing row) off, because its published rules made owners
+   *  explicitly eligible (amendment of 2026-08-25). */
+  strictEligibility: boolean('strict_eligibility').notNull().default(true),
+  /** Published ladder, [{ place, prizeUsd }, ...]. Frozen once running.
+   *  Empty for a proportional season. */
   ladder: jsonb('ladder').notNull(),
   /** The workspace ids this season scores over, PINNED when it starts rather
    *  than derived from workspaces.visibility at query time. Without this, an

@@ -137,3 +137,91 @@ describe('price history of a market that opened anchored', () => {
     expect(series[series.length - 1].consensus).toBeCloseTo(consensus([0, BUY], B, 0, 50)!, 2);
   });
 });
+
+/**
+ * The AUTOFUND anchored open must leave its thinner b on the ledger
+ * (docs/market-integrity.md I4).
+ *
+ * The bug this pins (owner report 2026-08-29): insertPendingMarkets injected
+ * the subsidy (ledger row: totalLiquidity = the injection's fat total), then
+ * overwrote the book to the anchored thinner b with NO ledger row. The
+ * replay prices trades with the ledger's b, so the LookPilot weekly chart
+ * climbed to $9,990 while every trade executed around $5-7k on the real
+ * book, and the chart ended in a cliff onto the live price.
+ */
+describe('an autofunded anchored open leaves its b on the ledger', () => {
+  const WS2 = 'ws-autofund';
+  const METRIC2 = 'metric-autofund';
+  const MARKET2 = 'market-autofund';
+
+  test('the anchor row is written and the replay ends at the live consensus', async () => {
+    await truncateAll();
+    await db.insert(agents).values({ id: 'owner-agent', apiKeyHash: 'h-o', balance: toUnits(5000) });
+    await db.insert(workspaces).values({
+      id: WS2,
+      name: 'Autofund',
+      slug: 'autofund',
+      createdBy: 'owner-agent',
+      visibility: 'public',
+      autoFundNewMarkets: true,
+      newMarketLiquidityCredits: 1386,
+    });
+    await db.insert(metrics).values({
+      id: METRIC2,
+      workspaceId: WS2,
+      name: 'Net revenue (USD)',
+      value: 4863, // p = 0.19452 across 0..25000: well off-center, thin anchored book
+      formula: '0',
+      marketRangeMax: 25_000,
+    });
+    // Tomorrow: inside the near-horizon window, so the open anchors.
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    const { insertPendingMarkets } = await import('../services/markets');
+    await insertPendingMarkets(
+      [
+        {
+          marketId: MARKET2,
+          metricId: METRIC2,
+          metricName: 'Net revenue (USD)',
+          targetDate: tomorrow,
+          rangeMax: 25_000,
+        },
+      ],
+      WS2,
+    );
+
+    const [m] = await db.select().from(markets).where(eq(markets.id, MARKET2));
+    expect(m.liquidity).toBeGreaterThan(0);
+    // The anchored b is thinner than the injected subsidy; the ledger's last
+    // word must be the b the book actually trades at.
+    const evs = await db.select().from(liquidityEvents).where(eq(liquidityEvents.marketId, MARKET2));
+    const last = [...evs].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()).pop()!;
+    expect(last.type).toBe('anchor');
+    expect(last.totalLiquidity).toBeCloseTo(m.liquidity, 6);
+
+    // One buy of higher, the way the engine writes it: a trades row plus the
+    // share it moved, priced (implicitly) at the anchored b.
+    const shares = m.shares as [number, number];
+    const bought = 388.98;
+    await db
+      .update(markets)
+      .set({ shares: [shares[0], shares[1] + bought] })
+      .where(eq(markets.id, MARKET2));
+    await db.insert(trades).values({
+      id: 'trade-af-1',
+      workspaceId: WS2,
+      agentId: 'owner-agent',
+      marketId: MARKET2,
+      direction: 'higher',
+      shares: bought,
+      cost: 91,
+      createdAt: new Date(Date.now() + 60_000),
+    });
+
+    const liveNow = consensus([shares[0], shares[1] + bought], m.liquidity, 0, 25_000)!;
+    const points = await replayMarketTradePoints(MARKET2, WS2);
+    // Replaying with the injection's fat b put this thousands above the
+    // market's real call; the cliff at the chart's right edge was the gap.
+    expect(points[points.length - 1].consensus).toBeCloseTo(liveNow, 2);
+  });
+});

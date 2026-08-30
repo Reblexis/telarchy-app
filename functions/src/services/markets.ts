@@ -38,11 +38,18 @@ export async function distributeLPLeftover(
     .from(liquidityEvents)
     .where(and(eq(liquidityEvents.workspaceId, workspaceId), eq(liquidityEvents.marketId, marketId)));
 
+  // Grouped by agent AND by the purse that funded the contribution: a
+  // leftover goes back where it came from, so bought liquidity credits
+  // (funded_from 'liquidity') return to the walled wallet and can never
+  // leak into a tradeable balance (owner decision 2026-08-28, the
+  // two-currencies model). Legacy rows with no funded_from read as
+  // 'balance'.
   const contributions = new Map<string, number>();
   let total = 0;
   for (const row of liqRows) {
     if (!row.agentId || !row.poolContribution || row.poolContribution <= 0) continue;
-    contributions.set(row.agentId, (contributions.get(row.agentId) ?? 0) + row.poolContribution);
+    const key = `${row.fundedFrom === 'liquidity' ? 'liquidity' : 'balance'}:${row.agentId}`;
+    contributions.set(key, (contributions.get(key) ?? 0) + row.poolContribution);
     total += row.poolContribution;
   }
   if (total <= 0) return;
@@ -50,22 +57,30 @@ export async function distributeLPLeftover(
   let distributed = 0;
   const entries = [...contributions.entries()];
   for (let i = 0; i < entries.length; i++) {
-    const [agentId, contribution] = entries[i];
+    const [key, contribution] = entries[i];
+    const [source, agentId] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
     const share =
       i === entries.length - 1
         ? Math.round((poolAmount - distributed) * 100) / 100
         : Math.round(((poolAmount * contribution) / total) * 100) / 100;
     if (share <= 0) continue;
     distributed += share;
-    await applyCredits(tx, {
-      agentId,
-      workspaceId,
-      deltaUnits: toUnits(share),
-      reason: 'lp_leftover',
-      refType: 'market',
-      refId: marketId,
-      also: { earnedBetting: sql`${agents.earnedBetting} + ${share}` },
-    });
+    if (source === 'liquidity') {
+      await tx
+        .update(agents)
+        .set({ liquidityBalance: sql`${agents.liquidityBalance} + ${toUnits(share)}` })
+        .where(eq(agents.id, agentId));
+    } else {
+      await applyCredits(tx, {
+        agentId,
+        workspaceId,
+        deltaUnits: toUnits(share),
+        reason: 'lp_leftover',
+        refType: 'market',
+        refId: marketId,
+        also: { earnedBetting: sql`${agents.earnedBetting} + ${share}` },
+      });
+    }
   }
 }
 
@@ -335,6 +350,22 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
           .update(markets)
           .set({ shares: anchored.shares, liquidity: anchored.liquidity })
           .where(eq(markets.id, p.marketId));
+        // The anchored open changes the book's b, so it leaves a ledger row
+        // (docs/market-integrity.md I4): no credits move (amount 0), but the
+        // replay prices every later trade with the b recorded here. Without
+        // it the chart replays the injection's fatter b and quotes prices
+        // the book never printed (owner report 2026-08-29, the LookPilot
+        // weekly cliff). A millisecond after the injection row, so the
+        // replay's event order never ties.
+        await tx.insert(liquidityEvents).values({
+          id: randomUUID(),
+          workspaceId,
+          marketId: p.marketId,
+          amount: 0,
+          totalLiquidity: anchored.liquidity,
+          type: 'anchor',
+          createdAt: new Date(Date.now() + 1),
+        });
       }
     }
   });

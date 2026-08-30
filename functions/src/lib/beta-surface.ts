@@ -93,24 +93,53 @@ export function resolveBetaTarget(state: ReleaseState, cookieHeader: string | un
 }
 
 /**
- * `GET /beta?branch=br-<name>` picks a preview and lands on `/beta/`;
- * `?branch=candidate` (or empty) goes back to the main candidate. This is the
- * link an agent puts in its reply, so it has to be a plain GET that anyone
- * signed in on telarchy.com can open. Mounted before the proxy, so the
+ * The beta twin of a page path: where `?branch=` should land a visitor who
+ * asked for a preview from somewhere on the public site.
+ *
+ * `/` and `/beta` both mean the beta's front door; a real page keeps its
+ * path (`/lookpilot` -> `/beta/lookpilot`), which is what makes a preview
+ * link to one floor possible. Null for anything that is not a page: the API
+ * answers callers, never redirects them.
+ */
+function betaTwinOf(path: string): string | null {
+  if (path === '/api' || path.startsWith('/api/')) return null;
+  if (path === BETA_PREFIX || path === `${BETA_PREFIX}/` || path === '/') return `${BETA_PREFIX}/`;
+  if (path.startsWith(`${BETA_PREFIX}/`)) return path;
+  return `${BETA_PREFIX}${path}`;
+}
+
+/**
+ * `GET <any page>?branch=br-<name>` picks a preview and lands on the beta
+ * twin of that page; `?branch=candidate` (or empty) goes back to the main
+ * candidate. This is the link an agent puts in its reply, so it has to be a
+ * plain GET that anyone signed in on telarchy.com can open.
+ *
+ * It answers ANYWHERE on the public site, not just at `/beta` (owner report
+ * 2026-08-29: `telarchy.com/?branch=br-instrument-stat-row` served
+ * production and looked like the branch, which is the one thing a preview
+ * link must never do). Off the beta's own door an unrecognised value falls
+ * through untouched rather than erroring, so this can never hijack some
+ * other page's `?branch=`; at the door itself a bad value is still refused,
+ * because there it can only be a mistyped preview.
+ *
+ * Mounted before the proxy, so the
  * published revision answers it itself. Returns true when it handled the
  * request.
  */
 export function handleBetaBranchChoice(req: Request, res: Response): boolean {
   if (req.method !== 'GET') return false;
-  if (req.path !== BETA_PREFIX && req.path !== `${BETA_PREFIX}/`) return false;
   const raw = req.query.branch;
   if (typeof raw !== 'string') return false;
+  const target = betaTwinOf(req.path);
+  if (target === null) return false;
+  const atBetaDoor = req.path === BETA_PREFIX || req.path === `${BETA_PREFIX}/`;
   const value = raw.trim();
   const base = `${BETA_BRANCH_COOKIE}=`;
   const attrs = `; Path=${BETA_PREFIX}; SameSite=Lax; Secure; HttpOnly`;
   if (value === '' || value === 'candidate') {
     res.setHeader('Set-Cookie', `${base}${attrs}; Max-Age=0`);
   } else if (!isPreviewTag(value)) {
+    if (!atBetaDoor) return false;
     res.status(400).type('text/plain').send('Not a preview tag. Previews are named br-<branch>.');
     return true;
   } else {
@@ -120,7 +149,7 @@ export function handleBetaBranchChoice(req: Request, res: Response): boolean {
     );
   }
   res.setHeader('Cache-Control', 'no-store');
-  res.redirect(302, `${BETA_PREFIX}/`);
+  res.redirect(302, target);
   return true;
 }
 

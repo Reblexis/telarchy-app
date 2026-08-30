@@ -222,6 +222,15 @@ export interface PrizeSeason {
   endsAt: string;
   settledAt: string | null;
   poolUsd: number;
+  /** 'proportional' splits the pool by positive settled score; 'ladder' pays
+   *  the published rungs by place (Season 0's original shape). */
+  payoutMode: 'ladder' | 'proportional';
+  /** Proportional only: a computed share below this is not paid. */
+  minPayoutUsd: number;
+  /** Seasons after Season 0: public-workspace operators take no payout and
+   *  entries sharing a payout handle collapse to one. */
+  strictEligibility: boolean;
+  /** Empty for a proportional season. */
   ladder: LadderRung[];
   rulesUrl: string;
   /** Pinned workspaces that are no longer public, and so no longer counted in
@@ -916,6 +925,15 @@ export const api = {
 
   // Agents
   getParticipant: () => request('/api/agents/me'),
+  /** Start a liquidity-credits purchase (the second currency): returns the
+   *  Stripe Checkout url to send the buyer to. Manage capability in the
+   *  workspace required; 503 while the instance has no Stripe config. */
+  buyLiquidityCredits: (workspaceId: string, usdAmount: number): Promise<{ url: string; credits: number }> =>
+    request(`/api/workspaces/${encodeURIComponent(workspaceId)}/liquidity/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usdAmount }),
+    }),
   getAgents: () => request('/api/agents'),
   getAgentTrades: (agentId: string, limit = 100) =>
     request(`/api/agents/${encodeURIComponent(agentId)}/trades?limit=${limit}`),

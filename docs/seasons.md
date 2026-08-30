@@ -16,7 +16,8 @@ instant. Anything that changes what an entrant is scored on lands in
 `docs/legal/season-0-rules.md` before it takes effect.
 
 Season 0 runs from 2026-08-22T00:00Z to 2026-10-01T00:00Z with a $1,000 pool
-on the five-rung ladder the rules publish, and one hero workspace (the
+split among entrants in proportion to positive settled score (amended
+2026-08-28; originally a five-rung ladder), and one hero workspace (the
 `SEASON_WORKSPACE` default of `scripts/season-liquidity-ramp.mjs`) whose books
 the liquidity policy below ramps.
 
@@ -36,8 +37,9 @@ the operator's family).
 season score = settled profit on markets that resolved inside the season window
 ```
 
-In force from 2026-09-01T00:00Z (amendment announced 2026-08-29; decision
-record in notes/decisions/seasons.md). A season ranks and pays what
+Amended and in force 2026-08-28 (effective on announcement at the owner's
+direction, like the 2026-08-22 and 2026-08-25 amendments; decision record in
+notes/decisions/seasons.md). A season ranks and pays what
 RESOLVED: resolution payouts on the entrant's shares, plus refunds from
 markets cancelled inside the window, minus the net cash paid on those
 markets. Nothing marked enters the score: a position still open at the end
@@ -68,7 +70,7 @@ those markets), and `openEarnings`, the part that is still a mark (what open
 positions are worth now minus their net cash); `totalEarnings =
 settledEarnings + openEarnings` exactly, and the ranking stays on the total. A
 participant's own profile reports the same two numbers. Season standings do
-not split, because since the 2026-08-29 amendment a season score IS the
+not split, because since the 2026-08-28 amendment a season score IS the
 settled part, windowed to the season: there is nothing to split it against.
 
 The ALL-TIME board's ranking key stays trading profit marked to market: it
@@ -82,11 +84,12 @@ board's #1 stood at +1425 marked with 0.00 settled). The two boards showing
 different keys is deliberate and each says which it ranks. Calibration and
 accuracy are reported per row; they are never the key.
 
-The one thing profit-only ranking does badly is the endgame: with a free
-entry, free credits and a five-rung ladder, the rational move in the last week
-is maximum variance, because being 6th and being 60th pay the same. That is a
-tournament effect, not a scoring bug, and it is cheap to blunt (see F5);
-settled scoring at least forces the long shot to survive a real resolution.
+The endgame problem the original ladder had (being 6th and being 60th paid
+the same, so the rational last-week move was maximum variance) is mostly
+gone under the proportional split: payout is linear in score, so a coin
+flip's expected prize equals its expected score contribution and a long
+shot buys nothing in expectation. What remains of F5 is the residue that a
+loss costs nothing; the eligibility floor stays deferred to Season 1.
 
 **Scoring set.** The season scores over ALL public workspaces, live, not the
 set pinned at the start instant. A floor published mid-season counts from the
@@ -101,17 +104,38 @@ protected from deletion until Season 1.
 
 `docs/legal/season-0-rules.md` owns eligibility. What the design relies on:
 
-- Place alone decides the prize, negative scores included: the entrant in 1st
-  place is paid the 1st rung whatever their score. A rung with no eligible
-  entrant to take it, and anything otherwise unassigned, rolls into the next
-  season's pool.
-- Only `agents.platform_operated` disqualifies (migration 0069 carries the
+- The pool is split among eligible entrants in proportion to positive
+  settled score (`payout_mode = 'proportional'`, amended 2026-08-28; the
+  original ladder mode, where place alone decided the prize, remains
+  implemented for seasons that publish rungs). A zero or negative score is
+  paid nothing and does not shrink anyone else's share. Shares below the
+  season's published minimum ($1 for Season 0, third 2026-08-28 amendment)
+  and anything otherwise unassigned roll into the next season's pool. There
+  is no upper cap on a single payout (owner decision 2026-08-28): a prize
+  above the Czech withholding line (CZK 50,000) is paid net of the required
+  15% withholding rather than clipped.
+  Linear-in-score on purpose: under a linear payout, moving score between
+  colluding accounts changes the coalition's total by nothing, which is the
+  Sybil property the rank ladder lacked (design record: telarchy umbrella
+  notes/trader-rewards-design-2026-08-28.md).
+- `agents.platform_operated` always disqualifies (migration 0069 carries the
   column; it flags the platform's trading agent, the sync jobs, the admin
   account, and the QA accounts used for entry-flow testing). A house account
   still scores, still ranks and still appears on every board (nobody is
   excluded); it simply never consumes a rung, so a stranger below it takes
   first money rather than second. A season made entirely of house accounts pays
   nothing and rolls the whole pool.
+- Seasons after Season 0 add the two platform rules
+  (`prize_seasons.strict_eligibility`, default on, migration 0082; the
+  platform fixes these two because workspace owners resolve the metrics,
+  everything else is the operator's published choice): an account that owns
+  or administers any PUBLIC workspace is shown on the board but takes no
+  payout; and one payout handle takes one prize, so entries sharing a
+  handle collapse to the best-placed one, an entrant whose handle matches
+  an operator's or a house account's included. Season 0 runs with the flag
+  off: its published rules (amended 2026-08-25) made owners explicitly
+  eligible, and an eligibility flip mid-season would reduce standings,
+  which the amendment clause forbids.
 - `lib/participants.ts` `platformOperatedIds` is the only reader on the money
   path (standings, prize column, settlement), because the three have to agree
   about who may take money and three copies of a nickname check is how they
@@ -164,12 +188,17 @@ b  =  0.5 x (typical bankroll) / (target price impact as a fraction of range)
 (at p = 0.5, spending `X` credits buys about `2X` shares and moves `p` by about
 `0.5 X / b`.)
 
-With the 1,000-credit signup grant and a target of "a full bankroll moves the
-consensus about 3% of the range":
+With the 1,000-credit signup grant of the time and a target of "a full
+bankroll moves the consensus about 3% of the range":
 
 ```
 b = 0.5 x 1000 / 0.03  ≈  16,700 credits      house exposure ≈ 11,600 cr
 ```
+
+(Since 2026-08-28 a user signup grants 10,000 credits; what bounds one
+account's deployment into one book is now the per-market position cap,
+5,000, not the grant, so Season 0's published ramp stands and the next
+season's sizing should target the cap rather than the grant.)
 
 `b = 16,700` is the ramp's DESTINATION, not its opening. A single trader can
 still move that book enough to be worth doing (a confident 5,000-credit
@@ -231,34 +260,43 @@ not the rule (see F1).
    destination `b`, 5,000 credits for Season 0, so no single account can own
    the book and the sybil arithmetic in F2 stays unattractive. Bankrolls on the
    floor differ by orders of magnitude (a Manifold import grants against a
-   proven record), and uncapped, the largest of them pins any book this side
-   of `b = 200,000`; the cap is what makes one sizing work for a floor whose
-   bankrolls differ by 100x.
+   proven record; its cap is 10,000 since 2026-08-28, and the largest
+   existing import predates that at about 101,000), and uncapped, the
+   largest of them pins any book this side of `b = 200,000`; the cap is what
+   makes one sizing work for a floor whose bankrolls differ by 100x.
 
 ## Lifecycle
 
 `docs/legal/season-0-rules.md` and the `/api/help` catalog own the lifecycle
 (draft, running, settled; 30-day claim window; claim requires payout details;
-pool below 5,000 USD; ladder within pool). The shape, for the design's sake
+ladder within pool in ladder mode). The shape, for the design's sake
 (`functions/src/lib/seasons.ts`):
 
-- **Draft.** Pool, ladder, dates and rules URL are editable (`PATCH
-  /api/seasons/:id`); this is the only time a start or end date may move. No
-  baselines exist, entry is open, and standings list entrants in entry order
-  with no score rather than answering empty. Creation and edits reject `endsAt
-  <= startsAt`, a ladder promising more than the pool, and a pool at or above
-  5,000 USD (the threshold that keeps a season sweepstakes-registration-free in
-  every US state).
+- **Draft.** Pool, payout mode, ladder, dates and rules URL are editable
+  (`PATCH /api/seasons/:id`); this is the only time a start or end date may
+  move. No baselines exist, entry is open, and standings list entrants in
+  entry order with no score rather than answering empty. Creation and edits
+  reject `endsAt <= startsAt` and, in ladder mode, a ladder promising more
+  than the pool. The pool has no ceiling (retired 2026-08-28): the old
+  sub-5,000 rule was the NY/FL registration-and-bonding line for CHANCE
+  sweepstakes and never applied to a deterministic skill-scored payout,
+  which scales uncapped, and no per-payout cap remains either (owner
+  decision 2026-08-28): a payout above the Czech withholding line
+  (CZK 50,000) is paid net of the required withholding.
 - **Start.** A draft starts at its published instant through `POST
   /api/cron/seasons`, which starts due drafts and is a no-op otherwise.
   Starting pins the workspace set and snapshots a baseline profit for every
   participant, whether or not they have entered, so opting in late is not a
   free option on a drawdown; an account that did not exist at the start
   baselines at zero.
-- **Running.** Nothing is editable, standings are computed live, entry stays
-  open until the end instant.
+- **Running.** Standings are computed live and entry stays open until the
+  end instant. Nothing is editable except the one published amendment path:
+  `payoutMode` and `minPayoutUsd` may change mid-season where the season's
+  own rules reserve amendment (Season 0's experimental clause), and only
+  after the change is announced on the season page; pool and dates stay
+  frozen even then.
 - **Settle.** `POST /api/seasons/:id/settle` is reachable only from running
-  and only once `endsAt` has passed (guard added 2026-08-29: the scored
+  and only once `endsAt` has passed (guard added 2026-08-28: the scored
   window ends at `endsAt`, so settling early would truncate it silently).
   Settlement computes the settled-window score once, uncached, over the
   workspaces public at that instant, then writes every final in one
@@ -277,7 +315,7 @@ can beat an honest forecaster.
 ### F1. Marked-to-market profit can be manufactured, with no information
 
 **CRITICAL for the display boards, accepted there; NO LONGER DECIDES MONEY
-(2026-08-29).** Since the settled-scoring amendment the season pays only
+(2026-08-28).** Since the settled-scoring amendment the season pays only
 resolved markets, so the manufactured mark below still moves the all-time
 board and the live season page reads, but never a prize. The board values an open position at `shares x current
 payout factor` (`currentPayoutFactors` in `functions/src/lib/leaderboard.ts`),
@@ -298,7 +336,7 @@ eventually resolves at the correct value. What that costs:
 
 - The exploit is live on the display boards. The position cap
   (`maxPositionCostPerMarket = 5000`) bounds it per market rather than
-  killing it; since 2026-08-29 the season score simply never reads the mark.
+  killing it; since 2026-08-28 the season score simply never reads the mark.
 - F2 (sybil pumping) lacks the brake the liquidation mark would provide;
   settled scoring removed most of its payoff instead.
 - F3 (settlement-instant sniping) died with the mark's role in settlement.
@@ -311,7 +349,7 @@ eventually resolves at the correct value. What that costs:
 ### F2. Sybil pumping
 
 **HIGH under the marked key; MOSTLY DEFUSED by settled scoring
-(2026-08-29).** Credits are free and accounts are cheap. Sacrificial
+(2026-08-28).** Credits are free and accounts are cheap. Sacrificial
 accounts buy the side the target account holds, pushing the price up and
 marking the target up; the cost is credits, which are worthless, and the
 prize is $500. Under settled scoring a pumped price changes no resolution
@@ -327,13 +365,13 @@ Two brakes, in order of how much they help:
   email address, not one more payout identity.
 - `maxPositionCostPerMarket` bounds how far any one account can push.
 
-Deferred to Season 1: **entries sharing a payout handle are one entry.** Cheap
-to check at settlement, and it is the natural reading of "one person, one
-prize."
+Implemented for seasons after Season 0 (2026-08-28, `strict_eligibility`):
+**entries sharing a payout handle are one entry**, checked at settlement and
+in the live projection, the natural reading of "one person, one prize."
 
 ### F3. Settlement-instant sniping
 
-**CLOSED by settled scoring (2026-08-29).** Under the marked key, whoever
+**CLOSED by settled scoring (2026-08-28).** Under the marked key, whoever
 pushed prices hardest in the final minutes owned the marks the ladder was
 paid on, and the hero market resolving 2026-10-15 (after the end)
 guaranteed the largest position was a mark at settlement. Under settled
@@ -345,20 +383,24 @@ reading is effectively known, is the 6h trade cutoff's job (see The score).
 
 ### F4. Nothing resolves inside most of the window
 
-**RESOLVED BY EVENTS (stale since 2026-08-25, corrected 2026-08-29).** When
+**RESOLVED BY EVENTS (stale since 2026-08-25, corrected 2026-08-28).** When
 this was written the floors carried one long horizon and nothing settled
 in-window. Since the metric x date grid reshape (2026-08-25) every floor
 prices day / week / month horizons: day markets resolve daily and week
 markets each Monday, so ground truth arrives inside the window
 continuously. That steady cadence is what made settled-only scoring viable
-(The score, 2026-08-29); the hero long-horizon market remains outside the
+(The score, 2026-08-28); the hero long-horizon market remains outside the
 window and is deliberately unscored this season.
 
 ### F5. Endgame variance farming
 
-**MEDIUM.** Free entry, no downside, five paying rungs: in the last week the
-correct play from 8th place is to bet everything on one long shot. Honest
-forecasters lose rungs to lottery tickets.
+**MEDIUM under the ladder; LOW under the proportional split (2026-08-28).**
+Free entry, no downside, five paying rungs made the correct last-week play
+from 8th place one long shot: being 6th and 60th paid the same. The
+proportional payout removes the discontinuity: payout is linear in score,
+so a coin flip's expected prize equals its expected score contribution and
+buys nothing in expectation. The residue is that a loss still costs
+nothing, so pure variance is free to attempt even if worthless on average.
 
 **Mitigation, deferred to Season 1: an eligibility floor rather than a scoring
 change.** To be ranked for a prize, require some minimum activity spread across
@@ -385,12 +427,13 @@ voiding markets during a running season except to correct a declared error.
 | Item | Season 1 rule | Season 0 |
 |---|---|---|
 | Prize eligibility floor | 10 trades / 2 markets / 3 before the final week (F5) | none |
-| Duplicate payout handles | one entry per payout handle (F2) | not checked |
+| Duplicate payout handles | DONE 2026-08-28: one entry per payout handle (F2), `strict_eligibility` | not checked (flag off) |
+| Workspace operators | DONE 2026-08-28: public-workspace owners/admins take no payout, `strict_eligibility` | eligible (rules amended 2026-08-25, flag off) |
 | Auto top-up on impact | a single trade moving a market's consensus by more than 10% of its range tops the book back up to the season `b` after the trade | not built; the ramp script and the cap do the work |
 | Rules immutability | frozen at the start instant | may change if announced first |
 | Deletion freeze set | the live public set, same as scoring | the pinned set |
 
-Two rows retired 2026-08-29 by the settled-scoring amendment: "settlement
+Two rows retired 2026-08-28 by the settled-scoring amendment: "settlement
 and baseline mark" (there is no settlement mark to time-average, and the
 baseline is a record now) and "mid-season resolution" (F4, resolved by the
 2026-08-25 grid).

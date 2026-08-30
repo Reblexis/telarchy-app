@@ -40,13 +40,19 @@ beforeAll(async () => {
 
 describe('app.ts', () => {
   test('mounts apiAuthPolicy on /api exactly once, before every router', () => {
-    const policyMounts = [...APP_TS.matchAll(/app\.use\('\/api',\s*apiAuthPolicy\)/g)];
+    // The ONE deliberate pre-policy route is the Stripe webhook: it must be
+    // mounted before express.json (signature verification needs the raw
+    // bytes) and its authentication IS the signature, pinned in
+    // liquidity-purchases.test.ts. Strip that single line so anything else
+    // mounted early still fails this test.
+    const SCANNED = APP_TS.replace(/app\.post\('\/api\/stripe\/webhook'.*\n/, '');
+    const policyMounts = [...SCANNED.matchAll(/app\.use\('\/api',\s*apiAuthPolicy\)/g)];
     expect(policyMounts).toHaveLength(1);
     const policyAt = policyMounts[0].index ?? -1;
     // Limiters and the JSON wrapper mounted on /api paths are not routers; the first
     // thing that can answer a request is a Router, an app.get/post handler, or the
     // BetterAuth handler.
-    const firstRouterMount = APP_TS.search(
+    const firstRouterMount = SCANNED.search(
       /app\.use\('\/api[^']*',[^;]*?(Router\b|toNodeHandler)|app\.(get|post|all)\('\/api/,
     );
     expect(firstRouterMount).toBeGreaterThan(-1);

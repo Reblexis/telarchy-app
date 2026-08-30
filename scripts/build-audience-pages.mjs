@@ -161,6 +161,31 @@ export function parsePage(header, body) {
   return page;
 }
 
+export function parseHeadSection(text) {
+  const m = /## App route heads\n([\s\S]*?)\n## /.exec(text);
+  if (!m) throw new Error('docs/audience-pages.md: missing "App route heads" section');
+  const heads = {};
+  for (const line of m[1].split('\n')) {
+    if (!line.startsWith('- /')) continue;
+    // route | title (may itself contain " | Telarchy") is disambiguated by
+    // splitting from both ends: route first, heading last, description
+    // second-to-last; whatever remains in the middle is the title.
+    const parts = line
+      .slice(2)
+      .split(' | ')
+      .map(x => x.trim());
+    if (parts.length < 4) throw new Error(`bad route-head line: ${line}`);
+    const route = parts[0];
+    const h1 = parts[parts.length - 1];
+    const description = parts[parts.length - 2];
+    const title = parts.slice(1, parts.length - 2).join(' | ');
+    if (/[–—]/.test(line)) throw new Error(`${route}: contains an em or en dash`);
+    heads[route] = { title, description, h1 };
+  }
+  if (Object.keys(heads).length === 0) throw new Error('App route heads: no routes');
+  return heads;
+}
+
 export function parseDoc(text) {
   const sections = text.split(/\n(?=## )/);
   const pages = [];
@@ -201,7 +226,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = ${JSON.stringify(pages, null, 2)};
 `;
 }
 
-export function renderMetaModule(pages) {
+export function renderMetaModule(pages, heads) {
   const meta = Object.fromEntries(
     pages.map(p => [
       p.route,
@@ -220,12 +245,23 @@ export interface AudienceMeta {
 }
 
 export const AUDIENCE_META: Record<string, AudienceMeta> = ${JSON.stringify(meta, null, 2)};
+
+export interface RouteHead {
+  title: string;
+  description: string;
+  h1: string;
+}
+
+/** The app's own public routes (docs/audience-pages.md, "App route heads"). */
+export const ROUTE_HEADS: Record<string, RouteHead> = ${JSON.stringify(heads, null, 2)};
 `;
 }
 
 export function build() {
-  const pages = parseDoc(readFileSync(SRC, 'utf8'));
-  return { pages: renderPagesModule(pages), meta: renderMetaModule(pages) };
+  const text = readFileSync(SRC, 'utf8');
+  const pages = parseDoc(text);
+  const heads = parseHeadSection(text);
+  return { pages: renderPagesModule(pages), meta: renderMetaModule(pages, heads) };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

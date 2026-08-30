@@ -568,6 +568,34 @@
       "when": 1787669511172,
       "tag": "0080_proposal_revisions_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1787931046851,
+      "tag": "0081_proportional_season_payout",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1787933046851,
+      "tag": "0082_season_strict_eligibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1787934046851,
+      "tag": "0083_liquidity_purchases",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1787950000000,
+      "tag": "0084_liquidity_wallet",
+      "breakpoints": true
     }
   ]
 }

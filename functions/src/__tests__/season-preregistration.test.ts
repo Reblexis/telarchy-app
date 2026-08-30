@@ -335,7 +335,7 @@ describe('a running season still behaves as it did', () => {
     const id = await createSeason();
     asAdmin();
     await request(app).post(`/api/seasons/${id}/start`).send({});
-    // Settle refuses before the end instant (2026-08-29: the scored window
+    // Settle refuses before the end instant (2026-08-28: the scored window
     // ends at endsAt), so the season has to end first.
     await db.update(prizeSeasons).set({ endsAt: new Date() }).where(eq(prizeSeasons.id, id));
     await request(app).post(`/api/seasons/${id}/settle`).send({});
@@ -458,13 +458,15 @@ describe('editing a draft season', () => {
     expect(res.body.error).toMatch(/endsAt must be after startsAt/);
   });
 
-  test('the sweepstakes ceiling holds on the edit, not only on create', async () => {
-    // A rule that guards only the front door is not a rule.
+  test('a pool at or above $5,000 is accepted on the edit too: the ceiling is retired (2026-08-28)', async () => {
+    // The sub-5000 rule was the chance-sweepstakes bonding line and never
+    // applied to a skill-scored payout (owner decision 2026-08-28); the
+    // per-payout cap in lib/seasons.ts is what remains.
     await seedFloor([EARLY]);
     const id = await createSeason();
     const res = await request(app).patch(`/api/seasons/${id}`).send({ poolUsd: 5000 });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/5000/);
+    expect(res.status).toBe(200);
+    expect(res.body.season.poolUsd).toBe(5000);
   });
 
   test('a ladder promising more than the pool is refused', async () => {

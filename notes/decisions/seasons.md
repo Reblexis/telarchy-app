@@ -2,6 +2,23 @@
 
 Records evicted from `docs/seasons.md` on 2026-08-25 (first conformance audit); the doc states the resulting rules in present tense. Entries newest first, text verbatim as it stood in the doc.
 
+## 2026-08-28, later that day: effective immediately, and the rule-change collapse
+
+Owner, on being told the settled ranking would only take effect
+2026-09-01T00:00Z: "why, change them now". The notice period was the
+implementing agent's caution (announce-before-effect plus not re-ranking
+the leader without warning), not an owner ask; the 2026-08-22 and
+2026-08-25 amendments had both taken effect the day they were announced, so
+same-day effect is the house style. `SETTLED_SCORING_DEFAULT_AT` moved to
+2026-08-28T00:00Z, and every published surface now says "amended and in
+force 2026-08-28". Correction to the entry below: it dates the amendment
+2026-08-29, written when the deploy was expected the next day; the
+amendment actually published and took effect on 2026-08-28. Also from the
+same conversation, on the season page's announcement stack: "the rule
+changes are way too many can you like make them collapsed by default and
+expandable" - shipped as the newest change standing as the always-visible
+summary line with the older ones behind it.
+
 ## 2026-08-28: The season ranks settled profit (owner decision)
 
 Owner, 2026-08-28, on being shown that the season's #1 stood at +1425.12
@@ -384,3 +401,47 @@ not rely on it.
 Anything that changes what an entrant is scored on must also land in
 `docs/legal/season-0-rules.md` before the start instant, because that document
 promises it will not change while the season runs.
+
+## 2026-08-28: proportional payout replaces the ladder (owner decision)
+
+**DONE 2026-08-28 (Viktor):** "ok lets just do it as payouts proportional to
+profit" and, on amending the live season, "cant we just change the rules of
+season 0?". Season 0's pool is split among entrants in proportion to
+positive settled season score (min payout $50, single-payout cap $2,000, the
+Czech withholding line), replacing the five-rung ladder; the amendment rides
+Season 0's experimental clause and is announced on the season page before
+the PATCH flips `payout_mode`. The sub-5,000 pool ceiling is retired the
+same day: it was the NY/FL chance-sweepstakes bonding line and never applied
+to a deterministic skill-scored payout (the owner wants pools that scale
+without cap). Payer flips from "the workspace owner" to Telarchy as contest
+operator (ToS 1.6). Rationale, the wheel discussion, and the Sybil linearity
+argument: telarchy umbrella notes/wheel-vs-proportional-legality-2026-08-28.md
+and notes/trader-rewards-design-2026-08-28.md.
+
+
+## 2026-08-28: strict eligibility for seasons after Season 0
+
+**DONE 2026-08-28:** `prize_seasons.strict_eligibility` (migration 0082,
+default on for new seasons, off for Season 0) implements the two platform
+rules the approved real-money design fixed on 2026-08-26 (telarchy umbrella,
+notes/real-money-economy-design-2026-08-26.md, premise 4, accepted by
+Viktor): accounts that own or administer any public workspace are shown but
+take no payout, and entries sharing a payout handle collapse to the
+best-placed one (an entrant whose handle matches an operator's or a house
+account's included). Season 0 keeps its published owners-eligible rule to
+the end; the flag is a per-season rule so an operator can still run a
+deliberately open season and say so in its rules.
+
+
+## 2026-08-28: minimum share $1, payout cap removed (owner decision)
+
+**DONE 2026-08-28 (Viktor, verbatim):** "there should be more like $1
+dollar minimum share and no payout cap..". Season 0's minPayoutUsd drops
+from the provisional $50 to $1, and MAX_SINGLE_PAYOUT_USD is removed from
+the settlement arithmetic entirely. The Czech withholding duty the cap
+guarded (15% above CZK 50,000 per prize) moves to payment time: the rules
+now say a prize above the line is paid net of the required withholding,
+which means withholding must actually be set up with an accountant before
+any season where a single prize can exceed about $2,100. Third mid-season
+amendment of the day, announced on the rules page before the PATCH; both
+changes only increase what can be paid.

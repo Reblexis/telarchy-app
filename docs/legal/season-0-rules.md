@@ -16,13 +16,28 @@ are explicitly eligible. The rule never excluded them, but it did not say so;
 this change widens who may enter and reduces nobody's standing or prize. It is
 announced on the season page._
 
-_Amended 2026-08-29, mid-season: the ranking now pays for being right, not
-for holding marks. From 2026-09-01T00:00Z the season score is SETTLED
+_Amended 2026-08-28, mid-season: the ranking now pays for being right, not
+for holding marks. Effective immediately, the season score is SETTLED
 profit: what markets that actually resolved during the season paid you,
 minus what you paid on them. Open positions are still marked on the boards,
 but a mark scores nothing until its market resolves. Trades placed in a
 market's final 6 hours no longer count toward the season score. Announced on
 the season page; the Scoring section below has the details._
+
+_Amended 2026-08-28, mid-season (second amendment that day): prizes are no
+longer fixed amounts by place. The $1,000 pool is split among entrants in
+proportion to positive settled season score, so every entrant in the green
+is paid their share rather than only the top five. Shares below $50 are not
+paid and roll into the next season's pool; no single prize exceeds $2,000.
+Prizes are now paid by Telarchy directly, from its own funds, rather than by
+the workspace owner. Effective on announcement on the season page; the
+Prizes and Getting paid sections below have the details._
+
+_Amended 2026-08-28, mid-season (third amendment that day): the minimum
+paid share drops from $50 to $1, and the $2,000 single-prize cap is
+removed. Where the law requires withholding on a prize (Czech law does,
+above CZK 50,000), we withhold the required amount and pay the rest. Both
+changes only increase what can be paid; nobody's share shrinks._
 
 **Season 0 is the first one, and the platform is still being launched.** Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
@@ -31,8 +46,9 @@ publicly and publish the correction.
 
 ## The deal
 
-Trade on the public Telarchy floor; the five entrants who earn the most
-settled trading profit while the season runs are paid real money. The season runs from
+Trade on the public Telarchy floor; entrants are paid real money in
+proportion to the settled trading profit they earn while the season runs
+(amended 2026-08-28; originally a five-place prize ladder). The season runs from
 its published start instant to its published end instant, both UTC, shown on
 the season page. Entries close when the season ends; settlement and prizes
 follow.
@@ -48,18 +64,25 @@ credits, and your credit balance is unaffected by winning or losing.
 
 Total pool: **$1,000 USD**.
 
-| Place | Prize |
-|---|---|
-| 1st | $500 |
-| 2nd | $250 |
-| 3rd | $125 |
-| 4th | $75 |
-| 5th | $50 |
+```
+your prize = pool x your positive settled season score
+                  / the sum of all entrants' positive settled season scores
+```
 
-**Place decides the prize, whatever the score** (amended 2026-08-22, see
-above): the entrant in 1st place is paid the 1st rung even if their season
-score is zero or negative. A rung with no entrant to take it, and anything
-otherwise unassigned, rolls into the next season's pool.
+(Amended 2026-08-28, replacing the original fixed ladder of $500 / $250 /
+$125 / $75 / $50 by place.) The pool is split in proportion to settled
+season score: earn twice the settled profit of another entrant, be paid
+twice their prize. A zero or negative score is paid nothing and does not
+shrink anyone else's share. Three boundary rules:
+
+- A computed share below **$1** is not paid and rolls into the next
+  season's pool (a prize smaller than the cost of sending it helps nobody;
+  lowered from $50 by the third 2026-08-28 amendment).
+- There is no upper cap on a single prize. A prize large enough to trigger
+  a legal withholding duty (Czech law: 15% above CZK 50,000) is paid net
+  of the required withholding.
+- Anything otherwise unassigned, including the whole pool if no entrant has
+  a positive score, rolls into the next season's pool.
 
 ## Scoring
 
@@ -67,8 +90,8 @@ otherwise unassigned, rolls into the next season's pool.
 season score = what the season's resolved markets paid you - what you paid on them
 ```
 
-(In force from 2026-09-01T00:00Z, amended 2026-08-29; before that instant
-the previous marked-to-market rule applied.)
+(Amended and in force 2026-08-28; before that day the previous
+marked-to-market rule applied.)
 
 Your score counts only markets that RESOLVED, or were cancelled and
 refunded, inside the season window: resolution payouts on your shares, plus
@@ -98,9 +121,10 @@ a gain on the boards the moment it lands. That marked gain is display, not
 score: nothing enters your season score until a market you traded actually
 resolves.
 
-Only entrants who explicitly opted in are ranked or paid. Ties are broken by
-earlier entry, then by participant id; both are automatic and give the same
-result on any recount.
+Only entrants who explicitly opted in are ranked or paid. Equal scores are
+paid equal shares, so a tie needs no breaking for money; the displayed rank
+order breaks ties by earlier entry, then by participant id, both automatic
+and identical on any recount.
 
 ## Entering
 
@@ -119,12 +143,15 @@ result on any recount.
 
 ## Getting paid
 
-Telarchy holds, transmits, escrows and processes no funds. Winners have **30
-days** after settlement to claim, by adding payment details to their account
-and pressing claim; the workspace owner then pays them directly, outside the
-Service, the same arrangement paid job proposals use (Terms of Service section
-3). An unclaimed prize rolls into the next season's pool. Winners are
-responsible for taxes on amounts received.
+Winners have **30 days** after settlement to claim, by adding payment
+details to their account and pressing claim; Telarchy then pays them
+directly, from its own funds, outside the Service, using those details
+(amended 2026-08-28; previously the workspace owner paid). Telarchy holds,
+transmits, escrows and processes no third-party funds: a prize is our own
+money paid as a contest prize. An unclaimed prize rolls into the next
+season's pool. Winners are responsible for taxes on amounts received; where
+Czech law requires withholding on a prize (above CZK 50,000), we withhold
+the required amount and pay the rest.
 
 ## The operator's side
 

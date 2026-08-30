@@ -1,17 +1,18 @@
 import { toNodeHandler } from 'better-auth/node';
 import compression from 'compression';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { auth } from './auth';
 import { currentStoreName, runInBetaStore } from './db/client';
+import { apiErrorHandler } from './lib/api-error-handler';
 import { betaGate } from './lib/beta-gate';
 import { handleBetaBranchChoice, isBetaPath, proxyToCandidate } from './lib/beta-surface';
 import { corsMiddleware } from './lib/cors';
-import { AppError } from './lib/errors';
 import { HELP } from './lib/help-catalog';
 import { publicOrigins } from './lib/origins';
 import { isBetaRequest } from './lib/request-env';
+import { wrap } from './lib/wrap';
 import { requireConsentIfUser } from './middleware/consent';
 import { requireCapability } from './middleware/roles';
 import { apiAuthPolicy } from './middleware/route-policy';
@@ -26,6 +27,7 @@ import { groupsRouter } from './routes/groups';
 import { guidesRouter } from './routes/guides';
 import { leaderboardRouter } from './routes/leaderboard';
 import { legalRouter } from './routes/legal';
+import { liquidityPurchasesRouter, stripeWebhookHandler } from './routes/liquidityPurchases';
 import { manifoldRouter } from './routes/manifold';
 import { marketplaceRouter } from './routes/marketplace';
 import { metricsRouter } from './routes/metrics';
@@ -92,6 +94,10 @@ app.use((req, res, next) => {
 });
 
 app.use(corsMiddleware);
+// The Stripe webhook needs the exact bytes Stripe signed, so its raw-body
+// route is mounted BEFORE the JSON parser; everything else gets JSON as
+// before. No auth: the signature IS the authentication.
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), wrap(stripeWebhookHandler));
 app.use(express.json());
 
 /**
@@ -115,11 +121,14 @@ app.use(express.json());
 app.use(betaGate());
 
 app.use(async (req, res, next) => {
-  if (!isBetaPath(req.path)) return next();
-  // `/beta?branch=br-<name>` picks which build /beta shows; the published
-  // revision answers it itself, before forwarding anything (docs/infra/
-  // deploy.md, "Branch previews").
+  // `?branch=br-<name>` picks which build /beta shows and lands on the beta
+  // twin of the page asked for, from ANYWHERE on the public site: a preview
+  // link that silently served production is the one thing it must never do
+  // (owner report 2026-08-29). Before the beta-path gate for that reason,
+  // and the published revision answers it itself, before forwarding anything
+  // (docs/infra/deploy.md, "Branch previews").
   if (handleBetaBranchChoice(req, res)) return;
+  if (!isBetaPath(req.path)) return next();
   if (await proxyToCandidate(req, res)) return;
   // Nothing to forward to (this IS the candidate, or none is waiting): fall
   // through and serve the beta locally.
@@ -376,6 +385,10 @@ app.use('/api', requireConsentIfUser);
 app.use('/api/metrics', metricsRouter);
 app.use('/api/updates', requireCapability('manage'), updatesRouter);
 app.use('/api/workspaces', workspacesRouter);
+// Paid liquidity: checkout + purchase history under /api/workspaces/:id/...,
+// revenue under /api/liquidity/revenue. The webhook itself is mounted above
+// the JSON parser (raw body).
+app.use('/api', liquidityPurchasesRouter);
 app.use('/api/groups', groupsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/activity', activityRouter);
@@ -385,13 +398,4 @@ app.use('/api', (req: Request, res: Response) => {
   res.status(404).json({ error: 'Not found', path: req.originalUrl });
 });
 
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  const status = err instanceof AppError ? err.status : 500;
-  if (status >= 500) console.error(err);
-  const extra = err instanceof AppError && err.extra ? err.extra : {};
-  // AppError messages are caller-facing by construction. An unexpected 5xx can
-  // carry driver / internal detail (Postgres text, stack context), so return a
-  // generic string; the real error is already logged above.
-  const message = status >= 500 ? 'Internal error' : err.message;
-  res.status(status).json({ error: message, ...extra });
-});
+app.use(apiErrorHandler);

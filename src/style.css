@@ -6331,6 +6331,74 @@ textarea.jobform-line--desc {
   white-space: nowrap;
 }
 
+/* The boards as real tables (owner ask 2026-08-28, components/LeaderTables.tsx):
+   labeled columns instead of chips and sub-lines, so what each board scores on
+   is written above the numbers. Same vocabulary as the rows they replace:
+   hairline separators, mono numerals, the accent reserved for money and for
+   the season's scoring-key column. */
+.lbt { width: 100%; border-collapse: collapse; }
+.lbt-h {
+  padding: 0.45rem 0.55rem 0.4rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  text-align: right;
+  white-space: nowrap;
+}
+.lbt-h.is-left { text-align: left; }
+.lbt-h-rank { width: 1.8rem; }
+/* The season's scoring key wears the accent so "what pays" needs no legend. */
+.lbt-h.is-key { color: var(--accent-text); border-bottom: 2px solid var(--accent); }
+.lbt td { border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+.lbt-rank {
+  padding: 0.62rem 0.55rem;
+  width: 1.8rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+  color: var(--text-tertiary);
+  text-align: right;
+}
+.lbt-cell { padding: 0.5rem 0.55rem; }
+.lbt-num {
+  padding: 0.62rem 0.55rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.84rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+.lbt-num.is-key { background: var(--accent-soft); }
+.lbt-num.is-up { color: var(--higher); }
+.lbt-num.is-down { color: var(--lower); }
+.lbt-num.is-zero, .lbt .is-zero { font-weight: 400; color: var(--text-tertiary); }
+.lbt-num.is-plain { font-weight: 400; }
+.lbt-num.is-prize { color: var(--accent); font-weight: 700; }
+.lbt-who { display: flex; align-items: center; gap: 0.6rem; min-width: 0; text-decoration: none; color: inherit; }
+.lbt-who:hover .lbt-name { color: var(--accent); }
+.lbt-stack { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.lbt-name { display: flex; align-items: center; gap: 0.3rem; font-size: 0.92rem; font-weight: 500; transition: color 120ms ease; }
+.lbt-sub { font-family: 'JetBrains Mono', monospace; font-size: 0.66rem; color: var(--text-tertiary); }
+/* The settled/open split, restated under the name where the phone hides the
+   two middle columns. Desktop hides it: the columns say the same thing. */
+.lbt-msub { display: none; font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; color: var(--text-tertiary); }
+.lbt-msub.is-prize { color: var(--accent); font-weight: 700; font-size: 0.7rem; }
+.lbt tr.is-me .lbt-name { color: var(--accent); }
+.lbt tr.is-pinned td { border-top: 2px solid var(--border-color); background: var(--bg-secondary); }
+.lbp-lead strong, .lbp-note strong { color: var(--text-primary); font-weight: 600; }
+@media (max-width: 559px) {
+  .lbt-desk { display: none; }
+  .lbt-msub { display: block; margin-top: 0.15rem; }
+  .lbt-num { font-size: 0.8rem; }
+  .lbt-h, .lbt-num, .lbt-rank, .lbt-cell { padding-left: 0.3rem; padding-right: 0.3rem; }
+  .lbt-h:last-child, .lbt-num:last-child { padding-right: 0; }
+  .lbt-h:first-child, .lbt-rank { padding-left: 0; }
+}
+
 .lbp-foot { margin-top: 2.5rem; text-align: center; font-size: 0.9rem; }
 .lbp-foot a { color: var(--accent); text-decoration: none; }
 .lbp-foot a:hover { text-decoration: underline; }

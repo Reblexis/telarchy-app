@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { SeasonTable } from '../components/LeaderTables';
 import { ReportButton } from '../components/ReportButton';
 import { SeasonEntryButton } from '../components/SeasonEntryButton';
 import { useAuth } from '../hooks/useAuth';
@@ -22,18 +23,6 @@ import { TopBar } from './TradePage';
  * console's: every public route lands on that design and a visitor should not
  * be able to tell which page was built when.
  */
-
-function initialOf(name: string): string {
-  return name.replace(/^@/, '')[0]?.toUpperCase() ?? '?';
-}
-
-function formatScore(v: number): string {
-  const sign = v < 0 ? '-' : v > 0 ? '+' : '';
-  const abs = Math.abs(v);
-  if (abs >= 1000) return `${sign}${Math.round(abs).toLocaleString('en-US')}`;
-  if (abs >= 10) return `${sign}${abs.toFixed(1)}`;
-  return `${sign}${abs.toFixed(2)}`;
-}
 
 export function SeasonPage() {
   const { user, loading: authLoading } = useAuth();
@@ -133,8 +122,9 @@ export function SeasonPage() {
         <section className="seasonp-hero" aria-label="Prize pool">
           <p className="seasonp-pool">${season.poolUsd.toLocaleString()}</p>
           <p className="seasonp-pool-sub">
-            in real money, paid to the five whose trading profit grows the most while the season runs. Free to enter: no
-            purchase, no stake, your credits are never spent or exchanged.
+            {season.payoutMode === 'proportional'
+              ? 'in real money, split among entrants in proportion to the settled trading profit they earn while the season runs. Free to enter: no purchase, no stake, your credits are never spent or exchanged.'
+              : 'in real money, paid by place to those whose settled trading profit is highest while the season runs. Free to enter: no purchase, no stake, your credits are never spent or exchanged.'}
           </p>
         </section>
 
@@ -152,13 +142,20 @@ export function SeasonPage() {
             because an announcement a visitor has to open is not announced. */}
         <details className="seasonp-rulechanges">
           <summary className="seasonp-experimental seasonp-rulechanges-summary">
-            Rule change, 2026-08-29: from 2026-09-01T00:00Z the ranking pays settled profit only, i.e. markets that
-            actually resolve while the season runs. Open positions stay marked on the board but score nothing until
-            reality lands, and trades in a market's final 6 hours do not count toward the score. Details in the rules.
+            {season.payoutMode === 'proportional'
+              ? 'Rule change, 2026-08-28, effective now: the pool is split among entrants in proportion to positive settled profit, replacing the fixed prizes by place. Every entrant in the green is paid their share; details in the rules.'
+              : "Rule change, 2026-08-28, effective now: the ranking pays settled profit only, i.e. markets that actually resolve while the season runs. Open positions stay marked on the board but score nothing until reality lands, and trades in a market's final 6 hours do not count toward the score. Details in the rules."}
             <span className="seasonp-rulechanges-toggle" aria-hidden="true">
               earlier changes
             </span>
           </summary>
+          {season.payoutMode === 'proportional' && (
+            <p className="seasonp-experimental">
+              Rule change, 2026-08-28: the ranking pays settled profit only, i.e. markets that actually resolve while
+              the season runs. Open positions stay marked on the board but score nothing until reality lands, and trades
+              in a market's final 6 hours do not count toward the score.
+            </p>
+          )}
           <p className="seasonp-experimental">
             Rule change, 2026-08-25: accounts that own or administer a workspace are explicitly eligible, and their
             trades in it count like any other. The change widens who may enter and reduces nobody's standing.
@@ -183,38 +180,52 @@ export function SeasonPage() {
 
         <section className="seasonp-block" aria-label="Prizes">
           <h2 className="lbp-season-name">Prizes</h2>
-          {/* Each rung's bar length IS the prize, scaled to first place, so
+          {season.payoutMode === 'proportional' ? (
+            /* No rungs to draw: the payout curve IS the standings. The one
+               number worth stating beside the pool is the dust floor, so
+               nobody wonders why a $0.40 share was not paid. */
+            <p className="seasonp-note">
+              The ${season.poolUsd.toLocaleString()} pool is split among entrants in proportion to positive settled
+              profit: earn twice the settled profit, be paid twice the share. Losses pay nothing and shrink nobody
+              else's share
+              {season.minPayoutUsd > 0
+                ? `; a share below $${season.minPayoutUsd.toLocaleString()} rolls into the next season's pool instead of being paid`
+                : ''}
+              . Your projected share is on the standings below.
+            </p>
+          ) : (
+            /* Each rung's bar length IS the prize, scaled to first place, so
               the halving ladder (500, 250, 125...) is visible as a shape
               rather than a column of numbers to compare. Monochrome bars,
-              accent only on the rung being fought over. */}
-          <ol className="seasonp-ladder">
-            {season.ladder.map(rung => {
-              const top = Math.max(...season.ladder.map(r => r.prizeUsd));
-              return (
-                <li key={rung.place} className="seasonp-rung">
-                  <span className="seasonp-place">{rung.place}</span>
-                  <span className="seasonp-bar" aria-hidden="true">
-                    <span
-                      className={`seasonp-bar-fill${rung.place === 1 ? ' is-top' : ''}`}
-                      style={{ width: `${Math.max(4, (rung.prizeUsd / top) * 100)}%` }}
-                    />
-                  </span>
-                  <span className="seasonp-prize">${rung.prizeUsd.toLocaleString()}</span>
-                </li>
-              );
-            })}
-          </ol>
+              accent only on the rung being fought over. */
+            <ol className="seasonp-ladder">
+              {season.ladder.map(rung => {
+                const top = Math.max(...season.ladder.map(r => r.prizeUsd));
+                return (
+                  <li key={rung.place} className="seasonp-rung">
+                    <span className="seasonp-place">{rung.place}</span>
+                    <span className="seasonp-bar" aria-hidden="true">
+                      <span
+                        className={`seasonp-bar-fill${rung.place === 1 ? ' is-top' : ''}`}
+                        style={{ width: `${Math.max(4, (rung.prizeUsd / top) * 100)}%` }}
+                      />
+                    </span>
+                    <span className="seasonp-prize">${rung.prizeUsd.toLocaleString()}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </section>
 
         <section className="seasonp-block" aria-label="How it is scored">
           <h2 className="lbp-season-name">How it is scored</h2>
           <p className="seasonp-formula">season score = what resolved markets paid you - what you paid on them</p>
-          {/* The one caveat the formula needs (rules amended 2026-08-29);
+          {/* The one caveat the formula needs (rules amended 2026-08-28);
               everything else lives in the rules doc, per the 2026-08-19
               direction that this section is the formula and the link. */}
           <p className="seasonp-note">
-            applies from 2026-09-01T00:00Z; open positions are marked on the board but score nothing until their market
-            resolves
+            open positions are marked on the board but score nothing until their market resolves
           </p>
           {/* The formula and the rules link are the whole section (owner
               direction 2026-08-19: the explanatory paragraphs are gone; the
@@ -229,91 +240,13 @@ export function SeasonPage() {
           {rows === null ? null : rows.length === 0 ? (
             <p className="lbp-empty">Nobody has entered yet.</p>
           ) : (
-            <>
-              {/* The right column needed a name: "$500" beside a score read as
-                a balance until hovered. Mirrors the row's own cell widths. */}
-              <div className="seasonp-cols" aria-hidden="true">
-                <span className="seasonp-cols-rank">#</span>
-                <span className="seasonp-cols-who">participant</span>
-                <span className="seasonp-cols-score">{draft ? '' : 'score'}</span>
-                <span className="seasonp-cols-pays">{draft ? '' : settled ? 'prize' : 'pays now'}</span>
-              </div>
-              <ol className="lbp-list">
-                {rows.map(r => {
-                  const name = r.nickname || 'anonymous';
-                  return (
-                    <li key={r.id} className={`lbp-row${r.id === meId ? ' is-me' : ''}`}>
-                      <span className="lbp-rank">{r.rank}</span>
-                      <Link className="lbp-who" to={`/participants/${encodeURIComponent(r.nickname ?? r.id)}`}>
-                        <span className="lbp-avatar">
-                          {r.image ? <img src={r.image} alt="" /> : <span>{initialOf(name)}</span>}
-                        </span>
-                        <span className="lbp-stack">
-                          <span className="lbp-name">{name}</span>
-                        </span>
-                      </Link>
-                      <span
-                        className={`lbp-score${(r.score ?? 0) > 0 ? ' is-up' : (r.score ?? 0) < 0 ? ' is-down' : ''}`}
-                      >
-                        {r.score === null ? '' : formatScore(r.score)}
-                      </span>
-                      {/* Settled shows what was actually assigned. Running shows
-                        what this standing would pay if it settled now, from the
-                        same function settlement uses, so the two can never
-                        promise different amounts. */}
-                      <span
-                        className="seasonp-won"
-                        title={
-                          draft
-                            ? undefined
-                            : settled
-                              ? 'Prize'
-                              : 'What this standing would pay if the season settled now'
-                        }
-                      >
-                        {draft
-                          ? ''
-                          : settled
-                            ? r.prizeUsd && r.prizeUsd > 0
-                              ? `$${r.prizeUsd.toLocaleString()}`
-                              : '—'
-                            : r.projectedPrizeUsd && r.projectedPrizeUsd > 0
-                              ? `$${r.projectedPrizeUsd.toLocaleString()}`
-                              : '—'}
-                      </span>
-                    </li>
-                  );
-                })}
-                {/* Pinned when the entrant is not in the list above: "where am
-                  I" is the question an entrant reads standings to answer. */}
-                {meId && !rows.some(r => r.id === meId) && myStanding && (
-                  <li className="lbp-row is-me is-pinned">
-                    <span className="lbp-rank">{myStanding.rank}</span>
-                    <Link
-                      className="lbp-who"
-                      to={`/participants/${encodeURIComponent(myStanding.nickname ?? myStanding.id)}`}
-                    >
-                      <span className="lbp-avatar">
-                        <span>{initialOf(myStanding.nickname || 'you')}</span>
-                      </span>
-                      <span className="lbp-stack">
-                        <span className="lbp-name">{myStanding.nickname || 'you'}</span>
-                      </span>
-                    </Link>
-                    <span
-                      className={`lbp-score${(myStanding.score ?? 0) > 0 ? ' is-up' : (myStanding.score ?? 0) < 0 ? ' is-down' : ''}`}
-                    >
-                      {myStanding.score === null ? '' : formatScore(myStanding.score)}
-                    </span>
-                    <span className="seasonp-won">
-                      {myStanding.projectedPrizeUsd && myStanding.projectedPrizeUsd > 0
-                        ? `$${myStanding.projectedPrizeUsd.toLocaleString()}`
-                        : '—'}
-                    </span>
-                  </li>
-                )}
-              </ol>
-            </>
+            <SeasonTable
+              rows={rows}
+              season={season}
+              mode={draft ? 'draft' : settled ? 'settled' : 'running'}
+              meId={meId}
+              pinned={meId && !rows.some(r => r.id === meId) ? myStanding : null}
+            />
           )}
         </section>
       </main>

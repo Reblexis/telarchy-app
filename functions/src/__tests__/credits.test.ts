@@ -1,4 +1,5 @@
 import {
+  AGENT_SIGNUP_CREDITS,
   CREDIT_PRECISION,
   DEFAULT_MARKET_LIQUIDITY_CREDITS,
   fromUnits,
@@ -73,11 +74,15 @@ describe('sufficientBalance', () => {
 });
 
 describe('signup and workspace creation constants', () => {
-  test('SIGNUP_CREDITS defaults to 1000 when the env var is unset', () => {
-    expect(parseSignupCredits(undefined)).toBe(1000);
-    expect(parseSignupCredits('')).toBe(1000);
+  test('SIGNUP_CREDITS defaults to 10000 when the env var is unset (raised 2026-08-28)', () => {
+    expect(parseSignupCredits(undefined)).toBe(10000);
+    expect(parseSignupCredits('')).toBe(10000);
     // The test environment does not set SIGNUP_CREDITS, so the constant is the default.
-    expect(SIGNUP_CREDITS).toBe(1000);
+    expect(SIGNUP_CREDITS).toBe(10000);
+  });
+
+  test('AGENT_SIGNUP_CREDITS defaults to 0: an API identity mints no bankroll (2026-08-28)', () => {
+    expect(AGENT_SIGNUP_CREDITS).toBe(0);
   });
 
   test('parseSignupCredits accepts 0 (zero-grant instances)', () => {
@@ -85,16 +90,16 @@ describe('signup and workspace creation constants', () => {
   });
 
   test('parseSignupCredits falls back to the default on invalid values', () => {
-    expect(parseSignupCredits('garbage')).toBe(1000);
-    expect(parseSignupCredits('-5')).toBe(1000);
-    expect(parseSignupCredits('Infinity')).toBe(1000);
-    expect(parseSignupCredits('99999999999')).toBe(1000);
+    expect(parseSignupCredits('garbage')).toBe(10000);
+    expect(parseSignupCredits('-5')).toBe(10000);
+    expect(parseSignupCredits('Infinity')).toBe(10000);
+    expect(parseSignupCredits('99999999999')).toBe(10000);
   });
 
   test('SIGNUP_CREDITS converts to a safe integer in nanocredits', () => {
     const units = toUnits(SIGNUP_CREDITS);
     expect(Number.isSafeInteger(units)).toBe(true);
-    expect(units).toBe(1_000_000_000_000);
+    expect(units).toBe(10_000_000_000_000);
   });
 
   test('DEFAULT_MARKET_LIQUIDITY_CREDITS is 0.5', () => {

@@ -3,8 +3,19 @@ import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, authUser, prizeSeasons, seasonEntries, systemConfig, workspaces } from '../db/schema';
 import { loadBoard, loadSeasonSettled } from '../lib/board';
-import { getParticipantDisplayNames, platformOperatedIds } from '../lib/participants';
-import { type LadderRung, seasonScore, settledScoringActive, settleSeason } from '../lib/seasons';
+import {
+  getParticipantDisplayNames,
+  payoutHandlesById,
+  platformOperatedIds,
+  publicWorkspaceOperatorIds,
+} from '../lib/participants';
+import {
+  type LadderRung,
+  type SeasonPayoutMode,
+  seasonScore,
+  settledScoringActive,
+  settleSeason,
+} from '../lib/seasons';
 import { ttlCache } from '../lib/ttl-cache';
 import { wrap } from '../lib/wrap';
 
@@ -98,7 +109,7 @@ export function clearBoardCache(): void {
 }
 
 /**
- * The settled-window season score (rules amended 2026-08-29; lib/board.ts
+ * The settled-window season score (rules amended 2026-08-28; lib/board.ts
  * loadSeasonSettled), briefly cached beside the board cache: the standings
  * poll every few seconds and the settled score only moves when a market
  * resolves. Settlement never reads this cache; it computes its own final
@@ -309,9 +320,9 @@ async function currentSeasonPrizes(): Promise<{
   const publicNow = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.visibility, 'public'));
   const publicIds = publicNow.map(w => w.id);
 
-  // Since 2026-09-01T00:00Z the season ranks SETTLED profit over the season
-  // window; before that instant the previous marked-growth rule applies
-  // (rules amended 2026-08-29; lib/seasons.ts settledScoringActive). The
+  // Since the 2026-08-28 amendment the season ranks SETTLED profit over the
+  // season window; before its effective instant the previous marked-growth
+  // rule applied (lib/seasons.ts settledScoringActive). The
   // prize column and seasonStandings must flip together, which they do by
   // both asking the same function.
   const settled = settledScoringActive()
@@ -319,7 +330,10 @@ async function currentSeasonPrizes(): Promise<{
     : null;
   const board = settled ? null : await cachedBoard(publicIds);
 
-  const house = await platformOperatedIds(entries.map(e => e.agentId));
+  const entrantIds = entries.map(e => e.agentId);
+  const house = await platformOperatedIds(entrantIds);
+  const operators = await publicWorkspaceOperatorIds(entrantIds);
+  const handles = await payoutHandlesById(entrantIds);
   const projection = settleSeason(
     entries.map(e => ({
       agentId: e.agentId,
@@ -327,9 +341,16 @@ async function currentSeasonPrizes(): Promise<{
       currentProfit: settled ? (settled.get(e.agentId) ?? 0) : (board?.profitById.get(e.agentId) ?? 0),
       enteredAt: e.enteredAt ? new Date(e.enteredAt) : new Date(0),
       platformOperated: house.has(e.agentId),
+      workspaceOperator: operators.has(e.agentId),
+      payoutHandle: handles.get(e.agentId) ?? null,
     })),
     (season.ladder ?? []) as LadderRung[],
     season.poolUsd,
+    {
+      payoutMode: (season.payoutMode ?? 'ladder') as SeasonPayoutMode,
+      minPayoutUsd: season.minPayoutUsd ?? 0,
+      strictEligibility: season.strictEligibility === true,
+    },
   );
 
   return {
@@ -446,7 +467,7 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
   const publicIds = new Set(publicNow.map(w => w.id));
   const scoring = publicNow.map(w => w.id);
 
-  // The scoring key (rules amended 2026-08-29): SETTLED profit over the
+  // The scoring key (rules amended 2026-08-28): SETTLED profit over the
   // season window from the effective instant, the previous marked-growth
   // rule before it. Same switch as currentSeasonPrizes, so the prize column
   // on the all-time board and these standings can never disagree.
@@ -475,7 +496,10 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
   // rather than in the client, so the number a standing shows and the number
   // a settlement pays can never drift apart: a second copy of "who gets which
   // rung" is a promise the payout might not keep.
-  const house = await platformOperatedIds(rows.map(r => r.id));
+  const rowIds = rows.map(r => r.id);
+  const house = await platformOperatedIds(rowIds);
+  const operators = await publicWorkspaceOperatorIds(rowIds);
+  const handles = await payoutHandlesById(rowIds);
   const projection = settleSeason(
     rows.map(r => ({
       agentId: r.id,
@@ -485,9 +509,16 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
       currentProfit: r.score,
       enteredAt: r.enteredAt ? new Date(r.enteredAt) : new Date(0),
       platformOperated: house.has(r.id),
+      workspaceOperator: operators.has(r.id),
+      payoutHandle: handles.get(r.id) ?? null,
     })),
     ladder,
     season.poolUsd,
+    {
+      payoutMode: (season.payoutMode ?? 'ladder') as SeasonPayoutMode,
+      minPayoutUsd: season.minPayoutUsd ?? 0,
+      strictEligibility: season.strictEligibility === true,
+    },
   );
   const projectedById = new Map(projection.ranked.map(r => [r.agentId, r.prizeUsd]));
 

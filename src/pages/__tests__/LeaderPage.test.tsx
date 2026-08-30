@@ -35,6 +35,9 @@ const draftSeason = {
   endsAt: '2026-10-16T00:00:00.000Z',
   settledAt: null,
   poolUsd: 1000,
+  payoutMode: 'ladder' as const,
+  minPayoutUsd: 0,
+  strictEligibility: false,
   ladder: [
     { place: 1, prizeUsd: 500 },
     { place: 2, prizeUsd: 250 },
@@ -130,8 +133,10 @@ describe('the season standings section (running season)', () => {
 
     expect(await screen.findByText('Season 0 standings')).toBeInTheDocument();
     // The reported bug: a negative field showed a dash where the money was.
-    expect(await screen.findByText('$500')).toBeInTheDocument();
-    expect(screen.getByText('$250')).toBeInTheDocument();
+    // The dollars render twice per row on purpose: the desktop prize column
+    // and the phone sub-line under the score (CSS shows one at a time).
+    expect((await screen.findAllByText('$500')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$250').length).toBeGreaterThan(0);
     expect(screen.getByText('-31 cr')).toBeInTheDocument();
     // The all-time board still stands separately underneath.
     expect(screen.getByText('kai')).toBeInTheDocument();
@@ -151,11 +156,16 @@ describe('the settled/open split under the ranking number', () => {
   // Owner question 2026-08-24: does the board show what was earned from
   // resolutions alone? It ranked one blended number. Now the split prints
   // beneath it (docs/seasons.md "The score"); the total is still the rank key.
-  test('an all-time row prints settled and open beneath the total', async () => {
+  test('an all-time row carries the settled/open split (columns, and the phone sub-line)', async () => {
     mockBoard([trader({ totalEarnings: 719.51, settledEarnings: 16.95, openEarnings: 702.56 })]);
     renderPage();
-    expect(await screen.findByText('+720 cr')).toBeInTheDocument();
-    expect(screen.getByText('+17 settled · +703 open')).toBeInTheDocument();
+    // One formatter everywhere: under 1,000 the cents are kept, because a
+    // season score of +9.73 rounding to +10 in one table and not the other
+    // read as a bug (design review 2026-08-28).
+    expect(await screen.findByText('+719.51 cr')).toBeInTheDocument();
+    // The columns say it on desktop; the sub-line restates it on a phone.
+    expect(screen.getByText('+16.95 settled · +702.56 open')).toBeInTheDocument();
+    expect(screen.getByText('+702.56')).toBeInTheDocument();
   });
 
   test('a row without the split (an older payload) prints the total alone', async () => {

@@ -1,16 +1,20 @@
 name: Telarchy self-sync
 
-# Daily push of the dogfooding workspace's one hero metric ("Weekly active
-# participants") read from the public /api/marketplace/stats route. See
-# the self-sync note (private, umbrella notes). Rebuilt 2026-08-14: the four-metric Firestore-era
-# sync died in the Postgres migration and zombie-failed daily.
+# Hourly push of the dogfooding workspace's computed hero metrics ("Weekly
+# active verified traders" and "Telarchy revenue (USD)") read from the public
+# /api/marketplace/stats route. Governed by docs/metrics.md. Rebuilt
+# 2026-08-14: the four-metric Firestore-era sync died in the Postgres
+# migration and zombie-failed daily.
 
 on:
   schedule:
-    # 23:40 UTC: pre-boundary, the same settlement discipline as LookPilot's
-    # KPI sync. Markets settle on the last value at-or-before the next-day
-    # 00:00 UTC boundary, so the daily push lands just inside it.
-    - cron: '40 23 * * *'
+    # Every hour at :40 (owner ask 2026-08-30, when revenue joined the sync:
+    # a number the floor prices on three horizons must not be a day stale).
+    # The :40 slot keeps the old settlement discipline, since the 23:40 run
+    # still lands just inside the 00:00 UTC boundary that markets settle on.
+    # The script writes only when a value changed, so an unchanged hour
+    # leaves no row in the public metric log.
+    - cron: '40 * * * *'
   workflow_dispatch: {}
 
 permissions:

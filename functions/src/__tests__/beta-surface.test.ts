@@ -193,10 +193,40 @@ describe('choosing a build with ?branch=', () => {
     expect(res.headers['set-cookie']).toBeUndefined();
   });
 
-  test('leaves every other beta request alone', async () => {
+  test('leaves a request carrying no ?branch= alone', async () => {
     expect((await request(app()).get('/beta')).body).toEqual({ fellThrough: true });
-    expect((await request(app()).get('/beta/lookpilot?branch=br-x')).body).toEqual({ fellThrough: true });
     expect((await request(app()).post('/beta?branch=br-x')).body).toEqual({ fellThrough: true });
-    expect((await request(app()).get('/?branch=br-x')).body).toEqual({ fellThrough: true });
+  });
+
+  /**
+   * The report this answers (owner, 2026-08-29):
+   * `telarchy.com/?branch=br-instrument-stat-row` served PRODUCTION, looked
+   * like the branch, and every link from it walked further into production.
+   * A preview link that silently shows the live site is worse than one that
+   * errors, so `?branch=` answers anywhere on the site.
+   */
+  test('answers from anywhere on the site, landing on the beta twin', async () => {
+    const root = await request(app()).get('/?branch=br-instrument-stat-row');
+    expect(root.status).toBe(302);
+    expect(root.headers.location).toBe('/beta/');
+    expect(String(root.headers['set-cookie'])).toContain(`${BETA_BRANCH_COOKIE}=br-instrument-stat-row`);
+
+    // A page keeps its path, so one link opens one floor on one branch.
+    const floor = await request(app()).get('/lookpilot?branch=br-x');
+    expect(floor.status).toBe(302);
+    expect(floor.headers.location).toBe('/beta/lookpilot');
+
+    // Already inside the beta: same rule, so a deep link re-points the build
+    // instead of the stale cookie deciding.
+    const deep = await request(app()).get('/beta/lookpilot?branch=br-x');
+    expect(deep.status).toBe(302);
+    expect(deep.headers.location).toBe('/beta/lookpilot');
+  });
+
+  test('never redirects an API caller, and never hijacks another ?branch=', async () => {
+    // The API answers callers; a redirect would break every client.
+    expect((await request(app()).get('/api/status?branch=br-x')).body).toEqual({ fellThrough: true });
+    // Off the beta's door an unrecognised value is somebody else's param.
+    expect((await request(app()).get('/lookpilot?branch=approved')).body).toEqual({ fellThrough: true });
   });
 });

@@ -11,7 +11,7 @@
  * docs/audience-pages.md through scripts/build-audience-pages.mjs; this
  * file only knows how to put it in the head.
  */
-import { AUDIENCE_META } from './audience-meta.generated';
+import { AUDIENCE_META, ROUTE_HEADS } from './audience-meta.generated';
 
 const ESCAPES: Record<string, string> = {
   '&': '&amp;',
@@ -86,4 +86,46 @@ export function injectAudienceMeta(html: string, route: string, url: string): st
     .replace(/<meta\s+(?:name="description"|property="og:[^"]*"|name="twitter:[^"]*")[^>]*>\s*/g, '')
     .replace(/<link\s+rel="canonical"[^>]*>\s*/g, '')
     .replace('</head>', `    ${tags}\n  </head>`);
+}
+
+/**
+ * The app's own public routes (/marketplace, /signup, ...) share one SPA
+ * shell, so a crawl reads them as six copies of the home page (Ploy's site
+ * audit, 2026-08-28). For these exact paths the server swaps the title,
+ * description, canonical and Open Graph tags, and the heading of the no-JS
+ * fallback, so each route states its own intent. No structured data: these
+ * are app doors, not documents. Copy: docs/audience-pages.md, "App route
+ * heads".
+ */
+export function isHeadRoute(path: string): boolean {
+  return Object.prototype.hasOwnProperty.call(ROUTE_HEADS, path);
+}
+
+export function headRoutes(): string[] {
+  return Object.keys(ROUTE_HEADS);
+}
+
+export function injectRouteHead(html: string, route: string, url: string): string {
+  const head = ROUTE_HEADS[route];
+  if (!head) return html;
+  const title = escapeHtml(head.title);
+  const description = escapeHtml(head.description);
+  const tags = [
+    `<meta name="description" content="${description}">`,
+    `<meta property="og:title" content="${title}">`,
+    `<meta property="og:description" content="${description}">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:url" content="${escapeHtml(url)}">`,
+    `<meta property="og:image" content="https://telarchy.com/logo.png">`,
+    `<meta name="twitter:card" content="summary">`,
+    `<meta name="twitter:title" content="${title}">`,
+    `<meta name="twitter:description" content="${description}">`,
+    `<link rel="canonical" href="${escapeHtml(url)}">`,
+  ].join('\n    ');
+  return html
+    .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+    .replace(/<meta\s+(?:name="description"|property="og:[^"]*"|name="twitter:[^"]*")[^>]*>\s*/g, '')
+    .replace(/<link\s+rel="canonical"[^>]*>\s*/g, '')
+    .replace('</head>', `    ${tags}\n  </head>`)
+    .replace(/(<main class="ssr-fallback"[\s\S]*?<h1[^>]*>)[^<]*(<\/h1>)/, `$1${escapeHtml(head.h1)}$2`);
 }

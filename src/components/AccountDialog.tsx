@@ -30,6 +30,9 @@ interface Participant {
   walletAddress?: string;
   spentBetting: number | null;
   balance: number | null;
+  /** The second currency: bought liquidity credits, spendable only as
+   *  market-pool injections (owner decision 2026-08-28). */
+  liquidityBalance?: number | null;
   earnedBetting: number | null;
   payoutHandle: string | null;
   payoutMethod: PayoutMethod | null;

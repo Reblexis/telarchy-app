@@ -1,6 +1,6 @@
 import { and, count, eq, gt, inArray, like, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { agents, markets, systemConfig, trades, workspaces } from '../db/schema';
+import { agents, liquidityPurchases, markets, systemConfig, trades, workspaces } from '../db/schema';
 import { ttlCache } from '../lib/ttl-cache';
 
 /**
@@ -18,6 +18,14 @@ export interface PlatformStats {
   tradesThisWeek: number;
   weeklyActiveVerifiedTraders: number;
   manifoldImportCount: number;
+  /**
+   * Money Telarchy itself was paid in the trailing 30 days, USD
+   * (docs/metrics.md, "Revenue, trailing 30 days"). Every rail that exists
+   * today is a completed liquidity purchase, so this is their sum; a second
+   * rail is added to this number, not to a second field, because the metric
+   * it resolves is total revenue.
+   */
+  revenue30dUsd: number;
 }
 
 /**
@@ -102,11 +110,30 @@ async function computePlatformStats(): Promise<PlatformStats> {
     .from(systemConfig)
     .where(like(systemConfig.key, 'manifold-claimed:agent:%'));
 
+  // The revenue rail, public for the same reason the trader count is: the
+  // floor prices "Telarchy revenue (USD)" and a market cannot resolve on a
+  // number only the owner can see. Dated by when the money actually landed
+  // (`completedAt`), falling back to the row's creation for pre-`completedAt`
+  // rows, which is the same window `GET /api/liquidity/revenue` reports.
+  const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const paid = await db
+    .select({
+      usdAmount: liquidityPurchases.usdAmount,
+      completedAt: liquidityPurchases.completedAt,
+      createdAt: liquidityPurchases.createdAt,
+    })
+    .from(liquidityPurchases)
+    .where(eq(liquidityPurchases.status, 'completed'));
+  const revenue30dUsd = paid
+    .filter(r => new Date(r.completedAt ?? r.createdAt) >= monthAgo)
+    .reduce((sum, r) => sum + Number(r.usdAmount), 0);
+
   return {
     marketsActive,
     agentsActive: Number(agentCount.count),
     tradesThisWeek,
     weeklyActiveVerifiedTraders,
     manifoldImportCount: Number(manifoldRow?.n ?? 0),
+    revenue30dUsd,
   };
 }

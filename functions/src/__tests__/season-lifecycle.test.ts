@@ -77,7 +77,7 @@ beforeEach(async () => {
   clearBoardCache();
   caller = { isMasterKey: true };
   // This suite tests the CURRENT scoring rule, settled profit (amended
-  // 2026-08-29), so the effective instant is pinned to the past; the tests
+  // 2026-08-28), so the effective instant is pinned to the past; the tests
   // must not change behaviour when the wall clock crosses the real instant.
   // The switch itself is pinned in settled-window-scoring.test.ts and the
   // legacy marked branch below ("before the effective instant").
@@ -198,7 +198,7 @@ async function giveSettledProfit(
 }
 
 /** End the season NOW: settle refuses to run before `endsAt` (guard of
- *  2026-08-29), and the scored window ends there, so tests end the season at
+ *  2026-08-28), and the scored window ends there, so tests end the season at
  *  the instant they settle. */
 async function closeSeason(seasonId: string) {
   await db.update(prizeSeasons).set({ endsAt: new Date() }).where(eq(prizeSeasons.id, seasonId));
@@ -215,7 +215,7 @@ async function closeSeason(seasonId: string) {
  * where one person bought actually looks like. Worth is the position valued as
  * if the market resolved at its current call (owner decision 2026-08-19,
  * docs/seasons.md F1, revised), so the fixture prices it the same way. Under
- * settled season scoring (2026-08-29) this mark scores ZERO for the season;
+ * settled season scoring (2026-08-28) this mark scores ZERO for the season;
  * the helper stays for the baseline snapshots, the all-time board, and for
  * proving exactly that zero.
  */
@@ -296,6 +296,12 @@ async function createSeason(overrides: Record<string, unknown> = {}) {
       poolUsd: 1000,
       ladder: LADDER,
       rulesUrl: '/legal/season-1',
+      // The Season 0 configuration: seedFloor makes the first trader the
+      // workspace creator, so under the post-Season-0 default (strict on)
+      // they would take no payout and every assertion here would be about
+      // eligibility instead of what it tests. Strict behaviour has its own
+      // tests below.
+      strictEligibility: false,
       ...overrides,
     });
   return res;
@@ -321,13 +327,32 @@ async function optIn(seasonId: string, agentId: string, optedIn = true) {
 // ---------------------------------------------------------------------------
 
 describe('creating a season', () => {
-  test('rejects a pool at or above the $5,000 registration threshold', async () => {
-    // Above this, New York wants 30 days notice and a bond and Florida 7.
-    // Staying under keeps a season registration-free in every US state, so
-    // the limit is enforced here rather than remembered.
-    const res = await createSeason({ poolUsd: 5000 });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/registration/i);
+  test('a pool at or above $5,000 is accepted: the old ceiling is retired (2026-08-28)', async () => {
+    // The sub-5000 rule was the NY/FL registration-and-bonding threshold for
+    // CHANCE sweepstakes; a deterministic skill-scored payout is a skill
+    // contest and scales uncapped (owner decision 2026-08-28, design record
+    // notes/wheel-vs-proportional-legality-2026-08-28.md in the telarchy
+    // umbrella). The cap that remains is per single payout, in lib/seasons.ts.
+    const res = await createSeason({ poolUsd: 25000, ladder: [{ place: 1, prizeUsd: 2000 }] });
+    expect(res.status).toBe(201);
+    expect(res.body.season.poolUsd).toBe(25000);
+  });
+
+  test('a season created without a ladder defaults to the proportional payout', async () => {
+    const res = await request(app)
+      .post('/api/seasons')
+      .send({
+        name: 'Proportional',
+        startsAt: new Date(Date.now() - 10 * DAY).toISOString(),
+        endsAt: new Date(Date.now() + 1 * DAY).toISOString(),
+        poolUsd: 1000,
+        minPayoutUsd: 50,
+        rulesUrl: '/legal/season-1',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.season.payoutMode).toBe('proportional');
+    expect(res.body.season.minPayoutUsd).toBe(50);
+    expect(res.body.season.ladder).toEqual([]);
   });
 
   test('rejects a ladder that promises more than the pool', async () => {
@@ -492,7 +517,7 @@ describe('standings', () => {
     expect(res.body.participants.every((p: { score: unknown }) => p.score === null)).toBe(true);
   });
 
-  test('a running season scores ONLY what resolved inside its window (amended 2026-08-29)', async () => {
+  test('a running season scores ONLY what resolved inside its window (amended 2026-08-28)', async () => {
     await seedFloor(['veteran', 'newcomer']);
     // The veteran banked 15 on a market that resolved BEFORE the season
     // started; the newcomer settles 6 inside the window.
@@ -513,7 +538,7 @@ describe('standings', () => {
     expect(res.body.participants[0].id).toBe('newcomer');
   });
 
-  test('an open position scores nothing, however high the board marks it (amended 2026-08-29)', async () => {
+  test('an open position scores nothing, however high the board marks it (amended 2026-08-28)', async () => {
     await seedFloor(['marker', 'earner']);
     const season = (await createSeason()).body.season;
     await startSeason(season.id);
@@ -531,9 +556,10 @@ describe('standings', () => {
   });
 
   test('BEFORE the effective instant the previous marked rule still applies', async () => {
-    // The transition window (announced 2026-08-29, in force 2026-09-01):
-    // until the instant passes, standings keep the marked key the entrants
-    // watched all week.
+    // The pre-amendment era (before 2026-08-28): until the effective instant
+    // passes, standings keep the marked key the entrants watched all week.
+    // Dead in production since the owner made the amendment effective on
+    // announcement; kept because the switch itself must stay correct.
     process.env.SEASON_SETTLED_SCORING_AT = '2100-01-01T00:00:00Z';
     await seedFloor(['marker']);
     const season = (await createSeason()).body.season;
@@ -625,9 +651,9 @@ describe('standings', () => {
 });
 
 describe('settling', () => {
-  async function runSeasonWith(profits: Array<[string, number]>) {
+  async function runSeasonWith(profits: Array<[string, number]>, overrides: Record<string, unknown> = {}) {
     await seedFloor(profits.map(([id]) => id));
-    const season = (await createSeason()).body.season;
+    const season = (await createSeason(overrides)).body.season;
     await startSeason(season.id);
     for (const [id] of profits) await optIn(season.id, id);
     for (const [id, profit] of profits) await giveSettledProfit(id, profit, id);
@@ -649,6 +675,84 @@ describe('settling', () => {
       ['bronze', 125],
     ]);
     expect(res.body.rolloverUsd).toBe(125);
+  });
+
+  test('a proportional season settles pool x score / total, not a ladder (amended 2026-08-28)', async () => {
+    const season = await runSeasonWith(
+      [
+        ['gold', 30],
+        ['silver', 10],
+      ],
+      { payoutMode: 'proportional' },
+    );
+    const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.winners.map((w: { agentId: string; prizeUsd: number }) => [w.agentId, w.prizeUsd])).toEqual([
+      ['gold', 750],
+      ['silver', 250],
+    ]);
+    expect(res.body.rolloverUsd).toBe(0);
+  });
+
+  test('a running season can amend payoutMode (the Season 0 clause), and nothing else', async () => {
+    await seedFloor(['gold']);
+    const season = (await createSeason()).body.season; // ladder mode
+    await startSeason(season.id);
+
+    // The one allowed mid-season amendment: the payout arithmetic, announced
+    // first (the announcement is operational, not enforceable here).
+    const amend = await request(app)
+      .patch(`/api/seasons/${season.id}`)
+      .send({ payoutMode: 'proportional', minPayoutUsd: 50 });
+    expect(amend.status).toBe(200);
+    expect(amend.body.season.payoutMode).toBe('proportional');
+    expect(amend.body.season.minPayoutUsd).toBe(50);
+
+    // Pool and dates stay frozen even under the clause.
+    const pool = await request(app).patch(`/api/seasons/${season.id}`).send({ poolUsd: 2000 });
+    expect(pool.status).toBe(409);
+    const mixed = await request(app).patch(`/api/seasons/${season.id}`).send({ payoutMode: 'ladder', poolUsd: 2000 });
+    expect(mixed.status).toBe(409);
+  });
+
+  test('strict eligibility: the workspace creator is ranked but paid nothing (seasons after Season 0)', async () => {
+    const season = await runSeasonWith(
+      [
+        ['gold', 30], // seedFloor makes 'gold' the workspace creator
+        ['silver', 10],
+      ],
+      { payoutMode: 'proportional', strictEligibility: true },
+    );
+    const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
+    expect(res.status).toBe(200);
+    // The creator's 30 of settled profit earns nothing and does not dilute
+    // silver's share; standings still rank them first.
+    expect(res.body.winners.map((w: { agentId: string; prizeUsd: number }) => [w.agentId, w.prizeUsd])).toEqual([
+      ['silver', 1000],
+    ]);
+    const standings = await request(app).get(`/api/leaderboard?seasonId=${season.id}`);
+    const gold = standings.body.participants.find((p: { id: string }) => p.id === 'gold');
+    expect(gold.rank).toBe(1);
+  });
+
+  test('strict eligibility: entries sharing a payout handle collapse to the best-placed one', async () => {
+    await seedFloor(['alpha', 'beta', 'shadow']);
+    // 'alpha' created the workspace (seedFloor), so the two entrants under
+    // test are beta and shadow: one person, two accounts, one handle.
+    await db.update(agents).set({ payoutHandle: 'paypal:same@person.example' }).where(eq(agents.id, 'beta'));
+    await db.update(agents).set({ payoutHandle: 'PAYPAL:same@person.example' }).where(eq(agents.id, 'shadow'));
+    const season = (await createSeason({ payoutMode: 'proportional', strictEligibility: true })).body.season;
+    await startSeason(season.id);
+    for (const id of ['beta', 'shadow']) await optIn(season.id, id);
+    await giveSettledProfit('beta', 30, 'beta');
+    await giveSettledProfit('shadow', 10, 'shadow');
+    await closeSeason(season.id);
+
+    const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.winners.map((w: { agentId: string; prizeUsd: number }) => [w.agentId, w.prizeUsd])).toEqual([
+      ['beta', 1000],
+    ]);
   });
 
   test('settlement scores over the workspaces public at settle time, not the pinned set', async () => {
@@ -679,7 +783,7 @@ describe('settling', () => {
     expect(res.body.error).toMatch(/runs until/);
   });
 
-  test('a monster open mark settles at zero; the settled earner takes the rung (amended 2026-08-29)', async () => {
+  test('a monster open mark settles at zero; the settled earner takes the rung (amended 2026-08-28)', async () => {
     await seedFloor(['marker', 'earner']);
     const season = (await createSeason()).body.season;
     await startSeason(season.id);
@@ -699,7 +803,7 @@ describe('settling', () => {
     expect(marker.score).toBe(0);
   });
 
-  test('A TRADE INSIDE THE FINAL 6 HOURS OF A MARKET COUNTS NOTHING (amended 2026-08-29)', async () => {
+  test('A TRADE INSIDE THE FINAL 6 HOURS OF A MARKET COUNTS NOTHING (amended 2026-08-28)', async () => {
     await seedFloor(['sniper']);
     const season = (await createSeason()).body.season;
     await startSeason(season.id);

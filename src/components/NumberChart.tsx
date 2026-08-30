@@ -203,10 +203,16 @@ export function NumberChart({
   center,
   legend = null,
   impactFrom = 'approved',
-  now = new Date(),
+  now: nowProp,
   height,
   preview = null,
 }: Props) {
+  // Anchored once per mount, never per render: a per-render default was a
+  // fresh advancing timestamp that moved the tween target every render,
+  // restarting the domain rAF loop forever (60fps setState, allocating a
+  // fresh array per frame). Callers that pass `now` are unaffected.
+  const [mountNow] = useState(() => new Date());
+  const now = nowProp ?? mountNow;
   // Same geometry and breakpoint as the market view (GEOM is theirs), so the
   // two views of the chart slot have one width, one plot area and one
   // pointer mapping.

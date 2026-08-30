@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import { AccountMenu } from '../components/AccountMenu';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 import { DiscordButton } from '../components/DiscordButton';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorChat } from '../components/FloorChat';
@@ -48,7 +49,6 @@ import {
 } from '../lib/floor-horizons';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
-import { useAnimatedNumber } from '../lib/useAnimatedNumber';
 
 /**
  * telarchy.com/<slug>: the market and one action, nothing else (owner
@@ -71,6 +71,17 @@ import { useAnimatedNumber } from '../lib/useAnimatedNumber';
 function fmtShares(v: number): string {
   return v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1);
 }
+
+// Hoisted so ReactMarkdown's props keep their identity across renders;
+// inline literals re-ran the whole unified parse pipeline per page render.
+const MARKDOWN_PLUGINS = [remarkGfm, remarkBreaks];
+const MARKDOWN_COMPONENTS = {
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+    <a href={href} target="_blank" rel="noreferrer">
+      {children}
+    </a>
+  ),
+};
 
 function formatValue(v: number): string {
   const abs = Math.abs(v);
@@ -285,7 +296,10 @@ export function TradePage() {
       .getProfile()
       .then(p => setCanManage(((p as { capabilities?: string[] }).capabilities ?? []).includes('manage')))
       .catch(e => console.error('profile fetch failed:', e));
-  }, [user, ws]);
+    // ws is a fresh object every poll tick; the answer only changes with
+    // the login or the floor, so key on their identities, not the object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, ws?.workspaceId]);
 
   const decide = async (action: 'approve' | 'decline', refund = false) => {
     if (!selectedJobId || !ws) return;
@@ -737,10 +751,10 @@ export function TradePage() {
       : null;
   const consensus =
     (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null) ?? active?.consensus ?? null;
-  // The number rolls to its new value (trade, branch switch, job select)
-  // instead of teleporting; everything downstream (chart, ticket) uses the
-  // true value, only the headline shows the tween.
-  const shownConsensus = useAnimatedNumber(consensus);
+  // The headline number rolls to its new value (trade, branch switch, job
+  // select) instead of teleporting, via the AnimatedNumber leaf at the
+  // headline itself: the tween's per-frame state lives there, not here, so
+  // an animation frame repaints one span, not this whole page.
 
   // "What is this?" reveal: the concept beats draw themselves in when the
   // section scrolls into view (a one-shot IntersectionObserver), so the
@@ -775,7 +789,7 @@ export function TradePage() {
     io.observe(el);
     return () => io.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ws, aboutIn]);
+  }, [ws?.workspaceId, aboutIn]);
 
   // The composed bet's impact, projected from probability space onto the
   // metric's range so the chart can draw where the call would move.
@@ -786,6 +800,34 @@ export function TradePage() {
           value: active.rangeMin + ticketPreview.newProb * (active.rangeMax - active.rangeMin),
         }
       : null;
+
+  // Chart inputs memoized for identity: fresh literals here defeated
+  // MarketChart's memo, so every page render re-sorted the series and
+  // rebuilt the SVG paths even when nothing about the chart changed.
+  const chartSeries = useMemo(
+    () => (active && active.history.length > 0 ? active.history : [{ at: now.toISOString(), consensus }]),
+    [active, consensus, now],
+  );
+  const chartOrders = useMemo(
+    () => orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue })),
+    [orders],
+  );
+  /* Only ever the other BRANCH: same metric, same window, two worlds, so
+     the gap is the priced impact. The other horizon measures a different
+     window and shares no scale with this one (2026-08-15), so it gets its
+     own chart below rather than a line on this axis. */
+  const chartSecondary = useMemo(
+    () =>
+      selectedJob && otherBranch && otherBranch.consensus !== null
+        ? {
+            series: otherBranch.history,
+            consensus: otherBranch.consensus,
+            label: branch === 'approved' ? 'if declined' : 'if approved',
+            tone: branch === 'approved' ? ('lower' as const) : ('higher' as const),
+          }
+        : null,
+    [selectedJob, otherBranch, branch],
+  );
 
   // Year chart: the hero metric's REAL value over the calendar year (solid),
   // continued to where the market sees it settling (dashed, to the resolve
@@ -1346,7 +1388,7 @@ export function TradePage() {
                  settle note left under the stat row. */}
                   <MarketChart
                     key={active.marketId}
-                    series={active.history.length > 0 ? active.history : [{ at: new Date().toISOString(), consensus }]}
+                    series={chartSeries}
                     consensus={consensus}
                     unit={unit}
                     ranges={['1D', '1W']}
@@ -1359,7 +1401,9 @@ export function TradePage() {
                      chart's own title. */
                     corner={
                       <span className="pubws-stat">
-                        <span className="pubws-price">{`${unit}${formatValue(shownConsensus ?? consensus)}`}</span>
+                        <span className="pubws-price">
+                          <AnimatedNumber value={consensus} render={v => `${unit}${formatValue(v)}`} />
+                        </span>
                         {/* The impact is the job's one number, so it is always
                           said: priced, zero-so-far, or not yet priced. Silence
                           read as a broken page. Bare arrow + delta (owner ask
@@ -1383,22 +1427,8 @@ export function TradePage() {
                     }
                     center={<span className="pubws-chart-cap">market</span>}
                     preview={chartPreview}
-                    orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
-                    /* Only ever the other BRANCH: same metric, same window,
-                     two worlds, so the gap is the priced impact. The other
-                     horizon measures a different window and shares no scale
-                     with this one (2026-08-15), so it gets its own chart
-                     below rather than a line on this axis. */
-                    secondary={
-                      selectedJob && otherBranch && otherBranch.consensus !== null
-                        ? {
-                            series: otherBranch.history,
-                            consensus: otherBranch.consensus,
-                            label: branch === 'approved' ? 'if declined' : 'if approved',
-                            tone: branch === 'approved' ? ('lower' as const) : ('higher' as const),
-                          }
-                        : null
-                    }
+                    orders={chartOrders}
+                    secondary={chartSecondary}
                   />
                   {/* The number chart, always on below the market chart (owner
                     ask 2026-08-28, replacing the MARKET/NUMBER toggle): the
@@ -1727,16 +1757,7 @@ export function TradePage() {
                  write this text over the API and a collapsed paragraph
                  misquotes what the market settles on. */
                 <div className="pubws-know-what">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                    components={{
-                      a: ({ href, children }) => (
-                        <a href={href} target="_blank" rel="noreferrer">
-                          {children}
-                        </a>
-                      ),
-                    }}
-                  >
+                  <ReactMarkdown remarkPlugins={MARKDOWN_PLUGINS} components={MARKDOWN_COMPONENTS}>
                     {horizonDescription}
                   </ReactMarkdown>
                 </div>

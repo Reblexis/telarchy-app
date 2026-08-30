@@ -1,5 +1,5 @@
 /**
- * The settled-window season score (rules amended 2026-08-29): pure
+ * The settled-window season score (rules amended 2026-08-28): pure
  * arithmetic over resolved-in-window markets and their counted trades
  * (lib/leaderboard.ts computeSettledWindowProfit), plus the effective-instant
  * switch. The SQL side (which markets are in the window, which trades are
@@ -97,18 +97,18 @@ describe('the effective instant', () => {
     delete process.env.SEASON_SETTLED_SCORING_AT;
   });
 
-  test('defaults to 2026-09-01T00:00Z, the instant the rules announce', () => {
+  test('defaults to 2026-08-28T00:00Z, the day the amendment took effect (owner: effective now)', () => {
     delete process.env.SEASON_SETTLED_SCORING_AT;
-    expect(settledScoringEffectiveAt().toISOString()).toBe('2026-09-01T00:00:00.000Z');
-    expect(SETTLED_SCORING_DEFAULT_AT).toBe('2026-09-01T00:00:00Z');
+    expect(settledScoringEffectiveAt().toISOString()).toBe('2026-08-28T00:00:00.000Z');
+    expect(SETTLED_SCORING_DEFAULT_AT).toBe('2026-08-28T00:00:00Z');
   });
 
   test('the boundary is at-or-after, and the env override is read per call', () => {
-    process.env.SEASON_SETTLED_SCORING_AT = '2026-09-01T00:00:00Z';
-    expect(settledScoringActive(new Date('2026-08-31T23:59:59Z'))).toBe(false);
-    expect(settledScoringActive(new Date('2026-09-01T00:00:00Z'))).toBe(true);
+    process.env.SEASON_SETTLED_SCORING_AT = '2026-08-28T00:00:00Z';
+    expect(settledScoringActive(new Date('2026-08-27T23:59:59Z'))).toBe(false);
+    expect(settledScoringActive(new Date('2026-08-28T00:00:00Z'))).toBe(true);
     process.env.SEASON_SETTLED_SCORING_AT = '2000-01-01T00:00:00Z';
-    expect(settledScoringActive(new Date('2026-08-31T23:59:59Z'))).toBe(true);
+    expect(settledScoringActive(new Date('2026-08-27T23:59:59Z'))).toBe(true);
   });
 
   test('the trade cutoff the rules publish', () => {
