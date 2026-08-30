@@ -25,6 +25,7 @@ import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { ACTIVITY_TYPES, type ActivityType, getActivityFeed } from '../services/activity';
 import { BuildNotConfiguredError, buildConfigured, dispatchBuild, listBranches } from '../services/branches';
+import { earnRuleHistoryFor, listEarnRules, setEarnRule } from '../services/earnRules';
 import { PublishRefusedError, publishRevision, releaseState } from '../services/release';
 
 export const adminRouter = Router();
@@ -844,5 +845,50 @@ adminRouter.get(
         };
       }),
     });
+  }),
+);
+
+/**
+ * The earn table, as the operator sees and edits it (owner decision
+ * 2026-08-30: "we will edit it dynamically it should be in db.. and can
+ * change midseason"). GET carries the disabled rows and the last-changed
+ * stamp that the public view omits; PATCH edits one price and appends to
+ * the append-only history, so a mid-season change stays reconstructable.
+ */
+adminRouter.get(
+  '/earn',
+  wrap(async (req, res) => {
+    if (!(await isPlatformAuthorized(req))) throw new AppError('Platform admin or master key required', 403);
+    res.json({ rules: await listEarnRules() });
+  }),
+);
+
+adminRouter.get(
+  '/earn/:key/history',
+  wrap(async (req, res) => {
+    if (!(await isPlatformAuthorized(req))) throw new AppError('Platform admin or master key required', 403);
+    res.json({ key: req.params.key, history: await earnRuleHistoryFor(req.params.key as string) });
+  }),
+);
+
+adminRouter.patch(
+  '/earn/:key',
+  wrap(async (req, res) => {
+    if (!(await isPlatformAuthorized(req))) throw new AppError('Platform admin or master key required', 403);
+    const { credits, enabled, note, label } = req.body ?? {};
+    if (credits === undefined && enabled === undefined && note === undefined && label === undefined) {
+      throw new AppError('Nothing to change', 400);
+    }
+    const rule = await setEarnRule(
+      req.params.key as string,
+      {
+        credits: credits === undefined ? undefined : Number(credits),
+        enabled: enabled === undefined ? undefined : enabled === true,
+        note: typeof note === 'string' ? note : undefined,
+        label: typeof label === 'string' ? label : undefined,
+      },
+      req.auth?.agentId ?? req.auth?.uid ?? null,
+    );
+    res.json({ rule });
   }),
 );

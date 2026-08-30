@@ -69,3 +69,19 @@ Manifold rows). Rationale: with real-money season payouts proportional to
 settled profit, a grant is bankroll, so each grant is priced at the
 verifiable acquisition value of the signal behind it. Design record:
 telarchy umbrella notes/trader-rewards-design-2026-08-28.md.
+
+## 2026-08-30: the earn table goes in the database (owner decision)
+
+**DONE 2026-08-30 (Viktor, verbatim):** "no we will edit it dynamically it
+should be in db.. and can change midseason season 0 is esxperimental and we
+should nto be afraid to change rules during", after "I will have a table of
+the all the ways that people can earn credits ... whenever I feel like
+something gives me less value, for a task, I will just edit it in the
+table". Shipped as `earn_rules` + `earn_rule_history` (migration 0085),
+read by browser signup, API registration, sub-bot creation and the Manifold
+import; public at `GET /api/earn`, edited at `PATCH /api/admin/earn/:key`.
+Prices may change mid-season under Season 0's experimental clause; the
+history table is what keeps such a change reconstructable. The pricing
+principle and the measured base rates behind it (median Manifold balance
+600 mana against Telarchy's 10,000 grant on books of b = 330 to 2,000) are
+in the telarchy umbrella, notes/earn-table-design-2026-08-30.md.
