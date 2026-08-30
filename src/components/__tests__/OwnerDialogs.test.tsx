@@ -19,6 +19,7 @@ const getMetric = vi.fn(async () => ({
   timePreference: { enabled: false, halfLife: 1, customHorizons: ['2026-12'] },
 }));
 const patchMetric = vi.fn(async () => ({}));
+const reportMetricValue = vi.fn(async () => ({}));
 const injectLiquidity = vi.fn(async () => ({}));
 
 vi.mock('../../lib/api', () => ({
@@ -27,6 +28,7 @@ vi.mock('../../lib/api', () => ({
     createWorkspace: (...a: unknown[]) => createWorkspace(...(a as [])),
     getMetric: (...a: unknown[]) => getMetric(...(a as [])),
     patchMetric: (...a: unknown[]) => patchMetric(...(a as [])),
+    reportMetricValue: (...a: unknown[]) => reportMetricValue(...(a as [])),
     injectLiquidity: (...a: unknown[]) => injectLiquidity(...(a as [])),
   },
 }));
@@ -34,13 +36,20 @@ vi.mock('../../lib/api', () => ({
 // Raw source, for the invariant that is about the route itself.
 import appSrc from '../../App.tsx?raw';
 import { MarketFacts } from '../MarketFacts';
-import { AddDateDialog, CreateWorkspaceDialog, InjectLiquidityDialog, NewMetricDialog } from '../OwnerDialogs';
+import {
+  AddDateDialog,
+  CreateWorkspaceDialog,
+  InjectLiquidityDialog,
+  NewMetricDialog,
+  ReportValueDialog,
+} from '../OwnerDialogs';
 
 beforeEach(() => {
   createMetricIn.mockClear();
   createWorkspace.mockClear();
   getMetric.mockClear();
   patchMetric.mockClear();
+  reportMetricValue.mockClear();
   injectLiquidity.mockClear();
 });
 
@@ -260,5 +269,90 @@ describe('dialog 0: create your own floor', () => {
     expect(appSrc).toContain('path="/:slug"');
     expect(appSrc).toContain('path="/marketplace/:workspaceId"');
     expect(appSrc).not.toContain('path="/:owner/:slug"');
+  });
+});
+
+describe('dialog 4: report the number', () => {
+  const props = {
+    workspaceId: 'ws',
+    metricId: 'm1',
+    metricName: 'LookPilot net 2026 (USD)',
+    unit: '$',
+    lastValue: 44439,
+    lastAt: new Date(Date.now() - 4 * 86400000).toISOString(),
+    marketSays: 46120,
+    settlesLabel: '3d',
+    rangeMax: 500000,
+    onClose: () => {},
+  };
+
+  test('sends the reading with the value it replaces, and the note', async () => {
+    const onDone = vi.fn();
+    render(<ReportValueDialog {...props} onDone={onDone} />);
+    const input = screen.getByLabelText('The new reading');
+    fireEvent.change(input, { target: { value: '46,120' } });
+    fireEvent.change(screen.getByLabelText('What happened'), { target: { value: 'the Daily Deal ran' } });
+    fireEvent.click(screen.getByText(/Report \$46,120/));
+    await waitFor(() =>
+      expect(reportMetricValue).toHaveBeenCalledWith('ws', 'm1', {
+        value: 46120,
+        // oldValue is what the route needs to write the public updates row.
+        oldValue: 44439,
+        updateNote: 'the Daily Deal ran',
+      }),
+    );
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  test("shows the market's own number beside the one being typed", () => {
+    render(<ReportValueDialog {...props} onDone={() => {}} />);
+    // The one fact that cannot be got anywhere else, and the reason to look.
+    expect(screen.getByText('The market has been saying')).toBeTruthy();
+    expect(screen.getByText('46,120')).toBeTruthy();
+  });
+
+  test('the delta speaks direction, against the reading it replaces', () => {
+    render(<ReportValueDialog {...props} onDone={() => {}} />);
+    fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '46120' } });
+    const up = screen.getByText('+1,681');
+    expect(up.className).toContain('is-up');
+    fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '40000' } });
+    expect(screen.getByText('-4,439').className).toContain('is-down');
+  });
+
+  test('an empty or unparseable reading never reaches the API', async () => {
+    render(<ReportValueDialog {...props} lastValue={null} lastAt={null} marketSays={null} onDone={() => {}} />);
+    const go = screen.getByRole('button', { name: /Report/ });
+    expect((go as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(go);
+    await waitFor(() => expect(reportMetricValue).not.toHaveBeenCalled());
+  });
+
+  test('the first reading asks for the range instead of a delta, and sends it', async () => {
+    render(
+      <ReportValueDialog
+        {...props}
+        lastValue={null}
+        lastAt={null}
+        marketSays={null}
+        rangeMax={1000}
+        onDone={() => {}}
+      />,
+    );
+    // No previous reading and no market opinion: neither line is drawn.
+    expect(screen.queryByText('The market has been saying')).toBeNull();
+    expect(screen.getByText(/Nothing traded yet, so this also sets the range/)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '430' } });
+    fireEvent.change(screen.getByLabelText('Highest it could plausibly reach'), { target: { value: '2000' } });
+    fireEvent.click(screen.getByText(/Report \$430/));
+    await waitFor(() =>
+      expect(reportMetricValue).toHaveBeenCalledWith('ws', 'm1', {
+        value: 430,
+        oldValue: 0,
+        updateNote: '',
+        marketRangeMax: 2000,
+      }),
+    );
   });
 });

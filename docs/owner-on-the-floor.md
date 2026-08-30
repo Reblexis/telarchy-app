@@ -41,11 +41,13 @@ add one", with the add-first-metric button chaining into dialogs 1 and 2
 below. A visitor on the same empty floor reads the honest state instead
 ("Nothing is priced here yet. The owner has not added a number.").
 
-## The v1 controls: three dialogs
+## The v1 controls: four dialogs
 
 Owner direction 2026-08-27: start as simple as possible: a metric is a name
 and what it is; right after it is added, one date and the liquidity behind
-it; and an inject-liquidity button per market. Each dialog is the floor's own
+it; and an inject-liquidity button per market. Reporting the number joined
+them on 2026-08-30, as the one thing without which none of the rest settles
+honestly. Each dialog is the floor's own
 modal (the bet ticket's anatomy: centered tertiary labels, bottom-line
 inputs, one full-width ink button that carries its own cost, the segmented
 picker). All three appear only to callers with the `manage` capability, as
@@ -80,6 +82,26 @@ followed by next week's, a picked day as the one-shot absolute it is. The
 liquidity writes `metrics.liquidityCredits`, and the reconcile that runs on
 the same request opens the market funded at that number. One request, one
 market, no second call to forget.
+
+**4. Report the number** — the owner's most frequent act, opened from the
+line under the market's own number: "Yours: $44,439 [Report]". Markets settle
+on the metric's stored value, so a floor whose owner cannot report settles
+every market on the number it was created with; that is why this dialog
+exists at all. It carries the reading as its hero numeral, the delta against
+the reading it replaces, **what the market has been saying** (the one fact
+the owner can get nowhere else, placed directly under the number they are
+typing), the market this reading currently decides, and an optional public
+note. `PUT /api/metrics/:id { value, oldValue, updateNote }` writes the
+append-only `updates` row; an empty note is stored as "Value updated".
+
+The first reading is the same dialog wearing a different half. There is no
+delta and no market price to compare against, so what replaces them is the
+range: the last moment it can move, since machinery freezes the instant
+someone trades. It rides along as `marketRangeMax` on the same request.
+
+The age of the reading is the entire nudge, and it is only ever true text:
+"4 days old · this market settles on it in 3d", turning to the accent colour
+past three days. No badge, no blink, no email.
 
 **3. Inject liquidity**, a button beside the pool on every open market. The
 dialog states the pool now and the traders on it, takes an amount, and says

@@ -1172,6 +1172,18 @@ describe('the chart control row', () => {
   });
 });
 
+describe("the owner's own reading, under the market's", () => {
+  test('a visitor never sees it', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.workspace() as never);
+    renderFloor();
+    await screen.findByText(h.workspace().name);
+    // Signed out here, so canManage is false: no line, no Report.
+    expect(screen.queryByRole('button', { name: 'Report' })).toBeNull();
+    expect(screen.queryByText(/^Yours:/)).toBeNull();
+  });
+});
+
 describe('the owner of a not-public floor', () => {
   test('/marketplace/{id} does NOT canonicalize a private floor to its slug', async () => {
     // Slug resolution excludes private floors, so the slug URL 404s. The
