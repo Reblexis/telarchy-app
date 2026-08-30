@@ -26,7 +26,7 @@ import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
  * which is why every write appends to `earn_rule_history`.
  */
 
-export type EarnKey = 'signup_user' | 'signup_agent' | 'manifold_link';
+export type EarnKey = 'signup_user' | 'signup_email' | 'signup_oauth' | 'signup_agent' | 'manifold_link';
 
 export interface EarnRule {
   key: string;
@@ -45,6 +45,8 @@ export interface EarnRule {
  */
 const FALLBACK: Record<EarnKey, number> = {
   signup_user: SIGNUP_CREDITS,
+  signup_email: SIGNUP_CREDITS,
+  signup_oauth: SIGNUP_CREDITS,
   signup_agent: AGENT_SIGNUP_CREDITS,
   manifold_link: 10_000,
 };
@@ -98,6 +100,21 @@ export async function earnCredits(key: EarnKey): Promise<number> {
   if (!rule) return FALLBACK[key];
   if (!rule.enabled) return 0;
   return Math.max(0, rule.credits);
+}
+
+/**
+ * What a browser signup earns, by the provider the account actually came
+ * through. An email address and an aged Google account do not cost the
+ * same to farm, so they are priced apart (owner decision 2026-08-30).
+ * Falls back to the single `signup_user` row when a provider-specific row
+ * is missing, so an instance that never ran migration 0086 keeps working.
+ */
+export async function signupCreditsFor(providerId: string | null): Promise<number> {
+  const rows = await load();
+  const key: EarnKey = providerId && providerId !== 'credential' ? 'signup_oauth' : 'signup_email';
+  const rule = rows.get(key);
+  if (rule) return rule.enabled ? Math.max(0, rule.credits) : 0;
+  return earnCredits('signup_user');
 }
 
 /** The whole table, for the public page and the admin editor. */

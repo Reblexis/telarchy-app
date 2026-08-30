@@ -431,7 +431,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/import/manifold/claim',
       auth: 'agent',
       description:
-        'Complete the import: reads the code back from the Manifold bio via the public API, snapshots net worth (balance + invested), and grants min(net worth, 10000) credits at 1 mana = 1 credit (cap lowered from 100k on 2026-08-28: with real-money season payouts proportional to settled profit, grants are bankroll; existing imports keep what they were granted). Reads the Manifold balance, never moves it: the mana stays in the Manifold account, untouched, and this grant is a matching amount of credits here. One-way: credits are neither purchasable nor redeemable, and nothing converts back.',
+        'Complete the import: reads the code back from the Manifold bio via the public API, snapshots net worth (balance + invested), and and grants the FLAT established-account price from the earn table (2026-08-30: net worth no longer decides it, because mana moves between Manifold accounts and is therefore the one input a farmer can concentrate). The account must qualify: not a bot, at least 90 days old, and either a bet in the last 60 days or markets other people traded; otherwise 400 with the reason. Net worth is still reported for context. Reads the Manifold balance, never moves it: the mana stays in the Manifold account, untouched, and this grant is a matching amount of credits here. One-way: credits are neither purchasable nor redeemable, and nothing converts back.',
     },
     {
       method: 'POST',
