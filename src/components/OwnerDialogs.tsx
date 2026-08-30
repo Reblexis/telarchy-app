@@ -46,6 +46,14 @@ function fmtCr(n: number): string {
   return Math.round(n).toLocaleString('en-US');
 }
 
+/** The next round number at or above n: 1,000 stays 1,000, 8,400 becomes 9,000.
+ *  Used for the range the dialog suggests, so the headroom reads deliberate. */
+function roundUpNice(n: number): number {
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const mag = 10 ** Math.max(0, Math.floor(Math.log10(n)) - 1);
+  return Math.ceil(n / mag) * mag;
+}
+
 function parseCredits(raw: string): number | null {
   const n = Number(raw.replace(/,/g, '').trim());
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -116,11 +124,14 @@ export function NewMetricDialog({
     setBusy(true);
     setErr('');
     try {
-      const created = (await api.createMetricIn(workspaceId, {
+      const created = await api.createMetricIn(workspaceId, {
         name: name.trim(),
         description: description.trim(),
-      })) as { id: string; name: string };
-      onCreated(created);
+      });
+      // The create response is { ok, id, warnings }: the name comes from the
+      // field the owner just typed, never from the reply, which carries none
+      // (the next dialog's heading read "undefined" until this, 2026-08-30).
+      onCreated({ id: created.id, name: name.trim() });
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
       setBusy(false);
@@ -176,6 +187,16 @@ export function NewMetricDialog({
   );
 }
 
+/** What the add-date dialog prefills: enough to price, never more than held. */
+export function firstMarketCredits(workspaceDefault: number, spendable: number): number {
+  // 25 credits is where the setup doctrine stops calling a pool a decoration
+  // (lib/setup-spec.ts); below it the workspace default says nothing about
+  // what this market should carry.
+  const wanted = workspaceDefault >= 25 ? workspaceDefault : 1000;
+  const affordable = spendable > 0 ? Math.min(wanted, spendable) : wanted;
+  return Math.max(1, Math.floor(affordable));
+}
+
 /** Dialog 2: one date, and the liquidity behind it. The same dialog whether
  *  it follows dialog 1 or opens from + date on any metric. */
 export function AddDateDialog({
@@ -183,6 +204,7 @@ export function AddDateDialog({
   metricId,
   metricName,
   defaultCredits,
+  spendable,
   onClose,
   onDone,
 }: {
@@ -190,6 +212,8 @@ export function AddDateDialog({
   metricId: string;
   metricName: string;
   defaultCredits: number;
+  /** What the owner can actually put behind a market: wallet plus balance. */
+  spendable: number;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -203,7 +227,15 @@ export function AddDateDialog({
   // A UTC hour, '' meaning the whole day. Markets settle on the hour
   // (targetDate YYYY-MM-DDTHH), so the time field carries hours only.
   const [hour, setHour] = useState('');
-  const [credits, setCredits] = useState(fmtCr(defaultCredits || 1000));
+  // A workspace opens with 0.5 credits per auto-funded market
+  // (DEFAULT_MARKET_LIQUIDITY_CREDITS), which the platform's own setup
+  // checklist calls a decoration: five credits shove such a market's price
+  // across its band. Prefilling that number opened the owner's first market
+  // at one credit (walkthrough, 2026-08-30), so the dialog prefills what
+  // they can actually put behind it: the workspace's default when it is big
+  // enough to price anything, a thousand otherwise, and never more than they
+  // hold, since the server refuses what the balance will not cover.
+  const [credits, setCredits] = useState(fmtCr(firstMarketCredits(defaultCredits, spendable)));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -251,7 +283,7 @@ export function AddDateDialog({
     <FloorModal onClose={onClose} label="Add a date">
       <div className="jobform">
         <CreditsHero
-          label={`Liquidity behind it, from your balance · ${metricName}`}
+          label={`Liquidity behind ${metricName} · from your ${fmtCr(spendable)} cr`}
           value={credits}
           onChange={setCredits}
           disabled={busy}
@@ -517,6 +549,7 @@ export function ReportValueDialog({
   marketSays,
   settlesLabel,
   rangeMax,
+  rangeEditable,
   onClose,
   onDone,
 }: {
@@ -532,6 +565,15 @@ export function ReportValueDialog({
   /** e.g. "Sunday", for the one market this reading currently decides. */
   settlesLabel: string | null;
   rangeMax: number;
+  /**
+   * True while every market on this metric is untraded, which is exactly when
+   * `docs/market-integrity.md` still lets the machinery move. It is not the
+   * same as "no reading yet": creating a metric logs one, so keying the range
+   * on the first reading left an owner whose number was 4,200 with a market
+   * priced inside 0 to 1,000 and no control that could widen it
+   * (walkthrough, 2026-08-30).
+   */
+  rangeEditable: boolean;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -539,21 +581,36 @@ export function ReportValueDialog({
   const [value, setValue] = useState(first ? '' : fmtCr(lastValue));
   const [note, setNote] = useState('');
   const [range, setRange] = useState(fmtCr(rangeMax));
+  const [rangeTouched, setRangeTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
   const parsed = Number(value.replace(/,/g, '').trim());
   const valid = value.trim() !== '' && Number.isFinite(parsed);
   const delta = valid && lastValue !== null ? parsed - lastValue : null;
-  const rangeNum = parseCredits(range);
+  // A reading above the top of the band settles as though it landed exactly
+  // on it (lib/amm.ts: the settlement probability is clamped), so a number
+  // outside the range is a wrong settlement waiting to happen. While the
+  // machinery is still movable the dialog raises the suggestion itself, with
+  // headroom, until the owner types their own; once it is frozen it says
+  // plainly what will happen instead.
+  const suggested = valid && parsed > 0 ? roundUpNice(parsed * 2) : null;
+  const shownRange =
+    rangeEditable && !rangeTouched && suggested !== null && suggested > rangeMax ? fmtCr(suggested) : range;
+  const shownRangeNum = parseCredits(shownRange);
+  const overRange = valid && parsed > rangeMax;
 
   const report = async () => {
     if (!valid) {
       setErr('A number.');
       return;
     }
-    if (first && rangeNum === null) {
+    if (rangeEditable && shownRangeNum === null) {
       setErr('The highest it could plausibly reach.');
+      return;
+    }
+    if (rangeEditable && shownRangeNum !== null && shownRangeNum < parsed) {
+      setErr('The range has to reach the number you are reporting.');
       return;
     }
     setBusy(true);
@@ -563,7 +620,9 @@ export function ReportValueDialog({
         value: parsed,
         oldValue: lastValue ?? 0,
         updateNote: note.trim(),
-        ...(first && rangeNum !== null && rangeNum !== rangeMax ? { marketRangeMax: rangeNum } : {}),
+        ...(rangeEditable && shownRangeNum !== null && shownRangeNum !== rangeMax
+          ? { marketRangeMax: shownRangeNum }
+          : {}),
       });
       onDone();
     } catch (e) {
@@ -623,22 +682,33 @@ export function ReportValueDialog({
               <span className="ticket-fact-v">this market</span>
             </div>
           )}
-          {first && (
+          {rangeEditable && (
             <div className="ticket-fact">
-              <span className="ticket-fact-k">Nothing traded yet, so this also sets the range</span>
-              <span className="ticket-fact-v">0 – {fmtCr(rangeNum ?? rangeMax)}</span>
+              <span className="ticket-fact-k">Nobody has traded yet, so this also sets the range</span>
+              <span className="ticket-fact-v">0 - {fmtCr(shownRangeNum ?? rangeMax)}</span>
+            </div>
+          )}
+          {!rangeEditable && overRange && (
+            <div className="ticket-fact">
+              <span className="ticket-fact-k">Above the range this market prices inside</span>
+              <span className="ticket-fact-v is-down">
+                0 - {fmtCr(rangeMax)}, frozen by trades: it settles at the top
+              </span>
             </div>
           )}
         </div>
 
-        {first && (
+        {rangeEditable && (
           <label className="jobform-field">
             <span className="ticket-label">Highest it could plausibly reach</span>
             <input
               className="jobform-line odlg-mono"
-              value={range}
+              value={shownRange}
               disabled={busy}
-              onChange={e => setRange(e.target.value.replace(/[^0-9,]/g, ''))}
+              onChange={e => {
+                setRangeTouched(true);
+                setRange(e.target.value.replace(/[^0-9,]/g, ''));
+              }}
               aria-label="Highest it could plausibly reach"
             />
             <span className="odlg-note-left">

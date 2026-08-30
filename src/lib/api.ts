@@ -939,7 +939,7 @@ export const api = {
   createMetricIn: (
     workspaceId: string,
     body: { name: string; description: string },
-  ): Promise<{ id: string; name: string }> =>
+  ): Promise<{ ok: boolean; id: string; warnings?: string[] }> =>
     requestWithWorkspace(
       '/api/metrics',
       { method: 'POST', body: JSON.stringify({ ...body, value: 0, formula: '', timePreference: null }) },

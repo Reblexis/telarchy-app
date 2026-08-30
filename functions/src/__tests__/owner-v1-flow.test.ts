@@ -149,6 +149,28 @@ describe('the v1 flow, in order', () => {
     expect(respawned[0].targetDate).toBe(afterDate[0].targetDate);
   });
 
+  // What the report dialog now sends when the metric is untraded (owner
+  // walkthrough, 2026-08-30): the reading and a wider range in ONE request,
+  // because a number outside the band would otherwise settle at the top of it.
+  test('a reading and a wider range travel together, and the market respawns around both', async () => {
+    const created = await request(app).post('/api/metrics').send(DIALOG1_BODY).expect(201);
+    const metricId = created.body.id as string;
+    await request(app).put(`/api/metrics/${metricId}`).send(dialog2Body([])).expect(200);
+    const before = await openMarkets();
+    expect(before[0].rangeMax).toBe(1000);
+
+    await request(app)
+      .put(`/api/metrics/${metricId}`)
+      .send({ value: 4200, oldValue: 0, updateNote: 'August roast log', marketRangeMax: 8400 })
+      .expect(200);
+
+    const after = await openMarkets();
+    expect(after).toHaveLength(1);
+    expect(after[0].rangeMax).toBe(8400);
+    const [m] = await db.select().from(metricsTable).where(eq(metricsTable.id, metricId));
+    expect(Number(m.value)).toBe(4200);
+  });
+
   test('the rolling entry survives a second date from the same dialog', async () => {
     const created = await request(app).post('/api/metrics').send(DIALOG1_BODY).expect(201);
     const metricId = created.body.id as string;

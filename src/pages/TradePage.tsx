@@ -112,6 +112,10 @@ export function TradePage() {
   const [positions, setPositions] = useState<TicketPosition[]>([]);
   const [orders, setOrders] = useState<LimitOrder[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
+  // The walled liquidity wallet beside it: what a market can be funded with,
+  // and what the server counts first when it decides whether an owner can
+  // open one (docs/liquidity-purchases.md, liquiditySpendableUnits).
+  const [liquidityWallet, setLiquidityWallet] = useState(0);
   const [ticketPreview, setTicketPreview] = useState<{ direction: 'higher' | 'lower'; newProb: number } | null>(null);
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
   // Selecting a job switches the ONE market view to that job's conditional
@@ -407,6 +411,15 @@ export function TradePage() {
   // market chart's row (owner ask 2026-08-28), so the clock never leaves
   // the page.
   const settleLeft = hero ? timeLeftOf(hero, now) : null;
+  // Whether the metric's machinery can still move: true while no market on it
+  // has a trade, which is the condition docs/market-integrity.md puts on a
+  // machinery edit (untraded markets void and respawn, nobody's money moves).
+  // The report dialog offers the range on this, not on "no reading yet".
+  const metricUntraded =
+    hero !== null &&
+    horizons
+      .filter(h => h.metricId === hero.metricId)
+      .every(h => (h.traderCount ?? 0) === 0 && (h.tradedVolume ?? 0) === 0);
   // The metric's value in force (its latest reading), said in the centre
   // beside the countdown, so the number the market is guessing at sits one
   // glance from its own chart (owner ask 2026-08-27). Absent while the
@@ -645,8 +658,9 @@ export function TradePage() {
     api
       .getParticipant()
       .then(pt => {
-        const row = pt as { balance?: number; id?: string };
+        const row = pt as { balance?: number; liquidityBalance?: number; id?: string };
         setBalance(row.balance ?? null);
+        setLiquidityWallet(row.liquidityBalance ?? 0);
         setMyAgentId(row.id ?? null);
       })
       .catch(e => console.error('participant fetch failed:', e));
@@ -2142,6 +2156,7 @@ export function TradePage() {
           metricId={ownerDialog.metricId}
           metricName={ownerDialog.metricName}
           defaultCredits={defaultCredits}
+          spendable={(balance ?? 0) + liquidityWallet}
           onClose={() => setOwnerDialog(null)}
           onDone={() => {
             setOwnerDialog(null);
@@ -2160,6 +2175,7 @@ export function TradePage() {
           marketSays={hero?.consensus ?? null}
           settlesLabel={settleLeft}
           rangeMax={hero?.rangeMax ?? 1000}
+          rangeEditable={metricUntraded}
           onClose={() => setOwnerDialog(null)}
           onDone={() => {
             setOwnerDialog(null);
