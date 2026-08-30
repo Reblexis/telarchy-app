@@ -55,8 +55,12 @@ an old purchase.
 
 ## Revenue and the season pool
 
-Completed purchases are the platform's liquidity revenue. The published
-season-pool formula sizes the next season from it:
+Completed purchases are the platform's liquidity revenue, and their
+trailing-30-day sum is public as `revenue30dUsd` on
+`GET /api/marketplace/stats`: it is what the floor's "Telarchy revenue (USD)"
+metric settles on, so the buyers of the service and the traders pricing it
+read the same number (docs/metrics.md, "Revenue, trailing 30 days"). The
+published season-pool formula sizes the next season from it:
 
 ```
 pool(N+1) = max(pool(0), k x revenue(N)) + rollover(N)

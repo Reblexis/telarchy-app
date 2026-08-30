@@ -1,6 +1,6 @@
 # Telarchy metrics
 
-Primary metrics, organized by what they measure: product engagement and network quality. This doc is the canonical definition. The platform computes none of the engagement or network-quality metrics below; the one metric it computes and the self-sync pushes is `weeklyActiveVerifiedTraders` (defined under Engagement).
+Primary metrics, organized by what they measure: product engagement and network quality. This doc is the canonical definition. The platform computes none of the engagement or network-quality metrics below; the two it computes and the hourly self-sync pushes are `weeklyActiveVerifiedTraders` (under Engagement) and `revenue30dUsd` (under Money). Both are published by `GET /api/marketplace/stats`, because a number a market settles on has to be readable by the people asked to trust it, and `scripts/telarchy-self-sync.js` pushes each verbatim, hourly, writing a metric only when its value changed.
 
 Telarchy's own platform-internal workspace at telarchy.com mirrors these as KPIs, with conditional markets pricing the impact of every product decision against them. The product dogfoods itself.
 
@@ -61,7 +61,7 @@ For agent-proposed proposals approved 90+ days ago, correlate the metric impact 
 Money Telarchy itself was paid in the trailing 30 days: managed-tier subscriptions, platform fees on contracts, federation fees, any invoice paid to Telarchy, in USD, net of refunds. Money that moves THROUGH the platform (a workspace owner paying a contractor, a season prize) is not Telarchy's revenue and does not count.
 
 - **Why this metric:** it is the number every other one on this page is a proxy for, and pricing it on the public floor is the honest way to say what the platform has (nothing yet) and let forecasters price when that changes.
-- **How to compute:** while Telarchy has no paid tier and no revenue rail there is nothing to sync and the value is $0. Until a rail exists, the owner logs each payment by hand as a metric update with a note naming the payer category and amount; the metric log is public, so a trader can audit every reading. This is the one hero metric the owner CAN edit, and the market's description says so. When a rail exists (Stripe or the Wise business account), `scripts/telarchy-self-sync.js` pushes the trailing-30-day sum from it and the owner's hand is taken off, the same way `weeklyActiveVerifiedTraders` is pushed verbatim from `/api/marketplace/stats`.
+- **How to compute:** `GET /api/marketplace/stats` publishes `revenue30dUsd` and `scripts/telarchy-self-sync.js` pushes it verbatim every hour, the same way `weeklyActiveVerifiedTraders` is pushed. The number sums the rails the platform can see: today that is completed paid-liquidity purchases (`liquidity_purchases`, status `completed`, dated by when the money landed), the same window `GET /api/liquidity/revenue` reports. The owner's hand came off the metric when that rail went live (2026-08-28); a payment arriving on a rail the platform cannot see is added to the computation, never typed into the metric, because the next hourly run overwrites a hand-entered value.
 - **Markets:** today, this week, next month (`+0d`, `+0w`, and the absolute next-month date every floor metric carries), like every metric on a public floor (docs/ui-conventions.md, "The question line"). Range 0 to 1,000.
 
 ### Implied valuation (USD)

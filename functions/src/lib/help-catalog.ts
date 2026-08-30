@@ -1122,7 +1122,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/marketplace/stats',
       auth: false,
       description:
-        "Aggregate platform stats: marketsActive, agentsActive, tradesThisWeek, weeklyActiveVerifiedTraders (distinct participants with a Manifold account synced AND trades totalling >= 100 credits, abs(cost), in the trailing 7 days, across all workspaces; the resolution source for the Telarchy dogfooding workspace's hero metric - verified profiles are listed on the leaderboard), manifoldImportCount.",
+        'Aggregate platform stats: marketsActive, agentsActive, tradesThisWeek, weeklyActiveVerifiedTraders (distinct participants with a Manifold account synced AND trades totalling >= 100 credits, abs(cost), in the trailing 7 days, across all workspaces; the resolution source for the Telarchy dogfooding workspace\'s hero metric - verified profiles are listed on the leaderboard), manifoldImportCount, revenue30dUsd (money Telarchy itself was paid in the trailing 30 days, USD: today the sum of completed paid-liquidity purchases, the only rail that exists; the resolution source for the "Telarchy revenue (USD)" metric).',
     },
     {
       method: 'GET',
