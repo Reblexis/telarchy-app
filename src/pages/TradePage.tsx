@@ -1807,6 +1807,7 @@ export function TradePage() {
                         pool={hero.liquidity}
                         volume={hero.tradedVolume ?? 0}
                         canManage={canManage}
+                        fundingHref={`/${idOrSlug ?? ''}/funding`}
                         onInject={() =>
                           setOwnerDialog({
                             kind: 'inject',

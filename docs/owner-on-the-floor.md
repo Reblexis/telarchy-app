@@ -109,6 +109,18 @@ the two true things before the first injection, not after: deepening makes
 the price harder to move and being right pay more, and a pool never thins
 back out. `POST /api/predictions/markets/:id/liquidity`.
 
+**Where the credits come from** is one page, not a dialog: `/<floor>/funding`,
+reached by a Buy affordance beside Inject and only by someone who can manage
+the floor. Money with a history is read more often than it is spent, so it
+gets a page: the liquidity wallet, the open markets it can go into, the
+buy field, and every past purchase. The page states in the owner's own
+terms what `docs/liquidity-purchases.md` governs, because an owner about to
+pay should not have to read a doc to learn what they are buying: credits go
+only into this floor's pools, never into a tradeable balance, what a market
+does not pay out returns to the wallet, and buying is not entry into the
+prize season (which the operator is ineligible for either way). Placing the
+credits stays on the floor, beside the price each pool moves.
+
 ## What already lived on the floor
 
 The definition edit (words free, every change recorded in

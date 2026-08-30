@@ -1027,6 +1027,23 @@ export const api = {
   /** Start a liquidity-credits purchase (the second currency): returns the
    *  Stripe Checkout url to send the buyer to. Manage capability in the
    *  workspace required; 503 while the instance has no Stripe config. */
+  /** What this floor has bought, newest first (docs/liquidity-purchases.md).
+   *  Manage on the workspace; the page that renders it is /{floor}/funding. */
+  getLiquidityPurchases: (
+    workspaceId: string,
+  ): Promise<{
+    purchases: Array<{
+      id: string;
+      usdAmount: number;
+      credits: number;
+      creditsPerUsd: number;
+      status: string;
+      allocation: Record<string, number> | null;
+      createdAt: string;
+      completedAt: string | null;
+    }>;
+  }> =>
+    requestWithWorkspace(`/api/workspaces/${encodeURIComponent(workspaceId)}/liquidity/purchases`, {}, { workspaceId }),
   buyLiquidityCredits: (workspaceId: string, usdAmount: number): Promise<{ url: string; credits: number }> =>
     request(`/api/workspaces/${encodeURIComponent(workspaceId)}/liquidity/checkout`, {
       method: 'POST',

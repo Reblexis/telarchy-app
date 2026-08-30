@@ -8392,3 +8392,29 @@ textarea.jobform-line--desc {
   padding: 0.75rem 1.8rem;
   font-size: 0.95rem;
 }
+
+/* ---- The funding page (docs/liquidity-purchases.md) ----
+   The owner's other half: the floor steers liquidity, this is where more of
+   it comes from. Same hairline blocks as the cockpit; nothing new to learn. */
+.fundp-presets { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1rem; }
+.fundp-preset {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: none;
+  font-size: 0.8rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+.fundp-preset.is-active {
+  border-color: var(--button-bg);
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-weight: 600;
+  box-shadow: none;
+}
+.fundp-buy { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.9rem 1.1rem; }
+.fundp-amt { width: 8rem; flex: none; }
+.fundp-go { width: auto; flex: 1; min-width: 15rem; }
+.fundp-fine { margin-top: 0.9rem; }
