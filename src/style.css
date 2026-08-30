@@ -6507,6 +6507,9 @@ textarea.jobform-line--desc {
   text-decoration: none; cursor: pointer;
 }
 .earn-btn:disabled { opacity: 0.6; cursor: default; }
+/* The Manifold row's button carries the logo inline, so the row is
+   recognisable without the glyph having to stand alone. */
+.earn-btn--mf { display: inline-flex; align-items: center; gap: 0.35rem; }
 .lbt tr.is-earned td { background: rgba(18, 105, 61, 0.045); }
 
 /* /earn: the price list, in the boards' own table language, and since
@@ -6514,8 +6517,13 @@ textarea.jobform-line--desc {
    governs that row (once per person, either provider, a missed day
    resets it), never the argument for its price. */
 .earn-tbl { margin-top: 0.5rem; }
+/* The boards' row density assumes one line a row; every row here is two,
+   so it read as cramped (owner report 2026-08-30: "now its very tight").
+   Overridden here rather than on .lbt, which the leaderboards share. */
+.earn-tbl .lbt-cell, .earn-tbl .lbt-num, .earn-tbl .earn-act { padding-top: 0.95rem; padding-bottom: 0.95rem; }
+.earn-tbl .lbt-cell { padding-right: 1.5rem; }
 .earn-label { display: block; font-size: 0.95rem; font-weight: 500; }
-.earn-why { display: block; margin-top: 0.15rem; font-size: 0.8rem; line-height: 1.45; color: var(--text-secondary); }
+.earn-why { display: block; margin-top: 0.3rem; font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary); }
 .earn-upto { font-size: 0.7rem; color: var(--text-tertiary); }
 /* Trading profit has no number, and a dash there would read as zero. */
 .earn-open { font-size: 0.82rem; color: var(--text-secondary); }

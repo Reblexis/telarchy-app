@@ -13,9 +13,25 @@ import { ManifoldLogo } from './ManifoldLogo';
  * read, never moved, and the copy says so because "convert" reads as spending
  * their mana. Anonymous visitors are routed to sign up first (the grant needs
  * an account).
+ *
+ * Two shapes. `door` is the top bar's: a glyph that reveals its label on
+ * hover, which works there because the bar has room to grow into. `row` is
+ * the earn table's, a plain labelled button like the Google and GitHub
+ * ones beside it: the reveal-on-hover version widened its cell mid-hover
+ * and shoved the whole credits column sideways (owner report 2026-08-30),
+ * and a bare glyph in a price list says nothing about what pressing it
+ * does.
  */
 
-export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolean; onRequireSignup: () => void }) {
+export function ManifoldButton({
+  signedIn,
+  onRequireSignup,
+  variant = 'door',
+}: {
+  signedIn: boolean;
+  onRequireSignup: () => void;
+  variant?: 'door' | 'row';
+}) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<'ask' | { code: string; username: string }>('ask');
   const [username, setUsername] = useState('');
@@ -59,16 +75,27 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
 
   return (
     <>
-      <button
-        className="pubws-manifold"
-        aria-label="Bring your Manifold record"
-        onClick={() => (signedIn ? setOpen(true) : onRequireSignup())}
-      >
-        <span className="pubws-manifold-icon">
-          <ManifoldLogo size={18} color="currentColor" />
-        </span>
-        <span className="pubws-manifold-label">Bring your Manifold record</span>
-      </button>
+      {variant === 'row' ? (
+        <button
+          type="button"
+          className="earn-btn earn-btn--mf"
+          onClick={() => (signedIn ? setOpen(true) : onRequireSignup())}
+        >
+          <ManifoldLogo size={14} color="currentColor" />
+          Import
+        </button>
+      ) : (
+        <button
+          className="pubws-manifold"
+          aria-label="Bring your Manifold record"
+          onClick={() => (signedIn ? setOpen(true) : onRequireSignup())}
+        >
+          <span className="pubws-manifold-icon">
+            <ManifoldLogo size={18} color="currentColor" />
+          </span>
+          <span className="pubws-manifold-label">Bring your Manifold record</span>
+        </button>
+      )}
 
       {open && (
         <FloorModal onClose={close} label="Bring your Manifold record">

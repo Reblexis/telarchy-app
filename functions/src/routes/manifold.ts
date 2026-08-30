@@ -1,8 +1,8 @@
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
-import { systemConfig } from '../db/schema';
+import { earnClaims, systemConfig } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { toUnits } from '../lib/validation';
 import { wrap } from '../lib/wrap';
@@ -223,6 +223,21 @@ manifoldRouter.post(
     const granted = Math.max(0, Math.round(await earnCredits('manifold_link')));
 
     await db.transaction(async tx => {
+      // The earn claim, in the same transaction as the money. Without it
+      // /earn keeps offering this row to somebody who already took it
+      // (owner report 2026-08-30), and the platform-wide "one Manifold
+      // account pays once" rule lives only in the system_config guards
+      // above rather than in an index. Deliberately NOT
+      // onConflictDoNothing: a conflict here means those guards were
+      // raced, and aborting the transaction is what stops a second
+      // payment.
+      await tx.insert(earnClaims).values({
+        id: randomUUID(),
+        agentId,
+        key: 'manifold_link',
+        refId: user.id,
+        credits: granted,
+      });
       if (granted > 0) {
         await applyCredits(tx, {
           agentId,

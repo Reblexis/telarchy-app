@@ -631,6 +631,13 @@
       "when": 1788300002000,
       "tag": "0089_earn_daily_streak",
       "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1788300003000,
+      "tag": "0090_manifold_earn_claim",
+      "breakpoints": true
     }
   ]
 }

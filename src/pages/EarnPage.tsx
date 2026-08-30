@@ -190,8 +190,10 @@ export function EarnPage() {
                         ) : r.key === 'manifold_link' ? (
                           // The real import flow, in place: it is the same
                           // component the floor carries, so the bio-code
-                          // dance has one implementation.
-                          <ManifoldButton signedIn={!!user} onRequireSignup={() => navigate('/signup')} />
+                          // dance has one implementation. The row variant
+                          // is a labelled button, so hovering it cannot
+                          // resize the column.
+                          <ManifoldButton signedIn={!!user} onRequireSignup={() => navigate('/signup')} variant="row" />
                         ) : (
                           <span className="earn-muted">not yet</span>
                         )}

@@ -28,13 +28,14 @@ jest.mock('../middleware/auth', () => {
 import { eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents } from '../db/schema';
+import { agents, earnClaims } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { fromUnits, toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { authMiddleware } from '../middleware/auth';
 import { manifoldRouter } from '../routes/manifold';
+import { claimedKeys } from '../services/earnRules';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
@@ -177,6 +178,24 @@ describe('the import', () => {
     const idle = await as('agent-mf-a').claim();
     expect(idle.status).toBe(400);
     expect(idle.body.error).toMatch(/not traded/);
+  });
+
+  test('AN IMPORT RECORDS AN EARN CLAIM, so /earn stops offering it', async () => {
+    // The bug this pins (owner report 2026-08-30): the import moved
+    // credits with applyCredits and recorded its idempotency only in
+    // system_config, so claimedKeys never saw it and the earn page kept
+    // showing the row as available to somebody who had already taken it.
+    manifoldBalance = 100;
+    const s = await as('agent-mf-a').start('CalibratedCarol');
+    manifoldBio = s.body.code;
+    expect((await as('agent-mf-a').claim()).status).toBe(200);
+
+    expect([...(await claimedKeys('agent-mf-a'))]).toContain('manifold_link');
+    const [claim] = await db.select().from(earnClaims).where(eq(earnClaims.agentId, 'agent-mf-a'));
+    // The claim carries the Manifold account, which is what puts it under
+    // the platform-wide "one external account pays once" index.
+    expect(claim.refId).toBe(MUSER.id);
+    expect(claim.credits).toBe(10_000);
   });
 
   test('one Manifold account cannot fund two Telarchy accounts', async () => {
