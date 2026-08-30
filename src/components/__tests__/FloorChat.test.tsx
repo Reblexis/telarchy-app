@@ -125,7 +125,7 @@ describe('what he says he can do', () => {
 
   test('signed in, he acts with your account, and says the limit of that', () => {
     render(<FloorChat {...props} signedIn open onOpenChange={() => {}} />);
-    expect(screen.getByText(/acts with your account, so he can do what you can do and nothing more/i)).toBeTruthy();
+    expect(screen.getByText(/acts with your account and can do only what you can/i)).toBeTruthy();
     // And one opener is a thing to do, not a thing to ask.
     expect(screen.getByText('What am I holding, and what is it worth?')).toBeTruthy();
   });

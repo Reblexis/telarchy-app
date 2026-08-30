@@ -91,8 +91,7 @@ export function SeasonEntryButton({ season, signedIn }: { season: PrizeSeason; s
       <div className="season-entry">
         <p className="season-entry-in">You are in.</p>
         <p className="season-entry-note">
-          Your starting score is taken when the season begins, the same as everyone else&rsquo;s, so entering early
-          costs and gains nothing.
+          Your starting score is taken when the season begins, so entering early costs nothing.
         </p>
         <button className="season-entry-leave" disabled={busy} onClick={() => void enter(false)}>
           Leave the season
@@ -140,8 +139,8 @@ export function SeasonEntryButton({ season, signedIn }: { season: PrizeSeason; s
         {busy ? 'Entering…' : 'Enter the season'}
       </button>
       <p className="season-entry-note">
-        Free to enter: no purchase, no stake, and your credits are never spent or exchanged. The email is used for this
-        season only, to tell you if you have won; payment details are asked for then, not now.
+        Free to enter: no purchase, no stake, and your credits are never spent. The email is only used to tell you if
+        you have won.
       </p>
       {!entry.canEnter && <p className="season-entry-note">Entries have closed for this season.</p>}
       {error && <p className="ticket-err">{error}</p>}

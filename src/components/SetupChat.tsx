@@ -172,8 +172,7 @@ export function SetupChat({
           <div className="setup-open">
             <SetupInstrument market={null} />
             <p className="setup-sub">
-              Say what you run. Otto picks the number worth putting up, opens the market for it, and hands you a prompt
-              so your own agent can finish the setup.
+              Say what you run. Otto picks the number worth putting up and opens the market for it.
             </p>
           </div>
         ) : (
@@ -288,11 +287,11 @@ export function SetupChat({
         <p className="setup-note">
           {signedIn === false ? (
             <>
-              <Link to="/signup?next=/manage">Create an account</Link> and he can open the market right here. Signed out
-              he can talk it all the way through and create nothing.
+              <Link to="/signup?next=/manage">Create an account</Link> and he can open the market right here. Signed
+              out, he creates nothing.
             </>
           ) : signedIn === true ? (
-            'Otto acts with your account, so he can do what you can do and nothing more.'
+            'Otto acts with your account and can do only what you can.'
           ) : null}
         </p>
       </section>
@@ -319,8 +318,7 @@ export function SetupChat({
           {handoff ? (
             <>
               <p className="setup-handoff-why">
-                Otto writes this from what you have said, with the real ids of anything he opened. Paste it into the
-                assistant that knows your business and it can finish the setup.
+                Paste this into the assistant that knows your business and it can finish the setup.
               </p>
               <pre className="setup-handoff-body">{handoff}</pre>
             </>

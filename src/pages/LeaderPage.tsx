@@ -159,8 +159,8 @@ export function LeaderPage() {
       <main className="lbp">
         <h1 className="lbp-head">Leaderboard</h1>
         <p className="lbp-lead">
-          Two boards, two questions. The season board pays real money on <strong>settled profit</strong>; the all-time
-          board ranks everyone on total profit, open marks included.
+          The season board pays real money on <strong>settled profit</strong>. The all-time board ranks total profit,
+          open positions included.
         </p>
 
         {/* One line and a link. The pool, the rules and the entry flow live on
@@ -189,9 +189,8 @@ export function LeaderPage() {
             <p className="lbp-note">
               {season.payoutMode === 'proportional' ? (
                 <>
-                  The <strong>${season.poolUsd.toLocaleString()} pool</strong> is split in proportion to positive{' '}
-                  <strong>settled profit</strong>: what markets that resolved during the season paid you, minus what you
-                  paid on them. Open positions score nothing until they resolve.
+                  The <strong>${season.poolUsd.toLocaleString()} pool</strong>, split in proportion to positive{' '}
+                  <strong>settled profit</strong>. Open positions score nothing until they resolve.
                 </>
               ) : (
                 <>
@@ -213,8 +212,7 @@ export function LeaderPage() {
         <section className="lbp-section" aria-label="Traders">
           <h2 className="pubws-h2">All-time</h2>
           <p className="lbp-note">
-            Every trader, ranked on <strong>total profit</strong>: settled bets plus what open positions are worth right
-            now, over their whole history. Only settled profit inside the season wins season money.
+            Every trader, ranked on <strong>total profit</strong>: settled bets plus what open positions are worth now.
           </p>
           {traders === null ? null : traders.length === 0 ? (
             <p className="lbp-empty">Nobody has traded yet.</p>
@@ -229,10 +227,7 @@ export function LeaderPage() {
 
         <section className="lbp-section" aria-label="Contractors">
           <h2 className="pubws-h2">Contractors</h2>
-          <p className="lbp-note">
-            What the market says each poster's live contracts are worth: the gap between approving and declining,
-            summed.
-          </p>
+          <p className="lbp-note">What each poster's live contracts are worth: approving minus declining, summed.</p>
           {contractors === null ? null : contractors.length === 0 ? (
             <p className="lbp-empty">
               No contracts on the board yet. Offer one and the market prices what it is worth.

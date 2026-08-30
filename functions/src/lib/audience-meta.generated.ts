@@ -191,8 +191,8 @@ export const ROUTE_HEADS: Record<string, RouteHead> = {
     "h1": "Season 0 splits $1,000 by how right you were"
   },
   "/earn": {
-    "title": "How credits are earned | Telarchy",
-    "description": "Credits are what you trade with here: never bought, never cashed out, earned by bringing something the floor needs. Every way to earn one and what it is worth today, priced live.",
-    "h1": "How credits are earned"
+    "title": "Get credits | Telarchy",
+    "description": "Every way to get credits on Telarchy and what each is worth today: trading profit, a daily streak, signing up, connecting an account, importing a Manifold record. Priced live.",
+    "h1": "Get credits on Telarchy"
   }
 };

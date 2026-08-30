@@ -115,7 +115,7 @@ describe('the announcements page', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Write one')).toBeTruthy());
     fireEvent.click(screen.getByText('Write one'));
-    expect(screen.getByText(/cannot be deleted, and the time is stamped by the server/)).toBeTruthy();
+    expect(screen.getByText(/cannot be deleted, and the server stamps the time/)).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('New announcement'), { target: { value: 'Something material' } });
     fireEvent.click(screen.getByText('Publish'));

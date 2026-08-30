@@ -237,8 +237,7 @@ export function AnnouncementsPage() {
         </Link>
         <h1 className="annp-head">Announcements</h1>
         <p className="annp-lead">
-          Everything the owner, or a publisher the owner named, has said here that the market could not see for itself.
-          A post that is not the owner's says who published it. Published announcements cannot be deleted or backdated,
+          What the owner has said here that the market could not see for itself. Posts cannot be deleted or backdated,
           and an edit keeps the original readable underneath it.
         </p>
 
@@ -254,10 +253,7 @@ export function AnnouncementsPage() {
                 onChange={e => setDraft(e.target.value)}
                 aria-label="New announcement"
               />
-              <p className="pubws-ann-warn">
-                Published announcements cannot be deleted, and the time is stamped by the server. An edit keeps the
-                original visible.
-              </p>
+              <p className="pubws-ann-warn">Published posts cannot be deleted, and the server stamps the time.</p>
               {err && <p className="ticket-err">{err}</p>}
               <div className="pubws-ann-actions">
                 <button

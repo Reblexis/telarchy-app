@@ -30,6 +30,8 @@ const rules = [
     note: 'An address costs a farmer almost nothing.',
   },
   { key: 'signup_agent', label: 'Register through the API (a bot)', credits: 0, kind: 'flat' as const, note: '' },
+  { key: 'trade_profit', label: 'Trade and be right', credits: 0, kind: 'open' as const, note: '' },
+  { key: 'daily_trade', label: 'Trade on a new day', credits: 25, kind: 'daily' as const, note: '' },
 ];
 
 const renderPage = () =>
@@ -48,7 +50,10 @@ beforeEach(() => {
   vi.mocked(api.getMyEarn).mockResolvedValue({
     earned: 300,
     available: 5200,
+    streak: { days: 3, earnedToday: true, todayCredits: 75, nextCredits: 100 },
     rules: [
+      rules[3],
+      rules[4],
       { ...rules[1], key: 'signup_user', label: 'Create an account', claimed: true },
       {
         key: 'link_oauth',
@@ -73,15 +78,38 @@ describe('/earn', () => {
     expect(screen.getByText('Aged 90 days, traded recently, not a bot.')).toBeInTheDocument();
   });
 
-  test('signup ways come first, then descending price', async () => {
+  test('THE RECURRING EARNS COME FIRST, then one-time by descending price', async () => {
+    // Trading is how credits are actually made, and a table that opened
+    // with signup bonuses told a visitor the opposite (owner ask
+    // 2026-08-30: "another way to earn credits is by trading on markets").
     renderPage();
-    await screen.findByText('Sign up with an email and password');
-    const labels = screen.getAllByText(/Sign up with an email|Register through the API|Link an established/);
+    await screen.findByText('Trade and be right');
+    const labels = screen.getAllByText(
+      /Trade and be right|Trade on a new day|Sign up with an email|Register through the API|Link an established/,
+    );
     expect(labels.map(l => l.textContent)).toEqual([
+      'Trade and be right',
+      'Trade on a new day',
+      'Link an established Manifold account',
       'Sign up with an email and password',
       'Register through the API (a bot)',
-      'Link an established Manifold account',
     ]);
+  });
+
+  test('trading has no number and the streak shows its range', async () => {
+    renderPage();
+    await screen.findByText('Trade and be right');
+    expect(screen.getByText('no limit')).toBeInTheDocument();
+    expect(screen.getByText('25-100')).toBeInTheDocument();
+  });
+
+  test('a signed-in reader sees the run and what today paid', async () => {
+    authUser = { id: 'ann' };
+    renderPage();
+    await screen.findByText('Trade on a new day');
+    expect(screen.getByText('day streak')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('✓ +75 today')).toBeInTheDocument();
   });
 
   test('a zero price reads as none rather than 0, and a capped one says up to', async () => {

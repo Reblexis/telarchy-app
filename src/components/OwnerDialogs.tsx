@@ -353,8 +353,7 @@ export function AddDateDialog({
         <button className="ticket-go" disabled={busy} onClick={() => void open()}>
           {busy ? 'Opening…' : `Open the market${creditsNum ? ` · ${fmtCr(creditsNum)} cr` : ''}`}
           <span className="ticket-go-sub">
-            What traders can win, and how steady the price holds. Whatever the market doesn't pay out comes back when it
-            settles.
+            What traders can win. Whatever the market does not pay out comes back when it settles.
           </span>
         </button>
       </div>
@@ -434,7 +433,7 @@ export function InjectLiquidityDialog({
         <button className="ticket-go" disabled={busy} onClick={() => void inject()}>
           {busy ? 'Adding…' : amountNum ? `Add ${fmtCr(amountNum)} cr` : 'Add'}
           <span className="ticket-go-sub">
-            The price gets harder to move and being right pays more. One way only: a pool never thins back out.
+            Harder to move, and pays more to be right. One way only: a pool never thins back out.
           </span>
         </button>
       </div>
@@ -508,7 +507,7 @@ export function CreateWorkspaceDialog({
         <button className="ticket-go" disabled={busy} onClick={() => void create()}>
           {busy ? 'Opening…' : 'Open my market'}
           <span className="ticket-go-sub">
-            You add the first number right there, then publish it onto the telarchy.com list with one button.
+            You add the first number next, then publish it with one button.
           </span>
         </button>
       </div>
@@ -712,7 +711,7 @@ export function ReportValueDialog({
               aria-label="Highest it could plausibly reach"
             />
             <span className="odlg-note-left">
-              Leave room: the market prices inside it, and it is fixed once someone trades.
+              Leave room. Fixed once someone trades.
             </span>
           </label>
         )}
@@ -733,7 +732,7 @@ export function ReportValueDialog({
         <button className="ticket-go" disabled={busy || !valid} onClick={() => void report()}>
           {busy ? 'Reporting…' : valid ? `Report ${unit}${fmtCr(parsed)}` : 'Report'}
           <span className="ticket-go-sub">
-            Public and timestamped, like every reading. Kept beside the old one, for good.
+            Public, timestamped, and kept beside the old one for good.
           </span>
         </button>
       </div>
