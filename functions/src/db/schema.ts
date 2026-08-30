@@ -1075,7 +1075,9 @@ export const earnRules = pgTable('earn_rules', {
  * in the database rather than in code, because a race between two link
  * requests is exactly when a check-then-write would pay twice:
  *
- *  - (agent_id, key): one earn per participant, ever.
+ *  - (agent_id, key, period): one earn per participant per period. Every
+ *    one-time earn uses period '', so for those it reads "ever"; the
+ *    daily streak uses the UTC date, which is what makes it recurring.
  *  - (key, ref_id): one external account pays once ACROSS THE PLATFORM.
  *    Without it a single Google account funds ten Telarchy accounts.
  */
@@ -1091,9 +1093,12 @@ export const earnClaims = pgTable(
     /** What was actually paid, which is the price on the day it was
      *  claimed, not today's price. */
     credits: doublePrecision('credits').notNull(),
+    /** Which occurrence of a recurring earn this is: the UTC date for the
+     *  daily streak, '' for every earn that can only happen once. */
+    period: text('period').notNull().default(''),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
-  t => [uniqueIndex('earn_claims_agent_key_idx').on(t.agentId, t.key)],
+  t => [uniqueIndex('earn_claims_agent_key_period_idx').on(t.agentId, t.key, t.period)],
 );
 
 /**

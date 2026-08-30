@@ -28,6 +28,7 @@ import { fromUnits, MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits, vali
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { applyCredits } from '../services/credits';
+import { settleDailyStreak } from '../services/earnRules';
 import { emitEvent } from '../services/events';
 import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
 import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
@@ -313,6 +314,11 @@ predictionsRouter.post(
 
     res.status(201).json(tradeResponse);
     emitEvent('trade:executed', eventPayload, workspaceId).catch(e => console.error('emitEvent failed:', e));
+    // The daily streak is paid for trading, so this is where it is earned.
+    // Deliberately AFTER the trade's transaction commits and outside the
+    // response: a grant that fails must never cost somebody their trade,
+    // and /api/earn/me settles anything missed the next time they look.
+    settleDailyStreak(agentId).catch(e => console.error('daily streak settle failed:', e));
   }),
 );
 
