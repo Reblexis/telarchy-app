@@ -64,14 +64,28 @@ export async function applyAgentLiquidityInjectionTx(
   const [agentRow] = await tx.select().from(agents).where(eq(agents.id, params.agentId)).for('update');
   if (!agentRow) throw new AppError('Agent not found', 404);
 
-  // The bought liquidity wallet spends first (owner decision 2026-08-28,
-  // two currencies): a purchase exists only to become depth, so any wallet
-  // that covers the whole contribution pays it. No mixing within one
-  // injection - a contribution part-wallet part-balance would need its LP
-  // leftover split two ways for one event, and simplicity is the contract.
+  // The bought liquidity wallet spends FIRST and is drained before the
+  // tradeable balance is touched at all (owner decision 2026-08-28, two
+  // currencies; owner ask 2026-08-30, "liquidity credits should be
+  // prioritized and the standard ones only used when no liquidity credits
+  // are left"). A contribution may therefore be part wallet, part balance,
+  // which is why it can write TWO liquidity_events: leftovers are grouped
+  // by purse (services/markets.ts, distributeLPLeftover), so each part
+  // returns to the purse that paid it and bought credits still never leak
+  // into a tradeable balance.
   const wantUnits = toUnits(params.poolContribution);
-  const fromWallet = (agentRow.liquidityBalance as number) >= wantUnits;
-  if (!fromWallet && !sufficientBalance(agentRow.balance as number, params.poolContribution)) {
+  const walletUnits = Math.min(agentRow.liquidityBalance as number, wantUnits);
+  const balanceUnits = wantUnits - walletUnits;
+  // Whether the tradeable balance may finish the job is the account's own
+  // setting (default on, what every account did before it existed).
+  const mayUseBalance = agentRow.poolFromBalance !== false;
+  if (balanceUnits > 0 && !mayUseBalance) {
+    throw new AppError(
+      `Insufficient liquidity credits: need ${params.poolContribution}, have ${fromUnits(agentRow.liquidityBalance as number)}. This account is set to fund pools from liquidity credits only.`,
+      400,
+    );
+  }
+  if (balanceUnits > 0 && !sufficientBalance(agentRow.balance as number, fromUnits(balanceUnits))) {
     throw new AppError(
       `Insufficient balance: need ${params.poolContribution}, have ${fromUnits(agentRow.balance as number)} tradeable and ${fromUnits(agentRow.liquidityBalance as number)} liquidity credits`,
       400,
@@ -82,38 +96,47 @@ export async function applyAgentLiquidityInjectionTx(
     .update(markets)
     .set({ liquidity: newLiquidity, shares: newShares, pool: newPool })
     .where(and(eq(markets.id, params.marketId), eq(markets.workspaceId, params.workspaceId)));
-  if (fromWallet) {
+
+  if (walletUnits > 0) {
     // The wallet is not the credit ledger's currency: its audit trail is
     // liquidity_purchases (inflow) and liquidity_events with
     // funded_from='liquidity' (outflow), so no ledger row is written and
     // spentBetting (a trading stat) does not move.
     await tx
       .update(agents)
-      .set({ liquidityBalance: sql`${agents.liquidityBalance} - ${wantUnits}` })
+      .set({ liquidityBalance: sql`${agents.liquidityBalance} - ${walletUnits}` })
       .where(eq(agents.id, params.agentId));
-  } else {
+  }
+  if (balanceUnits > 0) {
+    const balanceCredits = fromUnits(balanceUnits);
     await applyCredits(tx, {
       agentId: params.agentId,
       workspaceId: params.workspaceId,
-      deltaUnits: -wantUnits,
+      deltaUnits: -balanceUnits,
       reason: 'liquidity',
       refType: 'market',
       refId: params.marketId,
-      also: { spentBetting: sql`${agents.spentBetting} + ${params.poolContribution}` },
+      also: { spentBetting: sql`${agents.spentBetting} + ${balanceCredits}` },
     });
   }
-  await tx.insert(liquidityEvents).values({
-    id: randomUUID(),
-    workspaceId: params.workspaceId,
-    marketId: params.marketId,
-    agentId: params.agentId,
-    amount: params.poolContribution,
-    poolContribution: params.poolContribution,
-    totalLiquidity: newLiquidity,
-    type: 'injection',
-    fundedFrom: fromWallet ? 'liquidity' : 'balance',
-    createdAt: new Date(),
-  });
+
+  const parts: Array<{ from: 'liquidity' | 'balance'; credits: number }> = [];
+  if (walletUnits > 0) parts.push({ from: 'liquidity', credits: fromUnits(walletUnits) });
+  if (balanceUnits > 0) parts.push({ from: 'balance', credits: fromUnits(balanceUnits) });
+  for (const part of parts) {
+    await tx.insert(liquidityEvents).values({
+      id: randomUUID(),
+      workspaceId: params.workspaceId,
+      marketId: params.marketId,
+      agentId: params.agentId,
+      amount: part.credits,
+      poolContribution: part.credits,
+      totalLiquidity: newLiquidity,
+      type: 'injection',
+      fundedFrom: part.from,
+      createdAt: new Date(),
+    });
+  }
   // The book just came into existence, so this is where it gets its opening
   // price. Inside the injection rather than at each call site because there
   // were five call sites and one of them remembered (owner report

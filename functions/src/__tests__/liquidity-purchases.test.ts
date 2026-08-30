@@ -263,7 +263,12 @@ describe('the webhook', () => {
     expect(fromUnits(buyer.balance as number)).toBe(500);
   });
 
-  test('a wallet too small for the whole amount falls back to the tradeable balance', async () => {
+  test('a wallet too small is DRAINED first, and the balance pays only the rest', async () => {
+    // Owner ask 2026-08-30: "liquidity credits should be prioritized and the
+    // standard ones only used when no liquidity credits are left". Before
+    // that, a wallet that could not cover the whole contribution was skipped
+    // entirely and the tradeable balance paid all 300, leaving bought
+    // credits sitting unused.
     await seedWorkspace(['m1']);
     await db
       .update(agents)
@@ -278,8 +283,56 @@ describe('the webhook', () => {
       });
     });
     const [buyer] = await db.select().from(agents).where(eq(agents.id, 'buyer'));
+    expect(fromUnits(buyer.liquidityBalance as number)).toBe(0);
+    expect(fromUnits(buyer.balance as number)).toBe(300);
+
+    // One injection, two purses, so two events: the leftover router groups
+    // by purse and each part must return where it came from.
+    const evs = await db.select().from(liquidityEvents).where(eq(liquidityEvents.marketId, 'm1'));
+    const byPurse = Object.fromEntries(evs.map(e => [e.fundedFrom ?? 'balance', e.poolContribution]));
+    expect(byPurse.liquidity).toBeCloseTo(100, 6);
+    expect(byPurse.balance).toBeCloseTo(200, 6);
+  });
+
+  test('an account can refuse to spend trading credits on pools', async () => {
+    // The setting the owner asked for the same day: the wallet still goes
+    // first, but when it runs out the injection stops rather than reaching
+    // into the credits the account trades with.
+    await seedWorkspace(['m1']);
+    await db
+      .update(agents)
+      .set({ liquidityBalance: toUnits(100), poolFromBalance: false })
+      .where(eq(agents.id, 'buyer'));
+    const poolBefore = await poolOf('m1');
+
+    await expect(
+      db.transaction(async tx => {
+        await applyAgentLiquidityInjectionTx(tx as never, {
+          workspaceId: WS,
+          marketId: 'm1',
+          agentId: 'buyer',
+          poolContribution: 300,
+        });
+      }),
+    ).rejects.toThrow(/liquidity credits only/i);
+
+    const [buyer] = await db.select().from(agents).where(eq(agents.id, 'buyer'));
     expect(fromUnits(buyer.liquidityBalance as number)).toBe(100);
-    expect(fromUnits(buyer.balance as number)).toBe(200);
+    expect(fromUnits(buyer.balance as number)).toBe(500);
+    expect(await poolOf('m1')).toBeCloseTo(poolBefore, 6);
+
+    // Within the wallet's means it still funds, without touching the balance.
+    await db.transaction(async tx => {
+      await applyAgentLiquidityInjectionTx(tx as never, {
+        workspaceId: WS,
+        marketId: 'm1',
+        agentId: 'buyer',
+        poolContribution: 100,
+      });
+    });
+    const [after] = await db.select().from(agents).where(eq(agents.id, 'buyer'));
+    expect(fromUnits(after.liquidityBalance as number)).toBe(0);
+    expect(fromUnits(after.balance as number)).toBe(500);
   });
 
   test('a bad signature mints nothing and is refused', async () => {

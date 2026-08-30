@@ -234,6 +234,12 @@ export const agents = pgTable(
      *  liquidity purchase a service rather than a credit sale
      *  (docs/liquidity-purchases.md). */
     liquidityBalance: bigint('liquidity_balance', { mode: 'number' }).notNull().default(0),
+    /** Whether the TRADEABLE balance may fund market pools once the
+     *  liquidity wallet is empty (owner ask 2026-08-30). The wallet is
+     *  always spent first; this only says what happens after it runs out.
+     *  Default true, which is what every account did before the setting
+     *  existed. */
+    poolFromBalance: boolean('pool_from_balance').notNull().default(true),
     earnedBetting: doublePrecision('earned_betting').notNull().default(0),
     spentBetting: doublePrecision('spent_betting').notNull().default(0),
     spentTokens: doublePrecision('spent_tokens').notNull().default(0),

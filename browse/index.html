@@ -1902,7 +1902,8 @@ approach A) and the trader-rewards design
 buyer's own markets. It is never a credit sale. Three invariants keep that
 true, and every change to this feature must preserve all three:</p>
 <ol>
-<li><strong>Walled wallet.</strong> A purchase credits the buyer's LIQUIDITY WALLET
+<li>
+<p><strong>Walled wallet.</strong> A purchase credits the buyer's LIQUIDITY WALLET
 (<code>agents.liquidity_balance</code>, the second currency; owner decision
 2026-08-28): spendable only as market-pool injections, never tradeable,
 never transferable, and LP leftovers from wallet-funded injections
@@ -1914,17 +1915,41 @@ injection spends it (wallet first, then tradeable):
 pair subsidy. A gate that reads <code>balance</code> alone leaves the house
 spawning dead markets while sitting on pool money it will not look at
 (owner report 2026-08-30, after granting the admin account 1,000,000
-liquidity credits).</li>
-<li><strong>Whoever pays cannot win.</strong> Buying requires the <code>manage</code> capability in
+liquidity credits).</p>
+<p><strong>The wallet is DRAINED before the tradeable balance is touched</strong>
+(owner ask 2026-08-30, verbatim: &quot;liquidity credits should be
+prioritized and the standard ones only used when no liquidity credits
+are left&quot;). One contribution may therefore be part wallet, part
+balance, and then it writes one <code>liquidity_events</code> row per purse, which
+is what keeps the leftover router honest: it groups by
+<code>funded_from</code>, so each part returns to the purse that paid it and
+bought credits still never become stake. Before this, a wallet that
+could not cover the WHOLE contribution was skipped and the tradeable
+balance paid all of it, leaving bought credits unused.</p>
+<p><strong>Whether the tradeable balance may finish the job is the account's
+own setting</strong>, <code>agents.pool_from_balance</code> (Account -&gt; Money, &quot;Spend my
+trading credits once my liquidity credits run out&quot;; <code>poolFromBalance</code>
+on <code>POST /api/auth/profile</code>). Default TRUE, which is what every account
+did before the setting existed: defaulting it off would silently stop
+auto-funding for owners who never bought liquidity credits and their
+markets would open dead. Turned off, an injection that outruns the
+wallet is refused rather than reaching into trading credits, and the
+funding gates count the wallet alone.</p>
+</li>
+<li>
+<p><strong>Whoever pays cannot win.</strong> Buying requires the <code>manage</code> capability in
 the target workspace, and accounts that own or administer a public
 workspace take no season payout under strict eligibility
 (<code>docs/seasons.md</code>, Eligibility). The payment therefore never buys
-contest standing.</li>
-<li><strong>No per-credit price for participants.</strong> Credits remain unpurchasable
+contest standing.</p>
+</li>
+<li>
+<p><strong>No per-credit price for participants.</strong> Credits remain unpurchasable
 and unredeemable (ToS section 2); the liquidity price is a price for a
 service delivered into pools, not an exchange rate for a currency.
 A per-credit exchange rate would make every market a real-money bet
-(telarchy umbrella, <code>notes/wheel-vs-proportional-legality-2026-08-28.md</code>).</li>
+(telarchy umbrella, <code>notes/wheel-vs-proportional-legality-2026-08-28.md</code>).</p>
+</li>
 </ol>
 <h2 id="docs-liquidity-purchases-md--h3">Flow</h2>
 <ul>

@@ -233,6 +233,10 @@ userauthRouter.get(
         settled: agent?.notifyMarketResolved ?? true,
         decision: agent?.notifyContractDecided ?? true,
       }),
+      // Whether tradeable credits may fund pools once the liquidity wallet
+      // is empty (owner ask 2026-08-30). Default on, as it was before the
+      // setting existed.
+      poolFromBalance: agent?.poolFromBalance ?? true,
     });
   }),
 );
@@ -284,7 +288,9 @@ userauthRouter.post(
  * sets the email switches (docs/vision.md, "Participant email
  * notifications"): any subset of { commentOnMyProposal, replyToMyComment,
  * newProposal, anyComment, marketResolved, contractDecided }, each a boolean;
- * an omitted key keeps its current value.
+ * an omitted key keeps its current value. `poolFromBalance` (boolean) says
+ * whether the tradeable balance may fund market pools once the liquidity
+ * wallet is empty; the wallet is always spent first either way.
  */
 userauthRouter.post(
   '/profile',
@@ -298,6 +304,14 @@ userauthRouter.post(
     }
 
     const { intent, nickname, bio, image, payoutHandle, payoutMethod, notifications, notificationChannels } = req.body;
+    // Whether this account's TRADEABLE credits may fund market pools once
+    // its liquidity credits run out (owner ask 2026-08-30). The wallet is
+    // always spent first; this only decides what happens after it empties.
+    const { poolFromBalance } = req.body;
+    if (poolFromBalance !== undefined && typeof poolFromBalance !== 'boolean') {
+      res.status(400).json({ error: 'poolFromBalance must be a boolean' });
+      return;
+    }
     if (intent !== undefined && !['creator', 'agent', 'trader'].includes(intent)) {
       res.status(400).json({ error: 'intent must be "creator", "agent", or "trader"' });
       return;
@@ -512,6 +526,10 @@ userauthRouter.post(
 
     if (normalizedBio !== undefined) {
       await db.update(agents).set({ bio: normalizedBio }).where(eq(agents.id, participantId));
+    }
+
+    if (poolFromBalance !== undefined) {
+      await db.update(agents).set({ poolFromBalance }).where(eq(agents.id, participantId));
     }
 
     if (normalizedPayout !== undefined) {
