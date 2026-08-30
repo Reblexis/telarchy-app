@@ -201,6 +201,19 @@ export interface LimitOrder {
   createdAt: string;
 }
 
+/** One way to receive free credits, and what the operator prices it at.
+ *  `kind` is 'flat' (grants exactly `credits`) or 'cap' (grants up to it
+ *  from a measured signal, which is how the Manifold import works). */
+export interface EarnRule {
+  key: string;
+  label: string;
+  credits: number;
+  kind: 'flat' | 'cap';
+  enabled?: boolean;
+  note: string;
+  updatedAt?: string;
+}
+
 /** One rung of a prize season's published ladder. */
 export interface LadderRung {
   place: number;
@@ -925,6 +938,24 @@ export const api = {
 
   // Agents
   getParticipant: () => request('/api/agents/me'),
+  /** The earn table: every way to receive free credits and its price.
+   *  Public, because a contest whose grants decide standings owes its
+   *  entrants a readable price list. */
+  getEarnTable: (): Promise<{ rules: EarnRule[] }> => request('/api/earn'),
+  /** The operator's view: disabled rows and the last-changed stamp too. */
+  getAdminEarnTable: (): Promise<{ rules: EarnRule[] }> => request('/api/admin/earn'),
+  /** Re-price one task. Takes effect on the next grant and is appended to
+   *  the rule's history, which is what makes a mid-season change
+   *  reconstructable. */
+  setEarnRule: (
+    key: string,
+    patch: { credits?: number; enabled?: boolean; note?: string },
+  ): Promise<{ rule: EarnRule }> =>
+    request(`/api/admin/earn/${encodeURIComponent(key)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    }),
   /** Start a liquidity-credits purchase (the second currency): returns the
    *  Stripe Checkout url to send the buyer to. Manage capability in the
    *  workspace required; 503 while the instance has no Stripe config. */

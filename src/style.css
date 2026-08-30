@@ -6931,6 +6931,54 @@ textarea.jobform-line--desc {
 }
 
 .adm-err { color: var(--error-text); font-size: 0.85rem; }
+
+/* The earn table on /admin (owner ask 2026-08-30): one row per way to
+   receive free credits, each priced in place. Hairline rows in the admin
+   page's own voice; the amount is the only thing that looks editable,
+   because it is the only thing that decides money. */
+.adm-earnlist { list-style: none; margin: 0; padding: 0; }
+.adm-earnrow { padding: 0.85rem 0; border-top: 1px solid var(--border-color); }
+.adm-earnrow:last-child { border-bottom: 1px solid var(--border-color); }
+.adm-earnrow.is-off { opacity: 0.55; }
+.adm-earnhead { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.adm-earnlabel { font-size: 0.95rem; font-weight: 600; }
+.adm-earnkey { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--text-tertiary); }
+.adm-earnkind {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 5px;
+  padding: 0.1rem 0.35rem;
+}
+.adm-earnnote { margin: 0.25rem 0 0; font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary); }
+.adm-earnedit { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.55rem; }
+.adm-earnamt {
+  width: 7rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.adm-earnamt:focus { outline: none; border-color: var(--accent); }
+.adm-earnunit { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text-tertiary); }
+.adm-earntoggle {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.adm-earntoggle:hover:not(:disabled) { color: var(--text-primary); border-color: var(--border-hover); }
 .adm-empty { color: var(--text-tertiary); font-size: 0.9rem; }
 
 /* The glance. Wraps to two lines on a phone rather than shrinking the
