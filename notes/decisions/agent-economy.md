@@ -114,8 +114,11 @@ https://claude.ai/code/artifact/3d605cc3-5d42-450e-bb42-3f07b21bcb38,
 approved "yes looks good"):** the price stopped hanging off signup, which
 had made the OAuth premium unearnable for anyone who signed up with an
 email. Creating an account now pays 100 and each attached proof pays
-separately (Google 200, GitHub 200, Manifold 5,000), so an OAuth signup
-still totals 300 and an email signup can come back and connect one.
+separately: one link earn covering both providers (200, either Google or
+GitHub, owner: "lets make it connect google acc or github", since a second
+attached account is the same person proving they hold another free
+account), and Manifold 5,000. An OAuth signup still totals 300 and an
+email signup can come back and connect one.
 
 Migration 0087 adds `earn_claims` with the two uniqueness rules that carry
 the whole anti-farming weight, enforced in the database rather than in

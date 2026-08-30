@@ -25,13 +25,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS earn_claims_agent_key_idx ON earn_claims (agen
 -- accounts, which is the farm the prices exist to stop.
 CREATE UNIQUE INDEX IF NOT EXISTS earn_claims_key_ref_idx ON earn_claims (key, ref_id) WHERE ref_id IS NOT NULL;
 
--- The connectable proofs, priced below what an aged account of each costs
--- to buy.
+-- ONE connectable proof, either provider (owner decision 2026-08-30:
+-- "lets make it connect google acc or github"). The second account you
+-- attach proves much less than the first - it is the same person proving
+-- they hold another free account - so it earns nothing.
 INSERT INTO earn_rules (key, label, credits, kind, note) VALUES
-  ('link_google', 'Connect a Google account', 200, 'flat',
-   'An aged Google account costs about a dollar to buy; this sits below that.'),
-  ('link_github', 'Connect a GitHub account', 200, 'flat',
-   'Same idea, and it says something about who you are.')
+  ('link_oauth', 'Connect a Google or GitHub account', 200, 'flat',
+   'An aged account of either costs about a dollar to buy; this sits below that. Either one earns it, once.')
 ON CONFLICT (key) DO NOTHING;
 
 -- Signup collapses back to one row: the provider is now paid for
@@ -45,7 +45,7 @@ UPDATE earn_rules SET enabled = false, note = 'Retired 2026-08-30: superseded by
 INSERT INTO earn_rule_history (id, key, credits, kind, enabled, note, changed_by)
 SELECT gen_random_uuid()::text, key, credits, kind, enabled, note, 'migration 0087'
   FROM earn_rules
- WHERE key IN ('signup_user', 'signup_email', 'signup_oauth', 'link_google', 'link_github');
+ WHERE key IN ('signup_user', 'signup_email', 'signup_oauth', 'link_oauth');
 
 -- Existing accounts keep what they were granted and are marked as having
 -- claimed what they already hold, so nobody is paid twice and nobody sees
@@ -57,15 +57,21 @@ SELECT gen_random_uuid()::text, a.id, 'signup_user', NULL, 0
  WHERE a.auth_user_id IS NOT NULL
 ON CONFLICT DO NOTHING;
 
+-- One claim per existing participant, against whichever provider account
+-- they already have attached. DISTINCT ON the agent, because somebody with
+-- both Google and GitHub linked must still end up with exactly one claim:
+-- the unique index would reject the second, and silently dropping it is
+-- not something a backfill should rely on.
 INSERT INTO earn_claims (id, agent_id, key, ref_id, credits)
-SELECT DISTINCT ON (acc.provider_id, acc.account_id)
+SELECT DISTINCT ON (a.id)
        gen_random_uuid()::text,
        a.id,
-       CASE acc.provider_id WHEN 'google' THEN 'link_google' ELSE 'link_github' END,
+       'link_oauth',
        acc.account_id,
        0
   FROM agents a
   JOIN account acc ON acc.user_id = a.auth_user_id
  WHERE a.auth_user_id IS NOT NULL
    AND acc.provider_id IN ('google', 'github')
+ ORDER BY a.id, acc.created_at
 ON CONFLICT DO NOTHING;

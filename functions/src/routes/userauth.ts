@@ -83,14 +83,17 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
   await claimEarn({ agentId: participantId, key: 'signup_user' }).catch(e =>
     console.error('signup earn claim failed:', e),
   );
-  const links = await db
-    .select({ providerId: authAccount.providerId, accountId: authAccount.accountId })
-    .from(authAccount)
-    .where(eq(authAccount.userId, uid));
-  for (const l of links) {
-    const key = l.providerId === 'google' ? 'link_google' : l.providerId === 'github' ? 'link_github' : null;
-    if (!key) continue;
-    await claimEarn({ agentId: participantId, key, refId: l.accountId }).catch(e =>
+  // Either provider earns the same single link row, once (owner decision
+  // 2026-08-30): a second attached account is the same person proving
+  // they hold another free account.
+  const link = (
+    await db
+      .select({ providerId: authAccount.providerId, accountId: authAccount.accountId })
+      .from(authAccount)
+      .where(eq(authAccount.userId, uid))
+  ).find(l => l.providerId === 'google' || l.providerId === 'github');
+  if (link) {
+    await claimEarn({ agentId: participantId, key: 'link_oauth', refId: link.accountId }).catch(e =>
       console.error('link earn claim failed:', e),
     );
   }

@@ -27,14 +27,7 @@ import { applyCredits, PLATFORM_SCOPE } from './credits';
  * which is why every write appends to `earn_rule_history`.
  */
 
-export type EarnKey =
-  | 'signup_user'
-  | 'signup_email'
-  | 'signup_oauth'
-  | 'signup_agent'
-  | 'manifold_link'
-  | 'link_google'
-  | 'link_github';
+export type EarnKey = 'signup_user' | 'signup_email' | 'signup_oauth' | 'signup_agent' | 'manifold_link' | 'link_oauth';
 
 export interface EarnRule {
   key: string;
@@ -57,8 +50,7 @@ const FALLBACK: Record<EarnKey, number> = {
   signup_oauth: SIGNUP_CREDITS,
   signup_agent: AGENT_SIGNUP_CREDITS,
   manifold_link: 10_000,
-  link_google: 0,
-  link_github: 0,
+  link_oauth: 0,
 };
 
 /**

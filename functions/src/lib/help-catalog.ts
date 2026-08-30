@@ -1008,7 +1008,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/earn/links/sync',
       auth: 'identity',
       description:
-        'Pay for any provider account attached to the caller and not yet paid for. Returns { granted, paid: [key], takenElsewhere: [key] }. Called after BetterAuth account linking returns, and safe to re-run: it reconciles against the accounts actually linked rather than trusting a claim. takenElsewhere names a link that earned nothing because THAT PROVIDER ACCOUNT ALREADY PAID OUT on another Telarchy account, which is the rule that stops one Google account funding ten accounts; it is reported rather than silently granting zero.',
+        'Pay for any provider account attached to the caller and not yet paid for. Returns { granted, paid: [key], takenElsewhere: [key] }. Called after BetterAuth account linking returns, and safe to re-run: it reconciles against the accounts actually linked rather than trusting a claim. There is ONE link earn covering both providers (either claims it, once), so a second attached account earns nothing and that is not an error. takenElsewhere names a link that earned nothing because THAT PROVIDER ACCOUNT ALREADY PAID OUT on another Telarchy account, which is the rule that stops one Google account funding ten accounts; it is reported rather than silently granting zero.',
     },
     {
       method: 'GET',
