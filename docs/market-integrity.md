@@ -78,12 +78,14 @@ rule:
   its positions. A rename also syncs `markets.metricName`, which is
   denormalised and is what the floor, the share image and every notification
   render; without the sync a renamed metric shows its old name forever.
-- **Every word change is on the record.** `metric_definition_revisions` is
+- **Every word change is recorded.** `metric_definition_revisions` is
   append-only: which metric, which field, the old value, the new value, who
-  changed it, when. The floor renders it under "What is this market?", so a
-  trader can see whether the goalposts moved after they took their position.
-  Saving unchanged text writes nothing, because a log full of non-changes makes
-  "did anything move?" harder to answer, not easier.
+  changed it, when. Nothing serves those rows and nothing renders them, so the
+  table is an internal audit trail today, not disclosure: a trader cannot yet
+  see whether the goalposts moved after they took their position. (A contract's
+  `proposal_revisions` are served and rendered; the metric's are the half that
+  is missing.) Saving unchanged text writes nothing, because a log full of
+  non-changes makes "did anything move?" harder to answer, not easier.
 - **Machinery is refused, not voided.** A market stores its own
   `rangeMin`/`rangeMax` and prices inside them, so changing the metric's range
   under an open market makes the stated range and the traded range disagree
@@ -99,8 +101,10 @@ rule:
 The residual risk is real and is accepted knowingly: an owner can reword
 what a market settles on while positions are open. The mitigation is
 disclosure, not prevention, because no code can tell a clarification from a
-redefinition. Publishing the revision history next to the definition is what
-makes the risk visible to the people carrying it.
+redefinition. That mitigation is specified and not built: the revisions are
+written and never published, so the risk is currently carried by traders who
+cannot see it. Serving `metric_definition_revisions` beside the definition, the
+way a contract's revisions already are, is what closes the gap.
 
 ## I1b: a contract's definition edits the same way
 
@@ -195,8 +199,8 @@ all move money too, and every one of them goes through the ledger.
 - **`credit_ledger` is append-only**, under the same trigger as `trades`
   (UPDATE and DELETE refused unless a transaction sets
   `telarchy.ledger_admin`).
-- **Every row says why.** `reason` is a closed set (`trade`, `payout`,
-  `void_refund`, `lp_leftover`, `liquidity`, `proposal_stake`,
+- **Every row says why.** `reason` is a closed set (`trade`, `redeem`,
+  `payout`, `void_refund`, `lp_leftover`, `liquidity`, `proposal_stake`,
   `proposal_reward`, `proposal_penalty`, `contract_payment`, `signup_grant`,
   `limit_order_hold`, `limit_order_release`, `transfer_in`, `transfer_out`,
   `admin_adjustment`, `opening_balance`), and `refType`/`refId` point at the

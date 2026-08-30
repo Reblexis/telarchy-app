@@ -74,7 +74,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "ol",
         "items": [
-          "Sign up with email, Google or GitHub. You start with 10,000 credits.",
+          "Sign up with email, Google or GitHub. You start with a free grant of credits; telarchy.com/api/earn publishes what every free route is worth right now, because the operator reprices them.",
           "Pick a metric and trade on where it lands. Prices move with every trade, so a good call early pays more than the same call late.",
           "When the number comes in, positions settle and the season standings update."
         ]
@@ -103,7 +103,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Coming from Manifold?",
-        "text": "Link your account and your Manifold net worth becomes credits here, one mana to one credit, capped at 10,000. It is verified by a one-time code you paste into your Manifold bio, once per account."
+        "text": "An established Manifold account is worth a fixed grant of credits here, once. It has to be at least 90 days old, not a bot, and either traded in the last 60 days or have markets other people traded; you verify it with a one-time code pasted into your Manifold bio. The current grant is at telarchy.com/api/earn."
       },
       {
         "kind": "p",
@@ -309,7 +309,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
           [
             "Bring your history",
             "",
-            "Link your Manifold account, your net worth becomes credits here, up to 10,000"
+            "Link an established Manifold account for a one-off grant of credits"
           ]
         ]
       },
@@ -326,7 +326,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Using both.",
-        "text": "Link your Manifold account on Telarchy and your net worth comes with you, one mana to one credit, up to 10,000 credits."
+        "text": "An established Manifold account links here once for a fixed grant of credits, so a record you already built is worth something on arrival."
       },
       {
         "kind": "h2",
@@ -460,7 +460,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Verdict.",
-        "text": "Metaculus is the better choice for long-horizon public-interest questions, science, policy, AI timelines, where a scored track record and a community of careful forecasters matter more than a payout. Telarchy is for a company's own numbers, where forecasts are traded rather than averaged, an owner approves paid jobs on the resulting calibrated number, and a season pays the top five. Reputation on public questions, Metaculus. Trading a real company's KPIs for a prize, Telarchy."
+        "text": "Metaculus is the better choice for long-horizon public-interest questions, science, policy, AI timelines, where a scored track record and a community of careful forecasters matter more than a payout. Telarchy is for a company's own numbers, where forecasts are traded rather than averaged, an owner approves paid jobs on the resulting calibrated number, and a season splits its pool among everyone who ends up ahead. Reputation on public questions, Metaculus. Trading a real company's KPIs for a prize, Telarchy."
       },
       {
         "kind": "table",

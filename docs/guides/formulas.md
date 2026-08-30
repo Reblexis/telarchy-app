@@ -104,6 +104,9 @@ measure; market prices never enter that number. So a formula is how you say
 where they land". See
 [time preference](/guides/time-preference).
 
-One consequence worth planning around: a leaf with no market contributes 0 to a
-projected formula. A composite whose leaves are half unpriced reads low for a
-reason that has nothing to do with the business.
+A composed metric also carries a `timeSeries` in the metrics payload, projected
+by resolving each leaf from its market price at each sampled date. That series
+is the only place market prices meet a formula, and an unpriced leaf counts 0 in
+it, so a composite whose leaves are half unpriced projects low for a reason that
+has nothing to do with the business. The metric's own value is unaffected: it
+stays your formula over what the leaves measure.

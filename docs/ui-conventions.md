@@ -647,8 +647,7 @@ direction is the fastest thing on the page to read.
 
 The amount is one bare underlined mono numeral (no boxed field, no stepper
 chips, no presets) with a slider under it, its fill in the chosen side's
-colour. The slider spans 1 cr to the trader's whole balance (there is no
-per-market cap) on a LOGARITHMIC track (a linear 0-to-balance slider
+colour. The slider spans 1 cr to the trader's whole balance on a LOGARITHMIC track (a linear 0-to-balance slider
 crams every bet a sane trader would place into the leftmost pixels once
 the balance is in the thousands), so equal drag multiplies the stake
 rather than adds to it; 1..100 cr gets about as much track as
@@ -656,6 +655,14 @@ rather than adds to it; 1..100 cr gets about as much track as
 numeral reads as a chosen stake, not a decoded pixel (1,943); the two
 ends stay exact, 1 cr and the full balance. The mapping lives in
 `src/lib/bet-slider.ts` and nowhere else.
+
+The balance is not the only ceiling. A workspace can set
+`maxPositionCostPerMarket`, which caps what one participant may spend on one
+market across both directions, counts credits reserved by open limit orders,
+and does not give headroom back on a sell. The track does not know it: a bet
+past the cap is refused server-side with a 400 carrying `{ cap, spent,
+attempted }`, and the ticket renders that refusal like any other error. The
+schema default is 0, meaning no cap; the Season 0 floor runs 5,000.
 
 The win is stated as breakeven plus slope, never as the at-the-range-edge
 maximum: payout is linear in the settled value, so the rows read "New
@@ -825,7 +832,7 @@ green for approved, red for declined, matching the chart). Both rails
 carry the same top margin on desktop so the "Top traders" and "Contracts"
 headings sit at the same height.
 
-**"+ Suggest a contract"** opens a dialog that is the ticket's STRUCTURE,
+**"+ Offer to do a contract"** opens a dialog that is the ticket's STRUCTURE,
 not just its underlines: the USD ask is the hero numeric at the top
 exactly where the ticket puts its bet amount ($ unit, mono, auto-width
 underline), the title / pitch fields are quiet left-aligned underlines with
@@ -833,13 +840,15 @@ small left labels, and the whole deal rides the confirm button itself (the
 cost belongs at the moment of commitment, on the final button, not only
 near the first press; there is no separate line under the fields and no
 facts table): `.ticket-go` carries a quieter second line
-(`.ticket-go-sub`), "500 cr to post · 1,000 cr back if approved", the
-exact phrase the board shows under "+ Suggest a contract" so the two
-surfaces never disagree (the 1,000 is the 500 stake returned plus the
-workspace's 500 proposal reward). Color only speaks as state: accent focus,
+(`.ticket-go-sub`) saying that posting is free and what approval pays, the
+exact phrase the board shows under its own button so the two surfaces never
+disagree. Posting a contract costs nothing; the only credits a proposer can
+put in are the optional `liquiditySubsidy` on the branch markets, and the
+credits back on approval are the workspace's `proposalReward`, which is 0
+unless the workspace sets it. Color only speaks as state: accent focus,
 red errors and the full title counter, green ONLY on the placed flash; the
-confirm is the neutral `.ticket-go` whose main label progresses "Suggest
-contract" (disabled, invalid) to "Suggest contract for $N" (ready) to
+confirm is the neutral `.ticket-go` whose main label progresses "Suggest a
+contract" (disabled, invalid) to "Offer this for $N" (ready) to
 "Submitting..." to "Added to ballot" (green flash, sub-line hidden, then
 the dialog closes). A $0 contract is a valid contract and needs no payment
 details; a non-zero ask with no account payment details shows a warning
@@ -852,10 +861,11 @@ before the column existed. There is no paid-to field: payment details
 belong in account settings, not in a contract; the account settings dialog
 edits them, and the server refuses a paid contract without them.
 
-The proposal stake is 500 cr total (250 per branch market) and comes back
-in full at decision time: declined refunds via the void, approved via the
-owner buying out the proposer's LP position (see notes in the telarchy
-umbrella).
+A proposer stakes only what they choose to subsidise: `liquiditySubsidy` is
+charged per branch market, and it comes back in full at decision time,
+declined refunding via the void and approved via the owner buying out the
+proposer's LP position (see notes in the telarchy umbrella). Omitted, it is
+nothing, and the branch markets open unfunded.
 
 ### The account dialog
 
@@ -898,8 +908,12 @@ stored object lives in `agents.payout_method`; its human-readable summary
 is derived into `agents.payout_handle`, which is what paid-contract
 proposals snapshot.
 
-"Import Manifold balance": net worth at 1 mana = 1 cr, capped at 10,000,
-once per account pair, verified by a one-time code in the Manifold bio.
+The Manifold import row: a flat grant for an established account, priced in
+the earn table (`GET /api/earn`) and never scaled by mana, once per account
+pair, verified by a one-time code in the Manifold bio. The account must be at
+least 90 days old, not flagged as a bot, and either have traded in the last 60
+days or have markets other people traded; anything else is a 400 naming the
+condition it failed.
 
 **Framing the picture** (zoom plus x and y offset, not just a centre
 crop). Picking a file does not save it; it opens a framing step that takes
@@ -1215,14 +1229,20 @@ the advertisements change together.
 
 ## Text contrast
 
-Every text token meets WCAG AA for normal text (4.5:1) against the surface it
-sits on, in both themes. That includes `--text-tertiary`, which carries the
-small caps eyebrows and table labels and is the token most likely to drift
-pale: it is 4.98:1 on the light bone and 5.84:1 on the darkest dark surface.
-Hairline borders are deliberately below that floor; they are structure, not
-text, and lifting them to a text contrast would turn the hairlines into rules
-and change the design language. Check a new token with a contrast ratio, not
-by eye; `src/__tests__/contrast.test.ts` pins the text tokens.
+The three text tokens meet WCAG AA for normal text (4.5:1) against
+`--bg-primary` and `--bg-secondary` in both themes, and
+`src/__tests__/contrast.test.ts` pins exactly those pairings. The one with no
+headroom is `--text-tertiary`, which carries the small caps eyebrows and table
+labels and is the token most likely to drift pale: 4.98:1 on the light
+`--bg-primary` and 4.56:1 on the light `--bg-secondary`, against 6.21:1 and
+5.84:1 on the same two surfaces in the dark theme.
+
+Two pairings sit below that floor. `--text-tertiary` on the light
+`--bg-tertiary` is 4.09:1, so that surface does not carry tertiary normal text.
+Hairline borders are deliberately below it too; they are structure, not text,
+and lifting them to a text contrast would turn the hairlines into rules and
+change the design language. Check a new token with a contrast ratio, not by
+eye.
 
 ## The marketplace (/marketplace)
 

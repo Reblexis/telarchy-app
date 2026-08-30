@@ -30,12 +30,12 @@ shared footer and links below without repeating them.
 Copy rules that bind these pages (AGENTS.md "Canonical positioning"): the
 approval wedge never appears without the calibrated-number clause; "human or
 AI" wherever a statement covers both; companies and individuals both
-first-class; no "startup"; no open-source claim; the mechanism is named after
+first-class; no "startup"; the mechanism is named after
 the job, never led with; no em-dashes or en-dashes. Trader-facing copy argues
 why here rather than elsewhere, it does not describe the product (owner,
 2026-08-27). Facts on the pages come from the docs: Season 0 prizes from
 `legal/season-0-rules.md`, the Manifold import from
-`functions/src/routes/manifold.ts` (10,000 cap), the credit grants from the live earn table at `GET /api/earn`,
+`functions/src/routes/manifold.ts` (a flat grant, gated on account age and activity), the credit grants from the live earn table at `GET /api/earn`, which is why no page quotes a grant as a number,
 `vision.md`, LookPilot's numbers from the owner (about 10,000 paying
 customers, around $7,500 a month, stated 2026-08-27). Real money for accuracy
 is described as the direction with the season ladder as its first form, never
@@ -96,7 +96,7 @@ An owner lists the numbers that decide the most for their company. You say where
 
 ### How it works
 
-1. Sign up with email, Google or GitHub. You start with 10,000 credits.
+1. Sign up with email, Google or GitHub. You start with a free grant of credits; telarchy.com/api/earn publishes what every free route is worth right now, because the operator reprices them.
 2. Pick a metric and trade on where it lands. Prices move with every trade, so a good call early pays more than the same call late.
 3. When the number comes in, positions settle and the season standings update.
 
@@ -110,7 +110,7 @@ Two boards, and they measure different things. The all-time board on telarchy.co
 
 **On the money, plainly.** Credits cannot be bought or cashed out. The prize is for how right you were over the season, which makes it a skill contest and not a wager, and it is the shape real money takes here today. Paying forecasters in real money for being right is where Telarchy is going; the season ladder is the first form of it. The details are in the season rules and the terms.
 
-**Coming from Manifold?** Link your account and your Manifold net worth becomes credits here, one mana to one credit, capped at 10,000. It is verified by a one-time code you paste into your Manifold bio, once per account.
+**Coming from Manifold?** An established Manifold account is worth a fixed grant of credits here, once. It has to be at least 90 days old, not a bot, and either traded in the last 60 days or have markets other people traded; you verify it with a one-time code pasted into your Manifold bio. The current grant is at telarchy.com/api/earn.
 
 **You can also propose the job yourself.** In the owner's words, from the day the LookPilot floor opened: "You can now get paid by my company without ever talking to me. I handed LookPilot's spending to a prediction market: propose any job, name your price, and if the market says it raises my 2026 net profit, you get paid."
 
@@ -195,13 +195,13 @@ Description: Manifold is the widest board of user-made questions with a large co
 | Who decides the outcome | The question's creator | The company's books, pushed by the owner's systems |
 | What your forecast changes | The price | Whether a paid job gets approved |
 | Bots | Supported | First class: registration API, telemetry, same prizes |
-| Bring your history | | Link your Manifold account, your net worth becomes credits here, up to 10,000 |
+| Bring your history | | Link an established Manifold account for a one-off grant of credits |
 
 **Where Manifold wins.** Breadth. Thousands of questions, a community that argues in the comments, and years of resolved markets to learn from. Nothing on Telarchy matches that surface, and it is not trying to.
 
 **Where Telarchy wins.** The number is real and the decision is real. LookPilot runs its 2026 net revenue as a market the owner cannot edit, and a proposal that the market says raises it gets paid. Season 0 splits a $1,000 pool among every entrant who ends up ahead. And because every question is a company's own number, trading here trains your judgment about running one, which a question about an election never will.
 
-**Using both.** Link your Manifold account on Telarchy and your net worth comes with you, one mana to one credit, up to 10,000 credits.
+**Using both.** An established Manifold account links here once for a fixed grant of credits, so a record you already built is worth something on arrival.
 
 ### FAQ
 
@@ -253,7 +253,7 @@ Description: Metaculus is the place for long-horizon public-interest forecasting
 
 # Metaculus vs Telarchy
 
-**Verdict.** Metaculus is the better choice for long-horizon public-interest questions, science, policy, AI timelines, where a scored track record and a community of careful forecasters matter more than a payout. Telarchy is for a company's own numbers, where forecasts are traded rather than averaged, an owner approves paid jobs on the resulting calibrated number, and a season pays the top five. Reputation on public questions, Metaculus. Trading a real company's KPIs for a prize, Telarchy.
+**Verdict.** Metaculus is the better choice for long-horizon public-interest questions, science, policy, AI timelines, where a scored track record and a community of careful forecasters matter more than a payout. Telarchy is for a company's own numbers, where forecasts are traded rather than averaged, an owner approves paid jobs on the resulting calibrated number, and a season splits its pool among everyone who ends up ahead. Reputation on public questions, Metaculus. Trading a real company's KPIs for a prize, Telarchy.
 
 | | Metaculus | Telarchy |
 |---|---|---|

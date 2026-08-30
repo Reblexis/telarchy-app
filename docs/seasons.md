@@ -195,10 +195,11 @@ bankroll moves the consensus about 3% of the range":
 b = 0.5 x 1000 / 0.03  ≈  16,700 credits      house exposure ≈ 11,600 cr
 ```
 
-(Since 2026-08-28 a user signup grants 10,000 credits; what bounds one
-account's deployment into one book is now the per-market position cap,
-5,000, not the grant, so Season 0's published ramp stands and the next
-season's sizing should target the cap rather than the grant.)
+(Signup grants are priced in the earn table now and move whenever the operator
+reprices them, `GET /api/earn`. What bounds one account's deployment into one
+book is the per-market position cap, 5,000, not the grant, so Season 0's
+published ramp stands and the next season's sizing should target the cap rather
+than the grant.)
 
 `b = 16,700` is the ramp's DESTINATION, not its opening. A single trader can
 still move that book enough to be worth doing (a confident 5,000-credit
@@ -260,8 +261,9 @@ not the rule (see F1).
    destination `b`, 5,000 credits for Season 0, so no single account can own
    the book and the sybil arithmetic in F2 stays unattractive. Bankrolls on the
    floor differ by orders of magnitude (a Manifold import grants against a
-   proven record; its cap is 10,000 since 2026-08-28, and the largest
-   existing import predates that at about 101,000), and uncapped, the
+   proven record: a flat amount priced in the earn table since 2026-08-30,
+   no longer net worth and no longer capped, and the largest existing import
+   predates that regime at about 101,000), and uncapped, the
    largest of them pins any book this side of `b = 200,000`; the cap is what
    makes one sizing work for a floor whose bankrolls differ by 100x.
 
@@ -304,8 +306,8 @@ ladder within pool in ladder mode). The shape, for the design's sake
   so a published winner cannot change after the money is sent.
 - **Claim.** Winners have 30 days after settlement to claim; a claim requires
   `payoutMethod` on the account; an expired claim rolls the prize into the next
-  season's pool. Payment happens outside the Service, between the owner and
-  the winner.
+  season's pool. Telarchy pays the prize itself, from its own funds, outside
+  the Service, using the payment details the winner stored on their account.
 
 ## Failure modes
 

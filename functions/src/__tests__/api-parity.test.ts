@@ -201,6 +201,11 @@ describe('API parity: frontend goes through the public API', () => {
       // workspace and no gate, and from 'agent', which needs an identity.
       'public-read',
       'self/admin',
+      // The granular workspace-lifecycle capability, which 'admin' (manage)
+      // does NOT imply: deleting a workspace, changing its visibility, and the
+      // auto-fund and penalty settings all need it, and a teammate promoted to
+      // the seeded Admin group does not have it.
+      'manage_workspace',
       // Platform-wide, and deliberately not satisfied by owning a workspace:
       // prize-season settlement assigns real money, so a workspace owner must
       // not reach it the way 'admin' (the manage capability) would allow.

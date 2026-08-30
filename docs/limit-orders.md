@@ -15,9 +15,12 @@ they believe in) or does nothing. A resting order lets them say "I will buy
 down to $65k and no further", and be filled by whoever pushes the price
 into them later.
 
-That is also the honest answer to the position cap: a 250 cr cap bounds how
-far one account can move the price at once, and limit orders let the same
-conviction be expressed over time instead of in one shove.
+That is also the honest answer to the position cap: a workspace's
+`maxPositionCostPerMarket` bounds how far one account can move the price at
+once, and limit orders let the same conviction be expressed over time instead
+of in one shove. The schema default is 0, meaning no cap at all; the Season 0
+floor runs 5,000, and a resting order's reserved budget counts against it like
+a trade does.
 
 ## Model
 

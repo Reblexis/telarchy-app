@@ -145,24 +145,26 @@ priority (trade and trade-error first, then biggest-distance skips).
 
 ## The `outcome` vocabulary
 
-The five **canonical outcomes** have stable colors:
+Five **canonical outcomes**, so an operator reading two different
+participants' traces reads the same words:
 
-| Outcome | Meaning | Color |
-| --- | --- | --- |
-| `trade` | Strategy placed a trade. `cost` and `resultingConsensus` should be set. | green |
-| `trade-error` | Strategy attempted to trade but the API returned an error. `error` should be set. | red |
-| `trade-too-small` | Edge present but below LMSR minimum trade size. | amber |
-| `skip-under-threshold` | Considered the market but `distance < threshold`, so no trade. | grey |
-| `unknown-market` | Market id appeared but couldn't be resolved against status. | purple |
+| Outcome | Meaning |
+| --- | --- |
+| `trade` | Strategy placed a trade. `cost` and `resultingConsensus` should be set. |
+| `trade-error` | Strategy attempted to trade but the API returned an error. `error` should be set. |
+| `trade-too-small` | Edge present but below LMSR minimum trade size. |
+| `skip-under-threshold` | Considered the market but `distance < threshold`, so no trade. |
+| `unknown-market` | Market id appeared but couldn't be resolved against status. |
 
 You may emit **additional outcome strings** if your strategy has
-distinctions the canonical vocabulary doesn't capture. They get a
-deterministic color picked from a fallback palette. Keep them short (one
+distinctions the canonical vocabulary doesn't capture. Keep them short (one
 or two hyphenated words) and reuse the same string across cycles.
 
-If you can map your situation onto a canonical outcome, prefer that: the
-canonical outcomes have a hand-picked color and an established meaning
-operators already understand.
+Nothing in the web UI renders a trace today: the whole surface is API-only,
+the same way workspace administration is (see the served guide, "Reading it
+back"). So the vocabulary buys a queryable field and a shared meaning, not a
+colour. Prefer a canonical outcome wherever your situation maps onto one,
+because those are the ones an operator already understands.
 
 ## The `reasoning` field
 

@@ -146,16 +146,22 @@ block:shipping
 
 The first season starts on 22 August 2026 and ends on 1 October 2026. It pays
 real money to the traders who are most accurate over that window, scored on
-marked profit rather than on volume, with the market's liquidity ramping up over
-the first three weeks rather than opening deep. A contest is the cheapest way to
-find out whether people will forecast for real stakes, and the rules a
-contestant reads are published and frozen for the length of the season.
+settled profit, meaning what the markets that actually resolved during the
+season paid you minus what you paid on them, rather than on volume or on marks
+that have not settled. Liquidity ramps up over the first three weeks rather than
+opening deep. A contest is the cheapest way to find out whether people will
+forecast for real stakes. The rules a contestant reads are published, and Season
+0 says in its own text that we may change them while it runs: five amendments
+have landed so far, each announced on the season page before it took effect and
+each written to increase what is paid rather than to reduce anyone's standing.
 
-Until the trader side pulls, the owner side stays deliberately closed. Creating
-a workspace is waitlisted and the operator provisions design partners by hand,
-so every new floor is a conversation rather than a signup. The order is
-intentional: a two-sided market is bootstrapped one side at a time, and a floor
-with no traders is worth nothing to the company standing on it.
+Until the trader side pulls, the owner side stays deliberately quiet. Creating a
+workspace is self-serve, capped at three floors per account, and a new floor is
+born unlisted: live, tradeable and shareable by link, but on the front page only
+once a human puts it there. So a floor arrives as a conversation rather than as
+a signup. The order is intentional: a two-sided market is bootstrapped one side
+at a time, and a floor with no traders is worth nothing to the company standing
+on it.
 
 The nearer work is the floor itself. A visitor should be able to arrive knowing
 nothing, read what a company is, see what the market thinks, ask a question in
