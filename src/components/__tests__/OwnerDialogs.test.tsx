@@ -85,17 +85,36 @@ describe('dialog 1: new metric', () => {
 });
 
 describe('dialog 2: add a date', () => {
-  const renderIt = (onDone = vi.fn()) =>
+  const renderIt = (onDone = vi.fn(), extra: { defaultCredits?: number; spendable?: number } = {}) =>
     render(
       <AddDateDialog
         workspaceId="ws"
         metricId="m1"
         metricName="LookPilot net 2026 (USD)"
-        defaultCredits={1200}
+        defaultCredits={extra.defaultCredits ?? 1200}
+        spendable={extra.spendable ?? 50000}
         onClose={() => {}}
         onDone={onDone}
       />,
     );
+
+  // A fresh workspace carries 0.5 credits per auto-funded market, so the
+  // dialog used to prefill 1 and opened the owner's first market at a credit
+  // (walkthrough, 2026-08-30). A market nobody can move is worse than none.
+  test('a decoration-sized workspace default is not what the first market opens with', () => {
+    renderIt(vi.fn(), { defaultCredits: 0.5, spendable: 50000 });
+    expect(screen.getByText(/Open the market · 1,000 cr/)).toBeTruthy();
+  });
+
+  test('the prefill never asks for more than the owner holds', () => {
+    renderIt(vi.fn(), { defaultCredits: 0.5, spendable: 200 });
+    expect(screen.getByText(/Open the market · 200 cr/)).toBeTruthy();
+  });
+
+  test('the heading names the metric and what is behind it, both from the caller', () => {
+    renderIt(vi.fn(), { spendable: 200 });
+    expect(screen.getByText('Liquidity behind LookPilot net 2026 (USD) · from your 200 cr')).toBeTruthy();
+  });
 
   test('a calendar pick is a ROLLING entry appended to the stored horizons, with the liquidity as the metric depth', async () => {
     renderIt();
@@ -283,6 +302,7 @@ describe('dialog 4: report the number', () => {
     marketSays: 46120,
     settlesLabel: '3d',
     rangeMax: 500000,
+    rangeEditable: false,
     onClose: () => {},
   };
 
@@ -336,12 +356,13 @@ describe('dialog 4: report the number', () => {
         lastAt={null}
         marketSays={null}
         rangeMax={1000}
+        rangeEditable={true}
         onDone={() => {}}
       />,
     );
     // No previous reading and no market opinion: neither line is drawn.
     expect(screen.queryByText('The market has been saying')).toBeNull();
-    expect(screen.getByText(/Nothing traded yet, so this also sets the range/)).toBeTruthy();
+    expect(screen.getByText(/Nobody has traded yet, so this also sets the range/)).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '430' } });
     fireEvent.change(screen.getByLabelText('Highest it could plausibly reach'), { target: { value: '2000' } });
@@ -354,5 +375,50 @@ describe('dialog 4: report the number', () => {
         marketRangeMax: 2000,
       }),
     );
+  });
+
+  // The walkthrough case (2026-08-30): creating a metric logs a reading, so
+  // "first reading" never came round again and an owner whose real number was
+  // 4,200 had no control that could widen a 0-1,000 market.
+  test('an untraded metric can still be given a range, reading or no reading', async () => {
+    render(
+      <ReportValueDialog
+        {...props}
+        lastValue={0}
+        marketSays={500}
+        rangeMax={1000}
+        rangeEditable={true}
+        onDone={() => {}}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '4200' } });
+    // Left alone, the range follows the number up with headroom instead of
+    // silently capping it.
+    expect((screen.getByLabelText('Highest it could plausibly reach') as HTMLInputElement).value).toBe('8,400');
+    fireEvent.click(screen.getByText(/Report \$4,200/));
+    await waitFor(() =>
+      expect(reportMetricValue).toHaveBeenCalledWith('ws', 'm1', {
+        value: 4200,
+        oldValue: 0,
+        updateNote: '',
+        marketRangeMax: 8400,
+      }),
+    );
+  });
+
+  test('a range the owner typed under the reading is refused, not sent', async () => {
+    render(<ReportValueDialog {...props} lastValue={0} rangeMax={1000} rangeEditable={true} onDone={() => {}} />);
+    fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '4200' } });
+    fireEvent.change(screen.getByLabelText('Highest it could plausibly reach'), { target: { value: '1000' } });
+    fireEvent.click(screen.getByText(/Report \$4,200/));
+    await waitFor(() => expect(screen.getByText(/range has to reach the number/)).toBeTruthy());
+    expect(reportMetricValue).not.toHaveBeenCalled();
+  });
+
+  test('once trades froze the machinery it says what a number above the band does', () => {
+    render(<ReportValueDialog {...props} rangeMax={50000} onDone={() => {}} />);
+    fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '90000' } });
+    expect(screen.queryByLabelText('Highest it could plausibly reach')).toBeNull();
+    expect(screen.getByText(/frozen by trades: it settles at the top/)).toBeTruthy();
   });
 });

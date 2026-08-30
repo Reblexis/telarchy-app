@@ -71,10 +71,15 @@ A chip is the selection until a day is picked; picking a day deselects the
 chips, and clicking a chip clears the day. Beside the day sits an optional
 UTC hour (owner ask 2026-08-28): markets settle on the hour, so the time
 field carries hours only and a day with an hour opens an hour market
-(`YYYY-MM-DDTHH`). Under it, the liquidity the market opens with,
-prefilled with the workspace default, with the translation that makes the
-number mean something ("a 100 cr trade moves it about 2%"). The open button
-carries the cost.
+(`YYYY-MM-DDTHH`). Under it, the liquidity the market opens
+with, and the heading says whose credits it comes out of, because it is
+the owner's own balance and wallet. The prefill is what can actually price
+the question: the workspace's own default only when it is above the
+25-credit line where a pool stops being a decoration, a thousand otherwise,
+and never more than the owner holds, since the server refuses what the
+balance will not cover. A fresh workspace carries 0.5 credits per
+auto-funded market, which prefilled 1 and opened a first market nobody
+could move. The open button carries the cost.
 
 The picks write `timePreference.customHorizons` on the metric: the calendar
 picks as ROLLING entries (`+0w`, `+0m`, `+1m`) so this week's market is
@@ -83,7 +88,7 @@ liquidity writes `metrics.liquidityCredits`, and the reconcile that runs on
 the same request opens the market funded at that number. One request, one
 market, no second call to forget.
 
-**4. Report the number** — the owner's most frequent act, opened from the
+**4. Report the number**, the owner's most frequent act, opened from the
 line under the market's own number: "Yours: $44,439 [Report]". Markets settle
 on the metric's stored value, so a floor whose owner cannot report settles
 every market on the number it was created with; that is why this dialog
@@ -94,10 +99,18 @@ typing), the market this reading currently decides, and an optional public
 note. `PUT /api/metrics/:id { value, oldValue, updateNote }` writes the
 append-only `updates` row; an empty note is stored as "Value updated".
 
-The first reading is the same dialog wearing a different half. There is no
-delta and no market price to compare against, so what replaces them is the
-range: the last moment it can move, since machinery freezes the instant
-someone trades. It rides along as `marketRangeMax` on the same request.
+The range rides in the same dialog, on the condition
+`docs/market-integrity.md` already sets for machinery: it is offered while
+no market on the metric has been traded, and gone once one has. Not on "no
+reading yet", which never comes round again (creating a metric logs a
+reading), and which left an owner reporting 4,200 into a market priced
+inside 0 to 1,000 with no control that could widen it. While it is offered
+the field follows the reading up on its own, to a round number with
+headroom, until the owner types their own; a range under the reading is
+refused rather than sent. Once trades have frozen it, a reading above the
+band says so in the facts row instead of pretending: the market settles as
+though the number had landed exactly on the top of its range. It rides along
+as `marketRangeMax` on the same request.
 
 The age of the reading is the entire nudge, and it is only ever true text:
 "4 days old · this market settles on it in 3d", turning to the accent colour
