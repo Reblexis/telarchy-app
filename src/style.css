@@ -6479,6 +6479,10 @@ textarea.jobform-line--desc {
 .earn-upto { font-size: 0.7rem; color: var(--text-tertiary); }
 /* Trading profit has no number, and a dash there would read as zero. */
 .earn-open { font-size: 0.82rem; color: var(--text-secondary); }
+/* The page's one button, for a visitor who needs an account before any
+   row on the table is available to them. */
+.earn-cta { margin-top: 0.5rem; }
+.lbp-foot .earn-cta { color: var(--button-text); }
 
 .lbp-foot { margin-top: 2.5rem; text-align: center; font-size: 0.9rem; }
 .lbp-foot a { color: var(--accent); text-decoration: none; }

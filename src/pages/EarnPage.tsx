@@ -204,8 +204,17 @@ export function EarnPage() {
           </table>
         )}
 
+        {/* Signed out, every row on the table needs an account first, so
+            the page carries one button rather than a quiet link: the whole
+            list is the argument and this is the only thing to press. */}
         <p className="lbp-foot">
-          {user ? <Link to="/leaderboard">Leaderboard</Link> : <Link to="/signup">Create an account</Link>}
+          {user ? (
+            <Link to="/leaderboard">Leaderboard</Link>
+          ) : (
+            <Link className="pubws-cta earn-cta" to="/signup">
+              Create an account
+            </Link>
+          )}
         </p>
       </main>
     </div>
