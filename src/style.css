@@ -1497,12 +1497,20 @@ code, pre, kbd, samp {
    is what toggles, so the light/dark rules inside stay untouched. */
 .pubws-logo-phone { display: none; }
 
+/* The mark stands in for the lockup wherever the lockup does not fit. The
+   whole row measures 708px with the 4.4:1 lockup on it, so anything under
+   ~740px was overflowing its own viewport; the mark holds until a tablet
+   width where the lockup is comfortable. */
+@media (max-width: 767px) {
+  .pubws-logo-wide { display: none; }
+  .pubws-logo-phone { display: inline-flex; }
+}
+
 /* On a phone the bar stays put while the page scrolls (docs/ui-conventions.md,
    "The top bar and the account menu"): a floor runs nine screens on a 390px
-   display and the logo is the only way back to the floors list. One thin row:
-   the mark at 2rem instead of the 4.4:1 lockup, which beside six controls
-   does not fit 390px; the padding halves; the page background paints under
-   it so the content scrolls beneath rather than through. */
+   display and the logo is the only way back to the floors list. One thin row,
+   the padding halved, the page background painting under it so the content
+   scrolls beneath rather than through. */
 @media (max-width: 640px) {
   .pubws-topbar {
     position: sticky;
@@ -1513,8 +1521,6 @@ code, pre, kbd, samp {
        touch even when the row is at its tightest. */
     gap: 0.5rem;
   }
-  .pubws-logo-wide { display: none; }
-  .pubws-logo-phone { display: inline-flex; }
   .pubws-topbar-right { gap: 0.55rem; }
 }
 @media (max-width: 480px) {
@@ -2967,7 +2973,9 @@ button.notif-row-link {
 }
 .earndoor:hover { border-color: var(--accent); color: var(--text-primary); }
 .earndoor-n { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--accent); }
-@media (max-width: 519px) { .earndoor { display: none; } }
+/* The row carrying this door measures 525px, so it returns at a width that
+   can hold it and not one pixel earlier. */
+@media (max-width: 559px) { .earndoor { display: none; } }
 
 .acctmenu-earn {
   margin-left: 0.35rem;
