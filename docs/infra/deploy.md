@@ -18,7 +18,10 @@ which runs `scripts/deploy-managed.sh`) share the same
   through the publish gate, and it uses `--min-instances 0`.
 - The workflow passes `--update-env-vars ALLOWED_ORIGIN=https://telarchy.com,
   TRUSTED_ORIGINS=<the candidate tag URL>` and `--update-secrets
-  API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest`;
+  API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest,
+  GITHUB_ACTIONS_TOKEN=..., STRIPE_SECRET_KEY=..., STRIPE_WEBHOOK_SECRET=...`
+  (the Stripe pair is what turns paid liquidity on, and it rides the candidate
+  deploy only, never a branch preview: docs/liquidity-purchases.md);
   these are merged into the service's configuration, so every other env var
   and secret set on the service is inherited by the new revision. The hand
   deploy passes no env or secret flags and inherits everything.

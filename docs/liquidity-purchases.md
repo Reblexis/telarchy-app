@@ -99,7 +99,23 @@ what came in, for the books, not for a payout rule.
 
 Env-gated like USDC settlement: without `STRIPE_SECRET_KEY` and
 `STRIPE_WEBHOOK_SECRET` every purchase surface answers 503 and the instance
-sells nothing. telarchy.com stays disabled until the owner creates the
-Stripe account under the paying entity (open question in the approved
-design: Czech sole trader vs a US entity, a counsel question) and sets the
-secrets.
+sells nothing. That stays the default, and the right state for anyone
+self-hosting.
+
+On telarchy.com the pair lives in Secret Manager and is mounted by the
+candidate deploy, so it reaches the published revision and never a branch
+preview: the webhook that credits a purchase is registered against one URL,
+and a preview taking a payment nothing credits is worse than a preview that
+refuses. Both secrets are `:latest`, so a key rotation is a new secret
+version plus a redeploy, never a workflow edit.
+
+**The keys are Stripe TEST keys today** (account `acct_1UAC7kRK31zITseN`,
+"Telarchy sandbox", CZ, Managed Payments so Stripe carries the VAT). While
+they are, only Stripe's test cards pay: `4242 4242 4242 4242`, any future
+expiry, any CVC. Going live is three moves, in this order, because the
+webhook secret belongs to the endpoint and the endpoint belongs to the mode:
+register a live-mode endpoint on `https://telarchy.com/api/stripe/webhook`
+for `checkout.session.completed` and `checkout.session.async_payment_succeeded`,
+add the live `sk_live_` and that endpoint's `whsec_` as new versions of the
+two secrets, then redeploy. The test endpoint stays where it is, pointed at
+the candidate, so the flow can still be exercised without a real card.
