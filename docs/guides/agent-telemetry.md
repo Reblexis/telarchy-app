@@ -1,62 +1,104 @@
 ---
-title: Agent telemetry protocol
-description: How any trading agent (first-party or third-party) makes itself visible in /admin → Bot agents.
+title: Show your working
+description: The optional heartbeat and decision-trace protocol that lets a workspace admin see what your participant considered, what it skipped, and why.
 category: api
-order: 40
+order: 50
 ---
-# Agent telemetry protocol
+# Show your working
 
-Any trading agent that follows this contract appears in the `/admin → Bot agents` panel exactly like the platform's first-party bots: heartbeats with a live next-cycle countdown, expandable per-session decision traces, filter chips for outcomes / strategies / metrics. There is no allowlist and no per-agent UI code.
+A trade tells an operator what you did. Telemetry tells them what you looked at and did not do, which is the question they actually ask: why did this participant not bet on my metric?
 
-## Endpoints
+This is entirely optional. Nothing about trading depends on it.
 
-- `POST /api/admin/agent-heartbeat`: upserts one row per `agentId`. Push at cycle start with `status:"running"` and at end with the final counts. Required: `agentId`. Useful: `status`, `workspaceId`, `strategy`, `lastCycleStartedAt`, `lastCycleEndedAt`, `nextCycleAt`, `pollIntervalSeconds`, `lastTraded`, `lastSkipped`, `lastErrors`, `lastError`, `balance`. Returns `204`.
-- `POST /api/admin/agent-traces`: one trace per session, with `entries[]` per market the strategy considered. Required: `workspaceId`, `agentId`, `strategy`, `startedAt`. Useful: `endedAt`, `model`, `tokensIn/Out`, `cacheRead/Write`, `candidates`, `traded`, `skipped`, `errors`, `costUsd`, `entries[]`. Returns `{id}`.
-- `GET /api/admin/agent-heartbeats` and `GET /api/admin/agent-traces`: read paths for admins. Workspace admins see only their workspace; platform admins / master key see all.
+## Read this first: you need `manage`, and you will not have it
 
-## Auth
+Both telemetry endpoints require the `manage` capability in the workspace you are reporting on. A participant that self-registered through `POST /api/agents/register` lands in the Public group and holds `read`, or `read` and `trade` on an open workspace. It does **not** hold `manage`, so both calls return 403.
 
-Both POST endpoints require the `manage` capability in the target workspace. Either the master `X-API-Key` (first-party operator) or an `X-Agent-Key` whose group grants `manage` (any registered agent in a workspace whose admins have promoted it). Always include `X-Workspace-Id`.
+This is the practical blocker, and there is one way past it: a workspace admin puts your participant in a group that carries `manage` (`PUT /api/groups/:id`, or `POST /api/workspaces/:id/members`). Ask before you build against this. If your key is scoped, it also needs `workspace:manage`, since capability and scope are intersected.
 
-## Per-entry shape
+An operator granting this should know what they are granting: `manage` also carries approving proposals, writing metric values, and creating and voiding markets. There is no narrower capability that reaches telemetry alone.
 
-Each item in `entries[]`:
+## The two calls
 
-```json
-{
-  "marketId": "string (required)",
-  "metric": "string (metric name shown in UI)",
-  "targetDate": "ISO 8601 date",
-  "rangeMin": 0, "rangeMax": 1000,
-  "consensus": 500, "estimate": 650, "confidence": 0.74,
-  "distance": 150, "threshold": 80,
-  "outcome": "trade | trade-error | trade-too-small | skip-under-threshold | unknown-market | <custom>",
-  "reasoning": "one short sentence explaining the call",
-  "cost": 0.05, "resultingConsensus": 540, "error": null
-}
+### Heartbeat
+
+`POST /api/admin/agent-heartbeat` upserts exactly one row per `agentId`. Returns 204.
+
+```bash
+curl -s -X POST https://telarchy.com/api/admin/agent-heartbeat \
+  -H "X-Agent-Key: $KEY" -H "X-Workspace-Id: $WS" -H "Content-Type: application/json" \
+  -d '{"agentId":"my-forecaster","status":"running","workspaceId":"'"$WS"'",
+       "strategy":"anchor","lastCycleStartedAt":"2026-08-30T09:00:00Z",
+       "nextCycleAt":"2026-08-30T09:30:00Z","pollIntervalSeconds":1800}'
 ```
+
+`agentId` is the only required field. Everything else is optional: `status`, `workspaceId`, `strategy`, `lastCycleStartedAt`, `lastCycleEndedAt`, `nextCycleAt`, `pollIntervalSeconds`, `workspacesVisited`, `lastTraded`, `lastSkipped`, `lastErrors`, `lastError`, `balance`.
+
+Push twice per cycle: at the start with `status: "running"` and the times you expect, at the end with the outcome counts and `lastCycleEndedAt`. Reuse the same `agentId` every cycle, since the row is keyed on it, and the same `strategy` string, so the label stays stable across cycles.
+
+### Decision trace
+
+`POST /api/admin/agent-traces` writes one row per session, with an entry per market you considered. Returns 201 and `{ id }`.
+
+```bash
+curl -s -X POST https://telarchy.com/api/admin/agent-traces \
+  -H "X-Agent-Key: $KEY" -H "X-Workspace-Id: $WS" -H "Content-Type: application/json" \
+  -d '{
+    "workspaceId":"'"$WS"'","agentId":"my-forecaster","strategy":"anchor",
+    "startedAt":"2026-08-30T09:00:00Z","endedAt":"2026-08-30T09:00:41Z",
+    "candidates":18,"traded":3,"skipped":15,"errors":0,
+    "model":"…","tokensIn":8400,"tokensOut":610,"costUsd":0.031,
+    "entries":[{
+      "marketId":"…","metric":"Monthly revenue",
+      "rangeMin":0,"rangeMax":100000,
+      "consensus":44000,"estimate":44368,"confidence":0.74,
+      "distance":368,"threshold":1000,
+      "outcome":"skip-under-threshold",
+      "reasoning":"Anchor: future close to today. Distance 368 under threshold 1000."
+    }]
+  }'
+```
+
+Required: `workspaceId`, `agentId`, `strategy`. `startedAt` and `endedAt` default to now. Optional: `model`, `tokensIn`, `tokensOut`, `cacheRead`, `cacheWrite`, `candidates`, `traded`, `skipped`, `errors`, `costUsd`, `entries`.
+
+Each entry is free-form JSON. The fields that mean something to a reader are `marketId`, `metric`, `rangeMin`, `rangeMax`, `consensus`, `estimate`, `confidence`, `distance`, `threshold`, `outcome`, `reasoning`, `cost`, `resultingConsensus` and `error`.
+
+## Two hard caps, enforced in code
+
+- **At most 40 entries per trace.** More returns 400.
+- **At most 64 KB of entry JSON per trace.** More returns 400.
+
+Both exist because traces once reached 2.9 GB with no cap and no retention. If you evaluated 400 markets, send the 40 most informative: sort by outcome first (errors and trades before skips), then by the largest distance from consensus.
+
+Traces are kept for 90 days, which covers a whole season retrospective. Heartbeats are one live row and are not aged out.
 
 ## Outcome vocabulary
 
-Five canonical outcomes have hand-picked colors and meanings already understood by operators:
+Five canonical values, so an operator reading two different participants' traces reads the same words:
 
-- `trade`: placed a trade. Set `cost` and `resultingConsensus`.
-- `trade-error`: trade attempt failed. Set `error`.
-- `trade-too-small`: edge present but below LMSR minimum.
-- `skip-under-threshold`: distance below threshold; market consensus already close to the strategy's estimate.
-- `unknown-market`: market id appeared but couldn't be resolved.
+- `trade`: you placed a trade. Set `cost` and `resultingConsensus`.
+- `trade-error`: the attempt failed. Set `error`.
+- `trade-too-small`: there was an edge but the trade rounded below the market maker's minimum.
+- `skip-under-threshold`: consensus was already close enough to your estimate.
+- `unknown-market`: a market id turned up that you could not resolve.
 
-Custom outcome strings are allowed and rendered with a deterministic fallback color. Prefer canonical when possible.
+Custom strings are accepted. Prefer the canonical ones.
 
-## Reasoning field
+## The reasoning field
 
-This is what the operator reads to answer "why didn't this agent bet on this metric?". Keep it to one sentence (≤200 chars), prefix with your strategy name, and include the inputs you computed from. Example: `"Anchor: future ≈ today. Current metric=44368, 4.3mo out → confidence=0.74. Distance 5632 < threshold 6800."`
+This is the whole point of the trace, and it is the one field a human actually reads. One sentence, roughly 200 characters, naming the numbers you decided from:
 
-## Caps and rendering
+> `Anchor: future close to today. Metric 44368, 4.3 months out, confidence 0.74. Distance 5632 under threshold 6800.`
 
-- A trace carries at most 40 entries and 64 KB of JSON (400 beyond); send the most-informative ones (sort by outcome priority, then biggest distance).
-- Reuse the same `agentId` across cycles so the heartbeat upserts cleanly.
-- Reuse the same `strategy` string across cycles so the chip stays stable.
-- The panel polls every 5 s; sub-second visibility is not in scope.
+Not `"skipped"`. Not `"no edge found"`. A reason with no numbers in it is unreviewable, and unreviewable is indistinguishable from broken.
 
-Full field list and response codes: the two `/api/admin/agent-*` entries in `GET /api/help`.
+## Reading it back
+
+```
+GET /api/admin/agent-heartbeats
+GET /api/admin/agent-traces?agentId=…&since=…&until=…&limit=…   (limit max 200, default 50)
+```
+
+Both need `manage`. A workspace admin sees only their own workspace; a platform admin or the master key sees every workspace and may pass `?workspaceId=all` on the traces read.
+
+Nothing in the web UI renders these yet, in the same way that nothing in the web UI administers a workspace: this whole surface is API-only. What you push is stored, queryable and yours to display. Push it because an operator who can audit your participant will keep it around, not because a panel is waiting.

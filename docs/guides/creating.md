@@ -1,40 +1,245 @@
 ---
-title: Creating Metrics
-description: How to create, edit, and delete metrics, and what each field does.
-category: metrics
-order: 20
+title: Open a floor
+description: Create the workspace, put the first number on it, fund the book, and decide who else can act.
+category: run
+order: 10
 ---
-# Creating Metrics
+# Open a floor
 
-Open the **Metrics** page and use the form at the top. Only admins can create or edit metrics.
+A floor is one workspace: your numbers, the markets on them, and the contracts
+people offer you against them. Opening one takes two API calls.
 
-## Fields
+## There is no admin console
 
-- **Name** (required) - used in formula references by other metrics. Must match exactly, including capitalisation.
-- **Description** - optional. Helps participants understand what the metric measures.
-- **Formula** - leave blank for a leaf metric. Provide a formula to make it computed. See the *Formulas* guide for syntax.
-- **Value** - only editable for leaf metrics. Computed metrics always have value 0 (their total comes from the formula).
-- **Market range max** - only available on leaf metrics. Sets the upper bound for this metric's AMM markets. Defaults to 1000. Match the realistic range of the metric (e.g. a 0-100 score -> set to 100, a metric that peaks around 500 -> set to 500).
+Workspace administration lives in the API. The browser console was deleted on
+2026-08-19 and nothing replaced it, so every instruction of the form "open the
+settings page and click save" is dead. What exists in a browser today, on a
+public or unlisted floor, is the trading page itself, and on it the owner gets
+four things:
 
-> **Note:** Time preference (half-life) is only available when *editing* an existing metric, not at creation time. Create the metric first, then edit it to enable time preference. Both leaf and computed metrics can have time preference.
+- the approve, decline and remove bar on each contract,
+- the hero metric's description, edited in place,
+- the "What is *name*?" blurb,
+- announcements, published and edited at `<floor>/announcements`.
 
-## Recommended creation order
+All four are gated on the `manage` capability. Everything else, creating a
+workspace, creating and editing metrics, permissions, visibility, liquidity
+settings, deleting, is an HTTP call. A **private** workspace has no browser page
+at all: the floor route answers 403, so its members work through the API only.
 
-1. Create leaf metrics first so computed metrics can reference them immediately.
-2. Create computed metrics once their dependencies exist so formulas resolve immediately, though you can always edit formulas later.
+The other owner-side door is [Otto at /manage](/manage). He is a conversation,
+not a form, and he makes the same calls you would, as you. If you would rather
+answer questions than write JSON, start there.
 
-## Editing a metric
+`GET /api/help` is the live endpoint catalog, generated from the routes.
 
-Click **Edit** on any metric card. On leaf metrics you can update the value directly; this requires an *update note* (a short description of why the value changed, logged to the metric history).
+## Open the workspace
 
-> **Warning:** Any change to a metric's **definition** (name, description, formula, or market range max) voids all open markets for that metric. Voided positions are refunded to participants at cost (not at current market price), and fresh markets are spawned under the new definition. Inform active participants before making structural changes so they can close positions first if they prefer.
+```
+POST /api/workspaces
+{ "name": "Northwind", "template": "saas",
+  "templateParams": { "currency": "USD", "revenueRangeMax": 100000 } }
+```
 
-The only edits that do **not** void markets are value updates on leaf metrics and changes to non-definition fields such as display order. Toggling or adjusting time preference also does not void markets; it may close existing markets (halt trading, still resolve normally) or spawn new ones, but positions are retained.
+`name` is the only required field. It returns 201 with
+`{ id, name, slug, ownerHandle, visibility, template, metricsCreated,
+starterProposalId }`.
 
-## Deleting a metric
+**A template seeds leaf metrics so you do not start on a blank page.** Each one
+is a flat list with a description, a market range and a half-life already
+chosen. The ids: `saas`, `ecommerce`, `marketplace`, `consumer-app`, `agency`,
+`community`, `creator`, `oss` for a business; `wellbeing`, `health-fitness`,
+`career`, `learning`, `relationships`, `creative-project`,
+`financial-independence` for a person; `blank` for nothing. `templateParams`
+takes a `currency` (ISO code, defaults to USD) and a `revenueRangeMax` for the
+primary monetary metric. Everything a template writes is editable afterwards.
 
-Deleting a metric voids all its open markets (refunding positions at cost) and removes it from the tree. Any formulas in other metrics that reference it by name will start failing, so update those formulas first.
+**A new floor lands on `unlisted`.** It is live, joinable and tradeable by link,
+it is simply not on telarchy.com's front list until a person puts it there.
+Omitting `visibility` gives you unlisted, and asking for `public` is clamped
+down to it. Asking for `private` is honoured. Listing stays a human decision
+while a real-money season scores over every public workspace.
 
-## Order
+**Three floors per account.** The fourth `POST` returns 429 with the cap in the
+body and a link to ask for more.
 
-The **order** field controls how metrics are sorted in the UI. Lower numbers appear first. Default is 999. Use the edit modal to set a custom order.
+**The slug comes from the name**: lowercased, every run of non-alphanumerics
+turned into one hyphen, made unique against every slug you have ever used. The
+floor is at `telarchy.com/<slug>`. Renaming mints a new slug and keeps the old
+one in an alias table, so `GET /api/workspaces/resolve?owner=&slug=` still
+finds the workspace and tells the client to rewrite the URL. The id never
+changes at all, so `telarchy.com/marketplace/<id>` is the link to hand out if
+you expect to rename.
+
+## Put a number on it
+
+```
+POST /api/metrics
+{ "name": "Net revenue 2026 (USD)",
+  "description": "Stripe gross minus refunds and approved contracts, read on the 1st.",
+  "value": 0,
+  "marketRangeMax": 250000,
+  "timePreference": { "enabled": true, "halfLife": 1 } }
+```
+
+Needs the `manage` capability. Every field and its default:
+
+| Field | Default | What it is |
+|---|---|---|
+| `name` | required | The metric's identity. Formulas reference it by exact name, and a trailing `(USD)` marks it as money. See [metric design](/guides/metric-design). |
+| `description` | `""` | The settlement text. Write it as the resolution source, because this is what a trader reads before pricing you. |
+| `value` | `0` | The current reading. Ignored on a metric with a formula. |
+| `formula` | `"0"` | Empty or `0` means a leaf. Anything else makes it computed. See [formulas](/guides/formulas). |
+| `marketRangeMax` | `1000` | Upper bound of every market on this metric. Leaf metrics only; must be positive. |
+| `timePreference` | `{ enabled: true, halfLife: 1 }` | Which future dates get markets. Pass `null` for no curve. See [time preference](/guides/time-preference). |
+| `resetsEvery` | `null` | `hour`, `day`, `week`, `month` or `year` when the number restarts each period. Null when it accumulates or is a level. |
+| `resolvesNaUntilMeasured` | `false` | When true, markets void as N/A while the metric has no reading rather than settling on 0. |
+| `order` | 999 | Display order. Not settable here; use `POST /api/metrics/reorder` with an array of ids. |
+
+There is no `target`, no `granularity` and no `unit` field. Granularity is
+derived from the dates markets open on, currency is read from the name, and a
+goal line is a market rather than a column.
+
+**Get `marketRangeMax` right before the first market opens.** A market copies
+the range at spawn time and prices inside it, ranges start at zero, and
+settlement clamps the actual value to the range top. A metric that can reach
+500,000 on a range of 1,000 settles at the ceiling and pays every "higher"
+holder in full no matter what happened. You cannot change the range while a
+market is open, which is the next section.
+
+## Editing, and the two edits that are refused
+
+Since 2026-08-18, editing a definition does not void markets. That rule splits
+the fields in two.
+
+**Words apply in place.** `name` and `description` change at any time, with the
+market untouched: same price, same pool, same trades, same positions. A rename
+also syncs the name markets display. Each change writes an append-only row to
+`metric_definition_revisions` recording the field, the old value, the new value
+and who changed it. There is no endpoint serving those rows today, so treat the
+table as an internal audit trail rather than as disclosure to your traders. If
+a reworded definition changes what the market settles on, say so in an
+announcement.
+
+**Machinery is refused.** `formula` and `marketRangeMax` are what an open market
+settles on, so changing either while any market on that metric is unresolved
+returns 409 naming the field and the market. Wait for it to resolve, or void it
+deliberately first. On a computed metric a `value` you try to write is refused
+the same way.
+
+**Deleting a metric** is refused with 409 once an open market on it has been
+traded, because deleting voids those markets and voiding takes money off people
+who chose to put it there. The 409 says how many participants hold positions.
+Untraded markets do not block it.
+
+**Voiding a traded market is possible and deliberately loud.** `POST
+/api/predictions/markets/:id/void` refuses a traded market unless you send
+`acknowledgeTraded: true` plus a `reason` of at least ten characters, which is
+published on the market's resolution event. Holders get their net cash back;
+what they lose is the position and the price discovery, never their money.
+
+**There is no reset endpoint.** Not for a metric, not for a market, not for the
+economy. Starting over is `DELETE /api/workspaces/:id` and creating a new one,
+and even that is refused with 409 while a running prize season scores the
+workspace.
+
+## Give the market a book
+
+The pricing engine is an LMSR with a depth parameter `b`. Everything you fund is
+denominated in credits, and those credits are the market's pool: `pool = b * ln
+2`, so `b = pool / ln 2`. Two consequences to know:
+
+- **Price impact scales as one over `b`.** Double the depth and, per credit
+  traded, the price moves half as far. Thin markets swing on pocket change; deep
+  ones need conviction.
+- **A conditional pair opens at the baseline price** rather than at the middle
+  of the range, which costs a slightly thinner book for the same money, because
+  an LMSR that starts off centre has a larger worst case to cover.
+
+The default of 0.5 credits per market is deliberately small, and it is thin
+enough to matter: measured on the beta, one five-credit trade against a market
+funded that way moved the forecast from the middle of the band to its ceiling.
+The platform's own test of a readable market is whether a five-credit trade
+moves the consensus by more than a fifth of the range. If it does, fund it
+more.
+
+**A market with `b` at or below zero has no price and refuses trades.** The
+consensus is undefined, the floor shows nothing to read, and a trade returns 400
+saying someone has to fund it first. This is the single most common reason a
+floor looks broken.
+
+Two workspace settings decide whether that happens to you:
+
+- `autoFundNewMarkets`, on by default at creation.
+- `newMarketLiquidityCredits`, 0.5 credits per new market at creation.
+
+Both need the granular `manage_workspace` capability, and turning auto-fund on
+requires the owner to have a participant record with a balance to spend.
+
+**Funding is partial rather than all-or-nothing.** When your balance covers only
+some of the new markets, the affordable ones are funded at the full rate now and
+the rest open unfunded, to be picked up by a later refresh as the balance
+allows. That beats the old behaviour, where a day's rollover left every market
+at zero because the balance was short of the whole day's need. A contract's
+conditional markets follow a different rule, described in
+[deciding a proposal](/guides/proposals).
+
+Funding one market by hand is `POST /api/predictions/markets/:id/liquidity
+{ amount }`, and it needs only `trade`, not `manage`: anyone who can trade a
+market can deepen it. Funding it out of *another* participant's balance is the
+part that needs `manage`.
+
+**There is no 0.1 credit minimum.** The only floor is the storage precision,
+one nanocredit, so an amount cannot round down to zero and create a market with
+no book. A thin market is a risk you are allowed to take.
+
+Your account starts with 10,000 credits from signup; a participant registered
+through the API starts with 0 and is funded by transfer or by a workspace admin.
+The current grant table is published at `GET /api/earn`.
+
+## Who else can act
+
+Two independent switches decide who sees a floor.
+
+**Visibility** is `public` (listed on the front page), `unlisted` (reachable by
+link, not listed) or `private` (no browser page, 403 from every public route,
+and a join attempt answers 404 so the endpoint cannot be used to probe for
+workspace ids).
+
+**Whether the Public group holds `read`** is the second switch, and it is not
+implied by the first. A public workspace whose Public group lacks `read` keeps a
+counts-only boundary: metric names, market prices and counts are visible, while
+logged values, contract text and chat need membership. Granting the Public group
+`read` makes it an open floor, where the whole ballot is in the public payload
+because anyone is one free self-join away from it anyway. An anonymous reader
+gets `read` and nothing more, even on a floor whose Public group also holds
+`trade`, because there is no account to debit.
+
+Flipping a floor to private also strips `trade` from the Public group in the
+same transaction, so trading rights granted while it was open do not survive.
+
+**Capabilities** are `read`, `trade`, `manage` and `manage_workspace`. It is a
+flat set with no implication chain.
+
+> **`manage_workspace` is not implied by `manage`, and the Admin group does not
+> have it.** A teammate you add with `role: "admin"` lands in a group carrying
+> `read`, `trade` and `manage`. They can approve contracts, edit metrics,
+> publish announcements, edit the charter and manage groups. They get 403 on
+> every lifecycle setting (`visibility`, `autoFundNewMarkets`,
+> `newMarketLiquidityCredits`, `proposalReward`, `spamPenalty`,
+> `maxPendingProposalsPerParticipant`, `maxPositionCostPerMarket`) and they
+> cannot delete the workspace. In practice only the creator can, because the
+> creator gets every capability by being the creator and no group hands
+> `manage_workspace` out.
+
+If you want a teammate to hold it, grant it explicitly:
+`PUT /api/groups/:id { "capabilities": ["read","trade","manage","manage_workspace"] }`.
+
+**Per-metric permissions** are a map on a permission group, and only half of it
+does anything. Marking `trade: true` on a metric for a group *restricts* that
+metric's trading to that group's members; a metric no group has marked is
+tradeable by everyone with `trade`, and anyone with `manage` bypasses the
+restriction. The `read` half of the same map is stored, validated and enforced
+nowhere, so do not promise anyone that a metric is hidden from other members.
+Per-source `read` is a different field and is enforced; that is how you publish
+a document to the floor or keep it internal.

@@ -1,6 +1,5 @@
-import { readFileSync } from 'fs';
-import { join, resolve } from 'path';
 import { GUIDE_SECTIONS } from '../content/guides';
+import { HELP } from '../lib/help-catalog';
 import { GUIDE_CATEGORIES } from '../routes/guides';
 
 /**
@@ -15,8 +14,8 @@ import { GUIDE_CATEGORIES } from '../routes/guides';
  * regex.
  */
 
-const REPO_ROOT = resolve(__dirname, '../../..');
-const APP_TS = join(REPO_ROOT, 'functions/src/lib/help-catalog.ts');
+// The catalog is no longer read as source: it interpolates its guide lists
+// from GUIDE_SECTIONS, so these tests assert on the rendered HELP object.
 
 /**
  * The /api/help catalog advertises the guide sections in two places: the root
@@ -27,25 +26,6 @@ const APP_TS = join(REPO_ROOT, 'functions/src/lib/help-catalog.ts');
  * section absent from the catalog is undiscoverable to an API-only consumer,
  * so pin both lists to the sections that actually exist.
  */
-function parseAdvertisedSections(): { root: string[]; endpoint: string[] } {
-  const src = readFileSync(APP_TS, 'utf8');
-  const between = (haystack: string, start: string, end: string): string[] => {
-    const from = haystack.indexOf(start);
-    if (from === -1)
-      throw new Error(`app.ts: could not locate "${start}" -- the help catalog wording changed; update this test`);
-    const to = haystack.indexOf(end, from + start.length);
-    if (to === -1) throw new Error(`app.ts: could not locate "${end}" after "${start}"`);
-    return haystack
-      .slice(from + start.length, to)
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-  };
-  return {
-    root: between(src, 'markdown for a specific section (', ')'),
-    endpoint: between(src, 'Guide section as plain markdown. Sections: ', '. No auth required.'),
-  };
-}
 
 // The sections are data now (docs/guides/*.md -> functions/src/content/guides.ts,
 // 2026-08-25), so the structure checks read the real objects instead of the
@@ -72,7 +52,10 @@ describe('/api/guides structure', () => {
   });
 
   test('parses the documented category list', () => {
-    expect(categoryIds).toEqual(['start', 'metrics', 'forecast', 'api']);
+    // Rebuilt 2026-08-30 around the reader's job rather than the product's
+    // parts: someone arrives wanting to forecast, or wanting their own numbers
+    // priced. 'metrics' became 'run' and absorbed the owner-side guides.
+    expect(categoryIds).toEqual(['start', 'forecast', 'run', 'api']);
   });
 
   test('every section is tagged with a known category', () => {
@@ -119,30 +102,54 @@ describe('/api/guides structure', () => {
     expect(inStart[0]?.id).toBe('overview');
   });
 
-  test('the API category contains auth-and-keys before agent-api before recipes before api-reference', () => {
-    const inApi = sections.filter(s => s.category === 'api').sort((a, b) => a.order - b.order);
-    const ids = inApi.map(s => s.id);
-    expect(ids.indexOf('auth-and-keys')).toBeLessThan(ids.indexOf('agent-api'));
-    expect(ids.indexOf('agent-api')).toBeLessThan(ids.indexOf('recipes'));
+  test('the API category runs walkthrough, then worked examples, then reference', () => {
+    const ids = sections
+      .filter(s => s.category === 'api')
+      .sort((a, b) => a.order - b.order)
+      .map(s => s.id);
+    // The loop first (it is what a builder came for), auth once they have a
+    // reason to care, examples, then the catalog they will live in afterwards.
+    expect(ids.indexOf('agent-api')).toBeLessThan(ids.indexOf('auth-and-keys'));
+    expect(ids.indexOf('auth-and-keys')).toBeLessThan(ids.indexOf('recipes'));
     expect(ids.indexOf('recipes')).toBeLessThan(ids.indexOf('api-reference'));
   });
 
-  test('the metrics category leads with metric-design (theory before mechanics)', () => {
-    const inMetrics = sections.filter(s => s.category === 'metrics').sort((a, b) => a.order - b.order);
-    expect(inMetrics[0]?.id).toBe('metric-design');
+  test('the owner path opens the floor, then chooses the number, then decides', () => {
+    const ids = sections
+      .filter(s => s.category === 'run')
+      .sort((a, b) => a.order - b.order)
+      .map(s => s.id);
+    expect(ids[0]).toBe('creating');
+    expect(ids.indexOf('metric-design')).toBeLessThan(ids.indexOf('proposals'));
+  });
+
+  test('the forecaster path opens with how a market pays', () => {
+    const ids = sections
+      .filter(s => s.category === 'forecast')
+      .sort((a, b) => a.order - b.order)
+      .map(s => s.id);
+    expect(ids[0]).toBe('markets');
+    expect(ids).toContain('seasons');
   });
 
   test('/api/help advertises every guide section, in both of its lists', () => {
-    const advertised = parseAdvertisedSections();
+    // Both lists are now interpolated from GUIDE_SECTIONS rather than typed
+    // out, because the hand-written ones listed 16 of 19 after this rebuild.
+    // Assert the rendered catalog, which is what a caller actually reads.
     const actual = sections.map(s => s.id).sort();
-    expect([...advertised.root].sort()).toEqual(actual);
-    expect([...advertised.endpoint].sort()).toEqual(actual);
+    const rendered = [
+      String(HELP.guides),
+      HELP.endpoints.find(e => e.path === '/api/guides/:section')?.description ?? '',
+    ];
+    for (const text of rendered) {
+      const advertised = (text.match(/[a-z][a-z-]*(?=,|\)|\.)/g) ?? []).filter(id => actual.includes(id));
+      expect([...new Set(advertised)].sort()).toEqual(actual);
+    }
   });
 
   test('the onboarding runbook is advertised (an agent-first product cannot hide it)', () => {
-    const advertised = parseAdvertisedSections();
     expect(sections.map(s => s.id)).toContain('onboarding');
-    expect(advertised.root).toContain('onboarding');
-    expect(advertised.endpoint).toContain('onboarding');
+    expect(String(HELP.guides)).toContain('onboarding');
+    expect(HELP.endpoints.find(e => e.path === '/api/guides/:section')?.description).toContain('onboarding');
   });
 });

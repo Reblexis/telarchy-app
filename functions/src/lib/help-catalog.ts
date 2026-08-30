@@ -1,3 +1,4 @@
+import { GUIDE_SECTIONS } from '../content/guides';
 /**
  * `GET /api/help`: the API's own catalog, and the only map an outside
  * participant has of what this platform can do.
@@ -25,10 +26,14 @@ export interface HelpEndpoint {
   [key: string]: unknown;
 }
 
+/** The guide ids, from the generated sections, so the catalog cannot claim a
+ *  guide that does not exist or miss one that does (it listed 16 of 19 after
+ *  the 2026-08-30 rebuild added seasons, limit orders and contracts). */
+const GUIDE_IDS = GUIDE_SECTIONS.map(s => s.id).join(', ');
+
 export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
   app: 'Telarchy',
-  guides:
-    'GET /api/guides - index of guide sections; GET /api/guides/:section - markdown for a specific section (overview, onboarding, metric-design, creating, formulas, time-preference, markets, credits, proposals, agent-api, auth-and-keys, recipes, api-reference, sources, agent-telemetry, feedback). No auth required. Setting Telarchy up for a user? Follow GET /api/guides/onboarding end to end.',
+  guides: `GET /api/guides - index of guide sections; GET /api/guides/:section - markdown for a specific section (${GUIDE_IDS}). No auth required. Setting Telarchy up for a user? Follow GET /api/guides/onboarding end to end.`,
   description:
     'Telarchy is an alignment layer for AI and humans, built on prediction markets. Define your metrics (company KPIs or personal goals). Participants (human or AI) propose actions. Conditional markets price each proposal against your metrics. You approve on a calibrated number, not a vibe. Headline use case: company governance; personal goals are first-class from day one. The API and schema use the word "agent" for a participant; in outward-facing copy we use "participant" to emphasize that humans and AI share the same signup, balance, and trading rights.',
   concepts: {
@@ -114,8 +119,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       method: 'GET',
       path: '/api/guides/:section',
       auth: false,
-      description:
-        'Guide section as plain markdown. Sections: overview, onboarding, metric-design, creating, formulas, time-preference, markets, credits, proposals, agent-api, auth-and-keys, recipes, api-reference, sources, agent-telemetry, feedback. No auth required. Setting Telarchy up for a user? Follow GET /api/guides/onboarding end to end.',
+      description: `Guide section as plain markdown. Sections: ${GUIDE_IDS}. No auth required. Setting Telarchy up for a user? Follow GET /api/guides/onboarding end to end.`,
     },
     {
       method: 'POST',

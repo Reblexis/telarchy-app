@@ -1,138 +1,140 @@
 ---
-title: Time Preference
-description: How TP nodes blend present and future market consensus, and how to configure half-life.
-category: metrics
-order: 40
+title: Pick which future dates get a market
+description: How half-life chooses the horizons, what the blended outlook is, and how to pin an exact date.
+category: run
+order: 50
 ---
-# Time Preference
+# Pick which future dates get a market
 
-## Why it matters
+A metric on its own tells you where you stand right now. Time preference is how
+you say which futures you care about, and it does two things:
 
-A metric that only reflects its current value tells you where things stand *right now*. Time preference gives a metric a temporal dimension, blending present state with predicted future values using market consensus.
+1. It decides **which future dates open markets** on this metric.
+2. It produces the **outlook**, a single number blending today's reading with
+   what the crowd says those dates will hold.
 
-## How it works
+The resolver never reads your half-life. A market settles on the metric's logged
+reading at its own resolution instant, so changing your mind about horizons
+never changes how an existing market pays: a date you drop deactivates its
+market, and that market still resolves normally with every position intact.
 
-Any metric (leaf or computed) can have time preference enabled. When enabled, the system:
+One coupling is indirect and worth knowing before you enable the curve. The
+reading written to the log is the metric's outlook, and on a leaf whose curve is
+**enabled** the outlook is the blend, not your raw entry. So a market on such a
+leaf settles against a figure that already contains market consensus. A leaf
+with the curve off, using custom horizons only, logs the number you entered and
+is unaffected. If you want the market to settle on your reading and nothing
+else, that is the configuration to use.
 
-1. Samples time points from an exponential curve defined by the half-life (count set by *market density*, default 3, configurable 1-50)
-2. Creates prediction markets for the metric's leaf descendants (or itself, if it's a leaf) at those dates
-3. Blends the consensus values at those future dates with the current value (t=0) into a single present-equivalent score
-
-### Leaf metrics with TP
-
-A leaf metric with time preference creates markets for *itself* at each sampled date. Its total becomes a blend of its current value and the market consensus at future dates. This is the simplest way to get forward-looking signal; just enable TP on any leaf you care about.
-
-### Computed metrics with TP
-
-A computed metric with time preference creates markets for all its *leaf descendants* at each sampled date. It evaluates its formula at each future date using the market consensus for those leaves, then blends the results.
-
-### Metrics above TP nodes
-
-Metrics above a TP node are purely compositional. They combine TP-enabled children via formulas and are themselves forward-looking as a result, because each TP child already delivers a blended present+future value.
-
-## Why you can't nest TP nodes, and don't need to
-
-On any path through the metric graph, at most one node may have time preference enabled.
-
-A TP node expects everything below it to represent *current state*. If a second TP node sat inside that subtree, it would compute a future-blend of its own leaves and pass that up as if it were a current value. The outer TP node would then sample that already-blended future value at further future dates, a future-of-a-future with no coherent interpretation.
-
-If you want metrics with different timescales, make them **siblings**, each with their own TP:
-
-```
-# Correct: sibling TP nodes with different half-lives
-Overall  (formula: {ShortTerm} + {LongTerm})
-├── ShortTerm  (TP: half-life=0.5y)  ← near-horizon concerns
-└── LongTerm   (TP: half-life=5y)   ← far-horizon concerns
-
-# Also correct: TP directly on a leaf
-Revenue  (leaf, TP: half-life=1y)  ← markets created for Revenue itself
-
-# Wrong: nested TP nodes
-Overall
-└── ShortTerm  (TP: half-life=0.5y)
-    └── SubGoal  (TP: half-life=0.25y)  ← not allowed
-        └── LeafMetric  (leaf)
-```
-
-## How values are labeled
-
-The UI labels depend on whether time preference is enabled:
-
-- **Leaf + TP**: Shows **Now** (your current self-report, editable) and **Outlook** (the TP-blended total combining present value with market consensus at future dates).
-- **Plain leaf** (no TP): Shows **Now** (editable; total equals value, so no second number).
-- **Formula + TP**: Shows **Outlook** (the TP-blended formula result). The "now" is computed from children and visible on their cards.
-- **Plain formula** (no TP): Shows **Now** (the formula result computed from children's current values).
-
-In the API response, `value` is the self-report (leaves only), and `total` is the final number after TP blending or formula evaluation.
-
-## Half-life
-
-The only parameter is **half-life** (in years). It sets the timescale of your concern; the median sampled time point falls exactly at the half-life:
-
-- **Short half-life (e.g. 0.5y)** - near-term dominated; most weight on the next few months. Good for fast-moving or tactical metrics.
-- **Long half-life (e.g. 5y)** - long-horizon; samples spread across years. Good for strategic or structural goals.
-
-The blend is a simple average across t=0 and the sampled future points (equal weights). The half-life shapes *where* those samples fall, not how much each one counts. All samples share a single calendar granularity (day, week, month, or year), chosen as the coarsest one whose bucket width is at most the smallest gap between adjacent samples, so two samples can never land in overlapping buckets (no "2026-W23 plus 2026-06 both covering the same day" double counting).
-
-## Custom market dates
-
-Beyond the exponential curve, any metric can carry **custom market horizons**: an explicit list of extra dates to keep markets at. They work with the curve on or off (a metric can have purely manual horizons), and like the curve they propagate to leaf descendants. Two kinds of entry:
-
-- **Rolling offsets**: `+Nh`, `+Nd`, `+Nw`, `+Nm`, `+Ny` (e.g. `+3m`, `+1h`). Re-resolved against "now" on every hourly refresh, so there is always a market about that far out. The offset's unit sets the market granularity: `+3m` maintains a month-market, `+2w` a week-market, `+6h` an hour-market. Want a standing intraday ladder? `["+1h", "+2h", ..., "+24h"]` keeps a market at every hour of the next day.
-- **One-shot dates**: `YYYY`, `YYYY-MM`, `YYYY-Www`, `YYYY-MM-DD`, or `YYYY-MM-DDTHH` (e.g. `2026-12-31`, `2026-12-31T14` for 14:00-15:00 UTC). A single market that resolves at the end of that period and is not recreated. Fully-passed periods are pruned on save.
-
-Configure them in the metric's edit modal ("Custom market dates"), or via the API: `timePreference.customHorizons` is an array of such strings (at most 24), e.g.
+It is a field on the metric, `timePreference`, set through `POST /api/metrics`
+or `PUT /api/metrics/:id`. There is no toggle in a browser.
 
 ```json
-{ "timePreference": { "enabled": false, "halfLife": 1, "customHorizons": ["+3m", "2026-12-31"] } }
+{ "timePreference": { "enabled": true, "halfLife": 1, "density": 3,
+                      "customHorizons": ["+3m", "2026-12-31"] } }
 ```
 
-`enabled` gates only the exponential curve; custom horizons generate markets regardless. Removing an entry deactivates its market (existing positions are kept and resolve normally). Custom-horizon markets are pure forecasting instruments: they show up in the future-predictions chart but do **not** feed the TP-blended outlook, which stays defined by the curve.
+## Half-life is in years
 
-Note the difference from one-off manual markets (`POST /api/predictions/markets`): a manual market is a single row not tied to metric config; it survives the daily refresh untouched but is never recreated or rolled. Custom horizons are config: the system keeps the desired markets in existence for you.
+`halfLife` is the timescale of your concern, in years, and it must be positive.
+The sampler draws from an exponential decay curve with that half-life and takes
+quantile midpoints, so **the median sampled date falls exactly at the
+half-life**.
 
-## The "Current X" structural pattern
+- `0.5` puts most of the weight in the next few months. Tactical numbers.
+- `5` spreads the samples across years. Structural ones.
 
-A common and recommended pattern is to separate the TP node from the current-state calculation using an intermediate "Current X" metric:
+`density` is how many future dates get sampled. **It defaults to 3**, and it
+must be a positive integer. Higher density means more markets, and every one of
+them needs liquidity to have a price at all, so raise it deliberately.
+
+All samples share one calendar granularity: the coarsest of day, week, month or
+year whose bucket is no wider than the smallest gap between adjacent samples.
+That is what stops two samples landing in overlapping buckets, where a weekly
+market and a monthly market would both cover the same day on the same metric.
+
+The blend is a plain average across today and the sampled dates, each counted
+once, because equal probability mass per bin is what the quantile sampling is
+for. Half-life decides *where* the samples fall, not how heavily each one counts.
+
+Omitting `timePreference` entirely on `POST /api/metrics` gives you
+`{ enabled: true, halfLife: 1 }`. Pass `null` to keep a metric with no curve.
+
+## Leaf, computed, and above
+
+- **A leaf with time preference** opens markets on itself at each sampled date.
+  Its outlook blends its own reading with those prices. This is the simplest
+  useful setup and it is what the templates do.
+- **A computed metric with time preference** opens markets on all of its leaf
+  descendants, evaluates its formula at each future date from those prices, and
+  blends the results. A leaf with no market at a sampled date contributes 0 to
+  that evaluation, which is worth remembering when half your leaves are
+  unfunded.
+- **A metric above a time-preferenced one** is purely compositional. It is
+  forward-looking already, because each child it combines is.
+
+**At most one metric on any path may carry the curve.** A second one inside the
+subtree would blend its own leaves into a future value and hand it upward as if
+it were today's reading, and the outer node would then sample that already
+blended number at further future dates. There is no coherent reading of a
+future of a future.
+
+Enabling it on a metric whose ancestor already has it returns 400 from
+`PUT /api/metrics/:id`, naming the ancestor. Enabling it on a parent removes the
+curve from its descendants and warns you which ones. Custom horizons are an
+explicit choice and survive that demotion.
+
+For metrics with genuinely different timescales, make them siblings:
 
 ```
-Product quality       (TP node, formula: {Current product quality})
-└── Current product quality  (computed, formula: ({Reliability} + {Performance}) / 2)
-    ├── Reliability  (leaf)
-    └── Performance  (leaf)
+Overall  (formula: {ShortTerm} + {LongTerm})
+├── ShortTerm  (halfLife 0.5)
+└── LongTerm   (halfLife 5)
 ```
 
-The TP node's only job is temporal blending; it delegates all composition logic to its "Current" child. This keeps the two concerns separate:
+A pattern worth borrowing: keep the time-preferenced node's formula as nothing
+but `{Current X}`, and let a separate "Current X" metric do the composition. The
+node then has one job, declaring the timescale, and "what this is right now" and
+"what the market thinks it will be" stay two visibly separate things.
 
-- **TP node** - declares the timescale and drives market creation; formula is always just `{Current X}`
-- **Current X node** - computes what the metric actually is right now from its leaves; no TP, no markets
+## Pinning an exact date
 
-Avoid collapsing these two levels into one. A single TP node with a complex formula works mechanically, but it obscures the structure and makes it harder to reason about what "current" means vs what the market forecast means.
+`customHorizons` is a list of extra dates to keep markets at, working with the
+curve on or off. A metric can have purely manual horizons. At most 24 entries,
+and duplicates are dropped.
 
-## How to enable it
+**Rolling offsets** are `+Nh`, `+Nd`, `+Nw`, `+Nm`, `+Ny`. They are re-resolved
+against now on every refresh, so there is always a market about that far out,
+and the unit sets the market's granularity: `+3m` maintains a month market,
+`+2w` a week market, `+6h` an hour market. `+0w` is the current period, which is
+how you say "revenue this week" and have it mean this week rather than the next
+one. A standing intraday ladder is `["+1h", "+2h", ...]`.
 
-1. Create the metric (leaf or computed).
-2. Open **Edit** on that metric.
-3. Toggle *Time Preference* on and set the half-life in years.
-4. Save. Markets are automatically created at the sampled dates plus any custom market dates (for the metric itself if it's a leaf, or for all its leaf descendants if it has a formula).
+**One-shot dates** are `YYYY`, `YYYY-MM`, `YYYY-Www`, `YYYY-MM-DD` or
+`YYYY-MM-DDTHH` (hour, UTC). One market, resolving at the end of that period,
+never recreated. Dates whose period has already passed are pruned on save
+rather than rejected, so re-saving an old config never fails.
 
-## Example
+Two properties to plan around:
 
-```
-# Simple: TP on individual leaves
-Revenue    (leaf, TP: half-life=1y)    ← markets for Revenue
-NPS        (leaf, TP: half-life=0.5y)  ← markets for NPS
+- **Custom horizons do not feed the outlook.** They are pure forecasting
+  instruments: they appear on the chart and in the market list, and the blended
+  number stays defined by the curve.
+- **Removing an entry deactivates its market rather than voiding it.** Trading
+  stops, existing positions are kept, and it resolves normally. Changing
+  `timePreference` in general reconciles: stale dates deactivate, newly desired
+  dates are created, positions are never taken away.
 
-# Hierarchical: TP on computed nodes
-Overall  (formula: {ShortTerm} + {LongTerm})     ← aggregates TP nodes
-│
-├── ShortTerm  (TP: half-life=0.5y)               ← temporal bridge
-│   formula: {MetricA} + {MetricB}
-│   ├── MetricA  (leaf)                            ← markets created here
-│   └── MetricB  (leaf)                            ← markets created here
-│
-└── LongTerm   (TP: half-life=5y)                  ← separate timescale
-    formula: {MetricC} + {MetricD}
-    ├── MetricC  (leaf)
-    └── MetricD  (leaf)
-```
+A one-off market created directly with `POST /api/predictions/markets` is a
+different thing: a single row not tied to metric config, which survives the
+refresh untouched but is never recreated or rolled. Custom horizons are
+configuration, and the system keeps the markets you asked for in existence.
+
+## Count the markets before you turn it up
+
+Markets are the product of metrics, sampled dates and custom horizons, and every
+one of them needs liquidity or it has no price. Three metrics at density 3 plus
+two custom horizons is fifteen markets, and each contract posted against that
+floor spawns two more per market. Set `newMarketLiquidityCredits` with that
+number in mind, and see [open a floor](/guides/creating) for how funding
+actually behaves when your balance runs short.
