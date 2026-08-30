@@ -17,7 +17,7 @@ the top.
 | `agent-telemetry-protocol.md` | How an AI participant reports its cycles into `/admin` |
 | `guides/` | The in-app guides served at `/api/guides`, one file per section |
 | `limit-orders.md` | Limit orders on the market ladder |
-| `market-integrity.md` | The three integrity rules for a live season |
+| `market-integrity.md` | The four integrity invariants for a live season |
 | `seasons.md` | Seasons: bounded cash tournaments for traders |
 | `otto.md` | Otto, the floor's assistant: surfaces, guarantees, tools and budgets, the eval as the conformance check |
 | `data-room.md` | The public data room: what telarchy.com publishes about itself |

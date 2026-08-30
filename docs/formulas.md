@@ -22,8 +22,7 @@ function := sqrt | abs | log | log10 | min | max | pow | clamp
 - `{Metric name}` refers to another metric by its exact name; whitespace inside
   the braces is trimmed. A reference to a metric that does not exist evaluates
   as 0. A reference to a metric whose value is not known yet makes the whole
-  formula's value unknown (null), never 0. In a time-preference projection, a
-  leaf with no market on the sampled date contributes 0.
+  formula's value unknown (null), never 0.
 - Precedence, tightest first: function call and parentheses, `^`, unary minus,
   `*` `/`, `+` `-`. `^` is right-associative (`2^3^2` = 512) and binds tighter
   than unary minus (`-2^2` = -4). `^` is power, never bitwise XOR, and the
@@ -34,6 +33,12 @@ function := sqrt | abs | log | log10 | min | max | pow | clamp
   `clamp(value, lo, hi)` three; `min` and `max` one or more.
 - An empty formula, or the formula `0`, marks a leaf metric (its value is entered
   or synced, not computed).
+
+`evaluateFormulaAtTime` is a separate utility over the same grammar. It resolves
+each leaf from that leaf's market price at a named date instead of from its
+measurement, and it is the one place an unknown leaf reads 0 rather than
+unknown. It fills the `timeSeries` field on a composed metric in the metrics
+payload and nothing else; a metric's own value never comes from it.
 
 ## Rejected
 

@@ -10,16 +10,17 @@ Credits are the betting unit. They are free, they cannot be bought, and they
 have no cash value. You need some before you can trade, and there are only a few
 ways to get them.
 
-**Every current grant is published at [GET /api/earn](/api/earn).** The numbers
-below are what those rules say today, and the operator can change any of them,
-including mid-season, so read the endpoint rather than trusting a number written
-in a guide. Every change is recorded.
+**Every grant is priced in a live table, published at
+[GET /api/earn](/api/earn).** The operator reprices a route whenever it stops
+being worth what it costs to fake, mid-season included, so read the endpoint
+rather than trusting a number written in a guide. Every change is recorded.
 
-| How | What you get today |
+| How | What you get |
 |---|---|
-| Sign up with email, Google or GitHub | 10,000 credits |
-| Register a participant through the API | 0. A bot is funded by its owner |
-| Link a Manifold account | Your Manifold net worth, one mana to one credit, capped at 10,000 |
+| Sign up with email | The email signup grant |
+| Sign up with Google or GitHub | The OAuth signup grant, priced apart from email: an address and an aged Google account do not cost the same to fake |
+| Register a participant through the API | Nothing. A bot is funded by its owner |
+| Link a Manifold account | A flat grant for an established Manifold record |
 | A transfer from another participant | Whatever they send |
 
 ## Registering a bot gets you nothing, on purpose
@@ -38,15 +39,29 @@ history, in both directions.
 
 ## Bringing a Manifold record across
 
-If you already forecast on Manifold, your record there is worth credits here,
-once per Manifold account and once per Telarchy account, ever.
+If you already forecast on Manifold, an established record there is worth
+credits here, once per Manifold account and once per Telarchy account, ever.
+
+The grant is flat: one amount for any qualifying account, priced in the earn
+table like every other route. It is not scaled by your mana and not capped by
+it. What the import pays for is the account, not the balance, because mana
+moves freely between Manifold accounts and net worth is the one signal a farmer
+can concentrate into a fresh handle.
+
+Three conditions decide whether an account qualifies, all checked when you
+claim. Failing any of them is a 400 that names the one you failed.
+
+- The account is at least 90 days old.
+- It is not flagged as a bot.
+- It has either placed a bet in the last 60 days, or created markets other
+  people have traded.
 
 1. `POST /api/import/manifold/start` with your Manifold username. You get a
    one-time code that looks like `telarchy-3f9a1c22`.
 2. Put that code anywhere in your Manifold bio.
 3. `POST /api/import/manifold/claim`. Telarchy reads your bio through
-   Manifold's public API, checks the code, then reads your portfolio and grants
-   `balance + investmentValue` at one mana to one credit, up to the cap.
+   Manifold's public API, checks the code and the three conditions, then grants
+   what the earn table says the link is worth.
 
 You can remove the code from your bio immediately afterwards. Nothing moves:
 your mana stays on Manifold. Your Manifold handle then shows as a badge on your

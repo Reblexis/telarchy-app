@@ -12,8 +12,11 @@ the copy means editing both in the same commit.
 Copy rules that bind these pages (AGENTS.md "Canonical positioning"): the
 approval wedge never appears without the calibrated-number clause; "human or
 AI" wherever a statement covers both; companies and individuals both
-first-class; no "startup"; no open-source claim; the mechanism is named after
-the job, never led with.
+first-class; no "startup"; the mechanism is named after the job, never led
+with. The open-source claim is allowed here and only in this register: AGENTS.md
+"Open source, precisely" says to state AGPL-3.0-only where the page links the
+code, and never as a slogan, so it lives in THE CODE section at the bottom and
+nowhere near the pitch.
 
 A workspace is described as the handful of metrics that decide the most, never
 as one number. The page is short and left-aligned: a numbered mechanism plus

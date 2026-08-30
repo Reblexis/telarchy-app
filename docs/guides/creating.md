@@ -124,8 +124,12 @@ announcement.
 **Machinery is refused.** `formula` and `marketRangeMax` are what an open market
 settles on, so changing either while any market on that metric is unresolved
 returns 409 naming the field and the market. Wait for it to resolve, or void it
-deliberately first. On a computed metric a `value` you try to write is refused
-the same way.
+deliberately first.
+
+A `value` sent to a computed metric is not refused and not stored: the route
+sets the stored value to 0 and returns 200, because a computed metric reads its
+formula and nothing else. To move the number, change the formula or the leaves
+it reads.
 
 **Deleting a metric** is refused with 409 once an open market on it has been
 traded, because deleting voids those markets and voiding takes money off people
@@ -138,10 +142,15 @@ Untraded markets do not block it.
 published on the market's resolution event. Holders get their net cash back;
 what they lose is the position and the price discovery, never their money.
 
-**There is no reset endpoint.** Not for a metric, not for a market, not for the
-economy. Starting over is `DELETE /api/workspaces/:id` and creating a new one,
-and even that is refused with 409 while a running prize season scores the
-workspace.
+**There is no economy-wide reset.** `POST /api/system/reset-economy` does not
+exist and is not coming back. Starting over is `DELETE /api/workspaces/:id` and
+creating a new one, and even that is refused with 409 while a running prize
+season scores the workspace.
+
+The one destructive endpoint that does exist is `POST /api/metrics/logs/purge`,
+which deletes reading rows: one metric with `{ metricId }`, the whole workspace
+without it. It destroys the history markets settle against, so there is no
+reason to run it on a live floor.
 
 ## Give the market a book
 
@@ -193,9 +202,10 @@ part that needs `manage`.
 one nanocredit, so an amount cannot round down to zero and create a market with
 no book. A thin market is a risk you are allowed to take.
 
-Your account starts with 10,000 credits from signup; a participant registered
-through the API starts with 0 and is funded by transfer or by a workspace admin.
-The current grant table is published at `GET /api/earn`.
+Your account starts with whatever the signup route you used grants; a
+participant registered through the API starts with nothing and is funded by
+transfer or by a workspace admin. Every grant is priced in a live table
+published at `GET /api/earn`, so read it rather than a number in a guide.
 
 ## Who else can act
 

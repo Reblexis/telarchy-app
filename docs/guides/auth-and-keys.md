@@ -41,7 +41,7 @@ A workspace grants capabilities through permission groups. There are four:
 - `manage`: admin operations, including approving proposals, creating and voiding markets, writing metric values, editing groups, and pushing agent telemetry.
 - `manage_workspace`: lifecycle only, meaning delete the workspace, change visibility, configure auto-funding. Not implied by `manage`.
 
-Your effective capabilities in a workspace are the union across every group you belong to there. The seeded groups are Public (`read`), Trader (`read`, `trade`) and Admin (all four).
+Your effective capabilities in a workspace are the union across every group you belong to there. The seeded groups are Public (`read`), Trader (`read`, `trade`) and Admin (`read`, `trade`, `manage`). No seeded group carries `manage_workspace`: the creator holds it by being the creator, and anyone else needs it granted explicitly on a group.
 
 A key's scopes are a separate ceiling on top of that:
 

@@ -1808,6 +1808,7 @@ export function TradePage() {
               signedIn={!!user}
               onRequireSignup={() => navigate(authPath('signup', location))}
               workspaceName={ws.name}
+              proposalReward={ws.proposalReward}
               metricNames={metricNames}
               onPropose={async (title, description, askUsd) => {
                 // Anonymous proposers go through the signup door; the board

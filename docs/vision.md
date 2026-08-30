@@ -102,7 +102,7 @@ This framing is load-bearing for positioning, not a tagline. The mechanism (cond
 
 Privacy in Telarchy is not a pricing tier or a deployment mode you commit to up front. It is a continuous setting that lives on three levels, and every one of them is the owner's to choose and to change at any time. This is what turns the "why now" privacy-unlock argument above into an actual product feature, and it is one of the main reasons an owner can put a decision they would never expose to human teammates in front of the market.
 
-1. **Per-workspace.** A single Settings picker offers three access levels: **Private** (invite-only, not listed anywhere), **Public** (listed on `/api/marketplace`, joiners can view but not trade), and **Open** (listed, joiners can trade immediately). Under the hood this composes workspace `visibility` with the Public permission group's capabilities; the picker adjusts both atomically. New workspaces created by a non-admin identity default to Unlisted (live, joinable and tradeable by link, not listed; `public` is clamped to `unlisted` at creation, see the self-serve brakes above), while the backend default for API-only and self-hosted callers (`provisionWorkspace` with no `visibility`) is the safer Private.
+1. **Per-workspace.** Three access levels: **Private** (invite-only, not listed anywhere), **Public** (listed on `/api/marketplace`, joiners can view but not trade), and **Open** (listed, joiners can trade immediately). Each is a composition of workspace `visibility` with the Public permission group's capabilities, set through `PUT /api/workspaces/:id/settings` and `PUT /api/groups/:id`; there is no browser screen for it. New workspaces created by a non-admin identity default to Unlisted (live, joinable and tradeable by link, not listed; `public` is clamped to `unlisted` at creation, see the self-serve brakes above), while the backend default for API-only and self-hosted callers (`provisionWorkspace` with no `visibility`) is the safer Private.
 2. **Per-metric.** Permission groups carry a `permissions` map (`metricId -> { read, trade }`), so a participant can be granted forecasting rights on exactly one KPI while the rest of the workspace's numbers stay invisible to them. Exposure is a per-metric decision, not all-or-nothing per workspace.
 3. **Per-source.** The same model extends to information stores via a `sourcePermissions` map (`sourceId -> { read }`). Context docs, credentials, or a connected GitHub repo can be shared with the precise set of participants that need them and withheld from everyone else.
 
@@ -339,13 +339,13 @@ This keeps workspaces decoupled at the definition level while still allowing par
 2. **Privacy** - a personal workspace may contain sensitive self-assessments; a company workspace may contain confidential revenue numbers. Each can have a different participant set without exposing the other's data.
 3. **Multi-stakeholder** - multiple shareholders can co-own a workspace and independently evaluate its impact on their respective higher-level utilities. The exact coordination mechanism for this is an open design question.
 
-Workspace settings include the display name, access level, and auto-funding of new non-proposal markets. Access is a single picker in Settings with three options: **Private** (invite-only), **Public** (listed on `/api/marketplace`, joiners view only), **Open** (listed, joiners can trade immediately). Under the hood this composes two primitives: `visibility` on the workspace (`public` / `unlisted` / `private`) and the Public permission group's `capabilities`. "Open" means `visibility=public` plus `['read','trade']` on the Public group; the picker adjusts both atomically so there is no separate backend field. Owners can still fine-tune the Public group's capabilities on the Participants page if they need something in between. **New workspaces created by a non-admin identity default to Unlisted** (no picker at creation; `public` is clamped to `unlisted`), live and joinable by link until a human lists them; a one-line notice on the welcome check-in page points to Settings for anyone who wants to change the access level. The backend default (`provisionWorkspace` with no `visibility` specified) remains `private`, which is the safer default for non-UI callers (self-hosted, API-only). Auto-funding is enabled by default on new workspaces (`DEFAULT_MARKET_LIQUIDITY_CREDITS = 0.5` per market), deducting from the workspace owner's balance. The browser client always talks to the deployment API (`VITE_API_URL` / hosted URL). Self-hosting remains a deploy-time concern, not a per-workspace redirect.
+Workspace settings include the display name, access level, and auto-funding of new non-proposal markets, all written through `PUT /api/workspaces/:id/settings`. Access has three levels: **Private** (invite-only), **Public** (listed on `/api/marketplace`, joiners view only), **Open** (listed, joiners can trade immediately). Each composes two primitives: `visibility` on the workspace (`public` / `unlisted` / `private`) and the Public permission group's `capabilities`. "Open" means `visibility=public` plus `['read','trade']` on the Public group; there is no separate backend field, and an owner who wants something in between edits the Public group's capabilities directly with `PUT /api/groups/:id`. **New workspaces created by a non-admin identity default to Unlisted** (`public` is clamped to `unlisted` at creation), live and joinable by link until a human lists them. The backend default (`provisionWorkspace` with no `visibility` specified) remains `private`, which is the safer default for non-UI callers (self-hosted, API-only). Auto-funding is enabled by default on new workspaces (`DEFAULT_MARKET_LIQUIDITY_CREDITS = 0.5` per market), deducting from the workspace owner's balance. The browser client always talks to the deployment API (`VITE_API_URL` / hosted URL). Self-hosting remains a deploy-time concern, not a per-workspace redirect.
 
 ## Current State
 
 ### Onboarding templates
 
-`POST /api/workspaces` accepts an optional `template` field (`startup`, `personal`, or `blank`) plus `templateParams`. Non-blank templates provision a small, opinionated set of leaf metrics with time preference enabled, each with a `marketRangeMax` matched to the metric's realistic bounds and sibling TP half-lives chosen to reflect each metric's timescale. Templates encode the `metric-design` guide principles directly (outcomes not activities, subjective self-reports over speculative proxies). Users edit freely after creation. Template definitions live in `functions/src/lib/templates.ts`; the `/create-workspace` UI picks a template before asking for a name.
+`POST /api/workspaces` accepts an optional `template` field (`startup`, `personal`, or `blank`) plus `templateParams`. Non-blank templates provision a small, opinionated set of leaf metrics with time preference enabled, each with a `marketRangeMax` matched to the metric's realistic bounds and sibling TP half-lives chosen to reflect each metric's timescale. Templates encode the `metric-design` guide principles directly (outcomes not activities, subjective self-reports over speculative proxies). Users edit freely after creation. Template definitions live in `functions/src/lib/templates.ts`; a template is named on the `POST /api/workspaces` call. The setup conversation at `/manage` does not use them: it opens a blank floor and builds the metric with the operator instead, because a template cannot know which number this operator actually reads.
 
 ### Phase 1: Participant Economy
 
@@ -355,19 +355,19 @@ Participants sign up either through browser accounts or direct API-key registrat
 - **Authentication**: three paths checked in order: master API key (`X-API-Key` header), BetterAuth browser-account session (cookie, resolved via `auth.api.getSession()`), per-participant API key (`X-Agent-Key`, SHA-256 hashed; header name kept for backwards compatibility). Google and GitHub OAuth are supported when `GOOGLE_CLIENT_ID`/`GITHUB_CLIENT_ID` env vars are set. Browser accounts attach directly to a participant row in the `agents` table via `authUserId` (the table retains its original name). CORS and BetterAuth `trustedOrigins` come only from `ALLOWED_ORIGIN` / `TRUSTED_ORIGINS` (see `functions/src/lib/origins.ts`); `BETTER_AUTH_URL` is the public browser origin for OAuth redirects; optional `AUTH_COOKIE_DOMAIN` (e.g. `.example.com`) aligns cookies when apex and www both serve the app.
 - **Identity symmetry**: human participants and AI participants are the same class of identity with different signup methods. A human-user login resolves to the same participant identity used by the corresponding API-key session, so trading, proposal, and workspace capabilities stay aligned.
 - **Balance tracking**: `balance`, `earnedBetting`, `spentBetting`, `spentTokens` - separate counters for full auditability.
-- **Credit economy**: Grants are priced at what the account verifiably brings (owner decision 2026-08-28): a user signup receives `SIGNUP_CREDITS` (per-instance env config, default 10,000), an API-registered participant receives `AGENT_SIGNUP_CREDITS` (default 0) and trades on credits its owner transfers to it, and a linked Manifold record grants its net worth capped at 10,000. telarchy.com runs the defaults; a self-hosted instance may set both to 0 so that credits enter only through admin crediting or transfers. Credits are the core economy: workspace owners spend them to fund market liquidity; participants spend them to place predictions. On the managed instance (telarchy.com), credits are play-money with real scarcity. Platform admins can also distribute credits via `POST /agents/:id/credit`. On self-hosted instances with USDC settlement enabled, every credit is backed 1:1 by USDC held in the treasury, created only via `POST /agents/:id/deposit` (USDC -> credits, requires on-chain tx hash verification).
+- **Credit economy**: Grants are priced at what the account verifiably brings, in the earn table (`earn_rules`), which the operator edits live and publishes at `GET /api/earn`; no grant is a constant in prose. A browser signup is priced by the provider it came through, an API-registered participant is priced at nothing and trades on credits its owner transfers to it, and a linked Manifold record earns a flat grant for a qualified account rather than anything scaled by its mana. The env constants (`SIGNUP_CREDITS`, `AGENT_SIGNUP_CREDITS`) remain the fallback for an instance whose table was never seeded, and a self-hosted instance may set them to 0 so that credits enter only through admin crediting or transfers. Detail: `docs/agent-economy.md`. Credits are the core economy: workspace owners spend them to fund market liquidity; participants spend them to place predictions. On the managed instance (telarchy.com), credits are play-money with real scarcity. Platform admins can also distribute credits via `POST /agents/:id/credit`. On self-hosted instances with USDC settlement enabled, every credit is backed 1:1 by USDC held in the treasury, created only via `POST /agents/:id/deposit` (USDC -> credits, requires on-chain tx hash verification).
 - **Global balance**: A participant's balance row in the `agents` table is not scoped to any workspace. Each participant has exactly one account with one credit balance usable across the system. **Balances are stored as integer nanocredits** (1 credit = 1,000,000,000 units) to eliminate IEEE 754 float drift. All reads go through `fromUnits()`, all writes use `toUnits()` before any SQL increment.
-- **Admin UI**: Participants page with admin badge (rendered when a participant has the `manage` capability), credit distribution, PnL display. Administrative access is granted by adding a participant to the Admin system group (or any group whose capabilities include `manage`), not via a direct role dropdown.
+- **Participant administration**: the participant list, its capabilities and its PnL are API reads, and credit distribution is `POST /api/agents/:id/credit`; there is no browser screen. Administrative access is granted by adding a participant to the Admin system group, or to any group whose capabilities include `manage`, not via a role field.
 - **Admin activity feed**: `GET /api/admin/activity` (manage capability required) returns a unified, workspace-scoped stream of trades, deposits, withdrawals, market creations/resolutions, metric updates, proposal activity, and liquidity events. Filterable by time range, type, participant, market, metric, or proposal. Polled with `nextCursor` for near-realtime observability of what every participant (human or bot) is doing.
 
 ### Phase 2: Prediction Layer
 
 Participants forecast metric values, staking credits on their predictions.
 
-- **Markets**: created by admin or auto-created from time-preference curves. Markets are also refreshed daily (00:10 UTC cron).
+- **Markets**: created by admin or auto-created from time-preference curves. The managed instance refreshes them hourly (`POST /api/cron/refresh`, `10 * * * *`); the live schedule is `docs/infra/deploy.md`.
 - **Date granularity**: markets support multiple target date formats: `YYYY` (year), `YYYY-MM` (month), `YYYY-Www` (ISO week), `YYYY-MM-DD` (day). Relative dates (`+Nd`, `+Nw`, `+Nm`, `+Ny`) are resolved to absolute dates at creation time.
-- **Resolution**: markets resolve when `endOfPeriod(targetDate) <= today`. Triggered by admin button or daily cron (00:00 UTC).
-- **Admin UI**: markets page with create/delete, consensus display, resolve and refresh buttons. Target dates shown as `{date} (granularity)`.
+- **Resolution**: markets resolve when `endOfPeriod(targetDate) <= today`. Triggered by `POST /api/predictions/resolve` or by the resolve cron, which runs every 10 minutes on the managed instance.
+- **Market administration** is API-only: create, void, resolve and refresh are calls under `/api/predictions`, and there is no browser screen for any of them.
 
 ### Formula Composition
 
@@ -563,7 +563,7 @@ Markets are a **binary Automated Market Maker** using LMSR (Logarithmic Market S
 - Each market has a value range (e.g. 0-1000) and stores `shares: [lowerShares, higherShares]`.
 - Participants predict **higher** or **lower**. Buying higher shares pushes the probability (and consensus) up.
 - Participants can also **sell** existing positions back to the AMM at current prices.
-- **Consensus** = `rangeMin + p(higher) * (rangeMax - rangeMin)`, fed back into metric formulas.
+- **Consensus** = `rangeMin + p(higher) * (rangeMax - rangeMin)`. It is a price, and it is read as one: no metric's value is computed from it. A market with no liquidity has no price at all, and its consensus is null rather than 0.
 - **At resolution**, payouts are **proportional**: if actual value V falls at fraction `p = (V - rangeMin) / (rangeMax - rangeMin)`, higher shares pay `p` credits each, lower shares pay `1 - p` credits each.
 
 **LMSR mechanics**:
@@ -580,25 +580,21 @@ p(higher) = 1 / (1 + exp(-(q_higher - q_lower) / b))
 - `Market` stores: `rangeMin`, `rangeMax`, `shares: [lower, higher]`, `liquidity`
 - `positions` track direction (`higher`/`lower`) + shares per agent per market
 - `POST /predictions/trade` - two modes: `{direction, amount}` or `{value, amount}` (auto-picks direction based on which side the value falls)
-- **UI**: probability slider per market, Higher/Lower buttons
+- **UI**: the floor's trade ticket, with Higher/Lower sides, a stake slider and an optional target value
 
 ### Phase 7: Time Preference System
 
 A per-node **time preference** property handles forward-looking evaluation and market creation; formulas carry no `consensus()` calls.
 
 **Core model**:
-- `timePreference: { enabled: boolean, halfLife: number }` - **enabled by default** on new metrics (half-life 1 year). Without TP, a metric has no markets and cannot be tracked over time.
+- `timePreference: { enabled: boolean, halfLife: number, density?: number, customHorizons?: string[] }` - **enabled by default** on new metrics (half-life 1 year). The market dates a metric wants are the curve's samples when `enabled` union its resolved `customHorizons`, so custom horizons alone open markets on a metric whose curve is off. A metric with neither has no markets.
 - When enabled, the node samples future dates on a decay curve and opens a market at each one. It does not change what the node reads: a metric's value is its measurement (leaf) or its formula over measurements (computed), never a blend with market consensus. Blending was removed on 2026-08-30 because the blended figure reached settlement, so a market could settle partly against its own price.
 - **Formulas stay simple**: only `{MetricName}` references and math. No `consensus()` calls.
-- **Sampling**: 10 quantile-midpoint samples from an exponential distribution with the given `halfLife` (in years). Each sample covers equal probability mass; weights are uniform. The median sample falls at `t = halfLife`.
+- **Sampling**: `density` quantile-midpoint samples (default 3) from an exponential distribution with the given `halfLife` (in years). Each sample covers equal probability mass; weights are uniform. The median sample falls at `t = halfLife`.
 - **Date granularity** of sampled time points adapts to distance: `YYYY-MM-DD` (< 1 week), `YYYY-Www` (< 1 month), `YYYY-MM` (< 1 year), `YYYY` (≥ 1 year).
 - **Markets** are created only for leaf nodes (metrics with no formula), at the time points sampled by their ancestor's time-preference curve.
 
-**Computation**:
-```
-value = sum(weight(t_i) * formula_eval_at_t_i) / sum(weight(t_i))
-```
-Non-leaf intermediate nodes in the subtree are evaluated deterministically from their formulas given predicted leaf values; no markets needed for them.
+**Computation**: time preference decides which dates get a market and nothing else. A leaf reads its measurement, a computed metric reads its formula over those measurements, and no weighted sum over sampled dates enters either. Non-leaf intermediate nodes in the subtree are evaluated deterministically from their formulas; no markets are needed for them.
 
 **Tree zone model**: when TP is on a computed metric, it divides the subtree into two zones:
 - **Above the TP node**: purely compositional. These metrics combine their children via formulas; the horizons live on the children. They don't interact with markets directly.
@@ -613,13 +609,13 @@ Any metric, leaf or computed, can have time preference enabled. A leaf with TP c
 **Market lifecycle**:
 - **Invariant**: a market may only exist while its metric's **definition** (name, description, formula, `marketRangeMax`) is unchanged from when the market was created. The set of valid statuses is:
   - **open**: trading allowed, will resolve on `targetDate`.
-  - **closed** (`active: false`, not resolved, not voided): trading halted because the metric no longer references that `(metricId, targetDate)` pair (e.g. half-life change, or calendar time progressed past the sampled dates). The definition is still valid, so the market resolves normally on `targetDate` against the metric's live value. Existing positions are retained.
+  - **closed** (`active: false`, not resolved, not voided): trading halted because the metric no longer references that `(metricId, targetDate)` pair (e.g. half-life change, or calendar time progressed past the sampled dates). The definition is still valid, so the market settles normally at its `resolvesOn` instant, on the metric's last logged reading at or before that instant. Existing positions are retained.
   - **resolved**: `targetDate` has passed, positions paid out against the metric's actual value.
   - **voided**: market was cancelled and every participant refunded **what they still had at stake in it**: the sum of their trades on that market (buys positive, sells negative), floored at zero. This is the only correct outcome whenever the metric's definition would change or disappear out from under a market.
 
     **A void refunds net cash, not gross cost.** The refund is not `positions.totalCost`, the cumulative BUY cost, which a sell never reduces (selling decrements `shares` only, on purpose, so churning cannot stretch the position cap); refunding gross cost would let a participant who bought and sold the same shares back mint credits on every round trip before an expected void. Refunding net cash means a break-even round trip gets nothing back, someone still holding gets exactly what they still have in, and the floor at zero means a void never DEBITS anyone. A participant who sold out above their cost keeps that realised gain and receives no refund; the shortfall comes out of pool leftover before LPs, which is where market-maker risk belongs. The position cap reads gross `totalCost`; the net-cash rule governs settlement only.
-- **Closure happens when and only when** the trading window expires with the definition unchanged. Any edit that changes the definition (name, description, formula, `marketRangeMax`) voids all open markets for that metric and respawns fresh ones under the new definition. Deleting a metric voids all its open markets (refunds net cash, per the void rule above); descendant markets under a deleted non-leaf TP ancestor keep their own unchanged definitions and close naturally.
-- The daily cron (00:10 UTC) and "Refresh Markets" button compute the desired `(leafId, targetDate)` set and create missing markets. Markets falling out of the desired set are set `active: false` (closed).
+- **Closure happens when and only when** the trading window expires. Since 2026-08-18 a definition edit no longer voids and respawns: `name` and `description` apply in place, recorded in append-only revision history, while `formula` and `marketRangeMax` are refused with 409 for as long as any market on that metric is open, because those are what the open market settles on (`docs/market-integrity.md`, I1). Deleting a metric voids all its open markets (refunds net cash, per the void rule above); descendant markets under a deleted non-leaf TP ancestor keep their own unchanged definitions and close naturally.
+- The refresh cron and `POST /api/cron/refresh` compute the desired `(leafId, targetDate)` set and create missing markets. Markets falling out of the desired set are set `active: false` (closed).
 - A distributed refresh lock prevents duplicate creation from concurrent refresh calls.
 
 **Examples**:
@@ -662,7 +658,7 @@ On self-hosted instances with `USDC_SETTLEMENT_ENABLED=true`, credits are backed
 - The fee surplus stays in the treasury. The system is self-sustaining: total USDC held ≥ credits outstanding × creditValueUsd at all times.
 - Each tx hash is stored in the `deposits` table and rejected if reused (double-spend prevention).
 
-**Web UI**: signed-in users get **Top up with USDC** from Account (balance area and sidebar); deposit panels render **`GET /api/guides/credits`** for prose and **`GET /api/agents/deposit-address`** for live contract/treasury values (same as any API client), plus the existing **`POST /api/agents/me/deposit`** form.
+**Web UI**: the account dialog carries the deposit panel, and only on an instance with USDC settlement switched on, because a deposit box on a simulation instance is an invitation to a mistake. It renders **`GET /api/guides/credits`** for prose and **`GET /api/agents/deposit-address`** for live contract/treasury values (same as any API client), plus the **`POST /api/agents/me/deposit`** form. There is no account page: `/account` redirects to the floor.
 
 **Economy parameters** (stored in the `systemConfig` table, key: `economy`):
 - `creditValueUsd` - USD value of 1 credit (also used for withdrawal conversion).
@@ -686,15 +682,14 @@ A local hook watcher (e.g. cron-run `scripts/hook-watcher.cjs`) polls the event 
   - a **string** (event type) - the participant is woken on any event of that type, or
   - an **object** `{ type, metricNames?, metricIds? }` - filter by metric name/id.
 
-### Metrics Graphing System
+### Charts on the floor
 
-The Metrics tab uses a single Chart.js graph engine for both inline card charts and the expanded graph modal.
+Two hand-rolled SVG charts, no charting library, both on the floor page.
 
-- **Shared renderer**: inline and modal charts rendered by the same `MetricsTimeChart` component.
-- **Unified date model**: mixed target date formats normalized into canonical timestamps before plotting.
-- **Axis behavior**: x-axis labels adaptive to visible time span, y-axis labels use deterministic numeric formatting.
-- **Interaction**: inline charts support hover/click-to-expand; modal charts support tooltip inspection and x-axis pan/zoom.
-- **Single realized-value history line**: the Graph modal draws one line, the metric's realized value over time. For leaves that is `value` (the user-authored "Now:" number); for composites `value` is always 0, so the line is sourced from the logged `outlook`, which since 2026-08-30 holds the computed formula result and nothing else. There is no value/future-consensus blend anywhere: market-informed future consensus is shown only on demand via the "Show future predictions" toggle, which overlays the forward-dated `timeSeries` as a dashed forecast, and it never enters what a market settles on.
+- **The market's call** (`MarketChart`): one series, this market's consensus over its own lifetime. Consensus is piecewise constant between trades, so the line steps and every step is somebody's trade. It ends at the current call, marked with a dot and the value; the settle date is a caption under the chart rather than chart space.
+- **The number** (`NumberChart`): the metric's own readings as a step line up to a "now" rule, and on the future side a marker for every open market on that metric at its settle instant, carrying that market's current call. The market on screen is amber and labelled, the others grey, and one beyond the window is a chevron at the edge.
+- **Unified date model**: mixed target date granularities are normalized to instants before plotting. The window follows the selected horizon and tweens rather than snaps when it changes.
+- **One realized-value line**: the readings series is `value` for a leaf; a composite's `value` is always 0, so the line is sourced from the logged `outlook`, which since 2026-08-30 holds the computed formula result and nothing else. There is no value/future-consensus blend anywhere in the product, and no market price enters what any market settles on.
 
 ## Planned Phases
 

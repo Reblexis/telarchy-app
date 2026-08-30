@@ -94,7 +94,7 @@ curl -s -b ~/.telarchy/cookies.txt -X POST https://telarchy.com/api/agents/me/ke
 rm ~/.telarchy/cookies.txt
 ```
 
-Keys carry a default workspace, so mint after the workspace exists. The workspace URL is `https://telarchy.com/{ownerHandle}/{slug}`.
+Keys carry a default workspace, so mint after the workspace exists. The workspace URL is `https://telarchy.com/{slug}`.
 
 ## Step 4: the number, and the horizon that makes it a market
 
@@ -117,14 +117,14 @@ Keep horizons no finer than the data cadence. Weekly data under daily markets se
 
 Two facts to tell them at this point, both about editing later:
 
-- **`name` and `description` can change at any time.** They never disturb a market, and every change lands in a public revision log next to the definition.
+- **`name` and `description` can change at any time.** They never disturb a market, and every change lands in an append-only revision log. Nothing serves that log yet, so if a reworded definition changes what the market settles on, say so in an announcement.
 - **`formula` and `marketRangeMax` cannot change while a market on that metric is open.** They are what the market settles on, so the edit is refused with 409. Get the range right now, or void the market deliberately first.
 
 ## Step 5: fund the market, or nothing trades
 
-**This is the step that gets skipped, and it is the one that makes the workspace look broken.** A new market opens holding zero liquidity: it renders perfectly and refuses every trade until someone funds it. Auto-funding is off by default.
+**This is the step that gets skipped, and it is the one that makes the workspace look broken.** A market holding zero liquidity renders perfectly and refuses every trade until someone funds it.
 
-Either fund each market directly, or turn auto-funding on so future ones fund themselves:
+A new workspace is created with auto-funding already on, at 0.5 credits per market, charged to the owner's balance as each market opens. That is enough to make a market tradeable and not enough to make it worth forecasting against, and when the balance will not cover the whole batch the run funds what it can and opens the rest unfunded. So the work here is raising the number, watching the balance, or funding markets by hand:
 
 ```bash
 curl -s -X POST https://telarchy.com/api/predictions/markets/$MARKET_ID/liquidity \
@@ -133,8 +133,10 @@ curl -s -X POST https://telarchy.com/api/predictions/markets/$MARKET_ID/liquidit
 
 curl -s -X PUT https://telarchy.com/api/workspaces/$WS/settings \
   -H "X-Agent-Key: $KEY" -H "X-Workspace-Id: $WS" -H "Content-Type: application/json" \
-  -d '{"autoFundNewMarkets":true,"newMarketLiquidityCredits":25}'
+  -d '{"autoFundNewMarkets":true,"newMarketLiquidityCredits":'"$PER_MARKET"'}'
 ```
+
+Work `$PER_MARKET` out rather than copying a number. It is charged once per market, a metric opens one market per horizon and reopens them as rolling offsets re-resolve, and each proposal opens two conditional markets for every open baseline market. Read the balance at `GET /api/agents/me` and the grants that fill it at `GET /api/earn`, divide the balance by the markets you expect to open in the next month, and set a fraction of that. Set it at the whole quotient and the first proposal empties the balance; set it too low and every market's price moves on a single credit.
 
 Liquidity is at risk rather than spent: it is refunded to the providers proportionally when the market resolves, and when it voids. Deeper liquidity means a trade moves the price less, which is what a forecaster with a real view wants.
 
@@ -173,7 +175,7 @@ The sync key needs `workspace:manage`, which also carries approving proposals an
 
 - **Their own bots**: `POST /api/agents` with `account:agents` on your key registers a participant under their ownership and mints it a scoped key in one call (default: Trader). A third-party bot self-registers with `POST /api/agents/register`, which mints a wildcard key and **zero credits**. Either way, fund it with `POST /api/agents/transfer`.
 - **Teammates**: they sign up themselves and give their handle. Resolve it with `GET /api/agents/<handle>/public`, then `POST /api/workspaces/:id/members { "participantId": "…", "role": "admin"|"trader"|"viewer" }`. Give at least one other person `admin` in any multi-person workspace so it does not hinge on one account.
-- **Permissions**: groups carry capabilities plus optional per-metric and per-source rules, edited with `PUT /api/groups/:id`. The seeded groups are Public (read), Trader (read, trade) and Admin (everything).
+- **Permissions**: groups carry capabilities plus optional per-metric and per-source rules, edited with `PUT /api/groups/:id`. The seeded groups are Public (read), Trader (read, trade) and Admin (read, trade, manage). No seeded group holds `manage_workspace`, so an admin teammate cannot change visibility, auto-funding or the proposal settings, and cannot delete the workspace; grant it explicitly on a group if you want someone else to hold it.
 - **Context for forecasters**: attach sources. `POST /api/sources` takes pasted text, and a project brief in there makes every forecast better. Connecting a GitHub repository starts an OAuth redirect at `GET /api/sources/github/install`, so send the user to their browser for that one.
 - **Proposal economics** (`PUT /api/workspaces/:id/settings`): `proposalReward` pays proposers on approval, `spamPenalty` charges bad-faith ones, `maxPendingProposalsPerParticipant` caps throughput, `maxPositionCostPerMarket` caps how much any one participant can spend on a single market. Leave them at defaults for a first workspace.
 
@@ -214,7 +216,7 @@ curl -s -X POST https://telarchy.com/api/predictions/trade \
 
 Write them a short summary:
 
-1. The workspace URL, `https://telarchy.com/{ownerHandle}/{slug}`.
+1. The workspace URL, `https://telarchy.com/{slug}`.
 2. What exists: the metric, its range and horizons, the markets and how much liquidity each holds, participants, groups, sources.
 3. Where every key lives and what it can do. If the setup key was minted broad, narrow it now: `PATCH /api/agents/me/keys/:keyId`.
 4. The sync plan: what updates automatically on what schedule, what is a check-in, what is manual.

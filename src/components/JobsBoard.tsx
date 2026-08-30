@@ -52,6 +52,9 @@ interface Props {
   horizonMetricId?: string | null;
   /** Workspace name, for the "do something useful for X?" propose prompt. */
   workspaceName: string;
+  /** The workspace's proposalReward, in credits. Defaults to 0, so the board
+   *  must not promise a bounty it does not pay. */
+  proposalReward?: number;
   /** The numbers this floor prices, for the form's placeholders. A proposer
    *  arrives knowing what they want to do and not which metric it moves;
    *  naming them in the prompt is what turns "Links: portfolio" into a pitch
@@ -113,6 +116,7 @@ export function deltaAt(
 }
 
 export function JobsBoard({
+  proposalReward = 0,
   proposals,
   unit,
   selectedId,
@@ -310,11 +314,13 @@ export function JobsBoard({
         <button className="pubws-propose-cta" onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}>
           + Offer to do a contract
         </button>
-        {/* Surface the stake on the board itself, not only inside the form:
-            posting costs 500 cr and pays 1,000 cr back if the owner approves,
-            so a new signup (1,000 free cr) can afford it and see the upside. */}
+        {/* Surface the upside on the board itself, not only inside the form.
+            The credit bounty is the workspace's own proposalReward and
+            defaults to 0, so say it only where it is actually paid: a
+            hardcoded "plus 500 cr" was a promise most floors do not keep. */}
         <p className="pubws-propose-cost">
-          Free to post. Approved means <strong>you are paid in real money</strong>, plus 500&nbsp;cr.
+          Free to post. Approved means <strong>you are paid in real money</strong>
+          {proposalReward > 0 ? <>, plus {proposalReward.toLocaleString()}&nbsp;cr</> : null}.
         </p>
       </div>
 
