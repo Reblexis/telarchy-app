@@ -282,13 +282,15 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h29">The know block: definition, announcements, subject</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h30">The announcements page</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h31">The page ends: &quot;What is this?&quot;, &quot;What can you do?&quot;, the door</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h32">The marketplace (/marketplace)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h33">The cockpit (/admin)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h34">Reusing a component&#x27;s classes: mind the cascade order</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h35">When in doubt</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h36">What a market says about itself, and what your position is worth</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h37">The data room</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h38">The frontend never speaks HTTP directly</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h32">The guides (/guides)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h33">Text contrast</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h34">The marketplace (/marketplace)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h35">The cockpit (/admin)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h36">Reusing a component&#x27;s classes: mind the cascade order</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h37">When in doubt</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h38">What a market says about itself, and what your position is worth</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h39">The data room</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h40">The frontend never speaks HTTP directly</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-vision-md">docs/vision.md</a></summary>
@@ -3888,7 +3890,31 @@ paid in real money&quot; is the half nobody guesses, so the contract card is
 the one that must say &quot;real money&quot;.</p>
 <p>The ballot, charter, decided list, pitch and footer are deliberately not
 rendered; the API still ships them, so each returns as a render change.</p>
-<h2 id="docs-ui-conventions-md--h32">The marketplace (/marketplace)</h2>
+<h2 id="docs-ui-conventions-md--h32">The guides (/guides)</h2>
+<p>The guides are content: <code>docs/guides/*.md</code>, served as markdown at
+<code>/api/guides</code> for agents and rendered by <code>GuidesPage</code> for people. <code>/guides</code> is
+the index, grouped by the category order the API already returns, each row a
+hairline with the title as the link and its one-line description under it;
+<code>/guides/:section</code> renders one guide through the same <code>.pubws-doc</code> markdown
+style the legal pages use. Both live in the <code>.pubws</code> poster language, not in
+the app chrome, because the reader is usually not signed in.</p>
+<p>The routes are load-bearing beyond the page: the sitemap, <code>robots.txt</code>,
+<code>llms.txt</code> and the site's own copy all point at <code>/guides</code>, and <code>guides</code> is a
+reserved slug on the server. Until 2026-08-30 no route existed, so every one
+of those promises resolved to the workspace-slug route and answered &quot;There is
+no market at this address&quot;; a crawl of the live site found it. A link the
+site advertises and does not serve is worse than no link, so the routes and
+the advertisements change together.</p>
+<h2 id="docs-ui-conventions-md--h33">Text contrast</h2>
+<p>Every text token meets WCAG AA for normal text (4.5:1) against the surface it
+sits on, in both themes. That includes <code>--text-tertiary</code>, which carries the
+small caps eyebrows and table labels and is the token most likely to drift
+pale: it is 4.98:1 on the light bone and 5.84:1 on the darkest dark surface.
+Hairline borders are deliberately below that floor; they are structure, not
+text, and lifting them to a text contrast would turn the hairlines into rules
+and change the design language. Check a new token with a contrast ratio, not
+by eye; <code>src/__tests__/contrast.test.ts</code> pins the text tokens.</p>
+<h2 id="docs-ui-conventions-md--h34">The marketplace (/marketplace)</h2>
 <p><code>telarchy.com/marketplace</code> renders standalone in the same design language
 (<code>.pubws-topbar</code>, Fraunces, mono numerals, one accent), as
 <code>repeat(auto-fill, minmax(19rem, 1fr))</code> cards that read the same with two
@@ -3930,7 +3956,7 @@ stated in plain words: every market is one number someone is trying to
 move, anyone human or AI can propose a paid contract to move it, the
 market prices what that contract would do, and the owner pays only for the
 ones worth it.</p>
-<h2 id="docs-ui-conventions-md--h33">The cockpit (/admin)</h2>
+<h2 id="docs-ui-conventions-md--h35">The cockpit (/admin)</h2>
 <p><code>telarchy.com/admin</code> is the owner's own page: who showed up, where they
 came from, who signed up, who is waiting, and what people reported. It is
 the one surface in the product with an audience of one, and it reads the
@@ -3965,7 +3991,7 @@ figures that are supposed to mean a stranger showed up. Filtering it on read
 instead would move those hits into the &quot;bot hits&quot; count, which is a
 different lie.</p>
 <p>The cockpit shares no code with the deleted console.</p>
-<h2 id="docs-ui-conventions-md--h34">Reusing a component's classes: mind the cascade order</h2>
+<h2 id="docs-ui-conventions-md--h36">Reusing a component's classes: mind the cascade order</h2>
 <p>Several blocks (the contract form, the account dialog, the Manifold import)
 compose the ticket's own classes and then correct one or two properties.
 <code>style.css</code> is one long file and the <code>.ticket-*</code> base rules live near the
@@ -3981,14 +4007,14 @@ before rewriting the markup.</p>
 placeholder, so it reads as a field awaiting digits rather than as a
 glyph; the hug-the-digits behaviour applies to amounts being actively
 edited.</p>
-<h2 id="docs-ui-conventions-md--h35">When in doubt</h2>
+<h2 id="docs-ui-conventions-md--h37">When in doubt</h2>
 <ul>
 <li>Strip color before adding it.</li>
 <li>Add whitespace before adding a divider.</li>
 <li>Use a hairline before using a card.</li>
 <li>Match an existing pattern before inventing one.</li>
 </ul>
-<h3 id="docs-ui-conventions-md--h36">What a market says about itself, and what your position is worth</h3>
+<h3 id="docs-ui-conventions-md--h38">What a market says about itself, and what your position is worth</h3>
 <p>Three facts sit at the right end of the Discussion / Positions / Trades
 row, as three icons with bare numbers (people, drop, bars: the shape
 Manifold's market header uses): how many
@@ -4013,7 +4039,7 @@ with its condition in the hover, never the headline: the breakeven line
 stays first, because a share's payout is linear in the settled value and
 &quot;to win N&quot; alone, as Manifold prints it for a yes/no share, would read as
 a promise here.</p>
-<h2 id="docs-ui-conventions-md--h37">The data room</h2>
+<h2 id="docs-ui-conventions-md--h39">The data room</h2>
 <p><code>telarchy.com/data-room</code> (<code>DataRoomPage</code>, <code>.dr-*</code>) is a document, so it takes
 the 760px column, not the poster's 660px. It is one scrolling page with a
 sticky index of its own sections under the top bar, not a sidebar and not a
@@ -4025,7 +4051,7 @@ charts hand-rolled as inline SVG (a bar per day, one line for a metric's
 readings) rather than a chart library, because the only shapes needed are a
 column and a line. A number the feed refused to compute renders as &quot;not
 published&quot;, never as zero. Spec: <code>docs/data-room.md</code>.</p>
-<h2 id="docs-ui-conventions-md--h38">The frontend never speaks HTTP directly</h2>
+<h2 id="docs-ui-conventions-md--h40">The frontend never speaks HTTP directly</h2>
 <p><code>src/lib/api.ts</code> is the one module that calls <code>fetch</code>. Everything else, page
 or component, calls a method on <code>api</code>. That is not tidiness: the parity guard
 that proves the UI has no capability the public API lacks reads that single

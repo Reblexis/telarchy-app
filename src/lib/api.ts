@@ -2,6 +2,16 @@ import type { TimePreference } from '../types';
 import { BASE_PATH, withBase } from './base-path';
 import { pickCurrentSeason } from './season-clock';
 
+/** One entry of the guide index served by GET /api/guides. */
+export interface GuideSection {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  order: number;
+  path: string;
+}
+
 export interface ActivityItem {
   id: string;
   type: string;
@@ -1168,6 +1178,13 @@ export const api = {
     const data = await res.json().catch(() => ({}));
     if (!res.ok && res.status !== 409) throw new Error((data as { error?: string }).error || 'Something went wrong');
     return { alreadyListed: res.status === 409 };
+  },
+
+  /** The guide index: what /guides renders, in the order the API returns. */
+  getGuides: async (): Promise<GuideSection[]> => {
+    const res = await fetch(`${API_BASE}/api/guides`);
+    if (!res.ok) throw new Error(`Guides: ${res.status}`);
+    return res.json();
   },
 
   /** One guide section, as the markdown the API serves. */

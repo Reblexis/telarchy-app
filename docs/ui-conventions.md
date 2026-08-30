@@ -1175,6 +1175,35 @@ the one that must say "real money".
 The ballot, charter, decided list, pitch and footer are deliberately not
 rendered; the API still ships them, so each returns as a render change.
 
+## The guides (/guides)
+
+The guides are content: `docs/guides/*.md`, served as markdown at
+`/api/guides` for agents and rendered by `GuidesPage` for people. `/guides` is
+the index, grouped by the category order the API already returns, each row a
+hairline with the title as the link and its one-line description under it;
+`/guides/:section` renders one guide through the same `.pubws-doc` markdown
+style the legal pages use. Both live in the `.pubws` poster language, not in
+the app chrome, because the reader is usually not signed in.
+
+The routes are load-bearing beyond the page: the sitemap, `robots.txt`,
+`llms.txt` and the site's own copy all point at `/guides`, and `guides` is a
+reserved slug on the server. Until 2026-08-30 no route existed, so every one
+of those promises resolved to the workspace-slug route and answered "There is
+no market at this address"; a crawl of the live site found it. A link the
+site advertises and does not serve is worse than no link, so the routes and
+the advertisements change together.
+
+## Text contrast
+
+Every text token meets WCAG AA for normal text (4.5:1) against the surface it
+sits on, in both themes. That includes `--text-tertiary`, which carries the
+small caps eyebrows and table labels and is the token most likely to drift
+pale: it is 4.98:1 on the light bone and 5.84:1 on the darkest dark surface.
+Hairline borders are deliberately below that floor; they are structure, not
+text, and lifting them to a text contrast would turn the hairlines into rules
+and change the design language. Check a new token with a contrast ratio, not
+by eye; `src/__tests__/contrast.test.ts` pins the text tokens.
+
 ## The marketplace (/marketplace)
 
 `telarchy.com/marketplace` renders standalone in the same design language

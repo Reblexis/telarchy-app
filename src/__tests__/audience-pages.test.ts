@@ -62,3 +62,22 @@ describe('audience pages', () => {
     expect(JSON.stringify(AUDIENCE_PAGES)).not.toMatch(/[–—]/);
   });
 });
+
+describe('advertised routes are actually served', () => {
+  test('every single-segment path in the sitemap has a route or is a known API surface', () => {
+    const app = read('src/App.tsx');
+    const sitemap = read('public/sitemap.xml');
+    const paths = [...sitemap.matchAll(/<loc>https:\/\/telarchy\.com(\/[a-z0-9-]*)<\/loc>/g)]
+      .map(m => m[1])
+      .filter(
+        p => p !== '/' && !p.startsWith('/api') && !p.endsWith('.txt') && !p.endsWith('.json') && !p.endsWith('.xml'),
+      );
+    expect(paths.length).toBeGreaterThan(5);
+    for (const p of paths) {
+      // A path we advertise and do not route falls through to the workspace
+      // slug route and tells the visitor there is no market at that address
+      // (which is what /guides did until 2026-08-30).
+      expect(app.includes(`path="${p}"`) || app.includes(`'${p}'`)).toBe(true);
+    }
+  });
+});

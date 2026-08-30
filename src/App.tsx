@@ -32,6 +32,7 @@ const LegalPage = lazyPage(() => import('./pages/LegalPage'), 'LegalPage');
 const AboutPage = lazyPage(() => import('./pages/AboutPage'), 'AboutPage');
 const ContactPage = lazyPage(() => import('./pages/ContactPage'), 'ContactPage');
 const AudiencePage = lazyPage(() => import('./pages/AudiencePage'), 'AudiencePage');
+const GuidesPage = lazyPage(() => import('./pages/GuidesPage'), 'GuidesPage');
 
 /* The whole app is the public surface (owner decision 2026-08-19: get rid of
    the old GUI). Every route below renders a standalone `.pubws` page. There
@@ -112,6 +113,12 @@ export function App() {
             canonical in docs/about-page.md. */}
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        {/* The guides have been served at /api/guides and advertised in the
+            sitemap and llms.txt since long before they had a page; without
+            these routes /guides fell through to /:slug and told a visitor
+            there was no market at that address. */}
+        <Route path="/guides" element={<GuidesPage />} />
+        <Route path="/guides/:section" element={<GuidesPage />} />
         {/* The audience pages: copy in docs/audience-pages.md, one component,
             seven routes. They sit above /:slug so a workspace named "owners"
             can never shadow them (the server reserves the names too). */}
