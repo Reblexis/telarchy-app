@@ -19,7 +19,13 @@ import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { emitPricesChanged } from '../lib/market-events';
 import { metricSubtractsContractAsk } from '../lib/metric-unit';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
-import { fromUnits, MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits } from '../lib/validation';
+import {
+  fromUnits,
+  liquiditySpendableUnits,
+  MIN_LIQUIDITY_CONTRIBUTION,
+  sufficientBalance,
+  toUnits,
+} from '../lib/validation';
 import { applyCredits } from './credits';
 import { emitEvent } from './events';
 import { voidMarket } from './markets';
@@ -287,17 +293,17 @@ export async function createConditionalMarkets(
           skipped.push({ contributorId, needed: cost, had: 0 });
           continue;
         }
-        if (!sufficientBalance(agentRow.balance as number, cost)) {
+        // Pool money, so the bought liquidity wallet counts too, in the
+        // order the injection spends them (owner report 2026-08-30).
+        const spendable = fromUnits(liquiditySpendableUnits(agentRow));
+        if (spendable < cost) {
           if (options.strict) {
-            throw new AppError(
-              `Insufficient balance for forecast subsidy: need ${cost}, have ${fromUnits(agentRow.balance as number)}`,
-              400,
-            );
+            throw new AppError(`Insufficient balance for forecast subsidy: need ${cost}, have ${spendable}`, 400);
           }
           console.error(
-            `createConditionalMarkets: subsidy contributor ${contributorId} has ${fromUnits(agentRow.balance as number)} < ${cost} needed; spawning proposal ${proposalId} markets without their share`,
+            `createConditionalMarkets: subsidy contributor ${contributorId} has ${spendable} < ${cost} needed; spawning proposal ${proposalId} markets without their share`,
           );
-          skipped.push({ contributorId, needed: cost, had: fromUnits(agentRow.balance as number) });
+          skipped.push({ contributorId, needed: cost, had: spendable });
           continue;
         }
         funded.push([contributorId, perMarket]);
@@ -315,7 +321,8 @@ export async function createConditionalMarkets(
         const credits = autoFundCredits;
         const cost = Math.round(credits * newMarkets.length * 1e6) / 1e6;
         const [ownerRow] = await tx.select().from(agents).where(eq(agents.id, autoFundOwnerId)).for('update');
-        if (ownerRow && sufficientBalance(ownerRow.balance as number, cost)) {
+        const ownerSpendable = ownerRow ? fromUnits(liquiditySpendableUnits(ownerRow)) : 0;
+        if (ownerRow && ownerSpendable >= cost) {
           funded.push([autoFundOwnerId, credits]);
           console.error(
             `createConditionalMarkets: no subsidy contributor could fund proposal ${proposalId}; auto-funded ${credits}/market from workspace owner ${autoFundOwnerId}`,
@@ -328,7 +335,7 @@ export async function createConditionalMarkets(
           // on the Telarchy floor was untradeable because the owner held 87
           // credits against a 500-credit ask). Same payer, same setting,
           // just not all-or-nothing.
-          const affordable = Math.floor((fromUnits(ownerRow.balance as number) / newMarkets.length) * 1e6) / 1e6;
+          const affordable = Math.floor((ownerSpendable / newMarkets.length) * 1e6) / 1e6;
           if (affordable >= MIN_LIQUIDITY_CONTRIBUTION) {
             funded.push([autoFundOwnerId, affordable]);
             console.error(
@@ -336,7 +343,7 @@ export async function createConditionalMarkets(
             );
           } else {
             console.error(
-              `createConditionalMarkets: auto-fund fallback for proposal ${proposalId} failed too (owner ${autoFundOwnerId} holds ${fromUnits(ownerRow.balance as number)}, not enough for even one market); markets spawn with zero liquidity`,
+              `createConditionalMarkets: auto-fund fallback for proposal ${proposalId} failed too (owner ${autoFundOwnerId} holds ${ownerSpendable}, not enough for even one market); markets spawn with zero liquidity`,
             );
           }
         } else {

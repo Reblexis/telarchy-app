@@ -68,3 +68,31 @@ test('a balance that covers none opens all unfunded and spends nothing', async (
   const [owner] = await db.select().from(agents).where(eq(agents.id, OWNER));
   expect(Number(owner.balance)).toBe(toUnits(30));
 });
+
+/**
+ * The bought liquidity wallet is pool money and funds markets like any
+ * other pool money (owner report 2026-08-30: the house account was granted
+ * 1,000,000 liquidity credits and new markets still spawned dead, because
+ * the gate read `balance` while the injection spends the wallet first).
+ */
+test('a full liquidity wallet funds new markets even with no tradeable balance', async () => {
+  await seed(0);
+  await db
+    .update(agents)
+    .set({ liquidityBalance: toUnits(1000) })
+    .where(eq(agents.id, OWNER));
+
+  await insertPendingMarkets(pending(['mk-11', 'mk-12']), WS);
+
+  const rows = await db.select().from(markets).where(eq(markets.workspaceId, WS));
+  expect(
+    rows
+      .filter(r => (r.pool ?? 0) > 0)
+      .map(r => r.id)
+      .sort(),
+  ).toEqual(['mk-11', 'mk-12']);
+  // Paid out of the wallet, and the tradeable balance never went negative.
+  const [owner] = await db.select().from(agents).where(eq(agents.id, OWNER));
+  expect(Number(owner.liquidityBalance)).toBe(toUnits(800));
+  expect(Number(owner.balance)).toBe(0);
+});

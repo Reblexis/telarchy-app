@@ -1866,7 +1866,14 @@ true, and every change to this feature must preserve all three:</p>
 2026-08-28): spendable only as market-pool injections, never tradeable,
 never transferable, and LP leftovers from wallet-funded injections
 return to the wallet (<code>liquidity_events.funded_from</code> routes them).
-There is no path from a payment to the tradeable balance.</li>
+There is no path from a payment to the tradeable balance.
+<strong>Every decision to fund a market counts the wallet</strong>, in the order the
+injection spends it (wallet first, then tradeable):
+<code>liquiditySpendableUnits</code>, used by auto-fund and by the conditional
+pair subsidy. A gate that reads <code>balance</code> alone leaves the house
+spawning dead markets while sitting on pool money it will not look at
+(owner report 2026-08-30, after granting the admin account 1,000,000
+liquidity credits).</li>
 <li><strong>Whoever pays cannot win.</strong> Buying requires the <code>manage</code> capability in
 the target workspace, and accounts that own or administer a public
 workspace take no season payout under strict eligibility
