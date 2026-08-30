@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Link, useParams } from 'react-router-dom';
 import { PageTopBar } from '../components/PageTopBar';
-import { api, type GuideSection } from '../lib/api';
+import { api, type GuideCategory, type GuideSection } from '../lib/api';
 import { withBase } from '../lib/base-path';
 
 /**
@@ -21,6 +21,7 @@ import { withBase } from '../lib/base-path';
 
 function useGuideIndex() {
   const [sections, setSections] = useState<GuideSection[] | null>(null);
+  const [categories, setCategories] = useState<GuideCategory[]>([]);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -32,11 +33,20 @@ function useGuideIndex() {
       .catch(() => {
         if (alive) setFailed(true);
       });
+    // The index groups by category id; the titles a reader should see live
+    // behind /api/guides/_categories. A failure here is not fatal: the id is
+    // a poor heading but still a heading.
+    api
+      .getGuideCategories()
+      .then(c => {
+        if (alive) setCategories(c);
+      })
+      .catch(() => {});
     return () => {
       alive = false;
     };
   }, []);
-  return { sections, failed };
+  return { sections, categories, failed };
 }
 
 function Foot() {
@@ -99,7 +109,7 @@ function OneGuide({ section }: { section: string }) {
 
 /** The index: every guide, in the order the API returns them. */
 function GuideIndex() {
-  const { sections, failed } = useGuideIndex();
+  const { sections, categories, failed } = useGuideIndex();
   // The API returns sections already ordered by category then order, so the
   // grouping below preserves that order rather than imposing its own.
   const byCategory: Array<{ category: string; items: GuideSection[] }> = [];
@@ -130,7 +140,7 @@ function GuideIndex() {
         ) : (
           byCategory.map(group => (
             <section className="pubws-section" key={group.category}>
-              <h2 className="pubws-h2">{group.category}</h2>
+              <h2 className="pubws-h2">{categories.find(c => c.id === group.category)?.title ?? group.category}</h2>
               <ul className="pubws-contact">
                 {group.items.map(s => (
                   <li key={s.id}>
