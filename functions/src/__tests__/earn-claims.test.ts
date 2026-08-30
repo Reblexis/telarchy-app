@@ -25,7 +25,7 @@ beforeEach(async () => {
     { id: 'bob', apiKeyHash: 'h-bob', balance: toUnits(0) },
   ]);
   await db.insert(earnRules).values([
-    { key: 'link_google', label: 'Connect a Google account', credits: 200, kind: 'flat', note: '' },
+    { key: 'link_oauth', label: 'Connect a Google or GitHub account', credits: 200, kind: 'flat', note: '' },
     { key: 'signup_user', label: 'Create an account', credits: 100, kind: 'flat', note: '' },
   ]);
   clearEarnRuleCache();
@@ -38,32 +38,32 @@ const balanceOf = async (id: string) => {
 
 describe('claiming', () => {
   test('pays the price and records the claim', async () => {
-    const r = await claimEarn({ agentId: 'ann', key: 'link_google', refId: 'google-1' });
+    const r = await claimEarn({ agentId: 'ann', key: 'link_oauth', refId: 'google-1' });
     expect(r).toEqual({ granted: 200 });
     expect(await balanceOf('ann')).toBe(200);
-    expect([...(await claimedKeys('ann'))]).toEqual(['link_google']);
+    expect([...(await claimedKeys('ann'))]).toEqual(['link_oauth']);
   });
 
   test('the same participant cannot claim one earn twice', async () => {
-    await claimEarn({ agentId: 'ann', key: 'link_google', refId: 'google-1' });
-    const again = await claimEarn({ agentId: 'ann', key: 'link_google', refId: 'google-1' });
+    await claimEarn({ agentId: 'ann', key: 'link_oauth', refId: 'google-1' });
+    const again = await claimEarn({ agentId: 'ann', key: 'link_oauth', refId: 'google-1' });
     expect(again).toBeNull();
     expect(await balanceOf('ann')).toBe(200);
   });
 
-  test('ONE GOOGLE ACCOUNT CANNOT FUND TWO TELARCHY ACCOUNTS', async () => {
+  test('ONE PROVIDER ACCOUNT CANNOT FUND TWO TELARCHY ACCOUNTS', async () => {
     // The rule the whole design leans on: without it, one aged Google
     // account is an unlimited credit printer across fresh accounts.
-    await claimEarn({ agentId: 'ann', key: 'link_google', refId: 'google-1' });
-    const second = await claimEarn({ agentId: 'bob', key: 'link_google', refId: 'google-1' });
+    await claimEarn({ agentId: 'ann', key: 'link_oauth', refId: 'google-1' });
+    const second = await claimEarn({ agentId: 'bob', key: 'link_oauth', refId: 'google-1' });
     expect(second).toBeNull();
     expect(await balanceOf('bob')).toBe(0);
-    expect(await refAlreadyClaimed('link_google', 'google-1')).toBe(true);
+    expect(await refAlreadyClaimed('link_oauth', 'google-1')).toBe(true);
   });
 
-  test('a different account of the same provider still pays', async () => {
-    await claimEarn({ agentId: 'ann', key: 'link_google', refId: 'google-1' });
-    const other = await claimEarn({ agentId: 'bob', key: 'link_google', refId: 'google-2' });
+  test('a different provider account still pays a different participant', async () => {
+    await claimEarn({ agentId: 'ann', key: 'link_oauth', refId: 'google-1' });
+    const other = await claimEarn({ agentId: 'bob', key: 'link_oauth', refId: 'google-2' });
     expect(other).toEqual({ granted: 200 });
   });
 
@@ -71,24 +71,24 @@ describe('claiming', () => {
     // The reason the uniqueness lives in the database rather than in a
     // check-then-write: two link callbacks arriving together.
     const [a, b] = await Promise.all([
-      claimEarn({ agentId: 'ann', key: 'link_google', refId: 'google-1' }),
-      claimEarn({ agentId: 'ann', key: 'link_google', refId: 'google-1' }),
+      claimEarn({ agentId: 'ann', key: 'link_oauth', refId: 'google-1' }),
+      claimEarn({ agentId: 'ann', key: 'link_oauth', refId: 'google-1' }),
     ]);
     expect([a, b].filter(Boolean)).toHaveLength(1);
     expect(await balanceOf('ann')).toBe(200);
   });
 
   test('a claim records what it paid, not what the price later becomes', async () => {
-    await claimEarn({ agentId: 'ann', key: 'link_google', refId: 'google-1' });
-    await setEarnRule('link_google', { credits: 25 }, 'viktor');
+    await claimEarn({ agentId: 'ann', key: 'link_oauth', refId: 'google-1' });
+    await setEarnRule('link_oauth', { credits: 25 }, 'viktor');
     const [row] = await db.select().from(earnClaims).where(eq(earnClaims.agentId, 'ann'));
     expect(row.credits).toBe(200);
     expect(await balanceOf('ann')).toBe(200);
   });
 
   test('a disabled earn claims nothing and pays nothing', async () => {
-    await setEarnRule('link_google', { enabled: false }, 'viktor');
-    const r = await claimEarn({ agentId: 'ann', key: 'link_google', refId: 'google-9' });
+    await setEarnRule('link_oauth', { enabled: false }, 'viktor');
+    const r = await claimEarn({ agentId: 'ann', key: 'link_oauth', refId: 'google-9' });
     expect(r).toEqual({ granted: 0 });
     expect(await balanceOf('ann')).toBe(0);
   });

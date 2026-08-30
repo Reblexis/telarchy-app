@@ -204,19 +204,21 @@ systemRouter.post(
     let granted = 0;
     const paid: string[] = [];
     const takenElsewhere: string[] = [];
-    for (const l of links) {
-      const key = l.providerId === 'google' ? 'link_google' : l.providerId === 'github' ? 'link_github' : null;
-      if (!key) continue;
-      const claim = await claimEarn({ agentId, key, refId: l.accountId });
+    const mine = await claimedKeys(agentId);
+    // One link earn, either provider (owner decision 2026-08-30). Once it
+    // is claimed there is nothing further to pay, so a second attached
+    // account is not an error and not a refusal: it simply earns nothing.
+    for (const l of links.filter(x => x.providerId === 'google' || x.providerId === 'github')) {
+      if (mine.has('link_oauth')) break;
+      const claim = await claimEarn({ agentId, key: 'link_oauth', refId: l.accountId });
       if (claim) {
         granted += claim.granted;
-        paid.push(key);
-      } else if (await refAlreadyClaimed(key, l.accountId)) {
-        // Either this participant already earned it, or that account paid
-        // out on a different Telarchy account. The page says which.
-        const mine = await claimedKeys(agentId);
-        if (!mine.has(key)) takenElsewhere.push(key);
+        paid.push('link_oauth');
+        break;
       }
+      // No claim and not ours: that provider account already paid out on
+      // another Telarchy account, which the page has to say out loud.
+      if (await refAlreadyClaimed('link_oauth', l.accountId)) takenElsewhere.push('link_oauth');
     }
     res.json({ granted, paid, takenElsewhere });
   }),

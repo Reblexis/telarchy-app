@@ -50,8 +50,14 @@ beforeEach(() => {
     available: 5200,
     rules: [
       { ...rules[1], key: 'signup_user', label: 'Create an account', claimed: true },
-      { key: 'link_google', label: 'Connect a Google account', credits: 200, kind: 'flat', note: '', claimed: true },
-      { key: 'link_github', label: 'Connect a GitHub account', credits: 200, kind: 'flat', note: '', claimed: false },
+      {
+        key: 'link_oauth',
+        label: 'Connect a Google or GitHub account',
+        credits: 200,
+        kind: 'flat',
+        note: '',
+        claimed: false,
+      },
       { ...rules[0], claimed: false },
     ],
   } as never);
@@ -92,15 +98,22 @@ describe('/earn, signed in', () => {
     renderPage();
     expect(await screen.findByText('300')).toBeInTheDocument();
     expect(screen.getByText('5,200')).toBeInTheDocument();
-    expect(screen.getAllByText('✓ earned').length).toBe(2);
+    expect(screen.getAllByText('✓ earned').length).toBe(1);
   });
 
-  test('an unclaimed provider offers a connect button that starts the link', async () => {
+  test('the one link earn offers either provider, and either starts the link', async () => {
+    // One row, two doors: whichever they finish claims the same earn
+    // (owner decision 2026-08-30), so a second account earns nothing.
     authUser = { id: 'u1' };
     renderPage();
-    const btn = await screen.findByRole('button', { name: 'Connect GitHub' });
-    btn.click();
+    const github = await screen.findByRole('button', { name: 'GitHub' });
+    const google = screen.getByRole('button', { name: 'Google' });
+    github.click();
     await waitFor(() => expect(linkSocial).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/earn' }));
+    // And the other door closes while the redirect is in flight: two
+    // consent screens at once would leave the second link unpaid.
+    await waitFor(() => expect(google).toBeDisabled());
+    expect(linkSocial).toHaveBeenCalledTimes(1);
   });
 
   test('coming back from a provider, the sync runs first and reports the credit', async () => {

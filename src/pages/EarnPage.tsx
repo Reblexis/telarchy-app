@@ -22,11 +22,10 @@ import { TopBar } from './TradePage';
  * grants, including after the operator re-prices a row on /admin.
  */
 
-function providerOf(key: string): 'google' | 'github' | null {
-  if (key === 'link_google') return 'google';
-  if (key === 'link_github') return 'github';
-  return null;
-}
+/** One link earn, claimable with either provider (owner decision
+ *  2026-08-30): the second account somebody attaches is the same person
+ *  proving they hold another free account, so it earns nothing. */
+const LINK_KEY = 'link_oauth';
 
 export function EarnPage() {
   const { user, loading: authLoading } = useAuth();
@@ -131,7 +130,6 @@ export function EarnPage() {
             <tbody>
               {ordered.map(r => {
                 const claimed = 'claimed' in r ? r.claimed : false;
-                const provider = providerOf(r.key);
                 return (
                   <tr key={r.key} className={claimed ? 'is-earned' : undefined}>
                     <td className="lbt-cell is-left">
@@ -152,15 +150,27 @@ export function EarnPage() {
                       <td className="earn-act">
                         {claimed ? (
                           <span className="earn-done">✓ earned</span>
-                        ) : provider ? (
-                          <button
-                            type="button"
-                            className="earn-btn"
-                            disabled={busy !== null}
-                            onClick={() => void connect(provider)}
-                          >
-                            {busy === provider ? 'Opening…' : `Connect ${provider === 'google' ? 'Google' : 'GitHub'}`}
-                          </button>
+                        ) : r.key === LINK_KEY ? (
+                          // Either provider claims the same row, so both
+                          // are offered and whichever they finish pays.
+                          <span className="earn-pair">
+                            <button
+                              type="button"
+                              className="earn-btn"
+                              disabled={busy !== null}
+                              onClick={() => void connect('google')}
+                            >
+                              {busy === 'google' ? 'Opening…' : 'Google'}
+                            </button>
+                            <button
+                              type="button"
+                              className="earn-btn earn-btn--alt"
+                              disabled={busy !== null}
+                              onClick={() => void connect('github')}
+                            >
+                              {busy === 'github' ? 'Opening…' : 'GitHub'}
+                            </button>
+                          </span>
                         ) : r.key === 'manifold_link' ? (
                           // The real import flow, in place: it is the same
                           // component the floor carries, so the bio-code
