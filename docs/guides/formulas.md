@@ -1,46 +1,65 @@
 ---
-title: Formulas
-description: Formula syntax: metric references, operators, math functions, and validation.
-category: metrics
+title: Build a number out of other numbers
+description: Formula syntax, what a computed metric can and cannot hold, and the one edit the market refuses.
+category: run
 order: 30
 ---
-# Formulas
+# Build a number out of other numbers
 
-Most metrics are **leaf metrics**: you set their value directly and they stand on their own. But sometimes you want a metric that combines others: a weighted score, a ratio, or an aggregate. That's what formulas are for.
+Most metrics are leaves: you set the value, and that is the number. A metric
+with a formula is computed instead. Its value is derived from the metrics it
+names, and you never set it directly: pass `value` on a computed metric and the
+server ignores it and stores the formula's result.
 
-A metric with a formula is a **computed metric**. Its value is derived automatically from the metrics it references; you never edit it directly. Leave the formula blank (or enter `0`) to keep a metric as a leaf.
+A metric is a leaf when its formula is empty or the literal `0`. That is the
+whole distinction.
 
-## Metric references
+## Referring to another metric
 
-Wrap any metric name in curly braces. Whitespace inside the braces is trimmed:
+Write the metric's name in curly braces. Whitespace inside the braces is
+trimmed, so `{ Revenue }` and `{Revenue}` are the same reference. The name must
+match exactly otherwise, capitalisation included.
 
 ```
 {Throughput} + {Reliability}
 { Revenue } * 0.6 + { Margin } * 0.4
 ```
 
-## Operators
+A reference to a metric that does not exist evaluates as 0. A reference to a
+metric whose value is not known yet makes the whole formula unknown rather than
+0. Renaming a metric does not rewrite the formulas that name it, so rename and
+edit the referring formulas together.
+
+## The grammar
 
 ```
-+   addition
--   subtraction
-*   multiplication
-/   division
-()  parentheses for grouping
++ - * /            arithmetic
+^  or  **          power, right-associative
+( )                grouping
+sqrt(x)            square root
+abs(x)             absolute value
+log(x)             natural logarithm
+log10(x)           base-10 logarithm
+min(x, y, ...)     smallest, one or more arguments
+max(x, y, ...)     largest, one or more arguments
+pow(x, n)          x to the power n
+clamp(x, lo, hi)   x held between lo and hi
 ```
 
-## Math functions
+Precedence, tightest first: function calls and parentheses, then `^`, then
+unary minus, then `*` and `/`, then `+` and `-`. `^` is power, never bitwise
+xor, and it binds tighter than unary minus: `-2^2` is -4 and `2^3^2` is 512.
 
-```
-sqrt(x)          square root
-abs(x)           absolute value
-log(x)           natural logarithm
-log10(x)         base-10 logarithm
-min(x, y)        smaller of x and y
-max(x, y)        larger of x and y
-pow(x, n)        x to the power n
-clamp(x, lo, hi) clamp x between lo and hi
-```
+Anything outside that grammar is a syntax error naming the column it failed at.
+There are no bare identifiers (a metric is always `{Name}`), no `%`, no
+comparisons, no ternary, no strings, and no other JavaScript. The evaluator is a
+hand-written tokenizer and parser, not `eval`, so nothing outside the grammar
+can run. The governing grammar is `docs/formulas.md`.
+
+Arithmetic is IEEE double, as in JavaScript: `1/0` is Infinity and `sqrt(-1)` is
+NaN. A stored formula that fails to parse, or whose result is NaN, evaluates to
+0 and logs a server-side error. Nothing is rounded; rounding is a display
+concern.
 
 ## Examples
 
@@ -48,24 +67,41 @@ clamp(x, lo, hi) clamp x between lo and hi
 # Weighted average of two dimensions
 {Throughput} * 0.6 + {Quality} * 0.4
 
-# Geometric mean (rewards balance between two metrics)
+# Geometric mean, which rewards balance instead of one big number
 sqrt({Adoption} * {Retention})
 
-# Clamp a score to a fixed range
+# Normalise to a fixed range
 clamp({RawScore} / {MaxPossible} * 1000, 0, 1000)
 
-# Diminishing returns on a resource metric
+# Diminishing returns
 pow({Capital}, 0.6)
 
-# Penalise below a threshold, reward above
+# Only the part above a threshold counts
 max({Output} - 500, 0)
 ```
 
-## Validation
+## The edit a live market refuses
 
-The UI validates your formula in real time and warns about:
+A formula is what an open market settles on, so changing it while any market on
+that metric is unresolved is refused with 409, naming the field and the market.
+`marketRangeMax` is refused the same way, and on a computed metric so is a
+`value` you try to write. Wait for the market to resolve, or void it
+deliberately first. Getting the formula right before the first market opens is
+much cheaper than either.
 
-- References to metric names that don't exist
-- Circular dependencies (A → B → A)
-- Syntax errors or expressions that evaluate to NaN
-- Use of commas (JS comma operator; use separate expressions instead)
+Names and descriptions are not settlement machinery and change freely, at any
+time, with the market untouched. See [open a floor](/guides/creating) for the
+full edit rules.
+
+## Where the markets go
+
+Markets are created on leaves, never on computed metrics. A computed metric with
+time preference spawns markets for its leaf descendants, evaluates the formula
+at each future date from those market prices, and blends the results. So a
+formula is how you say "these are the parts", and time preference is how you say
+"and I care about where they land". See
+[time preference](/guides/time-preference).
+
+One consequence worth planning around: a leaf with no market contributes 0 to a
+projected formula. A composite whose leaves are half unpriced reads low for a
+reason that has nothing to do with the business.

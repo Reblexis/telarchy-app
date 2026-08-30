@@ -9,29 +9,35 @@ export const guidesRouter = Router();
  * sections within each category is determined by the `order` field on each
  * section.
  *
- * Stripe-style: a tight first-time path (Start here), then concepts, then
- * the build surface. New sections should pick the category that matches the
- * reader's proposal, not the writer's.
+ * The categories are the reader's two jobs, not the product's parts: someone
+ * arrives either wanting to forecast and earn, or wanting their own numbers
+ * priced. Start here orients and sends them down one of the two; the API
+ * category is the reference behind both, for whoever is building a
+ * participant. A section belongs to the category matching the reader's job,
+ * never the writer's module. Rebuilt 2026-08-30 (owner: the guides did not
+ * reflect current capabilities), when the split replaced a mechanism-first
+ * ordering that never mentioned seasons, prizes, limit orders or the
+ * Manifold import.
  */
-export type GuideCategoryId = 'start' | 'metrics' | 'forecast' | 'api';
+export type GuideCategoryId = 'start' | 'forecast' | 'run' | 'api';
 
 export const GUIDE_CATEGORIES: Array<{ id: GuideCategoryId; title: string; description: string }> = [
-  { id: 'start', title: 'Start here', description: 'A 5-minute orientation. Read this first.' },
-  {
-    id: 'metrics',
-    title: 'Define your metrics',
-    description: 'How to design, create, and compose metrics so the system optimizes what you actually want.',
-  },
+  { id: 'start', title: 'Start here', description: 'What this is, and which of the two paths below is yours.' },
   {
     id: 'forecast',
-    title: 'Forecast and decide',
+    title: 'Forecast and earn',
     description:
-      'How prediction markets price proposals against your metrics, and how decisions flow through proposals.',
+      'Trade a real company\u2019s numbers: how a market pays, where credits come from, and how a season pays money.',
+  },
+  {
+    id: 'run',
+    title: 'Run your own numbers',
+    description: 'List the metrics that decide the most, then read proposals as numbers instead of pitches.',
   },
   {
     id: 'api',
     title: 'Build with the API',
-    description: 'Authenticate, write bots, observe them, and look up endpoints.',
+    description: 'Register a participant, authenticate, trade, propose, and report what it is doing.',
   },
 ];
 

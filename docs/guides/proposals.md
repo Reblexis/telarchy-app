@@ -1,49 +1,192 @@
 ---
-title: Proposals & Decisions
-description: How participants propose proposals, conditional markets measure expected impact, and admins decide.
-category: forecast
-order: 30
+title: Decide a proposal on the number
+description: What the two prices mean, what each of the four buttons does to the money, and what the record says afterwards.
+category: run
+order: 60
 ---
-# Proposals & Decisions
+# Decide a proposal on the number
 
-Proposals are the mechanism for uncertainty. Any time you are unsure whether an action will improve a metric (whether the causal link is direct, indirect, or speculative), express it as a proposal rather than encoding the assumption into a metric definition. See *Metric Design* for the underlying principle.
+Someone offers to do a piece of work on your floor, optionally for a price. The
+moment it is posted, every open market on your floor gets a twin pair: what this
+metric does **if you approve**, and what it does **if you decline**. People with
+their own credits at stake price both. The gap between them is what you decide
+on.
 
-Proposals are also the decision loop. A participant proposes an action; before the admin decides, the system runs prediction markets *conditionally*: participants forecast what the metrics would look like *if this proposal were completed*.
+This guide is the owner's side. The proposer's side, including how to write one
+and what it costs to post, is [get paid for work](/guides/contracts).
 
-The result is per-metric impact predictions: quantitative forecasts of how much the proposal would move each metric. The admin approves or declines based on that signal.
+## The number you are reading
 
-## How it works
+Per metric and per date:
 
-1. A participant proposes a proposal (`POST /api/proposals`) with a title, description, and optional `liquiditySubsidy` (credits per **branch** market). If omitted, subsidy is 0 (proposing is free, but conditional markets ship with zero liquidity and produce no signal).
-2. Conditional markets are auto-created in **dual-branch** form: for every active leaf metric, two markets spawn under the proposal, one with `branch="approved"` (priced under the assumption the proposal is approved) and one with `branch="declined"` (priced under the assumption it is declined). If `liquiditySubsidy > 0`, the proposer is debited `liquiditySubsidy * leafMetricCount * 2` (subsidy per branch, two branches per metric) and each market gets a real LP row attributed to the proposer.
-3. Participants forecast on both branches. The headline impact a human reads is `approved.consensus - declined.consensus` per metric, which isolates the causal effect of approving and removes contamination from the natural-trajectory baseline (which can itself price in expected approval).
-4. Admin views the proposal detail: each metric row shows the decline-counterfactual and approve-counterfactual side by side with the signed delta. Admins can top up either branch via the inline **Add liquidity** button or via `POST /api/predictions/markets/liquidity/bulk { amount, proposalId }` (which injects equally into all branches under the proposal). Top-ups on a pending proposal are recorded as durable subsidy contributions and re-seeded into re-spawned markets when target dates roll, so the proposal's subsidy figure reflects them and the liquidity does not silently evaporate.
-5. **Approve** - the **declined** branch is voided and refunded (the counterfactual never materialised), the **approved** branch stays live and resolves against the actual metric value at the target date. If the workspace has `proposalReward` set, the owner is debited and the proposer is paid the reward (skipped if 0; 409 if owner balance is insufficient).
-6. **Decline** (good faith) - mirror image of approve. The **approved** branch is voided and refunded; the **declined** branch stays live and resolves against the actual metric, producing a counterfactual calibration record so we can score the decision later. No balance changes for the proposer.
-7. **Decline as spam** (`POST /api/proposals/:id/decline-spam`) - both branches are voided (neither counterfactual materialised), and the proposer is charged up to `workspace.spamPenalty` (capped at their available balance) with the workspace owner credited.
-8. **Withdraw** (`POST /api/proposals/:id/withdraw`) - proposer-only escape hatch. Voids both branches, no balance changes.
+```
+delta = approved consensus - declined consensus
+```
 
-## Bounty model knobs
+Not "the market went up after they posted". The baseline can already be pricing
+in that you will say yes, so a rise in the baseline tells you what the crowd
+expects you to do, and the delta tells you what it is worth. Both branches open
+at the same baseline price, so a spread only exists because someone paid to put
+it there.
 
-Proposals follow a bounty pattern: any participant can propose for free, the workspace owner reviews and decides, and credit movement is asymmetric across the four outcomes. Tune via `PUT /api/workspaces/:id/settings`:
+Three places give you the same numbers:
 
-- `proposalReward`: credits paid to the proposer on approve. Default 0 (purely market-driven incentive). Comes out of the workspace owner's balance.
-- `spamPenalty`: credits taken from the proposer (paid to the owner) on decline-spam. Default 0. The penalty is best-effort: if the proposer's balance is below `spamPenalty`, only what they have is taken.
-- `maxPendingProposalsPerParticipant`: optional throughput cap. Default 0 (disabled). When set to a positive integer, new submissions return 429 with `{ pending, cap }` once a participant has that many pending proposals.
+- **The floor.** Each contract in the right rail carries its impact on the
+  headline horizon, and selecting one swaps the chart and the ticket onto the
+  approved branch so you can trade it yourself.
+- **`GET /api/proposals/:id`.** `markets[]` carries one row per metric and date:
+  `approved` and `declined` (each with `consensus`, `liquidity`, `tradeCount`),
+  `delta`, and `baselineConsensus` for context. `delta` is `null` when either
+  side has no price. For a caller with `manage`, the row also carries the
+  proposer's `payoutHandle`, which is where the money goes if you approve.
+- **`GET /api/marketplace/:workspaceId/context?format=md`.** The whole floor as
+  one markdown brief, contracts and their priced impact included. This is the
+  form to hand a model.
 
-Public-marketplace listings (`GET /api/marketplace/workspaces/public`) surface 30-day proposal stats per workspace so participants can read how an owner reviews before they propose. A workspace with a high spam-decline rate self-corrects: proposers stop coming.
+**A pair with no liquidity has no price and tells you nothing.** That is the
+usual reason a contract sits there reading "open" instead of a number. Posting
+is free, so a proposer who paid no subsidy has left you nothing to read.
 
-## Inspect mode
+You can fund it yourself. `POST /api/predictions/markets/liquidity/bulk
+{ amount, proposalId }` puts `amount` credits into **each** branch under that
+contract, so the bill is `amount` times the number of markets, and it needs
+`manage`. `POST /api/predictions/markets/:id/liquidity { amount }` funds one
+market and needs only `trade`, so a trader who wants a readable price can deepen
+it without you. Top-ups on a pending contract are recorded as durable subsidy
+and re-seeded when target dates roll forward, so they do not evaporate.
 
-On the Proposals page, clicking **Inspect** on a proposal sets a `?proposal=<id>` URL param. The Metrics and Markets pages then show conditional predictions for that proposal alongside the baseline. The purple banner at the bottom of the screen indicates you are in inspect mode. Click *Exit Inspect* to return to normal view, or open a second browser tab with a different `?proposal=` to compare proposals side-by-side.
+If `autoFundNewMarkets` is on, the workspace tries to seed a new pair itself,
+and it handles a short balance differently from a baseline market: rather than
+funding some pairs and leaving others at zero, it divides what you have across
+every new market so all of them get something, down to one nanocredit each. A
+thin pair is still a priced pair; an unfunded one is nothing at all.
 
-## Metrics and proposal quality
+## The four ways it ends
 
-Well-structured metrics make the proposal loop more informative. If your metrics are too coarse (few leaves, vague values) the conditional markets can't produce a meaningful signal.
+| | Endpoint | What happens to the pair | Money |
+|---|---|---|---|
+| Approve | `POST /api/proposals/:id/approve` | declined branch voided and refunded, approved branch stays live | the ask is owed; stake bought out; `proposalReward` paid |
+| Decline | `POST /api/proposals/:id/decline` | approved branch voided and refunded, declined branch stays live | nothing moves |
+| Decline as spam | `POST /api/proposals/:id/decline-spam` | both branches voided and refunded | up to `spamPenalty` taken from the proposer, credited to you |
+| Remove | `DELETE /api/proposals/:id` | both branches voided and refunded | nothing moves |
 
-Best practices:
+All four need the `manage` capability. The proposer has a fifth, `POST
+/api/proposals/:id/withdraw`, which voids both branches and moves no money.
 
-- Keep leaf metrics specific and directly measurable rather than broad and vague.
-- Set accurate market ranges. A mis-ranged market produces a useless consensus.
-- Inject liquidity into markets so the AMM has price sensitivity for participant predictions.
-- Refresh markets after making structural changes to the metric tree.
+Nothing expires. There is no deadline on a pending contract and no sweep that
+decides for you: it stays pending until a person acts. The one automatic thing
+is that a branch market reaching its own resolution date while the contract is
+still pending gets voided and refunded, because a conditional market on an
+undecided condition has nothing to settle against.
+
+If you want a ceiling on how many can pile up, `maxPendingProposalsPerParticipant`
+caps pending contracts per participant (0, off, by default) and returns 429 with
+`{ pending, cap }`.
+
+## Approving is the payment
+
+At the press, the agreed amount is owed and the contract counts as paid. Nothing
+sits between the button and that record. Whatever rail carries the dollars
+afterwards, your bank transfer included, settles a debt already incurred rather
+than making a second decision.
+
+So do not treat approve as "I will decide once I see the work", and do not offer
+a proposer a staged or on-delivery arrangement. If you are not ready to owe the
+money, the answer is decline.
+
+The platform does not move dollars. It records what you owe: approved contracts
+sum into `approvedUsd`, and the proposer's payout handle is on the contract. You
+send the money on whatever rail their handle names.
+
+Two credit movements do happen automatically on approve, both out of your
+balance:
+
+- **The proposer's liquidity stake is bought out.** Whatever they put into the
+  branch markets comes back to them, and the LP position transfers to you. If
+  your balance cannot cover it, the buyout is skipped and their stake stays in
+  the market until it resolves.
+- **`proposalReward` is paid**, if you set one. It defaults to 0. When it is set
+  and your balance cannot cover it, the whole approve returns 409 naming what
+  you need and what you have.
+
+One sharp edge in that order: the declined branch is voided before the reward is
+attempted, so an approve that fails on 409 leaves the contract pending with its
+declined branch already gone. Top up and approve again; you will not get that
+branch's price discovery back.
+
+## Declining, and why the reason is enforced
+
+`POST /api/proposals/:id/decline` takes `{ declineReason?, refund? }`.
+
+**A reason is required exactly when your workspace has a charter set.** That
+coupling is the point. Making a public commitment about what you will do with
+the market's answer is what turns the requirement on. A floor that promises
+nothing stays frictionless; a floor that promises something cannot quietly skip
+the one decline that is embarrassing to explain. Maximum 4000 characters, and it
+is published permanently on the contract.
+
+`refund: true` is the "genuine idea, just not this one" variant: it voids both
+branches instead of one, so the proposer's whole staked liquidity comes straight
+back. No penalty either way.
+
+The reason appears on `GET /api/proposals`, on `GET /api/proposals/:id`, in the
+floor's decided list, in the workspace brief, and in the email and inbox
+notification sent to the proposer and to everyone who traded either branch. It
+does not post an announcement; announcements are a separate surface you publish
+by hand.
+
+**Decline as spam** is for the carpet-bombers, not for bad ideas. It charges
+`spamPenalty`, a per-workspace credit amount that defaults to 0, capped at
+whatever the proposer actually has, and credits it to you. It takes no reason.
+There is no button for it on the floor; it is an API call.
+
+**Remove** takes a contract off the board entirely: a duplicate, a test row,
+something that should never have been there. Every stake is refunded first. It
+is not a decision, it notifies nobody, and it cannot be undone from the browser.
+
+## What the declined branch actually does
+
+State this one plainly, because the design intent and the running code disagree
+and you should not plan around the intent.
+
+**The design intent** was that a declined contract's surviving branch resolves
+against the metric later, producing a counterfactual record: we said this would
+happen if you declined, here is what happened. Several docs and `GET /api/help`
+still describe it that way.
+
+**What the resolver does** is void it. When a conditional market reaches its
+resolution instant, it settles against the metric only if its contract is
+`approved`. Anything else, declined included, is voided and every position
+refunded at net cash. So today a declined branch is a live price until its date
+and then a refund. There is no calibration record, nobody is scored on it, and
+nobody is paid on it.
+
+That is a gap in the product, not a rule you should design around. It does not
+change what the delta is worth at decision time: both branches were priced by
+people with money at stake, and the price is the point.
+
+## Two habits that make the delta mean something
+
+**Publish a charter.** Forecasters are being asked to price a stranger's
+decisions with their own credits. A floor that has not said what their work
+buys them is asking for free labour, and they correctly refuse. The charter is
+what you will do with the number and the reasons you may decline anyway, stated
+in advance so they cannot be invented afterwards. Set it with `PUT
+/api/workspaces/:id/settings { charter }` (up to 20000 characters, `manage`).
+
+**Push back on unbounded contracts.** A market is only useful when execution is
+near-certain and the outcome is uncertain, because those are the two doubts it
+cannot tell apart. "Improve onboarding" has no stated quantity. "Hire a senior
+engineer this month" needs somebody else to say yes, so a low price could mean
+"this would not help" or "this will not happen". Bounded by time, money, count
+or a single discrete act, they become priceable: spend 20 engineering hours on
+the onboarding flow, interview 20 churned customers, publish the new pricing
+page.
+
+The strongest shape is one where pressing approve **is** the action. A paid
+contract already is: the press is the payment. A proposal an AI participant
+executes on approval already is. Everything else, "publish the post", "wire the
+money", happens soon after the press rather than at it, and that gap is where
+the price quietly absorbs the odds of you getting round to it. When no mechanism
+exists, approve the commitment instead of the deed, and the follow-through risk
+moves inside the price where it can be seen.

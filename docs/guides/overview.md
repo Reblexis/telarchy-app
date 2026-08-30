@@ -1,37 +1,74 @@
 ---
-title: Overview
-description: Core concepts: what metrics are and how to track them.
+title: What Telarchy is
+description: The one-page orientation, and which of the two paths through these guides is yours.
 category: start
 order: 10
 ---
-# Overview
+# What Telarchy is
 
-## What Telarchy is
+An owner lists the numbers that decide the most for their company. Anyone,
+human or AI, can propose a paid job against those numbers. A market prices what
+each number is expected to do if the job is approved and if it is declined, and
+the owner approves on that number rather than on the pitch.
 
-Telarchy is an alignment layer for AI and humans. You define your metrics once. Participants (human or AI) propose actions. Markets price each proposal against your metrics. You approve on a calibrated number, not a vibe.
+Two people meet here, and they want different things from these guides.
 
-Founders and leadership teams use it to price company decisions against KPIs and OKRs. Individuals use the same mechanism on personal goals. Both are first-class.
+**You want to forecast.** You think you can read a company's numbers better
+than the crowd currently does. Start with [how a market works and how it
+pays](/guides/markets), then [where credits come from](/guides/credits). If you
+want the money, read [seasons](/guides/seasons): there is a live one, it pays
+real money, and nothing of yours is at stake. If you would rather be paid for
+work than for forecasting, read [contracts](/guides/contracts).
 
-The realistic alternatives most founders use today both fail the same way. For AI proposals: a generic chatbot, with no skin in the game, no goal context, opaque reasoning. For human proposals: a gut call, or whoever argues loudest in the room. Telarchy is the system that beats both defaults for any decision important enough to define.
+**You have numbers of your own.** You want proposals to arrive priced instead
+of argued. Start with [opening a floor](/guides/creating), then
+[metric design](/guides/metric-design), which is the part that decides whether
+any of this is useful to you. [Proposals](/guides/proposals) is how you decide.
 
-## Why now
+Building an agent to do either job? Everything above is done through the same
+HTTP API a person's browser uses. Start at [the agent API](/guides/agent-api),
+and treat [GET /api/help](/api/help) as the contract: it is generated from the
+live routes and a test fails when it drifts.
 
-Two compounding facts: intelligence is the cheapest it has ever been (so prediction markets can be staffed by AI forecasters at near-zero per-forecast cost, removing the bottleneck that killed earlier internal prediction markets), and AI participants grant privacy that human forecasters cannot (you can put a sensitive KPI or unannounced strategic move in front of AI in a private workspace without leaking it; you cannot do that with human teammates).
+## The vocabulary
 
-## What is a participant?
+A **participant** is any market actor, human or AI. Humans sign up with email
+or OAuth; automated participants register for an API key. Once identity is
+established, what you can do depends on the workspace's permission groups, not
+on how you signed up. The API and database call this an `agent`; the guides and
+the interface say participant.
 
-A **participant** is any market actor, human or AI. Humans sign up with email or OAuth; automated participants register for an API key. Once identity is established, signup path does not matter: both trade, forecast, and propose on the same terms. Accuracy pays; noise loses.
+A **metric** is a named number an owner cares about: revenue, active users,
+hours slept. A metric can be measured directly or composed from others with a
+[formula](/guides/formulas).
 
-In the API and schema this concept is called an `agent` (e.g. `/api/agents`, `X-Agent-Key`). The word is kept in code; in docs and UI we use **participant**.
+A **market** asks where one metric will land on one date. Participants buy
+`higher` or `lower`; the price is the crowd's current answer in the metric's own
+units. When the date arrives the market settles on what the number actually was,
+and the people who were right are paid.
 
-## What are metrics?
+A **proposal**, called a contract on the floor, is an action someone offers to
+take, optionally for a price. Submitting one opens a second pair of markets per
+metric: what happens if this is approved, and what happens if it is declined.
+The gap between those two prices is the point of the whole system.
 
-Metrics are the things you care about: goals, KPIs, OKRs, or any measurable outcome. Each metric is a named number: revenue, NPS, retention, hours slept, project velocity. You set metric values directly (for leaf metrics) or derive them via formulas.
+**Credits** are the betting unit. They are free, they cannot be bought, and
+they have no cash value. Season prizes are real money and are paid for placing
+under a published scoring rule, which is what keeps a season a skill contest
+rather than a wager.
 
-## How the loop works
+## What is actually running today
 
-1. **Define your metrics.** Create each metric with a current value and a realistic upper bound for its prediction markets.
-2. **Participants forecast where they are heading.** Prediction markets open at future dates. Participants (human or AI) stake credits on whether each metric will end up higher or lower. The stake-weighted outcome is the market consensus, the crowd's best estimate of the future value.
-3. **Price decisions before you commit.** Submit a proposal (an action you might take). Conditional markets open that predict what the metrics would look like *if that proposal were completed*. You see the per-metric impact, then approve or decline.
+- A live floor for a real company, LookPilot, whose 2026 net revenue is priced
+  in the open and whose owner cannot edit the number a market has settled on.
+- Season 0, from 22 August to 1 October 2026, with a $1,000 pool split among
+  everyone who ends up ahead. Bots are eligible on the same terms as people.
+- A public leaderboard, public participant profiles, and a public trade record.
+- An API that needs no key to read a public workspace, and one HTTP call to
+  register a participant that can act.
 
-For combining metrics, see the *Formulas* guide. For how time preference and market creation work in detail, see the *Time Preference* guide. For the decision loop, see the *Proposals & Decisions* guide. If anything is broken, unintuitive, or you have an improvement idea, the *Feedback and bug reports* guide explains how to file it.
+## What this is not
+
+It is not a play-money game with no consequence: the prices decide whether real
+jobs get paid. It is also not a wager on your own money: you cannot buy credits
+and you cannot cash them out. Both halves of that are deliberate.
