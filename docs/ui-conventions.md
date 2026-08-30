@@ -134,19 +134,23 @@ over them; the bar deliberately ignores the 660px content column. "Log in"
 never wraps.
 
 On a phone (640px and under) the bar stays at the top of the viewport while
-the page scrolls: sticky, on the page background, one thin row. The mark
-stands in for the lockup there, at 2rem: the lockup is 4.4 times as wide as
-it is tall, and beside six controls (Manifold, Discord, report, theme, the
-bell, the avatar) it does not fit a 390px screen. A floor is nine screens
-tall on that display and the logo is the only way back to the floors list,
-so a bar that scrolls away leaves a phone reader with no way home short of
-scrolling to the top. On wider screens it scrolls with the page as before.
+the page scrolls: sticky, on the page background, one thin row. A floor is
+nine screens tall on that display and the logo is the only way back to the
+floors list, so a bar that scrolls away leaves a phone reader with no way
+home short of scrolling to the top. On wider screens it scrolls with the
+page as before.
 
-The logo is never what gives way. Whatever the viewport, the mark keeps its
-own proportions and its full 2rem height: it is not squeezed narrower than
-it is drawn, and a bar too tight for everything on it narrows the controls
-instead. In order, the row sheds the Manifold door (under 520px, its pitch
-being the least urgent thing on a phone) and then the credit balance (under
+The mark at 2rem stands in for the lockup wherever the lockup does not fit,
+which is every width under a tablet's 768px: the lockup is 4.4 times as
+wide as it is tall, and the row carrying it measures 708px before the
+viewport's own margins.
+
+The logo is never what gives way. Whatever the viewport, the logo on it
+keeps its own proportions and its full height: it is not squeezed narrower
+than it is drawn, and a bar too tight for everything on it narrows the
+controls instead. In order, the row sheds the Manifold door (under 560px,
+its pitch being the least urgent thing on a phone, and 560 being the width
+that first holds the row it sits in) and then the credit balance (under
 480px, the account popover beside it printing the same figure with the
 earned line under it). Every control survives every width, and no width
 pushes the bar past the edge of the screen.
