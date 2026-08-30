@@ -234,6 +234,11 @@
     "agent": 200,
     "master": 200
   },
+  "GET /api/earn/me": {
+    "anon": 401,
+    "agent": 200,
+    "master": 400
+  },
   "GET /api/events/": {
     "anon": 401,
     "agent": 400,
@@ -748,6 +753,11 @@
     "anon": 401,
     "agent": 401,
     "master": 200
+  },
+  "POST /api/earn/links/sync": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
   },
   "POST /api/events/hooks/heartbeat": {
     "anon": 401,

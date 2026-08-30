@@ -1060,6 +1060,35 @@ export const earnRules = pgTable('earn_rules', {
 });
 
 /**
+ * What each participant has already earned, and what external thing
+ * proved it (owner ask 2026-08-30).
+ *
+ * Two uniqueness rules carry the whole anti-farming weight, both enforced
+ * in the database rather than in code, because a race between two link
+ * requests is exactly when a check-then-write would pay twice:
+ *
+ *  - (agent_id, key): one earn per participant, ever.
+ *  - (key, ref_id): one external account pays once ACROSS THE PLATFORM.
+ *    Without it a single Google account funds ten Telarchy accounts.
+ */
+export const earnClaims = pgTable(
+  'earn_claims',
+  {
+    id: text('id').primaryKey(),
+    agentId: text('agent_id').notNull(),
+    key: text('key').notNull(),
+    /** The provider account id or Manifold user id that was proved; null
+     *  for earns that prove nothing external. */
+    refId: text('ref_id'),
+    /** What was actually paid, which is the price on the day it was
+     *  claimed, not today's price. */
+    credits: doublePrecision('credits').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [uniqueIndex('earn_claims_agent_key_idx').on(t.agentId, t.key)],
+);
+
+/**
  * Every version of every rule, append-only. A table that decides who
  * receives money has to be able to answer "what did it say the day this
  * account was funded?", and a rule changed mid-season must stay

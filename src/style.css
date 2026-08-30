@@ -6404,6 +6404,29 @@ textarea.jobform-line--desc {
   .lbt-h:first-child, .lbt-rank { padding-left: 0; }
 }
 
+/* /earn, personal: the tally supplies the pull, the row states supply the
+   verbs. Green marks what is done rather than a badge, because this is a
+   price list a reader is checking, not a game board. */
+.earn-tally {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+  padding: 0.9rem 1rem; margin: 0 0 1.4rem;
+  border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-secondary);
+}
+.earn-tally-n { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.earn-tally-n--avail { font-size: 1.1rem; color: var(--accent); }
+.earn-tally-l { font-size: 0.8rem; color: var(--text-secondary); }
+.earn-note { margin: -0.8rem 0 1.2rem; font-size: 0.85rem; color: var(--accent-text); }
+.earn-act { text-align: right; white-space: nowrap; width: 10.5rem; padding: 0.6rem 0.55rem; }
+.earn-done { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--higher); }
+.earn-muted { font-size: 0.78rem; color: var(--text-tertiary); }
+.earn-btn {
+  display: inline-block; padding: 0.4rem 0.85rem; border: 1px solid transparent; border-radius: 9px;
+  background: var(--button-bg); color: var(--button-text); font: inherit; font-size: 0.82rem; font-weight: 600;
+  text-decoration: none; cursor: pointer;
+}
+.earn-btn:disabled { opacity: 0.6; cursor: default; }
+.lbt tr.is-earned td { background: rgba(18, 105, 61, 0.045); }
+
 /* /earn: the price list, in the boards' own table language. The reason
    sits under each label because the reason is the argument: a price the
    reader can see the sense of does not read as a game reward. */

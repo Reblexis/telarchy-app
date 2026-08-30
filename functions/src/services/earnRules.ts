@@ -1,9 +1,10 @@
 import { randomUUID } from 'crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '../db/client';
-import { earnRuleHistory, earnRules } from '../db/schema';
+import { earnClaims, earnRuleHistory, earnRules } from '../db/schema';
 import { AppError } from '../lib/errors';
-import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
+import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS, toUnits } from '../lib/validation';
+import { applyCredits, PLATFORM_SCOPE } from './credits';
 
 /**
  * The earn table: what each way of receiving free credits is worth
@@ -26,7 +27,14 @@ import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
  * which is why every write appends to `earn_rule_history`.
  */
 
-export type EarnKey = 'signup_user' | 'signup_email' | 'signup_oauth' | 'signup_agent' | 'manifold_link';
+export type EarnKey =
+  | 'signup_user'
+  | 'signup_email'
+  | 'signup_oauth'
+  | 'signup_agent'
+  | 'manifold_link'
+  | 'link_google'
+  | 'link_github';
 
 export interface EarnRule {
   key: string;
@@ -49,6 +57,8 @@ const FALLBACK: Record<EarnKey, number> = {
   signup_oauth: SIGNUP_CREDITS,
   signup_agent: AGENT_SIGNUP_CREDITS,
   manifold_link: 10_000,
+  link_google: 0,
+  link_github: 0,
 };
 
 /**
@@ -186,4 +196,84 @@ export async function earnRuleHistoryFor(key: string) {
       changedBy: r.changedBy,
     }))
     .sort((a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime());
+}
+
+/** Postgres 23505, wherever the driver hid it. */
+function isUniqueViolation(e: unknown): boolean {
+  for (let cur: unknown = e, depth = 0; cur && depth < 5; depth++) {
+    const err = cur as { code?: string; message?: string; cause?: unknown };
+    if (err.code === '23505') return true;
+    if (typeof err.message === 'string' && /duplicate key value|unique constraint/i.test(err.message)) return true;
+    cur = err.cause;
+  }
+  return false;
+}
+
+/**
+ * Claim one earn for one participant, paying today's price.
+ *
+ * Idempotent by construction rather than by checking first: the two
+ * unique indexes on `earn_claims` are what stop a double payment, so two
+ * link requests racing each other end with one claim and one grant. A
+ * conflict is the normal answer, not an error - it means either this
+ * participant already earned it, or (the important one) that external
+ * account already paid out on some other Telarchy account.
+ *
+ * Returns what was granted, or null when the earn was already taken.
+ */
+export async function claimEarn(params: {
+  agentId: string;
+  key: EarnKey;
+  /** The external account being proved, when there is one. */
+  refId?: string | null;
+}): Promise<{ granted: number } | null> {
+  const credits = await earnCredits(params.key);
+  try {
+    return await db.transaction(async tx => {
+      await tx.insert(earnClaims).values({
+        id: randomUUID(),
+        agentId: params.agentId,
+        key: params.key,
+        refId: params.refId ?? null,
+        credits,
+      });
+      if (credits > 0) {
+        await applyCredits(tx, {
+          agentId: params.agentId,
+          workspaceId: PLATFORM_SCOPE,
+          deltaUnits: toUnits(credits),
+          reason: 'signup_grant',
+          refId: `earn:${params.key}`,
+        });
+      }
+      return { granted: credits };
+    });
+  } catch (e) {
+    // A unique violation is the rule working. Anything else is a real
+    // failure and must not be swallowed into a silent "already claimed".
+    // The driver wraps its error, so the check walks the cause chain:
+    // matching only the outer message missed it and paid twice.
+    if (isUniqueViolation(e)) return null;
+    throw e;
+  }
+}
+
+/** Which earns this participant has already taken. */
+export async function claimedKeys(agentId: string): Promise<Set<string>> {
+  const rows = await db.select({ key: earnClaims.key }).from(earnClaims).where(eq(earnClaims.agentId, agentId));
+  return new Set(rows.map(r => r.key));
+}
+
+/**
+ * Whether an external account has already paid out anywhere: used to tell
+ * somebody WHY a link earned nothing, which is the difference between a
+ * rule and a bug in the reader's mind.
+ */
+export async function refAlreadyClaimed(key: EarnKey, refId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: earnClaims.id })
+    .from(earnClaims)
+    .where(and(eq(earnClaims.key, key), eq(earnClaims.refId, refId)))
+    .limit(1);
+  return !!row;
 }

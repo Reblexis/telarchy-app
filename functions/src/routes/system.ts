@@ -1,13 +1,14 @@
 import { and, eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
-import { markets, systemConfig } from '../db/schema';
+import { authAccount, markets, systemConfig } from '../db/schema';
 import { consensus, pHigher } from '../lib/amm';
 import { resolutionInstant } from '../lib/date-utils';
+import { AppError } from '../lib/errors';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
 import { wrap } from '../lib/wrap';
-import { requireCapability } from '../middleware/roles';
-import { listEarnRules } from '../services/earnRules';
+import { requireCapability, requireIdentity } from '../middleware/roles';
+import { claimEarn, claimedKeys, listEarnRules, refAlreadyClaimed } from '../services/earnRules';
 import { getAllMetricLogsGrouped, getAllMetrics, getStatus } from '../services/metrics';
 
 export const systemRouter = Router();
@@ -144,5 +145,79 @@ systemRouter.get(
         .filter(r => r.enabled)
         .map(r => ({ key: r.key, label: r.label, credits: r.credits, kind: r.kind, note: r.note })),
     });
+  }),
+);
+
+/**
+ * What THIS participant has earned and what is still available (owner ask
+ * 2026-08-30). The public /api/earn is the price list; this is the same
+ * list with the viewer's own state on it, which is what turns a page of
+ * numbers into a page of things to do.
+ */
+systemRouter.get(
+  '/earn/me',
+  requireIdentity,
+  wrap(async (req, res) => {
+    const agentId = req.auth?.agentId;
+    if (!agentId) throw new AppError('No participant identity on this request', 400);
+    const [rules, claimed] = await Promise.all([listEarnRules(), claimedKeys(agentId)]);
+    const visible = rules.filter(r => r.enabled && r.key !== 'signup_agent');
+    res.json({
+      earned: visible.filter(r => claimed.has(r.key)).reduce((sum, r) => sum + r.credits, 0),
+      available: visible.filter(r => !claimed.has(r.key)).reduce((sum, r) => sum + r.credits, 0),
+      rules: visible.map(r => ({
+        key: r.key,
+        label: r.label,
+        credits: r.credits,
+        kind: r.kind,
+        note: r.note,
+        claimed: claimed.has(r.key),
+      })),
+    });
+  }),
+);
+
+/**
+ * Pay for any provider account the caller has attached and not yet been
+ * paid for. Called after BetterAuth's account linking returns, because
+ * linking happens in the auth layer and the money does not belong there.
+ *
+ * Deliberately a sync rather than "claim this link": the truth is which
+ * accounts are actually attached, so re-running it is safe and a link
+ * added by any other route is picked up too. A provider account that
+ * already paid out elsewhere is reported as such rather than silently
+ * granting nothing, because a rule the user cannot see reads as a bug.
+ */
+systemRouter.post(
+  '/earn/links/sync',
+  requireIdentity,
+  wrap(async (req, res) => {
+    const agentId = req.auth?.agentId;
+    const uid = req.auth?.uid;
+    if (!agentId || !uid) throw new AppError('Browser account session required', 400);
+
+    const links = await db
+      .select({ providerId: authAccount.providerId, accountId: authAccount.accountId })
+      .from(authAccount)
+      .where(eq(authAccount.userId, uid));
+
+    let granted = 0;
+    const paid: string[] = [];
+    const takenElsewhere: string[] = [];
+    for (const l of links) {
+      const key = l.providerId === 'google' ? 'link_google' : l.providerId === 'github' ? 'link_github' : null;
+      if (!key) continue;
+      const claim = await claimEarn({ agentId, key, refId: l.accountId });
+      if (claim) {
+        granted += claim.granted;
+        paid.push(key);
+      } else if (await refAlreadyClaimed(key, l.accountId)) {
+        // Either this participant already earned it, or that account paid
+        // out on a different Telarchy account. The page says which.
+        const mine = await claimedKeys(agentId);
+        if (!mine.has(key)) takenElsewhere.push(key);
+      }
+    }
+    res.json({ granted, paid, takenElsewhere });
   }),
 );
