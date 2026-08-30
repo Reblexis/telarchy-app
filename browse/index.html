@@ -7384,18 +7384,27 @@ from GitHub's public branches API and cached a minute) and marks which ones
 are built. Choosing an unbuilt one asks <code>POST /api/admin/branches/:name/build</code>
 to dispatch the deploy workflow for that ref (<code>workflow_dispatch</code> on any ref
 other than main runs the preview job), which needs a GitHub token with
-Actions write on the repository in <code>GITHUB_ACTIONS_TOKEN</code>. That secret is a
-FINE-GRAINED PAT scoped to <code>Reblexis/telarchy-app</code> alone with one permission,
-Actions: Read and write (owner decision 2026-08-29: the <code>gh</code> CLI's own token
-would have carried repo + delete_repo across every Reblexis repo into a
-server env var). It lives in Secret Manager and is mounted by both deploy
-jobs' <code>--update-secrets</code>; the runtime service account is granted
-<code>secretAccessor</code> on the secret itself, the way every other secret here is
-granted. Rotation: add a new version, redeploy (the mount resolves <code>latest</code>
-when a revision starts).</p>
+Actions write on the repository in <code>GITHUB_ACTIONS_TOKEN</code>. It lives in Secret
+Manager and is mounted by both deploy jobs' <code>--update-secrets</code>; the runtime
+service account is granted <code>secretAccessor</code> on the secret itself, the way
+every other secret here is granted.</p>
+<p><strong>What it currently holds, and what it should hold.</strong> Version 1 is the
+owner's own <code>gh</code> CLI token (owner direction 2026-08-29, &quot;you can do it&quot;, after
+three sessions blocked on the button). That token carries <code>repo</code> and
+<code>delete_repo</code> across EVERY <code>Reblexis</code> repository, so a compromise of the Cloud
+Run service is org-wide rather than one repo. The intended credential is a
+fine-grained PAT scoped to <code>Reblexis/telarchy-app</code> alone with one permission,
+Actions: Read and write. Swapping is one command and needs no code change:</p>
+<pre><code class="language-bash">gcloud secrets versions add GITHUB_ACTIONS_TOKEN \
+  --project=telarchy-e0043 --data-file=-   # paste the PAT, then Ctrl-D
+</code></pre>
+<p>Then redeploy (any push to main): the mount resolves <code>latest</code> when a revision
+starts, so a new version reaches the service on its next revision, not
+immediately.</p>
 <p>The mount must not reach main before the secret has a version: Cloud Run
 refuses to deploy a revision naming a secret that does not exist, so the
-order is create the secret, grant the binding, then merge. Without the token the endpoint answers 501
+order is create the secret, grant the binding, then merge. Done in that
+order on 2026-08-29. Without the token the endpoint answers 501
 with the command that does the same by hand:
 <code>gh workflow run deploy-cloudrun.yml --ref &lt;branch&gt;</code>. About eight minutes
 later the branch is built and appears in the picker as such.</p>
