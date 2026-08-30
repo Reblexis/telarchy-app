@@ -326,3 +326,18 @@ Superseded: the image is `ghcr.io/reblexis/telarchy-app` (`docker-publish.yml:36
 "Two pieces of service config, set once on Cloud Run and
 inherited by every CI deploy (the workflow passes no env flags, so
 revisions keep them)". Superseded: `deploy-cloudrun.yml:244-245` passes `--update-env-vars ALLOWED_ORIGIN,TRUSTED_ORIGINS` and `--update-secrets API_KEY,GITHUB_CLIENT_SECRET`; they merge, so everything else is inherited.
+
+## 2026-08-30: the self-sync cron moved from GitHub Actions to Cloud Scheduler
+
+GitHub's `schedule` trigger cannot hold an hourly cadence on this repository.
+Measured over five consecutive days, a `40 23 * * *` cron fired at 23:54, 04:59,
+07:03, 04:17 and 01:36 UTC - delayed by up to seven hours, every run green - and
+after the cron was changed to `40 * * * *` it produced no run in the next four
+and a half hours. A scheduled job that reports its own success while firing a
+fifth as often as promised is the same failure shape as the
+`dailyresolve`/`dailymarketrefresh` jobs that 500'd for months: the scheduler is
+happy, nothing else watches.
+
+New Cloud Scheduler job `telarchy-self-sync` (`40 * * * *`, `POST /api/cron/self-sync`,
+master key in `X-API-Key`), and `SELF_SYNC_WORKSPACE_ID` set on the `api`
+service. Rationale for the metric behaviour is in notes/decisions/metrics.md.

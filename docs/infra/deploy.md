@@ -645,8 +645,8 @@ real beta data keyed by the real account id.
 ## What the workflow does
 
 On `push` to any branch (or `workflow_dispatch`); pushes touching only
-`**/*.md`, `docs/**` or the self-sync workflow do not trigger it. A branch
-`delete` event triggers only the `retire` job.
+`**/*.md` or `docs/**` do not trigger it. A branch `delete` event triggers
+only the `retire` job.
 
 1. `checks`: type check, frontend suite, production bundle (`npm run build`).
 2. `backend`: the backend suite in three shards (`npm run test:ci --shard=N/3`).
@@ -699,8 +699,6 @@ triggers this.
 - The production frontend is served by the same Cloud Run container as the
   backend (the Dockerfile copies the built bundle into `lib/public`); there is
   no separately hosted frontend.
-- `telarchy-self-sync.yml` pushes the dogfooding workspace's hero metric daily
-  at 23:40 UTC.
 
 ## The container
 
@@ -806,6 +804,14 @@ cooldown lock. Who calls them depends on the instance:
   |---|---|---|
   | `firebase-schedule-dailyResolve-us-central1` | `*/10 * * * *` (every 10 minutes) | `POST /api/cron/resolve` |
   | `firebase-schedule-dailyMarketRefresh-us-central1` | `10 * * * *` (hourly) | `POST /api/cron/refresh` |
+  | `telarchy-self-sync` | `40 * * * *` (hourly) | `POST /api/cron/self-sync` |
+
+  `self-sync` records Telarchy's own computed numbers as a reading on its own
+  floor, and it runs here rather than in GitHub Actions because GitHub's
+  scheduler cannot hold an hourly cadence: a `40 23 * * *` job fired at 01:36,
+  04:17, 04:59 and 07:03 UTC on four consecutive days, and changing it to
+  `40 * * * *` produced no run at all in the four hours that followed. It is a
+  no-op on any instance that has not set `SELF_SYNC_WORKSPACE_ID`.
 
   Hour-granularity markets (`YYYY-MM-DDTHH` target dates, `+Nh` custom
   horizons) need at least hourly resolution and rolling, so the managed

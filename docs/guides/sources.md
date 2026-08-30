@@ -85,26 +85,32 @@ Two more rules worth knowing at settlement time:
   position with the reason published. The first reading ends that state for
   good.
 
-## Push on a schedule, and only when it moved
+## Push on a schedule, as often as your shortest market
 
 There is no scheduler inside Telarchy. "Auto-sync" means you write a script and
 run it on a cron, and the script does one `GET /api/metrics` to find the id and
-one `PUT` per changed number.
+one `PUT` per number it measured.
 
-Telarchy does this to itself, and the script is in the repo:
-`scripts/telarchy-self-sync.js`. It runs hourly, reads the public endpoint its
-own markets settle against, and pushes. Three habits in it are worth copying:
+Telarchy does this to itself, hourly, against the same public endpoint its own
+markets settle on. Three habits are worth copying:
 
-1. **Only write a changed number.** The reading log is public and traders audit
-   it, so twenty-four identical rows a day bury the real ones. Resolution reads
-   the last reading at or before the boundary regardless of how old it is, so a
-   gap between changes settles exactly the same way.
+1. **Push every reading you actually took, changed or not.** The reading log is
+   the "actual so far" line on your floor, so a number that comes back the same
+   is still a point on it, and a market on a flat number has a chart instead of
+   a single dot. What fabricates history is the opposite: writing a value you
+   did not measure, which is why a rename or a description edit writes no
+   reading. Resolution reads the last reading at or before the boundary, so
+   pushing more often never changes a settlement, it only makes the line real.
 2. **Match the metric by name and fail loudly when it is missing.** A rename in
    the app that nobody mirrored into the script is how a number silently stops
    updating on a market that is about to settle.
 3. **Give the script an ordinary participant key with `manage` on that one
    workspace**, not a master key. Its blast radius should be one workspace and
    one metric.
+4. **Watch the scheduler itself, not just the script.** An "hourly" job that
+   your scheduler delivers once a day looks exactly like a healthy one from the
+   inside: every run succeeds. Compare the reading log against the clock you
+   promised, not against the job's own green ticks.
 
 Push the number from the same place the number is defined. If your metric's
 description says "Stripe gross minus refunds, read on the 1st", the script

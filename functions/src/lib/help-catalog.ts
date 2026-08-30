@@ -1373,5 +1373,12 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       description:
         'Cron entry point: refresh time-preferenced markets (create missing, deactivate stale, void duplicates) across all workspaces. Triggered hourly at minute 10.',
     },
+    {
+      method: 'POST',
+      path: '/api/cron/self-sync',
+      auth: 'admin',
+      description:
+        "Cron entry point, managed instance only: record the platform's own computed numbers (weeklyActiveVerifiedTraders, revenue30dUsd from GET /api/marketplace/stats) as a reading on Telarchy's own floor. Triggered hourly at minute 40. A no-op returning { skipped } unless SELF_SYNC_WORKSPACE_ID names the workspace whose metrics are Telarchy's own, so a self-hosted instance never has its own metrics written by this. Records a reading every run, changed or not; only a changed number writes an updates-feed row and a metric:updated event.",
+    },
   ],
 };

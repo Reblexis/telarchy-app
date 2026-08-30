@@ -553,7 +553,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h2">There is exactly one write path</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h3">Two histories, and only one of them settles markets</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h4">The fixing: what a market actually settles on</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h5">Push on a schedule, and only when it moved</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h5">Push on a schedule, as often as your shortest market</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h6">Sources are context, not ingestion</a></li>
 </ul></details>
 </li>
@@ -2229,7 +2229,8 @@ not done.</p>
 <section class="docfile" id="file--docs-metrics-md">
 <p class="filelabel">docs/metrics.md</p>
 <h1 id="docs-metrics-md--h1">Telarchy metrics</h1>
-<p>Primary metrics, organized by what they measure: product engagement and network quality. This doc is the canonical definition. The platform computes none of the engagement or network-quality metrics below; the two it computes and the hourly self-sync pushes are <code>weeklyActiveVerifiedTraders</code> (under Engagement) and <code>revenue30dUsd</code> (under Money). Both are published by <code>GET /api/marketplace/stats</code>, because a number a market settles on has to be readable by the people asked to trust it, and <code>scripts/telarchy-self-sync.js</code> pushes each verbatim, hourly, writing a metric only when its value changed.</p>
+<p>Primary metrics, organized by what they measure: product engagement and network quality. This doc is the canonical definition. The platform computes none of the engagement or network-quality metrics below; the two it computes and the hourly self-sync records are <code>weeklyActiveVerifiedTraders</code> (under Engagement) and <code>revenue30dUsd</code> (under Money). Both are published by <code>GET /api/marketplace/stats</code>, because a number a market settles on has to be readable by the people asked to trust it, and <code>POST /api/cron/self-sync</code> records each verbatim on the hour.</p>
+<p>A reading is recorded on every run, changed or not: <code>metric_logs</code> is the &quot;actual so far&quot; line the floor draws and the series settlement fixes on, so a number genuinely re-measured on the hour is a measurement even when it comes back the same. Only a number that actually moved writes an updates-feed entry and a <code>metric:updated</code> event, which are notifications rather than measurements. A metric the platform does not compute is never written by the sync at all, so <code>Implied valuation (USD)</code> keeps its <code>resolvesNaUntilMeasured</code> state until a real investment closes.</p>
 <p>Telarchy's own platform-internal workspace at telarchy.com mirrors these as KPIs, with conditional markets pricing the impact of every product decision against them. The product dogfoods itself.</p>
 <h2 id="docs-metrics-md--h2">Engagement (love metric)</h2>
 <h3 id="docs-metrics-md--h3">Weekly active workspaces with ≥1 priced decision</h3>
@@ -2245,7 +2246,7 @@ not done.</p>
 <li><strong>How to compute:</strong> Cohort by <code>workspaces.createdAt</code> week, intersect with WAU set 4 weeks later.</li>
 </ul>
 <h3 id="docs-metrics-md--h5">Weekly active verified traders (<code>weeklyActiveVerifiedTraders</code>)</h3>
-<p>The hero metric of the Telarchy floor, and the one metric the platform computes itself: <code>GET /api/marketplace/stats</code> returns it and <code>scripts/telarchy-self-sync.js</code> pushes it verbatim into the floor's metric. Distinct participants who (a) have a Manifold account synced (the verified set: each maps to a public Manifold profile anyone can check) and (b) placed trades totalling at least 100 credits in absolute cost across the trailing 7 days, sells included.</p>
+<p>The hero metric of the Telarchy floor, and the one metric the platform computes itself: <code>GET /api/marketplace/stats</code> returns it and the hourly <code>POST /api/cron/self-sync</code> records it verbatim on the floor's metric. Distinct participants who (a) have a Manifold account synced (the verified set: each maps to a public Manifold profile anyone can check) and (b) placed trades totalling at least 100 credits in absolute cost across the trailing 7 days, sells included.</p>
 <ul>
 <li><strong>Why this metric:</strong> credits are free, so a costless gesture must not count, and a resolution source has to be readable by the people asked to trust it; both the verification and the number are public.</li>
 <li><strong>How to compute:</strong> <code>functions/src/services/platform-stats.ts</code>: sum <code>abs(cost)</code> of <code>trades</code> per <code>agentId</code> over the trailing 7 days, keep those at or above 100, count the ones with a <code>manifold-claimed:agent:&lt;id&gt;</code> row in <code>system_config</code>. Cached for one minute.</li>
@@ -2281,7 +2282,7 @@ not done.</p>
 <p>Money Telarchy itself was paid in the trailing 30 days: managed-tier subscriptions, platform fees on contracts, federation fees, any invoice paid to Telarchy, in USD, net of refunds. Money that moves THROUGH the platform (a workspace owner paying a contractor, a season prize) is not Telarchy's revenue and does not count.</p>
 <ul>
 <li><strong>Why this metric:</strong> it is the number every other one on this page is a proxy for, and pricing it on the public floor is the honest way to say what the platform has (nothing yet) and let forecasters price when that changes.</li>
-<li><strong>How to compute:</strong> <code>GET /api/marketplace/stats</code> publishes <code>revenue30dUsd</code> and <code>scripts/telarchy-self-sync.js</code> pushes it verbatim every hour, the same way <code>weeklyActiveVerifiedTraders</code> is pushed. The number sums the rails the platform can see: today that is completed paid-liquidity purchases (<code>liquidity_purchases</code>, status <code>completed</code>, dated by when the money landed), the same window <code>GET /api/liquidity/revenue</code> reports. The owner's hand came off the metric when that rail went live (2026-08-28); a payment arriving on a rail the platform cannot see is added to the computation, never typed into the metric, because the next hourly run overwrites a hand-entered value.</li>
+<li><strong>How to compute:</strong> <code>GET /api/marketplace/stats</code> publishes <code>revenue30dUsd</code> and the hourly <code>POST /api/cron/self-sync</code> records it verbatim, the same way <code>weeklyActiveVerifiedTraders</code> is recorded. The number sums the rails the platform can see: today that is completed paid-liquidity purchases (<code>liquidity_purchases</code>, status <code>completed</code>, dated by when the money landed), the same window <code>GET /api/liquidity/revenue</code> reports. The owner's hand came off the metric when that rail went live (2026-08-28); a payment arriving on a rail the platform cannot see is added to the computation, never typed into the metric, because the next hourly run overwrites a hand-entered value.</li>
 <li><strong>Markets:</strong> today, this week, next month (<code>+0d</code>, <code>+0w</code>, and the absolute next-month date every floor metric carries), like every metric on a public floor (docs/ui-conventions.md, &quot;The question line&quot;). Range 0 to 1,000.</li>
 </ul>
 <h3 id="docs-metrics-md--h12">Implied valuation (USD)</h3>
@@ -7157,24 +7158,30 @@ an investment, say) and the market voids as N/A instead, refunding every
 position with the reason published. The first reading ends that state for
 good.</li>
 </ul>
-<h2 id="docs-guides-sources-md--h5">Push on a schedule, and only when it moved</h2>
+<h2 id="docs-guides-sources-md--h5">Push on a schedule, as often as your shortest market</h2>
 <p>There is no scheduler inside Telarchy. &quot;Auto-sync&quot; means you write a script and
 run it on a cron, and the script does one <code>GET /api/metrics</code> to find the id and
-one <code>PUT</code> per changed number.</p>
-<p>Telarchy does this to itself, and the script is in the repo:
-<code>scripts/telarchy-self-sync.js</code>. It runs hourly, reads the public endpoint its
-own markets settle against, and pushes. Three habits in it are worth copying:</p>
+one <code>PUT</code> per number it measured.</p>
+<p>Telarchy does this to itself, hourly, against the same public endpoint its own
+markets settle on. Three habits are worth copying:</p>
 <ol>
-<li><strong>Only write a changed number.</strong> The reading log is public and traders audit
-it, so twenty-four identical rows a day bury the real ones. Resolution reads
-the last reading at or before the boundary regardless of how old it is, so a
-gap between changes settles exactly the same way.</li>
+<li><strong>Push every reading you actually took, changed or not.</strong> The reading log is
+the &quot;actual so far&quot; line on your floor, so a number that comes back the same
+is still a point on it, and a market on a flat number has a chart instead of
+a single dot. What fabricates history is the opposite: writing a value you
+did not measure, which is why a rename or a description edit writes no
+reading. Resolution reads the last reading at or before the boundary, so
+pushing more often never changes a settlement, it only makes the line real.</li>
 <li><strong>Match the metric by name and fail loudly when it is missing.</strong> A rename in
 the app that nobody mirrored into the script is how a number silently stops
 updating on a market that is about to settle.</li>
 <li><strong>Give the script an ordinary participant key with <code>manage</code> on that one
 workspace</strong>, not a master key. Its blast radius should be one workspace and
 one metric.</li>
+<li><strong>Watch the scheduler itself, not just the script.</strong> An &quot;hourly&quot; job that
+your scheduler delivers once a day looks exactly like a healthy one from the
+inside: every run succeeds. Compare the reading log against the clock you
+promised, not against the job's own green ticks.</li>
 </ol>
 <p>Push the number from the same place the number is defined. If your metric's
 description says &quot;Stripe gross minus refunds, read on the 1st&quot;, the script
@@ -7931,8 +7938,8 @@ that is tidied back. Everything else stays per-store, so a beta workspace is
 real beta data keyed by the real account id.</p>
 <h2 id="docs-infra-deploy-md--h14">What the workflow does</h2>
 <p>On <code>push</code> to any branch (or <code>workflow_dispatch</code>); pushes touching only
-<code>**/*.md</code>, <code>docs/**</code> or the self-sync workflow do not trigger it. A branch
-<code>delete</code> event triggers only the <code>retire</code> job.</p>
+<code>**/*.md</code> or <code>docs/**</code> do not trigger it. A branch <code>delete</code> event triggers
+only the <code>retire</code> job.</p>
 <ol>
 <li><code>checks</code>: type check, frontend suite, production bundle (<code>npm run build</code>).</li>
 <li><code>backend</code>: the backend suite in three shards (<code>npm run test:ci --shard=N/3</code>).</li>
@@ -7982,8 +7989,6 @@ use. Leave it.</li>
 <li>The production frontend is served by the same Cloud Run container as the
 backend (the Dockerfile copies the built bundle into <code>lib/public</code>); there is
 no separately hosted frontend.</li>
-<li><code>telarchy-self-sync.yml</code> pushes the dogfooding workspace's hero metric daily
-at 23:40 UTC.</li>
 </ul>
 <h2 id="docs-infra-deploy-md--h16">The container</h2>
 <p><code>Dockerfile</code> builds the backend (<code>functions/</code>), the frontend at <code>/</code>, and the
@@ -8095,8 +8100,19 @@ a service nothing else watches.</p>
 <td><code>10 * * * *</code> (hourly)</td>
 <td><code>POST /api/cron/refresh</code></td>
 </tr>
+<tr>
+<td><code>telarchy-self-sync</code></td>
+<td><code>40 * * * *</code> (hourly)</td>
+<td><code>POST /api/cron/self-sync</code></td>
+</tr>
 </tbody>
 </table></div>
+<p><code>self-sync</code> records Telarchy's own computed numbers as a reading on its own
+floor, and it runs here rather than in GitHub Actions because GitHub's
+scheduler cannot hold an hourly cadence: a <code>40 23 * * *</code> job fired at 01:36,
+04:17, 04:59 and 07:03 UTC on four consecutive days, and changing it to
+<code>40 * * * *</code> produced no run at all in the four hours that followed. It is a
+no-op on any instance that has not set <code>SELF_SYNC_WORKSPACE_ID</code>.</p>
 <p>Hour-granularity markets (<code>YYYY-MM-DDTHH</code> target dates, <code>+Nh</code> custom
 horizons) need at least hourly resolution and rolling, so the managed
 cadence is never coarser than hourly.</p>
