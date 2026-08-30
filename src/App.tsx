@@ -23,6 +23,7 @@ const SignupPage = lazyPage(() => import('./pages/SignupPage'), 'SignupPage');
 const WaitlistPage = lazyPage(() => import('./pages/WaitlistPage'), 'WaitlistPage');
 const LeaderPage = lazyPage(() => import('./pages/LeaderPage'), 'LeaderPage');
 const AnnouncementsPage = lazyPage(() => import('./pages/AnnouncementsPage'), 'AnnouncementsPage');
+const FundingPage = lazyPage(() => import('./pages/FundingPage'), 'FundingPage');
 const SeasonPage = lazyPage(() => import('./pages/SeasonPage'), 'SeasonPage');
 const EarnPage = lazyPage(() => import('./pages/EarnPage'), 'EarnPage');
 const ManagePage = lazyPage(() => import('./pages/ManagePage'), 'ManagePage');
@@ -196,6 +197,9 @@ export function App() {
         {/* telarchy.com/<slug> is a market. Last, so every named route above
             wins over a workspace that happens to share its name. */}
         <Route path="/:slug/announcements" element={<AnnouncementsPage />} />
+        {/* Where money enters one floor (docs/liquidity-purchases.md). Above
+            /:slug so a workspace named "funding" cannot swallow it. */}
+        <Route path="/:slug/funding" element={<FundingPage />} />
         <Route path="/:slug" element={<TradePage />} />
 
         {/* Anything else, every dead console URL included, is not an error

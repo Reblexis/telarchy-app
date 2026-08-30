@@ -52,6 +52,19 @@ true, and every change to this feature must preserve all three:
   purchases; `GET /api/liquidity/revenue` (platform admin) totals completed
   revenue over a window.
 
+## Where an owner buys
+
+`/<floor>/funding` (`src/pages/FundingPage.tsx`), reached from the Buy
+affordance beside Inject on any open market and open only to someone with
+`manage` on that floor. It shows the liquidity wallet, the count of open
+markets the credits can go into, the buy field with $25/$50/$100/$250
+presets, and the workspace's past purchases. Its copy carries invariants 1
+and 2 above in plain words, so nobody pays before knowing that credits reach
+pools and never a balance, and that buying is not season entry. An instance
+with no Stripe secrets shows the server's own 503 sentence rather than a
+button that silently fails. Placing the credits is a separate act on the
+floor (`docs/owner-on-the-floor.md`).
+
 ## Pricing
 
 **$1 = 1,000 credits of pool liquidity** (`LIQUIDITY_CREDITS_PER_USD`,

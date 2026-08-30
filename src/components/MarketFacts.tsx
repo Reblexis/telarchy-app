@@ -71,6 +71,7 @@ export function MarketFacts({
   volume,
   canManage = false,
   onInject,
+  fundingHref,
 }: {
   traders: number;
   pool: number;
@@ -78,6 +79,8 @@ export function MarketFacts({
   canManage?: boolean;
   /** Opens the inject-liquidity dialog; the parent owns it. */
   onInject?: () => void;
+  /** The floor's funding page, where the credits to inject are bought. */
+  fundingHref?: string;
 }) {
   return (
     <span className="pubws-facts" aria-label="Market facts">
@@ -96,6 +99,13 @@ export function MarketFacts({
         <button type="button" className="pubws-facts-act" onClick={onInject}>
           Inject
         </button>
+      )}
+      {canManage && fundingHref && (
+        // Where more credits come from, one step from where they are spent
+        // (docs/liquidity-purchases.md). Only for someone who can spend them.
+        <a className="pubws-facts-act" href={fundingHref}>
+          Buy
+        </a>
       )}
     </span>
   );
