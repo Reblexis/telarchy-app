@@ -187,9 +187,7 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open
             Otto acts with your account and can do only what you can. His opinions are not advice from {workspaceName}.
           </>
         ) : (
-          <>
-            Otto&rsquo;s opinions are not advice from {workspaceName}. Sign up and he can act for you too.
-          </>
+          <>Otto&rsquo;s opinions are not advice from {workspaceName}. Sign up and he can act for you too.</>
         )}
       </p>
     </section>

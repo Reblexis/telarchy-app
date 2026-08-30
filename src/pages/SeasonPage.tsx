@@ -156,8 +156,8 @@ export function SeasonPage() {
             </p>
           )}
           <p className="seasonp-experimental">
-            Rule change, 2026-08-25: workspace owners and admins are eligible, and their trades count like any other.
-            It widens who may enter and reduces nobody's standing.
+            Rule change, 2026-08-25: workspace owners and admins are eligible, and their trades count like any other. It
+            widens who may enter and reduces nobody's standing.
           </p>
           <p className="seasonp-experimental">
             Rule change, 2026-08-22: a prize no longer requires a positive score; place alone decides it. The change

@@ -506,9 +506,7 @@ export function CreateWorkspaceDialog({
         {err && <p className="ticket-err">{err}</p>}
         <button className="ticket-go" disabled={busy} onClick={() => void create()}>
           {busy ? 'Opening…' : 'Open my market'}
-          <span className="ticket-go-sub">
-            You add the first number next, then publish it with one button.
-          </span>
+          <span className="ticket-go-sub">You add the first number next, then publish it with one button.</span>
         </button>
       </div>
     </FloorModal>
@@ -710,9 +708,7 @@ export function ReportValueDialog({
               }}
               aria-label="Highest it could plausibly reach"
             />
-            <span className="odlg-note-left">
-              Leave room. Fixed once someone trades.
-            </span>
+            <span className="odlg-note-left">Leave room. Fixed once someone trades.</span>
           </label>
         )}
 
@@ -731,9 +727,7 @@ export function ReportValueDialog({
         {err && <p className="ticket-err">{err}</p>}
         <button className="ticket-go" disabled={busy || !valid} onClick={() => void report()}>
           {busy ? 'Reporting…' : valid ? `Report ${unit}${fmtCr(parsed)}` : 'Report'}
-          <span className="ticket-go-sub">
-            Public, timestamped, and kept beside the old one for good.
-          </span>
+          <span className="ticket-go-sub">Public, timestamped, and kept beside the old one for good.</span>
         </button>
       </div>
     </FloorModal>
