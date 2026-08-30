@@ -202,7 +202,7 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
         <Rows
           rows={[
             { key: 'range', left: 'Range the market prices inside', value: `${n(m.rangeMin)} to ${n(m.rangeMax)}` },
-            { key: 'liq', left: 'Liquidity in the book', value: `${n(Math.round(m.liquidity))} cr` },
+            { key: 'liq', left: 'Credits in the pool', value: `${n(Math.round(m.pool))} cr` },
             { key: 'vol', left: 'Traded volume, lifetime', value: `${n(Math.round(m.tradedVolume))} cr` },
           ]}
         />

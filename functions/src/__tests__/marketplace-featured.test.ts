@@ -143,6 +143,20 @@ describe('GET /api/marketplace/featured', () => {
     expect(res.body.find((m: any) => m.marketId === MKT_PUB_PLAIN)).toBeUndefined();
   });
 
+  // What an owner reads after paying: the pool is the credits that went in,
+  // and `liquidity` beside it is b = pool / ln 2. Sending only b made a
+  // 1,000-credit injection read as 1,443 in the pool (owner, 2026-08-30).
+  test('carries the pool in credits, separately from the sensitivity b', async () => {
+    await seed();
+    const res = await request(app).get('/api/marketplace/featured');
+    expect(res.status).toBe(200);
+    const m = res.body[0];
+    expect(m.pool).toBeCloseTo(initialPool(10), 6);
+    expect(m.liquidity).toBe(10);
+    // The two are not the same number, and the credit one is the pool.
+    expect(m.pool).not.toBeCloseTo(m.liquidity, 3);
+  });
+
   test('returns [] when no featured markets exist anywhere', async () => {
     await db.insert(workspaces).values({ id: PUBLIC_WS, name: 'Public WS', createdBy: 'seed', visibility: 'public' });
     const res = await request(app).get('/api/marketplace/featured');
