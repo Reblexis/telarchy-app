@@ -6404,6 +6404,15 @@ textarea.jobform-line--desc {
   .lbt-h:first-child, .lbt-rank { padding-left: 0; }
 }
 
+/* /earn: the price list, in the boards' own table language. The reason
+   sits under each label because the reason is the argument: a price the
+   reader can see the sense of does not read as a game reward. */
+.earn-tbl { margin-top: 0.5rem; }
+.earn-label { display: block; font-size: 0.95rem; font-weight: 500; }
+.earn-why { display: block; margin-top: 0.15rem; font-size: 0.8rem; line-height: 1.45; color: var(--text-secondary); }
+.earn-upto { font-size: 0.7rem; color: var(--text-tertiary); }
+.earn-foot { margin-top: 1.5rem; }
+
 .lbp-foot { margin-top: 2.5rem; text-align: center; font-size: 0.9rem; }
 .lbp-foot a { color: var(--accent); text-decoration: none; }
 .lbp-foot a:hover { text-decoration: underline; }

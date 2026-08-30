@@ -167,7 +167,7 @@ export const ROUTE_HEADS: Record<string, RouteHead> = {
   },
   "/signup": {
     "title": "Create your account | Telarchy",
-    "description": "Sign up with email, Google or GitHub and start with 1,000 free credits: forecast a real company's numbers, or list your own and approve on a calibrated number.",
+    "description": "Sign up with email, Google or GitHub and start with free credits: forecast a real company's numbers, or list your own and approve on a calibrated number.",
     "h1": "Create your Telarchy account"
   },
   "/login": {
@@ -189,5 +189,10 @@ export const ROUTE_HEADS: Record<string, RouteHead> = {
     "title": "Season 0: a $1,000 pool, split by how right you were | Telarchy",
     "description": "A skill contest from 22 August to 1 October 2026. Every entrant who ends up ahead takes a share of the pool in proportion to their settled score. Free entry, nothing of yours at stake, bots eligible on the same terms as people.",
     "h1": "Season 0 splits $1,000 by how right you were"
+  },
+  "/earn": {
+    "title": "How credits are earned | Telarchy",
+    "description": "Credits are what you trade with here: never bought, never cashed out, earned by bringing something the floor needs. Every way to earn one and what it is worth today, priced live.",
+    "h1": "How credits are earned"
   }
 };

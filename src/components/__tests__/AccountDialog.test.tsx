@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
@@ -51,19 +52,28 @@ vi.mock('../../hooks/useAuth', () => ({
 
 import { AccountDialog } from '../AccountDialog';
 
+/** The dialog links to /earn, so it renders inside a router here exactly
+ *  as it does in the app. */
+const renderDialog = () =>
+  render(
+    <MemoryRouter>
+      <AccountDialog onClose={() => {}} initialTab="money" />
+    </MemoryRouter>,
+  );
+
 beforeEach(() => {
   upsertProfile.mockClear();
 });
 
 describe('the account dialog', () => {
   test('hydrates the stored provider and its fields', async () => {
-    render(<AccountDialog onClose={() => {}} initialTab="money" />);
+    renderDialog();
     await waitFor(() => expect(screen.getByLabelText('PayPal email')).toBeTruthy());
     expect((screen.getByLabelText('PayPal email') as HTMLInputElement).value).toBe('old@x.com');
   });
 
   test('switching provider switches the asked-for fields', async () => {
-    render(<AccountDialog onClose={() => {}} initialTab="money" />);
+    renderDialog();
     await waitFor(() => expect(screen.getByText('Bank')).toBeTruthy());
     fireEvent.click(screen.getByText('Bank'));
     expect(screen.getByLabelText('IBAN')).toBeTruthy();
@@ -74,7 +84,7 @@ describe('the account dialog', () => {
   });
 
   test('saving sends the structured method', async () => {
-    render(<AccountDialog onClose={() => {}} initialTab="money" />);
+    renderDialog();
     await waitFor(() => expect(screen.getByText('Bank')).toBeTruthy());
     fireEvent.click(screen.getByText('Bank'));
     fireEvent.change(screen.getByLabelText('IBAN'), { target: { value: 'DE89 3704 0044 0532 0130 00' } });
@@ -89,7 +99,7 @@ describe('the account dialog', () => {
 
   test('a server refusal lands beside the save, verbatim', async () => {
     upsertProfile.mockRejectedValueOnce(new Error('That IBAN does not check out; copy it exactly from your bank'));
-    render(<AccountDialog onClose={() => {}} initialTab="money" />);
+    renderDialog();
     await waitFor(() => expect(screen.getByText('Bank')).toBeTruthy());
     fireEvent.click(screen.getByText('Bank'));
     fireEvent.change(screen.getByLabelText('IBAN'), { target: { value: 'DE00' } });
@@ -114,7 +124,7 @@ describe('crypto payment details', () => {
       payoutHandle: 'Crypto',
       payoutMethod: { provider: 'crypto', network: 'ethereum', address: '0x' + 'a'.repeat(40) },
     } as never);
-    render(<AccountDialog onClose={() => {}} initialTab="money" />);
+    renderDialog();
     await waitFor(() => expect(screen.getByLabelText('Address')).toBeTruthy());
 
     // An asset pill is active, so saving cannot 400 with "Pick what to be
@@ -141,7 +151,7 @@ describe('crypto payment details', () => {
   });
 
   test('the highlighted chain and the offered assets are the same chain', async () => {
-    render(<AccountDialog onClose={() => {}} initialTab="money" />);
+    renderDialog();
     await waitFor(() => expect(screen.getByText('Crypto')).toBeTruthy());
     fireEvent.click(screen.getByText('Crypto'));
 
@@ -156,7 +166,7 @@ describe('crypto payment details', () => {
   });
 
   test('switching chain drops an asset the new chain cannot settle', async () => {
-    render(<AccountDialog onClose={() => {}} initialTab="money" />);
+    renderDialog();
     await waitFor(() => expect(screen.getByText('Crypto')).toBeTruthy());
     fireEvent.click(screen.getByText('Crypto'));
     fireEvent.click(screen.getByText('Ethereum'));

@@ -24,6 +24,7 @@ const WaitlistPage = lazyPage(() => import('./pages/WaitlistPage'), 'WaitlistPag
 const LeaderPage = lazyPage(() => import('./pages/LeaderPage'), 'LeaderPage');
 const AnnouncementsPage = lazyPage(() => import('./pages/AnnouncementsPage'), 'AnnouncementsPage');
 const SeasonPage = lazyPage(() => import('./pages/SeasonPage'), 'SeasonPage');
+const EarnPage = lazyPage(() => import('./pages/EarnPage'), 'EarnPage');
 const ManagePage = lazyPage(() => import('./pages/ManagePage'), 'ManagePage');
 const ParticipantProfilePage = lazyPage(() => import('./pages/ParticipantProfilePage'), 'ParticipantProfilePage');
 const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
@@ -174,6 +175,9 @@ export function App() {
             leaderboard carry one line and a link instead of the whole pitch
             (owner direction 2026-08-19). */}
         <Route path="/season" element={<SeasonPage />} />
+        {/* How credits are earned, read from the live earn table so the page
+            and the code can never disagree (owner ask 2026-08-30). */}
+        <Route path="/earn" element={<EarnPage />} />
         <Route path="/participants/:id" element={<ParticipantProfilePage />} />
 
         {/* Telarchy's own books: vision, traction, traffic, what shipped and

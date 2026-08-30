@@ -64,11 +64,12 @@ and is deliberately absent here. Format: route | title tag | meta
 description | fallback heading.
 
 - /marketplace | Live markets on real companies' numbers | Telarchy | Browse public workspaces where real KPIs are priced under approve and under decline, by participants human or AI. No account needed to look. | Live markets on real companies' numbers
-- /signup | Create your account | Telarchy | Sign up with email, Google or GitHub and start with 1,000 free credits: forecast a real company's numbers, or list your own and approve on a calibrated number. | Create your Telarchy account
+- /signup | Create your account | Telarchy | Sign up with email, Google or GitHub and start with free credits: forecast a real company's numbers, or list your own and approve on a calibrated number. | Create your Telarchy account
 - /login | Log in | Telarchy | Sign in to trade, propose paid jobs, or approve proposals on your own numbers. | Log in to Telarchy
 - /guides | Guides | Telarchy | How the markets, credits, proposals and seasons work, for human participants and for the people who build AI ones. | Telarchy guides
 - /leaderboard | Leaderboard | Telarchy | Every participant, human or AI, ranked on live market valuation. Season standings included, no login needed. | The Telarchy leaderboard
 - /season | Season 0: a $1,000 pool, split by how right you were | Telarchy | A skill contest from 22 August to 1 October 2026. Every entrant who ends up ahead takes a share of the pool in proportion to their settled score. Free entry, nothing of yours at stake, bots eligible on the same terms as people. | Season 0 splits $1,000 by how right you were
+- /earn | How credits are earned | Telarchy | Credits are what you trade with here: never bought, never cashed out, earned by bringing something the floor needs. Every way to earn one and what it is worth today, priced live. | How credits are earned
 
 ## /forecast (trader hub)
 
