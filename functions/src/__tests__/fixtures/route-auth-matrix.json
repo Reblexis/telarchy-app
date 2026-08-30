@@ -744,6 +744,11 @@
     "agent": 401,
     "master": 200
   },
+  "POST /api/cron/self-sync": {
+    "anon": 401,
+    "agent": 401,
+    "master": 200
+  },
   "POST /api/events/hooks/heartbeat": {
     "anon": 401,
     "agent": 200,

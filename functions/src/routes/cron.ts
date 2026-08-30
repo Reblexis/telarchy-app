@@ -61,6 +61,30 @@ cronRouter.post(
   }),
 );
 
+/**
+ * Record Telarchy's own numbers as a reading on its own floor.
+ *
+ * Hourly on the managed instance (docs/infra/deploy.md, "Cron schedule"); a
+ * no-op on any instance that has not set SELF_SYNC_WORKSPACE_ID, which is
+ * every self-hosted one. Idempotent in the sense that matters: a second call
+ * in the same hour records a second honest reading, it does not double
+ * anything.
+ */
+cronRouter.post(
+  '/self-sync',
+  wrap(async (req, res) => {
+    if (!validateApiKey(req, res)) return;
+
+    const { syncSelfMetrics } = await import('../services/self-sync');
+    const result = await syncSelfMetrics();
+    // Logged unconditionally, the empty case included: a scheduler job that
+    // stopped firing is invisible unless the quiet runs are on the record too,
+    // which is exactly how the previous sync went daily without anyone seeing.
+    console.log('[cron/self-sync]', JSON.stringify(result));
+    res.json({ ok: true, ...result });
+  }),
+);
+
 cronRouter.post(
   '/resolve',
   wrap(async (req, res) => {
