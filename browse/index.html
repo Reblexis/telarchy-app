@@ -1899,8 +1899,12 @@ funding design; it supersedes the earlier provisional 100). The rate is
 stamped on each purchase row at creation, so a price change never rewrites
 an old purchase.</p>
 <h2 id="docs-liquidity-purchases-md--h5">Revenue and the season pool</h2>
-<p>Completed purchases are the platform's liquidity revenue. The published
-season-pool formula sizes the next season from it:</p>
+<p>Completed purchases are the platform's liquidity revenue, and their
+trailing-30-day sum is public as <code>revenue30dUsd</code> on
+<code>GET /api/marketplace/stats</code>: it is what the floor's &quot;Telarchy revenue (USD)&quot;
+metric settles on, so the buyers of the service and the traders pricing it
+read the same number (docs/metrics.md, &quot;Revenue, trailing 30 days&quot;). The
+published season-pool formula sizes the next season from it:</p>
 <pre><code>pool(N+1) = max(pool(0), k x revenue(N)) + rollover(N)
 </code></pre>
 <p>with <code>pool(0) = 1000 USD</code> and <code>k = 0.5</code> (provisional, owner to confirm).
@@ -2193,7 +2197,7 @@ not done.</p>
 <section class="docfile" id="file--docs-metrics-md">
 <p class="filelabel">docs/metrics.md</p>
 <h1 id="docs-metrics-md--h1">Telarchy metrics</h1>
-<p>Primary metrics, organized by what they measure: product engagement and network quality. This doc is the canonical definition. The platform computes none of the engagement or network-quality metrics below; the one metric it computes and the self-sync pushes is <code>weeklyActiveVerifiedTraders</code> (defined under Engagement).</p>
+<p>Primary metrics, organized by what they measure: product engagement and network quality. This doc is the canonical definition. The platform computes none of the engagement or network-quality metrics below; the two it computes and the hourly self-sync pushes are <code>weeklyActiveVerifiedTraders</code> (under Engagement) and <code>revenue30dUsd</code> (under Money). Both are published by <code>GET /api/marketplace/stats</code>, because a number a market settles on has to be readable by the people asked to trust it, and <code>scripts/telarchy-self-sync.js</code> pushes each verbatim, hourly, writing a metric only when its value changed.</p>
 <p>Telarchy's own platform-internal workspace at telarchy.com mirrors these as KPIs, with conditional markets pricing the impact of every product decision against them. The product dogfoods itself.</p>
 <h2 id="docs-metrics-md--h2">Engagement (love metric)</h2>
 <h3 id="docs-metrics-md--h3">Weekly active workspaces with ≥1 priced decision</h3>
@@ -2245,7 +2249,7 @@ not done.</p>
 <p>Money Telarchy itself was paid in the trailing 30 days: managed-tier subscriptions, platform fees on contracts, federation fees, any invoice paid to Telarchy, in USD, net of refunds. Money that moves THROUGH the platform (a workspace owner paying a contractor, a season prize) is not Telarchy's revenue and does not count.</p>
 <ul>
 <li><strong>Why this metric:</strong> it is the number every other one on this page is a proxy for, and pricing it on the public floor is the honest way to say what the platform has (nothing yet) and let forecasters price when that changes.</li>
-<li><strong>How to compute:</strong> while Telarchy has no paid tier and no revenue rail there is nothing to sync and the value is $0. Until a rail exists, the owner logs each payment by hand as a metric update with a note naming the payer category and amount; the metric log is public, so a trader can audit every reading. This is the one hero metric the owner CAN edit, and the market's description says so. When a rail exists (Stripe or the Wise business account), <code>scripts/telarchy-self-sync.js</code> pushes the trailing-30-day sum from it and the owner's hand is taken off, the same way <code>weeklyActiveVerifiedTraders</code> is pushed verbatim from <code>/api/marketplace/stats</code>.</li>
+<li><strong>How to compute:</strong> <code>GET /api/marketplace/stats</code> publishes <code>revenue30dUsd</code> and <code>scripts/telarchy-self-sync.js</code> pushes it verbatim every hour, the same way <code>weeklyActiveVerifiedTraders</code> is pushed. The number sums the rails the platform can see: today that is completed paid-liquidity purchases (<code>liquidity_purchases</code>, status <code>completed</code>, dated by when the money landed), the same window <code>GET /api/liquidity/revenue</code> reports. The owner's hand came off the metric when that rail went live (2026-08-28); a payment arriving on a rail the platform cannot see is added to the computation, never typed into the metric, because the next hourly run overwrites a hand-entered value.</li>
 <li><strong>Markets:</strong> today, this week, next month (<code>+0d</code>, <code>+0w</code>, and the absolute next-month date every floor metric carries), like every metric on a public floor (docs/ui-conventions.md, &quot;The question line&quot;). Range 0 to 1,000.</li>
 </ul>
 <h3 id="docs-metrics-md--h12">Implied valuation (USD)</h3>

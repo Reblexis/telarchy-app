@@ -22,7 +22,7 @@ jest.mock('../middleware/auth', () => ({
 
 import express from 'express';
 import request from 'supertest';
-import { agents, markets, metrics, systemConfig, trades, workspaces } from '../db/schema';
+import { agents, liquidityPurchases, markets, metrics, systemConfig, trades, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { toUnits } from '../lib/validation';
@@ -112,5 +112,33 @@ describe('GET /api/marketplace/stats', () => {
     const res = await request(app).get('/api/marketplace/stats');
     expect(res.status).toBe(200);
     expect(res.body.weeklyActiveVerifiedTraders).toBe(0);
+    expect(res.body.revenue30dUsd).toBe(0);
+  });
+
+  // revenue30dUsd is the resolution source for "Telarchy revenue (USD)", which
+  // the hourly self-sync pushes (docs/metrics.md). Pinned by a test for the
+  // same reason the trader count is: a market settles on it.
+  test('revenue30dUsd = completed purchases in the trailing 30 days, dated by completion', async () => {
+    await seed();
+    const base = {
+      workspaceId: 'w1',
+      agentId: 'buyer',
+      credits: 1000,
+      creditsPerUsd: 1000,
+      createdAt: new Date(Date.now() - 40 * DAY),
+    };
+    await db.insert(liquidityPurchases).values([
+      // Completed inside the window: counts.
+      { ...base, id: 'p1', usdAmount: 25, status: 'completed', completedAt: new Date(Date.now() - 2 * DAY) },
+      // Completed but outside the window: does NOT count.
+      { ...base, id: 'p2', usdAmount: 500, status: 'completed', completedAt: new Date(Date.now() - 31 * DAY) },
+      // Never paid: does NOT count.
+      { ...base, id: 'p3', usdAmount: 9000, status: 'pending', completedAt: null },
+      // Pre-completedAt row, dated by creation, inside the window: counts.
+      { ...base, id: 'p4', usdAmount: 5, status: 'completed', createdAt: new Date(Date.now() - 1 * DAY) },
+    ]);
+    const res = await request(app).get('/api/marketplace/stats');
+    expect(res.status).toBe(200);
+    expect(res.body.revenue30dUsd).toBe(30);
   });
 });
