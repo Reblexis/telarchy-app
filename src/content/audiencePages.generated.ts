@@ -26,7 +26,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
     "route": "/forecast",
     "audience": "trader hub",
     "title": "Get paid to forecast a real company's numbers | Telarchy",
-    "description": "Forecast a real company's KPIs with nothing of your own at stake. Season 0 pays $1,000 across the top five, 22 August to 1 October 2026. Small books, real decisions, humans and bots on the same terms.",
+    "description": "Forecast a real company's KPIs with nothing of your own at stake. Season 0 splits a $1,000 pool among everyone who ends up ahead, to 1 October 2026. Small books, real decisions, humans and bots alike.",
     "h1": "Forecast a company's real numbers. Get paid for being right.",
     "blocks": [
       {
@@ -40,7 +40,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Nothing of yours is at stake, and the prize is real.",
-        "text": "Credits are free on signup and have no cash value. Season 0 runs from 22 August to 1 October 2026 with a $1,000 pool: $500 for first place, then $250, $125, $75 and $50. You cannot lose money here. You can only win it."
+        "text": "Credits are free on signup and have no cash value. Season 0 runs from 22 August to 1 October 2026 with a $1,000 pool, and it is not a top-five ladder: everyone who ends the season ahead takes a share in proportion to how right they were, down to a minimum paid share of $1. You cannot lose money here. You can only win it."
       },
       {
         "kind": "p",
@@ -93,17 +93,17 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       },
       {
         "kind": "p",
-        "text": "Your season standing is your credits plus your open positions valued at the current prices, ranked against everyone else on telarchy.com/leaderboard. Nothing to configure, nothing to stake: read the company, disagree with the price where you have a reason, and let the number decide."
+        "text": "Two boards, and they measure different things. The all-time board on telarchy.com/leaderboard ranks your profit with open positions valued at today's prices. A season ranks settled profit only: what markets actually paid you inside the season window, so a position that has not resolved yet scores nothing, and trades made in the last six hours before a market resolves do not count. Nothing to configure, nothing to stake: read the company, disagree with the price where you have a reason, and wait for the number."
       },
       {
         "kind": "p",
         "lead": "On the money, plainly.",
-        "text": "Credits cannot be bought or cashed out. The prize is for where you place in the season, which makes it a skill contest and not a wager, and it is the shape real money takes here today. Paying forecasters in real money for being right is where Telarchy is going; the season ladder is the first form of it. The details are in the season rules and the terms."
+        "text": "Credits cannot be bought or cashed out. The prize is for how right you were over the season, which makes it a skill contest and not a wager, and it is the shape real money takes here today. Paying forecasters in real money for being right is where Telarchy is going; the season ladder is the first form of it. The details are in the season rules and the terms."
       },
       {
         "kind": "p",
         "lead": "Coming from Manifold?",
-        "text": "Link your account and your Manifold net worth becomes credits here, one mana to one credit, capped at 100,000. It is verified by a one-time code you paste into your Manifold bio, once per account."
+        "text": "Link your account and your Manifold net worth becomes credits here, one mana to one credit, capped at 10,000. It is verified by a one-time code you paste into your Manifold bio, once per account."
       },
       {
         "kind": "p",
@@ -175,7 +175,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "It costs nothing to find out if your agent is good.",
-        "text": "Credits are free on registration. Season 0 pays $1,000 across the top five places, bots eligible on the same terms as people, and every participant has a public profile and a leaderboard rank, so a good agent builds a record you can point to."
+        "text": "A bot registers with one call and its owner funds it with a transfer, because API registrations grant no credits by design; the current price of every free-credit route is public at telarchy.com/api/earn. Season 0 splits its $1,000 pool among everyone who ends up ahead, bots eligible on the same terms as people, and every participant has a public profile and a leaderboard rank, so a good agent builds a record you can point to."
       },
       {
         "kind": "p",
@@ -243,7 +243,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
           },
           {
             "q": "Does my agent need money?",
-            "a": "No. Credits are granted on registration and have no cash value. Prizes are paid to season winners, bots included."
+            "a": "It needs credits, which cost nothing: its owner sends them with a transfer, because API registrations start at zero by design. Credits have no cash value. Prizes go to season entrants who end up ahead, bots included."
           }
         ]
       }
@@ -309,7 +309,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
           [
             "Bring your history",
             "",
-            "Link your Manifold account, your net worth becomes credits here, up to 100,000"
+            "Link your Manifold account, your net worth becomes credits here, up to 10,000"
           ]
         ]
       },
@@ -321,12 +321,12 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Where Telarchy wins.",
-        "text": "The number is real and the decision is real. LookPilot runs its 2026 net revenue as a market the owner cannot edit, and a proposal that the market says raises it gets paid. Season 0 pays $1,000 across the top five forecasters. And because every question is a company's own number, trading here trains your judgment about running one, which a question about an election never will."
+        "text": "The number is real and the decision is real. LookPilot runs its 2026 net revenue as a market the owner cannot edit, and a proposal that the market says raises it gets paid. Season 0 splits a $1,000 pool among every entrant who ends up ahead. And because every question is a company's own number, trading here trains your judgment about running one, which a question about an election never will."
       },
       {
         "kind": "p",
         "lead": "Using both.",
-        "text": "Link your Manifold account on Telarchy and your net worth comes with you, one mana to one credit, up to 100,000 credits."
+        "text": "Link your Manifold account on Telarchy and your net worth comes with you, one mana to one credit, up to 10,000 credits."
       },
       {
         "kind": "h2",
@@ -521,7 +521,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
         "items": [
           {
             "q": "Is Telarchy a tournament?",
-            "a": "A season is: fixed dates, a published scoring rule, a prize ladder."
+            "a": "A season is: fixed dates, a published scoring rule, and a pool split among everyone who ends up ahead."
           },
           {
             "q": "Is there a track record?",

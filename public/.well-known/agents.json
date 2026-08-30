@@ -65,8 +65,8 @@
         {
           "id": "place_trade",
           "sourceId": "telarchy_api",
-          "operationId": "tradeMarket",
-          "description": "Body: { side: 'higher' | 'lower', credits: <whole number> }. Returns updated market state and your new position."
+          "operationId": "trade",
+          "description": "Body: { marketId, targetValue, maxBudget } to buy toward a value without overshooting, or { marketId, direction: 'higher' | 'lower', amount } to spend a budget, or { marketId, direction, sellShares } to sell. Returns the fill and the resulting consensus."
         }
       ],
       "links": [

@@ -128,7 +128,8 @@ describe('app route heads', () => {
     const esc = (x: string) => x.replace(/'/g, '&#39;').replace(/&(?!#?\w+;)/g, '&amp;');
     expect(out).toContain(`<title>${esc(ROUTE_HEADS['/season'].title)}</title>`);
     expect(out).toContain('<link rel="canonical" href="https://telarchy.com/season">');
-    expect(out).toContain('<h1 style="x">Season 0 pays the top five forecasters</h1>');
+    expect(out).toContain(`<h1 style="x">${ROUTE_HEADS['/season'].h1}</h1>`);
+    expect(ROUTE_HEADS['/season'].h1).not.toBe('Telarchy: say what you want');
     expect(out).not.toContain('Generic site description.');
     expect(out).not.toContain('application/ld+json');
     expect(out).toContain('<div id="root">');
@@ -136,5 +137,21 @@ describe('app route heads', () => {
 
   test('unknown routes untouched by the head injector', () => {
     expect(injectRouteHead(HTML, '/whatever', 'https://telarchy.com/whatever')).toBe(HTML);
+  });
+
+  test('a dollar amount in the copy survives the replacement verbatim', () => {
+    // "$1" and "$2" are capture-group references in a string replacement, so
+    // "$1,000" once became ",000" in the fallback heading. Any head text may
+    // contain money.
+    const shell = HTML.replace(
+      '<body><div id="root"></div></body>',
+      '<body><div id="root"><main class="ssr-fallback"><h1>placeholder</h1></main></div></body>',
+    );
+    for (const route of headRoutes()) {
+      const out = injectRouteHead(shell, route, `https://telarchy.com${route}`);
+      const h1 = /<h1>([^<]*)<\/h1>/.exec(out)?.[1];
+      expect(h1).toBe(ROUTE_HEADS[route].h1.replace(/&/g, '&amp;').replace(/'/g, '&#39;'));
+      expect(out).not.toMatch(/\$[0-9](?![0-9,.])/);
+    }
   });
 });

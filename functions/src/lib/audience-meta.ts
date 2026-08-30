@@ -122,10 +122,17 @@ export function injectRouteHead(html: string, route: string, url: string): strin
     `<meta name="twitter:description" content="${description}">`,
     `<link rel="canonical" href="${escapeHtml(url)}">`,
   ].join('\n    ');
-  return html
-    .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
-    .replace(/<meta\s+(?:name="description"|property="og:[^"]*"|name="twitter:[^"]*")[^>]*>\s*/g, '')
-    .replace(/<link\s+rel="canonical"[^>]*>\s*/g, '')
-    .replace('</head>', `    ${tags}\n  </head>`)
-    .replace(/(<main class="ssr-fallback"[\s\S]*?<h1[^>]*>)[^<]*(<\/h1>)/, `$1${escapeHtml(head.h1)}$2`);
+  return (
+    html
+      .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+      .replace(/<meta\s+(?:name="description"|property="og:[^"]*"|name="twitter:[^"]*")[^>]*>\s*/g, '')
+      .replace(/<link\s+rel="canonical"[^>]*>\s*/g, '')
+      .replace('</head>', `    ${tags}\n  </head>`)
+      // A function replacement, not a string: copy like "$1,000 pool" would
+      // otherwise be read as a capture-group reference and land as ",000".
+      .replace(
+        /(<main class="ssr-fallback"[\s\S]*?<h1[^>]*>)[^<]*(<\/h1>)/,
+        (_m, open: string, close: string) => `${open}${escapeHtml(head.h1)}${close}`,
+      )
+  );
 }
