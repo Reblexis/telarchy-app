@@ -1034,6 +1034,53 @@ export const permissionGroups = pgTable(
 );
 
 /**
+ * The earn table: every way to receive free credits, with its price
+ * (owner decision 2026-08-30). The operator edits it live, mid-season
+ * included, because Season 0's published rules reserve that right and
+ * because pricing a signal correctly is the whole anti-farming strategy:
+ * a grant priced at what the account genuinely brings turns sybil farming
+ * from an attack into a purchase (design record in the telarchy umbrella,
+ * notes/earn-table-design-2026-08-30.md).
+ *
+ * `credits` is a flat grant when `kind` is 'flat' and a ceiling on a
+ * measured signal when it is 'cap' (the Manifold import).
+ */
+export const earnRules = pgTable('earn_rules', {
+  key: text('key').primaryKey(),
+  label: text('label').notNull(),
+  credits: doublePrecision('credits').notNull(),
+  /** 'flat' | 'cap' */
+  kind: text('kind').notNull().default('flat'),
+  enabled: boolean('enabled').notNull().default(true),
+  /** What the operator is paying for, in their words. Published, because
+   *  an entrant is entitled to read how credits are earned. */
+  note: text('note').notNull().default(''),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedBy: text('updated_by'),
+});
+
+/**
+ * Every version of every rule, append-only. A table that decides who
+ * receives money has to be able to answer "what did it say the day this
+ * account was funded?", and a rule changed mid-season must stay
+ * reconstructable afterwards.
+ */
+export const earnRuleHistory = pgTable(
+  'earn_rule_history',
+  {
+    id: text('id').primaryKey(),
+    key: text('key').notNull(),
+    credits: doublePrecision('credits').notNull(),
+    kind: text('kind').notNull(),
+    enabled: boolean('enabled').notNull(),
+    note: text('note').notNull().default(''),
+    changedAt: timestamp('changed_at').notNull().defaultNow(),
+    changedBy: text('changed_by'),
+  },
+  t => [index('earn_rule_history_key_idx').on(t.key, t.changedAt)],
+);
+
+/**
  * One paid liquidity purchase (Stripe Checkout): the only path by which
  * real money enters the managed instance. `status` walks pending ->
  * completed; fulfilment (the webhook) allocates `credits` evenly across the

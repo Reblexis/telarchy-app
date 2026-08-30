@@ -8,6 +8,7 @@ import { toUnits } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { requireIdentity } from '../middleware/roles';
 import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
+import { earnCredits } from '../services/earnRules';
 
 /**
  * Import a Manifold record (owner decision 2026-08-10): a proven Manifold
@@ -156,7 +157,11 @@ manifoldRouter.post(
     const netWorth = await fetchManifoldNetWorth(user.id);
     // Negative and micro accounts import as zero: the record is still linked
     // (and burned for reuse), but only real standing moves credits.
-    const granted = Math.max(0, Math.min(MANIFOLD_GRANT_CAP, Math.round(netWorth)));
+    // The cap is priced in the earn table (services/earnRules.ts), so the
+    // operator can move it without a deploy; MANIFOLD_GRANT_CAP is the
+    // fallback for an instance whose table was never seeded.
+    const cap = await earnCredits('manifold_link');
+    const granted = Math.max(0, Math.min(cap, Math.round(netWorth)));
 
     await db.transaction(async tx => {
       if (granted > 0) {
@@ -186,7 +191,7 @@ manifoldRouter.post(
       username: user.username,
       netWorth: Math.round(netWorth),
       granted,
-      cap: MANIFOLD_GRANT_CAP,
+      cap,
     });
   }),
 );

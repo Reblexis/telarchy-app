@@ -114,6 +114,16 @@
     "agent": 403,
     "master": 200
   },
+  "GET /api/admin/earn": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "GET /api/admin/earn/:key/history": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
   "GET /api/admin/floor-stats": {
     "anon": 401,
     "agent": 403,
@@ -215,6 +225,11 @@
     "master": 403
   },
   "GET /api/data-room/": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
+  "GET /api/earn": {
     "anon": 200,
     "agent": 200,
     "master": 200
@@ -598,6 +613,11 @@
     "anon": 204,
     "agent": 204,
     "master": 204
+  },
+  "PATCH /api/admin/earn/:key": {
+    "anon": 401,
+    "agent": 403,
+    "master": 400
   },
   "PATCH /api/agents/:id/keys/:keyId": {
     "anon": 401,

@@ -987,6 +987,34 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'GET',
+      path: '/api/earn',
+      auth: false,
+      description:
+        'The earn table: every way to receive free credits and what each is worth right now. Returns { rules: [{ key, label, credits, kind, note }] }, enabled rules only. kind "flat" grants exactly credits; kind "cap" grants up to that number from a measured signal (the Manifold import grants net worth at 1 mana = 1 credit, capped). Public and live: the operator edits these prices at any time, mid-season included, and a contest whose grants decide standings owes its entrants a readable price list. The prices are set by what a signal costs to fake against what it brings, which is the platform\'s whole anti-farming strategy (a grant priced at brought value turns sybil farming into a purchase).',
+    },
+    {
+      method: 'GET',
+      path: '/api/admin/earn',
+      auth: 'platform admin',
+      description:
+        'The earn table as the operator sees it: every rule including disabled ones, with updatedAt and updatedBy. Returns { rules: [{ key, label, credits, kind, enabled, note, updatedAt }] }.',
+    },
+    {
+      method: 'PATCH',
+      path: '/api/admin/earn/:key',
+      auth: 'platform admin',
+      description:
+        'Re-price one way of earning credits. Body: any of { credits (>= 0), enabled, note, label }. Takes effect on the next grant (the read cache is cleared on write), and appends the new state to the append-only history, so a price changed mid-season stays reconstructable afterwards. 404 on an unknown key: the table is a fixed set of tasks, not a free-form store.',
+    },
+    {
+      method: 'GET',
+      path: '/api/admin/earn/:key/history',
+      auth: 'platform admin',
+      description:
+        'Every version of one earn rule, oldest first: [{ credits, enabled, note, changedAt, changedBy }]. The answer to "what did the table say when this account was funded?".',
+    },
+    {
+      method: 'GET',
       path: '/api/admin/release',
       auth: 'admin',
       description:

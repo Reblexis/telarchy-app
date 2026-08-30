@@ -7,6 +7,7 @@ import { resolutionInstant } from '../lib/date-utils';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
+import { listEarnRules } from '../services/earnRules';
 import { getAllMetricLogsGrouped, getAllMetrics, getStatus } from '../services/metrics';
 
 export const systemRouter = Router();
@@ -127,3 +128,21 @@ systemRouter.get(
  *
  * Governing doc: docs/market-integrity.md.
  */
+
+/**
+ * The earn table, public (owner decision 2026-08-30). Anyone can read how
+ * free credits are earned and what each way is worth right now: a contest
+ * whose grants decide standings owes its entrants that, and the operator
+ * edits these prices live, mid-season included.
+ */
+systemRouter.get(
+  '/earn',
+  wrap(async (_req, res) => {
+    const rules = await listEarnRules();
+    res.json({
+      rules: rules
+        .filter(r => r.enabled)
+        .map(r => ({ key: r.key, label: r.label, credits: r.credits, kind: r.kind, note: r.note })),
+    });
+  }),
+);

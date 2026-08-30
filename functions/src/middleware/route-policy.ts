@@ -37,6 +37,7 @@ export const OPTIONAL_AUTH_PREFIXES: ReadonlyArray<{ prefix: string; why: string
   { prefix: '/api/auth', why: 'BetterAuth sign-in/sign-up and our /me routes resolve their own session' },
   { prefix: '/api/guides', why: 'documentation' },
   { prefix: '/api/legal', why: 'terms, privacy, season rules' },
+  { prefix: '/api/earn', why: 'the earn table: how free credits are priced, published like the rules' },
   { prefix: '/api/data-room', why: "Telarchy's own books, one anonymous read (docs/data-room.md)" },
   { prefix: '/api/cron', why: 'validates the master key itself, no workspace header (routes/cron.ts)' },
   { prefix: '/api/waitlist', why: 'anonymous email capture' },

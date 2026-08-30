@@ -12,11 +12,12 @@ import {
 } from '../lib/notification-prefs';
 import { claimNickname } from '../lib/participants';
 import { normalizePayoutMethod, type PayoutMethod, payoutSummary } from '../lib/payout';
-import { normalizeBio, SIGNUP_CREDITS, toUnits } from '../lib/validation';
+import { normalizeBio, toUnits } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships, hashKey } from '../middleware/auth';
 import { requireIdentity, requireScope, requireUser } from '../middleware/roles';
 import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
+import { earnCredits } from '../services/earnRules';
 import { CURRENT_CONSENT_VERSION } from './legal';
 
 export const userauthRouter = Router();
@@ -37,6 +38,12 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
   // when the user creates their first workspace.
   const keyHash = hashKey(randomBytes(32).toString('hex'));
 
+  // What a person arriving is worth today, read from the earn table the
+  // operator edits (services/earnRules.ts). Read BEFORE the transaction:
+  // it is a cached read, and holding a transaction open across it buys
+  // nothing.
+  const grant = await earnCredits('signup_user');
+
   // One transaction: an identity created without its grant, or a grant
   // without its identity, are both states nothing later would repair.
   await db.transaction(async tx => {
@@ -50,12 +57,14 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
       createdAt: now,
       approvedAt: now,
     });
-    await applyCredits(tx, {
-      agentId: participantId,
-      workspaceId: PLATFORM_SCOPE,
-      deltaUnits: toUnits(SIGNUP_CREDITS),
-      reason: 'signup_grant',
-    });
+    if (grant > 0) {
+      await applyCredits(tx, {
+        agentId: participantId,
+        workspaceId: PLATFORM_SCOPE,
+        deltaUnits: toUnits(grant),
+        reason: 'signup_grant',
+      });
+    }
   });
 
   // The public identity must be UNIQUE (owner direction 2026-08-11): the

@@ -36,7 +36,6 @@ import {
   verifyUsdcDeposit,
 } from '../lib/usdc';
 import {
-  AGENT_SIGNUP_CREDITS,
   fromUnits,
   normalizeBio,
   sufficientBalance,
@@ -49,6 +48,7 @@ import { authMiddleware, getAuthWorkspaceMemberships, hashKey, optionalAuthMiddl
 import { computeCapabilities } from '../middleware/capabilities';
 import { requireCapability, requireIdentity, requireScope, requireSelfOrAdmin } from '../middleware/roles';
 import { applyCredits, applyCreditsIfSufficient, PLATFORM_SCOPE } from '../services/credits';
+import { earnCredits } from '../services/earnRules';
 import { getAllMetrics } from '../services/metrics';
 import { getMarkets } from '../services/predictions';
 
@@ -187,6 +187,8 @@ agentsRouter.post(
     const keyHash = hashKey(rawKey);
     const keyId = randomUUID();
 
+    // Priced in the earn table the operator edits (services/earnRules.ts).
+    const agentGrant = await earnCredits('signup_agent');
     await db.transaction(async tx => {
       // Created at zero and granted through the ledger, so the starting balance
       // has a row like every other credit that moves (docs/market-integrity.md).
@@ -201,16 +203,16 @@ agentsRouter.post(
         // Attribution: the body's slug (the public skill sends 'github').
         source: typeof source === 'string' ? source : null,
       });
-      // API registrations start at AGENT_SIGNUP_CREDITS (default 0 since
+      // API registrations are priced in the earn table (0 by default since
       // 2026-08-28: an identity that costs a curl call must not mint a
       // bankroll; the owner funds their agents by transfer). No zero-credit
       // ledger row is written: the ledger records movements, and zero is not
       // one.
-      if (AGENT_SIGNUP_CREDITS > 0) {
+      if (agentGrant > 0) {
         await applyCredits(tx, {
           agentId,
           workspaceId: PLATFORM_SCOPE,
-          deltaUnits: toUnits(AGENT_SIGNUP_CREDITS),
+          deltaUnits: toUnits(agentGrant),
           reason: 'signup_grant',
         });
       }
@@ -1073,6 +1075,8 @@ agentsRouter.post(
     const keyHash = hashKey(rawKey);
     const keyId = randomUUID();
 
+    // Priced in the earn table the operator edits (services/earnRules.ts).
+    const agentGrant = await earnCredits('signup_agent');
     await db.transaction(async tx => {
       // The new bot is its own participant; ownership is recorded via
       // ownerUserId, not authUserId (which means "this human IS this
@@ -1096,14 +1100,15 @@ agentsRouter.post(
         createdAt: new Date(),
         approvedAt: new Date(),
       });
-      // Sub-bots start at AGENT_SIGNUP_CREDITS (default 0, 2026-08-28): the
-      // owner funds them from their own grant via POST /api/agents/transfer,
-      // so a bot's bankroll always traces to a person's.
-      if (AGENT_SIGNUP_CREDITS > 0) {
+      // Sub-bots are priced the same as any API registration (0 by default,
+      // 2026-08-28): the owner funds them from their own grant via
+      // POST /api/agents/transfer, so a bot's bankroll always traces to a
+      // person's.
+      if (agentGrant > 0) {
         await applyCredits(tx, {
           agentId,
           workspaceId: PLATFORM_SCOPE,
-          deltaUnits: toUnits(AGENT_SIGNUP_CREDITS),
+          deltaUnits: toUnits(agentGrant),
           reason: 'signup_grant',
         });
       }
