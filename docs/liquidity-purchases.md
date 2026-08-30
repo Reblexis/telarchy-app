@@ -26,6 +26,27 @@ true, and every change to this feature must preserve all three:
    spawning dead markets while sitting on pool money it will not look at
    (owner report 2026-08-30, after granting the admin account 1,000,000
    liquidity credits).
+
+   **The wallet is DRAINED before the tradeable balance is touched**
+   (owner ask 2026-08-30, verbatim: "liquidity credits should be
+   prioritized and the standard ones only used when no liquidity credits
+   are left"). One contribution may therefore be part wallet, part
+   balance, and then it writes one `liquidity_events` row per purse, which
+   is what keeps the leftover router honest: it groups by
+   `funded_from`, so each part returns to the purse that paid it and
+   bought credits still never become stake. Before this, a wallet that
+   could not cover the WHOLE contribution was skipped and the tradeable
+   balance paid all of it, leaving bought credits unused.
+
+   **Whether the tradeable balance may finish the job is the account's
+   own setting**, `agents.pool_from_balance` (Account -> Money, "Spend my
+   trading credits once my liquidity credits run out"; `poolFromBalance`
+   on `POST /api/auth/profile`). Default TRUE, which is what every account
+   did before the setting existed: defaulting it off would silently stop
+   auto-funding for owners who never bought liquidity credits and their
+   markets would open dead. Turned off, an injection that outruns the
+   wallet is refused rather than reaching into trading credits, and the
+   funding gates count the wallet alone.
 2. **Whoever pays cannot win.** Buying requires the `manage` capability in
    the target workspace, and accounts that own or administer a public
    workspace take no season payout under strict eligibility

@@ -1,0 +1,12 @@
+-- Whether an account's TRADEABLE balance may be spent on market pools
+-- (owner ask 2026-08-30, verbatim: "liquidity credits should be prioritized
+-- and the standard ones only used when no liquidity credits are left.. but
+-- there should be a setting in account settings if the user wants to use
+-- standard credits for liquidity funding").
+--
+-- Default true, which is what every account did before this column existed:
+-- turning it off for everyone would silently stop auto-funding for owners
+-- who have never bought liquidity credits, and their markets would open
+-- dead. Someone who buys liquidity credits and does not want their trading
+-- balance drained after those run out turns it off.
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS pool_from_balance boolean NOT NULL DEFAULT true;

@@ -1913,6 +1913,9 @@ export const api = {
     payoutMethod?: PayoutMethod | null;
     notifications?: Partial<NotificationPrefs>;
     notificationChannels?: NotificationMatrixUpdate;
+    /** Whether the tradeable balance may fund market pools once the
+     *  liquidity wallet is empty (the wallet is always spent first). */
+    poolFromBalance?: boolean;
   }) => request('/api/auth/profile', { method: 'POST', body: JSON.stringify(opts ?? {}) }),
   recordConsent: () => request('/api/auth/consent', { method: 'POST', body: JSON.stringify({ accepted: true }) }),
   // Key-first onboarding claim (see /claim page and POST /api/onboard)

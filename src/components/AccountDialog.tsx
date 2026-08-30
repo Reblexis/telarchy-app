@@ -271,6 +271,7 @@ export function AccountDialog({
   // state shown is the state stored, rolled back if the server refuses.
   // Null until GET /api/auth/me answers with the resolved matrix.
   const [matrix, setMatrix] = useState<NotificationMatrix | null>(null);
+  const [poolFromBalance, setPoolFromBalance] = useState(true);
 
   const [promptCopied, setPromptCopied] = useState(false);
 
@@ -311,6 +312,8 @@ export function AccountDialog({
       .then(p => {
         const m = (p as { notificationChannels?: NotificationMatrix }).notificationChannels;
         if (m) setMatrix(m);
+        const pool = (p as { poolFromBalance?: boolean }).poolFromBalance;
+        if (typeof pool === 'boolean') setPoolFromBalance(pool);
       })
       .catch(e => console.error('notification matrix fetch failed:', e));
   }, []);
@@ -450,6 +453,24 @@ export function AccountDialog({
         applicationServerKey: vapidKeyBytes(publicKey) as BufferSource,
       }));
     await api.registerPushSubscription(sub.toJSON());
+  };
+
+  // Whether tradeable credits may fund market pools once the liquidity
+  // wallet is empty (owner ask 2026-08-30). The wallet is always spent
+  // first; this is only about what happens after it runs out.
+  const togglePoolFromBalance = async () => {
+    const value = !poolFromBalance;
+    setPoolFromBalance(value);
+    clearErr('pay');
+    setBusy('poolFrom');
+    try {
+      await api.upsertProfile({ poolFromBalance: value });
+    } catch (e) {
+      setPoolFromBalance(!value);
+      sectionErr('pay', (e as Error).message || 'Could not change that setting');
+    } finally {
+      setBusy(null);
+    }
   };
 
   const toggleCell = async (kind: NotificationKindId, channel: NotificationChannel) => {
@@ -925,6 +946,29 @@ export function AccountDialog({
                       <Link to="/earn">How to get them</Link>.
                     </p>
                   </div>
+
+                  {/* Which purse funds market pools (owner ask 2026-08-30).
+                    Liquidity credits always go first; this only says whether
+                    the trading balance finishes the job once they run out,
+                    which is the question someone who has bought liquidity
+                    credits actually has. */}
+                  <div className="jobform-field">
+                    <span className="ticket-label">Funding markets</span>
+                    <label className="acctdlg-check">
+                      <input
+                        type="checkbox"
+                        checked={poolFromBalance}
+                        disabled={busy === 'poolFrom'}
+                        onChange={() => void togglePoolFromBalance()}
+                      />
+                      <span>Spend my trading credits once my liquidity credits run out</span>
+                    </label>
+                    <p className="acctdlg-hint">
+                      Liquidity credits are always spent first. Turn this off and funding a market stops when they are
+                      gone, instead of reaching into the credits you trade with.
+                    </p>
+                  </div>
+
                   <AccountCredits me={participant} onChanged={loadParticipant} />
                   <SeasonEntryPanel />
                 </>

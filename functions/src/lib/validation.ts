@@ -164,10 +164,16 @@ export function sufficientBalance(balanceUnits: number, cost: number): boolean {
  * admin account 1,000,000 liquidity credits and finding the gates blind to
  * them).
  */
-export function liquiditySpendableUnits(agent: { balance: unknown; liquidityBalance?: unknown }): number {
+export function liquiditySpendableUnits(agent: {
+  balance: unknown;
+  liquidityBalance?: unknown;
+  poolFromBalance?: unknown;
+}): number {
   const tradeable = typeof agent.balance === 'number' ? agent.balance : 0;
   const wallet = typeof agent.liquidityBalance === 'number' ? agent.liquidityBalance : 0;
-  return tradeable + wallet;
+  // The account can refuse to spend tradeable credits on pools (owner ask
+  // 2026-08-30); then only the wallet is pool money.
+  return agent.poolFromBalance === false ? wallet : tradeable + wallet;
 }
 
 export const MAX_BIO_LENGTH = 500;
