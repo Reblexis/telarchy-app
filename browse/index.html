@@ -1962,10 +1962,24 @@ what came in, for the books, not for a payout rule.</p>
 <h2 id="docs-liquidity-purchases-md--h7">Enablement</h2>
 <p>Env-gated like USDC settlement: without <code>STRIPE_SECRET_KEY</code> and
 <code>STRIPE_WEBHOOK_SECRET</code> every purchase surface answers 503 and the instance
-sells nothing. telarchy.com stays disabled until the owner creates the
-Stripe account under the paying entity (open question in the approved
-design: Czech sole trader vs a US entity, a counsel question) and sets the
-secrets.</p>
+sells nothing. That stays the default, and the right state for anyone
+self-hosting.</p>
+<p>On telarchy.com the pair lives in Secret Manager and is mounted by the
+candidate deploy, so it reaches the published revision and never a branch
+preview: the webhook that credits a purchase is registered against one URL,
+and a preview taking a payment nothing credits is worse than a preview that
+refuses. Both secrets are <code>:latest</code>, so a key rotation is a new secret
+version plus a redeploy, never a workflow edit.</p>
+<p><strong>The keys are Stripe TEST keys today</strong> (account <code>acct_1UAC7kRK31zITseN</code>,
+&quot;Telarchy sandbox&quot;, CZ, Managed Payments so Stripe carries the VAT). While
+they are, only Stripe's test cards pay: <code>4242 4242 4242 4242</code>, any future
+expiry, any CVC. Going live is three moves, in this order, because the
+webhook secret belongs to the endpoint and the endpoint belongs to the mode:
+register a live-mode endpoint on <code>https://telarchy.com/api/stripe/webhook</code>
+for <code>checkout.session.completed</code> and <code>checkout.session.async_payment_succeeded</code>,
+add the live <code>sk_live_</code> and that endpoint's <code>whsec_</code> as new versions of the
+two secrets, then redeploy. The test endpoint stays where it is, pointed at
+the candidate, so the flow can still be exercised without a real card.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
@@ -7605,7 +7619,9 @@ which runs <code>scripts/deploy-managed.sh</code>) share the same
 <code>--min-instances 1</code>; the hand deploy passes neither <code>--no-traffic</code> nor
 <code>--tag</code>, so the revision it lands is not a candidate and does not pass
 through the publish gate, and it uses <code>--min-instances 0</code>.</li>
-<li>The workflow passes <code>--update-env-vars ALLOWED_ORIGIN=https://telarchy.com, TRUSTED_ORIGINS=&lt;the candidate tag URL&gt;</code> and <code>--update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest</code>;
+<li>The workflow passes <code>--update-env-vars ALLOWED_ORIGIN=https://telarchy.com, TRUSTED_ORIGINS=&lt;the candidate tag URL&gt;</code> and <code>--update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest, GITHUB_ACTIONS_TOKEN=..., STRIPE_SECRET_KEY=..., STRIPE_WEBHOOK_SECRET=...</code>
+(the Stripe pair is what turns paid liquidity on, and it rides the candidate
+deploy only, never a branch preview: docs/liquidity-purchases.md);
 these are merged into the service's configuration, so every other env var
 and secret set on the service is inherited by the new revision. The hand
 deploy passes no env or secret flags and inherits everything.</li>

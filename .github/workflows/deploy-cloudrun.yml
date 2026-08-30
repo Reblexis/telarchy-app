@@ -247,6 +247,13 @@ jobs:
       # It is deliberately NOT added to ALLOWED_ORIGIN: that names the
       # published site, and publicOrigins() uses it to decide what gets
       # X-Robots-Tag: noindex.
+      # STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET below are what turn paid
+      # liquidity on (docs/liquidity-purchases.md, "Enablement"). They ride on
+      # the candidate and therefore on whatever is published from it, and
+      # deliberately not on a branch preview: the webhook that credits a
+      # purchase is registered against one URL, so a preview would take a
+      # payment nothing ever credits. Without them every purchase surface
+      # answers 503, which is the correct state for a self-hosted instance.
       - name: Deploy candidate (no traffic)
         if: steps.auth_check.outputs.skip != 'true'
         run: |
@@ -261,7 +268,7 @@ jobs:
             --max-instances 4 \
             --set-cloudsql-instances ${{ vars.CLOUDSQL_INSTANCE }} \
             --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app,DB_POOL_MAX=4,SELF_SYNC_WORKSPACE_ID=2015d2e5-999c-4f94-aa19-e3733451732f \
-            --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest,GITHUB_ACTIONS_TOKEN=GITHUB_ACTIONS_TOKEN:latest \
+            --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest,GITHUB_ACTIONS_TOKEN=GITHUB_ACTIONS_TOKEN:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest \
             --clear-base-image \
             --quiet
 
