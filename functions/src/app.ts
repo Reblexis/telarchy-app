@@ -97,7 +97,23 @@ app.use(corsMiddleware);
 // The Stripe webhook needs the exact bytes Stripe signed, so its raw-body
 // route is mounted BEFORE the JSON parser; everything else gets JSON as
 // before. No auth: the signature IS the authentication.
-app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), wrap(stripeWebhookHandler));
+//
+// Being mounted this early puts it in front of the store swap below, so it
+// has to make the same choice itself, from the host alone. It ran without
+// that until 2026-08-30, when a $25 test purchase made against the candidate
+// wrote its pending row to the beta store, and the webhook that should have
+// completed it went looking in production, found no such purchase, and
+// credited nobody. Production was never wrong (its host IS the production
+// store), which is exactly why this could sit unnoticed: it only breaks the
+// one instance where a purchase can be rehearsed before real money.
+app.post(
+  '/api/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  wrap(async (req, res) => {
+    if (!isBetaRequest(req.path, req.headers.host)) return stripeWebhookHandler(req, res);
+    return runInBetaStore(() => stripeWebhookHandler(req, res));
+  }),
+);
 app.use(express.json());
 
 /**
