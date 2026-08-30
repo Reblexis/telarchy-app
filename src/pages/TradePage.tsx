@@ -1556,7 +1556,14 @@ export function TradePage() {
                   <TradeTicket
                     probability={active.probability}
                     liquidity={active.liquidity}
-                    positions={trading && betModal === 'manage' ? positions : []}
+                    /* The ticket ALWAYS gets the held position, in both
+                     modes: it is what the "New value" preview nets against
+                     (buying the opposite side closes it on the server
+                     first, so the buy prices against the post-close book).
+                     Withholding it to hide the sell rows made the preview
+                     quote a landing the trade never reached (owner report
+                     2026-08-30). Hiding the rows is manageMode's job. */
+                    positions={trading ? positions : []}
                     onTrade={placeTrade}
                     onTradeTarget={placeTargetTrade}
                     onSell={sellPosition}

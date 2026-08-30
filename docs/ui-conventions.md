@@ -623,7 +623,13 @@ the composed bet's ghost draws on both charts. The bet ticket carries NO
 held-position row and no resting orders (owner ask 2026-08-28: selling
 is the position panel's job, and the strip made the card tall); managing
 a held position opens the same inline ticket in manage mode, which keeps
-both. Pressing the other verb re-seeds the ticket's side rather than
+both. **Hiding those rows never means withholding the position from the
+ticket**: the "New value" preview NETS against it, because buying the
+opposite side closes the held position on the server first and the buy
+prices against the post-close book. Handing the bet ticket an empty
+positions list to hide the rows made it quote a landing the trade never
+reached (owner report 2026-08-30), so the rows are gated on manage mode
+and the data flows in both. Pressing the other verb re-seeds the ticket's side rather than
 being a dead click; its close control collapses it and drops the ghost.
 
 The ticket (`TradeTicket`) follows Manifold's bet-panel layout: a card

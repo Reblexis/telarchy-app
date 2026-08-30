@@ -342,7 +342,11 @@ export function TradeTicket({
 
   return (
     <div className={`ticket${dir ? ' is-open' : ''}`} aria-label="Place a trade">
-      {positions.length > 0 && (
+      {/* The held-position rows (with their Sell affordance) belong to
+        manage mode only (owner ask 2026-08-28: selling is the panel below
+        the ticket, not the bet ticket). The positions PROP still arrives in
+        both modes, because the preview nets against it. */}
+      {manageMode && positions.length > 0 && (
         <div className="ticket-pos">
           {positions.map(p => {
             // Live worth: what the position would fetch right now vs what
