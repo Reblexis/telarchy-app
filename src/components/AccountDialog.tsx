@@ -1,4 +1,5 @@
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { agentPrompt, type FloorRef } from '../lib/agent-prompt';
 import {
@@ -917,6 +918,13 @@ export function AccountDialog({
                   )}
                   {errors.pay && <p className="ticket-err">{errors.pay}</p>}
 
+                  <div className="jobform-field">
+                    <span className="ticket-label">Credits</span>
+                    <p className="acctdlg-hint">
+                      Credits are what you trade with. They are never bought or cashed out; you earn them by bringing
+                      something the floor needs. <Link to="/earn">What each way is worth</Link>.
+                    </p>
+                  </div>
                   <AccountCredits me={participant} onChanged={loadParticipant} />
                   <SeasonEntryPanel />
                 </>
