@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { earnClaims, earnRuleHistory, earnRules } from '../db/schema';
+import { earnClaims, earnRuleHistory, earnRules, trades } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS, toUnits } from '../lib/validation';
 import { applyCredits, PLATFORM_SCOPE } from './credits';
@@ -27,17 +27,40 @@ import { applyCredits, PLATFORM_SCOPE } from './credits';
  * which is why every write appends to `earn_rule_history`.
  */
 
-export type EarnKey = 'signup_user' | 'signup_email' | 'signup_oauth' | 'signup_agent' | 'manifold_link' | 'link_oauth';
+export type EarnKey =
+  | 'signup_user'
+  | 'signup_email'
+  | 'signup_oauth'
+  | 'signup_agent'
+  | 'manifold_link'
+  | 'link_oauth'
+  | 'daily_trade'
+  | 'trade_profit';
+
+/**
+ * How a row pays. `flat` is a fixed one-time grant, `cap` an "up to" that
+ * a check decides, `daily` recurs once a UTC day, and `open` has no
+ * number at all (trading profit, which is the only earn with no ceiling).
+ * A row that is not `flat` or `cap` counts toward no tally, because
+ * "still available to you" has to mean a number somebody can finish.
+ */
+export type EarnKind = 'flat' | 'cap' | 'daily' | 'open';
 
 export interface EarnRule {
   key: string;
   label: string;
   credits: number;
-  kind: 'flat' | 'cap';
+  kind: EarnKind;
   enabled: boolean;
   note: string;
   updatedAt: Date;
 }
+
+const KINDS: ReadonlySet<string> = new Set<EarnKind>(['flat', 'cap', 'daily', 'open']);
+const asKind = (k: string): EarnKind => (KINDS.has(k) ? (k as EarnKind) : 'flat');
+
+/** Rows that count toward "earned so far" and "still available". */
+export const isCountable = (kind: EarnKind): boolean => kind === 'flat' || kind === 'cap';
 
 /**
  * The env constants remain the FALLBACK, not the source of truth: a
@@ -51,6 +74,8 @@ const FALLBACK: Record<EarnKey, number> = {
   signup_agent: AGENT_SIGNUP_CREDITS,
   manifold_link: 10_000,
   link_oauth: 0,
+  daily_trade: 0,
+  trade_profit: 0,
 };
 
 /**
@@ -75,7 +100,7 @@ async function load(): Promise<Map<string, EarnRule>> {
         key: r.key,
         label: r.label,
         credits: r.credits,
-        kind: (r.kind === 'cap' ? 'cap' : 'flat') as 'flat' | 'cap',
+        kind: asKind(r.kind),
         enabled: r.enabled,
         note: r.note,
         updatedAt: new Date(r.updatedAt),
@@ -169,7 +194,7 @@ export async function setEarnRule(
     key,
     label: next.label,
     credits: next.credits,
-    kind: (existing.kind === 'cap' ? 'cap' : 'flat') as 'flat' | 'cap',
+    kind: asKind(existing.kind),
     enabled: next.enabled,
     note: next.note,
     updatedAt: new Date(),
@@ -218,8 +243,13 @@ export async function claimEarn(params: {
   key: EarnKey;
   /** The external account being proved, when there is one. */
   refId?: string | null;
+  /** Which occurrence of a recurring earn; '' for the one-time ones. */
+  period?: string;
+  /** Overrides today's price. Only the streak uses it, because what the
+   *  streak pays depends on the run, not on the row alone. */
+  credits?: number;
 }): Promise<{ granted: number } | null> {
-  const credits = await earnCredits(params.key);
+  const credits = params.credits ?? (await earnCredits(params.key));
   try {
     return await db.transaction(async tx => {
       await tx.insert(earnClaims).values({
@@ -227,6 +257,7 @@ export async function claimEarn(params: {
         agentId: params.agentId,
         key: params.key,
         refId: params.refId ?? null,
+        period: params.period ?? '',
         credits,
       });
       if (credits > 0) {
@@ -248,6 +279,106 @@ export async function claimEarn(params: {
     if (isUniqueViolation(e)) return null;
     throw e;
   }
+}
+
+/**
+ * The daily streak (owner ask 2026-08-30: "i think there should be daily
+ * reward for streaks").
+ *
+ * It is paid for TRADING on a new day, never for arriving: a visit brings
+ * nothing the platform can price, and an earn that pays for a page load is
+ * exactly the farm the rest of this file exists to prevent. The run is
+ * derived from the trades themselves rather than stored, so it cannot
+ * drift from what somebody actually did.
+ *
+ * The row's `credits` is day one's price and the operator owns it; the
+ * multiplier is fixed at 1x, 2x, 3x, then 4x a day from day four, which is
+ * short enough to read off the page and small enough that a month of
+ * perfect attendance is worth about three dollars at the platform's rate.
+ */
+export const STREAK_MAX_MULTIPLIER = 4;
+
+/**
+ * Far enough back to measure any run worth showing, and bounded so a
+ * participant with a long history cannot make this query expensive.
+ */
+const STREAK_LOOKBACK_DAYS = 120;
+
+export interface DailyStreak {
+  /** Consecutive UTC days traded, counting today when today counts. */
+  days: number;
+  /** Whether today's reward is already in the balance. */
+  earnedToday: boolean;
+  /** What today paid, zero until it is earned. */
+  todayCredits: number;
+  /** What the next new day of trading pays. */
+  nextCredits: number;
+}
+
+const dayOf = (at: Date): string => at.toISOString().slice(0, 10);
+
+function previousDay(day: string): string {
+  const d = new Date(`${day}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return dayOf(d);
+}
+
+/** The UTC days this participant traded on, most recent first. */
+async function tradedDays(agentId: string, limit: number): Promise<string[]> {
+  const res = await db.execute(sql`
+    select distinct to_char(${trades.createdAt}, 'YYYY-MM-DD') as day
+      from ${trades}
+     where ${trades.agentId} = ${agentId}
+     order by day desc
+     limit ${limit}`);
+  return (res.rows ?? []).map(r => String((r as { day: string }).day));
+}
+
+/**
+ * Pay the streak if today's first trade has happened and has not been paid
+ * for, and report where the run stands either way. Safe to call as often
+ * as anything likes: the claim's unique index is what makes it once a day,
+ * so a trade and a page load racing each other pay once.
+ *
+ * Returns null when the operator has disabled or removed the row, which is
+ * the signal to render no streak at all rather than a zero.
+ */
+export async function settleDailyStreak(agentId: string, now: Date = new Date()): Promise<DailyStreak | null> {
+  const rule = (await load()).get('daily_trade');
+  if (!rule || !rule.enabled) return null;
+
+  const today = dayOf(now);
+  const days = await tradedDays(agentId, STREAK_LOOKBACK_DAYS);
+  const tradedToday = days[0] === today;
+
+  // Walk back from today (or from yesterday, when today has no trade yet)
+  // and count the unbroken run. A day with no trade ends it.
+  let run = 0;
+  let cursor = tradedToday ? today : previousDay(today);
+  for (const day of days) {
+    if (day > cursor) continue;
+    if (day !== cursor) break;
+    run += 1;
+    cursor = previousDay(cursor);
+  }
+
+  const priceFor = (streakDay: number) =>
+    Math.round(Math.max(0, rule.credits) * Math.min(Math.max(streakDay, 1), STREAK_MAX_MULTIPLIER));
+  const nextCredits = priceFor(run + 1);
+
+  if (!tradedToday) return { days: run, earnedToday: false, todayCredits: 0, nextCredits };
+
+  const [already] = await db
+    .select({ credits: earnClaims.credits })
+    .from(earnClaims)
+    .where(and(eq(earnClaims.agentId, agentId), eq(earnClaims.key, 'daily_trade'), eq(earnClaims.period, today)))
+    .limit(1);
+  if (already) return { days: run, earnedToday: true, todayCredits: already.credits, nextCredits };
+
+  const claim = await claimEarn({ agentId, key: 'daily_trade', period: today, credits: priceFor(run) });
+  // A null claim means another request paid it a millisecond ago, which is
+  // the index doing its job; the run is unchanged either way.
+  return { days: run, earnedToday: true, todayCredits: claim?.granted ?? priceFor(run), nextCredits };
 }
 
 /** Which earns this participant has already taken. */

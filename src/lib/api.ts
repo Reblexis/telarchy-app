@@ -225,10 +225,21 @@ export interface EarnRule {
   key: string;
   label: string;
   credits: number;
-  kind: 'flat' | 'cap';
+  /** `flat` a one-time grant, `cap` an "up to", `daily` the streak, `open`
+   *  an earn with no ceiling (trading profit). Only flat and cap carry a
+   *  number the reader can finish, so only they count toward the tally. */
+  kind: 'flat' | 'cap' | 'daily' | 'open';
   enabled?: boolean;
   note: string;
   updatedAt?: string;
+}
+
+/** Where the viewer's trade-a-day run stands. */
+export interface DailyStreak {
+  days: number;
+  earnedToday: boolean;
+  todayCredits: number;
+  nextCredits: number;
 }
 
 /** An earn rule with the viewer's own state on it. */
@@ -1005,7 +1016,8 @@ export const api = {
    *  entrants a readable price list. */
   getEarnTable: (): Promise<{ rules: EarnRule[] }> => request('/api/earn'),
   /** The same list with the viewer's own state on it. */
-  getMyEarn: (): Promise<{ earned: number; available: number; rules: MyEarnRule[] }> => request('/api/earn/me'),
+  getMyEarn: (): Promise<{ earned: number; available: number; streak: DailyStreak | null; rules: MyEarnRule[] }> =>
+    request('/api/earn/me'),
   /** Pay for any attached provider account not yet paid for. Safe to
    *  re-run: it reconciles against the accounts actually linked. */
   syncEarnLinks: (): Promise<{ granted: number; paid: string[]; takenElsewhere: string[] }> =>

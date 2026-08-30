@@ -994,14 +994,14 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/earn',
       auth: false,
       description:
-        'The earn table: every way to receive free credits and what each is worth right now. Returns { rules: [{ key, label, credits, kind, note }] }, enabled rules only. kind "flat" grants exactly credits; kind "cap" grants up to that number from a measured signal (the Manifold import grants net worth at 1 mana = 1 credit, capped). Public and live: the operator edits these prices at any time, mid-season included, and a contest whose grants decide standings owes its entrants a readable price list. The prices are set by what a signal costs to fake against what it brings, which is the platform\'s whole anti-farming strategy (a grant priced at brought value turns sybil farming into a purchase).',
+        'The earn table: every way to get credits and what each is worth right now. Returns { rules: [{ key, label, credits, kind, note }] }, enabled rules only. kind "flat" grants exactly credits; kind "cap" grants up to that number from a measured signal (the Manifold import grants net worth at 1 mana = 1 credit, capped); kind "daily" recurs once a UTC day (the trade-a-day streak, whose credits field is day one\'s price); kind "open" has no ceiling and no fixed number (trading profit). Public and live: the operator edits these prices at any time, mid-season included, and a contest whose grants decide standings owes its entrants a readable price list. The prices are set by what a signal costs to fake against what it brings, which is the platform\'s whole anti-farming strategy (a grant priced at brought value turns sybil farming into a purchase).',
     },
     {
       method: 'GET',
       path: '/api/earn/me',
       auth: 'identity',
       description:
-        "The earn table with the caller's own state on it: { earned, available, rules: [{ key, label, credits, kind, note, claimed }] }. `earned` sums what this participant has already taken, `available` what is still open to them. Bot registrations are omitted (an API identity cannot claim them).",
+        "The earn table with the caller's own state on it: { earned, available, streak, rules: [{ key, label, credits, kind, note, claimed }] }. `earned` sums what this participant has already taken and `available` what is still open to them; both count only the one-time rows (kind flat and cap), because a recurring or uncapped earn has no number anyone can finish. `streak` is { days, earnedToday, todayCredits, nextCredits } for the trade-a-day run, or null when the operator has no daily row enabled. Reading this also settles today's streak if the caller has already traded today, so a grant missed at trade time is picked up here. Bot registrations are omitted (an API identity cannot claim them).",
     },
     {
       method: 'POST',

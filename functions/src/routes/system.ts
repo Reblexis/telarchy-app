@@ -8,7 +8,14 @@ import { AppError } from '../lib/errors';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
 import { wrap } from '../lib/wrap';
 import { requireCapability, requireIdentity } from '../middleware/roles';
-import { claimEarn, claimedKeys, listEarnRules, refAlreadyClaimed } from '../services/earnRules';
+import {
+  claimEarn,
+  claimedKeys,
+  isCountable,
+  listEarnRules,
+  refAlreadyClaimed,
+  settleDailyStreak,
+} from '../services/earnRules';
 import { getAllMetricLogsGrouped, getAllMetrics, getStatus } from '../services/metrics';
 
 export const systemRouter = Router();
@@ -160,18 +167,30 @@ systemRouter.get(
   wrap(async (req, res) => {
     const agentId = req.auth?.agentId;
     if (!agentId) throw new AppError('No participant identity on this request', 400);
-    const [rules, claimed] = await Promise.all([listEarnRules(), claimedKeys(agentId)]);
+    // Settling the streak here as well as at trade time is deliberate: a
+    // trade that landed while the grant failed is picked up the next time
+    // anyone looks, and the claim's unique index makes the repeat free.
+    const [rules, claimed, streak] = await Promise.all([
+      listEarnRules(),
+      claimedKeys(agentId),
+      settleDailyStreak(agentId).catch(e => {
+        console.error('daily streak settle failed:', e);
+        return null;
+      }),
+    ]);
     const visible = rules.filter(r => r.enabled && r.key !== 'signup_agent');
+    const countable = visible.filter(r => isCountable(r.kind));
     res.json({
-      earned: visible.filter(r => claimed.has(r.key)).reduce((sum, r) => sum + r.credits, 0),
-      available: visible.filter(r => !claimed.has(r.key)).reduce((sum, r) => sum + r.credits, 0),
+      earned: countable.filter(r => claimed.has(r.key)).reduce((sum, r) => sum + r.credits, 0),
+      available: countable.filter(r => !claimed.has(r.key)).reduce((sum, r) => sum + r.credits, 0),
+      streak,
       rules: visible.map(r => ({
         key: r.key,
         label: r.label,
         credits: r.credits,
         kind: r.kind,
         note: r.note,
-        claimed: claimed.has(r.key),
+        claimed: isCountable(r.kind) && claimed.has(r.key),
       })),
     });
   }),
