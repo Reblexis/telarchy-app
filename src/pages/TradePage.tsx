@@ -17,7 +17,7 @@ import { MarketChart } from '../components/MarketChart';
 import { MarketFacts } from '../components/MarketFacts';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart } from '../components/NumberChart';
-import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog } from '../components/OwnerDialogs';
+import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog, ReportValueDialog } from '../components/OwnerDialogs';
 import { PositionSummary } from '../components/PositionSummary';
 import { ReportButton } from '../components/ReportButton';
 import { SubjectAbout } from '../components/SubjectAbout';
@@ -203,6 +203,7 @@ export function TradePage() {
     | { kind: 'new-metric' }
     | { kind: 'add-date'; metricId: string; metricName: string }
     | { kind: 'inject'; marketId: string; marketLabel: string; pool: number; traders: number }
+    | { kind: 'report'; metricId: string; metricName: string }
   >(null);
   // Who the viewer is as a participant, so the floor can tell "my contract"
   // from someone else's. A proposer edits their own; a manager edits any.
@@ -432,6 +433,19 @@ export function TradePage() {
   const gap = periodGapOf(hero);
   const unit = hero?.unit ?? '';
   const metricLabel = hero?.metricLabel ?? '';
+
+  // The age of the reading in force, from the same `lastReading` the centre
+  // already shows. A market settles on the last reading before its instant,
+  // so the age IS the nudge to report again (docs/owner-on-the-floor.md);
+  // three days is where it starts reading as stale rather than as fact.
+  const readingAge = (() => {
+    if (!lastReading?.at) return null;
+    const days = Math.floor((now.getTime() - new Date(lastReading.at).getTime()) / 86400000);
+    if (days <= 0) return 'reported today';
+    if (days === 1) return 'reported yesterday';
+    return `${days} days old`;
+  })();
+  const readingIsStale = !!lastReading?.at && new Date(lastReading.at).getTime() < now.getTime() - 3 * 86400000;
   // The distinct numbers this floor prices, in the same label shape the rest
   // of the page uses (metricLabelOf owns that; see floor-horizons.ts). Feeds
   // the propose form's placeholder, so a proposer is told what their contract
@@ -1654,6 +1668,38 @@ export function TradePage() {
                   )}
                 </p>
               )}
+
+              {/* The owner's own reading, under the market's number, as its
+                counterpart: two numbers about the same thing, one from the
+                crowd and one from the house (docs/owner-on-the-floor.md).
+                Markets settle on this one, so its AGE is the whole nudge and
+                it is only ever true text: no badge, no blink, no email. */}
+              {canManage && !selectedJob && hero?.metricId && (
+                <p className="pubws-yours pubws-enter pubws-enter--2">
+                  Yours:{' '}
+                  <span className="pubws-yours-val">
+                    {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'not reported yet'}
+                  </span>
+                  <button
+                    type="button"
+                    className="pubws-yours-go"
+                    onClick={() =>
+                      setOwnerDialog({
+                        kind: 'report',
+                        metricId: hero.metricId,
+                        metricName: metricLabel,
+                      })
+                    }
+                  >
+                    Report
+                  </button>
+                  <span className={`pubws-yours-age${readingIsStale ? ' is-stale' : ''}`}>
+                    {readingAge
+                      ? `${readingAge}${settleLeft ? ` · this market settles on it in ${settleLeft}` : ''}`
+                      : 'this market settles on whatever you report before it closes'}
+                  </span>
+                </p>
+              )}
             </section>
           )}
 
@@ -2094,6 +2140,24 @@ export function TradePage() {
           metricId={ownerDialog.metricId}
           metricName={ownerDialog.metricName}
           defaultCredits={defaultCredits}
+          onClose={() => setOwnerDialog(null)}
+          onDone={() => {
+            setOwnerDialog(null);
+            reload();
+          }}
+        />
+      )}
+      {ownerDialog?.kind === 'report' && ws && (
+        <ReportValueDialog
+          workspaceId={ws.workspaceId}
+          metricId={ownerDialog.metricId}
+          metricName={ownerDialog.metricName}
+          unit={unit}
+          lastValue={nowReading}
+          lastAt={lastReading?.at ?? null}
+          marketSays={hero?.consensus ?? null}
+          settlesLabel={settleLeft}
+          rangeMax={hero?.rangeMax ?? 1000}
           onClose={() => setOwnerDialog(null)}
           onDone={() => {
             setOwnerDialog(null);

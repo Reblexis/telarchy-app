@@ -974,6 +974,16 @@ export const api = {
       marketRangeMax?: number;
     },
   ) => request(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  /** Report a new reading (docs/owner-on-the-floor.md, dialog 4). `oldValue`
+   *  is what the route needs to write the public `updates` row; `updateNote`
+   *  is the owner's optional sentence, and the route defaults it to "Value
+   *  updated" when empty. `marketRangeMax` rides along only on a first
+   *  reading, while no market has traded and the range is still movable. */
+  reportMetricValue: (
+    workspaceId: string,
+    id: string,
+    body: { value: number; oldValue: number; updateNote?: string; marketRangeMax?: number },
+  ) => requestWithWorkspace(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }, { workspaceId }),
   /** Partial metric update. The full-object `updateMetric` is for the editor;
    *  the floor's owner controls change one field at a time and must not
    *  resend the rest (docs/owner-on-the-floor.md). */

@@ -483,3 +483,190 @@ export function CreateWorkspaceDialog({
     </FloorModal>
   );
 }
+
+/** How a reading's age reads to its owner: the nudge is the age itself. */
+function ageOf(iso: string | null): string | null {
+  if (!iso) return null;
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  return `${days} days old`;
+}
+
+/**
+ * Dialog 4: report a new reading (docs/owner-on-the-floor.md).
+ *
+ * The owner's most frequent act and, until now, the one with no surface at
+ * all: markets settle on the metric's stored value, so a floor whose owner
+ * cannot report settles every market on the number it was created with.
+ *
+ * Two shapes, because the first reading is genuinely different. With a
+ * previous reading there is a delta and a market price to compare against,
+ * and the market's own number sits directly under the one being typed. With
+ * none, both are absent and what replaces them is the range: the last moment
+ * it can move, since machinery freezes the instant someone trades
+ * (docs/market-integrity.md).
+ */
+export function ReportValueDialog({
+  workspaceId,
+  metricId,
+  metricName,
+  unit = '',
+  lastValue,
+  lastAt,
+  marketSays,
+  settlesLabel,
+  rangeMax,
+  onClose,
+  onDone,
+}: {
+  workspaceId: string;
+  metricId: string;
+  metricName: string;
+  unit?: string;
+  /** The last reported reading, or null when the metric has never been read. */
+  lastValue: number | null;
+  lastAt: string | null;
+  /** What the market currently prices, so the owner sees it before reporting. */
+  marketSays: number | null;
+  /** e.g. "Sunday", for the one market this reading currently decides. */
+  settlesLabel: string | null;
+  rangeMax: number;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const first = lastValue === null;
+  const [value, setValue] = useState(first ? '' : fmtCr(lastValue));
+  const [note, setNote] = useState('');
+  const [range, setRange] = useState(fmtCr(rangeMax));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const parsed = Number(value.replace(/,/g, '').trim());
+  const valid = value.trim() !== '' && Number.isFinite(parsed);
+  const delta = valid && lastValue !== null ? parsed - lastValue : null;
+  const rangeNum = parseCredits(range);
+
+  const report = async () => {
+    if (!valid) {
+      setErr('A number.');
+      return;
+    }
+    if (first && rangeNum === null) {
+      setErr('The highest it could plausibly reach.');
+      return;
+    }
+    setBusy(true);
+    setErr('');
+    try {
+      await api.reportMetricValue(workspaceId, metricId, {
+        value: parsed,
+        oldValue: lastValue ?? 0,
+        updateNote: note.trim(),
+        ...(first && rangeNum !== null && rangeNum !== rangeMax ? { marketRangeMax: rangeNum } : {}),
+      });
+      onDone();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <FloorModal onClose={onClose} label="Report the number">
+      <div className="jobform">
+        <div className="ticket-head jobform-head">
+          <div className="jobform-askblock">
+            <p className="ticket-label">
+              {first ? 'First reading' : 'New reading'} · {metricName}
+            </p>
+            <label className="ticket-amt ticket-amt--price jobform-ask">
+              {unit && <span className="ticket-amt-unit">{unit}</span>}
+              <input
+                value={value}
+                style={{ width: `${Math.max(4, value.length || 4)}ch` }}
+                onChange={e => setValue(e.target.value.replace(/[^0-9.,-]/g, ''))}
+                placeholder="0"
+                inputMode="decimal"
+                aria-label="The new reading"
+                autoFocus
+                disabled={busy}
+                required
+              />
+            </label>
+          </div>
+          <button className="ticket-close" aria-label="Close" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        <div className="ticket-facts">
+          {!first && (
+            <div className="ticket-fact">
+              <span className="ticket-fact-k">
+                Since {ageOf(lastAt) ?? 'the last reading'}, when it was {fmtCr(lastValue)}
+              </span>
+              <span className={`ticket-fact-v${delta === null ? '' : delta >= 0 ? ' is-up' : ' is-down'}`}>
+                {delta === null ? '—' : `${delta > 0 ? '+' : ''}${fmtCr(delta)}`}
+              </span>
+            </div>
+          )}
+          {!first && marketSays !== null && (
+            <div className="ticket-fact">
+              <span className="ticket-fact-k">The market has been saying</span>
+              <span className="ticket-fact-v">{fmtCr(marketSays)}</span>
+            </div>
+          )}
+          {settlesLabel && (
+            <div className="ticket-fact">
+              <span className="ticket-fact-k">Decides on {settlesLabel}</span>
+              <span className="ticket-fact-v">this market</span>
+            </div>
+          )}
+          {first && (
+            <div className="ticket-fact">
+              <span className="ticket-fact-k">Nothing traded yet, so this also sets the range</span>
+              <span className="ticket-fact-v">0 – {fmtCr(rangeNum ?? rangeMax)}</span>
+            </div>
+          )}
+        </div>
+
+        {first && (
+          <label className="jobform-field">
+            <span className="ticket-label">Highest it could plausibly reach</span>
+            <input
+              className="jobform-line odlg-mono"
+              value={range}
+              disabled={busy}
+              onChange={e => setRange(e.target.value.replace(/[^0-9,]/g, ''))}
+              aria-label="Highest it could plausibly reach"
+            />
+            <span className="odlg-note-left">
+              Leave room: the market prices inside it, and it is fixed once someone trades.
+            </span>
+          </label>
+        )}
+
+        <label className="jobform-field">
+          <span className="ticket-label">What happened, if anything</span>
+          <input
+            className="jobform-line"
+            value={note}
+            disabled={busy}
+            onChange={e => setNote(e.target.value)}
+            placeholder="the Daily Deal ran Tuesday and Wednesday"
+            aria-label="What happened"
+          />
+        </label>
+
+        {err && <p className="ticket-err">{err}</p>}
+        <button className="ticket-go" disabled={busy || !valid} onClick={() => void report()}>
+          {busy ? 'Reporting…' : valid ? `Report ${unit}${fmtCr(parsed)}` : 'Report'}
+          <span className="ticket-go-sub">
+            Public and timestamped, like every reading. Kept beside the old one, for good.
+          </span>
+        </button>
+      </div>
+    </FloorModal>
+  );
+}

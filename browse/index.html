@@ -232,7 +232,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <ul>
 <li><a href="#docs-owner-on-the-floor-md--h1">The owner works on the floor</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h2">Creating a floor</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h3">The v1 controls: three dialogs</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h3">The v1 controls: four dialogs</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h4">What already lived on the floor</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h5">Machinery, and the trap v1 refuses to ship</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h6">What is deliberately not here</a></li>
@@ -2432,10 +2432,12 @@ step rather than a dead end: &quot;No number here yet. A floor starts when you
 add one&quot;, with the add-first-metric button chaining into dialogs 1 and 2
 below. A visitor on the same empty floor reads the honest state instead
 (&quot;Nothing is priced here yet. The owner has not added a number.&quot;).</p>
-<h2 id="docs-owner-on-the-floor-md--h3">The v1 controls: three dialogs</h2>
+<h2 id="docs-owner-on-the-floor-md--h3">The v1 controls: four dialogs</h2>
 <p>Owner direction 2026-08-27: start as simple as possible: a metric is a name
 and what it is; right after it is added, one date and the liquidity behind
-it; and an inject-liquidity button per market. Each dialog is the floor's own
+it; and an inject-liquidity button per market. Reporting the number joined
+them on 2026-08-30, as the one thing without which none of the rest settles
+honestly. Each dialog is the floor's own
 modal (the bet ticket's anatomy: centered tertiary labels, bottom-line
 inputs, one full-width ink button that carries its own cost, the segmented
 picker). All three appear only to callers with the <code>manage</code> capability, as
@@ -2467,6 +2469,23 @@ followed by next week's, a picked day as the one-shot absolute it is. The
 liquidity writes <code>metrics.liquidityCredits</code>, and the reconcile that runs on
 the same request opens the market funded at that number. One request, one
 market, no second call to forget.</p>
+<p><strong>4. Report the number</strong> — the owner's most frequent act, opened from the
+line under the market's own number: &quot;Yours: $44,439 [Report]&quot;. Markets settle
+on the metric's stored value, so a floor whose owner cannot report settles
+every market on the number it was created with; that is why this dialog
+exists at all. It carries the reading as its hero numeral, the delta against
+the reading it replaces, <strong>what the market has been saying</strong> (the one fact
+the owner can get nowhere else, placed directly under the number they are
+typing), the market this reading currently decides, and an optional public
+note. <code>PUT /api/metrics/:id { value, oldValue, updateNote }</code> writes the
+append-only <code>updates</code> row; an empty note is stored as &quot;Value updated&quot;.</p>
+<p>The first reading is the same dialog wearing a different half. There is no
+delta and no market price to compare against, so what replaces them is the
+range: the last moment it can move, since machinery freezes the instant
+someone trades. It rides along as <code>marketRangeMax</code> on the same request.</p>
+<p>The age of the reading is the entire nudge, and it is only ever true text:
+&quot;4 days old · this market settles on it in 3d&quot;, turning to the accent colour
+past three days. No badge, no blink, no email.</p>
 <p><strong>3. Inject liquidity</strong>, a button beside the pool on every open market. The
 dialog states the pool now and the traders on it, takes an amount, and says
 the two true things before the first injection, not after: deepening makes

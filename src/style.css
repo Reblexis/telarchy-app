@@ -8260,6 +8260,38 @@ textarea.jobform-line--desc {
    They wear the contract dialog's anatomy (.jobform + the ticket classes);
    only what the ticket has no equivalent for lives here. */
 .odlg-seg { align-self: flex-start; }
+/* A hint under a field, left-aligned with it (the ticket's own labels centre). */
+.odlg-note-left { font-size: 0.72rem; line-height: 1.5; color: var(--text-tertiary); }
+/* The delta in a fact row speaks as direction, the way the floor does. */
+.ticket-fact-v.is-up { color: var(--higher); }
+.ticket-fact-v.is-down { color: var(--lower); }
+/* The owner's reading beside the market's, under the price it feeds. */
+.pubws-yours { margin: 1.1rem 0 0; font-size: 0.88rem; color: var(--text-secondary); }
+.pubws-yours-val {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  border-bottom: 2px dotted var(--accent);
+  padding-bottom: 1px;
+}
+.pubws-yours-go {
+  margin-left: 0.55rem;
+  padding: 0.3rem 0.9rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.pubws-yours-go:hover { background: var(--button-bg-hover); }
+.pubws-yours-age { display: block; margin-top: 0.35rem; font-size: 0.75rem; color: var(--text-tertiary); }
+.pubws-yours-age.is-stale { color: var(--accent); }
 .odlg-mono { font-family: var(--font-mono); font-size: 0.88rem; }
 /* Manifold's close-date shape: the picker sits under the chips, always
    visible, with a quiet "or" joining them. */
