@@ -134,6 +134,16 @@ owner's own surfaces are copy a visitor reads too: the create dialog, the
 publish band and the empty state all sat outside this rule until the
 2026-08-30 walkthrough read them back.
 
+**A credit figure on screen is the POOL, never `b`.** A market carries two
+numbers that look alike and are not: `pool`, the credits people actually put
+in, and `liquidity`, the LMSR sensitivity `b = pool / ln 2` that the price
+maths takes (docs/vision.md). They differ by a factor of 1.44, so a surface
+that reads `liquidity` and writes "cr" overstates by 44%: an owner who
+injected 1,000 credits watched the pool rise by 1,443 and reported it
+(2026-08-30). Anything a person reads as money, on the floor, in a dialog or
+in the public books, takes `pool`; `liquidity` goes only where a price is
+being computed.
+
 **The thing a proposer sells is a CONTRACT, never a "job".** The rail
 beside it reads "Top contractors", and contractors do contracts.
 "Contract" also says what it is more exactly than "job" does: an offer at

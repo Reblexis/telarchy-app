@@ -1817,7 +1817,7 @@ export function TradePage() {
                     hero && !selectedJob ? (
                       <MarketFacts
                         traders={hero.traderCount ?? 0}
-                        pool={hero.liquidity}
+                        pool={hero.pool}
                         volume={hero.tradedVolume ?? 0}
                         canManage={canManage}
                         fundingHref={`/${idOrSlug ?? ''}/funding`}
@@ -1826,7 +1826,7 @@ export function TradePage() {
                             kind: 'inject',
                             marketId: hero.marketId,
                             marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}`,
-                            pool: hero.liquidity,
+                            pool: hero.pool,
                             traders: hero.traderCount ?? 0,
                           })
                         }

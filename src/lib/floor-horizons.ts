@@ -57,7 +57,11 @@ export interface HorizonView {
   periodStart: string | undefined;
   consensus: number | null;
   probability: number;
+  /** LMSR sensitivity, b = pool / ln 2: what the price maths takes, never a
+   *  credit figure a human reads. */
   liquidity: number;
+  /** Credits in the pool: what the owner and everyone else actually paid in. */
+  pool: number;
   /** Distinct traders and credits traded, for the facts row; absent on older payloads. */
   traderCount: number | null;
   tradedVolume: number | null;
@@ -223,6 +227,7 @@ export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: D
       consensus: m.consensus,
       probability: m.probability,
       liquidity: m.liquidity,
+      pool: m.pool ?? 0,
       traderCount: m.traderCount ?? null,
       tradedVolume: m.tradedVolume ?? null,
       rangeMin: m.rangeMin,

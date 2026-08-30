@@ -103,6 +103,12 @@ marketplaceRouter.get(
             consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
             probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
             liquidity: m.liquidity,
+            // The credits actually in the pool. `liquidity` beside it is the LMSR
+            // sensitivity b = pool / ln 2 (docs/vision.md), which the price maths
+            // needs and which is NOT what anyone paid in: showing b where credits
+            // were meant made a 1,000-credit injection read as 1,443 in the pool
+            // (owner report, 2026-08-30).
+            pool: m.pool ?? 0,
             rangeMin: m.rangeMin,
             rangeMax: m.rangeMax,
           });
@@ -194,6 +200,12 @@ marketplaceRouter.get(
           consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
           probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
           liquidity: m.liquidity,
+          // The credits actually in the pool. `liquidity` beside it is the LMSR
+          // sensitivity b = pool / ln 2 (docs/vision.md), which the price maths
+          // needs and which is NOT what anyone paid in: showing b where credits
+          // were meant made a 1,000-credit injection read as 1,443 in the pool
+          // (owner report, 2026-08-30).
+          pool: m.pool ?? 0,
           tradedVolume: m.tradedVolume,
           rangeMin: m.rangeMin,
           rangeMax: m.rangeMax,
@@ -429,6 +441,12 @@ async function buildFloorPayload(ws: PublicWs) {
         consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
         probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
         liquidity: m.liquidity,
+        // The credits actually in the pool. `liquidity` beside it is the LMSR
+        // sensitivity b = pool / ln 2 (docs/vision.md), which the price maths
+        // needs and which is NOT what anyone paid in: showing b where credits
+        // were meant made a 1,000-credit injection read as 1,443 in the pool
+        // (owner report, 2026-08-30).
+        pool: m.pool ?? 0,
         rangeMin: m.rangeMin,
         rangeMax: m.rangeMax,
       };

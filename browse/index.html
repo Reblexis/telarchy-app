@@ -3196,6 +3196,15 @@ may. When copy needs a word for one public workspace, it is &quot;market&quot;. 
 owner's own surfaces are copy a visitor reads too: the create dialog, the
 publish band and the empty state all sat outside this rule until the
 2026-08-30 walkthrough read them back.</p>
+<p><strong>A credit figure on screen is the POOL, never <code>b</code>.</strong> A market carries two
+numbers that look alike and are not: <code>pool</code>, the credits people actually put
+in, and <code>liquidity</code>, the LMSR sensitivity <code>b = pool / ln 2</code> that the price
+maths takes (docs/vision.md). They differ by a factor of 1.44, so a surface
+that reads <code>liquidity</code> and writes &quot;cr&quot; overstates by 44%: an owner who
+injected 1,000 credits watched the pool rise by 1,443 and reported it
+(2026-08-30). Anything a person reads as money, on the floor, in a dialog or
+in the public books, takes <code>pool</code>; <code>liquidity</code> goes only where a price is
+being computed.</p>
 <p><strong>The thing a proposer sells is a CONTRACT, never a &quot;job&quot;.</strong> The rail
 beside it reads &quot;Top contractors&quot;, and contractors do contracts.
 &quot;Contract&quot; also says what it is more exactly than &quot;job&quot; does: an offer at

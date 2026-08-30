@@ -440,7 +440,11 @@ export interface MarketplaceListing {
   targetDate: string;
   consensus: number | null;
   probability: number;
+  /** LMSR sensitivity, b = pool / ln 2. Price maths only, never a credit
+   *  figure on screen: see `pool` for what was actually paid in. */
   liquidity: number;
+  /** Credits in the pool. */
+  pool?: number;
   /** Present on /api/marketplace/featured; absent on other marketplace endpoints. */
   tradedVolume?: number;
   rangeMin: number;
@@ -656,7 +660,11 @@ export interface PublicWorkspaceMarket {
   resolvesOn: string;
   consensus: number | null;
   probability: number;
+  /** LMSR sensitivity, b = pool / ln 2. Price maths only, never a credit
+   *  figure on screen: see `pool`. */
   liquidity: number;
+  /** Credits in the pool: what the owner and everyone else paid in. */
+  pool?: number;
   /** Distinct participants who have traded this market. */
   traderCount?: number;
   /** Credits traded on this market over its life. */
@@ -699,7 +707,8 @@ export interface DataRoomFeed {
         rangeMax: number;
         targetDate: string;
         resolvesOn: string;
-        liquidity: number;
+        /** Credits in the pool (the books' credit figure). */
+        pool: number;
         tradedVolume: number;
         history: Array<{ at: string; value: number }>;
       } | null;

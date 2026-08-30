@@ -177,13 +177,18 @@ async function selfFloor() {
       metricDescription: metric?.description ?? null,
       /** The market's call. Undefined from the AMM means it cannot be priced,
        *  which is published as null rather than as a number. */
-      consensus: consensus(m.shares as [number, number], m.pool, m.rangeMin, m.rangeMax) ?? null,
+      // consensus() takes the LMSR sensitivity b, not the pool. Handing it the
+      // pool made the books quote a different call than the floor did for the
+      // same market, by exactly the ln 2 between them (2026-08-30).
+      consensus: consensus(m.shares as [number, number], m.liquidity, m.rangeMin, m.rangeMax) ?? null,
       currentValue: metric ? metric.value : null,
       rangeMin: m.rangeMin,
       rangeMax: m.rangeMax,
       targetDate: m.targetDate,
       resolvesOn: resolutionInstant(m.targetDate),
-      liquidity: m.liquidity,
+      // The credit figure is the pool; b is derived from it and belongs to the
+      // price maths, not to a books line that says "cr".
+      pool: m.pool,
       tradedVolume: m.tradedVolume,
       history: logs.map(l => ({ at: l.at.toISOString(), value: l.value })),
     },
@@ -406,7 +411,7 @@ function renderBlock(name: string, feed: DataRoomFeed): string {
       `  the market's call: ${fmt(m.consensus)}`,
       `  the metric now reads: ${fmt(m.currentValue)}`,
       `  band ${fmt(m.rangeMin)} to ${fmt(m.rangeMax)}, settles ${m.resolvesOn}`,
-      `  liquidity ${fmt(m.liquidity)} cr, traded volume ${fmt(m.tradedVolume)} cr`,
+      `  pool ${fmt(m.pool)} cr, traded volume ${fmt(m.tradedVolume)} cr`,
       `  readings: ${
         (m.history || [])
           .slice(-12)
