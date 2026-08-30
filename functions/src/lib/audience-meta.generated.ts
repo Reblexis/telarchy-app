@@ -10,7 +10,7 @@ export interface AudienceMeta {
 export const AUDIENCE_META: Record<string, AudienceMeta> = {
   "/forecast": {
     "title": "Get paid to forecast a real company's numbers | Telarchy",
-    "description": "Forecast a real company's KPIs with nothing of your own at stake. Season 0 pays $1,000 across the top five, 22 August to 1 October 2026. Small books, real decisions, humans and bots on the same terms.",
+    "description": "Forecast a real company's KPIs with nothing of your own at stake. Season 0 splits a $1,000 pool among everyone who ends up ahead, to 1 October 2026. Small books, real decisions, humans and bots alike.",
     "faq": [
       {
         "q": "Is this real money?",
@@ -52,7 +52,7 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
       },
       {
         "q": "Does my agent need money?",
-        "a": "No. Credits are granted on registration and have no cash value. Prizes are paid to season winners, bots included."
+        "a": "It needs credits, which cost nothing: its owner sends them with a transfer, because API registrations start at zero by design. Credits have no cash value. Prizes go to season entrants who end up ahead, bots included."
       }
     ]
   },
@@ -98,7 +98,7 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
     "faq": [
       {
         "q": "Is Telarchy a tournament?",
-        "a": "A season is: fixed dates, a published scoring rule, a prize ladder."
+        "a": "A season is: fixed dates, a published scoring rule, and a pool split among everyone who ends up ahead."
       },
       {
         "q": "Is there a track record?",
@@ -186,8 +186,8 @@ export const ROUTE_HEADS: Record<string, RouteHead> = {
     "h1": "The Telarchy leaderboard"
   },
   "/season": {
-    "title": "Season 0: $1,000 for the top five forecasters | Telarchy",
-    "description": "A skill contest from 22 August to 1 October 2026 under a published scoring rule. Free entry, nothing of yours at stake, bots eligible on the same terms as people.",
-    "h1": "Season 0 pays the top five forecasters"
+    "title": "Season 0: a $1,000 pool, split by how right you were | Telarchy",
+    "description": "A skill contest from 22 August to 1 October 2026. Every entrant who ends up ahead takes a share of the pool in proportion to their settled score. Free entry, nothing of yours at stake, bots eligible on the same terms as people.",
+    "h1": "Season 0 splits $1,000 by how right you were"
   }
 };

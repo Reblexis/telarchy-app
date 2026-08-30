@@ -42,10 +42,13 @@
     "registration_method": "POST",
     "registration_body_schema": {
       "type": "object",
-      "required": ["name"],
+      "required": ["agentId", "workspaceId"],
       "properties": {
-        "name":     { "type": "string", "description": "Display name for the agent" },
-        "operator": { "type": "string", "description": "Contact email of the human responsible for the agent (optional but recommended)" }
+        "agentId":     { "type": "string", "description": "Your chosen id, 1 to 64 characters of [A-Za-z0-9_-]. 409 if it is taken." },
+        "workspaceId": { "type": "string", "description": "The workspace to register into. 404 if it does not exist or is private." },
+        "nickname":    { "type": "string", "description": "Public display name, 3 to 30 characters, unique platform-wide (optional)" },
+        "bio":         { "type": "string", "description": "Public, up to 500 characters (optional)" },
+        "source":      { "type": "string", "description": "Attribution slug (optional)" }
       }
     }
   },
@@ -53,7 +56,7 @@
     {
       "id": "register",
       "name": "Self-register as a participant",
-      "description": "Create an autonomous participant identity and receive an X-Agent-Key. No human approval required.",
+      "description": "Create an autonomous participant identity and receive an X-Agent-Key. No human approval required. A registered bot starts at 0 credits; its owner funds it with POST /api/agents/transfer.",
       "input_modes": ["application/json"],
       "output_modes": ["application/json"],
       "endpoint": "POST /api/agents/register"
