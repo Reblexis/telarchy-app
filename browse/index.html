@@ -186,7 +186,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h3">Flow</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h4">Where an owner buys</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h5">Pricing</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h6">Revenue and the season pool</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h6">Revenue, and what it does not buy</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h7">Enablement</a></li>
 </ul></details>
 </li>
@@ -1941,21 +1941,24 @@ per-instance env), the owner-confirmed number (2026-08-26, liquidity
 funding design; it supersedes the earlier provisional 100). The rate is
 stamped on each purchase row at creation, so a price change never rewrites
 an old purchase.</p>
-<h2 id="docs-liquidity-purchases-md--h6">Revenue and the season pool</h2>
+<h2 id="docs-liquidity-purchases-md--h6">Revenue, and what it does not buy</h2>
 <p>Completed purchases are the platform's liquidity revenue, and their
 trailing-30-day sum is public as <code>revenue30dUsd</code> on
 <code>GET /api/marketplace/stats</code>: it is what the floor's &quot;Telarchy revenue (USD)&quot;
 metric settles on, so the buyers of the service and the traders pricing it
-read the same number (docs/metrics.md, &quot;Revenue, trailing 30 days&quot;). The
-published season-pool formula sizes the next season from it:</p>
-<pre><code>pool(N+1) = max(pool(0), k x revenue(N)) + rollover(N)
-</code></pre>
-<p>with <code>pool(0) = 1000 USD</code> and <code>k = 0.5</code> (provisional, owner to confirm).
-Revenue never moves a RUNNING season's pool; the formula is applied between
-seasons, and <code>GET /api/liquidity/revenue</code> is its input. No purchase is
-earmarked for prizes: revenue is service revenue, prizes are paid from
-Telarchy's own funds (ToS 3a), which is what keeps the platform out of
-holding anyone's money.</p>
+read the same number (docs/metrics.md, &quot;Revenue, trailing 30 days&quot;).</p>
+<p><strong>A payment buys liquidity credits and nothing else.</strong> It is not a share of a
+prize, not an entry, and no formula binds a season's pool to it. Telarchy
+sizes each season's prize itself, before that season opens, out of its own
+funds (ToS 3a), and revenue is one input among several rather than a
+promise: what a month took in does not fix what the next season pays. That
+is what keeps the platform a contest operator rather than a holder of
+somebody else's money, and it keeps prize sizing free to answer how many
+seasons run, how long they are, and where the money does the most good
+(owner decision 2026-08-30, superseding the provisional
+<code>pool(N+1) = max(pool(0), k x revenue(N))</code>).</p>
+<p>A running season's pool never moves. <code>GET /api/liquidity/revenue</code> reports
+what came in, for the books, not for a payout rule.</p>
 <h2 id="docs-liquidity-purchases-md--h7">Enablement</h2>
 <p>Env-gated like USDC settlement: without <code>STRIPE_SECRET_KEY</code> and
 <code>STRIPE_WEBHOOK_SECRET</code> every purchase surface answers 503 and the instance

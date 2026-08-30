@@ -160,9 +160,11 @@ liquidityPurchasesRouter.get(
 );
 
 /**
- * Liquidity revenue over a window: the number that sizes the next season's
- * pool, `pool(N+1) = max(pool(0), k x revenue(N)) + rollover(N)`
- * (docs/liquidity-purchases.md). Platform admin only.
+ * Liquidity revenue over a window: what the platform was paid, for the books.
+ * No formula turns it into a prize (owner decision 2026-08-30): a payment
+ * buys liquidity credits, and Telarchy sizes each season itself, out of its
+ * own funds, before that season opens (docs/liquidity-purchases.md).
+ * Platform admin only.
  */
 liquidityPurchasesRouter.get(
   '/liquidity/revenue',

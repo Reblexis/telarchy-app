@@ -73,25 +73,27 @@ funding design; it supersedes the earlier provisional 100). The rate is
 stamped on each purchase row at creation, so a price change never rewrites
 an old purchase.
 
-## Revenue and the season pool
+## Revenue, and what it does not buy
 
 Completed purchases are the platform's liquidity revenue, and their
 trailing-30-day sum is public as `revenue30dUsd` on
 `GET /api/marketplace/stats`: it is what the floor's "Telarchy revenue (USD)"
 metric settles on, so the buyers of the service and the traders pricing it
-read the same number (docs/metrics.md, "Revenue, trailing 30 days"). The
-published season-pool formula sizes the next season from it:
+read the same number (docs/metrics.md, "Revenue, trailing 30 days").
 
-```
-pool(N+1) = max(pool(0), k x revenue(N)) + rollover(N)
-```
+**A payment buys liquidity credits and nothing else.** It is not a share of a
+prize, not an entry, and no formula binds a season's pool to it. Telarchy
+sizes each season's prize itself, before that season opens, out of its own
+funds (ToS 3a), and revenue is one input among several rather than a
+promise: what a month took in does not fix what the next season pays. That
+is what keeps the platform a contest operator rather than a holder of
+somebody else's money, and it keeps prize sizing free to answer how many
+seasons run, how long they are, and where the money does the most good
+(owner decision 2026-08-30, superseding the provisional
+`pool(N+1) = max(pool(0), k x revenue(N))`).
 
-with `pool(0) = 1000 USD` and `k = 0.5` (provisional, owner to confirm).
-Revenue never moves a RUNNING season's pool; the formula is applied between
-seasons, and `GET /api/liquidity/revenue` is its input. No purchase is
-earmarked for prizes: revenue is service revenue, prizes are paid from
-Telarchy's own funds (ToS 3a), which is what keeps the platform out of
-holding anyone's money.
+A running season's pool never moves. `GET /api/liquidity/revenue` reports
+what came in, for the books, not for a payout rule.
 
 ## Enablement
 

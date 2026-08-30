@@ -562,7 +562,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/liquidity/revenue',
       auth: 'platform admin',
       description:
-        'Completed liquidity revenue over a window (?from=&to=, ISO dates, default all time): { totalUsd, purchases, from, to }. This is revenue(N) in the published season-pool formula pool(N+1) = max(pool(0), k x revenue(N)) + rollover(N) (docs/liquidity-purchases.md).',
+        'Completed liquidity revenue over a window (?from=&to=, ISO dates, default all time): { totalUsd, purchases, from, to }. Bookkeeping, not a payout rule: a purchase buys liquidity credits only, and no formula ties a season prize to revenue - Telarchy sizes each season itself, from its own funds, before that season opens (docs/liquidity-purchases.md).',
     },
     {
       method: 'POST',
