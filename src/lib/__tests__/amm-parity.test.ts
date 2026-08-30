@@ -1,11 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import {
-  betTowardsValue,
-  consensus,
-  directionSellProceeds,
-  pHigher,
-  sharesForBudget,
-} from '../../../functions/src/lib/amm';
+import { betTowardsValue, consensus, pHigher, sharesForBudget } from '../../../functions/src/lib/amm';
 import { previewSell, previewTargetBet, previewTrade } from '../amm';
 
 /**
@@ -32,26 +26,26 @@ const MAX = 1000;
 
 type Book = [number, number];
 
-/** Server-side execution of a {direction, amount} buy, netting included. */
+/** Server-side execution of a {direction, amount} buy, redemption included
+    (executeTradeInTx: buy against the live book, then cash matched pairs).
+    Redemption takes the same amount off BOTH sides, so it never moves the
+    landed price; it only pays credits. */
 function serverBuy(
   book: Book,
   held: { direction: 'higher' | 'lower'; shares: number } | null,
   direction: 'higher' | 'lower',
   amount: number,
-): { landedProb: number; shares: number; nettingProceeds: number } {
-  let b2: Book = [book[0], book[1]];
-  let proceeds = 0;
-  if (held && held.shares > 0 && held.direction !== direction) {
-    const idx = held.direction === 'higher' ? 1 : 0;
-    proceeds = directionSellProceeds(b2, idx as 0 | 1, held.shares, B);
-    b2 = [b2[0], b2[1]];
-    b2[idx] -= held.shares;
-  }
+): { landedProb: number; shares: number; redeemed: number } {
   const dirIdx = direction === 'higher' ? 1 : 0;
-  const r = sharesForBudget(b2, dirIdx as 0 | 1, amount, B);
-  b2 = [b2[0], b2[1]];
+  const r = sharesForBudget(book, dirIdx as 0 | 1, amount, B);
+  let b2: Book = [book[0], book[1]];
   b2[dirIdx] += r.amount;
-  return { landedProb: pHigher(b2, B), shares: r.amount, nettingProceeds: proceeds };
+  let redeemed = 0;
+  if (held && held.shares > 0 && held.direction !== direction) {
+    redeemed = Math.min(held.shares, r.amount);
+    b2 = [b2[0] - redeemed, b2[1] - redeemed];
+  }
+  return { landedProb: pHigher(b2, B), shares: r.amount, redeemed };
 }
 
 /** Server-side execution of a {targetValue, maxBudget} trade, netting
@@ -64,13 +58,11 @@ function serverTargetTrade(
   maxBudget: number,
 ): { landedProb: number; direction: 'higher' | 'lower'; cost: number } {
   const c0 = consensus(book, B, MIN, MAX)!;
-  const buyDir: 0 | 1 = targetValue >= c0 ? 1 : 0;
+  // The buy side is picked against the live consensus, and betTowardsValue
+  // runs on that same live book: redemption happens after, and moves no
+  // price (it is symmetric on the two sides).
+  void (targetValue >= c0 ? 1 : 0);
   let b2: Book = [book[0], book[1]];
-  if (held && held.shares > 0 && (held.direction === 'higher' ? 1 : 0) !== buyDir) {
-    const idx = held.direction === 'higher' ? 1 : 0;
-    b2 = [b2[0], b2[1]];
-    b2[idx] -= held.shares;
-  }
   const r = betTowardsValue(b2, B, MIN, MAX, targetValue, maxBudget);
   b2 = [b2[0], b2[1]];
   b2[r.direction] += r.amount;
@@ -92,18 +84,28 @@ describe('budget buys: preview lands where the server lands', () => {
     }
   });
 
-  test('held higher, buying lower: the netting close moves the start (the 2026-08-22 bug)', () => {
+  test('held higher, buying lower: the bet moves the price, the position does not', () => {
     // The trader's own 50 higher shares ARE the book: the live price the
-    // ticket sees (622.5) already contains them. Before the fix the
-    // preview said ~485 while the server landed ~389.
+    // ticket sees (622.5) already contains them. Under redemption (owner
+    // ask 2026-08-30) a 25-credit contrarian bet moves the price by 25
+    // credits' worth and hands back a credit per matched pair. Under the
+    // liquidation this replaced, the same bet dumped all 50 shares and
+    // dragged the market from 622 to ~389.
     const book: Book = [0, 50];
     const held = { direction: 'higher' as const, shares: 50 };
     const server = serverBuy(book, held, 'lower', 25);
     const preview = previewTrade(pHigher(book, B), B, 'lower', 25, held);
     expect(valueOf(preview.newProb)).toBeCloseTo(valueOf(server.landedProb), 1);
-    // And the old (netting-blind) preview really was wrong, by a lot:
-    const blind = previewTrade(pHigher(book, B), B, 'lower', 25, null);
-    expect(Math.abs(valueOf(blind.newProb) - valueOf(server.landedProb))).toBeGreaterThan(50);
+    // Holding the opposite side changes the LANDING by nothing at all:
+    // redemption is symmetric on the two sides, so it cancels out of the
+    // price. It only pays credits.
+    const noPosition = previewTrade(pHigher(book, B), B, 'lower', 25, null);
+    expect(valueOf(preview.newProb)).toBeCloseTo(valueOf(noPosition.newProb), 6);
+    expect(preview.redeemed).toBeGreaterThan(0);
+    expect(noPosition.redeemed).toBe(0);
+    // And the move is the bet's own, not the position's: the liquidation
+    // this replaced landed ~389 on the same book and bet.
+    expect(valueOf(preview.newProb)).toBeGreaterThan(450);
   });
 
   test('held lower, buying higher', () => {
@@ -138,14 +140,28 @@ describe('budget buys: preview lands where the server lands', () => {
     }
   });
 
-  test('netting proceeds match what the server pays for the close', () => {
+  test('redeemed pairs match what the server cashes, at 1 credit each', () => {
     const book: Book = [0, 50];
     const held = { direction: 'higher' as const, shares: 50 };
-    const server = serverBuy(book, held, 'lower', 25);
-    const preview = previewTrade(pHigher(book, B), B, 'lower', 25, held);
-    expect(preview.nettingProceeds).toBeCloseTo(server.nettingProceeds, 1);
-    // previewSell (the "worth now" readout) is the same number.
-    expect(previewSell(pHigher(book, B), B, 'higher', 50)).toBeCloseTo(server.nettingProceeds, 1);
+    // Small bet: fewer shares bought than held (8 credits buys ~20 shares
+    // on this book), so every bought share pairs off and the rest of the
+    // position survives.
+    const small = serverBuy(book, held, 'lower', 8);
+    const smallPreview = previewTrade(pHigher(book, B), B, 'lower', 8, held);
+    expect(smallPreview.redeemed).toBeCloseTo(small.redeemed, 6);
+    expect(smallPreview.redeemed).toBeCloseTo(smallPreview.shares, 6);
+    expect(smallPreview.redeemed).toBeLessThan(50);
+
+    // Big bet: more shares bought than held, so the whole position pairs
+    // off and the trader ends up net on the new side.
+    const big = serverBuy(book, held, 'lower', 400);
+    const bigPreview = previewTrade(pHigher(book, B), B, 'lower', 400, held);
+    expect(bigPreview.redeemed).toBeCloseTo(big.redeemed, 6);
+    expect(bigPreview.redeemed).toBeCloseTo(50, 6);
+
+    // The "worth now" readout is a different question (what the AMM would
+    // pay to sell into the book) and is deliberately lower than par.
+    expect(previewSell(pHigher(book, B), B, 'higher', 50)).toBeLessThan(50);
   });
 });
 
@@ -170,17 +186,18 @@ describe('target trades: preview lands where the server lands', () => {
     expect(preview.cost).toBeCloseTo(server.cost, 1);
   });
 
-  test('the buyback case: target between the netted price and the live price flips the final side', () => {
-    // Live 622 (held higher). Target 550: the route sells the higher
-    // position (price falls to 500), then betTowardsValue buys HIGHER
-    // back up to 550. A naive "550 < 622, buy lower" model gets both the
-    // side and the landing wrong.
+  test('a target below the live price simply buys lower, held position or not', () => {
+    // Live 622 (held higher), target 550. Under the liquidation this
+    // replaced, the forced close dropped the price to 500 first and the
+    // trade then bought HIGHER back up to 550, which is the buyback case
+    // the preview had to model. Redemption moves no price, so the target
+    // is reached the obvious way: buy lower down to it.
     const book: Book = [0, 50];
     const held = { direction: 'higher' as const, shares: 50 };
     const server = serverTargetTrade(book, held, 550, 1e9);
     const preview = previewTargetBet(pHigher(book, B), B, MIN, MAX, 550, 1e9, held)!;
-    expect(server.direction).toBe('higher');
-    expect(preview.direction).toBe('higher');
+    expect(server.direction).toBe('lower');
+    expect(preview.direction).toBe('lower');
     expect(valueOf(server.landedProb)).toBeCloseTo(550, 1);
     expect(valueOf(preview.newProb)).toBeCloseTo(550, 1);
     expect(preview.cost).toBeCloseTo(server.cost, 1);

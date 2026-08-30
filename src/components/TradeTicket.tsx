@@ -150,19 +150,18 @@ export function TradeTicket({
   const [sellDir, setSellDir] = useState<'higher' | 'lower' | null>(null);
   const [sellShares, setSellShares] = useState(0);
 
-  // The one position the trader holds (the server nets to a single side).
-  // Every buy preview needs it: buying the opposite side first sells this
-  // position, which moves the price the buy then prices against.
+  // The one position the trader holds (the server keeps them to a single
+  // net side). Every buy preview needs it: buying the opposite side hands
+  // back 1 credit per matched pair the buy creates.
   const held = positions.find(p => p.shares > 1e-9) ?? null;
-  const oppProceeds =
-    dir && held && held.direction !== dir ? previewSell(probability, liquidity, held.direction, held.shares) : 0;
 
   // The bet ceiling is what the trader can afford (owner removed the
   // per-market cap 2026-08-11); fall back to a sane default before the
-  // balance loads. The slider maxes here. A flip can also spend what the
-  // netting close pays out (the server credits it inside the same trade),
-  // so the ceiling includes it.
-  const maxBet = Math.max(1, Math.floor((balance != null && balance > 0 ? balance : 250) + oppProceeds));
+  // balance loads. The slider maxes here. The balance is the whole ceiling
+  // since 2026-08-30: redemption pays out AFTER the buy, so unlike the
+  // liquidation it replaced it cannot fund the buy itself. Someone who
+  // wants their position's cash first sells it, which is the panel below.
+  const maxBet = Math.max(1, Math.floor(balance != null && balance > 0 ? balance : 250));
 
   const amountNum = Math.max(0, Math.floor(parseFloat(amount) || 0));
   const limitNum = limit.trim() === '' ? null : parseFloat(limit.replace(/,/g, ''));

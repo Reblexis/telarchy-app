@@ -474,6 +474,16 @@ async function computeReplayBundle(marketId: string, workspaceId: string): Promi
           consensus: consensus(shares, liquidity, market.rangeMin, market.rangeMax) ?? null,
           createdAt: t.createdAt,
         });
+        // Rows written at the same instant are ONE move, so they all carry
+        // the price that move ended on. A redemption is the case that
+        // needs it: it writes a row per side (docs/market-integrity.md,
+        // "Redemption is liability-neutral"), and priced row by row the
+        // first one drew a dip the market never printed before the second
+        // one undid it.
+        for (let k = points.length - 2; k >= 0; k--) {
+          if (points[k].createdAt.getTime() !== t.createdAt.getTime()) break;
+          points[k].consensus = points[points.length - 1].consensus;
+        }
       }
     }
     return { shares, openingScale, points };

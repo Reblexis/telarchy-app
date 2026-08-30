@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
+import { SLIDER_STEPS } from '../../lib/bet-slider';
 import { TradeTicket } from '../TradeTicket';
 
 /**
@@ -265,11 +266,12 @@ describe('betting towards a value', () => {
   });
 });
 
-describe('the preview knows about netting (the 2026-08-22 bug)', () => {
+describe('the preview knows about redemption (2026-08-30)', () => {
   // The trader holds the market's only 50 higher shares on a thin book
   // (b=100, range 0..1000): the live probability that the ticket receives
-  // already contains them. Buying lower first CLOSES that position on the
-  // server, so the shown New value must start from the post-close book.
+  // already contains them. Buying lower does NOT close that position on
+  // the server any more; it buys, then cashes the matched pairs at par,
+  // which moves no price. So the shown New value is the plain landing.
   const b = 100;
   const prob = 1 / (1 + Math.exp(-50 / b)); // pHigher([0, 50], 100)
   const netted = {
@@ -282,37 +284,43 @@ describe('the preview knows about netting (the 2026-08-22 bug)', () => {
     positions: [{ direction: 'higher' as const, shares: 50, totalCost: 30 }],
   };
 
-  test('with an opposite position held, New value shows the post-netting landing', () => {
-    const { container } = render(<TradeTicket {...netted} />);
+  const landing = (container: HTMLElement) =>
+    parseFloat((container.querySelector('.ticket-newvalue') as HTMLInputElement).value.replace(/,/g, ''));
+
+  test('holding the opposite side does not change the landing', () => {
+    // The whole point of redemption: the price a bet lands on is the bet's
+    // own doing. The liquidation this replaced landed ~389 here, dragged
+    // down by the forced sale of all 50 shares.
+    const withPosition = render(<TradeTicket {...netted} />);
     fireEvent.click(screen.getByText('Lower'));
     fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '25' } });
-    const shown = (container.querySelector('.ticket-newvalue') as HTMLInputElement).value;
-    // Netting-blind math said ~485 here; the server lands ~389 (see
-    // amm-parity.test.ts for the executed numbers). The displayed value
-    // must be the landed one.
-    expect(parseFloat(shown.replace(/,/g, ''))).toBeLessThan(420);
-    expect(parseFloat(shown.replace(/,/g, ''))).toBeGreaterThan(360);
-  });
+    const held = landing(withPosition.container);
+    withPosition.unmount();
 
-  test('without a held position the same buy previews the plain landing', () => {
-    const { container } = render(<TradeTicket {...netted} positions={[]} />);
+    const flat = render(<TradeTicket {...netted} positions={[]} />);
     fireEvent.click(screen.getByText('Lower'));
     fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '25' } });
-    const shown = (container.querySelector('.ticket-newvalue') as HTMLInputElement).value;
-    expect(parseFloat(shown.replace(/,/g, ''))).toBeGreaterThan(450);
+    expect(landing(flat.container)).toBeCloseTo(held, 1);
+    expect(held).toBeGreaterThan(450);
   });
 
-  test('the bet ceiling includes what the netting close pays back', () => {
-    // Balance 10, but the held higher position is worth ~30 when the flip
-    // closes it: the slider must allow spending both.
-    render(<TradeTicket {...netted} balance={10} />);
+  test('the bet ceiling is the balance: redemption pays out after the buy', () => {
+    // Balance 10 and a held position worth ~30. The liquidation this
+    // replaced funded the bet from the forced close, so the ceiling was
+    // balance + proceeds (~40) and the default 25 sat mid-track.
+    // Redemption cannot fund the buy, because it happens after it, so 25
+    // is now past the ceiling and the slider pins to its top.
+    const poor = render(<TradeTicket {...netted} balance={10} />);
     fireEvent.click(screen.getByText('Lower'));
-    const slider = document.querySelector('.ticket-slider') as HTMLInputElement;
-    expect(slider).toBeTruthy();
-    // maxBet is the slider's currency ceiling: read it via the amount an
-    // all-the-way-right slider sets.
-    fireEvent.change(slider, { target: { value: slider.max } });
-    const amountInput = screen.getByLabelText('Credits to spend') as HTMLInputElement;
-    expect(Number(amountInput.value)).toBeGreaterThan(10);
+    const pinned = poor.container.querySelector('input[aria-label="Bet amount slider"]') as HTMLInputElement;
+    expect(pinned.value).toBe(String(SLIDER_STEPS));
+    poor.unmount();
+
+    // With the balance actually covering it, the same amount sits inside
+    // the track: the ceiling moved with the balance, nothing else.
+    const rich = render(<TradeTicket {...netted} balance={1000} />);
+    fireEvent.click(screen.getByText('Lower'));
+    const inside = rich.container.querySelector('input[aria-label="Bet amount slider"]') as HTMLInputElement;
+    expect(Number(inside.value)).toBeLessThan(SLIDER_STEPS);
   });
 });

@@ -694,14 +694,34 @@ resting limit orders fill behind a trade, the page shows
 `settledConsensus` (where the market came to rest), not the trade's own
 post-price.
 
-**A trader holds ONE net side.** Buying the side opposite to a position you
-already hold first closes that position, so nobody ends up holding both
-higher and lower (a guaranteed-return bond bought at a doubled spread, pure
-value leakage to the market). This is engine behavior (`executeTradeInTx`
-netting, functions/src/services/trading.ts), not UI: the trade path sells
-your opposite position before executing the buy, and the proceeds return
-to your balance. Limit fills skip netting (they build a position
-mechanically). Buying the SAME side you hold just accumulates.
+**A trader holds ONE net side, and gets there by REDEMPTION** (owner ask
+2026-08-30, after Manifold). One higher share and one lower share pay
+exactly 1 credit between them at any settlement value (`resolutionPayouts`
+is `[1-p, p]`), so a matched pair is riskless. Buying the side opposite a
+position you hold therefore does NOT sell that position: the buy happens
+against the live book, and afterwards every matched pair the trader now
+holds is redeemed for exactly 1 credit each. Both sides of the pair leave
+the book, which moves the price by nothing at all, because an LMSR price
+is a function of `q1 - q0` and redemption subtracts the same amount from
+each. So a small contrarian bet is a small move and a small reduction,
+and nobody ends up holding both sides.
+
+What this replaced (2026-08-11 to 2026-08-30): the trade path sold the
+ENTIRE opposite position into the AMM before the buy. A one-credit
+contrarian nudge liquidated a whole position, at a spread the trader never
+asked to pay, and moved the price by the size of that forced sale rather
+than the size of the bet (owner report 2026-08-30: 25 credits moved a
+market from $7,146 to $10,706, almost all of it the forced close).
+
+Consequences worth knowing: the buy is funded from the BALANCE alone, so
+holding a large opposite position no longer lets a trader spend more than
+they have (the redemption pays out after the buy, not before). Redemption
+is liability-neutral for the pool, which pays 1 credit now and sheds
+exactly 1 credit of settlement liability. This is engine behavior
+(`executeTradeInTx`, functions/src/services/trading.ts), not UI, and the
+client preview mirrors it (`previewTrade`); `amm-parity.test.ts` fails if
+the two ever disagree again. Buying the SAME side you hold just
+accumulates.
 
 ### Where markets open
 

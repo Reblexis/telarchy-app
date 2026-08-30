@@ -35,6 +35,7 @@ type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
  */
 export type CreditReason =
   | 'trade' // buying or selling shares (cost debited, proceeds credited)
+  | 'redeem' // matched higher+lower pairs cashed at the 1 credit they are worth
   | 'payout' // a resolved market paying its holders
   | 'void_refund' // a voided market returning net cash
   | 'lp_leftover' // pool left over after a void, back to its funders
