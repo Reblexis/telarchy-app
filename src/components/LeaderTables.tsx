@@ -158,13 +158,6 @@ export function SeasonTable({
   );
 }
 
-/** Accuracy is only meaningful once a few markets have actually settled. */
-function accuracySub(e: LeaderboardEntry): string | null {
-  if (e.accuracy === null || e.accuracy === undefined) return null;
-  if (e.resolvedMarkets < 3) return null;
-  return `${Math.round(e.accuracy * 100)}% accurate over ${e.resolvedMarkets} settled`;
-}
-
 /**
  * The all-time board. The Season column keeps the chip states the season
  * always had on this board (owner reports 2026-08-21): a neutral "entered"
@@ -193,13 +186,7 @@ export function AllTimeTable({
       >
         <td className="lbt-rank">{rank || '—'}</td>
         <td className="lbt-cell is-left">
-          <TraderCell
-            id={e.id}
-            nickname={e.nickname}
-            image={e.image}
-            manifoldUsername={e.manifoldUsername}
-            sub={accuracySub(e)}
-          />
+          <TraderCell id={e.id} nickname={e.nickname} image={e.image} manifoldUsername={e.manifoldUsername} />
           {/* The split, restated under the name on a phone, where the two
               middle columns are hidden rather than squeezed. */}
           {split && (
