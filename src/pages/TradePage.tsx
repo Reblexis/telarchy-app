@@ -1009,8 +1009,8 @@ export function TradePage() {
             precondition honestly instead of offering a button that the
             server would refuse. */}
           {canManage && ws.visibility && ws.visibility !== 'public' && (
-            <section className="pubws-publish pubws-enter" aria-label="Publish this floor">
-              <p className="pubws-publish-title">Only people with the link can see this floor</p>
+            <section className="pubws-publish pubws-enter" aria-label="Publish this market">
+              <p className="pubws-publish-title">Only people with the link can see this market</p>
               {(ws.metricCount ?? 0) > 0 ? (
                 <>
                   <p className="pubws-publish-sub">
@@ -1029,13 +1029,13 @@ export function TradePage() {
                         .finally(() => setPublishBusy(false));
                     }}
                   >
-                    {publishBusy ? 'Publishing…' : 'Publish this floor'}
+                    {publishBusy ? 'Publishing…' : 'Publish this market'}
                   </button>
                 </>
               ) : (
                 <p className="pubws-publish-sub">
-                  Add a number first: a floor with no metric has nothing to trade. The publish button appears the moment
-                  one exists.
+                  Add a number first: a market with no metric has nothing to trade. The publish button appears the
+                  moment one exists.
                 </p>
               )}
             </section>
@@ -1049,7 +1049,7 @@ export function TradePage() {
             <section className="pubws-instrument pubws-enter" aria-label="No market yet">
               {canManage ? (
                 <>
-                  <p className="pubws-na-note">No number here yet. A floor starts when you add one.</p>
+                  <p className="pubws-na-note">No number here yet. The market starts the moment you add one.</p>
                   <div className="pubws-act">
                     <button type="button" className="pubws-cta" onClick={() => setOwnerDialog({ kind: 'new-metric' })}>
                       Add your first metric

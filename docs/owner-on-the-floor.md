@@ -16,7 +16,7 @@ The marketplace tile's "Create your own" opens dialog 0: a floor is a name,
 nothing else (owner ask 2026-08-28, superseding the 2026-08-26 email field;
 the record is notes/decisions/ui-conventions.md). A new floor starts
 UNLISTED and publishing is its own visible step: a band under the floor's
-name, a card with one ink button ("Publish this floor"), shown only to the
+name, a card with one ink button ("Publish this market"), shown only to the
 owner of a not-yet-public floor. The flip is gated on the first metric
 existing, server-side, and the band says the precondition instead of
 offering a button the server would refuse: no metric, no publish button,
@@ -27,8 +27,9 @@ A floor of yours that is not public yet is still not hidden from you: it
 joins the grid first, among the others, as a normal card wearing one badge,
 "Yours · not public yet", linked by id. No private side lists. The floor
 itself answers its owner and members even while private (strangers keep the
-403), and says under its name "Only you can see this floor. Make it
-public", because a state named without its fix is a dead end.
+403), and says under its name that only people with the link can see it,
+above the button that publishes it, because a state named without its fix
+is a dead end.
 
 It lands the owner on their empty floor at `/marketplace/{id}`, by id and
 never by slug: bare-slug resolution answers an ambiguous slug with none

@@ -483,7 +483,7 @@ export function CreateWorkspaceDialog({
       <div className="jobform">
         <div className="ticket-head jobform-head">
           <div className="jobform-askblock">
-            <p className="ticket-label">Your own floor</p>
+            <p className="ticket-label">Your own market</p>
           </div>
           <button className="ticket-close" aria-label="Close" onClick={onClose}>
             ×
@@ -506,7 +506,7 @@ export function CreateWorkspaceDialog({
 
         {err && <p className="ticket-err">{err}</p>}
         <button className="ticket-go" disabled={busy} onClick={() => void create()}>
-          {busy ? 'Opening…' : 'Open my floor'}
+          {busy ? 'Opening…' : 'Open my market'}
           <span className="ticket-go-sub">
             You add the first number right there, then publish it onto the telarchy.com list with one button.
           </span>

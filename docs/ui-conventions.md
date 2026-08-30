@@ -95,7 +95,10 @@ interactive surfaces: the trade ticket, the account dialog, a modal.
 **User-facing copy says MARKET, never "floor".** The word is internal
 vocabulary only: component and class names (`FloorRails`, `.pubws-*`) and
 doc prose like this file may keep it, but no string a visitor can read
-may. When copy needs a word for one public workspace, it is "market".
+may. When copy needs a word for one public workspace, it is "market". The
+owner's own surfaces are copy a visitor reads too: the create dialog, the
+publish band and the empty state all sat outside this rule until the
+2026-08-30 walkthrough read them back.
 
 **The thing a proposer sells is a CONTRACT, never a "job".** The rail
 beside it reads "Top contractors", and contractors do contracts.

@@ -2424,7 +2424,7 @@ control needs something new, the API grows once and both use it.</p>
 nothing else (owner ask 2026-08-28, superseding the 2026-08-26 email field;
 the record is notes/decisions/ui-conventions.md). A new floor starts
 UNLISTED and publishing is its own visible step: a band under the floor's
-name, a card with one ink button (&quot;Publish this floor&quot;), shown only to the
+name, a card with one ink button (&quot;Publish this market&quot;), shown only to the
 owner of a not-yet-public floor. The flip is gated on the first metric
 existing, server-side, and the band says the precondition instead of
 offering a button the server would refuse: no metric, no publish button,
@@ -2434,8 +2434,9 @@ Signed out, the tile is the door to signing up.</p>
 joins the grid first, among the others, as a normal card wearing one badge,
 &quot;Yours · not public yet&quot;, linked by id. No private side lists. The floor
 itself answers its owner and members even while private (strangers keep the
-403), and says under its name &quot;Only you can see this floor. Make it
-public&quot;, because a state named without its fix is a dead end.</p>
+403), and says under its name that only people with the link can see it,
+above the button that publishes it, because a state named without its fix
+is a dead end.</p>
 <p>It lands the owner on their empty floor at <code>/marketplace/{id}</code>, by id and
 never by slug: bare-slug resolution answers an ambiguous slug with none
 (slugs are unique per owner, not globally), so anyone's unlisted floor
@@ -3131,7 +3132,10 @@ interactive surfaces: the trade ticket, the account dialog, a modal.</p>
 <p><strong>User-facing copy says MARKET, never &quot;floor&quot;.</strong> The word is internal
 vocabulary only: component and class names (<code>FloorRails</code>, <code>.pubws-*</code>) and
 doc prose like this file may keep it, but no string a visitor can read
-may. When copy needs a word for one public workspace, it is &quot;market&quot;.</p>
+may. When copy needs a word for one public workspace, it is &quot;market&quot;. The
+owner's own surfaces are copy a visitor reads too: the create dialog, the
+publish band and the empty state all sat outside this rule until the
+2026-08-30 walkthrough read them back.</p>
 <p><strong>The thing a proposer sells is a CONTRACT, never a &quot;job&quot;.</strong> The rail
 beside it reads &quot;Top contractors&quot;, and contractors do contracts.
 &quot;Contract&quot; also says what it is more exactly than &quot;job&quot; does: an offer at

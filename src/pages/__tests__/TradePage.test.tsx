@@ -1219,7 +1219,7 @@ describe('the owner of a not-public floor', () => {
     renderFloor();
     // Signed out in this harness, so canManage stays false: no band, no button.
     await screen.findByText(h.workspace().name);
-    expect(screen.queryByText('Publish this floor')).toBeNull();
+    expect(screen.queryByText('Publish this market')).toBeNull();
     expect(screen.queryByText(/Only people with the link/)).toBeNull();
   });
 });

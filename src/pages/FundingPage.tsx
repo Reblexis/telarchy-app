@@ -154,9 +154,9 @@ export function FundingPage() {
                 <span className="pubws-lb-meta">1,000 credits per dollar</span>
               </div>
               <p className="adm-note">
-                They can only ever go into this floor's market pools: never a tradeable balance, never a withdrawal, and
+                They can only ever go into your own market pools: never a tradeable balance, never a withdrawal, and
                 what a market does not pay out at settlement comes back to the wallet. Buying does not enter you into
-                the prize season, and as this floor's operator you are not eligible for it either way.
+                the prize season, and as the operator here you are not eligible for it either way.
               </p>
 
               <div className="fundp-presets">
@@ -214,7 +214,7 @@ export function FundingPage() {
               </div>
               {purchases.length === 0 ? (
                 <p className="adm-empty">
-                  Nothing bought yet. The floor runs on your signup credits until it needs more.
+                  Nothing bought yet. Your markets run on your signup credits until they need more.
                 </p>
               ) : (
                 <ul className="adm-list">
@@ -236,8 +236,8 @@ export function FundingPage() {
             </section>
 
             <p className="mpg-foot">
-              Placing the credits happens on the floor, beside the price each pool moves: the Inject button under any
-              market. <Link to={floorHref}>Back to {ws.name}</Link>.
+              Placing the credits happens beside the price each pool moves: the Inject button under any market.{' '}
+              <Link to={floorHref}>Back to {ws.name}</Link>.
             </p>
           </>
         )}

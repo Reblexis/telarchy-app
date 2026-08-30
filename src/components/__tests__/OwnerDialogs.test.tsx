@@ -268,7 +268,7 @@ describe('dialog 0: create your own floor', () => {
     const onCreated = vi.fn();
     render(<CreateWorkspaceDialog onClose={() => {}} onCreated={onCreated} />);
     fireEvent.change(screen.getByLabelText('Floor name'), { target: { value: '  Meridian  ' } });
-    fireEvent.click(screen.getByText('Open my floor'));
+    fireEvent.click(screen.getByText('Open my market'));
     await waitFor(() => expect(createWorkspace).toHaveBeenCalledWith({ name: 'Meridian' }));
     expect(onCreated).toHaveBeenCalledWith('/marketplace/ws-new');
   });
@@ -276,7 +276,7 @@ describe('dialog 0: create your own floor', () => {
   test('a nameless floor never reaches the API', async () => {
     const onCreated = vi.fn();
     render(<CreateWorkspaceDialog onClose={() => {}} onCreated={onCreated} />);
-    fireEvent.click(screen.getByText('Open my floor'));
+    fireEvent.click(screen.getByText('Open my market'));
     await waitFor(() => expect(screen.getByText('A name.')).toBeTruthy());
     expect(createWorkspace).not.toHaveBeenCalled();
   });

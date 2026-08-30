@@ -77,7 +77,7 @@ describe('the funding page', () => {
   test('says what the money is and is not, without making anyone read the doc', async () => {
     renderPage();
     await screen.findByText('128,400');
-    const note = screen.getByText(/can only ever go into this floor's market pools/);
+    const note = screen.getByText(/can only ever go into your own market pools/);
     // The three claims that keep this a service rather than contest entry.
     expect(note.textContent).toMatch(/never a tradeable balance/);
     expect(note.textContent).toMatch(/comes back to the wallet/);
