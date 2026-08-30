@@ -236,26 +236,30 @@ describe('outlook with custom horizons', () => {
     timePreference: tp,
   });
 
-  test('an untraded custom-horizon market does not null the outlook', () => {
+  test('market consensus never moves what a metric reads', () => {
+    // The invariant that replaced the blend (owner, 2026-08-30). A market
+    // settles on the metric's reading, so if consensus could move that reading
+    // a market would settle partly against its own price.
     const tp: TimePreference = { enabled: true, halfLife: 1, density: 3, customHorizons: ['2099-12-31'] };
     const curveDates = sampleTimePoints(1, 3).map(p => p.date);
     const consensusMap = Object.fromEntries(curveDates.map(d => [`M:${d}`, 20]));
-    const untraded = new Set(['M:2099-12-31']);
 
-    const [m] = enrichMetrics([leafMetric('M', tp)], consensusMap, untraded);
-    expect(m.missingMarkets).toBeUndefined();
-    expect(m.total).not.toBeNull();
-    expect(m.total).toBeGreaterThan(10); // curve consensus (20) pulls the outlook up
+    const [withConsensus] = enrichMetrics([leafMetric('M', tp)], consensusMap, new Set());
+    const [without] = enrichMetrics([leafMetric('M', tp)], {}, new Set());
+
+    expect(withConsensus.total).toBe(10);
+    expect(withConsensus.total).toBe(without.total);
   });
 
-  test('an untraded curve market still nulls the outlook', () => {
+  test('an untraded market leaves the reading alone rather than nulling it', () => {
     const tp: TimePreference = { enabled: true, halfLife: 1, density: 3 };
     const curveDates = sampleTimePoints(1, 3).map(p => p.date);
     const untraded = new Set([`M:${curveDates[0]}`]);
 
     const [m] = enrichMetrics([leafMetric('M', tp)], {}, untraded);
+    // missingMarkets is still reported: it is a real fact about the floor.
     expect(m.missingMarkets).toEqual(['M']);
-    expect(m.total).toBeNull();
+    expect(m.total).toBe(10);
   });
 
   test('custom-only metric exposes a time series from its horizon consensus', () => {

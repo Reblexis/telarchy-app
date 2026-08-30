@@ -144,26 +144,30 @@ There is no button for it on the floor; it is an API call.
 something that should never have been there. Every stake is refunded first. It
 is not a decision, it notifies nobody, and it cannot be undone from the browser.
 
-## What the declined branch actually does
+## What the declined branch does
 
-State this one plainly, because the design intent and the running code disagree
-and you should not plan around the intent.
+Both branches are real markets and both can pay. Whichever world the decision
+creates is the one that settles against the metric; the other is a
+counterfactual with nothing to settle against, so it voids and every position
+in it is refunded at net cash.
 
-**The design intent** was that a declined contract's surviving branch resolves
-against the metric later, producing a counterfactual record: we said this would
-happen if you declined, here is what happened. Several docs and `GET /api/help`
-still describe it that way.
+- **You approve.** The approved branch stays live and settles at its date on
+  what the metric actually read. The declined branch voids.
+- **You decline.** The declined branch stays live and settles at its date on
+  what the metric actually read. The approved branch voids.
 
-**What the resolver does** is void it. When a conditional market reaches its
-resolution instant, it settles against the metric only if its contract is
-`approved`. Anything else, declined included, is voided and every position
-refunded at net cash. So today a declined branch is a live price until its date
-and then a refund. There is no calibration record, nobody is scored on it, and
-nobody is paid on it.
+That symmetry is the point of pricing both. A decline is not a dead end for the
+people who priced it: they said what would happen if you said no, you said no,
+and the number arrives to prove them right or wrong. It is also what makes a
+decline auditable later, because "we declined and the metric did what the
+market said it would" is a record you can point at.
 
-That is a gap in the product, not a rule you should design around. It does not
-change what the delta is worth at decision time: both branches were priced by
-people with money at stake, and the price is the point.
+Neither branch settles if you never decided. A contract still pending at a
+market's resolution instant created no world, so both branches void there and
+everyone is refunded.
+
+*(Until 2026-08-30 the resolver voided a declined proposal's surviving branch
+too, so a decline paid nobody. Fixed; the behaviour above is what runs.)*
 
 ## Two habits that make the delta mean something
 

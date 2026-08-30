@@ -1,6 +1,5 @@
 import type { Metric } from '../types';
 import { evaluate, parseFormulaCached } from './formula';
-import { sampleTimePoints, WEIGHT_T0 } from './time-preference';
 
 export function evaluateFormula(formula: string, metricsMap: Record<string, Metric>): number | null {
   if (!formula || formula.trim() === '0' || formula.trim() === '') return 0;
@@ -231,69 +230,42 @@ export function topologicalSort(metrics: Metric[]): Metric[] {
   return sorted;
 }
 
-export function recalculateMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}): Metric[] {
+/**
+ * `consensusMap` is accepted and deliberately unused. Callers still build it
+ * (services/metrics.ts uses the same map for the projection series), and
+ * keeping the parameter documents that market prices are an input this
+ * function is not allowed to read: what a metric reads today must never
+ * depend on what a market says about it, or a market settles against its own
+ * price. Removed the blend 2026-08-30; see the comment in the loop below.
+ */
+export function recalculateMetrics(metrics: Metric[], _consensusMap: Record<string, number> = {}): Metric[] {
   const sorted = topologicalSort(metrics);
   const nameToMetric: Record<string, Metric> = {};
   sorted.forEach(m => {
     nameToMetric[m.name] = m;
   });
 
-  const nameToFormula: Record<string, string> = {};
-  sorted.forEach(m => {
-    nameToFormula[m.name] = m.formula || '0';
-  });
-
   sorted.forEach(metric => {
+    // What a metric reads right now, and nothing else. A leaf reads the value
+    // its owner measured; a composite reads its formula over those values.
+    //
+    // Until 2026-08-30 a metric with time preference blended that reading with
+    // the market consensus at each sampled future date, and `total` carried the
+    // blend. That number then reached settlement (a metric log stores it as
+    // `outlook`, and `metricValueAsOf` preferred `outlook` over `value`), so a
+    // market on such a metric settled partly against its own price: traders
+    // moved the number they were scored on. The comment above getStatus had
+    // already spotted the circularity for callers while settlement kept doing
+    // it. Owner, 2026-08-30: "there is no such a thing as outlook, it's just
+    // current value, and the predicted value for the given market, and then
+    // the market settles on the current value."
+    //
+    // Time preference still decides WHICH future dates get a market
+    // (services/metrics.ts samples the same curve). It no longer decides what
+    // a metric reads today, so it cannot reach settlement at all.
     const isLeaf = !metric.formula || metric.formula.trim() === '0';
-    if (isLeaf && metric.timePreference?.enabled) {
-      // Leaf with TP: blend current value with market consensus at future dates
-      metric.currentTotal = metric.value;
-      if (metric.missingMarkets?.length) {
-        metric.total = null;
-      } else {
-        const { halfLife, density } = metric.timePreference;
-        let weightedSum = WEIGHT_T0 * metric.value;
-        let totalWeight = WEIGHT_T0;
-        for (const { date, weight } of sampleTimePoints(halfLife, density)) {
-          const consensusAtT = consensusMap[`${metric.name}:${date}`] ?? metric.value;
-          weightedSum += weight * consensusAtT;
-          totalWeight += weight;
-        }
-        metric.total = totalWeight > 0 ? weightedSum / totalWeight : metric.value;
-      }
-    } else if (isLeaf) {
-      metric.total = metric.value;
-      metric.currentTotal = metric.value;
-    } else if (metric.timePreference?.enabled) {
-      if (metric.missingMarkets?.length) {
-        metric.total = null;
-        metric.currentTotal = null;
-      } else {
-        const { halfLife, density } = metric.timePreference;
-        const formula = metric.formula;
-
-        const formulaAt0 = evaluateFormula(formula, nameToMetric);
-        metric.currentTotal = formulaAt0;
-        if (formulaAt0 === null) {
-          metric.total = null;
-        } else {
-          let weightedSum = WEIGHT_T0 * formulaAt0;
-          let totalWeight = WEIGHT_T0;
-
-          const memo: Record<string, number> = {};
-          for (const { date, weight } of sampleTimePoints(halfLife, density)) {
-            const formulaAtT = evaluateFormulaAtTime(formula, nameToFormula, consensusMap, date, memo);
-            weightedSum += weight * formulaAtT;
-            totalWeight += weight;
-          }
-
-          metric.total = totalWeight > 0 ? weightedSum / totalWeight : formulaAt0;
-        }
-      }
-    } else {
-      metric.total = evaluateFormula(metric.formula, nameToMetric);
-      metric.currentTotal = metric.total;
-    }
+    metric.total = isLeaf ? metric.value : evaluateFormula(metric.formula, nameToMetric);
+    metric.currentTotal = metric.total;
   });
 
   return metrics;
