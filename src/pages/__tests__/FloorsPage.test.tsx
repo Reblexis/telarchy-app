@@ -172,7 +172,7 @@ describe('marketplace', () => {
     await screen.findByText('List your own number');
     fireEvent.click(screen.getByRole('button', { name: 'Create your own' }));
     fireEvent.change(screen.getByLabelText('Floor name'), { target: { value: 'Meridian' } });
-    fireEvent.click(screen.getByText('Open my floor'));
+    fireEvent.click(screen.getByText('Open my market'));
     await waitFor(() => expect(api.createWorkspace).toHaveBeenCalledWith({ name: 'Meridian' }));
     // The dialog said where it goes; the router got sent there.
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/marketplace/ws-new'));
