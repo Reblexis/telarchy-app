@@ -260,7 +260,7 @@ jobs:
             --min-instances 1 \
             --max-instances 4 \
             --set-cloudsql-instances ${{ vars.CLOUDSQL_INSTANCE }} \
-            --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app,DB_POOL_MAX=4 \
+            --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app,DB_POOL_MAX=4,SELF_SYNC_WORKSPACE_ID=2015d2e5-999c-4f94-aa19-e3733451732f \
             --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest,GITHUB_ACTIONS_TOKEN=GITHUB_ACTIONS_TOKEN:latest \
             --clear-base-image \
             --quiet

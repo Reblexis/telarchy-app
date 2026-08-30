@@ -811,7 +811,10 @@ cooldown lock. Who calls them depends on the instance:
   scheduler cannot hold an hourly cadence: a `40 23 * * *` job fired at 01:36,
   04:17, 04:59 and 07:03 UTC on four consecutive days, and changing it to
   `40 * * * *` produced no run at all in the four hours that followed. It is a
-  no-op on any instance that has not set `SELF_SYNC_WORKSPACE_ID`.
+  no-op on any instance that has not set `SELF_SYNC_WORKSPACE_ID`, which names
+  the workspace whose metrics ARE the platform's own numbers. That id is public
+  and is passed by `deploy-cloudrun.yml` in `--update-env-vars`, not set by hand,
+  so no revision can come up without it and quietly stop recording them.
 
   Hour-granularity markets (`YYYY-MM-DDTHH` target dates, `+Nh` custom
   horizons) need at least hourly resolution and rolling, so the managed
