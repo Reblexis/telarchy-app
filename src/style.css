@@ -18,7 +18,7 @@
   /* Text */
   --text-primary: #17171c;      /* ink */
   --text-secondary: #4a4a55;    /* slate */
-  --text-tertiary: #8a8a96;     /* muted slate */
+  --text-tertiary: #6b6b7a;     /* muted slate, 4.5:1 on bone so the small caps labels pass AA */
 
   /* Borders */
   --border-color: #e3ddcd;
@@ -90,7 +90,7 @@
 
     --text-primary: #f2ecdc;
     --text-secondary: #b5b1a3;
-    --text-tertiary: #7b7873;
+    --text-tertiary: #97938c;
 
     --border-color: #2a2a32;
     --border-strong: #3a3a43;
@@ -134,7 +134,7 @@
   --bg-elevated: #1a1a20;
   --text-primary: #f2ecdc;
   --text-secondary: #b5b1a3;
-  --text-tertiary: #7b7873;
+  --text-tertiary: #97938c;
   --border-color: #2a2a32;
   --border-strong: #3a3a43;
   --border-hover: #f2ecdc;
@@ -5676,6 +5676,11 @@ textarea.jobform-line--desc {
      sentence into a two-word column. */
   .pubws-about-beat { grid-template-columns: 2.4rem minmax(0, 1fr); gap: 0.6rem 1.1rem; }
   .pubws-about-beat .pubws-about-art { grid-column: 2; }
+  /* ...and the sentence goes under the drawing, in the same column. Without
+     this it auto-places into the 2.4rem numeral column and wraps one word
+     per line, which is the exact failure the rule above exists to prevent
+     (found on the live floor at 390px, 2026-08-30). */
+  .pubws-about-beat p { grid-column: 2; }
 }
 .pubws-about-beat:nth-child(2) { --d: 0.16s; }
 .pubws-about-beat:nth-child(3) { --d: 0.32s; }
@@ -8173,3 +8178,16 @@ textarea.jobform-line--desc {
 .pubws-aud-sib { color: var(--text-secondary); text-decoration: none; }
 .pubws-aud-sib:hover { color: var(--text-primary); text-decoration: underline; }
 .pubws-aud-sib--here { color: var(--text-tertiary); }
+
+/* The guide index: a hairline list, the title as the target and the one-line
+   description under it, the same shape /contact uses for its rows. */
+.pubws-guide-link {
+  display: block;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.pubws-guide-link:hover { text-decoration: underline; }
+.pubws-guide-desc { display: block; margin-top: 0.15rem; font-size: 0.875rem; color: var(--text-secondary); }
