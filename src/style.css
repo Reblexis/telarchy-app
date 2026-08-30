@@ -6509,16 +6509,16 @@ textarea.jobform-line--desc {
 .earn-btn:disabled { opacity: 0.6; cursor: default; }
 .lbt tr.is-earned td { background: rgba(18, 105, 61, 0.045); }
 
-/* /earn: the price list, in the boards' own table language. The reason
-   sits under each label because the reason is the argument: a price the
-   reader can see the sense of does not read as a game reward. */
+/* /earn: the price list, in the boards' own table language, and since
+   2026-08-30 the whole page. The line under each label is the rule that
+   governs that row (once per person, either provider, a missed day
+   resets it), never the argument for its price. */
 .earn-tbl { margin-top: 0.5rem; }
 .earn-label { display: block; font-size: 0.95rem; font-weight: 500; }
 .earn-why { display: block; margin-top: 0.15rem; font-size: 0.8rem; line-height: 1.45; color: var(--text-secondary); }
 .earn-upto { font-size: 0.7rem; color: var(--text-tertiary); }
 /* Trading profit has no number, and a dash there would read as zero. */
 .earn-open { font-size: 0.82rem; color: var(--text-secondary); }
-.earn-foot { margin-top: 1.5rem; }
 
 .lbp-foot { margin-top: 2.5rem; text-align: center; font-size: 0.9rem; }
 .lbp-foot a { color: var(--accent); text-decoration: none; }

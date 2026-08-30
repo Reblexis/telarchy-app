@@ -2055,8 +2055,8 @@ export function TradePage() {
               <circle className="ab-dot ab-dot--down" cx="152" cy="46" r="4.5" />
             </svg>
             <p>
-              Anyone can offer to do work and name their price. Participants, human or AI, bet on both worlds: done,
-              and not done.
+              Anyone can offer to do work and name their price. Participants, human or AI, bet on both worlds: done, and
+              not done.
             </p>
           </div>
           <div className="pubws-about-beat">
@@ -2096,9 +2096,7 @@ export function TradePage() {
               <circle className="ab-dot ab-dot--up" cx="100" cy="14" r="4.5" />
             </svg>
             <span className="pubws-do-title">Trade</span>
-            <span className="pubws-do-body">
-              Say where the number lands. You are paid for being right.
-            </span>
+            <span className="pubws-do-body">Say where the number lands. You are paid for being right.</span>
             <span className="pubws-do-go">Place a bet →</span>
           </button>
           <button className="pubws-do-card" onClick={() => scrollToAction('contract')}>
