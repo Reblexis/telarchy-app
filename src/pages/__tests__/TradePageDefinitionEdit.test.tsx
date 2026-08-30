@@ -78,6 +78,11 @@ vi.mock('../../hooks/useAuth', () => ({
 }));
 
 vi.mock('../../components/MarketChart', () => ({
+  // NumberChart (not mocked) imports the shared geometry from this module.
+  GEOM: {
+    wide: { W: 720, PAD_L: 46, PAD_R: 58, H: 260 },
+    compact: { W: 400, PAD_L: 40, PAD_R: 50, H: 300 },
+  },
   MarketChart: () => <div data-testid="chart" />,
 }));
 

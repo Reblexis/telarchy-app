@@ -426,44 +426,66 @@ floors) are defined in docs/metrics.md.
 
 ### The price and the chart
 
-The consensus is a large mono price with a since-open chip (both carrying
-the metric's currency symbol when the trimmed parenthetical tail names one,
-e.g. "USD" -> "$"; the same prefix runs through every numeral in the
-chart). The since-open chip sits on the price's baseline a full `1rem` off
-the number, and drops centred underneath it below 480px.
+The consensus is a compact stat, not a poster number (owner ask
+2026-08-28, Manifold scale: the chart is the hero, the price a reading on
+it). It renders as the LEFT cell of the market chart's own control row,
+`.pubws-price` at roughly a third of its old size, read as "$7,146
+expected · settles in 33d": the qualifier is ONE non-breaking unit in
+the quiet register (`.pubws-settle-in`; the countdown ticks by the
+minute, exact UTC instant on hover), so a tight column wraps it whole
+under the price, never mid-phrase. It sits where the since-open
+chip used to sit; the chip is gone (owner ask 2026-08-28: "instead of
+the arrow and down since"). A selected contract's impact chip still
+renders there as the bare arrow and delta ("▲ +7.8"; the "impact by
+<date>" prose wrapped the stat to three lines, owner report 2026-08-28),
+because the impact is the contract's one number - and the whole stat is
+ONE line: price, chip, qualifier, never stacked. The
+price carries the metric's currency symbol when the trimmed
+parenthetical tail names one (e.g. "USD" -> "$"; the same prefix runs
+through every numeral in the chart).
+A market with no price yet (no liquidity) keeps the pickers, prints a
+centred "no price yet" where the stat row would be and the no-liquidity
+note where the bets would be, and draws no charts: the pickers are how a
+reader leaves it for a market that has one.
 
-**When a market settles is said once, in the chart's control row.** The
-date picker names each market by its clock and settle day (`TODAY · 26
-AUG`, `THIS WEEK · 30 AUG`, `30 SEP`), the question line by its clock
-alone ("today", "this week", "on 30 Sep", the exact UTC settle instant
-as the word's hover title), and the centre of the control row counts
-down to the selected one ("settles in 13h 12m", ticking by the minute,
-the exact UTC instant as its hover title). The former "resolves 30
-September 2026" line is gone, and neither the segments nor the question
-repeat the timer. The one thing that still prints under the price is the N/A
-caveat of a metric with no reading yet ("N/A, all bets refunded, if there
-is still no reading by then"), because it changes what a bet is.
+**Both charts always render; there is no view toggle** (owner ask
+2026-08-28, replacing the MARKET/NUMBER switch of 2026-08-27: a newcomer
+never found the number behind it). The market chart is the hero, directly
+under the stat row; the number chart follows at the SAME geometry (one
+`GEOM`, one width, one height; owner ask 2026-08-28, "the two graphs
+should have same dimensions"). Each chart names itself in the
+CENTRE of its own control row (`.pubws-chart-cap`, the tiny-uppercase
+register): "market" on the prediction, and the METRIC'S OWN NAME on the
+number chart (`captionLabel`, the leading company name stripped, the
+same caption shape the question line uses; owner ask 2026-08-28), and
+each keeps its own range chips at its
+row's right, in each chart's own range vocabulary. The number chart's
+left cell is its own stat (owner ask 2026-08-28), symmetric with the
+price: the value in force at the price's own size, read as "$6,391 as
+of 2d 4h ago" (`timeAgoOf` from the latest reading's instant, the exact
+UTC instant as its hover title), because a reading is only trustworthy
+with its age on it. The composed bet's ghost draws on BOTH charts: the
+market chart moves its live dot's ghost, and the number chart draws the
+same ghost on the selected market's marker (`preview` on both
+components, one value from the ticket).
 
-**One chart slot, two views, one control row above it in both.** The row
-is three cells that never move: the view switch at the left, the centre
-line, and the range chips of the current view at the right. The view
-switch is `MARKET` and `NUMBER` as two chips in the same language as the
-range chips (the active one on the raised background), because as bare
-words the pair read as the row's caption and nobody pressed them. The
-centre line carries the metric's value in force before the countdown,
-"now 19.75 · settles in 13h 12m" (`compactValueOf`, from the latest
-reading; omitted while the period has no reading), so the number the
-market is guessing at sits one glance from the guess. On a phone the
-row wraps: the switch and the ranges share the first line and the centre
-takes its own beneath them, because three cells in one 358px line either
-overlap or clip the countdown. Nothing else on the page moves when the view switches, and the row
-itself does not either: a control that jumps when you use it is the thing
-this rule exists to prevent. The slot opens on the market. A market with no price yet (no liquidity) keeps
-the pickers, prints "no price yet" where the price would be and the
-no-liquidity note where the bets would be, and draws no chart: the
-pickers are how a reader leaves it for a market that has one.
+**When a market settles is said once, beside the price.** The date
+picker names each market by its clock and settle day (`TODAY · 26 AUG`,
+`THIS WEEK · 30 AUG`, `30 SEP`), the question line by its clock alone
+("today", "this week", "on 30 Sep", the exact UTC settle instant as the
+word's hover title), and the countdown rides the stat row next to the
+price, whether or not the metric has readings, so the settle clock never
+leaves the page. A metric with no reading yet keeps its number chart
+too, in the component's own "no reading yet" state with the market's
+marker (hiding it read as the graph collapsing, owner report
+2026-08-28); its stat shows no value and no age. The former "resolves 30
+September 2026" line is gone,
+and neither the segments nor the question repeat the timer. The one
+thing that still prints under the stat row is the N/A caveat of a metric
+with no reading yet ("N/A, all bets refunded, if there is still no
+reading by then"), because it changes what a bet is.
 
-- **The market view** is the prediction chart (`MarketChart`): one amber
+- **The market chart** is the prediction (`MarketChart`): one amber
   step line of the market's call over its lifetime, gradient fill, labeled
   end dot, crosshair. The series STARTS at the price the market opened at,
   stamped with its creation time, because a pair that opens anchored and
@@ -471,7 +493,7 @@ pickers are how a reader leaves it for a market that has one.
   and a cliff at the live dot and reads as if every trade happened at once.
   Its range chips are `1D 1W ALL`; a range longer than the market's life is
   not offered.
-- **The number view** (`NumberChart`) is the metric's own trajectory: its
+- **The number chart** (`NumberChart`) is the metric's own trajectory: its
   readings as an ink step line up to a "now" rule, and, on the future side,
   every open market of this metric as a marker at its settle instant
   carrying that market's current call. Readings are joined by straight
@@ -589,6 +611,26 @@ Composing a bet and meeting "this market has no liquidity" at submit is
 the bug this rule exists to prevent.
 
 ### The ticket
+
+**The ticket opens INLINE under the bet verbs** (owner ask 2026-08-28,
+replacing the modal of 2026-08-10): pressing "Bet Higher" or "Bet Lower"
+grows the ticket in the page's flow (`.pubws-ticket-inline`, a chromeless
+wrapper: the ticket's OWN card is the one card, at the column's full
+width, after Manifold's bet panel - a card inside a card is the shipped
+mistake this sentence exists to prevent), so the charts above stay on
+screen while the bet is composed and
+the composed bet's ghost draws on both charts. The bet ticket carries NO
+held-position row and no resting orders (owner ask 2026-08-28: selling
+is the position panel's job, and the strip made the card tall); managing
+a held position opens the same inline ticket in manage mode, which keeps
+both. **Hiding those rows never means withholding the position from the
+ticket**: the "New value" preview NETS against it, because buying the
+opposite side closes the held position on the server first and the buy
+prices against the post-close book. Handing the bet ticket an empty
+positions list to hide the rows made it quote a landing the trade never
+reached (owner report 2026-08-30), so the rows are gated on manage mode
+and the data flows in both. Pressing the other verb re-seeds the ticket's side rather than
+being a dead click; its close control collapses it and drops the ghost.
 
 The ticket (`TradeTicket`) follows Manifold's bet-panel layout: a card
 (`--bg-secondary`, 14px radius) with the Lower/Higher pills top left and a

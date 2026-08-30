@@ -65,8 +65,13 @@ export const GEOM = {
 const PAD_T = 16;
 const PAD_B = 24;
 
-function compactNum(v: number): string {
-  if (Math.abs(v) >= 1000) return `${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`;
+export function compactNum(v: number): string {
+  const abs = Math.abs(v);
+  // Millions and billions get their own tier: a $10M valuation axis once
+  // printed "$10,000k" (owner report 2026-08-28).
+  if (abs >= 1e9) return `${(v / 1e9).toLocaleString('en-US', { maximumFractionDigits: 1 })}B`;
+  if (abs >= 1e6) return `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 })}M`;
+  if (abs >= 1000) return `${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`;
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
@@ -76,8 +81,10 @@ function compactNum(v: number): string {
  * narrower than a few of these prints the same number twice and turns noise
  * into a cliff.
  */
-function labelQuantum(v: number): number {
+export function labelQuantum(v: number): number {
   const abs = Math.abs(v);
+  if (abs >= 1e9) return 1e8; // "1.2B": one tenth of a billion
+  if (abs >= 1e6) return 1e5; // "10.1M": one tenth of a million
   if (abs >= 1000) return 100; // "77.4k": one tenth of a thousand
   if (abs >= 1) return 1; // "25": whole units
   return 0.01; // sub-unit values, where the guard must not flatten a real move

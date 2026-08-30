@@ -49,6 +49,10 @@ interface Props {
   legend?: { approved: string; declined: string } | null;
   now?: Date;
   height?: number;
+  /** The composed bet's ghost (owner ask 2026-08-28): where the SELECTED
+   *  market's call would move, drawn on its marker in the market chart's
+   *  own ghost vocabulary. */
+  preview?: { value: number; direction: 'higher' | 'lower' } | null;
 }
 
 export type Granularity = 'day' | 'week' | 'month' | 'other';
@@ -168,14 +172,20 @@ function useTweenedDomain(target: [number, number]): [number, number] {
 const PAD_T = 24;
 const PAD_B = 34;
 
-function fmt(v: number, unit: string): string {
+export function fmt(v: number, unit: string): string {
   const abs = Math.abs(v);
+  // Millions and billions compact (a $10,000,000 marker label ran off the
+  // plot, owner report 2026-08-28); thousands stay exact, they are quotes.
   const s =
-    abs >= 1000
-      ? Math.round(v).toLocaleString('en-US')
-      : abs >= 100 || Number.isInteger(Number(v.toFixed(6)))
-        ? Number(v.toFixed(6)).toFixed(0)
-        : v.toFixed(1);
+    abs >= 1e9
+      ? `${(v / 1e9).toLocaleString('en-US', { maximumFractionDigits: 1 })}B`
+      : abs >= 1e6
+        ? `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 })}M`
+        : abs >= 1000
+          ? Math.round(v).toLocaleString('en-US')
+          : abs >= 100 || Number.isInteger(Number(v.toFixed(6)))
+            ? Number(v.toFixed(6)).toFixed(0)
+            : v.toFixed(1);
   return unit + s;
 }
 
@@ -195,6 +205,7 @@ export function NumberChart({
   impactFrom = 'approved',
   now: nowProp,
   height,
+  preview = null,
 }: Props) {
   // Anchored once per mount, never per render: a per-render default was a
   // fresh advancing timestamp that moved the tween target every render,
@@ -246,6 +257,7 @@ export function NumberChart({
     ...drawn.map(p => p.value),
     ...inWindow.flatMap(m => (m.consensus === null ? [] : [m.consensus])),
     ...inWindow.flatMap(m => [m.pair?.approved, m.pair?.declined].filter((v): v is number => typeof v === 'number')),
+    ...(preview ? [preview.value] : []),
   ];
   const lo = ys.length ? Math.min(...ys) : 0;
   const hi = ys.length ? Math.max(...ys) : 1;
@@ -448,9 +460,25 @@ export function NumberChart({
                 </g>
               )}
               {my !== null && <circle cx={mx} cy={my} r={m.selected ? 4.5 : 3.5} />}
+              {m.selected && preview && (
+                <g className={`mchart-ghost mchart-ghost--${preview.direction}`}>
+                  {my !== null && <line className="mchart-ghost-line" x1={mx} x2={mx} y1={my} y2={y(preview.value)} />}
+                  <circle className="mchart-ghost-dot" cx={mx} cy={y(preview.value)} r="4.5" />
+                </g>
+              )}
               {m.selected &&
                 dodge(
                   [
+                    ...(preview
+                      ? [
+                          {
+                            key: 'preview',
+                            at: y(preview.value),
+                            text: `${preview.direction === 'higher' ? '▲' : '▼'} ${fmt(preview.value, unit)}`,
+                            cls: `mchart-ghost-label mchart-ghost--${preview.direction}`,
+                          },
+                        ]
+                      : []),
                     ...(hasPair && ay !== null && ap !== null
                       ? [
                           {

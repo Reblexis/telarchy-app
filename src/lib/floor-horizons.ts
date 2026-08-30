@@ -353,6 +353,26 @@ export function timeLeftOf(v: HorizonView | null, now: Date = new Date()): strin
 }
 
 /**
+ * How long ago an instant was, in the two units that matter: "3d ago",
+ * "2h 10m ago", "just now" under a minute. The mirror of timeLeftOf, for
+ * the number chart's "updated ..." note: a reading is only trustworthy
+ * with its age on it.
+ */
+export function timeAgoOf(at: string | null | undefined, now: Date = new Date()): string | null {
+  if (!at) return null;
+  const ms = now.getTime() - new Date(at).getTime();
+  if (!Number.isFinite(ms)) return null;
+  if (ms < 60_000) return 'just now';
+  const m = Math.floor(ms / 60_000);
+  const h = Math.floor(m / 60);
+  const d = Math.floor(h / 24);
+  if (d >= 7) return `${d}d ago`;
+  if (d >= 1) return `${d}d ${h % 24}h ago`;
+  if (h >= 1) return `${h}h ${m % 60}m ago`;
+  return `${m}m ago`;
+}
+
+/**
  * A date's label in the date picker: the clock's name and its settle day,
  * "this week · 30 Aug". A named clock is "today", "this week" or "this
  * month"; any other date is its settle day alone ("30 Sep"). Both computed

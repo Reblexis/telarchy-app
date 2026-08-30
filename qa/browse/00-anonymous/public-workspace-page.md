@@ -185,15 +185,26 @@ word and the promise is unverifiable.
 2. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq '{consensus: .markets[0].consensus, hist: (.heroHistory|length), mkt: (.marketHistory|length)}'`
 
 **Expected:**
-- The large mono price equals the soonest market's consensus, with a
-  green/red delta chip showing the prediction's own movement ("since open"),
-  hidden while the call has not moved.
-- The SVG chart is the PREDICTION only, Manifold-style: one amber step line
-  (consensus is piecewise constant between trades; every step is a trade)
-  from the market's first trade to now, with a soft amber gradient fill,
-  ending in a labeled dot at the current call. No metric history, no second
-  series, no future zone: the x domain is the market's lifetime, and the
-  settle date lives in the headline, not chart space.
+- The price is a compact mono stat (`.pubws-stat .pubws-price`, ~2rem,
+  amended 2026-08-28: Manifold scale, the chart is the hero) sitting as the
+  LEFT cell of the market chart's control row, equal to the selected
+  market's consensus, read as "$7,146 expected ·
+  settles in <t>" (`.pubws-settle-in`, one non-breaking unit); the
+  since-open delta chip is gone.
+  Each chart carries its centred title in its control row
+  (`.pubws-chart-cap`: MARKET on the prediction, the metric's caption name
+  on the number chart). There is no MARKET/NUMBER view
+  switch: the market chart renders with the number chart
+  (`.pubws-numchart .nchart`, the market chart's own geometry) always below
+  it, whose left cell is the value in force at the price's size, read as
+  "$6,391 as of <t> ago" (`.pubws-updated`). A bet being composed draws
+  its ghost on both charts.
+- The market SVG chart is the PREDICTION only, Manifold-style: one amber
+  step line (consensus is piecewise constant between trades; every step is
+  a trade) from the market's first trade to now, with a soft amber gradient
+  fill, ending in a labeled dot at the current call. No metric history, no
+  second series, no future zone on this plot: the x domain is the market's
+  lifetime.
 - On load the line draws itself left to right (~1s) and the call dot then
   ripples softly forever (the market is live); a narrow viewport (<520 CSS
   px at mount) gets a taller, narrower canvas instead of a shrunken copy of

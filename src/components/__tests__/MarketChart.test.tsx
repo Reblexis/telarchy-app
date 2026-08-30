@@ -196,3 +196,17 @@ describe('a negligible move does not draw as a cliff', () => {
     expect(dot).toBeLessThan(200);
   });
 });
+
+describe('axis number tiers', () => {
+  // A $10M valuation axis once printed "$10,000k" (owner report 2026-08-28).
+  test('millions and billions get their own tier', async () => {
+    const { compactNum, labelQuantum } = await import('../MarketChart');
+    expect(compactNum(10_000_000)).toBe('10M');
+    expect(compactNum(10_100_000)).toBe('10.1M');
+    expect(compactNum(1_200_000_000)).toBe('1.2B');
+    expect(compactNum(77_400)).toBe('77.4k');
+    expect(compactNum(25)).toBe('25');
+    expect(labelQuantum(10_000_000)).toBe(1e5);
+    expect(labelQuantum(1_200_000_000)).toBe(1e8);
+  });
+});
