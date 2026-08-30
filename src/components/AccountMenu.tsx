@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useEarnAvailable } from '../hooks/useEarnAvailable';
 import type { FloorRef } from '../lib/agent-prompt';
 import { api } from '../lib/api';
 import { AccountDialog } from './AccountDialog';
@@ -111,13 +112,20 @@ export function AccountMenu({ floor = null }: { floor?: FloorRef | null }) {
 
   const label = participant?.nickname || user?.name || user?.email || 'Account';
   const earned = participant?.earnedBetting ?? null;
+  const earnAvailable = useEarnAvailable(!!user);
 
   return (
     <div className="acctmenu" ref={rootRef}>
       {participant?.balance != null && (
-        <span className="acctmenu-credits" title="Your credits">
+        // The balance is the door to the earn page (owner ask 2026-08-30):
+        // one affordance, wherever the number already is, instead of a
+        // banner people learn to skip. The amber figure is what this
+        // account has not claimed yet and vanishes when nothing is left,
+        // so it can never become permanent decoration.
+        <Link className="acctmenu-credits" to="/earn" title="Your credits, and what you can still earn">
           {fmtCr(participant.balance)} cr
-        </span>
+          {earnAvailable !== null && <span className="acctmenu-earn">+{fmtCr(earnAvailable)}</span>}
+        </Link>
       )}
       <button
         className="acctmenu-avatar"

@@ -2935,6 +2935,36 @@ button.notif-row-link {
 
 /* The balance beside the avatar (owner ask 2026-08-11): always visible,
    mono, quiet; the popover repeats it with the earned line. */
+/* The unclaimed figure beside the balance (owner ask 2026-08-30). Amber
+   because it is money not yet taken, and absent entirely once there is
+   nothing left, so the chip never carries decoration. */
+/* The top bar's earn door: reads as a quiet chip, amber only on the
+   number, and it is absent whenever there is nothing unclaimed. */
+.earndoor {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.earndoor:hover { border-color: var(--accent); color: var(--text-primary); }
+.earndoor-n { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--accent); }
+@media (max-width: 519px) { .earndoor { display: none; } }
+
+.acctmenu-earn {
+  margin-left: 0.35rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+.acctmenu-credits { text-decoration: none; }
+.acctmenu-credits:hover { color: var(--text-primary); }
+
 .acctmenu-credits {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.78rem;
@@ -5087,6 +5117,18 @@ textarea.jobform-line--desc {
 .ticket-fact-d.is-down { color: var(--lower); }
 
 /* The one action, full width, tinted by the chosen side. */
+/* The ceiling line under the stake (owner ask 2026-08-30): quiet, in the
+   accent's voice because it is about money, and present only when the
+   stake has actually reached the balance. */
+.ticket-ceiling {
+  margin: 0;
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--accent-text);
+}
+.ticket-ceiling a { font-weight: 600; text-decoration: none; }
+.ticket-ceiling a:hover { text-decoration: underline; }
+
 .ticket-go {
   width: 100%;
   padding: 0.85rem 1.2rem;
