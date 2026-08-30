@@ -142,6 +142,28 @@ describe('checkout', () => {
     expect(buyer.liquidityBalance).toBe(0);
   });
 
+  // Managed Payments refuses a line item with no tax code, and only in live
+  // mode, so the first real card is where a missing one surfaces: "Invalid
+  // line_items[0]: the product tax code is missing" arrived as a 502 out of
+  // this route on 2026-08-30, on an account that had passed every test-mode
+  // purchase.
+  test('the line item carries a product tax code, which live mode requires', async () => {
+    await seedWorkspace(['m1']);
+    await request(app).post(`/api/workspaces/${WS}/liquidity/checkout`).send({ usdAmount: 100 });
+    const call = (global.fetch as unknown as jest.Mock).mock.calls[0];
+    const body = String((call[1] as { body: string }).body);
+    expect(body).toContain('line_items%5B0%5D%5Bprice_data%5D%5Bproduct_data%5D%5Btax_code%5D=txcd_10000000');
+  });
+
+  test('and the code is per-instance, for anyone selling something else', async () => {
+    process.env.STRIPE_TAX_CODE = 'txcd_10103001';
+    await seedWorkspace(['m1']);
+    await request(app).post(`/api/workspaces/${WS}/liquidity/checkout`).send({ usdAmount: 100 });
+    const body = String(((global.fetch as unknown as jest.Mock).mock.calls[0][1] as { body: string }).body);
+    expect(body).toContain('txcd_10103001');
+    delete process.env.STRIPE_TAX_CODE;
+  });
+
   test('a workspace with no open market can still buy: the wallet holds until markets exist', async () => {
     await seedWorkspace([]);
     const res = await request(app).post(`/api/workspaces/${WS}/liquidity/checkout`).send({ usdAmount: 100 });

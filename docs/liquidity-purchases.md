@@ -41,7 +41,10 @@ true, and every change to this feature must preserve all three:
 
 - `POST /api/workspaces/:id/liquidity/checkout { usdAmount }` ($5 to
   $5,000, manage capability + a participant identity): records a pending
-  purchase and returns a Stripe Checkout URL.
+  purchase and returns a Stripe Checkout URL. The line item carries a product
+  tax code (`STRIPE_TAX_CODE`, default `txcd_10000000`, "General -
+  Electronically Supplied Services"), which Managed Payments requires and
+  only asks for in live mode.
 - Stripe calls `POST /api/stripe/webhook` (raw body, signature verified,
   no other auth; the route picks its store from the request host, because it
   is mounted before the swap that does it for everything else, and a purchase
