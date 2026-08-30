@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { EarnTableEditor } from '../components/EarnTableEditor';
 import { useAuth } from '../hooks/useAuth';
 import { api, type FeedbackItem } from '../lib/api';
 import { TopBar } from './TradePage';
@@ -231,6 +232,8 @@ export function AdminPage() {
           Human traffic and signups over the last fortnight, the people waiting for a reply, and everything anyone has
           reported.
         </p>
+
+        <EarnTableEditor />
 
         {/* Who to pay, and where (owner ask 2026-08-20). Approving a contract
             means sending real money to a stranger, and their payout details are
