@@ -35,6 +35,26 @@ climb to $9,990 while every trade actually executed on a thinner anchored
 book around $5-7k, and the chart ended in a cliff onto the live price
 (owner report 2026-08-29). A replay must end where the market stands.
 
+## Redemption is liability-neutral
+
+A trader who buys the side opposite a position they hold gets their matched
+higher+lower pairs cashed at 1 credit each (owner ask 2026-08-30;
+docs/ui-conventions.md has the reader-facing rule). That is not a subsidy
+and not a loss:
+
+- a pair pays `p` on the higher share and `1 - p` on the lower one at any
+  settlement value (`resolutionPayouts`), so it is worth exactly 1 credit
+  with no opinion in it;
+- the pool pays 1 credit now and sheds exactly 1 credit of settlement
+  liability, because both share counts fall by the same amount;
+- the price does not move, because an LMSR price reads `q1 - q0`.
+
+Both share counts changing means the price REPLAY has to see it, or the
+chart drifts from the book the way it did on 2026-08-29 (I4 below). So a
+redemption writes one `trades` row per side, negative shares, the credits
+split at the marginal price. `position-netting.test.ts` pins the replay
+ending where the book stands.
+
 ## I1: a definition edit splits in two
 
 Editing a metric's description (the floor's "What is this market?" text),

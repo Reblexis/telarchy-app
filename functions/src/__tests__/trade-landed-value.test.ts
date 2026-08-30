@@ -125,7 +125,7 @@ async function storedConsensus(): Promise<number> {
   return consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax)!;
 }
 
-describe('the response consensus is the stored book, netting included', () => {
+describe('the response consensus is the stored book, redemption included', () => {
   test('a plain buy reports where the book actually is', async () => {
     await seed();
     const res = await trade({ direction: 'higher', amount: 100 });
@@ -133,7 +133,7 @@ describe('the response consensus is the stored book, netting included', () => {
     expect(res.body.consensus).toBeCloseTo(await storedConsensus(), 6);
   });
 
-  test('a flip (netting close + buy) reports the post-netting landing', async () => {
+  test('a contrarian bet reports the landing its own size earns', async () => {
     await seed();
     await trade({ direction: 'higher', amount: 100 });
     const before = await storedConsensus();
@@ -141,11 +141,13 @@ describe('the response consensus is the stored book, netting included', () => {
     expect(res.status).toBe(201);
     const landed = await storedConsensus();
     expect(res.body.consensus).toBeCloseTo(landed, 6);
-    // The netting close pushes the landing well past a netting-blind
-    // estimate: the flip must end BELOW the pre-trade midpoint here, since
-    // the whole higher position was sold before the lower buy priced.
-    expect(landed).toBeLessThan(50);
+    // 25 credits of lower moves the price down by 25 credits' worth, and
+    // the redemption of the matched pairs moves it by nothing (it takes
+    // the same amount off both sides). Under the liquidation this replaced
+    // the same bet dumped the whole 100-credit position and landed below
+    // the midpoint (owner ask 2026-08-30, docs/ui-conventions.md).
     expect(landed).toBeLessThan(before);
+    expect(landed).toBeGreaterThan(50);
   });
 
   test('a sell reports the post-sell landing', async () => {
@@ -166,7 +168,7 @@ describe('a targetValue trade lands ON the target (budget permitting)', () => {
     expect(res.body.consensus).toBeCloseTo(70, 1);
   });
 
-  test('with a held opposite position: nets first, still lands on the target', async () => {
+  test('with a held opposite position: still lands on the target', async () => {
     await seed();
     await trade({ direction: 'higher', amount: 100 });
     const res = await trade({ targetValue: 30, maxBudget: 10_000 });
@@ -174,19 +176,22 @@ describe('a targetValue trade lands ON the target (budget permitting)', () => {
     expect(await storedConsensus()).toBeCloseTo(30, 1);
   });
 
-  test('the buyback case: a target between the netted price and the live price', async () => {
-    // Hold higher: the price sits above 50. Target 55, still above the
-    // post-netting midpoint: the route nets the higher position (price
-    // falls to 50), then buys HIGHER back up to 55. The market must land
-    // on 55, not wherever a one-directional model would put it.
-    await seed();
-    await trade({ direction: 'higher', amount: 200 });
-    const live = await storedConsensus();
-    expect(live).toBeGreaterThan(55); // the premise of the case
-    const res = await trade({ targetValue: 55, maxBudget: 10_000 });
-    expect(res.status).toBe(201);
-    expect(res.body.direction).toBe('higher');
-    expect(await storedConsensus()).toBeCloseTo(55, 1);
+  test('a target below the live price buys lower, held position or not', () => {
+    // The buyback case is gone with the liquidation that caused it (owner
+    // ask 2026-08-30). It used to be: holding higher, a target of 55 below
+    // a live 60 meant the route sold the whole position (price fell to
+    // 50) and then bought HIGHER back up to 55. Redemption moves no price,
+    // so 55 below 60 is reached the obvious way, by buying lower.
+    return (async () => {
+      await seed();
+      await trade({ direction: 'higher', amount: 200 });
+      const live = await storedConsensus();
+      expect(live).toBeGreaterThan(55); // the premise of the case
+      const res = await trade({ targetValue: 55, maxBudget: 10_000 });
+      expect(res.status).toBe(201);
+      expect(res.body.direction).toBe('lower');
+      expect(await storedConsensus()).toBeCloseTo(55, 1);
+    })();
   });
 
   test('budget-capped: spends the budget, stops short, and reports the true landing', async () => {

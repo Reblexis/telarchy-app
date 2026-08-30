@@ -193,13 +193,14 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <ul>
 <li><a href="#docs-market-integrity-md--h1">Market integrity</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h2">The four invariants</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h3">I1: a definition edit splits in two</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h4">I1b: a contract&#x27;s definition edits the same way</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h5">I2: what an owner cannot destroy</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h6">There is no reset endpoint</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h7">I3: the credit ledger</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h8">What the tests enforce</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">Reconstruction</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h3">Redemption is liability-neutral</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h4">I1: a definition edit splits in two</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h5">I1b: a contract&#x27;s definition edits the same way</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h6">I2: what an owner cannot destroy</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h7">There is no reset endpoint</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h8">I3: the credit ledger</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">What the tests enforce</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h10">Reconstruction</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-metrics-md">docs/metrics.md</a></summary>
@@ -1954,7 +1955,25 @@ prices the book never printed: the LookPilot weekly market drew a smooth
 climb to $9,990 while every trade actually executed on a thinner anchored
 book around $5-7k, and the chart ended in a cliff onto the live price
 (owner report 2026-08-29). A replay must end where the market stands.</p>
-<h2 id="docs-market-integrity-md--h3">I1: a definition edit splits in two</h2>
+<h2 id="docs-market-integrity-md--h3">Redemption is liability-neutral</h2>
+<p>A trader who buys the side opposite a position they hold gets their matched
+higher+lower pairs cashed at 1 credit each (owner ask 2026-08-30;
+docs/ui-conventions.md has the reader-facing rule). That is not a subsidy
+and not a loss:</p>
+<ul>
+<li>a pair pays <code>p</code> on the higher share and <code>1 - p</code> on the lower one at any
+settlement value (<code>resolutionPayouts</code>), so it is worth exactly 1 credit
+with no opinion in it;</li>
+<li>the pool pays 1 credit now and sheds exactly 1 credit of settlement
+liability, because both share counts fall by the same amount;</li>
+<li>the price does not move, because an LMSR price reads <code>q1 - q0</code>.</li>
+</ul>
+<p>Both share counts changing means the price REPLAY has to see it, or the
+chart drifts from the book the way it did on 2026-08-29 (I4 below). So a
+redemption writes one <code>trades</code> row per side, negative shares, the credits
+split at the marginal price. <code>position-netting.test.ts</code> pins the replay
+ending where the book stands.</p>
+<h2 id="docs-market-integrity-md--h4">I1: a definition edit splits in two</h2>
 <p>Editing a metric's description (the floor's &quot;What is this market?&quot; text),
 renaming it, changing its formula, or changing its range never voids an open
 market as a side effect. Voiding destroys a week of price discovery and every
@@ -2022,7 +2041,7 @@ what a market settles on while positions are open. The mitigation is
 disclosure, not prevention, because no code can tell a clarification from a
 redefinition. Publishing the revision history next to the definition is what
 makes the risk visible to the people carrying it.</p>
-<h2 id="docs-market-integrity-md--h4">I1b: a contract's definition edits the same way</h2>
+<h2 id="docs-market-integrity-md--h5">I1b: a contract's definition edits the same way</h2>
 <p>A contract
 (<code>proposals</code>) is a definition too, and its conditional pair is a live market
 that prices it, so the split is the same one I1 draws for a metric:</p>
@@ -2053,7 +2072,7 @@ to. Neither is editable; the endpoint answers 409.</li>
 </ul>
 <p>Nothing here lets an editor change who gets paid: <code>payoutHandle</code> is snapshotted
 at creation and is not part of the edit.</p>
-<h2 id="docs-market-integrity-md--h5">I2: what an owner cannot destroy</h2>
+<h2 id="docs-market-integrity-md--h6">I2: what an owner cannot destroy</h2>
 <p>Two rules, matched to what each path actually takes from people. Both live at
 the route layer, never inside <code>voidMarket</code>: six of that function's nine callers
 are the engine's own lifecycle (stale conditional cleanup, a proposal being
@@ -2099,7 +2118,7 @@ production, and then the destruction happens with no record at all. Holders are
 refunded their net cash at stake, as any void does (<code>vision.md</code>, void refund
 rule), so the escape costs them their position and their price discovery,
 never their money.</p>
-<h3 id="docs-market-integrity-md--h6">There is no reset endpoint</h3>
+<h3 id="docs-market-integrity-md--h7">There is no reset endpoint</h3>
 <p><code>POST /api/system/reset-economy</code> does not exist and is not reintroduced, guarded
 or otherwise: it zeroed every balance in a workspace, deleted every trade under
 <code>allowLedgerAdmin</code>, and reset all market AMM state behind nothing but the
@@ -2107,7 +2126,7 @@ ordinary <code>manage</code> capability, and the append-only trigger could not s
 because it opted out of the trigger on purpose. A guard has to be remembered,
 and the endpoint has no legitimate use on a live product. Starting a workspace
 over is <code>DELETE /api/workspaces/:id</code> followed by creating a new one.</p>
-<h2 id="docs-market-integrity-md--h7">I3: the credit ledger</h2>
+<h2 id="docs-market-integrity-md--h8">I3: the credit ledger</h2>
 <p><code>trades</code> and <code>liquidity_events</code> are append-only under a trigger (migration
 0055), but they are two of the ways money moves; payouts at settlement, void
 refunds, proposal stakes, proposal rewards, spam penalties, contract payments,
@@ -2142,7 +2161,7 @@ signup grants, transfers, deposits, withdrawals, admin adjustments.</li>
 </ul>
 <p><code>agent_balance_snapshots</code> is a cache rather than the only record; if it and
 the ledger ever disagree, the ledger is right.</p>
-<h3 id="docs-market-integrity-md--h8">What the tests enforce</h3>
+<h3 id="docs-market-integrity-md--h9">What the tests enforce</h3>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -2177,7 +2196,7 @@ the ledger ever disagree, the ledger is right.</p>
 unaggregated OOM-kills the process, and <code>credit_ledger</code> grows faster than
 <code>trades</code> does. The reconciliation query sums database-side; every ledger reader
 must too.</p>
-<h2 id="docs-market-integrity-md--h9">Reconstruction</h2>
+<h2 id="docs-market-integrity-md--h10">Reconstruction</h2>
 <p>With all three invariants holding, a workspace's money state is derivable from
 five append-only tables: <code>trades</code> (who bought what at what price),
 <code>liquidity_events</code> (who funded which pool), <code>credit_ledger</code> (every balance
@@ -3458,14 +3477,32 @@ Editing the side or amount by hand returns to a plain budget buy. When
 resting limit orders fill behind a trade, the page shows
 <code>settledConsensus</code> (where the market came to rest), not the trade's own
 post-price.</p>
-<p><strong>A trader holds ONE net side.</strong> Buying the side opposite to a position you
-already hold first closes that position, so nobody ends up holding both
-higher and lower (a guaranteed-return bond bought at a doubled spread, pure
-value leakage to the market). This is engine behavior (<code>executeTradeInTx</code>
-netting, functions/src/services/trading.ts), not UI: the trade path sells
-your opposite position before executing the buy, and the proceeds return
-to your balance. Limit fills skip netting (they build a position
-mechanically). Buying the SAME side you hold just accumulates.</p>
+<p><strong>A trader holds ONE net side, and gets there by REDEMPTION</strong> (owner ask
+2026-08-30, after Manifold). One higher share and one lower share pay
+exactly 1 credit between them at any settlement value (<code>resolutionPayouts</code>
+is <code>[1-p, p]</code>), so a matched pair is riskless. Buying the side opposite a
+position you hold therefore does NOT sell that position: the buy happens
+against the live book, and afterwards every matched pair the trader now
+holds is redeemed for exactly 1 credit each. Both sides of the pair leave
+the book, which moves the price by nothing at all, because an LMSR price
+is a function of <code>q1 - q0</code> and redemption subtracts the same amount from
+each. So a small contrarian bet is a small move and a small reduction,
+and nobody ends up holding both sides.</p>
+<p>What this replaced (2026-08-11 to 2026-08-30): the trade path sold the
+ENTIRE opposite position into the AMM before the buy. A one-credit
+contrarian nudge liquidated a whole position, at a spread the trader never
+asked to pay, and moved the price by the size of that forced sale rather
+than the size of the bet (owner report 2026-08-30: 25 credits moved a
+market from $7,146 to $10,706, almost all of it the forced close).</p>
+<p>Consequences worth knowing: the buy is funded from the BALANCE alone, so
+holding a large opposite position no longer lets a trader spend more than
+they have (the redemption pays out after the buy, not before). Redemption
+is liability-neutral for the pool, which pays 1 credit now and sheds
+exactly 1 credit of settlement liability. This is engine behavior
+(<code>executeTradeInTx</code>, functions/src/services/trading.ts), not UI, and the
+client preview mirrors it (<code>previewTrade</code>); <code>amm-parity.test.ts</code> fails if
+the two ever disagree again. Buying the SAME side you hold just
+accumulates.</p>
 <h3 id="docs-ui-conventions-md--h20">Where markets open</h3>
 <p><strong>Conditional (contract) markets open ANCHORED</strong>: a fresh pair opens at the
 baseline market's current value rather than the range midpoint, and the
@@ -6243,7 +6280,15 @@ max({Output} - 500, 0)
 <li><strong>voided</strong>: admin cancelled the market. Every participant was refunded the net cash they still had in it (buys minus sells, never below zero, so a cancel cannot take credits back), and the market is preserved for history. No trades.</li>
 </ul>
 <h2 id="docs-guides-markets-md--h6">Resolution</h2>
-<p>A market resolves when its target date period has ended, regardless of whether it is currently open or closed. The settled <code>actualValue</code> is the metric's value <strong>as of <code>resolvesOn</code></strong> (its last logged update at-or-before that boundary), deterministic with respect to when the resolve cron or a manual trigger actually fires. Keep the metric's value updated before the boundary; updates that arrive after it settle the next period's markets instead. Winning shares pay proportionally; losing shares pay the complementary proportion. A position that was opened on an open market and held through a &quot;closed&quot; period still pays at the actual value.</p>
+<p>A market resolves when its target date period has ended, regardless of whether it is currently open or closed. The settled <code>actualValue</code> is the metric's value <strong>as of <code>resolvesOn</code></strong> (its last logged update at-or-before that boundary), deterministic with respect to when the resolve cron or a manual trigger actually fires. Keep the metric's value updated before the boundary; updates that arrive after it settle the next period's markets instead. Winning shares pay proportionally; losing shares pay the complementary proportion.
+One higher share and one lower share therefore pay exactly 1 credit between them
+whatever the value settles at, which is why buying the side opposite a position
+you hold does not sell that position: the buy prices against the live book and
+every matched pair you then hold is REDEEMED for 1 credit each (the trade
+response reports it as <code>redeemed</code>). Redemption takes the same amount off both
+sides of the book, so it moves the price by nothing at all: a small contrarian
+bet is a small move, and your position shrinks by what you bought. Nobody ends
+up holding both sides. A position that was opened on an open market and held through a &quot;closed&quot; period still pays at the actual value.</p>
 <h2 id="docs-guides-markets-md--h7">Setting market range max</h2>
 <p>The default range is 0-1000. Match <code>marketRangeMax</code> to the realistic upper bound of the metric: a percentage metric capped at 100, a count metric that realistically peaks at 500, and so on. A mis-ranged market produces a distorted consensus and less informative predictions.</p>
 

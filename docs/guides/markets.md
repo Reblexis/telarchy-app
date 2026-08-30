@@ -61,7 +61,15 @@ Each market sits in one of four states (returned as `status` on every market row
 
 ## Resolution
 
-A market resolves when its target date period has ended, regardless of whether it is currently open or closed. The settled `actualValue` is the metric's value **as of `resolvesOn`** (its last logged update at-or-before that boundary), deterministic with respect to when the resolve cron or a manual trigger actually fires. Keep the metric's value updated before the boundary; updates that arrive after it settle the next period's markets instead. Winning shares pay proportionally; losing shares pay the complementary proportion. A position that was opened on an open market and held through a "closed" period still pays at the actual value.
+A market resolves when its target date period has ended, regardless of whether it is currently open or closed. The settled `actualValue` is the metric's value **as of `resolvesOn`** (its last logged update at-or-before that boundary), deterministic with respect to when the resolve cron or a manual trigger actually fires. Keep the metric's value updated before the boundary; updates that arrive after it settle the next period's markets instead. Winning shares pay proportionally; losing shares pay the complementary proportion.
+One higher share and one lower share therefore pay exactly 1 credit between them
+whatever the value settles at, which is why buying the side opposite a position
+you hold does not sell that position: the buy prices against the live book and
+every matched pair you then hold is REDEEMED for 1 credit each (the trade
+response reports it as `redeemed`). Redemption takes the same amount off both
+sides of the book, so it moves the price by nothing at all: a small contrarian
+bet is a small move, and your position shrinks by what you bought. Nobody ends
+up holding both sides. A position that was opened on an open market and held through a "closed" period still pays at the actual value.
 
 ## Setting market range max
 

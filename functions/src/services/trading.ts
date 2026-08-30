@@ -38,6 +38,10 @@ export interface TradeOutcome {
   /** Sells only. */
   proceeds: number;
   isSell: boolean;
+  /** Credits paid back for matched higher+lower pairs this trade created,
+   *  at 1 credit a pair (docs/ui-conventions.md, "A trader holds ONE net
+   *  side"). Zero unless the trader held the opposite side. */
+  redeemed: number;
   probability: number;
   consensus: number | null;
   /** Consensus before this trade, so callers can see the interval crossed. */
@@ -59,54 +63,19 @@ export async function executeTradeInTx(
     marketId: string;
     mode: TradeMode;
     tradeId?: string;
-    /** Skip opposite-side netting. Set by internal callers (limit fills)
-     *  that build a position mechanically and must not have it unwound when
-     *  a fill iteration briefly overshoots and flips the target direction. */
-    skipNetting?: boolean;
   },
 ): Promise<TradeOutcome> {
   const { workspaceId, agentId, marketId, mode } = opts;
   const tradeId = opts.tradeId ?? randomUUID();
 
-  // Netting (owner decision 2026-08-11): a trader holds ONE net side. A
-  // buy on the side opposite to a position you already hold first closes
-  // that position, so nobody ends up holding both higher and lower, which
-  // is guaranteed-return dead weight bought at a doubled spread. Runs
-  // before the buy below reads the book, so the buy prices against the
-  // post-close market. The recursive sell has mode.type === 'sell', which
-  // skips this block, so there is no recursion loop. Sell trades never
-  // net (you are reducing, not flipping).
-  if (mode.type !== 'sell' && !opts.skipNetting) {
-    let buyDir: 0 | 1;
-    if (mode.type === 'buy') {
-      buyDir = mode.direction;
-    } else {
-      const [m0] = await tx
-        .select()
-        .from(markets)
-        .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
-      const mid = m0 ? m0.rangeMin + (m0.rangeMax - m0.rangeMin) / 2 : 0;
-      const c0 = m0
-        ? (consensus((m0.shares as [number, number]) || [0, 0], m0.liquidity, m0.rangeMin, m0.rangeMax) ?? mid)
-        : mid;
-      buyDir = mode.targetValue >= c0 ? 1 : 0;
-    }
-    const oppDir: 0 | 1 = buyDir === 1 ? 0 : 1;
-    const oppLabel: 'higher' | 'lower' = oppDir === 1 ? 'higher' : 'lower';
-    const oppPosId = `${agentId}_${marketId}_${oppLabel}`;
-    const [oppPos] = await tx
-      .select()
-      .from(positions)
-      .where(and(eq(positions.id, oppPosId), eq(positions.workspaceId, workspaceId)));
-    if (oppPos && (oppPos.shares as number) > 1e-9) {
-      await executeTradeInTx(tx, {
-        workspaceId,
-        agentId,
-        marketId,
-        mode: { type: 'sell', direction: oppDir, dirLabel: oppLabel, sellShares: oppPos.shares as number },
-      });
-    }
-  }
+  // Redemption, not liquidation (owner ask 2026-08-30, after Manifold; see
+  // docs/ui-conventions.md "A trader holds ONE net side"). A buy on the
+  // side opposite a held position used to SELL that whole position first,
+  // so a one-credit contrarian nudge liquidated everything at a spread
+  // nobody asked to pay and moved the price by the size of the forced
+  // sale. Instead the buy runs against the live book and any matched pair
+  // the trader then holds is redeemed below, at the 1 credit it is
+  // certainly worth. Nobody ends up holding both sides either way.
 
   const [market] = await tx
     .select()
@@ -287,6 +256,13 @@ export async function executeTradeInTx(
     cost: isSell ? -proceeds : cost,
     createdAt: new Date(),
   });
+
+  // A buy can leave the trader holding both sides; those matched pairs are
+  // riskless, so they are cashed at par right here rather than left as
+  // dead weight (docs/ui-conventions.md, "A trader holds ONE net side").
+  // After the trade row above, so the replay reads the buy and then the
+  // redemption in the order they happened. Selling never creates a pair.
+  const redeemed = isSell ? 0 : await redeemMatchedPairs(tx, { workspaceId, agentId, marketId, book: newShares, b });
   // Drop the price caches so the floor and the chart show this trade on the
   // very next fetch. If the enclosing transaction rolls back this cost one
   // spurious cache miss, nothing more.
@@ -301,6 +277,7 @@ export async function executeTradeInTx(
     cost,
     proceeds,
     isSell,
+    redeemed,
     probability: newProbability,
     consensus: newConsensus,
     prevConsensus,
@@ -322,6 +299,110 @@ export async function positionCap(tx: Tx, workspaceId: string): Promise<number> 
  * orders. Reserved money counts because it is money that will become a
  * position without asking permission again.
  */
+/**
+ * Cash every matched higher+lower pair a trader holds, at the 1 credit a
+ * pair is certainly worth (owner ask 2026-08-30, after Manifold; the rule
+ * is docs/ui-conventions.md, "A trader holds ONE net side").
+ *
+ * A pair pays `p` on the higher share and `1 - p` on the lower one at any
+ * settlement value (`resolutionPayouts`), so it is 1 credit of certainty
+ * carrying no opinion. Redeeming it:
+ *
+ *  - moves the PRICE by nothing. An LMSR price is a function of q1 - q0,
+ *    and this takes the same amount off each side.
+ *  - costs the pool nothing in expectation: it pays 1 credit now and sheds
+ *    exactly 1 credit of settlement liability (q0 and q1 each fall by the
+ *    same amount, so the liability q0*(1-p) + q1*p falls by that amount).
+ *
+ * The two ledger rows are what keeps the price REPLAY honest: it rebuilds
+ * the book by walking `trades`, so a change to `markets.shares` that left
+ * no rows would make the replay solve for a different opening and could
+ * clamp to an empty book (docs/market-integrity.md I4 is the same lesson
+ * on the liquidity side). The redeemed credits are split across the two
+ * rows at the marginal price, which is what "sold at mid, no spread"
+ * means and keeps each side's P&L readable. Volume is deliberately NOT
+ * moved: nothing traded against the AMM here.
+ */
+async function redeemMatchedPairs(
+  tx: Tx,
+  args: {
+    workspaceId: string;
+    agentId: string;
+    marketId: string;
+    /** The book as this trade left it. */
+    book: [number, number];
+    b: number;
+  },
+): Promise<number> {
+  const { workspaceId, agentId, marketId, book, b } = args;
+  const rows = await tx
+    .select()
+    .from(positions)
+    .where(
+      and(eq(positions.workspaceId, workspaceId), eq(positions.marketId, marketId), eq(positions.agentId, agentId)),
+    )
+    .for('update');
+  const higher = rows.find(r => r.direction === 'higher');
+  const lower = rows.find(r => r.direction === 'lower');
+  const pairs = Math.min((higher?.shares as number) ?? 0, (lower?.shares as number) ?? 0);
+  if (!(pairs > 1e-9) || !higher || !lower) return 0;
+
+  const p = pHigher(book, b);
+  // The two rows sum to exactly `pairs`, whatever the rounding does to the
+  // split: the trader is paid for pairs, not for two independent sells.
+  const higherPart = Math.round(pairs * p * 1e6) / 1e6;
+  const lowerPart = Math.round((pairs - higherPart) * 1e6) / 1e6;
+
+  await tx
+    .update(markets)
+    .set({
+      shares: [book[0] - pairs, book[1] - pairs] as [number, number],
+      pool: sql`${markets.pool} - ${pairs}`,
+    })
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+
+  for (const row of [higher, lower]) {
+    await tx
+      .update(positions)
+      .set({ shares: sql`${positions.shares} - ${pairs}` })
+      .where(and(eq(positions.id, row.id), eq(positions.workspaceId, workspaceId)));
+  }
+
+  await applyCredits(tx, {
+    agentId,
+    workspaceId,
+    deltaUnits: toUnits(pairs),
+    reason: 'redeem',
+    refType: 'market',
+    refId: marketId,
+    also: { earnedBetting: sql`${agents.earnedBetting} + ${pairs}` },
+  });
+
+  await tx.insert(trades).values([
+    {
+      id: randomUUID(),
+      workspaceId,
+      agentId,
+      marketId,
+      direction: 'higher',
+      shares: -pairs,
+      cost: -higherPart,
+      createdAt: new Date(),
+    },
+    {
+      id: randomUUID(),
+      workspaceId,
+      agentId,
+      marketId,
+      direction: 'lower',
+      shares: -pairs,
+      cost: -lowerPart,
+      createdAt: new Date(),
+    },
+  ]);
+  return pairs;
+}
+
 export async function capUsage(tx: Tx, workspaceId: string, marketId: string, agentId: string): Promise<number> {
   const [spentRow] = await tx
     .select({ total: sql<number>`coalesce(sum(${positions.totalCost}), 0)` })
@@ -470,7 +551,6 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
           agentId: next!.agentId,
           marketId,
           mode: { type: 'targetValue', targetValue: next!.limitValue, maxBudget: budget },
-          skipNetting: true,
         });
 
         if (outcome.direction !== next!.direction) {

@@ -38,18 +38,18 @@ function bookFromProb(prob: number, b: number): [number, number] {
  * A same-side (or absent) position closes nothing. Proceeds are what that
  * forced sale pays the trader, spendable inside the same trade.
  */
-function afterNettingClose(
-  book: [number, number],
-  b: number,
-  buyDirection: 'higher' | 'lower',
-  held?: HeldPosition | null,
-): { book: [number, number]; proceeds: number } {
-  if (!held || held.shares <= 0 || held.direction === buyDirection) return { book, proceeds: 0 };
-  const idx = held.direction === 'higher' ? 1 : 0;
-  const after: [number, number] = [book[0], book[1]];
-  after[idx] -= held.shares;
-  const proceeds = lmsrCost(book[0], book[1], b) - lmsrCost(after[0], after[1], b);
-  return { book: after, proceeds: Math.max(0, proceeds) };
+/**
+ * Credits a buy hands back by redeeming matched pairs (owner ask
+ * 2026-08-30, after Manifold; the rule is docs/ui-conventions.md, "A
+ * trader holds ONE net side"). The server buys against the LIVE book and
+ * then cashes every matched higher+lower pair at the 1 credit it is worth,
+ * so unlike the liquidation this replaced, it moves the price by NOTHING:
+ * an LMSR price reads q1 - q0, and redemption takes the same amount off
+ * both. That is why this returns credits only and never a book.
+ */
+function redemptionCredits(buyDirection: 'higher' | 'lower', bought: number, held?: HeldPosition | null): number {
+  if (!held || held.shares <= 0 || held.direction === buyDirection) return 0;
+  return Math.min(held.shares, bought);
 }
 
 /** Shares a budget buys from a given book (binary search; mirrors the
@@ -76,13 +76,13 @@ export function previewTrade(
   held?: HeldPosition | null,
 ) {
   const b = liquidity;
-  const { book, proceeds } = afterNettingClose(bookFromProb(prob, b), b, direction, held);
+  const book = bookFromProb(prob, b);
   const dirIdx = direction === 'higher' ? 1 : 0;
   const shares = sharesFor(book, dirIdx, amount, b);
   const after: [number, number] = [book[0], book[1]];
   after[dirIdx] += shares;
   const newProb = 1 / (1 + Math.exp(-(after[1] - after[0]) / b));
-  return { shares, newProb, nettingProceeds: proceeds };
+  return { shares, newProb, redeemed: redemptionCredits(direction, shares, held) };
 }
 
 /**
@@ -119,7 +119,7 @@ export function previewTargetBet(
   targetValue: number,
   maxBudget: number,
   held?: HeldPosition | null,
-): { direction: 'higher' | 'lower'; shares: number; cost: number; newProb: number; nettingProceeds: number } | null {
+): { direction: 'higher' | 'lower'; shares: number; cost: number; newProb: number; redeemed: number } | null {
   const b = liquidity;
   const span = rangeMax - rangeMin;
   if (b <= 0 || span <= 0 || maxBudget <= 0) return null;
@@ -127,12 +127,12 @@ export function previewTargetBet(
   const current = rangeMin + p0 * span;
   if (Math.abs(targetValue - current) < 0.01) return null;
 
-  // (1) + (2): the route picks the buy side against the live price, and
-  // executeTradeInTx nets against THAT side before the buy prices.
-  const buyDirection: 'higher' | 'lower' = targetValue >= current ? 'higher' : 'lower';
-  const { book, proceeds } = afterNettingClose(bookFromProb(prob, b), b, buyDirection, held);
+  // betTowardsValue runs on the live book: redemption happens after the buy
+  // and moves no price, so nothing is closed out first and the side the
+  // trade ends on is simply the side of the target.
+  const book = bookFromProb(prob, b);
 
-  // (3) betTowardsValue on the post-close book (same formulas as the server).
+  // betTowardsValue (same formulas as the server).
   const p2 = 1 / (1 + Math.exp(-(book[1] - book[0]) / b));
   const current2 = rangeMin + p2 * span;
   const dirIdx: 0 | 1 = targetValue >= current2 ? 1 : 0;
@@ -158,7 +158,8 @@ export function previewTargetBet(
   const after: [number, number] = [book[0], book[1]];
   after[dirIdx] += shares;
   const newProb = 1 / (1 + Math.exp(-(after[1] - after[0]) / b));
-  return { direction: dirIdx === 1 ? 'higher' : 'lower', shares, cost, newProb, nettingProceeds: proceeds };
+  const direction: 'higher' | 'lower' = dirIdx === 1 ? 'higher' : 'lower';
+  return { direction, shares, cost, newProb, redeemed: redemptionCredits(direction, shares, held) };
 }
 
 /** Map actual value to proportional payout factors [lowerPayout, higherPayout]. */

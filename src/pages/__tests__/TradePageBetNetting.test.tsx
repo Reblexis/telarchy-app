@@ -8,12 +8,17 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
  * The regression this pins (owner report 2026-08-30, "when i bet lower and
  * i have already bought higher the estimate doesn't match the actual new
  * value"): the sell rows were taken out of the bet ticket by handing it
- * `positions={[]}`, but that prop is also what the preview NETS against.
- * Buying the opposite side closes the held position on the server first
- * (services/trading.ts, "Netting"), and the buy then prices against the
- * post-close book, so a netting-blind preview quotes a landing the trade
- * never reaches. Hiding the rows is manageMode's job; the data belongs to
- * the preview in both modes.
+ * `positions={[]}`, but that prop is also what the preview reads. Hiding
+ * the rows is manageMode's job; the data belongs to the preview in both
+ * modes.
+ *
+ * Since the redemption change later the same day (docs/ui-conventions.md,
+ * "A trader holds ONE net side"), the held position no longer changes
+ * where the bet LANDS: the buy runs against the live book and the matched
+ * pairs are cashed at par afterwards, which moves no price. What the
+ * position changes is the credits handed back, so this pins the landing
+ * against the plain-buy arithmetic and leaves the money to the server
+ * tests and amm-parity.
  *
  * Signed in and joined, which the sibling TradePage.test.tsx deliberately
  * is not: netting only exists for someone who holds a position.
@@ -139,12 +144,12 @@ describe('the bet ticket nets against the held position', () => {
 
     const shown = (container.querySelector('.ticket-newvalue') as HTMLInputElement).value;
     const landed = parseFloat(shown.replace(/,/g, ''));
-    // By hand, b = 200 over 0..500,000: netting-blind, 10 credits of lower
-    // buys 19.53 shares from [0,0] and lands ~237,800. Closing the 50 higher
-    // shares first leaves [0,-50], where the same 10 credits buy 17.51 and
-    // land ~208,200. The shown value must be the landed one.
-    expect(landed).toBeLessThan(220_000);
-    expect(landed).toBeGreaterThan(195_000);
+    // By hand, b = 200 over 0..500,000 at p = 0.5: 10 credits of lower buys
+    // 19.53 shares from [0,0] and lands ~237,800. The 50 held higher shares
+    // pair off against it and are cashed at par, which takes the same
+    // amount off both sides of the book and so moves the price by nothing.
+    expect(landed).toBeGreaterThan(230_000);
+    expect(landed).toBeLessThan(245_000);
 
     // Selling belongs to the position panel below the ticket (owner ask
     // 2026-08-28), so the rows stay out of the bet ticket even though its

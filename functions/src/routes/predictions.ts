@@ -282,6 +282,10 @@ predictionsRouter.post(
             direction: outcome.direction,
             shares: outcome.shares,
             cost: outcome.cost,
+            // Credits handed back for matched higher+lower pairs this buy
+            // created, 1 a pair (docs/ui-conventions.md, "A trader holds
+            // ONE net side"). Zero unless the caller held the other side.
+            redeemed: outcome.redeemed,
             probability: outcome.probability,
             consensus: outcome.consensus,
           };
