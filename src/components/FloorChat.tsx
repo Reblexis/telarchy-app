@@ -39,6 +39,10 @@ interface Props {
   signedIn: boolean;
   /** The number the floor leads with, used for one opening suggestion. */
   metricLabel: string | null;
+  /** What the corner says. Otto acts as whoever is signed in, so the dock
+   *  says the work rather than "ask" (docs/ui-conventions.md, "An assistant
+   *  row says what it DOES"). */
+  dockLabel?: string;
   /** "Continue with your own agent": the same handoff the page shows under
    *  Ask Otto, rendered inside the conversation so leaving for your own agent
    *  never means starting again (docs/otto.md). */
@@ -61,6 +65,7 @@ export function FloorChat({
   workspaceName,
   metricLabel,
   signedIn,
+  dockLabel,
   handoff,
   open: openProp,
   onOpenChange,
@@ -127,7 +132,7 @@ export function FloorChat({
         <span className="ottodock-mark" aria-hidden="true">
           O
         </span>
-        <span className="ottodock-label">Ask Otto about {workspaceName}</span>
+        <span className="ottodock-label">{dockLabel ?? `Ask Otto about ${workspaceName}`}</span>
       </button>
     );
   }

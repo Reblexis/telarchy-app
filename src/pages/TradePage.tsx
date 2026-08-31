@@ -997,6 +997,13 @@ export function TradePage() {
           workspaceName={ws.name}
           metricLabel={selectedJob ? null : metricLabel}
           signedIn={!!user}
+          dockLabel={
+            !user
+              ? `Ask Otto about ${ws.name}`
+              : canManage
+                ? `Have Otto run ${ws.name} with you`
+                : `Have Otto trade ${ws.name} with you`
+          }
           handoff={
             <AgentDoors
               floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
@@ -1071,22 +1078,6 @@ export function TradePage() {
                 </p>
               )}
             </section>
-          )}
-          {/* Placement C (owner pick, 2026-08-31): a manager's two doors sit
-            under the number they report, which is where the thought "someone
-            should keep this true" happens. A trader's pair stays down in the
-            About section, where researching the company is the job. Never
-            both: one reader, one stack. */}
-          {hero && canManage && ws && (
-            <AgentDoors
-              floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
-              workspaceId={ws.workspaceId}
-              state={ownerState}
-              canManage={canManage}
-              signedIn={!!user}
-              onAskOtto={() => setAskingOtto(true)}
-              className="doors--instrument"
-            />
           )}
           {/* A floor with no market yet. For its owner this is the moment
             after "Create your own" (docs/owner-on-the-floor.md): the first
@@ -1929,6 +1920,23 @@ export function TradePage() {
               )}
             </section>
           ) : null}
+
+          {/* Placement C (owner pick, 2026-08-31): a manager's two doors sit
+            under the market and its verbs, which is where "someone should
+            keep this true" is thought. A trader's pair stays further down,
+            at the end of the market's own words, where researching the
+            company is the job. Never both: one reader, one stack. */}
+          {hero && canManage && ws && (
+            <AgentDoors
+              floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
+              workspaceId={ws.workspaceId}
+              state={ownerState}
+              canManage={canManage}
+              signedIn={!!user}
+              onAskOtto={() => setAskingOtto(true)}
+              className="doors--instrument"
+            />
+          )}
 
           {/* Two questions, two sections (owner direction 2026-08-10):
             "What is this market?" is the metric's stored definition,
