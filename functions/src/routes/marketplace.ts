@@ -1168,6 +1168,13 @@ marketplaceRouter.get(
  * 403, and a workspace whose Public group cannot read is refused rather than
  * summarised, because the brief IS the contents.
  */
+/** How much of a contract's pitch this read carries: enough to know what the
+ *  work is, not the whole case for it. */
+const DESCRIPTION_CHARS = 300;
+/** Comfortably inside the 24,000-character cap on one assistant tool result
+ *  (services/otto-tools.ts), with room for a floor that keeps growing. */
+const SAFE_RESULT_CHARS = 22_000;
+
 /**
  * The contracts, priced, small enough to read in one go.
  *
@@ -1213,15 +1220,36 @@ marketplaceRouter.get(
       return;
     }
 
+    // The brief carries the newest 25 contracts, so on a busy floor this read
+    // is showing a window. A window a reader does not know about is a silent
+    // cut, which is the failure this endpoint exists to end, so it is stated.
+    const [countRow] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(proposals)
+      .where(and(eq(proposals.workspaceId, ws.id), ne(proposals.status, 'removed')));
+    const contractsTotal = countRow?.n ?? 0;
+
     const all = req.query.horizons === 'all';
-    res.json({
+    // Enough of the pitch to know what the work IS. A title alone does not say
+    // it, and a reader who cannot tell goes and opens the contract, which is
+    // the round trip this endpoint exists to remove (measured 2026-08-31: the
+    // priceless first version still drew five per question).
+    const gist = (text: string) =>
+      text.length > DESCRIPTION_CHARS
+        ? { description: `${text.slice(0, DESCRIPTION_CHARS)}...`, descriptionTruncated: true }
+        : { description: text };
+
+    const body = {
       workspaceId: context.workspaceId,
       slug: context.slug,
       name: context.name,
       horizons: all ? 'all' : 'live',
+      contractsTotal,
+      ...(contractsTotal > context.contracts.length ? { olderContractsOmitted: true } : {}),
       contracts: context.contracts.map(c => ({
         id: c.id,
         title: c.title,
+        ...gist(c.description ?? ''),
         askUsd: c.askUsd,
         status: c.status,
         decisionOpen: c.decisionOpen,
@@ -1241,7 +1269,20 @@ marketplaceRouter.get(
             declinedTrades: i.declinedTrades,
           })),
       })),
-    });
+    };
+
+    // The invariant: this read is never the one that gets cut. Descriptions
+    // are the elastic part, so on a floor big enough to threaten the cap they
+    // are what goes. The prices never go, because they are the answer.
+    if (JSON.stringify(body).length > SAFE_RESULT_CHARS) {
+      res.json({
+        ...body,
+        descriptionsOmitted: true,
+        contracts: body.contracts.map(({ description, descriptionTruncated, ...rest }) => rest),
+      });
+      return;
+    }
+    res.json(body);
   }),
 );
 

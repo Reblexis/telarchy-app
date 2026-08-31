@@ -21,6 +21,7 @@ jest.mock('../middleware/auth', () => ({
   optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
+import { eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
 import { agents, markets, metrics, permissionGroups, proposalMessages, proposals, workspaces } from '../db/schema';
@@ -145,18 +146,71 @@ describe('THE WHOLE FLOOR FITS IN ONE TOOL RESULT', () => {
     expect(res.body.contracts).toHaveLength(20);
     expect(JSON.stringify(res.body).length).toBeLessThan(TOOL_RESULT_CAP);
   });
+
+  test('a floor far bigger than any real one still fits, by dropping the pitches', async () => {
+    // The invariant is that this read NEVER has to be truncated. Descriptions
+    // are the elastic part, so they are what goes; the prices never do,
+    // because they are the answer.
+    for (let i = 0; i < 90; i++) {
+      await contract(`c${i}`, 'pending', [
+        { date: LIVE, approvedShares: 10 },
+        { date: '2031-01', approvedShares: 5 },
+        { date: '2032-01', approvedShares: 7 },
+      ]);
+    }
+    const res = await get();
+    expect(res.body.descriptionsOmitted).toBe(true);
+    expect(res.body.contracts[0].description).toBeUndefined();
+    expect(res.body.contracts[0].impact.length).toBeGreaterThan(0);
+    expect(JSON.stringify(res.body).length).toBeLessThan(TOOL_RESULT_CAP);
+  });
+
+  test('a floor with more contracts than one read holds SAYS so, never silently', async () => {
+    // The brief carries the newest 25 contracts. A reader deciding what to
+    // approve has to know when there are older ones it is not being shown,
+    // because a silent cut is the failure this whole endpoint exists to end.
+    for (let i = 0; i < 30; i++) {
+      await contract(`c${i}`, 'pending', [{ date: LIVE, approvedShares: 10 }]);
+    }
+    const res = await get();
+    expect(res.body.contracts).toHaveLength(25);
+    expect(res.body.contractsTotal).toBe(30);
+    expect(res.body.olderContractsOmitted).toBe(true);
+  });
+
+  test('a floor that fits says nothing about omission', async () => {
+    await contract('c1', 'pending', [{ date: LIVE, approvedShares: 10 }]);
+    const res = await get();
+    expect(res.body.contractsTotal).toBe(1);
+    expect(res.body.olderContractsOmitted).toBeUndefined();
+    expect(res.body.descriptionsOmitted).toBeUndefined();
+  });
 });
 
 describe('it carries what pricing a decision needs, and nothing else', () => {
-  test('no pitch, no conversation, no market plumbing', async () => {
+  test('the gist of the pitch, never the conversation or the market plumbing', async () => {
     await contract('c1', 'pending', [{ date: LIVE, approvedShares: 20 }]);
     const res = await get();
     // Without this the absence assertions below pass on a 404.
     expect(res.status).toBe(200);
     const body = JSON.stringify(res.body);
-    expect(body).not.toContain('A pitch of the length');
+    // Enough of the pitch to know what the work IS, since a reader who cannot
+    // tell that from the title goes and opens the contract, which is the round
+    // trip this endpoint exists to remove.
+    expect(res.body.contracts[0].description).toContain('A pitch of the length');
     expect(body).not.toContain('A conversation that belongs');
     expect(body).not.toMatch(/approvedMarketId|approvedPool|approvedVolume|probability/);
+  });
+
+  test('a long pitch is cut and says it was cut', async () => {
+    await contract('c1', 'pending', [{ date: LIVE, approvedShares: 20 }]);
+    await db
+      .update(proposals)
+      .set({ description: 'x'.repeat(3000) })
+      .where(eq(proposals.id, 'c1'));
+    const [c] = (await get()).body.contracts;
+    expect(c.description.length).toBeLessThanOrEqual(320);
+    expect(c.descriptionTruncated).toBe(true);
   });
 
   test('each horizon says what it is a price of', async () => {
