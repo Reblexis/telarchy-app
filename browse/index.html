@@ -226,7 +226,8 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><a href="#docs-mobile-md--h1">Telarchy on a phone</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-mobile-md--h2">The installable web app</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-mobile-md--h3">Notifications</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-mobile-md--h4">What is deliberately not built</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-mobile-md--h4">Building the shells</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-mobile-md--h5">What is deliberately not built</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-otto-md">docs/otto.md</a></summary>
@@ -2457,7 +2458,31 @@ so a self-hosted instance with no store builds needs no store credentials.</p>
 failure that is not the platform disowning the address, a timeout or a 500 or a
 credential the server got wrong, leaves the row alone: deleting on those would
 unsubscribe a working phone because the sender was misconfigured.</p>
-<h2 id="docs-mobile-md--h4">What is deliberately not built</h2>
+<h2 id="docs-mobile-md--h4">Building the shells</h2>
+<p>Both shells are Capacitor projects in this repo, generated once and committed:
+<code>android/</code> and <code>ios/</code>. <code>capacitor.config.ts</code> is what makes them shells rather
+than copies, by pointing <code>server.url</code> at the live origin.</p>
+<p>Android builds anywhere with a JDK and the Android SDK:</p>
+<pre><code>npm run build &amp;&amp; npx cap sync android
+cd android &amp;&amp; ./gradlew assembleDebug
+</code></pre>
+<p>iOS builds only on macOS, so its release build belongs on a macOS CI runner
+rather than on a developer's machine.</p>
+<p>Two things are not in the repo and have to be added before store push works:</p>
+<ul>
+<li><code>android/app/google-services.json</code>, from the Firebase project. Without it the
+app still builds and runs; registration fails, the mobile switch reports that
+the app could not register, and no address is filed. That is the designed
+behaviour, not a silent hole.</li>
+<li>The signing material for each store, which lives with the store accounts.</li>
+</ul>
+<p><code>npx cap add</code> and Capacitor upgrades rewrite the native projects from the
+template, which silently restores Capacitor's own launcher icon and splash.
+Regenerate ours from <code>public/logo.png</code> afterwards with
+<code>scripts/build-native-icons.py</code>; <code>src/__tests__/native-shell-icons.test.ts</code>
+pins every template asset by hash so a restored one fails the suite rather
+than reaching a store.</p>
+<h2 id="docs-mobile-md--h5">What is deliberately not built</h2>
 <p>There is no second frontend, and no native UI. A phone-shaped view of a screen
 is a responsive layout in the one frontend, governed by <code>ui-conventions.md</code>.
 Any proposal that renders a Telarchy screen twice is a divergence.</p>

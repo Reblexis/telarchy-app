@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Telarchy</string>
+    <string name="title_activity_main">Telarchy</string>
+    <string name="package_name">com.telarchy.app</string>
+    <string name="custom_url_scheme">com.telarchy.app</string>
+</resources>

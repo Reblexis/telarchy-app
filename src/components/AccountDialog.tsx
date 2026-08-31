@@ -10,6 +10,7 @@ import {
   type NotificationPrefs,
   type PayoutMethod,
 } from '../lib/api';
+import { ensureMobileAddress } from '../lib/mobile-address';
 import { AccountCredits } from './AccountCredits';
 import { AccountPassword } from './AccountPassword';
 import { FloorModal } from './FloorModal';
@@ -60,14 +61,6 @@ const CHANNEL_LABELS: Array<{ channel: NotificationChannel; label: string }> = [
   { channel: 'email', label: 'Email' },
   { channel: 'mobile', label: 'Mobile' },
 ];
-
-/** The browser's base64url VAPID key as the byte array subscribe() wants. */
-function vapidKeyBytes(base64url: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64url.length % 4)) % 4);
-  const base64 = (base64url + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = atob(base64);
-  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
-}
 
 /**
  * The account is filed, not stacked (owner report 2026-08-19: the dialog
@@ -430,28 +423,6 @@ export function AccountDialog({
     }
   };
 
-  /** Make this browser one of my mobile addresses: register the service
-   *  worker, ask permission, subscribe, and file the subscription. Ran the
-   *  first time any Mobile cell goes on; browsers keep the registration. */
-  const ensurePushSubscribed = async () => {
-    const { configured, publicKey } = await api.getPushKey();
-    if (!configured || !publicKey) throw new Error('Push notifications are not set up on this server yet');
-    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-      throw new Error('This browser does not support push notifications');
-    }
-    const reg = await navigator.serviceWorker.register('/sw.js');
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') throw new Error('The browser blocked notifications; allow them in site settings');
-    const existing = await reg.pushManager.getSubscription();
-    const sub =
-      existing ??
-      (await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: vapidKeyBytes(publicKey) as BufferSource,
-      }));
-    await api.registerPushSubscription(sub.toJSON());
-  };
-
   const toggleCell = async (kind: NotificationKindId, channel: NotificationChannel) => {
     if (!matrix) return;
     const value = !matrix[kind][channel];
@@ -460,7 +431,7 @@ export function AccountDialog({
     setMatrix({ ...matrix, [kind]: { ...matrix[kind], [channel]: value } });
     setBusy(`cell:${kind}:${channel}`);
     try {
-      if (channel === 'mobile' && value) await ensurePushSubscribed();
+      if (channel === 'mobile' && value) await ensureMobileAddress();
       await api.upsertProfile({
         notificationChannels: { [kind]: { [channel]: value } },
       });

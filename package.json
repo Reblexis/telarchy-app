@@ -39,9 +39,13 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "prepare": "simple-git-hooks"
+    "prepare": "simple-git-hooks",
+    "icons:native": "python3 scripts/build-native-icons.py",
+    "sync:android": "npm run build && npx cap sync android"
   },
   "dependencies": {
+    "@capacitor/core": "^7.6.8",
+    "@capacitor/push-notifications": "^7.0.7",
     "better-auth": "~1.6.30",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -52,6 +56,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.10",
+    "@capacitor/android": "^7.6.8",
+    "@capacitor/cli": "^7.6.8",
+    "@capacitor/ios": "^7.6.8",
     "@tailwindcss/vite": "^4.2.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

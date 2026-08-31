@@ -76,6 +76,37 @@ failure that is not the platform disowning the address, a timeout or a 500 or a
 credential the server got wrong, leaves the row alone: deleting on those would
 unsubscribe a working phone because the sender was misconfigured.
 
+## Building the shells
+
+Both shells are Capacitor projects in this repo, generated once and committed:
+`android/` and `ios/`. `capacitor.config.ts` is what makes them shells rather
+than copies, by pointing `server.url` at the live origin.
+
+Android builds anywhere with a JDK and the Android SDK:
+
+```
+npm run build && npx cap sync android
+cd android && ./gradlew assembleDebug
+```
+
+iOS builds only on macOS, so its release build belongs on a macOS CI runner
+rather than on a developer's machine.
+
+Two things are not in the repo and have to be added before store push works:
+
+- `android/app/google-services.json`, from the Firebase project. Without it the
+  app still builds and runs; registration fails, the mobile switch reports that
+  the app could not register, and no address is filed. That is the designed
+  behaviour, not a silent hole.
+- The signing material for each store, which lives with the store accounts.
+
+`npx cap add` and Capacitor upgrades rewrite the native projects from the
+template, which silently restores Capacitor's own launcher icon and splash.
+Regenerate ours from `public/logo.png` afterwards with
+`scripts/build-native-icons.py`; `src/__tests__/native-shell-icons.test.ts`
+pins every template asset by hash so a restored one fails the suite rather
+than reaching a store.
+
 ## What is deliberately not built
 
 There is no second frontend, and no native UI. A phone-shaped view of a screen
