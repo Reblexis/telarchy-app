@@ -38,6 +38,7 @@ export function ManifoldButton({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const start = async () => {
     setBusy(true);
@@ -69,6 +70,7 @@ export function ManifoldButton({
     setOpen(false);
     setStep('ask');
     setError('');
+    setCopied(false);
     setDone(null);
     setUsername('');
   };
@@ -112,6 +114,10 @@ export function ManifoldButton({
             {done ? (
               <>
                 <p className="mfimport-done">{done}</p>
+                {/* The one place this is said. It is only true once the
+                    link exists, and saying it earlier (or on the earn
+                    page) is noise the reader cannot act on yet. */}
+                <p className="mfimport-note">You can take the code out of your Manifold bio now.</p>
                 <button className="ticket-go is-placed" onClick={close}>
                   Done
                 </button>
@@ -119,9 +125,8 @@ export function ManifoldButton({
             ) : step === 'ask' ? (
               <>
                 <p className="mfimport-lead">
-                  Link an established Manifold account once for a fixed grant: at least 90 days old, not a bot, and
-                  either traded in the last 60 days or with markets other people traded. Today's grant is on{' '}
-                  <Link to="/earn">the earn page</Link>.
+                  At least 90 days old, not a bot, and either traded in the last 60 days or with markets other people
+                  traded. <Link to="/earn">What it pays</Link>.
                 </p>
                 <label className="jobform-field">
                   <span className="ticket-label">Your Manifold username</span>
@@ -139,10 +144,33 @@ export function ManifoldButton({
               </>
             ) : (
               <>
+                {/* One action, and the code is the subject of the screen
+                    rather than a word inside a sentence (owner ask
+                    2026-08-31). Copy, paste, verify. */}
                 <p className="mfimport-lead">
-                  Add <code>{step.code}</code> anywhere in @{step.username}&rsquo;s bio on manifold.markets, then
-                  verify. You can remove it right after.
+                  Put this anywhere in @{step.username}&rsquo;s bio on{' '}
+                  <a href={`https://manifold.markets/${step.username}`} target="_blank" rel="noopener noreferrer">
+                    manifold.markets
+                  </a>
+                  , then verify.
                 </p>
+                <div className="mfimport-code">
+                  <code>{step.code}</code>
+                  <button
+                    type="button"
+                    className="mfimport-copy"
+                    onClick={() => {
+                      // Clipboard is best-effort: it is blocked without a
+                      // secure context, and the code is selectable anyway.
+                      navigator.clipboard?.writeText(step.code).then(
+                        () => setCopied(true),
+                        e => console.error('clipboard write failed:', e),
+                      );
+                    }}
+                  >
+                    {copied ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
                 <button className="ticket-go" disabled={busy} onClick={() => void claim()}>
                   {busy ? 'Verifying…' : 'Verify and import'}
                 </button>

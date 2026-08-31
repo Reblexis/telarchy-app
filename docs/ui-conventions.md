@@ -1511,12 +1511,27 @@ Three surfaces, no banners:
   `/earn` and carries what is unclaimed in the accent colour.
 - **The top bar's earn door**, for signed-in accounts only.
 
+The Manifold link dialog is one action a step: name the account, then put
+the code in the bio, with the code as the subject of its own step rather
+than a word inside a sentence. The reassurance that the code can come
+back out is said ONCE, on the success screen, because that is the only
+moment it is both true and actionable; it is not on `/earn` and not on
+the step that asks for it (owner ask 2026-08-31, "i dont want you to be
+too spammy again").
+
 `/earn` itself is the price list and nothing else: a row per earn, its
 number, and the button that does it. Two of its rows are not one-time
 grants and are shown differently: trading profit has no ceiling and no
 number ("no limit"), and the daily streak shows the range its multiplier
 spans. Neither counts toward "earned" or "left to claim", because that
 tally has to mean a number somebody can finish.
+
+What counts as "left to earn" is the unclaimed one-time rows PLUS today's
+daily streak while it is unearned, added together. The streak was missing
+from that sum until 2026-08-31 and the door vanished for anyone who had
+finished the one-time list, though trading that day was still worth 25 to
+100 credits to them; a door that cannot see a recurring earn is a door
+that retires the moment the platform starts paying for habit.
 
 Every one of them renders nothing when the account has nothing left to
 earn, and nothing when the read fails. That absence is the rule: a

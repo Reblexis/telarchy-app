@@ -2106,6 +2106,45 @@ button.notif-row-link {
   font-weight: 600;
   color: var(--higher);
 }
+/* Said once, after the link exists, because that is when it is true. */
+.mfimport-note {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+/* The code is the subject of the step, not a word inside a sentence: one
+   thing to copy, one place to put it. */
+.mfimport-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+}
+.mfimport-code code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.mfimport-copy {
+  flex: none;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
 
 /* Join Discord (owner ask 2026-08-11): a quiet transparent glyph that
    grows a label on hover/focus. The label width animates so at rest it
