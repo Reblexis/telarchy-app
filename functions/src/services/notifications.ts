@@ -821,7 +821,7 @@ export async function listNotifications(
       const lastReading = new Map(readingRows.map(r => [r.metricId, r.at ? new Date(r.at) : null]));
       for (const m of soon) {
         const at = lastReading.get(m.metricId) ?? null;
-        if (readingIsStaleFor(m.targetDate, at)) {
+        if (readingIsStaleFor(m.targetDate, at, now)) {
           staleSoon.push({
             marketId: m.id,
             metricName: m.metricName,

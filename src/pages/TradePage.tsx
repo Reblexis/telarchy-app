@@ -494,10 +494,14 @@ export function TradePage() {
   // than three days old" (owner decision 2026-08-31). Three days was
   // meaningless twice over: an hourly market is stale within the hour, and a
   // market on next year's revenue is not stale after a week.
-  const readingIsStale =
-    !!hero &&
-    (!lastReading?.at ||
-      (!!hero.periodStart && new Date(lastReading.at).getTime() < new Date(hero.periodStart).getTime()));
+  const readingIsStale = (() => {
+    if (!hero) return false;
+    const start = hero.periodStart ? new Date(hero.periodStart).getTime() : null;
+    // A period that has not started yet cannot have a stale reading in it.
+    if (start !== null && now.getTime() < start) return false;
+    if (!lastReading?.at) return true;
+    return start !== null && new Date(lastReading.at).getTime() < start;
+  })();
   // The distinct numbers this floor prices, in the same label shape the rest
   // of the page uses (metricLabelOf owns that; see floor-horizons.ts). Feeds
   // the propose form's placeholder, so a proposer is told what their contract
