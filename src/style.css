@@ -3911,6 +3911,26 @@ textarea.jobform-line--desc {
 .pubws-bet-btn:active { transform: none; }
 .pubws-bet-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
+/* The price a verb carries (docs/ui-conventions.md, "An untouched ticket
+   still quotes both sides"): mono, a size down, and slightly held back on
+   the fill so the verb still leads. */
+.pubws-bet-price {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9em;
+  opacity: 0.85;
+}
+
+/* The one line under the verbs: what a share pays. It leaves when the
+   ticket opens. */
+.pubws-bet-note {
+  margin: 0.55rem 0 0;
+  text-align: center;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+  text-wrap: pretty;
+}
+
 .pubws-pos-summary {
   display: block;
   margin: 0.7rem auto 0;

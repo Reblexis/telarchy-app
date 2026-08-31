@@ -708,9 +708,13 @@ picked (the amount, the confirm, the fine print and, when it exists, the
 price mode all appear once a side is chosen), so an untouched ticket asks
 exactly one question.
 
-**An untouched ticket still quotes both sides.** Each pill carries the
-price of one share of that side, in cents, and under the pair one line
-says what a share pays: 1 credit if the number settles at the top of the
+**An untouched ticket still quotes both sides**, and so does the floor
+that has not opened one. Each side pill carries the price of one share of
+that side, in cents, and so does each of the floor's two bet verbs, which
+are the untouched state on a market page: the ticket only exists once a
+verb has been pressed and it opens with a side already chosen, so quoting
+inside it alone would still make a visitor commit to a direction to learn
+a price. Under either pair one line says what a share pays: 1 credit if the number settles at the top of the
 range, nothing at the bottom, in proportion in between. The price is the
 market's own number (`probability` for Higher, its complement for Lower)
 and it is the whole quote, as it is on Kalshi, Polymarket and Manifold,
@@ -721,7 +725,10 @@ the chance of an event and be false. A price that rounds to nothing shows
 as `<1c` and one that rounds to the whole credit as `>99c`; neither is
 ever quoted as 0c or 100c, which would say the side cannot pay or cannot
 lose. Nothing else joins them: the stake, the shares it buys and the
-break-even it implies still wait for a side. The rule this replaces
+break-even it implies still wait for a side, and the line under the verbs
+leaves when the ticket opens, because from there the fact rows say the same
+thing about the actual bet. The wording lives in `src/lib/market-quote.ts`,
+which both surfaces call, so the two can never drift apart. The rule this replaces
 (2026-08-10, "an untouched ticket asks one question") cost the platform
 its most calibrated trader, who could not price a trade without pressing
 a button first (`notes/quroe-churn-2026-08-27.md`,

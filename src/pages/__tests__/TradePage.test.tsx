@@ -314,7 +314,7 @@ describe('an unfunded market does not offer a bet it cannot take', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Bet Higher ↑' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Bet Higher/ }));
     await waitFor(() => expect(container.querySelector('.pubws-ticket-inline')).toBeTruthy());
     expect(document.querySelector('.floor-modal-overlay')).toBeNull();
     // The ticket sits inside the floor's action section, under the verbs.
@@ -425,8 +425,8 @@ describe('the activity panel under a selected contract', () => {
         expect.objectContaining({ proposalId: 'job-1' }),
       ),
     );
-    expect(screen.queryByRole('button', { name: 'Bet Higher ↑' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Bet Lower ↓' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Bet Higher/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Bet Lower/ })).toBeNull();
   });
 
   test('follows the branch toggle', async () => {
@@ -1236,5 +1236,67 @@ describe('a floor with no market yet', () => {
     renderFloor();
     expect(await screen.findByText('Nothing is priced here yet. The owner has not added a number.')).toBeTruthy();
     expect(screen.queryByText('Higher')).toBeNull();
+  });
+});
+
+/**
+ * The price on the floor's own verbs (docs/ui-conventions.md, "An untouched
+ * ticket still quotes both sides"). On this page the untouched state is the
+ * two verbs, not the ticket: the ticket only exists once a verb has been
+ * pressed, and it opens with a side already chosen. So the quote has to be
+ * on the verbs, or a visitor still cannot price a trade without committing
+ * to a direction first (notes/quroe-churn-2026-08-27.md).
+ */
+describe('the floor quotes both sides before the first click', () => {
+  const tradable = (probability: number) => {
+    const ws = h.workspace();
+    ws.joinAs = 'trader';
+    ws.markets[0].probability = probability;
+    return ws;
+  };
+
+  test('each verb carries the price of a share of that side', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(tradable(0.14) as never);
+    renderFloor();
+
+    const higher = await screen.findByRole('button', { name: /Bet Higher/ });
+    const lower = screen.getByRole('button', { name: /Bet Lower/ });
+    expect(higher.textContent).toContain('14c');
+    expect(lower.textContent).toContain('86c');
+  });
+
+  test('one line under the verbs says what a share pays, naming both ends', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(tradable(0.5) as never);
+    const { container } = renderFloor();
+
+    await screen.findByRole('button', { name: /Bet Higher/ });
+    expect(container.textContent).toContain('A share pays 1 credit');
+    expect(container.textContent).toContain('$500,000');
+    expect(container.textContent).toContain('$0,');
+  });
+
+  test('the line goes once the ticket is open, which says the same thing about the bet', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(tradable(0.5) as never);
+    const { container } = renderFloor();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Bet Higher/ }));
+    await waitFor(() => expect(container.querySelector('.pubws-ticket-inline')).toBeTruthy());
+    expect(container.textContent).not.toContain('A share pays 1 credit');
+  });
+
+  test('a market with no liquidity quotes nothing: there is no book to price', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.joinAs = 'trader';
+    ws.markets[0].liquidity = 0;
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+
+    await waitFor(() => expect(screen.getByText(/no liquidity yet/i)).toBeTruthy());
+    expect(container.textContent).not.toContain('A share pays 1 credit');
+    expect(container.textContent).not.toContain('50c');
   });
 });
