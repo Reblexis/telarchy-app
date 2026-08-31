@@ -304,3 +304,49 @@ describe('the floor hands Otto the index, not the brief', () => {
     expect(system).not.toContain('A LONG PITCH');
   });
 });
+
+/**
+ * The prompt has to describe the payload the route actually sends. It said
+ * "every contract with its priced impact" for as long as that was true and
+ * for one commit after it stopped being true, which is the belief that keeps
+ * him from looking: an assistant told it is already holding the number does
+ * not go and fetch it.
+ */
+describe('the prompt describes what he is actually holding', () => {
+  const systemTurn = async () => {
+    process.env.AI_GATEWAY_API_KEY = 'test-key';
+    const bodies: any[] = [];
+    global.fetch = (async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)));
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { role: 'assistant', content: 'ok' } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.0001 },
+        }),
+        text: async () => '',
+      } as unknown as Response;
+    }) as unknown as typeof fetch;
+    await request(app).post(`/api/marketplace/${WS}/ask`).send({ question: 'anything' });
+    return bodies[0].messages[0].content as string;
+  };
+
+  test('it never promises him a priced impact he was not given', async () => {
+    const system = await systemTurn();
+    expect(system).not.toMatch(/every contract with its priced impact/i);
+  });
+
+  test('it says the contracts are a list and the prices are a call away', async () => {
+    const system = await systemTurn();
+    expect(system).toMatch(/titles?[^.]*\bno prices?\b|no prices?[^.]*\btitles?\b/i);
+    expect(system).toMatch(/call_api|go and read|fetch/i);
+  });
+
+  test('"I could not find it" is only honest after he has looked', async () => {
+    const system = await systemTurn();
+    // The old rule stopped at the brief and the data room, which let him
+    // decline a question the API and the web could both have answered.
+    expect(system).toMatch(/search_web/);
+    expect(system).not.toMatch(/If neither the brief nor the data room has it/i);
+  });
+});
