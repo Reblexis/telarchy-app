@@ -2476,6 +2476,13 @@ the app could not register, and no address is filed. That is the designed
 behaviour, not a silent hole.</li>
 <li>The signing material for each store, which lives with the store accounts.</li>
 </ul>
+<p>A release bundle is signed from the environment, never from the tree:
+<code>ANDROID_KEYSTORE_PATH</code>, <code>ANDROID_KEYSTORE_PASSWORD</code>, <code>ANDROID_KEY_ALIAS</code> and
+<code>ANDROID_KEY_PASSWORD</code>. Absent them the signing config is not declared at all,
+so a debug build needs nothing. <code>.github/workflows/mobile-shell.yml</code> assembles
+the debug APK on every pull request that touches the shell, and produces the
+signed bundle on demand; it stays inert rather than red until the store
+credentials exist.</p>
 <p><code>npx cap add</code> and Capacitor upgrades rewrite the native projects from the
 template, which silently restores Capacitor's own launcher icon and splash.
 Regenerate ours from <code>public/logo.png</code> afterwards with

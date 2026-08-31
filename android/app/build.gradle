@@ -16,10 +16,27 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Release signing comes from the environment, never from the tree: the
+    // keystore is a Play credential and lives in CI secrets (docs/mobile.md).
+    // Absent them the block is simply not declared, so a debug build on any
+    // machine works exactly as before and only bundleRelease needs them.
+    signingConfigs {
+        if (System.getenv("ANDROID_KEYSTORE_PASSWORD")) {
+            release {
+                storeFile file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "telarchy.keystore")
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (System.getenv("ANDROID_KEYSTORE_PASSWORD")) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

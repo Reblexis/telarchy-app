@@ -97,3 +97,22 @@ frontend that is already installable.
 `GET https://telarchy.com/api/notifications/push-key` answers
 `{"configured":true,...}` as of 2026-08-30, so the VAPID keys are set on the
 live service and the mobile channel is genuinely sending, not silently dark.
+
+## Built 2026-08-31
+
+Viktor: "i want the best option .. you can code it yourself in an hour either
+way", then "ok". TWA was dropped on his own argument: if iOS is happening
+eventually, a TWA is throwaway work. Capacitor for both platforms, shells
+loading the live origin.
+
+What landed, on branch `mobile-app-proposal`: `docs/mobile.md` as the governing
+doc, the web app manifest and its icons, the `transport` column and FCM
+alongside Web Push, the `ensureMobileAddress` entry point, both Capacitor
+projects with Telarchy's mark over the scaffold's, and the shell CI. Verified
+past the suite: a 6.0MB debug APK, and a signed release bundle built with a
+throwaway key that was deleted afterwards.
+
+Still Viktor's to do, and the only remaining blockers: the Apple Developer
+Program enrolment, the Play Console registration as an organization (an
+individual account owes a 12-tester closed test for 14 days), and the Firebase
+project that yields `google-services.json` and takes the APNs key.

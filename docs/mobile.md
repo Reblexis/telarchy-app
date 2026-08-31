@@ -100,6 +100,14 @@ Two things are not in the repo and have to be added before store push works:
   behaviour, not a silent hole.
 - The signing material for each store, which lives with the store accounts.
 
+A release bundle is signed from the environment, never from the tree:
+`ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
+`ANDROID_KEY_PASSWORD`. Absent them the signing config is not declared at all,
+so a debug build needs nothing. `.github/workflows/mobile-shell.yml` assembles
+the debug APK on every pull request that touches the shell, and produces the
+signed bundle on demand; it stays inert rather than red until the store
+credentials exist.
+
 `npx cap add` and Capacitor upgrades rewrite the native projects from the
 template, which silently restores Capacitor's own launcher icon and splash.
 Regenerate ours from `public/logo.png` afterwards with
