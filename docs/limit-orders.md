@@ -15,12 +15,10 @@ they believe in) or does nothing. A resting order lets them say "I will buy
 down to $65k and no further", and be filled by whoever pushes the price
 into them later.
 
-That is also the honest answer to the position cap: a workspace's
-`maxPositionCostPerMarket` bounds how far one account can move the price at
-once, and limit orders let the same conviction be expressed over time instead
-of in one shove. The schema default is 0, meaning no cap at all; the Season 0
-floor runs 5,000, and a resting order's reserved budget counts against it like
-a trade does.
+Nothing caps the size of a position, so a resting order is not a way around a
+limit. It is a way to be paid a better average price for the same conviction:
+the shove pays the whole move, the resting order is filled by whoever brings
+the price to it.
 
 ## Model
 
@@ -77,13 +75,11 @@ for the next trade:
    limit order rather than a delayed market order.
 4. Stop when the price no longer crosses any order.
 
-Fills are ordinary trades: same position rows, same cap accounting, same
+Fills are ordinary trades: same position rows, same
 `replayMarketTradePoints` history, so the chart shows them like any other
 step. This is enforced structurally rather than by discipline: there is one
 `executeTradeInTx` in `services/trading.ts`, and both the trade route and the
-fill pass call it. **The per-account position cap applies to the total of
-filled credits plus open reservations**, or an account could exceed the cap
-by resting orders it knows will fill.
+fill pass call it.
 
 Two properties the implementation must keep, because losing either turns a
 limit order into something else:

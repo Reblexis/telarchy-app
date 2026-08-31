@@ -237,7 +237,7 @@ flat set with no implication chain.
 > publish announcements, edit the charter and manage groups. They get 403 on
 > every lifecycle setting (`visibility`, `autoFundNewMarkets`,
 > `newMarketLiquidityCredits`, `proposalReward`, `spamPenalty`,
-> `maxPendingProposalsPerParticipant`, `maxPositionCostPerMarket`) and they
+> `maxPendingProposalsPerParticipant`) and they
 > cannot delete the workspace. In practice only the creator can, because the
 > creator gets every capability by being the creator and no group hands
 > `manage_workspace` out.

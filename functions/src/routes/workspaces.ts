@@ -235,7 +235,11 @@ workspacesRouter.put(
     // duplicates (keeping first occurrence) so a stale client cannot poison order.
     const memberSet = new Set((await getAuthWorkspaceMemberships({ uid, agentId })).map(m => m.workspaceId));
     const seen = new Set<string>();
-    const order = (ids as string[]).filter(id => memberSet.has(id) && !seen.has(id) && (seen.add(id), true));
+    const order = (ids as string[]).filter(id => {
+      if (!memberSet.has(id) || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
 
     // Replace this identity's ordering wholesale so workspaces omitted from the
     // list (e.g. one the caller just left) don't linger with a stale position.
@@ -386,15 +390,13 @@ workspacesRouter.put(
     const hasProposalRewardKey = Object.prototype.hasOwnProperty.call(req.body, 'proposalReward');
     const hasSpamPenaltyKey = Object.prototype.hasOwnProperty.call(req.body, 'spamPenalty');
     const hasMaxPendingKey = Object.prototype.hasOwnProperty.call(req.body, 'maxPendingProposalsPerParticipant');
-    const hasPositionCapKey = Object.prototype.hasOwnProperty.call(req.body, 'maxPositionCostPerMarket');
     const touchesLifecycleFields =
       hasAutoFundKey ||
       hasCreditsKey ||
       hasVisibilityKey ||
       hasProposalRewardKey ||
       hasSpamPenaltyKey ||
-      hasMaxPendingKey ||
-      hasPositionCapKey;
+      hasMaxPendingKey;
 
     // Lifecycle-shaped fields (visibility, auto-fund, liquidity defaults) are
     // gated by the granular `manage_workspace` capability, which the Admin group
@@ -417,7 +419,6 @@ workspacesRouter.put(
       proposalReward,
       spamPenalty,
       maxPendingProposalsPerParticipant,
-      maxPositionCostPerMarket,
     } = req.body;
     const update: Partial<typeof workspaces.$inferInsert> = {};
 
@@ -544,20 +545,6 @@ workspacesRouter.put(
         return;
       }
       update.maxPendingProposalsPerParticipant = maxPendingProposalsPerParticipant;
-    }
-
-    if (hasPositionCapKey) {
-      if (
-        typeof maxPositionCostPerMarket !== 'number' ||
-        !Number.isFinite(maxPositionCostPerMarket) ||
-        maxPositionCostPerMarket < 0
-      ) {
-        res
-          .status(400)
-          .json({ error: 'maxPositionCostPerMarket must be a non-negative number of credits (0 disables the cap)' });
-        return;
-      }
-      update.maxPositionCostPerMarket = maxPositionCostPerMarket;
     }
 
     if (nextAuto && nextCredits <= 0) {

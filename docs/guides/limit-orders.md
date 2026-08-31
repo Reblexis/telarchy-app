@@ -29,9 +29,8 @@ for. Place a trade instead.
 ## The budget is taken up front
 
 The credits are debited when you place the order and held in reserve. Your
-spendable balance is net of them, and they count toward the workspace's
-per-market position cap. Cancel, expire, void or resolve and the unfilled
-remainder comes back.
+spendable balance is net of them. Cancel, expire, void or resolve and the
+unfilled remainder comes back.
 
 This is the part that catches people out: a resting order is money you have
 already committed, not an intention.

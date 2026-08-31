@@ -42,14 +42,7 @@ import {
   resolveSingleMarket,
 } from '../services/predictions';
 import { createConditionalMarkets, subsidyContributionsOf } from '../services/proposals';
-import {
-  capUsage,
-  closeLimitOrderInTx,
-  executeTradeInTx,
-  fillLimitOrdersInTx,
-  positionCap,
-  type TradeMode,
-} from '../services/trading';
+import { closeLimitOrderInTx, executeTradeInTx, fillLimitOrdersInTx, type TradeMode } from '../services/trading';
 import { clearBoardCache } from './leaderboard';
 
 export const predictionsRouter = Router();
@@ -444,18 +437,6 @@ predictionsRouter.post(
           balance: fromUnits(agentRow.balance as number),
           cost: budgetCredits,
         });
-      }
-
-      const cap = await positionCap(tx, workspaceId);
-      if (cap > 0) {
-        const used = await capUsage(tx, workspaceId, marketId, agentId);
-        if (used + budgetCredits > cap + 1e-9) {
-          throw new AppError(
-            `Position cap reached: this workspace limits each participant to ${cap} credits of buys per market, counting credits reserved by open orders (you have used ${Math.round(used * 100) / 100}).`,
-            400,
-            { cap, spent: used, attempted: budgetCredits },
-          );
-        }
       }
 
       await applyCredits(tx, {

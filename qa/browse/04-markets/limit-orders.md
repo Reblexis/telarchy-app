@@ -126,14 +126,14 @@ count).
 the row disappears from the ticket and the rule disappears from the chart;
 a second cancel returns 400.
 
-### T7. Reserved credits count against the position cap
+### T7. Reserved credits limit nothing but the balance
 
 **Steps:**
-1. With `maxPositionCostPerMarket` set (default 250 on the public floor),
-   rest an order for most of the cap, then try to buy the rest by hand.
+1. Rest an order for most of the balance, then buy by hand with what is left.
 
-**Expect:** 400 with `Position cap reached`, and `spent` in the body INCLUDES
-the reserved credits. Otherwise resting orders would be a way around the cap.
+**Expect:** both go through. The reservation is money already committed, so it
+is out of the spendable balance, and nothing else limits either size: no cap
+exists on what one participant may put into one market.
 
 ### T8. Resolution does not strand reserved money
 

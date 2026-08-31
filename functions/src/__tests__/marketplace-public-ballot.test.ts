@@ -505,7 +505,7 @@ describe('public ballot disclosure gate', () => {
     await seed(['read', 'trade']);
     const res = await request(app).get(`/api/marketplace/${WS}`);
     expect(res.body.signupCredits).toBeGreaterThan(0);
-    expect(res.body.maxPositionCostPerMarket).toBe(0);
+    expect(res.body.maxPositionCostPerMarket).toBeUndefined();
     expect(res.body.joinAs).toBe('trader');
   });
 

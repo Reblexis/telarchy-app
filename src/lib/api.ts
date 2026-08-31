@@ -487,9 +487,6 @@ export interface PublicWorkspace {
   spamPenalty: number;
   /** What pressing join actually grants, per the Public group's capabilities. */
   joinAs: 'trader' | 'viewer';
-  /** Per-participant buy cap per market in credits; 0 = none. Shown so the
-   *  fairness bound is a stated rule, not something taken on faith. */
-  maxPositionCostPerMarket: number;
   /** The platform signup grant, so the page can say what you start with. */
   signupCredits: number;
   metricCount: number;

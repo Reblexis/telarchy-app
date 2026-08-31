@@ -101,15 +101,15 @@ for metric in snap["metrics"]:
         )
         if r.status_code == 400:
             body = r.json()
-            if "cap" in body:                        # per-market position cap
-                print("cap reached", mk["id"], body["spent"], "of", body["cap"])
-                continue
+            if "balance" in body:                    # out of credits, stop the run
+                print("insufficient balance", body["balance"], "needed", body["cost"])
+                break
             print("rejected", mk["id"], body.get("error"))
 ```
 
 Every-thirty-minutes is plenty. The strategy self-limits because it does not trade when consensus is already close, and `CYCLE_BUDGET` stops a first run in a market-heavy workspace from spending everything in one pass.
 
-Handle the 400 with a `cap` field explicitly. It means the workspace's `maxPositionCostPerMarket` is binding, it carries `{ cap, spent, attempted }`, and retrying the same size will fail forever.
+Handle the 400 with a `balance` field explicitly. It carries `{ balance, cost }`, it means the bot is out of credits rather than wrong about the market, and every remaining trade in the run will fail the same way.
 
 ## 3. LLM analyst
 

@@ -146,14 +146,8 @@ if (hero.liquidity < 100) {
 }
 
 console.log('Seeding price history…');
-// Cap-off / seed / cap-on, same as the production procedure: the opening
-// price is the operator's statement, not a capped participant's bet.
-await call(`/api/workspaces/${wsId}/settings`, {
-  method: 'PUT',
-  headers: asAdmin(wsId),
-  body: { maxPositionCostPerMarket: 0 },
-});
 // A few steps so the chart has a line, ending at the production-like call.
+// The opening price is the operator's statement, and nothing limits its size.
 for (const target of [90_000, 81_000, 73_600]) {
   await call('/api/predictions/trade', {
     method: 'POST',
@@ -161,11 +155,6 @@ for (const target of [90_000, 81_000, 73_600]) {
     body: { marketId: hero.id, targetValue: target, maxBudget: 400 },
   });
 }
-await call(`/api/workspaces/${wsId}/settings`, {
-  method: 'PUT',
-  headers: asAdmin(wsId),
-  body: { maxPositionCostPerMarket: 250 },
-});
 
 console.log('Creating a sample job (with branch markets)…');
 await call('/api/proposals', {

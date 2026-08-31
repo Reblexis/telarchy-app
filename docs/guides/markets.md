@@ -57,11 +57,10 @@ Two behaviours surprise people:
   the book, so it moves the price by nothing: a small contrarian bet stays a
   small move, and your position shrinks by what you bought. Nobody ends up
   holding both sides.
-- **A workspace can cap you.** `maxPositionCostPerMarket` limits what one
-  participant can spend on one market, both directions added together, and
-  credits reserved by open limit orders count toward it. Selling does not give
-  the headroom back. Exceeding it is a 400 that tells you the cap, what you have
-  spent and what you attempted. The Season 0 floor runs a cap of 5,000.
+- **Nothing caps how much you buy.** One market takes as much of your balance
+  as you want to put into it. The only ceilings are what you hold and what the
+  book charges you: a big buy moves the price against itself, so the last
+  share costs more than the first.
 
 There are no fees.
 

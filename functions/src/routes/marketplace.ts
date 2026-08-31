@@ -1017,10 +1017,6 @@ async function buildFloorPayload(ws: PublicWs) {
     proposalReward: ws.proposalReward,
     spamPenalty: ws.spamPenalty,
     joinAs: publicCaps.includes('trade') ? 'trader' : 'viewer',
-    // The manipulation bound, surfaced so the page can state the fairness rule
-    // ("no account can put more than N credits into one market") instead of
-    // asking visitors to take it on faith. 0 = no cap.
-    maxPositionCostPerMarket: ws.maxPositionCostPerMarket,
     // What a USER signup starts with. API registrations start with
     // agentSignupCredits (default 0 since 2026-08-28) and are funded by
     // their owner's transfers, so a bot reading this page knows the stakes

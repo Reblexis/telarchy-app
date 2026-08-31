@@ -666,6 +666,13 @@
       "when": 1788300011000,
       "tag": "0094_reading_freshness",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1788300012000,
+      "tag": "0095_drop_position_cap",
+      "breakpoints": true
     }
   ]
 }
