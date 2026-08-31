@@ -309,6 +309,28 @@ export function DatesDialog({
           </button>
         </div>
 
+        {/* A property of the metric, so it sits with the metric rather than
+          inside the add form: how long after a period its number is final,
+          which is when its markets settle (docs/guides/sources.md). */}
+        <div className="jobform-field dates-lag">
+          <span className="ticket-label">This number is final how long after each period?</span>
+          <span className="odlg-dayrow">
+            <input
+              className="jobform-line odlg-mono odlg-day"
+              value={lagDays}
+              disabled={busy}
+              onChange={e => setLagDays(e.target.value)}
+              aria-label="Days after the period"
+            />
+            <span className="odlg-or">
+              {lagDays.trim() === '0' || lagDays.trim() === ''
+                ? 'days: a market settles the moment its period ends'
+                : `days: a market settles ${lagDays.trim()} after its period ends, which is your window to report`}
+            </span>
+          </span>
+          <span className="odlg-note-left">Markets already open keep the day they were opened with.</span>
+        </div>
+
         <div className="ticket-facts">
           {entries === null && <p className="odlg-note-left">Reading the dates…</p>}
           {entries?.length === 0 && (
@@ -398,20 +420,6 @@ export function DatesDialog({
             </span>
           </div>
         )}
-
-        <div className="jobform-field">
-          <span className="ticket-label">This number is final how long after the period?</span>
-          <span className="odlg-dayrow">
-            <input
-              className="jobform-line odlg-mono odlg-day"
-              value={lagDays}
-              disabled={busy}
-              onChange={e => setLagDays(e.target.value)}
-              aria-label="Days after the period"
-            />
-            <span className="odlg-or">days, so a market settles then rather than at the period's last second</span>
-          </span>
-        </div>
 
         <div className="jobform-field">
           <span className="ticket-label">Liquidity behind each one · from your {fmtCr(spendable)} cr</span>

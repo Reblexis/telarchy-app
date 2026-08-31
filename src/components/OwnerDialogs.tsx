@@ -586,14 +586,31 @@ export function ReportValueDialog({
   const first = lastValue === null;
   const [value, setValue] = useState(first ? '' : fmtCr(lastValue));
   const [note, setNote] = useState('');
-  // A number for a period that has closed is typed after it and belongs to
-  // it: "September finished at 4,812", typed on 3 October. Off by default,
-  // because most readings are of now.
+  // WHEN this reading was true, which is not always now: "September finished
+  // at 4,812" is typed in October and belongs to September, and a number
+  // nobody filed on Friday belongs to Friday (owner ask 2026-08-31). The
+  // checkbox is the one-press version for a closed period; the day and hour
+  // under it file any past moment. Both empty means now, which is what almost
+  // every report is.
   const [backdate, setBackdate] = useState(false);
+  const [asOfDay, setAsOfDay] = useState('');
+  const [asOfHour, setAsOfHour] = useState('');
   const [range, setRange] = useState(fmtCr(rangeMax));
   const [rangeTouched, setRangeTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+
+  // Where this reading is filed. Null means now, and the request carries no
+  // asOf at all, which is the shape every existing caller sends.
+  const asOfInstant = (() => {
+    if (backdate && periodEnd) return periodEnd;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDay)) return null;
+    const hh = asOfHour ? asOfHour.slice(0, 5) : '23:59';
+    const d = new Date(`${asOfDay}T${hh}:00.000Z`);
+    if (Number.isNaN(d.getTime()) || d.getTime() > Date.now()) return null;
+    return d.toISOString();
+  })();
+  const asOfInFuture = !backdate && /^\d{4}-\d{2}-\d{2}$/.test(asOfDay) && asOfInstant === null;
 
   const parsed = Number(value.replace(/,/g, '').trim());
   const valid = value.trim() !== '' && Number.isFinite(parsed);
@@ -630,7 +647,7 @@ export function ReportValueDialog({
         value: parsed,
         oldValue: lastValue ?? 0,
         updateNote: note.trim(),
-        ...(backdate && periodEnd ? { asOf: periodEnd } : {}),
+        ...(asOfInstant ? { asOf: asOfInstant } : {}),
         ...(rangeEditable && shownRangeNum !== null && shownRangeNum !== rangeMax
           ? { marketRangeMax: shownRangeNum }
           : {}),
@@ -749,7 +766,7 @@ export function ReportValueDialog({
               {backdate ? '✓' : ''}
             </span>
             <span>
-              This is {periodLabel ? `${periodLabel}'s` : 'that period’s'} number, not today's
+              This is {periodLabel ? `${periodLabel}'s` : "that period's"} number, not today's
               <span className="odlg-note-left">
                 Files it at the end of the period, which is what its market settles on.
               </span>
@@ -757,10 +774,44 @@ export function ReportValueDialog({
           </button>
         )}
 
+        {/* Any past moment, for the reading that was true on Friday and typed
+          on Monday. Empty is now. */}
+        {!backdate && (
+          <label className="jobform-field">
+            <span className="ticket-label">When was it true? Leave empty for now</span>
+            <span className="odlg-dayrow">
+              <input
+                type="date"
+                className="jobform-line odlg-mono odlg-day"
+                value={asOfDay}
+                max={new Date().toISOString().slice(0, 10)}
+                disabled={busy}
+                onChange={e => setAsOfDay(e.target.value)}
+                aria-label="The day this reading was true"
+              />
+              <span className="odlg-or">at</span>
+              <input
+                type="time"
+                className="jobform-line odlg-mono odlg-day"
+                value={asOfHour}
+                disabled={busy || !asOfDay}
+                onChange={e => setAsOfHour(e.target.value)}
+                aria-label="The hour it was true, UTC"
+              />
+              <span className="odlg-or">UTC, the end of that day if you leave it</span>
+            </span>
+            {asOfInFuture && <span className="odlg-note-left">That is in the future, so it is not a measurement.</span>}
+          </label>
+        )}
+
         {err && <p className="ticket-err">{err}</p>}
         <button className="ticket-go" disabled={busy || !valid} onClick={() => void report()}>
           {busy ? 'Reporting…' : valid ? `Report ${unit}${fmtCr(parsed)}` : 'Report'}
-          <span className="ticket-go-sub">Public, timestamped, and kept beside the old one for good.</span>
+          <span className="ticket-go-sub">
+            {asOfInstant
+              ? `Filed at ${asOfInstant.slice(0, 16).replace('T', ', ')} UTC, which decides the market that settles on it.`
+              : 'Public, timestamped, and kept beside the old one for good.'}
+          </span>
         </button>
       </div>
     </FloorModal>

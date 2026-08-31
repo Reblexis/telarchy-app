@@ -440,6 +440,35 @@ describe('dialog 4: report the number', () => {
     await waitFor(() => expect(reportMetricValue.mock.calls[0][2]).not.toHaveProperty('asOf'));
   });
 
+  // Owner ask 2026-08-31: past values have to be easy from the page, not only
+  // for the one period the checkbox covers.
+  test('any past day and hour can be filed, and it says where it lands', async () => {
+    render(<ReportValueDialog {...props} lastValue={0} rangeEditable={false} onDone={() => {}} />);
+    fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '4812' } });
+    fireEvent.change(screen.getByLabelText('The day this reading was true'), { target: { value: '2026-08-29' } });
+    fireEvent.change(screen.getByLabelText('The hour it was true, UTC'), { target: { value: '18:00' } });
+    expect(screen.getByText(/Filed at 2026-08-29, 18:00 UTC/)).toBeTruthy();
+    fireEvent.click(screen.getByText(/Report \$4,812/));
+    await waitFor(() => expect(reportMetricValue.mock.calls[0][2]).toMatchObject({ asOf: '2026-08-29T18:00:00.000Z' }));
+  });
+
+  test('a day with no hour lands at the end of that day, where the market looks', async () => {
+    render(<ReportValueDialog {...props} lastValue={0} rangeEditable={false} onDone={() => {}} />);
+    fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '4812' } });
+    fireEvent.change(screen.getByLabelText('The day this reading was true'), { target: { value: '2026-08-29' } });
+    fireEvent.click(screen.getByText(/Report \$4,812/));
+    await waitFor(() => expect(reportMetricValue.mock.calls[0][2]).toMatchObject({ asOf: '2026-08-29T23:59:00.000Z' }));
+  });
+
+  test('a future day is refused on the page, not by the server', async () => {
+    render(<ReportValueDialog {...props} lastValue={0} rangeEditable={false} onDone={() => {}} />);
+    fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '4812' } });
+    fireEvent.change(screen.getByLabelText('The day this reading was true'), { target: { value: '2099-01-01' } });
+    expect(screen.getByText(/in the future, so it is not a measurement/)).toBeTruthy();
+    fireEvent.click(screen.getByText(/Report \$4,812/));
+    await waitFor(() => expect(reportMetricValue.mock.calls[0][2]).not.toHaveProperty('asOf'));
+  });
+
   test('a range the owner typed under the reading is refused, not sent', async () => {
     render(<ReportValueDialog {...props} lastValue={0} rangeMax={1000} rangeEditable={true} onDone={() => {}} />);
     fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '4200' } });
