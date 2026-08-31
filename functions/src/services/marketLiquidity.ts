@@ -114,6 +114,12 @@ export async function applyAgentLiquidityInjectionTx(
     fundedFrom: fromWallet ? 'liquidity' : 'balance',
     createdAt: new Date(),
   });
+  // The book just came into existence, so this is where it gets its opening
+  // price. Inside the injection rather than at each call site because there
+  // were five call sites and one of them remembered (owner report
+  // 2026-08-31). A no-op on every other injection: a market with a price
+  // already has shares.
+  await anchorUntradedMarketTx(tx, { workspaceId: params.workspaceId, marketId: params.marketId });
   emitPricesChanged(params.workspaceId, params.marketId);
 }
 
@@ -150,6 +156,11 @@ export async function anchorUntradedMarketTx(
   if (shares[0] !== 0 || shares[1] !== 0) return false;
   const pool = market.pool ?? 0;
   if (!(market.liquidity > 0) || pool <= 0) return false;
+  // A conditional branch opens at the BASELINE market's consensus adjusted for
+  // the branch and the contract's ask (services/proposals.ts), which is a
+  // different question with a different input. The metric's own value is the
+  // wrong number for it, so this function does not answer for one.
+  if (market.proposalId) return false;
 
   const [metric] = await tx
     .select({ value: metrics.value })

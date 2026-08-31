@@ -3878,15 +3878,22 @@ the midpoint. An LMSR cannot quote certainty, so the seeding clamps into
 solvent book can be placed. The midpoint is the worst answer available
 there: a revenue metric reading $0 on a 0-1,000 range opened its daily
 market at $500 and paid whoever pushed it back down.</p>
-<p><strong>Every path that funds an untraded baseline market opens it the same way.</strong>
-The daily spawn, the refresh that funds a market which opened unfunded
-because the balance was short, and a hand-made market from
-<code>POST /api/predictions/markets</code> all call one function
+<p><strong>Every path that opens a book on an untraded baseline market opens it the
+same way.</strong> The daily spawn, the refresh that funds a market which opened
+unfunded because the balance was short, a hand-made market from
+<code>POST /api/predictions/markets</code> with or without auto-fund, the bulk top-up
+and a single participant's liquidity injection all reach one function
 (<code>anchorUntradedMarketTx</code> in functions/src/services/marketLiquidity.ts), so
-a market's opening price never depends on which of them ran. It refuses a
-market that is already traded or already anchored, whose price is a fact
-about the market rather than a default. <code>anchor-ownership.test.ts</code> fails if
-a second opinion about opening price appears.</p>
+which endpoint paid for the book cannot change the price it opens at. It is
+called from inside <code>applyAgentLiquidityInjectionTx</code> rather than by each
+caller, because there were five such paths and one of them remembered.</p>
+<p>It declines in exactly the cases where there is no blank book to place: a
+market that is already traded, one that is already anchored (shares
+outstanding with no trade behind them is a price, not a blank), and a
+conditional branch, whose opening price is the baseline adjusted for the
+branch and the ask and therefore <code>services/proposals.ts</code>'s question rather
+than this one. <code>anchor-ownership.test.ts</code> fails if a second opinion about
+opening price appears, and <code>every-open-anchors.test.ts</code> pins each path.</p>
 <h3 id="docs-ui-conventions-md--h22">Discussion, Positions, Trades</h3>
 <p>Under the bet buttons sits the conversation: a quiet &quot;Discussion (N)&quot;
 toggle expanding the thread in place, hairline rows, mono names, and the

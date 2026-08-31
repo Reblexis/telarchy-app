@@ -1006,11 +1006,6 @@ predictionsRouter.post(
             agentId: ownerAgentId,
             poolContribution: credits,
           });
-          // A hand-made market opens where the daily spawn would have opened
-          // it: at the metric's current value inside the near horizon
-          // (owner report 2026-08-31, when this path alone still opened at
-          // the range midpoint).
-          await anchorUntradedMarketTx(tx, { workspaceId, marketId });
         });
       } catch (e) {
         if (e instanceof AppError) {
@@ -1051,6 +1046,10 @@ predictionsRouter.post(
           type: 'initial',
           createdAt: new Date(),
         });
+        // This path writes the book itself instead of going through
+        // applyAgentLiquidityInjectionTx (no balance is debited: the caller
+        // states the liquidity), so it asks the same question explicitly.
+        await anchorUntradedMarketTx(tx, { workspaceId, marketId });
       });
       emitPricesChanged(workspaceId, marketId);
     }
@@ -1199,6 +1198,11 @@ predictionsRouter.post(
           type: 'injection',
           createdAt: new Date(),
         });
+        // This loop inlines the injection arithmetic (one credit debit covers
+        // every market in the batch, so it cannot call the shared injection
+        // per market), which means it also has to ask the opening-price
+        // question itself. A no-op on every market that already has a price.
+        await anchorUntradedMarketTx(tx, { workspaceId, marketId: market.id });
         emitPricesChanged(workspaceId, market.id);
       }
 
