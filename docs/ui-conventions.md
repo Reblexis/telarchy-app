@@ -795,9 +795,17 @@ ticket draws the market's range as one track with its ends labelled, and
 marks on it what the money turns on: the market's current value, the value
 the bet breaks even at, and the value the bet pushes the market to. The
 stretch that pays, from the break-even to the trader's own end of the
-range, carries the side's colour. One line under it names the gap in words:
-"You push it to $9,499 but you break even at $8,428, so you have $1,071 of
-room to be wrong."
+range, carries the side's colour. Every value is said ONCE, on its own
+mark, and the line under the track names the gap and nothing else
+("$1,071 of room to be wrong"); a sentence that repeats the numbers above
+it is the text the picture was drawn to replace.
+
+Captions sit over their marks, which is what keeps them from colliding.
+Through the middle half of the range a caption is centred on its mark;
+past that it pins flush to the edge it is nearest and reads inward, so a
+mark at 2% never hangs its caption off the card. The two captions live in
+separate rows, above the track and below it, so they cannot run into each
+other however close the marks get.
 
 That gap is the reason the line exists. Buying walks the price, so the
 shares cost an average of everything between the old price and the new one,
@@ -811,14 +819,18 @@ rather than from the ticket (`notes/quroe-churn-2026-08-27.md`).
 
 An untouched ticket draws the same track carrying only the current value,
 because that is exactly where a share bought right now breaks even, and
-labels the two stretches "Lower wins under $X" and "Higher wins over $X".
+labels the two stretches "Lower wins" and "Higher wins" under their own
+ends. The stretches carry no number: the value is on the mark between
+them, and saying it twice more would be three times.
 Inside the ticket this replaces the payout sentence: the track's own end
 labels already say that a share pays a credit at the top of the range and
 nothing at the bottom, and showing it costs no words. The floor's bet verbs
 keep the sentence, having no track to carry it. A held position gets the
 track too, marked with the holder's own break-even (what they paid per
-share) against where the market stands now, so "how far can this fall
-before I lose" is answered without arithmetic.
+share) against where the market stands now, and answers "how far can this
+fall before I lose" in those words ("Can fall $1,071 before you lose", or
+"Needs $50,000 to break even" when the market has not reached the
+break-even yet).
 
 Two degradations. A market with no range gets the prices and the fact rows
 alone, because a track with no ends is a decoration. In limit mode the fill

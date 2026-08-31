@@ -5095,9 +5095,11 @@ textarea.jobform-line--desc {
   color: var(--text-secondary);
   white-space: nowrap;
 }
-.pay-cap--slim { height: 1rem; }
 .pay-cap--under { height: 1.25rem; margin-top: 0.15rem; }
-.pay-cap span { position: absolute; bottom: 0; transform: translateX(-50%); }
+/* The horizontal placement is inline (PayoffLine.captionStyle): centred over
+   its mark in the middle of the range, pinned to the near edge past that, so
+   a caption can never hang off the card whatever the number is. */
+.pay-cap span { position: absolute; bottom: 0; }
 .pay-cap--under span { top: 0; bottom: auto; }
 .pay-cap b {
   font-family: 'JetBrains Mono', monospace;
