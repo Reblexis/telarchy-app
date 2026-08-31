@@ -726,54 +726,41 @@ picked (the amount, the confirm, the fine print and, when it exists, the
 price mode all appear once a side is chosen), so an untouched ticket asks
 exactly one question.
 
-**An untouched ticket still quotes both sides**, and so does the floor
-that has not opened one. Each side pill carries the price of one share of
-that side, in cents, and so does each of the floor's two bet verbs, which
-are the untouched state on a market page: the ticket only exists once a
-verb has been pressed and it opens with a side already chosen, so quoting
-inside it alone would still make a visitor commit to a direction to learn
-a price. Under either pair one SHORT line says what a share pays: 1 cr at the top
-of the range, nothing at the bottom. Short because the price above it is
-two characters, and a sentence of explanation under a two-character number
-reads as a warning rather than as its unit (owner, 2026-08-31: "this seems
-like too much text"). The linearity in between is left to the ticket's own
-fact rows, which state it about the actual bet. The price is the
-market's own number (`probability` for Higher, its complement for Lower)
-and it is the whole quote, as it is on Kalshi, Polymarket and Manifold,
-where a trader reads a price before deciding whether to trade rather than
-after. It is said in cents and never in percent, because our contract
-pays out linearly rather than all-or-nothing, so a percent would read as
-the chance of an event and be false. A price that rounds to nothing shows
-as `<1c` and one that rounds to the whole credit as `>99c`; neither is
-ever quoted as 0c or 100c, which would say the side cannot pay or cannot
-lose. The stake and the shares it buys still wait for a
-side. The break-even does not: until a credit is spent it IS the current
-value, and the payoff line below the pills says so. The line under the
-floor's verbs leaves when the ticket opens, because from there the payoff
-line and the fact rows say the same thing about the actual bet. The wording lives in `src/lib/market-quote.ts`,
-which both surfaces call, so the two can never drift apart. The rule this replaces
-(2026-08-10, "an untouched ticket asks one question") cost the platform
-its most calibrated trader, who could not price a trade without pressing
-a button first (`notes/quroe-churn-2026-08-27.md`,
-`notes/scalar-market-legibility-2026-08-30.md`). Lower/Higher are two words, not boxes; state is
-carried by colour and a 2px rule under the chosen one, with the ▲/▼ glyph
-keeping its --higher/--lower colour even while the word is quiet, since
-direction is the fastest thing on the page to read.
+**An untouched ticket still quotes both sides**, and so does the floor that
+has not opened one. Each side pill carries what a credit spent on that side
+can come back as, and so does each of the floor's two bet verbs, which are
+the untouched state on a market page: the ticket only exists once a verb has
+been pressed and it opens with a side already chosen, so quoting inside it
+alone would still make a visitor commit to a direction to learn anything.
+Under the floor's verbs one SHORT line says what a share pays: 1 cr at the
+top of the range, nothing at the bottom. Short because a sentence of
+explanation under a two-character number reads as a warning rather than as
+its unit (owner, 2026-08-31: "this seems like too much text"); inside the
+ticket the payoff line replaces that sentence outright. Lower/Higher are two
+words, not boxes; state is carried by colour and a fill on the chosen one,
+with the floor's ▲/▼ glyph keeping its --higher/--lower colour even while
+the word is quiet, since direction is the fastest thing on the page to read.
 
-**And what a credit can come back as.** Under the price each side says the
-most a credit spent on it can return, "up to 2x", which is the reciprocal
-of the price: a share costs its price and pays at most one credit. It is
-never quoted bare. Payout is linear in the settled value, so that multiple
-is reached only at the range's own edge, and the number without its "up to"
-would read as the return rather than as its ceiling, the same lie a percent
-would tell about a price. It is the honest answer to the question a binary
-venue answers with "to win $100", where a contract pays a fixed amount and
-the price states its own payout; ours does not, so the ceiling is the most
-that can be said. Clamped like the price is: `>99x` where a share costs
-under a cent, because a hundredfold reads as a lie exactly as `0c` would,
-and never under `1x`. Both untouched surfaces carry it in the same words,
-the ticket's pills and the floor's verbs, from `maxReturnLabel` in
-`src/lib/market-quote.ts`.
+**The quote is a ceiling, not a price** (owner, 2026-08-31: "just show the
+up to y x on the bet buttons instead of the cr cost"). A share costs its
+price and pays at most one credit, so the most a credit put on a side can
+come back as is the reciprocal of that price, and that multiple is what both
+surfaces show: "up to 2x". It is never quoted bare. Payout is linear in the
+settled value, so the ceiling is reached only at the range's own edge, and
+"3.4x" without its "up to" would read as the return rather than as its
+limit, the same lie a percent would tell about a price. It answers what "to
+win $100" answers on a binary venue, where a contract pays a fixed amount
+and its price states its own payout; ours does not, so the ceiling is the
+most that can honestly be said. Clamped at both ends: `>99x` where a share
+costs under a cent, because a hundredfold reads as a lie exactly as `0c`
+would, and never under `1x`. The wording lives in `maxReturnLabel` in
+`src/lib/market-quote.ts`, which both surfaces call, so the two can never
+drift apart. It carries the same information as the cents price it replaced,
+one being the reciprocal of the other, and asks less of a reader who has
+never traded. The rule both of them replaced (2026-08-10, "an untouched
+ticket asks one question") cost the platform its most calibrated trader, who
+could not price a trade without pressing a button first
+(`notes/quroe-churn-2026-08-27.md`).
 
 The amount is one bare underlined mono numeral (no boxed field, no stepper
 chips, no presets) with a slider under it, its fill in the chosen side's
@@ -810,8 +797,9 @@ the same ticket, never a second panel. Spec: docs/limit-orders.md.
 place of the fact rows the ticket draws the market's range as one track,
 marks on it the three values in the order they sit (the market, the
 break-even, and where the bet would leave the market), and prices the bet
-under it at five settlement values: the two ends of the range and the
-quarters, each carrying the credits won or lost if the number settles
+under it at a handful of settlement values: the two ends of the range, the
+quarters, and the break-even, each marked on the track by a tick under its
+own label and carrying the credits won or lost if the number settles
 there. The stretch that pays carries the side's colour.
 
 The order is why the track exists. Buying walks the price, so the shares
@@ -831,11 +819,16 @@ somewhere in the picture: the maximum is the end column, the slope is the
 step between any two columns, the break-even is the colour change, and
 where the bet leaves the market is the one caption. Saying any of it twice
 is what made the card too tall to read. Every credit figure on the scale
-says `cr`, because without the unit a column reads as another metric value
-rather than as the money at stake, and the point where the line crosses
-zero is named on the mark it belongs to, "break even 0 cr", in a row of its
-own under the track. The colour change in the scale says the same thing,
-but only to somebody who has already worked out what the scale is. The caption is the exception
+says `cr`, because without the unit a stop reads as another metric value
+rather than as the money at stake. And the break-even is a STOP LIKE ANY
+OTHER, the one that reads "0 cr", never a note beside them (owner,
+2026-08-31: "the 0 credit profit point should be just like any other..
+among the other ones.. not separate"): it displaces whichever quarter it
+stands within a seventh of the range of, so the row is always legible and
+the zero is always in it. Every stop sits over its own tick rather than
+centred in a column of its own, which is what makes the labels and the
+track one scale instead of a table beside a bar; the outermost pin to the
+card's edges so they cannot hang off it. The caption is the exception
 because it is also the INPUT a trader types a target into, so it had to
 survive; it sits on whichever side of the card its own mark is on. The
 marks carry a title for a mouse that pauses on one, and nothing else. One

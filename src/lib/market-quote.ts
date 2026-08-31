@@ -27,19 +27,6 @@ function fmtEdge(v: number): string {
 }
 
 /**
- * What one share of a side costs, in cents of a credit, as every other venue
- * quotes a market. Never 0c or 100c: a share of a live side is neither free
- * nor certain, and the rounded extremes would say it is, so the ends read as
- * bounds instead.
- */
-export function priceLabel(p: number): string {
-  const cents = Math.min(1, Math.max(0, p)) * 100;
-  if (cents < 0.5) return '<1c';
-  if (cents >= 99.5) return '>99c';
-  return `${Math.round(cents)}c`;
-}
-
-/**
  * The one line that turns a price into a payout. A cents price on a binary
  * contract states its own payout; ours is linear in the settled value, so
  * the price alone would be a true number under a false assumption.

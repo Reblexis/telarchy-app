@@ -9,36 +9,31 @@ import { formatMetricValue } from '../lib/market-quote';
  * The whole answer to "what happens to my money", in a picture. One track
  * for the market's range carrying the three values in the order they sit,
  * the market, the break-even and where the bet leaves the market; under it,
- * what the bet is worth at five settlement values spread across that range.
+ * what the bet is worth at a handful of settlement values marked along that
+ * same range.
  *
  * Buying walks the price, so the shares cost the average of the walk and the
  * break-even always lands SHORT of the push. That is the thing a trader has
  * to see and never could: stated as two unrelated fact rows, the one who
  * could not see it read an overshoot as a total loss, asked at what point
  * his shares stop paying out, and got the answer from an operator in a chat
- * window (notes/quroe-churn-2026-08-27.md). Here the same fact is where the
- * red numbers turn green.
+ * window (notes/quroe-churn-2026-08-27.md). Here it is the stop that reads
+ * "0 cr", which is a stop like any other and not a note beside them (owner,
+ * 2026-08-31: "the 0 credit profit point should be just like any other..
+ * among the other ones.. not separate").
  *
- * This REPLACES the four fact rows it was drawn above (owner, 2026-08-31),
- * which is why the pushed-to value is the caption: it is also the input a
- * trader types a target into, and the picture had to keep it.
+ * This REPLACES the four fact rows it was drawn above, which is why the
+ * pushed-to value is the one caption: it is also the input a trader types a
+ * target into, and the picture had to keep it.
  */
 
-/** The settlement values the scale prices: the ends and the quarters. They
-    are evenly spaced so the columns line up with the track above them, which
-    is what makes the two halves of the picture one axis. */
-const STOPS = [0, 0.25, 0.5, 0.75, 1];
-
-/**
- * A label sits over its own mark, so near the ends of the range a centred one
- * would hang off the card. Inside the middle half it is centred; past that it
- * pins to the edge it is nearest and reads inward from there.
- */
-function markLabelStyle(pct: number): CSSProperties {
-  if (pct < 25) return { left: 0 };
-  if (pct > 75) return { right: 0 };
-  return { left: `${pct}%`, transform: 'translateX(-50%)' };
-}
+/** The settlement values every scale offers, before the break-even claims
+    its own place among them. */
+const QUARTERS = [0, 0.25, 0.5, 0.75, 1];
+/** How close two stops may come before one of them is not worth drawing.
+    A label is about a seventh of the track wide, so this is the point at
+    which two of them would touch. */
+const MIN_GAP = 0.14;
 
 interface Props {
   unit: string;
@@ -62,6 +57,17 @@ interface Props {
   pushLabel?: ReactNode;
 }
 
+/**
+ * A label sits over its own point on the track, so near the ends a centred
+ * one would hang off the card. Past the outer eighth it pins to the edge it
+ * is nearest and reads inward from there.
+ */
+function labelStyle(pct: number): CSSProperties {
+  if (pct < 12) return { left: 0 };
+  if (pct > 88) return { right: 0 };
+  return { left: `${pct}%`, transform: 'translateX(-50%)' };
+}
+
 export function PayoffLine({
   unit,
   rangeMin,
@@ -77,7 +83,9 @@ export function PayoffLine({
   const span = rangeMax - rangeMin;
   if (!(span > 0) || !Number.isFinite(consensus)) return null;
 
-  const pct = (v: number) => Math.min(100, Math.max(0, ((v - rangeMin) / span) * 100));
+  /** Two decimals, so a mark and the stop that names it land on the same
+      number rather than on two roundings of it. */
+  const pct = (v: number) => Math.round(Math.min(100, Math.max(0, ((v - rangeMin) / span) * 100)) * 100) / 100;
   const money = (v: number) => `${unit}${formatMetricValue(v)}`;
   const nowPct = pct(consensus);
   const resting = direction === null || breakeven === null;
@@ -89,12 +97,24 @@ export function PayoffLine({
     const f = (v - rangeMin) / span;
     return (shares ?? 0) * (direction === 'higher' ? f : 1 - f) - (spend ?? 0);
   };
-  /** Credits, said as credits: without the unit the column reads as another
-      metric value rather than as the money at stake (owner, 2026-08-31). */
+  /** Credits, said as credits: without the unit a stop reads as another
+      metric value rather than as the money at stake. */
   const credits = (v: number): string => {
     const n = Math.round(v);
     return `${n > 0 ? '+' : ''}${n.toLocaleString('en-US')} cr`;
   };
+
+  /* The break-even takes a place in the row rather than a note beside it, so
+     it displaces whichever quarter it stands too close to. */
+  const beFraction = breakeven === null ? 0 : Math.min(1, Math.max(0, (breakeven - rangeMin) / span));
+  const stops = priced
+    ? [...QUARTERS.filter(q => Math.abs(q - beFraction) >= MIN_GAP), beFraction]
+        .sort((a, b) => a - b)
+        .map(f => {
+          const v = rangeMin + f * span;
+          return { at: pct(v), value: v, worth: worthAt(v) };
+        })
+    : [];
 
   return (
     <div className="pay">
@@ -120,8 +140,12 @@ export function PayoffLine({
               }
             />
           )}
+          {/* Every stop is a point ON the track, so the row below reads as
+              the track's own scale rather than as a table beside it. */}
+          {stops.map(s => (
+            <div key={s.at} className="pay-tick" style={{ left: `${s.at}%` }} />
+          ))}
         </div>
-        {/* Marks live outside the clipped track so they stand proud of it. */}
         <div className="pay-mark pay-mark--now" style={{ left: `${nowPct}%` }} title={`Now ${money(consensus)}`} />
         {!resting && (
           <div
@@ -139,29 +163,14 @@ export function PayoffLine({
         )}
       </div>
 
-      {/* Where the line crosses zero, named on the mark it belongs to. The
-          colour change in the scale says the same thing, but only once you
-          have read the scale; this says it on the picture. */}
-      {priced && breakeven !== null && (
-        <div className="pay-zero">
-          <span style={markLabelStyle(pct(breakeven))}>
-            break even <b>0 cr</b>
-          </span>
-        </div>
-      )}
-
       {priced ? (
-        <div className="pay-scale" aria-label="What this bet is worth at settlement">
-          {STOPS.map(s => {
-            const v = rangeMin + s * span;
-            const w = worthAt(v);
-            return (
-              <div key={s}>
-                <u>{compactValueOf(v, unit)}</u>
-                <b className={w >= 0 ? 'up' : 'down'}>{credits(w)}</b>
-              </div>
-            );
-          })}
+        <div className="pay-stops" aria-label="What this bet is worth at settlement">
+          {stops.map(s => (
+            <div key={s.at} className="pay-stop" data-at={String(s.at)} style={labelStyle(s.at)}>
+              <u>{compactValueOf(s.value, unit)}</u>
+              <b className={s.worth > 0 ? 'up' : s.worth < 0 ? 'down' : 'even'}>{credits(s.worth)}</b>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="pay-ends">
