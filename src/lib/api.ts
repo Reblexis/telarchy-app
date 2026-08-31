@@ -584,6 +584,17 @@ export interface PublicProposalMarketPair {
    *  the page lets you bet in it. Null probability = unpriced (liquidity 0). */
   declinedProbability: number | null;
   declinedLiquidity: number | null;
+  /** What each branch says about itself, the same three the baseline prints
+   *  (docs/ui-conventions.md, "What a market says about itself"): credits in
+   *  the pool, distinct traders, credits traded. Per branch, because the two
+   *  worlds are two separate books. Null while a branch has no market, which
+   *  is not the same as a market nobody has touched (zero). */
+  approvedPool: number | null;
+  declinedPool: number | null;
+  approvedTraders: number | null;
+  declinedTraders: number | null;
+  approvedVolume: number | null;
+  declinedVolume: number | null;
   rangeMin: number;
   rangeMax: number;
 }

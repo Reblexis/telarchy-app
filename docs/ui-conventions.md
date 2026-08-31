@@ -1464,8 +1464,14 @@ distinct participants have traded this market, how many credits are in its
 pool (the liquidity put up by the owner and others, which is what winnings
 come out of), and how many credits have been traded on it over its life.
 Each carries its meaning as a hover; none is a sentence, because they are
-counts on a row of counts. A contract on screen hides them, since the
-contract's markets are the pair, not the baseline.
+counts on a row of counts.
+
+A contract shows the same three, about the branch on screen. A conditional
+market is a market like any other: it has its own pool, its own traders and
+its own traded credits, and none of them is the baseline's. So the row
+follows the toggle, reading the approved world's numbers under "if
+approved" and the declined world's under "if declined", and an owner's
+Inject beside them injects into that branch and no other.
 
 **A held position is a card under the bet buttons**, label over number,
 four cells and a Sell button: "Your position" (side and shares), "Pays up
