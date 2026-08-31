@@ -123,7 +123,9 @@ describe('stopping one', () => {
     expect(screen.getByText('Stop and take the pool back')).toBeTruthy();
   });
 
-  test('confirming writes the list without that entry, and nothing else', async () => {
+  // The press that stops a market must not be refused for one it is not
+  // opening: sending liquidity with it was (preview, 2026-08-31).
+  test('confirming sends the shorter list and no liquidity at all', async () => {
     open();
     await screen.findByText('Every month');
     fireEvent.click(screen.getAllByText('Stop')[1]);
@@ -133,6 +135,7 @@ describe('stopping one', () => {
         timePreference: { customHorizons: ['+0m', '2026-12-31'] },
       }),
     );
+    expect(patchMetric.mock.calls[0][2]).not.toHaveProperty('liquidityCredits');
   });
 });
 

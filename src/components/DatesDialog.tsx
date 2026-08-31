@@ -114,14 +114,19 @@ export function DatesDialog({
   const factsFor = (e: HorizonEntry) => factsByDate.get(resolveEntry(e.entry));
   const anyTraded = markets.some(m => m.traded);
 
-  const write = async (list: string[], after: () => void) => {
+  /** `fund` carries the liquidity ONLY when this write opens something. A stop
+   *  that sent it was refused by the affordability gate for a market it was
+   *  not opening: "you hold 0 credits and this market would open with 1,386",
+   *  on a press whose whole purpose was to stop opening markets (preview,
+   *  2026-08-31). */
+  const write = async (list: string[], fund: boolean, after: () => void) => {
     setBusy(true);
     setErr('');
     try {
       const metric = await api.getMetric(workspaceId, metricId);
       const tp = (metric as { timePreference?: { enabled?: boolean; halfLife?: number } }).timePreference ?? null;
       await api.patchMetric(workspaceId, metricId, {
-        liquidityCredits: parseCredits(credits) ?? undefined,
+        ...(fund ? { liquidityCredits: parseCredits(credits) ?? undefined } : {}),
         timePreference: {
           enabled: tp?.enabled ?? false,
           halfLife: tp?.halfLife ?? 1,
@@ -148,12 +153,13 @@ export function DatesDialog({
     const entry = entryFor(every, ahead, day, hour);
     const list = [...(entries ?? []).map(e => e.entry)];
     if (!list.includes(entry)) list.push(entry);
-    await write(list, onDone);
+    await write(list, true, onDone);
   };
 
   const stop = async (e: HorizonEntry) => {
     await write(
       (entries ?? []).filter(x => x.entry !== e.entry).map(x => x.entry),
+      false,
       onDone,
     );
   };
