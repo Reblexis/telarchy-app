@@ -6591,6 +6591,16 @@ textarea.jobform-line--desc {
    two middle columns. Desktop hides it: the columns say the same thing. */
 .lbt-msub { display: none; font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; color: var(--text-tertiary); }
 .lbt-msub.is-prize { color: var(--accent); font-weight: 700; font-size: 0.7rem; }
+/* Every number is in the table twice, full and tight, and the width picks
+   (owner report 2026-08-31: the phone's stacked sub-lines made every row
+   three tall). Dropping a column instead would take the season's second
+   question off the phone entirely. */
+.lbt-tight { display: none; }
+/* The grouped line that tells a phone which pair of columns is money. A
+   wider screen has the accent underline for that and does not need it. */
+.lbt-grp { display: none; }
+.lbt-grp .lbt-h { padding-bottom: 0.1rem; border-bottom: none; font-size: 0.55rem; letter-spacing: 0.1em; }
+.lbt-grp .is-paysgrp { color: var(--accent-text); }
 .lbt tr.is-me .lbt-name { color: var(--accent); }
 .lbt tr.is-pinned td { border-top: 2px solid var(--border-color); background: var(--bg-secondary); }
 .lbp-lead strong, .lbp-note strong { color: var(--text-primary); font-weight: 600; }
@@ -6601,6 +6611,18 @@ textarea.jobform-line--desc {
   .lbt-h, .lbt-num, .lbt-rank, .lbt-cell { padding-left: 0.3rem; padding-right: 0.3rem; }
   .lbt-h:last-child, .lbt-num:last-child { padding-right: 0; }
   .lbt-h:first-child, .lbt-rank { padding-left: 0; }
+  /* Four numeric columns fit a phone only if everything else gives way: the
+     wide renderings, the avatar, and any name long enough to wrap a row. */
+  .lbt-wide { display: none; }
+  .lbt-tight { display: inline; }
+  .lbt-grp { display: table-row; }
+  .lbt .lbp-avatar { display: none; }
+  .lbt-h { font-size: 0.58rem; letter-spacing: 0.05em; }
+  .lbt-h, .lbt-num, .lbt-rank, .lbt-cell { padding-left: 0.22rem; padding-right: 0.22rem; }
+  .lbt-num { font-size: 0.72rem; }
+  .lbt-name { font-size: 0.8rem; min-width: 0; }
+  .lbt-nametext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lbt-cell.is-left { max-width: 6.2rem; }
 }
 
 /* /earn, personal: the tally supplies the pull, the row states supply the
