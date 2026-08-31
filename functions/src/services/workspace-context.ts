@@ -509,7 +509,7 @@ export function renderContextIndex(ctx: WorkspaceContext): string {
 
   out.push('', '### Where the numbers are');
   out.push(
-    `- GET /api/marketplace/${ref}/contracts - EVERY contract with its live priced impact, per metric and date, with the baseline and the trades behind each branch. One call, and it fits: start here for "what is worth approving" and do not open contracts one at a time afterwards. Add ?horizons=all for horizons that have already resolved.`,
+    `- GET /api/marketplace/${ref}/contracts - EVERY contract with its live priced impact, per metric and date, with the baseline and the trades behind each branch. It carries the gist of each pitch too, so this ONE call answers "what is worth approving" on its own: read it and answer. Opening contracts one at a time afterwards buys you nothing and costs the person waiting. Add ?horizons=all for horizons that have already resolved.`,
   );
   out.push(
     '- GET /api/proposals/<id> - one contract in full, when you need its pitch or its conversation rather than its price.',
