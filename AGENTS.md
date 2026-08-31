@@ -81,6 +81,36 @@ After every feature implementation or bug fix, commit and push. Keep commit mess
 
 **Branches and worktrees (adopted 2026-08-26, Viktor).** Work on a branch in its own worktree (`git worktree add ~/src/worktrees/telarchy-app/<branch> -b <branch> main` from the canonical checkout, symlink `node_modules` and `functions/node_modules` in), never switch the canonical checkout (`~/src/telarchy/telarchy-app`) to another branch: around twenty sessions share it, and a switch moves every one of them. Check `git rev-parse --show-toplevel` and `git branch --show-current` before every edit or git write. Main cannot be pushed to directly (owner ask 2026-08-27): the GitHub ruleset "main: branches only, green CI, no force push" requires a pull request whose CI is green, and `scripts/check-not-main.sh` refuses a commit on main before it happens (the hook is installed by `sh scripts/install-hooks.sh`; `npm run prepare` cannot write it into a submodule or worktree checkout, whose `.git` is a file). Ship (`gh pr create --fill`, then `gh pr merge --rebase --auto --delete-branch`, which merges when the checks pass and retires the branch; then `git merge --ff-only origin/main` in the canonical checkout) only when the change is finished, verified, and what the owner asked for in that session; otherwise leave it on its pushed branch and name it in the reply together with its preview, `https://telarchy.com/beta?branch=br-<name>`, which CI puts up for every pushed branch (docs/infra/deploy.md, "Branch previews"). In the canonical checkout, commit only by path (`git commit -- <paths>`), never `git add -A` or `commit -a`. The full procedure is the telarchy umbrella's `CLAUDE.md`, "Branches and worktrees".
 
+## Tests come first, and they are comprehensive
+
+**Owner rule, 2026-08-31: write the tests BEFORE the feature, every time.**
+The doc says what the thing should do, the tests encode that, the code
+satisfies the tests. In that order, never the reverse.
+
+1. List what the change must do, as behaviors, from the doc that owns it.
+   If the doc does not say, that is a doc bug and it is the first fix.
+2. Turn every item on that list into a test, before any implementation.
+3. Run them and watch them FAIL for the reason you expect. A test that is
+   green before the feature exists is testing nothing, and the time to
+   learn that is now. If a test was written after the code, prove it can
+   fail: revert the fix or mutate the constant, see red, put it back.
+4. Then write the code, until they are green.
+
+**Comprehensive means comprehensive.** Not one happy path: the ordinary
+case, every edge you can name, empty and zero and negative, the error
+paths, races where two callers arrive at once, and above all the RULE the
+feature exists to enforce. Anything touching credits, identity,
+permissions or a limit gets a test named after that rule, in the words of
+the rule (`ONE PROVIDER ACCOUNT CANNOT FUND TWO TELARCHY ACCOUNTS`,
+`A MISSED DAY RESETS THE RUN`, `PAYS NOTHING FOR SHOWING UP WITHOUT
+TRADING`). A reader scanning the test names should be able to read off
+what the system guarantees.
+
+If some part genuinely cannot be tested, say which part and why in the
+commit message and the wrap-up. Never quietly narrow the work to what was
+convenient to check. And the suite being green is not evidence the feature
+works: see "Verify each fix end-to-end before reporting it done".
+
 ## Keeping the test suite in sync
 
 **The suite is the deploy gate (owner ask 2026-08-15).** `.github/workflows/deploy-cloudrun.yml` runs `checks` (type check + frontend suite + production `vite build`, since tsc alone misses a broken import path or a bundler failure) and `backend` (the jest suite sharded three ways), and the deploy job needs both, so a red suite means main does not ship and the previous revision keeps serving. The sharding is not cosmetic: every backend suite boots its own pglite and applies every migration, and one runner holding all 82 died with SIGTERM around eight minutes, taking the gate down with it. `.github/workflows/test.yml` runs the same thing on every push and pull request. A tag-then-promote smoke test only proves the container boots; it cannot catch a market anchored at the wrong price, which is exactly what reached production twice in one afternoon. Never route around the gate by deploying by hand.
