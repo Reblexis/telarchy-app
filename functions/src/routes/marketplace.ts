@@ -23,6 +23,7 @@ import { type AskTurn, askAboutWorkspace, askEnabled } from '../lib/ask';
 import { type BaselineOrderKey, compareSoonestFirst, primaryOf } from '../lib/baseline-order';
 import { type ContractorEntry, type ContractorJobPair, computeContractors } from '../lib/contractors';
 import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
+import { branchIsShown } from '../lib/market-pairs';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
 import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
 import { wrap } from '../lib/wrap';
@@ -783,10 +784,12 @@ async function buildFloorPayload(ws: PublicWs) {
     // weekly cadence and every contract still showed its old monthly
     // number). Decided contracts keep everything, voided included: their
     // markets are the record of what was priced when the owner ruled.
-    const decidedIds = new Set(pending.filter(p => p.status !== 'pending').map(p => p.id));
+    // The rule itself is lib/market-pairs.ts, so the brief cannot drift from
+    // the ballot again (it did, until 2026-08-31).
+    const statusById = new Map(pending.map(p => [p.id, p.status as string]));
     for (const m of branchMarkets) {
       if (!m.proposalId || !m.branch) continue;
-      if (m.voided && !decidedIds.has(m.proposalId)) continue;
+      if (!branchIsShown(statusById.get(m.proposalId) ?? 'pending', m.voided)) continue;
       const shares = (m.shares as [number, number]) || [0, 0];
       const c = consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null;
       const groups = byProposal.get(m.proposalId) ?? new Map<string, PairGroup>();

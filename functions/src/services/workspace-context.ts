@@ -31,8 +31,10 @@ import {
   workspaces,
 } from '../db/schema';
 import { consensus } from '../lib/amm';
+import { resolutionInstant } from '../lib/date-utils';
+import { branchIsShown, horizonSettled } from '../lib/market-pairs';
 import { getParticipantDisplayNames } from '../lib/participants';
-import { getProposalMarketSummariesForProposal } from './proposals';
+import { getProposalMarketSummariesForProposal, getTradeCountMap } from './proposals';
 
 /**
  * How much source text one brief may carry. Raised (owner direction
@@ -64,12 +66,22 @@ export interface WorkspaceContext {
   }>;
   markets: Array<{
     marketId: string;
+    metricId: string;
+    /** The metric's CURRENT name, never the one frozen into the market row. */
     metricName: string;
+    /** False where the market prices a metric the workspace no longer defines. */
+    metricDefined: boolean;
     targetDate: string;
+    /** The instant this market settles on, so a reader can order it against today. */
+    resolvesOn: string | null;
+    /** True once that instant has passed: the price is history, not a forecast. */
+    settled: boolean;
     consensus: number | null;
     rangeMin: number;
     rangeMax: number;
     liquidity: number;
+    /** How many trades made this price. Zero means it is still the seed. */
+    trades: number;
   }>;
   contracts: Array<{
     id: string;
@@ -80,13 +92,28 @@ export interface WorkspaceContext {
     proposedBy: string;
     createdAt: string;
     declineReason: string | null;
-    /** Priced impact per horizon: approved consensus minus declined. */
+    /** True while an approval would still change anything, i.e. status pending. */
+    decisionOpen: boolean;
+    /**
+     * Priced impact per horizon: approved consensus minus declined. Live
+     * horizons first, largest impact first; a voided pair appears only on a
+     * contract the owner has already ruled on (lib/market-pairs.ts).
+     */
     impact: Array<{
+      metricId: string;
       metricName: string;
+      metricDefined: boolean;
       targetDate: string;
+      resolvesOn: string | null;
+      settled: boolean;
       approved: number | null;
       declined: number | null;
       delta: number | null;
+      /** What the floor prices for this metric and date with no contract attached. */
+      baseline: number | null;
+      /** Trades behind each branch's price. Zero means nobody has traded it. */
+      approvedTrades: number | null;
+      declinedTrades: number | null;
     }>;
     recentComments: Array<{ from: string; content: string; at: string }>;
   }>;
@@ -183,11 +210,59 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
           .limit(60);
   const commenterNames = await getParticipantDisplayNames(commentRows.map(c => c.from));
 
+  // One metric is one name. A market freezes the metric's name when it spawns
+  // and a resolved one keeps it forever, so a renamed metric otherwise reaches
+  // a reader under every name it has ever had, reading as several metrics.
+  const metricNames = new Map(metricRows.map(m => [m.id, m.name]));
+  const nameOf = (metricId: string, stored: string) => metricNames.get(metricId) ?? stored;
+
+  const openMarketRows = marketRows.filter(m => !m.proposalId && !m.voided);
+  // A price nobody made is not a consensus. Without this count an untouched
+  // seed sitting at mid-range reads exactly like a number the crowd argued to.
+  const marketTrades = await getTradeCountMap(
+    openMarketRows.map(m => m.id),
+    workspaceId,
+  );
+
   const contracts = await Promise.all(
     liveProposals.map(async p => {
-      // The priced impact comes from the same function the floor's own ballot
-      // reads, so a brief and a page can never quote different deltas.
-      const pairs = await getProposalMarketSummariesForProposal(p.id, workspaceId);
+      // The priced impact is the ballot's set, filtered by the ballot's rule:
+      // a voided pair is the record of a decided contract and dead weight on
+      // a pending one (lib/market-pairs.ts). A brief and a page quoting
+      // different deltas is the failure this prevents.
+      const all = await getProposalMarketSummariesForProposal(p.id, workspaceId);
+      const pairs = all
+        .map(pair => ({
+          ...pair,
+          approved: pair.approved && branchIsShown(p.status, pair.approved.voided) ? pair.approved : null,
+          declined: pair.declined && branchIsShown(p.status, pair.declined.voided) ? pair.declined : null,
+        }))
+        .filter(pair => pair.approved || pair.declined)
+        .map(pair => {
+          const resolvesOn = pair.resolvesOn ?? resolutionInstant(pair.targetDate);
+          const approved = pair.approved?.consensus ?? null;
+          const declined = pair.declined?.consensus ?? null;
+          return {
+            metricId: pair.metricId,
+            metricName: nameOf(pair.metricId, pair.metricName),
+            metricDefined: metricNames.has(pair.metricId),
+            targetDate: pair.targetDate,
+            resolvesOn,
+            settled: horizonSettled(resolvesOn),
+            approved,
+            declined,
+            delta: approved !== null && declined !== null ? approved - declined : null,
+            baseline: pair.baselineConsensus,
+            approvedTrades: pair.approved?.tradeCount ?? null,
+            declinedTrades: pair.declined?.tradeCount ?? null,
+          };
+        });
+      // Live horizons first, biggest mover first inside each group: the reader
+      // is deciding, and the top of the list is what a model reads.
+      pairs.sort((a, b) => {
+        if (a.settled !== b.settled) return a.settled ? 1 : -1;
+        return Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0);
+      });
       return {
         id: p.id,
         title: p.title,
@@ -197,13 +272,8 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
         proposedBy: names.get(p.proposedBy) ?? p.proposedBy,
         createdAt: p.createdAt.toISOString(),
         declineReason: p.declineReason,
-        impact: pairs.map(pair => ({
-          metricName: pair.metricName,
-          targetDate: pair.targetDate,
-          approved: pair.approved?.consensus ?? null,
-          declined: pair.declined?.consensus ?? null,
-          delta: pair.delta,
-        })),
+        decisionOpen: p.status === 'pending',
+        impact: pairs,
         recentComments: commentRows
           .filter(c => c.proposalId === p.id)
           .slice(0, 6)
@@ -232,18 +302,28 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
       resetsEvery: m.resetsEvery,
       history: historyOf(m.id),
     })),
-    markets: marketRows
-      .filter(m => !m.proposalId && !m.voided)
-      .map(m => ({
-        marketId: m.id,
-        metricName: m.metricName,
-        targetDate: m.targetDate,
-        consensus: consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax) ?? null,
-        rangeMin: m.rangeMin,
-        rangeMax: m.rangeMax,
-        liquidity: m.liquidity,
-      }))
-      .sort((a, b) => a.targetDate.localeCompare(b.targetDate)),
+    markets: openMarketRows
+      .map(m => {
+        const resolvesOn = resolutionInstant(m.targetDate);
+        return {
+          marketId: m.id,
+          metricId: m.metricId,
+          metricName: nameOf(m.metricId, m.metricName),
+          metricDefined: metricNames.has(m.metricId),
+          targetDate: m.targetDate,
+          resolvesOn,
+          settled: horizonSettled(resolvesOn),
+          consensus: consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax) ?? null,
+          rangeMin: m.rangeMin,
+          rangeMax: m.rangeMax,
+          liquidity: m.liquidity,
+          trades: marketTrades.get(m.id) ?? 0,
+        };
+      })
+      .sort((a, b) => {
+        if (a.settled !== b.settled) return a.settled ? 1 : -1;
+        return a.targetDate.localeCompare(b.targetDate);
+      }),
     contracts,
     announcements: announcementRows.map(a => ({ body: a.body, publishedAt: a.publishedAt.toISOString() })),
     documents,
@@ -253,6 +333,27 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
 function num(v: number | null | undefined): string {
   if (v === null || v === undefined) return 'no price yet';
   return Math.abs(v) >= 1000 ? Math.round(v).toLocaleString('en-US') : String(Math.round(v * 100) / 100);
+}
+
+/** A target date is a label; this is the sentence that lets a reader order it. */
+function when(resolvesOn: string | null, settled: boolean): string {
+  if (!resolvesOn) return settled ? 'Already resolved' : 'No resolution date';
+  const day = resolvesOn.slice(0, 10);
+  return settled ? `Already resolved on ${day}` : `Resolves ${day}`;
+}
+
+/** Zero trades is a seed, not a consensus, and it has to read as one. */
+function trades(n: number | null): string {
+  if (n === null) return 'No market on this branch';
+  if (n === 0) return 'Nobody has traded this yet, so the number is the opening seed rather than a price';
+  return `${n} trade${n === 1 ? '' : 's'} behind this price`;
+}
+
+function branchTrades(approved: number | null, declined: number | null): string {
+  if ((approved ?? 0) === 0 && (declined ?? 0) === 0) {
+    return 'Nobody has traded either branch yet, so this difference is the opening seed rather than a price';
+  }
+  return `${approved ?? 0} trade${approved === 1 ? '' : 's'} on the approved branch, ${declined ?? 0} on the declined`;
 }
 
 /**
@@ -292,24 +393,49 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
   if (ctx.markets.length === 0) out.push('None open.');
   for (const m of ctx.markets) {
     out.push(
-      `- ${m.metricName}, ${m.targetDate}: market says ${num(m.consensus)} (range ${num(m.rangeMin)}-${num(m.rangeMax)}, liquidity ${num(m.liquidity)} credits)`,
+      `- ${m.metricName}${m.metricDefined ? '' : ' (this metric is no longer defined on the floor)'}, ${m.targetDate}: market says ${num(m.consensus)} (range ${num(m.rangeMin)}-${num(m.rangeMax)}, liquidity ${num(m.liquidity)} credits). ${when(m.resolvesOn, m.settled)}. ${trades(m.trades)}.`,
     );
   }
 
-  out.push('', '## Contracts');
-  if (ctx.contracts.length === 0) out.push('None yet.');
-  for (const c of ctx.contracts) {
+  // Two lists, because they answer two different questions. A reader looking
+  // for "what should the owner approve" must not find a decided contract's
+  // number at the top of it, which is exactly the mistake the one-list version
+  // invited (notes/otto-brief-misread-2026-08-31.md).
+  const open = ctx.contracts.filter(c => c.decisionOpen);
+  const decided = ctx.contracts.filter(c => !c.decisionOpen);
+
+  const renderContract = (c: WorkspaceContext['contracts'][number]) => {
     const ask = c.askUsd ? `$${c.askUsd}` : 'no ask';
     out.push('', `### ${c.title} (${ask}, ${c.status}, by ${c.proposedBy})`);
-    if (c.description) out.push(c.description);
-    for (const i of c.impact) {
+    if (!c.decisionOpen) {
       out.push(
-        `Priced impact on ${i.metricName} ${i.targetDate}: if approved ${num(i.approved)}, if declined ${num(i.declined)}, difference ${i.delta === null ? 'not priced yet' : num(i.delta)}.`,
+        `This contract was already ${c.status}, so no approval decision is left on it: the prices below are the record of what the market said when the owner ruled.`,
       );
     }
+    if (c.description) out.push(c.description);
+    for (const i of c.impact) {
+      const name = `${i.metricName}${i.metricDefined ? '' : ' (this metric is no longer defined on the floor)'}`;
+      const baseline = i.baseline === null ? '' : ` Without this contract the floor prices ${num(i.baseline)}.`;
+      out.push(
+        `Priced impact on ${name} ${i.targetDate}: if approved ${num(i.approved)}, if declined ${num(i.declined)}, difference ${i.delta === null ? 'not priced yet' : num(i.delta)}. ${when(i.resolvesOn, i.settled)}.${baseline} ${branchTrades(i.approvedTrades, i.declinedTrades)}.`,
+      );
+    }
+    if (c.impact.length === 0) out.push('No market prices this contract yet.');
     if (c.declineReason) out.push(`Declined because: ${c.declineReason}`);
     for (const m of c.recentComments) out.push(`Comment from ${m.from}: ${m.content}`);
-  }
+  };
+
+  out.push('', '## Contracts open for a decision');
+  out.push(
+    'These are the only contracts an approval still moves. The difference is what the market says approving would do to the number, against declining it.',
+  );
+  if (open.length === 0) out.push('None: every contract here has been decided.');
+  for (const c of open) renderContract(c);
+
+  out.push('', '## Contracts already decided');
+  out.push('The owner has ruled on these. Their prices are history, not an upside anyone can still take.');
+  if (decided.length === 0) out.push('None yet.');
+  for (const c of decided) renderContract(c);
 
   if (ctx.announcements.length > 0) {
     out.push('', '## Announcements (newest first)');
