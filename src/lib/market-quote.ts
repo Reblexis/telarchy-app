@@ -7,12 +7,19 @@
  * untouched ticket still quotes both sides").
  */
 
-/** Metric-space values, formatted the way the headline formats them. */
-function fmtValue(v: number): string {
+/**
+ * Metric-space values, formatted the way the headline formats them. Exported
+ * because every surface that quotes a market has to say a value the same way:
+ * a break-even drawn on the payoff line and the same break-even in a fact row
+ * are one number, and two formatters would eventually disagree about it.
+ */
+export function formatMetricValue(v: number): string {
   const abs = Math.abs(v);
   const decimals = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
+
+const fmtValue = formatMetricValue;
 
 /** A range end as a person would say it: "$0", not "$0.00". */
 function fmtEdge(v: number): string {

@@ -746,10 +746,11 @@ pays out linearly rather than all-or-nothing, so a percent would read as
 the chance of an event and be false. A price that rounds to nothing shows
 as `<1c` and one that rounds to the whole credit as `>99c`; neither is
 ever quoted as 0c or 100c, which would say the side cannot pay or cannot
-lose. Nothing else joins them: the stake, the shares it buys and the
-break-even it implies still wait for a side, and the line under the verbs
-leaves when the ticket opens, because from there the fact rows say the same
-thing about the actual bet. The wording lives in `src/lib/market-quote.ts`,
+lose. The stake and the shares it buys still wait for a
+side. The break-even does not: until a credit is spent it IS the current
+value, and the payoff line below the pills says so. The line under the
+floor's verbs leaves when the ticket opens, because from there the payoff
+line and the fact rows say the same thing about the actual bet. The wording lives in `src/lib/market-quote.ts`,
 which both surfaces call, so the two can never drift apart. The rule this replaces
 (2026-08-10, "an untouched ticket asks one question") cost the platform
 its most calibrated trader, who could not price a trade without pressing
@@ -788,6 +789,41 @@ Limit mode swaps in a price input in the same underlined register and the
 confirm becomes the whole instruction ("Buy Higher with 25 cr under
 $65,000"), with breakeven exactly at the limit; limit orders are a mode of
 the same ticket, never a second panel. Spec: docs/limit-orders.md.
+
+**The payoff line puts those numbers in an order.** Above the fact rows the
+ticket draws the market's range as one track with its ends labelled, and
+marks on it what the money turns on: the market's current value, the value
+the bet breaks even at, and the value the bet pushes the market to. The
+stretch that pays, from the break-even to the trader's own end of the
+range, carries the side's colour. One line under it names the gap in words:
+"You push it to $9,499 but you break even at $8,428, so you have $1,071 of
+room to be wrong."
+
+That gap is the reason the line exists. Buying walks the price, so the
+shares cost an average of everything between the old price and the new one,
+and the bet therefore breaks even SHORT of the value it pushes the market
+to. Stated as two unrelated rows ("New value", "Wins above") a trader has
+to notice that the second number is smaller than the first and work out
+why; drawn on one track they are visibly in that order. A trader who cannot
+see it reads an overshoot as a total loss, asks at what point the shares
+stop paying out, and gets the answer from an operator in a chat window
+rather than from the ticket (`notes/quroe-churn-2026-08-27.md`).
+
+An untouched ticket draws the same track carrying only the current value,
+because that is exactly where a share bought right now breaks even, and
+labels the two stretches "Lower wins under $X" and "Higher wins over $X".
+Inside the ticket this replaces the payout sentence: the track's own end
+labels already say that a share pays a credit at the top of the range and
+nothing at the bottom, and showing it costs no words. The floor's bet verbs
+keep the sentence, having no track to carry it. A held position gets the
+track too, marked with the holder's own break-even (what they paid per
+share) against where the market stands now, so "how far can this fall
+before I lose" is answered without arithmetic.
+
+Two degradations. A market with no range gets the prices and the fact rows
+alone, because a track with no ends is a decoration. In limit mode the fill
+price IS the break-even, so the two marks coincide and the line states that
+instead of a gap.
 
 **The "New value" fact row is an INPUT.** The numeral that answers "where
 does my bet leave the market" also accepts the answer as the question.
