@@ -221,6 +221,14 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-metrics-md--h13">Notes</a></li>
 </ul></details>
 </li>
+<li><details><summary><a class="file" href="#file--docs-mobile-md">docs/mobile.md</a></summary>
+<ul>
+<li><a href="#docs-mobile-md--h1">Telarchy on a phone</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-mobile-md--h2">The installable web app</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-mobile-md--h3">Notifications</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-mobile-md--h4">What is deliberately not built</a></li>
+</ul></details>
+</li>
 <li><details><summary><a class="file" href="#file--docs-otto-md">docs/otto.md</a></summary>
 <ul>
 <li><a href="#docs-otto-md--h1">Otto</a></li>
@@ -719,6 +727,10 @@ the top.</p>
 <tr>
 <td><code>ui-conventions.md</code></td>
 <td>The one frontend design doc</td>
+</tr>
+<tr>
+<td><code>mobile.md</code></td>
+<td>Telarchy on a phone: the installable web app, the store shells, the mobile channel's two push transports</td>
 </tr>
 <tr>
 <td><code>about-page.md</code></td>
@@ -2354,6 +2366,95 @@ not done.</p>
 <li><strong>Where these are tracked:</strong> Telarchy's own platform-internal workspace at telarchy.com. Each metric here exists as a KPI in that workspace, with conditional markets pricing the impact of every product decision against them.</li>
 <li><strong>History:</strong> notes/decisions/metrics.md.</li>
 </ul>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-mobile-md">
+<p class="filelabel">docs/mobile.md</p>
+<h1 id="docs-mobile-md--h1">Telarchy on a phone</h1>
+<p>Telarchy on a phone is the Telarchy web frontend. There is one frontend, and a
+push to <code>main</code> updates every surface at once: the browser, the installed web
+app, and the store builds. No client holds its own copy of the UI, and nothing
+about a phone client is synchronized, because no client keeps state to
+synchronize: every screen reads and writes through the same API.</p>
+<p>Three shells run that one frontend.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Shell</th>
+<th>What it is</th>
+<th>How it updates</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Browser</td>
+<td>telarchy.com in a tab</td>
+<td>On deploy</td>
+</tr>
+<tr>
+<td>Installed web app</td>
+<td>The same origin added to the home screen, opened without browser chrome</td>
+<td>On deploy</td>
+</tr>
+<tr>
+<td>Store build</td>
+<td>An Android or iOS app whose webview loads the same origin</td>
+<td>On deploy, for everything but the shell itself</td>
+</tr>
+</tbody>
+</table></div>
+<p>A store build is a shell around the live site, not a copy of it. Only a change
+to the shell (native permissions, the push transport, the launch screen) needs
+a new store submission; every product change reaches store users the same way
+it reaches the web.</p>
+<h2 id="docs-mobile-md--h2">The installable web app</h2>
+<p>The site declares a web app manifest at <code>/manifest.webmanifest</code>, linked from
+<code>index.html</code>. The manifest is what makes the site installable, and on iOS it is
+what makes push possible at all: Safari delivers Web Push only to a site the
+visitor has added to the home screen, and it will only install a site that
+declares <code>display: standalone</code>.</p>
+<p>The manifest declares:</p>
+<ul>
+<li><code>name</code> &quot;Telarchy&quot; and <code>short_name</code> &quot;Telarchy&quot;, the label under the icon.</li>
+<li><code>start_url</code> <code>/</code>, so opening the icon lands where the site lands. A signed-in
+visitor is carried to their own view by the same routing the web uses.</li>
+<li><code>display</code> <code>standalone</code>, so the installed app opens without an address bar.</li>
+<li><code>theme_color</code> and <code>background_color</code> both the site's default surface, bone
+<code>#fbf9f4</code>, so the system chrome and the launch screen carry the page's own
+colour instead of flashing a white the product never uses.</li>
+<li><code>icons</code> at 192 and 512 square, plus a <code>maskable</code> variant at 512 whose artwork
+stays inside the safe circle, so Android may crop it to the launcher's shape
+without cutting the mark.</li>
+</ul>
+<p>The icons are derived from the same source as the site's logo mark. A size the
+manifest names but the file tree lacks is a broken install prompt, not a
+cosmetic defect, so the sizes and the files are checked together.</p>
+<h2 id="docs-mobile-md--h3">Notifications</h2>
+<p>The notification matrix in <code>vision.md</code> decides WHO is told WHAT over which of
+the three channels. This doc owns only the mobile channel's delivery, and adds
+one rule to it: <strong>the transport is a property of the address, not of the
+notification.</strong> A participant may hold several mobile addresses at once, a
+desktop browser and an installed phone app and a store build, and each is
+delivered over the transport that address was registered with.</p>
+<p>Two transports carry the mobile channel:</p>
+<ul>
+<li><strong>Web Push (VAPID)</strong> for browsers and installed web apps, on every platform.</li>
+<li><strong>Native push</strong> for store builds: FCM on Android, APNs on iOS, which a
+webview cannot receive over Web Push.</li>
+</ul>
+<p>Both are rows in <code>push_subscriptions</code>, discriminated by a <code>transport</code> column.
+The sender chooses per row; callers ask for a participant to be notified and
+never name a transport. A deployment missing the credentials for one transport
+sends over the others and never throws, the same rule Web Push already follows,
+so a self-hosted instance with no store builds needs no store credentials.</p>
+<p>An address the platform reports as gone is deleted rather than retried: a 404
+or 410 from a Web Push endpoint, and the matching permanent-failure verdict
+from FCM or APNs.</p>
+<h2 id="docs-mobile-md--h4">What is deliberately not built</h2>
+<p>There is no second frontend, and no native UI. A phone-shaped view of a screen
+is a responsive layout in the one frontend, governed by <code>ui-conventions.md</code>.
+Any proposal that renders a Telarchy screen twice is a divergence.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>

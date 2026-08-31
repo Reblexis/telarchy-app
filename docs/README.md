@@ -23,6 +23,7 @@ the top.
 | `data-room.md` | The public data room: what telarchy.com publishes about itself |
 | `metrics.md` | The metrics Telarchy tracks about Telarchy |
 | `ui-conventions.md` | The one frontend design doc |
+| `mobile.md` | Telarchy on a phone: the installable web app, the store shells, the mobile channel's two push transports |
 | `about-page.md` | Copy for `/about` and `/contact` |
 | `audience-pages.md` | Copy for `/forecast`, `/for-agents`, `/owners` and the `/compare/*` pages; the build step derives the page data and the head meta from it |
 | `legal/` | Terms, privacy, season rules, as served at `/terms`, `/privacy`, `/legal/season-0` |

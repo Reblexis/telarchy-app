@@ -14,7 +14,16 @@
        without SVG-favicon support (Safari). -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
   <link rel="alternate icon" type="image/png" href="/logo.png" />
-  <link rel="apple-touch-icon" href="/logo.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+  <!-- The web app manifest is what makes telarchy.com installable, and on
+       iOS it is the precondition for push existing at all: Safari delivers
+       Web Push only to a site added to the home screen, and installs only a
+       site declaring display: standalone. See docs/mobile.md. -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#fbf9f4" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Telarchy" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
