@@ -153,16 +153,37 @@ describe('what the feed publishes', () => {
     expect(res.body.doc.sections[0].title).toBeTruthy();
   });
 
-  it('publishes the floor market it is the evidence for', async () => {
+  it('publishes the funnel that ends in the floor metric', async () => {
     await seed();
+    const now = new Date();
+    await db.insert(pageVisits).values([
+      { id: 'f1', ts: now, path: '/', ip: '1.1.1.1', userAgent: 'Mozilla/5.0' },
+      { id: 'f2', ts: now, path: '/', ip: '2.2.2.2', userAgent: 'Mozilla/5.0' },
+    ]);
     const { body } = await request(app).get('/api/data-room');
-    expect(body.evidence.market.slug).toBe('telarchy');
-    expect(body.evidence.market.market.metricName).toBe('Active traders');
-    // The reading the market settles against, and its history, both present.
-    expect(body.evidence.market.market.currentValue).toBe(4);
-    expect(body.evidence.market.market.history).toHaveLength(2);
-    // An untraded market's call is the middle of its band, so a number, not null.
-    expect(typeof body.evidence.market.market.consensus).toBe('number');
+    const f = body.evidence.funnel;
+    // Four steps, in order, each a filter on the one above it.
+    expect(f.steps.map((s: { id: string }) => s.id)).toEqual(['loads', 'accounts', 'verified', 'weeklyActive']);
+    // Every count is the one the rest of the feed already publishes; a funnel
+    // that recomputes its own totals is a second pipeline that can disagree.
+    const byId = Object.fromEntries(f.steps.map((s: { id: string; n: number }) => [s.id, s.n]));
+    expect(byId.loads).toBe(body.evidence.traffic.totalVisits);
+    expect(byId.accounts).toBe(body.evidence.traction.accounts);
+    expect(byId.verified).toBe(body.evidence.traction.verifiedParticipants);
+    expect(byId.weeklyActive).toBe(body.evidence.pulse.weeklyActiveVerifiedTraders);
+    // The share is of the step above, and the first step has none to be a
+    // share of, so it refuses rather than reading 100%.
+    expect(f.steps[0].shareOfAbove).toBeNull();
+    expect(f.steps[1].shareOfAbove).toBeCloseTo(byId.accounts / byId.loads, 6);
+  });
+
+  it('refuses a share rather than dividing by zero', async () => {
+    // No seed: an empty database has no loads and no accounts, and 0/0 must
+    // come back as not published rather than as NaN on a public page.
+    const { body } = await request(app).get('/api/data-room');
+    for (const step of body.evidence.funnel.steps) {
+      expect(step.shareOfAbove === null || Number.isFinite(step.shareOfAbove)).toBe(true);
+    }
   });
 
   it('leaves removed entries out, so the contract rows add up', async () => {
@@ -190,6 +211,24 @@ describe('what the feed publishes', () => {
     // 100 from the approved job. The declined 250 and the pending 50 are not
     // commitments, and publishing them as such would overstate the spend.
     expect(body.evidence.contracts.approvedUsd).toBe(100);
+  });
+});
+
+describe('nothing restates what the market currently forecasts', () => {
+  it('publishes no market block, no call and no settle date', async () => {
+    await seed();
+    const { body } = await request(app).get('/api/data-room');
+    expect(body.evidence).not.toHaveProperty('market');
+    const flat = JSON.stringify(body.evidence);
+    expect(flat).not.toMatch(/consensus/i);
+    expect(flat).not.toMatch(/resolvesOn/i);
+  });
+
+  it('never names a price or a call in the prose', () => {
+    const prose = DATA_ROOM_MARKDOWN.toLowerCase();
+    for (const word of ["the market's call", 'consensus', 'settles on', 'forecasts that']) {
+      expect(prose).not.toContain(word);
+    }
   });
 });
 
@@ -246,11 +285,11 @@ describe('what Otto browses', () => {
     for (const s of feed.doc.sections) expect(index).toContain(s.id);
     expect(index).toContain('read_data_room');
 
-    const section = renderDataRoomSection(feed, 'the-market-on-itself');
+    const section = renderDataRoomSection(feed, 'who-is-here');
     // The prose exactly as published, and the live figures under it.
-    expect(section).toContain('running on itself');
-    expect(section).toContain('Active traders');
-    expect(section).toContain("the market's call");
+    expect(section).toContain('runs on itself');
+    expect(section).toContain('page loads');
+    expect(section).toContain('verified on Manifold');
   });
 
   it('says which sections exist rather than inventing the one asked for', async () => {

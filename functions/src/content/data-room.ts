@@ -17,12 +17,12 @@
 
 /** The blocks the page knows how to render. A directive naming anything else
  *  is a mistake that must be loud, not an empty space on a public page. */
-export const KNOWN_BLOCKS = ['pulse', 'market', 'traction', 'contracts', 'traffic', 'shipping'] as const;
+export const KNOWN_BLOCKS = ['pulse', 'funnel', 'traction', 'contracts', 'traffic', 'shipping'] as const;
 export type BlockName = (typeof KNOWN_BLOCKS)[number];
 
 /** When the prose was last edited. The numbers carry their own timestamp and
  *  are generated per request, so this dates the words alone. */
-export const CONTENT_UPDATED_AT = '2026-08-20';
+export const CONTENT_UPDATED_AT = '2026-08-31';
 
 export const DATA_ROOM_MARKDOWN = `
 ## Overview
@@ -78,20 +78,26 @@ and portable. The trader side is being built first, because with no users at all
 the scarce resource is a stranger's first minute, and the only first minute on
 offer is trading a real company's roadmap.
 
-## The market on itself
+## Who is here
 
-The Telarchy floor is this platform running on itself. Its metric is weekly
-active verified traders: distinct participants with a public Manifold profile
-synced to their account who have traded at least a hundred credits anywhere on
-the platform in the trailing seven days.
+The floor this platform runs on itself measures weekly active verified traders:
+distinct participants with a public Manifold profile synced to their account
+who have traded at least a hundred credits anywhere on the platform in the
+trailing seven days.
 
-Every word of that is load-bearing. Verified means each counted trader maps to a
-public profile anyone can inspect on the leaderboard. The hundred-credit floor
-keeps a one-credit gesture from counting, because signup credits are free. The
-number syncs once a day from the same database that serves this page, and the
-owner cannot edit it.
+Every word of that is load-bearing. Verified means each counted trader maps to
+a public profile anyone can inspect on the leaderboard. The hundred-credit
+floor keeps a one-credit gesture from counting, because signup credits are
+free. The number syncs once a day from the same database that serves this page,
+and the owner cannot edit it.
 
-block:market
+Four numbers stand between a stranger and that definition, and each is a filter
+on the one above it. Page loads count what the visit rollup holds, which starts
+later than the accounts do, so the first step is not a cohort and the
+percentage under it is arithmetic between two published figures rather than a
+claim that those accounts came out of those loads.
+
+block:funnel
 
 ## Traction
 

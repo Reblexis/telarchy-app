@@ -27,7 +27,7 @@ const feed = {
     sections: [
       { id: 'overview', title: 'Overview', markdown: 'The books, in public.', blocks: ['pulse'] },
       { id: 'shipping', title: 'Shipping', markdown: 'The log is the git history.', blocks: ['shipping'] },
-      { id: 'the-market-on-itself', title: 'The market on itself', markdown: 'Running on itself.', blocks: ['market'] },
+      { id: 'who-is-here', title: 'Who is here', markdown: 'Running on itself.', blocks: ['funnel'] },
     ],
   },
   evidence: {
@@ -38,26 +38,16 @@ const feed = {
       tradesThisWeek: 29,
       source: '/api/marketplace/stats',
     },
-    market: {
-      workspaceId: 'ws',
-      name: 'Telarchy',
-      slug: 'telarchy',
-      market: {
-        metricName: 'Active traders @1st October',
-        metricDescription: null,
-        consensus: null,
-        currentValue: 4,
-        rangeMin: 0,
-        rangeMax: 50,
-        targetDate: '2026-09',
-        resolvesOn: '2026-10-01T00:00:00Z',
-        liquidity: 360,
-        tradedVolume: 120,
-        history: [
-          { at: '2026-08-01T00:00:00Z', value: 2 },
-          { at: '2026-08-10T00:00:00Z', value: 4 },
-        ],
-      },
+    funnel: {
+      steps: [
+        { id: 'loads', n: 8000, shareOfAbove: null },
+        { id: 'accounts', n: 40, shareOfAbove: 40 / 8000 },
+        { id: 'verified', n: 10, shareOfAbove: 10 / 40 },
+        // The last step's predecessor is present, but a step with no traffic
+        // above it must publish no share rather than a percentage of nothing.
+        { id: 'weeklyActive', n: 2, shareOfAbove: null },
+      ],
+      loadsSince: '2026-08-11',
     },
     traction: {
       participants: 211,
@@ -124,13 +114,15 @@ describe('the data room page', () => {
     expect(screen.getByText('Keep every question asked of a floor')).toBeInTheDocument();
   });
 
-  test('a refused number reads as refused, never as zero', async () => {
+  test('the funnel prints each step as a share of the one above it', async () => {
     vi.mocked(api.getDataRoom).mockResolvedValue(feed as never);
     renderPage();
-    // consensus is null in the feed: the market could not be priced, and a 0
-    // there would be a forecast the market never made.
-    await waitFor(() => expect(screen.getByText('not published')).toBeInTheDocument());
-    expect(screen.queryByText('0')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('8,000')).toBeInTheDocument());
+    expect(screen.getByText('0.5% of the step above')).toBeInTheDocument();
+    expect(screen.getByText('25.0% of the step above')).toBeInTheDocument();
+    // The first step has nothing above it, and a step whose share was refused
+    // shows no percentage rather than 0%.
+    expect(screen.queryByText('0.0% of the step above')).not.toBeInTheDocument();
   });
 
   test('says so when the feed cannot be read', async () => {
