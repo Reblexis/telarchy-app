@@ -1267,7 +1267,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/seasons/:id',
       auth: 'platform admin',
       description:
-        'Edit a DRAFT season: any of { name, startsAt, endsAt, poolUsd, payoutMode, minPayoutUsd, strictEligibility, ladder, rulesUrl }. Same validation as create, and the dates are checked as a pair against what the season will be after the patch (so moving only the start is still refused if it lands after the end). On a RUNNING season exactly one amendment is possible: payoutMode and minPayoutUsd, under the published mid-season amendment clause, and only after the change has been announced on the season page. Everything else is 409 once running (baselines pinned, pool and dates frozen); a settled season takes nothing.',
+        'Edit a DRAFT season: any of { name, startsAt, endsAt, poolUsd, payoutMode, minPayoutUsd, strictEligibility, ladder, rulesUrl }. Same validation as create, and the dates are checked as a pair against what the season will be after the patch (so moving only the start is still refused if it lands after the end). On a RUNNING season three amendments are possible under the published mid-season clause, and only after the change has been announced on the season page: payoutMode, minPayoutUsd, and endsAt moved LATER. An extension can only bring further resolutions into the scored set and can never remove one, so no standing can fall; endsAt equal to or earlier than the current end is refused 409, because that would strip scores from markets that already resolved inside the window. Everything else is 409 once running (baselines pinned, pool and startsAt frozen); a settled season takes nothing.',
     },
     {
       method: 'POST',

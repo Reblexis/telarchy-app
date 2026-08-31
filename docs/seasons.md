@@ -31,6 +31,24 @@ here." The season's falsifier is five outside entrants: entrants with no
 connection to the operator (not the operator, not the operator's agents, not
 the operator's family).
 
+## What may be amended while a season runs
+
+The amendment clause allows a published rule to change mid-season only if
+the change cannot REDUCE a standing. Three things satisfy that and are the
+only things `PATCH /api/seasons/:id` accepts on a running season:
+
+- `payoutMode` and `minPayoutUsd`, which change how the pool is divided.
+- `endsAt`, and **only later than it already is**. Extending the window can
+  add resolutions to the scored set and can never remove one, so no
+  entrant's score can fall. Moving it earlier is refused: it would strip
+  scores from markets that had already resolved inside the window, which is
+  exactly what the clause forbids. `startsAt` and `poolUsd` stay frozen
+  outright.
+
+Every one of these has to be announced on `/season` before it takes
+effect. The endpoint enforces the direction; the announcement is the
+operator's obligation.
+
 ## The score
 
 ```

@@ -142,13 +142,22 @@ export function SeasonPage() {
             because an announcement a visitor has to open is not announced. */}
         <details className="seasonp-rulechanges">
           <summary className="seasonp-experimental seasonp-rulechanges-summary">
-            {season.payoutMode === 'proportional'
-              ? 'Rule change, 2026-08-28, effective now: the pool is split in proportion to positive settled profit, replacing the fixed prizes by place. Every entrant in the green is paid a share.'
-              : "Rule change, 2026-08-28, effective now: only markets that resolve during the season score. Open positions score nothing until they do, and trades in a market's final 6 hours do not count."}
+            {/* Newest first, and it is the visible one: the season ended at
+                the exact instant most of the floor's depth was due to
+                resolve, so that depth would have scored nothing. Extending
+                can only add to a score, never subtract, which is the
+                amendment clause's test. */}
+            Rule change, 2026-08-31, effective now: the season runs one day longer, to 2 October, so the September
+            markets resolving on 1 October score. It can only add to a score, never take one away.
             <span className="seasonp-rulechanges-toggle" aria-hidden="true">
               earlier changes
             </span>
           </summary>
+          <p className="seasonp-experimental">
+            {season.payoutMode === 'proportional'
+              ? 'Rule change, 2026-08-28: the pool is split in proportion to positive settled profit, replacing the fixed prizes by place. Every entrant in the green is paid a share.'
+              : "Rule change, 2026-08-28: only markets that resolve during the season score. Open positions score nothing until they do, and trades in a market's final 6 hours do not count."}
+          </p>
           {season.payoutMode === 'proportional' && (
             <p className="seasonp-experimental">
               Rule change, 2026-08-28: only markets that resolve during the season score. Open positions score nothing

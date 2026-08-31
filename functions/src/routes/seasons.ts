@@ -509,18 +509,37 @@ seasonsRouter.patch(
     const [season] = await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, seasonId)).limit(1);
     if (!season) throw new AppError('Season not found', 404);
     if (season.status === 'running') {
-      const allowed = new Set(['payoutMode', 'minPayoutUsd']);
+      const allowed = new Set(['payoutMode', 'minPayoutUsd', 'endsAt']);
       const sent = Object.keys(req.body ?? {});
       const refused = sent.filter(k => !allowed.has(k));
       if (refused.length > 0 || sent.length === 0) {
         throw new AppError(
-          'Season is running; only payoutMode and minPayoutUsd may be amended mid-season, under the published amendment clause, after the change is announced on the season page',
+          'Season is running; only payoutMode, minPayoutUsd and a LATER endsAt may be amended mid-season, under the published amendment clause, after the change is announced on the season page',
           409,
         );
       }
       const patch: Partial<typeof prizeSeasons.$inferInsert> = {};
       if (req.body?.payoutMode !== undefined) patch.payoutMode = asPayoutMode(req.body.payoutMode);
       if (req.body?.minPayoutUsd !== undefined) patch.minPayoutUsd = asMinPayout(req.body.minPayoutUsd, season.poolUsd);
+      // The end may only move LATER (docs/seasons.md, "What may be amended
+      // while a season runs"). Extending brings later resolutions into the
+      // scored set and can never remove one, so no standing can fall;
+      // moving it earlier would strip scores from markets that already
+      // resolved inside the window, which is what the clause forbids.
+      // Season 0 needed this: it ended at the exact instant 86% of the
+      // floor's depth was due to resolve, so that depth would have scored
+      // nothing (2026-08-31).
+      if (req.body?.endsAt !== undefined) {
+        const next = new Date(req.body.endsAt);
+        if (Number.isNaN(next.getTime())) throw new AppError('endsAt must be a date', 400);
+        if (next.getTime() <= new Date(season.endsAt).getTime()) {
+          throw new AppError(
+            'A running season can only be extended: endsAt must be later than it is now, because moving it earlier would reduce standings',
+            409,
+          );
+        }
+        patch.endsAt = next;
+      }
       await db.update(prizeSeasons).set(patch).where(eq(prizeSeasons.id, seasonId));
       const [updated] = await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, seasonId)).limit(1);
       res.json({ season: publicSeason(updated) });
