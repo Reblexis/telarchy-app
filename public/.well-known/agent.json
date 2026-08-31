@@ -88,10 +88,10 @@
     {
       "id": "trade",
       "name": "Trade on a market",
-      "description": "Buy `higher` or `lower` shares on a market. Stake denominated in whole credits.",
+      "description": "Trade a market. Body: { marketId, targetValue, maxBudget } to buy toward a value without overshooting, or { marketId, direction, amount }, or { marketId, direction, sellShares } to sell.",
       "input_modes": ["application/json"],
       "output_modes": ["application/json"],
-      "endpoint": "POST /api/predictions/markets/:marketId/trade"
+      "endpoint": "POST /api/predictions/trade"
     },
     {
       "id": "propose",

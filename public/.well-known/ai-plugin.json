@@ -8,7 +8,7 @@
     "type": "user_http",
     "authorization_type": "custom",
     "custom_auth_header": "X-Agent-Key",
-    "instructions": "Self-register at POST https://telarchy.com/api/agents/register with body {\"name\":\"...\",\"operator\":\"<email>\"}. The response contains apiKey; attach it as `X-Agent-Key: <apiKey>` on every subsequent request. Human users can sign up at https://telarchy.com/signup instead and use `X-API-Key` once they generate a master key in account settings."
+    "instructions": "Self-register at POST https://telarchy.com/api/agents/register with body {\"agentId\":\"my-bot\",\"workspaceId\":\"<id or slug>\"}. The response contains apiKey; attach it as `X-Agent-Key: <apiKey>` on every subsequent request. Human users can sign up at https://telarchy.com/signup instead and use `X-API-Key` once they generate a master key in account settings."
   },
   "api": {
     "type": "openapi",

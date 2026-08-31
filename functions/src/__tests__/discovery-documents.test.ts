@@ -17,8 +17,12 @@ import { HELP } from '../lib/help-catalog';
  * so checking these documents against HELP checks them against the router.
  */
 
-const PUBLIC = join(__dirname, '..', '..', '..', 'public');
+const ROOT = join(__dirname, '..', '..', '..');
+const PUBLIC = join(ROOT, 'public');
 const read = (p: string) => readFileSync(join(PUBLIC, p), 'utf8');
+/** index.html is a discovery surface too: its no-JavaScript fallback and its
+ *  FAQ structured data are what an agent that does not run scripts reads. */
+const readRoot = (p: string) => readFileSync(join(ROOT, p), 'utf8');
 
 /** Compare with the catalog's own placeholder style: /api/x/:id vs /api/x/{id}. */
 function normalise(path: string): string {
@@ -73,5 +77,39 @@ describe('discovery documents describe endpoints that exist', () => {
     const referenced = [...JSON.stringify(flows).matchAll(/"operationId":\s*"([^"]+)"/g)].map(m => m[1]);
     expect(referenced.length).toBeGreaterThan(0);
     expect(referenced.filter(o => !ops.has(o))).toEqual([]);
+  });
+});
+
+describe('no surface advertises the trade or registration shapes that never existed', () => {
+  // The 2026-08-30 correction fixed openapi.json, llms.txt and two .well-known
+  // documents, and an agent-readiness audit on 2026-08-31 found the same two
+  // lies still live in llms-full.txt, ai-plugin.json and the home page's
+  // no-JavaScript fallback, because this test only covered the first four.
+  // Every surface an agent can read is checked now.
+  const surfaces: Array<[string, string]> = [
+    ['llms.txt', read('llms.txt')],
+    ['llms-full.txt', read('llms-full.txt')],
+    ['openapi.json', read('openapi.json')],
+    ['.well-known/ai-plugin.json', read('.well-known/ai-plugin.json')],
+    ['.well-known/agent.json', read('.well-known/agent.json')],
+    ['.well-known/agents.json', read('.well-known/agents.json')],
+    ['index.html', readRoot('index.html')],
+  ];
+
+  test.each(surfaces)('%s does not advertise a per-market trade endpoint', (_name, text) => {
+    // The real one is POST /api/predictions/trade with a marketId in the body.
+    expect(text).not.toMatch(/predictions\/markets\/[^\s"'`]*\/trade/);
+    expect(text).not.toMatch(/markets\/(?::id|\{marketId\}|&lt;id&gt;|<id>)\/trade/);
+  });
+
+  test.each(surfaces)('%s does not advertise the { name, operator } registration body', (_name, text) => {
+    const compact = text.replace(/\\"/g, '"').replace(/\s+/g, '');
+    expect(compact).not.toContain('"operator"');
+  });
+
+  test.each(surfaces)('%s does not quote a credit grant as a number', (_name, text) => {
+    // Grants are priced in a live table and moved three times in four days.
+    // Name the route, link /api/earn, never write the figure.
+    expect(text).not.toMatch(/[0-9][0-9,]*\s+free\s+credits/i);
   });
 });
