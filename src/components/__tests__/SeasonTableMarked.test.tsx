@@ -123,3 +123,74 @@ describe('the season standings table', () => {
     expect(within(row).getByText('+12 cr')).toBeTruthy();
   });
 });
+
+/**
+ * The phone (owner report 2026-08-31: "the phone view looks like shit... i
+ * think normal columns are even better than that").
+ *
+ * The phone used to hide both new columns and stack their numbers under the
+ * score, so every row was three lines and the leader's row was the tallest
+ * thing on the screen. It now carries the same four numeric columns the
+ * desktop does, in a tighter rendering, under one line of grouped headers
+ * that says which pair decides money - the job the accent underline does on
+ * a wider screen.
+ */
+describe('the standings on a phone', () => {
+  function renderRunning() {
+    render(
+      <MemoryRouter>
+        <SeasonTable rows={rows} season={season} mode="running" />
+      </MemoryRouter>,
+    );
+  }
+
+  test('no number is stacked under the score any more', () => {
+    renderRunning();
+    // The sub-lines that made a row three tall are gone; the numbers they
+    // carried are columns now.
+    expect(document.querySelectorAll('.lbt-msub')).toHaveLength(0);
+  });
+
+  test('every money column has a tight rendering for the narrow screen', () => {
+    renderRunning();
+    const quroe = rowOf('Quroe');
+    // Wide: what a desktop reads. Tight: no unit, no cents past a hundred.
+    expect(within(quroe).getByText('+312.5 cr')).toBeTruthy();
+    expect(within(quroe).getByText('+313')).toBeTruthy();
+    const vi0 = rowOf('vi0');
+    expect(within(vi0).getByText('+706.77 cr')).toBeTruthy();
+    expect(within(vi0).getByText('+707')).toBeTruthy();
+    expect(within(vi0).getByText('$734.49')).toBeTruthy();
+    expect(within(vi0).getByText('$734')).toBeTruthy();
+  });
+
+  test('the grouped header says which pair pays', () => {
+    renderRunning();
+    expect(screen.getByText('Pays the prize')).toBeTruthy();
+    expect(screen.getByText('If prices hold')).toBeTruthy();
+  });
+
+  test('the header carries a short form of every column name', () => {
+    renderRunning();
+    expect(screen.getByText('Settled profit ↓')).toBeTruthy();
+    expect(screen.getByText('Settled cr ↓')).toBeTruthy();
+    expect(screen.getByText('Total if prices hold')).toBeTruthy();
+    expect(screen.getByText('Total cr')).toBeTruthy();
+    expect(screen.getByText('Projected prize')).toBeTruthy();
+    expect(screen.getByText('Prize')).toBeTruthy();
+  });
+
+  test('a settled season keeps its two columns and needs no group line', () => {
+    const done: SeasonStanding[] = [
+      { rank: 1, id: 'vi0', nickname: 'vi0', score: 12, prizeUsd: 1000, markedScore: null },
+    ];
+    render(
+      <MemoryRouter>
+        <SeasonTable rows={done} season={season} mode="settled" />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByText('Pays the prize')).toBeNull();
+    expect(screen.getByText('+12 cr')).toBeTruthy();
+    expect(screen.getByText('+12')).toBeTruthy();
+  });
+});
