@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { formatMetricValue } from '../lib/market-quote';
 
 /**
@@ -12,6 +13,10 @@ import { formatMetricValue } from '../lib/market-quote';
  * visible, and the trader who could not see it read an overshoot as a total
  * loss and asked an operator in a chat window instead
  * (notes/quroe-churn-2026-08-27.md).
+ *
+ * Every value is said ONCE, on its own mark. The sentence underneath names
+ * the gap and nothing else, because a picture that repeats itself in prose
+ * is the text this was meant to replace.
  */
 interface Props {
   unit: string;
@@ -32,6 +37,17 @@ interface Props {
   mode?: 'compose' | 'hold';
 }
 
+/**
+ * A caption sits over its own mark, so near the ends of the range a centred
+ * one would hang off the card. Inside the middle half it is centred; past
+ * that it pins to the edge it is nearest and reads inward from there.
+ */
+function captionStyle(pct: number): CSSProperties {
+  if (pct < 25) return { left: 0 };
+  if (pct > 75) return { right: 0 };
+  return { left: `${pct}%`, transform: 'translateX(-50%)' };
+}
+
 export function PayoffLine({
   unit,
   rangeMin,
@@ -47,9 +63,6 @@ export function PayoffLine({
 
   const pct = (v: number) => Math.min(100, Math.max(0, ((v - rangeMin) / span) * 100));
   const money = (v: number) => `${unit}${formatMetricValue(v)}`;
-  /** Captions are centred on their mark, so the ends need pulling in or the
-      caption hangs off the card. */
-  const anchor = (p: number) => Math.min(84, Math.max(16, p));
   const nowPct = pct(consensus);
 
   const ends = (
@@ -64,8 +77,10 @@ export function PayoffLine({
   if (direction === null || breakeven === null) {
     return (
       <div className="pay">
-        <div className="pay-cap pay-cap--slim">
-          <span style={{ left: `${anchor(nowPct)}%` }}>now</span>
+        <div className="pay-cap">
+          <span style={captionStyle(nowPct)}>
+            now <b>{money(consensus)}</b>
+          </span>
         </div>
         <div className="pay-track-wrap">
           <div className="pay-track">
@@ -76,8 +91,8 @@ export function PayoffLine({
         </div>
         {ends}
         <div className="pay-sides">
-          <span className="pay-side pay-side--lower">Lower wins under {money(consensus)}</span>
-          <span className="pay-side pay-side--higher">Higher wins over {money(consensus)}</span>
+          <span className="pay-side pay-side--lower">Lower wins</span>
+          <span className="pay-side pay-side--higher">Higher wins</span>
         </div>
       </div>
     );
@@ -88,39 +103,36 @@ export function PayoffLine({
   const higher = direction === 'higher';
   const winStyle = higher ? { left: `${bePct}%`, right: '0%' } : { left: '0%', right: `${100 - bePct}%` };
 
-  const topCaption =
+  // Top row: the thing that moves. A resting order moves nothing, so it gets
+  // no row at all rather than an empty one.
+  const top =
     mode === 'hold'
-      ? { at: nowPct, text: 'market now ', value: money(consensus) }
+      ? { at: nowPct, label: 'now', value: money(consensus) }
       : pushPct !== null && push !== null
-        ? { at: pushPct, text: 'you push it to ', value: money(push) }
+        ? { at: pushPct, label: 'push', value: money(push) }
         : null;
 
   const say = (() => {
     if (mode === 'hold') {
       const gap = Math.abs(consensus - breakeven);
       const ahead = higher ? consensus > breakeven : consensus < breakeven;
-      if (ahead) return `It can ${higher ? 'fall' : 'rise'} ${money(gap)} to ${money(breakeven)} before you lose.`;
-      return `It has to ${higher ? 'rise' : 'fall'} ${money(gap)} to ${money(breakeven)} before you win.`;
+      if (ahead) return `Can ${higher ? 'fall' : 'rise'} ${money(gap)} before you lose.`;
+      return `Needs ${money(gap)} to break even.`;
     }
-    // A resting order fills at its own price, so there is no walk to average
-    // and no room to be wrong: the limit IS the break-even.
-    if (push === null) return `Filled at ${money(breakeven)}, that is exactly where the bet starts paying.`;
-    const gap = Math.abs(push - breakeven);
-    return `You ${higher ? 'push it to' : 'push it down to'} ${money(push)} but you break even at ${money(
-      breakeven,
-    )}, so you have ${money(gap)} of room to be wrong.`;
+    // A resting order fills at its own price, so there is no walk to average.
+    if (push === null) return 'Fills at your price, so no room either way.';
+    return `${money(Math.abs(push - breakeven))} of room to be wrong.`;
   })();
 
   return (
     <div className="pay">
-      <div className="pay-cap">
-        {topCaption && (
-          <span style={{ left: `${anchor(topCaption.at)}%` }}>
-            {topCaption.text}
-            <b>{topCaption.value}</b>
+      {top && (
+        <div className="pay-cap">
+          <span style={captionStyle(top.at)}>
+            {top.label} <b>{top.value}</b>
           </span>
-        )}
-      </div>
+        </div>
+      )}
       <div className="pay-track-wrap">
         <div className="pay-track">
           <div className={`pay-win pay-win--${direction}`} style={winStyle} />
@@ -130,9 +142,8 @@ export function PayoffLine({
         {pushPct !== null && <div className="pay-mark pay-mark--push" style={{ left: `${pushPct}%` }} />}
       </div>
       <div className="pay-cap pay-cap--under">
-        <span style={{ left: `${anchor(bePct)}%` }}>
-          {mode === 'hold' ? 'your break-even ' : 'break even at '}
-          <b>{money(breakeven)}</b>
+        <span style={captionStyle(bePct)}>
+          break even <b>{money(breakeven)}</b>
         </span>
       </div>
       {ends}
