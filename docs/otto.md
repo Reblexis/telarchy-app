@@ -73,12 +73,13 @@ answer is not a trade. One sample per scenario is not a measurement:
 Research and measurements behind these choices (why no agent harness, which
 models were tried, eval results): `notes/otto-harness-research-2026-08-24.md`.
 
-## Continue with your own agent
+## Or your own agent
 
-Every Otto conversation carries one control besides the text box: **Continue
-with your own agent**, which copies the prompt for handing the same work to
-the operator's own coding agent, as it stands at that point in the
-conversation. On the operator door that is the prompt Otto has been writing
+Every Otto conversation carries the other door at its foot: the same market,
+handed to the assistant the person already uses, on a key they choose
+(`docs/owner-on-the-floor.md`, "Handing it to your own agent"). On the
+operator door it is the prompt Otto has been writing beside the conversation,
+with the key offered under it. On the operator door that is the prompt Otto has been writing
 beside the conversation (`services/setup-handoff.ts`, owner direction
 2026-08-23); on a market it is the state-built prompt described in
 `docs/owner-on-the-floor.md`, "Handing it to your own agent".

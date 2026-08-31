@@ -30,8 +30,7 @@ export function SubjectAbout({
   defaultText,
   canManage,
   onSaved,
-  onAsk,
-  handoff,
+  doors,
 }: {
   workspaceId: string;
   name: string;
@@ -49,11 +48,10 @@ export function SubjectAbout({
    *  section around it already says which company. Labelling it "Ask Otto
    *  about <name>" would make it indistinguishable from the corner dock in a
    *  screen reader's list of controls. */
-  onAsk?: () => void;
-  /** The "copy a prompt for your own AI" affordance, rendered under Ask Otto.
-   *  Passed in rather than built here so this component keeps knowing only
-   *  about the words on the page. */
-  handoff?: ReactNode;
+  /** Otto and the reader's own AI, as one stack. Passed in rather than built
+   *  here, so this component keeps knowing only about the words on the page,
+   *  and so a manager's pair can live under the number instead. */
+  doors?: ReactNode;
 }) {
   const text = value && value.trim() ? value : defaultText;
   const [editing, setEditing] = useState(false);
@@ -123,21 +121,12 @@ export function SubjectAbout({
       ) : (
         <>
           <p className="pubws-know-what pubws-know-about">{linkify(text)}</p>
-          {onAsk && (
-            <button type="button" className="pubws-know-ask" onClick={onAsk}>
-              <span className="pubws-know-ask-mark" aria-hidden="true">
-                O
-              </span>
-              <span className="pubws-know-ask-label">Ask Otto about {name}</span>
-              <span className="pubws-know-ask-go" aria-hidden="true">
-                →
-              </span>
-            </button>
-          )}
-          {/* Directly under Ask Otto, because it is the same offer made to a
-            different assistant: ours, or the one you already talk to
-            (owner ask 2026-08-31). */}
-          {handoff}
+          {/* The doors, both of them: Otto and your own AI, as one hairline
+            stack the page owns (AgentDoors; owner ask 2026-08-31). This
+            section used to carry its own Ask Otto button, which said the
+            wrong thing once Otto could act rather than only answer, and left
+            the reader's own agent with nowhere to stand beside him. */}
+          {doors}
         </>
       )}
     </section>

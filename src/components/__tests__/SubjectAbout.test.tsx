@@ -7,9 +7,11 @@ import { SubjectAbout } from '../SubjectAbout';
 
 /**
  * "What is <name>?" is where a visitor's question forms, so it carries the
- * way to ask one (owner direction 2026-08-21: make Otto obvious). The button
- * is for every visitor, including the owner mid-edit, which is the case that
- * would otherwise put two controls in one row fighting for the same click.
+ * way to act on one (owner direction 2026-08-21: make Otto obvious). Since
+ * 2026-08-31 the doors are built by the page and passed in, because the words
+ * depend on what the reader may do and a manager's pair lives under the
+ * number instead: this component only decides WHERE they go, and that they
+ * step aside mid-edit.
  */
 const base = {
   workspaceId: 'ws1',
@@ -20,23 +22,22 @@ const base = {
   onSaved: () => {},
 };
 
+const doors = <button type="button">Have Otto trade this market with you</button>;
+
 describe('the What is section', () => {
-  test('offers Otto beside the question', () => {
-    const onAsk = vi.fn();
-    render(<SubjectAbout {...base} onAsk={onAsk} />);
-    fireEvent.click(screen.getByRole('button', { name: /ask otto/i }));
-    expect(onAsk).toHaveBeenCalled();
+  test('carries the doors the page handed it, under the words', () => {
+    render(<SubjectAbout {...base} doors={doors} />);
+    expect(screen.getByRole('button', { name: /have otto trade/i })).toBeTruthy();
   });
 
-  test('has no Otto where the page did not offer one', () => {
+  test('has no doors where the page did not offer any', () => {
     render(<SubjectAbout {...base} />);
-    expect(screen.queryByRole('button', { name: /ask otto/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /otto/i })).toBeNull();
   });
 
   test('steps out of the way while the owner is editing', () => {
-    const onAsk = vi.fn();
-    render(<SubjectAbout {...base} canManage onAsk={onAsk} />);
+    render(<SubjectAbout {...base} canManage doors={doors} />);
     fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
-    expect(screen.queryByRole('button', { name: /ask otto/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /have otto trade/i })).toBeNull();
   });
 });

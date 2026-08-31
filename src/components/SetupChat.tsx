@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { clearSetupDraft, loadSetupDraft, saveSetupDraft } from '../lib/setup-draft';
-import { AgentKeyOffer } from './AgentHandoff';
+import { AgentKeyOffer } from './AgentDoors';
 import { type InstrumentMarket, SetupInstrument, SetupTicks } from './SetupInstrument';
 
 /**

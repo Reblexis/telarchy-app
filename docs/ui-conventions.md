@@ -144,6 +144,12 @@ injected 1,000 credits watched the pool rise by 1,443 and reported it
 in the public books, takes `pool`; `liquidity` goes only where a price is
 being computed.
 
+**An assistant row says what it DOES, never "ask".** Otto acts as the person
+signed in, and so does their own agent once it holds a key, so a row that
+offers either says the work: run, trade, set up. "Ask" survives in exactly
+one place, the signed-out reader, for whom it is the truth
+(docs/owner-on-the-floor.md, "Handing it to your own agent").
+
 **The thing a proposer sells is a CONTRACT, never a "job".** The rail
 beside it reads "Top contractors", and contractors do contracts.
 "Contract" also says what it is more exactly than "job" does: an offer at

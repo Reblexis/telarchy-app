@@ -8512,151 +8512,167 @@ textarea.jobform-line--desc {
 .fundp-go { width: auto; flex: 1; min-width: 15rem; }
 .fundp-fine { margin-top: 0.9rem; }
 
+
 /* ---------------------------------------------------------------------------
-   Hand the market to your own agent (docs/owner-on-the-floor.md).
-   Under Ask Otto, in the Otto box, and under the empty market's own button:
-   the same block in three widths, so it never reads as three features.
+   The two doors: Otto and your own AI, one hairline stack
+   (docs/owner-on-the-floor.md, "Handing it to your own agent"). The row is
+   .pubws-know-ask's anatomy, because it IS that row: same height, same mark,
+   same hover.
    --------------------------------------------------------------------------- */
-.handoff {
+.doors { margin-top: 1.6rem; }
+
+.doors-stack {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.35rem;
-  margin-top: 0.9rem;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.handoff-go {
-  padding: 0.5rem 0.9rem;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
+.doors-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.85rem 0.2rem;
+  border: none;
+  border-top: 1px solid var(--border-color);
   background: none;
   font: inherit;
-  font-size: 0.86rem;
-  font-weight: 600;
+  text-align: left;
   color: var(--text-primary);
   cursor: pointer;
-  transition:
-    background var(--transition-fast),
-    border-color var(--transition-fast);
+  transition: background var(--transition-fast);
 }
-.handoff-go:hover {
-  background: var(--bg-secondary);
-  border-color: var(--text-secondary);
+.doors-row:hover { background: var(--bg-secondary); }
+.doors-row.is-open { background: var(--bg-secondary); }
+.doors-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.doors-label { flex: 1; font-size: 0.9rem; }
+
+.doors-go {
+  color: var(--text-tertiary);
+  font-size: 0.95rem;
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+.doors-row:hover .doors-go { color: var(--text-primary); transform: translateX(3px); }
+@media (prefers-reduced-motion: reduce) {
+  .doors-go { transition: color var(--transition-fast); }
+  .doors-row:hover .doors-go { transform: none; }
 }
 
-.handoff-sub {
-  font-size: 0.76rem;
-  line-height: 1.5;
+.doors-said { font-size: 0.76rem; color: var(--text-tertiary); }
+.doors-said--accent { color: var(--accent); }
+
+/* The same mark Otto wears in the corner, so the two doors read as one
+   person; the outlined chevron beside it is the reader's own agent. */
+.doors-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  line-height: 1;
+}
+.doors-mark--otto {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+}
+.doors-mark--mine {
+  border: 1px solid var(--border-strong);
   color: var(--text-secondary);
 }
 
-/* Inside Otto the block is a footer under the composer, so it stays quiet
-   next to the thing the visitor came to type in. */
-.otto-handoff {
-  padding: 0 0.9rem;
-}
-.handoff--in-otto {
-  margin-top: 0.6rem;
-}
-.handoff--in-otto .handoff-sub {
-  font-size: 0.72rem;
-}
-
-/* Under "Add your first metric" the market is empty and centred, so this is
-   too. */
-.handoff--empty {
-  align-items: center;
-  margin-top: 1.4rem;
-  text-align: center;
-}
-
-.handoff-keys {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  width: 100%;
-  max-width: 34rem;
-  margin-top: 0.6rem;
-  padding: 0.8rem;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  background: var(--bg-secondary);
-  text-align: left;
-}
-
-.handoff-keys-head {
-  margin: 0 0 0.2rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.handoff-key-opt {
+/* One step in, so what the question opens belongs to the row that asked it. */
+.doors-opt {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.8rem;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: var(--bg-primary);
+  width: 100%;
+  padding: 0.65rem 0.2rem 0.65rem 2.2rem;
+  border: none;
+  border-top: 1px solid var(--border-color);
+  background: none;
   font: inherit;
   text-align: left;
   color: var(--text-primary);
   cursor: pointer;
+  transition: background var(--transition-fast);
 }
-.handoff-key-opt:hover {
-  border-color: var(--accent-color);
-}
-.handoff-key-opt:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
+.doors-opt:hover { background: var(--bg-secondary); }
+.doors-opt:disabled { opacity: 0.55; cursor: default; }
+.doors-opt-name { font-size: 0.9rem; }
+.doors-opt-note { font-size: 0.76rem; color: var(--text-tertiary); }
+.doors-opt-note.is-accent { color: var(--accent); }
 
-.handoff-key-label {
-  font-size: 0.86rem;
-  font-weight: 600;
+.doors-key {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.65rem 0.2rem 0.65rem 2.2rem;
+  border-top: 1px solid var(--border-color);
 }
-.handoff-key-hint {
-  font-size: 0.74rem;
-  color: var(--text-secondary);
-}
-
-.handoff-key-value {
-  display: block;
-  padding: 0.55rem 0.6rem;
-  border-radius: 8px;
-  background: var(--bg-primary);
+.doors-key-value {
   font-family: var(--font-mono);
-  font-size: 0.76rem;
-  word-break: break-all;
+  font-size: 0.8rem;
   color: var(--text-primary);
+  word-break: break-all;
+}
+.doors-key-once {
+  flex: none;
+  font-size: 0.76rem;
+  color: var(--text-tertiary);
 }
 
-.handoff-key-copy {
-  align-self: flex-start;
-  padding: 0.35rem 0.75rem;
-  border: 1px solid var(--border-color);
+/* Two copies of equal weight, so two pills of equal weight: the ink button
+   stays reserved for the market's own verbs. */
+.doors-copies {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.8rem 0.2rem 1rem 2.2rem;
+  border-top: 1px solid var(--border-color);
+}
+.doors-pill {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: none;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.86rem;
+  font-weight: 600;
   color: var(--text-primary);
   cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
-.handoff-key-copy:hover {
-  background: var(--bg-secondary);
+.doors-pill:hover { background: var(--bg-secondary); border-color: var(--text-primary); }
+
+.doors-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: var(--text-tertiary);
 }
 
-.handoff-note {
-  margin: 0.15rem 0 0;
-  font-size: 0.74rem;
-  line-height: 1.55;
-  color: var(--text-secondary);
-}
-.handoff-note code {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
+/* In the Otto panel the stack is a footer under the composer, so it loses its
+   top margin and sits quieter. */
+.doors--in-otto { margin-top: 0.6rem; padding: 0 0.9rem 0.2rem; }
+.doors--in-otto .doors-note { font-size: 0.72rem; }
+
+/* Under the empty market's own button the page is centred; the rows stay left
+   because a row of text that centres itself stops looking like a row. */
+.doors--empty { margin-top: 1.8rem; text-align: left; }
+
+.doors--offer { margin-top: 0.9rem; }
+.doors-opt--flush,
+.doors-key--flush,
+.doors-copies--flush { padding-left: 0.2rem; }
+
+/* Under the number, inside the market's own column: the stack keeps the
+   instrument's width rather than the page's, so it reads as part of it. */
+.doors--instrument {
+  max-width: 34rem;
+  margin: 1.8rem auto 0;
 }
