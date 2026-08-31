@@ -6596,6 +6596,15 @@ textarea.jobform-line--desc {
    three tall). Dropping a column instead would take the season's second
    question off the phone entirely. */
 .lbt-tight { display: none; }
+/* A handle never wraps. "philipp-gl" broke after its hyphen when the season
+   table's seven columns squeezed the entrant cell to 126px on /season, which
+   is a narrower page than /leaderboard, and a two-line name made a 97px row
+   next to 74px ones. */
+.lbt-nametext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The numbers take what they need and the name takes the rest, so the column
+   that has to hold arbitrary text is the one that gets the slack. Scoped to
+   the season table, the only one with up to seven columns. */
+.lbt--season .lbt-num, .lbt--season .lbt-rank { width: 1%; }
 /* The grouped line that tells a phone which pair of columns is money. A
    wider screen has the accent underline for that and does not need it. */
 .lbt-grp { display: none; }
@@ -6625,7 +6634,6 @@ textarea.jobform-line--desc {
   .lbt--season .lbt-cell { padding-left: 0.22rem; padding-right: 0.22rem; }
   .lbt--season .lbt-num { font-size: 0.72rem; }
   .lbt--season .lbt-name { font-size: 0.8rem; min-width: 0; }
-  .lbt--season .lbt-nametext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lbt--season .lbt-cell.is-left { max-width: 6.2rem; }
   /* "73% of the pool" under the name cost every paying row an extra line,
      which is most of what made the phone rows tall. The share is prize over
