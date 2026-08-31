@@ -3315,6 +3315,14 @@ voiding markets during a running season except to correct a declared error.</p>
 and baseline mark&quot; (there is no settlement mark to time-average, and the
 baseline is a record now) and &quot;mid-season resolution&quot; (F4, resolved by the
 2026-08-25 grid).</p>
+<p><code>GET /api/leaderboard?seasonId=&lt;id&gt;</code> is the standings, and it answers in a
+DIFFERENT SHAPE from the same path without that parameter: a season row is
+<code>{ rank, id, nickname, image, manifoldUsername, score, projectedPrizeUsd, enteredAt }</code>, where <code>score</code> is the scoring key above and
+<code>projectedPrizeUsd</code> is what settlement would pay that entrant right now.
+There is no <code>settledEarnings</code> on a season row, and no <code>projectedPayoutUsd</code>
+anywhere; reading either returns nothing and looks exactly like a zero
+score, which is how a fully allocated pool was once read as paying nobody
+(2026-08-31).</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>

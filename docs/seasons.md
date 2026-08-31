@@ -439,3 +439,14 @@ Two rows retired 2026-08-28 by the settled-scoring amendment: "settlement
 and baseline mark" (there is no settlement mark to time-average, and the
 baseline is a record now) and "mid-season resolution" (F4, resolved by the
 2026-08-25 grid).
+
+
+`GET /api/leaderboard?seasonId=<id>` is the standings, and it answers in a
+DIFFERENT SHAPE from the same path without that parameter: a season row is
+`{ rank, id, nickname, image, manifoldUsername, score, projectedPrizeUsd,
+enteredAt }`, where `score` is the scoring key above and
+`projectedPrizeUsd` is what settlement would pay that entrant right now.
+There is no `settledEarnings` on a season row, and no `projectedPayoutUsd`
+anywhere; reading either returns nothing and looks exactly like a zero
+score, which is how a fully allocated pool was once read as paying nobody
+(2026-08-31).
