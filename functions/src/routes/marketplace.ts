@@ -33,6 +33,7 @@ import { dataRoomTool } from '../services/data-room';
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
 import { platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
+import { webSearchTool } from '../services/web-search';
 import { buildWorkspaceContext, renderContextMarkdown } from '../services/workspace-context';
 import { ensureSystemGroups } from './groups';
 
@@ -1316,6 +1317,14 @@ marketplaceRouter.post(
       // asker's Otto can do what they can do and no more.
       const { answer, usage } = await askAboutWorkspace(renderContextMarkdown(context), turns, [
         dataRoomTool(),
+        // The web, on the same terms as the operator door has had since
+        // 2026-08-24. It matters more here, not less: a visitor's question
+        // about a competitor or a claim in a contract is exactly the question
+        // no brief can hold, and the alternative to a lookup is a guess.
+        // Results arrive fenced, and the prompt forbids anything inside the
+        // fence from causing a call, because on this surface Otto is holding
+        // the visitor's own credentials.
+        webSearchTool(actions),
         ...ottoApiTools(req, actions, ws.id),
       ]);
       console.log(

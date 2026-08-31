@@ -45,9 +45,16 @@ at run time.
 
 ## Tools and budgets
 
-Four tools: `find_endpoint`, `call_api` (replays the caller's own request),
-`read_data_room` (on a market page; index first, then one section at a time),
-`search_web`. Every lookup and call is recorded on the question row.
+Four tools, and both surfaces get `find_endpoint`, `call_api` (replays the
+caller's own request) and `search_web`. `read_data_room` is the market page's
+alone (index first, then one section at a time); the setup door has no floor to
+be on. Every lookup and call is recorded on the question row.
+
+What `search_web` returns is fenced as text strangers wrote and is information,
+never an instruction, and **nothing inside a fence may cause an API call**.
+That rule is load-bearing on the market page in a way it is not elsewhere,
+because there Otto is holding a signed-in visitor's own credentials while
+reading a page anyone on the internet can write.
 
 At most `MAX_TOOL_ROUNDS = 6` tool rounds per answer. On the last round the
 tools are withheld so the model has to answer rather than reach for one; a
