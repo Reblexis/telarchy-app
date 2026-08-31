@@ -33,10 +33,16 @@ export function priceLabel(p: number): string {
 }
 
 /**
- * The one sentence that turns a price into a payout. A cents price on a
- * binary contract states its own payout; ours is linear in the settled
- * value, so the price alone would be a true number under a false assumption.
+ * The one line that turns a price into a payout. A cents price on a binary
+ * contract states its own payout; ours is linear in the settled value, so
+ * the price alone would be a true number under a false assumption.
+ *
+ * Eight words, and it stays that way (owner, 2026-08-31, on the eighteen-word
+ * version: "this seems like too much text"): it sits under a two-character
+ * price, and a sentence of explanation there reads as a warning rather than
+ * as the price's unit. What happens between the two ends is the ticket's job,
+ * which says it about the actual bet ("Wins above", "Each X beyond").
  */
 export function payoutLine(unit: string, rangeMin: number, rangeMax: number): string {
-  return `A share pays 1 credit if the number settles at ${unit}${fmtEdge(rangeMax)}, nothing at ${unit}${fmtEdge(rangeMin)}, in proportion in between.`;
+  return `A share pays 1 cr at ${unit}${fmtEdge(rangeMax)}, nothing at ${unit}${fmtEdge(rangeMin)}.`;
 }

@@ -41,16 +41,21 @@ describe('priceLabel', () => {
 
 describe('payoutLine', () => {
   test('names the top of the range, the bottom, and the credit a share pays', () => {
-    expect(payoutLine('$', 0, 500_000)).toBe(
-      'A share pays 1 credit if the number settles at $500,000, nothing at $0, in proportion in between.',
-    );
+    expect(payoutLine('$', 0, 500_000)).toBe('A share pays 1 cr at $500,000, nothing at $0.');
+  });
+
+  test('it stays short: the price it explains is two characters wide', () => {
+    // Owner, 2026-08-31, on the eighteen-word version: "this seems like too
+    // much text". Eight words is the ceiling; anything longer reads as a
+    // warning under the price rather than as its unit.
+    expect(payoutLine('', 0, 50).split(' ').length).toBeLessThanOrEqual(10);
   });
 
   test('range ends read as numbers a person would say, without trailing zeros', () => {
-    expect(payoutLine('', 0, 50)).toContain('settles at 50, nothing at 0,');
+    expect(payoutLine('', 0, 50)).toBe('A share pays 1 cr at 50, nothing at 0.');
   });
 
   test('a fractional end keeps the digits that matter', () => {
-    expect(payoutLine('', 0, 2.5)).toContain('settles at 2.50,');
+    expect(payoutLine('', 0, 2.5)).toContain('at 2.50,');
   });
 });
