@@ -52,7 +52,7 @@ import {
   timeAgoOf,
   timeLeftOf,
 } from '../lib/floor-horizons';
-import { maxReturnLabel, payoutLine, priceLabel } from '../lib/market-quote';
+import { maxReturnLabel, payoutLine } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
 
@@ -1840,20 +1840,14 @@ export function TradePage() {
                     <div className="pubws-bet" role="group" aria-label="Bet">
                       <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>
                         Bet Higher ↑
-                        <span className="pubws-bet-price">
-                          {priceLabel(livePriceProb ?? active.probability)}
-                          <span className="pubws-bet-max">
-                            up to {maxReturnLabel(livePriceProb ?? active.probability)}
-                          </span>
+                        <span className="pubws-bet-max">
+                          up to {maxReturnLabel(livePriceProb ?? active.probability)}
                         </span>
                       </button>
                       <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>
                         Bet Lower ↓
-                        <span className="pubws-bet-price">
-                          {priceLabel(1 - (livePriceProb ?? active.probability))}
-                          <span className="pubws-bet-max">
-                            up to {maxReturnLabel(1 - (livePriceProb ?? active.probability))}
-                          </span>
+                        <span className="pubws-bet-max">
+                          up to {maxReturnLabel(1 - (livePriceProb ?? active.probability))}
                         </span>
                       </button>
                     </div>

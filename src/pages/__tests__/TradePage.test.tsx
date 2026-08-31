@@ -1254,15 +1254,28 @@ describe('the floor quotes both sides before the first click', () => {
     return ws;
   };
 
-  test('each verb carries the price of a share of that side', async () => {
+  test('each verb says the most a credit on that side can come back as', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(tradable(0.14) as never);
     renderFloor();
 
+    // A 14c share can return sevenfold; an 86c one barely at all. The verbs
+    // and the ticket's pills quote it in the same words, from the same
+    // function, so the two untouched states cannot drift apart.
     const higher = await screen.findByRole('button', { name: /Bet Higher/ });
     const lower = screen.getByRole('button', { name: /Bet Lower/ });
-    expect(higher.textContent).toContain('14c');
-    expect(lower.textContent).toContain('86c');
+    expect(higher.textContent).toContain('up to 7.1x');
+    expect(lower.textContent).toContain('up to 1.2x');
+  });
+
+  test('and never the price in cents, which is the thing it replaced', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(tradable(0.14) as never);
+    const { container } = renderFloor();
+
+    await screen.findByRole('button', { name: /Bet Higher/ });
+    expect(container.textContent).not.toContain('14c');
+    expect(container.textContent).not.toContain('86c');
   });
 
   test('one line under the verbs says what a share pays, naming both ends', async () => {

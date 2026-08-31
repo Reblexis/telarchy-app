@@ -5162,48 +5162,47 @@ textarea.jobform-line--desc {
    the whole of the four fact rows it replaced (owner, 2026-08-31): the
    maximum is the end column, the slope is the step between any two, the
    break-even is where red turns green, and the landing is the caption. */
-.pay-scale {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin-top: 0.45rem;
+/* Every stop is a point ON the track: a tick inside it and a label over
+   that tick, so the two halves of the picture are one scale rather than a
+   table beside a bar. The break-even is a stop like any other (owner,
+   2026-08-31: "the 0 credit profit point should be just like any other..
+   among the other ones.. not separate"), which is why nothing here is
+   styled as a note. */
+.pay-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--text-tertiary);
+  opacity: 0.45;
+}
+.pay-stops {
+  position: relative;
+  height: 2.3rem;
+  margin-top: 0.4rem;
   font-size: 0.78rem;
 }
-.pay-scale > div {
+.pay-stop {
+  position: absolute;
+  top: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1px;
+  white-space: nowrap;
   font-family: 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
 }
-.pay-scale > div:first-child { align-items: flex-start; }
-.pay-scale > div:last-child { align-items: flex-end; }
-.pay-scale u {
+.pay-stop u {
   text-decoration: none;
   font-size: 0.72rem;
   color: var(--text-tertiary);
 }
-.pay-scale b { font-weight: 600; }
-.pay-scale .up { color: var(--higher); }
-.pay-scale .down { color: var(--lower); }
-/* Where the payoff line crosses zero, on the mark it belongs to. Its own
-   row, so it cannot meet the caption above the track however close the two
-   marks get; pinned at the ends by PayoffLine.markLabelStyle. */
-.pay-zero {
-  position: relative;
-  height: 1.1rem;
-  margin-top: 0.2rem;
-  font-size: 0.74rem;
-  white-space: nowrap;
-  color: var(--text-tertiary);
-}
-.pay-zero span { position: absolute; top: 0; }
-.pay-zero b {
-  font-family: 'JetBrains Mono', monospace;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--text-primary);
-}
+.pay-stop b { font-weight: 600; }
+.pay-stop .up { color: var(--higher); }
+.pay-stop .down { color: var(--lower); }
+.pay-stop .even { color: var(--text-primary); }
+
 
 /* Quick / Limit, Manifold's top-right toggle. */
 .ticket-mode {
