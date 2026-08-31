@@ -6612,17 +6612,21 @@ textarea.jobform-line--desc {
   .lbt-h:last-child, .lbt-num:last-child { padding-right: 0; }
   .lbt-h:first-child, .lbt-rank { padding-left: 0; }
   /* Four numeric columns fit a phone only if everything else gives way: the
-     wide renderings, the avatar, and any name long enough to wrap a row. */
+     wide renderings, the avatar, and any name long enough to wrap a row.
+     Scoped to the season table, which is the one with four of them. */
   .lbt-wide { display: none; }
   .lbt-tight { display: inline; }
-  .lbt-grp { display: table-row; }
-  .lbt .lbp-avatar { display: none; }
-  .lbt-h { font-size: 0.58rem; letter-spacing: 0.05em; }
-  .lbt-h, .lbt-num, .lbt-rank, .lbt-cell { padding-left: 0.22rem; padding-right: 0.22rem; }
-  .lbt-num { font-size: 0.72rem; }
-  .lbt-name { font-size: 0.8rem; min-width: 0; }
-  .lbt-nametext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lbt-cell.is-left { max-width: 6.2rem; }
+  .lbt--season .lbt-grp { display: table-row; }
+  .lbt--season .lbp-avatar { display: none; }
+  .lbt--season .lbt-h { font-size: 0.58rem; letter-spacing: 0.05em; }
+  .lbt--season .lbt-h,
+  .lbt--season .lbt-num,
+  .lbt--season .lbt-rank,
+  .lbt--season .lbt-cell { padding-left: 0.22rem; padding-right: 0.22rem; }
+  .lbt--season .lbt-num { font-size: 0.72rem; }
+  .lbt--season .lbt-name { font-size: 0.8rem; min-width: 0; }
+  .lbt--season .lbt-nametext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lbt--season .lbt-cell.is-left { max-width: 6.2rem; }
 }
 
 /* /earn, personal: the tally supplies the pull, the row states supply the
