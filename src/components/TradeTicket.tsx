@@ -4,7 +4,7 @@ import { useEarnAvailable } from '../hooks/useEarnAvailable';
 import { previewSell, previewTargetBet, previewTrade } from '../lib/amm';
 import type { LimitOrder } from '../lib/api';
 import { amountToSlider, SLIDER_STEPS, sliderToAmount } from '../lib/bet-slider';
-import { maxReturnLabel } from '../lib/market-quote';
+import { maxWinLabel } from '../lib/market-quote';
 import { PayoffLine } from './PayoffLine';
 
 /**
@@ -330,6 +330,9 @@ export function TradeTicket({
      2026-08-31: "also remove the up to and each $20 beyond"), so they are
      drawn only where it cannot be: a market with no range. */
   const hasPayoff = rangeMin !== undefined && rangeMax !== undefined && consensus !== null;
+  /* What each side has on the table, which is what the pills quote. */
+  const higherCeiling = maxWinLabel(probability, liquidity);
+  const lowerCeiling = maxWinLabel(1 - probability, liquidity);
   const sideWord = dir === 'higher' ? 'Higher' : 'Lower';
   const confirmLabel = () => {
     if (busy === 'place') return isLimit ? 'Placing order…' : 'Placing…';
@@ -545,7 +548,7 @@ export function TradeTicket({
               onClick={() => pick('lower')}
             >
               <span className="ticket-side-word">Lower</span>
-              <span className="ticket-side-max">up to {maxReturnLabel(1 - probability)}</span>
+              {lowerCeiling !== null && <span className="ticket-side-max">up to {lowerCeiling}</span>}
             </button>
             <button
               className={`ticket-side ticket-side--higher${dir === 'higher' ? ' is-active' : ''}`}
@@ -553,7 +556,7 @@ export function TradeTicket({
               onClick={() => pick('higher')}
             >
               <span className="ticket-side-word">Higher</span>
-              <span className="ticket-side-max">up to {maxReturnLabel(probability)}</span>
+              {higherCeiling !== null && <span className="ticket-side-max">up to {higherCeiling}</span>}
             </button>
           </div>
         )}

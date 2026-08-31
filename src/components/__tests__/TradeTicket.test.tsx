@@ -334,33 +334,41 @@ describe('the preview knows about redemption (2026-08-30)', () => {
  * other venue does and what the platform's most calibrated trader left for
  * want of (notes/quroe-churn-2026-08-27.md).
  */
-describe('what a credit can come back as', () => {
-  test('each side says the most a credit on it can return', () => {
+describe('how much is on the table', () => {
+  test('each side says the most that can be won on it, in credits', () => {
     render(<TradeTicket {...base} />);
-    // p = 0.5: a share costs half a credit and pays at most one, so 2x.
-    expect(screen.getAllByText('up to 2x')).toHaveLength(2);
+    // b = 200 at even odds: 200 * ln 2 = 139 credits behind either side.
+    expect(screen.getAllByText('up to 139 cr')).toHaveLength(2);
   });
 
-  test('and says it INSTEAD of the price, because a multiple is what a bettor reads', () => {
+  test('and says it INSTEAD of the price, which told a reader nothing about depth', () => {
     const { container } = render(<TradeTicket {...base} probability={0.2} />);
-    expect(container.textContent).toContain('up to 5x');
     expect(container.textContent).not.toContain('20c');
     expect(container.textContent).not.toContain('80c');
+    expect(container.textContent).not.toMatch(/up to [\d.]+x/);
   });
 
-  test('the cheap side promises more than the dear one', () => {
-    render(<TradeTicket {...base} probability={0.2} />);
-    expect(screen.getByText('up to 5x')).toBeTruthy();
-    expect(screen.getByText('up to 1.3x')).toBeTruthy();
+  test('the cheap side has more on the table than the dear one', () => {
+    render(<TradeTicket {...base} probability={0.14} />);
+    expect(screen.getByText('up to 393 cr')).toBeTruthy();
+    expect(screen.getByText('up to 30 cr')).toBeTruthy();
   });
 
-  test('it never says a bare multiple, because the maximum is not the expectation', () => {
+  test('a thinner market says so, on the same prices', () => {
+    // The number is the market's depth, which is the thing that decides
+    // whether a market is worth a trader's time at all.
+    render(<TradeTicket {...base} liquidity={12} />);
+    expect(screen.getAllByText('up to 8.3 cr')).toHaveLength(2);
+  });
+
+  test('it is never quoted bare, because the ceiling is not the expectation', () => {
     const { container } = render(<TradeTicket {...base} probability={0.2} />);
-    expect(container.textContent).toContain('up to 5x');
-    expect(container.textContent).not.toMatch(/(?<!up to )\b5x\b/);
+    // 200 * ln(1/0.2) = 322 credits behind Higher.
+    expect(container.textContent).toContain('up to 322 cr');
+    expect(container.textContent).not.toMatch(/(?<!up to )322 cr/);
   });
 
-  test('the multiples go with the pills, so manage mode has none', () => {
+  test('the ceilings go with the pills, so manage mode has none', () => {
     const { container } = render(<TradeTicket {...base} manageMode initialDir="higher" />);
     expect(container.textContent).not.toContain('up to');
   });
@@ -369,28 +377,18 @@ describe('what a credit can come back as', () => {
 describe('the quote at rest', () => {
   test('both sides carry a quote before any click', () => {
     render(<TradeTicket {...base} />);
-    expect(screen.getAllByText('up to 2x')).toHaveLength(2);
+    expect(screen.getAllByText('up to 139 cr')).toHaveLength(2);
   });
 
-  test('the dearer side promises less, and the two follow the market number', () => {
-    render(<TradeTicket {...base} probability={0.14} />);
-    // A 14c share can come back sevenfold; an 86c one barely at all.
-    expect(screen.getByText('up to 7.1x')).toBeTruthy();
-    expect(screen.getByText('up to 1.2x')).toBeTruthy();
-  });
-
-  test('a nearly free side reads >99x, never a hundredfold claim', () => {
+  test('a side the market has all but settled has almost nothing to win', () => {
     // The Telarchy revenue market really does sit at p = 0.001.
-    const { container } = render(<TradeTicket {...base} probability={0.001} />);
-    expect(screen.getByText('up to >99x')).toBeTruthy();
-    expect(screen.getByText('up to 1x')).toBeTruthy();
-    expect(container.textContent).not.toContain('1,000x');
+    render(<TradeTicket {...base} probability={0.996} />);
+    expect(screen.getByText('<1 cr', { exact: false })).toBeTruthy();
   });
 
-  test('the same holds at the other end of the range', () => {
-    render(<TradeTicket {...base} probability={0.996} />);
-    expect(screen.getByText('up to >99x')).toBeTruthy();
-    expect(screen.getByText('up to 1x')).toBeTruthy();
+  test('an unfunded market quotes nothing: there is no ceiling to state', () => {
+    const { container } = render(<TradeTicket {...base} liquidity={0} />);
+    expect(container.textContent).not.toContain('up to');
   });
 
   test('the quote is never a percent, which would read as a chance', () => {
@@ -412,15 +410,15 @@ describe('the quote at rest', () => {
 
   test('without a range there is no track, but the quotes stand', () => {
     const { container } = render(<TradeTicket {...base} rangeMin={undefined} rangeMax={undefined} />);
-    expect(screen.getAllByText('up to 2x')).toHaveLength(2);
+    expect(screen.getAllByText('up to 139 cr')).toHaveLength(2);
     expect(container.querySelector('.pay-track')).toBeNull();
   });
 
   test('the quotes stay on the pills once a side is picked', () => {
     render(<TradeTicket {...base} probability={0.14} />);
     fireEvent.click(screen.getByText('Higher'));
-    expect(screen.getByText('up to 7.1x')).toBeTruthy();
-    expect(screen.getByText('up to 1.2x')).toBeTruthy();
+    expect(screen.getByText('up to 393 cr')).toBeTruthy();
+    expect(screen.getByText('up to 30 cr')).toBeTruthy();
   });
 
   test('manage mode quotes nothing: it has no side pills to quote', () => {

@@ -52,7 +52,7 @@ import {
   timeAgoOf,
   timeLeftOf,
 } from '../lib/floor-horizons';
-import { maxReturnLabel, payoutLine } from '../lib/market-quote';
+import { maxWinLabel, payoutLine } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
 
@@ -856,6 +856,11 @@ export function TradePage() {
     livePrice && livePrice.marketId === activeMarketId && active && active.rangeMax > active.rangeMin
       ? Math.max(0, Math.min(1, (livePrice.value - active.rangeMin) / (active.rangeMax - active.rangeMin)))
       : null;
+  /* What each side has on the table: the verbs quote it in the same words
+     as the ticket's pills, from the same function, so the two untouched
+     states of a market cannot drift apart. */
+  const higherCeiling = active ? maxWinLabel(livePriceProb ?? active.probability, active.liquidity) : null;
+  const lowerCeiling = active ? maxWinLabel(1 - (livePriceProb ?? active.probability), active.liquidity) : null;
   const consensus =
     (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null) ?? active?.consensus ?? null;
   // The headline number rolls to its new value (trade, branch switch, job
@@ -1840,15 +1845,11 @@ export function TradePage() {
                     <div className="pubws-bet" role="group" aria-label="Bet">
                       <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>
                         Bet Higher ↑
-                        <span className="pubws-bet-max">
-                          up to {maxReturnLabel(livePriceProb ?? active.probability)}
-                        </span>
+                        {higherCeiling !== null && <span className="pubws-bet-max">up to {higherCeiling}</span>}
                       </button>
                       <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>
                         Bet Lower ↓
-                        <span className="pubws-bet-max">
-                          up to {maxReturnLabel(1 - (livePriceProb ?? active.probability))}
-                        </span>
+                        {lowerCeiling !== null && <span className="pubws-bet-max">up to {lowerCeiling}</span>}
                       </button>
                     </div>
                     {!betModal && active.rangeMin !== undefined && active.rangeMax !== undefined && (

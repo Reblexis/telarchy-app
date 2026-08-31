@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { maxReturnLabel, payoutLine } from '../market-quote';
+import { previewTrade } from '../amm';
+import { maxWinLabel, payoutLine } from '../market-quote';
 
 /**
  * The quote a market shows before anyone trades (docs/ui-conventions.md,
@@ -27,31 +28,51 @@ describe('payoutLine', () => {
   });
 });
 
-describe('maxReturnLabel', () => {
-  test('a credit on an even market can come back as two', () => {
-    expect(maxReturnLabel(0.5)).toBe('2x');
+describe('maxWinLabel', () => {
+  test('the ceiling is the liquidity times the log of one over the price', () => {
+    // b = 574.95 at 30c: 574.95 * ln(1/0.296) = 700 credits, and not a
+    // credit more however much anyone spends.
+    expect(maxWinLabel(0.296, 574.9528711325589)).toBe('700 cr');
   });
 
-  test('the cheaper side can come back as more, and it is the reciprocal of the price', () => {
-    expect(maxReturnLabel(0.14)).toBe('7.1x');
-    expect(maxReturnLabel(0.86)).toBe('1.2x');
+  test('NO STAKE BEATS THE CEILING, which is the whole claim the label makes', () => {
+    const b = 574.9528711325589;
+    const p = 0.296;
+    const ceiling = b * Math.log(1 / p);
+    for (const spend of [1, 10, 73, 500, 5_000, 50_000]) {
+      const { shares } = previewTrade(p, b, 'higher', spend, null);
+      // Every share pays at most a credit, so this is the best the bet can do.
+      expect(shares - spend).toBeLessThanOrEqual(ceiling + 1e-6);
+    }
   });
 
-  test('a whole multiple loses its decimal, because 4.0x reads as false precision', () => {
-    expect(maxReturnLabel(0.25)).toBe('4x');
+  test('and it is approached, not merely bounded', () => {
+    const b = 574.9528711325589;
+    const { shares } = previewTrade(0.296, b, 'higher', 5_000, null);
+    expect(shares - 5_000).toBeGreaterThan(b * Math.log(1 / 0.296) * 0.99);
   });
 
-  test('a very cheap side reads >99x, the mirror of the <1c price', () => {
-    // 1000x is arithmetically true and reads as a lie, exactly as 0c would.
-    expect(maxReturnLabel(0.001)).toBe('>99x');
+  test('a thin market says how thin it is', () => {
+    // 12 credits of liquidity at even odds: eight credits on the table.
+    expect(maxWinLabel(0.5, 12)).toBe('8.3 cr');
   });
 
-  test('a near-certain side never claims less than its own credit back', () => {
-    expect(maxReturnLabel(0.999)).toBe('1x');
-    expect(maxReturnLabel(1)).toBe('1x');
+  test('the dear side has less on the table than the cheap one', () => {
+    expect(maxWinLabel(0.88, 330.1476387480261)).toBe('42 cr');
+    expect(maxWinLabel(0.12, 330.1476387480261)).toBe('700 cr');
   });
 
-  test('a price of nothing has no multiple to state', () => {
-    expect(maxReturnLabel(0)).toBe('>99x');
+  test('a nearly certain side has almost nothing to win', () => {
+    expect(maxWinLabel(0.999, 200)).toBe('<1 cr');
+  });
+
+  test('an unfunded market has no ceiling to state', () => {
+    // A market with no liquidity has no price either; it refuses trades.
+    expect(maxWinLabel(0.5, 0)).toBeNull();
+    expect(maxWinLabel(0.5, Number.NaN)).toBeNull();
+  });
+
+  test('a free side would have no ceiling, so it states none', () => {
+    expect(maxWinLabel(0, 200)).toBeNull();
   });
 });
