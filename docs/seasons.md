@@ -91,6 +91,22 @@ participant's own profile reports the same two numbers. Season standings do
 not split, because since the 2026-08-28 amendment a season score IS the
 settled part, windowed to the season: there is nothing to split it against.
 
+**The standings show the mark beside the score.** Two further columns answer
+the question the score deliberately refuses: what an entrant would have if
+every market that can still pay them this season settled at today's price.
+`markedScore` is the score's own arithmetic run over a wider set of markets:
+the settled window as before, PLUS every market still open whose resolution
+instant falls on or before the season's end, each open holding valued at that
+market's current call. A market resolving after the end is left out, because
+a resolution after the end pays no season prize, and the 6-hour trade cutoff
+applies unchanged, so a trade too late to be scored is too late to be marked.
+`markedProjectedPrizeUsd` is the settlement projection run on those numbers,
+from the same function the real projection uses, so it says what the pool
+would pay if the mark held to the end. Both are display: rank, share and
+prize stay on the settled score, and the columns say which is which. A mark
+can be manufactured on a thin book and a resolution cannot, which is why the
+mark informs an entrant without deciding anything.
+
 The ALL-TIME board's ranking key stays trading profit marked to market: it
 is the one number a trader can see moving, and a board that only moves on
 resolution days ranks nobody between them (the 2026-08-19 liquidation-mark

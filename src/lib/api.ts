@@ -298,6 +298,12 @@ export interface SeasonStanding {
   prizeUsd?: number;
   /** Running seasons: what this standing would pay if it settled now. */
   projectedPrizeUsd?: number;
+  /** Running seasons: the same score with every market that still resolves
+   *  inside the season valued at its current call, and what the pool would
+   *  pay on that. Display only, never the rank; null on a draft (no window
+   *  yet) and on a settled season (the finals are frozen). */
+  markedScore?: number | null;
+  markedProjectedPrizeUsd?: number | null;
   claimState?: 'unclaimed' | 'claimed' | 'expired' | 'paid' | null;
 }
 

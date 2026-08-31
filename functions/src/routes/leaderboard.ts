@@ -2,7 +2,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, authUser, prizeSeasons, seasonEntries, systemConfig, workspaces } from '../db/schema';
-import { loadBoard, loadSeasonSettled } from '../lib/board';
+import { loadBoard, loadSeasonMarked, loadSeasonSettled } from '../lib/board';
 import {
   getParticipantDisplayNames,
   payoutHandlesById,
@@ -106,6 +106,7 @@ const cachedBoard = (workspaceIds: string[]) => boardCache.get(workspaceIds);
 export function clearBoardCache(): void {
   boardCache.clear();
   settledCache.clear();
+  markedCache.clear();
 }
 
 /**
@@ -120,6 +121,30 @@ const settledCache = ttlCache({
   keyOf: (seasonId: string, _workspaceIds: string[], _from: Date, _to: Date) => seasonId,
   load: (_seasonId: string, workspaceIds: string[], from: Date, to: Date) => loadSeasonSettled(workspaceIds, from, to),
 });
+
+/**
+ * The same window with the mark added (lib/board.ts loadSeasonMarked): the
+ * standings' display column, cached beside the score it sits next to. This
+ * one moves whenever a price moves, not only on resolutions, so the same
+ * five seconds the board cache uses is the right TTL for it.
+ */
+const markedCache = ttlCache({
+  ttlMs: 5_000,
+  keyOf: (seasonId: string, _workspaceIds: string[], _from: Date, _to: Date) => seasonId,
+  load: (_seasonId: string, workspaceIds: string[], from: Date, to: Date) => loadSeasonMarked(workspaceIds, from, to),
+});
+
+/** The mark reads to the season's END, not to now: a market resolving next
+ *  week still pays inside this season, and the whole question the column
+ *  answers is what the entrant would have if it settled at today's price. */
+function cachedSeasonMarked(
+  seasonId: string,
+  workspaceIds: string[],
+  startsAt: Date,
+  endsAt: Date,
+): Promise<Map<string, number>> {
+  return markedCache.get(seasonId, workspaceIds, startsAt, endsAt);
+}
 
 /** The season's settled-scoring window as standings read it live: from the
  *  start instant to now, capped at the end instant (a resolution after the
@@ -421,6 +446,11 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
         id: e.agentId,
         ...dress(e.agentId),
         score: null,
+        // A draft has no window and no baselines, so there is nothing to
+        // mark either. Null says "not decided yet" where 0 would say "worth
+        // nothing".
+        markedScore: null,
+        markedProjectedPrizeUsd: null,
         enteredAt: e.enteredAt,
       }));
     res.json({ season: meta, participants: rows });
@@ -448,6 +478,11 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
         id: e.agentId,
         ...dress(e.agentId),
         score: e.finalScore ?? 0,
+        // A settled season publishes what it paid and never recomputes. A
+        // mark on a finished season would be a live number sitting beside a
+        // frozen one, inviting the reading that the prize might still move.
+        markedScore: null,
+        markedProjectedPrizeUsd: null,
         prizeUsd: e.prizeUsd ?? 0,
         claimState: e.prizeUsd && e.prizeUsd > 0 ? e.claimState : null,
       }));
@@ -475,12 +510,21 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
     ? await cachedSeasonSettled(season.id, scoring, new Date(season.startsAt), new Date(season.endsAt))
     : null;
   const board = settled ? null : await cachedBoard(scoring);
+  // The display column beside the score: the same arithmetic with open
+  // markets that still resolve inside the season valued at their current
+  // call (docs/seasons.md, "The standings show the mark beside the score").
+  // Only under settled scoring, because before it the score IS a mark and a
+  // second copy of the same number would be noise.
+  const marked = settled
+    ? await cachedSeasonMarked(season.id, scoring, new Date(season.startsAt), new Date(season.endsAt))
+    : null;
   const rows = entries.map(e => ({
     id: e.agentId,
     ...dress(e.agentId),
     score: settled
       ? (settled.get(e.agentId) ?? 0)
       : seasonScore(board?.profitById.get(e.agentId) ?? 0, e.baselineProfit),
+    markedScore: marked ? (marked.get(e.agentId) ?? 0) : null,
     enteredAt: e.enteredAt,
   }));
   rows.sort((a, b) => {
@@ -522,12 +566,41 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
   );
   const projectedById = new Map(projection.ranked.map(r => [r.agentId, r.prizeUsd]));
 
+  // What the pool would pay if the mark held to the end. The SAME settlement
+  // function, run over the marked scores, for the same reason the projection
+  // above uses it: a second copy of "who gets which share" is a promise the
+  // payout might not keep. Eligibility, the payout mode and the minimum are
+  // the season's own, so an entrant who cannot be paid reads a dash in both
+  // columns rather than money in one of them.
+  const markedProjection = marked
+    ? settleSeason(
+        rows.map(r => ({
+          agentId: r.id,
+          baselineProfit: 0,
+          currentProfit: r.markedScore ?? 0,
+          enteredAt: r.enteredAt ? new Date(r.enteredAt) : new Date(0),
+          platformOperated: house.has(r.id),
+          workspaceOperator: operators.has(r.id),
+          payoutHandle: handles.get(r.id) ?? null,
+        })),
+        ladder,
+        season.poolUsd,
+        {
+          payoutMode: (season.payoutMode ?? 'ladder') as SeasonPayoutMode,
+          minPayoutUsd: season.minPayoutUsd ?? 0,
+          strictEligibility: season.strictEligibility === true,
+        },
+      )
+    : null;
+  const markedPrizeById = new Map(markedProjection?.ranked.map(r => [r.agentId, r.prizeUsd]) ?? []);
+
   res.json({
     season: { ...meta, workspacesDropped: pinned.filter(id => !publicIds.has(id)).length },
     participants: rows.slice(0, limit).map((r, i) => ({
       ...r,
       rank: i + 1,
       projectedPrizeUsd: projectedById.get(r.id) ?? 0,
+      markedProjectedPrizeUsd: marked ? (markedPrizeById.get(r.id) ?? 0) : null,
     })),
   });
 }
