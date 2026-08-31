@@ -58,7 +58,16 @@ beforeEach(async () => {
     [HOME, 'Home'],
     [OTHER, 'Other'],
   ]) {
-    await provisionWorkspace(db, { wsId: id, name, createdBy: AGENT, ownerAgentId: AGENT, visibility: 'public' });
+    // `as any` like every other suite here: the harness hands back a pglite
+    // handle, which is structurally the same and nominally different.
+    // biome-ignore lint/suspicious/noExplicitAny: test harness handle
+    await provisionWorkspace(db as any, {
+      wsId: id,
+      name,
+      createdBy: AGENT,
+      ownerAgentId: AGENT,
+      visibility: 'public',
+    });
   }
   await db.insert(agentApiKeys).values([
     {
