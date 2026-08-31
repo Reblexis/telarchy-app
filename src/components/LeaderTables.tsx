@@ -198,7 +198,9 @@ export function SeasonTable({
     );
   };
   return (
-    <table className="lbt">
+    // The season table alone gets the phone treatment below: the all-time
+    // board has three columns and does not need its avatars taking away.
+    <table className="lbt lbt--season">
       <thead>
         {/* Phone only. A wider screen says which pair is money with the accent
             underline on the scoring key; at 360px, with four numeric columns
