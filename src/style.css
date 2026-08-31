@@ -5010,6 +5010,38 @@ textarea.jobform-line--desc {
 }
 .ticket-side:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
+/* The quote a pill carries (docs/ui-conventions.md, "An untouched ticket
+   still quotes both sides"): the word, then what a share of that side
+   costs, in the side's colour so the price reads as the side's own. On the
+   picked side the fill takes over and the price goes to the fill's text
+   colour, like the word beside it. */
+.ticket-side {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.ticket-side-word { font-weight: 600; }
+.ticket-side-price {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 0.95em;
+  font-variant-numeric: tabular-nums;
+}
+.ticket-side--higher .ticket-side-price { color: var(--higher); }
+.ticket-side--lower .ticket-side-price { color: var(--lower); }
+.ticket-side.is-active .ticket-side-price { color: var(--on-signal); }
+
+/* The one sentence under an untouched quote: what a share pays. Quiet, and
+   it leaves with the first click. */
+.ticket-quote-note {
+  margin: 0;
+  text-align: center;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+  text-wrap: pretty;
+}
+
 /* Quick / Limit, Manifold's top-right toggle. */
 .ticket-mode {
   display: flex;

@@ -3949,7 +3949,25 @@ that button unmistakably the action. Progressive disclosure: an untouched
 ticket is only the two side pills, and the card grows when a side is
 picked (the amount, the confirm, the fine print and, when it exists, the
 price mode all appear once a side is chosen), so an untouched ticket asks
-exactly one question. Lower/Higher are two words, not boxes; state is
+exactly one question.</p>
+<p><strong>An untouched ticket still quotes both sides.</strong> Each pill carries the
+price of one share of that side, in cents, and under the pair one line
+says what a share pays: 1 credit if the number settles at the top of the
+range, nothing at the bottom, in proportion in between. The price is the
+market's own number (<code>probability</code> for Higher, its complement for Lower)
+and it is the whole quote, as it is on Kalshi, Polymarket and Manifold,
+where a trader reads a price before deciding whether to trade rather than
+after. It is said in cents and never in percent, because our contract
+pays out linearly rather than all-or-nothing, so a percent would read as
+the chance of an event and be false. A price that rounds to nothing shows
+as <code>&lt;1c</code> and one that rounds to the whole credit as <code>&gt;99c</code>; neither is
+ever quoted as 0c or 100c, which would say the side cannot pay or cannot
+lose. Nothing else joins them: the stake, the shares it buys and the
+break-even it implies still wait for a side. The rule this replaces
+(2026-08-10, &quot;an untouched ticket asks one question&quot;) cost the platform
+its most calibrated trader, who could not price a trade without pressing
+a button first (<code>notes/quroe-churn-2026-08-27.md</code>,
+<code>notes/scalar-market-legibility-2026-08-30.md</code>). Lower/Higher are two words, not boxes; state is
 carried by colour and a 2px rule under the chosen one, with the ▲/▼ glyph
 keeping its --higher/--lower colour even while the word is quiet, since
 direction is the fastest thing on the page to read.</p>

@@ -206,11 +206,11 @@ describe('betting towards a value', () => {
     // The confirm states the landing value, because that is what the
     // placed trade (the server's targetValue mode) actually promises.
     expect(screen.getByText(/Bet to \$100,000, up to \d+ cr/)).toBeTruthy();
-    expect(screen.getByText('Lower').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('Lower').closest('button')?.getAttribute('aria-pressed')).toBe('true');
     // And above: flips back to Higher.
     fireEvent.change(target, { target: { value: '400000' } });
     expect(screen.getByText(/Bet to \$400,000, up to \d+ cr/)).toBeTruthy();
-    expect(screen.getByText('Higher').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('Higher').closest('button')?.getAttribute('aria-pressed')).toBe('true');
   });
 
   test('an unreachable target caps the amount at the per-market maximum', () => {
@@ -322,5 +322,81 @@ describe('the preview knows about redemption (2026-08-30)', () => {
     fireEvent.click(screen.getByText('Lower'));
     const inside = rich.container.querySelector('input[aria-label="Bet amount slider"]') as HTMLInputElement;
     expect(Number(inside.value)).toBeLessThan(SLIDER_STEPS);
+  });
+});
+
+/**
+ * The price at rest (docs/ui-conventions.md, "An untouched ticket still
+ * quotes both sides"). The rule this enforces: a trader can read what a
+ * share of each side costs BEFORE pressing anything, which is what every
+ * other venue does and what the platform's most calibrated trader left for
+ * want of (notes/quroe-churn-2026-08-27.md).
+ */
+describe('the price at rest', () => {
+  test('both sides carry a price before any click', () => {
+    render(<TradeTicket {...base} />);
+    // p = 0.5: a share of either side costs half a credit.
+    expect(screen.getAllByText('50c')).toHaveLength(2);
+  });
+
+  test("the price is the market's own number, and the two sides complement", () => {
+    render(<TradeTicket {...base} probability={0.14} />);
+    expect(screen.getByText('14c')).toBeTruthy();
+    expect(screen.getByText('86c')).toBeTruthy();
+  });
+
+  test('a price that rounds to nothing reads <1c, never 0c', () => {
+    // The Telarchy revenue market really does sit at p = 0.001. "0c" would
+    // say a share is free; "100c" would say the other side cannot lose.
+    render(<TradeTicket {...base} probability={0.001} />);
+    expect(screen.getByText('<1c')).toBeTruthy();
+    expect(screen.getByText('>99c')).toBeTruthy();
+    expect(screen.queryByText('0c')).toBeNull();
+    expect(screen.queryByText('100c')).toBeNull();
+  });
+
+  test('the same holds at the other end of the range', () => {
+    render(<TradeTicket {...base} probability={0.996} />);
+    expect(screen.getByText('>99c')).toBeTruthy();
+    expect(screen.getByText('<1c')).toBeTruthy();
+    expect(screen.queryByText('100c')).toBeNull();
+  });
+
+  test('the price is quoted in cents, never as a percent', () => {
+    // A percent would read as the chance of an event. Our payout is linear,
+    // so there is no such chance to state.
+    const { container } = render(<TradeTicket {...base} probability={0.14} />);
+    expect(container.textContent).not.toContain('%');
+  });
+
+  test('one line says what a share pays, naming both ends of the range', () => {
+    const { container } = render(<TradeTicket {...base} />);
+    expect(container.textContent).toContain('$500,000');
+    expect(container.textContent).toContain('$0,');
+  });
+
+  test('without a range there is no payout line, but the prices stand', () => {
+    const { container } = render(<TradeTicket {...base} rangeMin={undefined} rangeMax={undefined} />);
+    expect(screen.getAllByText('50c')).toHaveLength(2);
+    expect(container.textContent).not.toContain('A share pays');
+  });
+
+  test('the payout line goes once a side is picked', () => {
+    const { container } = render(<TradeTicket {...base} />);
+    fireEvent.click(screen.getByText('Higher'));
+    expect(container.textContent).not.toContain('A share pays');
+  });
+
+  test('the prices stay on the pills once a side is picked', () => {
+    render(<TradeTicket {...base} probability={0.14} />);
+    fireEvent.click(screen.getByText('Higher'));
+    expect(screen.getByText('14c')).toBeTruthy();
+    expect(screen.getByText('86c')).toBeTruthy();
+  });
+
+  test('manage mode quotes nothing: it has no side pills to quote', () => {
+    const { container } = render(<TradeTicket {...base} manageMode initialDir="higher" />);
+    expect(screen.queryByText('50c')).toBeNull();
+    expect(container.textContent).not.toContain('A share pays');
   });
 });
