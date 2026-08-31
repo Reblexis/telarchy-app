@@ -52,6 +52,122 @@ metricsRouter.get(
   }),
 );
 
+/**
+ * Dated readings for a past you can prove (docs/guides/sources.md,
+ * "Backfilling a past you can prove").
+ *
+ * Every other write stamps a reading with the moment it arrived, which is
+ * right: a reading is a measurement, and its timestamp is when it was taken.
+ * That leaves a metric on an already-published statistic with a single point
+ * and no trend, which is what this route fixes.
+ *
+ * Readings are what resolution reads, so dated writes are the one place that
+ * could rewrite a payout. Three refusals keep it away from settlement: every
+ * instant must be strictly OLDER than the metric's oldest existing reading
+ * (so a backfilled point can never be the "last reading at or before" any
+ * instant a market resolves on), the metric must have no resolved market, and
+ * a batch is capped and must be internally unique. The value itself never
+ * moves and no change-log row is written, because nobody measured these today.
+ */
+export const BACKFILL_MAX_READINGS = 2000;
+
+metricsRouter.post(
+  '/:id/logs/backfill',
+  requireCapability('manage'),
+  wrap(async (req, res) => {
+    const { workspaceId } = req.auth!;
+    const metricId = req.params.id as string;
+
+    const raw = req.body?.readings;
+    if (!Array.isArray(raw) || raw.length === 0) {
+      res.status(400).json({ error: 'readings must be a non-empty array of { at, value }' });
+      return;
+    }
+    if (raw.length > BACKFILL_MAX_READINGS) {
+      res.status(400).json({ error: `at most ${BACKFILL_MAX_READINGS} readings per call` });
+      return;
+    }
+
+    const parsed: { at: Date; value: number }[] = [];
+    for (const entry of raw) {
+      const at = new Date(entry?.at);
+      if (!(at instanceof Date) || Number.isNaN(at.getTime())) {
+        res.status(400).json({ error: `unparseable instant: ${JSON.stringify(entry?.at)}` });
+        return;
+      }
+      const value = entry?.value;
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        res.status(400).json({ error: `value must be a finite number, got ${JSON.stringify(value)}` });
+        return;
+      }
+      parsed.push({ at, value });
+    }
+
+    const instants = new Set(parsed.map(r => r.at.getTime()));
+    if (instants.size !== parsed.length) {
+      res.status(400).json({ error: 'two readings at the same instant' });
+      return;
+    }
+
+    const [metric] = await db
+      .select({ id: metrics.id, name: metrics.name })
+      .from(metrics)
+      .where(and(eq(metrics.id, metricId), eq(metrics.workspaceId, workspaceId)));
+    if (!metric) {
+      res.status(404).json({ error: 'Metric not found' });
+      return;
+    }
+
+    const [settled] = await db
+      .select({ id: markets.id })
+      .from(markets)
+      .where(and(eq(markets.metricId, metricId), eq(markets.workspaceId, workspaceId), eq(markets.resolved, true)))
+      .limit(1);
+    if (settled) {
+      res
+        .status(409)
+        .json({ error: 'this metric has a resolved market; its history is evidence and takes no backfill' });
+      return;
+    }
+
+    const [oldest] = await db
+      .select({ timestamp: metricLogs.timestamp })
+      .from(metricLogs)
+      .where(and(eq(metricLogs.metricId, metricId), eq(metricLogs.workspaceId, workspaceId)))
+      .orderBy(asc(metricLogs.timestamp))
+      .limit(1);
+    if (oldest) {
+      const boundary = new Date(oldest.timestamp).getTime();
+      const tooRecent = parsed.filter(r => r.at.getTime() >= boundary);
+      if (tooRecent.length > 0) {
+        res.status(400).json({
+          error: `every reading must be older than this metric's oldest reading (${new Date(boundary).toISOString()}); ${tooRecent.length} of ${parsed.length} were not`,
+        });
+        return;
+      }
+    }
+
+    await db.insert(metricLogs).values(
+      parsed.map(r => ({
+        id: randomUUID(),
+        workspaceId,
+        metricId,
+        metricName: metric.name,
+        value: r.value,
+        outlook: r.value,
+        timestamp: r.at,
+      })),
+    );
+
+    const times = parsed.map(r => r.at.getTime()).sort((a, b) => a - b);
+    res.json({
+      written: parsed.length,
+      oldest: new Date(times[0]).toISOString(),
+      newest: new Date(times[times.length - 1]).toISOString(),
+    });
+  }),
+);
+
 // Purge metric_logs. Useful as a one-off reset when the logging semantic
 // changes (e.g. we switched leaf logs from total → value). Body { metricId }
 // scopes the purge to one metric; omit to wipe every log in the workspace.
