@@ -214,15 +214,17 @@ b = 0.5 x 1000 / 0.03  ≈  16,700 credits      house exposure ≈ 11,600 cr
 ```
 
 (Signup grants are priced in the earn table now and move whenever the operator
-reprices them, `GET /api/earn`. What bounds one account's deployment into one
-book is the per-market position cap, 5,000, not the grant, so Season 0's
-published ramp stands and the next season's sizing should target the cap rather
-than the grant.)
+reprices them, `GET /api/earn`. Nothing bounds one account's deployment into
+one book, so the sizing input is the bankroll a serious trader actually holds
+rather than the grant they arrived with, and a season's `b` is chosen against
+the largest of those bankrolls, not the typical one.)
 
 `b = 16,700` is the ramp's DESTINATION, not its opening. A single trader can
-still move that book enough to be worth doing (a confident 5,000-credit
-position moves it about $3,200 on a $25,000 range, which is a real statement),
-and no single trader can pin it.
+move that book enough to be worth doing (a confident 5,000-credit position
+moves it about $3,200 on a $25,000 range, which is a real statement). A
+bankroll of 100,000 can also pin it, and the answer to that is liquidity, the
+public trade record and the disqualification clause, not a limit on the
+size of a trade.
 
 ### The ramp
 
@@ -272,18 +274,17 @@ not the rule (see F1).
    between them is the priced impact). Branches take
    `newMarketLiquidityCredits` at spawn, which is set to the season's opening
    pool.
-3. **The cap is the other half of the lever.** `maxPositionCostPerMarket` (a
-   workspace setting) bounds one account's cumulative buy cost in one market,
-   both directions summed; sells never refund cap headroom, and credits
-   reserved by open limit orders count. It is set to about a third of the
-   destination `b`, 5,000 credits for Season 0, so no single account can own
-   the book and the sybil arithmetic in F2 stays unattractive. Bankrolls on the
-   floor differ by orders of magnitude (a Manifold import grants against a
-   proven record: a flat amount priced in the earn table since 2026-08-30,
+3. **Liquidity is the only lever.** No cap bounds what one account may
+   buy in one market: a trader deploys as much as they hold, and the price they pay for a shove is the whole of the move. Bankrolls
+   on the floor differ by orders of magnitude (a Manifold import grants against
+   a proven record: a flat amount priced in the earn table since 2026-08-30,
    no longer net worth and no longer capped, and the largest existing import
-   predates that regime at about 101,000), and uncapped, the
-   largest of them pins any book this side of `b = 200,000`; the cap is what
-   makes one sizing work for a floor whose bankrolls differ by 100x.
+   predates that regime at about 101,000), so `b` has to be sized against the
+   biggest of them rather than the median, and a floor whose books are thin
+   relative to its largest bankroll is one where that account sets the price
+   until someone trades against it. What catches an account that does this to
+   win a prize is the public per-participant trade record and the
+   disqualification clause, applied after the fact.
 
 ## Lifecycle
 
@@ -354,9 +355,8 @@ most rows read 0.00 and the top row falls to whoever traded most recently. The
 resolve-now mark is therefore the rule, on the reasoning that every market
 eventually resolves at the correct value. What that costs:
 
-- The exploit is live on the display boards. The position cap
-  (`maxPositionCostPerMarket = 5000`) bounds it per market rather than
-  killing it; since 2026-08-28 the season score simply never reads the mark.
+- The exploit is live on the display boards; since 2026-08-28 the season score
+  simply never reads the mark.
 - F2 (sybil pumping) lacks the brake the liquidation mark would provide;
   settled scoring removed most of its payoff instead.
 - F3 (settlement-instant sniping) died with the mark's role in settlement.
@@ -376,14 +376,15 @@ prize is $500. Under settled scoring a pumped price changes no resolution
 payout, so the pump buys nothing unless the sybils trade AGAINST the
 champion on a market that resolves, i.e. deliberately lose settled money to
 him inside the window and before the 6h cutoff. That residual wealth
-transfer is real but bounded by the position cap and visible in the trade
-ledger, and remains covered by the disqualification clause.
+transfer is real, unbounded in size, and visible in the trade ledger, which
+is what the disqualification clause is read against.
 
-Two brakes, in order of how much they help:
-- Entry requires rules acceptance, an 18+ confirmation and a contact email;
-  payment details are asked only at claim time, so a sybil's cost is one more
-  email address, not one more payout identity.
-- `maxPositionCostPerMarket` bounds how far any one account can push.
+One brake, and it is procedural rather than mechanical: entry requires rules
+acceptance, an 18+ confirmation and a contact email; payment details are asked
+only at claim time, so a sybil's cost is one more email address, not one more
+payout identity. Nothing limits the size of the transfer itself; the trade
+ledger is public per participant, and a transfer of this shape is legible in
+it.
 
 Implemented for seasons after Season 0 (2026-08-28, `strict_eligibility`):
 **entries sharing a payout handle are one entry**, checked at settlement and

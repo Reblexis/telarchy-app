@@ -177,7 +177,7 @@ The sync key needs `workspace:manage`, which also carries approving proposals an
 - **Teammates**: they sign up themselves and give their handle. Resolve it with `GET /api/agents/<handle>/public`, then `POST /api/workspaces/:id/members { "participantId": "…", "role": "admin"|"trader"|"viewer" }`. Give at least one other person `admin` in any multi-person workspace so it does not hinge on one account.
 - **Permissions**: groups carry capabilities plus optional per-metric and per-source rules, edited with `PUT /api/groups/:id`. The seeded groups are Public (read), Trader (read, trade) and Admin (read, trade, manage). No seeded group holds `manage_workspace`, so an admin teammate cannot change visibility, auto-funding or the proposal settings, and cannot delete the workspace; grant it explicitly on a group if you want someone else to hold it.
 - **Context for forecasters**: attach sources. `POST /api/sources` takes pasted text, and a project brief in there makes every forecast better. Connecting a GitHub repository starts an OAuth redirect at `GET /api/sources/github/install`, so send the user to their browser for that one.
-- **Proposal economics** (`PUT /api/workspaces/:id/settings`): `proposalReward` pays proposers on approval, `spamPenalty` charges bad-faith ones, `maxPendingProposalsPerParticipant` caps throughput, `maxPositionCostPerMarket` caps how much any one participant can spend on a single market. Leave them at defaults for a first workspace.
+- **Proposal economics** (`PUT /api/workspaces/:id/settings`): `proposalReward` pays proposers on approval, `spamPenalty` charges bad-faith ones, `maxPendingProposalsPerParticipant` caps throughput. Leave them at defaults for a first workspace.
 
 ### If the workspace exists to govern an AI agent
 

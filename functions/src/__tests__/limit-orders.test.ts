@@ -34,7 +34,7 @@ jest.mock('../middleware/auth', () => {
 import { eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, limitOrders, markets, metrics, positions, workspaces } from '../db/schema';
+import { agents, limitOrders, markets, metrics } from '../db/schema';
 import { consensus, initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
@@ -68,7 +68,7 @@ const RESTER = 'agent-rester';
 const MOVER = 'agent-mover';
 const MARKET = 'market-limit-2028';
 
-async function seed(cap = 0) {
+async function seed() {
   await db.insert(agents).values([
     { id: 'agent-owner-limit', apiKeyHash: 'h-owner-limit', balance: 0 },
     { id: RESTER, apiKeyHash: 'h-rester', balance: toUnits(1000) },
@@ -82,7 +82,6 @@ async function seed(cap = 0) {
     ownerAgentId: 'agent-owner-limit',
     visibility: 'public',
   });
-  await db.update(workspaces).set({ maxPositionCostPerMarket: cap }).where(eq(workspaces.id, WS));
   await db.insert(metrics).values({
     id: 'metric-limit',
     workspaceId: WS,
@@ -176,15 +175,20 @@ describe('placing an order', () => {
     expect(res.body.error).toMatch(/strictly between/);
   });
 
-  test('reserved credits count against the position cap', async () => {
-    await seed(50);
-    expect((await as(RESTER).place({ direction: 'higher', limitValue: 40, budgetCredits: 40 })).status).toBe(201);
+  test('a reservation is money out of the balance, and nothing else', async () => {
+    // The only ceiling on a position is the balance (no per-market cap
+    // exists), so a resting order limits later trading by exactly what it
+    // reserves: not a credit more, and not a credit less.
+    await seed();
+    expect((await as(RESTER).place({ direction: 'higher', limitValue: 40, budgetCredits: 900 })).status).toBe(201);
 
-    // 40 reserved leaves 10 of the 50 cap, so a 20-credit buy must fail.
-    const res = await as(RESTER).trade({ direction: 'higher', amount: 20 });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/Position cap/);
-    expect(res.body.spent).toBeCloseTo(40, 5);
+    const tooBig = await as(RESTER).trade({ direction: 'higher', amount: 200 });
+    expect(tooBig.status).toBe(400);
+    expect(tooBig.body.error).toMatch(/Insufficient balance/);
+    expect(tooBig.body.balance).toBeCloseTo(100, 5);
+
+    const fits = await as(RESTER).trade({ direction: 'higher', amount: 100 });
+    expect(fits.status).toBe(201);
   });
 });
 
@@ -263,21 +267,16 @@ describe('filling', () => {
   });
 
   test('an order that cannot fill does not fail the trade that crossed it', async () => {
-    // A cap tightened after placement is the realistic way an order ends up
-    // with no headroom: the reservation was legal when made and is not now.
-    // The order is left resting; the stranger's trade must still stand.
+    // Any fill can throw; what matters is where the failure stops. The
+    // rester's balance is forced below what the released reservation covers,
+    // so the fill's own buy is refused inside its savepoint. The order is
+    // left resting; the stranger's trade must still stand.
     await seed();
     await as(RESTER).place({ direction: 'higher', limitValue: 40, budgetCredits: 500 });
-    await db.insert(positions).values({
-      id: `${RESTER}_${MARKET}_higher`,
-      workspaceId: WS,
-      agentId: RESTER,
-      marketId: MARKET,
-      direction: 'higher',
-      shares: 0,
-      totalCost: 400,
-    });
-    await db.update(workspaces).set({ maxPositionCostPerMarket: 300 }).where(eq(workspaces.id, WS));
+    await db
+      .update(agents)
+      .set({ balance: toUnits(-495) })
+      .where(eq(agents.id, RESTER));
 
     const res = await as(MOVER).trade({ targetValue: 20, maxBudget: 250 });
     expect(res.status).toBe(201);

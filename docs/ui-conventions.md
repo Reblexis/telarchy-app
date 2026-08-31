@@ -752,13 +752,10 @@ numeral reads as a chosen stake, not a decoded pixel (1,943); the two
 ends stay exact, 1 cr and the full balance. The mapping lives in
 `src/lib/bet-slider.ts` and nowhere else.
 
-The balance is not the only ceiling. A workspace can set
-`maxPositionCostPerMarket`, which caps what one participant may spend on one
-market across both directions, counts credits reserved by open limit orders,
-and does not give headroom back on a sell. The track does not know it: a bet
-past the cap is refused server-side with a 400 carrying `{ cap, spent,
-attempted }`, and the ticket renders that refusal like any other error. The
-schema default is 0, meaning no cap; the Season 0 floor runs 5,000.
+The balance is the only ceiling, and the track ends there. Nothing else may
+limit a stake: a screen that offers a size the server refuses reads as a
+broken product rather than as a rule, so a size the ticket can reach is a size
+the trade route accepts.
 
 The win is stated as breakeven plus slope, never as the at-the-range-edge
 maximum: payout is linear in the settled value, so the rows read "New

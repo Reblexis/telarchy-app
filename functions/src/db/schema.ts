@@ -123,20 +123,6 @@ export const workspaces = pgTable('workspaces', {
   spamPenalty: doublePrecision('spam_penalty').notNull().default(0),
   /** Per-participant cap on simultaneously pending proposals in this workspace. 0 disables the cap. */
   maxPendingProposalsPerParticipant: integer('max_pending_proposals').notNull().default(0),
-  /**
-   * Per-participant cap, in credits, on cumulative buy cost per market
-   * (both directions summed). 0 disables the cap.
-   *
-   * This is the workspace's manipulation bound: signup grants free credits to
-   * every account, so without a cap one person with a handful of email
-   * addresses can deploy enough into a single market to decide its outcome,
-   * and any public ship-what-the-market-says commitment becomes buyable. With
-   * a cap, moving a market far requires many distinct identities, which is
-   * exactly the coordination the owner can detect and (per charter) void.
-   * Deliberately a cumulative buy-cost bound rather than a net-position bound:
-   * selling does not refund cap headroom, so churning cannot stretch it.
-   */
-  maxPositionCostPerMarket: doublePrecision('max_position_cost_per_market').notNull().default(0),
 });
 
 /**

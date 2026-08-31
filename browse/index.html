@@ -363,7 +363,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-vision-md--h32">The workspace brief, and asking the floor a question</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-vision-md--h33">Who to pay</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-vision-md--h34">The notifications inbox</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-vision-md--h35">Per-market position cap</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-vision-md--h35">The charter</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-vision-md--h36">Sources</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-vision-md--h37">Phase 5: Binary AMM</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-vision-md--h38">Phase 7: Time Preference System</a></li>
@@ -1770,12 +1770,10 @@ alone (paying the average price across it, which is worse than the price
 they believe in) or does nothing. A resting order lets them say &quot;I will buy
 down to $65k and no further&quot;, and be filled by whoever pushes the price
 into them later.</p>
-<p>That is also the honest answer to the position cap: a workspace's
-<code>maxPositionCostPerMarket</code> bounds how far one account can move the price at
-once, and limit orders let the same conviction be expressed over time instead
-of in one shove. The schema default is 0, meaning no cap at all; the Season 0
-floor runs 5,000, and a resting order's reserved budget counts against it like
-a trade does.</p>
+<p>Nothing caps the size of a position, so a resting order is not a way around a
+limit. It is a way to be paid a better average price for the same conviction:
+the shove pays the whole move, the resting order is filled by whoever brings
+the price to it.</p>
 <h2 id="docs-limit-orders-md--h3">Model</h2>
 <p>A limit order is a standing instruction, not a matched trade:</p>
 <blockquote>
@@ -1855,13 +1853,11 @@ order never moves the price past its own limit, which is what makes it a
 limit order rather than a delayed market order.</li>
 <li>Stop when the price no longer crosses any order.</li>
 </ol>
-<p>Fills are ordinary trades: same position rows, same cap accounting, same
+<p>Fills are ordinary trades: same position rows, same
 <code>replayMarketTradePoints</code> history, so the chart shows them like any other
 step. This is enforced structurally rather than by discipline: there is one
 <code>executeTradeInTx</code> in <code>services/trading.ts</code>, and both the trade route and the
-fill pass call it. <strong>The per-account position cap applies to the total of
-filled credits plus open reservations</strong>, or an account could exceed the cap
-by resting orders it knows will fill.</p>
+fill pass call it.</p>
 <p>Two properties the implementation must keep, because losing either turns a
 limit order into something else:</p>
 <ul>
@@ -3176,14 +3172,16 @@ bankroll moves the consensus about 3% of the range&quot;:</p>
 <pre><code>b = 0.5 x 1000 / 0.03  ≈  16,700 credits      house exposure ≈ 11,600 cr
 </code></pre>
 <p>(Signup grants are priced in the earn table now and move whenever the operator
-reprices them, <code>GET /api/earn</code>. What bounds one account's deployment into one
-book is the per-market position cap, 5,000, not the grant, so Season 0's
-published ramp stands and the next season's sizing should target the cap rather
-than the grant.)</p>
+reprices them, <code>GET /api/earn</code>. Nothing bounds one account's deployment into
+one book, so the sizing input is the bankroll a serious trader actually holds
+rather than the grant they arrived with, and a season's <code>b</code> is chosen against
+the largest of those bankrolls, not the typical one.)</p>
 <p><code>b = 16,700</code> is the ramp's DESTINATION, not its opening. A single trader can
-still move that book enough to be worth doing (a confident 5,000-credit
-position moves it about $3,200 on a $25,000 range, which is a real statement),
-and no single trader can pin it.</p>
+move that book enough to be worth doing (a confident 5,000-credit position
+moves it about $3,200 on a $25,000 range, which is a real statement). A
+bankroll of 100,000 can also pin it, and the answer to that is liquidity, the
+public trade record and the disqualification clause, not a limit on the
+size of a trade.</p>
 <h3 id="docs-seasons-md--h8">The ramp</h3>
 <p>Season 0 opens at <code>b = 2,000</code> (pool 1,386) and climbs to <code>b = 16,700</code> over the
 first three weeks. The opening is deliberately thin: an early trader's
@@ -3268,18 +3266,17 @@ contract's two branches are where the product's actual claim lives (the gap
 between them is the priced impact). Branches take
 <code>newMarketLiquidityCredits</code> at spawn, which is set to the season's opening
 pool.</li>
-<li><strong>The cap is the other half of the lever.</strong> <code>maxPositionCostPerMarket</code> (a
-workspace setting) bounds one account's cumulative buy cost in one market,
-both directions summed; sells never refund cap headroom, and credits
-reserved by open limit orders count. It is set to about a third of the
-destination <code>b</code>, 5,000 credits for Season 0, so no single account can own
-the book and the sybil arithmetic in F2 stays unattractive. Bankrolls on the
-floor differ by orders of magnitude (a Manifold import grants against a
-proven record: a flat amount priced in the earn table since 2026-08-30,
+<li><strong>Liquidity is the only lever.</strong> No cap bounds what one account may
+buy in one market: a trader deploys as much as they hold, and the price they pay for a shove is the whole of the move. Bankrolls
+on the floor differ by orders of magnitude (a Manifold import grants against
+a proven record: a flat amount priced in the earn table since 2026-08-30,
 no longer net worth and no longer capped, and the largest existing import
-predates that regime at about 101,000), and uncapped, the
-largest of them pins any book this side of <code>b = 200,000</code>; the cap is what
-makes one sizing work for a floor whose bankrolls differ by 100x.</li>
+predates that regime at about 101,000), so <code>b</code> has to be sized against the
+biggest of them rather than the median, and a floor whose books are thin
+relative to its largest bankroll is one where that account sets the price
+until someone trades against it. What catches an account that does this to
+win a prize is the public per-participant trade record and the
+disqualification clause, applied after the fact.</li>
 </ol>
 <h2 id="docs-seasons-md--h10">Lifecycle</h2>
 <p><code>docs/legal/season-0-rules.md</code> and the <code>/api/help</code> catalog own the lifecycle
@@ -3343,9 +3340,8 @@ most rows read 0.00 and the top row falls to whoever traded most recently. The
 resolve-now mark is therefore the rule, on the reasoning that every market
 eventually resolves at the correct value. What that costs:</p>
 <ul>
-<li>The exploit is live on the display boards. The position cap
-(<code>maxPositionCostPerMarket = 5000</code>) bounds it per market rather than
-killing it; since 2026-08-28 the season score simply never reads the mark.</li>
+<li>The exploit is live on the display boards; since 2026-08-28 the season score
+simply never reads the mark.</li>
 <li>F2 (sybil pumping) lacks the brake the liquidation mark would provide;
 settled scoring removed most of its payoff instead.</li>
 <li>F3 (settlement-instant sniping) died with the mark's role in settlement.</li>
@@ -3364,15 +3360,14 @@ prize is $500. Under settled scoring a pumped price changes no resolution
 payout, so the pump buys nothing unless the sybils trade AGAINST the
 champion on a market that resolves, i.e. deliberately lose settled money to
 him inside the window and before the 6h cutoff. That residual wealth
-transfer is real but bounded by the position cap and visible in the trade
-ledger, and remains covered by the disqualification clause.</p>
-<p>Two brakes, in order of how much they help:</p>
-<ul>
-<li>Entry requires rules acceptance, an 18+ confirmation and a contact email;
-payment details are asked only at claim time, so a sybil's cost is one more
-email address, not one more payout identity.</li>
-<li><code>maxPositionCostPerMarket</code> bounds how far any one account can push.</li>
-</ul>
+transfer is real, unbounded in size, and visible in the trade ledger, which
+is what the disqualification clause is read against.</p>
+<p>One brake, and it is procedural rather than mechanical: entry requires rules
+acceptance, an 18+ confirmation and a contact email; payment details are asked
+only at claim time, so a sybil's cost is one more email address, not one more
+payout identity. Nothing limits the size of the transfer itself; the trade
+ledger is public per participant, and a transfer of this shape is legible in
+it.</p>
 <p>Implemented for seasons after Season 0 (2026-08-28, <code>strict_eligibility</code>):
 <strong>entries sharing a payout handle are one entry</strong>, checked at settlement and
 in the live projection, the natural reading of &quot;one person, one prize.&quot;</p>
@@ -4185,12 +4180,10 @@ rather than adds to it; 1..100 cr gets about as much track as
 numeral reads as a chosen stake, not a decoded pixel (1,943); the two
 ends stay exact, 1 cr and the full balance. The mapping lives in
 <code>src/lib/bet-slider.ts</code> and nowhere else.</p>
-<p>The balance is not the only ceiling. A workspace can set
-<code>maxPositionCostPerMarket</code>, which caps what one participant may spend on one
-market across both directions, counts credits reserved by open limit orders,
-and does not give headroom back on a sell. The track does not know it: a bet
-past the cap is refused server-side with a 400 carrying <code>{ cap, spent, attempted }</code>, and the ticket renders that refusal like any other error. The
-schema default is 0, meaning no cap; the Season 0 floor runs 5,000.</p>
+<p>The balance is the only ceiling, and the track ends there. Nothing else may
+limit a stake: a screen that offers a size the server refuses reads as a
+broken product rather than as a rule, so a size the ticket can reach is a size
+the trade route accepts.</p>
 <p>The win is stated as breakeven plus slope, never as the at-the-range-edge
 maximum: payout is linear in the settled value, so the rows read &quot;New
 value&quot; (with the delta the bet would cause), &quot;Wins above $74,300&quot;, &quot;Each
@@ -5473,9 +5466,8 @@ invites someone to retype the rest from memory.</p>
 <p>Which kinds the bell derives is set by the matrix's <strong>web</strong> cells. The EMAIL cells never filter it: turning an email off means &quot;stop writing to me&quot;, never &quot;hide it from me&quot;. A kind whose web cell is off is not derived at all rather than derived-as-read, so switching it back on shows what happened meanwhile.</p>
 <p><code>GET /api/notifications</code> derives the list from the tables the floor already keeps (<code>proposal_messages</code>, <code>market_messages</code>, <code>proposals</code> and, for the settled and decision kinds, <code>trades</code> and <code>markets</code>) rather than writing to a feed table on every event: a feed table would have to be backfilled to be useful on the day it ships, and could then disagree with the thing it describes. Read state has two parts. <code>agents.notificationsSeenAt</code>, moved by <code>POST /api/notifications/seen</code>, means &quot;everything older than this is read&quot;, which is the cheap sweep. <code>POST /api/notifications/:itemId/read</code> reads ONE item, because the way a person actually clears an inbox is by opening things: the count goes down by one per row opened, not only all at once. Those rows live in <code>notification_reads</code> and are deleted whenever the watermark moves past them, since the watermark then covers them and a table of read receipts nobody queries is only growth. A row is unread when it is newer than the watermark AND not in that set, so reading the same row twice is not two decrements. The watermark defaults to now, and migration 0064 backfilled existing rows the same way, because a null would have meant every existing account's first sight of the feature was a badge counting months of history nobody promised them, and a badge nobody believes is worse than no badge.</p>
 <p>The inbox is workspace-agnostic: a participant trades on several floors and has one inbox. Each row <strong>lands on the thing it names</strong>, not near it: <code>/&lt;slug&gt;#contract=&lt;id&gt;&amp;comment=&lt;id&gt;</code> opens the floor on that contract, opens its thread, scrolls to that line and flashes it once; a row with no comment (a new contract, a decision) flashes the contract's own headline. &quot;Someone commented on your contract&quot; that drops the reader on a page where they still have to find the line is barely a link. The flash is an ARRIVAL, never a selected state: a highlight that stays becomes one more thing to dismiss, and the reader already knows what they clicked.</p>
-<h3 id="docs-vision-md--h35">Per-market position cap</h3>
-<p><code>workspaces.maxPositionCostPerMarket</code> (credits, 0 = off, a <code>manage_workspace</code> setting) caps each participant's <strong>cumulative buy cost per market, both directions summed</strong>. Selling never refunds cap headroom, so churning cannot stretch it; sells themselves are always allowed.</p>
-<p>This is the workspace's manipulation bound, and it exists because signup grants free credits to every account: without a cap, one person with a handful of email addresses can deploy enough into a single market to decide its outcome, and a public ship-what-the-market-says commitment becomes buyable. With the cap, moving a market far requires many distinct identities, which is exactly the coordination an owner can detect and, per their charter, void. The cap is deliberately public: <code>GET /api/marketplace/:workspaceId</code> carries it (with <code>signupCredits</code>) so the fairness rule is stated on the page a visitor decides on, not taken on faith.</p>
+<h3 id="docs-vision-md--h35">The charter</h3>
+<p>Nothing caps what a participant may buy in one market. A trader who is confident deploys their whole balance, and the desk shows the same trade the API accepts: a screen that offers a size the server then refuses is a worse fault than a book one account can push, because it teaches the trader the platform is broken rather than that the price is contested. What bounds a push is the money it costs and the traders on the other side of it; what catches coordination is the trade record, which is public per participant, and the owner's charter, which says when a market is voided.</p>
 <p><strong>The charter is enforced, not decorative.</strong> <code>proposals.declineReason</code> is required on <code>POST /api/proposals/:id/decline</code> exactly when the workspace has a charter set, and it is rendered permanently on the proposal. The coupling is the point: making the public commitment is what turns the requirement on. Requiring a reason everywhere would break existing clients and add friction to workspaces that promised nothing; requiring it nowhere leaves the one commitment the product sells unenforceable, and it degrades into a chat message nobody can find three months later. A workspace can therefore promise nothing and stay frictionless, or promise something and be held to it, but it cannot promise something and quietly skip the one decline that is embarrassing to explain.</p>
 <h3 id="docs-vision-md--h36">Sources</h3>
 <p>Workspace-scoped information stores with permission-group-based access control. A source has a <code>type</code> discriminator: <code>text</code> (free-form content stored on the source, e.g. credentials, API keys, context docs) or <code>github</code> (a live read-only bridge to a GitHub repo via OAuth + App installation tokens). Adding new source types (Slack, Notion, Postgres, ...) is a type-discriminator change rather than a new top-level concept. Admins create text sources directly or connect a GitHub repo through the OAuth flow; participants with read access can fetch text content or browse the repo tree and files. Permission groups control access via a <code>sourcePermissions</code> map (<code>sourceId -&gt; { read: boolean }</code>). Any participant with the <code>manage</code> capability has implicit read access to all sources.</p>
@@ -5541,7 +5533,7 @@ p(higher) = 1 / (1 + exp(-(q_higher - q_lower) / b))
 </li>
 <li>
 <p><strong>voided</strong>: market was cancelled and every participant refunded <strong>what they still had at stake in it</strong>: the sum of their trades on that market (buys positive, sells negative), floored at zero. This is the only correct outcome whenever the metric's definition would change or disappear out from under a market.</p>
-<p><strong>A void refunds net cash, not gross cost.</strong> The refund is not <code>positions.totalCost</code>, the cumulative BUY cost, which a sell never reduces (selling decrements <code>shares</code> only, on purpose, so churning cannot stretch the position cap); refunding gross cost would let a participant who bought and sold the same shares back mint credits on every round trip before an expected void. Refunding net cash means a break-even round trip gets nothing back, someone still holding gets exactly what they still have in, and the floor at zero means a void never DEBITS anyone. A participant who sold out above their cost keeps that realised gain and receives no refund; the shortfall comes out of pool leftover before LPs, which is where market-maker risk belongs. The position cap reads gross <code>totalCost</code>; the net-cash rule governs settlement only.</p>
+<p><strong>A void refunds net cash, not gross cost.</strong> The refund is not <code>positions.totalCost</code>, the cumulative BUY cost, which a sell never reduces (selling decrements <code>shares</code> only, on purpose); refunding gross cost would let a participant who bought and sold the same shares back mint credits on every round trip before an expected void. Refunding net cash means a break-even round trip gets nothing back, someone still holding gets exactly what they still have in, and the floor at zero means a void never DEBITS anyone. A participant who sold out above their cost keeps that realised gain and receives no refund; the shortfall comes out of pool leftover before LPs, which is where market-maker risk belongs.</p>
 </li>
 </ul>
 </li>
@@ -5841,7 +5833,7 @@ GET /api/status?trends=1&amp;trendsLimit=5   # fewer history points, fewer token
 <p>A successful trade returns 201 with <code>{ tradeId, marketId, direction, shares, cost, probability, consensus }</code> (a sell reports <code>proceeds</code> instead of <code>cost</code>). If your trade crossed someone's resting limit order, the response also carries <code>limitFills</code> and <code>settledConsensus</code>, the price after those fills executed.</p>
 <h3 id="docs-guides-agent-api-md--h7">Two behaviours that surprise people</h3>
 <p><strong>You hold one net side.</strong> One <code>higher</code> share and one <code>lower</code> share pay exactly 1 credit between them whatever the market settles at, so a matched pair is certainty carrying no opinion. A buy on the side opposite to a position you already hold prices against the live book like any other buy; every matched pair you are then left holding is redeemed at that 1 credit and reported as <code>redeemed</code> on the trade. Redemption takes the same amount off both sides of the book, so it moves the price by nothing: a small contrarian bet stays a small move, and your position shrinks by what you bought. Nobody ends up holding both higher and lower, which is dead weight bought at a doubled spread.</p>
-<p><strong>Cumulative spend per market can be capped.</strong> A workspace may set <code>maxPositionCostPerMarket</code>, and buys past it fail with 400 and a body carrying <code>{ cap, spent, attempted }</code> so you can size the retry exactly. Both directions sum into <code>spent</code>, sells never give headroom back, and credits reserved by your open limit orders count too. Read the number before you plan a campaign: it is on <code>GET /api/marketplace/&lt;workspaceId&gt;</code> as <code>maxPositionCostPerMarket</code>, and <code>0</code> means no cap.</p>
+<p><strong>Nothing caps your spend per market.</strong> Size a campaign against your balance and the book: no workspace setting limits what one participant may buy in one market, in either direction. A buy fails for exactly two money reasons, insufficient balance and a trade too small to price.</p>
 <p>Trades are throttled harder than anything else you will call: 150 per minute, and holding a key does not exempt you. See <a href="/guides/api-reference">the endpoint catalog</a> for the rest of the limits.</p>
 <h2 id="docs-guides-agent-api-md--h8">Limit orders</h2>
 <p>A resting order buys a direction only while the market's price is at or beyond a value you name.</p>
@@ -6656,7 +6648,7 @@ have it.</strong> A teammate you add with <code>role: &quot;admin&quot;</code> l
 publish announcements, edit the charter and manage groups. They get 403 on
 every lifecycle setting (<code>visibility</code>, <code>autoFundNewMarkets</code>,
 <code>newMarketLiquidityCredits</code>, <code>proposalReward</code>, <code>spamPenalty</code>,
-<code>maxPendingProposalsPerParticipant</code>, <code>maxPositionCostPerMarket</code>) and they
+<code>maxPendingProposalsPerParticipant</code>) and they
 cannot delete the workspace. In practice only the creator can, because the
 creator gets every capability by being the creator and no group hands
 <code>manage_workspace</code> out.</p>
@@ -6999,9 +6991,8 @@ and the API says so with a 400 rather than filling something you did not ask
 for. Place a trade instead.</p>
 <h2 id="docs-guides-limit-orders-md--h2">The budget is taken up front</h2>
 <p>The credits are debited when you place the order and held in reserve. Your
-spendable balance is net of them, and they count toward the workspace's
-per-market position cap. Cancel, expire, void or resolve and the unfilled
-remainder comes back.</p>
+spendable balance is net of them. Cancel, expire, void or resolve and the
+unfilled remainder comes back.</p>
 <p>This is the part that catches people out: a resting order is money you have
 already committed, not an intention.</p>
 <h2 id="docs-guides-limit-orders-md--h3">How they fill</h2>
@@ -7080,11 +7071,10 @@ pair you are left holding is redeemed at that 1 credit and reported as
 the book, so it moves the price by nothing: a small contrarian bet stays a
 small move, and your position shrinks by what you bought. Nobody ends up
 holding both sides.</li>
-<li><strong>A workspace can cap you.</strong> <code>maxPositionCostPerMarket</code> limits what one
-participant can spend on one market, both directions added together, and
-credits reserved by open limit orders count toward it. Selling does not give
-the headroom back. Exceeding it is a 400 that tells you the cap, what you have
-spent and what you attempted. The Season 0 floor runs a cap of 5,000.</li>
+<li><strong>Nothing caps how much you buy.</strong> One market takes as much of your balance
+as you want to put into it. The only ceilings are what you hold and what the
+book charges you: a big buy moves the price against itself, so the last
+share costs more than the first.</li>
 </ul>
 <p>There are no fees.</p>
 <h2 id="docs-guides-markets-md--h4">Settlement</h2>
@@ -7421,7 +7411,7 @@ curl -s -X PUT https://telarchy.com/api/workspaces/$WS/settings \
 <li><strong>Teammates</strong>: they sign up themselves and give their handle. Resolve it with <code>GET /api/agents/&lt;handle&gt;/public</code>, then <code>POST /api/workspaces/:id/members { &quot;participantId&quot;: &quot;…&quot;, &quot;role&quot;: &quot;admin&quot;|&quot;trader&quot;|&quot;viewer&quot; }</code>. Give at least one other person <code>admin</code> in any multi-person workspace so it does not hinge on one account.</li>
 <li><strong>Permissions</strong>: groups carry capabilities plus optional per-metric and per-source rules, edited with <code>PUT /api/groups/:id</code>. The seeded groups are Public (read), Trader (read, trade) and Admin (read, trade, manage). No seeded group holds <code>manage_workspace</code>, so an admin teammate cannot change visibility, auto-funding or the proposal settings, and cannot delete the workspace; grant it explicitly on a group if you want someone else to hold it.</li>
 <li><strong>Context for forecasters</strong>: attach sources. <code>POST /api/sources</code> takes pasted text, and a project brief in there makes every forecast better. Connecting a GitHub repository starts an OAuth redirect at <code>GET /api/sources/github/install</code>, so send the user to their browser for that one.</li>
-<li><strong>Proposal economics</strong> (<code>PUT /api/workspaces/:id/settings</code>): <code>proposalReward</code> pays proposers on approval, <code>spamPenalty</code> charges bad-faith ones, <code>maxPendingProposalsPerParticipant</code> caps throughput, <code>maxPositionCostPerMarket</code> caps how much any one participant can spend on a single market. Leave them at defaults for a first workspace.</li>
+<li><strong>Proposal economics</strong> (<code>PUT /api/workspaces/:id/settings</code>): <code>proposalReward</code> pays proposers on approval, <code>spamPenalty</code> charges bad-faith ones, <code>maxPendingProposalsPerParticipant</code> caps throughput. Leave them at defaults for a first workspace.</li>
 </ul>
 <h3 id="docs-guides-onboarding-md--h10">If the workspace exists to govern an AI agent</h3>
 <p>Four things worth saying out loud:</p>
@@ -7804,13 +7794,13 @@ for metric in snap[&quot;metrics&quot;]:
         )
         if r.status_code == 400:
             body = r.json()
-            if &quot;cap&quot; in body:                        # per-market position cap
-                print(&quot;cap reached&quot;, mk[&quot;id&quot;], body[&quot;spent&quot;], &quot;of&quot;, body[&quot;cap&quot;])
-                continue
+            if &quot;balance&quot; in body:                    # out of credits, stop the run
+                print(&quot;insufficient balance&quot;, body[&quot;balance&quot;], &quot;needed&quot;, body[&quot;cost&quot;])
+                break
             print(&quot;rejected&quot;, mk[&quot;id&quot;], body.get(&quot;error&quot;))
 </code></pre>
 <p>Every-thirty-minutes is plenty. The strategy self-limits because it does not trade when consensus is already close, and <code>CYCLE_BUDGET</code> stops a first run in a market-heavy workspace from spending everything in one pass.</p>
-<p>Handle the 400 with a <code>cap</code> field explicitly. It means the workspace's <code>maxPositionCostPerMarket</code> is binding, it carries <code>{ cap, spent, attempted }</code>, and retrying the same size will fail forever.</p>
+<p>Handle the 400 with a <code>balance</code> field explicitly. It carries <code>{ balance, cost }</code>, it means the bot is out of credits rather than wrong about the market, and every remaining trade in the run will fail the same way.</p>
 <h2 id="docs-guides-recipes-md--h4">3. LLM analyst</h2>
 <p>An analyst reads before it prices. The workspace brief is one call, needs no key, and is written for exactly this: what the owner runs, what the metric means, the owner's own attached documents, current prices and open contracts, as markdown.</p>
 <p><strong>Scopes: <code>workspace:read</code> and <code>workspace:trade</code>.</strong></p>

@@ -32,7 +32,6 @@ const h = vi.hoisted(() => {
     proposalReward: 0,
     spamPenalty: 0,
     joinAs: 'trader' as const,
-    maxPositionCostPerMarket: 0,
     signupCredits: 100,
     metricCount: 1,
     openMarketCount: 1,

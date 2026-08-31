@@ -38,7 +38,7 @@ jest.mock('../middleware/auth', () => {
 import { eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, markets, metrics, workspaces } from '../db/schema';
+import { agents, markets, metrics } from '../db/schema';
 import { consensus, initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
@@ -85,7 +85,6 @@ async function seed(liquidity = 200) {
     ownerAgentId: 'agent-owner-inv',
     visibility: 'public',
   });
-  await db.update(workspaces).set({ maxPositionCostPerMarket: 0 }).where(eq(workspaces.id, WS));
   await db.insert(metrics).values({
     id: 'metric-inv',
     workspaceId: WS,

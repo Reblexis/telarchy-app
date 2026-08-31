@@ -147,29 +147,6 @@ export async function executeTradeInTx(
   } else {
     if (cost > 0 && !sufficientBalance(balanceUnits, cost))
       throw new AppError('Insufficient balance', 400, { balance: fromUnits(balanceUnits), cost });
-
-    // Manipulation bound (workspaces.maxPositionCostPerMarket): cumulative
-    // buy cost per participant per market, both directions summed. Free
-    // signup credits mean one person with several accounts could otherwise
-    // decide a market alone; the cap forces that to require many distinct
-    // identities, which is detectable coordination. Sells never refund cap
-    // headroom (cumulative, not net), so churning cannot stretch it. Credits
-    // reserved by open limit orders count too, or an account could exceed the
-    // cap by resting orders it knows will fill. The epsilon keeps a final
-    // exactly-at-cap trade from failing on float dust.
-    if (cost > 0) {
-      const cap = await positionCap(tx, workspaceId);
-      if (cap > 0) {
-        const used = await capUsage(tx, workspaceId, marketId, agentId);
-        if (used + cost > cap + 1e-9) {
-          throw new AppError(
-            `Position cap reached: this workspace limits each participant to ${cap} credits of buys per market (you have used ${Math.round(used * 100) / 100}).`,
-            400,
-            { cap, spent: used, attempted: cost },
-          );
-        }
-      }
-    }
   }
 
   const newShares: [number, number] = [shares[0], shares[1]];
@@ -282,15 +259,6 @@ export async function executeTradeInTx(
     consensus: newConsensus,
     prevConsensus,
   };
-}
-
-/** The workspace's per-participant, per-market cap on cumulative buy cost. */
-export async function positionCap(tx: Tx, workspaceId: string): Promise<number> {
-  const [row] = await tx
-    .select({ cap: workspaces.maxPositionCostPerMarket })
-    .from(workspaces)
-    .where(eq(workspaces.id, workspaceId));
-  return row?.cap ?? 0;
 }
 
 /**
@@ -407,29 +375,6 @@ async function redeemMatchedPairs(
   return pairs;
 }
 
-export async function capUsage(tx: Tx, workspaceId: string, marketId: string, agentId: string): Promise<number> {
-  const [spentRow] = await tx
-    .select({ total: sql<number>`coalesce(sum(${positions.totalCost}), 0)` })
-    .from(positions)
-    .where(
-      and(eq(positions.workspaceId, workspaceId), eq(positions.marketId, marketId), eq(positions.agentId, agentId)),
-    );
-  const [reservedRow] = await tx
-    .select({
-      total: sql<number>`coalesce(sum(${limitOrders.budgetCredits} - ${limitOrders.filledCredits}), 0)`,
-    })
-    .from(limitOrders)
-    .where(
-      and(
-        eq(limitOrders.workspaceId, workspaceId),
-        eq(limitOrders.marketId, marketId),
-        eq(limitOrders.agentId, agentId),
-        eq(limitOrders.status, 'open'),
-      ),
-    );
-  return Number(spentRow?.total ?? 0) + Number(reservedRow?.total ?? 0);
-}
-
 export interface FillOutcome {
   orderId: string;
   agentId: string;
@@ -519,14 +464,7 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
     }
     if (!next) break;
 
-    let budget = remaining.get(next.id) ?? 0;
-    const cap = await positionCap(tx, workspaceId);
-    if (cap > 0) {
-      // capUsage counts this order's own reservation, which is exactly the
-      // money about to be spent, so it must not be double-counted.
-      const used = (await capUsage(tx, workspaceId, marketId, next.agentId)) - budget;
-      budget = Math.min(budget, Math.max(0, cap - used));
-    }
+    const budget = remaining.get(next.id) ?? 0;
     if (budget <= 0.01) {
       blocked.add(next.id);
       continue;

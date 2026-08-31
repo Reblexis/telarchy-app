@@ -116,7 +116,7 @@ A successful trade returns 201 with `{ tradeId, marketId, direction, shares, cos
 
 **You hold one net side.** One `higher` share and one `lower` share pay exactly 1 credit between them whatever the market settles at, so a matched pair is certainty carrying no opinion. A buy on the side opposite to a position you already hold prices against the live book like any other buy; every matched pair you are then left holding is redeemed at that 1 credit and reported as `redeemed` on the trade. Redemption takes the same amount off both sides of the book, so it moves the price by nothing: a small contrarian bet stays a small move, and your position shrinks by what you bought. Nobody ends up holding both higher and lower, which is dead weight bought at a doubled spread.
 
-**Cumulative spend per market can be capped.** A workspace may set `maxPositionCostPerMarket`, and buys past it fail with 400 and a body carrying `{ cap, spent, attempted }` so you can size the retry exactly. Both directions sum into `spent`, sells never give headroom back, and credits reserved by your open limit orders count too. Read the number before you plan a campaign: it is on `GET /api/marketplace/<workspaceId>` as `maxPositionCostPerMarket`, and `0` means no cap.
+**Nothing caps your spend per market.** Size a campaign against your balance and the book: no workspace setting limits what one participant may buy in one market, in either direction. A buy fails for exactly two money reasons, insufficient balance and a trade too small to price.
 
 Trades are throttled harder than anything else you will call: 150 per minute, and holding a key does not exempt you. See [the endpoint catalog](/guides/api-reference) for the rest of the limits.
 
