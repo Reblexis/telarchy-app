@@ -34,7 +34,7 @@ import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
 import { platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
 import { webSearchTool } from '../services/web-search';
-import { buildWorkspaceContext, renderContextMarkdown } from '../services/workspace-context';
+import { buildWorkspaceContext, renderContextIndex, renderContextMarkdown } from '../services/workspace-context';
 import { ensureSystemGroups } from './groups';
 
 export const marketplaceRouter = Router();
@@ -1308,14 +1308,17 @@ marketplaceRouter.post(
     const actions: ApiCallRecord[] = [];
 
     try {
-      // Otto gets the floor's brief as fixed context and three doors he opens
-      // himself: Telarchy's data room, the API catalog, and the API itself,
+      // Otto gets an INDEX of the floor as fixed context, not its brief: the
+      // priced impact of every contract, handed over unasked, is what he
+      // answers from instead of looking (docs/vision.md, "The workspace
+      // brief"). What he gets instead is doors he opens himself: Telarchy's
+      // data room, the web, the API catalog, and the API itself,
       // called with THIS caller's credentials (owner direction 2026-08-21:
       // "exact same access the given user has"). Nothing here grants him
       // anything: the request he makes is the visitor's own request replayed, so
       // an anonymous asker's Otto can read and cannot act, and a signed-in
       // asker's Otto can do what they can do and no more.
-      const { answer, usage } = await askAboutWorkspace(renderContextMarkdown(context), turns, [
+      const { answer, usage } = await askAboutWorkspace(renderContextIndex(context), turns, [
         dataRoomTool(),
         // The web, on the same terms as the operator door has had since
         // 2026-08-24. It matters more here, not less: a visitor's question

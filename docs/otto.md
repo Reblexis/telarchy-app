@@ -3,7 +3,12 @@
 Otto is the floor's assistant. He has two surfaces and one implementation:
 
 - **A market page's question box**, `POST /api/marketplace/:idOrSlug/ask`: the
-  market maker on a company's floor, handed the floor's brief as fixed context.
+  market maker on a company's floor, handed an INDEX of that floor as fixed
+  context (its charter, its metrics and their definitions, its open markets,
+  and its contracts by title and status with no prices) and expected to fetch
+  what a question actually needs. He used to be handed the whole brief and
+  answered from it without looking anything up; `vision.md`, "The workspace
+  brief", owns the reasoning.
   His behaviour rules (he acts as the visitor and as nobody else; the routes he
   answers on are open to every origin) are owned by `vision.md`, "The workspace
   brief, and asking the floor a question"; his read of the data room by

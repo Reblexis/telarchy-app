@@ -14,7 +14,12 @@ jest.mock('../db/client', () => require('./harness/test-db'));
 
 jest.mock('../middleware/auth', () => ({
   hashKey: (raw: string) => raw,
-  authMiddleware: (_req: any, _res: any, next: any) => next(),
+  // A reader on the floor's own workspace, which is what an anonymous visitor
+  // holds on a public workspace and what Otto forwards when he fetches.
+  authMiddleware: (req: any, _res: any, next: any) => {
+    req.auth = { agentId: undefined, workspaceId: 'ws-brief', capabilities: new Set(['read']) };
+    next();
+  },
   optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
 }));
 
@@ -23,12 +28,15 @@ import request from 'supertest';
 import { agents, markets, metrics, permissionGroups, proposals, trades, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
+import { authMiddleware } from '../middleware/auth';
 import { marketplaceRouter } from '../routes/marketplace';
+import { proposalsRouter } from '../routes/proposals';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
 app.use('/api/marketplace', marketplaceRouter);
+app.use('/api/proposals', authMiddleware, proposalsRouter);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {
   const status = err instanceof AppError ? err.status : 500;
@@ -385,5 +393,47 @@ describe('the markdown is ordered for a decision', () => {
     expect(impact.map(i => i.targetDate)).toEqual([LIVE, PAST]);
     const md = await briefMd();
     expect(md.indexOf(LIVE)).toBeLessThan(md.indexOf(PAST));
+  });
+});
+
+/**
+ * The third reader of the same rule. Otto is told to fetch a contract's
+ * pricing from GET /api/proposals/:id (docs/vision.md, "The workspace
+ * brief"), so a door that hands him a retired horizon there would put back
+ * exactly what the brief stopped doing.
+ */
+describe('GET /api/proposals/:id applies the same live-pair rule', () => {
+  test('a voided pair is not returned on a PENDING contract', async () => {
+    await seed();
+    await market({ id: 'live-a', targetDate: LIVE, shares: [0, 10], proposalId: 'prop-pending', branch: 'approved' });
+    await market({ id: 'live-d', targetDate: LIVE, shares: [0, 0], proposalId: 'prop-pending', branch: 'declined' });
+    await market({
+      id: 'dead-a',
+      targetDate: PAST,
+      shares: [0, 60],
+      proposalId: 'prop-pending',
+      branch: 'approved',
+      voided: true,
+    });
+
+    const res = await request(app).get('/api/proposals/prop-pending');
+    expect(res.status).toBe(200);
+    expect(res.body.markets.map((m: any) => m.targetDate)).toEqual([LIVE]);
+  });
+
+  test('a DECIDED contract still returns its voided pairs, because they are the record', async () => {
+    await seed();
+    await market({
+      id: 'dec-a',
+      targetDate: PAST,
+      shares: [0, 60],
+      proposalId: 'prop-approved',
+      branch: 'approved',
+      voided: true,
+    });
+
+    const res = await request(app).get('/api/proposals/prop-approved');
+    expect(res.status).toBe(200);
+    expect(res.body.markets.map((m: any) => m.targetDate)).toEqual([PAST]);
   });
 });

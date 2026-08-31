@@ -3,6 +3,7 @@ import { and, asc, desc, eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, proposalMessages, proposals, workspaces } from '../db/schema';
+import { branchIsShown } from '../lib/market-pairs';
 import { notifyOwner } from '../lib/notify';
 import { publicOrigin } from '../lib/origin';
 import { getParticipantDisplayNames } from '../lib/participants';
@@ -293,11 +294,31 @@ proposalsRouter.get(
       return;
     }
 
-    const proposalMarkets = await getProposalMarketSummariesForProposal(proposal.id, workspaceId);
+    const allMarkets = await getProposalMarketSummariesForProposal(proposal.id, workspaceId);
     // Each pair currently contains up to two LMSR markets (approved + declined).
     // branchMarketCount is the count of actually-spawned markets, used by the
-    // frontend to display the real upfront subsidy cost.
-    const branchMarketCount = proposalMarkets.reduce((n, p) => n + (p.approved ? 1 : 0) + (p.declined ? 1 : 0), 0);
+    // frontend to display the real upfront subsidy cost, so it counts what was
+    // spawned rather than what is still worth reading.
+    const branchMarketCount = allMarkets.reduce((n, p) => n + (p.approved ? 1 : 0) + (p.declined ? 1 : 0), 0);
+    // What is worth reading is the ballot's rule: a voided pair is the record
+    // of a decided contract and dead weight on a pending one
+    // (lib/market-pairs.ts). This endpoint is the one Otto is told to fetch a
+    // contract's pricing from, so a retired horizon returned here would put
+    // back exactly what the brief stopped doing.
+    const proposalMarkets = allMarkets
+      .map(pair => ({
+        ...pair,
+        approved: pair.approved && branchIsShown(proposal.status, pair.approved.voided) ? pair.approved : null,
+        declined: pair.declined && branchIsShown(proposal.status, pair.declined.voided) ? pair.declined : null,
+      }))
+      .filter(pair => pair.approved || pair.declined)
+      .map(pair => ({
+        ...pair,
+        delta:
+          pair.approved?.consensus != null && pair.declined?.consensus != null
+            ? pair.approved.consensus - pair.declined.consensus
+            : null,
+      }));
     const names = await getParticipantDisplayNames([proposal.proposedBy]);
     // Payment information goes to the person who pays (and its owner),
     // nobody else: strip the handle from the spread for plain members.
