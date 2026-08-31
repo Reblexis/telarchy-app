@@ -10,7 +10,7 @@ import type { Metric } from '../types';
 import { applyCredits } from './credits';
 import { emitEvent } from './events';
 import { distributeLPLeftover, voidMarket } from './markets';
-import { getAllMetrics, metricValueAsOf } from './metrics';
+import { getAllMetrics, metricReadingAsOf } from './metrics';
 import { notifyMarketResolved } from './notifications';
 import { releaseLimitOrdersForMarket } from './trading';
 
@@ -50,7 +50,10 @@ async function resolveMarketRow(
   // depending on that race. The fixing is deterministic: updates landing
   // after the boundary count toward the next fixing, never this one.
   const boundary = periodEndInstant(market.targetDate);
-  let rawValue = await metricValueAsOf(market.metricId, boundary, workspaceId);
+  // The reading AND when it was taken: the second half is recorded on the
+  // market so the settlement can say how old it was (docs/guides/sources.md).
+  const fixing = await metricReadingAsOf(market.metricId, boundary, workspaceId);
+  let rawValue = fixing?.value ?? null;
   if (rawValue === null && metric.resolvesNaUntilMeasured) {
     // A number that does not exist yet has no fixing (owner ask 2026-08-25:
     // "if not invested.. it resolves N/A"). The market is N/A: voided, every
@@ -123,7 +126,14 @@ async function resolveMarketRow(
     const poolLeftover = Math.max(0, Math.round((pool - totalPayout) * 100) / 100);
     await tx
       .update(markets)
-      .set({ resolved: true, resolvedAt: new Date(), actualValue, active: false, pool: 0 })
+      .set({
+        resolved: true,
+        resolvedAt: new Date(),
+        actualValue,
+        settledReadingAt: fixing?.at ?? null,
+        active: false,
+        pool: 0,
+      })
       .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));
 
     await distributeLPLeftover(tx, market.id, poolLeftover, workspaceId);

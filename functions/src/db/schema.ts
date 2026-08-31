@@ -520,6 +520,18 @@ export const markets = pgTable(
     pool: doublePrecision('pool').notNull(),
     /** Cumulative traded volume on this market: sum of |cost| across all buy and sell trades. */
     tradedVolume: doublePrecision('traded_volume').notNull().default(0),
+    /**
+     * The timestamp of the reading this market settled on: the last one at or
+     * before its resolution instant, which is what the fixing uses
+     * (docs/guides/sources.md). Kept so the settlement can say how old that
+     * reading was, permanently, rather than leaving a trader to work it out
+     * from two logs. Null on anything not settled, and on everything settled
+     * before 2026-08-31.
+     */
+    settledReadingAt: timestamp('settled_reading_at'),
+    /** When the owner was last emailed that this market was about to settle on
+     *  a stale reading. Dedupe for that mail and nothing else. */
+    staleNoticeAt: timestamp('stale_notice_at'),
     proposalId: text('proposal_id'),
     /**
      * Conditional-market branch. NULL on natural-trajectory (non-proposal) markets.

@@ -539,3 +539,22 @@ export function openableDates(now: Date = new Date()): Array<{ label: string; ta
     { label: `end of ${y}`, targetDate: String(y) },
   ];
 }
+
+/**
+ * The settlement instant, written out: "30 Sep 2026, 23:59 UTC".
+ *
+ * A market settles on the last reading at or before this moment
+ * (docs/guides/sources.md), so an owner deciding when to push a number needs
+ * the boundary itself and not the distance to it: a reading at 23:58 and one
+ * at 00:02 belong to different markets. UTC always, because the boundary is
+ * UTC and a local rendering of it would be a different instant for every
+ * reader.
+ */
+export function settleInstant(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const day = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mm = String(d.getUTCMinutes()).padStart(2, '0');
+  return `${day}, ${hh}:${mm} UTC`;
+}
