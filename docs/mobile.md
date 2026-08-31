@@ -56,18 +56,25 @@ delivered over the transport that address was registered with.
 Two transports carry the mobile channel:
 
 - **Web Push (VAPID)** for browsers and installed web apps, on every platform.
-- **Native push** for store builds: FCM on Android, APNs on iOS, which a
-  webview cannot receive over Web Push.
+- **FCM** for store builds, whose webview cannot receive Web Push. One
+  transport covers both stores: Firebase delivers to Android itself and relays
+  to iOS over APNs using the auth key uploaded to it, so the server holds one
+  native credential instead of two and speaks one protocol instead of two.
 
-Both are rows in `push_subscriptions`, discriminated by a `transport` column.
+Both are rows in `push_subscriptions`, discriminated by a `transport` column
+whose absence means `webpush`, because every row written before store builds
+existed is a browser.
+
 The sender chooses per row; callers ask for a participant to be notified and
 never name a transport. A deployment missing the credentials for one transport
 sends over the others and never throws, the same rule Web Push already follows,
 so a self-hosted instance with no store builds needs no store credentials.
 
-An address the platform reports as gone is deleted rather than retried: a 404
-or 410 from a Web Push endpoint, and the matching permanent-failure verdict
-from FCM or APNs.
+An address the platform reports as gone is deleted rather than retried: 404 or
+410 from a Web Push endpoint, and `NOT_FOUND` or `UNREGISTERED` from FCM. A
+failure that is not the platform disowning the address, a timeout or a 500 or a
+credential the server got wrong, leaves the row alone: deleting on those would
+unsubscribe a working phone because the sender was misconfigured.
 
 ## What is deliberately not built
 

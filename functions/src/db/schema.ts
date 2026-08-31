@@ -823,8 +823,18 @@ export const pushSubscriptions = pgTable(
     agentId: text('agent_id').notNull(),
     /** The browser-issued push URL; unique, because one browser is one address. */
     endpoint: text('endpoint').notNull(),
-    /** The subscription's `keys` object (p256dh + auth), as the browser gave it. */
+    /** The subscription's `keys` object (p256dh + auth), as the browser gave it.
+     *  Empty for a native address, which authenticates by token alone. */
     keys: jsonb('keys').notNull(),
+    /**
+     * How this address is delivered to (docs/mobile.md): `webpush` for a
+     * browser or installed web app, `fcm` for a store build, whose webview
+     * cannot receive Web Push. The transport is a property of the ADDRESS, not
+     * of the notification, so a participant can hold both at once and callers
+     * never name one. Defaults to `webpush` because every row written before
+     * store builds existed is a browser.
+     */
+    transport: text('transport').notNull().default('webpush'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   t => [

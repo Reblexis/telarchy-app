@@ -3,7 +3,15 @@ import { and, eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, pushSubscriptions } from '../db/schema';
-import { pushConfigured, vapidPublicKey } from '../lib/push';
+import {
+  configuredTransports,
+  fcmConfigured,
+  isPushTransport,
+  PUSH_TRANSPORTS,
+  pushConfigured,
+  vapidPublicKey,
+  webPushConfigured,
+} from '../lib/push';
 import { wrap } from '../lib/wrap';
 import { requireIdentity, requireScope } from '../middleware/roles';
 import { listNotifications, markNotificationRead, markNotificationsSeen } from '../services/notifications';
@@ -117,19 +125,38 @@ notificationsRouter.post(
   }),
 );
 
-/** The VAPID public key a browser needs to subscribe, and whether push is
- *  configured at all. Public: it is embedded in every subscribing client. */
+/**
+ * What a client needs before it subscribes: the VAPID public key a browser
+ * passes to PushManager.subscribe, and which transports this deployment can
+ * actually send over. Public, since the key is embedded in every subscribing
+ * client.
+ *
+ * `transports` is per transport rather than one boolean because the two
+ * clients ask different questions: a store build needs to know FCM is live
+ * even where VAPID is not, and a browser the reverse. `configured` stays as
+ * the older any-transport answer so existing clients keep working.
+ */
 notificationsRouter.get(
   '/push-key',
   wrap(async (_req, res) => {
-    res.json({ configured: pushConfigured(), publicKey: vapidPublicKey() });
+    res.json({ configured: pushConfigured(), publicKey: vapidPublicKey(), transports: configuredTransports() });
   }),
 );
 
 /**
- * Register this browser's push subscription as one of the caller's mobile
- * addresses. Upserts on the endpoint: re-subscribing the same browser (which
- * browsers do on every permission re-grant) must not duplicate deliveries.
+ * Register one of the caller's mobile addresses (docs/mobile.md). Two shapes,
+ * because there are two transports:
+ *
+ *   { subscription: { endpoint, keys: { p256dh, auth } } }   a browser
+ *   { transport: 'fcm', token }                              a store build
+ *
+ * Upserts on the address: re-subscribing the same browser (which browsers do
+ * on every permission re-grant) or the same device (which store builds do on
+ * every launch) must not duplicate deliveries.
+ *
+ * An address for a transport this deployment cannot send over is refused
+ * rather than stored, so a client never shows the user a working switch that
+ * delivers nothing.
  */
 notificationsRouter.post(
   '/push-subscriptions',
@@ -141,32 +168,61 @@ notificationsRouter.post(
       res.status(403).json({ error: 'Identity required' });
       return;
     }
-    if (!pushConfigured()) {
-      res.status(503).json({ error: 'Push is not configured on this server' });
+    // Absent a transport this is a browser, which is the only shape that
+    // existed before store builds and the only one older clients send.
+    const transport = req.body?.transport ?? 'webpush';
+    if (!isPushTransport(transport)) {
+      res.status(400).json({ error: `transport must be one of: ${PUSH_TRANSPORTS.join(', ')}` });
       return;
     }
-    const sub = req.body?.subscription;
-    const endpoint = sub?.endpoint;
-    const keys = sub?.keys;
-    if (
-      typeof endpoint !== 'string' ||
-      !endpoint.startsWith('https://') ||
-      endpoint.length > 2000 ||
-      !keys ||
-      typeof keys.p256dh !== 'string' ||
-      typeof keys.auth !== 'string'
-    ) {
-      res
-        .status(400)
-        .json({ error: 'subscription must be a browser PushSubscription: { endpoint, keys: { p256dh, auth } }' });
-      return;
+
+    let endpoint: string;
+    let keys: { p256dh: string; auth: string } | Record<string, never>;
+
+    if (transport === 'fcm') {
+      if (!fcmConfigured()) {
+        res.status(503).json({ error: 'Store-build push is not configured on this server' });
+        return;
+      }
+      const token = req.body?.token;
+      if (typeof token !== 'string' || !token || token.length > 2000) {
+        res.status(400).json({ error: 'token is required for the fcm transport' });
+        return;
+      }
+      endpoint = token;
+      // A device token authenticates by itself; there is no key exchange.
+      keys = {};
+    } else {
+      if (!webPushConfigured()) {
+        res.status(503).json({ error: 'Push is not configured on this server' });
+        return;
+      }
+      const sub = req.body?.subscription;
+      const subEndpoint = sub?.endpoint;
+      const subKeys = sub?.keys;
+      if (
+        typeof subEndpoint !== 'string' ||
+        !subEndpoint.startsWith('https://') ||
+        subEndpoint.length > 2000 ||
+        !subKeys ||
+        typeof subKeys.p256dh !== 'string' ||
+        typeof subKeys.auth !== 'string'
+      ) {
+        res
+          .status(400)
+          .json({ error: 'subscription must be a browser PushSubscription: { endpoint, keys: { p256dh, auth } }' });
+        return;
+      }
+      endpoint = subEndpoint;
+      keys = { p256dh: subKeys.p256dh, auth: subKeys.auth };
     }
+
     await db
       .insert(pushSubscriptions)
-      .values({ id: randomUUID(), agentId: participantId, endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } })
+      .values({ id: randomUUID(), agentId: participantId, endpoint, keys, transport })
       .onConflictDoUpdate({
         target: pushSubscriptions.endpoint,
-        set: { agentId: participantId, keys: { p256dh: keys.p256dh, auth: keys.auth } },
+        set: { agentId: participantId, keys, transport },
       });
     res.json({ ok: true });
   }),

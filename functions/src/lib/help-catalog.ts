@@ -1275,7 +1275,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/notifications/push-key',
       auth: false,
       description:
-        "The mobile channel's handshake: { configured, publicKey }. publicKey is the VAPID application server key a browser needs for PushManager.subscribe; configured false means this deployment cannot send push and POST push-subscriptions will answer 503.",
+        "The mobile channel's handshake: { configured, publicKey, transports }. publicKey is the VAPID application server key a browser needs for PushManager.subscribe. transports is { webpush, fcm }: which transports this deployment can actually send over, asked separately because a store build needs to know FCM is live even where VAPID is not and a browser the reverse (docs/mobile.md). configured is the older any-transport boolean, true when either is live; POST push-subscriptions answers 503 for a transport that is dark.",
     },
     {
       method: 'POST',
@@ -1283,7 +1283,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       auth: 'identity',
       scope: 'account:write',
       description:
-        "Register this browser's push subscription as one of the caller's mobile addresses. Body: { subscription: { endpoint, keys: { p256dh, auth } } }, the browser's PushSubscription.toJSON(). Upserts on the endpoint, so re-subscribing the same browser never duplicates deliveries. Which events actually push is set per kind by the matrix's mobile cells (POST /api/auth/profile notificationChannels).",
+        'Register one of the caller\'s mobile addresses. Two shapes, one per transport (docs/mobile.md): a browser sends { subscription: { endpoint, keys: { p256dh, auth } } }, its PushSubscription.toJSON(), and an app-store build sends { transport: "fcm", token }, its FCM registration token. Absent a transport the body is read as a browser, so older clients are unaffected. Upserts on the address, so re-subscribing the same browser or relaunching the same app never duplicates deliveries. 503 when this deployment cannot send over that transport, so a client never stores an address nobody can reach. Which events actually push is set per kind by the matrix\'s mobile cells (POST /api/auth/profile notificationChannels); the transport is a property of the address, never of the notification.',
     },
     {
       method: 'DELETE',

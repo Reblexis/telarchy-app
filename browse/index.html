@@ -2440,17 +2440,23 @@ delivered over the transport that address was registered with.</p>
 <p>Two transports carry the mobile channel:</p>
 <ul>
 <li><strong>Web Push (VAPID)</strong> for browsers and installed web apps, on every platform.</li>
-<li><strong>Native push</strong> for store builds: FCM on Android, APNs on iOS, which a
-webview cannot receive over Web Push.</li>
+<li><strong>FCM</strong> for store builds, whose webview cannot receive Web Push. One
+transport covers both stores: Firebase delivers to Android itself and relays
+to iOS over APNs using the auth key uploaded to it, so the server holds one
+native credential instead of two and speaks one protocol instead of two.</li>
 </ul>
-<p>Both are rows in <code>push_subscriptions</code>, discriminated by a <code>transport</code> column.
-The sender chooses per row; callers ask for a participant to be notified and
+<p>Both are rows in <code>push_subscriptions</code>, discriminated by a <code>transport</code> column
+whose absence means <code>webpush</code>, because every row written before store builds
+existed is a browser.</p>
+<p>The sender chooses per row; callers ask for a participant to be notified and
 never name a transport. A deployment missing the credentials for one transport
 sends over the others and never throws, the same rule Web Push already follows,
 so a self-hosted instance with no store builds needs no store credentials.</p>
-<p>An address the platform reports as gone is deleted rather than retried: a 404
-or 410 from a Web Push endpoint, and the matching permanent-failure verdict
-from FCM or APNs.</p>
+<p>An address the platform reports as gone is deleted rather than retried: 404 or
+410 from a Web Push endpoint, and <code>NOT_FOUND</code> or <code>UNREGISTERED</code> from FCM. A
+failure that is not the platform disowning the address, a timeout or a 500 or a
+credential the server got wrong, leaves the row alone: deleting on those would
+unsubscribe a working phone because the sender was misconfigured.</p>
 <h2 id="docs-mobile-md--h4">What is deliberately not built</h2>
 <p>There is no second frontend, and no native UI. A phone-shaped view of a screen
 is a responsive layout in the one frontend, governed by <code>ui-conventions.md</code>.
