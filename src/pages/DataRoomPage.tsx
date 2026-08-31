@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api, type DataRoomBlock, type DataRoomFeed } from '../lib/api';
 import { withBase } from '../lib/base-path';
@@ -103,35 +102,6 @@ function DayBars({ points, label }: { points: Array<{ day: string; value: number
   );
 }
 
-/** The metric's readings over time, as one step line. The market's own chart
- *  lives on the floor; this is the number the market settles against. */
-function Readings({ points, label }: { points: Array<{ at: string; value: number }>; label: string }) {
-  if (points.length < 2) return null;
-  const W = 760;
-  const H = 120;
-  const values = points.map(p => p.value);
-  const lo = Math.min(...values);
-  const hi = Math.max(...values);
-  const span = hi - lo || 1;
-  const x = (i: number) => (i / (points.length - 1)) * W;
-  const y = (v: number) => H - 8 - ((v - lo) / span) * (H - 16);
-  const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
-  const area = `${d} L${W},${H} L0,${H} Z`;
-  return (
-    <figure className="dr-chart">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label} className="dr-chart-svg">
-        <path d={area} className="dr-line-fill" />
-        <path d={d} className="dr-line" vectorEffect="non-scaling-stroke" />
-      </svg>
-      <figcaption className="dr-chart-cap">
-        <span>{dayLabel(points[0].at)}</span>
-        <span className="dr-chart-max">{n(Math.round(hi))} high</span>
-        <span>{dayLabel(points[points.length - 1].at)}</span>
-      </figcaption>
-    </figure>
-  );
-}
-
 /**
  * The named changes, newest first. Only the most recent are on screen at
  * first: the log is the longest thing on the page by an order of magnitude,
@@ -180,35 +150,36 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
     );
   }
 
-  if (name === 'market') {
-    const floor = e.market;
-    if (!floor?.market) return <p className="dr-empty">No open market on this floor right now.</p>;
-    const m = floor.market;
+  if (name === 'funnel') {
+    const f = e.funnel;
+    const LABEL: Record<string, { left: string; note: string }> = {
+      loads: {
+        left: 'Page loads',
+        note: f.loadsSince ? `counted from ${dayLabel(f.loadsSince)}` : 'from the visit rollup',
+      },
+      accounts: { left: 'Accounts', note: 'a person or an agent that signed up' },
+      verified: { left: 'Verified', note: 'a public Manifold profile anyone can inspect' },
+      weeklyActive: { left: 'Traded this week', note: '100+ credits in the trailing seven days' },
+    };
     return (
       <>
-        <div className="dr-market">
-          <span className="dr-market-cap">{m.metricName}</span>
-          <span className="dr-market-price">
-            {m.consensus === null ? 'not published' : n(Math.round(m.consensus * 100) / 100)}
-          </span>
-          <span className="dr-market-sub">
-            the market&apos;s call · now reading{' '}
-            {m.currentValue === null ? 'not published' : n(Math.round(m.currentValue))}
-            {' · '}settles {dayLabel(m.resolvesOn)}
-          </span>
-        </div>
-        <Readings points={m.history} label={`${m.metricName} over time`} />
-        <p className="dr-note">Every reading of the metric the market settles against, oldest first.</p>
-        <Rows
-          rows={[
-            { key: 'range', left: 'Range the market prices inside', value: `${n(m.rangeMin)} to ${n(m.rangeMax)}` },
-            { key: 'liq', left: 'Credits in the pool', value: `${n(Math.round(m.pool))} cr` },
-            { key: 'vol', left: 'Traded volume, lifetime', value: `${n(Math.round(m.tradedVolume))} cr` },
-          ]}
-        />
+        <ul className="dr-funnel">
+          {f.steps.map(step => (
+            <li key={step.id}>
+              <span className="dr-funnel-n">{n(step.n)}</span>
+              <span className="dr-funnel-t">
+                {LABEL[step.id]?.left ?? step.id}
+                <em>{LABEL[step.id]?.note}</em>
+              </span>
+              <span className="dr-funnel-s">
+                {step.shareOfAbove === null ? '' : `${(step.shareOfAbove * 100).toFixed(1)}% of the step above`}
+              </span>
+            </li>
+          ))}
+        </ul>
         <p className="dr-note">
-          <Link to={`/${floor.slug ?? 'telarchy'}`}>Trade it on the floor</Link>, or read the raw payload at{' '}
-          <code>/api/marketplace/{floor.slug ?? 'telarchy'}</code>.
+          Loads count what the visit rollup holds and accounts predate it, so the first percentage is arithmetic between
+          two published numbers rather than a claim that those accounts came out of those loads.
         </p>
       </>
     );

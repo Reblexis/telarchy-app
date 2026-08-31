@@ -688,7 +688,7 @@ export interface PublicWorkspaceMarket {
  *  prose and every figure on the page, so the page cannot show a number the
  *  response does not carry. A term that could not be computed is null, never
  *  zero. */
-export type DataRoomBlock = 'pulse' | 'market' | 'traction' | 'contracts' | 'traffic' | 'shipping';
+export type DataRoomBlock = 'pulse' | 'funnel' | 'traction' | 'contracts' | 'traffic' | 'shipping';
 
 export interface DataRoomFeed {
   schema: number;
@@ -705,25 +705,21 @@ export interface DataRoomFeed {
       tradesThisWeek: number;
       source: string;
     };
-    market: {
-      workspaceId: string;
-      name: string;
-      slug: string | null;
-      market: {
-        metricName: string;
-        metricDescription: string | null;
-        consensus: number | null;
-        currentValue: number | null;
-        rangeMin: number;
-        rangeMax: number;
-        targetDate: string;
-        resolvesOn: string;
-        /** Credits in the pool (the books' credit figure). */
-        pool: number;
-        tradedVolume: number;
-        history: Array<{ at: string; value: number }>;
-      } | null;
-    } | null;
+    /** The chain that ends in the floor's metric. It replaced the `market`
+     *  block on 2026-08-31: the page publishes no price and no settle date,
+     *  because a reader arriving from the floor already has both. */
+    funnel: {
+      steps: Array<{
+        id: string;
+        n: number;
+        /** Share of the step above. Null on the first step, and on any step
+         *  whose predecessor is zero: 0/0 is not published as a percentage. */
+        shareOfAbove: number | null;
+      }>;
+      /** The day the visit rollup starts, so the page can say the first
+       *  conversion is not a cohort. */
+      loadsSince: string | null;
+    };
     traction: {
       participants: number;
       accounts: number;

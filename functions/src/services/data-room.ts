@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gte, isNull, like, ne, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gte, like, ne, sql } from 'drizzle-orm';
 import { CHANGE_DAYS, CHANGELOG_BUILT_AT, CHANGES, TOTAL_CHANGES } from '../content/changelog';
 import { type BlockName, CONTENT_UPDATED_AT, DATA_ROOM_MARKDOWN, KNOWN_BLOCKS } from '../content/data-room';
 import { db } from '../db/client';
@@ -6,8 +6,6 @@ import {
   agents,
   authUser,
   markets,
-  metricLogs,
-  metrics,
   pageVisits,
   proposals,
   systemConfig,
@@ -15,8 +13,6 @@ import {
   trafficDaily,
   workspaces,
 } from '../db/schema';
-import { consensus } from '../lib/amm';
-import { resolutionInstant } from '../lib/date-utils';
 import { ttlCache } from '../lib/ttl-cache';
 import { humanVisitFilter } from '../lib/visit-log';
 import { platformStats } from './platform-stats';
@@ -33,9 +29,6 @@ import { platformStats } from './platform-stats';
  * `GET /api/data-room`, which the page renders, and Otto, who opens sections of
  * it on his own when a visitor asks something the floor's brief cannot answer.
  */
-
-/** The workspace whose floor this page is the evidence for. */
-const SELF_SLUG = 'telarchy';
 
 /** How long one computed feed is served to everybody. A data room is read by
  *  strangers arriving in bursts, and none of these numbers move in a minute. */
@@ -133,65 +126,40 @@ export async function rollUpTraffic(): Promise<void> {
   }
 }
 
-/** The floor this page is the evidence for: its market, its price, and the
- *  readings the market settles against. Null when the workspace is missing,
- *  which is what a self-hosted instance without it looks like. */
-async function selfFloor() {
-  const [ws] = await db.select().from(workspaces).where(eq(workspaces.slug, SELF_SLUG)).limit(1);
-  if (!ws) return null;
-
-  const open = await db
-    .select()
-    .from(markets)
-    .where(
-      and(
-        eq(markets.workspaceId, ws.id),
-        eq(markets.resolved, false),
-        eq(markets.active, true),
-        isNull(markets.proposalId), // the baseline market, not a contract's branch
-      ),
-    )
-    .orderBy(asc(markets.targetDate));
-  const m = open[0];
-  if (!m) return { workspaceId: ws.id, name: ws.name, slug: ws.slug, market: null };
-
-  const [metric] = await db
-    .select()
-    .from(metrics)
-    .where(and(eq(metrics.workspaceId, ws.id), eq(metrics.id, m.metricId)))
-    .limit(1);
-
-  const logs = await db
-    .select({ at: metricLogs.timestamp, value: metricLogs.value })
-    .from(metricLogs)
-    .where(and(eq(metricLogs.workspaceId, ws.id), eq(metricLogs.metricId, m.metricId)))
-    .orderBy(asc(metricLogs.timestamp))
-    .limit(400);
-
+/**
+ * The chain that ends in the floor's metric: a page load, an account, a
+ * Manifold profile claimed, a hundred credits traded in seven days.
+ *
+ * This replaces `selfFloor`, which published the floor's own call, the reading
+ * it settles against and its settle date. That block was the page's stated
+ * rule ("nothing restates what the market currently forecasts") being broken
+ * inside the document the rule governs, and a reader arriving from the floor
+ * already had every number in it. See docs/data-room.md.
+ *
+ * Every count is one the feed already carries, passed in rather than queried
+ * again: a funnel that computes its own totals is a second pipeline, and a
+ * second pipeline is a thing that can disagree with the page beside it.
+ *
+ * `shareOfAbove` is of the step above, so the first step has none. A step
+ * whose predecessor is zero refuses rather than dividing, because 0/0 on a
+ * public page is worse than an absent figure.
+ */
+function funnel(counts: { loads: number; accounts: number; verified: number; weeklyActive: number }) {
+  const steps: Array<{ id: string; n: number; shareOfAbove: number | null }> = [
+    { id: 'loads', n: counts.loads, shareOfAbove: null },
+    { id: 'accounts', n: counts.accounts, shareOfAbove: null },
+    { id: 'verified', n: counts.verified, shareOfAbove: null },
+    { id: 'weeklyActive', n: counts.weeklyActive, shareOfAbove: null },
+  ];
+  for (let i = 1; i < steps.length; i++) {
+    const above = steps[i - 1].n;
+    steps[i].shareOfAbove = above > 0 ? steps[i].n / above : null;
+  }
   return {
-    workspaceId: ws.id,
-    name: ws.name,
-    slug: ws.slug,
-    market: {
-      metricName: m.metricName,
-      metricDescription: metric?.description ?? null,
-      /** The market's call. Undefined from the AMM means it cannot be priced,
-       *  which is published as null rather than as a number. */
-      // consensus() takes the LMSR sensitivity b, not the pool. Handing it the
-      // pool made the books quote a different call than the floor did for the
-      // same market, by exactly the ln 2 between them (2026-08-30).
-      consensus: consensus(m.shares as [number, number], m.liquidity, m.rangeMin, m.rangeMax) ?? null,
-      currentValue: metric ? metric.value : null,
-      rangeMin: m.rangeMin,
-      rangeMax: m.rangeMax,
-      targetDate: m.targetDate,
-      resolvesOn: resolutionInstant(m.targetDate),
-      // The credit figure is the pool; b is derived from it and belongs to the
-      // price maths, not to a books line that says "cr".
-      pool: m.pool,
-      tradedVolume: m.tradedVolume,
-      history: logs.map(l => ({ at: l.at.toISOString(), value: l.value })),
-    },
+    steps,
+    /** Loads count what the visit rollup holds, and accounts predate it, so
+     *  the first conversion is not a cohort. The page says so where it shows. */
+    loadsSince: null as string | null,
   };
 }
 
@@ -325,13 +293,14 @@ export function buildDataRoomFeed(): Promise<DataRoomFeed> {
 }
 
 async function computeDataRoomFeed(): Promise<DataRoomFeed> {
-  const [stats, floor, tract, contractRows, traf] = await Promise.all([
-    platformStats(),
-    selfFloor(),
-    traction(),
-    contracts(),
-    traffic(),
-  ]);
+  const [stats, tract, contractRows, traf] = await Promise.all([platformStats(), traction(), contracts(), traffic()]);
+  const chain = funnel({
+    loads: traf.totalVisits,
+    accounts: tract.accounts,
+    verified: tract.verifiedParticipants,
+    weeklyActive: stats.weeklyActiveVerifiedTraders,
+  });
+  chain.loadsSince = traf.keptSince ?? null;
 
   const body: DataRoomFeed = {
     schema: 1,
@@ -347,7 +316,7 @@ async function computeDataRoomFeed(): Promise<DataRoomFeed> {
         // number so a reader can check it without trusting this page.
         source: '/api/marketplace/stats',
       },
-      market: floor,
+      funnel: chain,
       traction: tract,
       contracts: contractRows,
       traffic: traf,
@@ -403,21 +372,20 @@ function renderBlock(name: string, feed: DataRoomFeed): string {
   const v = e[name];
   if (!v) return `${name}: not published`;
 
-  if (name === 'market') {
-    const m = v.market;
-    if (!m) return 'market: no open market on the Telarchy floor right now';
+  if (name === 'funnel') {
+    const label: Record<string, string> = {
+      loads: 'page loads',
+      accounts: 'accounts',
+      verified: 'verified on Manifold',
+      weeklyActive: 'traded 100+ credits in the last 7 days',
+    };
     return [
-      `market: ${m.metricName}`,
-      `  the market's call: ${fmt(m.consensus)}`,
-      `  the metric now reads: ${fmt(m.currentValue)}`,
-      `  band ${fmt(m.rangeMin)} to ${fmt(m.rangeMax)}, settles ${m.resolvesOn}`,
-      `  pool ${fmt(m.pool)} cr, traded volume ${fmt(m.tradedVolume)} cr`,
-      `  readings: ${
-        (m.history || [])
-          .slice(-12)
-          .map((p: any) => `${String(p.at).slice(0, 10)}=${fmt(p.value)}`)
-          .join(', ') || 'none'
-      }`,
+      `funnel${v.loadsSince ? ` (loads counted from ${v.loadsSince})` : ''}:`,
+      ...v.steps.map(
+        (st: any) =>
+          `  ${label[st.id] ?? st.id}: ${fmt(st.n)}` +
+          (st.shareOfAbove === null ? '' : ` (${(st.shareOfAbove * 100).toFixed(1)}% of the step above)`),
+      ),
     ].join('\n');
   }
 

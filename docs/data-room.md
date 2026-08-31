@@ -17,7 +17,18 @@ It has two readers and no third.
 ## It is the platform's own books, not a pitch
 
 Nothing on the page argues a position and nothing restates what the market
-currently forecasts. The traffic section publishes numbers that are small,
+currently forecasts. **That includes the platform's own market** (owner ask
+2026-08-31): the `market` block printed the floor's call, the reading it
+settles against and its settle date, which is the rule's own violation sitting
+inside the document the rule governs. It is gone, and `funnel` took its place
+in the running order.
+
+The rule is not squeamishness about prices. A reader arrives here from the
+floor already holding the price; spending the page's best space on it buys
+them nothing, and it makes the page a mirror of a number it does not control.
+What a reader cannot get anywhere else is the chain that produces the metric
+and the events that moved it, so that is what the page is: who is here, what
+brings them, what has happened, and what it cost. The traffic section publishes numbers that are small,
 because that is the point: the floor's charter already promises "this number is
 small today, and early weeks near zero mean nobody showed up yet", and a data
 room that only publishes flattering figures makes the charter a lie.
@@ -40,9 +51,27 @@ documents are carried the same way, for the same reason.
 **A number is never typed into the prose.** A fenced `block:name` directive
 marks where machine-derived evidence is slotted in, and an unknown
 block name throws at module load rather than rendering a hole. Known blocks:
-`pulse`, `market`, `traction`, `contracts`, `traffic`, `shipping`. Because the
+`pulse`, `funnel`, `traction`, `contracts`, `traffic`, `shipping`. Because the
 prose never restates a figure a block already carries, the document and the data
 cannot disagree.
+
+## The funnel is the chain that ends in the metric
+
+The floor's metric is weekly active verified traders, and every one of them
+came through the same four steps: a page load, an account, a Manifold profile
+claimed, a hundred credits traded in seven days. `funnel` publishes all four
+with the conversion between them, from counts the page already carries, so no
+step can be quoted without the step above it.
+
+**The conversions are printed, not drawn.** A funnel from thousands of loads to
+single-digit traders needs a log axis to be visible as bars, and a log axis on
+a funnel flatters it. Four numbers on hairlines with the percentage beside each
+is the honest drawing.
+
+**The loads figure is not a cohort.** It counts what the visit rollup holds,
+which starts on the date the rollup started, while accounts predate it. The
+page says so where the number appears rather than implying that 36 accounts
+came out of exactly those loads.
 
 ## Every number comes from the database that serves the site
 

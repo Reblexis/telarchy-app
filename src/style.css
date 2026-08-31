@@ -7682,32 +7682,60 @@ textarea.jobform-line--desc {
   color: var(--text-primary);
 }
 
-/* The market this page is the evidence for: the call, big, with the
-   reading it settles against under it. Same register as the floor. */
-.dr-market {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: 1.4rem 0 1.2rem;
+/* The chain that ends in the floor's metric. Counts on hairlines with the step
+   between them spelled out: a funnel from thousands of loads to single-digit
+   traders needs a log axis to show as bars, and a log axis on a funnel
+   flatters it. Replaced the market block on 2026-08-31 (docs/data-room.md). */
+.dr-funnel {
+  list-style: none;
+  margin: 1.3rem 0 0;
+  padding: 0;
   border-top: 1px solid var(--border-color);
 }
 
-.dr-market-cap {
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-tertiary);
+.dr-funnel li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 0.4rem 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.dr-market-price {
+.dr-funnel-n {
   font-family: 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  font-size: clamp(2rem, 8vw, 2.8rem);
-  line-height: 1;
+  font-size: 1.5rem;
+  min-width: 4.6rem;
 }
 
-.dr-market-sub { font-size: 0.75rem; color: var(--text-tertiary); }
+.dr-funnel li:last-child .dr-funnel-n { color: var(--accent); }
+
+.dr-funnel-t {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.dr-funnel-t em {
+  display: block;
+  font-style: normal;
+  color: var(--text-tertiary);
+  font-size: 0.76rem;
+}
+
+.dr-funnel-s {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .dr-funnel li { grid-template-columns: auto 1fr; }
+  .dr-funnel-s { grid-column: 2; text-align: left; }
+}
 
 .dr-chart { margin: 1.4rem 0 0; }
 
