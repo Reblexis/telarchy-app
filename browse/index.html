@@ -227,6 +227,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-otto-md--h2">Guarantees</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-otto-md--h3">Tools and budgets</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-otto-md--h4">The conformance check</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-otto-md--h5">Continue with your own agent</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-owner-on-the-floor-md">docs/owner-on-the-floor.md</a></summary>
@@ -236,7 +237,8 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h3">The v1 controls: four dialogs</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h4">What already lived on the floor</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h5">Machinery, and the trap v1 refuses to ship</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h6">What is deliberately not here</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h6">Handing it to your own agent</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h7">What is deliberately not here</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-seasons-md">docs/seasons.md</a></summary>
@@ -419,9 +421,10 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h7">Account scopes</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h8">The wildcard</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h9">Presets</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h10">Managing keys</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h11">What no key can do</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h12">Practical defaults</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h10">A key can be pinned to one workspace</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h11">Managing keys</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h12">What no key can do</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h13">Practical defaults</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-contracts-md">docs/guides/contracts.md</a></summary>
@@ -2435,6 +2438,17 @@ answer is not a trade. One sample per scenario is not a measurement:
 <code>--repeat</code> runs each scenario several times and prints the pass rate.</p>
 <p>Research and measurements behind these choices (why no agent harness, which
 models were tried, eval results): <code>notes/otto-harness-research-2026-08-24.md</code>.</p>
+<h2 id="docs-otto-md--h5">Continue with your own agent</h2>
+<p>Every Otto conversation carries one control besides the text box: <strong>Continue
+with your own agent</strong>, which copies the prompt for handing the same work to
+the operator's own coding agent, as it stands at that point in the
+conversation. On the operator door that is the prompt Otto has been writing
+beside the conversation (<code>services/setup-handoff.ts</code>, owner direction
+2026-08-23); on a market it is the state-built prompt described in
+<code>docs/owner-on-the-floor.md</code>, &quot;Handing it to your own agent&quot;.</p>
+<p>The point is that Otto is never a dead end. Someone who would rather type at
+their own agent leaves with everything this conversation established, and
+nobody has to start again in another window.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
@@ -2572,7 +2586,49 @@ market on the metric is untraded, a machinery edit voids them (pools refund
 to their funders) and respawns them at the new machinery. So the two-field
 metric is not a trap: the owner, or Otto, corrects the range any time before
 the first trade, and nobody's money ever moves under a changed rule.</p>
-<h2 id="docs-owner-on-the-floor-md--h6">What is deliberately not here</h2>
+<h2 id="docs-owner-on-the-floor-md--h6">Handing it to your own agent</h2>
+<p>Everything the four dialogs do is an API call, so the person who would rather
+type at their own coding agent than click can, and the market should say so
+where they are standing rather than in a settings tab. Under &quot;Ask Otto about
+X&quot;, and under &quot;Add your first metric&quot; while the market is empty, sits <strong>Copy
+a prompt for your own AI</strong>.</p>
+<p>Pressing it copies a prompt written from this market's real state, with no
+model call and no wait: the market's name, id and address, which metrics
+exist, which of them have a date and therefore a market, what each pool
+holds, and what is missing. It carries the calls for everything the owner
+can do, the three traps that cost money (a metric with no horizon opens no
+market, a market auto-funded at 0.5 credits trades and says nothing, the
+liquidity wallet spends before the tradeable balance), and one standing
+instruction: ask what the operator wants before doing anything, propose the
+numbers rather than asking them to supply them, and confirm before spending
+credits or publishing. Someone who cannot manage the market gets the reader
+prompt instead, the one that points at the public brief.</p>
+<p>Then, and only then, it offers a key, because a prompt without one can read
+and not act. Four choices, most power first, and none of them can exceed
+what the person themselves may do: an agent key acts as its owner, and
+capabilities are intersected with the key's scopes
+(<code>docs/guides/auth-and-keys.md</code>).</p>
+<ul>
+<li><strong>Everything I can do</strong>, wildcard scopes, every market they are a member
+of. The one to take when the agent is going to run several markets.</li>
+<li><strong>Only on this market</strong>, wildcard scopes pinned to this workspace: the key
+refuses any other, so a mistake or a leak reaches one market. The default,
+and what the button suggests.</li>
+<li><strong>Read only</strong>, everything they can read and no action at all.</li>
+<li><strong>No key</strong>, which is not a refusal: the public brief is readable by
+anyone, and an agent with no key can still answer questions about the
+market. It just cannot change it.</li>
+</ul>
+<p>The raw key is shown once, in the panel, with the header to send it in. It
+is never in the prompt: a prompt gets pasted into chat logs, issues and
+screenshots, and a key that travels with it is a key in all three.</p>
+<p>Otto carries the same handoff. Every Otto conversation, on a market or on
+the operator door, has <strong>Continue with your own agent</strong>, which copies the
+prompt as it stands at that moment in the conversation. On the operator door
+that is the prompt Otto has been writing beside the conversation (owner
+direction 2026-08-23, <code>services/setup-handoff.ts</code>); on a market it is the
+same state-built prompt as the button above.</p>
+<h2 id="docs-owner-on-the-floor-md--h7">What is deliberately not here</h2>
 <ul>
 <li><strong>Closing a market</strong> is not a floor control: it voids other people's
 positions, which does not belong one click from a button that buys
@@ -5799,7 +5855,24 @@ GET /api/guides/&lt;id&gt;          # the markdown of one guide
 </tr>
 </tbody>
 </table></div>
-<h2 id="docs-guides-auth-and-keys-md--h10">Managing keys</h2>
+<h3 id="docs-guides-auth-and-keys-md--h10">A key can be pinned to one workspace</h3>
+<p>A key carries a <code>workspaceId</code>, and by default that is only a fallback: a
+request that sends <code>X-Workspace-Id</code> is answered in whichever workspace it
+names, with the capabilities the key's owner holds there. Mint with
+<code>workspaceLocked: true</code> and it stops being a fallback and becomes the whole
+of the key's reach: a request naming any other workspace is refused 403, and
+one that names none is answered in the key's own.</p>
+<p>It is the difference between &quot;an agent that acts for me&quot; and &quot;an agent that
+acts for me on this market&quot;, and it is what the market page offers by default
+when someone hands the market to their own agent
+(<code>docs/owner-on-the-floor.md</code>). Scopes and the lock compose: a locked
+wildcard key does everything its owner can do, on exactly one market.</p>
+<pre><code class="language-bash">curl -s -X POST https://telarchy.com/api/agents/me/keys \
+  -H &quot;X-Agent-Key: $KEY&quot; -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;label&quot;:&quot;my agent on Harbour Roasters&quot;,&quot;scopes&quot;:[&quot;*&quot;],
+       &quot;workspaceId&quot;:&quot;'$WS'&quot;,&quot;workspaceLocked&quot;:true}'
+</code></pre>
+<h2 id="docs-guides-auth-and-keys-md--h11">Managing keys</h2>
 <p>There is no key-management screen anywhere in the web UI. Keys are minted, listed, edited and revoked over the API, with <code>me</code> standing in for whoever the credential belongs to.</p>
 <pre><code class="language-bash"># List. Never returns the secret; keyId is the public handle you manage by.
 curl -s -H &quot;X-Agent-Key: $KEY&quot; https://telarchy.com/api/agents/me/keys
@@ -5821,9 +5894,9 @@ curl -s -X DELETE -H &quot;X-Agent-Key: $KEY&quot; https://telarchy.com/api/agen
 <p>Every one of these calls needs the <code>account:keys</code> scope when made with a participant key. Leave that scope off your trading keys: a compromised bot that can mint sibling keys is a much worse day than one that can only trade.</p>
 <p>Rotation is mint, deploy, revoke, in that order. You cannot revoke the key that authorised the current request (400), so revoke the old key using the new one.</p>
 <p>Scopes you request must be a subset of the scopes you hold. A <code>workspace:read</code> key cannot mint a <code>workspace:trade</code> key, not even on its own participant, and no non-wildcard key can mint a wildcard.</p>
-<h2 id="docs-guides-auth-and-keys-md--h11">What no key can do</h2>
+<h2 id="docs-guides-auth-and-keys-md--h12">What no key can do</h2>
 <p>Account deletion (<code>DELETE /api/auth/me</code>) is reachable only from a signed-in browser session, by design. No scope grants it, so a leaked key cannot erase its owner. BetterAuth account state (sign-in, sign-up, password reset, OAuth) is session-only for the same reason: a participant key operates at the participant level and has no concept of the email account underneath.</p>
-<h2 id="docs-guides-auth-and-keys-md--h12">Practical defaults</h2>
+<h2 id="docs-guides-auth-and-keys-md--h13">Practical defaults</h2>
 <ul>
 <li>Trade with <code>workspace:read</code> plus <code>workspace:trade</code>, and nothing else.</li>
 <li>Keep the key that writes metric values (<code>workspace:manage</code>) in the scheduler that pushes them, never inside a bot that also trades. <code>manage</code> includes approving proposals.</li>

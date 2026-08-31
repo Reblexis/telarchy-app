@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { api } from '../lib/api';
 
@@ -30,6 +31,7 @@ export function SubjectAbout({
   canManage,
   onSaved,
   onAsk,
+  handoff,
 }: {
   workspaceId: string;
   name: string;
@@ -48,6 +50,10 @@ export function SubjectAbout({
    *  about <name>" would make it indistinguishable from the corner dock in a
    *  screen reader's list of controls. */
   onAsk?: () => void;
+  /** The "copy a prompt for your own AI" affordance, rendered under Ask Otto.
+   *  Passed in rather than built here so this component keeps knowing only
+   *  about the words on the page. */
+  handoff?: ReactNode;
 }) {
   const text = value && value.trim() ? value : defaultText;
   const [editing, setEditing] = useState(false);
@@ -128,6 +134,10 @@ export function SubjectAbout({
               </span>
             </button>
           )}
+          {/* Directly under Ask Otto, because it is the same offer made to a
+            different assistant: ours, or the one you already talk to
+            (owner ask 2026-08-31). */}
+          {handoff}
         </>
       )}
     </section>

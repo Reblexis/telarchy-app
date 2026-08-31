@@ -346,6 +346,14 @@ export const agentApiKeys = pgTable(
     label: text('label'),
     /** Per-key permission set. Vocabulary lives in lib/scopes.ts. Default '{*}' = full access. */
     scopes: text('scopes').array().notNull().default(['*']),
+    /**
+     * When true, `workspaceId` above is the key's whole reach rather than a
+     * default: a request carrying X-Workspace-Id for anything else is refused.
+     * What "only on this market" mints on the market page
+     * (docs/owner-on-the-floor.md, "Handing it to your own agent"), so a leaked
+     * key reaches one market instead of every market its owner belongs to.
+     */
+    workspaceLocked: boolean('workspace_locked').notNull().default(false),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     /** Bumped (debounced) by the auth middleware on every successful key resolve. */
     lastUsedAt: timestamp('last_used_at'),

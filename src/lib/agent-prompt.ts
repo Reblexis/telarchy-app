@@ -41,3 +41,93 @@ export function agentPrompt(origin: string, floor: FloorRef | null): string {
     'Answer my questions using only those briefs, and tell me when something is not in them. Treat market prices as predictions, not facts.',
   ].join('\n');
 }
+
+/** What the market looks like right now, as the operator's own agent needs to
+ *  hear it: enough to know what exists, what is missing, and what to ask. */
+export interface OwnerFloorState {
+  workspaceId: string;
+  name: string;
+  /** The address people share; falls back to the id when there is no slug. */
+  idOrSlug: string;
+  /** Public, unlisted or private. An unlisted market is live and shareable. */
+  visibility: string;
+  metrics: Array<{
+    name: string;
+    /** The reading in force, null when the metric has never been read. */
+    value: number | null;
+    /** Open markets on this metric, with the credits behind each. */
+    markets: Array<{ targetDate: string; pool: number }>;
+  }>;
+}
+
+function fmtNum(n: number): string {
+  return Math.round(n).toLocaleString('en-US');
+}
+
+/**
+ * The prompt an operator hands their own coding agent so it can run their
+ * market (docs/owner-on-the-floor.md, "Handing it to your own agent").
+ *
+ * Built from state rather than written by a model: it is instant, it costs
+ * nothing, and every id in it comes from the payload the page already holds,
+ * so it cannot hallucinate a workspace. Otto writes the personalised version
+ * on the operator door, where he has a conversation to draw on.
+ *
+ * It carries no key. A prompt is pasted into chat logs, issues and
+ * screenshots; the key is offered separately, once, in the panel.
+ */
+export function ownerAgentPrompt(origin: string, state: OwnerFloorState): string {
+  const url = `${origin}/${state.idOrSlug}`;
+  const lines: string[] = [];
+  lines.push(
+    `I run "${state.name}" on Telarchy, a public market that prices where my real numbers will land. I want you to help me set it up and then keep it true. Ask me what I want before you change anything.`,
+    '',
+    'WHERE IT IS',
+    `- The market: ${url}`,
+    `- Workspace id: ${state.workspaceId}`,
+    `- Visibility: ${state.visibility}${state.visibility === 'unlisted' ? ' (live and shareable by link, not on the front page until I publish it)' : ''}`,
+    '',
+    'WHAT IS THERE NOW',
+  );
+  if (state.metrics.length === 0) {
+    lines.push('- No metric yet, so there is nothing to trade. This is the first thing to fix.');
+  } else {
+    for (const m of state.metrics) {
+      const reading = m.value === null ? 'never reported' : `now reads ${fmtNum(m.value)}`;
+      if (m.markets.length === 0) {
+        lines.push(
+          `- "${m.name}", ${reading}, and NO date, so it has no market. A metric with no horizon opens nothing.`,
+        );
+      } else {
+        const mk = m.markets.map(k => `${k.targetDate} with ${fmtNum(k.pool)} credits behind it`).join('; ');
+        lines.push(`- "${m.name}", ${reading}, priced on ${mk}.`);
+      }
+    }
+  }
+  lines.push(
+    '',
+    'HOW TO ACT AS ME',
+    `- I will paste an API key. Send it as the header "X-Agent-Key: <key>" and add "X-Workspace-Id: ${state.workspaceId}" to every call.`,
+    `- Without a key you can still read everything public: GET ${origin}/api/marketplace/${state.idOrSlug}/context?format=md is the whole brief.`,
+    `- The endpoint catalog is GET ${origin}/api/help. Start by calling GET ${origin}/api/setup/checklist?workspaceId=${state.workspaceId} and work from what it says is open, rather than trusting this list.`,
+    '',
+    'THE CALLS',
+    '- New metric: POST /api/metrics { name, description, value, formula: "", marketRangeMax, timePreference: { enabled: false, halfLife: 1, customHorizons: ["2026-12"] } }',
+    '- Another date on an existing metric: PUT /api/metrics/{id} with the full customHorizons list, plus liquidityCredits for what each new market opens with. Rolling entries ("+0w", "+0m", "+1m") re-open each period; an absolute date ("2026-12", "2026-12-31") is one-shot.',
+    '- Report the number: PUT /api/metrics/{id} { value, oldValue, updateNote }. This is what markets settle on, so it is the call that matters most.',
+    '- Deepen a market: GET /api/predictions/markets to find its id, then POST /api/predictions/markets/{id}/liquidity { amount }.',
+    '- How the market is run: PUT /api/workspaces/{id}/settings { description, subjectAbout, charter, visibility, autoFundNewMarkets, newMarketLiquidityCredits, proposalReward }.',
+    '',
+    'THREE THINGS THAT COST ME MONEY IF YOU GET THEM WRONG',
+    '- A metric with no horizon opens no market. Always send timePreference.customHorizons.',
+    '- A new market is auto-funded with 0.5 credits by default, which is worse than nothing because it still trades: five credits move such a price across its whole band. A couple of hundred behind a number I actually decide on is a market worth reading.',
+    '- Credits bought for liquidity live in a walled wallet and are spent before my tradeable balance. Both are mine, and a market that does not pay out returns what is left to the wallet.',
+    '',
+    'WHAT I WANT FROM YOU',
+    '- Ask me what this market should price, and propose the number yourself rather than asking me to supply it. Say what you would pick and why, and let me correct you.',
+    '- Offer to find where each number can be read from, and to keep reporting it on a schedule once we agree one.',
+    '- Tell me when a range, a date or a pool is wrong before someone trades on it, because machinery freezes the moment they do.',
+    '- Confirm with me before anything that spends credits or makes the market public.',
+  );
+  return lines.join('\n');
+}

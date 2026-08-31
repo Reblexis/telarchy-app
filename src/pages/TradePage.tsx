@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import { AccountMenu } from '../components/AccountMenu';
+import { AgentHandoff } from '../components/AgentHandoff';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { DiscordButton } from '../components/DiscordButton';
 import { EarnDoor } from '../components/EarnDoor';
@@ -411,6 +412,27 @@ export function TradePage() {
   // market chart's row (owner ask 2026-08-28), so the clock never leaves
   // the page.
   const settleLeft = hero ? timeLeftOf(hero, now) : null;
+  // What an operator's own agent is told about this market
+  // (docs/owner-on-the-floor.md, "Handing it to your own agent"). Built from
+  // the payload the page already holds, so the prompt names real ids and
+  // cannot invent a workspace.
+  const ownerState = ws
+    ? {
+        workspaceId: ws.workspaceId,
+        name: ws.name,
+        idOrSlug: ws.slug || ws.workspaceId,
+        visibility: ws.visibility ?? 'unlisted',
+        metrics: metricsOf(horizons).map(m => {
+          const dates = horizons.filter(h => h.metricId === m.metricId);
+          const reading = dates[0]?.metricHistory?.slice(-1)[0]?.value ?? null;
+          return {
+            name: m.metricLabel,
+            value: reading,
+            markets: dates.map(d => ({ targetDate: d.targetDate, pool: d.pool })),
+          };
+        }),
+      }
+    : null;
   // Whether the metric's machinery can still move: true while no market on it
   // has a trade, which is the condition docs/market-integrity.md puts on a
   // machinery edit (untraded markets void and respawn, nobody's money moves).
@@ -975,6 +997,15 @@ export function TradePage() {
           workspaceName={ws.name}
           metricLabel={selectedJob ? null : metricLabel}
           signedIn={!!user}
+          handoff={
+            <AgentHandoff
+              floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
+              state={ownerState}
+              canManage={canManage}
+              signedIn={!!user}
+              className="handoff--in-otto"
+            />
+          }
           open={askingOtto}
           onOpenChange={setAskingOtto}
         />
@@ -1055,6 +1086,18 @@ export function TradePage() {
                       Add your first metric
                     </button>
                   </div>
+                  {/* The other way to do the same work: hand it to the agent
+                    they already talk to (docs/owner-on-the-floor.md,
+                    "Handing it to your own agent"). Under the button rather
+                    than beside it, because clicking it yourself is still the
+                    shorter path for one metric. */}
+                  <AgentHandoff
+                    floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
+                    state={ownerState}
+                    canManage={canManage}
+                    signedIn={!!user}
+                    className="handoff--empty"
+                  />
                 </>
               ) : (
                 <p className="pubws-na-note">Nothing is priced here yet. The owner has not added a number.</p>
@@ -1980,6 +2023,14 @@ export function TradePage() {
             canManage={canManage}
             onSaved={reload}
             onAsk={() => setAskingOtto(true)}
+            handoff={
+              <AgentHandoff
+                floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
+                state={ownerState}
+                canManage={canManage}
+                signedIn={!!user}
+              />
+            }
           />
         </div>
         {/* The jobs board IS the right rail (owner direction 2026-08-10:

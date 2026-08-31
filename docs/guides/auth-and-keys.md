@@ -86,6 +86,28 @@ Note that funding another participant runs on `account:wallet`, not on a workspa
 | Account access | `account:read`, `account:write`, `account:wallet`, `account:agents`, `account:feedback` |
 | Full access | `*` |
 
+### A key can be pinned to one workspace
+
+A key carries a `workspaceId`, and by default that is only a fallback: a
+request that sends `X-Workspace-Id` is answered in whichever workspace it
+names, with the capabilities the key's owner holds there. Mint with
+`workspaceLocked: true` and it stops being a fallback and becomes the whole
+of the key's reach: a request naming any other workspace is refused 403, and
+one that names none is answered in the key's own.
+
+It is the difference between "an agent that acts for me" and "an agent that
+acts for me on this market", and it is what the market page offers by default
+when someone hands the market to their own agent
+(`docs/owner-on-the-floor.md`). Scopes and the lock compose: a locked
+wildcard key does everything its owner can do, on exactly one market.
+
+```bash
+curl -s -X POST https://telarchy.com/api/agents/me/keys \
+  -H "X-Agent-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"label":"my agent on Harbour Roasters","scopes":["*"],
+       "workspaceId":"'$WS'","workspaceLocked":true}'
+```
+
 ## Managing keys
 
 There is no key-management screen anywhere in the web UI. Keys are minted, listed, edited and revoked over the API, with `me` standing in for whoever the credential belongs to.
