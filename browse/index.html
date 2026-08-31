@@ -198,12 +198,13 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h4">I1: a definition edit splits in two</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h5">I1b: a contract&#x27;s definition edits the same way</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h6">I2: what an owner cannot destroy</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h7">There is no reset endpoint</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h8">I3: the credit ledger</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">What the tests enforce</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h10">I5: where a participant&#x27;s money is allowed to come from</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h11">What the tests enforce</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h12">Reconstruction</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h7">Stopping a date is not destroying a market</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h8">There is no reset endpoint</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">I3: the credit ledger</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h10">What the tests enforce</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h11">I5: where a participant&#x27;s money is allowed to come from</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h12">What the tests enforce</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h13">Reconstruction</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-metrics-md">docs/metrics.md</a></summary>
@@ -2248,7 +2249,24 @@ production, and then the destruction happens with no record at all. Holders are
 refunded their net cash at stake, as any void does (<code>vision.md</code>, void refund
 rule), so the escape costs them their position and their price discovery,
 never their money.</p>
-<h3 id="docs-market-integrity-md--h7">There is no reset endpoint</h3>
+<h3 id="docs-market-integrity-md--h7">Stopping a date is not destroying a market</h3>
+<p>An owner drops an entry from <code>timePreference.customHorizons</code> when they no
+longer want that market to come back. What happens to the one already open
+depends on whether anybody is in it (owner decision 2026-08-31):</p>
+<ul>
+<li><strong>Traded</strong>: nothing at all. It stays open, stays tradeable, and settles on
+its own date like every other market. Only the NEXT one is never opened.
+Removing it from the floor would leave holders unable to sell out of a
+position they took in good faith, which is the same harm I2 refuses
+elsewhere.</li>
+<li><strong>Untraded</strong>: it is voided, and the pool goes back to whoever funded it.
+There is nothing to protect and no reason to leave credits sitting in a
+book that will never be read.</li>
+</ul>
+<p>Before 2026-08-31 both cases were deactivated instead: the market vanished
+from the floor while still settling in the background, which is the worst of
+both, and the pool stayed in it either way.</p>
+<h3 id="docs-market-integrity-md--h8">There is no reset endpoint</h3>
 <p><code>POST /api/system/reset-economy</code> does not exist and is not reintroduced, guarded
 or otherwise: it zeroed every balance in a workspace, deleted every trade under
 <code>allowLedgerAdmin</code>, and reset all market AMM state behind nothing but the
@@ -2256,7 +2274,7 @@ ordinary <code>manage</code> capability, and the append-only trigger could not s
 because it opted out of the trigger on purpose. A guard has to be remembered,
 and the endpoint has no legitimate use on a live product. Starting a workspace
 over is <code>DELETE /api/workspaces/:id</code> followed by creating a new one.</p>
-<h2 id="docs-market-integrity-md--h8">I3: the credit ledger</h2>
+<h2 id="docs-market-integrity-md--h9">I3: the credit ledger</h2>
 <p><code>trades</code> and <code>liquidity_events</code> are append-only under a trigger (migration
 0055), but they are two of the ways money moves; payouts at settlement, void
 refunds, proposal stakes, proposal rewards, spam penalties, contract payments,
@@ -2291,7 +2309,7 @@ signup grants, transfers, deposits, withdrawals, admin adjustments.</li>
 </ul>
 <p><code>agent_balance_snapshots</code> is a cache rather than the only record; if it and
 the ledger ever disagree, the ledger is right.</p>
-<h3 id="docs-market-integrity-md--h9">What the tests enforce</h3>
+<h3 id="docs-market-integrity-md--h10">What the tests enforce</h3>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -2326,7 +2344,7 @@ the ledger ever disagree, the ledger is right.</p>
 unaggregated OOM-kills the process, and <code>credit_ledger</code> grows faster than
 <code>trades</code> does. The reconciliation query sums database-side; every ledger reader
 must too.</p>
-<h2 id="docs-market-integrity-md--h10">I5: where a participant's money is allowed to come from</h2>
+<h2 id="docs-market-integrity-md--h11">I5: where a participant's money is allowed to come from</h2>
 <p>Prize money is the reason this invariant exists. Credits become settled
 profit, settled profit becomes a season rank, and a season rank becomes real
 money, so any route that creates credits from nothing is a faucet pointed at
@@ -2375,7 +2393,7 @@ faucet, and it has a name on every row.</li>
 <p>Trading is not an exception to any of this: what a market pays out was staked
 by somebody, so a winning agent is holding money that was already in the
 system.</p>
-<h3 id="docs-market-integrity-md--h11">What the tests enforce</h3>
+<h3 id="docs-market-integrity-md--h12">What the tests enforce</h3>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -2394,7 +2412,7 @@ system.</p>
 </tr>
 </tbody>
 </table></div>
-<h2 id="docs-market-integrity-md--h12">Reconstruction</h2>
+<h2 id="docs-market-integrity-md--h13">Reconstruction</h2>
 <p>With all three invariants holding, a workspace's money state is derivable from
 five append-only tables: <code>trades</code> (who bought what at what price),
 <code>liquidity_events</code> (who funded which pool), <code>credit_ledger</code> (every balance
@@ -2636,30 +2654,35 @@ the range defaults and is corrected later (see &quot;machinery&quot; below), val
 starts at zero, and the first reading is what makes the number real. Adding
 the metric immediately opens dialog 2 for it, because a metric with no date
 has no market and the flow does not let the owner stop before one.</p>
-<p><strong>2. Add a date</strong>, the same dialog whether it follows dialog 1 or is opened
-from <code>+ date</code> on the date row of any metric. One date, in Manifold's
-close-date shape (owner ask 2026-08-28, from their open-source
-close-time-section): preset chips of this week, this month, next month and
-end of the year above an always-visible date picker, never a second mode.
-A chip is the selection until a day is picked; picking a day deselects the
-chips, and clicking a chip clears the day. Beside the day sits an optional
-UTC hour (owner ask 2026-08-28): markets settle on the hour, so the time
-field carries hours only and a day with an hour opens an hour market
-(<code>YYYY-MM-DDTHH</code>). Under it, the liquidity the market opens
-with, and the heading says whose credits it comes out of, because it is
-the owner's own balance and wallet. The prefill is what can actually price
-the question: the workspace's own default only when it is above the
-25-credit line where a pool stops being a decoration, a thousand otherwise,
-and never more than the owner holds, since the server refuses what the
-balance will not cover. A fresh workspace carries 0.5 credits per
-auto-funded market, which prefilled 1 and opened a first market nobody
-could move. The open button carries the cost.</p>
-<p>The picks write <code>timePreference.customHorizons</code> on the metric: the calendar
-picks as ROLLING entries (<code>+0w</code>, <code>+0m</code>, <code>+1m</code>) so this week's market is
-followed by next week's, a picked day as the one-shot absolute it is. The
-liquidity writes <code>metrics.liquidityCredits</code>, and the reconcile that runs on
-the same request opens the market funded at that number. One request, one
-market, no second call to forget.</p>
+<p><strong>2. The dates</strong>, opened from the <code>dates</code> chip on the date row, or straight
+after dialog 1 while the metric still has none. It is the whole subject in
+one place: what this metric is priced on, what comes back, and how to stop
+either. A list that could only be added to was a list that could only be got
+wrong once (owner ask 2026-08-31).</p>
+<p>Each line says what it IS rather than when it next lands, because a repeat
+and a one-off look identical on the floor: &quot;Every month&quot;, &quot;Every day&quot;,
+&quot;31 December 2026, once&quot;, each with what its open market currently holds
+(next date, pool, traders) and a Stop.</p>
+<p>Adding one asks how often, in the vocabulary the API always had and the floor
+never offered: every hour, day, week, month, year, or once. A repeat then
+asks which one of the period, today or tomorrow, this week or next, which is
+exactly the <code>+0d</code> / <code>+1d</code> the entry stores. Once asks for a day, with an
+optional UTC hour, since markets settle on the hour. Under it, the liquidity
+each one opens with, and the heading says whose credits that is.</p>
+<p><strong>Stopping a date says which of two things it will do, before the press.</strong>
+The two are genuinely different (<code>docs/market-integrity.md</code>, &quot;Stopping a date
+is not destroying a market&quot;): if people have traded it, the open market keeps
+running and settles on its own date untouched, and only the next one never
+opens; if nobody has, the market goes and its pool comes back to the wallet
+that funded it.</p>
+<p><strong>Removing the metric</strong> sits at the foot of the same dialog, because it is
+the same kind of act. It lists what is in the way first: a traded market
+blocks it and the button says so instead of throwing a 409 after the click,
+while untraded ones simply go with their pools returned.</p>
+<p>Every one of those is the same write: <code>timePreference.customHorizons</code> on the
+metric, adding an entry or dropping one, plus <code>metrics.liquidityCredits</code> for
+what a new market opens with. The reconcile runs on the same request, so one
+call opens the market, and one call stops it. No second call to forget.</p>
 <p><strong>4. Report the number</strong>, the owner's most frequent act, opened from the
 line under the market's own number: &quot;Yours: $44,439 [Report]&quot;. Markets settle
 on the metric's stored value, so a floor whose owner cannot report settles
