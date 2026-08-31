@@ -4194,17 +4194,27 @@ ask from a metric counted in people or hours is a category error that
 drives every approved branch to the range floor and prints the same fake
 negative impact on every contract. A non-monetary metric anchors both
 branches at the baseline and lets traders price the whole difference.</p>
-<p><strong>A near-horizon baseline market opens at the metric's own current value</strong>,
-not at the range midpoint, when its period ends within 45 days. Over a
-week the number cannot travel far, so a midpoint open is not a forecast,
-it is an arithmetic error that hands credits to whoever reads the metric
-first. Beyond 45 days the midpoint stands, because today's reading
-genuinely is not an estimate of the settle value, and the operator
-re-anchors those with a published trade instead. Solvency uses the same
+<p><strong>A baseline market opens at the metric's own current value</strong>, not at the
+range midpoint, however far out its period ends. A midpoint open is not a
+forecast; it is an artifact of the range the operator happened to choose,
+and it hands credits to whoever reads the metric first. Today's reading is
+not an estimate of where the number lands in a year either, but it is the
+only figure in the system that was actually measured, and it carries the
+scale, the units and the direction of travel that the midpoint of an
+arbitrary band does not. Depth sharpens the argument rather than softening
+it: a deep pool is exactly what makes a wrong opening price expensive to
+correct, so the market that most deserves a subsidy is the one that can
+least afford to open in the middle of its range. Solvency uses the same
 <code>anchoredMarketState</code> sizing the conditional pairs use: the LMSR b is sized
 down so the subsidy exactly covers the anchored worst case
 (<code>anchoredMarketState</code> in functions/src/lib/amm.ts); an off-center open
 buys its anchor with a slightly thinner book, never with unminted credits.</p>
+<p>The cost is paid in depth, and the operator controls it with the range. A
+value sitting near a range edge clamps to [0.02, 0.98] and opens with a
+much thinner book than the same credits would buy at the middle, so a
+market on a number parked at the bottom of its band is cheap to move. The
+fix is a range the number sits inside, not a midpoint open that prices it
+somewhere it has never been.</p>
 <p><strong>A metric sitting AT or past a range edge anchors at the edge</strong>, never at
 the midpoint. An LMSR cannot quote certainty, so the seeding clamps into
 [0.02, 0.98] of the range, and the market opens as low (or as high) as a

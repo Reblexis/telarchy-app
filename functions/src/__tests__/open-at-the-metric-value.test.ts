@@ -6,7 +6,7 @@
  * markets seem being spawned at 500 instead of 0 even tho latest values are
  * 0 .. make sure the bug isnt anywhere else either"):
  *
- *  1. `nearHorizonAnchorP` returned null for a value AT a range edge, and null
+ *  1. `openingAnchorP` (then `nearHorizonAnchorP`) returned null for a value AT a range edge, and null
  *     means "keep the midpoint". "Telarchy revenue (USD)", range 0 to 1,000
  *     and reading $0 every hour, therefore opened its daily market at $499.97
  *     (telarchy.com, 2026-08-31T00:10Z) and paid whoever pushed it back down.
@@ -94,10 +94,14 @@ test('an ordinary mid-range value still opens exactly at the value', async () =>
   expect(await openingValue('mk-mid')).toBeCloseTo(300, 0);
 });
 
-test('a far-horizon market keeps the midpoint, because today is not an estimate of next year', async () => {
+test('a far-horizon market opens at the measured value too, never at the midpoint', async () => {
+  // Owner rule 2026-08-31: the midpoint is an artifact of the range the
+  // operator picked, so a 2099 market opens where the number actually is.
+  // A value at the floor clamps to the lowest price a solvent book holds
+  // (2% of the range), which is still the far side of the range from 500.
   await seed({ balance: 500, value: 0, rangeMax: 1000 });
   await insertPendingMarkets(pending('mk-far', 1000, '2099-12-31'), WS);
-  expect(await openingValue('mk-far')).toBeCloseTo(500, 0);
+  expect(await openingValue('mk-far')).toBeCloseTo(20, 0);
 });
 
 test('a market funded by a LATER refresh is anchored too, not left at the midpoint', async () => {

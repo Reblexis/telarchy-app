@@ -156,10 +156,12 @@ describe('a book opening on an untraded market opens at the metric value', () =>
     expect(await priceOf('mk-bulk')).toBeCloseTo(FLOOR_OPEN, 1);
   });
 
-  test('a far-horizon market still keeps the midpoint, on every one of those paths', async () => {
+  test('a far-horizon market anchors on every one of those paths too', async () => {
+    // Owner rule 2026-08-31: the horizon stopped deciding where a book opens.
     await seedBareMarket('mk-far', { targetDate: '2099-12-31' });
     await request(app).post('/api/predictions/markets/mk-far/liquidity').send({ amount: 250 });
-    expect(await priceOf('mk-far')).toBeCloseTo(MIDPOINT, 0);
+    expect(await priceOf('mk-far')).toBeCloseTo(FLOOR_OPEN, 1);
+    expect(await priceOf('mk-far')).not.toBeCloseTo(MIDPOINT, 0);
   });
 });
 

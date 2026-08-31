@@ -174,7 +174,7 @@ describe('an autofunded anchored open leaves its b on the ledger', () => {
       formula: '0',
       marketRangeMax: 25_000,
     });
-    // Tomorrow: inside the near-horizon window, so the open anchors.
+    // Tomorrow, though any horizon anchors now (2026-08-31).
     const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
     const { insertPendingMarkets } = await import('../services/markets');
     await insertPendingMarkets(

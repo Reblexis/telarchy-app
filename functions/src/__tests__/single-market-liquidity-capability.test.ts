@@ -144,8 +144,16 @@ describe('single-market liquidity capability gating', () => {
     const res = await inject(TRADER, 'read,trade', { amount: 5 });
     expect(res.status).toBe(200);
     expect(res.body.poolContribution).toBe(5);
-    // Liquidity (b) deepened: pool grew by 5, b = pool / ln2.
-    expect(res.body.liquidity).toBeGreaterThan(before.liquidity as number);
+    // The pool grew by exactly the contribution.
+    const [after] = await db.select().from(markets).where(eq(markets.id, MARKET));
+    expect(after.pool as number).toBeCloseTo((before.pool as number) + 5, 6);
+    // b did NOT grow, and that is the rule working rather than a regression
+    // (2026-08-31). This fixture is a metric reading 0 on a 0..100 range with
+    // a 2028 horizon, so the first credits into an untraded book also move it
+    // off the midpoint it was sitting at and down to the value, and an
+    // off-centre open is solvent only with a thinner b. The contribution buys
+    // a true price here, not depth; the credits are all still in the pool.
+    expect(res.body.liquidity).toBeLessThan(before.liquidity as number);
 
     const [trader] = await db.select().from(agents).where(eq(agents.id, TRADER));
     expect(fromUnits(trader.balance as number)).toBeCloseTo(START_CREDITS - 5, 6);

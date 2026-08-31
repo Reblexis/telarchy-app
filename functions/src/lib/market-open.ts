@@ -3,15 +3,27 @@ import { periodEndInstant } from './date-utils';
 
 /**
  * Where a fresh baseline market should open, as a probability across its
- * range, or null to keep the range midpoint (2026-08-15).
+ * range, or null when there is no measured value to open at (2026-08-15,
+ * horizon window removed 2026-08-31).
  *
- * A near horizon opens at the metric's own current value: over a week the
- * number cannot travel far, so opening at the midpoint is not a forecast,
- * it is an arithmetic error that hands credits to whoever reads the metric
- * first (LookPilot's weekly market opened at $75,000 against a live
- * $45,339). Past the window the midpoint stands, because a year out
- * today's reading genuinely is not an estimate of the settle value, and
- * the operator re-anchors those with a published trade instead.
+ * A market opens at the metric's own current value, however far out it
+ * settles. Opening at the midpoint is not a forecast: it is an artifact of
+ * the range the operator happened to choose, and it hands credits to
+ * whoever reads the metric first (LookPilot's weekly market opened at
+ * $75,000 against a live $45,339).
+ *
+ * The window this function used to apply (45 days, beyond which the
+ * midpoint stood) rested on the idea that today's reading is not an
+ * estimate of next December. True, and beside the point: the midpoint is
+ * not an estimate of anything at all, it just inherits whatever ceiling
+ * the operator typed. The measured value is the only number in the system
+ * that was actually observed, and it carries the scale and the direction of
+ * travel that the middle of an arbitrary band does not. Depth settles the
+ * argument: a deep pool is exactly what makes a wrong opening price
+ * expensive to correct, so the markets that most deserve a subsidy are the
+ * ones that can least afford a midpoint open (owner rule 2026-08-31, after
+ * a December revenue market carrying 2,000 credits opened at $4,500 against
+ * a measured $3,470).
  *
  * A value AT or BEYOND a range edge still anchors (owner report 2026-08-31).
  * It used to return null there, on the reasoning that p=0 is not a
@@ -23,10 +35,11 @@ import { periodEndInstant } from './date-utils';
  * number is sitting at the bottom of. The clamp lives there and only there,
  * so this function returns the raw position and callers do not each pick an
  * epsilon.
+ *
+ * A period that has already ended still returns null: there is no forecast
+ * left to place, only a resolution waiting to happen.
  */
-export const NEAR_HORIZON_DAYS = 45;
-
-export function nearHorizonAnchorP(
+export function openingAnchorP(
   targetDate: string,
   value: number | null | undefined,
   rangeMax: number,
@@ -37,7 +50,7 @@ export function nearHorizonAnchorP(
   const end = periodEndInstant(targetDate)?.getTime();
   if (!end || !Number.isFinite(end)) return null;
   const daysOut = (end - now.getTime()) / 86_400_000;
-  if (daysOut <= 0 || daysOut > NEAR_HORIZON_DAYS) return null;
+  if (daysOut <= 0) return null;
   const span = rangeMax - rangeMin;
   if (span <= 0) return null;
   return (value - rangeMin) / span;
