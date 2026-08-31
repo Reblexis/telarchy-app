@@ -218,6 +218,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'POST',
+      path: '/api/metrics/:id/logs/backfill',
+      auth: 'admin',
+      description:
+        "Write DATED readings for a metric whose past is already published elsewhere, so its chart shows a trend instead of one point. Body: { readings: [{ at, value }] }, at most 2000, each instant unique. Writes readings ONLY: the metric's current value does not move and no change-log row is written, since nobody measured these today. Three refusals keep it away from settlement, which is what dated writes could otherwise rewrite: every `at` must be strictly OLDER than the metric's oldest existing reading (400, so a backfilled point can never be the last-reading-at-or-before any instant a market resolves on, and re-sending a batch is refused rather than duplicated), the metric must have no resolved market (409), and values must be finite with parseable instants (400). Returns { written, oldest, newest }. Guide: /api/guides/sources.",
+    },
+    {
+      method: 'POST',
       path: '/api/metrics/logs/purge',
       auth: 'admin',
       description:

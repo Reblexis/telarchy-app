@@ -809,6 +809,11 @@
     "agent": 400,
     "master": 400
   },
+  "POST /api/metrics/:id/logs/backfill": {
+    "agent": 400,
+    "anon": 401,
+    "master": 400
+  },
   "POST /api/metrics/logs/purge": {
     "anon": 401,
     "agent": 200,

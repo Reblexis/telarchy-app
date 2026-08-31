@@ -19,8 +19,10 @@ PUT /api/metrics/:id
   "updateNote": "Stripe daily close, 2026-08-30" }
 ```
 
-That is it. There is no bulk update, no CSV import, no webhook that writes a
-value, and no integration that polls anything. `PUT /api/metrics/:id` needs the
+That is it for the value. There is no bulk update, no CSV import, no webhook
+that writes a value, and no integration that polls anything. One route below
+writes dated READINGS, for history you already have; it never touches the
+value. `PUT /api/metrics/:id` needs the
 `manage` capability, and the fields you may send are `name`, `description`,
 `value`, `formula`, `marketRangeMax`, `timePreference`, `resetsEvery` and
 `resolvesNaUntilMeasured`, plus the two that are about the update rather than
@@ -35,6 +37,39 @@ the two differ. Read those rows back with `GET /api/updates`.
 `updateNote` is **not** required, whatever older guides said. Send it anyway.
 Without one the row reads "Value updated", which is exactly as informative as
 nothing.
+
+## Backfilling a past you can prove
+
+```
+POST /api/metrics/:id/logs/backfill
+{ "readings": [ { "at": "2026-07-01T00:00:00Z", "value": 3589.4 },
+                { "at": "2026-07-02T00:00:00Z", "value": 3571.2 } ] }
+```
+
+The one route that writes DATED readings, and the only exception to the rule
+above. It exists for a metric whose past is already published somewhere: a
+public statistic with two years of history starts life on Telarchy with a
+single point, and a forecaster cannot read a trend off one dot. Backfill puts
+the points where they actually happened.
+
+It writes readings and nothing else. The metric's current `value` does not
+move, no change-log row is written, and there is no `updateNote`, because
+nobody measured these today. Needs `manage`.
+
+Three refusals keep it away from settlement, which is the only thing dated
+writes could endanger:
+
+- **Every `at` must be strictly older than the metric's oldest existing
+  reading** (400 otherwise, naming that reading). Backfill extends history
+  backwards; it never inserts alongside or after the readings a live floor has
+  been writing, so it cannot become the "last reading at or before" any
+  instant a market resolves on. A consequence worth knowing: you can run it
+  again with an even older stretch, but you cannot use it to patch a gap in
+  the middle, and re-sending the same batch is refused rather than duplicated.
+- **The metric must have no resolved market** (409). Once something has
+  settled, that history is evidence, and nobody gets to add points behind it.
+- **At most 2000 readings a call**, each with a finite value and a parseable
+  instant, and no two at the same instant (400).
 
 ## Two histories, and only one of them settles markets
 
