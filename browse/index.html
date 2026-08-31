@@ -588,8 +588,9 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h3">Backfilling a past you can prove</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h4">Two histories, and only one of them settles markets</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h5">The fixing: what a market actually settles on</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h6">Push on a schedule, as often as your shortest market</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h7">Sources are context, not ingestion</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h6">Stale at the boundary is said out loud</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h7">Push on a schedule, as often as your shortest market</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h8">Sources are context, not ingestion</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-time-preference-md">docs/guides/time-preference.md</a></summary>
@@ -8082,7 +8083,33 @@ an investment, say) and the market voids as N/A instead, refunding every
 position with the reason published. The first reading ends that state for
 good.</li>
 </ul>
-<h2 id="docs-guides-sources-md--h6">Push on a schedule, as often as your shortest market</h2>
+<h2 id="docs-guides-sources-md--h6">Stale at the boundary is said out loud</h2>
+<p>A market settles on the last reading at or before its instant, however old
+that reading is. Nothing about that changed (owner decision 2026-08-31: it
+settles, and it says so). What changed is that the staleness is no longer
+silent, in three places:</p>
+<ul>
+<li><strong>The bell.</strong> While a market of yours is inside 48 hours of settling and
+the reading it would settle on was taken BEFORE the period it settles for,
+the owner gets an item saying so, with the market and the age of the
+reading. It is derived at read time, so it appears while it is true and is
+gone the moment a reading lands. It is the one notification kind outside the
+preference matrix: every other kind is news about other people, and this one
+says a market of yours is about to settle on a number nobody measured.</li>
+<li><strong>The floor.</strong> The line under the owner's own number says &quot;23 days old,
+taken before the period this market settles for&quot; rather than only an age,
+and the settlement instant is written out beside the countdown, because a
+reading at 23:58 and one at 00:02 belong to different markets.</li>
+<li><strong>The settlement, permanently.</strong> Every settlement records the timestamp of
+the reading it used (<code>markets.settled_reading_at</code>), so &quot;settled on a reading
+from 23 days before the boundary&quot; is a fact anyone can read afterwards
+rather than something a trader has to reconstruct from two logs.</li>
+</ul>
+<p>&quot;Before the period it settles for&quot; is the whole rule, and it replaced a flat
+three days, which was wrong in both directions at once: an hourly market is
+stale within the hour, and a market on next year's revenue is not stale after
+a week.</p>
+<h2 id="docs-guides-sources-md--h7">Push on a schedule, as often as your shortest market</h2>
 <p>There is no scheduler inside Telarchy. &quot;Auto-sync&quot; means you write a script and
 run it on a cron, and the script does one <code>GET /api/metrics</code> to find the id and
 one <code>PUT</code> per number it measured.</p>
@@ -8114,7 +8141,7 @@ disagreeing with itself.</p>
 <p>Note that <code>POST /api/metrics/logs/purge</code> exists and deletes reading rows. It
 destroys the history markets settle against. There is no reason to run it on a
 live floor.</p>
-<h2 id="docs-guides-sources-md--h7">Sources are context, not ingestion</h2>
+<h2 id="docs-guides-sources-md--h8">Sources are context, not ingestion</h2>
 <p>This is the part the old guide got wrong, and it matters because the name
 suggests otherwise.</p>
 <p><strong>A source is an information store for people to read.</strong> It has a name, a

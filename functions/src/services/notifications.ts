@@ -20,13 +20,14 @@
  *   message, and it names the closer reason (it is their contract).
  */
 
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   agents,
   authUser,
   marketMessages,
   markets,
+  metricLogs,
   notificationReads,
   permissionGroups,
   proposalMessages,
@@ -34,10 +35,12 @@ import {
   trades,
   workspaces,
 } from '../db/schema';
+import { periodEndInstant } from '../lib/date-utils';
 import { type ChannelOverrides, channelOn, type NotificationKindId } from '../lib/notification-prefs';
 import { publicOrigin, sendEmail } from '../lib/notify';
 import { getParticipantDisplayNames } from '../lib/participants';
 import { type PushPayload, pushConfigured, sendPushToParticipant } from '../lib/push';
+import { readingIsStaleFor, settlingSoon } from '../lib/reading-freshness';
 
 /** Which switch produced a given message; also the line the email closes on. */
 type Reason =
@@ -563,7 +566,7 @@ export async function notifyMarketResolved(opts: { workspaceId: string; marketId
  * a feed table would have to be backfilled to be useful on the day it ships
  * and could then drift from the thing it describes.
  */
-export type NotificationKind = 'comment' | 'reply' | 'contract' | 'anyComment' | 'settled' | 'decision';
+export type NotificationKind = 'comment' | 'reply' | 'contract' | 'anyComment' | 'settled' | 'decision' | 'stale';
 
 export interface NotificationItem {
   id: string;
@@ -604,10 +607,15 @@ export async function listNotifications(
     .from(agents)
     .where(eq(agents.id, participantId));
   const seenAt = me?.seenAt ?? null;
+  // One clock for the whole derivation, so a market cannot be "settling soon"
+  // in one line and settled in the next.
+  const now = new Date();
   // The web cells of the matrix decide which kinds this inbox derives at all
   // (revised 2026-08-24, owner: the bell is tunable per kind, like the other
   // two channels; until then it was deliberately unfiltered).
-  const webOn = (kind: NotificationKind) => channelOn(me?.channels as ChannelOverrides | null, kind, 'web');
+  // Only the kinds the matrix governs are tunable; `stale` is not one of them
+  // (see where it is derived below), so this takes the narrower type.
+  const webOn = (kind: NotificationKindId) => channelOn(me?.channels as ChannelOverrides | null, kind, 'web');
 
   // Items read one at a time, on top of the watermark (owner ask: the count
   // goes down by one per click, not only all at once).
@@ -619,10 +627,23 @@ export async function listNotifications(
 
   // Where this participant is a member: the scope of "a new contract".
   const groups = await db
-    .select({ workspaceId: permissionGroups.workspaceId, memberIds: permissionGroups.memberIds })
+    .select({
+      workspaceId: permissionGroups.workspaceId,
+      memberIds: permissionGroups.memberIds,
+      capabilities: permissionGroups.capabilities,
+    })
     .from(permissionGroups);
   const myWorkspaces = [
     ...new Set(groups.filter(g => (g.memberIds ?? []).includes(participantId)).map(g => g.workspaceId)),
+  ];
+  // Where this participant can actually fix a number, which is the only place
+  // "your market is about to settle on an old reading" is worth saying.
+  const myManaged = [
+    ...new Set(
+      groups
+        .filter(g => (g.memberIds ?? []).includes(participantId) && (g.capabilities ?? []).includes('manage'))
+        .map(g => g.workspaceId),
+    ),
   ];
 
   // Threads this participant is in, so a reply can be recognised as a reply.
@@ -760,6 +781,58 @@ export async function listNotifications(
           .from(markets)
           .where(inArray(markets.id, myTradedMarketIds));
   const settledMarkets = tradedMarkets.filter(m => m.resolved && !m.voided && m.actualValue !== null && m.resolvedAt);
+
+  /**
+   * The nudge (owner decision 2026-08-31): a market of mine settles soon, and
+   * the reading it would settle on predates the period it settles FOR, so
+   * nobody has measured the thing being priced. Derived at read time like
+   * everything else in this feed, so there is no job to run and nothing to
+   * dedupe: it appears while it is true and goes when a reading lands.
+   */
+  const staleSoon: Array<{
+    marketId: string;
+    metricName: string;
+    targetDate: string;
+    workspaceId: string;
+    readingAt: Date | null;
+  }> = [];
+  // Deliberately outside the preference matrix: every other kind is news
+  // about other people, which is a taste, while this one says a market of
+  // yours is about to settle on a number nobody measured. It has one channel,
+  // the bell, and an owner who does not want it can fix the reading.
+  if (myManaged.length > 0) {
+    const open = await db
+      .select({
+        id: markets.id,
+        metricId: markets.metricId,
+        metricName: markets.metricName,
+        targetDate: markets.targetDate,
+        workspaceId: markets.workspaceId,
+      })
+      .from(markets)
+      .where(and(inArray(markets.workspaceId, myManaged), eq(markets.resolved, false), eq(markets.active, true)));
+    const soon = open.filter(m => settlingSoon(m.targetDate, now));
+    if (soon.length > 0) {
+      const readingRows = await db
+        .select({ metricId: metricLogs.metricId, at: sql<Date>`max(${metricLogs.timestamp})` })
+        .from(metricLogs)
+        .where(inArray(metricLogs.metricId, [...new Set(soon.map(m => m.metricId))]))
+        .groupBy(metricLogs.metricId);
+      const lastReading = new Map(readingRows.map(r => [r.metricId, r.at ? new Date(r.at) : null]));
+      for (const m of soon) {
+        const at = lastReading.get(m.metricId) ?? null;
+        if (readingIsStaleFor(m.targetDate, at)) {
+          staleSoon.push({
+            marketId: m.id,
+            metricName: m.metricName,
+            targetDate: m.targetDate,
+            workspaceId: m.workspaceId,
+            readingAt: at,
+          });
+        }
+      }
+    }
+  }
 
   const involvedThreadMarketIds = inMarketThreads.filter(id => !branchOwner.has(id));
   const involvedThreadMarkets =
@@ -954,6 +1027,28 @@ export async function listNotifications(
     });
   }
 
+  for (const s of staleSoon) {
+    const days = s.readingAt ? Math.floor((now.getTime() - s.readingAt.getTime()) / 86400000) : null;
+    items.push({
+      // Stable id per market, so reading it once keeps it read until the
+      // market changes state and the item stops being derived at all.
+      id: `stale-${s.marketId}`,
+      kind: 'stale',
+      at: periodEndInstant(s.targetDate),
+      actor: null,
+      subject: `${s.metricName} ${s.targetDate}`,
+      detail:
+        days === null
+          ? 'Settles soon, and has never been reported. Report the number before it settles.'
+          : `Settles soon on a reading from ${days === 0 ? 'earlier today' : `${days} ${days === 1 ? 'day' : 'days'} ago`}, taken before the period it settles for. Report the number.`,
+      workspaceSlug: slugs.get(s.workspaceId) ?? null,
+      proposalId: null,
+      marketId: s.marketId,
+      commentId: null,
+      unread: true,
+    });
+  }
+
   for (const m of settledMarkets) {
     items.push({
       id: `res-${m.id}`,
@@ -1028,7 +1123,10 @@ export async function listNotifications(
 
   // The web cells decide what this inbox shows at all (owner revision
   // 2026-08-24); a kind switched off is not derived as read, it is not there.
-  const shown = items.filter(i => webOn(i.kind));
+  // `stale` is the one kind the matrix does not govern, so it passes through:
+  // it is derived only for people who can fix the number, and it stops being
+  // derived the moment they do.
+  const shown = items.filter(i => i.kind === 'stale' || webOn(i.kind));
 
   shown.sort((a, b) => b.at.getTime() - a.at.getTime());
   for (const i of shown) {

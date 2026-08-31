@@ -120,6 +120,34 @@ Two more rules worth knowing at settlement time:
   position with the reason published. The first reading ends that state for
   good.
 
+## Stale at the boundary is said out loud
+
+A market settles on the last reading at or before its instant, however old
+that reading is. Nothing about that changed (owner decision 2026-08-31: it
+settles, and it says so). What changed is that the staleness is no longer
+silent, in three places:
+
+- **The bell.** While a market of yours is inside 48 hours of settling and
+  the reading it would settle on was taken BEFORE the period it settles for,
+  the owner gets an item saying so, with the market and the age of the
+  reading. It is derived at read time, so it appears while it is true and is
+  gone the moment a reading lands. It is the one notification kind outside the
+  preference matrix: every other kind is news about other people, and this one
+  says a market of yours is about to settle on a number nobody measured.
+- **The floor.** The line under the owner's own number says "23 days old,
+  taken before the period this market settles for" rather than only an age,
+  and the settlement instant is written out beside the countdown, because a
+  reading at 23:58 and one at 00:02 belong to different markets.
+- **The settlement, permanently.** Every settlement records the timestamp of
+  the reading it used (`markets.settled_reading_at`), so "settled on a reading
+  from 23 days before the boundary" is a fact anyone can read afterwards
+  rather than something a trader has to reconstruct from two logs.
+
+"Before the period it settles for" is the whole rule, and it replaced a flat
+three days, which was wrong in both directions at once: an hourly market is
+stale within the hour, and a market on next year's revenue is not stale after
+a week.
+
 ## Push on a schedule, as often as your shortest market
 
 There is no scheduler inside Telarchy. "Auto-sync" means you write a script and

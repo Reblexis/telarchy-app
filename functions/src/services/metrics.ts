@@ -331,6 +331,36 @@ export async function deleteMetric(id: string, workspaceId: string): Promise<voi
  * value logging, or was created after the boundary); callers fall back to the
  * live value and log the gap.
  */
+/**
+ * The reading a market settles on, WITH its timestamp: the last one at or
+ * before the instant. `metricValueAsOf` is this minus the timestamp, kept
+ * because most callers only want the number.
+ *
+ * The timestamp is what lets a settlement say how old the reading was
+ * (docs/guides/sources.md, "Stale at the boundary is said out loud"), which a
+ * trader would otherwise have to reconstruct from two logs.
+ */
+export async function metricReadingAsOf(
+  metricId: string,
+  instant: Date,
+  workspaceId: string,
+): Promise<{ value: number; at: Date } | null> {
+  const [row] = await db
+    .select()
+    .from(metricLogs)
+    .where(
+      and(
+        eq(metricLogs.workspaceId, workspaceId),
+        eq(metricLogs.metricId, metricId),
+        lte(metricLogs.timestamp, instant),
+      ),
+    )
+    .orderBy(desc(metricLogs.timestamp))
+    .limit(1);
+  if (!row) return null;
+  return { value: row.outlook ?? row.value, at: row.timestamp as Date };
+}
+
 export async function metricValueAsOf(metricId: string, instant: Date, workspaceId: string): Promise<number | null> {
   const [row] = await db
     .select()

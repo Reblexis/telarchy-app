@@ -8815,3 +8815,15 @@ textarea.jobform-line--desc {
    read one sentence is being offered a door, not urged through it. */
 .pubws-aud-lead-cta { margin: 1.6rem 0 0; }
 .pubws-cta--small { padding: 0.6rem 1.4rem; font-size: 0.92rem; }
+
+/* The settlement instant, beside the distance to it: an owner deciding when
+   to push a number needs the boundary, not the countdown
+   (docs/owner-on-the-floor.md, "Report the number"). */
+.pubws-settle-at {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
+  color: var(--text-tertiary);
+}

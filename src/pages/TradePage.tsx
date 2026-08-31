@@ -47,6 +47,7 @@ import {
   possessiveOf,
   priceSeriesIsInline,
   priceSeriesOf,
+  settleInstant,
   settleNoteOf,
   timeAgoOf,
   timeLeftOf,
@@ -461,6 +462,11 @@ export function TradePage() {
       title={hero.resolvesOn ? `settles ${new Date(hero.resolvesOn).toUTCString()}` : undefined}
     >
       expected · {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
+      {/* The instant, not only the distance (owner ask 2026-08-31). A market
+        settles on the last reading at or before it, so a push at 23:58 and a
+        push at 00:02 land in different markets: an owner deciding when to
+        report needs the boundary itself, and a tooltip is not that. */}
+      {hero.resolvesOn && <span className="pubws-settle-at">{settleInstant(hero.resolvesOn)}</span>}
     </span>
   ) : null;
   // The number chart renders even with no readings: it draws its own
@@ -484,7 +490,14 @@ export function TradePage() {
     if (days === 1) return 'reported yesterday';
     return `${days} days old`;
   })();
-  const readingIsStale = !!lastReading?.at && new Date(lastReading.at).getTime() < now.getTime() - 3 * 86400000;
+  // Stale means "taken before the period this market settles for", not "more
+  // than three days old" (owner decision 2026-08-31). Three days was
+  // meaningless twice over: an hourly market is stale within the hour, and a
+  // market on next year's revenue is not stale after a week.
+  const readingIsStale =
+    !!hero &&
+    (!lastReading?.at ||
+      (!!hero.periodStart && new Date(lastReading.at).getTime() < new Date(hero.periodStart).getTime()));
   // The distinct numbers this floor prices, in the same label shape the rest
   // of the page uses (metricLabelOf owns that; see floor-horizons.ts). Feeds
   // the propose form's placeholder, so a proposer is told what their contract
@@ -1777,7 +1790,9 @@ export function TradePage() {
                   </button>
                   <span className={`pubws-yours-age${readingIsStale ? ' is-stale' : ''}`}>
                     {readingAge
-                      ? `${readingAge}${settleLeft ? ` · this market settles on it in ${settleLeft}` : ''}`
+                      ? `${readingAge}${
+                          readingIsStale ? ', taken before the period this market settles for' : ''
+                        }${settleLeft ? ` · settles on it in ${settleLeft}` : ''}`
                       : 'this market settles on whatever you report before it closes'}
                   </span>
                 </p>
