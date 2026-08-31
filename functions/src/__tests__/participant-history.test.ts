@@ -25,6 +25,7 @@ jest.mock('../middleware/roles', () => ({
   requireScope: () => (_req: any, _res: any, next: any) => next(),
   requireCapability: () => (_req: any, _res: any, next: any) => next(),
   requireSelfOrAdmin: (_req: any, _res: any, next: any) => next(),
+  requireSelfOrOwner: (_req: any, _res: any, next: any) => next(),
 }));
 
 import { eq } from 'drizzle-orm';

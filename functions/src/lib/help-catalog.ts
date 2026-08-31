@@ -89,7 +89,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     workspace_switching:
       'Pass X-Workspace-Id: <workspaceId> header on all workspace-scoped requests. Your effective capabilities are the union of the capabilities[] arrays on every permission group you belong to in that workspace. There is no default workspace; omitting the header uses your highest-priority membership.',
     auth_field_legend:
-      'The "auth" field on each endpoint below is a shorthand for the capabilities required: "agent/admin" = requires the read capability, "agent" = requires the trade capability, "admin" = requires the manage capability, "self/admin" = the caller may target their own ID with trade, or anyone\'s ID with manage, "identity" = any authenticated participant (browser session OR agent key), "session" = browser account session only, by design (e.g. recording acceptance of Terms; programmatic agents are exempt from that gate), "platform admin" = the master API key or an account flagged platformAdmin, which is platform-wide and deliberately NOT satisfied by owning a workspace (prize-season settlement assigns real money, so a workspace owner must not reach it), "optional" = no auth required, but if credentials are present they widen what the response includes (e.g. the public profile expands per-position detail to workspaces the caller can read), false = no auth required. "public-read" = no credentials at all: send X-Workspace-Id with a public workspace\'s id or slug. "manage_workspace" = the granular lifecycle capability, which "admin" (manage) does not imply.',
+      'The "auth" field on each endpoint below is a shorthand for the capabilities required: "agent/admin" = requires the read capability, "agent" = requires the trade capability, "admin" = requires the manage capability, "self/admin" = the caller may target their own ID with trade, or anyone\'s ID with manage, "self/owner" = the participant themselves, or whoever created them (agents.ownerAgentId / ownerUserId), and a workspace admin is deliberately NOT enough because these acts are platform-wide while manage is per-workspace, "identity" = any authenticated participant (browser session OR agent key), "session" = browser account session only, by design (e.g. recording acceptance of Terms; programmatic agents are exempt from that gate), "platform admin" = the master API key or an account flagged platformAdmin, which is platform-wide and deliberately NOT satisfied by owning a workspace (prize-season settlement assigns real money, so a workspace owner must not reach it), "optional" = no auth required, but if credentials are present they widen what the response includes (e.g. the public profile expands per-position detail to workspaces the caller can read), false = no auth required. "public-read" = no credentials at all: send X-Workspace-Id with a public workspace\'s id or slug. "manage_workspace" = the granular lifecycle capability, which "admin" (manage) does not imply.',
     scope_field_legend:
       'The optional "scope" field on each endpoint is the per-key scope an agent-key caller needs (in addition to whatever capability the "auth" field requires). Browser sessions and the master API key bypass scope checks. Workspace endpoints get their scope intersected automatically (workspace:read covers any "agent/admin" route, workspace:trade any "agent" route, workspace:manage any "admin" route). Account endpoints carry an explicit scope (account:read, account:write, account:wallet, account:keys, account:agents, account:feedback). Endpoints with no scope field require none beyond what auth implies.',
   },
@@ -263,15 +263,15 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     {
       method: 'GET',
       path: '/api/agents/:id/keys',
-      auth: 'self/admin',
+      auth: 'self/owner',
       scope: 'account:keys',
       description:
-        'List API keys for an agent. Use :id=me for the calling agent. Authorized for the agent itself, its human owner / workspace admin, or its parent agent (agents.ownerAgentId). Never returns the hash; keyId is the opaque public handle for management. Each row: { keyId, label, scopes, workspaceId, createdAt, lastUsedAt, hashPrefix }. lastUsedAt is bumped (debounced ~60s) by the auth middleware on each successful key resolve, so an idle key shows up immediately.',
+        'List API keys for an agent. Use :id=me for the calling agent. Authorized for the agent itself, or whoever created it (agents.ownerAgentId / ownerUserId). A workspace admin is NOT authorized: minting or reading a key is account-level and platform-wide, while `manage` is per-workspace and workspace membership is written from a caller-supplied list. Never returns the hash; keyId is the opaque public handle for management. Each row: { keyId, label, scopes, workspaceId, createdAt, lastUsedAt, hashPrefix }. lastUsedAt is bumped (debounced ~60s) by the auth middleware on each successful key resolve, so an idle key shows up immediately.',
     },
     {
       method: 'POST',
       path: '/api/agents/:id/keys',
-      auth: 'self/admin',
+      auth: 'self/owner',
       scope: 'account:keys',
       description:
         'Mint an additional API key for an agent. Body: { label?, scopes?, workspaceId?, workspaceLocked? }. Default scopes = Trader preset. Agent-key callers cannot grant scopes broader than their own. workspaceLocked:true pins the key to workspaceId: X-Workspace-Id naming anything else is refused 403, so a key that leaks reaches one workspace (docs/guides/auth-and-keys.md). Returns { keyId, apiKey, label, scopes, workspaceId, workspaceLocked, createdAt }; raw apiKey is shown once.',
@@ -279,7 +279,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     {
       method: 'PATCH',
       path: '/api/agents/:id/keys/:keyId',
-      auth: 'self/admin',
+      auth: 'self/owner',
       scope: 'account:keys',
       description:
         'Update label or scopes on an existing key without rolling it. Body: { label?, scopes? }. Same caller-can-grant-scopes rule as POST. Returns { ok: true, keyId, label?, scopes? }.',
@@ -287,7 +287,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     {
       method: 'DELETE',
       path: '/api/agents/:id/keys/:keyId',
-      auth: 'self/admin',
+      auth: 'self/owner',
       scope: 'account:keys',
       description:
         'Revoke an API key. The hash row is deleted; subsequent requests with that raw key fail with 401. Cannot revoke the key authorizing the current request. Returns 204.',
@@ -364,7 +364,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     {
       method: 'POST',
       path: '/api/agents/:id/spend',
-      auth: 'self/admin',
+      auth: 'self/owner',
       scope: 'account:wallet',
       description:
         'Deduct credits from an agent\'s balance. Body: { amount: number, type: "tokens"|"purchase"|"betting", reason: string }. Agents can call on their own ID with type "tokens" (LLM compute) or "purchase" (any other spend). type "betting" is admin-only.',
@@ -372,7 +372,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     {
       method: 'POST',
       path: '/api/agents/:id/deposit',
-      auth: 'self/admin',
+      auth: 'self/owner',
       scope: 'account:wallet',
       description:
         'Purchase credits with USDC on Base. Send USDC to the treasury from GET /api/agents/deposit-address (or GET /api/agents/treasury for admins), then call with the tx hash. Body: { txHash: string }. Credits issued = floor(usdcAmount / (creditValueUsd * (1 + buyFeePercent/100))). Each txHash can only be used once. Use :id = me for the authenticated participant.',
@@ -396,7 +396,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     {
       method: 'PUT',
       path: '/api/agents/:id/wallet',
-      auth: 'self/admin',
+      auth: 'self/owner',
       scope: 'account:wallet',
       description:
         'Register a Base network wallet address for USDC withdrawals. Body: { walletAddress: string }. Use :id = me for the authenticated participant.',
@@ -404,7 +404,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     {
       method: 'POST',
       path: '/api/agents/:id/withdraw',
-      auth: 'self/admin',
+      auth: 'self/owner',
       scope: 'account:wallet',
       description:
         'Withdraw credits as USDC on Base. Body: { amount: number } (credits to convert). Sends amount * creditValueUsd USDC to the registered wallet. Re-credits on tx failure. Use :id = me for the authenticated participant.',
@@ -416,7 +416,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       description:
         'Treasury wallet address and current USDC balance on Base. Send USDC here to top up for agent withdrawals or to purchase credits via POST /api/agents/:id/deposit.',
     },
-    { method: 'DELETE', path: '/api/agents/:id', auth: 'admin', description: 'Delete an agent.' },
+    {
+      method: 'DELETE',
+      path: '/api/agents/:id',
+      auth: 'admin',
+      description:
+        'Delete a participant: the agents row, its keys, trades, positions, deposits and withdrawals, platform-wide. Authorized for the participant itself, whoever created it (agents.ownerAgentId / ownerUserId), or the master key, AND requires `manage` in a workspace the participant belongs to. Workspace membership alone is deliberately not enough, because membership is written from a caller-supplied array of ids: taking a participant off your floor is removing them from its groups, not deleting their account.',
+    },
     {
       method: 'POST',
       path: '/api/predictions/trade',
