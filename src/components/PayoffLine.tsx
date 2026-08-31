@@ -53,7 +53,8 @@ interface Props {
       which is all the scale needs: payout is linear in the settled value. */
   shares: number | null;
   spend: number | null;
-  /** The pushed-to value, rendered by the ticket because it is an input. */
+  /** The value the bet lands on, rendered by the ticket because it is an
+      input a trader types a target into. */
   pushLabel?: ReactNode;
 }
 
@@ -118,9 +119,16 @@ export function PayoffLine({
 
   return (
     <div className="pay">
+      {/* The value the bet lands on, over its own mark. It is the loudest
+          thing on the line because it is the number the trader is choosing,
+          and it is the input they type a target into. Called "new value"
+          rather than anything cleverer: most of the time it is the
+          consequence of the stake rather than a target anybody picked. */}
       {push !== null && pushLabel !== undefined && (
-        <div className="pay-push" style={{ textAlign: pct(push) > 55 ? 'right' : 'left' }}>
-          push {pushLabel}
+        <div className="pay-new">
+          <span style={labelStyle(pct(push))}>
+            <span className="pay-new-k">new value</span> <span className="pay-new-v">{pushLabel}</span>
+          </span>
         </div>
       )}
       <div className="pay-track-wrap">
@@ -161,6 +169,13 @@ export function PayoffLine({
             title={`Leaves the market at ${money(push)}`}
           />
         )}
+      </div>
+
+      {/* Where the market stands, on its own mark and its own row: the two
+          annotations are one small bet away from sitting on top of each
+          other, and separate rows are what makes that impossible. */}
+      <div className="pay-now">
+        <span style={labelStyle(nowPct)}>now {money(consensus)}</span>
       </div>
 
       {priced ? (

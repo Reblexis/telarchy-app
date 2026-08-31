@@ -5150,13 +5150,44 @@ textarea.jobform-line--desc {
   color: var(--text-tertiary);
 }
 
-/* The one caption: where the bet leaves the market, which is also the input
-   a trader types a target into. It sits on the side of the card its own
-   mark is on, so it never reaches across the picture to find it. */
-.pay-push {
-  margin-bottom: 0.15rem;
-  font-size: 0.76rem;
+/* The two annotations: the value the bet lands on, over its own mark, and
+   where the market stands now over its. Separate rows, because a small bet
+   leaves the two marks a hair apart and one row would stack the labels.
+   Both pin at the card's edges (PayoffLine.labelStyle). */
+.pay-new,
+.pay-now {
+  position: relative;
+  white-space: nowrap;
+}
+.pay-new {
+  height: 1.3rem;
+  margin-bottom: 0.1rem;
+}
+.pay-now {
+  height: 1.15rem;
+  margin-top: 0.2rem;
+  font-size: 0.74rem;
   color: var(--text-tertiary);
+}
+.pay-new span,
+.pay-now span {
+  position: absolute;
+  bottom: 0;
+}
+/* The value the trader is choosing, so it carries the weight of one: full
+   ink, mono, and bigger than the label beside it. Quiet grey was the bug
+   (owner, 2026-08-31: "the push is not nearly visible enough even though
+   the target value is pretty important"). */
+.pay-new-k {
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+}
+.pay-new-v {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 /* What the bet is worth at five settlement values across the range. This is
    the whole of the four fact rows it replaced (owner, 2026-08-31): the
