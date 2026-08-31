@@ -774,6 +774,16 @@
     "agent": 400,
     "master": 400
   },
+  "POST /api/import/:provider/claim": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/import/:provider/start": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
   "POST /api/import/manifold/claim": {
     "anon": 401,
     "agent": 400,

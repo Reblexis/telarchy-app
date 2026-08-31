@@ -241,6 +241,19 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h7">What is deliberately not here</a></li>
 </ul></details>
 </li>
+<li><details><summary><a class="file" href="#file--docs-record-links-md">docs/record-links.md</a></summary>
+<ul>
+<li><a href="#docs-record-links-md--h1">Linking a forecasting record</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-record-links-md--h2">The flow, which is the same for every provider</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-record-links-md--h3">What every provider must supply</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-record-links-md--h4">What qualifies, and why it is never the money</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-record-links-md--h5">Providers</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-record-links-md--h6">Manifold (`manifold`, live since 2026-08-10)</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-record-links-md--h7">Polymarket (`polymarket`)</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-record-links-md--h8">Not available, and why (checked 2026-08-31)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-record-links-md--h9">Guarantees</a></li>
+</ul></details>
+</li>
 <li><details><summary><a class="file" href="#file--docs-seasons-md">docs/seasons.md</a></summary>
 <ul>
 <li><a href="#docs-seasons-md--h1">Season design</a></li>
@@ -865,7 +878,7 @@ distinct days in a window).</p>
 <ul>
 <li>Balances are global per participant identity, not per workspace.</li>
 <li>Balances are stored in PostgreSQL as integer nanocredits (1 credit = 1,000,000,000 units).</li>
-<li>Free credits are priced in the EARN TABLE (<code>earn_rules</code>, owner decision 2026-08-30): a live, operator-editable list of every way to receive credits and what each is worth. Read it at <code>GET /api/earn</code> (public), edit it at <code>PATCH /api/admin/earn/:key</code>; every edit appends to <code>earn_rule_history</code>, and prices may change mid-season. Since 2026-08-30 each earn is CLAIMABLE once (<code>earn_claims</code>): creating an account pays its own price, and each proof you attach pays separately (connect a Google OR GitHub account - one earn, either provider - and link an established Manifold account), so someone who signed up with an email can come back and earn a link later. Two uniqueness rules carry the anti-farming weight, both in the database: one earn per participant, and ONE EXTERNAL ACCOUNT PAYS ONCE ACROSS THE PLATFORM, so a single Google account cannot fund two Telarchy accounts. <code>GET /api/earn/me</code> is the caller's own state; <code>POST /api/earn/links/sync</code> pays for a newly linked provider account. Seeded with what the constants granted before it existed: a USER signup 10,000, an API registration or sub-bot 0 (funded instead by a transfer from its owner, <code>POST /api/agents/transfer</code>, or platform-admin crediting), and a linked Manifold account granting a flat price for a QUALIFIED account (not a bot, 90+ days old, traded recently or has markets others traded), once per Manifold account ever - net worth stopped deciding the grant on 2026-08-30 because mana transfers between Manifold accounts. The env constants (<code>SIGNUP_CREDITS</code>, <code>AGENT_SIGNUP_CREDITS</code>) remain the fallback for an instance whose table was never seeded. Pricing rule: a signal is worth what it costs to fake against what it brings, which is what makes farming a purchase rather than an attack (design record in the telarchy umbrella, notes/earn-table-design-2026-08-30.md).</li>
+<li>Free credits are priced in the EARN TABLE (<code>earn_rules</code>, owner decision 2026-08-30): a live, operator-editable list of every way to receive credits and what each is worth. Read it at <code>GET /api/earn</code> (public), edit it at <code>PATCH /api/admin/earn/:key</code>; every edit appends to <code>earn_rule_history</code>, and prices may change mid-season. Since 2026-08-30 each earn is CLAIMABLE once (<code>earn_claims</code>): creating an account pays its own price, and each proof you attach pays separately (connect a Google OR GitHub account - one earn, either provider - and link an established Manifold account), so someone who signed up with an email can come back and earn a link later. Two uniqueness rules carry the anti-farming weight, both in the database: one earn per participant, and ONE EXTERNAL ACCOUNT PAYS ONCE ACROSS THE PLATFORM, so a single Google account cannot fund two Telarchy accounts. <code>GET /api/earn/me</code> is the caller's own state; <code>POST /api/earn/links/sync</code> pays for a newly linked provider account. Seeded with what the constants granted before it existed: a USER signup 10,000, an API registration or sub-bot 0 (funded instead by a transfer from its owner, <code>POST /api/agents/transfer</code>, or platform-admin crediting), and a linked FORECASTING RECORD granting a flat price for a QUALIFIED account, once per external account ever - Manifold since 2026-08-10 and Polymarket since 2026-08-31, both through one provider registry (docs/record-links.md), which is also where the platforms that cannot be linked are listed and why - net worth stopped deciding the grant on 2026-08-30 because mana transfers between Manifold accounts. The env constants (<code>SIGNUP_CREDITS</code>, <code>AGENT_SIGNUP_CREDITS</code>) remain the fallback for an instance whose table was never seeded. Pricing rule: a signal is worth what it costs to fake against what it brings, which is what makes farming a purchase rather than an attack (design record in the telarchy umbrella, notes/earn-table-design-2026-08-30.md).</li>
 <li>Credits enter through the signup grant, deposit, or admin crediting and leave through withdrawal or explicit spending flows.</li>
 <li>Trading, proposal payouts, and internal transfers are redistributive within the system.</li>
 </ul>
@@ -2671,6 +2684,136 @@ liquidity. API only, until the interaction is designed.</li>
 permission groups) stay on the API and reach a surface only when someone
 asks for one.</li>
 <li><strong>Bulk anything.</strong> One floor, one owner, one change at a time.</li>
+</ul>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-record-links-md">
+<p class="filelabel">docs/record-links.md</p>
+<h1 id="docs-record-links-md--h1">Linking a forecasting record</h1>
+<p>A participant who already has a public forecasting record elsewhere is
+worth more here than a fresh account, because that record is evidence
+they can price a question. Linking one is an earn: it pays the price in
+the earn table for that provider, once per participant and once per
+external account across the whole platform.</p>
+<p>This file is the contract. <code>docs/agent-economy.md</code> owns the earn table
+itself; the pricing argument is the telarchy umbrella's
+<code>notes/earn-table-design-2026-08-30.md</code>.</p>
+<h2 id="docs-record-links-md--h2">The flow, which is the same for every provider</h2>
+<ol>
+<li><strong>Name the account.</strong> <code>POST /api/import/:provider/start { handle }</code>
+looks the handle up on the provider's public API and answers with a
+one-time code.</li>
+<li><strong>Prove it.</strong> The participant puts that code anywhere in the account's
+public, self-editable text field (its bio) and presses verify.</li>
+<li><strong>Verify and pay.</strong> <code>POST /api/import/:provider/claim</code> re-reads the
+public profile, confirms the code is present, checks the record
+qualifies, and grants the earn. The code can come out of the bio
+immediately afterwards; nothing re-reads it.</li>
+</ol>
+<p>The gates are checked at BOTH steps. At <code>start</code>, so nobody is sent to
+edit their bio for a record that could never have been paid; at <code>claim</code>,
+because the answer can change in between and only the second one decides
+the money.</p>
+<p>Ownership is proved the way a third party can prove it: the provider has
+no OAuth for us, so a value only the account holder can publish is the
+proof. Nothing is transferred and no credential is ever asked for.</p>
+<h2 id="docs-record-links-md--h3">What every provider must supply</h2>
+<p>A provider is defined by five things. Adding one is adding this object,
+a price row in the earn table, and its tests. Nothing else changes.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key</code></td>
+<td>url segment and earn key stem, e.g. <code>polymarket</code> -&gt; <code>polymarket_link</code></td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>what a reader is told it is, e.g. &quot;Polymarket&quot;</td>
+</tr>
+<tr>
+<td><code>lookup(handle)</code></td>
+<td>a PUBLIC, UNAUTHENTICATED read returning a stable external id, the canonical handle, and the proof text</td>
+</tr>
+<tr>
+<td><code>proofField</code></td>
+<td>what the participant is told to edit, in their words: &quot;bio&quot;</td>
+</tr>
+<tr>
+<td><code>qualifies(record)</code></td>
+<td>whether this record is worth paying for, and if not, why in one sentence a person can act on</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The external id is the identity, never the handle.</strong> Handles are
+rented, sold and renamed; the id is what goes into <code>earn_claims.ref_id</code>,
+and it is that column's unique index that enforces one external account
+paying once across the platform.</p>
+<h2 id="docs-record-links-md--h4">What qualifies, and why it is never the money</h2>
+<p>A record qualifies on signals a farmer cannot concentrate: <strong>how old the
+account is, and whether it has really been used.</strong> Never on balance,
+volume or profit.</p>
+<p>The reason is the 2026-08-30 Manifold decision generalised: mana, USDC
+and positions all move between accounts, so any wealth-shaped signal is
+exactly the one input a farmer can pool into a single fresh account and
+sell back to us. Age and sustained activity cannot be pooled. A provider
+that offers a profit figure may show it to a reader; it must not decide
+the grant.</p>
+<h2 id="docs-record-links-md--h5">Providers</h2>
+<h3 id="docs-record-links-md--h6">Manifold (<code>manifold</code>, live since 2026-08-10)</h3>
+<p>Lookup <code>GET https://api.manifold.markets/v0/user/&lt;username&gt;</code>; proof field
+<code>bio</code>; id <code>id</code>. Qualifies on: not <code>isBot</code>, <code>createdTime</code> at least 90 days
+ago, and either <code>lastBetTime</code> within 60 days or <code>creatorTraders</code> above
+zero.</p>
+<h3 id="docs-record-links-md--h7">Polymarket (<code>polymarket</code>)</h3>
+<p>Two public reads, both documented and explicitly unauthenticated:</p>
+<ul>
+<li><code>GET https://gamma-api.polymarket.com/public-search?q=&lt;handle&gt;&amp;search_profiles=true</code>
+finds the account, returning <code>name</code>, <code>proxyWallet</code> and
+<code>displayUsernamePublic</code>.</li>
+<li><code>GET https://gamma-api.polymarket.com/public-profile?address=&lt;proxyWallet&gt;</code>
+returns <code>createdAt</code> and <code>bio</code>.</li>
+<li><code>GET https://data-api.polymarket.com/traded?user=&lt;proxyWallet&gt;</code> returns
+<code>{ traded }</code>, the number of markets the wallet has traded.</li>
+</ul>
+<p>Id is the <code>proxyWallet</code>, which is the account's permanent address; proof
+field is <code>bio</code>. Qualifies on <code>createdAt</code> at least 90 days ago and
+<code>traded</code> at least 10. <code>weightedVolume</code> and the PnL endpoints are
+deliberately unread, per the rule above.</p>
+<p>A profile with <code>displayUsernamePublic: false</code> cannot be linked: its bio
+is withheld from the public read, so there is nothing to prove ownership
+with. The refusal says to make the username public and try again.</p>
+<h3 id="docs-record-links-md--h8">Not available, and why (checked 2026-08-31)</h3>
+<ul>
+<li><strong>Metaculus.</strong> Every API path answers <code>Permission Error: The API is only available to authenticated users</code>, profile pages sit behind a
+Cloudflare interstitial for any automated fetch, and the terms of use
+prohibit automated retrieval except through an API they provide. There
+is no route short of a negotiated data agreement.</li>
+<li><strong>Kalshi.</strong> A public profile read exists at <code>/v1/social/profile</code> with an
+editable <code>description</code>, and it works today, but it is undocumented (the
+web app's own session API) and Kalshi's data terms forbid automated
+retrieval without written permission. Not built: ask first.</li>
+<li><strong>Good Judgment Open.</strong> Identity could be proved through a forecast
+rationale, but every track-record field (Brier, rank, badges, account
+age) is visible only to signed-in members, so a link would prove who
+someone is while telling us nothing about their record.</li>
+</ul>
+<h2 id="docs-record-links-md--h9">Guarantees</h2>
+<ul>
+<li>One participant can link each provider once, and can link several
+different providers and be paid for each.</li>
+<li>One external account pays once across the whole platform, enforced by
+the unique index on <code>earn_claims (key, ref_id)</code>, not by a check.</li>
+<li>What was paid is the price on the day it was claimed, recorded on the
+claim. Re-pricing a row never changes a past grant.</li>
+<li>A failed proof, an unqualified record and an unknown provider all
+refuse without granting anything and say which of the three happened.</li>
 </ul>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>

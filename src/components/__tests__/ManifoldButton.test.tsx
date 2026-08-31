@@ -15,31 +15,37 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
  */
 
 vi.mock('../../lib/api', () => ({
-  api: { startManifoldImport: vi.fn(), claimManifoldImport: vi.fn() },
+  api: { startRecordLink: vi.fn(), claimRecordLink: vi.fn() },
 }));
 
 import { api } from '../../lib/api';
-import { ManifoldButton } from '../ManifoldButton';
+import { type LinkProvider, ManifoldButton, POLYMARKET } from '../ManifoldButton';
 
-const renderIt = () =>
+const renderIt = (provider?: LinkProvider) =>
   render(
     <MemoryRouter>
-      <ManifoldButton signedIn={true} onRequireSignup={() => {}} variant="row" />
+      <ManifoldButton signedIn={true} onRequireSignup={() => {}} variant="row" provider={provider} />
     </MemoryRouter>,
   );
 
 /** Open the dialog and get as far as the code step. */
-const toCodeStep = async () => {
-  renderIt();
+const toCodeStep = async (provider?: LinkProvider) => {
+  renderIt(provider);
   fireEvent.click(screen.getByText('Import'));
-  fireEvent.change(screen.getByLabelText('Manifold username'), { target: { value: 'Tumbles' } });
+  fireEvent.change(screen.getByLabelText(`${provider?.label ?? 'Manifold'} username`), {
+    target: { value: 'Tumbles' },
+  });
   fireEvent.click(screen.getByText('Next'));
   await screen.findByText('telarchy-abc123');
 };
 
 beforeEach(() => {
-  vi.mocked(api.startManifoldImport).mockResolvedValue({ code: 'telarchy-abc123', username: 'Tumbles' } as never);
-  vi.mocked(api.claimManifoldImport).mockResolvedValue({ username: 'Tumbles', granted: 5000 } as never);
+  vi.mocked(api.startRecordLink).mockResolvedValue({
+    code: 'telarchy-abc123',
+    handle: 'Tumbles',
+    proofField: 'bio',
+  } as never);
+  vi.mocked(api.claimRecordLink).mockResolvedValue({ handle: 'Tumbles', granted: 5000 } as never);
 });
 
 describe('the Manifold link flow', () => {
@@ -60,8 +66,20 @@ describe('the Manifold link flow', () => {
   test('it is said once the import succeeds, which is when it is true', async () => {
     await toCodeStep();
     fireEvent.click(screen.getByText('Verify and import'));
-    await waitFor(() => expect(screen.getByText(/Imported @Tumbles/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Linked @Tumbles/)).toBeInTheDocument());
     expect(screen.getByText('You can take the code out of your Manifold bio now.')).toBeInTheDocument();
+  });
+
+  test('THE SAME DIALOG SERVES ANOTHER PROVIDER, named throughout', async () => {
+    // The registry's whole promise: adding a platform is a descriptor,
+    // not a second dialog (docs/record-links.md).
+    await toCodeStep(POLYMARKET);
+    expect(api.startRecordLink).toHaveBeenCalledWith('polymarket', 'Tumbles');
+    expect(screen.getByText('Polymarket')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Verify and import'));
+    await waitFor(() => expect(screen.getByText(/Linked @Tumbles/)).toBeInTheDocument());
+    expect(api.claimRecordLink).toHaveBeenCalledWith('polymarket');
+    expect(screen.getByText('You can take the code out of your Polymarket bio now.')).toBeInTheDocument();
   });
 
   test('the first step says only what stops a wasted trip', async () => {

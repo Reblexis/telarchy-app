@@ -1320,6 +1320,18 @@ export const api = {
   claimManifoldImport: (): Promise<{ username: string; granted: number }> =>
     request('/api/import/manifold/claim', { method: 'POST' }),
 
+  /** Name the account to link on any record provider, and get the
+   *  one-time code that proves it (docs/record-links.md). */
+  startRecordLink: (provider: string, handle: string): Promise<{ code: string; handle: string; proofField: string }> =>
+    request(`/api/import/${encodeURIComponent(provider)}/start`, {
+      method: 'POST',
+      body: JSON.stringify({ handle }),
+    }),
+
+  /** Finish it once the code is on the profile. */
+  claimRecordLink: (provider: string): Promise<{ handle: string; granted: number }> =>
+    request(`/api/import/${encodeURIComponent(provider)}/claim`, { method: 'POST' }),
+
   /** The handful of flags a page needs before it knows who is looking:
    *  which store this build reads, and whether signups are open. */
   /** `preview` is the `br-` tag of the branch preview that answered, or null
