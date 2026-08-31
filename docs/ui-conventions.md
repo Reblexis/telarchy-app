@@ -826,15 +826,23 @@ solvent book can be placed. The midpoint is the worst answer available
 there: a revenue metric reading $0 on a 0-1,000 range opened its daily
 market at $500 and paid whoever pushed it back down.
 
-**Every path that funds an untraded baseline market opens it the same way.**
-The daily spawn, the refresh that funds a market which opened unfunded
-because the balance was short, and a hand-made market from
-`POST /api/predictions/markets` all call one function
+**Every path that opens a book on an untraded baseline market opens it the
+same way.** The daily spawn, the refresh that funds a market which opened
+unfunded because the balance was short, a hand-made market from
+`POST /api/predictions/markets` with or without auto-fund, the bulk top-up
+and a single participant's liquidity injection all reach one function
 (`anchorUntradedMarketTx` in functions/src/services/marketLiquidity.ts), so
-a market's opening price never depends on which of them ran. It refuses a
-market that is already traded or already anchored, whose price is a fact
-about the market rather than a default. `anchor-ownership.test.ts` fails if
-a second opinion about opening price appears.
+which endpoint paid for the book cannot change the price it opens at. It is
+called from inside `applyAgentLiquidityInjectionTx` rather than by each
+caller, because there were five such paths and one of them remembered.
+
+It declines in exactly the cases where there is no blank book to place: a
+market that is already traded, one that is already anchored (shares
+outstanding with no trade behind them is a price, not a blank), and a
+conditional branch, whose opening price is the baseline adjusted for the
+branch and the ask and therefore `services/proposals.ts`'s question rather
+than this one. `anchor-ownership.test.ts` fails if a second opinion about
+opening price appears, and `every-open-anchors.test.ts` pins each path.
 
 ### Discussion, Positions, Trades
 

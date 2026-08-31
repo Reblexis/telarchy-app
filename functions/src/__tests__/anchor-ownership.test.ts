@@ -44,19 +44,32 @@ test('only the two opening-price owners call anchoredMarketState', () => {
   expect(callers).toEqual([]);
 });
 
-test('every funding path that opens a baseline market anchors it', () => {
-  // The three call sites of applyAgentLiquidityInjectionTx that fund a market
-  // nobody has traded. `routes/predictions.ts` has a fourth, the participant
-  // "add liquidity" endpoint, which tops up a market that already has a price;
-  // anchorUntradedMarketTx refuses that one on its own (shares are not [0, 0]),
-  // so the count below is of files, not of call sites.
-  const funders = files
-    .filter(f => /applyAgentLiquidityInjectionTx\(/.test(f.text) && f.path !== 'services/marketLiquidity.ts')
+test('every file that opens a book by hand also asks where it opens', () => {
+  // `applyAgentLiquidityInjectionTx` anchors from the inside, so its callers
+  // get the opening price without having to remember. Two paths write the
+  // book themselves instead - POST /markets with a caller-stated liquidity,
+  // and the bulk top-up, whose single credit debit covers a batch - and those
+  // have to ask explicitly. Any OTHER file that starts writing
+  // `markets.liquidity` is a sixth path, and the count of them going wrong so
+  // far is five out of five (owner report 2026-08-31).
+  const WRITES_BOOK = /\bliquidity:\s*(newLiquidity|liq)\b/;
+  const handRolled = files
+    .filter(f => f.path !== 'services/marketLiquidity.ts' && WRITES_BOOK.test(f.text))
     .map(f => f.path)
     .sort();
-  expect(funders).toEqual(['routes/predictions.ts', 'services/markets.ts']);
-  for (const path of funders) {
-    const f = files.find(x => x.path === path);
-    expect(f && /anchorUntradedMarketTx\(/.test(f.text)).toBe(true);
-  }
+  // services/proposals.ts writes a book too and is deliberately absent: it
+  // sets the state from its OWN anchor, which the first test above pins.
+  expect(handRolled).toEqual(['routes/predictions.ts']);
+
+  const predictions = files.find(f => f.path === 'routes/predictions.ts');
+  expect(predictions && /anchorUntradedMarketTx\(/.test(predictions.text)).toBe(true);
+});
+
+test("a conditional branch is out of the baseline anchor's reach", () => {
+  // Belt and braces on the guard itself: proposals.ts prices the branches, so
+  // anchorUntradedMarketTx must decline a market that belongs to a proposal.
+  // every-open-anchors.test.ts proves the behaviour; this proves the reason is
+  // still written down where the next reader will look.
+  const owner = files.find(f => f.path === 'services/marketLiquidity.ts');
+  expect(owner && /if \(market\.proposalId\) return false;/.test(owner.text)).toBe(true);
 });

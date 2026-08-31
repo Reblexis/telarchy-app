@@ -1440,3 +1440,24 @@ opened at 500 have been traded since, and rewriting a traded book is what
 `docs/market-integrity.md` forbids: it would take money off people who priced
 what was in front of them. They settle as they stand; the next spawn opens
 correctly.
+
+## 2026-08-31: the same bug was in five funding paths, not three
+
+Verifying the range-floor fix against the deployed candidate turned up two more
+paths that opened an untraded book at the range midpoint: `POST /api/predictions/markets`
+with a caller-stated `liquidity` (it writes the book by hand instead of going
+through the shared injection), and both liquidity endpoints
+(`POST /markets/liquidity/bulk`, `POST /markets/:id/liquidity`) when the market
+they fund has none yet. Five paths, one of which anchored.
+
+Calling the anchor at each site is what produced that score, so it now runs
+inside `applyAgentLiquidityInjectionTx`: a caller cannot debit credits into a
+market's pool and forget to ask where the book opens. The two paths that write
+the book themselves ask explicitly, and `anchor-ownership.test.ts` fails if a
+third one appears.
+
+Two declines are new and deliberate. An already-anchored market (shares
+outstanding, no trade behind them) is a price rather than a blank, so a top-up
+never re-opens it. And a conditional branch is `services/proposals.ts`'s
+question, priced off the baseline adjusted for the branch and the ask; anchoring
+it at the metric's own value would erase the adjustment.

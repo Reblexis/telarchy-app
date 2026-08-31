@@ -19,7 +19,7 @@ import { liquiditySpendableUnits, MIN_LIQUIDITY_CONTRIBUTION, toUnits } from '..
 import type { TimePreference } from '../types';
 import { applyCredits } from './credits';
 import { emitEvent } from './events';
-import { anchorUntradedMarketTx, applyAgentLiquidityInjectionTx } from './marketLiquidity';
+import { applyAgentLiquidityInjectionTx } from './marketLiquidity';
 import { releaseLimitOrdersForMarket } from './trading';
 
 type MarketRow = typeof markets.$inferSelect;
@@ -338,9 +338,6 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
         agentId: ownerAgentId,
         poolContribution,
       });
-      // Where a funded, untraded market opens is one question with one
-      // answer, in services/marketLiquidity (anchor-ownership.test.ts).
-      await anchorUntradedMarketTx(tx, { workspaceId, marketId: p.marketId, now });
     }
   });
   return pending.length;
@@ -614,11 +611,6 @@ export async function refreshRelativeDateMarkets(
                 agentId: ownerAgentId,
                 poolContribution: f.credits,
               });
-              // A market that opened unfunded because the balance was short
-              // that morning is funded here instead, and it opens at the
-              // metric's value like every other one: before this it kept the
-              // range midpoint forever (owner report 2026-08-31).
-              await anchorUntradedMarketTx(tx, { workspaceId, marketId: f.item });
             }
           });
         }
