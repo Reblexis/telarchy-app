@@ -24,8 +24,9 @@
 
 import { randomUUID } from 'crypto';
 import { and, eq, gte, type SQL, sql } from 'drizzle-orm';
-import type { db } from '../db/client';
-import { agents, creditLedger } from '../db/schema';
+import { db } from '../db/client';
+import { agents, creditLedger, creditTransfers } from '../db/schema';
+import { toUnits } from '../lib/validation';
 
 type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 
@@ -145,4 +146,68 @@ export async function applyCreditsIfSufficient(
   });
 
   return { balanceAfterUnits };
+}
+
+/**
+ * Move credits from one participant to another, atomically.
+ *
+ * The one way money changes hands between participants: both the wallet
+ * primitive (POST /api/agents/transfer) and funding a bot in a workspace
+ * you administer (POST /api/agents/:id/credit) go through here, so there
+ * is a single place where "somebody paid for this" is true. Only the
+ * platform operator mints (market-integrity I5).
+ *
+ * The conditional debit doubles as the balance check: no rows updated
+ * means insufficient funds and the recipient is never touched, so there
+ * is no read-then-write race. Returns null in that case; the caller
+ * decides what status that is.
+ */
+export async function moveCredits(params: {
+  fromId: string;
+  toId: string;
+  amount: number;
+  memo?: string;
+}): Promise<{ transferId: string; createdAt: Date; fromBalanceUnits: number; toBalanceUnits: number } | null> {
+  const { fromId, toId, amount, memo = '' } = params;
+  const units = toUnits(amount);
+  const transferId = randomUUID();
+  const createdAt = new Date();
+
+  return db.transaction(async tx => {
+    const debited = await applyCreditsIfSufficient(tx, {
+      agentId: fromId,
+      workspaceId: PLATFORM_SCOPE,
+      deltaUnits: -units,
+      reason: 'transfer_out',
+      refType: 'transfer',
+      refId: transferId,
+      minBalanceUnits: units,
+    });
+    if (!debited) return null;
+
+    const credited = await applyCredits(tx, {
+      agentId: toId,
+      workspaceId: PLATFORM_SCOPE,
+      deltaUnits: units,
+      reason: 'transfer_in',
+      refType: 'transfer',
+      refId: transferId,
+    });
+
+    await tx.insert(creditTransfers).values({
+      id: transferId,
+      fromAgentId: fromId,
+      toAgentId: toId,
+      credits: amount,
+      memo,
+      createdAt,
+    });
+
+    return {
+      transferId,
+      createdAt,
+      fromBalanceUnits: debited.balanceAfterUnits,
+      toBalanceUnits: credited.balanceAfterUnits,
+    };
+  });
 }

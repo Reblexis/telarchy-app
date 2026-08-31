@@ -10,7 +10,7 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { eq } from 'drizzle-orm';
-import { agents, earnClaims, earnRules, trades } from '../db/schema';
+import { agents, authUser, earnClaims, earnRules, trades } from '../db/schema';
 import { fromUnits, toUnits } from '../lib/validation';
 import { clearEarnRuleCache, settleDailyStreak } from '../services/earnRules';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
@@ -23,7 +23,13 @@ beforeAll(async () => {
 beforeEach(async () => {
   await truncateAll();
   clearEarnRuleCache();
-  await db.insert(agents).values([{ id: 'ann', apiKeyHash: 'h-ann', balance: toUnits(0) }]);
+  await db.insert(authUser).values([{ id: 'u-ann', name: 'Ann', email: 'ann@example.com' }]);
+  await db.insert(agents).values([
+    // A person: signed up in a browser, so the streak is hers to earn.
+    { id: 'ann', apiKeyHash: 'h-ann', balance: toUnits(0), authUserId: 'u-ann' },
+    // A key with no account behind it: registered with one curl call.
+    { id: 'bot', apiKeyHash: 'h-bot', balance: toUnits(0) },
+  ]);
   await db
     .insert(earnRules)
     .values([{ key: 'daily_trade', label: 'Trade on a new day', credits: DAY_BASE, kind: 'daily', note: '' }]);
@@ -37,11 +43,11 @@ const balanceOf = async (id: string) => {
 
 /** A trade on the given UTC day, at noon so no timezone can move it. */
 let seq = 0;
-const tradedOn = (day: string) =>
+const tradedOn = (day: string, who = 'ann') =>
   db.insert(trades).values({
     id: `t-${++seq}`,
     workspaceId: 'ws',
-    agentId: 'ann',
+    agentId: who,
     marketId: 'm1',
     direction: 'higher',
     shares: 1,
@@ -135,6 +141,31 @@ describe('the daily streak', () => {
     await tradedOn('2026-08-30');
     expect(await settleDailyStreak('ann', NOW)).toBeNull();
     expect(await balanceOf('ann')).toBe(0);
+  });
+
+  test('A PARTICIPANT THAT IS ONLY AN API KEY EARNS NOTHING FROM IT', async () => {
+    // market-integrity I5. Without this, one credit transferred into a
+    // spawned agent bought 25 credits a day rising to 100, forever, per
+    // agent, and nothing caps how many agents one person owns.
+    await tradedOn('2026-08-30', 'bot');
+    expect(await settleDailyStreak('bot', NOW)).toBeNull();
+    expect(await balanceOf('bot')).toBe(0);
+    expect(await db.select().from(earnClaims)).toHaveLength(0);
+  });
+
+  test('a key-only participant earns nothing however many days it trades', async () => {
+    for (const d of daysBack(6)) await tradedOn(d, 'bot');
+    for (const d of daysBack(6)) await settleDailyStreak('bot', new Date(`${d}T18:00:00.000Z`));
+    expect(await balanceOf('bot')).toBe(0);
+  });
+
+  test('and the person trading beside it is unaffected', async () => {
+    await tradedOn('2026-08-30', 'bot');
+    await tradedOn('2026-08-30');
+    await settleDailyStreak('bot', NOW);
+    expect(await settleDailyStreak('ann', NOW)).toMatchObject({ days: 1, todayCredits: DAY_BASE });
+    expect(await balanceOf('ann')).toBe(DAY_BASE);
+    expect(await balanceOf('bot')).toBe(0);
   });
 
   test("the operator's price is day one's price", async () => {

@@ -25,6 +25,7 @@ import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { AppError } from '../lib/errors';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { claimNickname, listParticipantsForWorkspace } from '../lib/participants';
+import { isPlatformAuthorized } from '../lib/platform-admin';
 import { granterCoversScopes, parseScopesInput, SCOPE_PRESETS } from '../lib/scopes';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
 import {
@@ -47,7 +48,7 @@ import { wrap } from '../lib/wrap';
 import { authMiddleware, getAuthWorkspaceMemberships, hashKey, optionalAuthMiddleware } from '../middleware/auth';
 import { computeCapabilities } from '../middleware/capabilities';
 import { requireCapability, requireIdentity, requireScope, requireSelfOrAdmin } from '../middleware/roles';
-import { applyCredits, applyCreditsIfSufficient, PLATFORM_SCOPE } from '../services/credits';
+import { applyCredits, moveCredits, PLATFORM_SCOPE } from '../services/credits';
 import { earnCredits } from '../services/earnRules';
 import { getAllMetrics } from '../services/metrics';
 import { getMarkets } from '../services/predictions';
@@ -322,48 +323,16 @@ agentsRouter.post(
     if (!recipient) throw new AppError('Recipient participant not found', 404);
     if (recipient.id === fromId) throw new AppError('Cannot transfer to yourself', 400);
 
-    const units = toUnits(amount);
-    const transferId = randomUUID();
-    const createdAt = new Date();
-    await db.transaction(async tx => {
-      // Conditional debit doubles as the balance check: zero rows updated
-      // means insufficient funds, and the transaction never touches the
-      // recipient. No read-then-write race.
-      const debited = await applyCreditsIfSufficient(tx, {
-        agentId: fromId,
-        workspaceId: PLATFORM_SCOPE,
-        deltaUnits: -units,
-        reason: 'transfer_out',
-        refType: 'transfer',
-        refId: transferId,
-        minBalanceUnits: units,
-      });
-      if (!debited) throw new AppError('Insufficient balance', 409);
-      await applyCredits(tx, {
-        agentId: recipient.id,
-        workspaceId: PLATFORM_SCOPE,
-        deltaUnits: units,
-        reason: 'transfer_in',
-        refType: 'transfer',
-        refId: transferId,
-      });
-      await tx.insert(creditTransfers).values({
-        id: transferId,
-        fromAgentId: fromId,
-        toAgentId: recipient.id,
-        credits: amount,
-        memo: memo ?? '',
-        createdAt,
-      });
-    });
+    const moved = await moveCredits({ fromId, toId: recipient.id, amount, memo: memo ?? '' });
+    if (!moved) throw new AppError('Insufficient balance', 409);
 
     res.status(201).json({
-      id: transferId,
+      id: moved.transferId,
       fromAgent: fromId,
       toAgent: recipient.id,
       amount,
       memo: memo ?? '',
-      createdAt: createdAt.toISOString(),
+      createdAt: moved.createdAt.toISOString(),
     });
   }),
 );
@@ -1606,6 +1575,25 @@ agentsRouter.post(
   }),
 );
 
+/**
+ * Fund a participant in a workspace you administer.
+ *
+ * WHO PAYS IS THE WHOLE POINT (market-integrity I5, owner direction
+ * 2026-08-31). This used to add credits to the target with nothing
+ * debited, gated only on the 'manage' capability. Every account may
+ * create a workspace and every workspace creator lands in an Admin group
+ * holding 'manage', so it was an unbounded mint reachable by anyone with
+ * an account or an agent key: create a workspace, credit yourself, enter
+ * the season. It is now a transfer out of the caller's own balance, with
+ * the same paired ledger rows and `credit_transfers` receipt as
+ * POST /api/agents/transfer, so a workspace owner funding their bots
+ * spends what the bots receive.
+ *
+ * The platform operator (platform admin or master key) is the exception
+ * and keeps ISSUING credits, because someone has to be the faucet: house
+ * reserves and season liquidity come from here, and every issued credit
+ * carries an `admin_adjustment` row naming the reason.
+ */
 agentsRouter.post(
   '/:id/credit',
   requireCapability('manage'),
@@ -1626,20 +1614,34 @@ agentsRouter.post(
       return;
     }
     const { amount, reason = 'admin credit' } = req.body;
-    if (typeof amount !== 'number' || amount <= 0) {
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
       res.status(400).json({ error: 'amount must be a positive number' });
       return;
     }
-    const { balanceAfterUnits } = await applyCredits(db, {
-      agentId: id,
-      workspaceId: req.auth!.workspaceId ?? PLATFORM_SCOPE,
-      deltaUnits: toUnits(amount),
-      reason: 'admin_adjustment',
-      refId: reason,
-    });
-    const newBalance = fromUnits(balanceAfterUnits);
-    console.log(`[admin credit] ${id} +${amount} credits (${reason}). New balance: ${newBalance}`);
-    res.json({ ok: true, credited: amount, balance: newBalance });
+
+    if (await isPlatformAuthorized(req)) {
+      const { balanceAfterUnits } = await applyCredits(db, {
+        agentId: id,
+        workspaceId: req.auth!.workspaceId ?? PLATFORM_SCOPE,
+        deltaUnits: toUnits(amount),
+        reason: 'admin_adjustment',
+        refId: reason,
+      });
+      const newBalance = fromUnits(balanceAfterUnits);
+      console.log(`[operator issue] ${id} +${amount} credits (${reason}). New balance: ${newBalance}`);
+      res.json({ ok: true, credited: amount, balance: newBalance, issued: true });
+      return;
+    }
+
+    const fromId = req.auth?.agentId;
+    if (!fromId) throw new AppError('Funding a participant requires a participant identity', 403);
+    if (fromId === id) throw new AppError('Cannot fund yourself', 400);
+
+    const moved = await moveCredits({ fromId, toId: id, amount, memo: String(reason).slice(0, 200) });
+    if (!moved) throw new AppError('Insufficient balance', 409);
+
+    console.log(`[fund] ${fromId} -> ${id} ${amount} credits (${reason}).`);
+    res.json({ ok: true, credited: amount, balance: fromUnits(moved.toBalanceUnits), transferId: moved.transferId });
   }),
 );
 

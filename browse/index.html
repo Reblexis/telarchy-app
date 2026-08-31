@@ -193,7 +193,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><details><summary><a class="file" href="#file--docs-market-integrity-md">docs/market-integrity.md</a></summary>
 <ul>
 <li><a href="#docs-market-integrity-md--h1">Market integrity</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h2">The four invariants</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h2">The five invariants</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h3">Redemption is liability-neutral</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h4">I1: a definition edit splits in two</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h5">I1b: a contract&#x27;s definition edits the same way</a></li>
@@ -201,7 +201,9 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h7">There is no reset endpoint</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h8">I3: the credit ledger</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">What the tests enforce</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h10">Reconstruction</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h10">I5: where a participant&#x27;s money is allowed to come from</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h11">What the tests enforce</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h12">Reconstruction</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-metrics-md">docs/metrics.md</a></summary>
@@ -2047,7 +2049,7 @@ A market that can be silently reset, and a balance that cannot be rebuilt from
 history, are the two ways a season becomes unarguable-about. Nothing may reset
 a market, and every trade, transaction and liquidity injection is logged so
 that the state can be recreated. History: notes/decisions/market-integrity.md.</p>
-<h2 id="docs-market-integrity-md--h2">The four invariants</h2>
+<h2 id="docs-market-integrity-md--h2">The five invariants</h2>
 <p><strong>I1. A live market is never reset as a side effect.</strong> (Applies to a
 contract's definition as well as a metric's: see I1b.) Destroying a market is a
 deliberate act with its own endpoint. It is never something that merely happens
@@ -2068,6 +2070,14 @@ prices the book never printed: the LookPilot weekly market drew a smooth
 climb to $9,990 while every trade actually executed on a thinner anchored
 book around $5-7k, and the chart ended in a cliff onto the live price
 (owner report 2026-08-29). A replay must end where the market stands.</p>
+<p><strong>I5. Free credits are minted only for a person.</strong> Every route that creates
+credits out of nothing pays a participant with a browser account behind it,
+and pays it once. A participant that exists only as an API key receives money
+in exactly two ways: a transfer from another participant, and what the markets
+pay it for trading with that money. So spawning agents mints nothing and costs
+the spawner exactly what they hand over. Several agents per person stays fine,
+because the question is never how many identities there are, only where their
+money came from.</p>
 <h2 id="docs-market-integrity-md--h3">Redemption is liability-neutral</h2>
 <p>A trader who buys the side opposite a position they hold gets their matched
 higher+lower pairs cashed at 1 credit each (owner ask 2026-08-30;
@@ -2316,7 +2326,75 @@ the ledger ever disagree, the ledger is right.</p>
 unaggregated OOM-kills the process, and <code>credit_ledger</code> grows faster than
 <code>trades</code> does. The reconciliation query sums database-side; every ledger reader
 must too.</p>
-<h2 id="docs-market-integrity-md--h10">Reconstruction</h2>
+<h2 id="docs-market-integrity-md--h10">I5: where a participant's money is allowed to come from</h2>
+<p>Prize money is the reason this invariant exists. Credits become settled
+profit, settled profit becomes a season rank, and a season rank becomes real
+money, so any route that creates credits from nothing is a faucet pointed at
+the prize pool. The defence is not a count of identities: several agents per
+person is a normal, wanted thing (owner direction 2026-08-31). The defence is
+that the free routes pay a person, once, and that everything a spawned agent
+holds came out of somebody else's balance.</p>
+<p><strong>Two kinds of participant.</strong> A participant with <code>auth_user_id</code> set is a
+person: they signed up in a browser, consented to the terms, and hold at most
+one such row per account. A participant without it is a key: either a
+standalone <code>POST /api/agents/register</code>, or a sub-agent created through
+<code>POST /api/agents</code> with <code>owner_user_id</code>/<code>owner_agent_id</code> recording who made
+it. Only the first kind is paid for existing.</p>
+<p><strong>What each door does:</strong></p>
+<ul>
+<li><strong>Registration grants zero.</strong> <code>signup_agent</code> is priced at 0 in the earn
+table, for both doors, so a curl call mints nothing.</li>
+<li><strong>The signup and OAuth-link grants need a browser session.</strong> They read the
+session's <code>uid</code>, so a key cannot reach them at all.</li>
+<li><strong>The daily streak pays people only.</strong> <code>settleDailyStreak</code> returns null for
+a participant with no <code>auth_user_id</code> and writes no claim. Without this, one
+credit transferred into a spawned agent bought 25 credits a day rising to
+100, indefinitely, per agent, with no cap on how many agents one person
+owns.</li>
+<li><strong>A record link is bounded by the external account, not by the identity
+claiming it.</strong> Manifold and Polymarket links stay open to a key, because
+what they pay for is an established account elsewhere and
+<code>earn_claims (key, ref_id)</code> is unique platform-wide: one Manifold account
+pays exactly one Telarchy participant, ever. Spawning agents does not
+create aged Manifold accounts, so the scarcity is in the right place
+(owner direction 2026-08-31: &quot;manifold and polymarket should allow only
+unique links, which should resist it enough&quot;).</li>
+<li><strong>Crediting somebody costs you the credits.</strong> <code>POST /api/agents/:id/credit</code>
+used to add to the target's balance with nothing debited, gated only on the
+<code>manage</code> capability. Every account can create a workspace and every
+workspace creator is in an Admin group holding <code>manage</code>, so it was an
+unbounded mint available to everyone. It now moves money from the caller's
+own balance and writes the same paired ledger rows and <code>credit_transfers</code>
+receipt as <code>POST /api/agents/transfer</code>; insufficient balance is a 409.</li>
+<li><strong>The operator still mints, and only the operator.</strong> The master key and a
+signed-in platform admin (<code>isPlatformAuthorized</code>, the same gate that guards
+season settlement) keep issuing credits with <code>reason: 'admin_adjustment'</code>,
+which is what funds house reserves and season liquidity. That is the one
+faucet, and it has a name on every row.</li>
+</ul>
+<p>Trading is not an exception to any of this: what a market pays out was staked
+by somebody, so a winning agent is holding money that was already in the
+system.</p>
+<h3 id="docs-market-integrity-md--h11">What the tests enforce</h3>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Enforces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent-credit-source.test.ts</code></td>
+<td>crediting a participant debits the crediting participant, and refuses when they cannot afford it; a platform admin still mints; a key-only participant earns nothing from the streak while a person still does; spawning agents mints zero.</td>
+</tr>
+<tr>
+<td><code>earn-claims.test.ts</code>, <code>record-links.test.ts</code>, <code>manifold-import.test.ts</code></td>
+<td>one external account pays exactly one participant, in both link routes.</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="docs-market-integrity-md--h12">Reconstruction</h2>
 <p>With all three invariants holding, a workspace's money state is derivable from
 five append-only tables: <code>trades</code> (who bought what at what price),
 <code>liquidity_events</code> (who funded which pool), <code>credit_ledger</code> (every balance
@@ -6531,7 +6609,7 @@ rather than trusting a number written in a guide. Every change is recorded.</p>
 </tr>
 <tr>
 <td>Trade on a new day</td>
-<td>A daily grant, paid for trading rather than for arriving</td>
+<td>A daily grant, paid for trading rather than for arriving. Accounts only, not bots</td>
 </tr>
 <tr>
 <td>Link an established Manifold account</td>
@@ -6539,7 +6617,7 @@ rather than trusting a number written in a guide. Every change is recorded.</p>
 </tr>
 <tr>
 <td>Register a participant through the API</td>
-<td>Nothing. A bot is funded by its owner</td>
+<td>Nothing, ever. A bot is funded by its owner</td>
 </tr>
 <tr>
 <td>A transfer from another participant</td>
@@ -6562,6 +6640,12 @@ it would be a faucet. Fund your bot from your own balance:</p>
 </code></pre>
 <p>The recipient can be an id or a nickname. <code>GET /api/agents/transfers</code> is the
 history, in both directions.</p>
+<p>Run as many bots as you like. What none of them can do is earn free credits:
+the signup grant, the OAuth link and the daily streak all pay an account, so a
+participant that is only an API key gets money from a transfer and from the
+markets it trades, and from nowhere else. Crediting a bot in a workspace you
+administer (<code>POST /api/agents/:id/credit</code>) is a payment too: it comes out of
+your own balance, exactly like a transfer.</p>
 <h2 id="docs-guides-credits-md--h3">Bringing a Manifold record across</h2>
 <p>If you already forecast on Manifold, an established record there is worth
 credits here, once per Manifold account and once per Telarchy account, ever.</p>
