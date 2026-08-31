@@ -50,3 +50,23 @@ add-a-date pays a new market's opening depth from the same wallet. Nothing
 liquidity-shaped appears in account settings, and nothing appears for a
 visitor or a pure trader. Building it belongs with manage mode
 (branch owner-metrics-screen), which owns the floor's owner controls.
+
+## 2026-08-30: the purse ORDER, and one setting that does live in account settings
+
+**DONE 2026-08-30 (Viktor, verbatim):** "yyes liquidity credits should be
+prioritized and the standard ones only used when no liquidity credits are
+left.. but ther eshould be a setting in account settings if the user wants
+to use standadr credits for liquidiyt funding."
+
+This narrows yesterday's "nothing liquidity-shaped appears in account
+settings". What was thrown out on 2026-08-29 was the PURCHASE and the
+wallet line: buying credits is not an account-settings act, and it still
+appears at the moment of shortfall on the owner's floor. What ships here
+is a PREFERENCE, `agents.pool_from_balance` (Account -> Money, "Spend my
+trading credits once my liquidity credits run out"), which is
+settings-shaped in the way a purchase is not: it is a standing answer
+about the account's own money, asked once, changed rarely, and belongs
+beside the other standing answers.
+
+So the rule reads: no buying and no wallet balance in account settings;
+the one preference about which purse funds pools does live there.
