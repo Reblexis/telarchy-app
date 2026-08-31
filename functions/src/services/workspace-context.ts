@@ -357,13 +357,11 @@ function branchTrades(approved: number | null, declined: number | null): string 
 }
 
 /**
- * The same facts as prose. This is what goes to a model (ours or someone
- * else's): markdown, because that is what every model reads best, and one
- * document rather than a JSON tree, because a reader answering "is this
- * contract worth it" should not have to join three arrays first.
+ * Everything above the contracts: who this floor is, what it is judged on,
+ * and what the crowd currently says. Both renderers open with it, because it
+ * is the part that is small, slow-moving and useless to fetch piecemeal.
  */
-export function renderContextMarkdown(ctx: WorkspaceContext): string {
-  const out: string[] = [];
+function renderFloorHead(ctx: WorkspaceContext, out: string[]): void {
   out.push(`# ${ctx.name}`);
   if (ctx.description) out.push(ctx.description);
   if (ctx.runningSince) out.push(`Running its numbers through Telarchy since ${ctx.runningSince}.`);
@@ -396,6 +394,18 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
       `- ${m.metricName}${m.metricDefined ? '' : ' (this metric is no longer defined on the floor)'}, ${m.targetDate}: market says ${num(m.consensus)} (range ${num(m.rangeMin)}-${num(m.rangeMax)}, liquidity ${num(m.liquidity)} credits). ${when(m.resolvesOn, m.settled)}. ${trades(m.trades)}.`,
     );
   }
+}
+
+/**
+ * The same facts as prose. This is what goes to an OUTSIDE agent: markdown,
+ * because that is what every model reads best, and one document rather than a
+ * JSON tree, because a reader answering "is this contract worth it" should not
+ * have to join three arrays first. Otto is handed renderContextIndex instead;
+ * see docs/vision.md, "The workspace brief".
+ */
+export function renderContextMarkdown(ctx: WorkspaceContext): string {
+  const out: string[] = [];
+  renderFloorHead(ctx, out);
 
   // Two lists, because they answer two different questions. A reader looking
   // for "what should the owner approve" must not find a decided contract's
@@ -437,6 +447,17 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
   if (decided.length === 0) out.push('None yet.');
   for (const c of decided) renderContract(c);
 
+  renderFloorTail(ctx, out);
+  return out.join('\n');
+}
+
+/**
+ * What the owner said, in their own words: announcements and the documents
+ * they published. Both renderers carry it whole. It is the part of a floor
+ * that exists nowhere else, so making it a fetch would trade the one thing
+ * only this workspace can tell him for a round trip.
+ */
+function renderFloorTail(ctx: WorkspaceContext, out: string[]): void {
   if (ctx.announcements.length > 0) {
     out.push('', '## Announcements (newest first)');
     for (const a of ctx.announcements) out.push('', `**${a.publishedAt.slice(0, 10)}**`, a.body);
@@ -447,6 +468,59 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
     out.push(`Published by the owner, last updated ${d.updatedAt.slice(0, 10)}.`);
     out.push('', d.content);
   }
+}
 
+/**
+ * What Otto is handed as fixed context: the floor itself in full, and its
+ * contracts as a LIST rather than a priced matrix.
+ *
+ * A reasoner given every number already flattened onto one page answers from
+ * the page. That is measured, not assumed: on 2026-08-31 the answer that got
+ * four things wrong was produced with zero tool calls, and five of the
+ * previous thirty answers used any tool at all
+ * (notes/otto-brief-misread-2026-08-31.md). Removing the prices from what he
+ * is handed is what turns "which contract is worth approving" from a question
+ * he can answer by scanning into one he has to go and price.
+ *
+ * The endpoints are named here rather than left to `find_endpoint`, because
+ * an assistant that has to search for where the numbers live will decide it
+ * already knows where they are.
+ */
+export function renderContextIndex(ctx: WorkspaceContext): string {
+  const out: string[] = [];
+  renderFloorHead(ctx, out);
+
+  const ref = ctx.slug ?? ctx.workspaceId;
+  const open = ctx.contracts.filter(c => c.decisionOpen);
+  const decided = ctx.contracts.filter(c => !c.decisionOpen);
+  const line = (c: WorkspaceContext['contracts'][number]) =>
+    `- ${c.title} (${c.askUsd ? `$${c.askUsd}` : 'no ask'}, ${c.status}, by ${c.proposedBy}, id ${c.id})`;
+
+  out.push('', '## Contracts');
+  out.push(
+    'Titles only. No price of a contract is in front of you, deliberately: the market moves and this list does not, so a number you quote from memory is a number you made up. Go and read it.',
+  );
+  out.push('', `### Open for a decision (${open.length})`);
+  if (open.length === 0) out.push('None: every contract here has been decided.');
+  for (const c of open) out.push(line(c));
+  out.push('', `### Already decided (${decided.length})`);
+  if (decided.length === 0) out.push('None yet.');
+  for (const c of decided) out.push(line(c));
+
+  out.push('', '### Where the numbers are');
+  out.push(
+    `- GET /api/marketplace/${ref} - every open contract with its live priced impact, the same ballot the page shows. One call answers "what is worth approving".`,
+  );
+  out.push(
+    '- GET /api/proposals/<id> - one contract in full: its pitch, its conversation, and its pairs, including a decided one.',
+  );
+  out.push(
+    `- GET /api/marketplace/${ref}/context - the whole brief, every contract priced, when you genuinely want all of it at once.`,
+  );
+  out.push(
+    'Each of those states, per horizon, when it resolves and whether that has passed, how many trades made the price, and what the floor prices without the contract. Read those before you compare two numbers: a settled horizon, an untraded seed and a live price look identical if you only read the difference.',
+  );
+
+  renderFloorTail(ctx, out);
   return out.join('\n');
 }
