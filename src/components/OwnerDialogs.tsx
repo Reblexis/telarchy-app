@@ -547,6 +547,8 @@ export function ReportValueDialog({
   settlesLabel,
   rangeMax,
   rangeEditable,
+  periodLabel,
+  periodEnd,
   onClose,
   onDone,
 }: {
@@ -571,12 +573,23 @@ export function ReportValueDialog({
    * (walkthrough, 2026-08-30).
    */
   rangeEditable: boolean;
+  /** The period the market on screen settles for, said the way the floor says
+   *  it ("September", "31 Dec"). */
+  periodLabel?: string | null;
+  /** The last instant of that period, ISO. Present once the period has
+   *  closed, which is when dating a reading into it is the whole point
+   *  (owner ask 2026-08-31). */
+  periodEnd?: string | null;
   onClose: () => void;
   onDone: () => void;
 }) {
   const first = lastValue === null;
   const [value, setValue] = useState(first ? '' : fmtCr(lastValue));
   const [note, setNote] = useState('');
+  // A number for a period that has closed is typed after it and belongs to
+  // it: "September finished at 4,812", typed on 3 October. Off by default,
+  // because most readings are of now.
+  const [backdate, setBackdate] = useState(false);
   const [range, setRange] = useState(fmtCr(rangeMax));
   const [rangeTouched, setRangeTouched] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -617,6 +630,7 @@ export function ReportValueDialog({
         value: parsed,
         oldValue: lastValue ?? 0,
         updateNote: note.trim(),
+        ...(backdate && periodEnd ? { asOf: periodEnd } : {}),
         ...(rangeEditable && shownRangeNum !== null && shownRangeNum !== rangeMax
           ? { marketRangeMax: shownRangeNum }
           : {}),
@@ -723,6 +737,25 @@ export function ReportValueDialog({
             aria-label="What happened"
           />
         </label>
+
+        {periodEnd && (
+          <button
+            type="button"
+            className={`odlg-backdate${backdate ? ' is-on' : ''}`}
+            aria-pressed={backdate}
+            onClick={() => setBackdate(v => !v)}
+          >
+            <span className="odlg-backdate-box" aria-hidden="true">
+              {backdate ? '✓' : ''}
+            </span>
+            <span>
+              This is {periodLabel ? `${periodLabel}'s` : 'that period’s'} number, not today's
+              <span className="odlg-note-left">
+                Files it at the end of the period, which is what its market settles on.
+              </span>
+            </span>
+          </button>
+        )}
 
         {err && <p className="ticket-err">{err}</p>}
         <button className="ticket-go" disabled={busy || !valid} onClick={() => void report()}>

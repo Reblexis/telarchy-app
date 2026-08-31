@@ -2,7 +2,7 @@ import { and, asc, count, eq, gt, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agents, liquidityEvents, markets, positions, proposals, trades } from '../db/schema';
 import { consensus, pHigher, resolutionPayouts } from '../lib/amm';
-import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
+import { periodEndInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
 import { onPricesChanged } from '../lib/market-events';
 import { ttlCache } from '../lib/ttl-cache';
 import { toUnits } from '../lib/validation';
@@ -179,7 +179,12 @@ export async function resolvePredictions(
     .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
-  const marketsToResolve = openMarkets.filter(m => periodEndInstant(m.targetDate) <= now);
+  // DUE is the market's own settlement instant, which is its period end plus
+  // the metric's reporting lag when it opened (owner ask 2026-08-31: a
+  // September total cannot exist at midnight on the 30th). The FIXING below
+  // is still the last reading at or before the PERIOD END, so the lag buys
+  // time to report the number and never changes which period is priced.
+  const marketsToResolve = openMarkets.filter(m => new Date(settlesOn(m)) <= now);
   if (marketsToResolve.length === 0) return { resolved: 0, totalPayout: 0 };
 
   const allMetrics = await getAllMetrics(workspaceId);

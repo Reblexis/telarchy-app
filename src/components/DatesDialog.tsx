@@ -88,6 +88,10 @@ export function DatesDialog({
   const [day, setDay] = useState('');
   const [hour, setHour] = useState('');
   const [credits, setCredits] = useState(fmtCr(defaultCredits >= 25 ? defaultCredits : 1000));
+  // How long after a period this number is final. A monthly total that needs
+  // three days of refunds to be true settles three days after the month, not
+  // at midnight on the 30th when it cannot exist yet (owner ask 2026-08-31).
+  const [lagDays, setLagDays] = useState('0');
   const [stopping, setStopping] = useState<HorizonEntry | null>(null);
   const [removing, setRemoving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -101,6 +105,8 @@ export function DatesDialog({
         if (cancelled) return;
         const stored = (m as { timePreference?: { customHorizons?: string[] } }).timePreference?.customHorizons ?? [];
         setEntries(stored.map(describeEntry));
+        const lag = (m as { settlementLagMinutes?: number }).settlementLagMinutes ?? 0;
+        setLagDays(String(Math.round((lag / (24 * 60)) * 10) / 10));
       })
       .catch(e => {
         if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
@@ -125,8 +131,10 @@ export function DatesDialog({
     try {
       const metric = await api.getMetric(workspaceId, metricId);
       const tp = (metric as { timePreference?: { enabled?: boolean; halfLife?: number } }).timePreference ?? null;
+      const lag = Number(lagDays.replace(/[^0-9.]/g, ''));
       await api.patchMetric(workspaceId, metricId, {
         ...(fund ? { liquidityCredits: parseCredits(credits) ?? undefined } : {}),
+        ...(Number.isFinite(lag) ? { settlementLagMinutes: Math.round(lag * 24 * 60) } : {}),
         timePreference: {
           enabled: tp?.enabled ?? false,
           halfLife: tp?.halfLife ?? 1,
@@ -390,6 +398,20 @@ export function DatesDialog({
             </span>
           </div>
         )}
+
+        <div className="jobform-field">
+          <span className="ticket-label">This number is final how long after the period?</span>
+          <span className="odlg-dayrow">
+            <input
+              className="jobform-line odlg-mono odlg-day"
+              value={lagDays}
+              disabled={busy}
+              onChange={e => setLagDays(e.target.value)}
+              aria-label="Days after the period"
+            />
+            <span className="odlg-or">days, so a market settles then rather than at the period's last second</span>
+          </span>
+        </div>
 
         <div className="jobform-field">
           <span className="ticket-label">Liquidity behind each one · from your {fmtCr(spendable)} cr</span>

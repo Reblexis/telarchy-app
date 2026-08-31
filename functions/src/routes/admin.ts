@@ -15,7 +15,7 @@ import {
   waitlist,
   workspaces,
 } from '../db/schema';
-import { resolutionInstant } from '../lib/date-utils';
+import { settlesOn } from '../lib/date-utils';
 import { AppError } from '../lib/errors';
 import { classifyIps } from '../lib/ip-classify';
 import { getParticipantDisplayNames } from '../lib/participants';
@@ -646,7 +646,7 @@ adminRouter.get(
       })
       .from(markets)
       .where(eq(markets.featured, true));
-    res.json(rows.map(r => ({ ...r, resolvesOn: resolutionInstant(r.targetDate) })));
+    res.json(rows.map(r => ({ ...r, resolvesOn: settlesOn(r) })));
   }),
 );
 

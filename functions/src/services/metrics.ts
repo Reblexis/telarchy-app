@@ -409,6 +409,14 @@ export async function logSpecificMetrics(
   metricIds: string[],
   allMetrics: Metric[],
   workspaceId: string,
+  /**
+   * The moment the reading DESCRIBES, when it is not now. A September total
+   * is typed on 3 October and belongs to September; without this the reading
+   * lands in October and the September market settles on nothing
+   * (owner ask 2026-08-31: "when a metric value is updated a past date should
+   * be fillable"). Never in the future: the route refuses that.
+   */
+  asOf?: Date,
 ): Promise<void> {
   // We log two numbers per row: `value` (what the user types into the "Now:"
   // editor for leaves; 0 for composites, since the PUT route zeroes value on
@@ -429,7 +437,7 @@ export async function logSpecificMetrics(
       metricName: m.name,
       value: m.value,
       outlook: m.total ?? m.value,
-      timestamp: new Date(),
+      timestamp: asOf ?? new Date(),
     }));
 
   if (toInsert.length > 0) {

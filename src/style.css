@@ -8835,3 +8835,39 @@ textarea.jobform-line--desc {
    (docs/ui-conventions.md, "The market's activity is one list"). */
 .pubws-mkt-drop { color: var(--text-tertiary); }
 .pubws-mkt-act--pool { color: var(--text-primary); }
+
+/* "This is September's number, not today's": a checkbox in the report dialog
+   that files the reading at the end of the period it measures
+   (docs/guides/sources.md, "The number is final after the period"). */
+.odlg-backdate {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  width: 100%;
+  margin-top: 0.9rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.odlg-backdate-box {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  font-size: 0.72rem;
+  line-height: 1;
+}
+.odlg-backdate.is-on .odlg-backdate-box {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg-primary);
+}

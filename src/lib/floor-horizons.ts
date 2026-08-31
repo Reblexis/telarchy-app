@@ -55,6 +55,10 @@ export interface HorizonView {
   resolvesOn: string | null;
   /** First moment of the settled period (ISO), when the server sent one. */
   periodStart: string | undefined;
+  /** Last moment of it. Not the settlement instant once the metric carries a
+   *  reporting lag: between the two is the window where the number for the
+   *  period is typed and dated into it (docs/guides/sources.md). */
+  periodEnd: string | undefined;
   consensus: number | null;
   probability: number;
   /** LMSR sensitivity, b = pool / ln 2: what the price maths takes, never a
@@ -224,6 +228,7 @@ export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: D
       settleShort: settleShortOf(m.targetDate, now),
       resolvesOn: m.resolvesOn ?? null,
       periodStart: row?.periodStart,
+      periodEnd: row?.periodEnd,
       consensus: m.consensus,
       probability: m.probability,
       liquidity: m.liquidity,

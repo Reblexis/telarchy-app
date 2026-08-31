@@ -11,7 +11,7 @@ import {
   updates,
   withdrawals,
 } from '../db/schema';
-import { resolutionInstant } from '../lib/date-utils';
+import { resolutionInstant, settlesOn } from '../lib/date-utils';
 import { getParticipantDisplayNames, listParticipantsForWorkspace } from '../lib/participants';
 
 export const ACTIVITY_TYPES = [
@@ -317,7 +317,7 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
       data: {
         metricName: m.metricName,
         targetDate: m.targetDate,
-        resolvesOn: resolutionInstant(m.targetDate),
+        resolvesOn: settlesOn(m),
         rangeMin: m.rangeMin,
         rangeMax: m.rangeMax,
       },
@@ -337,7 +337,7 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
       data: {
         metricName: m.metricName,
         targetDate: m.targetDate,
-        resolvesOn: resolutionInstant(m.targetDate),
+        resolvesOn: settlesOn(m),
         actualValue: m.actualValue,
         voided: m.voided,
       },

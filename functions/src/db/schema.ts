@@ -445,6 +445,15 @@ export const metrics = pgTable(
     description: text('description').notNull().default(''),
     value: doublePrecision('value').notNull().default(0),
     formula: text('formula').notNull().default('0'),
+    /**
+     * How long after a period this number is final, in minutes. A monthly
+     * total that needs three days of refunds to be true says 4320, and its
+     * markets settle then rather than at midnight on the 30th, when the number
+     * cannot exist yet (owner ask 2026-08-31). The market it settles on is
+     * still the last reading at or before the PERIOD END, so the lag buys the
+     * time to report and never moves which period is being priced.
+     */
+    settlementLagMinutes: integer('settlement_lag_minutes').notNull().default(0),
     /** Display order within workspace */
     order: integer('order').notNull().default(0),
     /** { enabled: boolean, halfLife: number, density?: number } | null */
@@ -514,6 +523,14 @@ export const markets = pgTable(
      * from two logs. Null on anything not settled, and on everything settled
      * before 2026-08-31.
      */
+    /**
+     * When this market settles: the end of its period plus the metric's
+     * reporting lag at the moment it opened (docs/guides/sources.md). Stamped
+     * at creation rather than derived, so changing a metric's lag can never
+     * move the settlement of a market people are already trading. Null on
+     * markets opened before 2026-08-31, which settle at their period end.
+     */
+    settlesAt: timestamp('settles_at'),
     settledReadingAt: timestamp('settled_reading_at'),
     /** When the owner was last emailed that this market was about to settle on
      *  a stale reading. Dedupe for that mail and nothing else. */
