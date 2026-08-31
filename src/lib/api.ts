@@ -1616,6 +1616,17 @@ export const api = {
       cost: number;
       createdAt: string;
     }>;
+    /** The pool moving: opened with, or deepened by, and the depth after.
+     *  Shown in the same list as the trades (docs/ui-conventions.md). */
+    pool: Array<{
+      id: string;
+      /** Null on the platform's own initial liquidity, which has no funder. */
+      handle: string | null;
+      kind: 'opened' | 'deepened';
+      amount: number;
+      pool: number;
+      createdAt: string;
+    }>;
   }> =>
     request(
       `/api/marketplace/${encodeURIComponent(idOrSlug)}/market-activity?marketId=${encodeURIComponent(marketId)}`,

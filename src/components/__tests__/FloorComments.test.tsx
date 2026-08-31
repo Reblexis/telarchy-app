@@ -105,8 +105,9 @@ describe('a contract covers both branch markets', () => {
         ? {
             positions: [{ handle: 'boss', id: 'boss', direction: 'lower', shares: 338.9, cost: 221, worth: 120 }],
             trades: [trade('t1', 'boss'), trade('t2', 'viktor')],
+            pool: [],
           }
-        : { positions: [], trades: [] },
+        : { positions: [], trades: [], pool: [] },
     );
   });
 
@@ -127,26 +128,69 @@ describe('a contract covers both branch markets', () => {
         <FloorComments {...contractProps} />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(getByText('Trades (2)')).toBeInTheDocument());
+    await waitFor(() => expect(getByText('Activity (2)')).toBeInTheDocument());
     expect(getByText('Positions (1)')).toBeInTheDocument();
 
-    getByText('Trades (2)').click();
+    getByText('Activity (2)').click();
     const row = (await screen.findByText('boss')).closest('li')!;
     expect(row.textContent).toContain('if declined');
   });
 
-  test('a baseline market has one world and carries no label', async () => {
+  // Owner ask 2026-08-31: the pool is the other half of every price in this
+  // list, so it belongs in it. The tab counts both, and a reader who counts
+  // the rows finds the number on the tab.
+  test('the pool moving is in the same list, in the same order, and counts', async () => {
     getMarketActivity.mockImplementation(async () => ({
       positions: [],
-      trades: [trade('t1', 'boss')],
+      trades: [{ ...trade('t1', 'boss'), createdAt: '2026-08-30T10:00:00.000Z' }],
+      pool: [
+        {
+          id: 'l1',
+          handle: 'harbour-roasters',
+          kind: 'deepened',
+          amount: 1000,
+          pool: 2386,
+          createdAt: '2026-08-30T12:00:00.000Z',
+        },
+        { id: 'l0', handle: null, kind: 'opened', amount: 150, pool: 150, createdAt: '2026-08-29T09:00:00.000Z' },
+      ],
     }));
     const { getByText } = render(
       <MemoryRouter>
         <FloorComments {...props} subject={{ marketId: 'mkt-hero' }} />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(getByText('Trades (1)')).toBeInTheDocument());
-    getByText('Trades (1)').click();
+    await waitFor(() => expect(getByText('Activity (3)')).toBeInTheDocument());
+    getByText('Activity (3)').click();
+
+    const rows = await waitFor(() => {
+      const found = [...document.querySelectorAll('.pubws-mkt-list li')];
+      expect(found).toHaveLength(3);
+      return found;
+    });
+    // Newest first, both kinds in one order: the injection above the trade is
+    // why that trade moved the price less than it would have.
+    expect(rows[0].textContent).toContain('deepened the pool by 1,000');
+    expect(rows[0].textContent).toContain('pool 2,386 cr');
+    expect(rows[1].textContent).toContain('bought');
+    // The platform's own opening liquidity has no funder to name.
+    expect(rows[2].textContent).toContain('the house');
+    expect(rows[2].textContent).toContain('opened it with 150');
+  });
+
+  test('a baseline market has one world and carries no label', async () => {
+    getMarketActivity.mockImplementation(async () => ({
+      positions: [],
+      trades: [trade('t1', 'boss')],
+      pool: [],
+    }));
+    const { getByText } = render(
+      <MemoryRouter>
+        <FloorComments {...props} subject={{ marketId: 'mkt-hero' }} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(getByText('Activity (1)')).toBeInTheDocument());
+    getByText('Activity (1)').click();
     const row = (await screen.findByText('boss')).closest('li')!;
     expect(row.textContent).not.toContain('if ');
   });

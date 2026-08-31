@@ -8829,3 +8829,9 @@ textarea.jobform-line--desc {
   letter-spacing: 0.01em;
   color: var(--text-tertiary);
 }
+
+/* The pool's rows in the market's own history: a drop rather than a
+   direction, because the pool is not a side of the market
+   (docs/ui-conventions.md, "The market's activity is one list"). */
+.pubws-mkt-drop { color: var(--text-tertiary); }
+.pubws-mkt-act--pool { color: var(--text-primary); }
