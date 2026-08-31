@@ -87,6 +87,18 @@ export function AboutPage() {
           </p>
         </section>
 
+        {/* /about explained the thing and then stopped, leaving a convinced
+            reader nowhere to go (design audit, 2026-08-30). The two doors are
+            the two sides of the market, in the page's own plain register. */}
+        <p className="pubws-aud-cta">
+          <Link to="/" className="pubws-cta pubws-cta--small">
+            See the live markets
+          </Link>
+          <Link to="/manage" className="pubws-aud-link">
+            List your own numbers
+          </Link>
+        </p>
+
         <footer className="pubws-foot">
           <Link to="/">The live markets</Link> · <Link to="/contact">Contact</Link> · <Link to="/terms">Terms</Link> ·{' '}
           <Link to="/privacy">Privacy</Link>

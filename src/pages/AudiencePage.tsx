@@ -130,10 +130,24 @@ function Siblings({ current }: { current: string }) {
   );
 }
 
+/** One call to action, routed the way the base-path rules require. */
+function ActionLink({ action, className }: { action: { label: string; href: string }; className: string }) {
+  return isApiLink(action.href) ? (
+    <a href={withBase(action.href)} className={className}>
+      {action.label}
+    </a>
+  ) : (
+    <Link to={action.href} className={className}>
+      {action.label}
+    </Link>
+  );
+}
+
 export function AudiencePage({ route }: { route: string }) {
   const page: PageData | undefined = AUDIENCE_PAGES.find(p => p.route === route);
   if (!page) return null;
   const isCompare = route.startsWith('/compare/');
+  const primary = page.cta[0];
   return (
     <div className="pubws">
       <PageTopBar />
@@ -142,6 +156,18 @@ export function AudiencePage({ route }: { route: string }) {
           <p className="pubws-h2">{isCompare ? 'Side by side' : page.audience}</p>
           <h1 className="pubws-name">{page.h1}</h1>
         </header>
+        {/* The action belongs where the reader decides, not only after the
+            whole argument. A cold visitor from a search landed on 1,100 words
+            with the only button at 90% of the page (design audit,
+            2026-08-30), which asks them to finish reading before they may
+            act. The same primary action repeats at the foot for anyone who
+            did read to the end. */}
+        {primary ? (
+          <p className="pubws-aud-lead-cta">
+            <ActionLink action={primary} className="pubws-cta pubws-cta--small" />
+          </p>
+        ) : null}
+
         <section className="pubws-section pubws-story">
           {page.blocks.map((b, i) => (
             <Block key={`${b.kind}-${i}`} block={b} />
@@ -149,17 +175,9 @@ export function AudiencePage({ route }: { route: string }) {
         </section>
         {page.cta.length > 0 ? (
           <p className="pubws-aud-cta">
-            {page.cta.map((c, i) =>
-              isApiLink(c.href) ? (
-                <a key={c.href} href={withBase(c.href)} className={i === 0 ? 'pubws-cta' : 'pubws-aud-link'}>
-                  {c.label}
-                </a>
-              ) : (
-                <Link key={c.href} to={c.href} className={i === 0 ? 'pubws-cta' : 'pubws-aud-link'}>
-                  {c.label}
-                </Link>
-              ),
-            )}
+            {page.cta.map((c, i) => (
+              <ActionLink key={c.href} action={c} className={i === 0 ? 'pubws-cta' : 'pubws-aud-link'} />
+            ))}
           </p>
         ) : null}
         <Siblings current={route} />
