@@ -30,7 +30,7 @@ import { requireCapability } from '../middleware/roles';
 import { applyCredits } from '../services/credits';
 import { settleDailyStreak } from '../services/earnRules';
 import { emitEvent } from '../services/events';
-import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
+import { anchorUntradedMarketTx, applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
 import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { notifyCommentPosted } from '../services/notifications';
@@ -1006,6 +1006,11 @@ predictionsRouter.post(
             agentId: ownerAgentId,
             poolContribution: credits,
           });
+          // A hand-made market opens where the daily spawn would have opened
+          // it: at the metric's current value inside the near horizon
+          // (owner report 2026-08-31, when this path alone still opened at
+          // the range midpoint).
+          await anchorUntradedMarketTx(tx, { workspaceId, marketId });
         });
       } catch (e) {
         if (e instanceof AppError) {

@@ -12,6 +12,17 @@ import { periodEndInstant } from './date-utils';
  * $45,339). Past the window the midpoint stands, because a year out
  * today's reading genuinely is not an estimate of the settle value, and
  * the operator re-anchors those with a published trade instead.
+ *
+ * A value AT or BEYOND a range edge still anchors (owner report 2026-08-31).
+ * It used to return null there, on the reasoning that p=0 is not a
+ * probability, and the midpoint that replaced it was the worst answer
+ * available: "Telarchy revenue (USD)", range 0 to 1,000 and reading $0 every
+ * hour, opened its daily market at $499.97. An LMSR cannot quote certainty,
+ * but `anchoredMarketState` already clamps into [0.02, 0.98], so the honest
+ * open is the lowest price the book can hold, not the middle of a range the
+ * number is sitting at the bottom of. The clamp lives there and only there,
+ * so this function returns the raw position and callers do not each pick an
+ * epsilon.
  */
 export const NEAR_HORIZON_DAYS = 45;
 
@@ -20,14 +31,14 @@ export function nearHorizonAnchorP(
   value: number | null | undefined,
   rangeMax: number,
   now: Date = new Date(),
+  rangeMin: number = AMM_DEFAULTS.rangeMin,
 ): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
   const end = periodEndInstant(targetDate)?.getTime();
   if (!end || !Number.isFinite(end)) return null;
   const daysOut = (end - now.getTime()) / 86_400_000;
   if (daysOut <= 0 || daysOut > NEAR_HORIZON_DAYS) return null;
-  const span = rangeMax - AMM_DEFAULTS.rangeMin;
+  const span = rangeMax - rangeMin;
   if (span <= 0) return null;
-  const p = (value - AMM_DEFAULTS.rangeMin) / span;
-  return p > 0 && p < 1 ? p : null;
+  return (value - rangeMin) / span;
 }

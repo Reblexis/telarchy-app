@@ -1404,3 +1404,39 @@ unlisted (not public at birth: it cannot satisfy the metric gate), the floor
 carries a publish band card with one ink button for its owner, and the flip
 to public is refused server-side while the floor has no metric. Supersedes
 the same-day public-at-creation default.
+
+## 2026-08-31: a market at the range floor opened at the middle of the range
+
+**Reported 2026-08-31 (Viktor: "also seems like the telardcdhy revenu3e markets seem being spawned at 500 instead of 0 even tho latest values are 0 .. so fix that too.. make sure the bug isnt anywehre else etiher..").**
+
+Confirmed on the live floor: `Telarchy revenue (USD)`, range 0 to 1,000, reading
+$0 every hour, opened its 2026-08-31 daily market at **499.97** at 00:10 UTC.
+Traders pushed it to 17 within twelve minutes and were paid for doing it.
+
+Two causes, both fixed together.
+
+**`nearHorizonAnchorP` treated a value at a range edge as unanchorable.** Its
+last line was `return p > 0 && p < 1 ? p : null`, and null means "keep the
+midpoint". The guard reads as numerical caution (p = 0 is not a probability an
+LMSR can quote) but the fallback it selected was the worst answer available:
+the middle of a range the number is sitting at the bottom of.
+`anchoredMarketState` has always clamped into [0.02, 0.98] for exactly this
+reason, so the guard was defending against something already handled one call
+downstream. The function now returns the raw position and the clamp stays in
+one place. A value BEYOND the range anchors at the edge it is past, for the
+same reason.
+
+**Only one of three funding paths anchored at all.** The daily spawn anchored;
+the refresh that funds a market which opened unfunded (because the owner's
+balance was short that morning) did not, and neither did
+`POST /api/predictions/markets`. So a market's opening price depended on which
+code path happened to fund it. All three now call one function,
+`anchorUntradedMarketTx` in `services/marketLiquidity.ts`, which refuses a
+market that is already traded or already anchored.
+`anchor-ownership.test.ts` fails if a third opinion appears.
+
+**The already-open markets were left alone.** The three revenue markets that
+opened at 500 have been traded since, and rewriting a traded book is what
+`docs/market-integrity.md` forbids: it would take money off people who priced
+what was in front of them. They settle as they stand; the next spawn opens
+correctly.

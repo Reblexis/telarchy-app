@@ -11,16 +11,15 @@ import {
   trades,
   workspaces,
 } from '../db/schema';
-import { AMM_DEFAULTS, anchoredMarketState, initialPool } from '../lib/amm';
+import { AMM_DEFAULTS, initialPool } from '../lib/amm';
 import { emitPricesChanged } from '../lib/market-events';
-import { nearHorizonAnchorP } from '../lib/market-open';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { desiredMarketDates, generatesMarkets, getLeafDescendantNames } from '../lib/time-preference';
 import { liquiditySpendableUnits, MIN_LIQUIDITY_CONTRIBUTION, toUnits } from '../lib/validation';
 import type { TimePreference } from '../types';
 import { applyCredits } from './credits';
 import { emitEvent } from './events';
-import { applyAgentLiquidityInjectionTx } from './marketLiquidity';
+import { anchorUntradedMarketTx, applyAgentLiquidityInjectionTx } from './marketLiquidity';
 import { releaseLimitOrdersForMarket } from './trading';
 
 type MarketRow = typeof markets.$inferSelect;
@@ -301,18 +300,8 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
   }
   const fundedCredits = new Map(funded.map(f => [f.item.marketId, f.credits]));
 
-  const metricValues = new Map(
-    (
-      await db
-        .select({ id: metricsTable.id, value: metricsTable.value })
-        .from(metricsTable)
-        .where(eq(metricsTable.workspaceId, workspaceId))
-    ).map(r => [r.id, r.value as number]),
-  );
-
   await db.transaction(async tx => {
     for (const p of pending) {
-      const anchorP = nearHorizonAnchorP(p.targetDate, metricValues.get(p.metricId), p.rangeMax, now);
       await tx.insert(markets).values({
         id: p.marketId,
         workspaceId,
@@ -349,32 +338,9 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
         agentId: ownerAgentId,
         poolContribution,
       });
-      if (anchorP !== null) {
-        // Same solvency sizing the conditional pairs use: the subsidy
-        // covers the anchored worst case, so an off-center open buys its
-        // anchor with a thinner book, never with unminted credits.
-        const anchored = anchoredMarketState(poolContribution, anchorP);
-        await tx
-          .update(markets)
-          .set({ shares: anchored.shares, liquidity: anchored.liquidity })
-          .where(eq(markets.id, p.marketId));
-        // The anchored open changes the book's b, so it leaves a ledger row
-        // (docs/market-integrity.md I4): no credits move (amount 0), but the
-        // replay prices every later trade with the b recorded here. Without
-        // it the chart replays the injection's fatter b and quotes prices
-        // the book never printed (owner report 2026-08-29, the LookPilot
-        // weekly cliff). A millisecond after the injection row, so the
-        // replay's event order never ties.
-        await tx.insert(liquidityEvents).values({
-          id: randomUUID(),
-          workspaceId,
-          marketId: p.marketId,
-          amount: 0,
-          totalLiquidity: anchored.liquidity,
-          type: 'anchor',
-          createdAt: new Date(Date.now() + 1),
-        });
-      }
+      // Where a funded, untraded market opens is one question with one
+      // answer, in services/marketLiquidity (anchor-ownership.test.ts).
+      await anchorUntradedMarketTx(tx, { workspaceId, marketId: p.marketId, now });
     }
   });
   return pending.length;
@@ -648,6 +614,11 @@ export async function refreshRelativeDateMarkets(
                 agentId: ownerAgentId,
                 poolContribution: f.credits,
               });
+              // A market that opened unfunded because the balance was short
+              // that morning is funded here instead, and it opens at the
+              // metric's value like every other one: before this it kept the
+              // range midpoint forever (owner report 2026-08-31).
+              await anchorUntradedMarketTx(tx, { workspaceId, marketId: f.item });
             }
           });
         }
