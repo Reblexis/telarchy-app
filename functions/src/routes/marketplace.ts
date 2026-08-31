@@ -23,7 +23,7 @@ import { consensus, pHigher } from '../lib/amm';
 import { type AskTurn, askAboutWorkspace, askEnabled } from '../lib/ask';
 import { type BaselineOrderKey, compareSoonestFirst, primaryOf } from '../lib/baseline-order';
 import { type ContractorEntry, type ContractorJobPair, computeContractors } from '../lib/contractors';
-import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
+import { periodEndInstant, periodStartInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
 import { branchIsShown } from '../lib/market-pairs';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
 import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
@@ -102,7 +102,7 @@ marketplaceRouter.get(
             metricName: m.metricName,
             metricOrder: orders.get(m.metricId) ?? null,
             targetDate: m.targetDate,
-            resolvesOn: resolutionInstant(m.targetDate),
+            resolvesOn: settlesOn(m),
             consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
             probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
             liquidity: m.liquidity,
@@ -199,7 +199,7 @@ marketplaceRouter.get(
           metricName: m.metricName,
           metricOrder: featuredOrders.get(m.metricId) ?? null,
           targetDate: m.targetDate,
-          resolvesOn: resolutionInstant(m.targetDate),
+          resolvesOn: settlesOn(m),
           consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
           probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
           liquidity: m.liquidity,
@@ -440,7 +440,7 @@ async function buildFloorPayload(ws: PublicWs) {
         // client computes the same primary the server did.
         metricOrder: metricById.get(m.metricId)?.order ?? null,
         targetDate: m.targetDate,
-        resolvesOn: resolutionInstant(m.targetDate),
+        resolvesOn: settlesOn(m),
         consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
         probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
         liquidity: m.liquidity,
@@ -531,6 +531,7 @@ async function buildFloorPayload(ws: PublicWs) {
         metricName: string;
         targetDate: string;
         periodStart: string;
+        periodEnd: string;
         resetsEvery: string | null;
         resolvesNaUntilMeasured: boolean;
         measured: boolean;
@@ -681,6 +682,11 @@ async function buildFloorPayload(ws: PublicWs) {
         metricName: m.metricName as string,
         targetDate: target,
         periodStart: periodStartInstant(target).toISOString(),
+        // The end of the period, which is NOT the settlement instant once the
+        // metric carries a reporting lag: between the two is the window where
+        // the owner types the number and dates it into the period
+        // (docs/guides/sources.md).
+        periodEnd: periodEndInstant(target).toISOString(),
         resetsEvery: metricRow?.resetsEvery ?? null,
         // The metric's N/A declaration and whether a reading exists at all,
         // stated outright: the page must not infer "unmeasured" from an empty

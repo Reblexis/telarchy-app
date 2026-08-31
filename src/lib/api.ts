@@ -533,6 +533,9 @@ export interface PublicWorkspace {
     targetDate: string;
     /** First moment of the settled period; the chart's x-axis opens here. */
     periodStart?: string;
+    /** Last moment of the period, which is not the settlement instant when the
+     *  metric carries a reporting lag. */
+    periodEnd?: string;
     /** The period this metric restarts on, or null when it never does. Set,
         `points` carries only readings from inside this market's own period. */
     resetsEvery?: string | null;
@@ -1015,7 +1018,16 @@ export const api = {
   reportMetricValue: (
     workspaceId: string,
     id: string,
-    body: { value: number; oldValue: number; updateNote?: string; marketRangeMax?: number },
+    body: {
+      value: number;
+      oldValue: number;
+      updateNote?: string;
+      marketRangeMax?: number;
+      /** The moment this reading describes, when it is not now: a September
+       *  total typed in October is dated into September, which is how a market
+       *  with a reporting lag settles on it (docs/guides/sources.md). */
+      asOf?: string;
+    },
   ) => requestWithWorkspace(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }, { workspaceId }),
   /** Partial metric update. The full-object `updateMetric` is for the editor;
    *  the floor's owner controls change one field at a time and must not
@@ -1023,7 +1035,14 @@ export const api = {
   patchMetric: (
     workspaceId: string,
     id: string,
-    body: { liquidityCredits?: number | null; timePreference?: TimePreference | null },
+    body: {
+      liquidityCredits?: number | null;
+      timePreference?: TimePreference | null;
+      /** How long after a period this number is final. New markets settle that
+       *  far after their period end; open ones keep the instant they opened
+       *  with. */
+      settlementLagMinutes?: number;
+    },
   ) => requestWithWorkspace(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }, { workspaceId }),
   deleteMetric: (id: string) => request(`/api/metrics/${id}`, { method: 'DELETE' }),
   reorderMetrics: (ids: string[]) => request('/api/metrics/reorder', { method: 'POST', body: JSON.stringify({ ids }) }),

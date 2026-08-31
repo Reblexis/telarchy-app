@@ -406,6 +406,40 @@ describe('dialog 4: report the number', () => {
     );
   });
 
+  // Owner ask 2026-08-31: a September total is typed in October and belongs to
+  // September, which is what a market with a reporting lag settles on.
+  test('a closed period can be reported into, and the reading is dated to it', async () => {
+    render(
+      <ReportValueDialog
+        {...props}
+        lastValue={0}
+        rangeEditable={false}
+        periodLabel="September"
+        periodEnd="2026-09-30T23:59:59.000Z"
+        onDone={() => {}}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '4812' } });
+    fireEvent.click(screen.getByText(/This is September's number/));
+    fireEvent.click(screen.getByText(/Report \$4,812/));
+    await waitFor(() =>
+      expect(reportMetricValue).toHaveBeenCalledWith('ws', 'm1', {
+        value: 4812,
+        oldValue: 0,
+        updateNote: '',
+        asOf: '2026-09-30T23:59:59.000Z',
+      }),
+    );
+  });
+
+  test('and a reading of now carries no date at all, which is the usual case', async () => {
+    render(<ReportValueDialog {...props} lastValue={0} rangeEditable={false} onDone={() => {}} />);
+    fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '4812' } });
+    expect(screen.queryByText(/not today's/)).toBeNull();
+    fireEvent.click(screen.getByText(/Report \$4,812/));
+    await waitFor(() => expect(reportMetricValue.mock.calls[0][2]).not.toHaveProperty('asOf'));
+  });
+
   test('a range the owner typed under the reading is refused, not sent', async () => {
     render(<ReportValueDialog {...props} lastValue={0} rangeMax={1000} rangeEditable={true} onDone={() => {}} />);
     fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '4200' } });

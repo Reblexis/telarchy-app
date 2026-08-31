@@ -269,3 +269,35 @@ export function isValidCalendarDate(dateStr: string): boolean {
   }
   return false;
 }
+
+/**
+ * When a market settles, which since 2026-08-31 is not the same as when its
+ * period ends (owner ask: "shouldn't settlement dates be actually after the
+ * range for that given market passes").
+ *
+ * A market stamps `settlesAt` when it opens: the end of its period plus the
+ * metric's reporting lag. Stored rather than derived, so changing a metric's
+ * lag never moves the settlement of a market people are already trading, and
+ * so this function is total for markets opened before the column existed,
+ * which settle at their period end exactly as they always did.
+ *
+ * The FIXING is unaffected: a market still settles on the last reading at or
+ * before its PERIOD END. The lag buys the owner time to report that reading,
+ * with `asOf` to date it into the period it measures; it never changes which
+ * period is being priced.
+ */
+export function settlesOn(market: { targetDate: string; settlesAt?: Date | string | null }): string {
+  if (market.settlesAt) {
+    const d = market.settlesAt instanceof Date ? market.settlesAt : new Date(market.settlesAt);
+    if (!Number.isNaN(d.getTime())) return `${d.toISOString().slice(0, 19)}Z`;
+  }
+  return resolutionInstant(market.targetDate);
+}
+
+/** The instant a market opened now would settle: the period end plus the
+ *  metric's lag. What `markets.settles_at` is stamped with. */
+export function settlementInstantFor(targetDate: string, lagMinutes: number): Date {
+  const end = periodEndInstant(targetDate);
+  if (!Number.isFinite(lagMinutes) || lagMinutes <= 0) return end;
+  return new Date(end.getTime() + lagMinutes * 60_000);
+}

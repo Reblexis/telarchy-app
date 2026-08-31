@@ -20,7 +20,7 @@ import {
 } from '../db/schema';
 import { consensus, directionSellProceeds, pHigher, resolutionPayouts } from '../lib/amm';
 import { creatorSource, isValidSourceSlug } from '../lib/attribution';
-import { resolutionInstant } from '../lib/date-utils';
+import { resolutionInstant, settlesOn } from '../lib/date-utils';
 import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { AppError } from '../lib/errors';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
@@ -778,7 +778,7 @@ agentsRouter.get(
           proposalId: m.proposalId ?? null,
           metricName: m.metricName,
           targetDate: m.targetDate,
-          resolvesOn: resolutionInstant(m.targetDate),
+          resolvesOn: settlesOn(m),
           direction: p.direction as 'higher' | 'lower',
           shares: p.shares,
           totalCost: p.totalCost,
@@ -1296,7 +1296,7 @@ agentsRouter.get(
         metricId: m.metricId,
         metricName: m.metricName,
         targetDate: m.targetDate,
-        resolvesOn: resolutionInstant(m.targetDate),
+        resolvesOn: settlesOn(m),
         status: m.voided ? 'voided' : m.resolved ? 'resolved' : m.active === false ? 'closed' : 'open',
         rangeMin: m.rangeMin,
         rangeMax: m.rangeMax,

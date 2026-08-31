@@ -300,11 +300,46 @@ metricsRouter.put(
     const {
       oldValue,
       updateNote = '',
+      asOf: rawAsOf,
+      settlementLagMinutes: rawLag,
       timePreference: rawTP,
       resetsEvery: rawResets,
       resolvesNaUntilMeasured: rawNa,
       ...fields
     } = req.body;
+
+    // The moment the reading DESCRIBES, when it is not now: a September total
+    // typed on 3 October belongs to September (owner ask 2026-08-31). It is
+    // what makes a reporting lag usable, because the market still settles on
+    // the last reading at or before its PERIOD END.
+    let asOf: Date | undefined;
+    if (rawAsOf !== undefined && rawAsOf !== null) {
+      const parsed = new Date(String(rawAsOf));
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: 'asOf must be an ISO instant' });
+        return;
+      }
+      // The future is not a measurement. Allowing it would let an owner file a
+      // reading into a period nobody has lived through, and every market after
+      // it would settle on a number that was never true.
+      if (parsed.getTime() > Date.now() + 60_000) {
+        res.status(400).json({ error: 'asOf cannot be in the future' });
+        return;
+      }
+      asOf = parsed;
+    }
+
+    // How long after a period this metric's number is final. New markets stamp
+    // it; markets already open keep the instant they were opened with.
+    let settlementLagMinutes: number | undefined;
+    if (rawLag !== undefined && rawLag !== null) {
+      const n = Number(rawLag);
+      if (!Number.isFinite(n) || n < 0 || n > 60 * 24 * 90) {
+        res.status(400).json({ error: 'settlementLagMinutes must be between 0 and 90 days, in minutes' });
+        return;
+      }
+      settlementLagMinutes = Math.round(n);
+    }
     const newNa = parseNaUntilMeasured(rawNa);
     if (newNa instanceof Error) {
       res.status(400).json({ error: newNa.message });
@@ -433,6 +468,7 @@ metricsRouter.put(
     if (update.description !== undefined) dbUpdate.description = update.description as string;
     if (update.value !== undefined) dbUpdate.value = update.value as number;
     if (update.formula !== undefined) dbUpdate.formula = update.formula as string;
+    if (settlementLagMinutes !== undefined) dbUpdate.settlementLagMinutes = settlementLagMinutes;
     if (update.marketRangeMax !== undefined) dbUpdate.marketRangeMax = (update.marketRangeMax as number | null) ?? 1000;
     if (update.timePreference !== undefined) dbUpdate.timePreference = update.timePreference as TimePreference | null;
     // hasOwnProperty, not !== undefined: null is the meaningful value here
@@ -596,7 +632,7 @@ metricsRouter.put(
     // exactly what the resetsEvery rule exists to keep off the chart
     // (2026-08-17).
     if (update.value !== undefined || update.formula !== undefined) {
-      await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
+      await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId, asOf);
     }
     if (update.value !== undefined) {
       const metric = allMetrics.find(m => m.id === id);

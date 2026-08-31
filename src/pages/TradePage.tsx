@@ -2338,6 +2338,18 @@ export function TradePage() {
           settlesLabel={settleLeft}
           rangeMax={hero?.rangeMax ?? 1000}
           rangeEditable={metricUntraded}
+          periodLabel={hero?.label ?? null}
+          // Only once the period has closed: before that, "this is
+          // September's number" is a forecast, and the dialog should not
+          // offer to file one as a measurement.
+          // Only in the window between the period ending and the market
+          // settling: before it, "this is September's number" is a forecast;
+          // after it, the market has already paid out on something.
+          periodEnd={
+            hero?.periodEnd && new Date(hero.periodEnd).getTime() <= now.getTime()
+              ? new Date(new Date(hero.periodEnd).getTime() - 1000).toISOString()
+              : null
+          }
           onClose={() => setOwnerDialog(null)}
           onDone={() => {
             setOwnerDialog(null);

@@ -12,6 +12,7 @@ import {
   workspaces,
 } from '../db/schema';
 import { AMM_DEFAULTS, initialPool } from '../lib/amm';
+import { settlementInstantFor } from '../lib/date-utils';
 import { emitPricesChanged } from '../lib/market-events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { desiredMarketDates, generatesMarkets, getLeafDescendantNames } from '../lib/time-preference';
@@ -205,6 +206,10 @@ export type PendingMarket = {
   metricName: string;
   targetDate: string;
   rangeMax: number;
+  /** The metric's reporting lag at the moment this market opens, in minutes.
+   *  Stamped onto the row, never read back from the metric, so a later change
+   *  cannot move a settlement people are trading against. */
+  settlementLagMinutes?: number;
 };
 
 /**
@@ -233,6 +238,7 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
       shares: [0, 0] as [number, number],
       liquidity: AMM_DEFAULTS.liquidity,
       pool: initialPool(AMM_DEFAULTS.liquidity),
+      settlesAt: settlementInstantFor(p.targetDate, p.settlementLagMinutes ?? 0),
       createdAt: now,
     }));
     const newLiqEvents = pending.map(p => ({
@@ -317,6 +323,7 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
         shares: [0, 0] as [number, number],
         liquidity: 0,
         pool: 0,
+        settlesAt: settlementInstantFor(p.targetDate, p.settlementLagMinutes ?? 0),
         createdAt: now,
       });
       const poolContribution = fundedCredits.get(p.marketId);
@@ -432,6 +439,7 @@ export async function refreshRelativeDateMarkets(
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
   const idToRangeMax = new Map<string, number>();
+  const idToLag = new Map<string, number>();
   const tpMetrics: { id: string; name: string; tp: TimePreference }[] = [];
 
   // One base date for the whole run so the curve samples and custom horizons
@@ -442,6 +450,7 @@ export async function refreshRelativeDateMarkets(
     nameToFormula[row.name] = row.formula || '0';
     nameToId.set(row.name, row.id);
     if (row.marketRangeMax != null) idToRangeMax.set(row.id, row.marketRangeMax);
+    idToLag.set(row.id, row.settlementLagMinutes ?? 0);
     const tp = row.timePreference as TimePreference | null;
     if (generatesMarkets(tp, base)) {
       tpMetrics.push({ id: row.id, name: row.name, tp });
@@ -584,6 +593,7 @@ export async function refreshRelativeDateMarkets(
       metricName,
       targetDate,
       rangeMax: idToRangeMax.get(metricId) ?? AMM_DEFAULTS.rangeMax,
+      settlementLagMinutes: idToLag.get(metricId) ?? 0,
     });
   }
 

@@ -13,7 +13,7 @@ import {
   workspaces,
 } from '../db/schema';
 import { AMM_DEFAULTS, consensus, directionTradeCost, pHigher } from '../lib/amm';
-import { isValidDateFormat, periodEndInstant, resolutionInstant } from '../lib/date-utils';
+import { isValidDateFormat, periodEndInstant, settlesOn } from '../lib/date-utils';
 import { AppError } from '../lib/errors';
 import { emitPricesChanged } from '../lib/market-events';
 import { assertMarketUntraded } from '../lib/market-freeze';
@@ -768,7 +768,7 @@ predictionsRouter.get(
       metricId: market.metricId,
       metricName: market.metricName,
       targetDate: market.targetDate,
-      resolvesOn: resolutionInstant(market.targetDate),
+      resolvesOn: settlesOn(market),
       resolved: market.resolved,
       resolvedAt: market.resolvedAt ?? null,
       actualValue: market.actualValue ?? null,
@@ -852,7 +852,7 @@ predictionsRouter.get(
         id: market.id,
         metricName: market.metricName,
         targetDate: market.targetDate,
-        resolvesOn: resolutionInstant(market.targetDate),
+        resolvesOn: settlesOn(market),
         rangeMin: market.rangeMin,
         rangeMax: market.rangeMax,
         probability: Math.round(pHigher(shares, market.liquidity) * 10000) / 10000,
@@ -882,7 +882,7 @@ predictionsRouter.get(
           return {
             id: m.id,
             targetDate: m.targetDate,
-            resolvesOn: resolutionInstant(m.targetDate),
+            resolvesOn: settlesOn(m),
             consensus: consensus(s, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
             probability: Math.round(pHigher(s, m.liquidity) * 10000) / 10000,
           };

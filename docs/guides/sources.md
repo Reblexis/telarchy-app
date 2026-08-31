@@ -120,6 +120,39 @@ Two more rules worth knowing at settlement time:
   position with the reason published. The first reading ends that state for
   good.
 
+## The number is final after the period, not at it
+
+A market used to settle at the first instant after its period, which is fine
+for a level and impossible for a total: September revenue net of refunds is
+not knowable at midnight on the 30th, so the market settled on the owner's
+guess at their own number (owner ask 2026-08-31, "shouldn't settlement dates
+be actually after the range for that given market passes").
+
+Two things changed, and they work as a pair.
+
+**A metric says how long after a period its number is final.**
+`settlementLagMinutes` on the metric; a market stamps its own settlement
+instant when it OPENS, at period end plus that lag. Stamped rather than
+derived, so changing the lag later can never move the settlement of a market
+people are already trading. The floor writes the instant out beside the
+countdown, so a trader knows when they are paid.
+
+**A reading can say which moment it describes.** `PUT /api/metrics/:id
+{ value, asOf }`, an ISO instant, never in the future. The September total is
+typed on 3 October with `asOf` at the end of September, and it lands in the
+reading log there.
+
+The fixing is untouched, and that is the point: a market still settles on the
+last reading at or before its PERIOD END. The lag buys the time to report;
+`asOf` puts the number in the period it measures; neither changes which period
+is being priced. A market with a three-day lag whose owner never reports
+settles on the newest reading before the period ended, exactly as it would
+have without the lag.
+
+On the floor, an owner reporting after a period has closed and before its
+market has settled is offered one checkbox: "This is September's number, not
+today's". It sends the `asOf`.
+
 ## Stale at the boundary is said out loud
 
 A market settles on the last reading at or before its instant, however old
