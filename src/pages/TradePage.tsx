@@ -1818,11 +1818,11 @@ export function TradePage() {
                   <>
                     <div className="pubws-bet" role="group" aria-label="Bet">
                       <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>
-                        Bet Higher ↑{' '}
+                        Bet Higher ↑
                         <span className="pubws-bet-price">{priceLabel(livePriceProb ?? active.probability)}</span>
                       </button>
                       <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>
-                        Bet Lower ↓{' '}
+                        Bet Lower ↓
                         <span className="pubws-bet-price">{priceLabel(1 - (livePriceProb ?? active.probability))}</span>
                       </button>
                     </div>
