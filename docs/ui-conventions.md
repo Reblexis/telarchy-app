@@ -825,9 +825,22 @@ ticket (`notes/quroe-churn-2026-08-27.md`).
 **It replaces the four fact rows, it does not sit above them** (owner,
 2026-08-31: "also remove the up to and each $20 beyond"). Each of them is
 somewhere in the picture: the maximum is the end column, the slope is the
-step between any two columns, the break-even is the colour change, and
-where the bet leaves the market is the one caption. Saying any of it twice
-is what made the card too tall to read. Every credit figure on the scale
+step between any two columns, the break-even is the colour change, and the
+value the bet lands on is the caption over its own mark. Saying any of it
+twice is what made the card too tall to read.
+
+**Two values are annotated, on two rows.** The value the bet lands on sits
+above the track over its own mark, labelled "new value", and where the
+market stands now sits below it over its, labelled "now". Two rows and not
+one, because a small bet leaves those marks a hair apart and a single row
+would stack one label on the other. The new value carries the weight of the
+number a trader is actually choosing (full ink, mono, larger than its own
+label) while "now" stays quiet: it is context, not a choice. It is called
+"new value" rather than a target or a push because most of the time it is
+the consequence of the stake rather than something anybody picked, and
+because a verb nobody has met before is a worse label than a plain noun
+(owner, 2026-08-31: "isnt it better to call it target or somethn else, is
+push gonna be understood"). Every credit figure on the scale
 says `cr`, because without the unit a stop reads as another metric value
 rather than as the money at stake. And the break-even is a STOP LIKE ANY
 OTHER, the one that reads "0 cr", never a note beside them (owner,
@@ -858,8 +871,8 @@ only there the four fact rows appear as before. A resting limit order
 pushes nothing, so it draws no push mark and keeps one row of its own,
 "Until filled", which is the one thing the picture cannot say.
 
-**The pushed-to value is an INPUT.** The numeral that answers "where does
-my bet leave the market" also accepts the answer as the question.
+**The new value is an INPUT.** The numeral that answers "where does my bet
+leave the market" also accepts the answer as the question.
 Focus it, type a target, and the ticket sets the side (auto-flipping across
 the current call) and the amount to whatever reaches that value, capped at
 the trader's balance; blur returns the row to the derived display. The

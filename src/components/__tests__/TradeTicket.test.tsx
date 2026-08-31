@@ -591,14 +591,69 @@ describe('the payoff line', () => {
     }
   });
 
-  test('the value the bet pushes the market to is still typeable, now on the picture', () => {
+  test('the value the bet lands on is still typeable, now on the picture', () => {
     const { container } = render(<TradeTicket {...payBase} />);
     fireEvent.click(screen.getByText('Higher'));
     const target = screen.getByLabelText('Bet the market to this value in $');
-    expect(container.querySelector('.pay')?.contains(target)).toBe(true);
+    expect(container.querySelector('.pay-new')?.contains(target)).toBe(true);
     fireEvent.focus(target);
     fireEvent.change(target, { target: { value: '400000' } });
     expect(screen.getByText(/Bet to \$400,000, up to \d+ cr/)).toBeTruthy();
+  });
+
+  test('the caption names the value rather than a verb nobody has met', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    expect(container.querySelector('.pay-new-k')?.textContent).toBe('new value');
+    expect(container.textContent).not.toContain('push');
+  });
+
+  test('the unit sits against its number, with no gap to read as a space', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    // The number is an input, so the unit is the only text beside it: any
+    // stray whitespace node here renders as "$  279,376".
+    const v = container.querySelector('.pay-new-v') as HTMLElement;
+    expect(v.textContent).toBe('$');
+    // 25 cr at p = 0.5 with b = 200 leaves the market at $279,376.
+    expect((v.querySelector('input') as HTMLInputElement).value).toBe('279,376');
+  });
+
+  test('the current value is annotated too, on its own mark', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const now = container.querySelector('.pay-now span') as HTMLElement;
+    expect(now.textContent).toBe('now $250,000');
+    expect(parseFloat(now.style.left)).toBeCloseTo(at(container, 'now'), 5);
+  });
+
+  test('an untouched ticket annotates the market it is showing', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    expect(container.querySelector('.pay-now span')?.textContent).toBe('now $250,000');
+    expect(container.querySelector('.pay-new')).toBeNull();
+  });
+
+  test('the two annotations never share a row, so they cannot collide', () => {
+    // A one credit bet barely moves the price, which is exactly when a pair
+    // of labels centred on their own marks would sit on top of each other.
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '1' } });
+    expect(Math.abs(at(container, 'now') - at(container, 'push'))).toBeLessThan(1);
+    const newRow = container.querySelector('.pay-new') as HTMLElement;
+    const nowRow = container.querySelector('.pay-now') as HTMLElement;
+    expect(newRow.contains(nowRow)).toBe(false);
+    expect(nowRow.contains(newRow)).toBe(false);
+    // One positioned label per row, so there is nothing for either to hit.
+    expect(newRow.querySelectorAll(':scope > span')).toHaveLength(1);
+    expect(nowRow.querySelectorAll(':scope > span')).toHaveLength(1);
+  });
+
+  test('the current-value label pins inside the card at the ends of the range', () => {
+    const { container } = render(<TradeTicket {...payBase} consensus={5_000} />);
+    const now = container.querySelector('.pay-now span') as HTMLElement;
+    expect(now.style.left).toBe('0px');
+    expect(now.style.transform).toBe('');
   });
 
   test('a resting order pushes nothing, so it draws no push mark', () => {
