@@ -6627,6 +6627,10 @@ textarea.jobform-line--desc {
   .lbt--season .lbt-name { font-size: 0.8rem; min-width: 0; }
   .lbt--season .lbt-nametext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lbt--season .lbt-cell.is-left { max-width: 6.2rem; }
+  /* "73% of the pool" under the name cost every paying row an extra line,
+     which is most of what made the phone rows tall. The share is prize over
+     pool and both of those are now columns on this screen. */
+  .lbt--season .lbt-sub { display: none; }
 }
 
 /* /earn, personal: the tally supplies the pull, the row states supply the
