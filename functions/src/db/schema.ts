@@ -566,6 +566,18 @@ export const trades = pgTable(
     direction: text('direction').notNull(),
     shares: doublePrecision('shares').notNull(),
     cost: doublePrecision('cost').notNull(),
+    /**
+     * 'trade' (a buy or a sell against the AMM, the sign of `shares` says
+     * which) or 'redeem' (one side of a matched-pair redemption).
+     *
+     * A redemption writes two rows, one per side, because the price replay
+     * rebuilds the book by walking this table and a change to markets.shares
+     * with no rows behind it replays as a different market. Those rows are
+     * bookkeeping, not something the trader did: they move no price and have
+     * no counterparty. Every list a person reads keys off this column, so a
+     * redemption is never rendered as a sell nobody placed.
+     */
+    kind: text('kind').notNull().default('trade'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   t => [

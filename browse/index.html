@@ -4243,6 +4243,18 @@ exactly 1 credit of settlement liability. This is engine behavior
 client preview mirrors it (<code>previewTrade</code>); <code>amm-parity.test.ts</code> fails if
 the two ever disagree again. Buying the SAME side you hold just
 accumulates.</p>
+<p><strong>A redemption is not a trade in any list a person reads.</strong> Redeeming a pair
+writes two ledger rows, one per side, because the price replay rebuilds the
+book by walking <code>trades</code> and a change to <code>markets.shares</code> with nothing behind
+it replays as a different market. Those rows say nothing about what the
+trader did: they move no price, they have no counterparty, and classifying
+them by the sign of their cost showed one buy as three trades, two of them
+sells the trader never placed. <code>trades.kind</code> marks them, and the rule follows
+from what each surface is for. A tape of trades against a market omits them.
+A participant's own record keeps them, because their balance moved, as ONE
+row that says redeemed, carrying the pairs and the credits both sides paid.
+Counts of trading activity, like the floor's trades-this-week, count trades.
+The price replay reads every row, always.</p>
 <h3 id="docs-ui-conventions-md--h21">Where markets open</h3>
 <p><strong>Conditional (contract) markets open ANCHORED</strong>: a fresh pair opens at the
 baseline market's current value rather than the range midpoint, and the

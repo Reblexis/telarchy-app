@@ -374,8 +374,11 @@ export interface PublicProfileTrade {
   proposalId: string | null;
   metricName: string | null;
   targetDate: string | null;
-  direction: 'higher' | 'lower';
-  kind: 'buy' | 'sell';
+  /** Null for a redemption: both sides leave the book at once. */
+  direction: 'higher' | 'lower' | null;
+  /** 'redeem' is the automatic par redemption of matched pairs, not something
+   *  the participant placed; it is one row, both ledger sides summed. */
+  kind: 'buy' | 'sell' | 'redeem';
   shares: number;
   cost: number;
   createdAt: string;

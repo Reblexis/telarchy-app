@@ -28,6 +28,7 @@ import { claimNickname, listParticipantsForWorkspace } from '../lib/participants
 import { isPlatformAuthorized } from '../lib/platform-admin';
 import { granterCoversScopes, parseScopesInput, SCOPE_PRESETS } from '../lib/scopes';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
+import { collapseRedemptions } from '../lib/trade-display';
 import {
   getTreasuryAddress,
   getTreasuryBalances,
@@ -564,6 +565,7 @@ agentsRouter.get(
               direction: trades.direction,
               shares: trades.shares,
               cost: trades.cost,
+              kind: trades.kind,
               createdAt: trades.createdAt,
             })
             .from(trades)
@@ -577,6 +579,7 @@ agentsRouter.get(
               direction: string;
               shares: number;
               cost: number;
+              kind: string;
               createdAt: Date;
             }>,
           ),
@@ -800,27 +803,29 @@ agentsRouter.get(
     const openPositionsCapped = openPositions.slice(0, 25);
 
     const RECENT_TRADES_LIMIT = 20;
-    const recentTrades = ownerTrades
-      .slice()
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    // Collapse first, cap second: a profile shows 20 things that happened,
+    // and a redemption's two ledger rows are one of them.
+    const recentTrades = collapseRedemptions(
+      ownerTrades.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    )
       .slice(0, RECENT_TRADES_LIMIT)
       .map(t => {
-        const m = marketById.get(t.marketId);
+        const m = marketById.get(t.row.marketId);
         return {
-          id: t.id,
-          workspaceId: t.workspaceId,
-          workspaceName: wsNameById.get(t.workspaceId) ?? t.workspaceId,
-          marketId: t.marketId,
+          id: t.row.id,
+          workspaceId: t.row.workspaceId,
+          workspaceName: wsNameById.get(t.row.workspaceId) ?? t.row.workspaceId,
+          marketId: t.row.marketId,
           proposalId: m?.proposalId ?? null,
           metricName: m?.metricName ?? null,
           targetDate: m?.targetDate ?? null,
           resolvesOn: m?.targetDate ? resolutionInstant(m.targetDate) : null,
-          direction: t.direction as 'higher' | 'lower',
-          // trades.shares is negative for sells.
-          kind: (t.shares < 0 ? 'sell' : 'buy') as 'buy' | 'sell',
-          shares: Math.abs(t.shares),
-          cost: t.cost,
-          createdAt: t.createdAt,
+          // Null for a redemption: both sides leave the book together.
+          direction: (t.kind === 'redeem' ? null : t.row.direction) as 'higher' | 'lower' | null,
+          kind: t.kind,
+          shares: t.shares,
+          cost: t.kind === 'buy' ? t.cost : -t.cost,
+          createdAt: t.row.createdAt,
         };
       });
 
@@ -1335,10 +1340,12 @@ agentsRouter.get(
     const rows = await db
       .select({
         id: trades.id,
+        agentId: trades.agentId,
         marketId: trades.marketId,
         direction: trades.direction,
         shares: trades.shares,
         cost: trades.cost,
+        kind: trades.kind,
         createdAt: trades.createdAt,
         metricName: markets.metricName,
         targetDate: markets.targetDate,
@@ -1351,20 +1358,26 @@ agentsRouter.get(
       .orderBy(desc(trades.createdAt))
       .limit(limit);
 
+    // This is the participant's own record, so a redemption belongs in it:
+    // it moved their balance. It belongs ONCE, as a redemption, rather than
+    // as the two opposite-side sells the ledger keeps for the price replay.
     res.json(
-      rows.map(r => ({
-        id: r.id,
-        marketId: r.marketId,
-        metricName: r.metricName,
-        targetDate: r.targetDate,
-        resolvesOn: r.targetDate ? resolutionInstant(r.targetDate) : null,
-        direction: r.direction,
-        // trades.shares is negative for sells; surface sign + absolute amount.
-        kind: r.shares < 0 ? 'sell' : 'buy',
-        shares: Math.abs(r.shares),
-        cost: r.cost,
-        marketStatus: r.voided ? 'voided' : r.resolved ? 'resolved' : 'open',
-        createdAt: r.createdAt,
+      collapseRedemptions(rows).map(d => ({
+        id: d.row.id,
+        marketId: d.row.marketId,
+        metricName: d.row.metricName,
+        targetDate: d.row.targetDate,
+        resolvesOn: d.row.targetDate ? resolutionInstant(d.row.targetDate) : null,
+        // A redemption takes both sides off the book at once, so no single
+        // direction describes it.
+        direction: d.kind === 'redeem' ? null : d.row.direction,
+        kind: d.kind,
+        shares: d.shares,
+        // Credits, signed the way the ledger signs them: negative when the
+        // participant was paid (a sell, or a redemption at par).
+        cost: d.kind === 'buy' ? d.cost : -d.cost,
+        marketStatus: d.row.voided ? 'voided' : d.row.resolved ? 'resolved' : 'open',
+        createdAt: d.row.createdAt,
       })),
     );
   }),

@@ -388,6 +388,14 @@ export interface MarketTradePoint {
   direction: string;
   shares: number;
   cost: number;
+  /**
+   * 'trade' or 'redeem'. Redemptions stay in the series because the replay
+   * has to walk every row that moved the book, and they are flat by
+   * construction (both sides fall by the same amount). A caller rendering
+   * this as a LIST rather than a line reads this field: a redemption is not
+   * a trade anyone placed.
+   */
+  kind: string;
   consensus: number | null;
   createdAt: Date;
 }
@@ -517,6 +525,7 @@ async function computeReplayBundle(marketId: string, workspaceId: string): Promi
           direction: t.direction,
           shares: Math.abs(t.shares),
           cost: t.cost,
+          kind: t.kind,
           consensus: consensus(shares, liquidity, market.rangeMin, market.rangeMax) ?? null,
           createdAt: t.createdAt,
         });

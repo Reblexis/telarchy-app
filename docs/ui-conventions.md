@@ -823,6 +823,19 @@ client preview mirrors it (`previewTrade`); `amm-parity.test.ts` fails if
 the two ever disagree again. Buying the SAME side you hold just
 accumulates.
 
+**A redemption is not a trade in any list a person reads.** Redeeming a pair
+writes two ledger rows, one per side, because the price replay rebuilds the
+book by walking `trades` and a change to `markets.shares` with nothing behind
+it replays as a different market. Those rows say nothing about what the
+trader did: they move no price, they have no counterparty, and classifying
+them by the sign of their cost showed one buy as three trades, two of them
+sells the trader never placed. `trades.kind` marks them, and the rule follows
+from what each surface is for. A tape of trades against a market omits them.
+A participant's own record keeps them, because their balance moved, as ONE
+row that says redeemed, carrying the pairs and the credits both sides paid.
+Counts of trading activity, like the floor's trades-this-week, count trades.
+The price replay reads every row, always.
+
 ### Where markets open
 
 **Conditional (contract) markets open ANCHORED**: a fresh pair opens at the
