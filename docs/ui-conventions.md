@@ -802,74 +802,67 @@ confirm becomes the whole instruction ("Buy Higher with 25 cr under
 $65,000"), with breakeven exactly at the limit; limit orders are a mode of
 the same ticket, never a second panel. Spec: docs/limit-orders.md.
 
-**The payoff line is the whole answer to "what happens to my money".** In
-place of the fact rows the ticket draws the market's range as one track,
-marks on it the three values in the order they sit (the market, the
-break-even, and where the bet would leave the market), and prices the bet
-under it at a handful of settlement values: the two ends of the range, the
-quarters, and the break-even, each marked on the track by a tick under its
-own label and carrying the credits won or lost if the number settles
-there. The stretch that pays carries the side's colour.
+**The payoff line is the whole answer to "what happens to my money", and it
+is DRAWN.** Payout is linear in the settled value, so a bet IS a straight
+line, and the ticket draws that line over the market's range: where it
+crosses zero is the break-even, its slope is what each further point pays,
+and its two ends are the most the bet can lose and the most it can make,
+named in credits above the plot. The area under the line is filled in the
+side's colour above the crossing and in the losing colour below it, so
+which half of the range pays is a shape rather than a calculation.
 
-The order is why the track exists. Buying walks the price, so the shares
-cost an average of everything between the old price and the new one, and
-the bet therefore breaks even SHORT of the value it pushes the market to.
-Stated as two unrelated rows ("New value", "Wins above") a trader has to
-notice that the second number is smaller than the first and work out why;
-drawn on one track they are visibly in that order, and on the scale it is
-where the red numbers turn green. A trader who could not see it read an
-overshoot as a total loss, asked at what point the shares stop paying out,
-and got the answer from an operator in a chat window rather than from the
-ticket (`notes/quroe-churn-2026-08-27.md`).
+The order of the two guides is the reason the picture exists. Buying walks
+the price, so the shares cost an average of everything between the old
+price and the new one, and the bet therefore breaks even SHORT of the value
+it pushes the market to. Stated as two unrelated rows ("New value", "Wins
+above") a trader has to notice that the second number is smaller than the
+first and work out why. On the line the break-even simply sits between the
+market and the value the bet lands on. A trader who could not see it read
+an overshoot as a total loss, asked at what point the shares stop paying
+out, and got the answer from an operator in a chat window rather than from
+the ticket (`notes/quroe-churn-2026-08-27.md`).
+
+**Hovering reads out any point on it**, which is what a picture can do and
+a table of fixed rows cannot: a cursor, a dot on the line, and the value
+under the pointer with what the bet is worth there. The readout sits on the
+far side of the zero line from the point it names, so it never covers the
+line it is reading, and the two standing annotations fade while it is up,
+so the plot never has three labels competing for the same pixels.
+
+**Two values are annotated, in bands that cannot meet.** The value the bet
+lands on rides the top of the plot over its own guide, labelled "new value",
+and where the market stands rides the bottom over its, labelled "now". It is
+called "new value" rather than a target or a push because most of the time
+it is the consequence of the stake rather than something anybody picked, and
+a verb nobody has met is a worse label than a plain noun (owner, 2026-08-31:
+"isnt it better to call it target or somethn else, is push gonna be
+understood"). It carries the weight of the number a trader is choosing:
+full ink, mono, larger than its own label, while "now" stays quiet.
 
 **It replaces the four fact rows, it does not sit above them** (owner,
-2026-08-31: "also remove the up to and each $20 beyond"). Each of them is
-somewhere in the picture: the maximum is the end column, the slope is the
-step between any two columns, the break-even is the colour change, and the
-value the bet lands on is the caption over its own mark. Saying any of it
-twice is what made the card too tall to read.
+2026-08-31: "also remove the up to and each $20 beyond"). Every one of them
+is somewhere in the drawing: the maximum is the line's high end, the slope
+is the line itself, the break-even is the crossing, and the value the bet
+lands on is the annotation. Saying any of it twice is what made the card too
+tall to read.
 
-**Two values are annotated, on two rows.** The value the bet lands on sits
-above the track over its own mark, labelled "new value", and where the
-market stands now sits below it over its, labelled "now". Two rows and not
-one, because a small bet leaves those marks a hair apart and a single row
-would stack one label on the other. The new value carries the weight of the
-number a trader is actually choosing (full ink, mono, larger than its own
-label) while "now" stays quiet: it is context, not a choice. It is called
-"new value" rather than a target or a push because most of the time it is
-the consequence of the stake rather than something anybody picked, and
-because a verb nobody has met before is a worse label than a plain noun
-(owner, 2026-08-31: "isnt it better to call it target or somethn else, is
-push gonna be understood"). Every credit figure on the scale
-says `cr`, because without the unit a stop reads as another metric value
-rather than as the money at stake. And the break-even is a STOP LIKE ANY
-OTHER, the one that reads "0 cr", never a note beside them (owner,
-2026-08-31: "the 0 credit profit point should be just like any other..
-among the other ones.. not separate"): it displaces whichever quarter it
-stands within a seventh of the range of, so the row is always legible and
-the zero is always in it. Every stop sits over its own tick rather than
-centred in a column of its own, which is what makes the labels and the
-track one scale instead of a table beside a bar; the outermost pin to the
-card's edges so they cannot hang off it. The caption is the exception
-because it is also the INPUT a trader types a target into, so it had to
-survive; it sits on whichever side of the card its own mark is on. The
-marks carry a title for a mouse that pauses on one, and nothing else. One
-card draws one track: manage mode's belongs to the position, so the
-composing line stays out of it.
+**Every colour comes from a token through a CSS class, never from an SVG
+attribute**, so the whole picture follows the light and dark themes like the
+rest of the app. The plot's viewBox is 100 wide by its own pixel height and
+does not preserve its aspect, so x reads as a percentage of the range and y
+as pixels at any card width; every stroke carries `vector-effect` so that
+sideways scaling never thickens it, and anything round is HTML, because a
+circle in that viewBox would draw as an ellipse.
 
-An untouched ticket has no bet to price. It marks only the current value,
-because that is exactly where a share bought right now breaks even, colours
-the stretch under it in Lower's colour and the stretch over it in Higher's
-(the colours of the two pills above), and labels the range ends, which is
-what replaces the payout sentence there. A held position gets a track of
-its own, marked at the holder's own break-even (what they paid per share)
-and priced the same way, so "how far can this fall before I lose" is a
-colour change to look at rather than a subtraction to do.
+An untouched ticket has no bet to draw. It keeps the plain range bar, marked
+only at the current value, because that is exactly where a share bought
+right now breaks even, with the range's two ends labelled underneath. A held
+position IS a bet, so it is drawn like one, at what the position actually
+paid.
 
-Two degradations. A market with no range cannot be drawn, and there and
-only there the four fact rows appear as before. A resting limit order
-pushes nothing, so it draws no push mark and keeps one row of its own,
-"Until filled", which is the one thing the picture cannot say.
+Two degradations. A market with no range cannot be drawn, and there and only
+there the four fact rows appear as before. A resting limit order pushes
+nothing, so it draws no "new value" guide: the limit IS the crossing.
 
 **The new value is an INPUT.** The numeral that answers "where does my bet
 leave the market" also accepts the answer as the question.

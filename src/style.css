@@ -5169,8 +5169,11 @@ textarea.jobform-line--desc {
   font-size: 0.74rem;
   color: var(--text-tertiary);
 }
-.pay-new span,
-.pay-now span {
+/* DIRECT children only: the label and the value inside the positioned span
+   are spans too, and absolutely positioning those stacked them on top of
+   each other (owner, 2026-08-31, seeing "34.9" printed over "new value"). */
+.pay-new > span,
+.pay-now > span {
   position: absolute;
   bottom: 0;
 }
@@ -5193,46 +5196,157 @@ textarea.jobform-line--desc {
    the whole of the four fact rows it replaced (owner, 2026-08-31): the
    maximum is the end column, the slope is the step between any two, the
    break-even is where red turns green, and the landing is the caption. */
-/* Every stop is a point ON the track: a tick inside it and a label over
-   that tick, so the two halves of the picture are one scale rather than a
-   table beside a bar. The break-even is a stop like any other (owner,
-   2026-08-31: "the 0 credit profit point should be just like any other..
-   among the other ones.. not separate"), which is why nothing here is
-   styled as a note. */
-.pay-tick {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--text-tertiary);
-  opacity: 0.45;
-}
-.pay-stops {
-  position: relative;
-  height: 2.3rem;
-  margin-top: 0.4rem;
-  font-size: 0.78rem;
-}
-.pay-stop {
-  position: absolute;
-  top: 0;
+/* The payoff, drawn (docs/ui-conventions.md, "The payoff line is drawn").
+   Payout is linear, so the bet is a straight line: the crossing is the
+   break-even, the slope is what each further point pays, the two ends are
+   the worst and the best it can do. Every colour is a token through a
+   class, never an SVG attribute, so the picture follows the theme. */
+
+/* The two ends of the line, in credits, above the plot: left is the range's
+   floor and right its ceiling, in the same order as the axis below. */
+.pay-y {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  white-space: nowrap;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
   font-family: 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
+  font-size: 0.76rem;
+  font-weight: 600;
 }
-.pay-stop u {
-  text-decoration: none;
+.pay-y--hi { color: var(--higher); }
+.pay-y--lo { color: var(--lower); }
+
+.pay-plot {
+  position: relative;
+  touch-action: none;
+  cursor: crosshair;
+}
+.pay-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.pay-fill--up { fill: var(--higher-soft); }
+.pay-fill--down { fill: var(--lower-soft); }
+.pay-zero {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.pay-curve {
+  stroke: var(--text-primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.pay-guide { stroke-width: 1; }
+.pay-guide--now {
+  stroke: var(--text-tertiary);
+  stroke-dasharray: 2 3;
+}
+.pay-guide--new { stroke: var(--text-primary); opacity: 0.55; }
+.pay-cursor { stroke: var(--accent); stroke-width: 1; }
+
+/* Round things are HTML: the viewBox does not preserve its aspect, so an
+   SVG circle would draw as an ellipse. */
+.pay-be,
+.pay-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.pay-be {
+  border: 2px solid var(--bg-secondary);
+  box-sizing: content-box;
+}
+.pay-be--higher { background: var(--higher); }
+.pay-be--lower { background: var(--lower); }
+.pay-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  border: 2px solid var(--bg-secondary);
+  box-sizing: content-box;
+}
+
+/* Both annotations live INSIDE the plot, in bands that cannot meet: the
+   value the bet lands on along the top, where the market stands along the
+   bottom. They stand down while the pointer is reading, so the readout
+   never has to share the space. */
+.pay-now,
+.pay-new,
+.pay-read {
+  position: absolute;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.pay-now {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
   font-size: 0.72rem;
   color: var(--text-tertiary);
 }
-.pay-stop b { font-weight: 600; }
-.pay-stop .up { color: var(--higher); }
-.pay-stop .down { color: var(--lower); }
-.pay-stop .even { color: var(--text-primary); }
+.pay-new-k {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+.pay-new-v {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.pay-new { pointer-events: auto; }
+.pay-plot.is-reading .pay-now,
+.pay-plot.is-reading .pay-new {
+  opacity: 0.18;
+  transition: opacity 90ms ease;
+}
+
+.pay-read {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 0.15rem 0.4rem;
+  border-radius: 7px;
+  background: var(--bg-primary);
+  box-shadow: 0 0 0 1px var(--border-color);
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+.pay-read-v {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+.pay-read-c {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.pay-read-c.is-up { color: var(--higher); }
+.pay-read-c.is-down { color: var(--lower); }
+
+/* The range, under the plot, with the break-even named where the line
+   crosses. */
+.pay-axis {
+  position: relative;
+  height: 1.15rem;
+  margin-top: 0.35rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+.pay-axis span { position: absolute; top: 0; }
+.pay-axis span:first-child { left: 0; }
+.pay-axis span:last-child { right: 0; }
+.pay-axis-be { color: var(--text-secondary); font-weight: 600; }
 
 
 /* Quick / Limit, Manifold's top-right toggle. */
