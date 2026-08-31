@@ -12,21 +12,39 @@ import { readingIsStaleFor, settlingSoon } from '../lib/reading-freshness';
 
 describe('a reading measured before the period it would settle', () => {
   test('a monthly market wants a reading taken during that month', () => {
-    expect(readingIsStaleFor('2026-09', new Date('2026-08-31T23:00:00Z'))).toBe(true);
-    expect(readingIsStaleFor('2026-09', new Date('2026-09-01T00:01:00Z'))).toBe(false);
+    const inSeptember = new Date('2026-09-15T00:00:00Z');
+    expect(readingIsStaleFor('2026-09', new Date('2026-08-31T23:00:00Z'), inSeptember)).toBe(true);
+    expect(readingIsStaleFor('2026-09', new Date('2026-09-01T00:01:00Z'), inSeptember)).toBe(false);
   });
 
   test('an hourly market is stale within the hour, where three days said nothing', () => {
-    expect(readingIsStaleFor('2026-09-01T12', new Date('2026-09-01T11:59:00Z'))).toBe(true);
-    expect(readingIsStaleFor('2026-09-01T12', new Date('2026-09-01T12:30:00Z'))).toBe(false);
+    const inTheHour = new Date('2026-09-01T12:45:00Z');
+    expect(readingIsStaleFor('2026-09-01T12', new Date('2026-09-01T11:59:00Z'), inTheHour)).toBe(true);
+    expect(readingIsStaleFor('2026-09-01T12', new Date('2026-09-01T12:30:00Z'), inTheHour)).toBe(false);
   });
 
   test('a yearly market is not stale after a week, where three days called it stale', () => {
-    expect(readingIsStaleFor('2026', new Date('2026-01-08T00:00:00Z'))).toBe(false);
+    expect(readingIsStaleFor('2026', new Date('2026-01-08T00:00:00Z'), new Date('2026-01-15T00:00:00Z'))).toBe(false);
   });
 
   test('never reported at all is the stalest case there is', () => {
-    expect(readingIsStaleFor('2026-09', null)).toBe(true);
+    expect(readingIsStaleFor('2026-09', null, new Date('2026-09-15T00:00:00Z'))).toBe(true);
+  });
+});
+
+describe('a period that has not started', () => {
+  // Shipped wrong for an hour on 2026-08-31: on 31 August, the September
+  // market's line read "taken before the period this market settles for",
+  // which was true, useless, and unfixable by the person reading it.
+  test('has nothing to be stale about, however old the reading is', () => {
+    expect(readingIsStaleFor('2026-09', new Date('2026-08-31T09:00:00Z'), new Date('2026-08-31T10:00:00Z'))).toBe(
+      false,
+    );
+    expect(readingIsStaleFor('2026-09', null, new Date('2026-08-31T10:00:00Z'))).toBe(false);
+  });
+
+  test('and starts caring the moment the period does', () => {
+    expect(readingIsStaleFor('2026-09', new Date('2026-08-31T09:00:00Z'), new Date('2026-09-01T00:01:00Z'))).toBe(true);
   });
 });
 
