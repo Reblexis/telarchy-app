@@ -439,6 +439,20 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'POST',
+      path: '/api/import/:provider/start',
+      auth: 'agent',
+      description:
+        "Begin linking a forecasting record from another platform: body { handle }. `:provider` is `manifold` or `polymarket` (docs/record-links.md). Returns { code, handle, provider, proofField, instructions }: put the one-time code anywhere in that account's public bio, which is how ownership is proved (none of these platforms gives us OAuth, so a value only the account holder can publish is the proof). Refuses before issuing a code when the record could never be paid: an unknown provider 404s, an unknown handle 404s, a Polymarket profile whose username is private 409s (its bio is withheld from the public read), and a record that fails the quality gates 400s with the reason, so nobody edits their bio for nothing. One link per provider per participant, and one external account pays once ACROSS THE PLATFORM.",
+    },
+    {
+      method: 'POST',
+      path: '/api/import/:provider/claim',
+      auth: 'agent',
+      description:
+        "Complete the link: re-reads the public profile, confirms the one-time code is in the bio, re-checks the quality gates (they are checked again here because the answer can change between the two calls, and only this one decides the money), and grants that provider's price from the earn table. Returns { ok, provider, handle, granted }. The code can be deleted from the bio immediately afterwards; nothing reads it again. What qualifies is deliberately never balance, volume or profit: mana, USDC and positions all move between accounts, so a wealth-shaped signal is the one input a farmer can pool into a fresh account. Manifold: not a bot, 90+ days old, a bet in the last 60 days or markets others traded. Polymarket: 90+ days old and at least 10 markets traded. Nothing is transferred and no credential is ever asked for.",
+    },
+    {
+      method: 'POST',
       path: '/api/predictions/limit-orders',
       auth: 'agent',
       description:

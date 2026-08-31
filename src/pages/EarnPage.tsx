@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ManifoldButton } from '../components/ManifoldButton';
+import { ManifoldButton, POLYMARKET } from '../components/ManifoldButton';
 import { useAuth } from '../hooks/useAuth';
 import { api, type DailyStreak, type EarnRule, type MyEarnRule } from '../lib/api';
 import { authClient } from '../lib/auth-client';
@@ -187,13 +187,18 @@ export function EarnPage() {
                               {busy === 'github' ? 'Opening…' : 'GitHub'}
                             </button>
                           </span>
-                        ) : r.key === 'manifold_link' ? (
-                          // The real import flow, in place: it is the same
+                        ) : r.key === 'manifold_link' || r.key === 'polymarket_link' ? (
+                          // The real link flow, in place: it is the same
                           // component the floor carries, so the bio-code
-                          // dance has one implementation. The row variant
-                          // is a labelled button, so hovering it cannot
-                          // resize the column.
-                          <ManifoldButton signedIn={!!user} onRequireSignup={() => navigate('/signup')} variant="row" />
+                          // dance has one implementation for every
+                          // provider. The row variant is a labelled
+                          // button, so hovering cannot resize the column.
+                          <ManifoldButton
+                            signedIn={!!user}
+                            onRequireSignup={() => navigate('/signup')}
+                            variant="row"
+                            provider={r.key === 'polymarket_link' ? POLYMARKET : undefined}
+                          />
                         ) : (
                           <span className="earn-muted">not yet</span>
                         )}

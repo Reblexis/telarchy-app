@@ -338,6 +338,7 @@ const ROUTER_MOUNTS: Record<string, string> = {
   'cron.ts': '/api/cron',
   'waitlist.ts': '/api/waitlist',
   'manifold.ts': '/api/import/manifold',
+  'recordLinks.ts': '/api/import',
   'onboard.ts': '/api/onboard',
   'setup.ts': '/api/setup',
   'agents.ts': '/api/agents',

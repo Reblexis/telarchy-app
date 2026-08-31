@@ -35,6 +35,7 @@ import { notificationsRouter } from './routes/notifications';
 import { onboardRouter } from './routes/onboard';
 import { predictionsRouter } from './routes/predictions';
 import { proposalsRouter } from './routes/proposals';
+import { recordLinkRouter } from './routes/recordLinks';
 import { seasonsRouter } from './routes/seasons';
 import { setupRouter } from './routes/setup';
 import { sourcesRouter } from './routes/sources';
@@ -363,6 +364,10 @@ app.get('/api/help', (_req, res) => {
 app.use('/api/cron', cronRouter);
 app.use('/api/waitlist', registrationLimiter, waitlistRouter);
 app.use('/api/import/manifold', registrationLimiter, manifoldRouter);
+// Every other provider goes through the generic flow
+// (docs/record-links.md). Manifold keeps its own mount above so the
+// routes clients already call do not move.
+app.use('/api/import', registrationLimiter, recordLinkRouter);
 // Key-first onboarding shares the registration throttle: it mints identities.
 app.use('/api/onboard', registrationLimiter, onboardRouter);
 // Registering an agent mints an identity with signup credits and a full-scope

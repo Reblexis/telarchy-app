@@ -35,7 +35,8 @@ export type EarnKey =
   | 'manifold_link'
   | 'link_oauth'
   | 'daily_trade'
-  | 'trade_profit';
+  | 'trade_profit'
+  | 'polymarket_link';
 
 /**
  * How a row pays. `flat` is a fixed one-time grant, `cap` an "up to" that
@@ -76,6 +77,7 @@ const FALLBACK: Record<EarnKey, number> = {
   link_oauth: 0,
   daily_trade: 0,
   trade_profit: 0,
+  polymarket_link: 5_000,
 };
 
 /**
