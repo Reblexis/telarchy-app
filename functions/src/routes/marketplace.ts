@@ -1168,6 +1168,83 @@ marketplaceRouter.get(
  * 403, and a workspace whose Public group cannot read is refused rather than
  * summarised, because the brief IS the contents.
  */
+/**
+ * The contracts, priced, small enough to read in one go.
+ *
+ * The brief and the floor's public payload both answer "which contract is
+ * worth approving", and both answer it inside tens of kilobytes, which is
+ * more than an assistant's tool result holds: on 2026-08-31 Otto was handed
+ * the ballot, got it truncated mid-list, and opened five contracts one at a
+ * time to see the rest. A payload that has to be cut is not an answer, so
+ * this one carries what pricing a decision needs and nothing else.
+ *
+ * Live horizons only by default: a settled one cannot be influenced by a
+ * decision nobody has made yet, and it is the bulk of the bytes on a floor
+ * that has been running a while. `?horizons=all` puts them back.
+ *
+ * Same public-payload contract as the brief: private workspaces 403, and a
+ * workspace whose Public group cannot read is refused rather than summarised.
+ */
+marketplaceRouter.get(
+  '/:workspaceId/contracts',
+  wrap(async (req, res) => {
+    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (ws.visibility === 'private') {
+      res.status(403).json({ error: 'This workspace is private' });
+      return;
+    }
+
+    const [publicGroup] = await db
+      .select()
+      .from(permissionGroups)
+      .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+    if (!((publicGroup?.capabilities as string[] | null) ?? []).includes('read')) {
+      res.status(403).json({ error: 'Not public' });
+      return;
+    }
+
+    const context = await buildWorkspaceContext(ws.id);
+    if (!context) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+
+    const all = req.query.horizons === 'all';
+    res.json({
+      workspaceId: context.workspaceId,
+      slug: context.slug,
+      name: context.name,
+      horizons: all ? 'all' : 'live',
+      contracts: context.contracts.map(c => ({
+        id: c.id,
+        title: c.title,
+        askUsd: c.askUsd,
+        status: c.status,
+        decisionOpen: c.decisionOpen,
+        proposedBy: c.proposedBy,
+        impact: c.impact
+          .filter(i => all || !i.settled)
+          .map(i => ({
+            metricName: i.metricName,
+            targetDate: i.targetDate,
+            resolvesOn: i.resolvesOn,
+            ...(i.settled ? { settled: true } : {}),
+            approved: i.approved,
+            declined: i.declined,
+            delta: i.delta,
+            baseline: i.baseline,
+            approvedTrades: i.approvedTrades,
+            declinedTrades: i.declinedTrades,
+          })),
+      })),
+    });
+  }),
+);
+
 marketplaceRouter.get(
   '/:workspaceId/context',
   wrap(async (req, res) => {

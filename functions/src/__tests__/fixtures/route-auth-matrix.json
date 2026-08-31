@@ -349,6 +349,11 @@
     "agent": 404,
     "master": 404
   },
+  "GET /api/marketplace/:workspaceId/contracts": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
   "GET /api/marketplace/:workspaceId/market-activity": {
     "anon": 404,
     "agent": 404,

@@ -1117,6 +1117,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'GET',
+      path: '/api/marketplace/:idOrSlug/contracts',
+      auth: false,
+      description:
+        'WHICH CONTRACT IS WORTH APPROVING, in one read that fits. Returns { workspaceId, slug, name, horizons: "live"|"all", contracts: [{ id, title, askUsd, status, decisionOpen, proposedBy, impact: [{ metricName, targetDate, resolvesOn, settled?, approved, declined, delta, baseline, approvedTrades, declinedTrades }] }] }. This is the brief\'s contract pricing with the pitch, the conversation and the market plumbing (ids, pools, volumes, probabilities) left out, because those are what make the full payloads too large to read in one go: GET /api/marketplace/:idOrSlug carries the same answer inside ~86KB on a floor with nineteen contracts, which an assistant\'s tool result truncates. LIVE HORIZONS ONLY by default, since a horizon that has already resolved cannot be influenced by a decision nobody has made; ?horizons=all adds them back, marked settled. decisionOpen is true only while an approval would still change something, and a pending contract\'s voided pairs are dropped exactly as on the ballot while a decided contract keeps them. Contracts still open for a decision come first, biggest mover first within each. Use GET /api/proposals/:id when you want one contract\'s pitch or conversation, and GET /api/marketplace/:idOrSlug/context when you want the whole brief. Public and unlisted workspaces whose Public group grants read; private workspaces 403.',
+    },
+    {
+      method: 'GET',
       path: '/api/marketplace/:idOrSlug/context',
       auth: false,
       description:

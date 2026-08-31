@@ -509,10 +509,10 @@ export function renderContextIndex(ctx: WorkspaceContext): string {
 
   out.push('', '### Where the numbers are');
   out.push(
-    `- GET /api/marketplace/${ref} - every open contract with its live priced impact, the same ballot the page shows. One call answers "what is worth approving".`,
+    `- GET /api/marketplace/${ref}/contracts - EVERY contract with its live priced impact, per metric and date, with the baseline and the trades behind each branch. One call, and it fits: start here for "what is worth approving" and do not open contracts one at a time afterwards. Add ?horizons=all for horizons that have already resolved.`,
   );
   out.push(
-    '- GET /api/proposals/<id> - one contract in full: its pitch, its conversation, and its pairs, including a decided one.',
+    '- GET /api/proposals/<id> - one contract in full, when you need its pitch or its conversation rather than its price.',
   );
   out.push(
     `- GET /api/marketplace/${ref}/context - the whole brief, every contract priced, when you genuinely want all of it at once.`,
