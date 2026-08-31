@@ -81,6 +81,13 @@ exactly the `+0d` / `+1d` the entry stores. Once asks for a day, with an
 optional UTC hour, since markets settle on the hour. Under it, the liquidity
 each one opens with, and the heading says whose credits that is.
 
+**How long after a period the number is final** is a line at the top of the
+same dialog, because it belongs to the metric rather than to any one date: a
+monthly total that needs three days of refunds says three, and markets opened
+afterwards settle three days after their period rather than at its last
+second. Markets already open keep the instant they opened with, so changing it
+never moves a settlement people are trading against.
+
 **Stopping a date says which of two things it will do, before the press.**
 The two are genuinely different (`docs/market-integrity.md`, "Stopping a date
 is not destroying a market"): if people have traded it, the open market keeps
@@ -121,6 +128,17 @@ refused rather than sent. Once trades have frozen it, a reading above the
 band says so in the facts row instead of pretending: the market settles as
 though the number had landed exactly on the top of its range. It rides along
 as `marketRangeMax` on the same request.
+
+**When the reading was true** is part of the dialog, because it is not always
+now: a September total is typed in October, and a number nobody filed on
+Friday belongs to Friday. Leave the day empty and it is filed at this moment,
+which is what almost every report is. Fill it and the reading lands there,
+with the hour if one is given and the end of that day if not, which is where
+the market that settles on it looks. A future day is refused on the page,
+before the server refuses it. Between a period closing and its market
+settling, the same offer is one press: "This is September's number, not
+today's". The rules are `docs/guides/sources.md`, "The number is final after
+the period, not at it".
 
 The age of the reading is the entire nudge, and it is only ever true text:
 "4 days old · this market settles on it in 3d", turning to the accent colour
