@@ -708,11 +708,53 @@ describe('settling', () => {
     expect(amend.body.season.payoutMode).toBe('proportional');
     expect(amend.body.season.minPayoutUsd).toBe(50);
 
-    // Pool and dates stay frozen even under the clause.
+    // Pool and start stay frozen even under the clause.
     const pool = await request(app).patch(`/api/seasons/${season.id}`).send({ poolUsd: 2000 });
     expect(pool.status).toBe(409);
     const mixed = await request(app).patch(`/api/seasons/${season.id}`).send({ payoutMode: 'ladder', poolUsd: 2000 });
     expect(mixed.status).toBe(409);
+  });
+
+  test('A RUNNING SEASON CAN BE EXTENDED, because that can only add scores', async () => {
+    // Season 0 was found ending at the exact instant 86% of its depth
+    // resolved, so those markets would have scored nothing (2026-08-31).
+    // Extending the window brings a later resolution INTO the scored set
+    // and can never take one out, which is what the amendment clause asks.
+    await seedFloor(['gold']);
+    const season = (await createSeason()).body.season;
+    await startSeason(season.id);
+
+    const later = new Date(new Date(season.endsAt).getTime() + 86_400_000).toISOString();
+    const res = await request(app).patch(`/api/seasons/${season.id}`).send({ endsAt: later });
+    expect(res.status).toBe(200);
+    expect(new Date(res.body.season.endsAt).toISOString()).toBe(later);
+  });
+
+  test('A RUNNING SEASON CANNOT BE SHORTENED, because that strips scores', async () => {
+    // The direction is the whole safety argument: moving the end earlier
+    // would drop markets that had already resolved inside the window and
+    // reduce standings, which the clause forbids outright.
+    await seedFloor(['gold']);
+    const season = (await createSeason()).body.season;
+    await startSeason(season.id);
+
+    const earlier = new Date(new Date(season.endsAt).getTime() - 86_400_000).toISOString();
+    const res = await request(app).patch(`/api/seasons/${season.id}`).send({ endsAt: earlier });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/earlier|extend|shorten/i);
+
+    const same = await request(app).patch(`/api/seasons/${season.id}`).send({ endsAt: season.endsAt });
+    expect(same.status).toBe(409);
+  });
+
+  test('the start instant stays frozen however the end moves', async () => {
+    await seedFloor(['gold']);
+    const season = (await createSeason()).body.season;
+    await startSeason(season.id);
+    const res = await request(app)
+      .patch(`/api/seasons/${season.id}`)
+      .send({ startsAt: new Date(Date.now() - 86_400_000).toISOString() });
+    expect(res.status).toBe(409);
   });
 
   test('strict eligibility: the workspace creator is ranked but paid nothing (seasons after Season 0)', async () => {

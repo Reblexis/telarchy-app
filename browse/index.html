@@ -261,22 +261,23 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <ul>
 <li><a href="#docs-seasons-md--h1">Season design</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-seasons-md--h2">What a season is for</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h3">The score</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h4">Eligibility</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h5">Liquidity: where it comes from and how much</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h6">Sizing rule</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h7">The ramp</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h8">Allocation policy across markets</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h9">Lifecycle</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h10">Failure modes</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h11">F1. Marked-to-market profit can be manufactured, with no information</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h12">F2. Sybil pumping</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h13">F3. Settlement-instant sniping</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h14">F4. Nothing resolves inside most of the window</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h15">F5. Endgame variance farming</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h16">F6. The house on its own board</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h17">F7. Void and correction risk</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h18">Deferred to Season 1</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h3">What may be amended while a season runs</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h4">The score</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h5">Eligibility</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h6">Liquidity: where it comes from and how much</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h7">Sizing rule</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h8">The ramp</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h9">Allocation policy across markets</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h10">Lifecycle</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h11">Failure modes</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h12">F1. Marked-to-market profit can be manufactured, with no information</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h13">F2. Sybil pumping</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h14">F3. Settlement-instant sniping</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h15">F4. Nothing resolves inside most of the window</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h16">F5. Endgame variance farming</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h17">F6. The house on its own board</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h18">F7. Void and correction risk</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-seasons-md--h19">Deferred to Season 1</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-ui-conventions-md">docs/ui-conventions.md</a></summary>
@@ -2985,7 +2986,23 @@ below resolves against &quot;does this make a good forecaster want to keep tradi
 here.&quot; The season's falsifier is five outside entrants: entrants with no
 connection to the operator (not the operator, not the operator's agents, not
 the operator's family).</p>
-<h2 id="docs-seasons-md--h3">The score</h2>
+<h2 id="docs-seasons-md--h3">What may be amended while a season runs</h2>
+<p>The amendment clause allows a published rule to change mid-season only if
+the change cannot REDUCE a standing. Three things satisfy that and are the
+only things <code>PATCH /api/seasons/:id</code> accepts on a running season:</p>
+<ul>
+<li><code>payoutMode</code> and <code>minPayoutUsd</code>, which change how the pool is divided.</li>
+<li><code>endsAt</code>, and <strong>only later than it already is</strong>. Extending the window can
+add resolutions to the scored set and can never remove one, so no
+entrant's score can fall. Moving it earlier is refused: it would strip
+scores from markets that had already resolved inside the window, which is
+exactly what the clause forbids. <code>startsAt</code> and <code>poolUsd</code> stay frozen
+outright.</li>
+</ul>
+<p>Every one of these has to be announced on <code>/season</code> before it takes
+effect. The endpoint enforces the direction; the announcement is the
+operator's obligation.</p>
+<h2 id="docs-seasons-md--h4">The score</h2>
 <pre><code>season score = settled profit on markets that resolved inside the season window
 </code></pre>
 <p>Amended and in force 2026-08-28 (effective on announcement at the owner's
@@ -3044,7 +3061,7 @@ settle) read the same set; the pinned <code>workspaceIds</code> remain as a reco
 what was public at the start. Deletion freeze (<code>market-integrity.md</code>) still
 reads the pinned set, so a floor that goes public mid-season is scored but not
 protected from deletion until Season 1.</p>
-<h2 id="docs-seasons-md--h4">Eligibility</h2>
+<h2 id="docs-seasons-md--h5">Eligibility</h2>
 <p><code>docs/legal/season-0-rules.md</code> owns eligibility. What the design relies on:</p>
 <ul>
 <li>The pool is split among eligible entrants in proportion to positive
@@ -3099,7 +3116,7 @@ is flagged platform-operated instead.</li>
 payment details are asked only at claim time. Entry has no
 duplicate-contactEmail guard.</li>
 </ul>
-<h2 id="docs-seasons-md--h5">Liquidity: where it comes from and how much</h2>
+<h2 id="docs-seasons-md--h6">Liquidity: where it comes from and how much</h2>
 <p>Each market is an LMSR book with a liquidity parameter <code>b</code>
 (<code>functions/src/lib/amm.ts</code>). Two facts follow from <code>b</code> alone:</p>
 <ul>
@@ -3113,7 +3130,7 @@ market's life. Everything above it is transfers between traders.</li>
 </ul>
 <p>Credits are minted by the operator and have no cash value, so a bigger <code>b</code>
 costs nothing in dollars. The constraint is entirely about game quality.</p>
-<h3 id="docs-seasons-md--h6">Sizing rule</h3>
+<h3 id="docs-seasons-md--h7">Sizing rule</h3>
 <p>Pick <code>b</code> from the price impact a <em>typical bankroll</em> should have, not from a
 number that looks safe. A number that looks safe fails two ways: if one
 ordinary trade exhausts the whole house exposure, whoever trades first wins
@@ -3137,7 +3154,7 @@ than the grant.)</p>
 still move that book enough to be worth doing (a confident 5,000-credit
 position moves it about $3,200 on a $25,000 range, which is a real statement),
 and no single trader can pin it.</p>
-<h3 id="docs-seasons-md--h7">The ramp</h3>
+<h3 id="docs-seasons-md--h8">The ramp</h3>
 <p>Season 0 opens at <code>b = 2,000</code> (pool 1,386) and climbs to <code>b = 16,700</code> over the
 first three weeks. The opening is deliberately thin: an early trader's
 1,000 credits move the consensus $4,919, which is the recruiting argument and
@@ -3205,7 +3222,7 @@ book), so under the resolve-now mark a ramp step changes no standing. What it
 changes is the desk's liquidation number and the spread a later buy pays. The
 48h mark and washing-out arguments applied to the liquidation mark, which is
 not the rule (see F1).</p>
-<h3 id="docs-seasons-md--h8">Allocation policy across markets</h3>
+<h3 id="docs-seasons-md--h9">Allocation policy across markets</h3>
 <ol>
 <li><strong>Every market on a season workspace opens at the season <code>b</code>.</strong> Not
 discretionary, not per-market tuning: the same rule for the baseline market
@@ -3234,7 +3251,7 @@ predates that regime at about 101,000), and uncapped, the
 largest of them pins any book this side of <code>b = 200,000</code>; the cap is what
 makes one sizing work for a floor whose bankrolls differ by 100x.</li>
 </ol>
-<h2 id="docs-seasons-md--h9">Lifecycle</h2>
+<h2 id="docs-seasons-md--h10">Lifecycle</h2>
 <p><code>docs/legal/season-0-rules.md</code> and the <code>/api/help</code> catalog own the lifecycle
 (draft, running, settled; 30-day claim window; claim requires payout details;
 ladder within pool in ladder mode). The shape, for the design's sake
@@ -3274,10 +3291,10 @@ so a published winner cannot change after the money is sent.</li>
 season's pool. Telarchy pays the prize itself, from its own funds, outside
 the Service, using the payment details the winner stored on their account.</li>
 </ul>
-<h2 id="docs-seasons-md--h10">Failure modes</h2>
+<h2 id="docs-seasons-md--h11">Failure modes</h2>
 <p>Rated by whether a competent bad actor with free credits and a couple of hours
 can beat an honest forecaster.</p>
-<h3 id="docs-seasons-md--h11">F1. Marked-to-market profit can be manufactured, with no information</h3>
+<h3 id="docs-seasons-md--h12">F1. Marked-to-market profit can be manufactured, with no information</h3>
 <p><strong>CRITICAL for the display boards, accepted there; NO LONGER DECIDES MONEY
 (2026-08-28).</strong> Since the settled-scoring amendment the season pays only
 resolved markets, so the manufactured mark below still moves the all-time
@@ -3308,7 +3325,7 @@ value. Both are true answers to different questions, and the published rules
 say which is which; <code>GET /api/help</code> says the same thing to an API
 participant.</li>
 </ul>
-<h3 id="docs-seasons-md--h12">F2. Sybil pumping</h3>
+<h3 id="docs-seasons-md--h13">F2. Sybil pumping</h3>
 <p><strong>HIGH under the marked key; MOSTLY DEFUSED by settled scoring
 (2026-08-28).</strong> Credits are free and accounts are cheap. Sacrificial
 accounts buy the side the target account holds, pushing the price up and
@@ -3329,7 +3346,7 @@ email address, not one more payout identity.</li>
 <p>Implemented for seasons after Season 0 (2026-08-28, <code>strict_eligibility</code>):
 <strong>entries sharing a payout handle are one entry</strong>, checked at settlement and
 in the live projection, the natural reading of &quot;one person, one prize.&quot;</p>
-<h3 id="docs-seasons-md--h13">F3. Settlement-instant sniping</h3>
+<h3 id="docs-seasons-md--h14">F3. Settlement-instant sniping</h3>
 <p><strong>CLOSED by settled scoring (2026-08-28).</strong> Under the marked key, whoever
 pushed prices hardest in the final minutes owned the marks the ladder was
 paid on, and the hero market resolving 2026-10-15 (after the end)
@@ -3339,7 +3356,7 @@ scoring there is no mark to push: the season pays only resolutions inside
 settlement is refused before <code>endsAt</code> so the settle-press instant cannot
 widen the window. The successor vector, trading a short market once its
 reading is effectively known, is the 6h trade cutoff's job (see The score).</p>
-<h3 id="docs-seasons-md--h14">F4. Nothing resolves inside most of the window</h3>
+<h3 id="docs-seasons-md--h15">F4. Nothing resolves inside most of the window</h3>
 <p><strong>RESOLVED BY EVENTS (stale since 2026-08-25, corrected 2026-08-28).</strong> When
 this was written the floors carried one long horizon and nothing settled
 in-window. Since the metric x date grid reshape (2026-08-25) every floor
@@ -3348,7 +3365,7 @@ markets each Monday, so ground truth arrives inside the window
 continuously. That steady cadence is what made settled-only scoring viable
 (The score, 2026-08-28); the hero long-horizon market remains outside the
 window and is deliberately unscored this season.</p>
-<h3 id="docs-seasons-md--h15">F5. Endgame variance farming</h3>
+<h3 id="docs-seasons-md--h16">F5. Endgame variance farming</h3>
 <p><strong>MEDIUM under the ladder; LOW under the proportional split (2026-08-28).</strong>
 Free entry, no downside, five paying rungs made the correct last-week play
 from 8th place one long shot: being 6th and 60th paid the same. The
@@ -3361,17 +3378,17 @@ change.</strong> To be ranked for a prize, require some minimum activity spread 
 the season, for example 10 trades on at least 2 markets, at least 3 of them
 before the final week. This costs a lucky one-shot the prize without touching
 the ranking key or asking anyone to understand a new statistic.</p>
-<h3 id="docs-seasons-md--h16">F6. The house on its own board</h3>
+<h3 id="docs-seasons-md--h17">F6. The house on its own board</h3>
 <p><strong>LOW, handled.</strong> Profit is grant-blind, so the operator and the market maker
 rank honestly and are not excluded. They never take a rung (see Eligibility:
 <code>agents.platform_operated</code>), and the rules say so out loud: <strong>accounts
 operated by Telarchy are not eligible for prizes</strong>, so nobody has to wonder.</p>
-<h3 id="docs-seasons-md--h17">F7. Void and correction risk</h3>
+<h3 id="docs-seasons-md--h18">F7. Void and correction risk</h3>
 <p><strong>LOW.</strong> A voided market pays a refund into the profit formula, and the ledger
 is append-only, so a correction is a new row rather than an edit. The rules
 commit to publishing a correction where a bug affects standings, and to not
 voiding markets during a running season except to correct a declared error.</p>
-<h2 id="docs-seasons-md--h18">Deferred to Season 1</h2>
+<h2 id="docs-seasons-md--h19">Deferred to Season 1</h2>
 <div class="tablewrap"><table>
 <thead>
 <tr>
