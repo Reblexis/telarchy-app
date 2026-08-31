@@ -32,7 +32,7 @@ import { voidMarket } from './markets';
 
 type MarketRow = typeof markets.$inferSelect;
 
-async function getTradeCountMap(marketIds: string[], workspaceId: string): Promise<Map<string, number>> {
+export async function getTradeCountMap(marketIds: string[], workspaceId: string): Promise<Map<string, number>> {
   if (marketIds.length === 0) return new Map();
   const rows = await db
     .select({ marketId: trades.marketId, count: sql<number>`count(*)::int` })
