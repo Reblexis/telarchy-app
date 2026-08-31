@@ -1003,6 +1003,7 @@ export function TradePage() {
               state={ownerState}
               canManage={canManage}
               signedIn={!!user}
+              label="Continue with your own agent"
               className="handoff--in-otto"
             />
           }
