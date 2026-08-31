@@ -4,7 +4,7 @@ import { useEarnAvailable } from '../hooks/useEarnAvailable';
 import { previewSell, previewTargetBet, previewTrade } from '../lib/amm';
 import type { LimitOrder } from '../lib/api';
 import { amountToSlider, SLIDER_STEPS, sliderToAmount } from '../lib/bet-slider';
-import { priceLabel } from '../lib/market-quote';
+import { maxReturnLabel, priceLabel } from '../lib/market-quote';
 import { PayoffLine } from './PayoffLine';
 
 /**
@@ -544,16 +544,22 @@ export function TradeTicket({
               aria-pressed={dir === 'lower'}
               onClick={() => pick('lower')}
             >
-              <span className="ticket-side-word">Lower</span>
-              <span className="ticket-side-price">{priceLabel(1 - probability)}</span>
+              <span className="ticket-side-line">
+                <span className="ticket-side-word">Lower</span>
+                <span className="ticket-side-price">{priceLabel(1 - probability)}</span>
+              </span>
+              <span className="ticket-side-max">up to {maxReturnLabel(1 - probability)}</span>
             </button>
             <button
               className={`ticket-side ticket-side--higher${dir === 'higher' ? ' is-active' : ''}`}
               aria-pressed={dir === 'higher'}
               onClick={() => pick('higher')}
             >
-              <span className="ticket-side-word">Higher</span>
-              <span className="ticket-side-price">{priceLabel(probability)}</span>
+              <span className="ticket-side-line">
+                <span className="ticket-side-word">Higher</span>
+                <span className="ticket-side-price">{priceLabel(probability)}</span>
+              </span>
+              <span className="ticket-side-max">up to {maxReturnLabel(probability)}</span>
             </button>
           </div>
         )}

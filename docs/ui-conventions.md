@@ -760,6 +760,21 @@ carried by colour and a 2px rule under the chosen one, with the ▲/▼ glyph
 keeping its --higher/--lower colour even while the word is quiet, since
 direction is the fastest thing on the page to read.
 
+**And what a credit can come back as.** Under the price each side says the
+most a credit spent on it can return, "up to 2x", which is the reciprocal
+of the price: a share costs its price and pays at most one credit. It is
+never quoted bare. Payout is linear in the settled value, so that multiple
+is reached only at the range's own edge, and the number without its "up to"
+would read as the return rather than as its ceiling, the same lie a percent
+would tell about a price. It is the honest answer to the question a binary
+venue answers with "to win $100", where a contract pays a fixed amount and
+the price states its own payout; ours does not, so the ceiling is the most
+that can be said. Clamped like the price is: `>99x` where a share costs
+under a cent, because a hundredfold reads as a lie exactly as `0c` would,
+and never under `1x`. Both untouched surfaces carry it in the same words,
+the ticket's pills and the floor's verbs, from `maxReturnLabel` in
+`src/lib/market-quote.ts`.
+
 The amount is one bare underlined mono numeral (no boxed field, no stepper
 chips, no presets) with a slider under it, its fill in the chosen side's
 colour. The slider spans 1 cr to the trader's whole balance on a LOGARITHMIC track (a linear 0-to-balance slider
@@ -815,7 +830,12 @@ ticket (`notes/quroe-churn-2026-08-27.md`).
 somewhere in the picture: the maximum is the end column, the slope is the
 step between any two columns, the break-even is the colour change, and
 where the bet leaves the market is the one caption. Saying any of it twice
-is what made the card too tall to read. The caption is the exception
+is what made the card too tall to read. Every credit figure on the scale
+says `cr`, because without the unit a column reads as another metric value
+rather than as the money at stake, and the point where the line crosses
+zero is named on the mark it belongs to, "break even 0 cr", in a row of its
+own under the track. The colour change in the scale says the same thing,
+but only to somebody who has already worked out what the scale is. The caption is the exception
 because it is also the INPUT a trader types a target into, so it had to
 survive; it sits on whichever side of the card its own mark is on. The
 marks carry a title for a mouse that pauses on one, and nothing else. One

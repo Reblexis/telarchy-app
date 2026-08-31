@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { payoutLine, priceLabel } from '../market-quote';
+import { maxReturnLabel, payoutLine, priceLabel } from '../market-quote';
 
 /**
  * The quote a market shows before anyone trades (docs/ui-conventions.md,
@@ -57,5 +57,34 @@ describe('payoutLine', () => {
 
   test('a fractional end keeps the digits that matter', () => {
     expect(payoutLine('', 0, 2.5)).toContain('at 2.50,');
+  });
+});
+
+describe('maxReturnLabel', () => {
+  test('a credit on an even market can come back as two', () => {
+    expect(maxReturnLabel(0.5)).toBe('2x');
+  });
+
+  test('the cheaper side can come back as more, and it is the reciprocal of the price', () => {
+    expect(maxReturnLabel(0.14)).toBe('7.1x');
+    expect(maxReturnLabel(0.86)).toBe('1.2x');
+  });
+
+  test('a whole multiple loses its decimal, because 4.0x reads as false precision', () => {
+    expect(maxReturnLabel(0.25)).toBe('4x');
+  });
+
+  test('a very cheap side reads >99x, the mirror of the <1c price', () => {
+    // 1000x is arithmetically true and reads as a lie, exactly as 0c would.
+    expect(maxReturnLabel(0.001)).toBe('>99x');
+  });
+
+  test('a near-certain side never claims less than its own credit back', () => {
+    expect(maxReturnLabel(0.999)).toBe('1x');
+    expect(maxReturnLabel(1)).toBe('1x');
+  });
+
+  test('a price of nothing has no multiple to state', () => {
+    expect(maxReturnLabel(0)).toBe('>99x');
   });
 });
