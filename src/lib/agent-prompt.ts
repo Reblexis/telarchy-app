@@ -42,6 +42,37 @@ export function agentPrompt(origin: string, floor: FloorRef | null): string {
   ].join('\n');
 }
 
+/**
+ * What the key the person just took may do. The prompt says it out loud, so
+ * the agent knows what it can attempt before it tries: a read-only agent that
+ * hands back the call to run is useful, one that discovers its limits by
+ * getting 403s is not (owner ask 2026-08-31).
+ */
+export type KeyGrant = 'all' | 'here' | 'read' | 'none';
+
+function grantLine(grant: KeyGrant, workspaceId: string): string[] {
+  switch (grant) {
+    case 'all':
+      return [
+        `- The key I am pasting does anything I can do, on every market I am in. Send it as "X-Agent-Key: <key>" with "X-Workspace-Id: ${workspaceId}".`,
+      ];
+    case 'here':
+      return [
+        `- The key I am pasting does anything I can do on THIS market and nothing on any other. Send it as "X-Agent-Key: <key>" with "X-Workspace-Id: ${workspaceId}".`,
+      ];
+    case 'read':
+      return [
+        `- The key I am pasting READS ONLY: it can see everything I can see and change nothing. Send it as "X-Agent-Key: <key>" with "X-Workspace-Id: ${workspaceId}".`,
+        '- So when something needs changing, do not try the call. Tell me the exact request you would send and I will run it, or come back and widen the key.',
+      ];
+    case 'none':
+      return [
+        '- I am not giving you a key, so you can read what anyone can read and change nothing.',
+        '- When something needs changing, tell me what you would do and I will do it, or I will come back with a key for you.',
+      ];
+  }
+}
+
 /** What the market looks like right now, as the operator's own agent needs to
  *  hear it: enough to know what exists, what is missing, and what to ask. */
 export interface OwnerFloorState {
@@ -76,7 +107,7 @@ function fmtNum(n: number): string {
  * It carries no key. A prompt is pasted into chat logs, issues and
  * screenshots; the key is offered separately, once, in the panel.
  */
-export function ownerAgentPrompt(origin: string, state: OwnerFloorState): string {
+export function ownerAgentPrompt(origin: string, state: OwnerFloorState, grant: KeyGrant = 'here'): string {
   const url = `${origin}/${state.idOrSlug}`;
   const lines: string[] = [];
   lines.push(
@@ -107,8 +138,8 @@ export function ownerAgentPrompt(origin: string, state: OwnerFloorState): string
   lines.push(
     '',
     'HOW TO ACT AS ME',
-    `- I will paste an API key. Send it as the header "X-Agent-Key: <key>" and add "X-Workspace-Id: ${state.workspaceId}" to every call.`,
-    `- Without a key you can still read everything public: GET ${origin}/api/marketplace/${state.idOrSlug}/context?format=md is the whole brief.`,
+    ...grantLine(grant, state.workspaceId),
+    `- Everything public is readable with no key at all: GET ${origin}/api/marketplace/${state.idOrSlug}/context?format=md is the whole brief.`,
     `- The endpoint catalog is GET ${origin}/api/help. Start by calling GET ${origin}/api/setup/checklist?workspaceId=${state.workspaceId} and work from what it says is open, rather than trusting this list.`,
     '',
     'THE CALLS',
@@ -130,4 +161,43 @@ export function ownerAgentPrompt(origin: string, state: OwnerFloorState): string
     '- Confirm with me before anything that spends credits or makes the market public.',
   );
   return lines.join('\n');
+}
+
+/**
+ * The same handoff for someone who trades rather than runs the market
+ * (owner ask 2026-08-31: the words have to be right for both). Same shape as
+ * the owner's, different verbs: what to read, how to price, how to trade, and
+ * the one rule that keeps a bot from spending everything on a thin market.
+ */
+export function traderAgentPrompt(
+  origin: string,
+  floor: FloorRef,
+  grant: KeyGrant,
+  workspaceId: string | null,
+): string {
+  const base = `${origin}/api/marketplace/${floor.idOrSlug}`;
+  return [
+    `I trade ${floor.name} on Telarchy, where a market prices where the company's real numbers will land. Help me find what is mispriced, and ask me before you spend anything.`,
+    '',
+    'WHERE IT IS',
+    `- The market: ${origin}/${floor.idOrSlug}`,
+    `- The whole brief, in one read: GET ${base}/context?format=md`,
+    '  It carries the company, every metric with its history, the open markets and their prices, and every contract with what the market says it would do to the number.',
+    '',
+    'HOW TO ACT AS ME',
+    ...grantLine(grant, workspaceId ?? '<the workspace id from the brief>'),
+    `- The endpoint catalog is GET ${origin}/api/help. Trading, limit orders and contracts are all in it.`,
+    '',
+    'THE CALLS',
+    '- What is open: GET /api/predictions/markets',
+    '- Trade: POST /api/predictions/trade { marketId, outcome: "HIGHER" | "LOWER", amount } where amount is credits, not shares.',
+    '- Rest an order instead of taking the price: POST /api/predictions/limit-orders.',
+    '- What I hold: GET /api/predictions/positions.',
+    '',
+    'WHAT I WANT FROM YOU',
+    '- Read the brief before you price anything, and say which reading in it makes you think the market is wrong.',
+    '- A thin pool moves on almost nothing, so say what the pool is before you tell me a price is wrong.',
+    '- Treat the market price as a prediction, not a fact, and tell me when the brief cannot answer something.',
+    '- Confirm with me before every trade, with the credits it costs and what it would do to what I hold.',
+  ].join('\n');
 }

@@ -878,7 +878,11 @@ describe('the floor carries Otto', () => {
     const doors = await screen.findAllByRole('button', { name: /ask otto about lookpilot/i });
     expect(doors.length).toBe(2);
     expect(doors.some(d => d.className.includes('ottodock'))).toBe(true);
-    expect(doors.some(d => d.className.includes('pubws-know-ask'))).toBe(true);
+    // The second door is the first row of the pair at the end of the prose
+    // (AgentDoors). Signed out it still says "ask", because signed out he can
+    // only answer; the row beside it offers the same market to their own AI.
+    expect(doors.some(d => d.className.includes('doors-row'))).toBe(true);
+    expect(screen.getByText('Or read it from your own AI')).toBeTruthy();
   });
 });
 

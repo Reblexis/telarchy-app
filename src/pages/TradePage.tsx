@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import { AccountMenu } from '../components/AccountMenu';
-import { AgentHandoff } from '../components/AgentHandoff';
+import { AgentDoors } from '../components/AgentDoors';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { DiscordButton } from '../components/DiscordButton';
 import { EarnDoor } from '../components/EarnDoor';
@@ -998,13 +998,13 @@ export function TradePage() {
           metricLabel={selectedJob ? null : metricLabel}
           signedIn={!!user}
           handoff={
-            <AgentHandoff
+            <AgentDoors
               floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
+              workspaceId={ws.workspaceId}
               state={ownerState}
               canManage={canManage}
               signedIn={!!user}
-              label="Continue with your own agent"
-              className="handoff--in-otto"
+              className="doors--in-otto"
             />
           }
           open={askingOtto}
@@ -1072,6 +1072,22 @@ export function TradePage() {
               )}
             </section>
           )}
+          {/* Placement C (owner pick, 2026-08-31): a manager's two doors sit
+            under the number they report, which is where the thought "someone
+            should keep this true" happens. A trader's pair stays down in the
+            About section, where researching the company is the job. Never
+            both: one reader, one stack. */}
+          {hero && canManage && ws && (
+            <AgentDoors
+              floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
+              workspaceId={ws.workspaceId}
+              state={ownerState}
+              canManage={canManage}
+              signedIn={!!user}
+              onAskOtto={() => setAskingOtto(true)}
+              className="doors--instrument"
+            />
+          )}
           {/* A floor with no market yet. For its owner this is the moment
             after "Create your own" (docs/owner-on-the-floor.md): the first
             metric is one dialog away, and it chains straight into its date,
@@ -1092,12 +1108,15 @@ export function TradePage() {
                     "Handing it to your own agent"). Under the button rather
                     than beside it, because clicking it yourself is still the
                     shorter path for one metric. */}
-                  <AgentHandoff
+                  <AgentDoors
                     floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
+                    workspaceId={ws.workspaceId}
                     state={ownerState}
                     canManage={canManage}
                     signedIn={!!user}
-                    className="handoff--empty"
+                    onAskOtto={() => setAskingOtto(true)}
+                    setupWords
+                    className="doors--empty"
                   />
                 </>
               ) : (
@@ -2023,14 +2042,17 @@ export function TradePage() {
             defaultText=""
             canManage={canManage}
             onSaved={reload}
-            onAsk={() => setAskingOtto(true)}
-            handoff={
-              <AgentHandoff
-                floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
-                state={ownerState}
-                canManage={canManage}
-                signedIn={!!user}
-              />
+            doors={
+              canManage ? null : (
+                <AgentDoors
+                  floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
+                  workspaceId={ws.workspaceId}
+                  state={null}
+                  canManage={false}
+                  signedIn={!!user}
+                  onAskOtto={() => setAskingOtto(true)}
+                />
+              )
             }
           />
         </div>

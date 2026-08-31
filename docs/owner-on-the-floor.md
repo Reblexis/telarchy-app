@@ -155,49 +155,66 @@ the first trade, and nobody's money ever moves under a changed rule.
 ## Handing it to your own agent
 
 Everything the four dialogs do is an API call, so the person who would rather
-type at their own coding agent than click can, and the market should say so
-where they are standing rather than in a settings tab. Under "Ask Otto about
-X", and under "Add your first metric" while the market is empty, sits **Copy
-a prompt for your own AI**.
+type at their own coding agent can, and the market says so where they are
+standing. It says it as a pair of rows, because it is one offer made to two
+assistants: **Otto**, and **your own AI**. The rows are the hairline the page
+already uses for Otto, never a card (`docs/ui-conventions.md`).
 
-Pressing it copies a prompt written from this market's real state, with no
-model call and no wait: the market's name, id and address, which metrics
-exist, which of them have a date and therefore a market, what each pool
-holds, and what is missing. It carries the calls for everything the owner
-can do, the three traps that cost money (a metric with no horizon opens no
-market, a market auto-funded at 0.5 credits trades and says nothing, the
-liquidity wallet spends before the tradeable balance), and one standing
-instruction: ask what the operator wants before doing anything, propose the
-numbers rather than asking them to supply them, and confirm before spending
-credits or publishing. Someone who cannot manage the market gets the reader
-prompt instead, the one that points at the public brief.
+Neither row says "ask" to anyone signed in, because neither is only
+answering: Otto trades, offers contracts and writes numbers as the person,
+and their own agent does the same once it holds a key. The words say what the
+reader may actually do:
 
-Then, and only then, it offers a key, because a prompt without one can read
-and not act. Four choices, most power first, and none of them can exceed
-what the person themselves may do: an agent key acts as its owner, and
-capabilities are intersected with the key's scopes
-(`docs/guides/auth-and-keys.md`).
+| Reader | The two rows |
+|---|---|
+| Manages the market | "Have Otto run this market with you" / "Or run it from your own AI" |
+| Trades, cannot manage | "Have Otto trade this market with you" / "Or trade it from your own AI" |
+| Signed out | "Ask Otto about X" / "Or read it from your own AI" |
+| Manages, market still empty | "Have Otto set this market up with you" / "Or set it up from your own AI" |
 
-- **Everything I can do**, wildcard scopes, every market they are a member
-  of. The one to take when the agent is going to run several markets.
-- **Only on this market**, wildcard scopes pinned to this workspace: the key
-  refuses any other, so a mistake or a leak reaches one market. The default,
-  and what the button suggests.
+Signed out is not a downgrade of the others, it is the truth: nothing can act
+without an account, and no key can exist, so the second row copies the public
+reader prompt and offers nothing else.
+
+**Where the pair sits** depends on which of the two jobs the reader has. A
+manager's is under the number they report, one row below the market itself,
+because that is where "someone should keep this true" is thought. Everyone
+else's is at the end of the market's own words, where researching the company
+is the job. Never both: one reader, one stack. On an empty market it is under
+"Add your first metric", which is the moment the whole handoff is worth the
+most.
+
+**Permission first, then the prompt and the key together.** Pressing the
+second row asks one question, in place: what may it do as you? Four answers,
+none able to exceed what the person themselves may do, since an agent key
+acts as its owner and capabilities are intersected with the key's scopes
+(`docs/guides/auth-and-keys.md`):
+
+- **Everything I can do**, wildcard scopes, every market they are in.
+- **Only this market**, the same pinned to this workspace, which refuses any
+  other. The one the row suggests.
 - **Read only**, everything they can read and no action at all.
-- **No key**, which is not a refusal: the public brief is readable by
-  anyone, and an agent with no key can still answer questions about the
-  market. It just cannot change it.
+- **No key**, which is not a refusal: the public brief is readable by anyone.
 
-The raw key is shown once, in the panel, with the header to send it in. It
-is never in the prompt: a prompt gets pasted into chat logs, issues and
-screenshots, and a key that travels with it is a key in all three.
+Then the key appears once, and **Copy prompt** and **Copy key** stand side by
+side. The prompt is written for the answer that was given: an agent holding a
+read-only key is told to hand back the exact call rather than attempt it, and
+an agent with no key is told to say what it would change. That is the reason
+the order is this way round and not the other: a prompt that has to guess
+what its key can do finds out in 403s.
 
-Otto carries the same handoff. Every Otto conversation, on a market or on
-the operator door, has **Continue with your own agent**, which copies the
-prompt as it stands at that moment in the conversation. On the operator door
-that is the prompt Otto has been writing beside the conversation (owner
-direction 2026-08-23, `services/setup-handoff.ts`); on a market it is the
-same state-built prompt as the button above.
+The prompt itself is built from the market's real state, with no model call
+and no wait: name, id, address, which metrics exist, which have a date and
+therefore a market, what each pool holds, and what is missing. It carries the
+calls, the traps that cost money, and one standing instruction, which is to
+ask before doing and to confirm before spending credits or publishing. A
+trader's version carries the trading calls and the same standing instruction.
+The key is never inside it: prompts get pasted into chat logs, issues and
+screenshots.
+
+Otto carries the same handoff. Every Otto conversation has the second row at
+its foot, and the operator door offers the key beside the prompt Otto has
+been writing (owner direction 2026-08-23, `services/setup-handoff.ts`).
 
 ## What is deliberately not here
 
