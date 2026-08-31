@@ -2,12 +2,17 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 
 /**
- * How many credits this account has not claimed yet, or null when there
- * is nothing to say (signed out, nothing left to earn, or the read
- * failed).
+ * How many credits this account could get RIGHT NOW, or null when there
+ * is nothing to say (signed out, nothing available, or the read failed).
+ *
+ * Two things add up here: the one-time earns not yet claimed, and today's
+ * daily streak if it has not been earned yet. The streak was missing
+ * until 2026-08-31 and the door vanished for anyone who had finished the
+ * one-time list (owner report: "where is the earn credits button?"), even
+ * though trading that day was worth 25 to 100 credits to them.
  *
  * Null rather than 0 on purpose: every surface that shows this number
- * hides itself when it is null, so an account with nothing left to earn
+ * hides itself when it is null, so an account with nothing on the table
  * carries no permanent decoration, and a failed read degrades to silence
  * instead of a wrong "0 available".
  *
@@ -38,7 +43,11 @@ export function useEarnAvailable(signedIn: boolean): number | null {
     api
       .getMyEarn()
       .then(r => {
-        const value = r.available > 0 ? r.available : null;
+        // Today's streak counts only while it is unclaimed, so the door
+        // goes away once they have traded rather than nagging all day.
+        const streak = r.streak && !r.streak.earnedToday ? r.streak.nextCredits : 0;
+        const total = r.available + streak;
+        const value = total > 0 ? total : null;
         cache = { at: Date.now(), value };
         if (!cancelled) setAvailable(value);
       })
