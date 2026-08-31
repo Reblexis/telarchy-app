@@ -133,6 +133,7 @@ export function AgentHandoff({
   state,
   canManage,
   signedIn,
+  label = 'Copy a prompt for your own AI',
   className = '',
 }: {
   /** For the reader prompt, which is what a visitor gets. */
@@ -141,6 +142,10 @@ export function AgentHandoff({
   state: OwnerFloorState | null;
   canManage: boolean;
   signedIn: boolean;
+  /** Inside an Otto conversation this reads "Continue with your own agent",
+   *  because that is what it is there: the same work, in the assistant they
+   *  already use (docs/otto.md). */
+  label?: string;
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
@@ -161,7 +166,7 @@ export function AgentHandoff({
           if (owner && signedIn) setOffering(true);
         }}
       >
-        {copied ? 'Prompt copied' : 'Copy a prompt for your own AI'}
+        {copied ? 'Prompt copied' : label}
       </button>
       <span className="handoff-sub">
         {owner

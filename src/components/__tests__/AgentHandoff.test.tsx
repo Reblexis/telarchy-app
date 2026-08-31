@@ -86,6 +86,12 @@ describe('the button', () => {
     expect(await screen.findByText('What may it do as you?')).toBeTruthy();
   });
 
+  test('inside an Otto conversation it says what it is: continue with your own agent', () => {
+    render(<AgentHandoff floor={FLOOR} state={STATE} canManage signedIn label="Continue with your own agent" />);
+    fireEvent.click(screen.getByText('Continue with your own agent'));
+    expect(writeText).toHaveBeenCalledWith(ownerAgentPrompt(window.location.origin, STATE));
+  });
+
   test('a visitor gets the reader prompt and no key offer', () => {
     render(<AgentHandoff floor={FLOOR} state={null} canManage={false} signedIn={false} />);
     fireEvent.click(screen.getByText('Copy a prompt for your own AI'));
