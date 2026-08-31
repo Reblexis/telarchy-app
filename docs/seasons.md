@@ -93,7 +93,9 @@ settled part, windowed to the season: there is nothing to split it against.
 
 **The standings show the mark beside the score.** Two further columns answer
 the question the score deliberately refuses: what an entrant would have if
-every market that can still pay them this season settled at today's price.
+every market that can still pay them this season settled at the value it is
+predicting now. They are headed "If prices hold" and "Would pay", so the
+header itself says the number is conditional.
 `markedScore` is the score's own arithmetic run over a wider set of markets:
 the settled window as before, PLUS every market still open whose resolution
 instant falls on or before the season's end, each open holding valued at that
@@ -102,7 +104,7 @@ a resolution after the end pays no season prize, and the 6-hour trade cutoff
 applies unchanged, so a trade too late to be scored is too late to be marked.
 `markedProjectedPrizeUsd` is the settlement projection run on those numbers,
 from the same function the real projection uses, so it says what the pool
-would pay if the mark held to the end. Both are display: rank, share and
+would pay if those prices held to the end. Both are display: rank, share and
 prize stay on the settled score, and the columns say which is which. A mark
 can be manufactured on a thin book and a resolution cannot, which is why the
 mark informs an entrant without deciding anything.

@@ -136,7 +136,8 @@ const markedCache = ttlCache({
 
 /** The mark reads to the season's END, not to now: a market resolving next
  *  week still pays inside this season, and the whole question the column
- *  answers is what the entrant would have if it settled at today's price. */
+ *  answers is what the entrant would have if every one of those markets
+ *  settled at the value it is predicting now. */
 function cachedSeasonMarked(
   seasonId: string,
   workspaceIds: string[],
