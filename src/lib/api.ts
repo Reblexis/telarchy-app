@@ -2011,7 +2011,10 @@ export const api = {
   // API keys & authenticated agent creation (used by the API page).
   // /api/agents/:id/keys uses :id=me to operate on the calling agent.
   listAgentKeys: (agentId: string) => request(`/api/agents/${encodeURIComponent(agentId)}/keys`),
-  mintAgentKey: (agentId: string, body: { label?: string; scopes?: string[]; workspaceId?: string }) =>
+  mintAgentKey: (
+    agentId: string,
+    body: { label?: string; scopes?: string[]; workspaceId?: string; workspaceLocked?: boolean },
+  ): Promise<{ keyId: string; apiKey: string; scopes: string[]; workspaceId: string; workspaceLocked: boolean }> =>
     request(`/api/agents/${encodeURIComponent(agentId)}/keys`, { method: 'POST', body: JSON.stringify(body) }),
   updateAgentKey: (agentId: string, keyId: string, body: { label?: string | null; scopes?: string[] }) =>
     request(`/api/agents/${encodeURIComponent(agentId)}/keys/${encodeURIComponent(keyId)}`, {

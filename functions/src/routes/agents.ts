@@ -1887,6 +1887,10 @@ agentsRouter.post(
       return;
     }
 
+    // A pinned key can only ever act in the workspace it names
+    // (docs/guides/auth-and-keys.md). Opt-in, so nothing that exists changes.
+    const workspaceLocked = req.body?.workspaceLocked === true;
+
     const rawKey = randomBytes(32).toString('hex');
     const keyHash = hashKey(rawKey);
     const keyId = randomUUID();
@@ -1897,9 +1901,18 @@ agentsRouter.post(
       workspaceId,
       label,
       scopes,
+      workspaceLocked,
       createdAt: new Date(),
     });
-    res.status(201).json({ keyId, apiKey: rawKey, label, scopes, workspaceId, createdAt: new Date() });
+    res.status(201).json({
+      keyId,
+      apiKey: rawKey,
+      label,
+      scopes,
+      workspaceId,
+      workspaceLocked,
+      createdAt: new Date(),
+    });
   }),
 );
 

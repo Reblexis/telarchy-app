@@ -8511,3 +8511,152 @@ textarea.jobform-line--desc {
 .fundp-amt { width: 8rem; flex: none; }
 .fundp-go { width: auto; flex: 1; min-width: 15rem; }
 .fundp-fine { margin-top: 0.9rem; }
+
+/* ---------------------------------------------------------------------------
+   Hand the market to your own agent (docs/owner-on-the-floor.md).
+   Under Ask Otto, in the Otto box, and under the empty market's own button:
+   the same block in three widths, so it never reads as three features.
+   --------------------------------------------------------------------------- */
+.handoff {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin-top: 0.9rem;
+}
+
+.handoff-go {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+.handoff-go:hover {
+  background: var(--bg-secondary);
+  border-color: var(--text-secondary);
+}
+
+.handoff-sub {
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* Inside Otto the block is a footer under the composer, so it stays quiet
+   next to the thing the visitor came to type in. */
+.otto-handoff {
+  padding: 0 0.9rem;
+}
+.handoff--in-otto {
+  margin-top: 0.6rem;
+}
+.handoff--in-otto .handoff-sub {
+  font-size: 0.72rem;
+}
+
+/* Under "Add your first metric" the market is empty and centred, so this is
+   too. */
+.handoff--empty {
+  align-items: center;
+  margin-top: 1.4rem;
+  text-align: center;
+}
+
+.handoff-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  max-width: 34rem;
+  margin-top: 0.6rem;
+  padding: 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  text-align: left;
+}
+
+.handoff-keys-head {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.handoff-key-opt {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--bg-primary);
+  font: inherit;
+  text-align: left;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.handoff-key-opt:hover {
+  border-color: var(--accent-color);
+}
+.handoff-key-opt:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.handoff-key-label {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+.handoff-key-hint {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.handoff-key-value {
+  display: block;
+  padding: 0.55rem 0.6rem;
+  border-radius: 8px;
+  background: var(--bg-primary);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  word-break: break-all;
+  color: var(--text-primary);
+}
+
+.handoff-key-copy {
+  align-self: flex-start;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.handoff-key-copy:hover {
+  background: var(--bg-secondary);
+}
+
+.handoff-note {
+  margin: 0.15rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.handoff-note code {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}

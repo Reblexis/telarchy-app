@@ -152,6 +152,53 @@ to their funders) and respawns them at the new machinery. So the two-field
 metric is not a trap: the owner, or Otto, corrects the range any time before
 the first trade, and nobody's money ever moves under a changed rule.
 
+## Handing it to your own agent
+
+Everything the four dialogs do is an API call, so the person who would rather
+type at their own coding agent than click can, and the market should say so
+where they are standing rather than in a settings tab. Under "Ask Otto about
+X", and under "Add your first metric" while the market is empty, sits **Copy
+a prompt for your own AI**.
+
+Pressing it copies a prompt written from this market's real state, with no
+model call and no wait: the market's name, id and address, which metrics
+exist, which of them have a date and therefore a market, what each pool
+holds, and what is missing. It carries the calls for everything the owner
+can do, the three traps that cost money (a metric with no horizon opens no
+market, a market auto-funded at 0.5 credits trades and says nothing, the
+liquidity wallet spends before the tradeable balance), and one standing
+instruction: ask what the operator wants before doing anything, propose the
+numbers rather than asking them to supply them, and confirm before spending
+credits or publishing. Someone who cannot manage the market gets the reader
+prompt instead, the one that points at the public brief.
+
+Then, and only then, it offers a key, because a prompt without one can read
+and not act. Four choices, most power first, and none of them can exceed
+what the person themselves may do: an agent key acts as its owner, and
+capabilities are intersected with the key's scopes
+(`docs/guides/auth-and-keys.md`).
+
+- **Everything I can do**, wildcard scopes, every market they are a member
+  of. The one to take when the agent is going to run several markets.
+- **Only on this market**, wildcard scopes pinned to this workspace: the key
+  refuses any other, so a mistake or a leak reaches one market. The default,
+  and what the button suggests.
+- **Read only**, everything they can read and no action at all.
+- **No key**, which is not a refusal: the public brief is readable by
+  anyone, and an agent with no key can still answer questions about the
+  market. It just cannot change it.
+
+The raw key is shown once, in the panel, with the header to send it in. It
+is never in the prompt: a prompt gets pasted into chat logs, issues and
+screenshots, and a key that travels with it is a key in all three.
+
+Otto carries the same handoff. Every Otto conversation, on a market or on
+the operator door, has **Continue with your own agent**, which copies the
+prompt as it stands at that moment in the conversation. On the operator door
+that is the prompt Otto has been writing beside the conversation (owner
+direction 2026-08-23, `services/setup-handoff.ts`); on a market it is the
+same state-built prompt as the button above.
+
 ## What is deliberately not here
 
 - **Closing a market** is not a floor control: it voids other people's

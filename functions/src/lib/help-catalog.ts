@@ -267,7 +267,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       auth: 'self/admin',
       scope: 'account:keys',
       description:
-        'Mint an additional API key for an agent. Body: { label?, scopes?, workspaceId? }. Default scopes = Trader preset. Agent-key callers cannot grant scopes broader than their own. Returns { keyId, apiKey, label, scopes, workspaceId, createdAt }; raw apiKey is shown once.',
+        'Mint an additional API key for an agent. Body: { label?, scopes?, workspaceId?, workspaceLocked? }. Default scopes = Trader preset. Agent-key callers cannot grant scopes broader than their own. workspaceLocked:true pins the key to workspaceId: X-Workspace-Id naming anything else is refused 403, so a key that leaks reaches one workspace (docs/guides/auth-and-keys.md). Returns { keyId, apiKey, label, scopes, workspaceId, workspaceLocked, createdAt }; raw apiKey is shown once.',
     },
     {
       method: 'PATCH',

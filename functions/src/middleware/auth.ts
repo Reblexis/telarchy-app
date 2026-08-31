@@ -180,7 +180,11 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
     if (agentId && keyWorkspaceId) {
       const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
       if (agent) {
-        const effectiveWorkspaceId = (req.headers['x-workspace-id'] as string | undefined) ?? keyWorkspaceId;
+        // Same pin as authMiddleware. Here an unauthenticated read is a
+        // legitimate outcome, so a locked key pointed elsewhere resolves in
+        // its own workspace rather than 403ing a public page.
+        const askedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
+        const effectiveWorkspaceId = keyRecord.workspaceLocked ? keyWorkspaceId : (askedWorkspaceId ?? keyWorkspaceId);
         const membership = await resolveAgentWorkspace(agentId, effectiveWorkspaceId);
         if (membership) {
           const fullCaps = await computeCapabilities({ workspaceId: membership.workspaceId, agentId });
@@ -271,7 +275,15 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
     if (!agent) return res.status(401).json({ error: 'Agent not found' });
 
-    const effectiveWorkspaceId = (req.headers['x-workspace-id'] as string | undefined) ?? keyWorkspaceId;
+    const askedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
+    // A pinned key's workspace is its whole reach, not a default
+    // (docs/guides/auth-and-keys.md): naming another one is refused rather
+    // than quietly answered, because "only on this market" has to mean it
+    // even when the agent guesses a header.
+    if (keyRecord.workspaceLocked && askedWorkspaceId && askedWorkspaceId !== keyWorkspaceId) {
+      return res.status(403).json({ error: 'This key is limited to one workspace and cannot act in another' });
+    }
+    const effectiveWorkspaceId = keyRecord.workspaceLocked ? keyWorkspaceId : (askedWorkspaceId ?? keyWorkspaceId);
     const membership = await resolveAgentWorkspace(agentId, effectiveWorkspaceId);
     // A valid key without membership in the effective workspace still
     // authenticates, with an EMPTY capability set. This is what lets a

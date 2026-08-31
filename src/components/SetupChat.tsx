@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { clearSetupDraft, loadSetupDraft, saveSetupDraft } from '../lib/setup-draft';
+import { AgentKeyOffer } from './AgentHandoff';
 import { type InstrumentMarket, SetupInstrument, SetupTicks } from './SetupInstrument';
 
 /**
@@ -63,6 +64,8 @@ export function SetupChat({
    *  re-ask. The server keeps only ids the specification knows. */
   const [settled, setSettled] = useState<string[]>(() => saved?.settled ?? []);
   const [checklist, setChecklist] = useState<{
+    /** Present once a market exists; what a key can be pinned to. */
+    workspace?: { id: string; name: string } | null;
     blocking: string[];
     market: InstrumentMarket | null;
     items: Array<{ id: string; label: string; status: 'done' | 'open'; note: string }>;
@@ -321,6 +324,14 @@ export function SetupChat({
                 Paste this into the assistant that knows your business and it can finish the setup.
               </p>
               <pre className="setup-handoff-body">{handoff}</pre>
+              {/* The prompt can read; a key is what lets it act. Offered here
+                rather than carried inside the prompt, because a prompt gets
+                pasted into logs and screenshots and a key must not
+                (docs/owner-on-the-floor.md). Only once a market exists to
+                pin it to. */}
+              {checklist?.workspace?.id && (
+                <AgentKeyOffer workspaceId={checklist.workspace.id} name={checklist.workspace.name} />
+              )}
             </>
           ) : (
             <p className="setup-handoff-why">Otto is writing the prompt for your own agent.</p>

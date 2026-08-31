@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 
@@ -38,6 +39,10 @@ interface Props {
   signedIn: boolean;
   /** The number the floor leads with, used for one opening suggestion. */
   metricLabel: string | null;
+  /** "Continue with your own agent": the same handoff the page shows under
+   *  Ask Otto, rendered inside the conversation so leaving for your own agent
+   *  never means starting again (docs/otto.md). */
+  handoff?: ReactNode;
   /** Open state, when the page owns it. The floor does, because the
    *  "Ask Otto" button beside "What is <name>?" opens this same panel: two
    *  doors into one conversation, never a second Otto. Left out, he keeps
@@ -51,7 +56,15 @@ interface Turn {
   content: string;
 }
 
-export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open: openProp, onOpenChange }: Props) {
+export function FloorChat({
+  idOrSlug,
+  workspaceName,
+  metricLabel,
+  signedIn,
+  handoff,
+  open: openProp,
+  onOpenChange,
+}: Props) {
   const [ownOpen, setOwnOpen] = useState(false);
   const open = openProp ?? ownOpen;
   const setOpen = (next: boolean) => {
@@ -181,6 +194,10 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open
           ↑
         </button>
       </form>
+      {/* Otto is never a dead end (owner ask 2026-08-31): the same work, in
+        the agent they already talk to, carrying what this conversation has
+        established. docs/otto.md, "Continue with your own agent". */}
+      {handoff && <div className="otto-handoff">{handoff}</div>}
       <p className="otto-note">
         {signedIn ? (
           <>
