@@ -819,6 +819,23 @@ down so the subsidy exactly covers the anchored worst case
 (`anchoredMarketState` in functions/src/lib/amm.ts); an off-center open
 buys its anchor with a slightly thinner book, never with unminted credits.
 
+**A metric sitting AT or past a range edge anchors at the edge**, never at
+the midpoint. An LMSR cannot quote certainty, so the seeding clamps into
+[0.02, 0.98] of the range, and the market opens as low (or as high) as a
+solvent book can be placed. The midpoint is the worst answer available
+there: a revenue metric reading $0 on a 0-1,000 range opened its daily
+market at $500 and paid whoever pushed it back down.
+
+**Every path that funds an untraded baseline market opens it the same way.**
+The daily spawn, the refresh that funds a market which opened unfunded
+because the balance was short, and a hand-made market from
+`POST /api/predictions/markets` all call one function
+(`anchorUntradedMarketTx` in functions/src/services/marketLiquidity.ts), so
+a market's opening price never depends on which of them ran. It refuses a
+market that is already traded or already anchored, whose price is a fact
+about the market rather than a default. `anchor-ownership.test.ts` fails if
+a second opinion about opening price appears.
+
 ### Discussion, Positions, Trades
 
 Under the bet buttons sits the conversation: a quiet "Discussion (N)"
