@@ -3945,6 +3945,16 @@ textarea.jobform-line--desc {
   font-size: 0.88em;
   opacity: 0.85;
 }
+/* The verbs quote what the pills quote, in the same words, or the two
+   untouched states of the same market disagree. */
+.pubws-bet-max {
+  display: block;
+  margin-top: 0.05rem;
+  font-family: var(--font-sans);
+  font-size: 0.78em;
+  font-weight: 500;
+  opacity: 0.8;
+}
 
 /* The one line under the verbs: what a share pays. It leaves when the
    ticket opens. */
@@ -5063,9 +5073,25 @@ textarea.jobform-line--desc {
    colour, like the word beside it. */
 .ticket-side {
   display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+.ticket-side-line {
+  display: inline-flex;
   align-items: baseline;
   gap: 0.5rem;
 }
+/* The most a credit on this side can come back as. Never a bare multiple:
+   payout is linear, so the ceiling is reached only at the range's own edge
+   and the number without its "up to" would read as the return itself
+   (docs/ui-conventions.md, "and what a credit can come back as"). */
+.ticket-side-max {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+.ticket-side.is-active .ticket-side-max { color: var(--on-signal); opacity: 0.85; }
 .ticket-side-word { font-weight: 600; }
 .ticket-side-price {
   font-family: 'JetBrains Mono', monospace;
@@ -5160,10 +5186,23 @@ textarea.jobform-line--desc {
 .pay-scale b { font-weight: 600; }
 .pay-scale .up { color: var(--higher); }
 .pay-scale .down { color: var(--lower); }
-.pay-scale-cap {
-  margin: 0.4rem 0 0;
+/* Where the payoff line crosses zero, on the mark it belongs to. Its own
+   row, so it cannot meet the caption above the track however close the two
+   marks get; pinned at the ends by PayoffLine.markLabelStyle. */
+.pay-zero {
+  position: relative;
+  height: 1.1rem;
+  margin-top: 0.2rem;
   font-size: 0.74rem;
+  white-space: nowrap;
   color: var(--text-tertiary);
+}
+.pay-zero span { position: absolute; top: 0; }
+.pay-zero b {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 /* Quick / Limit, Manifold's top-right toggle. */

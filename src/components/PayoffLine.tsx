@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { compactValueOf } from '../lib/floor-horizons';
 import { formatMetricValue } from '../lib/market-quote';
 
@@ -24,8 +24,21 @@ import { formatMetricValue } from '../lib/market-quote';
  * trader types a target into, and the picture had to keep it.
  */
 
-/** The settlement values the scale prices: the ends and the quarters. */
+/** The settlement values the scale prices: the ends and the quarters. They
+    are evenly spaced so the columns line up with the track above them, which
+    is what makes the two halves of the picture one axis. */
 const STOPS = [0, 0.25, 0.5, 0.75, 1];
+
+/**
+ * A label sits over its own mark, so near the ends of the range a centred one
+ * would hang off the card. Inside the middle half it is centred; past that it
+ * pins to the edge it is nearest and reads inward from there.
+ */
+function markLabelStyle(pct: number): CSSProperties {
+  if (pct < 25) return { left: 0 };
+  if (pct > 75) return { right: 0 };
+  return { left: `${pct}%`, transform: 'translateX(-50%)' };
+}
 
 interface Props {
   unit: string;
@@ -76,9 +89,11 @@ export function PayoffLine({
     const f = (v - rangeMin) / span;
     return (shares ?? 0) * (direction === 'higher' ? f : 1 - f) - (spend ?? 0);
   };
+  /** Credits, said as credits: without the unit the column reads as another
+      metric value rather than as the money at stake (owner, 2026-08-31). */
   const credits = (v: number): string => {
     const n = Math.round(v);
-    return `${n > 0 ? '+' : ''}${n.toLocaleString('en-US')}`;
+    return `${n > 0 ? '+' : ''}${n.toLocaleString('en-US')} cr`;
   };
 
   return (
@@ -124,6 +139,17 @@ export function PayoffLine({
         )}
       </div>
 
+      {/* Where the line crosses zero, named on the mark it belongs to. The
+          colour change in the scale says the same thing, but only once you
+          have read the scale; this says it on the picture. */}
+      {priced && breakeven !== null && (
+        <div className="pay-zero">
+          <span style={markLabelStyle(pct(breakeven))}>
+            break even <b>0 cr</b>
+          </span>
+        </div>
+      )}
+
       {priced ? (
         <div className="pay-scale" aria-label="What this bet is worth at settlement">
           {STOPS.map(s => {
@@ -143,7 +169,6 @@ export function PayoffLine({
           <span>{money(rangeMax)}</span>
         </div>
       )}
-      {priced && <p className="pay-scale-cap">Credits won or lost, if it settles there.</p>}
     </div>
   );
 }

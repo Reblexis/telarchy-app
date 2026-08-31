@@ -53,3 +53,29 @@ export function priceLabel(p: number): string {
 export function payoutLine(unit: string, rangeMin: number, rangeMax: number): string {
   return `A share pays 1 cr at ${unit}${fmtEdge(rangeMax)}, nothing at ${unit}${fmtEdge(rangeMin)}.`;
 }
+
+/**
+ * The most a credit spent on a side can come back as: a share costs its
+ * price and pays at most one credit, so the ceiling is the reciprocal.
+ *
+ * It is quoted only ever as "up to" (the callers write the words), because
+ * our payout is linear in the settled value and the maximum is reached only
+ * at the range's own edge. A bare multiple would read as the return rather
+ * than as its ceiling, which is the same lie a percent would tell about a
+ * price. It answers what "to win" answers on a binary venue, where a
+ * contract pays a fixed amount and the price states its own payout; ours
+ * does not, so this is the honest version of that question.
+ *
+ * Clamped at both ends like `priceLabel`: a 1c share really can return a
+ * hundredfold and saying so reads as a lie, and no side can return less than
+ * the credit put on it.
+ */
+export function maxReturnLabel(p: number): string {
+  const price = Math.min(1, Math.max(0, p));
+  if (price <= 0.01) return '>99x';
+  const x = 1 / price;
+  if (x >= 99.5) return '>99x';
+  if (x < 1.05) return '1x';
+  const body = x >= 10 ? String(Math.round(x)) : (Math.round(x * 10) / 10).toString();
+  return `${body.replace(/\.0$/, '')}x`;
+}

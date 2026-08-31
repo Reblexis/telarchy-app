@@ -62,8 +62,8 @@ describe('win facts', () => {
     // buys 312.5 shares. The scale prices the fill, not the walk: nothing
     // at the bottom of the range, 312.5 credits at the top.
     const worth = Array.from(container.querySelectorAll('.pay-scale b')).map(e => e.textContent ?? '');
-    expect(worth[0]).toBe('-25');
-    expect(worth[worth.length - 1]).toBe('+288');
+    expect(worth[0]).toBe('-25 cr');
+    expect(worth[worth.length - 1]).toBe('+288 cr');
   });
 
   test('a lower bet is worth most at the bottom of the range', () => {
@@ -71,7 +71,7 @@ describe('win facts', () => {
     fireEvent.click(screen.getByText('Lower'));
     const worth = Array.from(container.querySelectorAll('.pay-scale b')).map(e => e.textContent ?? '');
     expect(worth[0]?.startsWith('+')).toBe(true);
-    expect(worth[worth.length - 1]).toBe('-25');
+    expect(worth[worth.length - 1]).toBe('-25 cr');
   });
 });
 
@@ -332,6 +332,31 @@ describe('the preview knows about redemption (2026-08-30)', () => {
  * other venue does and what the platform's most calibrated trader left for
  * want of (notes/quroe-churn-2026-08-27.md).
  */
+describe('what a credit can come back as', () => {
+  test('each side says the most a credit on it can return', () => {
+    render(<TradeTicket {...base} />);
+    // p = 0.5: a share costs half a credit and pays at most one, so 2x.
+    expect(screen.getAllByText('up to 2x')).toHaveLength(2);
+  });
+
+  test('the cheap side promises more than the dear one', () => {
+    render(<TradeTicket {...base} probability={0.2} />);
+    expect(screen.getByText('up to 5x')).toBeTruthy();
+    expect(screen.getByText('up to 1.3x')).toBeTruthy();
+  });
+
+  test('it never says a bare multiple, because the maximum is not the expectation', () => {
+    const { container } = render(<TradeTicket {...base} probability={0.2} />);
+    expect(container.textContent).toContain('up to 5x');
+    expect(container.textContent).not.toMatch(/(?<!up to )\b5x\b/);
+  });
+
+  test('the multiples go with the pills, so manage mode has none', () => {
+    const { container } = render(<TradeTicket {...base} manageMode initialDir="higher" />);
+    expect(container.textContent).not.toContain('up to');
+  });
+});
+
 describe('the price at rest', () => {
   test('both sides carry a price before any click', () => {
     render(<TradeTicket {...base} />);
@@ -426,7 +451,7 @@ describe('the payoff line', () => {
   const scale = (container: HTMLElement): Array<[string, number]> =>
     Array.from(container.querySelectorAll('.pay-scale > div')).map(d => [
       d.querySelector('u')?.textContent ?? '',
-      Number((d.querySelector('b')?.textContent ?? '').replace(/[+,]/g, '')),
+      Number((d.querySelector('b')?.textContent ?? '').replace(/[+,]|\s*cr$/g, '')),
     ]);
 
   test('an untouched ticket draws the range and marks only the market', () => {
@@ -486,6 +511,36 @@ describe('the payoff line', () => {
     const bePct = at(container, 'be-higher');
     expect((first / 4) * 100).toBeGreaterThanOrEqual(bePct);
     expect(((first - 1) / 4) * 100).toBeLessThan(bePct);
+  });
+
+  test('every number on the scale says cr, so it reads as money and not as a value', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const worth = Array.from(container.querySelectorAll('.pay-scale b')).map(e => e.textContent ?? '');
+    expect(worth).toHaveLength(5);
+    for (const w of worth) expect(w.endsWith(' cr')).toBe(true);
+  });
+
+  test('the zero is named where the line crosses it, on the break-even mark', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const zero = container.querySelector('.pay-zero span') as HTMLElement;
+    expect(zero.textContent).toBe('break even 0 cr');
+    // It sits on its own mark, so the picture reads left to right as one line.
+    expect(parseFloat(zero.style.left)).toBeCloseTo(at(container, 'be-higher'), 5);
+  });
+
+  test('the zero label pins inside the card rather than hanging off the end', () => {
+    const { container } = render(<TradeTicket {...payBase} probability={0.02} liquidity={100_000} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const zero = container.querySelector('.pay-zero span') as HTMLElement;
+    expect(zero.style.transform).toBe('');
+    expect(zero.style.left).toBe('0px');
+  });
+
+  test('an untouched ticket has no zero to name', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    expect(container.querySelector('.pay-zero')).toBeNull();
   });
 
   test('the winning stretch runs from the break-even to the side own end of the range', () => {
