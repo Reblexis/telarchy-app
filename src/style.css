@@ -5081,31 +5081,15 @@ textarea.jobform-line--desc {
    numbers in an order"): the market's range as one track, carrying the
    market, the break-even and the pushed-to value in the order they sit.
    The band is the stretch that pays; the marks stand outside the clipped
-   track so they read as marks rather than as more band. This replaced the
-   one-sentence payout note inside the ticket (2026-08-31); the floor's own
-   verbs keep the sentence, having no track to carry it. */
+   track so they read as marks rather than as more band. It carries no
+   words, because the fact rows underneath already name every number on it
+   and a caption over a track is what made the card too tall (owner,
+   2026-08-31). This replaced the one-sentence payout note inside the
+   ticket; the floor's verbs keep the sentence, having no track. */
 .pay {
   display: flex;
   flex-direction: column;
-}
-.pay-cap {
-  position: relative;
-  height: 1.15rem;
-  font-size: 0.74rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-.pay-cap--under { height: 1.25rem; margin-top: 0.15rem; }
-/* The horizontal placement is inline (PayoffLine.captionStyle): centred over
-   its mark in the middle of the range, pinned to the near edge past that, so
-   a caption can never hang off the card whatever the number is. */
-.pay-cap span { position: absolute; bottom: 0; }
-.pay-cap--under span { top: 0; bottom: auto; }
-.pay-cap b {
-  font-family: 'JetBrains Mono', monospace;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--text-primary);
+  margin: 0.1rem 0;
 }
 .pay-track-wrap { position: relative; padding: 3px 0; }
 .pay-track {
@@ -5138,24 +5122,6 @@ textarea.jobform-line--desc {
   font-variant-numeric: tabular-nums;
   font-size: 0.72rem;
   color: var(--text-tertiary);
-}
-.pay-sides {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.1rem 0.75rem;
-  margin-top: 0.15rem;
-  font-size: 0.73rem;
-  font-weight: 600;
-}
-.pay-side--lower { color: var(--lower); }
-.pay-side--higher { color: var(--higher); }
-.pay-say {
-  margin: 0.55rem 0 0;
-  font-size: 0.8rem;
-  line-height: 1.5;
-  color: var(--text-secondary);
-  text-wrap: pretty;
 }
 
 /* Quick / Limit, Manifold's top-right toggle. */

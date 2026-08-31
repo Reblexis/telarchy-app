@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react';
 import { formatMetricValue } from '../lib/market-quote';
 
 /**
@@ -14,9 +13,14 @@ import { formatMetricValue } from '../lib/market-quote';
  * loss and asked an operator in a chat window instead
  * (notes/quroe-churn-2026-08-27.md).
  *
- * Every value is said ONCE, on its own mark. The sentence underneath names
- * the gap and nothing else, because a picture that repeats itself in prose
- * is the text this was meant to replace.
+ * It carries no words. Every number on it is named by the fact rows
+ * directly underneath, so a caption would say them twice, and captions over
+ * a track are what made the card too tall to read (owner, 2026-08-31: "this
+ * is too tall now and definitely dont put here the x room to be wrong").
+ * The picture's whole job is the ORDER, which needs no text. The range ends
+ * are the exception, and only while the ticket is untouched: there they
+ * replace the sentence about what a share pays, and nothing else in that
+ * state states the range.
  */
 interface Props {
   unit: string;
@@ -25,129 +29,68 @@ interface Props {
   /** Where the market stands right now. */
   consensus: number;
   /** The side this is about; null is an untouched ticket, which has no bet
-      to draw and so draws where each side would start paying instead. */
+      to draw and marks only the market. */
   direction: 'higher' | 'lower' | null;
   /** The settled value at which the bet, or the held position, breaks even. */
   breakeven: number | null;
   /** Where the composed bet would leave the market. Null when nothing is
       being pushed: a resting limit order, or a position already held. */
   push: number | null;
-  /** `hold` states the distance the market may still travel; `compose`
-      states the gap between the push and the break-even. */
-  mode?: 'compose' | 'hold';
 }
 
-/**
- * A caption sits over its own mark, so near the ends of the range a centred
- * one would hang off the card. Inside the middle half it is centred; past
- * that it pins to the edge it is nearest and reads inward from there.
- */
-function captionStyle(pct: number): CSSProperties {
-  if (pct < 25) return { left: 0 };
-  if (pct > 75) return { right: 0 };
-  return { left: `${pct}%`, transform: 'translateX(-50%)' };
-}
-
-export function PayoffLine({
-  unit,
-  rangeMin,
-  rangeMax,
-  consensus,
-  direction,
-  breakeven,
-  push,
-  mode = 'compose',
-}: Props) {
+export function PayoffLine({ unit, rangeMin, rangeMax, consensus, direction, breakeven, push }: Props) {
   const span = rangeMax - rangeMin;
   if (!(span > 0) || !Number.isFinite(consensus)) return null;
 
   const pct = (v: number) => Math.min(100, Math.max(0, ((v - rangeMin) / span) * 100));
   const money = (v: number) => `${unit}${formatMetricValue(v)}`;
   const nowPct = pct(consensus);
-
-  const ends = (
-    <div className="pay-ends">
-      <span>{money(rangeMin)}</span>
-      <span>{money(rangeMax)}</span>
-    </div>
-  );
-
-  // Untouched: a share bought this second breaks even at the value the market
-  // is already at, which is the one honest thing to say before a stake exists.
-  if (direction === null || breakeven === null) {
-    return (
-      <div className="pay">
-        <div className="pay-cap">
-          <span style={captionStyle(nowPct)}>
-            now <b>{money(consensus)}</b>
-          </span>
-        </div>
-        <div className="pay-track-wrap">
-          <div className="pay-track">
-            <div className="pay-win pay-win--lower" style={{ left: '0%', right: `${100 - nowPct}%` }} />
-            <div className="pay-win pay-win--higher" style={{ left: `${nowPct}%`, right: '0%' }} />
-          </div>
-          <div className="pay-mark pay-mark--now" style={{ left: `${nowPct}%` }} />
-        </div>
-        {ends}
-        <div className="pay-sides">
-          <span className="pay-side pay-side--lower">Lower wins</span>
-          <span className="pay-side pay-side--higher">Higher wins</span>
-        </div>
-      </div>
-    );
-  }
-
-  const bePct = pct(breakeven);
-  const pushPct = push === null ? null : pct(push);
-  const higher = direction === 'higher';
-  const winStyle = higher ? { left: `${bePct}%`, right: '0%' } : { left: '0%', right: `${100 - bePct}%` };
-
-  // Top row: the thing that moves. A resting order moves nothing, so it gets
-  // no row at all rather than an empty one.
-  const top =
-    mode === 'hold'
-      ? { at: nowPct, label: 'now', value: money(consensus) }
-      : pushPct !== null && push !== null
-        ? { at: pushPct, label: 'push', value: money(push) }
-        : null;
-
-  const say = (() => {
-    if (mode === 'hold') {
-      const gap = Math.abs(consensus - breakeven);
-      const ahead = higher ? consensus > breakeven : consensus < breakeven;
-      if (ahead) return `Can ${higher ? 'fall' : 'rise'} ${money(gap)} before you lose.`;
-      return `Needs ${money(gap)} to break even.`;
-    }
-    // A resting order fills at its own price, so there is no walk to average.
-    if (push === null) return 'Fills at your price, so no room either way.';
-    return `${money(Math.abs(push - breakeven))} of room to be wrong.`;
-  })();
+  const resting = direction === null || breakeven === null;
 
   return (
     <div className="pay">
-      {top && (
-        <div className="pay-cap">
-          <span style={captionStyle(top.at)}>
-            {top.label} <b>{top.value}</b>
-          </span>
-        </div>
-      )}
       <div className="pay-track-wrap">
         <div className="pay-track">
-          <div className={`pay-win pay-win--${direction}`} style={winStyle} />
+          {resting ? (
+            <>
+              <div className="pay-win pay-win--lower" style={{ left: '0%', right: `${100 - nowPct}%` }} />
+              <div className="pay-win pay-win--higher" style={{ left: `${nowPct}%`, right: '0%' }} />
+            </>
+          ) : (
+            <div
+              className={`pay-win pay-win--${direction}`}
+              style={
+                direction === 'higher'
+                  ? { left: `${pct(breakeven)}%`, right: '0%' }
+                  : { left: '0%', right: `${100 - pct(breakeven)}%` }
+              }
+            />
+          )}
         </div>
-        <div className="pay-mark pay-mark--now" style={{ left: `${nowPct}%` }} />
-        <div className={`pay-mark pay-mark--be-${direction}`} style={{ left: `${bePct}%` }} />
-        {pushPct !== null && <div className="pay-mark pay-mark--push" style={{ left: `${pushPct}%` }} />}
+        {/* Marks live outside the clipped track so they stand proud of it.
+            The titles are the only naming they get, for a mouse that pauses. */}
+        <div className="pay-mark pay-mark--now" style={{ left: `${nowPct}%` }} title={`Now ${money(consensus)}`} />
+        {!resting && (
+          <div
+            className={`pay-mark pay-mark--be-${direction}`}
+            style={{ left: `${pct(breakeven)}%` }}
+            title={`Breaks even at ${money(breakeven)}`}
+          />
+        )}
+        {push !== null && !resting && (
+          <div
+            className="pay-mark pay-mark--push"
+            style={{ left: `${pct(push)}%` }}
+            title={`Leaves the market at ${money(push)}`}
+          />
+        )}
       </div>
-      <div className="pay-cap pay-cap--under">
-        <span style={captionStyle(bePct)}>
-          break even <b>{money(breakeven)}</b>
-        </span>
-      </div>
-      {ends}
-      <p className="pay-say">{say}</p>
+      {resting && (
+        <div className="pay-ends">
+          <span>{money(rangeMin)}</span>
+          <span>{money(rangeMax)}</span>
+        </div>
+      )}
     </div>
   );
 }
