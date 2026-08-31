@@ -100,6 +100,25 @@ function fmt(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
+/** What one share of a side costs, in cents of a credit, as every other
+    venue quotes a market (docs/ui-conventions.md, "An untouched ticket
+    still quotes both sides"). Never 0c or 100c: a share of a live side is
+    never free and never certain, and the rounded extremes would say it is,
+    so the ends read as bounds instead. */
+function priceLabel(p: number): string {
+  const cents = Math.min(1, Math.max(0, p)) * 100;
+  if (cents < 0.5) return '<1c';
+  if (cents >= 99.5) return '>99c';
+  return `${Math.round(cents)}c`;
+}
+
+/** A range end, said as a person would say it: the payout line names the
+    top and bottom of the range, where "$0.00" reads as an amount of money
+    rather than as the floor of a scale. */
+function fmtEdge(v: number): string {
+  return fmtValue(v).replace(/\.0+$/, '');
+}
+
 /** Metric-space values, formatted the way the headline formats them. */
 function fmtValue(v: number): string {
   const abs = Math.abs(v);
@@ -469,14 +488,16 @@ export function TradeTicket({
               aria-pressed={dir === 'lower'}
               onClick={() => pick('lower')}
             >
-              Lower
+              <span className="ticket-side-word">Lower</span>
+              <span className="ticket-side-price">{priceLabel(1 - probability)}</span>
             </button>
             <button
               className={`ticket-side ticket-side--higher${dir === 'higher' ? ' is-active' : ''}`}
               aria-pressed={dir === 'higher'}
               onClick={() => pick('higher')}
             >
-              Higher
+              <span className="ticket-side-word">Higher</span>
+              <span className="ticket-side-price">{priceLabel(probability)}</span>
             </button>
           </div>
         )}
@@ -511,6 +532,19 @@ export function TradeTicket({
           </button>
         )}
       </div>
+
+      {/* What a share pays, said once, under the quote. A cents price on a
+          binary contract states its own payout; ours is linear in the
+          settled value, so the price alone would be a true number under a
+          false assumption. Gone as soon as a side is picked: from there the
+          fact rows say the same thing about the actual bet. */}
+      {!manageMode && !dir && rangeMin !== undefined && rangeMax !== undefined && (
+        <p className="ticket-quote-note">
+          A share pays 1 credit if the number settles at {unit}
+          {fmtEdge(rangeMax)}, nothing at {unit}
+          {fmtEdge(rangeMin)}, in proportion in between.
+        </p>
+      )}
 
       {dir && (
         <>
