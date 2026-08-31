@@ -54,6 +54,24 @@ interface TradeItem {
   branch?: BranchLabel;
 }
 
+/**
+ * A market's pool moving: opened with, or deepened by. It sits in the same
+ * list as the trades because it is the other half of every price in it
+ * (owner ask 2026-08-31): a price that barely moved because the book got four
+ * times deeper is not the same event as a price nobody traded.
+ */
+interface PoolItem {
+  id: string;
+  /** Null on the platform's own initial liquidity, which has no funder. */
+  handle: string | null;
+  kind: 'opened' | 'deepened';
+  amount: number;
+  /** Credits in the pool after it. */
+  pool: number;
+  createdAt: string;
+  branch?: BranchLabel;
+}
+
 type BranchLabel = 'approved' | 'declined';
 
 interface Props {
@@ -75,7 +93,7 @@ interface Props {
   trailing?: ReactNode;
 }
 
-type Tab = 'comments' | 'positions' | 'trades' | null;
+type Tab = 'comments' | 'positions' | 'activity' | null;
 
 function timeAgo(iso: string): string {
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -109,7 +127,7 @@ export function FloorComments({
   const [flashId, setFlashId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
   const [comments, setComments] = useState<Comment[] | null>(null);
-  const [activity, setActivity] = useState<{ positions: Holder[]; trades: TradeItem[] } | null>(null);
+  const [activity, setActivity] = useState<{ positions: Holder[]; trades: TradeItem[]; pool: PoolItem[] } | null>(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -160,10 +178,11 @@ export function FloorComments({
           .then(a => ({
             positions: (a.positions ?? []).map(p => ({ ...p, branch: m.branch })),
             trades: (a.trades ?? []).map(t => ({ ...t, branch: m.branch })),
+            pool: (a.pool ?? []).map(l => ({ ...l, branch: m.branch })),
           }))
           .catch(e => {
             console.error('market activity fetch failed:', e);
-            return { positions: [], trades: [] };
+            return { positions: [], trades: [], pool: [] };
           }),
       ),
     ).then(parts => {
@@ -172,6 +191,9 @@ export function FloorComments({
         positions: parts.flatMap(p => p.positions),
         trades: parts
           .flatMap(p => p.trades)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+        pool: parts
+          .flatMap(p => p.pool)
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
       });
     });
@@ -225,7 +247,18 @@ export function FloorComments({
   // without its lists (an older deploy, a 404 body, an empty stub) must not
   // take the whole floor down with a TypeError while rendering a counter.
   const pCount = activity?.positions?.length ?? null;
-  const tCount = activity?.trades?.length ?? null;
+  // One list, so one count: a reader who counts the rows should find the
+  // number on the tab (owner ask 2026-08-31, "name activity").
+  const aCount = activity ? activity.trades.length + activity.pool.length : null;
+  // Newest first, both kinds in the same order, because the order is the
+  // point: the injection above a trade is why that trade moved the price less
+  // than the one below it.
+  const merged: Array<({ row: 'trade' } & TradeItem) | ({ row: 'pool' } & PoolItem)> = activity
+    ? [
+        ...activity.trades.map(t => ({ row: 'trade' as const, ...t })),
+        ...activity.pool.map(l => ({ row: 'pool' as const, ...l })),
+      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    : [];
 
   return (
     <div className="pubws-comments">
@@ -247,11 +280,11 @@ export function FloorComments({
               Positions{pCount !== null ? ` (${pCount})` : ''}
             </button>
             <button
-              className={`pubws-comments-toggle${tab === 'trades' ? ' is-active' : ''}`}
-              aria-expanded={tab === 'trades'}
-              onClick={() => toggle('trades')}
+              className={`pubws-comments-toggle${tab === 'activity' ? ' is-active' : ''}`}
+              aria-expanded={tab === 'activity'}
+              onClick={() => toggle('activity')}
             >
-              Trades{tCount !== null ? ` (${tCount})` : ''}
+              Activity{aCount !== null ? ` (${aCount})` : ''}
             </button>
           </>
         )}
@@ -326,28 +359,64 @@ export function FloorComments({
         </div>
       )}
 
-      {tab === 'trades' && (
+      {tab === 'activity' && (
         <div className="pubws-comments-body">
           {activity === null ? (
             <p className="pubws-comments-empty">…</p>
-          ) : activity.trades.length === 0 ? (
-            <p className="pubws-comments-empty">No trades yet.</p>
+          ) : merged.length === 0 ? (
+            <p className="pubws-comments-empty">Nothing yet: no pool behind it and nobody in it.</p>
           ) : (
             <ul className="pubws-mkt-list">
-              {activity.trades.map(t => (
-                <li key={t.id} className="pubws-mkt-row">
-                  <span className={`prof-dir prof-dir--${t.direction}`}>{t.direction === 'higher' ? '▲' : '▼'}</span>
-                  <Link className="pubws-mkt-who pubws-name-link" to={profileHref(t.handle, t.handle)}>
-                    {t.handle}
-                  </Link>
-                  {t.branch && <span className="pubws-mkt-branch">if {t.branch}</span>}
-                  <span className="pubws-mkt-act">
-                    {t.kind === 'buy' ? 'bought' : 'sold'} {fmtShares(t.shares)}
-                  </span>
-                  <span className="pubws-mkt-val">{fmtCr(t.cost)} cr</span>
-                  <span className="pubws-mkt-time">{timeAgo(t.createdAt)}</span>
-                </li>
-              ))}
+              {merged.map(item =>
+                item.row === 'trade' ? (
+                  <li key={item.id} className="pubws-mkt-row">
+                    <span className={`prof-dir prof-dir--${item.direction}`}>
+                      {item.direction === 'higher' ? '▲' : '▼'}
+                    </span>
+                    <Link className="pubws-mkt-who pubws-name-link" to={profileHref(item.handle, item.handle)}>
+                      {item.handle}
+                    </Link>
+                    {item.branch && <span className="pubws-mkt-branch">if {item.branch}</span>}
+                    <span className="pubws-mkt-act">
+                      {item.kind === 'buy' ? 'bought' : 'sold'} {fmtShares(item.shares)}
+                    </span>
+                    <span className="pubws-mkt-val">{fmtCr(item.cost)} cr</span>
+                    <span className="pubws-mkt-time">{timeAgo(item.createdAt)}</span>
+                  </li>
+                ) : (
+                  <li key={item.id} className="pubws-mkt-row">
+                    {/* A drop, in ink rather than a direction colour: the pool
+                      is not a side of the market. */}
+                    <span className="prof-dir pubws-mkt-drop" aria-hidden="true">
+                      <svg
+                        width="11"
+                        height="11"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />
+                      </svg>
+                    </span>
+                    {item.handle ? (
+                      <Link className="pubws-mkt-who pubws-name-link" to={profileHref(item.handle, item.handle)}>
+                        {item.handle}
+                      </Link>
+                    ) : (
+                      <span className="pubws-mkt-who">the house</span>
+                    )}
+                    {item.branch && <span className="pubws-mkt-branch">if {item.branch}</span>}
+                    <span className="pubws-mkt-act pubws-mkt-act--pool">
+                      {item.kind === 'opened' ? 'opened it with' : 'deepened the pool by'} {fmtCr(item.amount)}
+                    </span>
+                    <span className="pubws-mkt-val">pool {fmtCr(item.pool)} cr</span>
+                    <span className="pubws-mkt-time">{timeAgo(item.createdAt)}</span>
+                  </li>
+                ),
+              )}
             </ul>
           )}
         </div>

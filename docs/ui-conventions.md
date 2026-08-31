@@ -162,6 +162,24 @@ The API keeps its own word, `proposal` (`POST /api/proposals`,
 (`JobsBoard`, `.jobform-*`). Renaming those buys nothing and breaks every
 client; the rule is about what a visitor reads.
 
+## The market's activity is one list
+
+The panel under a market has three tabs: Discussion, Positions, **Activity**.
+Activity is the market's whole history in one order, trades and the pool
+together, newest first, and its count is both.
+
+The pool belongs there because it is the other half of every price in the
+list: a price that barely moved because the book got four times deeper is not
+the same event as a price nobody traded, and with only trades on screen a
+reader cannot tell those apart. A pool row carries a drop rather than a green
+or red triangle, since the pool is not a side of the market, and says what
+went in and what the pool holds after it. The platform's own opening
+liquidity has no funder to name and reads as "the house".
+
+It is called Activity rather than Trades for one reason: a funded market
+nobody has traded used to answer "Trades (0)", which looks exactly like a
+market nobody funded either.
+
 ## Trading floor (root slug page)
 
 `telarchy.com/<slug>` (`TradePage`, `.pubws-*` styles; `/marketplace/:idOrSlug`

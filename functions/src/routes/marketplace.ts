@@ -5,6 +5,7 @@ import { db } from '../db/client';
 import {
   announcements,
   floorQuestions,
+  liquidityEvents,
   marketMessages,
   markets,
   metricLogs,
@@ -1627,7 +1628,33 @@ marketplaceRouter.get(
       .orderBy(desc(trades.createdAt))
       .limit(50);
 
-    const ids = [...new Set([...posRows.map(r => r.agentId), ...tradeRows.map(r => r.agentId)])];
+    // The other half of every price in that list (owner ask 2026-08-31): a
+    // price that barely moved because the book got four times deeper is not
+    // the same event as a price nobody traded, and with only trades on screen
+    // a reader cannot tell those apart. The rows already existed; nothing here
+    // is new information, it is information that was not being shown.
+    const poolRows = await db
+      .select({
+        id: liquidityEvents.id,
+        agentId: liquidityEvents.agentId,
+        amount: liquidityEvents.amount,
+        poolContribution: liquidityEvents.poolContribution,
+        totalLiquidity: liquidityEvents.totalLiquidity,
+        type: liquidityEvents.type,
+        createdAt: liquidityEvents.createdAt,
+      })
+      .from(liquidityEvents)
+      .where(and(eq(liquidityEvents.workspaceId, ws.id), eq(liquidityEvents.marketId, marketId)))
+      .orderBy(desc(liquidityEvents.createdAt))
+      .limit(50);
+
+    const ids = [
+      ...new Set([
+        ...posRows.map(r => r.agentId),
+        ...tradeRows.map(r => r.agentId),
+        ...(poolRows.map(r => r.agentId).filter(Boolean) as string[]),
+      ]),
+    ];
     const names = await getParticipantDisplayNames(ids);
     const handle = (id: string) => names.get(id) ?? id;
 
@@ -1652,6 +1679,22 @@ marketplaceRouter.get(
         cost: Math.abs(r.cost),
         createdAt: r.createdAt,
       })),
+      pool: poolRows
+        // An event that moved nothing is not an event: the reconcile writes a
+        // zero row when a market opens unfunded, and "opened it with 0" on the
+        // page is noise standing where the reason should be.
+        .filter(r => (r.poolContribution ?? r.amount) > 0)
+        .map(r => ({
+          id: r.id,
+          // Null on the platform's own initial liquidity, which has no funder.
+          handle: r.agentId ? handle(r.agentId) : null,
+          kind: r.type === 'initial' ? 'opened' : 'deepened',
+          // What the funder put in, which is the number they were charged.
+          amount: r.poolContribution ?? r.amount,
+          // The credits in the pool after it, which is what the row is about.
+          pool: Math.round((r.totalLiquidity ?? 0) * Math.LN2 * 100) / 100,
+          createdAt: r.createdAt,
+        })),
     });
   }),
 );
