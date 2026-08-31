@@ -8401,10 +8401,16 @@ textarea.jobform-line--desc {
 .pubws-aud-lead { font-weight: 600; color: var(--text-primary); }
 .pubws-aud-ul { margin: 0 0 1rem; padding-left: 1.2rem; }
 .pubws-aud-ul li { margin-bottom: 0.45rem; }
-.pubws-aud-scroll { overflow-x: auto; margin: 0.4rem 0 1.4rem; border-top: 1px solid var(--border); }
+.pubws-aud-scroll { overflow-x: auto; margin: 0.4rem 0 1.4rem; border-top: 1px solid var(--border-strong); }
 .pubws-aud-table { width: 100%; min-width: 30em; border-collapse: collapse; font-size: 0.9rem; line-height: 1.4; }
 .pubws-aud-table th,
-.pubws-aud-table td { text-align: left; vertical-align: top; padding: 0.55rem 0.6rem 0.55rem 0; border-bottom: 1px solid var(--border); }
+.pubws-aud-table td { text-align: left; vertical-align: top; padding: 0.55rem 0.6rem 0.55rem 0;
+  /* A comparison table is the one place on these pages where the rule
+     does structural work: it separates two products' claims, and at the
+     hairline's 1.3:1 the rows read as one block on a phone. The stronger
+     token already exists in the palette, so this borrows rather than
+     invents (design audit, 2026-08-30). */
+  border-bottom: 1px solid var(--border-strong); }
 .pubws-aud-table th { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); }
 .pubws-aud-table td:first-child { font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-tertiary); white-space: nowrap; padding-right: 1rem; }
 .pubws-aud-faq { margin: 0; }
@@ -8775,3 +8781,9 @@ textarea.jobform-line--desc {
 .dates-danger-say { font-size: 0.76rem; line-height: 1.5; color: var(--text-tertiary); }
 .dates-danger-btn { flex: none; color: var(--delete-color); }
 .dates-danger-btn:hover { border-color: var(--delete-color); color: var(--delete-color); }
+
+/* The audience pages' first call to action, directly under the headline. It is
+   the same action as the one at the foot, set smaller: a reader who has just
+   read one sentence is being offered a door, not urged through it. */
+.pubws-aud-lead-cta { margin: 1.6rem 0 0; }
+.pubws-cta--small { padding: 0.6rem 1.4rem; font-size: 0.92rem; }

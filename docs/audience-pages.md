@@ -212,6 +212,8 @@ A: You cannot buy credits and you never need to; nothing of yours is at stake. T
 Q: Which has more markets?
 A: Manifold, by a very wide margin.
 
+CTA: Start trading (telarchy.com) · Read the Season 0 rules (telarchy.com/legal/season-0)
+
 ## /compare/polymarket (Telarchy vs Polymarket)
 
 Title: Telarchy vs Polymarket: world events with real money, or a company's KPIs with a decision attached?
@@ -246,6 +248,8 @@ A: No. Only the numbers an owner has listed.
 Q: Is Telarchy legal where Polymarket is not?
 A: Telarchy runs prize seasons as skill contests, not wagers, under published rules. Read them before you enter.
 
+CTA: Start trading (telarchy.com) · Read the Season 0 rules (telarchy.com/legal/season-0)
+
 ## /compare/metaculus (Telarchy vs Metaculus)
 
 Title: Telarchy vs Metaculus: public-interest forecasting, or a company's numbers with a payout?
@@ -276,6 +280,8 @@ Q: Is there a track record?
 A: Yes. telarchy.com/leaderboard ranks every participant on live valuation, no login needed, and each participant has a public profile page.
 Q: Do you have AI timeline questions?
 A: No. Owner-listed company numbers only.
+
+CTA: Start trading (telarchy.com) · Read the Season 0 rules (telarchy.com/legal/season-0)
 
 ## /owners (owner hub)
 
@@ -348,3 +354,5 @@ Q: Can a DAO use Telarchy?
 A: If it has an owner account that can define metrics and approve, yes. There is no token integration.
 Q: Does the market decide, or do I?
 A: You do. The market gives you the number.
+
+CTA: List your numbers (telarchy.com/manage) · Open the app (telarchy.com)

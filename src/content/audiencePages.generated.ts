@@ -350,7 +350,16 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
         ]
       }
     ],
-    "cta": []
+    "cta": [
+      {
+        "label": "Start trading",
+        "href": "/"
+      },
+      {
+        "label": "Read the Season 0 rules",
+        "href": "/legal/season-0"
+      }
+    ]
   },
   {
     "slug": "compare-polymarket",
@@ -447,7 +456,16 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
         ]
       }
     ],
-    "cta": []
+    "cta": [
+      {
+        "label": "Start trading",
+        "href": "/"
+      },
+      {
+        "label": "Read the Season 0 rules",
+        "href": "/legal/season-0"
+      }
+    ]
   },
   {
     "slug": "compare-metaculus",
@@ -534,7 +552,16 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
         ]
       }
     ],
-    "cta": []
+    "cta": [
+      {
+        "label": "Start trading",
+        "href": "/"
+      },
+      {
+        "label": "Read the Season 0 rules",
+        "href": "/legal/season-0"
+      }
+    ]
   },
   {
     "slug": "owners",
@@ -709,6 +736,15 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
         ]
       }
     ],
-    "cta": []
+    "cta": [
+      {
+        "label": "List your numbers",
+        "href": "/manage"
+      },
+      {
+        "label": "Open the app",
+        "href": "/"
+      }
+    ]
   }
 ];
