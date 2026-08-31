@@ -3913,10 +3913,14 @@ textarea.jobform-line--desc {
 
 /* The price a verb carries (docs/ui-conventions.md, "An untouched ticket
    still quotes both sides"): mono, a size down, and slightly held back on
-   the fill so the verb still leads. */
+   the fill so the verb still leads. Its own line, always: inline, "Bet
+   Higher ↑ 57c" wraps at 390px while "Bet Lower ↓ 43c" does not, and the
+   pair came out one tall button beside one short one. */
 .pubws-bet-price {
+  display: block;
+  margin-top: 0.15rem;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.9em;
+  font-size: 0.88em;
   opacity: 0.85;
 }
 
