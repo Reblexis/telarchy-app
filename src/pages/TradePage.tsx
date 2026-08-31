@@ -573,6 +573,14 @@ export function TradePage() {
       probability: (b === 'approved' ? pair.approvedProbability : pair.declinedProbability) ?? hero?.probability ?? 0.5,
       liquidity: ownLiquidity > 0 ? ownLiquidity : (hero?.liquidity ?? 1),
       funded: ownLiquidity > 0,
+      // The branch's own three facts, never borrowed from the baseline the way
+      // the price shape above is: a conditional market is a market like any
+      // other and says what IT holds (docs/ui-conventions.md, "What a market
+      // says about itself"). An unspawned branch has no numbers, a spawned
+      // one nobody has touched has zeroes.
+      pool: (b === 'approved' ? pair.approvedPool : pair.declinedPool) ?? 0,
+      traders: (b === 'approved' ? pair.approvedTraders : pair.declinedTraders) ?? 0,
+      volume: (b === 'approved' ? pair.approvedVolume : pair.declinedVolume) ?? 0,
       rangeMin: pair.rangeMin,
       rangeMax: pair.rangeMax,
       history: condHistory?.[b] ?? [],
@@ -589,6 +597,9 @@ export function TradePage() {
           probability: hero.probability,
           liquidity: hero.liquidity,
           funded: hero.liquidity > 0,
+          pool: hero.pool,
+          traders: hero.traderCount ?? 0,
+          volume: hero.tradedVolume ?? 0,
           rangeMin: hero.rangeMin,
           rangeMax: hero.rangeMax,
           history: priceSeriesOf(hero.marketId, ws, horizonPrices),
@@ -1868,20 +1879,32 @@ export function TradePage() {
                 <FloorComments
                   idOrSlug={idOrSlug}
                   trailing={
-                    hero && !selectedJob ? (
+                    hero && active ? (
+                      /* The market ON SCREEN says what it holds, contract
+                         branches included (owner report 2026-08-31: "the
+                         conditional markets should be just the same as any
+                         other"). This used to be gated on `!selectedJob`, so
+                         a funded branch showed no pool at all and the owner's
+                         Inject vanished exactly where a thin book needed it. */
                       <MarketFacts
-                        traders={hero.traderCount ?? 0}
-                        pool={hero.pool}
-                        volume={hero.tradedVolume ?? 0}
+                        traders={active.traders}
+                        pool={active.pool}
+                        volume={active.volume}
                         canManage={canManage}
                         fundingHref={`/${idOrSlug ?? ''}/funding`}
                         onInject={() =>
                           setOwnerDialog({
                             kind: 'inject',
-                            marketId: hero.marketId,
-                            marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}`,
-                            pool: hero.pool,
-                            traders: hero.traderCount ?? 0,
+                            marketId: active.marketId,
+                            /* Naming the branch matters here: the credits go
+                               into one of the two worlds, and injecting into
+                               the wrong one is invisible until someone trades
+                               it. */
+                            marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}${
+                              selectedJob ? ` · if ${branch}` : ''
+                            }`,
+                            pool: active.pool,
+                            traders: active.traders,
                           })
                         }
                       />

@@ -761,6 +761,18 @@ async function buildFloorPayload(ws: PublicWs) {
       approvedLiquidity: number | null;
       declinedProbability: number | null;
       declinedLiquidity: number | null;
+      // What each branch says about itself (docs/ui-conventions.md, "What a
+      // market says about itself"): a conditional market is a market like any
+      // other, and the floor prints these three under it exactly as it does
+      // under the baseline. Per branch, because the approved world and the
+      // declined world are two separate books. Null while a branch has no
+      // market at all, which is not the same as a market nobody has touched.
+      approvedPool: number | null;
+      declinedPool: number | null;
+      approvedTraders: number | null;
+      declinedTraders: number | null;
+      approvedVolume: number | null;
+      declinedVolume: number | null;
       rangeMin: number;
       rangeMax: number;
     }
@@ -791,6 +803,12 @@ async function buildFloorPayload(ws: PublicWs) {
         approvedLiquidity: null,
         declinedProbability: null,
         declinedLiquidity: null,
+        approvedPool: null,
+        declinedPool: null,
+        approvedTraders: null,
+        declinedTraders: null,
+        approvedVolume: null,
+        declinedVolume: null,
         rangeMin: m.rangeMin,
         rangeMax: m.rangeMax,
       };
@@ -802,6 +820,9 @@ async function buildFloorPayload(ws: PublicWs) {
         // back to the baseline's shape for unpriced branches.
         g.approvedProbability = m.liquidity > 0 ? Math.round(pHigher(shares, m.liquidity) * 10000) / 10000 : null;
         g.approvedLiquidity = m.liquidity;
+        g.approvedPool = m.pool ?? 0;
+        g.approvedTraders = tradersByMarket.get(m.id) ?? 0;
+        g.approvedVolume = m.tradedVolume;
         g.rangeMin = m.rangeMin;
         g.rangeMax = m.rangeMax;
       } else if (m.branch === 'declined') {
@@ -809,6 +830,9 @@ async function buildFloorPayload(ws: PublicWs) {
         g.declinedMarketId = m.id;
         g.declinedProbability = m.liquidity > 0 ? Math.round(pHigher(shares, m.liquidity) * 10000) / 10000 : null;
         g.declinedLiquidity = m.liquidity;
+        g.declinedPool = m.pool ?? 0;
+        g.declinedTraders = tradersByMarket.get(m.id) ?? 0;
+        g.declinedVolume = m.tradedVolume;
       }
       groups.set(key, g);
       byProposal.set(m.proposalId, groups);
@@ -831,6 +855,12 @@ async function buildFloorPayload(ws: PublicWs) {
         approvedLiquidity: g.approvedLiquidity,
         declinedProbability: g.declinedProbability,
         declinedLiquidity: g.declinedLiquidity,
+        approvedPool: g.approvedPool,
+        declinedPool: g.declinedPool,
+        approvedTraders: g.approvedTraders,
+        declinedTraders: g.declinedTraders,
+        approvedVolume: g.approvedVolume,
+        declinedVolume: g.declinedVolume,
         rangeMin: g.rangeMin,
         rangeMax: g.rangeMax,
       }));

@@ -22,7 +22,7 @@ jest.mock('../middleware/auth', () => ({
 import { and, eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, markets, metricLogs, metrics, permissionGroups, proposals } from '../db/schema';
+import { agents, markets, metricLogs, metrics, permissionGroups, proposals, trades } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
@@ -552,6 +552,106 @@ describe('public ballot disclosure gate', () => {
     expect(pair.approvedLiquidity).toBe(100);
     expect(pair.rangeMax).toBe(100);
     expect(pair.resolvesOn).toBeTruthy();
+  });
+
+  /**
+   * A conditional market is a market like any other, so it says the same three
+   * things about itself as the baseline does (docs/ui-conventions.md, "What a
+   * market says about itself"): distinct traders, credits in the pool, credits
+   * traded. Per BRANCH, because the approved world and the declined world are
+   * two separate books and neither is the baseline.
+   */
+  describe('what a conditional market says about itself', () => {
+    async function tradeOn(marketId: string, agentId: string, cost: number, i: number) {
+      await db.insert(trades).values({
+        id: `t-${marketId}-${agentId}-${i}`,
+        workspaceId: WS,
+        agentId,
+        marketId,
+        direction: 'higher',
+        shares: 1,
+        cost,
+        createdAt: new Date('2026-08-31T10:00:00Z'),
+      });
+    }
+
+    test('each branch reports its own pool, traders and traded credits', async () => {
+      await seed(['read', 'trade']);
+      // Two people on the approved branch, one of them twice; one person on
+      // the declined branch. Distinct traders, not trades.
+      await tradeOn('mkt-appr', OWNER, 5, 1);
+      await tradeOn('mkt-appr', OWNER, 7, 2);
+      await tradeOn('mkt-appr', PROPOSER, 3, 3);
+      await tradeOn('mkt-decl', PROPOSER, 11, 1);
+      await db.update(markets).set({ tradedVolume: 15 }).where(eq(markets.id, 'mkt-appr'));
+      await db.update(markets).set({ tradedVolume: 11 }).where(eq(markets.id, 'mkt-decl'));
+
+      const res = await request(app).get(`/api/marketplace/${WS}`);
+      const pair = res.body.proposals[0].markets[0];
+      expect(pair.approvedTraders).toBe(2);
+      expect(pair.declinedTraders).toBe(1);
+      expect(pair.approvedVolume).toBe(15);
+      expect(pair.declinedVolume).toBe(11);
+      // The pool is the credits paid in, never b: b = pool / ln 2, so a
+      // 100-credit book has b of about 144 and printing b here would tell an
+      // owner they have half again the credits they put up.
+      expect(pair.approvedPool).toBeCloseTo(initialPool(100), 6);
+      expect(pair.declinedPool).toBeCloseTo(initialPool(100), 6);
+      expect(pair.approvedPool).not.toBe(pair.approvedLiquidity);
+    });
+
+    test('an untraded branch reports zero rather than nothing', async () => {
+      await seed(['read', 'trade']);
+      const res = await request(app).get(`/api/marketplace/${WS}`);
+      const pair = res.body.proposals[0].markets[0];
+      expect(pair.approvedTraders).toBe(0);
+      expect(pair.declinedTraders).toBe(0);
+      expect(pair.approvedVolume).toBe(0);
+      expect(pair.declinedVolume).toBe(0);
+    });
+
+    test("a branch's numbers are its own, never the baseline's", async () => {
+      await seed(['read', 'trade']);
+      // A busy baseline market beside the quiet pair: the pair must not
+      // borrow any of these numbers.
+      await db.insert(markets).values({
+        id: 'mkt-base',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2028',
+        rangeMin: 0,
+        rangeMax: 100,
+        shares: [0, 0],
+        liquidity: 900,
+        pool: initialPool(900),
+        tradedVolume: 4242,
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: null,
+        branch: null,
+      });
+      await tradeOn('mkt-base', OWNER, 9, 1);
+
+      const res = await request(app).get(`/api/marketplace/${WS}`);
+      const pair = res.body.proposals[0].markets[0];
+      expect(pair.approvedTraders).toBe(0);
+      expect(pair.approvedVolume).toBe(0);
+      expect(pair.approvedPool).toBeCloseTo(initialPool(100), 6);
+    });
+
+    test('a branch that was never spawned reports null, not a zero book', async () => {
+      await seed(['read', 'trade']);
+      await db.delete(markets).where(eq(markets.id, 'mkt-decl'));
+
+      const res = await request(app).get(`/api/marketplace/${WS}`);
+      const pair = res.body.proposals[0].markets[0];
+      expect(pair.declinedMarketId).toBeNull();
+      expect(pair.declinedPool).toBeNull();
+      expect(pair.declinedTraders).toBeNull();
+      expect(pair.declinedVolume).toBeNull();
+    });
   });
 
   test('a conditional market history is fetchable and gated like the ballot', async () => {
