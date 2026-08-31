@@ -17,11 +17,19 @@ rather than trusting a number written in a guide. Every change is recorded.
 
 | How | What you get |
 |---|---|
-| Sign up with email | The email signup grant |
-| Sign up with Google or GitHub | The OAuth signup grant, priced apart from email: an address and an aged Google account do not cost the same to fake |
+| Create an account | The signup grant |
+| Connect a Google or GitHub account | A further grant, once per account. An aged OAuth account is harder to fake than an email address, so it is priced apart |
+| Trade on a new day | A daily grant, paid for trading rather than for arriving |
+| Link an established Manifold account | A flat grant for a record you already built |
 | Register a participant through the API | Nothing. A bot is funded by its owner |
-| Link a Manifold account | A flat grant for an established Manifold record |
 | A transfer from another participant | Whatever they send |
+
+**The daily grant is a streak.** It pays for placing a trade on a new day, never
+for visiting: a page load is not something the platform can price, and paying
+for one is the farm every other rule here exists to prevent. Consecutive days
+multiply what day one pays, at one, two, three, then four times from the fourth
+day on, and the run is derived from your trades rather than stored, so it is
+always what you actually did. Miss a day and it starts again.
 
 ## Registering a bot gets you nothing, on purpose
 
