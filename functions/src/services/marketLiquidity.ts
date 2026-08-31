@@ -5,7 +5,7 @@ import { agents, liquidityEvents, markets, metrics } from '../db/schema';
 import { anchoredMarketState } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { emitPricesChanged } from '../lib/market-events';
-import { nearHorizonAnchorP } from '../lib/market-open';
+import { openingAnchorP } from '../lib/market-open';
 import { fromUnits, MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits } from '../lib/validation';
 import { applyCredits } from './credits';
 
@@ -189,7 +189,7 @@ export async function anchorUntradedMarketTx(
     .select({ value: metrics.value })
     .from(metrics)
     .where(and(eq(metrics.id, market.metricId), eq(metrics.workspaceId, params.workspaceId)));
-  const anchorP = nearHorizonAnchorP(
+  const anchorP = openingAnchorP(
     market.targetDate,
     metric?.value,
     market.rangeMax,

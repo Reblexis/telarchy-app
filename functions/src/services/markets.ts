@@ -197,7 +197,7 @@ export async function voidOpenMarketsForMetrics(metricIds: Set<string>, workspac
   }
 }
 
-export { NEAR_HORIZON_DAYS, nearHorizonAnchorP } from '../lib/market-open';
+export { openingAnchorP } from '../lib/market-open';
 
 export type PendingMarket = {
   marketId: string;
