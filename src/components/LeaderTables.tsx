@@ -97,6 +97,10 @@ export function SeasonTable({
   // The mark exists only while a season is running (a draft has no window, a
   // settled season is frozen), so the two columns appear with it rather than
   // standing empty and inviting the reading that everyone is worth nothing.
+  // It is a TOTAL, not an addition to the settled column (owner report
+  // 2026-08-31: "its not clear whether the column is adding on top of settled
+  // profit"), which is why the header says so and why a row with nothing open
+  // reads the same number twice.
   const marked = mode === 'running' && rows.some(r => r.markedScore !== null && r.markedScore !== undefined);
   const row = (r: SeasonStanding, isPinned = false) => {
     const score = r.score ?? 0;
@@ -129,7 +133,7 @@ export function SeasonTable({
               {/* Same reason for the mark: on a phone it is the only place an
                   entrant with nothing settled yet can see their position. */}
               {markedScore !== null && markedScore !== score && (
-                <span className="lbt-msub">{fmtCr(markedScore)} cr if prices hold</span>
+                <span className="lbt-msub">{fmtCr(markedScore)} cr total if prices hold</span>
               )}
             </td>
             <td className={`lbt-num lbt-desk${prize > 0 ? '' : ' is-zero'}`}>{share}</td>
@@ -143,7 +147,7 @@ export function SeasonTable({
               <>
                 <td
                   className={`lbt-desk ${markedScore === null ? 'lbt-num is-zero' : numClass(markedScore)}`}
-                  title="Profit if every market that still resolves inside this season settled at the value it is predicting now. Markets resolving after the season ends are not counted, and it decides nothing: the prize is paid on settled profit."
+                  title="Settled profit PLUS open positions, with every market that still resolves inside this season settled at the value it is predicting now. It includes the settled column rather than adding to it, so a row with nothing open reads the same in both. Markets resolving after the season ends are not counted, and it decides nothing: the prize is paid on settled profit."
                 >
                   {markedScore === null ? '—' : `${fmtCr(markedScore)} cr`}
                 </td>
@@ -174,7 +178,7 @@ export function SeasonTable({
               {marked && (
                 <>
                   <th className="lbt-h lbt-desk" title="Not the scoring key: the season pays settled profit">
-                    If prices hold
+                    Total if prices hold
                   </th>
                   <th className="lbt-h lbt-desk">Would pay</th>
                 </>

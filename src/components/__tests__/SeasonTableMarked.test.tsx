@@ -42,7 +42,17 @@ const rows: SeasonStanding[] = [
     markedProjectedPrizeUsd: 700,
   },
   {
+    // Settled money, nothing open: the row that proves the mark is a total.
     rank: 2,
+    id: 'philipp-gl',
+    nickname: 'philipp-gl',
+    score: 232.31,
+    projectedPrizeUsd: 241.42,
+    markedScore: 232.31,
+    markedProjectedPrizeUsd: 164,
+  },
+  {
+    rank: 3,
     id: 'quroe',
     nickname: 'Quroe',
     score: 0,
@@ -80,8 +90,22 @@ describe('the season standings table', () => {
     );
     // The key keeps its arrow; the marked pair says it is a projection.
     expect(screen.getByText('Settled profit ↓')).toBeTruthy();
-    expect(screen.getByText('If prices hold')).toBeTruthy();
+    expect(screen.getByText('Total if prices hold')).toBeTruthy();
     expect(screen.getByText('Would pay')).toBeTruthy();
+  });
+
+  test('the mark is a TOTAL, so a row with nothing open reads the same twice', () => {
+    // The rule the header has to carry: "Total if prices hold" includes the
+    // settled column, it does not add to it. philipp-gl has 232.31 settled and
+    // nothing open, so both columns say 232.31 and the reader can see that a
+    // row without open positions is unchanged by the projection.
+    render(
+      <MemoryRouter>
+        <SeasonTable rows={rows} season={season} mode="running" />
+      </MemoryRouter>,
+    );
+    const philipp = rowOf('philipp-gl');
+    expect(within(philipp).getAllByText('+232.31 cr')).toHaveLength(2);
   });
 
   test('a season with no mark yet renders without the columns claiming zero', () => {
@@ -95,7 +119,7 @@ describe('the season standings table', () => {
     );
     const row = rowOf('vi0');
     // Settled seasons publish finals only: the marked cells read as absent.
-    expect(within(row).queryByText('If prices hold')).toBeNull();
+    expect(within(row).queryByText('Total if prices hold')).toBeNull();
     expect(within(row).getByText('+12 cr')).toBeTruthy();
   });
 });
