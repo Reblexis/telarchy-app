@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { AccountMenu } from '../components/AccountMenu';
 import { AgentDoors } from '../components/AgentDoors';
 import { AnimatedNumber } from '../components/AnimatedNumber';
+import { DatesDialog } from '../components/DatesDialog';
 import { DiscordButton } from '../components/DiscordButton';
 import { EarnDoor } from '../components/EarnDoor';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
@@ -209,6 +210,7 @@ export function TradePage() {
     | null
     | { kind: 'new-metric' }
     | { kind: 'add-date'; metricId: string; metricName: string }
+    | { kind: 'dates'; metricId: string; metricName: string }
     | { kind: 'inject'; marketId: string; marketLabel: string; pool: number; traders: number }
     | { kind: 'report'; metricId: string; metricName: string }
   >(null);
@@ -1238,12 +1240,12 @@ export function TradePage() {
                     <button
                       type="button"
                       className="pubws-date-add"
-                      aria-label="Price this metric on another date"
+                      aria-label="The dates this metric is priced on"
                       onClick={() =>
-                        setOwnerDialog({ kind: 'add-date', metricId: hero.metricId, metricName: metricLabel })
+                        setOwnerDialog({ kind: 'dates', metricId: hero.metricId, metricName: metricLabel })
                       }
                     >
-                      + date
+                      dates
                     </button>
                   )}
                 </div>
@@ -2274,6 +2276,28 @@ export function TradePage() {
           workspaceId={ws.workspaceId}
           metricId={ownerDialog.metricId}
           metricName={ownerDialog.metricName}
+          defaultCredits={defaultCredits}
+          spendable={(balance ?? 0) + liquidityWallet}
+          onClose={() => setOwnerDialog(null)}
+          onDone={() => {
+            setOwnerDialog(null);
+            reload();
+          }}
+        />
+      )}
+      {ownerDialog?.kind === 'dates' && ws && (
+        <DatesDialog
+          workspaceId={ws.workspaceId}
+          metricId={ownerDialog.metricId}
+          metricName={ownerDialog.metricName}
+          markets={horizons
+            .filter(h => h.metricId === ownerDialog.metricId)
+            .map(h => ({
+              targetDate: h.targetDate,
+              pool: h.pool,
+              traders: h.traderCount ?? 0,
+              traded: (h.tradedVolume ?? 0) > 0 || (h.traderCount ?? 0) > 0,
+            }))}
           defaultCredits={defaultCredits}
           spendable={(balance ?? 0) + liquidityWallet}
           onClose={() => setOwnerDialog(null)}

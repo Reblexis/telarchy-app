@@ -184,6 +184,25 @@ refunded their net cash at stake, as any void does (`vision.md`, void refund
 rule), so the escape costs them their position and their price discovery,
 never their money.
 
+### Stopping a date is not destroying a market
+
+An owner drops an entry from `timePreference.customHorizons` when they no
+longer want that market to come back. What happens to the one already open
+depends on whether anybody is in it (owner decision 2026-08-31):
+
+- **Traded**: nothing at all. It stays open, stays tradeable, and settles on
+  its own date like every other market. Only the NEXT one is never opened.
+  Removing it from the floor would leave holders unable to sell out of a
+  position they took in good faith, which is the same harm I2 refuses
+  elsewhere.
+- **Untraded**: it is voided, and the pool goes back to whoever funded it.
+  There is nothing to protect and no reason to leave credits sitting in a
+  book that will never be read.
+
+Before 2026-08-31 both cases were deactivated instead: the market vanished
+from the floor while still settling in the background, which is the worst of
+both, and the pool stayed in it either way.
+
 ### There is no reset endpoint
 
 `POST /api/system/reset-economy` does not exist and is not reintroduced, guarded

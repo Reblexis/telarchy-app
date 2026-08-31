@@ -63,31 +63,40 @@ starts at zero, and the first reading is what makes the number real. Adding
 the metric immediately opens dialog 2 for it, because a metric with no date
 has no market and the flow does not let the owner stop before one.
 
-**2. Add a date**, the same dialog whether it follows dialog 1 or is opened
-from `+ date` on the date row of any metric. One date, in Manifold's
-close-date shape (owner ask 2026-08-28, from their open-source
-close-time-section): preset chips of this week, this month, next month and
-end of the year above an always-visible date picker, never a second mode.
-A chip is the selection until a day is picked; picking a day deselects the
-chips, and clicking a chip clears the day. Beside the day sits an optional
-UTC hour (owner ask 2026-08-28): markets settle on the hour, so the time
-field carries hours only and a day with an hour opens an hour market
-(`YYYY-MM-DDTHH`). Under it, the liquidity the market opens
-with, and the heading says whose credits it comes out of, because it is
-the owner's own balance and wallet. The prefill is what can actually price
-the question: the workspace's own default only when it is above the
-25-credit line where a pool stops being a decoration, a thousand otherwise,
-and never more than the owner holds, since the server refuses what the
-balance will not cover. A fresh workspace carries 0.5 credits per
-auto-funded market, which prefilled 1 and opened a first market nobody
-could move. The open button carries the cost.
+**2. The dates**, opened from the `dates` chip on the date row, or straight
+after dialog 1 while the metric still has none. It is the whole subject in
+one place: what this metric is priced on, what comes back, and how to stop
+either. A list that could only be added to was a list that could only be got
+wrong once (owner ask 2026-08-31).
 
-The picks write `timePreference.customHorizons` on the metric: the calendar
-picks as ROLLING entries (`+0w`, `+0m`, `+1m`) so this week's market is
-followed by next week's, a picked day as the one-shot absolute it is. The
-liquidity writes `metrics.liquidityCredits`, and the reconcile that runs on
-the same request opens the market funded at that number. One request, one
-market, no second call to forget.
+Each line says what it IS rather than when it next lands, because a repeat
+and a one-off look identical on the floor: "Every month", "Every day",
+"31 December 2026, once", each with what its open market currently holds
+(next date, pool, traders) and a Stop.
+
+Adding one asks how often, in the vocabulary the API always had and the floor
+never offered: every hour, day, week, month, year, or once. A repeat then
+asks which one of the period, today or tomorrow, this week or next, which is
+exactly the `+0d` / `+1d` the entry stores. Once asks for a day, with an
+optional UTC hour, since markets settle on the hour. Under it, the liquidity
+each one opens with, and the heading says whose credits that is.
+
+**Stopping a date says which of two things it will do, before the press.**
+The two are genuinely different (`docs/market-integrity.md`, "Stopping a date
+is not destroying a market"): if people have traded it, the open market keeps
+running and settles on its own date untouched, and only the next one never
+opens; if nobody has, the market goes and its pool comes back to the wallet
+that funded it.
+
+**Removing the metric** sits at the foot of the same dialog, because it is
+the same kind of act. It lists what is in the way first: a traded market
+blocks it and the button says so instead of throwing a 409 after the click,
+while untraded ones simply go with their pools returned.
+
+Every one of those is the same write: `timePreference.customHorizons` on the
+metric, adding an entry or dropping one, plus `metrics.liquidityCredits` for
+what a new market opens with. The reconcile runs on the same request, so one
+call opens the market, and one call stops it. No second call to forget.
 
 **4. Report the number**, the owner's most frequent act, opened from the
 line under the market's own number: "Yours: $44,439 [Report]". Markets settle

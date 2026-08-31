@@ -525,8 +525,19 @@ export async function refreshRelativeDateMarkets(
     if (shouldBeActive && !m.active) {
       toActivate.push(m.id);
     } else if (isManaged && !shouldBeActive && m.active) {
-      toDeactivate.push(m.id);
-      deactivated++;
+      // A date the owner stopped wanting. What happens to the market already
+      // open depends on whether anyone is in it (docs/market-integrity.md,
+      // "Stopping a date is not destroying a market"): a traded one is left
+      // exactly as it is and settles on its own date, because taking it off
+      // the floor would leave holders unable to sell out of a position they
+      // took in good faith. An untraded one is voided, so its pool goes back
+      // to whoever funded it rather than sitting in a book nobody will read.
+      if ((m.tradedVolume ?? 0) > 0) {
+        // Left alone deliberately: still active, still tradeable, still due.
+      } else {
+        toVoid.push(m);
+        deactivated++;
+      }
     }
 
     // Include any active market whose pool is below the minimum usable size.

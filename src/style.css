@@ -8752,3 +8752,26 @@ textarea.jobform-line--desc {
   max-width: 34rem;
   margin: 1.8rem auto 0;
 }
+
+/* The dates dialog: a list line carries a second line of facts under the
+   name, and the metric's own removal sits at the foot of it
+   (docs/owner-on-the-floor.md, "The dates a metric is priced on"). */
+.dates-line { align-items: center; }
+.dates-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+}
+.dates-danger {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border-color);
+}
+.dates-danger-say { font-size: 0.76rem; line-height: 1.5; color: var(--text-tertiary); }
+.dates-danger-btn { flex: none; color: var(--delete-color); }
+.dates-danger-btn:hover { border-color: var(--delete-color); color: var(--delete-color); }

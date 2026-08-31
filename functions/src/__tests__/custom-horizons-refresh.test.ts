@@ -1,7 +1,8 @@
 /**
  * Integration tests for custom horizons in the daily market refresh:
  *  - a custom-only metric (curve off) gets markets for its horizons
- *  - removing a horizon deactivates its market on the next refresh
+ *  - removing a horizon voids its market when nobody has traded it, and
+ *    leaves it open when somebody has
  *  - disabling the curve keeps custom-horizon markets alive
  *  - manual one-off markets on unmanaged metrics survive the refresh
  *    (both the deactivation and the rangeMax-mismatch-void paths)
@@ -10,9 +11,10 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { and, eq } from 'drizzle-orm';
-import { markets, metrics, workspaces } from '../db/schema';
+import { agents, markets, metrics, trades, workspaces } from '../db/schema';
 import { toAbsoluteDate } from '../lib/date-utils';
 import { desiredMarketDates } from '../lib/time-preference';
+import { toUnits } from '../lib/validation';
 import { refreshRelativeDateMarkets } from '../services/markets';
 import { resolvePredictions } from '../services/predictions';
 import type { TimePreference } from '../types';
@@ -70,7 +72,10 @@ describe('refreshRelativeDateMarkets with custom horizons', () => {
     expect(rows.every(r => r.active)).toBe(true);
   });
 
-  test('removing a horizon deactivates its market; the rest stay active', async () => {
+  // Owner decision 2026-08-31 (docs/market-integrity.md, "Stopping a date is
+  // not destroying a market"): what stopping does depends on whether anyone is
+  // in the market. Nobody is here, so it goes and its pool comes back.
+  test('removing a horizon voids its untraded market; the rest stay active', async () => {
     await seedWorkspace();
     const rollingDate = toAbsoluteDate('+2w');
     await seedMetric('m1', 'Custom Only', { enabled: false, halfLife: 1, customHorizons: ['+2w', '2099-12-31'] });
@@ -84,8 +89,46 @@ describe('refreshRelativeDateMarkets with custom horizons', () => {
 
     const rows = await marketsFor('m1');
     const byDate = new Map(rows.map(r => [r.targetDate, r]));
-    expect(byDate.get(rollingDate)!.active).toBe(false);
+    const dropped = byDate.get(rollingDate)!;
+    expect(dropped.active).toBe(false);
+    // Voided rather than deactivated, which is what sends the pool back to
+    // whoever funded it instead of leaving it in a book nobody will read.
+    expect(dropped.voided).toBe(true);
+    expect(dropped.resolved).toBe(true);
     expect(byDate.get('2099-12-31')!.active).toBe(true);
+  });
+
+  // The other half of the same decision: a market people are in is left
+  // exactly as it is, so nobody is locked out of a position they took.
+  test('removing a horizon leaves a TRADED market open, and only stops the next one', async () => {
+    await seedWorkspace();
+    const rollingDate = toAbsoluteDate('+2w');
+    await seedMetric('m1', 'Custom Only', { enabled: false, halfLife: 1, customHorizons: ['+2w', '2099-12-31'] });
+    await refreshRelativeDateMarkets(WS, { force: true });
+
+    const [traded] = (await marketsFor('m1')).filter(r => r.targetDate === rollingDate);
+    await db.insert(agents).values({ id: 'trader-1', apiKeyHash: 'h-trader-1', balance: toUnits(500) });
+    await db.insert(trades).values({
+      id: 'trade-1',
+      workspaceId: WS,
+      agentId: 'trader-1',
+      marketId: traded.id,
+      direction: 'higher',
+      shares: 12,
+      cost: 25,
+    });
+    await db.update(markets).set({ tradedVolume: 25 }).where(eq(markets.id, traded.id));
+
+    await db
+      .update(metrics)
+      .set({ timePreference: { enabled: false, halfLife: 1, customHorizons: ['2099-12-31'] } })
+      .where(eq(metrics.id, 'm1'));
+    await refreshRelativeDateMarkets(WS, { force: true });
+
+    const [after] = (await marketsFor('m1')).filter(r => r.id === traded.id);
+    expect(after.active).toBe(true);
+    expect(after.voided).toBe(false);
+    expect(after.resolved).toBe(false);
   });
 
   test('disabling the curve keeps custom-horizon markets, deactivates curve markets', async () => {
