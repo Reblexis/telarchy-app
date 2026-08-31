@@ -42,27 +42,36 @@ export function payoutLine(unit: string, rangeMin: number, rangeMax: number): st
 }
 
 /**
- * The most a credit spent on a side can come back as: a share costs its
- * price and pays at most one credit, so the ceiling is the reciprocal.
+ * How many credits can ever be won on a side, from where the market is now.
  *
- * It is quoted only ever as "up to" (the callers write the words), because
- * our payout is linear in the settled value and the maximum is reached only
- * at the range's own edge. A bare multiple would read as the return rather
- * than as its ceiling, which is the same lie a percent would tell about a
- * price. It answers what "to win" answers on a binary venue, where a
- * contract pays a fixed amount and the price states its own payout; ours
- * does not, so this is the honest version of that question.
+ * There IS a ceiling, and it is exact: `b * ln(1/p)`, the market's liquidity
+ * times the log of one over that side's price. Buying pushes the price
+ * toward the range's edge, so each further share costs more than the last
+ * and the cost catches the payout: profit converges on that figure rather
+ * than growing with the stake. On a 30c side of a market with b = 575, a
+ * 73 credit bet can make 144 and a 5,000 credit bet can make 700, which is
+ * the ceiling; the next five thousand make nothing.
  *
- * Clamped at both ends like `priceLabel`: a 1c share really can return a
- * hundredfold and saying so reads as a lie, and no side can return less than
- * the credit put on it.
+ * This is the quote both untouched surfaces carry, because it is the only
+ * number on the page that answers the question a trader asks first: is
+ * there anything here worth my time. A price in cents and the multiple it
+ * implies are near-identical across every live market; the depth is not,
+ * and "up to 12 cr" sends somebody away in one glance where "up to 3.4x"
+ * never would. It also says which side the market maker is exposed on.
+ *
+ * Always quoted as "up to" (the callers write the words): it is reached
+ * only if the number settles at the range's own edge, and bare it would
+ * read as a promise.
+ *
+ * Null where there is nothing to state: an unfunded market has no price
+ * either and refuses trades, and a free side has no ceiling at all.
  */
-export function maxReturnLabel(p: number): string {
+export function maxWinLabel(p: number, liquidity: number): string | null {
+  if (!Number.isFinite(liquidity) || liquidity <= 0) return null;
   const price = Math.min(1, Math.max(0, p));
-  if (price <= 0.01) return '>99x';
-  const x = 1 / price;
-  if (x >= 99.5) return '>99x';
-  if (x < 1.05) return '1x';
-  const body = x >= 10 ? String(Math.round(x)) : (Math.round(x * 10) / 10).toString();
-  return `${body.replace(/\.0$/, '')}x`;
+  if (price <= 0) return null;
+  const cr = liquidity * Math.log(1 / price);
+  if (cr < 0.95) return '<1 cr';
+  if (cr < 10) return `${Math.round(cr * 10) / 10} cr`;
+  return `${Math.round(cr).toLocaleString('en-US')} cr`;
 }

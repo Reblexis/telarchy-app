@@ -741,26 +741,35 @@ words, not boxes; state is carried by colour and a fill on the chosen one,
 with the floor's ▲/▼ glyph keeping its --higher/--lower colour even while
 the word is quiet, since direction is the fastest thing on the page to read.
 
-**The quote is a ceiling, not a price** (owner, 2026-08-31: "just show the
-up to y x on the bet buttons instead of the cr cost"). A share costs its
-price and pays at most one credit, so the most a credit put on a side can
-come back as is the reciprocal of that price, and that multiple is what both
-surfaces show: "up to 2x". It is never quoted bare. Payout is linear in the
-settled value, so the ceiling is reached only at the range's own edge, and
-"3.4x" without its "up to" would read as the return rather than as its
-limit, the same lie a percent would tell about a price. It answers what "to
-win $100" answers on a binary venue, where a contract pays a fixed amount
-and its price states its own payout; ours does not, so the ceiling is the
-most that can honestly be said. Clamped at both ends: `>99x` where a share
-costs under a cent, because a hundredfold reads as a lie exactly as `0c`
-would, and never under `1x`. The wording lives in `maxReturnLabel` in
-`src/lib/market-quote.ts`, which both surfaces call, so the two can never
-drift apart. It carries the same information as the cents price it replaced,
-one being the reciprocal of the other, and asks less of a reader who has
-never traded. The rule both of them replaced (2026-08-10, "an untouched
-ticket asks one question") cost the platform its most calibrated trader, who
-could not price a trade without pressing a button first
-(`notes/quroe-churn-2026-08-27.md`).
+**The quote is how much is on the table** (owner, 2026-08-31). Each side
+says the most that can ever be won on it from where the market stands, in
+credits: "up to 700 cr". There IS such a ceiling and it is exact,
+`b * ln(1/p)`, the market's liquidity times the log of one over that side's
+price. Buying pushes the price toward the range's edge, so each further
+share costs more than the last and the cost catches the payout: the profit
+converges on that figure instead of growing with the stake. On a 30c side
+with `b = 575`, 73 credits can make 144 and 5,000 credits can make 700,
+which is the ceiling; the next five thousand make nothing.
+
+It is quoted as "up to" and never bare, because it is reached only if the
+number settles at the range's own edge. It is null, and the line is absent,
+where there is nothing to state: an unfunded market has no price either and
+refuses trades.
+
+This is the number both untouched surfaces carry because it is the only one
+on the page that answers what a trader asks first, which is whether there is
+anything here worth their time. A price in cents, and the multiple it
+implies, are near-identical across every live market; the depth is not, and
+"up to 12 cr" sends somebody away in one glance where "up to 3.4x" never
+would. It also says which side the market maker is exposed on: 700 credits
+behind Higher and 42 behind Lower is a description of where the cheap
+opportunity is. The wording lives in `maxWinLabel` in
+`src/lib/market-quote.ts`, which the pills and the floor's verbs both call,
+so the two can never drift apart. What it replaced, the cents price, was
+itself the fix for a trader who could not price a trade without pressing a
+button first (`notes/quroe-churn-2026-08-27.md`); once a side is picked the
+payoff line prices his actual bet in credits, so nothing is lost by quoting
+depth rather than price before the click.
 
 The amount is one bare underlined mono numeral (no boxed field, no stepper
 chips, no presets) with a slider under it, its fill in the chosen side's
