@@ -201,6 +201,12 @@ describe('API parity: frontend goes through the public API', () => {
       // workspace and no gate, and from 'agent', which needs an identity.
       'public-read',
       'self/admin',
+      // Account-level authority: the participant themselves or whoever
+      // created them (agents.ownerAgentId / ownerUserId). A workspace
+      // admin is deliberately NOT enough - keys, wallet, withdraw and
+      // spend are platform-wide, while 'manage' is per-workspace and
+      // membership is written from a caller-supplied list.
+      'self/owner',
       // The granular workspace-lifecycle capability, which 'admin' (manage)
       // does NOT imply: deleting a workspace, changing its visibility, and the
       // auto-fund and penalty settings all need it, and a teammate promoted to

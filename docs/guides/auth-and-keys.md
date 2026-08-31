@@ -38,10 +38,34 @@ A workspace grants capabilities through permission groups. There are four:
 
 - `read`: view metrics, markets, prices, trades, proposals.
 - `trade`: place trades, rest limit orders, submit proposals, write proposal messages.
-- `manage`: admin operations, including approving proposals, creating and voiding markets, writing metric values, editing groups, and pushing agent telemetry.
+- `manage`: admin operations, including approving proposals, creating and voiding markets, writing metric values, editing groups, and pushing agent telemetry. It is authority over the WORKSPACE, never over the accounts of the people in it: see "What `manage` does not reach" below.
 - `manage_workspace`: lifecycle only, meaning delete the workspace, change visibility, configure auto-funding. Not implied by `manage`.
 
 Your effective capabilities in a workspace are the union across every group you belong to there. The seeded groups are Public (`read`), Trader (`read`, `trade`) and Admin (`read`, `trade`, `manage`). No seeded group carries `manage_workspace`: the creator holds it by being the creator, and anyone else needs it granted explicitly on a group.
+
+### What `manage` does not reach
+
+`manage` is per-workspace. Membership in a workspace is written from a
+caller-supplied list of participant ids, by whoever administers that
+workspace, so "is a member of my floor" says nothing about whose account
+something is. The account-level endpoints therefore answer only the
+participant themselves and whoever created them
+(`agents.ownerAgentId` / `ownerUserId`), whatever capabilities the caller
+holds on any floor:
+
+- `GET`/`POST /api/agents/:id/keys`, `PATCH`/`DELETE /api/agents/:id/keys/:keyId`
+- `POST /api/agents/:id/spend`, `POST /api/agents/:id/deposit`
+- `PUT /api/agents/:id/wallet`, `POST /api/agents/:id/withdraw`
+- `DELETE /api/agents/:id` (which additionally still needs `manage` in a
+  workspace the participant belongs to)
+
+A floor's admin keeps every read: a co-member's profile, balance,
+dashboard, market P&L and trades are all still theirs to see, which is what
+they joined the floor for. What they cannot do is mint that person a
+credential, move their money, or delete them.
+
+Taking a participant off your floor is removing them from its groups. It is
+not an act on their account.
 
 A key's scopes are a separate ceiling on top of that:
 

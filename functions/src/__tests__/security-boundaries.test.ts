@@ -6,8 +6,10 @@
  *     to anyone who merely knows its UUID (visibility is the access boundary,
  *     same rule as the join routes; private 404s so ids cannot be probed).
  *  2. DELETE /api/agents/:id is a platform-wide delete gated by a
- *     per-workspace capability; the target must be a member of the caller's
- *     workspace (same guard as POST /:id/credit).
+ *     per-workspace capability, so the target must be a member of the
+ *     caller's workspace AND be the caller or something the caller created
+ *     (amended 2026-08-31: membership alone was forgeable, because it is
+ *     written from a caller-supplied array of ids).
  *  3. DELETE /api/workspaces/:id and PUT /:id/settings act on the PATH id;
  *     the capability must hold in that workspace, not just in whatever
  *     workspace the X-Workspace-Id header names.
@@ -189,7 +191,13 @@ describe('DELETE /api/agents/:id is bounded to the caller workspace', () => {
     expect(rows).toHaveLength(1);
   });
 
-  test('manage in the target participant workspace still deletes', async () => {
+  test('manage in the target participant workspace is NOT enough to delete them', async () => {
+    // Amended 2026-08-31: this used to expect 200. Membership is written
+    // from a caller-supplied array of ids (PUT /api/groups/:id,
+    // POST /api/workspaces/:id/members), so "is a member of my floor" was
+    // forgeable, and this delete is platform-wide. Taking someone off your
+    // floor is removing them from its groups; deleting their account is
+    // theirs and their creator's. See participant-authority.test.ts.
     await seed();
     const res = await request(app)
       .delete(`/api/agents/${MEMBER_A}`)
@@ -197,8 +205,36 @@ describe('DELETE /api/agents/:id is bounded to the caller workspace', () => {
       .set('X-Workspace-Id', WS_A)
       .set('X-Test-Caps', 'read,manage');
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
     const rows = await db.select().from(agents).where(eq(agents.id, MEMBER_A));
+    expect(rows).toHaveLength(1);
+  });
+
+  test('the participant that created a bot can still delete it', async () => {
+    await seed();
+    await db.insert(agents).values({
+      id: 'agent-owner-a-bot',
+      apiKeyHash: 'h-owner-a-bot',
+      balance: 0,
+      ownerAgentId: OWNER_A,
+    });
+    const [publicA] = await db
+      .select()
+      .from(permissionGroups)
+      .where(and(eq(permissionGroups.workspaceId, WS_A), eq(permissionGroups.type, 'public')));
+    await db
+      .update(permissionGroups)
+      .set({ memberIds: [...((publicA.memberIds as string[]) ?? []), 'agent-owner-a-bot'] })
+      .where(eq(permissionGroups.id, publicA.id));
+
+    const res = await request(app)
+      .delete('/api/agents/agent-owner-a-bot')
+      .set('X-Test-Agent-Id', OWNER_A)
+      .set('X-Workspace-Id', WS_A)
+      .set('X-Test-Caps', 'read,manage');
+
+    expect(res.status).toBe(200);
+    const rows = await db.select().from(agents).where(eq(agents.id, 'agent-owner-a-bot'));
     expect(rows).toHaveLength(0);
   });
 });

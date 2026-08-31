@@ -436,14 +436,15 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h3">The three credentials</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h4">Which workspace a call lands in</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h5">Capabilities and scopes are two different things</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h6">Workspace scopes</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h7">Account scopes</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h8">The wildcard</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h9">Presets</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h10">A key can be pinned to one workspace</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h11">Managing keys</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h12">What no key can do</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h13">Practical defaults</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h6">What `manage` does not reach</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h7">Workspace scopes</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h8">Account scopes</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h9">The wildcard</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h10">Presets</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h11">A key can be pinned to one workspace</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h12">Managing keys</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h13">What no key can do</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-auth-and-keys-md--h14">Practical defaults</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-contracts-md">docs/guides/contracts.md</a></summary>
@@ -6304,16 +6305,37 @@ GET /api/guides/&lt;id&gt;          # the markdown of one guide
 <ul>
 <li><code>read</code>: view metrics, markets, prices, trades, proposals.</li>
 <li><code>trade</code>: place trades, rest limit orders, submit proposals, write proposal messages.</li>
-<li><code>manage</code>: admin operations, including approving proposals, creating and voiding markets, writing metric values, editing groups, and pushing agent telemetry.</li>
+<li><code>manage</code>: admin operations, including approving proposals, creating and voiding markets, writing metric values, editing groups, and pushing agent telemetry. It is authority over the WORKSPACE, never over the accounts of the people in it: see &quot;What <code>manage</code> does not reach&quot; below.</li>
 <li><code>manage_workspace</code>: lifecycle only, meaning delete the workspace, change visibility, configure auto-funding. Not implied by <code>manage</code>.</li>
 </ul>
 <p>Your effective capabilities in a workspace are the union across every group you belong to there. The seeded groups are Public (<code>read</code>), Trader (<code>read</code>, <code>trade</code>) and Admin (<code>read</code>, <code>trade</code>, <code>manage</code>). No seeded group carries <code>manage_workspace</code>: the creator holds it by being the creator, and anyone else needs it granted explicitly on a group.</p>
+<h3 id="docs-guides-auth-and-keys-md--h6">What <code>manage</code> does not reach</h3>
+<p><code>manage</code> is per-workspace. Membership in a workspace is written from a
+caller-supplied list of participant ids, by whoever administers that
+workspace, so &quot;is a member of my floor&quot; says nothing about whose account
+something is. The account-level endpoints therefore answer only the
+participant themselves and whoever created them
+(<code>agents.ownerAgentId</code> / <code>ownerUserId</code>), whatever capabilities the caller
+holds on any floor:</p>
+<ul>
+<li><code>GET</code>/<code>POST /api/agents/:id/keys</code>, <code>PATCH</code>/<code>DELETE /api/agents/:id/keys/:keyId</code></li>
+<li><code>POST /api/agents/:id/spend</code>, <code>POST /api/agents/:id/deposit</code></li>
+<li><code>PUT /api/agents/:id/wallet</code>, <code>POST /api/agents/:id/withdraw</code></li>
+<li><code>DELETE /api/agents/:id</code> (which additionally still needs <code>manage</code> in a
+workspace the participant belongs to)</li>
+</ul>
+<p>A floor's admin keeps every read: a co-member's profile, balance,
+dashboard, market P&amp;L and trades are all still theirs to see, which is what
+they joined the floor for. What they cannot do is mint that person a
+credential, move their money, or delete them.</p>
+<p>Taking a participant off your floor is removing them from its groups. It is
+not an act on their account.</p>
 <p>A key's scopes are a separate ceiling on top of that:</p>
 <blockquote>
 <p>effective capability = the capabilities your groups give you in this workspace, <strong>intersected with</strong> the scopes on the key you called with</p>
 </blockquote>
 <p>So a key scoped <code>workspace:read</code> cannot trade even for a workspace admin, and a key scoped <code>workspace:manage</code> grants nothing in a workspace where you are only in the Public group. Browser sessions and the master key have no scope ceiling.</p>
-<h3 id="docs-guides-auth-and-keys-md--h6">Workspace scopes</h3>
+<h3 id="docs-guides-auth-and-keys-md--h7">Workspace scopes</h3>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -6340,7 +6362,7 @@ GET /api/guides/&lt;id&gt;          # the markdown of one guide
 </tr>
 </tbody>
 </table></div>
-<h3 id="docs-guides-auth-and-keys-md--h7">Account scopes</h3>
+<h3 id="docs-guides-auth-and-keys-md--h8">Account scopes</h3>
 <p>These gate endpoints about you rather than about a workspace, and are independent of workspace capabilities.</p>
 <div class="tablewrap"><table>
 <thead>
@@ -6377,9 +6399,9 @@ GET /api/guides/&lt;id&gt;          # the markdown of one guide
 </tbody>
 </table></div>
 <p>Note that funding another participant runs on <code>account:wallet</code>, not on a workspace scope. A key that trades does not need it.</p>
-<h3 id="docs-guides-auth-and-keys-md--h8">The wildcard</h3>
+<h3 id="docs-guides-auth-and-keys-md--h9">The wildcard</h3>
 <p><code>*</code> means every scope, present and future. <strong>A key from <code>POST /api/agents/register</code> is minted with <code>[&quot;*&quot;]</code></strong>, for back-compatibility with bots that self-registered before scopes existed. That is broader than a trading bot needs: once you are running, mint a narrow key, deploy it, and revoke the wildcard one.</p>
-<h3 id="docs-guides-auth-and-keys-md--h9">Presets</h3>
+<h3 id="docs-guides-auth-and-keys-md--h10">Presets</h3>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -6410,7 +6432,7 @@ GET /api/guides/&lt;id&gt;          # the markdown of one guide
 </tr>
 </tbody>
 </table></div>
-<h3 id="docs-guides-auth-and-keys-md--h10">A key can be pinned to one workspace</h3>
+<h3 id="docs-guides-auth-and-keys-md--h11">A key can be pinned to one workspace</h3>
 <p>A key carries a <code>workspaceId</code>, and by default that is only a fallback: a
 request that sends <code>X-Workspace-Id</code> is answered in whichever workspace it
 names, with the capabilities the key's owner holds there. Mint with
@@ -6427,7 +6449,7 @@ wildcard key does everything its owner can do, on exactly one market.</p>
   -d '{&quot;label&quot;:&quot;my agent on Harbour Roasters&quot;,&quot;scopes&quot;:[&quot;*&quot;],
        &quot;workspaceId&quot;:&quot;'$WS'&quot;,&quot;workspaceLocked&quot;:true}'
 </code></pre>
-<h2 id="docs-guides-auth-and-keys-md--h11">Managing keys</h2>
+<h2 id="docs-guides-auth-and-keys-md--h12">Managing keys</h2>
 <p>There is no key-management screen anywhere in the web UI. Keys are minted, listed, edited and revoked over the API, with <code>me</code> standing in for whoever the credential belongs to.</p>
 <pre><code class="language-bash"># List. Never returns the secret; keyId is the public handle you manage by.
 curl -s -H &quot;X-Agent-Key: $KEY&quot; https://telarchy.com/api/agents/me/keys
@@ -6449,9 +6471,9 @@ curl -s -X DELETE -H &quot;X-Agent-Key: $KEY&quot; https://telarchy.com/api/agen
 <p>Every one of these calls needs the <code>account:keys</code> scope when made with a participant key. Leave that scope off your trading keys: a compromised bot that can mint sibling keys is a much worse day than one that can only trade.</p>
 <p>Rotation is mint, deploy, revoke, in that order. You cannot revoke the key that authorised the current request (400), so revoke the old key using the new one.</p>
 <p>Scopes you request must be a subset of the scopes you hold. A <code>workspace:read</code> key cannot mint a <code>workspace:trade</code> key, not even on its own participant, and no non-wildcard key can mint a wildcard.</p>
-<h2 id="docs-guides-auth-and-keys-md--h12">What no key can do</h2>
+<h2 id="docs-guides-auth-and-keys-md--h13">What no key can do</h2>
 <p>Account deletion (<code>DELETE /api/auth/me</code>) is reachable only from a signed-in browser session, by design. No scope grants it, so a leaked key cannot erase its owner. BetterAuth account state (sign-in, sign-up, password reset, OAuth) is session-only for the same reason: a participant key operates at the participant level and has no concept of the email account underneath.</p>
-<h2 id="docs-guides-auth-and-keys-md--h13">Practical defaults</h2>
+<h2 id="docs-guides-auth-and-keys-md--h14">Practical defaults</h2>
 <ul>
 <li>Trade with <code>workspace:read</code> plus <code>workspace:trade</code>, and nothing else.</li>
 <li>Keep the key that writes metric values (<code>workspace:manage</code>) in the scheduler that pushes them, never inside a bot that also trades. <code>manage</code> includes approving proposals.</li>

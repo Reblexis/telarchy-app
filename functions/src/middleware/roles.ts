@@ -66,6 +66,43 @@ export function requireScope(scope: KeyScope | AccountScope) {
   };
 }
 
+/**
+ * ACCOUNT-LEVEL authority: the participant themselves, or whoever created
+ * them. Workspace `manage` is deliberately not enough.
+ *
+ * Minting an API key, spending a balance, repointing a payout wallet and
+ * withdrawing are acts whose blast radius is the whole platform, not one
+ * floor. `manage` is a per-workspace capability, and workspace membership
+ * is written from a caller-supplied array of ids (PUT /api/groups/:id,
+ * POST /api/workspaces/:id/members), so treating membership as authority
+ * over an account let anyone with an account take over any participant:
+ * open a floor, write the victim's id into its Public group, mint them a
+ * wildcard key. The key is not workspace-locked, so it answered in the
+ * victim's own private floor too (bug hunt 2026-08-31).
+ *
+ * Reads stay on `requireSelfOrAdmin` below: a floor's admin is entitled to
+ * a co-member's trading data, which is what they came for.
+ */
+export async function requireSelfOrOwner(req: Request, res: Response, next: NextFunction) {
+  if (!req.auth) return res.status(401).json({ error: 'Unauthorized' });
+  if (req.params.id === 'me' && req.auth.agentId) return next();
+  if (req.auth.agentId && req.auth.agentId === req.params.id) return next();
+  if (req.params.id && req.params.id !== 'me') {
+    const { db } = await import('../db/client');
+    const { agents } = await import('../db/schema');
+    const { eq } = await import('drizzle-orm');
+    const [target] = await db
+      .select({ ownerAgentId: agents.ownerAgentId, ownerUserId: agents.ownerUserId })
+      .from(agents)
+      .where(eq(agents.id, req.params.id as string));
+    // A sub-bot created through POST /api/agents records its creator:
+    // ownerAgentId for an agent-key caller, ownerUserId for a browser one.
+    if (target?.ownerAgentId && req.auth.agentId && target.ownerAgentId === req.auth.agentId) return next();
+    if (target?.ownerUserId && req.auth.uid && target.ownerUserId === req.auth.uid) return next();
+  }
+  return res.status(403).json({ error: 'Forbidden' });
+}
+
 /** Allows access if the caller IS the target agent (by ID or "me"), or if the
  *  caller has the `manage` capability AND the target agent belongs to their workspace. */
 export async function requireSelfOrAdmin(req: Request, res: Response, next: NextFunction) {

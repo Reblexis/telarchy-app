@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { and, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
-import { permissionGroups } from '../db/schema';
+import { agents, permissionGroups } from '../db/schema';
 import { getGroupMemberIds } from '../lib/participants';
 import { wrap } from '../lib/wrap';
 import { requireCapability, requireIdentity } from '../middleware/roles';
@@ -201,7 +201,23 @@ groupsRouter.put(
         res.status(400).json({ error: 'memberIds must be an array of strings' });
         return;
       }
-      update.memberIds = nextMemberIds;
+      // Every id must name a real participant. Membership decides what a
+      // floor shows someone, so a typo silently grants nothing to nobody and
+      // a made-up id sits in the group forever. It is also the array the
+      // account-authority bug composed with, so it is worth being strict
+      // about (bug hunt 2026-08-31); the authority fix itself is in
+      // middleware/roles.ts.
+      const unique = [...new Set(nextMemberIds as string[])];
+      if (unique.length > 0) {
+        const known = await db.select({ id: agents.id }).from(agents).where(inArray(agents.id, unique));
+        const knownIds = new Set(known.map(r => r.id));
+        const unknown = unique.filter(id => !knownIds.has(id));
+        if (unknown.length > 0) {
+          res.status(400).json({ error: `No such participant: ${unknown.slice(0, 5).join(', ')}` });
+          return;
+        }
+      }
+      update.memberIds = unique;
     }
 
     if (permissions !== undefined) {

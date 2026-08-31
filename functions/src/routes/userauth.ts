@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import { type Request, Router } from 'express';
 import { db } from '../db/client';
@@ -7,6 +7,7 @@ import {
   agents,
   authAccount,
   authUser,
+  earnClaims,
   positions,
   proposalMessages,
   proposals,
@@ -74,15 +75,23 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
         reason: 'signup_grant',
       });
     }
+    // The claim row rides in the SAME transaction as the payment it
+    // records, rather than through claimEarn afterwards. claimEarn does not
+    // only record, it pays (services/earnRules.ts), so calling it here paid
+    // the signup a second time and every browser account landed at double
+    // the published price (bug hunt 2026-08-31). Writing the row inline
+    // keeps the one-earn-per-participant index doing its job, keeps the
+    // /earn page truthful about what was paid, and keeps identity and grant
+    // atomic the way the comment above asks.
+    await tx.insert(earnClaims).values({
+      id: randomUUID(),
+      agentId: participantId,
+      key: 'signup_user',
+      refId: null,
+      period: '',
+      credits: grant,
+    });
   });
-
-  // The earns, recorded so the /earn page can show what is left and so
-  // nothing pays twice. Claiming the signup itself is what makes it
-  // idempotent; the provider link pays separately, keyed on the provider
-  // account so one Google account can never fund two Telarchy accounts.
-  await claimEarn({ agentId: participantId, key: 'signup_user' }).catch(e =>
-    console.error('signup earn claim failed:', e),
-  );
   // Either provider earns the same single link row, once (owner decision
   // 2026-08-30): a second attached account is the same person proving
   // they hold another free account.

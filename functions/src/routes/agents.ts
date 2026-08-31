@@ -48,7 +48,13 @@ import {
 import { wrap } from '../lib/wrap';
 import { authMiddleware, getAuthWorkspaceMemberships, hashKey, optionalAuthMiddleware } from '../middleware/auth';
 import { computeCapabilities } from '../middleware/capabilities';
-import { requireCapability, requireIdentity, requireScope, requireSelfOrAdmin } from '../middleware/roles';
+import {
+  requireCapability,
+  requireIdentity,
+  requireScope,
+  requireSelfOrAdmin,
+  requireSelfOrOwner,
+} from '../middleware/roles';
 import { applyCredits, moveCredits, PLATFORM_SCOPE } from '../services/credits';
 import { earnCredits } from '../services/earnRules';
 import { getAllMetrics } from '../services/metrics';
@@ -1539,7 +1545,7 @@ agentsRouter.get(
 
 agentsRouter.post(
   '/:id/spend',
-  requireSelfOrAdmin,
+  requireSelfOrOwner,
   requireScope('account:wallet'),
   wrap(async (req, res) => {
     const { amount, reason, type } = req.body;
@@ -1660,7 +1666,7 @@ agentsRouter.post(
 
 agentsRouter.post(
   '/:id/deposit',
-  requireSelfOrAdmin,
+  requireSelfOrOwner,
   requireScope('account:wallet'),
   wrap(async (req, res) => {
     if (!requireUsdcEnabled(res)) return;
@@ -1722,7 +1728,7 @@ agentsRouter.post(
 
 agentsRouter.put(
   '/:id/wallet',
-  requireSelfOrAdmin,
+  requireSelfOrOwner,
   requireScope('account:wallet'),
   wrap(async (req, res) => {
     if (!requireUsdcEnabled(res)) return;
@@ -1749,7 +1755,7 @@ agentsRouter.put(
 
 agentsRouter.post(
   '/:id/withdraw',
-  requireSelfOrAdmin,
+  requireSelfOrOwner,
   requireScope('account:wallet'),
   wrap(async (req, res) => {
     if (!requireUsdcEnabled(res)) return;
@@ -1833,7 +1839,7 @@ agentsRouter.post(
  */
 agentsRouter.get(
   '/:id/keys',
-  requireSelfOrAdmin,
+  requireSelfOrOwner,
   requireScope('account:keys'),
   wrap(async (req, res) => {
     const id = resolveRouteAgentId(req);
@@ -1865,7 +1871,7 @@ agentsRouter.get(
  */
 agentsRouter.post(
   '/:id/keys',
-  requireSelfOrAdmin,
+  requireSelfOrOwner,
   requireScope('account:keys'),
   wrap(async (req, res) => {
     const id = resolveRouteAgentId(req);
@@ -1938,7 +1944,7 @@ agentsRouter.post(
  */
 agentsRouter.patch(
   '/:id/keys/:keyId',
-  requireSelfOrAdmin,
+  requireSelfOrOwner,
   requireScope('account:keys'),
   wrap(async (req, res) => {
     const id = resolveRouteAgentId(req);
@@ -1997,7 +2003,7 @@ agentsRouter.patch(
  */
 agentsRouter.delete(
   '/:id/keys/:keyId',
-  requireSelfOrAdmin,
+  requireSelfOrOwner,
   requireScope('account:keys'),
   wrap(async (req, res) => {
     const id = resolveRouteAgentId(req);
@@ -2035,9 +2041,22 @@ agentsRouter.delete(
       return;
     }
     // 'manage' is a per-workspace capability, but this delete is platform-wide
-    // (the agents row and its keys/trades/deposits). Same guard as /:id/credit:
-    // the target must be a member of the caller's workspace, or manage rights in
-    // one workspace would delete participants belonging to another.
+    // (the agents row and its keys/trades/deposits), so membership is NOT the
+    // guard: workspace membership is written from a caller-supplied array of
+    // ids, so anyone could add a stranger to their own floor and delete them
+    // (bug hunt 2026-08-31). Deleting a participant belongs to the
+    // participant and to whoever created them.
+    //
+    // Taking a participant OFF your floor is a different act with its own
+    // door: remove them from the workspace's groups.
+    const isSelf = req.auth!.agentId === id;
+    const owns =
+      (agent.ownerAgentId && req.auth!.agentId && agent.ownerAgentId === req.auth!.agentId) ||
+      (agent.ownerUserId && req.auth!.uid && agent.ownerUserId === req.auth!.uid);
+    if (!isSelf && !owns && !req.auth!.isMasterKey) {
+      res.status(403).json({ error: 'Only this participant, or whoever created it, can delete it' });
+      return;
+    }
     const members = await listParticipantsForWorkspace(workspaceId);
     if (!members.some(m => m.id === id)) {
       res.status(403).json({ error: 'Agent is not in your workspace' });
