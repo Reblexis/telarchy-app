@@ -326,6 +326,10 @@ export function TradeTicket({
     }
   };
 
+  /* The payoff line answers what the four fact rows used to (owner,
+     2026-08-31: "also remove the up to and each $20 beyond"), so they are
+     drawn only where it cannot be: a market with no range. */
+  const hasPayoff = rangeMin !== undefined && rangeMax !== undefined && consensus !== null;
   const sideWord = dir === 'higher' ? 'Higher' : 'Lower';
   const confirmLabel = () => {
     if (busy === 'place') return isLimit ? 'Placing order…' : 'Placing…';
@@ -343,6 +347,57 @@ export function TradeTicket({
     }
     return `Bet ${amountNum} cr on ${sideWord}`;
   };
+
+  /* The pushed-to value is an input: focus it, type a target, and the
+     ticket sets the side and the cost that reach it. It lives on the
+     payoff line now (the fact row that used to hold it is gone), and
+     falls back to that row on a market with no range to draw. */
+  const targetInput =
+    newValue === null || span === null || rangeMin === undefined ? null : (
+      <input
+        className="ticket-newvalue"
+        value={targetDraft ?? fmtValue(newValue)}
+        style={{ width: `${Math.max(2, (targetDraft ?? fmtValue(newValue)).length)}ch` }}
+        onFocus={e => {
+          setTargetDraft(fmtValue(newValue).replace(/,/g, ''));
+          // A plain select() dies when the mouse click that caused
+          // the focus lands and collapses the selection to a caret,
+          // so a real mouse user TYPES INTO the old number (caught
+          // by the 2026-08-11 VM smoke: "74100" became
+          // "7674100840"). Selecting on the next frame outlives
+          // the click.
+          const el = e.currentTarget;
+          requestAnimationFrame(() => el.select());
+        }}
+        onBlur={() => setTargetDraft(null)}
+        onChange={e => {
+          const raw = e.target.value.replace(/[^0-9.]/g, '');
+          setTargetDraft(raw);
+          const t = parseFloat(raw);
+          if (!Number.isFinite(t)) return;
+          const clamped = Math.min(rangeMin + span * 0.999, Math.max(rangeMin + span * 0.001, t));
+          // Full server mirror (netting close included): the side
+          // shown and the cost charged are the ones the server will
+          // actually use, and place() sends the target itself.
+          const r = previewTargetBet(
+            probability,
+            liquidity,
+            rangeMin,
+            rangeMin + span,
+            clamped,
+            Number.MAX_SAFE_INTEGER,
+            held,
+          );
+          if (!r) return;
+          setDir(r.direction);
+          setAmount(String(Math.min(maxBet, Math.max(1, Math.ceil(r.cost)))));
+          setTarget(clamped);
+        }}
+        inputMode="decimal"
+        aria-label={`Bet the market to this value in ${unit || 'metric units'}`}
+        title="Type a value to bet the market there"
+      />
+    );
 
   return (
     <div className={`ticket${dir ? ' is-open' : ''}`} aria-label="Place a trade">
@@ -363,6 +418,8 @@ export function TradeTicket({
               : rangeMin + (1 - held.totalCost / held.shares) * (rangeMax - rangeMin)
           }
           push={null}
+          shares={held.shares}
+          spend={held.totalCost}
         />
       )}
 
@@ -546,6 +603,8 @@ export function TradeTicket({
           direction={null}
           breakeven={null}
           push={null}
+          shares={null}
+          spend={null}
         />
       )}
 
@@ -626,114 +685,93 @@ export function TradeTicket({
               direction={dir}
               breakeven={winFacts ? winFacts.breakeven : null}
               push={isLimit ? null : newValue}
+              shares={winFacts ? winFacts.maxPayout : null}
+              spend={winFacts ? winFacts.spend : null}
+              pushLabel={
+                <>
+                  {unit}
+                  {targetInput}
+                </>
+              }
             />
           )}
 
-          <div className="ticket-facts">
-            {!isLimit && newValue !== null && consensus !== null && span !== null && rangeMin !== undefined && (
-              <div className="ticket-fact">
-                <span className="ticket-fact-k">New value</span>
-                <span className="ticket-fact-v">
-                  {unit}
-                  <input
-                    className="ticket-newvalue"
-                    value={targetDraft ?? fmtValue(newValue)}
-                    style={{ width: `${Math.max(2, (targetDraft ?? fmtValue(newValue)).length)}ch` }}
-                    onFocus={e => {
-                      setTargetDraft(fmtValue(newValue).replace(/,/g, ''));
-                      // A plain select() dies when the mouse click that caused
-                      // the focus lands and collapses the selection to a caret,
-                      // so a real mouse user TYPES INTO the old number (caught
-                      // by the 2026-08-11 VM smoke: "74100" became
-                      // "7674100840"). Selecting on the next frame outlives
-                      // the click.
-                      const el = e.currentTarget;
-                      requestAnimationFrame(() => el.select());
-                    }}
-                    onBlur={() => setTargetDraft(null)}
-                    onChange={e => {
-                      const raw = e.target.value.replace(/[^0-9.]/g, '');
-                      setTargetDraft(raw);
-                      const t = parseFloat(raw);
-                      if (!Number.isFinite(t)) return;
-                      const clamped = Math.min(rangeMin + span * 0.999, Math.max(rangeMin + span * 0.001, t));
-                      // Full server mirror (netting close included): the side
-                      // shown and the cost charged are the ones the server will
-                      // actually use, and place() sends the target itself.
-                      const r = previewTargetBet(
-                        probability,
-                        liquidity,
-                        rangeMin,
-                        rangeMin + span,
-                        clamped,
-                        Number.MAX_SAFE_INTEGER,
-                        held,
-                      );
-                      if (!r) return;
-                      setDir(r.direction);
-                      setAmount(String(Math.min(maxBet, Math.max(1, Math.ceil(r.cost)))));
-                      setTarget(clamped);
-                    }}
-                    inputMode="decimal"
-                    aria-label={`Bet the market to this value in ${unit || 'metric units'}`}
-                    title="Type a value to bet the market there"
-                  />
-                  <span className={`ticket-fact-d ${newValue >= consensus ? 'is-up' : 'is-down'}`}>
-                    {' '}
-                    {newValue >= consensus ? '↑' : '↓'}
-                    {unit}
-                    {fmtValue(Math.abs(newValue - consensus))}
-                  </span>
-                </span>
-              </div>
-            )}
-            {winFacts && step !== null && (
-              <>
+          {!hasPayoff && (
+            <div className="ticket-facts">
+              {!isLimit && newValue !== null && consensus !== null && span !== null && rangeMin !== undefined && (
                 <div className="ticket-fact">
-                  <span className="ticket-fact-k">
-                    {isLimit ? 'Once filled, wins' : 'Wins'} {dir === 'higher' ? 'above' : 'below'}
-                  </span>
+                  <span className="ticket-fact-k">New value</span>
                   <span className="ticket-fact-v">
                     {unit}
-                    {fmtValue(winFacts.breakeven)}
-                  </span>
-                </div>
-                <div className="ticket-fact">
-                  <span
-                    className="ticket-fact-k"
-                    title={`One credit per share if the number lands at the ${dir === 'higher' ? 'top' : 'bottom'} of the range; less in between`}
-                  >
-                    Up to
-                  </span>
-                  <span className="ticket-fact-v">
-                    {fmt(winFacts.maxPayout)} cr{' '}
-                    <span className="ticket-fact-d is-up">
-                      +
-                      {Math.round(
-                        winFacts.spend > 0 ? ((winFacts.maxPayout - winFacts.spend) / winFacts.spend) * 100 : 0,
-                      )}
-                      %
+                    {targetInput}
+                    <span className={`ticket-fact-d ${newValue >= consensus ? 'is-up' : 'is-down'}`}>
+                      {' '}
+                      {newValue >= consensus ? '↑' : '↓'}
+                      {unit}
+                      {fmtValue(Math.abs(newValue - consensus))}
                     </span>
                   </span>
                 </div>
+              )}
+              {winFacts && step !== null && (
+                <>
+                  <div className="ticket-fact">
+                    <span className="ticket-fact-k">
+                      {isLimit ? 'Once filled, wins' : 'Wins'} {dir === 'higher' ? 'above' : 'below'}
+                    </span>
+                    <span className="ticket-fact-v">
+                      {unit}
+                      {fmtValue(winFacts.breakeven)}
+                    </span>
+                  </div>
+                  <div className="ticket-fact">
+                    <span
+                      className="ticket-fact-k"
+                      title={`One credit per share if the number lands at the ${dir === 'higher' ? 'top' : 'bottom'} of the range; less in between`}
+                    >
+                      Up to
+                    </span>
+                    <span className="ticket-fact-v">
+                      {fmt(winFacts.maxPayout)} cr{' '}
+                      <span className="ticket-fact-d is-up">
+                        +
+                        {Math.round(
+                          winFacts.spend > 0 ? ((winFacts.maxPayout - winFacts.spend) / winFacts.spend) * 100 : 0,
+                        )}
+                        %
+                      </span>
+                    </span>
+                  </div>
+                  <div className="ticket-fact">
+                    <span className="ticket-fact-k">
+                      Each {unit}
+                      {stepLabel(step)} beyond
+                    </span>
+                    <span className="ticket-fact-v">
+                      <span className="ticket-fact-d is-up">+{fmt(winFacts.slope)} cr</span>
+                    </span>
+                  </div>
+                </>
+              )}
+              {isLimit && !limitError && (
                 <div className="ticket-fact">
-                  <span className="ticket-fact-k">
-                    Each {unit}
-                    {stepLabel(step)} beyond
-                  </span>
-                  <span className="ticket-fact-v">
-                    <span className="ticket-fact-d is-up">+{fmt(winFacts.slope)} cr</span>
-                  </span>
+                  <span className="ticket-fact-k">Until filled</span>
+                  <span className="ticket-fact-v">{amountNum} cr waits, cancel anytime</span>
                 </div>
-              </>
-            )}
-            {isLimit && !limitError && (
+              )}
+            </div>
+          )}
+
+          {/* A resting order says one thing the picture cannot: that the
+              credits sit there until it fills. */}
+          {hasPayoff && isLimit && !limitError && (
+            <div className="ticket-facts">
               <div className="ticket-fact">
                 <span className="ticket-fact-k">Until filled</span>
                 <span className="ticket-fact-v">{amountNum} cr waits, cancel anytime</span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* The ceiling, where it is felt (owner ask 2026-08-30). The
               slider maxes at the balance, so a trader meets this wall the

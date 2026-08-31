@@ -5124,6 +5124,48 @@ textarea.jobform-line--desc {
   color: var(--text-tertiary);
 }
 
+/* The one caption: where the bet leaves the market, which is also the input
+   a trader types a target into. It sits on the side of the card its own
+   mark is on, so it never reaches across the picture to find it. */
+.pay-push {
+  margin-bottom: 0.15rem;
+  font-size: 0.76rem;
+  color: var(--text-tertiary);
+}
+/* What the bet is worth at five settlement values across the range. This is
+   the whole of the four fact rows it replaced (owner, 2026-08-31): the
+   maximum is the end column, the slope is the step between any two, the
+   break-even is where red turns green, and the landing is the caption. */
+.pay-scale {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
+}
+.pay-scale > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+.pay-scale > div:first-child { align-items: flex-start; }
+.pay-scale > div:last-child { align-items: flex-end; }
+.pay-scale u {
+  text-decoration: none;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+.pay-scale b { font-weight: 600; }
+.pay-scale .up { color: var(--higher); }
+.pay-scale .down { color: var(--lower); }
+.pay-scale-cap {
+  margin: 0.4rem 0 0;
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+}
+
 /* Quick / Limit, Manifold's top-right toggle. */
 .ticket-mode {
   display: flex;

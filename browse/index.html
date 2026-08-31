@@ -4237,55 +4237,61 @@ ends stay exact, 1 cr and the full balance. The mapping lives in
 limit a stake: a screen that offers a size the server refuses reads as a
 broken product rather than as a rule, so a size the ticket can reach is a size
 the trade route accepts.</p>
-<p>The win is stated as breakeven plus slope, never as the at-the-range-edge
-maximum: payout is linear in the settled value, so the rows read &quot;New
-value&quot; (with the delta the bet would cause), &quot;Wins above $74,300&quot;, &quot;Each
-$10k beyond +3.1 cr&quot;, as a small hairline-ruled table. The confirm is full
-width, tinted by the side, and always states what it will do (&quot;Bet 25 cr
-on Higher&quot;); success flashes &quot;Placed&quot; on the button itself; errors render
-inside the ticket. Held positions sit at the top of the ticket as rows
-(tinted direction, mono payout, a Sell pill).</p>
+<p>The win is a picture, not a table. Payout is linear in the settled value,
+so what a bet is worth is a straight line, and the honest way to state a
+line is to price points on it: the payoff line's scale gives five, the two
+ends of the range and the quarters, each with the credits the bet wins or
+loses if the number settles there. The confirm is full width, tinted by
+the side, and always states what it will do (&quot;Bet 25 cr on Higher&quot;);
+success flashes &quot;Placed&quot; on the button itself; errors render inside the
+ticket. Held positions sit at the top of the ticket as rows (tinted
+direction, mono payout, a Sell pill).</p>
 <p>Limit mode swaps in a price input in the same underlined register and the
 confirm becomes the whole instruction (&quot;Buy Higher with 25 cr under
 $65,000&quot;), with breakeven exactly at the limit; limit orders are a mode of
 the same ticket, never a second panel. Spec: docs/limit-orders.md.</p>
-<p><strong>The payoff line puts those numbers in an order.</strong> Above the fact rows the
-ticket draws the market's range as one track and marks on it what the money
-turns on: the market's current value, the value the bet breaks even at, and
-the value the bet pushes the market to. The stretch that pays, from the
-break-even to the trader's own end of the range, carries the side's colour.</p>
-<p>That order is the reason the line exists. Buying walks the price, so the
-shares cost an average of everything between the old price and the new one,
-and the bet therefore breaks even SHORT of the value it pushes the market
-to. Stated as two unrelated rows (&quot;New value&quot;, &quot;Wins above&quot;) a trader has to
+<p><strong>The payoff line is the whole answer to &quot;what happens to my money&quot;.</strong> In
+place of the fact rows the ticket draws the market's range as one track,
+marks on it the three values in the order they sit (the market, the
+break-even, and where the bet would leave the market), and prices the bet
+under it at five settlement values: the two ends of the range and the
+quarters, each carrying the credits won or lost if the number settles
+there. The stretch that pays carries the side's colour.</p>
+<p>The order is why the track exists. Buying walks the price, so the shares
+cost an average of everything between the old price and the new one, and
+the bet therefore breaks even SHORT of the value it pushes the market to.
+Stated as two unrelated rows (&quot;New value&quot;, &quot;Wins above&quot;) a trader has to
 notice that the second number is smaller than the first and work out why;
-drawn on one track they are visibly in that order. A trader who cannot see
-it reads an overshoot as a total loss, asks at what point the shares stop
-paying out, and gets the answer from an operator in a chat window rather
-than from the ticket (<code>notes/quroe-churn-2026-08-27.md</code>).</p>
-<p><strong>It carries no words.</strong> The fact rows directly underneath already name
-every number on the track, so a caption says each of them twice, and
-captions over a track are what made the card too tall to read (owner,
-2026-08-31: &quot;this is too tall now and definitely dont put here the x room to
-be wrong&quot;). The picture's only job is the order, and an order needs no text.
-The marks carry a title for a mouse that pauses on one, and nothing else.
-One card draws one track: manage mode's belongs to the position, so the
+drawn on one track they are visibly in that order, and on the scale it is
+where the red numbers turn green. A trader who could not see it read an
+overshoot as a total loss, asked at what point the shares stop paying out,
+and got the answer from an operator in a chat window rather than from the
+ticket (<code>notes/quroe-churn-2026-08-27.md</code>).</p>
+<p><strong>It replaces the four fact rows, it does not sit above them</strong> (owner,
+2026-08-31: &quot;also remove the up to and each $20 beyond&quot;). Each of them is
+somewhere in the picture: the maximum is the end column, the slope is the
+step between any two columns, the break-even is the colour change, and
+where the bet leaves the market is the one caption. Saying any of it twice
+is what made the card too tall to read. The caption is the exception
+because it is also the INPUT a trader types a target into, so it had to
+survive; it sits on whichever side of the card its own mark is on. The
+marks carry a title for a mouse that pauses on one, and nothing else. One
+card draws one track: manage mode's belongs to the position, so the
 composing line stays out of it.</p>
-<p>An untouched ticket marks only the current value, because that is exactly
-where a share bought right now breaks even, and colours the stretch under it
-in Lower's colour and the stretch over it in Higher's, which are the colours
-of the two pills above. That state is the only one to label the range ends,
-because there the track replaces the payout sentence and nothing else says
-what a share pays at the top and at the bottom. A held position gets a track
-of its own, marked at the holder's own break-even (what they paid per share)
-against where the market stands now, so &quot;how far can this fall before I
-lose&quot; is a distance to look at rather than a subtraction to do.</p>
-<p>Two degradations. A market with no range gets the prices and the fact rows
-alone, because a track with no ends is a decoration. A resting limit order
-pushes nothing and so draws no push mark: the limit IS the break-even, and
-one mark is the whole answer.</p>
-<p><strong>The &quot;New value&quot; fact row is an INPUT.</strong> The numeral that answers &quot;where
-does my bet leave the market&quot; also accepts the answer as the question.
+<p>An untouched ticket has no bet to price. It marks only the current value,
+because that is exactly where a share bought right now breaks even, colours
+the stretch under it in Lower's colour and the stretch over it in Higher's
+(the colours of the two pills above), and labels the range ends, which is
+what replaces the payout sentence there. A held position gets a track of
+its own, marked at the holder's own break-even (what they paid per share)
+and priced the same way, so &quot;how far can this fall before I lose&quot; is a
+colour change to look at rather than a subtraction to do.</p>
+<p>Two degradations. A market with no range cannot be drawn, and there and
+only there the four fact rows appear as before. A resting limit order
+pushes nothing, so it draws no push mark and keeps one row of its own,
+&quot;Until filled&quot;, which is the one thing the picture cannot say.</p>
+<p><strong>The pushed-to value is an INPUT.</strong> The numeral that answers &quot;where does
+my bet leave the market&quot; also accepts the answer as the question.
 Focus it, type a target, and the ticket sets the side (auto-flipping across
 the current call) and the amount to whatever reaches that value, capped at
 the trader's balance; blur returns the row to the derived display. The
