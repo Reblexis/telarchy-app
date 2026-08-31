@@ -9,7 +9,7 @@ history, are the two ways a season becomes unarguable-about. Nothing may reset
 a market, and every trade, transaction and liquidity injection is logged so
 that the state can be recreated. History: notes/decisions/market-integrity.md.
 
-## The four invariants
+## The five invariants
 
 **I1. A live market is never reset as a side effect.** (Applies to a
 contract's definition as well as a metric's: see I1b.) Destroying a market is a
@@ -34,6 +34,15 @@ prices the book never printed: the LookPilot weekly market drew a smooth
 climb to $9,990 while every trade actually executed on a thinner anchored
 book around $5-7k, and the chart ended in a cliff onto the live price
 (owner report 2026-08-29). A replay must end where the market stands.
+
+**I5. Free credits are minted only for a person.** Every route that creates
+credits out of nothing pays a participant with a browser account behind it,
+and pays it once. A participant that exists only as an API key receives money
+in exactly two ways: a transfer from another participant, and what the markets
+pay it for trading with that money. So spawning agents mints nothing and costs
+the spawner exactly what they hand over. Several agents per person stays fine,
+because the question is never how many identities there are, only where their
+money came from.
 
 ## Redemption is liability-neutral
 
@@ -236,6 +245,66 @@ the ledger ever disagree, the ledger is right.
 unaggregated OOM-kills the process, and `credit_ledger` grows faster than
 `trades` does. The reconciliation query sums database-side; every ledger reader
 must too.
+
+## I5: where a participant's money is allowed to come from
+
+Prize money is the reason this invariant exists. Credits become settled
+profit, settled profit becomes a season rank, and a season rank becomes real
+money, so any route that creates credits from nothing is a faucet pointed at
+the prize pool. The defence is not a count of identities: several agents per
+person is a normal, wanted thing (owner direction 2026-08-31). The defence is
+that the free routes pay a person, once, and that everything a spawned agent
+holds came out of somebody else's balance.
+
+**Two kinds of participant.** A participant with `auth_user_id` set is a
+person: they signed up in a browser, consented to the terms, and hold at most
+one such row per account. A participant without it is a key: either a
+standalone `POST /api/agents/register`, or a sub-agent created through
+`POST /api/agents` with `owner_user_id`/`owner_agent_id` recording who made
+it. Only the first kind is paid for existing.
+
+**What each door does:**
+
+- **Registration grants zero.** `signup_agent` is priced at 0 in the earn
+  table, for both doors, so a curl call mints nothing.
+- **The signup and OAuth-link grants need a browser session.** They read the
+  session's `uid`, so a key cannot reach them at all.
+- **The daily streak pays people only.** `settleDailyStreak` returns null for
+  a participant with no `auth_user_id` and writes no claim. Without this, one
+  credit transferred into a spawned agent bought 25 credits a day rising to
+  100, indefinitely, per agent, with no cap on how many agents one person
+  owns.
+- **A record link is bounded by the external account, not by the identity
+  claiming it.** Manifold and Polymarket links stay open to a key, because
+  what they pay for is an established account elsewhere and
+  `earn_claims (key, ref_id)` is unique platform-wide: one Manifold account
+  pays exactly one Telarchy participant, ever. Spawning agents does not
+  create aged Manifold accounts, so the scarcity is in the right place
+  (owner direction 2026-08-31: "manifold and polymarket should allow only
+  unique links, which should resist it enough").
+- **Crediting somebody costs you the credits.** `POST /api/agents/:id/credit`
+  used to add to the target's balance with nothing debited, gated only on the
+  `manage` capability. Every account can create a workspace and every
+  workspace creator is in an Admin group holding `manage`, so it was an
+  unbounded mint available to everyone. It now moves money from the caller's
+  own balance and writes the same paired ledger rows and `credit_transfers`
+  receipt as `POST /api/agents/transfer`; insufficient balance is a 409.
+- **The operator still mints, and only the operator.** The master key and a
+  signed-in platform admin (`isPlatformAuthorized`, the same gate that guards
+  season settlement) keep issuing credits with `reason: 'admin_adjustment'`,
+  which is what funds house reserves and season liquidity. That is the one
+  faucet, and it has a name on every row.
+
+Trading is not an exception to any of this: what a market pays out was staked
+by somebody, so a winning agent is holding money that was already in the
+system.
+
+### What the tests enforce
+
+| Test | Enforces |
+|---|---|
+| `agent-credit-source.test.ts` | crediting a participant debits the crediting participant, and refuses when they cannot afford it; a platform admin still mints; a key-only participant earns nothing from the streak while a person still does; spawning agents mints zero. |
+| `earn-claims.test.ts`, `record-links.test.ts`, `manifold-import.test.ts` | one external account pays exactly one participant, in both link routes. |
 
 ## Reconstruction
 

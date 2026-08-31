@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { earnClaims, earnRuleHistory, earnRules, trades } from '../db/schema';
+import { agents, earnClaims, earnRuleHistory, earnRules, trades } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS, toUnits } from '../lib/validation';
 import { applyCredits, PLATFORM_SCOPE } from './credits';
@@ -337,6 +337,17 @@ async function tradedDays(agentId: string, limit: number): Promise<string[]> {
 }
 
 /**
+ * Whether this participant is a person: `auth_user_id` is set only by a
+ * browser signup, and is unique per account, so it is the platform's one
+ * durable "there is a human behind this" bit. A participant created
+ * through `POST /api/agents/register` or `POST /api/agents` never has it.
+ */
+async function hasBrowserAccount(agentId: string): Promise<boolean> {
+  const [row] = await db.select({ authUserId: agents.authUserId }).from(agents).where(eq(agents.id, agentId)).limit(1);
+  return !!row?.authUserId;
+}
+
+/**
  * Pay the streak if today's first trade has happened and has not been paid
  * for, and report where the run stands either way. Safe to call as often
  * as anything likes: the claim's unique index is what makes it once a day,
@@ -348,6 +359,16 @@ async function tradedDays(agentId: string, limit: number): Promise<string[]> {
 export async function settleDailyStreak(agentId: string, now: Date = new Date()): Promise<DailyStreak | null> {
   const rule = (await load()).get('daily_trade');
   if (!rule || !rule.enabled) return null;
+  // The streak pays a person, never a key (market-integrity I5, owner
+  // direction 2026-08-31: "you cannot farm credit just by spawning
+  // agents"). A spawned participant can trade the moment its owner sends
+  // it one credit, so without this the streak was a faucet that scaled
+  // with how many bots somebody registered: 25 credits a day rising to
+  // 100, indefinitely, per bot, and nothing caps the number of bots.
+  // Rendered as no streak at all rather than a zero, same as a row the
+  // operator has disabled, because a streak that pays nothing is not a
+  // streak.
+  if (!(await hasBrowserAccount(agentId))) return null;
 
   const today = dayOf(now);
   const days = await tradedDays(agentId, STREAK_LOOKBACK_DAYS);

@@ -352,7 +352,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/agents/:id/credit',
       auth: 'admin',
       description:
-        "Admin credit issuance. Body: { amount: number, reason?: string }. Adds credits to the target agent's balance.",
+        "Fund a participant in a workspace you administer. Body: { amount: number, reason?: string }. Requires the 'manage' capability and the target must be a member of the workspace. THE CREDITS COME OUT OF YOUR OWN BALANCE (market-integrity I5: only the operator mints): the movement is a transfer, atomic, 409 on insufficient balance, and it appears in GET /api/agents/transfers for both sides. The platform operator (the master key, or a platform admin's browser session) instead ISSUES new credits (reason 'admin_adjustment'), which is how house reserves and season liquidity are funded.",
     },
     {
       method: 'POST',

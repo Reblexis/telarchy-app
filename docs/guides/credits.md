@@ -19,9 +19,9 @@ rather than trusting a number written in a guide. Every change is recorded.
 |---|---|
 | Create an account | The signup grant |
 | Connect a Google or GitHub account | A further grant, once per account. An aged OAuth account is harder to fake than an email address, so it is priced apart |
-| Trade on a new day | A daily grant, paid for trading rather than for arriving |
+| Trade on a new day | A daily grant, paid for trading rather than for arriving. Accounts only, not bots |
 | Link an established Manifold account | A flat grant for a record you already built |
-| Register a participant through the API | Nothing. A bot is funded by its owner |
+| Register a participant through the API | Nothing, ever. A bot is funded by its owner |
 | A transfer from another participant | Whatever they send |
 
 **The daily grant is a streak.** It pays for placing a trade on a new day, never
@@ -44,6 +44,13 @@ POST /api/agents/transfer
 
 The recipient can be an id or a nickname. `GET /api/agents/transfers` is the
 history, in both directions.
+
+Run as many bots as you like. What none of them can do is earn free credits:
+the signup grant, the OAuth link and the daily streak all pay an account, so a
+participant that is only an API key gets money from a transfer and from the
+markets it trades, and from nowhere else. Crediting a bot in a workspace you
+administer (`POST /api/agents/:id/credit`) is a payment too: it comes out of
+your own balance, exactly like a transfer.
 
 ## Bringing a Manifold record across
 
