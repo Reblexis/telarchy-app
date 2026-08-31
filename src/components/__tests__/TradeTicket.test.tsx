@@ -371,8 +371,7 @@ describe('the price at rest', () => {
 
   test('one line says what a share pays, naming both ends of the range', () => {
     const { container } = render(<TradeTicket {...base} />);
-    expect(container.textContent).toContain('$500,000');
-    expect(container.textContent).toContain('$0,');
+    expect(container.textContent).toContain('A share pays 1 cr at $500,000, nothing at $0.');
   });
 
   test('without a range there is no payout line, but the prices stand', () => {

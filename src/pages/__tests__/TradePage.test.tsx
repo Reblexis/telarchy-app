@@ -1272,9 +1272,7 @@ describe('the floor quotes both sides before the first click', () => {
     const { container } = renderFloor();
 
     await screen.findByRole('button', { name: /Bet Higher/ });
-    expect(container.textContent).toContain('A share pays 1 credit');
-    expect(container.textContent).toContain('$500,000');
-    expect(container.textContent).toContain('$0,');
+    expect(container.textContent).toContain('A share pays 1 cr at $500,000, nothing at $0.');
   });
 
   test('the line goes once the ticket is open, which says the same thing about the bet', async () => {
@@ -1284,7 +1282,7 @@ describe('the floor quotes both sides before the first click', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Bet Higher/ }));
     await waitFor(() => expect(container.querySelector('.pubws-ticket-inline')).toBeTruthy());
-    expect(container.textContent).not.toContain('A share pays 1 credit');
+    expect(container.textContent).not.toContain('A share pays 1 cr at');
   });
 
   test('a market with no liquidity quotes nothing: there is no book to price', async () => {
@@ -1296,7 +1294,7 @@ describe('the floor quotes both sides before the first click', () => {
     const { container } = renderFloor();
 
     await waitFor(() => expect(screen.getByText(/no liquidity yet/i)).toBeTruthy());
-    expect(container.textContent).not.toContain('A share pays 1 credit');
+    expect(container.textContent).not.toContain('A share pays 1 cr at');
     expect(container.textContent).not.toContain('50c');
   });
 });
