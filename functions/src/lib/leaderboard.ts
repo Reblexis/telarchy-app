@@ -184,14 +184,53 @@ export function computeSettledWindowProfit(
   marketsList: SettledWindowMarket[],
   aggs: SettledWindowTradeAgg[],
 ): Map<string, number> {
-  const marketByKey = new Map<string, SettledWindowMarket>();
+  return windowProfit(marketsList, aggs, m =>
+    m.voided || m.actualValue === null
+      ? null
+      : resolutionPayouts(Math.min(m.actualValue, m.rangeMax), m.rangeMin, m.rangeMax),
+  );
+}
+
+/**
+ * The same window, valued at the CURRENT CALL rather than only at what has
+ * already resolved: a market that has resolved contributes its payout, and
+ * one still open contributes what it would pay if it resolved right now at
+ * the price the book is calling (`currentPayoutFactors`, the board's mark).
+ *
+ * This is the standings' display column, never the score
+ * (docs/seasons.md, "The standings show the mark beside the score"). Which
+ * markets belong to the window is the CALLER's decision and the whole
+ * difference between the two functions: `lib/board.ts` loadSeasonMarked
+ * passes the settled window plus the open markets that resolve on or before
+ * the season's end, because a resolution after the end pays no season prize.
+ */
+export function computeMarkedWindowProfit(
+  marketsList: ProfitMarket[],
+  aggs: SettledWindowTradeAgg[],
+): Map<string, number> {
+  return windowProfit(marketsList, aggs, m => (m.voided ? null : currentPayoutFactors(m as ProfitMarket)));
+}
+
+/**
+ * One loop, two callers. The arithmetic that turns per-(agent, market,
+ * direction) trade sums into profit is identical whether a market's payout
+ * factors come from its resolution or from its live call; only where the
+ * factors come from differs, so only that is a parameter. Two copies of this
+ * loop would be two answers to "what has this person made", which is the
+ * failure mode `season-scoring-ownership.test.ts` exists to prevent.
+ */
+function windowProfit<M extends SettledWindowMarket>(
+  marketsList: M[],
+  aggs: SettledWindowTradeAgg[],
+  factorsFor: (m: M) => [number, number] | null,
+): Map<string, number> {
+  const marketByKey = new Map<string, M>();
   const factorsByKey = new Map<string, [number, number]>();
   for (const m of marketsList) {
     const k = marketKey(m.workspaceId, m.id);
     marketByKey.set(k, m);
-    if (!m.voided && m.actualValue !== null) {
-      factorsByKey.set(k, resolutionPayouts(Math.min(m.actualValue, m.rangeMax), m.rangeMin, m.rangeMax));
-    }
+    const factors = factorsFor(m);
+    if (factors) factorsByKey.set(k, factors);
   }
 
   // A void refunds NET cash per (agent, market), both directions summed and

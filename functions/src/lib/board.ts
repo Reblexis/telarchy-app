@@ -1,9 +1,11 @@
 import { and, eq, gt, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { markets, positions, trades } from '../db/schema';
+import { resolutionInstant } from './date-utils';
 import {
   type CalibrationStats,
   computeCalibrationStats,
+  computeMarkedWindowProfit,
   computeProfitBreakdown,
   computeSettledWindowProfit,
   type LeaderboardPosition,
@@ -307,4 +309,124 @@ export async function loadSeasonSettled(
     marketRows.map(m => ({ ...m, actualValue: m.voided ? null : m.actualValue })),
     aggs.map(a => ({ ...a, shares: Number(a.shares), cost: Number(a.cost) })),
   );
+}
+
+/**
+ * The season's score with the mark added: the settled window exactly as
+ * `loadSeasonSettled` computes it, PLUS every market still open whose
+ * resolution instant falls on or before the season's end, each holding
+ * valued at what the market currently calls.
+ *
+ * This is the standings' display column and never the score
+ * (docs/seasons.md, "The standings show the mark beside the score"). Three
+ * rules decide what it contains, and all three are here rather than in the
+ * caller so a second surface cannot answer them differently:
+ *
+ *  - A market resolving AFTER the season ends contributes nothing, marked or
+ *    not: a resolution after the end pays no season prize, so counting it
+ *    would show an entrant money this season can never give them. The
+ *    resolution instant comes from the market's own targetDate, so a horizon
+ *    created tomorrow is classified by the same rule as one created today.
+ *  - The settled half is the settled function itself, unchanged. The money
+ *    path and the display column can then never disagree about a resolved
+ *    market, which is the whole reason the two are summed rather than
+ *    recomputed together.
+ *  - The 6-hour trade cutoff applies to the open half too, measured against
+ *    each market's own resolve instant: a trade too late to be scored must
+ *    not appear in the projection of that score either.
+ */
+export async function loadSeasonMarked(
+  workspaceIds: string[],
+  windowStart: Date,
+  windowEnd: Date,
+): Promise<Map<string, number>> {
+  if (workspaceIds.length === 0) return new Map();
+
+  const settled = await loadSeasonSettled(workspaceIds, windowStart, windowEnd);
+  const open = await loadOpenWindowMarked(workspaceIds, windowEnd);
+
+  const out = new Map(settled);
+  for (const [agentId, profit] of open) {
+    out.set(agentId, (out.get(agentId) ?? 0) + profit);
+  }
+  // Both halves are already 2dp; the sum of two 2dp floats is not.
+  for (const [agentId, profit] of out) out.set(agentId, Math.round(profit * 100) / 100);
+  return out;
+}
+
+/**
+ * The open half of the marked score: markets that have not resolved and will
+ * resolve on or before `windowEnd`, valued at their current call.
+ *
+ * Positions come from the trade ledger rather than the positions table, for
+ * the same reason the settled half does: the scored holding is the position
+ * at the cutoff instant, and only the ledger knows what that was.
+ */
+async function loadOpenWindowMarked(workspaceIds: string[], windowEnd: Date): Promise<Map<string, number>> {
+  const openRows = await db
+    .select({
+      id: markets.id,
+      workspaceId: markets.workspaceId,
+      targetDate: markets.targetDate,
+      rangeMin: markets.rangeMin,
+      rangeMax: markets.rangeMax,
+      shares: markets.shares,
+      liquidity: markets.liquidity,
+    })
+    .from(markets)
+    .where(and(inArray(markets.workspaceId, workspaceIds), eq(markets.resolved, false), eq(markets.voided, false)));
+
+  const scored = openRows
+    .map(m => ({ ...m, resolvesOn: resolveInstantOrNull(m.targetDate) }))
+    .filter(m => m.resolvesOn !== null && m.resolvesOn.getTime() <= windowEnd.getTime());
+  if (scored.length === 0) return new Map();
+
+  // Each market's own cutoff, the same SEASON_TRADE_CUTOFF_HOURS the settled
+  // half applies against markets.resolvedAt.
+  const cutoffs = scored.map(m =>
+    and(
+      eq(trades.marketId, m.id),
+      eq(trades.workspaceId, m.workspaceId),
+      lte(trades.createdAt, new Date((m.resolvesOn as Date).getTime() - SEASON_TRADE_CUTOFF_HOURS * 3_600_000)),
+    ),
+  );
+
+  const aggs = await db
+    .select({
+      agentId: trades.agentId,
+      workspaceId: trades.workspaceId,
+      marketId: trades.marketId,
+      direction: trades.direction,
+      shares: sql<number>`coalesce(sum(${trades.shares}), 0)::float`,
+      cost: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
+    })
+    .from(trades)
+    .where(or(...cutoffs))
+    .groupBy(trades.agentId, trades.workspaceId, trades.marketId, trades.direction);
+
+  return computeMarkedWindowProfit(
+    scored.map(m => ({
+      id: m.id,
+      workspaceId: m.workspaceId,
+      rangeMin: m.rangeMin,
+      rangeMax: m.rangeMax,
+      resolved: false,
+      actualValue: null,
+      voided: false,
+      shares: (m.shares as [number, number] | null) ?? null,
+      liquidity: m.liquidity,
+    })),
+    aggs.map(a => ({ ...a, shares: Number(a.shares), cost: Number(a.cost) })),
+  );
+}
+
+/** A market whose targetDate cannot be read resolves at no instant we can
+ *  name, so it is left out rather than guessed at. */
+function resolveInstantOrNull(targetDate: string): Date | null {
+  try {
+    const at = new Date(resolutionInstant(targetDate));
+    return Number.isNaN(at.getTime()) ? null : at;
+  } catch {
+    return null;
+  }
 }

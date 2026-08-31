@@ -94,10 +94,16 @@ export function SeasonTable({
   pinned?: SeasonStanding | null;
 }) {
   const draft = mode === 'draft';
+  // The mark exists only while a season is running (a draft has no window, a
+  // settled season is frozen), so the two columns appear with it rather than
+  // standing empty and inviting the reading that everyone is worth nothing.
+  const marked = mode === 'running' && rows.some(r => r.markedScore !== null && r.markedScore !== undefined);
   const row = (r: SeasonStanding, isPinned = false) => {
     const score = r.score ?? 0;
     const prize = (mode === 'settled' ? r.prizeUsd : (r.projectedPrizeUsd ?? r.prizeUsd)) ?? 0;
     const share = prize > 0 && season.poolUsd > 0 ? `${Math.round((prize / season.poolUsd) * 100)}%` : '—';
+    const markedScore = r.markedScore ?? null;
+    const markedPrize = r.markedProjectedPrizeUsd ?? 0;
     return (
       <tr
         key={`${isPinned ? 'pin-' : ''}${r.id}`}
@@ -120,6 +126,11 @@ export function SeasonTable({
               {/* The phone hides the prize column; the dollars move under
                   the score so the money never scrolls off the edge. */}
               {prize > 0 && <span className="lbt-msub is-prize">${prize.toLocaleString()}</span>}
+              {/* Same reason for the mark: on a phone it is the only place an
+                  entrant with nothing settled yet can see their position. */}
+              {markedScore !== null && markedScore !== score && (
+                <span className="lbt-msub">{fmtCr(markedScore)} cr if it settled today</span>
+              )}
             </td>
             <td className={`lbt-num lbt-desk${prize > 0 ? '' : ' is-zero'}`}>{share}</td>
             <td
@@ -128,6 +139,22 @@ export function SeasonTable({
             >
               {prize > 0 ? `$${prize.toLocaleString()}` : '—'}
             </td>
+            {marked && (
+              <>
+                <td
+                  className={`lbt-desk ${markedScore === null ? 'lbt-num is-zero' : numClass(markedScore)}`}
+                  title="Profit if every market that still resolves inside this season settled at today's price. Markets resolving after the season ends are not counted, and it decides nothing: the prize is paid on settled profit."
+                >
+                  {markedScore === null ? '—' : `${fmtCr(markedScore)} cr`}
+                </td>
+                <td
+                  className={`lbt-num lbt-desk${markedPrize > 0 ? '' : ' is-zero'}`}
+                  title="What the pool would pay on that number, if it held to the end of the season"
+                >
+                  {markedPrize > 0 ? `$${Math.round(markedPrize).toLocaleString()}` : '—'}
+                </td>
+              </>
+            )}
           </>
         )}
       </tr>
@@ -144,6 +171,14 @@ export function SeasonTable({
               <th className="lbt-h is-key">Settled profit ↓</th>
               <th className="lbt-h lbt-desk">Share of pool</th>
               <th className="lbt-h lbt-desk">{mode === 'settled' ? 'Prize' : 'Projected prize'}</th>
+              {marked && (
+                <>
+                  <th className="lbt-h lbt-desk" title="Not the scoring key: the season pays settled profit">
+                    If it settled today
+                  </th>
+                  <th className="lbt-h lbt-desk">Would pay</th>
+                </>
+              )}
             </>
           )}
         </tr>
