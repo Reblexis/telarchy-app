@@ -363,7 +363,6 @@ export function TradeTicket({
               : rangeMin + (1 - held.totalCost / held.shares) * (rangeMax - rangeMin)
           }
           push={null}
-          mode="hold"
         />
       )}
 
@@ -615,8 +614,10 @@ export function TradeTicket({
           {/* The order the numbers actually sit in. A resting order pushes
               nothing, so it draws no push mark and the limit is the whole
               answer (docs/ui-conventions.md, "The payoff line puts those
-              numbers in an order"). */}
-          {rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
+              numbers in an order"). Manage mode has its own line above,
+              drawn against the position rather than against a new bet, and
+              two tracks in one card would be one too many. */}
+          {!manageMode && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
             <PayoffLine
               unit={unit}
               rangeMin={rangeMin}
