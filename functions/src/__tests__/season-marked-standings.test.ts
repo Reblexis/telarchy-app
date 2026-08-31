@@ -1,6 +1,6 @@
 /**
  * THE MARK BESIDE THE SCORE: what an entrant would have if every market that
- * can still pay them this season settled at today's price.
+ * can still pay them this season settled at the value it predicts now.
  *
  * The season ranks and pays SETTLED profit (docs/seasons.md, "The score").
  * That is deliberate and stays: a mark can be manufactured on a thin book and

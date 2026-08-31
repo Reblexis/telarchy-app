@@ -129,7 +129,7 @@ export function SeasonTable({
               {/* Same reason for the mark: on a phone it is the only place an
                   entrant with nothing settled yet can see their position. */}
               {markedScore !== null && markedScore !== score && (
-                <span className="lbt-msub">{fmtCr(markedScore)} cr if it settled today</span>
+                <span className="lbt-msub">{fmtCr(markedScore)} cr if prices hold</span>
               )}
             </td>
             <td className={`lbt-num lbt-desk${prize > 0 ? '' : ' is-zero'}`}>{share}</td>
@@ -143,7 +143,7 @@ export function SeasonTable({
               <>
                 <td
                   className={`lbt-desk ${markedScore === null ? 'lbt-num is-zero' : numClass(markedScore)}`}
-                  title="Profit if every market that still resolves inside this season settled at today's price. Markets resolving after the season ends are not counted, and it decides nothing: the prize is paid on settled profit."
+                  title="Profit if every market that still resolves inside this season settled at the value it is predicting now. Markets resolving after the season ends are not counted, and it decides nothing: the prize is paid on settled profit."
                 >
                   {markedScore === null ? '—' : `${fmtCr(markedScore)} cr`}
                 </td>
@@ -174,7 +174,7 @@ export function SeasonTable({
               {marked && (
                 <>
                   <th className="lbt-h lbt-desk" title="Not the scoring key: the season pays settled profit">
-                    If it settled today
+                    If prices hold
                   </th>
                   <th className="lbt-h lbt-desk">Would pay</th>
                 </>

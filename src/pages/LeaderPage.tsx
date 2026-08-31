@@ -191,8 +191,8 @@ export function LeaderPage() {
                 <>
                   The <strong>${season.poolUsd.toLocaleString()} pool</strong>, split in proportion to positive{' '}
                   <strong>settled profit</strong>. Open positions score nothing until they resolve; the last two columns
-                  show what they would be worth if every market that still resolves this season settled at today's
-                  price.
+                  show what they would be worth if every market that still resolves this season settled at the value it
+                  predicts now.
                 </>
               ) : (
                 <>
