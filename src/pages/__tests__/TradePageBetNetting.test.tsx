@@ -135,7 +135,7 @@ describe('the bet ticket nets against the held position', () => {
   test('New value shows the post-netting landing, and the sell rows stay out', async () => {
     const { container } = renderFloor();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Bet Lower ↓' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Bet Lower/ }));
     await waitFor(() => expect(container.querySelector('.pubws-ticket-inline')).toBeTruthy());
     // Wait for the silent join to deliver the position, or the preview has
     // nothing to net against and this test would pass for the wrong reason.

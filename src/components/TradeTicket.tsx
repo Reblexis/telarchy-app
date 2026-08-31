@@ -4,6 +4,7 @@ import { useEarnAvailable } from '../hooks/useEarnAvailable';
 import { previewSell, previewTargetBet, previewTrade } from '../lib/amm';
 import type { LimitOrder } from '../lib/api';
 import { amountToSlider, SLIDER_STEPS, sliderToAmount } from '../lib/bet-slider';
+import { payoutLine, priceLabel } from '../lib/market-quote';
 
 /**
  * The trade ticket, in Manifold's layout (owner direction 2026-08-10): a
@@ -98,25 +99,6 @@ function fmtShares(v: number): string {
 function fmt(v: number): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-}
-
-/** What one share of a side costs, in cents of a credit, as every other
-    venue quotes a market (docs/ui-conventions.md, "An untouched ticket
-    still quotes both sides"). Never 0c or 100c: a share of a live side is
-    never free and never certain, and the rounded extremes would say it is,
-    so the ends read as bounds instead. */
-function priceLabel(p: number): string {
-  const cents = Math.min(1, Math.max(0, p)) * 100;
-  if (cents < 0.5) return '<1c';
-  if (cents >= 99.5) return '>99c';
-  return `${Math.round(cents)}c`;
-}
-
-/** A range end, said as a person would say it: the payout line names the
-    top and bottom of the range, where "$0.00" reads as an amount of money
-    rather than as the floor of a scale. */
-function fmtEdge(v: number): string {
-  return fmtValue(v).replace(/\.0+$/, '');
 }
 
 /** Metric-space values, formatted the way the headline formats them. */
@@ -539,11 +521,7 @@ export function TradeTicket({
           false assumption. Gone as soon as a side is picked: from there the
           fact rows say the same thing about the actual bet. */}
       {!manageMode && !dir && rangeMin !== undefined && rangeMax !== undefined && (
-        <p className="ticket-quote-note">
-          A share pays 1 credit if the number settles at {unit}
-          {fmtEdge(rangeMax)}, nothing at {unit}
-          {fmtEdge(rangeMin)}, in proportion in between.
-        </p>
+        <p className="ticket-quote-note">{payoutLine(unit, rangeMin, rangeMax)}</p>
       )}
 
       {dir && (

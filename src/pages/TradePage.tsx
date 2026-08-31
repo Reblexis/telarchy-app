@@ -50,6 +50,7 @@ import {
   timeAgoOf,
   timeLeftOf,
 } from '../lib/floor-horizons';
+import { payoutLine, priceLabel } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
 
@@ -1804,14 +1805,31 @@ export function TradePage() {
                 so the chart is not blank; it is not a price anyone made. */}
               {!selectedJobDecided &&
                 (active.funded ? (
-                  <div className="pubws-bet" role="group" aria-label="Bet">
-                    <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>
-                      Bet Higher ↑
-                    </button>
-                    <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>
-                      Bet Lower ↓
-                    </button>
-                  </div>
+                  /* Each verb carries the price of a share of its side, and
+                     one line under the pair says what a share pays
+                     (docs/ui-conventions.md, "An untouched ticket still
+                     quotes both sides"). On this page the untouched state is
+                     the verbs, not the ticket: the ticket only exists once a
+                     verb has been pressed, and it opens with a side already
+                     chosen, so quoting only inside it would still make a
+                     visitor commit to a direction to learn a price. The line
+                     leaves when the ticket opens, because from there the
+                     fact rows say the same thing about the actual bet. */
+                  <>
+                    <div className="pubws-bet" role="group" aria-label="Bet">
+                      <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>
+                        Bet Higher ↑{' '}
+                        <span className="pubws-bet-price">{priceLabel(livePriceProb ?? active.probability)}</span>
+                      </button>
+                      <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>
+                        Bet Lower ↓{' '}
+                        <span className="pubws-bet-price">{priceLabel(1 - (livePriceProb ?? active.probability))}</span>
+                      </button>
+                    </div>
+                    {!betModal && active.rangeMin !== undefined && active.rangeMax !== undefined && (
+                      <p className="pubws-bet-note">{payoutLine(unit, active.rangeMin, active.rangeMax)}</p>
+                    )}
+                  </>
                 ) : (
                   <p className="pubws-unfunded" role="status">
                     {selectedJob
