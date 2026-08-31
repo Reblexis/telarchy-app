@@ -4,7 +4,8 @@ import { useEarnAvailable } from '../hooks/useEarnAvailable';
 import { previewSell, previewTargetBet, previewTrade } from '../lib/amm';
 import type { LimitOrder } from '../lib/api';
 import { amountToSlider, SLIDER_STEPS, sliderToAmount } from '../lib/bet-slider';
-import { payoutLine, priceLabel } from '../lib/market-quote';
+import { priceLabel } from '../lib/market-quote';
+import { PayoffLine } from './PayoffLine';
 
 /**
  * The trade ticket, in Manifold's layout (owner direction 2026-08-10): a
@@ -349,6 +350,23 @@ export function TradeTicket({
         manage mode only (owner ask 2026-08-28: selling is the panel below
         the ticket, not the bet ticket). The positions PROP still arrives in
         both modes, because the preview nets against it. */}
+      {manageMode && held !== null && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
+        <PayoffLine
+          unit={unit}
+          rangeMin={rangeMin}
+          rangeMax={rangeMax}
+          consensus={consensus}
+          direction={held.direction}
+          breakeven={
+            held.direction === 'higher'
+              ? rangeMin + (held.totalCost / held.shares) * (rangeMax - rangeMin)
+              : rangeMin + (1 - held.totalCost / held.shares) * (rangeMax - rangeMin)
+          }
+          push={null}
+          mode="hold"
+        />
+      )}
+
       {manageMode && positions.length > 0 && (
         <div className="ticket-pos">
           {positions.map(p => {
@@ -515,13 +533,21 @@ export function TradeTicket({
         )}
       </div>
 
-      {/* What a share pays, said once, under the quote. A cents price on a
-          binary contract states its own payout; ours is linear in the
-          settled value, so the price alone would be a true number under a
-          false assumption. Gone as soon as a side is picked: from there the
-          fact rows say the same thing about the actual bet. */}
-      {!manageMode && !dir && rangeMin !== undefined && rangeMax !== undefined && (
-        <p className="ticket-quote-note">{payoutLine(unit, rangeMin, rangeMax)}</p>
+      {/* What a share has to beat, drawn rather than said. The track's own
+          ends carry what the payout sentence used to (a credit at the top,
+          nothing at the bottom) and the mark says where a share bought this
+          second breaks even, which is wherever the market already is. The
+          floor's verbs keep the sentence, having no track to carry it. */}
+      {!manageMode && !dir && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
+        <PayoffLine
+          unit={unit}
+          rangeMin={rangeMin}
+          rangeMax={rangeMax}
+          consensus={consensus}
+          direction={null}
+          breakeven={null}
+          push={null}
+        />
       )}
 
       {dir && (
@@ -584,6 +610,22 @@ export function TradeTicket({
               </label>
               {limitError && <p className="ticket-err">{limitError}</p>}
             </>
+          )}
+
+          {/* The order the numbers actually sit in. A resting order pushes
+              nothing, so it draws no push mark and the limit is the whole
+              answer (docs/ui-conventions.md, "The payoff line puts those
+              numbers in an order"). */}
+          {rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
+            <PayoffLine
+              unit={unit}
+              rangeMin={rangeMin}
+              rangeMax={rangeMax}
+              consensus={consensus}
+              direction={dir}
+              breakeven={winFacts ? winFacts.breakeven : null}
+              push={isLimit ? null : newValue}
+            />
           )}
 
           <div className="ticket-facts">

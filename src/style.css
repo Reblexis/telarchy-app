@@ -5077,14 +5077,82 @@ textarea.jobform-line--desc {
 .ticket-side--lower .ticket-side-price { color: var(--lower); }
 .ticket-side.is-active .ticket-side-price { color: var(--on-signal); }
 
-/* The one sentence under an untouched quote: what a share pays. Quiet, and
-   it leaves with the first click. */
-.ticket-quote-note {
-  margin: 0;
-  text-align: center;
-  font-size: 0.76rem;
-  line-height: 1.45;
+/* The payoff line (docs/ui-conventions.md, "The payoff line puts those
+   numbers in an order"): the market's range as one track, carrying the
+   market, the break-even and the pushed-to value in the order they sit.
+   The band is the stretch that pays; the marks stand outside the clipped
+   track so they read as marks rather than as more band. This replaced the
+   one-sentence payout note inside the ticket (2026-08-31); the floor's own
+   verbs keep the sentence, having no track to carry it. */
+.pay {
+  display: flex;
+  flex-direction: column;
+}
+.pay-cap {
+  position: relative;
+  height: 1.15rem;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.pay-cap--slim { height: 1rem; }
+.pay-cap--under { height: 1.25rem; margin-top: 0.15rem; }
+.pay-cap span { position: absolute; bottom: 0; transform: translateX(-50%); }
+.pay-cap--under span { top: 0; bottom: auto; }
+.pay-cap b {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.pay-track-wrap { position: relative; padding: 3px 0; }
+.pay-track {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+.pay-win { position: absolute; top: 0; bottom: 0; }
+.pay-win--higher { background: var(--higher-soft); }
+.pay-win--lower { background: var(--lower-soft); }
+.pay-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+  transform: translateX(-1.5px);
+}
+.pay-mark--now { width: 2px; background: var(--text-tertiary); }
+.pay-mark--be-higher { background: var(--higher); }
+.pay-mark--be-lower { background: var(--lower); }
+.pay-mark--push { background: var(--text-primary); }
+.pay-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.3rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
   color: var(--text-tertiary);
+}
+.pay-sides {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.1rem 0.75rem;
+  margin-top: 0.15rem;
+  font-size: 0.73rem;
+  font-weight: 600;
+}
+.pay-side--lower { color: var(--lower); }
+.pay-side--higher { color: var(--higher); }
+.pay-say {
+  margin: 0.55rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
   text-wrap: pretty;
 }
 
