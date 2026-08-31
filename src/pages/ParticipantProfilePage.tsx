@@ -76,19 +76,27 @@ function PositionRow({ p }: { p: PublicProfilePosition }) {
 }
 
 function TradeRow({ t }: { t: PublicProfileTrade }) {
+  // A redemption is not a direction and not a trade: the engine cashed the
+  // matched pairs this participant was left holding, at the 1 credit a pair
+  // is worth. Saying "sold" here would name an action they never took.
+  const redeem = t.kind === 'redeem';
   return (
     <li className="prof-row">
-      <span className={`prof-dir prof-dir--${t.direction}`}>{t.direction === 'higher' ? '▲' : '▼'}</span>
+      <span className={`prof-dir prof-dir--${redeem ? 'redeem' : t.direction}`}>
+        {redeem ? '=' : t.direction === 'higher' ? '▲' : '▼'}
+      </span>
       <span className="prof-row-main">
         <span className="prof-row-title">
-          {t.kind === 'buy' ? 'Bought' : 'Sold'} {fmtShares(t.shares)} {t.direction}
+          {redeem
+            ? `Redeemed ${fmtShares(t.shares)} matched pairs`
+            : `${t.kind === 'buy' ? 'Bought' : 'Sold'} ${fmtShares(t.shares)} ${t.direction}`}
         </span>
         <span className="prof-row-sub">
           {t.metricName ?? 'market'} · {t.workspaceName}
         </span>
       </span>
       <span className="prof-row-val">
-        {t.kind === 'sell' ? '+' : ''}
+        {t.kind === 'buy' ? '' : '+'}
         {fmtCr(Math.abs(t.cost)).replace(/^\+/, '')} cr
       </span>
       <span className="prof-row-time">{timeAgo(t.createdAt)}</span>

@@ -694,7 +694,9 @@ async function buildFloorPayload(ws: PublicWs) {
     const [tradeCount] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(trades)
-      .where(and(eq(trades.workspaceId, workspaceId), gte(trades.createdAt, weekAgo)));
+      // Activity means trades. A redemption is bookkeeping the engine did,
+      // and counting its two rows would inflate the week by a factor.
+      .where(and(eq(trades.workspaceId, workspaceId), gte(trades.createdAt, weekAgo), ne(trades.kind, 'redeem')));
     tradesThisWeek = tradeCount?.n ?? 0;
   }
   if (publicCaps.includes('read')) {
@@ -1607,6 +1609,10 @@ marketplaceRouter.get(
       .orderBy(desc(positions.shares))
       .limit(50);
 
+    // Trades only. A redemption's ledger rows are not trades against this
+    // market: nothing was bought from anyone and the price did not move, so a
+    // tape that listed them would show sells the participant never placed
+    // (docs/ui-conventions.md, "A redemption is not a trade").
     const tradeRows = await db
       .select({
         id: trades.id,
@@ -1617,7 +1623,7 @@ marketplaceRouter.get(
         createdAt: trades.createdAt,
       })
       .from(trades)
-      .where(and(eq(trades.workspaceId, ws.id), eq(trades.marketId, marketId)))
+      .where(and(eq(trades.workspaceId, ws.id), eq(trades.marketId, marketId), ne(trades.kind, 'redeem')))
       .orderBy(desc(trades.createdAt))
       .limit(50);
 

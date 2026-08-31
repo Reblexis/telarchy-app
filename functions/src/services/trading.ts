@@ -231,6 +231,9 @@ export async function executeTradeInTx(
     direction: dirLabel,
     shares: isSell ? -amount : amount,
     cost: isSell ? -proceeds : cost,
+    // Explicit rather than defaulted: the only other writer of this table is
+    // the redemption below, and the two must never be told apart by accident.
+    kind: 'trade',
     createdAt: new Date(),
   });
 
@@ -281,6 +284,11 @@ export async function executeTradeInTx(
  *  - costs the pool nothing in expectation: it pays 1 credit now and sheds
  *    exactly 1 credit of settlement liability (q0 and q1 each fall by the
  *    same amount, so the liability q0*(1-p) + q1*p falls by that amount).
+ *
+ * The two rows are marked `kind: 'redeem'`, which is what keeps them out of
+ * every list a person reads: a redemption moves no price and has no
+ * counterparty, so rendering it as a sell shows the trader an action they
+ * never took (docs/ui-conventions.md, "A redemption is not a trade").
  *
  * The two ledger rows are what keeps the price REPLAY honest: it rebuilds
  * the book by walking `trades`, so a change to `markets.shares` that left
@@ -359,6 +367,7 @@ async function redeemMatchedPairs(
       direction: 'higher',
       shares: -pairs,
       cost: -higherPart,
+      kind: 'redeem',
       createdAt: at,
     },
     {
@@ -369,6 +378,7 @@ async function redeemMatchedPairs(
       direction: 'lower',
       shares: -pairs,
       cost: -lowerPart,
+      kind: 'redeem',
       createdAt: at,
     },
   ]);

@@ -2024,6 +2024,8 @@ button.notif-row-link {
 .prof-dir { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
 .prof-dir--higher { color: var(--higher); }
 .prof-dir--lower { color: var(--lower); }
+/* A redemption took both sides off the book, so it is neither colour. */
+.prof-dir--redeem { color: var(--text-tertiary); }
 .prof-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
 .prof-row-title { color: var(--text-primary); overflow-wrap: anywhere; }
 .prof-row-sub { font-size: 0.78rem; color: var(--text-tertiary); }
