@@ -74,7 +74,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "ol",
         "items": [
-          "Sign up with email, Google or GitHub. You start with a free grant of credits; telarchy.com/api/earn publishes what every free route is worth right now, because the operator reprices them.",
+          "Sign up with email, Google or GitHub. You start with a free grant of credits, connecting a Google or GitHub account is worth another, and trading on a new day pays a daily grant that grows with a streak. What each is worth right now is at telarchy.com/api/earn, because the operator reprices them.",
           "Pick a metric and trade on where it lands. Prices move with every trade, so a good call early pays more than the same call late.",
           "When the number comes in, positions settle and the season standings update."
         ]
