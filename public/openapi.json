@@ -45,14 +45,35 @@
     "schemas": {
       "Error": {
         "type": "object",
+        "description": "Every error body carries `error`. The ones a participant acts on also carry `code` and `doc_url`. An absent `code` means \"not coded yet\", never \"cannot happen\": fall back to the HTTP status.",
+        "required": [
+          "error"
+        ],
         "properties": {
           "error": {
             "type": "string",
-            "description": "Machine-readable error code, e.g. 'insufficient_credits'."
+            "description": "A sentence written for whoever reads it. The WORDING IS NOT STABLE; never branch on it."
           },
-          "message": {
+          "code": {
             "type": "string",
-            "description": "Human-readable explanation."
+            "description": "Machine-readable, stable, and safe to branch on. Absent on errors that have not been given one yet.",
+            "enum": [
+              "insufficient_balance",
+              "insufficient_shares",
+              "trade_too_small",
+              "market_not_found",
+              "market_resolved",
+              "market_voided",
+              "market_closed",
+              "idempotency_key_reuse",
+              "identity_required",
+              "not_authorized"
+            ]
+          },
+          "doc_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Where this code is documented. Present whenever `code` is."
           }
         }
       },
@@ -175,6 +196,10 @@
           "sellShares": {
             "type": "number",
             "description": "Shares to sell on the given direction."
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Ask what the trade would do without doing it. Answers 200 with the same numbers a real trade returns plus balance, affordable, shortfall and basis, and changes nothing. Does not require credits, so a participant that has just registered can still see the market answer."
           }
         }
       },
@@ -794,6 +819,46 @@
           }
         },
         "responses": {
+          "200": {
+            "description": "Dry run: what the trade would do. Nothing was changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dryRun": {
+                      "type": "boolean"
+                    },
+                    "shares": {
+                      "type": "number"
+                    },
+                    "cost": {
+                      "type": "number"
+                    },
+                    "consensus": {
+                      "type": "number"
+                    },
+                    "prevConsensus": {
+                      "type": "number"
+                    },
+                    "balance": {
+                      "type": "number"
+                    },
+                    "affordable": {
+                      "type": "boolean"
+                    },
+                    "shortfall": {
+                      "type": "number"
+                    },
+                    "basis": {
+                      "type": "object",
+                      "description": "The market state the quote was computed against: tradeCount, liquidity, consensus. Compare with a later read to spot a stale quote."
+                    }
+                  }
+                }
+              }
+            }
+          },
           "201": {
             "description": "Trade accepted",
             "content": {
@@ -836,6 +901,16 @@
           },
           "400": {
             "description": "Bad request, including the per-market position cap with { cap, spent, attempted }"
+          },
+          "409": {
+            "description": "That Idempotency-Key was already used for a different request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -847,6 +922,17 @@
           },
           {
             "Session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Any string you choose. A retry of the same request returns the first result instead of trading again, with idempotentReplay: true. Scoped to your participant and workspace. The same key with a different body returns 409."
           }
         ]
       }
