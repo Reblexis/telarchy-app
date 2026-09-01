@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { type CSSProperties, type PointerEvent as ReactPointerEvent, useState } from 'react';
 import { compactValueOf } from '../lib/floor-horizons';
 import { formatMetricValue } from '../lib/market-quote';
 
@@ -24,9 +24,17 @@ import { formatMetricValue } from '../lib/market-quote';
  */
 
 /** The closest two stops may sit before their labels would touch. */
-const MIN_GAP = 0.14;
-/** Labels, and so stops, that a 480px card has room for. */
-const MAX_STOPS = 5;
+const MIN_GAP = 0.13;
+/**
+ * The interior stops, at fixed thirds of the range.
+ *
+ * Fixed is the whole point. Spacing them off the break-even meant every drag
+ * of the stake slider moved the break-even, and every label slid sideways
+ * with it (owner, 2026-09-01: "the numbers are kind of twitching when i move
+ * the slider"). At fixed thirds only the break-even's own label travels,
+ * which is honest, because it is the only one that is actually moving.
+ */
+const INTERIOR = [1 / 3, 2 / 3];
 
 interface Props {
   unit: string;
@@ -59,39 +67,20 @@ function stopStyle(pct: number, first: boolean, last: boolean): CSSProperties {
 }
 
 /**
- * The fractions to price: the two ends and the break-even always, then as
- * many evenly spaced interior stops as the gaps between them can hold.
+ * The fractions to price: both ends of the range always, the break-even
+ * always, and the fixed thirds wherever the break-even leaves room for
+ * them.
  */
 function stopFractions(beF: number): number[] {
-  const req = beF > 0.1 && beF < 0.9 ? [0, beF, 1] : [0, 1];
-  const gaps = req.slice(0, -1).map((lo, i) => req[i + 1] - lo);
-  const take = gaps.map(() => 0);
-  let slots = MAX_STOPS - req.length;
-  while (slots > 0) {
-    let best = -1;
-    let bestScore = 0;
-    gaps.forEach((g, i) => {
-      if (take[i] >= Math.floor(g / MIN_GAP) - 1) return;
-      const score = g / (take[i] + 2);
-      if (score > bestScore) {
-        bestScore = score;
-        best = i;
-      }
-    });
-    if (best < 0) break;
-    take[best] += 1;
-    slots -= 1;
-  }
-  const out: number[] = [];
-  req.slice(0, -1).forEach((lo, i) => {
-    out.push(lo);
-    for (let j = 1; j <= take[i]; j += 1) out.push(lo + (gaps[i] * j) / (take[i] + 1));
-  });
-  out.push(1);
-  return out;
+  const be = beF > MIN_GAP && beF < 1 - MIN_GAP ? [beF] : [];
+  const interior = INTERIOR.filter(f => be.length === 0 || Math.abs(f - beF) >= MIN_GAP);
+  return [0, ...interior, ...be, 1].sort((a, b) => a - b);
 }
 
 export function PayoffLine({ unit, rangeMin, rangeMax, consensus, direction, breakeven, shares, spend }: Props) {
+  /** Where the pointer is reading, as a fraction of the range. */
+  const [read, setRead] = useState<number | null>(null);
+
   const span = rangeMax - rangeMin;
   if (!(span > 0) || !Number.isFinite(consensus)) return null;
 
@@ -125,27 +114,60 @@ export function PayoffLine({ unit, rangeMin, rangeMax, consensus, direction, bre
   const beF = Math.min(1, Math.max(0, ((breakeven as number) - rangeMin) / span));
   const bePct = pct(breakeven as number);
   const fractions = stopFractions(beF);
+  const worthAt = (f: number) => (shares as number) * (direction === 'higher' ? f : 1 - f) - (spend as number);
+  /** `|| 0` is not decoration: rounding a hair below zero gives -0, and the
+      break-even stop then flickered between "0 cr" and "-0 cr" as the stake
+      moved (owner, 2026-09-01). */
+  const credits = (worth: number) => {
+    const n = Math.round(worth) || 0;
+    return `${n > 0 ? '+' : ''}${n.toLocaleString('en-US')} cr`;
+  };
+  const tone = (worth: number) => {
+    const n = Math.round(worth) || 0;
+    return n > 0 ? 'up' : n < 0 ? 'down' : 'even';
+  };
+
   const stops = fractions.map((f, i) => {
     const value = rangeMin + f * span;
-    const worth = (shares as number) * (direction === 'higher' ? f : 1 - f) - (spend as number);
-    const n = Math.round(worth);
+    const worth = worthAt(f);
     return {
       at: Math.round(f * 10000) / 100,
       value: compactValueOf(value, unit) ?? '',
-      credits: `${n > 0 ? '+' : ''}${n.toLocaleString('en-US')} cr`,
-      tone: n > 0 ? 'up' : n < 0 ? 'down' : 'even',
+      credits: credits(worth),
+      tone: tone(worth),
       style: stopStyle(Math.round(f * 10000) / 100, i === 0, i === fractions.length - 1),
     };
   });
 
+  /* Hovering the line reads out the exact figure under the pointer. It
+     lands in the same two rows the stops use, so nothing is added to the
+     card's height and nothing can overlap: the standing labels stand down
+     while it is up. */
+  const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    if (!(r.width > 0)) return;
+    setRead(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)));
+  };
+  const cursorAt = read === null ? null : Math.round(read * 10000) / 100;
+  const cursorStyle = cursorAt === null ? undefined : stopStyle(cursorAt, false, false);
+
   return (
-    <div className="scale">
+    <div
+      className={`scale${read === null ? '' : ' is-reading'}`}
+      onPointerMove={onMove}
+      onPointerLeave={() => setRead(null)}
+    >
       <div className="scale-row scale-cr">
         {stops.map(s => (
           <span key={s.at} data-at={String(s.at)} style={s.style}>
             <span className={s.tone}>{s.credits}</span>
           </span>
         ))}
+        {read !== null && cursorAt !== null && (
+          <span className={`scale-cursor ${tone(worthAt(read))}`} data-at={String(cursorAt)} style={cursorStyle}>
+            {credits(worthAt(read))}
+          </span>
+        )}
       </div>
       <div className="rule" aria-hidden="true">
         <div
@@ -159,6 +181,7 @@ export function PayoffLine({ unit, rangeMin, rangeMax, consensus, direction, bre
         {stops.slice(1, -1).map(s => (
           <div key={s.at} className="rule-tick" style={{ left: `${s.at}%` }} />
         ))}
+        {cursorAt !== null && <div className="rule-cursor" style={{ left: `${cursorAt}%` }} />}
       </div>
       <div className="scale-row scale-val">
         {stops.map(s => (
@@ -166,6 +189,11 @@ export function PayoffLine({ unit, rangeMin, rangeMax, consensus, direction, bre
             {s.value}
           </span>
         ))}
+        {read !== null && cursorAt !== null && (
+          <span className="scale-cursor" data-at={String(cursorAt)} style={cursorStyle}>
+            {compactValueOf(rangeMin + read * span, unit)}
+          </span>
+        )}
       </div>
     </div>
   );

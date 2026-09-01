@@ -5206,7 +5206,37 @@ textarea.jobform-line--desc {
    Both ends of the range are always stops: dropping the top one whenever
    the break-even came near it left a ticket whose every figure was a loss,
    never showing the bet could win. */
-.scale { margin-top: 0.55rem; }
+.scale {
+  margin-top: 0.55rem;
+  touch-action: none;
+  cursor: crosshair;
+}
+/* Hovering reads out the exact figure under the pointer, into the same two
+   rows the stops use: no extra height, and nothing to overlap because the
+   standing labels give up the row entirely while it is there. Dimming them
+   instead was not enough, since the cursor lands ON one of them as often as
+   not and two labels in the same pixels read as neither. */
+.scale.is-reading .scale-row > span:not(.scale-cursor) {
+  opacity: 0;
+  transition: opacity 90ms ease;
+}
+.scale-cursor {
+  position: absolute;
+  white-space: nowrap;
+}
+.scale-cr .scale-cursor { font-weight: 600; }
+.scale-cr .scale-cursor.up { color: var(--higher); }
+.scale-cr .scale-cursor.down { color: var(--lower); }
+.scale-cr .scale-cursor.even { color: var(--text-primary); }
+.scale-val .scale-cursor { color: var(--text-secondary); }
+.rule-cursor {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--text-primary);
+  transform: translateX(-1px);
+}
 .scale-row {
   position: relative;
   height: 1.1rem;
