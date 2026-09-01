@@ -75,6 +75,28 @@ previous rule (marked-to-market growth over a start-instant baseline)
 applied, and the standings switch keys at that instant
 (`functions/src/lib/seasons.ts`, `settledScoringActive`).
 
+**Profit out of a book you funded is not score.** In a market you put pool
+credits into, your settled trading profit is reduced by what you contributed
+to that market's pool, floored at zero rather than turned into a loss. Fund a
+market, be the only trader, win it, and the score is nothing: you paid
+yourself. An LP who does not trade their own book is untouched, because they
+have no trading profit to reduce; a trader who funded nothing is untouched;
+and someone who funded a book and then won more than they put in keeps the
+excess, because that part was real risk against other people.
+
+This is what makes the Terms' existing sentence true rather than aspirational.
+Section 2 has always said buying liquidity "confers no contest entry,
+standing, or score", and until 2026-09-01 the scoring did not enforce it: the
+score counted trading profit and ignored the LP loss on the other side of the
+same account, so funding your own market and trading against it converted
+pool credits into season score roughly one for one (owner decision
+2026-09-01: "make trading on your own market not give u profit").
+
+It is deliberately about the MARKET you funded, not about who you are. No
+account is excluded from anything, which is why this is the rule rather than
+strictEligibility: eligibility asks who you are and shrinks the field, this
+asks what the trade was and shrinks nothing.
+
 Settled profit is grant-blind, like everything the boards rank: platform
 grants never enter it, which is what lets the operator and the market maker
 sit on the same board as everyone else instead of being excluded by name.
