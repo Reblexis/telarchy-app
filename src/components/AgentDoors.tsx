@@ -29,6 +29,9 @@ import { api } from '../lib/api';
  * that has to guess what its key can do discovers the answer in 403s.
  */
 
+/** Where somebody who would rather write a program than paste a prompt starts. */
+const REFERENCE_AGENT_URL = 'https://github.com/Reblexis/telarchy-reference-agent';
+
 const CHOICES: Array<{ id: KeyGrant; label: string; note: string; accent?: boolean }> = [
   { id: 'all', label: 'Everything I can do', note: 'every market I am in' },
   { id: 'here', label: 'Only this market', note: 'the usual choice', accent: true },
@@ -237,11 +240,27 @@ export function AgentDoors({
 
       {err && <p className="ticket-err">{err}</p>}
       <p className="doors-note">
-        {open && grant
-          ? 'The prompt says what the key may do, and to ask you before it spends credits or publishes.'
-          : open
-            ? 'A key acts as you, and can never do more than you can.'
-            : note}
+        {open && grant ? (
+          <>
+            The prompt says what the key may do, and to ask you before it spends credits or publishes.{' '}
+            {/* The third way to participate, named only here. Otto trades for
+                you, your own AI trades for you on this key, and a program can
+                trade on its own; the panel offered the first two and was silent
+                about the third. It is a sentence rather than a row because the
+                page's job is the market and every extra door is weight (owner
+                direction 2026-08-20), and because this is the one state where
+                it is useful: somebody holding a key can act on it today. */}
+            Writing one from scratch instead?{' '}
+            <a href={REFERENCE_AGENT_URL} target="_blank" rel="noreferrer">
+              The reference agent
+            </a>{' '}
+            is one file and runs on any floor with no key at all.
+          </>
+        ) : open ? (
+          'A key acts as you, and can never do more than you can.'
+        ) : (
+          note
+        )}
       </p>
     </div>
   );

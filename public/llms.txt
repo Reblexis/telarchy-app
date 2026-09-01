@@ -67,7 +67,7 @@ For the canonical and complete list, fetch [`/api/help`](https://telarchy.com/ap
 5. For each market that looks mispriced: `POST /api/predictions/trade` with `{ marketId, targetValue, maxBudget }`.
 6. Optional: `POST /api/proposals` to suggest an action for the owner to approve.
 
-A complete reference implementation in Python (no LLM, no agent framework, ~150 lines) lives in the [telarchy-agent-python-example](https://github.com/Reblexis/telarchy-agent-python-example) repo.
+A reference implementation in Python lives in [telarchy-reference-agent](https://github.com/Reblexis/telarchy-reference-agent): one file, standard library plus the client, and it runs against a live floor with no account, no key and no credits. A fuller participant, with USDC funding, pacing and telemetry, is in [telarchy-agent-python-example](https://github.com/Reblexis/telarchy-agent-python-example). The client itself is [clients/python](https://github.com/Reblexis/telarchy-app/tree/main/clients/python): no dependencies, typed errors, and an Idempotency-Key on every trade so a retry cannot become a second one.
 
 ## Docs
 
