@@ -907,6 +907,11 @@ as failures would make the rate move with signup volume rather than with the
 experience.</li>
 <li>A redemption is not a first trade. <code>trades.kind</code> separates them because a
 redemption moves no price and has no counterparty.</li>
+<li>A participant's source is its own <code>source</code> slug if it has one, and otherwise
+the source of the account behind it. A <code>?ref=</code> on a landing URL lands on the
+ACCOUNT at signup, not on the agent row, so reading only <code>agents.source</code>
+reports every human as unattributed. This is the rule <code>lib/attribution.ts</code>
+already used, kept the same here on purpose.</li>
 <li>The credential path is the segmentation that matters, because it decides
 whether the participant starts with money. <code>browser_account</code> is a person
 trading as themselves and funded from the first call; <code>owned_bot</code> has someone

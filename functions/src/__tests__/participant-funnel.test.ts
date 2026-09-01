@@ -171,6 +171,35 @@ describe('register-to-first-trade funnel', () => {
     expect(by.unattributed.converted).toBe(0);
   });
 
+  test('THE RULE: a person is attributed by their ACCOUNT, not only by the agent row', async () => {
+    // How attribution actually works (lib/attribution.ts, and
+    // docs/agent-economy.md "Attribution"): a `?ref=` on a landing URL is kept
+    // in a cookie and lands on authUser.source at signup, so a browser
+    // participant's own agent row carries nothing. Reading only agents.source
+    // reports every human as unattributed, which is exactly what the first
+    // version of this funnel did in production on 2026-09-01.
+    await db.insert(authUser).values([{ id: 'u-hn', name: 'h', email: 'h@example.com', source: 'hn' }]);
+    const at = daysAgo(30);
+    await participant('the-person', at, { authUserId: 'u-hn' });
+    await tradeAt('the-person', minutesAfter(at, 4));
+
+    const f = await run();
+    const by = Object.fromEntries(f.bySource.map(r => [r.segment, r]));
+    expect(Object.keys(by)).toContain('hn');
+    expect(by.hn.registered).toBe(1);
+    expect(by.hn.converted).toBe(1);
+  });
+
+  test("the agent's own tag wins over the account's, because it is the more specific claim", async () => {
+    await db.insert(authUser).values([{ id: 'u-both', name: 'b', email: 'b@example.com', source: 'hn' }]);
+    const at = daysAgo(30);
+    await participant('tagged-both', at, { authUserId: 'u-both', source: 'github' });
+    const f = await run();
+    const by = Object.fromEntries(f.bySource.map(r => [r.segment, r]));
+    expect(by.github?.registered).toBe(1);
+    expect(by.hn).toBeUndefined();
+  });
+
   test("the house's own participants are not customers", async () => {
     await db.insert(authUser).values([{ id: 'u-admin', name: 'a', email: 'a@example.com' }]);
     const at = daysAgo(30);

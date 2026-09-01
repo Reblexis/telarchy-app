@@ -46,6 +46,11 @@ Three rules make the number mean something:
   experience.
 - A redemption is not a first trade. `trades.kind` separates them because a
   redemption moves no price and has no counterparty.
+- A participant's source is its own `source` slug if it has one, and otherwise
+  the source of the account behind it. A `?ref=` on a landing URL lands on the
+  ACCOUNT at signup, not on the agent row, so reading only `agents.source`
+  reports every human as unattributed. This is the rule `lib/attribution.ts`
+  already used, kept the same here on purpose.
 - The credential path is the segmentation that matters, because it decides
   whether the participant starts with money. `browser_account` is a person
   trading as themselves and funded from the first call; `owned_bot` has someone
