@@ -6,6 +6,7 @@ import { betTowardsValue, consensus, directionSellProceeds, pHigher, sharesForBu
 import { periodEndInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
 import { AppError } from '../lib/errors';
 import { emitPricesChanged } from '../lib/market-events';
+import { restrictedToMembers } from '../lib/public-read';
 import { fromUnits, sufficientBalance, toUnits } from '../lib/validation';
 import { applyCredits } from './credits';
 
@@ -131,6 +132,31 @@ export async function executeTradeInTx(
   if (!market) throw new AppError('Market not found', 404, undefined, 'market_not_found');
   if (market.resolved) throw new AppError('Market is resolved', 400, undefined, 'market_resolved');
   if (market.voided) throw new AppError('Market is voided; positions were refunded', 400, undefined, 'market_voided');
+  // Trading happens on a PUBLIC floor and nowhere else. A floor that is not
+  // public is still being built: metrics, dates, books, invitations. The
+  // reason is the prize season, which scores every workspace public AT
+  // SETTLEMENT over every market that resolved inside its window, so a floor
+  // traded in private and published at the end contributed a month of score
+  // at once with nobody having watched any of it (bug hunt 2026-08-31, P1-9;
+  // owner decision 2026-09-01). Trading only where everyone can see makes
+  // that shape impossible rather than merely against the rules.
+  //
+  // Here rather than at the route, because this is the one door all three
+  // callers share: the trade route, its dry-run quote, and the limit-order
+  // sweep. A resting order on a floor that goes private does not fill.
+  const [tradingWorkspace] = await tx
+    .select({ visibility: workspaces.visibility })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId));
+  if (restrictedToMembers(tradingWorkspace?.visibility)) {
+    throw new AppError(
+      'This floor is not public yet, so nothing trades on it. Publish it to open trading.',
+      400,
+      undefined,
+      'workspace_not_public',
+    );
+  }
+
   // The answer is fixed at the PERIOD END; the market is only due at period
   // end plus the metric's settlementLagMinutes, which can be 90 days. The
   // settling reading is public in between, so trading through that window is

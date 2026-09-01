@@ -77,7 +77,10 @@ async function seed() {
     name: 'Trade History',
     createdBy: OWNER,
     ownerAgentId: OWNER,
-    visibility: 'private',
+    // 'public': this suite is about TRADING, and trading needs a published
+    // floor now (docs/guides/creating.md). The value used to be 'private'
+    // and was incidental - nothing here tests visibility.
+    visibility: 'public',
   });
   const traderGroup = (await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, WS))).find(
     g => g.type === 'trader',
