@@ -60,7 +60,7 @@ export function MyAgents() {
   };
   useEffect(load, []);
 
-  const send = async (to: string) => {
+  const send = async (to: string, shownAs: string) => {
     const n = Number(amount);
     if (!Number.isFinite(n) || n <= 0) {
       setErr('Amount must be a number of credits above zero.');
@@ -70,7 +70,7 @@ export function MyAgents() {
     setErr('');
     try {
       await api.transferCredits(to, n, `funding ${to}`);
-      setSaid(`Sent ${money(n)} to ${to}`);
+      setSaid(`Sent ${money(n)} cr to ${shownAs}`);
       setFunding(null);
       load();
     } catch (e) {
@@ -154,7 +154,12 @@ export function MyAgents() {
                       onChange={e => setAmount(e.target.value)}
                       aria-label={`Credits to send to ${a.nickname || a.id}`}
                     />
-                    <button type="button" className="acctdlg-ok" disabled={busy} onClick={() => void send(a.id)}>
+                    <button
+                      type="button"
+                      className="acctdlg-ok"
+                      disabled={busy}
+                      onClick={() => void send(a.id, a.nickname || a.id)}
+                    >
                       {busy ? 'Sending…' : 'Send'}
                     </button>
                   </span>

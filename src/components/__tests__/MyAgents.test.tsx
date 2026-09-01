@@ -180,6 +180,20 @@ describe('funding one', () => {
     await waitFor(() => expect(getMyAgents).toHaveBeenCalledTimes(2));
   });
 
+  test('the confirmation names the bot the way the row does, and says the unit', async () => {
+    // The row is headed by the nickname; saying "Sent 1 to admin" back at
+    // someone who just clicked a row labelled "adminbot" reads as a different
+    // bot, and a bare 1 reads as one transfer rather than one credit.
+    getMyAgents.mockResolvedValue([me, agent({ id: 'admin', nickname: 'adminbot' })]);
+    render(<MyAgents />);
+    fireEvent.click(await screen.findByText('Send credits'));
+    fireEvent.change(screen.getByLabelText(/Credits to send/), { target: { value: '1' } });
+    fireEvent.click(screen.getByText('Send'));
+    expect(await screen.findByText('Sent 1 cr to adminbot')).toBeInTheDocument();
+    // The API still gets the id, which is what it resolves.
+    expect(transferCredits).toHaveBeenCalledWith('admin', 1, expect.any(String));
+  });
+
   test('an amount that is not a positive number is refused before the network', async () => {
     getMyAgents.mockResolvedValue([me, agent()]);
     render(<MyAgents />);

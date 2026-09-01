@@ -3429,6 +3429,10 @@ textarea.jobform-line--desc {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  /* A flex item's default min-width is its content, so one wide child (the
+     agent prompt) could otherwise widen the whole dialog rather than scroll
+     inside itself. */
+  min-width: 0;
 }
 
 /* The agent prompt, in the account dialog's "Your AI" section: a block of
@@ -3448,6 +3452,11 @@ textarea.jobform-line--desc {
   line-height: 1.55;
   color: var(--text-secondary);
   white-space: pre-wrap;
+  /* The prompt carries bare URLs with no break opportunity in them. Without
+     this the block's min-content width is the longest URL, which on a 390px
+     phone pushed the whole dialog 84px off the right edge: the tab was
+     unreadable on the device most people open it on. */
+  overflow-wrap: anywhere;
 }
 
 /* The framing step: takes over the dialog body while a picked picture is
