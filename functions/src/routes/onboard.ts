@@ -55,8 +55,8 @@ onboardRouter.post(
     if (!OWNER_ONBOARDING_OPEN) {
       res.status(403).json({
         error:
-          'This one-call owner onboarding is paused. Create an account, then POST /api/workspaces to open your own floor, or do it in a browser at https://telarchy.com/manage.',
-        waitlist: 'https://telarchy.com/manage',
+          'This one-call owner onboarding is paused. Create an account, then POST /api/workspaces to open your own floor, or do it in a browser at https://telarchy.com.',
+        waitlist: 'https://telarchy.com',
       });
       return;
     }

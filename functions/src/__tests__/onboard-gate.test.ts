@@ -49,6 +49,6 @@ describe('onboard gate', () => {
       .send({ workspace: { name: 'X' } });
 
     expect(res.status).toBe(403);
-    expect(res.body.waitlist).toBe('https://telarchy.com/manage');
+    expect(res.body.waitlist).toBe('https://telarchy.com');
   });
 });

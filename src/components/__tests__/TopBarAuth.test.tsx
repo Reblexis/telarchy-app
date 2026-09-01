@@ -17,7 +17,7 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => mockAuth }));
 
 import { TopBarAuth } from '../TopBarAuth';
 
-const renderAt = (path = '/manage') =>
+const renderAt = (path = '/northwind') =>
   render(
     <MemoryRouter initialEntries={[path]}>
       <TopBarAuth />
@@ -30,9 +30,9 @@ beforeEach(() => {
 
 describe('the corner of the top bar', () => {
   test('offers the door to someone who is signed out, and remembers where they were', () => {
-    renderAt('/manage');
+    renderAt('/northwind');
     const link = screen.getByRole('link', { name: 'Log in' });
-    expect(link.getAttribute('href')).toBe('/login?next=%2Fmanage');
+    expect(link.getAttribute('href')).toBe('/login?next=%2Fnorthwind');
   });
 
   test('does not tell a signed-in visitor to log in', () => {

@@ -54,7 +54,7 @@ export function renderHandoff(turns: AskTurn[], state: HandoffState): string {
   const parts: string[] = [];
 
   parts.push(
-    'You are picking up a Telarchy setup I started at ' + ORIGIN + '/manage, talking to Otto.',
+    'You are picking up a Telarchy setup I started at ' + ORIGIN + ', talking to Otto.',
     '',
     'What I am doing: putting one number my organisation answers to on a public market, so anyone (human or AI) can offer paid work against it and the market prices that work before I approve it. You know my business better than Otto does, so finish it with me.',
     '',
