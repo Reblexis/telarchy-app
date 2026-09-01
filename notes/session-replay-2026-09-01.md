@@ -1,7 +1,18 @@
 # Session replay: watching what a visitor actually did (2026-09-01)
 
-**Proposal, not yet built.** Nothing in this note is in the code. It becomes
-`docs/session-replay.md` if Viktor says go.
+**Not built. Deliberately.** Viktor asked whether it was possible, was shown
+the numbers below, and the cheaper half shipped instead: visitor JOURNEYS, the
+ordered path of every anonymous visitor, reconstructed from the log already
+being written (`docs/ui-conventions.md`, "Journeys"). This note stays as the
+costing for the recorded-DOM version, which becomes `docs/session-replay.md`
+if it is ever built.
+
+**Why not now (2026-09-01).** ~25 human uniques a day and 13 signups in the
+preceding fortnight. At that volume replay would show a few dozen people
+bouncing in eight seconds and leave the reason to guesswork, while the consent
+banner it requires would tax 100% of visitors to observe them. The trigger to
+revisit is paid traffic: once a click costs money, knowing whether the page
+wasted it is worth the banner.
 
 ## What was asked
 
