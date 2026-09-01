@@ -387,6 +387,19 @@ describe('and then someone trades it', () => {
       .where(and(eq(markets.workspaceId, wsId), eq(markets.resolved, false)));
     expect(mkt.pool).toBeCloseTo(2400, 5);
 
+    // A floor is CREATED unlisted, and nothing trades on a floor that is not
+    // published (docs/guides/creating.md, owner decision 2026-09-01). So the
+    // owner meets "why cant i trade on it?" a second way, and the answer is
+    // publish rather than fund. Pinned here because this suite is the owner's
+    // actual journey and that is now a step in it.
+    const beforePublish = await request(ownerApp)
+      .post('/api/predictions/trade')
+      .send({ marketId: mkt.id, direction: 'higher', amount: 50 })
+      .expect(400);
+    expect(beforePublish.body.error).toMatch(/not public/i);
+
+    await request(ownerApp).put(`/api/workspaces/${wsId}/settings`).send({ visibility: 'public' }).expect(200);
+
     // The owner trades their own market...
     await request(ownerApp)
       .post('/api/predictions/trade')

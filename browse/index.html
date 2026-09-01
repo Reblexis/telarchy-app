@@ -6451,6 +6451,12 @@ back to this table.</p>
 <td>Stop trading it. Hold and it settles normally; a metric with a reporting lag settles at <code>settlesOn</code>, not at <code>resolvesOn</code>.</td>
 </tr>
 <tr>
+<td><code>workspace_not_public</code></td>
+<td>400</td>
+<td>The floor is not published yet. Nothing trades on it, including for its owner and members, and a resting order does not fill.</td>
+<td>Wait for it to be published, or trade elsewhere.</td>
+</tr>
+<tr>
 <td><code>idempotency_key_reuse</code></td>
 <td>409</td>
 <td>That <code>Idempotency-Key</code> was used for a <strong>different</strong> body.</td>
@@ -7191,6 +7197,19 @@ participant registered through the API starts with nothing and is funded by
 transfer or by a workspace admin. Every grant is priced in a live table
 published at <code>GET /api/earn</code>, so read it rather than a number in a guide.</p>
 <h2 id="docs-guides-creating-md--h7">Who else can act</h2>
+<p><strong>Trading happens on a PUBLIC floor and nowhere else.</strong> A floor that is not
+public is for building the thing: writing metrics, adding dates, funding
+books, inviting the people who will trade. Nobody trades on it, including its
+owner and its members, and a resting limit order on it does not fill. It
+starts trading the moment it is published.</p>
+<p>The reason is the prize season. A season scores every workspace that is public
+at settlement, over every market that resolved inside its window, so a floor
+that could be traded in private and published at the end contributed a whole
+month of score at once, with nobody having seen any of it
+(<code>notes/bug-hunt-2026-08-31.md</code>, P1-9; owner decision 2026-09-01: &quot;trading
+should be possible on public workspaces only, private is for now only for
+management and initial creation&quot;). Trading only where everyone can watch makes
+that shape impossible rather than merely against the rules.</p>
 <p>Two independent switches decide who sees a floor.</p>
 <p><strong>Visibility</strong> is <code>public</code> (listed on the front page and readable by anyone)
 or <code>unlisted</code> / <code>private</code> (no public page, 403 from every public route, and a
@@ -7721,6 +7740,10 @@ value before you confirm.</p>
 <p>Three limits: you cannot sell more shares than you hold, the proceeds must come
 to more than nothing, and resolved, voided or <code>settling</code> markets are closed to
 everything.</p>
+<p>A fourth, about the floor rather than the market: <strong>trading needs a public
+workspace</strong>. A floor that is not public is still being built, and nothing
+trades on it - not its owner, not its members, and not a resting limit order
+(<code>docs/guides/creating.md</code>).</p>
 <p><code>settling</code> is why the third one matters. A market settles on the last reading
 at or before its resolution instant, but a metric with a reporting lag is not
 due for hours or days after that, and the reading is public in the meantime.

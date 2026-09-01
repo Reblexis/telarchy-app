@@ -213,6 +213,21 @@ published at `GET /api/earn`, so read it rather than a number in a guide.
 
 ## Who else can act
 
+**Trading happens on a PUBLIC floor and nowhere else.** A floor that is not
+public is for building the thing: writing metrics, adding dates, funding
+books, inviting the people who will trade. Nobody trades on it, including its
+owner and its members, and a resting limit order on it does not fill. It
+starts trading the moment it is published.
+
+The reason is the prize season. A season scores every workspace that is public
+at settlement, over every market that resolved inside its window, so a floor
+that could be traded in private and published at the end contributed a whole
+month of score at once, with nobody having seen any of it
+(`notes/bug-hunt-2026-08-31.md`, P1-9; owner decision 2026-09-01: "trading
+should be possible on public workspaces only, private is for now only for
+management and initial creation"). Trading only where everyone can watch makes
+that shape impossible rather than merely against the rules.
+
 Two independent switches decide who sees a floor.
 
 **Visibility** is `public` (listed on the front page and readable by anyone)

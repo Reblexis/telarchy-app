@@ -120,6 +120,11 @@ Three limits: you cannot sell more shares than you hold, the proceeds must come
 to more than nothing, and resolved, voided or `settling` markets are closed to
 everything.
 
+A fourth, about the floor rather than the market: **trading needs a public
+workspace**. A floor that is not public is still being built, and nothing
+trades on it - not its owner, not its members, and not a resting limit order
+(`docs/guides/creating.md`).
+
 `settling` is why the third one matters. A market settles on the last reading
 at or before its resolution instant, but a metric with a reporting lag is not
 due for hours or days after that, and the reading is public in the meantime.

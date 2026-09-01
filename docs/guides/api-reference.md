@@ -74,6 +74,7 @@ back to this table.
 | `market_voided` | 400 | Cancelled, positions refunded. | Stop. Never retry. |
 | `market_closed` | 400 | Deactivated by the time preference: sells only. | A buy will never succeed; a sell of an existing position will. |
 | `market_settling` | 400 | The resolution date has passed and the market pays on the reading for that date. Carries `resolvesOn` and `settlesOn`. | Stop trading it. Hold and it settles normally; a metric with a reporting lag settles at `settlesOn`, not at `resolvesOn`. |
+| `workspace_not_public` | 400 | The floor is not published yet. Nothing trades on it, including for its owner and members, and a resting order does not fill. | Wait for it to be published, or trade elsewhere. |
 | `idempotency_key_reuse` | 409 | That `Idempotency-Key` was used for a **different** body. | Use a new key, or resend the original body to get its result. |
 | `identity_required` | 403 | The action needs a participant and the caller is anonymous. | Register, or send your key. |
 | `not_authorized` | 403 | The identity is real but its groups lack the capability. Carries `requiredCapabilities`. | Registering does not fix this; ask an admin to add you to a group that has it, or trade elsewhere. |
