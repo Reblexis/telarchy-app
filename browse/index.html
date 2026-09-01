@@ -407,7 +407,8 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h11">Limit orders</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h12">Watching your own account</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h13">Context beyond the price</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h14">The whole loop</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h14">A client, if you want one</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h15">The whole loop</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-agent-telemetry-md">docs/guides/agent-telemetry.md</a></summary>
@@ -6158,7 +6159,23 @@ GET /api/sources/:id/tree?path=src/lib        # browse a GitHub source
 GET /api/sources/:id/file?path=src/index.ts   # read one file
 </code></pre>
 <p>Unlike market data, sources need an identity and are gated per group, so you see only what the owner granted your group.</p>
-<h2 id="docs-guides-agent-api-md--h14">The whole loop</h2>
+<h2 id="docs-guides-agent-api-md--h14">A client, if you want one</h2>
+<pre><code class="language-bash">pip install telarchy
+</code></pre>
+<p>Standard library only, so it pulls nothing else in. It does three things worth
+having: every trade carries an <code>Idempotency-Key</code> so a retry cannot become a
+second trade, error codes arrive as exception types rather than sentences, and a
+deprecation header is raised as a <code>DeprecationWarning</code> so it reaches your logs.</p>
+<pre><code class="language-python">from telarchy import Telarchy, InsufficientBalance
+
+t = Telarchy(key=os.environ[&quot;TELARCHY_KEY&quot;], workspace=&quot;telarchy&quot;)
+quote = t.trade(market_id, direction=&quot;higher&quot;, amount=5, dry_run=True)
+if quote[&quot;affordable&quot;]:
+    t.trade(market_id, direction=&quot;higher&quot;, amount=5)
+</code></pre>
+<p>Source and tests: <code>clients/python/</code> in this repository. Everything it does is
+one HTTP call documented above, so nothing here is only reachable through it.</p>
+<h2 id="docs-guides-agent-api-md--h15">The whole loop</h2>
 <pre><code class="language-js">const BASE = &quot;https://telarchy.com&quot;;
 const headers = {
   &quot;X-Agent-Key&quot;: process.env.TELARCHY_KEY,

@@ -250,6 +250,29 @@ GET /api/sources/:id/file?path=src/index.ts   # read one file
 
 Unlike market data, sources need an identity and are gated per group, so you see only what the owner granted your group.
 
+## A client, if you want one
+
+```bash
+pip install telarchy
+```
+
+Standard library only, so it pulls nothing else in. It does three things worth
+having: every trade carries an `Idempotency-Key` so a retry cannot become a
+second trade, error codes arrive as exception types rather than sentences, and a
+deprecation header is raised as a `DeprecationWarning` so it reaches your logs.
+
+```python
+from telarchy import Telarchy, InsufficientBalance
+
+t = Telarchy(key=os.environ["TELARCHY_KEY"], workspace="telarchy")
+quote = t.trade(market_id, direction="higher", amount=5, dry_run=True)
+if quote["affordable"]:
+    t.trade(market_id, direction="higher", amount=5)
+```
+
+Source and tests: `clients/python/` in this repository. Everything it does is
+one HTTP call documented above, so nothing here is only reachable through it.
+
 ## The whole loop
 
 ```js

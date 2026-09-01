@@ -73,6 +73,23 @@ jobs:
       - run: npm run test:ci -- --shard=${{ matrix.shard }}/3
         working-directory: functions
 
+  # The Python client is standard library only and its tests need no network,
+  # so this is a python3 and one command. It is here rather than in its own
+  # workflow because the client and the API it describes live in one repo on
+  # purpose: a spec-agreement test in it reads public/openapi.json.
+  python-sdk:
+    name: Python client
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run the client's tests
+        working-directory: clients/python
+        run: python3 -m unittest discover -s tests -v
+
   # No credential may live in the tree. no-committed-secrets.test.ts checks the
   # obvious shapes from inside the suite; gitleaks checks the long tail.
   secrets:

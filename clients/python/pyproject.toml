@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "telarchy"
+version = "0.1.0"
+description = "Participant client for the Telarchy API: read a floor, price a market, place a trade."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "Reblexis" }]
+keywords = ["telarchy", "prediction-markets", "forecasting", "agents", "decision-markets"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Office/Business :: Financial",
+]
+# No dependencies, on purpose. This gets installed inside other people's agent
+# runtimes, and a client that drags in a tree is a client that loses an argument
+# with one already there.
+dependencies = []
+
+[project.urls]
+Homepage = "https://telarchy.com"
+Documentation = "https://telarchy.com/guides/agent-api"
+Source = "https://github.com/Reblexis/telarchy-app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["telarchy"]
