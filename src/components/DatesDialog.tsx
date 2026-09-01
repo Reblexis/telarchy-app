@@ -158,8 +158,17 @@ export function DatesDialog({
       setErr('A number of credits.');
       return;
     }
+    // The write sends customHorizons as a WHOLE array, so it must not run
+    // before the stored dates have been read: `entries ?? []` would send only
+    // the new one and the reconcile would read every other date as stopped
+    // (bug hunt 2026-08-31). The button is disabled for the same reason; this
+    // is the guard that holds if it is ever reached another way.
+    if (entries === null) {
+      setErr('Still reading this metric\u2019s dates. One moment.');
+      return;
+    }
     const entry = entryFor(every, ahead, day, hour);
-    const list = [...(entries ?? []).map(e => e.entry)];
+    const list = [...entries.map(e => e.entry)];
     if (!list.includes(entry)) list.push(entry);
     await write(list, true, onDone);
   };
@@ -433,8 +442,12 @@ export function DatesDialog({
         </div>
 
         {err && <p className="ticket-err">{err}</p>}
-        <button className="ticket-go" disabled={busy} onClick={() => void add()}>
-          {busy ? 'Opening…' : `Open the market · ${creditsNum === null ? '—' : fmtCr(creditsNum)} cr`}
+        <button className="ticket-go" disabled={busy || entries === null} onClick={() => void add()}>
+          {busy
+            ? 'Opening…'
+            : entries === null
+              ? 'Reading this metric\u2019s dates…'
+              : `Open the market · ${creditsNum === null ? '—' : fmtCr(creditsNum)} cr`}
           <span className="ticket-go-sub">{repeatSentence(every)}</span>
         </button>
 
