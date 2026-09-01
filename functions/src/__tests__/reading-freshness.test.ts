@@ -49,14 +49,27 @@ describe('a period that has not started', () => {
 });
 
 describe('close enough to be worth saying', () => {
-  const now = new Date('2026-08-31T10:00:00Z');
+  // The window is the last quarter of the market's own period, capped at two
+  // days. A flat 48 hours nagged every daily market from the moment it opened
+  // (owner report 2026-09-01, four notifications at once, at midnight).
+  test('a daily market is quiet in the morning and speaks in the evening', () => {
+    expect(settlingSoon('2026-09-01', new Date('2026-09-01T00:30:00Z'))).toBe(false);
+    expect(settlingSoon('2026-09-01', new Date('2026-09-01T12:00:00Z'))).toBe(false);
+    // The last six hours of the day, which is when there is still time to act.
+    expect(settlingSoon('2026-09-01', new Date('2026-09-01T19:00:00Z'))).toBe(true);
+  });
 
-  test('a market inside the window counts, one outside it does not', () => {
-    expect(settlingSoon('2026-08-31', now)).toBe(true);
-    expect(settlingSoon('2026-12', now)).toBe(false);
+  test('an hourly market gets its last quarter of an hour', () => {
+    expect(settlingSoon('2026-09-01T12', new Date('2026-09-01T12:30:00Z'))).toBe(false);
+    expect(settlingSoon('2026-09-01T12', new Date('2026-09-01T12:50:00Z'))).toBe(true);
+  });
+
+  test('a monthly market still gets the full two days, not a whole week', () => {
+    expect(settlingSoon('2026-09', new Date('2026-09-25T00:00:00Z'))).toBe(false);
+    expect(settlingSoon('2026-09', new Date('2026-09-30T06:00:00Z'))).toBe(true);
   });
 
   test('one that has already passed its instant is not settling soon, it is settling', () => {
-    expect(settlingSoon('2026-08-30', now)).toBe(false);
+    expect(settlingSoon('2026-08-30', new Date('2026-08-31T10:00:00Z'))).toBe(false);
   });
 });
