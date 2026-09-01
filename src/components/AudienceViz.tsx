@@ -230,6 +230,85 @@ function PayoffLine() {
   );
 }
 
+/** Exposure is per metric: a forecaster is granted one number, not the books. */
+function PerMetricExposure() {
+  const [ref, cls] = useDrawIn<SVGSVGElement>();
+  const rows = [
+    { label: 'net revenue', open: true },
+    { label: 'churn', open: false },
+    { label: 'runway', open: false },
+    { label: 'headcount', open: false },
+  ];
+  return (
+    <svg
+      ref={ref}
+      className={`viz viz--exposure${cls}`}
+      viewBox="0 0 860 160"
+      role="img"
+      aria-label="One number granted to a forecaster, the rest of the books invisible"
+    >
+      {rows.map((r, i) => {
+        const y = 22 + i * 34;
+        return (
+          <g key={r.label} style={{ ['--i' as string]: String(i) }}>
+            <rect className={`viz-row${r.open ? ' is-open' : ''}`} x={20} y={y} width={470} height={24} rx={5} />
+            <text className={r.open ? 'viz-num' : 'viz-lab'} x={34} y={y + 17}>
+              {r.label}
+            </text>
+            {r.open ? (
+              <>
+                <path className="viz-line" d={`M520,${y + 18} L560,${y + 18} L560,${y + 8} L610,${y + 8}`} />
+                <circle className="viz-dot" cx={610} cy={y + 8} r={4} />
+                <text className="viz-lab" x={632} y={y + 17}>
+                  granted, and traded
+                </text>
+              </>
+            ) : (
+              <>
+                <path className="viz-gap" d={`M520,${y + 12} L610,${y + 12}`} />
+                <text className="viz-lab" x={632} y={y + 17}>
+                  invisible
+                </text>
+              </>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** A value a market has priced is sealed: an owner adds numbers, never edits one. */
+function SealedNumber() {
+  const [ref, cls] = useDrawIn<SVGSVGElement>();
+  return (
+    <svg
+      ref={ref}
+      className={`viz viz--sealed${cls}`}
+      viewBox="0 0 860 140"
+      role="img"
+      aria-label="Readings a market has priced are sealed; only the next one is open"
+    >
+      <path className="viz-line" d="M30,104 L150,104 L150,86 L270,86 L270,68 L390,68 L390,52 L510,52" />
+      {[30, 150, 270, 390, 510].map((x, i) => (
+        <circle key={x} className="viz-dot" cx={x} cy={[104, 104, 86, 68, 52][i]} r={5} />
+      ))}
+      <rect className="viz-seal" x={20} y={34} width={510} height={86} rx={8} />
+      <text className="viz-lab" x={30} y={26}>
+        priced by a market, and now sealed
+      </text>
+      <path className="viz-gap" d="M510,52 L640,44" />
+      <circle className="viz-open" cx={640} cy={44} r={6} />
+      <text className="viz-num" x={664} y={49}>
+        the next reading
+      </text>
+      <text className="viz-lab" x={664} y={66}>
+        yours to push, never to edit
+      </text>
+    </svg>
+  );
+}
+
 export function AudienceViz({ name }: { name: string }) {
   switch (name) {
     case 'conditional-pair':
@@ -240,6 +319,10 @@ export function AudienceViz({ name }: { name: string }) {
       return <PoolSplit />;
     case 'payoff-line':
       return <PayoffLine />;
+    case 'per-metric-exposure':
+      return <PerMetricExposure />;
+    case 'sealed-number':
+      return <SealedNumber />;
     default:
       return null;
   }
