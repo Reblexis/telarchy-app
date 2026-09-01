@@ -44,6 +44,14 @@ vi.mock('../../lib/api', () => ({
     getStatus: async () => ({ usdcSettlementEnabled: false }),
     getDepositAddress: async () => null,
     getMySeason: async () => null,
+    // "Your AI" lists the bots you own beneath the prompt, so opening that
+    // tab reads them. One of them here so the tab renders a real row.
+    getMyAgents: async () => [
+      { id: 'me', authUserId: 'u-1', balance: 100, earned: 0, totalTrades: 0, lastTradeAt: null },
+      { id: 'my-trader', authUserId: null, balance: 25, earned: 4, totalTrades: 2, lastTradeAt: null },
+    ],
+    transferCredits: async () => ({ id: 't1' }),
+    createAgent: async () => ({ agentId: 'x', apiKey: 'k', initialCredits: 0 }),
   },
 }));
 vi.mock('../../hooks/useAuth', () => ({
@@ -301,5 +309,14 @@ describe('the agent prompt', () => {
     const prompt = screen.getByText(/workspaces\/public/);
     expect(prompt.textContent).toContain('/context?format=md');
     expect(prompt.textContent).toContain('only those briefs');
+  });
+
+  test('the same tab lists the bots you own, under the prompt', async () => {
+    // Two senses of "your AI" share the tab: the agent you run against the
+    // API, and the participants Telarchy runs for you.
+    render(<AccountDialog onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Your AI' }));
+    expect(await screen.findByText('my-trader')).toBeInTheDocument();
+    expect(screen.getByText(/\+4 cr earned/)).toBeInTheDocument();
   });
 });

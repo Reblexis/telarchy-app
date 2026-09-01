@@ -105,7 +105,12 @@ For workspace-scoped APIs, the effective capability set comes from workspace mem
 - `GET /api/marketplace/:workspaceId/markets/:marketId/history` - one market's consensus history (`{ history: [{ at, consensus }] }`, oldest first, max 500). No auth, but gated on the Public group granting `read`, the same Open-workspace disclosure rule as the ballot. Exists so a client can chart any market in the workspace, including a proposal's conditional branch (ids come from `proposals[].markets[].approvedMarketId`), not only the hero market shipped inline as `marketHistory`.
 - `GET /api/marketplace/:workspaceId/announcements` - the owner's announcements for a workspace (`{ announcements: [{ id, body, publishedAt, editedAt, originalBody, publishedBy }] }`, newest first, at most 100). No auth, gated on the Public group granting `read`, the same Open-workspace disclosure rule as the ballot. Append-only: an edit keeps `originalBody` and stamps `editedAt` rather than overwriting, and there is no delete, so a disclosure a charter promised can be checked after the fact.
 - `POST /api/workspaces/:id/announcements` - publish one (`manage`); `PUT /api/workspaces/:id/announcements/:announcementId` - edit one (`manage`). `publishedAt` is server-side only.
-- `GET /api/agents/mine` - identities visible to the current caller.
+- `GET /api/agents/mine` - identities visible to the current caller: for a
+  browser session, the participant that IS the human plus every bot they
+  own. Each row carries `balance` and its performance (`earned`,
+  `settledEarnings`, `openEarnings`, `totalTrades`, `lastTradeAt`), computed
+  from the same source the public leaderboard ranks on so the private view
+  and the board cannot disagree.
 - `POST /api/agents/transfer` - send credits to another participant (id or
   nickname); `GET /api/agents/transfers` lists the caller's transfer history.
   The wallet primitive used by external settlement systems (e.g. the

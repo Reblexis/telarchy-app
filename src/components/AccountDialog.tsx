@@ -13,6 +13,7 @@ import {
 import { AccountCredits } from './AccountCredits';
 import { AccountPassword } from './AccountPassword';
 import { FloorModal } from './FloorModal';
+import { MyAgents } from './MyAgents';
 import { SeasonEntryPanel } from './SeasonEntryPanel';
 
 /**
@@ -1053,6 +1054,11 @@ export function AccountDialog({
                       {promptCopied ? 'Copied' : 'Copy prompt'}
                     </button>
                   </div>
+                  {/* The prompt above points an agent you run at Telarchy. This
+                  lists the agents Telarchy runs FOR you: separate participants
+                  with their own balance and their own leaderboard rank. Same
+                  tab because "your AI" is the question both answer. */}
+                  <MyAgents />
                 </>
               )}
 
