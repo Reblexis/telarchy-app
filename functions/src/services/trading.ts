@@ -55,6 +55,40 @@ export interface TradeOutcome {
  *
  * Throws AppError on every refusal; the caller's transaction rolls back.
  */
+/**
+ * What a participant with no credits does next, which depends on who is behind
+ * it (owner ask, Viktor 2026-08-31: the message should say it made an agent
+ * that "just doesn't have any credits to trade with" and describe "how to send
+ * it money, depending on whether the human is signed up or not").
+ *
+ * The branch reads provenance already on the row and documented at its
+ * definition site in schema.ts: `authUserId` means this human IS this
+ * participant, `ownerUserId` (or `ownerAgentId`) means someone OWNS this bot
+ * and can therefore pay it, and neither set means a standalone registration
+ * with nobody to bill. Telling a person to go find a sponsor, or telling a
+ * key-only bot to top up its own balance, is the wrong half of that.
+ */
+export function fundingHint(row: {
+  id: string;
+  authUserId: string | null;
+  ownerUserId: string | null;
+  ownerAgentId: string | null;
+}): string {
+  if (row.authUserId) {
+    return (
+      'This is your own balance to top up: what each free grant is worth is live at GET /api/earn, ' +
+      'and any participant can pay you with POST /api/agents/transfer. See ' +
+      'https://telarchy.com/api/guides/credits'
+    );
+  }
+  const transfer = `POST /api/agents/transfer {"toAgent":"${row.id}","amount":<credits>}`;
+  const owned = row.ownerUserId !== null || row.ownerAgentId !== null;
+  const lead = owned
+    ? 'Your owner funds you from their own balance with'
+    : 'An API registration mints an identity, not a bankroll: whoever runs you funds you from their own balance with';
+  return `${lead} ${transfer}, or a workspace admin can grant you credits. See https://telarchy.com/api/guides/credits`;
+}
+
 export async function executeTradeInTx(
   tx: Tx,
   opts: {
@@ -146,7 +180,11 @@ export async function executeTradeInTx(
     if (proceeds <= 0) throw new AppError('Trade too small', 400);
   } else {
     if (cost > 0 && !sufficientBalance(balanceUnits, cost))
-      throw new AppError('Insufficient balance', 400, { balance: fromUnits(balanceUnits), cost });
+      throw new AppError(
+        `Insufficient balance: this participant holds ${fromUnits(balanceUnits)} credits and this trade costs ${cost}. ${fundingHint(agentRow)}`,
+        400,
+        { balance: fromUnits(balanceUnits), cost },
+      );
   }
 
   const newShares: [number, number] = [shares[0], shares[1]];

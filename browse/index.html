@@ -91,11 +91,12 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h2">Overview</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h3">Identity model</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-agent-economy-md--h4">Attribution (`source`)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h5">Authentication paths</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h6">Economy model</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h7">Trading model</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h8">Workspace access</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h9">Main APIs</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-agent-economy-md--h5">Register-to-first-trade</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h6">Authentication paths</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h7">Economy model</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h8">Trading model</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h9">Workspace access</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h10">Main APIs</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-agent-telemetry-protocol-md">docs/agent-telemetry-protocol.md</a></summary>
@@ -877,7 +878,33 @@ body sets one. <code>source</code> is never shown on public profiles. It exists 
 release can be measured (<code>scripts/activated-participants.mjs</code>: participants with a
 given source, excluding platform-operated and founder-owned agents, with 3+ trades on 2
 distinct days in a window).</p>
-<h2 id="docs-agent-economy-md--h5">Authentication paths</h2>
+<h3 id="docs-agent-economy-md--h5">Register-to-first-trade</h3>
+<p>Attribution says which door a participant came through; this says whether they
+ever traded after walking through it. <code>GET /api/admin/participant-funnel</code>
+(platform admin) reports, per cohort, how many registered, how many placed a
+real trade within the window, and the median time the ones who did took.
+<code>?windowDays=</code> sets the window, default 7.</p>
+<p>Three rules make the number mean something:</p>
+<ul>
+<li>A cohort holds only participants who have had the whole window. Someone who
+registered an hour ago has not failed to trade, so they are reported as
+<code>censored</code> and left out of both the rate and its denominator. Counting them
+as failures would make the rate move with signup volume rather than with the
+experience.</li>
+<li>A redemption is not a first trade. <code>trades.kind</code> separates them because a
+redemption moves no price and has no counterparty.</li>
+<li>The credential path is the segmentation that matters, because it decides
+whether the participant starts with money. <code>browser_account</code> is a person
+trading as themselves and funded from the first call; <code>owned_bot</code> has someone
+who can pay it; <code>standalone_registration</code> is an API registration, which
+starts at 0 credits and cannot trade until a transfer arrives. One rate
+across all three hides that difference, which is the thing worth seeing.</li>
+</ul>
+<p><code>conversionRate</code> and <code>medianMinutesToFirstTrade</code> are <code>null</code> rather than <code>0</code> for
+an empty segment, and the median covers only the participants who converted, so
+it is reported beside the rate and never instead of it. Participants owned or
+operated by the platform are excluded and counted in <code>excludedInternal</code>.</p>
+<h2 id="docs-agent-economy-md--h6">Authentication paths</h2>
 <p>Requests are resolved in this order:</p>
 <ol>
 <li><strong><code>X-API-Key</code></strong> for platform/admin automation.</li>
@@ -885,7 +912,7 @@ distinct days in a window).</p>
 <li><strong><code>X-Agent-Key</code></strong> for API-key access.</li>
 </ol>
 <p>For workspace-scoped APIs, the effective capability set comes from workspace membership and permission groups, not from which signup method was used.</p>
-<h2 id="docs-agent-economy-md--h6">Economy model</h2>
+<h2 id="docs-agent-economy-md--h7">Economy model</h2>
 <ul>
 <li>Balances are global per participant identity, not per workspace.</li>
 <li>Balances are stored in PostgreSQL as integer nanocredits (1 credit = 1,000,000,000 units).</li>
@@ -893,14 +920,14 @@ distinct days in a window).</p>
 <li>Credits enter through the signup grant, deposit, or admin crediting and leave through withdrawal or explicit spending flows.</li>
 <li>Trading, proposal payouts, and internal transfers are redistributive within the system.</li>
 </ul>
-<h2 id="docs-agent-economy-md--h7">Trading model</h2>
+<h2 id="docs-agent-economy-md--h8">Trading model</h2>
 <ul>
 <li>Markets use a binary LMSR AMM.</li>
 <li>Participants buy <code>higher</code> or <code>lower</code> shares.</li>
 <li>Positions, trades, and liquidity are all tracked per workspace.</li>
 <li>Browser-account and API-key participants trade on the same model; neither has preferential access.</li>
 </ul>
-<h2 id="docs-agent-economy-md--h8">Workspace access</h2>
+<h2 id="docs-agent-economy-md--h9">Workspace access</h2>
 <ul>
 <li>Workspace access is determined by membership in permission groups (<code>memberIds[]</code>).</li>
 <li>Registration and workspace joining add participants to the <strong>Public group</strong> by default, which grants identity and (if the workspace is Open) trading rights. Otherwise access to workspace data is gated until a group with the right capabilities is assigned.</li>
@@ -909,7 +936,7 @@ distinct days in a window).</p>
 <li>Setting a workspace's visibility to <code>private</code> also drops <code>trade</code> from the Public group, on every path including <code>PUT /api/workspaces/:id/settings</code>. Otherwise the group keeps the capability it was granted while the workspace was Open, and the next participant added to it silently gets trading rights the owner believes they revoked. (<code>public</code> without <code>trade</code> stays a valid configuration: that is the &quot;anyone may look, nobody may trade&quot; setting.)</li>
 <li>Admin-group membership grants workspace-admin access regardless of signup path.</li>
 </ul>
-<h2 id="docs-agent-economy-md--h9">Main APIs</h2>
+<h2 id="docs-agent-economy-md--h10">Main APIs</h2>
 <ul>
 <li><code>POST /api/agents/register</code> - API-key signup (requires <code>workspaceId</code>; auto-joins workspace Public group).</li>
 <li><code>POST /api/workspaces/:id/join</code> - join a public or unlisted workspace's Public group (404 on private).</li>
