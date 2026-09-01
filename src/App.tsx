@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { BetaBanner } from './components/BetaBanner';
+import { BuildWatch } from './components/BuildWatch';
 import { api } from './lib/api';
 import { BASE_PATH } from './lib/base-path';
 import { pickDefaultFloor } from './lib/floors';
@@ -99,6 +100,10 @@ export function App() {
       {/* Renders nothing on telarchy.com. Anywhere else, it says so, and
           carries the Publish button. */}
       <BetaBanner />
+      {/* Every page, not just the floor: a tab left open across a Publish
+          catches up on its own (docs/infra/deploy.md, "A tab that is already
+          open picks the new build up"). */}
+      <BuildWatch />
       <Routes>
         {/* The market list IS the home page (owner direction 2026-08-20).
             telarchy.com used to bounce straight to one company's market,
