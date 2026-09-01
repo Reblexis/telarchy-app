@@ -165,6 +165,16 @@ export function PayoffLine({ unit, rangeMin, rangeMax, consensus, direction, bre
     };
   });
 
+  /* Each segment is pinned to the side of the break-even it actually covers
+     (docs/ui-conventions.md, "The green side of the rule is the side the bet
+     wins on"). Stating both edges is the point: laying the two out in a fixed
+     order and varying only their widths painted a Lower bet's winning low end
+     red and its losing high end green (owner report, 2026-09-01). */
+  const below: CSSProperties = { left: 0, right: `${100 - bePct}%` };
+  const above: CSSProperties = { left: `${bePct}%`, right: 0 };
+  const winStyle = direction === 'higher' ? above : below;
+  const loseStyle = direction === 'higher' ? below : above;
+
   /* Hovering the line reads out the exact figure under the pointer. It
      lands in the same two rows the stops use, so nothing is added to the
      card's height and nothing can overlap: the standing labels stand down
@@ -203,14 +213,8 @@ export function PayoffLine({ unit, rangeMin, rangeMax, consensus, direction, bre
         )}
       </div>
       <div className="rule" aria-hidden="true">
-        <div
-          className={`rule-lose rule-lose--${direction}`}
-          style={{ width: `${direction === 'higher' ? bePct : 100 - bePct}%` }}
-        />
-        <div
-          className={`rule-win rule-win--${direction}`}
-          style={{ width: `${direction === 'higher' ? 100 - bePct : bePct}%` }}
-        />
+        <div className={`rule-lose rule-lose--${direction}`} style={loseStyle} />
+        <div className={`rule-win rule-win--${direction}`} style={winStyle} />
         {stops.slice(1, -1).map(s => (
           <div key={s.at} className="rule-tick" style={{ left: `${s.at}%` }} />
         ))}

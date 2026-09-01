@@ -4537,6 +4537,14 @@ it&quot;). Above the rule, what the bet is worth at each stop, in credits. Below
 it, the value the number would have to settle at. The rule itself changes
 colour where the bet starts paying, so the break-even is a boundary you see
 rather than a label to read, and it is also the stop that reads &quot;0 cr&quot;.</p>
+<p><strong>The green side of the rule is the side the bet actually wins on</strong>, which
+for a Higher bet is above the break-even and for a Lower bet is below it.
+Green is where the credits above the rule read <code>+</code>, red where they read <code>-</code>,
+in every case: a rule whose colours contradict its own numbers is worse than
+no colour at all. Colour comes from which side of the break-even a segment
+covers, never from the order the segments are drawn in (owner report,
+2026-09-01: a Lower bet painted its winning low end red and its losing high
+end green).</p>
 <p><strong>Both ends of the range are always stops.</strong> They carry the two numbers that
 decide whether a bet is worth making at all: the whole stake gone at one end
 and the most it can pay at the other. The break-even is always a stop too.
