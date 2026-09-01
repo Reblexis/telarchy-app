@@ -16,6 +16,7 @@ import {
 } from '../db/schema';
 import { AMM_DEFAULTS, consensus, directionTradeCost, pHigher } from '../lib/amm';
 import { isValidDateFormat, periodEndInstant, settlesOn } from '../lib/date-utils';
+import { markDeprecated } from '../lib/deprecation';
 import { AppError } from '../lib/errors';
 import { emitPricesChanged } from '../lib/market-events';
 import { assertMarketUntraded } from '../lib/market-freeze';
@@ -73,6 +74,20 @@ function canonicalise(v: unknown): unknown {
   }
   return v;
 }
+
+/**
+ * The market-list filters superseded by the single `?status=` parameter, with
+ * the date each stopped being the way to ask.
+ *
+ * They are not going away on a schedule, so no sunset is set: the notice
+ * exists so a participant written against the old shape finds out from a
+ * response rather than from a future outage.
+ */
+const LEGACY_MARKET_FILTERS: ReadonlyArray<[string, Date]> = [
+  ['active', new Date('2026-08-14T00:00:00Z')],
+  ['includeResolved', new Date('2026-08-14T00:00:00Z')],
+  ['includeVoided', new Date('2026-08-14T00:00:00Z')],
+];
 
 export const predictionsRouter = Router();
 
@@ -773,6 +788,20 @@ predictionsRouter.get(
   requireCapability('read'),
   wrap(async (req, res) => {
     const { workspaceId } = req.auth!;
+
+    // The lifecycle filters `?status=` replaced. They still work and always
+    // will until a sunset date is actually decided; this only tells a caller
+    // still sending them that there is one parameter now instead of three.
+    for (const [param, since] of LEGACY_MARKET_FILTERS) {
+      if (req.query[param] !== undefined) {
+        markDeprecated(res, {
+          what: `?${param}=`,
+          since,
+          use: '?status=open|closed|resolved|voided|all',
+        });
+      }
+    }
+
     const proposalId = typeof req.query.proposalId === 'string' ? req.query.proposalId : undefined;
 
     if (proposalId) {
