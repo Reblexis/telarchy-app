@@ -4,9 +4,12 @@
 if it doesnt satisfy the criteria.. jus tfor the fun of it being linked and
 people seeing whos who"
 
-A proposal, not a build. The instruction is clear; what is not clear is what
-an unpaid link does to the money rules, and that is the part worth choosing
-deliberately.
+**DECIDED 2026-09-01 (Viktor), built the same day.** The three decisions
+below were put to him; the outcome is recorded under each. On decision 2 he
+rejected both options offered and gave a third, which is the one built: "no
+its not fixed even if paid.. they just cant extract from that account
+again.. or from any other.." A link is always replaceable, and the money is
+what is once-only.
 
 ## What happens today
 
@@ -53,7 +56,7 @@ records nothing in `earn_claims`, the grant is still there to collect, and
 re-running `claim` later pays it. If it records a zero-credit claim, the
 unique index treats the account as spent and the grant is gone forever.
 
-- **A (recommended). The link records no earn claim. You can claim the grant
+- **A. CHOSEN. The link records no earn claim. You can claim the grant
   later, when the account qualifies.** The link and the payment are genuinely
   independent, which is the point of the change. Costs: `claim` has to stay
   callable on an already-linked participant, and the button needs a state for
@@ -68,16 +71,20 @@ unique index treats the account as spent and the grant is gone forever.
 Today a participant links a provider once. If unpaid links are free, being
 stuck with a typo or an abandoned account is a worse outcome than before.
 
-- **A (recommended). An UNPAID link can be replaced by linking again; a PAID
-  one is fixed.** Nothing of value moves, and the fixed case is the one where
-  money was involved.
-- **B. One link per provider, ever, paid or not.** Fewer states. But the
-  first person who links the wrong handle has to ask us to unlink it by hand,
-  which is exactly the request that started this session.
+- **A. Offered and rejected. An UNPAID link can be replaced; a PAID one is
+  fixed.**
+- **B. Offered and rejected. One link per provider, ever.**
+- **C. CHOSEN, Viktor's own answer. ANY link can be replaced, paid or not.
+  What is once-only is the money: no second payment from that external
+  account, and none from any other either.** The badge is identity and
+  identity should not be frozen by a payment; the payment rules already live
+  in `earn_claims` and none of them is weakened by letting the badge move.
+  One external account is still badged by at most one participant at a time,
+  so relinking away releases it rather than duplicating it.
 
 ### 3. Does the badge say whether the record qualified?
 
-- **A (recommended). No. The badge is the handle and nothing else.** "People
+- **A. CHOSEN. No. The badge is the handle and nothing else.** "People
   seeing whos who" is the whole ask; a two-tier badge turns an identity into
   a score and invites arguing about it.
 - **B. Qualified links get a mark.** Honest about what was verified, but it
@@ -93,7 +100,17 @@ stuck with a typo or an abandoned account is a worse outcome than before.
 - A bot-flagged account can be linked under this proposal but never paid.
   Worth confirming that is wanted: the badge would then appear on bots.
 
-## Cost
+## What was built
+
+`record_links` (migration 0102), keyed one row per participant per provider
+with a unique index on (provider, external id), holding the badge that used
+to sit in `system_config`. `start` dropped its gate call; `claim` makes the
+link first and decides money afterwards, answering `granted: 0` and a `why`
+in the three cases that pay nothing. Copy in the dialog and in
+`docs/guides/credits.md` now separates the free badge from the gated grant.
+The confirmed answer on bots: they link, and are never paid.
+
+## Cost, as estimated before the build
 
 Small. `start` drops its gate call; `claim` moves the gate below the link
 write and stops throwing on it; the reply gains `granted: 0` and a `why`.
