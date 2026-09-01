@@ -30,7 +30,7 @@
  */
 import { inArray } from 'drizzle-orm';
 import { db } from '../db/client';
-import { agents, trades } from '../db/schema';
+import { agents, authUser, trades } from '../db/schema';
 
 /** Which door the identity came through. */
 export type CredentialPath = 'browser_account' | 'owned_bot' | 'standalone_registration';
@@ -142,6 +142,22 @@ export async function participantFunnel(opts: FunnelOptions = {}): Promise<Parti
     })
     .from(agents);
 
+  /**
+   * Where attribution actually lives for a person.
+   *
+   * A `?ref=` slug on a landing URL is kept in a cookie and written to
+   * `authUser.source` when the account is created, so a human's own agent row
+   * carries nothing. Reading only `agents.source` reported every browser
+   * participant as unattributed, which is what this did in production on
+   * 2026-09-01. `lib/attribution.ts` has always resolved it as
+   * `agents.source = X OR agents.authUserId IN (users with source X)`, and
+   * this is the same rule: the agent's own tag first, the account's behind it.
+   */
+  const userSource = new Map<string, string>();
+  for (const u of await db.select({ id: authUser.id, source: authUser.source }).from(authUser)) {
+    if (u.source) userSource.set(u.id, u.source);
+  }
+
   // The house: platform admins themselves, and anything they own. A bot the
   // operator runs is not a customer who did or did not convert.
   const adminAgentIds = new Set(all.filter(a => a.platformAdmin === true).map(a => a.id));
@@ -165,7 +181,7 @@ export async function participantFunnel(opts: FunnelOptions = {}): Promise<Parti
         : a.ownerUserId !== null || a.ownerAgentId !== null
           ? 'owned_bot'
           : 'standalone_registration',
-    source: a.source ?? 'unattributed',
+    source: a.source ?? (a.authUserId ? (userSource.get(a.authUserId) ?? 'unattributed') : 'unattributed'),
   }));
 
   // Rule 1: only those who have had the whole window are in the cohort.
