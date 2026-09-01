@@ -633,16 +633,39 @@ export function TradeTicket({
               />
               <span className="compose-u">cr</span>
             </label>
-            {hasPayoff && targetInput !== null && (
+            {isLimit ? (
               <>
                 <span className="compose-arrow" aria-hidden="true">
                   &rarr;
                 </span>
-                <span className="compose-fld">
-                  {unit}
-                  {targetInput}
-                </span>
+                <label className="compose-fld">
+                  <span className="compose-u compose-u--pre">{unit || '#'}</span>
+                  {/* Shown with thousands separators ("63,600" reads as a
+                  price, "63600" reads as a serial number); the state stays
+                  raw. */}
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={limitDisplay}
+                    style={{ width: `${Math.max(1, limitDisplay.length)}ch` }}
+                    onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
+                    aria-label={`Limit price in ${unit || 'metric units'}`}
+                  />
+                </label>
               </>
+            ) : (
+              hasPayoff &&
+              targetInput !== null && (
+                <>
+                  <span className="compose-arrow" aria-hidden="true">
+                    &rarr;
+                  </span>
+                  <span className="compose-fld">
+                    {unit}
+                    {targetInput}
+                  </span>
+                </>
+              )
             )}
           </div>
           {/* The track is logarithmic (lib/bet-slider.ts): the ceiling is the
@@ -665,24 +688,14 @@ export function TradeTicket({
             aria-label="Bet amount slider"
           />
 
+          {/* The price itself is the composer's right half now; this says
+              what the pair means, since a resting order waits rather than
+              landing anywhere. */}
           {isLimit && (
             <>
               <p className="ticket-label">
-                {dir === 'higher' ? 'buy when the market is under' : 'buy when the market is over'}
+                {dir === 'higher' ? 'buy when the market falls under it' : 'buy when the market rises over it'}
               </p>
-              <label className="ticket-amt ticket-amt--price">
-                <span className="ticket-amt-unit">{unit || '#'}</span>
-                {/* Shown with thousands separators ("63,600" reads as a price,
-                "63600" reads as a serial number); the state stays raw. */}
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={limitDisplay}
-                  style={{ width: `${Math.max(1, limitDisplay.length)}ch` }}
-                  onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
-                  aria-label={`Limit price in ${unit || 'metric units'}`}
-                />
-              </label>
               {limitError && <p className="ticket-err">{limitError}</p>}
             </>
           )}
