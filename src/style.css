@@ -5309,11 +5309,18 @@ textarea.jobform-line--desc {
 }
 .rule {
   position: relative;
-  display: flex;
   height: 8px;
   margin: 0.28rem 0;
   border-radius: 4px;
   overflow: hidden;
+}
+/* Each half is pinned to the side of the break-even it covers, never laid
+   out in sequence: order-as-geometry painted a Lower bet's winning end red. */
+.rule-lose,
+.rule-win {
+  position: absolute;
+  top: 0;
+  bottom: 0;
 }
 /* The soft tokens are for large washes behind text; at 8px they vanish, so
    the rule tints the side colour itself. */

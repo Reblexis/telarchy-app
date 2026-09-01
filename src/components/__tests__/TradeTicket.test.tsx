@@ -508,11 +508,63 @@ describe('the payoff line', () => {
     expect(els[els.length - 1].style.right).toBe('0px');
   });
 
+  /** Where a rule segment actually sits, as [left%, right%] of the rule. */
+  const seg = (container: HTMLElement, cls: string) => {
+    const el = container.querySelector(cls) as HTMLElement;
+    return [parseFloat(el.style.left || '0'), 100 - parseFloat(el.style.right || '0')];
+  };
+
   test('the rule turns colour where the bet starts paying', () => {
     const { container } = render(<TradeTicket {...payBase} />);
     fireEvent.click(screen.getByText('Higher'));
-    const lose = container.querySelector('.rule-lose') as HTMLElement;
-    expect(parseFloat(lose.style.width)).toBeCloseTo(52.94, 1);
+    const [, loseEnds] = seg(container, '.rule-lose');
+    const [winStarts] = seg(container, '.rule-win');
+    expect(loseEnds).toBeCloseTo(52.94, 1);
+    expect(winStarts).toBeCloseTo(52.94, 1);
+  });
+
+  test('THE GREEN SIDE IS THE SIDE THE BET WINS ON: a higher bet wins above the break-even', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const [loseFrom, loseTo] = seg(container, '.rule-lose');
+    const [winFrom, winTo] = seg(container, '.rule-win');
+    expect(loseFrom).toBeCloseTo(0, 5);
+    expect(winTo).toBeCloseTo(100, 5);
+    expect(loseTo).toBeCloseTo(winFrom, 5);
+  });
+
+  test('THE GREEN SIDE IS THE SIDE THE BET WINS ON: a lower bet wins BELOW the break-even', () => {
+    // Owner report, 2026-09-01: a Lower bet painted the low end (where it
+    // pays) red and the high end (where the stake is gone) green, because
+    // the segments were laid out in a fixed order and only their widths
+    // knew about the direction.
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Lower'));
+    const [winFrom, winTo] = seg(container, '.rule-win');
+    const [loseFrom, loseTo] = seg(container, '.rule-lose');
+    expect(winFrom).toBeCloseTo(0, 5);
+    expect(loseTo).toBeCloseTo(100, 5);
+    expect(winTo).toBeCloseTo(loseFrom, 5);
+  });
+
+  test('THE GREEN SIDE IS THE SIDE THE BET WINS ON: colour agrees with the credits above it, both ways', () => {
+    // The rule and the numbers over it are the same claim drawn twice, so
+    // every stop under green must read +, and every stop under red -.
+    for (const dir of ['Higher', 'Lower']) {
+      const { container, unmount } = render(<TradeTicket {...payBase} />);
+      fireEvent.click(screen.getByText(dir));
+      const [winFrom, winTo] = seg(container, '.rule-win');
+      const [loseFrom, loseTo] = seg(container, '.rule-lose');
+      for (const s of stops(container)) {
+        if (s.credits === '0 cr') continue;
+        const under = s.at > winFrom && s.at < winTo ? 'win' : s.at > loseFrom && s.at < loseTo ? 'lose' : null;
+        if (under === null) continue;
+        expect([dir, s.at, under, s.credits].join(' ')).toBe(
+          [dir, s.at, under, s.credits.startsWith(under === 'win' ? '+' : '-') ? s.credits : 'MISMATCH'].join(' '),
+        );
+      }
+      unmount();
+    }
   });
 
   test('THE STAKE AND THE VALUE IT BUYS ARE ONE LINE, and both are typeable', () => {
