@@ -11,6 +11,7 @@ import { DiscordButton } from '../components/DiscordButton';
 import { EarnDoor } from '../components/EarnDoor';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorChat } from '../components/FloorChat';
+import { FloorChecklist } from '../components/FloorChecklist';
 import { FloorComments } from '../components/FloorComments';
 import { LeaderboardRail } from '../components/FloorRails';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
@@ -2127,6 +2128,11 @@ export function TradePage() {
               canManage={canManage}
             />
           )}
+          {/* What the floor has not settled yet, for its owner and nobody
+            else (docs/owner-on-the-floor.md). Below the market and the
+            owner's own prose on purpose: the floor leads with its price, and
+            the checklist is what the owner reads after seeing it. */}
+          <FloorChecklist workspaceId={ws.workspaceId} canManage={canManage} />
           <SubjectAbout
             workspaceId={ws.workspaceId}
             name={ws.name}

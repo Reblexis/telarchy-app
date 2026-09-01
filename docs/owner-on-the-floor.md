@@ -162,6 +162,24 @@ does not pay out returns to the wallet, and buying is not entry into the
 prize season (which the operator is ineligible for either way). Placing the
 credits stays on the floor, beside the price each pool moves.
 
+## What is still open, on the floor itself
+
+An owner who comes back tomorrow sees what their floor has not settled yet,
+in the same words `GET /api/setup/checklist` gives an agent: the decisions
+that are still open, each with the one line the database says about it right
+now ("Nothing has updated the number since it was created", "Auto-funding 0.5
+credits per market, which is too thin to price anything"). The checklist was
+computed from the first day it existed and rendered nowhere but inside the
+setup conversation, so an owner who closed that tab never saw it again
+(review, `notes/self-serve-owner-review-2026-09-01.md`).
+
+It shows only to a caller with `manage`, only what is OPEN, and it disappears
+when nothing is: a floor that has settled every decision does not need a
+panel saying so, and a checklist that is always on screen stops being read.
+The count of what is decided rides in the head, so progress is visible
+without listing what is done. Nothing here is a control; each line says what
+the floor lacks, and the controls for it are already on the page.
+
 ## What already lived on the floor
 
 The definition edit (words free, every change recorded in
