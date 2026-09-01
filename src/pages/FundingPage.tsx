@@ -17,12 +17,24 @@ import { api, type PublicWorkspace } from '../lib/api';
  * the buyer's own markets: credits land in the walled liquidity wallet, spend
  * only as pool contributions, and never reach a tradeable balance. The
  * purchaser is also exactly the class strict season eligibility pays nothing,
- * which is what keeps this a service rather than contest entry. The page says
- * so in the owner's terms rather than making them read the doc.
+ * which is what keeps this a service rather than contest entry. That is one
+ * line of terms, not three paragraphs: a page that argues with the reader
+ * reads like a page with something to hide (owner, 2026-09-01: "too much
+ * text.. and noisy.. looks shady").
+ *
+ * The packages are shortcuts, never tiers. Every amount buys at the same
+ * 1,000 credits per dollar, said once above the strip, so there is no volume
+ * discount to dress up, nothing to badge as popular, and no reason to read
+ * five prices against each other.
  */
 
 function usd(n: number): string {
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** The button says a price, and a price has no trailing zeros to read past. */
+function usdWhole(n: number): string {
+  return `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 }
 
 function cr(n: number): string {
@@ -34,7 +46,8 @@ function when(iso: string | null): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-const PRESETS = [25, 50, 100, 250];
+const PACKS = [25, 50, 100, 250] as const;
+type Choice = '25' | '50' | '100' | '250' | 'custom';
 
 export function FundingPage() {
   const params = useParams();
@@ -48,7 +61,8 @@ export function FundingPage() {
   const [purchases, setPurchases] = useState<
     Array<{ id: string; usdAmount: number; credits: number; status: string; createdAt: string }>
   >([]);
-  const [amount, setAmount] = useState('50');
+  const [choice, setChoice] = useState<Choice>('50');
+  const [custom, setCustom] = useState('75');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [loadErr, setLoadErr] = useState('');
@@ -120,7 +134,7 @@ export function FundingPage() {
     return () => clearInterval(t);
   }, [awaitingStripe, load]);
 
-  const dollars = Number(amount.replace(/[^0-9.]/g, ''));
+  const dollars = choice === 'custom' ? Number(custom.replace(/[^0-9.]/g, '')) : Number(choice);
   const valid = Number.isFinite(dollars) && dollars >= 5 && dollars <= 5000;
 
   const buy = async () => {
@@ -146,10 +160,7 @@ export function FundingPage() {
           {ws?.name ?? params.slug ?? 'Back to the market'}
         </Link>
         <h1 className="annp-head">Funding</h1>
-        <p className="annp-lead">
-          Credits are what your markets run on. A deeper pool is harder to move and pays more to be right about, which
-          is what pulls forecasters to your number.
-        </p>
+        <p className="annp-lead">Credits are the depth in your markets.</p>
 
         {loadErr && <p className="adm-err">{loadErr}</p>}
 
@@ -189,57 +200,60 @@ export function FundingPage() {
             <section className="adm-block">
               <div className="pubws-lb-head">
                 <h2 className="pubws-h2">Buy credits</h2>
-                <span className="pubws-lb-meta">1,000 credits per dollar</span>
+                <span className="pubws-lb-meta">1,000 credits per $1, any amount</span>
               </div>
-              <p className="adm-note">
-                They can only ever go into your own market pools: never a balance you can trade or withdraw, and
-                whatever a market does not pay out comes back to the wallet. Buying does not enter you into the prize
-                season.
-              </p>
 
-              <div className="fundp-presets">
-                {PRESETS.map(p => (
+              <div className="fundp-packs">
+                {PACKS.map(p => (
                   <button
                     key={p}
                     type="button"
-                    className={`pubws-seg-btn fundp-preset${dollars === p ? ' is-active' : ''}`}
-                    aria-pressed={dollars === p}
+                    className={`fundp-pack${choice === String(p) ? ' is-active' : ''}`}
+                    aria-pressed={choice === String(p)}
                     disabled={busy}
-                    onClick={() => setAmount(String(p))}
+                    onClick={() => setChoice(String(p) as Choice)}
                   >
-                    ${p}
+                    <span className="fundp-pack-n">${p}</span>
+                    <span className="fundp-pack-l">{cr(p * 1000)}</span>
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className={`fundp-pack${choice === 'custom' ? ' is-active' : ''}`}
+                  aria-pressed={choice === 'custom'}
+                  disabled={busy}
+                  onClick={() => setChoice('custom')}
+                >
+                  <span className="fundp-pack-n">Custom</span>
+                  <span className="fundp-pack-l">any amount</span>
+                </button>
               </div>
 
-              <div className="fundp-buy">
-                <label className="jobform-field fundp-amt">
+              {choice === 'custom' && (
+                <label className="fundp-amt">
                   <span className="ticket-label">Amount, USD</span>
                   <input
                     className="pubws-field-line odlg-mono"
                     type="text"
                     inputMode="decimal"
-                    value={amount}
+                    value={custom}
                     disabled={busy}
-                    onChange={e => setAmount(e.target.value)}
+                    onChange={e => setCustom(e.target.value)}
                     aria-label="Amount in US dollars"
                   />
                 </label>
-                <button
-                  type="button"
-                  className="ticket-go fundp-go"
-                  disabled={busy || !valid}
-                  onClick={() => void buy()}
-                >
-                  {busy
-                    ? 'Opening checkout…'
-                    : valid
-                      ? `Pay ${usd(dollars)} for ${cr(dollars * 1000)} credits`
-                      : 'Pay by card'}
-                </button>
-              </div>
+              )}
+
+              <button type="button" className="ticket-go fundp-go" disabled={busy || !valid} onClick={() => void buy()}>
+                {busy ? 'Opening checkout…' : valid ? `Pay ${usdWhole(dollars)} by card` : 'Pay by card'}
+                <span className="ticket-go-sub">
+                  {valid ? `${cr(dollars * 1000)} credits into your wallet` : 'Between $5 and $5,000'}
+                </span>
+              </button>
+              <p className="adm-note fundp-fine">Stripe takes the card. Nothing moves until it confirms.</p>
               <p className="adm-note fundp-fine">
-                Between $5 and $5,000. Stripe handles the card, and nothing changes until it confirms.
+                Credits go into your own market pools, never a balance you can trade or withdraw. What a pool does not
+                pay out returns to your wallet, and buying is not season entry.
               </p>
               {err && <p className="ticket-err">{err}</p>}
             </section>
@@ -273,8 +287,7 @@ export function FundingPage() {
             </section>
 
             <p className="mpg-foot">
-              Placing the credits happens beside the price each pool moves: the Inject button under any market.{' '}
-              <Link to={floorHref}>Back to {ws.name}</Link>.
+              Place credits from Inject under any market. <Link to={floorHref}>Back to {ws.name}</Link>.
             </p>
           </>
         )}

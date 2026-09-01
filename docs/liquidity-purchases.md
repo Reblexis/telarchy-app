@@ -107,13 +107,20 @@ fund. The account panel says it in words beside the other two figures.
 `/<floor>/funding` (`src/pages/FundingPage.tsx`), reached from the Buy
 affordance beside Inject on any open market and open only to someone with
 `manage` on that floor. It shows the liquidity wallet, the count of open
-markets the credits can go into, the buy field with $25/$50/$100/$250
-presets, and the workspace's past purchases. Its copy carries invariants 1
-and 2 above in plain words, so nobody pays before knowing that credits reach
-pools and never a balance, and that buying is not season entry. An instance
-with no Stripe secrets shows the server's own 503 sentence rather than a
-button that silently fails. Placing the credits is a separate act on the
-floor (`docs/owner-on-the-floor.md`).
+markets the credits can go into, five packages as one segmented hairline
+strip ($25, $50, $100, $250, and Custom, which is the only thing that reveals
+an amount field), a single pay button carrying the price and the credits it
+buys, and the workspace's past purchases.
+
+The packages are shortcuts, never tiers: every amount buys at the same
+1,000 credits per dollar, stated once above the strip, so nothing on the page
+is badged, discounted or ranked against its neighbour. Invariants 1 and 2
+above are one line of terms under the button rather than a paragraph arguing
+for them; a page that defends itself reads like a page with something to
+hide, and this one is asking for money. An instance with no Stripe secrets
+shows the server's own 503 sentence rather than a button that silently fails.
+Placing the credits is a separate act on the floor
+(`docs/owner-on-the-floor.md`).
 
 ## Pricing
 
