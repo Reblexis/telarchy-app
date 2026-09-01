@@ -148,10 +148,16 @@ import('./app')
       geoip: geo.default,
     }));
 
-    // Catch-up: resolve any markets whose target date passed while the server was down.
+    // Catch-up: resolve any markets whose target date passed while the server
+    // was down. It takes the SAME locks as the timers below rather than one of
+    // its own: it is the same work, and a lock key per caller excludes nobody.
+    // Every deploy lands a candidate at --min-instances 1, so a boot-time
+    // catch-up running beside a live resolve is routine (bug hunt
+    // 2026-08-31). The settlement claim in services/predictions.ts is what
+    // makes a double payout impossible; this only stops the wasted pass.
     singleton('startupCatchUp', async () => {
-      await runDailyResolve();
-      await runDailyRefresh();
+      await withSingletonLock('resolve', runDailyResolve);
+      await withSingletonLock('dailyMarketRefresh', runDailyRefresh);
     })().catch(e => console.error('Startup catch-up failed:', e));
 
     // Resolve frequently so markets settle close to their resolvesOn instant

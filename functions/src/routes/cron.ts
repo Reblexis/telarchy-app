@@ -93,21 +93,30 @@ cronRouter.post(
     const { resolvePredictions } = await import('../services/predictions');
     const { cleanupOldEvents } = await import('../services/events');
     const { snapshotAgentBalances } = await import('../services/balances');
+    const { withSingletonLock } = await import('../lib/singleton-jobs');
 
-    const wsIds = req.body?.workspaceId ? [req.body.workspaceId as string] : await allWorkspaceIds();
-    const results = [];
-    for (const wsId of wsIds) {
-      const resolved = await resolvePredictions(req.body?.targetDate as string | undefined, wsId);
-      const cleaned = await cleanupOldEvents(wsId);
-      results.push({ workspaceId: wsId, ...resolved, eventsCleaned: cleaned });
-    }
+    // The same lock the in-process timer holds. This door held none, so the
+    // scheduler's pass and the container's own pass did the work together
+    // (bug hunt 2026-08-31); "both are idempotent" in docs/infra/deploy.md
+    // was true sequentially and not concurrently. `skipped` is a normal
+    // answer, not an error: it means another pass has it.
+    const results: Array<Record<string, unknown>> = [];
+    let balanceSnapshots = 0;
+    const ran = await withSingletonLock('resolve', async () => {
+      const wsIds = req.body?.workspaceId ? [req.body.workspaceId as string] : await allWorkspaceIds();
+      for (const wsId of wsIds) {
+        const resolved = await resolvePredictions(req.body?.targetDate as string | undefined, wsId);
+        const cleaned = await cleanupOldEvents(wsId);
+        results.push({ workspaceId: wsId, ...resolved, eventsCleaned: cleaned });
+      }
 
-    // Platform-wide (not per-workspace): one balance snapshot per participant
-    // per UTC day, taken on the first hourly run of the day. Powers the
-    // balance graph on public profiles.
-    const balanceSnapshots = await snapshotAgentBalances();
+      // Platform-wide (not per-workspace): one balance snapshot per
+      // participant per UTC day, taken on the first hourly run of the day.
+      // Powers the balance graph on public profiles.
+      balanceSnapshots = await snapshotAgentBalances();
+    });
 
-    res.json({ ok: true, balanceSnapshots, workspaces: results });
+    res.json({ ok: true, lock: ran, balanceSnapshots, workspaces: results });
   }),
 );
 
@@ -117,14 +126,19 @@ cronRouter.post(
     if (!validateApiKey(req, res)) return;
 
     const { refreshRelativeDateMarkets } = await import('../services/markets');
+    const { withSingletonLock } = await import('../lib/singleton-jobs');
 
-    const wsIds = req.body?.workspaceId ? [req.body.workspaceId as string] : await allWorkspaceIds();
-    const results = [];
-    for (const wsId of wsIds) {
-      const result = await refreshRelativeDateMarkets(wsId);
-      results.push({ workspaceId: wsId, ...result });
-    }
+    // Same reasoning as /resolve above: this door shares its work with the
+    // in-process dailyMarketRefresh timer and with startupCatchUp.
+    const results: Array<Record<string, unknown>> = [];
+    const ran = await withSingletonLock('dailyMarketRefresh', async () => {
+      const wsIds = req.body?.workspaceId ? [req.body.workspaceId as string] : await allWorkspaceIds();
+      for (const wsId of wsIds) {
+        const result = await refreshRelativeDateMarkets(wsId);
+        results.push({ workspaceId: wsId, ...result });
+      }
+    });
 
-    res.json({ ok: true, workspaces: results });
+    res.json({ ok: true, lock: ran, workspaces: results });
   }),
 );
