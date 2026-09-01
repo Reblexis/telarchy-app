@@ -23,7 +23,8 @@
  * Consent (`requireConsentIfUser`) is a separate, user-session concern and is
  * still applied per mount in app.ts.
  */
-import type { NextFunction, Request, Response } from 'express';
+import type { Express, NextFunction, Request, Response } from 'express';
+import { routeMatchers } from '../lib/route-inventory';
 import { authMiddleware, optionalAuthMiddleware } from './auth';
 
 /**
@@ -75,12 +76,53 @@ export function isOptionalAuthPath(path: string): boolean {
   return false;
 }
 
+/**
+ * Every mounted route, as matchers, or null until app.ts installs them.
+ *
+ * Null means "we do not know what exists", and the policy then behaves exactly
+ * as it did before this existed. Tests that mount a single router rather than
+ * the whole app are in that state on purpose.
+ */
+let MATCHERS: ReturnType<typeof routeMatchers> | null = null;
+
+/**
+ * Called from app.ts AFTER every router is mounted, because that is the first
+ * moment the stack is complete.
+ *
+ * Why the policy needs this at all: the policy runs before every router, so an
+ * unauthenticated call to a path nobody mounted was answered by
+ * `authMiddleware` with `401 Unauthorized` and never reached the 404 handler at
+ * the bottom of app.ts. A typo, an unmounted verb and a genuinely missing route
+ * all claimed to be credential problems, which sends an agent exploring the API
+ * off to debug an auth failure it does not have. Knowing what exists lets the
+ * policy tell "there is no such thing" apart from "you may not".
+ */
+export function installRouteMatchers(app: Express): void {
+  MATCHERS = routeMatchers(app);
+}
+
+/** True when some mounted route could serve this method and path. */
+function isMountedRoute(method: string, path: string): boolean {
+  if (MATCHERS === null) return true; // unknown: behave as before
+  return MATCHERS.some(m => m.method === method && m.test(path));
+}
+
 /** Mounted once, first, on /api. See the module comment. */
 export function apiAuthPolicy(req: Request, res: Response, next: NextFunction): void {
   // baseUrl + path, not originalUrl: the beta surface rewrites req.url from
   // /beta/api/... to /api/... (app.ts) while originalUrl keeps the prefix, and a
   // policy keyed on originalUrl denied every anonymous beta API call (2026-08-25).
   const path = `${req.baseUrl}${req.path}`;
+
+  // Nothing serves this. Say so, rather than reporting it as an auth problem.
+  // This grants nothing: a path that DOES match falls through to exactly the
+  // check it faced before, and every endpoint is already published at
+  // GET /api/help, so naming a route as absent discloses nothing new.
+  if (!isMountedRoute(req.method, path)) {
+    res.status(404).json({ error: 'Not found', path: req.originalUrl });
+    return;
+  }
+
   if (isOptionalAuthPath(path)) {
     void optionalAuthMiddleware(req, res, next);
   } else {
