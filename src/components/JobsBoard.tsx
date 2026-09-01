@@ -139,6 +139,7 @@ export function JobsBoard({
   // delta under the valuation caption while the ticket said "not yet priced"
   // (owner report, docs/ui-conventions.md "the board reads the pair on screen").
   const impactOf = (p: PublicProposal) => (horizonDate ? deltaAt(p, horizonDate, horizonMetricId) : headlineDelta(p));
+  const [foldOpen, setFoldOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
   const [title, setTitle] = useState('');
@@ -170,16 +171,33 @@ export function JobsBoard({
     [],
   );
 
-  // Pending jobs lead (the live ballot, biggest priced impact first), decided
-  // ones follow. One list; status is shown per row instead of a separate
-  // history section (owner direction 2026-08-12).
-  const statusRank = (s?: string) => (!s || s === 'pending' ? 0 : 1);
-  const ranked = [...proposals].sort((a, b) => {
-    const ra = statusRank(a.status),
-      rb = statusRank(b.status);
-    if (ra !== rb) return ra - rb;
-    return (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
-  });
+  // The board opens on the live ballot: pending contracts are the list and
+  // the decided ones are folded behind one row (owner report 2026-09-01,
+  // "there are too many contracts visible"). A decided contract cannot be
+  // traded on or influenced, and decided contracts carry the largest
+  // impacts, so ranking them in with the pending ones put the whole archive
+  // above the fold. Both groups keep the impact ranking the owner acts on.
+  // docs/ui-conventions.md, "The board opens on the live ballot".
+  const isPending = (p: PublicProposal) => !p.status || p.status === 'pending';
+  const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
+  const pending = proposals.filter(isPending).sort(byImpact);
+  const decided = proposals.filter(p => !isPending(p)).sort(byImpact);
+
+  // A board with nothing pending has no ballot to bury, so the decided ones
+  // ARE the list and there is no fold; a board with nothing decided has
+  // nothing to fold away.
+  const foldable = pending.length > 0 && decided.length > 0;
+  // A `#contract=<id>` link from a notification can point the page at a
+  // decided contract, and the fold must never hide the row the view is
+  // pointed at.
+  const decidedSelected = !!selectedId && decided.some(p => p.id === selectedId);
+  const showDecided = !foldable || foldOpen || decidedSelected;
+  const toggleFold = () => {
+    // Collapsing releases a selected decided contract rather than hiding it,
+    // so the control can never be dead.
+    if (showDecided && decidedSelected && selectedId) onSelect(selectedId);
+    setFoldOpen(!showDecided);
+  };
 
   // The confirm stays disabled until these hold, so the short errors
   // below are a fallback for the server, not the primary guardrail. A $0
@@ -220,6 +238,77 @@ export function JobsBoard({
     }
   };
 
+  /** One contract's row. The same object in both groups: the fold changes
+      which contracts are listed, never how a contract reads. */
+  const row = (p: PublicProposal) => {
+    const delta = impactOf(p);
+    const selected = selectedId === p.id;
+    // Prefer the stored number; fall back to the title convention
+    // only for proposals created before the column existed.
+    const { ask: parsedAsk, rest: titleRest } = splitAsk(p.title);
+    const askUsd = p.askUsd ?? parsedAsk;
+    return (
+      <li key={p.id} className={selected ? 'is-open' : ''}>
+        <button
+          className={`pubws-ballot-row${selected ? ' is-selected' : ''}`}
+          aria-pressed={selected}
+          title={titleRest}
+          onClick={() => onSelect(p.id)}
+        >
+          <span className="pubws-ballot-main">
+            <span className="pubws-ballot-title">{titleRest}</span>
+            <span className="pubws-ballot-facts">
+              {/* A link cannot nest inside the row button, so the name is
+                  a span that navigates; stopPropagation keeps the row from
+                  also selecting. */}
+              {p.proposedByName &&
+                (p.proposedByHandle ? (
+                  <span>
+                    by{' '}
+                    <span
+                      className="pubws-name-link"
+                      role="link"
+                      tabIndex={0}
+                      onClick={ev => {
+                        ev.stopPropagation();
+                        navigate(`/participants/${encodeURIComponent(p.proposedByHandle!)}`);
+                      }}
+                      onKeyDown={ev => {
+                        if (ev.key === 'Enter') {
+                          ev.stopPropagation();
+                          navigate(`/participants/${encodeURIComponent(p.proposedByHandle!)}`);
+                        }
+                      }}
+                    >
+                      {p.proposedByName}
+                    </span>
+                  </span>
+                ) : (
+                  <span>by {p.proposedByName}</span>
+                ))}
+              {askUsd !== null && <span>${askUsd} to them</span>}
+              {p.status && p.status !== 'pending' && (
+                <span className={`pubws-ballot-status is-${p.status}`}>{p.status}</span>
+              )}
+            </span>
+          </span>
+          <span className="pubws-ballot-impact">
+            {/* "open" = nobody has priced it yet; a hard 0 means the two
+                worlds are priced the same, which is a statement, not an
+                absence. */}
+            {delta === null ? (
+              <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
+            ) : delta === 0 ? (
+              <span className="pubws-ballot-delta pubws-ballot-delta--open">±{unit}0</span>
+            ) : (
+              <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>
+            )}
+          </span>
+        </button>
+      </li>
+    );
+  };
+
   return (
     <section className="pubws-section" aria-label="Contracts">
       <div className="pubws-lb-head">
@@ -237,76 +326,41 @@ export function JobsBoard({
         <p className="pubws-lb-empty">Nothing on the ballot yet. Yours could be first.</p>
       ) : (
         <ul className="pubws-ballot">
-          {ranked.map(p => {
-            const delta = impactOf(p);
-            const selected = selectedId === p.id;
-            // Prefer the stored number; fall back to the title convention
-            // only for proposals created before the column existed.
-            const { ask: parsedAsk, rest: titleRest } = splitAsk(p.title);
-            const askUsd = p.askUsd ?? parsedAsk;
-            return (
-              <li key={p.id} className={selected ? 'is-open' : ''}>
-                <button
-                  className={`pubws-ballot-row${selected ? ' is-selected' : ''}`}
-                  aria-pressed={selected}
-                  title={titleRest}
-                  onClick={() => onSelect(p.id)}
-                >
-                  <span className="pubws-ballot-main">
-                    <span className="pubws-ballot-title">{titleRest}</span>
-                    <span className="pubws-ballot-facts">
-                      {/* A link cannot nest inside the row button, so the
-                          name is a span that navigates; stopPropagation
-                          keeps the row from also selecting. */}
-                      {p.proposedByName &&
-                        (p.proposedByHandle ? (
-                          <span>
-                            by{' '}
-                            <span
-                              className="pubws-name-link"
-                              role="link"
-                              tabIndex={0}
-                              onClick={ev => {
-                                ev.stopPropagation();
-                                navigate(`/participants/${encodeURIComponent(p.proposedByHandle!)}`);
-                              }}
-                              onKeyDown={ev => {
-                                if (ev.key === 'Enter') {
-                                  ev.stopPropagation();
-                                  navigate(`/participants/${encodeURIComponent(p.proposedByHandle!)}`);
-                                }
-                              }}
-                            >
-                              {p.proposedByName}
-                            </span>
-                          </span>
-                        ) : (
-                          <span>by {p.proposedByName}</span>
-                        ))}
-                      {askUsd !== null && <span>${askUsd} to them</span>}
-                      {p.status && p.status !== 'pending' && (
-                        <span className={`pubws-ballot-status is-${p.status}`}>{p.status}</span>
-                      )}
-                    </span>
-                  </span>
-                  <span className="pubws-ballot-impact">
-                    {/* "open" = nobody has priced it yet; a hard 0 means the
-                        two worlds are priced the same, which is a statement,
-                        not an absence. */}
-                    {delta === null ? (
-                      <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
-                    ) : delta === 0 ? (
-                      <span className="pubws-ballot-delta pubws-ballot-delta--open">±{unit}0</span>
-                    ) : (
-                      <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>
-                        {fmtDelta(delta, unit)}
-                      </span>
-                    )}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
+          {pending.map(row)}
+          {foldable && (
+            <li>
+              {/* One hairline row standing for the archive, in the rail
+                  head's anatomy: the count left, the action right. */}
+              <button
+                type="button"
+                className={`pubws-ballot-fold${showDecided ? ' is-open' : ''}`}
+                aria-expanded={showDecided}
+                onClick={toggleFold}
+              >
+                <span className="pubws-ballot-fold-count">{`${decided.length} decided`}</span>
+                <span className="pubws-ballot-fold-act">
+                  {showDecided ? 'Hide' : 'Show'}
+                  <svg
+                    className="pubws-ballot-fold-chev"
+                    width="11"
+                    height="11"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M4 6.5L8 10.5L12 6.5"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              </button>
+            </li>
+          )}
+          {showDecided && decided.map(row)}
         </ul>
       )}
       <div className="pubws-propose">

@@ -2912,6 +2912,46 @@ button.notif-row-link {
 .pubws-ballot-row:focus-visible .pubws-ballot-title { color: var(--accent); outline: none; }
 .pubws-ballot-row .pubws-ballot-title { transition: color 120ms ease; }
 
+/* The fold: ONE hairline row standing for the decided contracts, so the board
+   opens on the live ballot instead of its own archive (owner report
+   2026-09-01, "there are too many contracts visible"). It wears the rail
+   head's anatomy rather than a new one: the count left, the action right.
+   docs/ui-conventions.md, "The board opens on the live ballot". */
+.pubws-ballot-fold {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+}
+.pubws-ballot-fold-count { color: var(--text-tertiary); }
+.pubws-ballot-fold-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.pubws-ballot-fold:hover .pubws-ballot-fold-act,
+.pubws-ballot-fold:focus-visible .pubws-ballot-fold-act { color: var(--accent-hover); }
+.pubws-ballot-fold:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.pubws-ballot-fold-chev { transition: transform 160ms ease; }
+.pubws-ballot-fold.is-open .pubws-ballot-fold-chev { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .pubws-ballot-fold-chev { transition: none; }
+}
+
 .pubws-ballot li { display: block; }
 
 .pubws-ballot-detail { padding: 0.5rem 0 0.3rem; }

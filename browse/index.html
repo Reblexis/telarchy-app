@@ -4594,7 +4594,26 @@ single right-aligned column label (&quot;impact if done&quot;, or &quot;impact b
 when the horizon on screen has a date) rather than a label per row. The
 two branch values are not shown. Rows carry the title, the proposer, and
 the USD ask (the two required facts of a contract), and are ranked by
-impact, since the ballot is a ranking the owner acts on. <strong>The board is a
+impact, since the ballot is a ranking the owner acts on.</p>
+<p><strong>The board opens on the live ballot; decided contracts are folded away.</strong>
+An approved or declined contract is history: nothing about it can be traded
+on or influenced any more, and decided contracts carry the largest impacts,
+so ranking them in with the pending ones buried the handful a visitor could
+still act on under the archive of ones they could not. The list therefore
+shows the pending contracts, and ONE hairline row at the foot of it stands
+for the rest: the count on the left (&quot;7 decided&quot;), SHOW or HIDE in the
+accent on the right, and a chevron that turns. Expanded, the decided
+contracts appear beneath that row as the same rows they always were, still
+ranked by impact. The row is only there when there is something on both
+sides of it to separate: a board with nothing decided has no fold, and a
+board with nothing pending has no ballot to bury, so it shows the decided
+contracts as the list and no fold either. Two rules protect the
+selection, which is what the page's one market view is pointed at: a
+selected decided contract forces the fold open, because a
+<code>#contract=&lt;id&gt;</code> link from a notification must never land on a row the
+fold is hiding; and hiding the fold while a decided contract is selected
+releases that selection, so the control can never be dead.</p>
+<p><strong>The board is a
 selector, not a second trading surface</strong>: selecting a contract re-points
 the page's ONE market view and ONE ticket at that contract's conditional
 pair, rather than growing a smaller market underneath. Both branches are
