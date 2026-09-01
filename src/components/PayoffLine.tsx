@@ -1,198 +1,172 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties } from 'react';
 import { compactValueOf } from '../lib/floor-horizons';
 import { formatMetricValue } from '../lib/market-quote';
 
 /**
- * The payoff line (docs/ui-conventions.md, "The payoff line puts those
- * numbers in an order").
+ * The payoff line (docs/ui-conventions.md, "The payoff line is a rule with
+ * two rows").
  *
- * The whole answer to "what happens to my money", in a picture. One track
- * for the market's range carrying the three values in the order they sit,
- * the market, the break-even and where the bet leaves the market; under it,
- * what the bet is worth at a handful of settlement values marked along that
- * same range.
+ * One rule across the market's range, carrying exactly two rows of type:
+ * what the bet is worth above it, and where the number would have to settle
+ * below it. Nothing else (owner, 2026-09-01: "i want the visualization line
+ * to only show on top the credit gains/losses and on bottom the different
+ * values it settles at thats it"). The rule changes colour where the bet
+ * starts paying, which is the break-even, and that stop is the one reading
+ * "0 cr".
  *
- * Buying walks the price, so the shares cost the average of the walk and the
- * break-even always lands SHORT of the push. That is the thing a trader has
- * to see and never could: stated as two unrelated fact rows, the one who
- * could not see it read an overshoot as a total loss, asked at what point
- * his shares stop paying out, and got the answer from an operator in a chat
- * window (notes/quroe-churn-2026-08-27.md). Here it is the stop that reads
- * "0 cr", which is a stop like any other and not a note beside them (owner,
- * 2026-08-31: "the 0 credit profit point should be just like any other..
- * among the other ones.. not separate").
- *
- * This REPLACES the four fact rows it was drawn above, which is why the
- * pushed-to value is the one caption: it is also the input a trader types a
- * target into, and the picture had to keep it.
+ * BOTH ENDS OF THE RANGE ARE ALWAYS STOPS. The version this replaces chose
+ * its stops at the quarters of the range and dropped any that came near the
+ * break-even, so a bet breaking even at 86% of its range lost the top stop
+ * and every credit figure on the ticket read as a loss: it never showed
+ * that the bet could win at all. The ends carry the two numbers that decide
+ * whether a bet is worth making, so they are fixed, the break-even is
+ * fixed, and the interior stops fill whatever room is left between them.
  */
 
-/** The settlement values every scale offers, before the break-even claims
-    its own place among them. */
-const QUARTERS = [0, 0.25, 0.5, 0.75, 1];
-/** How close two stops may come before one of them is not worth drawing.
-    A label is about a seventh of the track wide, so this is the point at
-    which two of them would touch. */
+/** The closest two stops may sit before their labels would touch. */
 const MIN_GAP = 0.14;
+/** Labels, and so stops, that a 480px card has room for. */
+const MAX_STOPS = 5;
 
 interface Props {
   unit: string;
   rangeMin: number;
   rangeMax: number;
-  /** Where the market stands right now. */
+  /** Where the market stands right now, for the untouched bar. */
   consensus: number;
   /** The side this is about; null is an untouched ticket, which has no bet
-      to price and marks only the market. */
+      to price and shows the plain range bar instead. */
   direction: 'higher' | 'lower' | null;
   /** The settled value at which the bet, or the held position, breaks even. */
   breakeven: number | null;
-  /** Where the composed bet would leave the market. Null when nothing is
-      being pushed: a resting limit order, or a position already held. */
-  push: number | null;
   /** The shares the bet buys (or the position holds) and what they cost,
-      which is all the scale needs: payout is linear in the settled value. */
+      which is all the pricing needs: payout is linear in the settled value. */
   shares: number | null;
   spend: number | null;
-  /** The value the bet lands on, rendered by the ticket because it is an
-      input a trader types a target into. */
-  pushLabel?: ReactNode;
 }
 
 /**
- * A label sits over its own point on the track, so near the ends a centred
- * one would hang off the card. Past the outer eighth it pins to the edge it
- * is nearest and reads inward from there.
+ * Where a stop's two labels sit. The ends pin to the card so nothing hangs
+ * off it, and a stop near an edge leans away from that edge rather than
+ * straddling the pinned label next to it.
  */
-function labelStyle(pct: number): CSSProperties {
-  if (pct < 12) return { left: 0 };
-  if (pct > 88) return { right: 0 };
+function stopStyle(pct: number, first: boolean, last: boolean): CSSProperties {
+  if (first) return { left: 0 };
+  if (last) return { right: 0 };
+  if (pct < 18) return { left: `${pct}%` };
+  if (pct > 82) return { left: `${pct}%`, transform: 'translateX(-100%)' };
   return { left: `${pct}%`, transform: 'translateX(-50%)' };
 }
 
-export function PayoffLine({
-  unit,
-  rangeMin,
-  rangeMax,
-  consensus,
-  direction,
-  breakeven,
-  push,
-  shares,
-  spend,
-  pushLabel,
-}: Props) {
+/**
+ * The fractions to price: the two ends and the break-even always, then as
+ * many evenly spaced interior stops as the gaps between them can hold.
+ */
+function stopFractions(beF: number): number[] {
+  const req = beF > 0.1 && beF < 0.9 ? [0, beF, 1] : [0, 1];
+  const gaps = req.slice(0, -1).map((lo, i) => req[i + 1] - lo);
+  const take = gaps.map(() => 0);
+  let slots = MAX_STOPS - req.length;
+  while (slots > 0) {
+    let best = -1;
+    let bestScore = 0;
+    gaps.forEach((g, i) => {
+      if (take[i] >= Math.floor(g / MIN_GAP) - 1) return;
+      const score = g / (take[i] + 2);
+      if (score > bestScore) {
+        bestScore = score;
+        best = i;
+      }
+    });
+    if (best < 0) break;
+    take[best] += 1;
+    slots -= 1;
+  }
+  const out: number[] = [];
+  req.slice(0, -1).forEach((lo, i) => {
+    out.push(lo);
+    for (let j = 1; j <= take[i]; j += 1) out.push(lo + (gaps[i] * j) / (take[i] + 1));
+  });
+  out.push(1);
+  return out;
+}
+
+export function PayoffLine({ unit, rangeMin, rangeMax, consensus, direction, breakeven, shares, spend }: Props) {
   const span = rangeMax - rangeMin;
   if (!(span > 0) || !Number.isFinite(consensus)) return null;
 
-  /** Two decimals, so a mark and the stop that names it land on the same
-      number rather than on two roundings of it. */
   const pct = (v: number) => Math.round(Math.min(100, Math.max(0, ((v - rangeMin) / span) * 100)) * 100) / 100;
   const money = (v: number) => `${unit}${formatMetricValue(v)}`;
-  const nowPct = pct(consensus);
-  const resting = direction === null || breakeven === null;
-  const priced = !resting && shares !== null && spend !== null && shares > 0 && spend > 0;
+  const priced =
+    direction !== null && breakeven !== null && shares !== null && spend !== null && shares > 0 && spend > 0;
 
-  /** Credits won or lost if the number settles at `v`. Payout is linear, so
-      a share is worth its position in the range and nothing else. */
-  const worthAt = (v: number): number => {
-    const f = (v - rangeMin) / span;
-    return (shares ?? 0) * (direction === 'higher' ? f : 1 - f) - (spend ?? 0);
-  };
-  /** Credits, said as credits: without the unit a stop reads as another
-      metric value rather than as the money at stake. */
-  const credits = (v: number): string => {
-    const n = Math.round(v);
-    return `${n > 0 ? '+' : ''}${n.toLocaleString('en-US')} cr`;
-  };
-
-  /* The break-even takes a place in the row rather than a note beside it, so
-     it displaces whichever quarter it stands too close to. */
-  const beFraction = breakeven === null ? 0 : Math.min(1, Math.max(0, (breakeven - rangeMin) / span));
-  const stops = priced
-    ? [...QUARTERS.filter(q => Math.abs(q - beFraction) >= MIN_GAP), beFraction]
-        .sort((a, b) => a - b)
-        .map(f => {
-          const v = rangeMin + f * span;
-          return { at: pct(v), value: v, worth: worthAt(v) };
-        })
-    : [];
-
-  return (
-    <div className="pay">
-      {/* The value the bet lands on, over its own mark. It is the loudest
-          thing on the line because it is the number the trader is choosing,
-          and it is the input they type a target into. Called "new value"
-          rather than anything cleverer: most of the time it is the
-          consequence of the stake rather than a target anybody picked. */}
-      {push !== null && pushLabel !== undefined && (
-        <div className="pay-new">
-          <span style={labelStyle(pct(push))}>
-            <span className="pay-new-k">new value</span> <span className="pay-new-v">{pushLabel}</span>
-          </span>
+  // Nothing composed: the range, and where the market sits in it. A share
+  // bought this second breaks even exactly there, which is the only honest
+  // thing to say before a stake exists.
+  if (!priced) {
+    const nowPct = pct(consensus);
+    return (
+      <div className="pay">
+        <div className="pay-track-wrap">
+          <div className="pay-track">
+            <div className="pay-win pay-win--lower" style={{ left: '0%', right: `${100 - nowPct}%` }} />
+            <div className="pay-win pay-win--higher" style={{ left: `${nowPct}%`, right: '0%' }} />
+          </div>
+          <div className="pay-mark pay-mark--now" style={{ left: `${nowPct}%` }} title={`Now ${money(consensus)}`} />
         </div>
-      )}
-      <div className="pay-track-wrap">
-        <div className="pay-track">
-          {resting ? (
-            <>
-              <div className="pay-win pay-win--lower" style={{ left: '0%', right: `${100 - nowPct}%` }} />
-              <div className="pay-win pay-win--higher" style={{ left: `${nowPct}%`, right: '0%' }} />
-            </>
-          ) : (
-            <div
-              className={`pay-win pay-win--${direction}`}
-              style={
-                direction === 'higher'
-                  ? { left: `${pct(breakeven)}%`, right: '0%' }
-                  : { left: '0%', right: `${100 - pct(breakeven)}%` }
-              }
-            />
-          )}
-          {/* Every stop is a point ON the track, so the row below reads as
-              the track's own scale rather than as a table beside it. */}
-          {stops.map(s => (
-            <div key={s.at} className="pay-tick" style={{ left: `${s.at}%` }} />
-          ))}
-        </div>
-        <div className="pay-mark pay-mark--now" style={{ left: `${nowPct}%` }} title={`Now ${money(consensus)}`} />
-        {!resting && (
-          <div
-            className={`pay-mark pay-mark--be-${direction}`}
-            style={{ left: `${pct(breakeven)}%` }}
-            title={`Breaks even at ${money(breakeven)}`}
-          />
-        )}
-        {push !== null && !resting && (
-          <div
-            className="pay-mark pay-mark--push"
-            style={{ left: `${pct(push)}%` }}
-            title={`Leaves the market at ${money(push)}`}
-          />
-        )}
-      </div>
-
-      {/* Where the market stands, on its own mark and its own row: the two
-          annotations are one small bet away from sitting on top of each
-          other, and separate rows are what makes that impossible. */}
-      <div className="pay-now">
-        <span style={labelStyle(nowPct)}>now {money(consensus)}</span>
-      </div>
-
-      {priced ? (
-        <div className="pay-stops" aria-label="What this bet is worth at settlement">
-          {stops.map(s => (
-            <div key={s.at} className="pay-stop" data-at={String(s.at)} style={labelStyle(s.at)}>
-              <u>{compactValueOf(s.value, unit)}</u>
-              <b className={s.worth > 0 ? 'up' : s.worth < 0 ? 'down' : 'even'}>{credits(s.worth)}</b>
-            </div>
-          ))}
-        </div>
-      ) : (
         <div className="pay-ends">
           <span>{money(rangeMin)}</span>
           <span>{money(rangeMax)}</span>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  const beF = Math.min(1, Math.max(0, ((breakeven as number) - rangeMin) / span));
+  const bePct = pct(breakeven as number);
+  const fractions = stopFractions(beF);
+  const stops = fractions.map((f, i) => {
+    const value = rangeMin + f * span;
+    const worth = (shares as number) * (direction === 'higher' ? f : 1 - f) - (spend as number);
+    const n = Math.round(worth);
+    return {
+      at: Math.round(f * 10000) / 100,
+      value: compactValueOf(value, unit) ?? '',
+      credits: `${n > 0 ? '+' : ''}${n.toLocaleString('en-US')} cr`,
+      tone: n > 0 ? 'up' : n < 0 ? 'down' : 'even',
+      style: stopStyle(Math.round(f * 10000) / 100, i === 0, i === fractions.length - 1),
+    };
+  });
+
+  return (
+    <div className="scale">
+      <div className="scale-row scale-cr">
+        {stops.map(s => (
+          <span key={s.at} data-at={String(s.at)} style={s.style}>
+            <span className={s.tone}>{s.credits}</span>
+          </span>
+        ))}
+      </div>
+      <div className="rule" aria-hidden="true">
+        <div
+          className={`rule-lose rule-lose--${direction}`}
+          style={{ width: `${direction === 'higher' ? bePct : 100 - bePct}%` }}
+        />
+        <div
+          className={`rule-win rule-win--${direction}`}
+          style={{ width: `${direction === 'higher' ? 100 - bePct : bePct}%` }}
+        />
+        {stops.slice(1, -1).map(s => (
+          <div key={s.at} className="rule-tick" style={{ left: `${s.at}%` }} />
+        ))}
+      </div>
+      <div className="scale-row scale-val">
+        {stops.map(s => (
+          <span key={s.at} data-at={String(s.at)} style={s.style}>
+            {s.value}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
