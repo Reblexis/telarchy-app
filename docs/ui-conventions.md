@@ -833,8 +833,17 @@ either side of it, and the stop flickered between the two.
 same two rows the stops use, so it adds no height. The standing labels give
 up the row entirely while it is there, rather than dimming: the cursor lands
 on one of them as often as not, and two labels in the same pixels read as
-neither. A line with no width on screen reads out nothing rather than
-dividing by it.
+neither. It says what its numbers MEAN rather than only what they are ("you
+lose 43 cr" over "if it settles at 67.9"), because a bare credit figure and
+a bare value are two facts the reader has to join up themselves; at the
+crossing it says "you break even". A line with no width on screen reads out
+nothing rather than dividing by it.
+
+**Every value on the line carries the same decimals.** The whole row shares
+one divisor, taken from its largest value, and one decimal count: one if any
+value needs one, none if none does. A row reading "0, 33.3, 66.7, 84, 100"
+makes the value that happens to land on a whole number look like a different
+kind of number (owner, 2026-09-01).
 
 A stop at either end pins to the card so no label hangs off it, and a stop
 near an edge leans away from that edge instead of straddling the pinned
