@@ -559,7 +559,9 @@ picker names each market by its clock and settle day (`TODAY · 26 AUG`,
 ("today", "this week", "on 30 Sep", the exact UTC settle instant as the
 word's hover title), and the countdown rides the stat row next to the
 price, whether or not the metric has readings, so the settle clock never
-leaves the page. A metric with no reading yet keeps its number chart
+leaves the page. That countdown carries the distance ALONE: the exact UTC
+instant is its hover title, in the same words the rest of the floor uses
+for one, and never a second line of type beside the price. A metric with no reading yet keeps its number chart
 too, in the component's own "no reading yet" state with the market's
 marker (hiding it read as the graph collapsing, owner report
 2026-08-28); its stat shows no value and no age. The former "resolves 30

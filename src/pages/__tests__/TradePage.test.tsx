@@ -1136,7 +1136,17 @@ describe('the chart control row', () => {
     // leading company name stripped). Scoped: the caption and question line
     // say the name too.
     expect(container.querySelector('.pubws-numchart .pubws-chart-cap')?.textContent).toBe('net 2026');
-    expect(container.querySelector('.pubws-stat .pubws-settle-in')?.textContent).toMatch(/expected · settles in/);
+    // THE COUNTDOWN, AND ONLY THE COUNTDOWN. The exact instant is the
+    // hover, never a second line of type beside the price (owner,
+    // 2026-09-01: "there should not be the date here? maybe upon hover but
+    // thats it").
+    const settle = container.querySelector('.pubws-stat .pubws-settle-in') as HTMLElement;
+    expect(settle.textContent).toMatch(/^expected · settles in \S+$/);
+    expect(settle.textContent).not.toMatch(/UTC|\d{4}/);
+    expect(container.querySelector('.pubws-settle-at')).toBeNull();
+    // It is still one hover away, in the same words the rest of the floor
+    // uses for a settle instant.
+    expect(settle.title).toMatch(/^settles \d+ \w+ \d{4}, \d{2}:\d{2} UTC$/);
     // The metric's latest reading is the number chart's own stat, the same
     // register as the price, with its age beside it.
     expect(container.querySelector('.pubws-numchart .pubws-price')?.textContent).toBe('$45,339');
