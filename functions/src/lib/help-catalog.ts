@@ -1421,7 +1421,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/cron/seasons',
       auth: 'platform admin',
       description:
-        'Start any prize season whose published startsAt has passed. Moves DRAFT seasons only, so calling it early or twice is a no-op; it can never start a season before its published instant. Pins the workspace set and snapshots a baseline for every participant, exactly as POST /api/seasons/:id/start does (same function). Returns { ok, started: [...], failed: [...] }; one season failing does not stop the others. Run it on a schedule: a season start is the one step in a season lifecycle that can silently not happen.',
+        'REPORTS prize seasons whose published startsAt has passed, and starts NOTHING (owner decision 2026-09-01: seasons are started by a person). Pinning baselines and freezing a workspace set is the moment a season becomes real money. Returns { ok, started: [] (always), failed: [] (always), awaitingManualStart: [seasonId] } and logs the same, so a season waiting on somebody is on the record rather than invisible, which is the risk auto-start was added for. Start one with POST /api/seasons/:id/start, which refuses while another season is running: only one runs at a time.',
     },
     {
       method: 'POST',

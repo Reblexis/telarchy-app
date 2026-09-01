@@ -3223,6 +3223,31 @@ gone under the proportional split: payout is linear in score, so a coin
 flip's expected prize equals its expected score contribution and a long
 shot buys nothing in expectation. What remains of F5 is the residue that a
 loss costs nothing; the eligibility floor stays deferred to Season 1.</p>
+<p><strong>A market belongs to the season it SETTLES in.</strong> A metric can carry a
+reporting lag, so a market's answer is fixed at its period end and it pays
+<code>settlementLagMinutes</code> later. Membership counts the lag: a market whose
+settlement falls after <code>endsAt</code> is not in the season, and the standings do not
+mark it in. Before 2026-09-01 the marked half decided membership by the period
+end while the settled half keyed on <code>resolvedAt</code>, so a lagged market was shown
+in &quot;Total if prices hold&quot; and then dropped at settlement, promising dollars
+the season could not pay, against that column's own tooltip. So a season's
+<code>endsAt</code> should be set to cover the reporting lags of the metrics it scores
+(owner decision 2026-09-01). Records: <code>notes/bug-hunt-2026-08-31.md</code>, P1-10.</p>
+<p><strong>Still open:</strong> the trade cutoff is measured from the period end on the open
+half and from <code>resolvedAt</code> on the settled half, so for a lagged market the
+settled half's cutoff lands after trading has already stopped and excludes
+nothing. The exploit that made this urgent is closed - trading stops at the
+fixing now - so what remains is a rule detail (P1-11).</p>
+<p><strong>A season starts because a person started it</strong> (owner decision 2026-09-01,
+reversing the 2026-08-20 direction to make it automatic). Pinning baselines
+and freezing a workspace set is the moment a season becomes real money.
+<code>POST /api/cron/seasons</code> still runs and still finds drafts past their start
+instant; it logs them and reports them as <code>awaitingManualStart</code> rather than
+starting them, so a season waiting on a person is on the record. Starting one
+is <code>POST /api/seasons/:id/start</code>, and <strong>only one season runs at a time</strong>: a
+start is refused while another is running, because the season page and the
+all-time board each pick &quot;the&quot; running season with an unordered query and
+would otherwise price different ones (P1-12).</p>
 <p><strong>Scoring set.</strong> The season scores over ALL public workspaces, live, not the
 set pinned at the start instant. A floor published mid-season counts from the
 moment it is public. Standings (<code>routes/leaderboard.ts</code> seasonStandings), the

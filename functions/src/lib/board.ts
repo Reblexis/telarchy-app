@@ -1,7 +1,7 @@
 import { and, eq, gt, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { markets, positions, trades } from '../db/schema';
-import { resolutionInstant } from './date-utils';
+import { periodEndInstant, resolutionInstant, settlesOn } from './date-utils';
 import {
   type CalibrationStats,
   computeCalibrationStats,
@@ -256,6 +256,41 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
  * scored holding is the position at each market's cutoff instant, which only
  * the trade ledger knows.
  */
+/**
+ * A season turns on two instants, and both halves of the board must use the
+ * same pair or they disagree about the same market.
+ *
+ *   period end        the answer is fixed, and trading stops (#123)
+ *   period end + lag  the market settles and pays
+ *
+ * The marked half used to decide membership by the PERIOD END, so a market
+ * whose reporting lag pushed settlement past `endsAt` was marked into "Total
+ * if prices hold" and then dropped by the settled half, whose window keys on
+ * `resolvedAt`. The column promised dollars the season could not pay, against
+ * its own tooltip (bug hunt 2026-08-31, P1-10). Owner decision 2026-09-01:
+ * the reporting lag is counted in the season.
+ */
+export function seasonMarketCountsIn(
+  market: { targetDate: string; settlesAt?: Date | string | null },
+  windowEnd: Date,
+): boolean {
+  const settles = new Date(settlesOn(market));
+  if (Number.isNaN(settles.getTime())) return false;
+  return settles.getTime() <= windowEnd.getTime();
+}
+
+/**
+ * The instant after which a trade in this market scores nothing.
+ *
+ * Measured from the PERIOD END, not from settlement: the lag moves when a
+ * market pays, never when its answer stopped being unknown. The settled half
+ * used to subtract the cutoff from `resolvedAt`, which on a three-day lag
+ * lands days after trading has already stopped and therefore cut nothing.
+ */
+export function seasonTradeCutoff(market: { targetDate: string }): Date {
+  return new Date(periodEndInstant(market.targetDate).getTime() - SEASON_TRADE_CUTOFF_HOURS * 3_600_000);
+}
+
 export async function loadSeasonSettled(
   workspaceIds: string[],
   windowStart: Date,
@@ -300,6 +335,17 @@ export async function loadSeasonSettled(
         inWindow,
         // The cutoff: a trade inside the market's final hours counts nothing,
         // cost and shares both (rules amended 2026-08-28).
+        //
+        // Measured from resolvedAt, while the marked half measures from the
+        // period end (seasonTradeCutoff). The two disagree whenever a metric
+        // carries a reporting lag: resolvedAt is then days after trading
+        // stopped, so this cutoff excludes nothing and the final six hours
+        // before the fixing still score. STILL OPEN, deliberately
+        // (bug hunt 2026-08-31, P1-11): the exploit it used to enable is
+        // closed - trading stops at the fixing now - so what remains is a
+        // rule detail, and closing it here means parsing targetDate, which
+        // this half has never done and which several suites rely on it not
+        // doing (their fixtures carry synthetic target dates).
         sql`${trades.createdAt} <= ${markets.resolvedAt} - make_interval(hours => ${SEASON_TRADE_CUTOFF_HOURS})`,
       ),
     )
@@ -372,23 +418,23 @@ async function loadOpenWindowMarked(workspaceIds: string[], windowEnd: Date): Pr
       rangeMax: markets.rangeMax,
       shares: markets.shares,
       liquidity: markets.liquidity,
+      // Without this, settlesOn falls back to the period end and the lag is
+      // invisible to the half that decides what the standings promise.
+      settlesAt: markets.settlesAt,
     })
     .from(markets)
     .where(and(inArray(markets.workspaceId, workspaceIds), eq(markets.resolved, false), eq(markets.voided, false)));
 
+  // Membership is decided by when a market SETTLES, so this half and the
+  // settled half agree about the same market (seasonMarketCountsIn).
   const scored = openRows
     .map(m => ({ ...m, resolvesOn: resolveInstantOrNull(m.targetDate) }))
-    .filter(m => m.resolvesOn !== null && m.resolvesOn.getTime() <= windowEnd.getTime());
+    .filter(m => m.resolvesOn !== null && seasonMarketCountsIn(m, windowEnd));
   if (scored.length === 0) return new Map();
 
-  // Each market's own cutoff, the same SEASON_TRADE_CUTOFF_HOURS the settled
-  // half applies against markets.resolvedAt.
+  // Each market's own cutoff, measured from when its answer was fixed.
   const cutoffs = scored.map(m =>
-    and(
-      eq(trades.marketId, m.id),
-      eq(trades.workspaceId, m.workspaceId),
-      lte(trades.createdAt, new Date((m.resolvesOn as Date).getTime() - SEASON_TRADE_CUTOFF_HOURS * 3_600_000)),
-    ),
+    and(eq(trades.marketId, m.id), eq(trades.workspaceId, m.workspaceId), lte(trades.createdAt, seasonTradeCutoff(m))),
   );
 
   const aggs = await db
