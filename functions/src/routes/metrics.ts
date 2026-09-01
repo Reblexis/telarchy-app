@@ -787,6 +787,29 @@ export function parseNaUntilMeasured(raw: unknown): boolean | undefined | Error 
 const RELATIVE_HORIZON_RE = /^\+(\d+)(h|d|w|m|y)$/;
 
 /**
+ * The furthest a rolling horizon may reach, per unit.
+ *
+ * The regex matches digits, so "+99999999d" passed validation and was
+ * stored. `toAbsoluteDate` then pushed the Date past its +/-100,000,000 day
+ * range, `toISOString()` threw RangeError, and every later `getAllMetrics`
+ * walked generatesMarkets -> resolveCustomHorizons -> throw. The metrics
+ * endpoint and the floor died for that workspace permanently, INCLUDING the
+ * page the owner would use to remove the horizon. "+9999999y" is the sibling
+ * that returns the literal string "NaN" as a target date (bug hunt
+ * 2026-08-31).
+ *
+ * A century is past any horizon anyone prices and far inside what a Date can
+ * hold, so the bound costs nothing real.
+ */
+const MAX_HORIZON_OFFSET: Record<string, number> = {
+  h: 100 * 365 * 24,
+  d: 100 * 365,
+  w: 100 * 53,
+  m: 100 * 12,
+  y: 100,
+};
+
+/**
  * Parse the timePreference request field. `undefined` = field absent (no
  * change); `null` = explicit clear. Expired absolute custom horizons are
  * pruned silently so re-saving an old config never fails.
@@ -830,13 +853,19 @@ export function parseTimePreference(raw: unknown): TimePreference | null | undef
       // another (owner report 2026-08-16). A negative offset needs no check:
       // RELATIVE_HORIZON_RE matches digits only, so "-1d" is not relative at
       // all and falls to the format error below.
-      if (!RELATIVE_HORIZON_RE.test(entry)) {
+      const relative = RELATIVE_HORIZON_RE.exec(entry);
+      if (!relative) {
         if (!isValidCalendarDate(entry)) {
           return new Error(
             `invalid custom horizon "${entry}": use +Nh / +Nd / +Nw / +Nm / +Ny or YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH (UTC)`,
           );
         }
         if (periodEndInstant(entry) <= now) continue; // expired absolute: prune, don't reject
+      } else {
+        const max = MAX_HORIZON_OFFSET[relative[2]];
+        if (Number(relative[1]) > max) {
+          return new Error(`custom horizon "${entry}" is too far out: at most +${max}${relative[2]}`);
+        }
       }
       if (seen.has(entry)) continue;
       seen.add(entry);
