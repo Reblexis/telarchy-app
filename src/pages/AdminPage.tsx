@@ -158,7 +158,7 @@ function Journeys({ feed }: { feed: JourneyFeed | null }) {
         {summary.journeys === 0
           ? 'One visitor, one sitting, in the order it happened.'
           : `${n(summary.journeys)} sittings by ${n(summary.visitors)} visitors · ${n(summary.bounced)} bounced ` +
-            `(${Math.round((summary.bounced / summary.journeys) * 100)}%) · ${summary.medianSteps} pages median. ` +
+            `(${Math.round((summary.bounced / summary.journeys) * 100)}%) · ${summary.medianSteps} ${summary.medianSteps === 1 ? 'page' : 'pages'} median. ` +
             'A new sitting starts after 30 idle minutes.'}
       </p>
       {feed.journeys.length === 0 ? (
