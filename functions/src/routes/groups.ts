@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { and, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
-import { agents, permissionGroups } from '../db/schema';
+import { agents, permissionGroups, workspaces } from '../db/schema';
 import { getGroupMemberIds } from '../lib/participants';
 import { wrap } from '../lib/wrap';
 import { requireCapability, requireIdentity } from '../middleware/roles';
@@ -27,6 +27,14 @@ export const SYSTEM_GROUP_CAPABILITIES: Record<'public' | 'admin' | 'trader', Ca
 };
 
 async function ensureSystemGroups(workspaceId: string): Promise<void> {
+  // Only for a workspace that exists. This seeds rows for whatever string it
+  // is handed, and it is reached from a request path, so an id that names no
+  // workspace used to leave three orphan permission groups behind that nothing
+  // owns and nothing can reach. Found on 2026-09-01, when one diagnostic read
+  // addressed by slug wrote such a set into production.
+  const [ws] = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1);
+  if (!ws) return;
+
   const existing = await db
     .select({ type: permissionGroups.type })
     .from(permissionGroups)

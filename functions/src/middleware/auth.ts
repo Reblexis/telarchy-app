@@ -131,9 +131,14 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
   if (isMasterKey(apiKey)) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
     if (!requestedWorkspaceId) return next();
+    // Resolve the name before anything downstream treats it as an id. Every
+    // route keys rows off req.auth.workspaceId, and ensureSystemGroups builds
+    // a group set for whatever string it is handed, so an unresolved slug
+    // silently created orphan rows and reported an empty floor (2026-09-01).
+    const masterWorkspaceId = (await workspaceIdForName(requestedWorkspaceId)) ?? requestedWorkspaceId;
     req.auth = {
-      capabilities: await computeCapabilities({ workspaceId: requestedWorkspaceId, isMasterKey: true }),
-      workspaceId: requestedWorkspaceId,
+      capabilities: await computeCapabilities({ workspaceId: masterWorkspaceId, isMasterKey: true }),
+      workspaceId: masterWorkspaceId,
       isMasterKey: true,
     };
     return next();
@@ -220,9 +225,11 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   if (isMasterKey(apiKey)) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
     if (!requestedWorkspaceId) return res.status(400).json({ error: 'X-Workspace-Id header is required' });
+    // See the note on the optional path: resolve before it becomes an id.
+    const masterWorkspaceId = (await workspaceIdForName(requestedWorkspaceId)) ?? requestedWorkspaceId;
     req.auth = {
-      capabilities: await computeCapabilities({ workspaceId: requestedWorkspaceId, isMasterKey: true }),
-      workspaceId: requestedWorkspaceId,
+      capabilities: await computeCapabilities({ workspaceId: masterWorkspaceId, isMasterKey: true }),
+      workspaceId: masterWorkspaceId,
       isMasterKey: true,
     };
     return next();
