@@ -56,7 +56,7 @@ import {
   requireSelfOrAdmin,
   requireSelfOrOwner,
 } from '../middleware/roles';
-import { applyCredits, moveCredits, PLATFORM_SCOPE } from '../services/credits';
+import { applyCredits, moveCredits, moveCreditsInTx, PLATFORM_SCOPE } from '../services/credits';
 import { earnCredits } from '../services/earnRules';
 import { getAllMetrics } from '../services/metrics';
 import { getMarkets } from '../services/predictions';
@@ -953,9 +953,30 @@ agentsRouter.post(
   '/',
   requireScope('account:agents'),
   wrap(async (req, res) => {
-    const { agentId, nickname, bio, keyLabel, keyScopes, memberships, source } = req.body ?? {};
+    const { agentId, nickname, bio, keyLabel, keyScopes, memberships, source, initialCredits } = req.body ?? {};
     if (source !== undefined && !isValidSourceSlug(source)) {
       throw new AppError('source must match [a-z0-9-]{1,32}', 400);
+    }
+    /**
+     * Fund the bot at the moment of creating it, out of the creator's balance.
+     *
+     * Owner design (Viktor, 2026-09-01): "when creating a key for a bot the
+     * owner can define how many initial credits to give it at that point, so
+     * it is immediate, but if the agent registers by itself it shouldn't have
+     * any credits, to prevent farming." 94 owned bots had registered and none
+     * had ever traded, because creation and funding were two steps and the
+     * second one did not happen.
+     *
+     * Nothing is minted: this is a transfer out of the creator, below, so
+     * spawning bots costs the spawner exactly what the bots receive. That is
+     * what keeps the rule true that a bot's bankroll traces to a person's.
+     */
+    let initialGrant = 0;
+    if (initialCredits !== undefined && initialCredits !== null) {
+      if (typeof initialCredits !== 'number' || !Number.isFinite(initialCredits) || initialCredits < 0) {
+        throw new AppError('initialCredits must be a number of credits, zero or more', 400);
+      }
+      initialGrant = initialCredits;
     }
     const agentIdError = validateAgentId(agentId);
     if (agentIdError) {
@@ -1093,6 +1114,36 @@ agentsRouter.post(
           reason: 'signup_grant',
         });
       }
+      // The owner's own stake in the bot, moved here rather than in a second
+      // call the owner has to remember. In this transaction, so an owner who
+      // cannot afford it creates no bot at all: a half-made bot holding
+      // nothing, with its id taken, is worse than a refusal.
+      if (initialGrant > 0) {
+        // Whose balance pays: the calling participant, or for a browser caller
+        // the participant that IS that human (authUserId, unique per user).
+        let funder = req.auth!.agentId ?? null;
+        if (!funder && req.auth!.uid) {
+          const [self] = await tx.select({ id: agents.id }).from(agents).where(eq(agents.authUserId, req.auth!.uid));
+          funder = self?.id ?? null;
+        }
+        if (!funder) {
+          throw new AppError('Funding a new bot needs a participant to fund it from', 400);
+        }
+        const moved = await moveCreditsInTx(tx, {
+          fromId: funder,
+          toId: agentId,
+          amount: initialGrant,
+          memo: `initial bankroll for ${agentId}`,
+        });
+        if (!moved) {
+          throw new AppError(
+            `Insufficient balance to fund ${agentId} with ${initialGrant} credits. The credits come out of your own balance, which is what keeps a bot's bankroll traceable to a person's.`,
+            400,
+            undefined,
+            'insufficient_balance',
+          );
+        }
+      }
       await tx.insert(agentApiKeys).values({
         hash: keyHash,
         keyId,
@@ -1123,6 +1174,9 @@ agentsRouter.post(
     });
 
     res.status(201).json({
+      // What it was funded with, so the caller does not have to read the
+      // balance back to find out whether the transfer happened.
+      initialCredits: initialGrant,
       agentId,
       apiKey: rawKey,
       keyId,

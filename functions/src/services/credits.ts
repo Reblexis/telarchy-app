@@ -168,12 +168,30 @@ export async function moveCredits(params: {
   amount: number;
   memo?: string;
 }): Promise<{ transferId: string; createdAt: Date; fromBalanceUnits: number; toBalanceUnits: number } | null> {
+  return db.transaction(async tx => moveCreditsInTx(tx, params));
+}
+
+/**
+ * The same move, inside a transaction the caller already opened.
+ *
+ * Exists so funding a bot AT CREATION can be part of the same transaction as
+ * creating it: an owner who cannot afford the initial credits must end up with
+ * no bot at all, rather than a bot whose id is taken and whose balance is zero.
+ * One implementation, so there is still a single place where "somebody paid for
+ * this" is true.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function moveCreditsInTx(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tx: any,
+  params: { fromId: string; toId: string; amount: number; memo?: string },
+): Promise<{ transferId: string; createdAt: Date; fromBalanceUnits: number; toBalanceUnits: number } | null> {
   const { fromId, toId, amount, memo = '' } = params;
   const units = toUnits(amount);
   const transferId = randomUUID();
   const createdAt = new Date();
 
-  return db.transaction(async tx => {
+  {
     const debited = await applyCreditsIfSufficient(tx, {
       agentId: fromId,
       workspaceId: PLATFORM_SCOPE,
@@ -209,5 +227,5 @@ export async function moveCredits(params: {
       fromBalanceUnits: debited.balanceAfterUnits,
       toBalanceUnits: credited.balanceAfterUnits,
     };
-  });
+  }
 }
