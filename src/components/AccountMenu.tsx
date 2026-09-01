@@ -56,6 +56,10 @@ export function AccountMenu({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogTab, setDialogTab] = useState<'profile' | 'emails'>('profile');
   const [participant, setParticipant] = useState<Participant | null>(null);
+  // A floor of the caller's own, for the wallet chip to point at when they
+  // are not standing on one. Only asked for when there is no floor in
+  // context: on a floor the answer is already in hand.
+  const [mine, setMine] = useState<{ id: string; slug: string | null } | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const image = user?.image ?? null;
@@ -67,6 +71,22 @@ export function AccountMenu({
       .catch(e => console.error('participant fetch failed:', e));
   };
   useEffect(load, []);
+  // Only off a floor, and only once: the chip needs one floor of the
+  // caller's, not the list.
+  useEffect(() => {
+    if (floor) return;
+    let cancelled = false;
+    api
+      .listWorkspaces()
+      .then(ws => {
+        const first = Array.isArray(ws) ? (ws[0] as { id: string; slug: string | null } | undefined) : undefined;
+        if (!cancelled && first) setMine({ id: first.id, slug: first.slug ?? null });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [floor]);
   // The balance sits beside the avatar (owner ask 2026-08-11), so it must
   // not go stale after a bet: refresh on every open, plus a slow poll.
   useEffect(() => {
@@ -128,8 +148,16 @@ export function AccountMenu({
   const earnAvailable = useEarnAvailable(!!user);
   const wallet = participant?.liquidityBalance ?? 0;
   // A funding page belongs to a market. Standing on one, that is the market;
-  // anywhere else the operator door is where a floor of your own starts.
-  const fundingHref = floor ? `/${floor.idOrSlug}/funding` : '/manage';
+  // off a floor it is a floor of your own, because this money can only ever
+  // go behind a market and the click has to land somewhere it can be spent.
+  // It used to land on the operator door, which offered a setup conversation
+  // instead (owner, 2026-09-01: "whats even weirder is that the + at
+  // liquidity number leads to it"); that door is gone.
+  const fundingHref = floor
+    ? `/${floor.idOrSlug}/funding`
+    : mine
+      ? `/${mine.slug ?? `marketplace/${mine.id}`}/funding`
+      : '/';
 
   return (
     <div className="acctmenu" ref={rootRef}>

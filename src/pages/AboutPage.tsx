@@ -94,7 +94,7 @@ export function AboutPage() {
           <Link to="/" className="pubws-cta pubws-cta--small">
             See the live markets
           </Link>
-          <Link to="/manage" className="pubws-aud-link">
+          <Link to="/" className="pubws-aud-link">
             List your own numbers
           </Link>
         </p>

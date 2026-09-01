@@ -320,7 +320,7 @@ A: Yes, and so can anyone else's. Every participant is scored the same way.
 Q: Is my data public?
 A: Only the metrics you mark public. Everything else is per-metric permissioned.
 
-CTA: List your numbers (telarchy.com/manage)
+CTA: List your numbers (telarchy.com)
 
 ## /compare/futarchy-fi (Telarchy vs Futarchy.fi)
 
@@ -355,4 +355,4 @@ A: If it has an owner account that can define metrics and approve, yes. There is
 Q: Does the market decide, or do I?
 A: You do. The market gives you the number.
 
-CTA: List your numbers (telarchy.com/manage) · Open the app (telarchy.com)
+CTA: List your numbers (telarchy.com) · Open the app (telarchy.com)

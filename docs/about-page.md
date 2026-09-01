@@ -76,7 +76,8 @@ Rows (hairline list):
 - **Email**: support@telarchy.com
 - **Discord**: "Chat with the team and other traders", linking to the standing
   invite (the same one the market pages carry)
-- **List your own number**: "Join the owner waitlist", linking to /manage
+- **List your own number**: "Open your own market", linking to / (the home
+  page, where any signed-in visitor creates one)
 - **Building a bot?**: "Every endpoint is documented, no account needed to
   read", linking to /api/help (a URL the API serves, base-aware, opened in a
   new tab)

@@ -22,14 +22,16 @@ four things:
 - the "What is *name*?" blurb,
 - announcements, published and edited at `<floor>/announcements`.
 
-All four are gated on the `manage` capability. Everything else, creating a
-workspace, creating and editing metrics, permissions, visibility, liquidity
-settings, deleting, is an HTTP call. A **private** workspace has no browser page
-at all: the floor route answers 403, so its members work through the API only.
+All of those are gated on the `manage` capability, and so is creating the
+floor itself: any signed-in visitor opens one from the home page. Permissions,
+liquidity settings and deleting are still HTTP calls. A **private** workspace
+has no browser page at all: the floor route answers 403, so its members work
+through the API only.
 
-The other owner-side door is [Otto at /manage](/manage). He is a conversation,
-not a form, and he makes the same calls you would, as you. If you would rather
-answer questions than write JSON, start there.
+Otto is the other way to do the same work, and he is on the floor rather than
+behind a separate door. He is a conversation, not a form, and he makes the
+same calls you would, as you. If you would rather answer questions than write
+JSON, ask him there.
 
 `GET /api/help` is the live endpoint catalog, generated from the routes.
 

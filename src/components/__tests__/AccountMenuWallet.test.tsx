@@ -17,7 +17,10 @@ const getParticipant = vi.fn(async () => ({
   liquidityBalance: 128400,
   earnedBetting: 0,
 }));
-vi.mock('../../lib/api', () => ({ api: { getParticipant: () => getParticipant() } }));
+const listWorkspaces = vi.fn(async () => [] as Array<{ id: string; slug: string | null }>);
+vi.mock('../../lib/api', () => ({
+  api: { getParticipant: () => getParticipant(), listWorkspaces: () => listWorkspaces() },
+}));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'u' }, logout: () => {} }) }));
 vi.mock('../../hooks/useEarnAvailable', () => ({ useEarnAvailable: () => null }));
 
@@ -31,6 +34,8 @@ const menu = (props: Partial<Parameters<typeof AccountMenu>[0]> = {}) =>
   );
 
 beforeEach(() => {
+  listWorkspaces.mockReset();
+  listWorkspaces.mockResolvedValue([] as never);
   getParticipant.mockClear();
   getParticipant.mockResolvedValue({
     nickname: 'viktor36',
@@ -54,10 +59,28 @@ describe('the wallet chip', () => {
     expect(wallet.getAttribute('href')).toBe('/lookpilot/funding');
   });
 
-  test('and to the operator door when there is no market to fund', async () => {
+  // The operator door used to catch this click and offered a setup
+  // conversation, not a way to spend the money the chip is showing (owner,
+  // 2026-09-01: "whats even weirder is that the + at liquidity number leads
+  // to it"). /manage is gone; the click lands on a floor of your own.
+  test('off a floor, it leads to the funding page of a floor you own', async () => {
+    listWorkspaces.mockResolvedValue([{ id: 'ws-1', slug: 'northwind' }] as never);
     menu();
     const wallet = await screen.findByLabelText(/Liquidity wallet/);
-    expect(wallet.getAttribute('href')).toBe('/manage');
+    await waitFor(() => expect(wallet.getAttribute('href')).toBe('/northwind/funding'));
+  });
+
+  test('a floor with no slug is still reachable by id', async () => {
+    listWorkspaces.mockResolvedValue([{ id: 'ws-1', slug: null }] as never);
+    menu();
+    const wallet = await screen.findByLabelText(/Liquidity wallet/);
+    await waitFor(() => expect(wallet.getAttribute('href')).toBe('/marketplace/ws-1/funding'));
+  });
+
+  test('and to the home page when you own no floor to fund', async () => {
+    menu();
+    const wallet = await screen.findByLabelText(/Liquidity wallet/);
+    await waitFor(() => expect(wallet.getAttribute('href')).toBe('/'));
   });
 
   test('an empty wallet is nothing to carry around, unless you could fill it', async () => {

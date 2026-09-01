@@ -27,7 +27,6 @@ const AnnouncementsPage = lazyPage(() => import('./pages/AnnouncementsPage'), 'A
 const FundingPage = lazyPage(() => import('./pages/FundingPage'), 'FundingPage');
 const SeasonPage = lazyPage(() => import('./pages/SeasonPage'), 'SeasonPage');
 const EarnPage = lazyPage(() => import('./pages/EarnPage'), 'EarnPage');
-const ManagePage = lazyPage(() => import('./pages/ManagePage'), 'ManagePage');
 const ParticipantProfilePage = lazyPage(() => import('./pages/ParticipantProfilePage'), 'ParticipantProfilePage');
 const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
 const DataRoomPage = lazyPage(() => import('./pages/DataRoomPage'), 'DataRoomPage');
@@ -114,7 +113,12 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/waitlist" element={<WaitlistPage />} />
-        <Route path="/manage" element={<ManagePage />} />
+        {/* The operator door is retired (owner decision 2026-09-01:
+          "the management happens from the workspace itself directly now").
+          Creating a floor is a dialog on the home page and everything after
+          it is on the floor, so this route only catches links already
+          printed elsewhere. */}
+        <Route path="/manage" element={<Navigate to="/" replace />} />
 
         {/* The story and the door to a human (owner ask 2026-08-21). Copy is
             canonical in docs/about-page.md. */}

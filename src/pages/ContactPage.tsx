@@ -37,7 +37,7 @@ export function ContactPage() {
             </li>
             <li>
               <span className="pubws-contact-label">List your own number</span>
-              <Link to="/manage">Join the owner waitlist</Link>
+              <Link to="/">Open your own market</Link>
             </li>
             <li>
               <span className="pubws-contact-label">Building a bot?</span>

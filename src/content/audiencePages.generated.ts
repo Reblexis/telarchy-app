@@ -642,7 +642,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
     "cta": [
       {
         "label": "List your numbers",
-        "href": "/manage"
+        "href": "/"
       }
     ]
   },
@@ -739,7 +739,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
     "cta": [
       {
         "label": "List your numbers",
-        "href": "/manage"
+        "href": "/"
       },
       {
         "label": "Open the app",
