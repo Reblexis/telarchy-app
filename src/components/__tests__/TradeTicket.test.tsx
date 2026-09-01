@@ -559,6 +559,84 @@ describe('the payoff line', () => {
     expect(container.querySelector('.scale')).toBeNull();
   });
 
+  test('THE INTERIOR STOPS NEVER MOVE, WHATEVER THE STAKE', () => {
+    // They used to be spaced off the break-even, so every drag of the
+    // slider slid every label sideways (owner, 2026-09-01: "the numbers are
+    // kind of twitching when i move the slider"). They sit at fixed thirds
+    // now: an interior stop is either at its third or not drawn, and the
+    // only label that travels is the break-even, which really is moving.
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    for (const amount of ['5', '25', '60', '120', '200', '400', '1000']) {
+      fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: amount } });
+      const at = stops(container).map(s => s.at);
+      expect(at[0]).toBe(0);
+      expect(at[at.length - 1]).toBe(100);
+      const zeroAt = stops(container).find(s => s.credits === '0 cr')?.at;
+      for (const a of at.slice(1, -1)) {
+        const isThird = Math.abs(a - 33.33) < 0.02 || Math.abs(a - 66.67) < 0.02;
+        expect(isThird || a === zeroAt).toBe(true);
+      }
+    }
+  });
+
+  test('THE BREAK-EVEN STOP READS 0 CR, never -0 cr', () => {
+    // Its worth is zero by construction, but the float lands a hair either
+    // side of it, so the stop flickered between "0 cr" and "-0 cr" as the
+    // stake moved (owner, 2026-09-01).
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    for (let amount = 1; amount <= 60; amount += 1) {
+      fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: String(amount) } });
+      // A stake small enough can be worth under a credit at several stops,
+      // so several may legitimately read "0 cr"; none may read "-0 cr".
+      const all = Array.from(container.querySelectorAll('.scale-cr > span')).map(e => e.textContent ?? '');
+      expect(all.some(x => x.includes('-0 cr'))).toBe(false);
+    }
+  });
+
+  test('HOVERING THE LINE READS OUT THE EXACT PROFIT OR LOSS THERE', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const scale = container.querySelector('.scale') as HTMLElement;
+    scale.getBoundingClientRect = () => ({ left: 0, width: 400, top: 0, height: 40 }) as DOMRect;
+    fireEvent.pointerMove(scale, { clientX: 100 });
+    // A quarter along the range is $125,000; 25 cr bought 47.2 shares, so
+    // that settles at 47.2266 * 0.25 - 25 = -13 credits.
+    const cur = container.querySelector('.scale-cr .scale-cursor') as HTMLElement;
+    expect(cur.textContent).toBe('-13 cr');
+    expect(container.querySelector('.scale-val .scale-cursor')?.textContent).toBe('$125k');
+  });
+
+  test('the readout follows the pointer and the static stops stand down', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const scale = container.querySelector('.scale') as HTMLElement;
+    scale.getBoundingClientRect = () => ({ left: 0, width: 400, top: 0, height: 40 }) as DOMRect;
+    expect(container.querySelector('.scale.is-reading')).toBeNull();
+    fireEvent.pointerMove(scale, { clientX: 300 });
+    expect(container.querySelector('.scale.is-reading')).toBeTruthy();
+    expect(Number((container.querySelector('.scale-cr .scale-cursor') as HTMLElement).dataset.at)).toBeCloseTo(75, 5);
+    expect(container.querySelector('.scale-cr .scale-cursor')?.textContent).toBe('+10 cr');
+  });
+
+  test('leaving the line puts the readout away', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const scale = container.querySelector('.scale') as HTMLElement;
+    scale.getBoundingClientRect = () => ({ left: 0, width: 400, top: 0, height: 40 }) as DOMRect;
+    fireEvent.pointerMove(scale, { clientX: 100 });
+    fireEvent.pointerLeave(scale);
+    expect(container.querySelector('.scale-cursor')).toBeNull();
+  });
+
+  test('a line with no width on screen reads out nothing rather than dividing by it', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    fireEvent.pointerMove(container.querySelector('.scale') as HTMLElement, { clientX: 40 });
+    expect(container.querySelector('.scale-cursor')).toBeNull();
+  });
+
   test('a held position is priced the same way, at what it actually paid', () => {
     const { container } = render(
       <TradeTicket

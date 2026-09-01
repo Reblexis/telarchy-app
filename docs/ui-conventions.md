@@ -812,13 +812,28 @@ rather than a label to read, and it is also the stop that reads "0 cr".
 
 **Both ends of the range are always stops.** They carry the two numbers that
 decide whether a bet is worth making at all: the whole stake gone at one end
-and the most it can pay at the other. The break-even is always a stop too,
-and the interior stops fill whatever room is left between the three, evenly,
-only where a gap is wide enough for a label. What this replaced chose its
-stops at the quarters of the range and dropped any that came near the
-break-even; a bet breaking even at 86% of its range therefore lost the top
-stop, and every credit figure on the ticket read as a loss, never showing
-the bet could win anything (owner report, 2026-09-01).
+and the most it can pay at the other. The break-even is always a stop too.
+What this replaced chose its stops at the quarters of the range and dropped
+any that came near the break-even; a bet breaking even at 86% of its range
+therefore lost the top stop, and every credit figure on the ticket read as a
+loss, never showing the bet could win anything (owner report, 2026-09-01).
+
+**The interior stops sit at fixed thirds and never move.** An interior stop
+is either at its third or not drawn at all, dropped only when the break-even
+stands within a label's width of it, so the only label that ever travels is
+the break-even's, which really is moving. Spacing them off the break-even
+instead meant every drag of the stake slider slid every label sideways
+(owner, 2026-09-01: "the numbers are kind of twitching when i move the
+slider"). A figure that rounds to nothing reads `0 cr` and never `-0 cr`:
+the break-even's worth is zero by construction but the float lands a hair
+either side of it, and the stop flickered between the two.
+
+**Hovering the line reads out the exact figure under the pointer**, into the
+same two rows the stops use, so it adds no height. The standing labels give
+up the row entirely while it is there, rather than dimming: the cursor lands
+on one of them as often as not, and two labels in the same pixels read as
+neither. A line with no width on screen reads out nothing rather than
+dividing by it.
 
 A stop at either end pins to the card so no label hangs off it, and a stop
 near an edge leans away from that edge instead of straddling the pinned
