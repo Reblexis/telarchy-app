@@ -20,7 +20,7 @@ import { AppError } from '../lib/errors';
 import { classifyIps } from '../lib/ip-classify';
 import { getParticipantDisplayNames, listParticipantsForWorkspace } from '../lib/participants';
 import { isPlatformAuthorized } from '../lib/platform-admin';
-import { humanVisitFilter } from '../lib/visit-log';
+import { humanVisitFilter, sessionize } from '../lib/visit-log';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { ACTIVITY_TYPES, type ActivityType, getActivityFeed } from '../services/activity';
@@ -302,6 +302,88 @@ adminRouter.get(
     });
   }),
 );
+
+/**
+ * Visitor journeys (owner ask 2026-09-01): what one visitor did, in order.
+ *
+ * The counts on /floor-stats say a stranger showed up and never say what
+ * happened next, so this is the block that answers "where did they stop".
+ * It is derived from the visitor log already being written, which is why it
+ * covers ANONYMOUS visitors without a script on the page, a cookie, or the
+ * consent banner a recorded-DOM session replay would need
+ * (`notes/session-replay-2026-09-01.md` costs that version out).
+ *
+ * The sessionization rules live in lib/visit-log.ts beside the humanish
+ * filter, because a journey and the counts must not disagree about who
+ * counts as a visitor.
+ */
+adminRouter.get(
+  '/journeys',
+  wrap(async (req, res) => {
+    // Same gate as /floor-stats: this response carries visitor IPs and is
+    // platform-global, so workspace `manage` is not enough.
+    if (!(await isPlatformAuthorized(req))) {
+      throw new AppError('Platform admin or master key required', 403);
+    }
+
+    // The privacy policy's request-log window. Rows past it are deleted by
+    // the daily maintenance job; bounding the read as well means a late job
+    // can never surface a visit the policy says is gone.
+    const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000);
+
+    // Newest first with a bound, then sessionized in process: the rows are
+    // small and the whole point is the sequence, which SQL would have to
+    // rebuild with a window function that then has to agree with the unit
+    // tests. A cap that a month of real traffic reaches is itself the signal
+    // to move this into SQL.
+    const rows = await db
+      .select({
+        ts: pageVisits.ts,
+        path: pageVisits.path,
+        ip: pageVisits.ip,
+        userAgent: pageVisits.userAgent,
+        referer: pageVisits.referer,
+        country: pageVisits.country,
+      })
+      .from(pageVisits)
+      .where(and(gte(pageVisits.ts, monthAgo), humanVisitFilter()))
+      .orderBy(desc(pageVisits.ts))
+      .limit(20000);
+
+    const journeys = sessionize(rows);
+
+    // Where journeys END, which is the list to read before reading any single
+    // journey: the page most often last-seen is the page losing people.
+    const exitCounts = new Map<string, number>();
+    for (const j of journeys) exitCounts.set(j.exitPath, (exitCounts.get(j.exitPath) ?? 0) + 1);
+    const topExits = [...exitCounts.entries()]
+      .map(([path, count]) => ({ path, journeys: count }))
+      .sort((a, b) => b.journeys - a.journeys)
+      .slice(0, 12);
+
+    const bounced = journeys.filter(j => j.bounced).length;
+
+    res.json({
+      // Summary counts every journey in the window; the list below is capped
+      // for the page, so the two are deliberately different numbers.
+      summary: {
+        journeys: journeys.length,
+        bounced,
+        visitors: new Set(journeys.map(j => j.ip)).size,
+        medianSteps: median(journeys.map(j => j.steps.length)),
+      },
+      topExits,
+      journeys: journeys.slice(0, 300),
+    });
+  }),
+);
+
+function median(xs: number[]): number {
+  if (!xs.length) return 0;
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+}
 
 adminRouter.get(
   '/activity',

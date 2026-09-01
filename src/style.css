@@ -7619,6 +7619,42 @@ textarea.jobform-line--desc {
   letter-spacing: 0.05em;
 }
 
+/* A journey reads left to right the way the visit happened. It wraps rather
+   than scrolling: the whole chain has to be visible at once, because the
+   question is where it ENDED, and a chain cut off at the edge of the column
+   hides exactly that. */
+.adm-journey { padding: 0.6rem 0; }
+
+.adm-journey-path {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem;
+  width: 100%;
+}
+
+.adm-step {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.adm-arrow {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  padding-right: 0.1rem;
+}
+
+/* Time on the page, in the tertiary weight: it qualifies the step it follows
+   rather than competing with the path, and four seconds on the front page is
+   the thing worth spotting. */
+.adm-secs {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
 .adm-report { padding: 0.85rem 0; }
 .adm-report.is-done { opacity: 0.5; }
 

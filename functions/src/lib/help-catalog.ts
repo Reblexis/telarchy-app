@@ -1124,6 +1124,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'GET',
+      path: '/api/admin/journeys',
+      auth: 'admin',
+      description:
+        "What one visitor did, in order (platform admin). Reconstructs sittings from the same human-filtered visitor log floor-stats counts, so it covers anonymous visitors with no script, cookie or consent banner, and sees pages rather than clicks. A visitor is one address AND one user agent; 30 idle minutes ends a sitting; the referer reported is the FIRST hit's, the channel that delivered them. Returns { summary: { journeys, bounced, visitors, medianSteps }, topExits: [{ path, journeys }] (where sittings ENDED, the page losing people), journeys: [{ id, ip, userAgent, country, referer, startedAt, entryPath, exitPath, durationSeconds, bounced, steps: [{ path, ts, secondsOnPage }] }] } over the log's 30-day retention window, newest first, capped at 300 while the summary counts them all.",
+    },
+    {
+      method: 'GET',
       path: '/api/admin/participants',
       auth: 'admin',
       description:

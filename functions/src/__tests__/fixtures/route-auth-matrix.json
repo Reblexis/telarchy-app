@@ -129,6 +129,11 @@
     "agent": 403,
     "master": 200
   },
+  "GET /api/admin/journeys": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
   "GET /api/admin/markets/featured": {
     "anon": 401,
     "agent": 403,

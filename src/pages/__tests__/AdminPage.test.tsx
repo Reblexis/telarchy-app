@@ -14,6 +14,7 @@ vi.mock('../../lib/api', () => ({
     getFloorStats: vi.fn(),
     getFeedback: vi.fn(),
     getFloorQuestions: vi.fn(),
+    getJourneys: vi.fn(),
     // The earn table sits on this page too (2026-08-30). It has its own
     // spec; here it only has to not take the cockpit down with it, which
     // is exactly what an undefined method did.
@@ -119,6 +120,11 @@ beforeEach(() => {
   vi.mocked(api.getFeedback).mockResolvedValue({ items: reports } as never);
   vi.mocked(api.getFloorQuestions).mockResolvedValue(questions as never);
   vi.mocked(api.getAdminEarnTable).mockResolvedValue({ rules: [] } as never);
+  vi.mocked(api.getJourneys).mockResolvedValue({
+    summary: { journeys: 0, bounced: 0, visitors: 0, medianSteps: 0 },
+    topExits: [],
+    journeys: [],
+  } as never);
 });
 
 describe('/admin', () => {
