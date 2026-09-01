@@ -59,7 +59,12 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   await truncateAll();
-  await db.insert(workspaces).values({ id: WS, name: 'Bio Test', createdBy: 'owner', visibility: 'open' });
+  // 'public': the fixture wants a floor anyone can self-register into.
+  // It said 'open', which is not one of the three visibilities and only
+  // ever worked because the old gate asked "is this private?" instead of
+  // "is this public?". The column is unconstrained text, so an unknown
+  // value is now treated as restricted, which is the safe direction.
+  await db.insert(workspaces).values({ id: WS, name: 'Bio Test', createdBy: 'owner', visibility: 'public' });
 });
 
 describe('normalizeBio', () => {

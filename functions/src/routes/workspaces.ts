@@ -25,6 +25,7 @@ import {
 import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { assertNotInRunningSeason } from '../lib/market-freeze';
 import { getOwnerHandles, resolveOwnerSegment, resolveWorkspaceOwnerAgentId } from '../lib/participants';
+import { restrictedToMembers } from '../lib/public-read';
 import { uniqueSlugForOwner } from '../lib/slug';
 import { MIN_LIQUIDITY_CONTRIBUTION, parseVisibility } from '../lib/validation';
 import { wrap } from '../lib/wrap';
@@ -596,7 +597,11 @@ workspacesRouter.put(
       // next person added to that group silently gets trading rights the owner
       // believes they took away. The settings UI used to do this client-side with
       // a second call, which left every API-driven flip carrying the stale cap.
-      if (update.visibility === 'private' && ws.visibility !== 'private') {
+      // Flipping OFF public, to either restricted value, closes the floor,
+      // so trading rights granted while it was open must not survive
+      // (docs/guides/creating.md). Unlisted counts now that it grants a
+      // stranger nothing.
+      if (restrictedToMembers(update.visibility) && !restrictedToMembers(ws.visibility)) {
         const [publicGroup] = await tx
           .select()
           .from(permissionGroups)
@@ -803,7 +808,7 @@ workspacesRouter.post(
     }
     // Same rule as POST /marketplace/:workspaceId/join: visibility is the access
     // boundary, and a private workspace 404s so the UUID cannot be probed.
-    if (ws.visibility === 'private') {
+    if (restrictedToMembers(ws.visibility)) {
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }

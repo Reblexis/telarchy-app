@@ -1,11 +1,13 @@
 /**
  * HTTP-level tests for self-join visibility enforcement.
  *
- * Behavior (docs/agent-economy.md, "Workspace access"): visibility is the
- * access boundary, not knowledge of the workspace UUID. Public and unlisted
- * workspaces are self-joinable by any authenticated identity; private ones are
+ * Behavior (docs/guides/creating.md, "Visibility"): visibility is the access
+ * boundary, not knowledge of the workspace UUID. PUBLIC workspaces are
+ * self-joinable by any authenticated identity; unlisted and private ones are
  * not, and return 404 rather than 403 so the endpoint cannot be used to probe
- * for private workspace ids.
+ * for their ids. Unlisted joined that side on 2026-09-01: a floor is created
+ * unlisted, and its slug comes from its name, so "joinable by link" meant
+ * joinable by anyone who guessed a company name.
  *
  * Before this was enforced, both join handlers checked only that the workspace
  * existed, so a leaked or guessed UUID was enough to enter a private workspace
@@ -175,15 +177,21 @@ describe('self-join is gated on workspace visibility', () => {
     expect(group.memberIds as string[]).toContain(OUTSIDER);
   });
 
-  test('an unlisted workspace is self-joinable by link', async () => {
+  test('an unlisted workspace is NOT self-joinable, the same as a private one', async () => {
+    // Amended 2026-09-01: this expected 201. Unlisted answered a stranger,
+    // and a floor is CREATED unlisted, so a founder's floor was joinable by
+    // anyone who guessed the slug taken from its name. Unlisted now grants a
+    // stranger exactly what private does, which is nothing
+    // (docs/guides/creating.md; owner decision "unlisted should be same as
+    // private ... private but obviously visible to the owner").
     await seedAgents();
     await seedWorkspace('ws-unlisted', 'unlisted');
 
     const res = await joinViaMarketplace('ws-unlisted', OUTSIDER);
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(404);
     const group = await publicGroupOf('ws-unlisted');
-    expect(group.memberIds as string[]).toContain(OUTSIDER);
+    expect(group.memberIds as string[]).not.toContain(OUTSIDER);
   });
 
   test('joining twice is idempotent and reports alreadyMember', async () => {
