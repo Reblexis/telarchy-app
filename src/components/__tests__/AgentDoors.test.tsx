@@ -175,3 +175,46 @@ describe('the flow', () => {
     expect(await screen.findByText(/Cannot grant scopes broader/)).toBeTruthy();
   });
 });
+
+/**
+ * The third way to participate, advertised where it is relevant and nowhere else.
+ *
+ * Otto trades for you; your own AI trades for you on a key; and you can write a
+ * program that trades on its own. The panel offered the first two and was
+ * silent about the third, so nothing in the app told a trader that building one
+ * was a thing they could do (2026-09-01).
+ *
+ * It goes in the note rather than as a third row, deliberately. The floor
+ * page's job is the market and every extra door on it is weight (owner
+ * direction 2026-08-20), and this panel renders in three places including
+ * inside the Otto dock, so a row costs height everywhere. The note already
+ * changes with state, and "you are holding a key" is the one state where
+ * "or write your own" is useful rather than noise.
+ */
+describe('the door to writing your own agent', () => {
+  test('THE STATE: it appears once you are holding a key, where writing one is a real option', async () => {
+    render(
+      <AgentDoors floor={FLOOR} workspaceId="ws-1" state={STATE} canManage={false} signedIn onAskOtto={() => {}} />,
+    );
+    fireEvent.click(screen.getByText(/from your own AI/i));
+    fireEvent.click(screen.getByText('Only this market'));
+    expect(await screen.findByText(/reference agent/i)).toBeInTheDocument();
+  });
+
+  test('and not before, because a visitor with no key cannot act on it', async () => {
+    render(
+      <AgentDoors floor={FLOOR} workspaceId="ws-1" state={STATE} canManage={false} signedIn onAskOtto={() => {}} />,
+    );
+    expect(screen.queryByText(/reference agent/i)).not.toBeInTheDocument();
+  });
+
+  test('it names where to get it, so it is actionable rather than an advert', async () => {
+    render(
+      <AgentDoors floor={FLOOR} workspaceId="ws-1" state={STATE} canManage={false} signedIn onAskOtto={() => {}} />,
+    );
+    fireEvent.click(screen.getByText(/from your own AI/i));
+    fireEvent.click(screen.getByText('Only this market'));
+    const link = await screen.findByRole('link', { name: /reference agent/i });
+    expect(link).toHaveAttribute('href', expect.stringContaining('telarchy-reference-agent'));
+  });
+});
