@@ -239,7 +239,17 @@ export function TradePage() {
     if (!idOrSlug) return;
     api
       .getMarketplaceWorkspace(idOrSlug)
-      .then(setWs)
+      .then(w => {
+        setWs(w);
+        // The optimistic price covers the gap between a trade landing and the
+        // payload that includes it; once a payload is here, the server's
+        // number is the answer. Nothing used to clear it, so after your own
+        // trade the headline, both side ceilings and your position's "Worth
+        // now" all froze at the price YOUR trade landed at, for as long as
+        // you stayed on the market, while the chart and the pool beside them
+        // moved (bug hunt 2026-08-31).
+        setLivePrice(null);
+      })
       .catch(e => {
         console.error('trade page fetch failed:', e);
         // A missing slug is usually a bookmark from the deleted console
@@ -859,8 +869,14 @@ export function TradePage() {
   /* What each side has on the table: the verbs quote it in the same words
      as the ticket's pills, from the same function, so the two untouched
      states of a market cannot drift apart. */
-  const higherCeiling = active ? maxWinLabel(livePriceProb ?? active.probability, active.liquidity) : null;
-  const lowerCeiling = active ? maxWinLabel(1 - (livePriceProb ?? active.probability), active.liquidity) : null;
+  // ONE probability for every surface that prices this market: the ticket,
+  // the ceilings and the position card all used to derive it separately, so
+  // the ticket could say a position was worth one thing and the card
+  // directly under it another (AGENTS.md: two surfaces that show the same
+  // fact must derive it from the same place).
+  const shownProbability = active ? (livePriceProb ?? active.probability) : 0;
+  const higherCeiling = active ? maxWinLabel(shownProbability, active.liquidity) : null;
+  const lowerCeiling = active ? maxWinLabel(1 - shownProbability, active.liquidity) : null;
   const consensus =
     (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null) ?? active?.consensus ?? null;
   // The headline number rolls to its new value (trade, branch switch, job
@@ -1872,7 +1888,7 @@ export function TradePage() {
               {betModal && active && !selectedJobDecided && (
                 <div className="pubws-ticket-inline" key={betModal}>
                   <TradeTicket
-                    probability={active.probability}
+                    probability={shownProbability}
                     liquidity={active.liquidity}
                     /* The ticket ALWAYS gets the held position, in both
                      modes: it is what the "New value" preview nets against
@@ -1911,7 +1927,7 @@ export function TradePage() {
                 <PositionSummary
                   positions={positions}
                   orders={orders.length}
-                  probability={livePriceProb ?? active.probability}
+                  probability={shownProbability}
                   liquidity={active.liquidity}
                   onManage={() => setBetModal('manage')}
                 />
