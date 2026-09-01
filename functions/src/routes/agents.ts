@@ -531,10 +531,39 @@ agentsRouter.get(
       { at: new Date().toISOString(), balance: fromUnits(agent.balance as number) },
     ];
 
+    // Profile picture: the participant's own account image (owner ask
+    // 2026-08-11: profiles should look like profiles).
+    const image = agent.authUserId
+      ? ((
+          await db.select({ image: authUser.image }).from(authUser).where(eq(authUser.id, agent.authUserId)).limit(1)
+        )[0]?.image ?? null)
+      : null;
+
+    // Manifold handle, if this participant linked a record: shown as a
+    // small badge on the profile (owner ask 2026-08-11). Two key shapes,
+    // because the route that wrote the second one was deleted on
+    // 2026-09-01 and migration 0100 rewrites its rows: the legacy read is
+    // the belt to that migration's braces, not a second source of truth.
+    const manifoldRow = await db
+      .select({ key: systemConfig.key, value: systemConfig.value })
+      .from(systemConfig)
+      .where(inArray(systemConfig.key, [`record-handle:manifold:${agent.id}`, `manifold-claimed:agent:${agent.id}`]));
+    const byKey = new Map(manifoldRow.map(r => [r.key, r.value as { handle?: string; username?: string }]));
+    const manifoldUsername =
+      byKey.get(`record-handle:manifold:${agent.id}`)?.handle ??
+      byKey.get(`manifold-claimed:agent:${agent.id}`)?.username ??
+      null;
+
     if (publicWsIds.length === 0 && viewerWsIds.size === 0) {
+      // Who the participant IS does not depend on which floors the viewer
+      // can see, so this answer carries the same identity fields as the
+      // full one. It used to drop the picture and the badge, so a linked
+      // participant whose floors were all private showed neither.
       res.json({
         id: agent.id,
         nickname: agent.nickname,
+        image,
+        manifoldUsername,
         intent: agent.intent,
         bio: agent.bio,
         joinedAt: agent.createdAt,
@@ -884,23 +913,6 @@ agentsRouter.get(
         cumulativePnl += e.delta;
         return { at: e.at.toISOString(), cumulative: Math.round(cumulativePnl * 100) / 100 };
       });
-
-    // Profile picture: the participant's own account image (owner ask
-    // 2026-08-11: profiles should look like profiles).
-    const image = agent.authUserId
-      ? ((
-          await db.select({ image: authUser.image }).from(authUser).where(eq(authUser.id, agent.authUserId)).limit(1)
-        )[0]?.image ?? null)
-      : null;
-
-    // Manifold handle, if this participant imported a record: shown as a
-    // small badge on the profile (owner ask 2026-08-11).
-    const manifoldRow = await db
-      .select({ value: systemConfig.value })
-      .from(systemConfig)
-      .where(eq(systemConfig.key, `manifold-claimed:agent:${agent.id}`))
-      .limit(1);
-    const manifoldUsername = (manifoldRow[0]?.value as { username?: string } | undefined)?.username ?? null;
 
     // Proposed jobs this participant put on public boards, newest first
     // (owner ask 2026-08-11). Only public-visibility workspaces, so nothing

@@ -1371,15 +1371,6 @@ export const api = {
     return res.text();
   },
 
-  /** Begin a Manifold import: the server returns a one-time code to post on
-   *  the Manifold profile, which claim then verifies. */
-  startManifoldImport: (username: string): Promise<{ code: string; username: string }> =>
-    request('/api/import/manifold/start', { method: 'POST', body: JSON.stringify({ username }) }),
-
-  /** Finish a Manifold import once the code is on the profile. */
-  claimManifoldImport: (): Promise<{ username: string; granted: number }> =>
-    request('/api/import/manifold/claim', { method: 'POST' }),
-
   /** Name the account to link on any record provider, and get the
    *  one-time code that proves it (docs/record-links.md). */
   startRecordLink: (provider: string, handle: string): Promise<{ code: string; handle: string; proofField: string }> =>

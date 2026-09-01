@@ -171,20 +171,29 @@ async function decorate(agentIds: string[]) {
     .where(inArray(agents.id, agentIds));
   const uidByAgent = new Map(agentRows.map(r => [r.id, r.authUserId]));
 
+  // Two key shapes for the same badge: `record-handle:manifold:` is what
+  // the record-link router writes, `manifold-claimed:agent:` is what the
+  // route deleted on 2026-09-01 wrote and migration 0100 rewrites. The
+  // legacy read is the belt to that migration's braces; the new shape wins
+  // where a participant somehow has both.
   const manifoldRows = await db
     .select({ key: systemConfig.key, value: systemConfig.value })
     .from(systemConfig)
     .where(
-      inArray(
-        systemConfig.key,
-        agentIds.map(id => `manifold-claimed:agent:${id}`),
-      ),
+      inArray(systemConfig.key, [
+        ...agentIds.map(id => `record-handle:manifold:${id}`),
+        ...agentIds.map(id => `manifold-claimed:agent:${id}`),
+      ]),
     );
   const manifoldNameByAgent = new Map<string, string>();
   for (const r of manifoldRows) {
-    const agentId = r.key.replace('manifold-claimed:agent:', '');
-    const v = r.value as { username?: string } | undefined;
-    if (v?.username) manifoldNameByAgent.set(agentId, v.username);
+    const legacy = r.key.startsWith('manifold-claimed:agent:');
+    const agentId = legacy
+      ? r.key.replace('manifold-claimed:agent:', '')
+      : r.key.replace('record-handle:manifold:', '');
+    const v = r.value as { username?: string; handle?: string } | undefined;
+    const name = legacy ? v?.username : v?.handle;
+    if (name && !(legacy && manifoldNameByAgent.has(agentId))) manifoldNameByAgent.set(agentId, name);
   }
 
   const uids = agentRows.map(r => r.authUserId).filter((u): u is string => !!u);

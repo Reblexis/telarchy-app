@@ -498,8 +498,8 @@ export function AccountDialog({
     clearErr('manifold');
     setManifoldMsg('');
     try {
-      const d = await api.startManifoldImport(manifoldName);
-      setManifold({ code: d.code, username: d.username });
+      const d = await api.startRecordLink('manifold', manifoldName);
+      setManifold({ code: d.code, username: d.handle });
     } catch (e) {
       sectionErr('manifold', (e as Error).message);
     } finally {
@@ -512,8 +512,8 @@ export function AccountDialog({
     clearErr('manifold');
     setManifoldMsg('');
     try {
-      const d = await api.claimManifoldImport();
-      setManifoldMsg(`Imported @${d.username}: +${d.granted.toLocaleString('en-US')} cr`);
+      const d = await api.claimRecordLink('manifold');
+      setManifoldMsg(`Imported @${d.handle}: +${d.granted.toLocaleString('en-US')} cr`);
       setManifold(null);
       api
         .getParticipant()
