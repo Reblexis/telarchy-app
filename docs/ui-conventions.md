@@ -1636,6 +1636,17 @@ preferences because the owner reads a conclusion off them:
 - **Only humanish rows take part**, by `humanVisitFilter()`, the same rule
   the counts and the public data room use. A crawler walking forty pages
   would otherwise be the most interesting journey on the page.
+- **A step is a PAGE, and a page is a path with no file extension.** The log
+  catches every request that falls through to the app, so a missing
+  `/favicon.ico`, an `/assets/*.js` chunk and a scanner's `/lala.php` all sit
+  in it beside real page loads. Reading them as steps made `/favicon.ico` the
+  second most common place a visitor "stopped", which is the exact question
+  this block exists to answer, so it may not be wrong. The rule is the
+  extension rather than a list of known pages precisely because a page added
+  next year has no extension and is therefore included without anyone
+  remembering to add it, while a new asset type is excluded the same way.
+  `/__/` infrastructure paths and the operator's own paths are not pages
+  either, by the rule that already keeps the cockpit out of its own numbers.
 
 A journey shows its entry path, its exit path, the steps in between with the
 seconds between them, and its duration. A single-hit journey is a bounce and

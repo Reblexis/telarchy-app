@@ -162,4 +162,30 @@ describe('GET /api/admin/journeys', () => {
     expect(exits['/join']).toBe(2);
     expect(exits['/']).toBe(1);
   });
+
+  it('does not report an asset as the place a visitor stopped', async () => {
+    // The shape that broke it against real traffic: everybody's browser asks
+    // for the icon after the page, so the icon became the top exit.
+    await logVisit({ path: '/', minutesAgo: 20, ip: '1.1.1.1' });
+    await logVisit({ path: '/favicon.ico', minutesAgo: 19, ip: '1.1.1.1' });
+    await logVisit({ path: '/telarchy', minutesAgo: 10, ip: '2.2.2.2' });
+    await logVisit({ path: '/favicon.ico', minutesAgo: 9, ip: '2.2.2.2' });
+
+    const res = await asOwner().expect(200);
+    // Both exits have one journey, so their order between themselves is a
+    // tie; what this pins is that neither of them is the icon.
+    expect(res.body.topExits.map((e: any) => e.path).sort()).toEqual(['/', '/telarchy']);
+    for (const j of res.body.journeys) {
+      expect(j.steps.map((s: any) => s.path)).not.toContain('/favicon.ico');
+    }
+  });
+
+  it('does not count an assets-only visitor as a journey', async () => {
+    await logVisit({ path: '/favicon.ico', minutesAgo: 10, ip: '6.6.6.6' });
+    await logVisit({ path: '/assets/app-a1b2c3.js', minutesAgo: 9, ip: '6.6.6.6' });
+
+    const res = await asOwner().expect(200);
+    expect(res.body.journeys).toEqual([]);
+    expect(res.body.summary.journeys).toBe(0);
+  });
 });
