@@ -5150,6 +5150,17 @@ question is which channel delivered them.</li>
 <li><strong>Only humanish rows take part</strong>, by <code>humanVisitFilter()</code>, the same rule
 the counts and the public data room use. A crawler walking forty pages
 would otherwise be the most interesting journey on the page.</li>
+<li><strong>A step is a PAGE, and a page is a path with no file extension.</strong> The log
+catches every request that falls through to the app, so a missing
+<code>/favicon.ico</code>, an <code>/assets/*.js</code> chunk and a scanner's <code>/lala.php</code> all sit
+in it beside real page loads. Reading them as steps made <code>/favicon.ico</code> the
+second most common place a visitor &quot;stopped&quot;, which is the exact question
+this block exists to answer, so it may not be wrong. The rule is the
+extension rather than a list of known pages precisely because a page added
+next year has no extension and is therefore included without anyone
+remembering to add it, while a new asset type is excluded the same way.
+<code>/__/</code> infrastructure paths and the operator's own paths are not pages
+either, by the rule that already keeps the cockpit out of its own numbers.</li>
 </ul>
 <p>A journey shows its entry path, its exit path, the steps in between with the
 seconds between them, and its duration. A single-hit journey is a bounce and

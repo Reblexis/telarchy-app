@@ -37,6 +37,38 @@ export function humanVisitFilter() {
   );
 }
 
+/**
+ * Whether a logged path is a PAGE somebody looked at.
+ *
+ * The log is written from the app's catch-all route, so everything that is
+ * not a matched static file lands in it: a missing `/favicon.ico`, an
+ * `/assets/*.js` chunk the browser asked for, a scanner's `/lala.php`. Those
+ * are requests, not visits, and reading them as steps made `/favicon.ico` the
+ * second most common place a visitor "stopped" when this ran against real
+ * traffic on 2026-09-01.
+ *
+ * THE RULE IS THE EXTENSION, NOT A LIST OF KNOWN PAGES, and that is the whole
+ * design: a page added next year has no extension, so it becomes a journey
+ * step without anybody remembering to register it, while a new asset type is
+ * excluded by the same sentence. A list of routes would have to be edited
+ * every time the site grows, and the day it was not edited it would silently
+ * report zero for the newest page.
+ *
+ * Filtering happens on READ, here, and not at log time: the counts and the
+ * public data room publish totals derived from those same rows, and moving
+ * what they count is a separate decision from what a journey is made of.
+ */
+export function isPageLoad(path: string): boolean {
+  if (!shouldLogVisit(path)) return false; // the operator's own pages
+  if (path.startsWith('/__/')) return false; // hosting infrastructure
+  const last = path.split('/').pop() ?? '';
+  const dot = last.lastIndexOf('.');
+  if (dot <= 0) return true;
+  // `.html` is a document; everything else with an extension is an asset or
+  // a probe for one.
+  return /^\.html?$/i.test(last.slice(dot));
+}
+
 /** One row of the visitor log, as much of it as a journey needs. */
 export interface VisitRow {
   ts: Date;
@@ -103,6 +135,7 @@ export function sessionize(rows: VisitRow[]): Journey[] {
   const byVisitor = new Map<string, VisitRow[]>();
   for (const row of rows) {
     if (!row.ip) continue;
+    if (!isPageLoad(row.path)) continue;
     const key = `${row.ip}\n${row.userAgent ?? ''}`;
     const bucket = byVisitor.get(key);
     if (bucket) bucket.push(row);
