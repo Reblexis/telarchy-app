@@ -9206,3 +9206,17 @@ textarea.jobform-line--desc {
   line-height: 1;
 }
 .acctmenu-wallet:hover .acctmenu-plus { border-color: var(--text-primary); }
+
+/* What is still open on this floor: hairline rows in the owner's prose zone,
+   present only while something IS open (docs/owner-on-the-floor.md). */
+.flchk { margin-top: 2.5rem; }
+.flchk-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--border-color);
+}
+.flchk-row:last-child { border-bottom: 1px solid var(--border-color); }
+.flchk-label { font-size: 0.9rem; font-weight: 600; }
+.flchk-note { font-size: 0.85rem; line-height: 1.5; color: var(--text-tertiary); }

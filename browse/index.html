@@ -242,10 +242,11 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><a href="#docs-owner-on-the-floor-md--h1">The owner works on the floor</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h2">Creating a floor</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h3">The v1 controls: four dialogs</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h4">What already lived on the floor</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h5">Machinery, and the trap v1 refuses to ship</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h6">Handing it to your own agent</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h7">What is deliberately not here</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h4">What is still open, on the floor itself</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h5">What already lived on the floor</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h6">Machinery, and the trap v1 refuses to ship</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h7">Handing it to your own agent</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h8">What is deliberately not here</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-record-links-md">docs/record-links.md</a></summary>
@@ -2874,12 +2875,27 @@ only into this floor's pools, never into a tradeable balance, what a market
 does not pay out returns to the wallet, and buying is not entry into the
 prize season (which the operator is ineligible for either way). Placing the
 credits stays on the floor, beside the price each pool moves.</p>
-<h2 id="docs-owner-on-the-floor-md--h4">What already lived on the floor</h2>
+<h2 id="docs-owner-on-the-floor-md--h4">What is still open, on the floor itself</h2>
+<p>An owner who comes back tomorrow sees what their floor has not settled yet,
+in the same words <code>GET /api/setup/checklist</code> gives an agent: the decisions
+that are still open, each with the one line the database says about it right
+now (&quot;Nothing has updated the number since it was created&quot;, &quot;Auto-funding 0.5
+credits per market, which is too thin to price anything&quot;). The checklist was
+computed from the first day it existed and rendered nowhere but inside the
+setup conversation, so an owner who closed that tab never saw it again
+(review, <code>notes/self-serve-owner-review-2026-09-01.md</code>).</p>
+<p>It shows only to a caller with <code>manage</code>, only what is OPEN, and it disappears
+when nothing is: a floor that has settled every decision does not need a
+panel saying so, and a checklist that is always on screen stops being read.
+The count of what is decided rides in the head, so progress is visible
+without listing what is done. Nothing here is a control; each line says what
+the floor lacks, and the controls for it are already on the page.</p>
+<h2 id="docs-owner-on-the-floor-md--h5">What already lived on the floor</h2>
 <p>The definition edit (words free, every change recorded in
 <code>metric_definition_revisions</code>, though nothing renders those rows to a trader
 yet, <code>docs/market-integrity.md</code>) and the contract
 decisions (approve, decline, edit) predate this doc and stay as they are.</p>
-<h2 id="docs-owner-on-the-floor-md--h5">Machinery, and the trap v1 refuses to ship</h2>
+<h2 id="docs-owner-on-the-floor-md--h6">Machinery, and the trap v1 refuses to ship</h2>
 <p>A metric created from two fields gets a default range, and the range is what
 its markets price inside. <code>docs/market-integrity.md</code> governs: machinery is
 refused with a 409 while anyone has money in a market, but while every open
@@ -2887,7 +2903,7 @@ market on the metric is untraded, a machinery edit voids them (pools refund
 to their funders) and respawns them at the new machinery. So the two-field
 metric is not a trap: the owner, or Otto, corrects the range any time before
 the first trade, and nobody's money ever moves under a changed rule.</p>
-<h2 id="docs-owner-on-the-floor-md--h6">Handing it to your own agent</h2>
+<h2 id="docs-owner-on-the-floor-md--h7">Handing it to your own agent</h2>
 <p>Everything the four dialogs do is an API call, so the person who would rather
 type at their own coding agent can, and the market says so where they are
 standing. It says it as a pair of rows, because it is one offer made to two
@@ -2962,7 +2978,7 @@ screenshots.</p>
 <p>Otto carries the same handoff. Every Otto conversation has the second row at
 its foot, and the operator door offers the key beside the prompt Otto has
 been writing (owner direction 2026-08-23, <code>services/setup-handoff.ts</code>).</p>
-<h2 id="docs-owner-on-the-floor-md--h7">What is deliberately not here</h2>
+<h2 id="docs-owner-on-the-floor-md--h8">What is deliberately not here</h2>
 <ul>
 <li><strong>Closing a market</strong> is not a floor control: it voids other people's
 positions, which does not belong one click from a button that buys
