@@ -514,7 +514,11 @@ export function AccountDialog({
     setManifoldMsg('');
     try {
       const d = await api.claimRecordLink('manifold');
-      setManifoldMsg(`Imported @${d.handle}: +${d.granted.toLocaleString('en-US')} cr`);
+      setManifoldMsg(
+        d.granted > 0
+          ? `Imported @${d.handle}: +${d.granted.toLocaleString('en-US')} cr`
+          : `Linked @${d.handle}. It earns nothing: ${d.why ?? 'this record does not qualify for the grant.'}`,
+      );
       setManifold(null);
       api
         .getParticipant()

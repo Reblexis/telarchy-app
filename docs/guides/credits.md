@@ -20,7 +20,7 @@ rather than trusting a number written in a guide. Every change is recorded.
 | Create an account | The signup grant |
 | Connect a Google or GitHub account | A further grant, once per account. An aged OAuth account is harder to fake than an email address, so it is priced apart |
 | Trade on a new day | A daily grant, paid for trading rather than for arriving. Accounts only, not bots |
-| Link an established Manifold account | A flat grant for a record you already built |
+| Link an established Manifold account | A flat grant for a record you already built. Linking itself is free and open to any account; this is what the grant needs |
 | Register a participant through the API | Nothing, ever. A bot is funded by its owner |
 | A transfer from another participant | Whatever they send |
 
@@ -54,33 +54,48 @@ your own balance, exactly like a transfer.
 
 ## Bringing a Manifold record across
 
-If you already forecast on Manifold, an established record there is worth
-credits here, once per Manifold account and once per Telarchy account, ever.
+If you already forecast on Manifold, link the account. Two separate things
+follow from that, and it is worth keeping them apart.
 
-The grant is flat: one amount for any qualifying account, priced in the earn
-table like every other route. It is not scaled by your mana and not capped by
-it. What the import pays for is the account, not the balance, because mana
-moves freely between Manifold accounts and net worth is the one signal a farmer
-can concentrate into a fresh handle.
+**The badge is free and open to anyone.** Prove you hold the account and your
+handle shows on your profile and on the leaderboard, so people can see who is
+who. A brand-new account, a dormant one and a bot-flagged one can all be
+linked. Nothing about your record has to be impressive.
 
-Three conditions decide whether an account qualifies, all checked when you
-claim. Failing any of them is a 400 that names the one you failed.
+**The grant is not.** An established record is worth credits here, once per
+Manifold account and once per Telarchy account, ever. Three conditions decide
+whether an account earns it, all checked when you verify:
 
 - The account is at least 90 days old.
 - It is not flagged as a bot.
 - It has either placed a bet in the last 60 days, or created markets other
   people have traded.
 
+Failing any of them does not stop you linking. You are linked, the reply says
+`granted: 0` and names the condition you missed, and if the account later
+qualifies you can verify again and be paid then.
+
+The grant is flat: one amount for any qualifying account, priced in the earn
+table like every other route. It is not scaled by your mana and not capped by
+it. What it pays for is the account, not the balance, because mana moves
+freely between Manifold accounts and net worth is the one signal a farmer can
+concentrate into a fresh handle.
+
 1. `POST /api/import/manifold/start` with your Manifold username. You get a
    one-time code that looks like `telarchy-3f9a1c22`.
 2. Put that code anywhere in your Manifold bio.
 3. `POST /api/import/manifold/claim`. Telarchy reads your bio through
-   Manifold's public API, checks the code and the three conditions, then grants
-   what the earn table says the link is worth.
+   Manifold's public API, confirms the code, links you, and then pays the earn
+   table price if the three conditions hold.
 
 You can remove the code from your bio immediately afterwards. Nothing moves:
-your mana stays on Manifold. Your Manifold handle then shows as a badge on your
-profile and on the leaderboard.
+your mana stays on Manifold.
+
+**Changing which account you are linked to** is just linking again, whether or
+not the first one paid. The badge follows the new handle. What does not
+change is the money: once you have been paid for a Manifold record you are
+not paid for another one, from that account or any other. A handle somebody
+else is currently wearing cannot be taken while they hold it.
 
 ## What a credit is worth
 

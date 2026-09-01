@@ -221,24 +221,30 @@ describe('claiming', () => {
 describe('the two uniqueness rules', () => {
   test('ONE EXTERNAL ACCOUNT CANNOT FUND TWO TELARCHY ACCOUNTS', async () => {
     // The rule the whole design leans on. Without it one aged Polymarket
-    // wallet is an unlimited credit printer across fresh accounts.
+    // wallet is an unlimited credit printer across fresh accounts. The
+    // second participant cannot even take the badge while the first holds
+    // it, and would be paid nothing if they could.
     expect((await link('agent-a')).status).toBe(200);
-    const second = await as('agent-b').start('crypto-basenji');
+    const second = await link('agent-b');
     expect(second.status).toBe(409);
     expect(await balanceOf('agent-b')).toBeCloseTo(1000, 5);
   });
 
-  test('ONE PARTICIPANT CANNOT LINK THE SAME PROVIDER TWICE', async () => {
+  test('ONE PARTICIPANT CANNOT BE PAID FOR THE SAME PROVIDER TWICE', async () => {
+    // Relinking is free and always allowed; a second payment is not
+    // (owner, 2026-09-01: "they just cant extract from that account
+    // again.. or from any other").
     expect((await link('agent-a')).status).toBe(200);
-    const again = await as('agent-a').start('crypto-basenji');
-    expect(again.status).toBe(409);
+    const again = await link('agent-a');
+    expect(again.status).toBe(200);
+    expect(again.body.granted).toBe(0);
     expect(await balanceOf('agent-a')).toBeCloseTo(6000, 5);
   });
 
   test('a replayed claim after a successful link grants nothing more', async () => {
     await link('agent-a');
     const replay = await as('agent-a').claim();
-    expect(replay.status).not.toBe(200);
+    expect(replay.body.granted ?? 0).toBe(0);
     expect(await balanceOf('agent-a')).toBeCloseTo(6000, 5);
   });
 
@@ -254,21 +260,21 @@ describe('the two uniqueness rules', () => {
 
 describe('what qualifies', () => {
   test('A FRESH ACCOUNT EARNS NOTHING, and is told how old it is', async () => {
+    // It still LINKS: the gates decide money, never identity (owner ask
+    // 2026-09-01, docs/record-links.md). What they decide is the zero.
     pmCreatedAt = new Date(Date.now() - 10 * DAY).toISOString();
-    const started = await as('agent-a').start('crypto-basenji');
-    // Refused before a code is even issued: nobody should edit their bio
-    // for a record that could never have been paid.
-    expect(started.status).toBe(400);
-    expect(started.body.error).toMatch(/days old/);
-    expect(started.body.code).toBeUndefined();
+    const r = await link('agent-a');
+    expect(r.status).toBe(200);
+    expect(r.body.granted).toBe(0);
+    expect(r.body.why).toMatch(/days old/);
     expect(await balanceOf('agent-a')).toBeCloseTo(1000, 5);
   });
 
   test('AN AGED ACCOUNT THAT NEVER TRADED EARNS NOTHING', async () => {
     pmTraded = 0;
-    const started = await as('agent-a').start('crypto-basenji');
-    expect(started.status).toBe(400);
-    expect(started.body.error).toMatch(/traded/i);
+    const r = await link('agent-a');
+    expect(r.body.granted).toBe(0);
+    expect(r.body.why).toMatch(/traded/i);
     expect(await balanceOf('agent-a')).toBeCloseTo(1000, 5);
   });
 
@@ -277,7 +283,7 @@ describe('what qualifies', () => {
     pmBio = started.body.code;
     pmTraded = 1;
     const r = await as('agent-a').claim();
-    expect(r.status).toBe(400);
+    expect(r.body.granted).toBe(0);
     expect(await balanceOf('agent-a')).toBeCloseTo(1000, 5);
   });
 

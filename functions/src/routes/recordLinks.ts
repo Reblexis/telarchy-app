@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto';
 import { and, eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
-import { earnClaims, systemConfig } from '../db/schema';
+import { earnClaims, recordLinks, systemConfig } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { wrap } from '../lib/wrap';
 import { requireIdentity } from '../middleware/roles';
@@ -32,13 +32,18 @@ export const recordLinkRouter = Router();
 /** The pending proof, keyed per participant per provider. */
 const pendingKey = (provider: string, agentId: string) => `record-link:${provider}:${agentId}`;
 
-/** The linked handle, kept so a reader can be shown the badge
- *  (docs/record-links.md, "A linked handle is shown as a badge"). The
- *  earn claim records WHICH external account was paid, by its stable id,
- *  and an id is not a thing to show anybody; this is the display name
- *  that goes with it. Migration 0100 rewrote the Manifold rows the
- *  deleted route wrote into this shape. */
-const handleKey = (provider: string, agentId: string) => `record-handle:${provider}:${agentId}`;
+/** Whether this participant has already been PAID for this provider.
+ *  One payment per participant per provider, whatever they link
+ *  afterwards (owner, 2026-09-01: "they just cant extract from that
+ *  account again.. or from any other"). */
+async function alreadyPaid(agentId: string, provider: RecordProvider): Promise<boolean> {
+  const [row] = await db
+    .select({ id: earnClaims.id })
+    .from(earnClaims)
+    .where(and(eq(earnClaims.agentId, agentId), eq(earnClaims.key, provider.earnKey)))
+    .limit(1);
+  return !!row;
+}
 
 interface Pending {
   handle: string;
@@ -51,16 +56,6 @@ function providerOr404(key: string): RecordProvider {
   const p = recordProvider(key);
   if (!p) throw new AppError(`No record provider named "${key}"`, 404);
   return p;
-}
-
-/** Whether this participant has already been paid for this provider. */
-async function alreadyLinked(agentId: string, provider: RecordProvider): Promise<boolean> {
-  const [row] = await db
-    .select({ id: earnClaims.id })
-    .from(earnClaims)
-    .where(and(eq(earnClaims.agentId, agentId), eq(earnClaims.key, provider.earnKey)))
-    .limit(1);
-  return !!row;
 }
 
 /** Step 1: name the account, get the code that proves it is yours. */
@@ -78,20 +73,12 @@ recordLinkRouter.post(
       throw new AppError(`handle must be your ${provider.label} handle (letters, digits, _ . -)`, 400);
     }
 
-    if (await alreadyLinked(agentId, provider)) {
-      throw new AppError(`This account has already linked a ${provider.label} record`, 409);
-    }
-
+    // No gate here beyond "does this account exist". Linking is identity,
+    // not payment (docs/record-links.md): a record too new, too quiet or
+    // bot-flagged to be worth money is still worth showing on a profile,
+    // and the participant only finds out about the money at claim, where
+    // it is decided. Refusing here would be refusing the badge.
     const profile = await provider.lookup(handle);
-    if (await refAlreadyClaimed(provider.earnKey, profile.id)) {
-      throw new AppError(`The ${provider.label} account "${profile.handle}" has already been linked`, 409);
-    }
-
-    // Checked here as well as at claim, so nobody is sent to edit their
-    // bio for a record that could never have been paid. Claim checks it
-    // again because the answer can change in between.
-    const early = await provider.qualifies(profile, Date.now());
-    if (!early.ok) throw new AppError(early.why, 400);
 
     const code = `telarchy-${randomBytes(4).toString('hex')}`;
     const pending: Pending = { handle: profile.handle, externalId: profile.id, code, createdAt: Date.now() };
@@ -129,10 +116,6 @@ recordLinkRouter.post(
       throw new AppError(`Start the link first: POST /api/import/${provider.key}/start { handle }`, 400);
     }
 
-    if (await alreadyLinked(agentId, provider)) {
-      throw new AppError(`This account has already linked a ${provider.label} record`, 409);
-    }
-
     // Re-read the record now rather than trusting what /start saw: the
     // proof has to be present at this instant, and the gates have to be
     // true at this instant too.
@@ -147,28 +130,63 @@ recordLinkRouter.post(
       );
     }
 
-    const q = await provider.qualifies(profile, Date.now());
-    if (!q.ok) throw new AppError(q.why, 400);
+    // The proof held, so the link is made before any money is considered.
+    // Replacing an existing link is allowed however it was made, paid or
+    // not: nothing here is counted when a grant is decided, so relinking
+    // cannot manufacture a second one.
+    try {
+      await db
+        .insert(recordLinks)
+        .values({ agentId, provider: provider.key, externalId: profile.id, handle: profile.handle })
+        .onConflictDoUpdate({
+          target: [recordLinks.agentId, recordLinks.provider],
+          set: { externalId: profile.id, handle: profile.handle, linkedAt: new Date() },
+        });
+    } catch {
+      // The other unique index: somebody else is already wearing this
+      // handle. Their link is the one that stands until they drop it.
+      throw new AppError(
+        `The ${provider.label} account "${profile.handle}" is already linked to another participant`,
+        409,
+      );
+    }
+    await db.delete(systemConfig).where(eq(systemConfig.key, pendingKey(provider.key, agentId)));
 
-    // The claim and the money are one transaction inside claimEarn, and a
-    // null answer means the index refused it: either this participant or
-    // this external account was already paid, a millisecond ago.
-    const claim = await claimEarn({ agentId, key: provider.earnKey, refId: profile.id });
-    if (!claim) {
-      throw new AppError(`The ${provider.label} account "${profile.handle}" has already been linked`, 409);
+    // Money, decided separately and last. Three ways to be owed nothing,
+    // none of which undoes the link: the record does not qualify, this
+    // participant has already been paid for this provider, or this
+    // external account has already paid somebody.
+    const answer = { ok: true, provider: provider.key, handle: profile.handle };
+    const q = await provider.qualifies(profile, Date.now());
+    if (!q.ok) {
+      res.json({ ...answer, granted: 0, why: q.why });
+      return;
+    }
+    if (await alreadyPaid(agentId, provider)) {
+      res.json({
+        ...answer,
+        granted: 0,
+        why: `This participant has already been paid for a ${provider.label} record. Linking another one is free, but it pays nothing.`,
+      });
+      return;
+    }
+    if (await refAlreadyClaimed(provider.earnKey, profile.id)) {
+      res.json({
+        ...answer,
+        granted: 0,
+        why: `The ${provider.label} account "${profile.handle}" has already been paid for once, which is all any account pays.`,
+      });
+      return;
     }
 
-    await db
-      .insert(systemConfig)
-      .values({
-        key: handleKey(provider.key, agentId),
-        value: { handle: profile.handle, externalId: profile.id, granted: claim.granted, at: Date.now() },
-      })
-      .onConflictDoUpdate({
-        target: systemConfig.key,
-        set: { value: { handle: profile.handle, externalId: profile.id, granted: claim.granted, at: Date.now() } },
-      });
-    await db.delete(systemConfig).where(eq(systemConfig.key, pendingKey(provider.key, agentId)));
-    res.json({ ok: true, provider: provider.key, handle: profile.handle, granted: claim.granted });
+    // A null answer means an index refused it: one of the two rules above
+    // was raced in the millisecond since it was checked. The link stands
+    // either way.
+    const claim = await claimEarn({ agentId, key: provider.earnKey, refId: profile.id });
+    if (!claim) {
+      res.json({ ...answer, granted: 0, why: `That ${provider.label} record has already been paid for.` });
+      return;
+    }
+    res.json({ ...answer, granted: claim.granted });
   }),
 );

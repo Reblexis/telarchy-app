@@ -1,7 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
-import { agents, authUser, prizeSeasons, seasonEntries, systemConfig, workspaces } from '../db/schema';
+import { agents, authUser, prizeSeasons, recordLinks, seasonEntries, workspaces } from '../db/schema';
 import { loadBoard, loadSeasonMarked, loadSeasonSettled } from '../lib/board';
 import {
   getParticipantDisplayNames,
@@ -171,30 +171,13 @@ async function decorate(agentIds: string[]) {
     .where(inArray(agents.id, agentIds));
   const uidByAgent = new Map(agentRows.map(r => [r.id, r.authUserId]));
 
-  // Two key shapes for the same badge: `record-handle:manifold:` is what
-  // the record-link router writes, `manifold-claimed:agent:` is what the
-  // route deleted on 2026-09-01 wrote and migration 0100 rewrites. The
-  // legacy read is the belt to that migration's braces; the new shape wins
-  // where a participant somehow has both.
+  // The badge, paid for or not: it says who somebody is, not what they
+  // earned (docs/record-links.md).
   const manifoldRows = await db
-    .select({ key: systemConfig.key, value: systemConfig.value })
-    .from(systemConfig)
-    .where(
-      inArray(systemConfig.key, [
-        ...agentIds.map(id => `record-handle:manifold:${id}`),
-        ...agentIds.map(id => `manifold-claimed:agent:${id}`),
-      ]),
-    );
-  const manifoldNameByAgent = new Map<string, string>();
-  for (const r of manifoldRows) {
-    const legacy = r.key.startsWith('manifold-claimed:agent:');
-    const agentId = legacy
-      ? r.key.replace('manifold-claimed:agent:', '')
-      : r.key.replace('record-handle:manifold:', '');
-    const v = r.value as { username?: string; handle?: string } | undefined;
-    const name = legacy ? v?.username : v?.handle;
-    if (name && !(legacy && manifoldNameByAgent.has(agentId))) manifoldNameByAgent.set(agentId, name);
-  }
+    .select({ agentId: recordLinks.agentId, handle: recordLinks.handle })
+    .from(recordLinks)
+    .where(and(inArray(recordLinks.agentId, agentIds), eq(recordLinks.provider, 'manifold')));
+  const manifoldNameByAgent = new Map(manifoldRows.map(r => [r.agentId, r.handle]));
 
   const uids = agentRows.map(r => r.authUserId).filter((u): u is string => !!u);
   const imageByUid = new Map<string, string | null>();

@@ -91,7 +91,13 @@ export function ManifoldButton({
     setError('');
     try {
       const d = await api.claimRecordLink(provider.key);
-      setDone(`Linked @${d.handle}: +${d.granted.toLocaleString('en-US')} cr`);
+      // A link that earned nothing is still a link. The badge is the
+      // point; the grant is the bonus (docs/record-links.md).
+      setDone(
+        d.granted > 0
+          ? `Linked @${d.handle}: +${d.granted.toLocaleString('en-US')} cr`
+          : `Linked @${d.handle}. It earns nothing: ${d.why ?? 'this record does not qualify for the grant.'}`,
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -159,9 +165,14 @@ export function ManifoldButton({
               </>
             ) : step === 'ask' ? (
               <>
+                {/* Any account can be linked; the conditions are what the
+                    GRANT needs (owner ask 2026-09-01). Saying them as
+                    entry requirements turned people away from a badge
+                    they were entitled to. */}
                 <p className="mfimport-lead">
-                  At least 90 days old, not a bot, and either traded in the last 60 days or with markets other people
-                  traded. <Link to="/earn">What it pays</Link>.
+                  Link any account you can prove is yours. To also earn credits it has to be 90 days old, not a bot, and
+                  either traded in the last 60 days or have markets other people traded.{' '}
+                  <Link to="/earn">What it pays</Link>.
                 </p>
                 <label className="jobform-field">
                   <span className="ticket-label">Your {provider.label} username</span>
