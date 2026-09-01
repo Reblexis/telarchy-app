@@ -32,6 +32,14 @@ export const recordLinkRouter = Router();
 /** The pending proof, keyed per participant per provider. */
 const pendingKey = (provider: string, agentId: string) => `record-link:${provider}:${agentId}`;
 
+/** The linked handle, kept so a reader can be shown the badge
+ *  (docs/record-links.md, "A linked handle is shown as a badge"). The
+ *  earn claim records WHICH external account was paid, by its stable id,
+ *  and an id is not a thing to show anybody; this is the display name
+ *  that goes with it. Migration 0100 rewrote the Manifold rows the
+ *  deleted route wrote into this shape. */
+const handleKey = (provider: string, agentId: string) => `record-handle:${provider}:${agentId}`;
+
 interface Pending {
   handle: string;
   externalId: string;
@@ -150,6 +158,16 @@ recordLinkRouter.post(
       throw new AppError(`The ${provider.label} account "${profile.handle}" has already been linked`, 409);
     }
 
+    await db
+      .insert(systemConfig)
+      .values({
+        key: handleKey(provider.key, agentId),
+        value: { handle: profile.handle, externalId: profile.id, granted: claim.granted, at: Date.now() },
+      })
+      .onConflictDoUpdate({
+        target: systemConfig.key,
+        set: { value: { handle: profile.handle, externalId: profile.id, granted: claim.granted, at: Date.now() } },
+      });
     await db.delete(systemConfig).where(eq(systemConfig.key, pendingKey(provider.key, agentId)));
     res.json({ ok: true, provider: provider.key, handle: profile.handle, granted: claim.granted });
   }),

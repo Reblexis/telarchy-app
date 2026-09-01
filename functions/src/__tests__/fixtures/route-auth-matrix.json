@@ -799,16 +799,6 @@
     "agent": 404,
     "master": 404
   },
-  "POST /api/import/manifold/claim": {
-    "anon": 401,
-    "agent": 400,
-    "master": 403
-  },
-  "POST /api/import/manifold/start": {
-    "anon": 401,
-    "agent": 400,
-    "master": 403
-  },
   "POST /api/marketplace/:workspaceId/ask": {
     "anon": 503,
     "agent": 503,

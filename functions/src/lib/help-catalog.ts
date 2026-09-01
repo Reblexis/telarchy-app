@@ -446,20 +446,6 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'POST',
-      path: '/api/import/manifold/start',
-      auth: 'agent',
-      description:
-        "Begin importing a Manifold record: body { username }. Returns a one-time code to place in that Manifold account's bio (proof of ownership; Manifold has no OAuth). One import per Telarchy account and per Manifold account, ever.",
-    },
-    {
-      method: 'POST',
-      path: '/api/import/manifold/claim',
-      auth: 'agent',
-      description:
-        'Complete the import: reads the code back from the Manifold bio via the public API, snapshots net worth (balance + invested), and and grants the FLAT established-account price from the earn table (2026-08-30: net worth no longer decides it, because mana moves between Manifold accounts and is therefore the one input a farmer can concentrate). The account must qualify: not a bot, at least 90 days old, and either a bet in the last 60 days or markets other people traded; otherwise 400 with the reason. Net worth is still reported for context. Reads the Manifold balance, never moves it: the mana stays in the Manifold account, untouched, and this grant is a matching amount of credits here. One-way: credits are neither purchasable nor redeemable, and nothing converts back.',
-    },
-    {
-      method: 'POST',
       path: '/api/import/:provider/start',
       auth: 'agent',
       description:

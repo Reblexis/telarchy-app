@@ -28,7 +28,6 @@ import { guidesRouter } from './routes/guides';
 import { leaderboardRouter } from './routes/leaderboard';
 import { legalRouter } from './routes/legal';
 import { liquidityPurchasesRouter, stripeWebhookHandler } from './routes/liquidityPurchases';
-import { manifoldRouter } from './routes/manifold';
 import { marketplaceRouter } from './routes/marketplace';
 import { metricsRouter } from './routes/metrics';
 import { notificationsRouter } from './routes/notifications';
@@ -413,7 +412,6 @@ app.get('/api/help', (req, res) => {
 
 app.use('/api/cron', cronRouter);
 app.use('/api/waitlist', registrationLimiter, waitlistRouter);
-app.use('/api/import/manifold', registrationLimiter, manifoldRouter);
 // Every other provider goes through the generic flow
 // (docs/record-links.md). Manifold keeps its own mount above so the
 // routes clients already call do not move.

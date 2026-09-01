@@ -27,6 +27,12 @@ edit their bio for a record that could never have been paid; at `claim`,
 because the answer can change in between and only the second one decides
 the money.
 
+**One router serves every provider, and no provider has a mount of its
+own.** `/api/import/:provider/*` is the whole surface. A provider-specific
+mount registered above it shadows the generic one for that provider only,
+which is invisible in a test that mounts the generic router by itself and
+shows up as the provider's dialog refusing every handle.
+
 Ownership is proved the way a third party can prove it: the provider has
 no OAuth for us, so a value only the account holder can publish is the
 proof. Nothing is transferred and no credential is ever asked for.
@@ -118,3 +124,5 @@ with. The refusal says to make the username public and try again.
   claim. Re-pricing a row never changes a past grant.
 - A failed proof, an unqualified record and an unknown provider all
   refuse without granting anything and say which of the three happened.
+- A linked handle is shown as a badge on the participant's profile and on
+  the leaderboard, for every provider, from the moment the claim is paid.
