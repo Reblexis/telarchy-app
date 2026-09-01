@@ -55,9 +55,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def _reply(self):
         status = REPLY.get("status", 200)
-        body = json.dumps(REPLY.get("body", {})).encode()
+        if REPLY.get("raw") is not None:
+            body = REPLY["raw"].encode()
+        else:
+            body = json.dumps(REPLY.get("body", {})).encode()
         self.send_response(status)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", REPLY.get("content_type", "application/json"))
         self.send_header("Content-Length", str(len(body)))
         for k, v in REPLY.get("headers", {}).items():
             self.send_header(k, v)
@@ -242,6 +245,30 @@ class TestDeprecations(Base):
             warnings.simplefilter("always")
             self.client(workspace="w").markets()
         self.assertFalse([w for w in caught if issubclass(w.category, DeprecationWarning)])
+
+
+class TestNonJsonResponses(Base):
+    """Not every endpoint answers JSON.
+
+    `brief(as_markdown=True)` asks for `?format=md` and gets markdown, which is
+    the whole point of it: one read of a floor, written to hand to a model. The
+    client parsed every body as JSON, so the call it exists for raised
+    JSONDecodeError against production.
+    """
+
+    def test_THE_BUG_markdown_comes_back_as_text_not_a_crash(self):
+        REPLY.update({"status": 200, "body": None, "raw": "# Acme\n\nA floor.", "content_type": "text/markdown"})
+        out = self.client(workspace="acme").brief()
+        self.assertEqual(out, "# Acme\n\nA floor.")
+
+    def test_json_still_parses(self):
+        REPLY.update({"status": 200, "body": {"name": "Acme"}})
+        out = self.client(workspace="acme").brief(as_markdown=False)
+        self.assertEqual(out, {"name": "Acme"})
+
+    def test_brief_needs_a_workspace_from_somewhere(self):
+        with self.assertRaises(ValueError):
+            self.client().brief()
 
 
 class TestRegistration(Base):
