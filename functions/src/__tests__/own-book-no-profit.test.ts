@@ -182,3 +182,97 @@ describe('the season board actually finds who funded what', () => {
     expect(scores.get(HONEST)).toBeCloseTo(2000, 6);
   });
 });
+
+/**
+ * The standings show settled PLUS the mark on positions still open. If the
+ * offset applies to only one of those halves, a self-dealer reads as winning
+ * in "Total if prices hold" and then scores zero when the market resolves -
+ * the exact shape of P1-10, a column promising money the settlement cannot
+ * pay. Both halves take it.
+ */
+describe('the marked column tells the same story the settlement will', () => {
+  test('an OPEN position in a book you funded is not marked as profit', async () => {
+    const { db, ensureMigrations, truncateAll } = await import('./harness/test-db');
+    const { agents, liquidityEvents, markets, metrics, trades } = await import('../db/schema');
+    const { provisionWorkspace } = await import('../lib/participants');
+    const { loadSeasonMarked } = await import('../lib/board');
+    await ensureMigrations();
+    await truncateAll();
+
+    const WS = 'ws-mark';
+    const MALLORY = 'agent-mark-mallory';
+    const HONEST = 'agent-mark-honest';
+    const MK = 'market-mark';
+
+    await db.insert(agents).values([
+      { id: MALLORY, apiKeyHash: 'h-mm', balance: 0 },
+      { id: HONEST, apiKeyHash: 'h-mh', balance: 0 },
+    ]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await provisionWorkspace(db as any, {
+      wsId: WS,
+      name: 'Marked own book',
+      createdBy: MALLORY,
+      ownerAgentId: MALLORY,
+      visibility: 'public',
+    });
+    await db.insert(metrics).values({
+      id: 'metric-mark',
+      workspaceId: WS,
+      name: 'Revenue',
+      value: 100,
+      formula: '0',
+      marketRangeMax: 100,
+    });
+    // Still OPEN, and priced near the top so the mark is large.
+    await db.insert(markets).values({
+      id: MK,
+      workspaceId: WS,
+      metricId: 'metric-mark',
+      metricName: 'Revenue',
+      targetDate: '2026-06-20',
+      rangeMin: 0,
+      rangeMax: 100,
+      shares: [0, 1200],
+      liquidity: 200,
+      pool: 2000,
+      active: true,
+      resolved: false,
+      voided: false,
+    });
+    await db.insert(liquidityEvents).values({
+      id: 'liq-mark',
+      workspaceId: WS,
+      marketId: MK,
+      agentId: MALLORY,
+      amount: 2000,
+      poolContribution: 2000,
+      totalLiquidity: 200,
+      type: 'injection',
+      createdAt: new Date('2026-06-02T00:00:00Z'),
+    });
+    for (const [id, agentId] of [
+      ['trade-mark-m', MALLORY],
+      ['trade-mark-h', HONEST],
+    ] as const) {
+      await db.insert(trades).values({
+        id,
+        workspaceId: WS,
+        marketId: MK,
+        agentId,
+        direction: 'higher',
+        shares: 600,
+        cost: 100,
+        createdAt: new Date('2026-06-10T00:00:00Z'),
+      });
+    }
+
+    const marked = await loadSeasonMarked([WS], new Date('2026-06-01T00:00:00Z'), new Date('2026-06-30T00:00:00Z'));
+
+    // The honest trader's mark stands; the funder's is offset by what they
+    // put in, so the column cannot promise them a prize the settlement will
+    // not pay.
+    expect(marked.get(HONEST) ?? 0).toBeGreaterThan(0);
+    expect(marked.get(MALLORY) ?? 0).toBe(0);
+  });
+});

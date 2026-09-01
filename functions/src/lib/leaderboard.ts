@@ -212,8 +212,14 @@ export function computeSettledWindowProfit(
 export function computeMarkedWindowProfit(
   marketsList: ProfitMarket[],
   aggs: SettledWindowTradeAgg[],
+  ownPoolFunding?: Map<string, number>,
 ): Map<string, number> {
-  return windowProfit(marketsList, aggs, m => (m.voided ? null : currentPayoutFactors(m as ProfitMarket)));
+  return windowProfit(
+    marketsList,
+    aggs,
+    m => (m.voided ? null : currentPayoutFactors(m as ProfitMarket)),
+    ownPoolFunding,
+  );
 }
 
 /**

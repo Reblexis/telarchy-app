@@ -278,6 +278,39 @@ export function seasonMarketCountsIn(
   return settles.getTime() <= windowEnd.getTime();
 }
 
+/**
+ * What each agent put into each of these markets' pools.
+ *
+ * Profit out of a book you funded is not score, up to this amount
+ * (docs/seasons.md; the Terms' section 2 has always said buying liquidity
+ * confers none). Shared by BOTH halves of the standings on purpose: the
+ * settled half and the marked half applying different rules is how a column
+ * ends up promising money the settlement will not pay, which is P1-10 and
+ * happened once already.
+ *
+ * The key is the one windowProfit looks up by, and a mismatch there fails
+ * silently while every pure test still passes, so it is pinned end to end in
+ * own-book-no-profit.test.ts.
+ */
+async function ownPoolFundingFor(marketIds: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (marketIds.length === 0) return out;
+  const funding = await db
+    .select({
+      agentId: liquidityEvents.agentId,
+      workspaceId: liquidityEvents.workspaceId,
+      marketId: liquidityEvents.marketId,
+      contributed: sql<number>`coalesce(sum(${liquidityEvents.poolContribution}), 0)::float`,
+    })
+    .from(liquidityEvents)
+    .where(and(isNotNull(liquidityEvents.agentId), inArray(liquidityEvents.marketId, marketIds)))
+    .groupBy(liquidityEvents.agentId, liquidityEvents.workspaceId, liquidityEvents.marketId);
+  for (const f of funding) {
+    out.set(`${f.agentId} ${f.workspaceId} ${f.marketId}`, Number(f.contributed));
+  }
+  return out;
+}
+
 export async function loadSeasonSettled(
   workspaceIds: string[],
   windowStart: Date,
@@ -339,31 +372,7 @@ export async function loadSeasonSettled(
     )
     .groupBy(trades.agentId, trades.workspaceId, trades.marketId, trades.direction);
 
-  // What each entrant put into each of these markets' pools. Profit out of a
-  // book you funded is not score, up to that amount (docs/seasons.md, and the
-  // Terms' section 2, which has always said buying liquidity confers none).
-  const funding = await db
-    .select({
-      agentId: liquidityEvents.agentId,
-      workspaceId: liquidityEvents.workspaceId,
-      marketId: liquidityEvents.marketId,
-      contributed: sql<number>`coalesce(sum(${liquidityEvents.poolContribution}), 0)::float`,
-    })
-    .from(liquidityEvents)
-    .where(
-      and(
-        isNotNull(liquidityEvents.agentId),
-        inArray(
-          liquidityEvents.marketId,
-          marketRows.map(m => m.id),
-        ),
-      ),
-    )
-    .groupBy(liquidityEvents.agentId, liquidityEvents.workspaceId, liquidityEvents.marketId);
-  const ownPoolFunding = new Map<string, number>();
-  for (const f of funding) {
-    ownPoolFunding.set(`${f.agentId} ${f.workspaceId} ${f.marketId}`, Number(f.contributed));
-  }
+  const ownPoolFunding = await ownPoolFundingFor(marketRows.map(m => m.id));
 
   return computeSettledWindowProfit(
     marketRows.map(m => ({ ...m, actualValue: m.voided ? null : m.actualValue })),
@@ -464,6 +473,8 @@ async function loadOpenWindowMarked(workspaceIds: string[], windowEnd: Date): Pr
     .where(or(...cutoffs))
     .groupBy(trades.agentId, trades.workspaceId, trades.marketId, trades.direction);
 
+  const ownPoolFunding = await ownPoolFundingFor(scored.map(m => m.id));
+
   return computeMarkedWindowProfit(
     scored.map(m => ({
       id: m.id,
@@ -477,6 +488,7 @@ async function loadOpenWindowMarked(workspaceIds: string[], windowEnd: Date): Pr
       liquidity: m.liquidity,
     })),
     aggs.map(a => ({ ...a, shares: Number(a.shares), cost: Number(a.cost) })),
+    ownPoolFunding,
   );
 }
 
