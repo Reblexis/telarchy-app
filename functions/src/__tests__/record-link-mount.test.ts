@@ -34,13 +34,15 @@ import { createHash } from 'crypto';
 import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { app } from '../app';
-import { agentApiKeys, agents, earnRules, systemConfig } from '../db/schema';
+import { agentApiKeys, agents, earnClaims, earnRules, recordLinks } from '../db/schema';
 import { toUnits } from '../lib/validation';
 import { clearEarnRuleCache } from '../services/earnRules';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const AGENT = 'rl-mount-agent';
 const KEY = 'rl-mount-agent-key';
+const OTHER = 'rl-mount-other';
+const OTHER_KEY = 'rl-mount-other-key';
 const WS = 'rl-mount-ws';
 const DAY = 86_400_000;
 
@@ -49,6 +51,9 @@ let mfBio = '';
 let mfCreated = Date.now() - 400 * DAY;
 let mfLastBet = Date.now() - 2 * DAY;
 let mfIsBot = false;
+/** Which Manifold account the mocked API answers with, so a test can
+ *  relink from one to another. */
+let mfOther = false;
 
 const realFetch = global.fetch;
 
@@ -59,13 +64,24 @@ beforeAll(async () => {
 beforeEach(async () => {
   await truncateAll();
   clearEarnRuleCache();
-  await db.insert(agents).values({ id: AGENT, apiKeyHash: 'h-rl-mount', balance: toUnits(0) });
-  await db.insert(agentApiKeys).values({
-    hash: createHash('sha256').update(KEY).digest('hex'),
-    keyId: 'rl-mount-key-id',
-    agentId: AGENT,
-    workspaceId: WS,
-  });
+  await db.insert(agents).values([
+    { id: AGENT, apiKeyHash: 'h-rl-mount', balance: toUnits(0) },
+    { id: OTHER, apiKeyHash: 'h-rl-other', balance: toUnits(0) },
+  ]);
+  await db.insert(agentApiKeys).values([
+    {
+      hash: createHash('sha256').update(KEY).digest('hex'),
+      keyId: 'rl-mount-key-id',
+      agentId: AGENT,
+      workspaceId: WS,
+    },
+    {
+      hash: createHash('sha256').update(OTHER_KEY).digest('hex'),
+      keyId: 'rl-mount-other-key-id',
+      agentId: OTHER,
+      workspaceId: WS,
+    },
+  ]);
   await db.insert(earnRules).values({
     key: 'manifold_link',
     label: 'Link a Manifold record',
@@ -79,15 +95,17 @@ beforeEach(async () => {
   mfCreated = Date.now() - 400 * DAY;
   mfLastBet = Date.now() - 2 * DAY;
   mfIsBot = false;
+  mfOther = false;
 
   global.fetch = jest.fn(async (url: unknown) => {
     const u = String(url);
     if (u.includes('api.manifold.markets')) {
       if (u.includes('/user/nobody-here')) return new Response('null', { status: 404 });
+      const second = u.includes('/user/second_account') || (mfOther && !u.includes('/user/Viktor36'));
       return new Response(
         JSON.stringify({
-          id: 'mf-user-id-1',
-          username: 'Viktor36',
+          id: second ? 'mf-user-id-2' : 'mf-user-id-1',
+          username: second ? 'second_account' : 'Viktor36',
           bio: mfBio,
           createdTime: mfCreated,
           lastBetTime: mfLastBet,
@@ -105,8 +123,14 @@ afterAll(() => {
   global.fetch = realFetch;
 });
 
-const post = (path: string, body: Record<string, unknown>) =>
-  request(app).post(path).set('Origin', 'http://localhost').set('X-Agent-Key', KEY).send(body);
+const postAs = (agentKey: string, path: string, body: Record<string, unknown>) =>
+  request(app)
+    .post(path)
+    .set('Origin', 'http://localhost')
+    .set('X-Agent-Key', agentKey === OTHER ? OTHER_KEY : KEY)
+    .send(body);
+
+const post = (path: string, body: Record<string, unknown>) => postAs(AGENT, path, body);
 
 describe('the path every provider is linked at', () => {
   test('THE RULE: /api/import/manifold/start takes { handle }, like every other provider', async () => {
@@ -150,21 +174,7 @@ describe('the path every provider is linked at', () => {
   });
 });
 
-describe('the gates still decide the money, through this path', () => {
-  test('an account younger than 90 days is refused at start, with its age', async () => {
-    mfCreated = Date.now() - 4 * DAY;
-    const res = await post('/api/import/manifold/start', { handle: 'Viktor36' });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toContain('4 days old');
-  });
-
-  test('a bot is refused at start', async () => {
-    mfIsBot = true;
-    const res = await post('/api/import/manifold/start', { handle: 'Viktor36' });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/bot/i);
-  });
-
+describe('the proof is the only thing that can refuse a link', () => {
   test('claim without the code in the bio pays nothing', async () => {
     await post('/api/import/manifold/start', { handle: 'Viktor36' });
     const res = await post('/api/import/manifold/claim', {});
@@ -216,20 +226,158 @@ describe('a paid link is visible to a reader', () => {
     expect(res.body.manifoldUsername).toBeNull();
   });
 
-  test('the same participant cannot link a second time', async () => {
-    await link();
-    const res = await post('/api/import/manifold/start', { handle: 'Viktor36' });
-    expect(res.status).toBe(409);
-  });
-
-  test('the legacy badge row still reads, so the ten links made before this keep theirs', async () => {
-    // Written by the deleted route. Migration 0100 rewrites these, but a
-    // reader must not depend on the migration having run.
-    await db.insert(systemConfig).values({
-      key: `manifold-claimed:agent:${AGENT}`,
-      value: { username: 'old_account', manifoldUserId: 'mf-legacy', granted: 2840, at: Date.now() },
+  test('a link made straight in the table is badged, whoever wrote it', async () => {
+    // What migration 0102 leaves behind for the links made before it.
+    await db.insert(recordLinks).values({
+      agentId: AGENT,
+      provider: 'manifold',
+      externalId: 'mf-legacy',
+      handle: 'old_account',
     });
     const res = await request(app).get(`/api/agents/${AGENT}/public`).set('Origin', 'http://localhost');
     expect(res.body.manifoldUsername).toBe('old_account');
+  });
+});
+
+/**
+ * Linking is free; only the grant is gated (docs/record-links.md,
+ * "Linking and being paid are two different things").
+ *
+ * Owner ask 2026-09-01: "it should be possible to link manifold account
+ * even if it doesnt satisfy the criteria.. jus tfor the fun of it being
+ * linked and people seeing whos who", then, on whether a paid link is
+ * frozen: "no its not fixed even if paid.. they just cant extract from
+ * that account again.. or from any other.."
+ *
+ * So the badge is always re-linkable and the money is once-only, per
+ * participant AND per external account.
+ */
+describe('a record that does not qualify', () => {
+  const linkNow = async (handle = 'Viktor36') => {
+    const started = await post('/api/import/manifold/start', { handle });
+    expect(started.status).toBe(200);
+    mfBio = `proof: ${started.body.code}`;
+    return post('/api/import/manifold/claim', {});
+  };
+
+  test('start issues a code for a 4-day-old account instead of refusing it', async () => {
+    mfCreated = Date.now() - 4 * DAY;
+    const res = await post('/api/import/manifold/start', { handle: 'Viktor36' });
+    expect(res.status).toBe(200);
+    expect(res.body.code).toMatch(/^telarchy-[0-9a-f]{8}$/);
+  });
+
+  test('THE RULE: it links, pays nothing, and says why', async () => {
+    mfCreated = Date.now() - 4 * DAY;
+    const res = await linkNow();
+    expect(res.status).toBe(200);
+    expect(res.body.granted).toBe(0);
+    expect(res.body.why).toContain('4 days old');
+    const [a] = await db.select().from(agents).where(eq(agents.id, AGENT));
+    expect(Number(a.balance)).toBe(0);
+  });
+
+  test('the badge shows for an unpaid link, which is the whole point', async () => {
+    mfCreated = Date.now() - 4 * DAY;
+    await linkNow();
+    const res = await request(app).get(`/api/agents/${AGENT}/public`).set('Origin', 'http://localhost');
+    expect(res.body.manifoldUsername).toBe('Viktor36');
+  });
+
+  test('a bot links and is never paid', async () => {
+    mfIsBot = true;
+    const res = await linkNow();
+    expect(res.body.granted).toBe(0);
+    expect(res.body.why).toMatch(/bot/i);
+  });
+
+  test('THE RULE: the grant is still there to collect once it qualifies', async () => {
+    mfCreated = Date.now() - 4 * DAY;
+    expect((await linkNow()).body.granted).toBe(0);
+    mfCreated = Date.now() - 400 * DAY;
+    const paid = await linkNow();
+    expect(paid.body.granted).toBe(5000);
+    const [a] = await db.select().from(agents).where(eq(agents.id, AGENT));
+    expect(Number(a.balance)).toBe(toUnits(5000));
+  });
+
+  test('verifying again while it still does not qualify pays nothing twice', async () => {
+    mfCreated = Date.now() - 4 * DAY;
+    await linkNow();
+    await linkNow();
+    const [a] = await db.select().from(agents).where(eq(agents.id, AGENT));
+    expect(Number(a.balance)).toBe(0);
+    const claims = await db.select().from(earnClaims).where(eq(earnClaims.agentId, AGENT));
+    expect(claims).toEqual([]);
+  });
+});
+
+describe('relinking', () => {
+  const linkAs = async (handle: string) => {
+    const started = await post('/api/import/manifold/start', { handle });
+    expect(started.status).toBe(200);
+    mfBio = `proof: ${started.body.code}`;
+    return post('/api/import/manifold/claim', {});
+  };
+
+  test('a paid link can still be replaced: the badge follows the new handle', async () => {
+    expect((await linkAs('Viktor36')).body.granted).toBe(5000);
+    mfOther = true;
+    const second = await linkAs('second_account');
+    expect(second.status).toBe(200);
+    expect(second.body.handle).toBe('second_account');
+    const res = await request(app).get(`/api/agents/${AGENT}/public`).set('Origin', 'http://localhost');
+    expect(res.body.manifoldUsername).toBe('second_account');
+  });
+
+  test('THE RULE: relinking pays nothing, not from that account and not from any other', async () => {
+    expect((await linkAs('Viktor36')).body.granted).toBe(5000);
+    mfOther = true;
+    const second = await linkAs('second_account');
+    expect(second.body.granted).toBe(0);
+    expect(second.body.why).toMatch(/already been paid|already paid/i);
+    const [a] = await db.select().from(agents).where(eq(agents.id, AGENT));
+    expect(Number(a.balance)).toBe(toUnits(5000));
+    const claims = await db.select().from(earnClaims).where(eq(earnClaims.agentId, AGENT));
+    expect(claims).toHaveLength(1);
+  });
+
+  test('the released account can then be badged by somebody else', async () => {
+    await linkAs('Viktor36');
+    mfOther = true;
+    await linkAs('second_account');
+    // AGENT let go of Viktor36; OTHER can now prove and take it.
+    const started = await postAs(OTHER, '/api/import/manifold/start', { handle: 'Viktor36' });
+    expect(started.status).toBe(200);
+    mfOther = false;
+    mfBio = `proof: ${started.body.code}`;
+    const claimed = await postAs(OTHER, '/api/import/manifold/claim', {});
+    expect(claimed.status).toBe(200);
+    const res = await request(app).get(`/api/agents/${OTHER}/public`).set('Origin', 'http://localhost');
+    expect(res.body.manifoldUsername).toBe('Viktor36');
+  });
+
+  test('THE RULE: two participants never wear the same handle', async () => {
+    await linkAs('Viktor36');
+    const started = await postAs(OTHER, '/api/import/manifold/start', { handle: 'Viktor36' });
+    mfBio = `proof: ${started.body.code}`;
+    const claimed = await postAs(OTHER, '/api/import/manifold/claim', {});
+    expect(claimed.status).toBe(409);
+    expect(claimed.body.error).toContain('Viktor36');
+    const res = await request(app).get(`/api/agents/${OTHER}/public`).set('Origin', 'http://localhost');
+    expect(res.body.manifoldUsername).toBeNull();
+  });
+
+  test('THE RULE: an account somebody was already PAID for pays nobody again', async () => {
+    expect((await linkAs('Viktor36')).body.granted).toBe(5000);
+    mfOther = true;
+    await linkAs('second_account');
+    const started = await postAs(OTHER, '/api/import/manifold/start', { handle: 'Viktor36' });
+    mfOther = false;
+    mfBio = `proof: ${started.body.code}`;
+    const claimed = await postAs(OTHER, '/api/import/manifold/claim', {});
+    expect(claimed.body.granted).toBe(0);
+    const [b] = await db.select().from(agents).where(eq(agents.id, OTHER));
+    expect(Number(b.balance)).toBe(0);
   });
 });

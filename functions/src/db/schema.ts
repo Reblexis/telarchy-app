@@ -427,6 +427,38 @@ export const withdrawals = pgTable('withdrawals', {
 // System config (replaces _system/economy Firestore doc)
 // ---------------------------------------------------------------------------
 
+/**
+ * A forecasting record linked from another platform (docs/record-links.md).
+ *
+ * Deliberately not the same row as the earn claim that paid for it. A link
+ * is identity ("this participant is that forecaster") and is open to any
+ * account whose holder can prove it, including one too new, too quiet or
+ * too bot-flagged to be worth money. `earn_claims` is the money, and it
+ * keeps both payment rules on its own. Because nothing here is counted
+ * when a grant is decided, a link can be replaced as often as its owner
+ * likes without a second grant becoming possible.
+ */
+export const recordLinks = pgTable(
+  'record_links',
+  {
+    agentId: text('agent_id').notNull(),
+    /** Provider key, e.g. 'manifold'. */
+    provider: text('provider').notNull(),
+    /** Stable external identity. Handles are renamed and sold; this is not. */
+    externalId: text('external_id').notNull(),
+    /** The provider's canonical spelling, which is what a reader is shown. */
+    handle: text('handle').notNull(),
+    linkedAt: timestamp('linked_at').defaultNow().notNull(),
+  },
+  t => [
+    primaryKey({ columns: [t.agentId, t.provider] }),
+    // One participant per external account, so two profiles never claim to
+    // be the same forecaster. Relinking away releases it for whoever can
+    // prove they hold it next.
+    uniqueIndex('record_links_provider_external_idx').on(t.provider, t.externalId),
+  ],
+);
+
 export const systemConfig = pgTable('system_config', {
   key: text('key').primaryKey(),
   value: jsonb('value').notNull(),

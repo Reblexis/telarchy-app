@@ -13,6 +13,7 @@ import {
   permissionGroups,
   positions,
   proposals,
+  recordLinks,
   systemConfig,
   trades,
   withdrawals,
@@ -570,19 +571,15 @@ agentsRouter.get(
       : null;
 
     // Manifold handle, if this participant linked a record: shown as a
-    // small badge on the profile (owner ask 2026-08-11). Two key shapes,
-    // because the route that wrote the second one was deleted on
-    // 2026-09-01 and migration 0100 rewrites its rows: the legacy read is
-    // the belt to that migration's braces, not a second source of truth.
+    // small badge on the profile (owner ask 2026-08-11). Whether the link
+    // was ever paid for is deliberately not read: a badge says who
+    // somebody is, not what they earned (docs/record-links.md).
     const manifoldRow = await db
-      .select({ key: systemConfig.key, value: systemConfig.value })
-      .from(systemConfig)
-      .where(inArray(systemConfig.key, [`record-handle:manifold:${agent.id}`, `manifold-claimed:agent:${agent.id}`]));
-    const byKey = new Map(manifoldRow.map(r => [r.key, r.value as { handle?: string; username?: string }]));
-    const manifoldUsername =
-      byKey.get(`record-handle:manifold:${agent.id}`)?.handle ??
-      byKey.get(`manifold-claimed:agent:${agent.id}`)?.username ??
-      null;
+      .select({ handle: recordLinks.handle })
+      .from(recordLinks)
+      .where(and(eq(recordLinks.agentId, agent.id), eq(recordLinks.provider, 'manifold')))
+      .limit(1);
+    const manifoldUsername = manifoldRow[0]?.handle ?? null;
 
     if (publicWsIds.length === 0 && viewerWsIds.size === 0) {
       // Who the participant IS does not depend on which floors the viewer

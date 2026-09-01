@@ -1412,7 +1412,10 @@ export const api = {
     }),
 
   /** Finish it once the code is on the profile. */
-  claimRecordLink: (provider: string): Promise<{ handle: string; granted: number }> =>
+  /** `granted` is 0 when the record does not qualify for the grant, or the
+   *  participant or the external account has already been paid; `why`
+   *  says which. The link is made either way. */
+  claimRecordLink: (provider: string): Promise<{ handle: string; granted: number; why?: string }> =>
     request(`/api/import/${encodeURIComponent(provider)}/claim`, { method: 'POST' }),
 
   /** The handful of flags a page needs before it knows who is looking:

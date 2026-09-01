@@ -10,22 +10,56 @@ This file is the contract. `docs/agent-economy.md` owns the earn table
 itself; the pricing argument is the telarchy umbrella's
 `notes/earn-table-design-2026-08-30.md`.
 
+## Linking and being paid are two different things
+
+**Linking is free and open to any account. Only the grant is gated.**
+
+A link says who somebody is: this participant is that forecaster, and a
+reader on the leaderboard can see it. That is worth having whether or not
+the record is worth money, so a fresh account, a dormant one and one
+flagged as a bot can all be linked. What they cannot do is collect.
+
+The grant is the separate question, and it is answered by the quality
+gates below plus two rules that have not moved: a participant is paid for
+a provider once ever, and an external account pays once ever across the
+whole platform.
+
 ## The flow, which is the same for every provider
 
 1. **Name the account.** `POST /api/import/:provider/start { handle }`
    looks the handle up on the provider's public API and answers with a
-   one-time code.
+   one-time code. It refuses only a handle that does not exist.
 2. **Prove it.** The participant puts that code anywhere in the account's
    public, self-editable text field (its bio) and presses verify.
-3. **Verify and pay.** `POST /api/import/:provider/claim` re-reads the
-   public profile, confirms the code is present, checks the record
-   qualifies, and grants the earn. The code can come out of the bio
-   immediately afterwards; nothing re-reads it.
+3. **Verify, link, and pay if it qualifies.** `POST
+   /api/import/:provider/claim` re-reads the public profile and confirms
+   the code is present. That records the link. It then checks the gates
+   and the two payment rules: passing all of them grants the earn,
+   failing any of them answers `granted: 0` with `why`, and the link
+   stands either way. The code can come out of the bio immediately
+   afterwards; nothing re-reads it.
 
-The gates are checked at BOTH steps. At `start`, so nobody is sent to
-edit their bio for a record that could never have been paid; at `claim`,
-because the answer can change in between and only the second one decides
-the money.
+The gates therefore run only at `claim`, and only to decide money. A
+record that does not qualify today may qualify later, so a participant
+who was linked without payment can verify again and be paid then: the
+free link writes nothing into `earn_claims`, which is where the money
+rules live.
+
+## Relinking
+
+**A link can always be replaced, including after it has been paid.**
+Linking again to a different handle moves the badge; nothing about the
+money changes, because the payment rules are counted in `earn_claims`
+and a link does not write there.
+
+So a participant who was paid for one account and then relinks to
+another is paid nothing for the second: not for that account, and not
+for any account after it. One payment per participant per provider is
+the rule, and relinking is not a way around it.
+
+One external account is badged by at most one participant, so two
+profiles never claim to be the same forecaster. Relinking away from an
+account releases it for whoever can prove they hold it.
 
 **One router serves every provider, and no provider has a mount of its
 own.** `/api/import/:provider/*` is the whole surface. A provider-specific
@@ -116,13 +150,18 @@ with. The refusal says to make the username public and try again.
 
 ## Guarantees
 
-- One participant can link each provider once, and can link several
-  different providers and be paid for each.
+- Anyone who can prove they hold an account can link it. Age, activity
+  and a bot flag decide the money, never the link.
+- One participant is paid for a provider once, ever, whatever they link
+  afterwards, enforced by `earn_claims (agent_id, key)`.
 - One external account pays once across the whole platform, enforced by
   the unique index on `earn_claims (key, ref_id)`, not by a check.
+- A participant can link several different providers and be paid for
+  each.
 - What was paid is the price on the day it was claimed, recorded on the
   claim. Re-pricing a row never changes a past grant.
-- A failed proof, an unqualified record and an unknown provider all
-  refuse without granting anything and say which of the three happened.
+- A failed proof and an unknown provider refuse outright. An unqualified
+  record does not: it links, pays nothing, and says why.
 - A linked handle is shown as a badge on the participant's profile and on
-  the leaderboard, for every provider, from the moment the claim is paid.
+  the leaderboard, for every provider, paid or not.
+- One external account is badged by at most one participant at a time.

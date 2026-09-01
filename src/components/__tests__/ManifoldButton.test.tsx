@@ -82,11 +82,28 @@ describe('the Manifold link flow', () => {
     expect(screen.getByText('You can take the code out of your Polymarket bio now.')).toBeInTheDocument();
   });
 
-  test('the first step says only what stops a wasted trip', async () => {
+  test('THE FIRST STEP INVITES ANY ACCOUNT, and says what the GRANT needs', async () => {
+    // Owner ask 2026-09-01: linking is open to anyone who can prove they
+    // hold the account. The conditions are about the credits, and copy
+    // that states them as entry requirements turns people away from a
+    // badge they are entitled to.
     renderIt();
     fireEvent.click(screen.getByText('Import'));
-    expect(screen.getByText(/At least 90 days old, not a bot/)).toBeInTheDocument();
+    expect(screen.getByText(/Link any account you can prove is yours/)).toBeInTheDocument();
+    expect(screen.getByText(/To also earn credits/)).toBeInTheDocument();
     // The price is a link, not a paragraph: the earn page owns that number.
     expect(screen.getByText('What it pays')).toBeInTheDocument();
+  });
+
+  test('a link that earns nothing still reports the link, and why it paid zero', async () => {
+    (api.claimRecordLink as ReturnType<typeof vi.fn>).mockResolvedValue({
+      handle: 'Tumbles',
+      granted: 0,
+      why: 'That Manifold account is 4 days old; the import needs 90.',
+    });
+    await toCodeStep();
+    fireEvent.click(screen.getByText('Verify and import'));
+    await waitFor(() => expect(screen.getByText(/Linked @Tumbles/)).toBeInTheDocument());
+    expect(screen.getByText(/4 days old/)).toBeInTheDocument();
   });
 });
