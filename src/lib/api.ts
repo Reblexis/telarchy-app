@@ -968,6 +968,28 @@ export function seasonStandingToEntry(s: SeasonStanding): LeaderboardEntry {
   };
 }
 
+/** A visitor journey as the cockpit reads it (docs/ui-conventions.md). */
+export interface Journey {
+  id: string;
+  ip: string;
+  userAgent: string | null;
+  country: string | null;
+  /** The FIRST hit's referer: which channel delivered them. */
+  referer: string | null;
+  startedAt: string;
+  entryPath: string;
+  exitPath: string;
+  durationSeconds: number;
+  bounced: boolean;
+  steps: Array<{ path: string; ts: string; secondsOnPage: number | null }>;
+}
+
+export interface JourneyFeed {
+  summary: { journeys: number; bounced: number; visitors: number; medianSteps: number };
+  topExits: Array<{ path: string; journeys: number }>;
+  journeys: Journey[];
+}
+
 export const api = {
   getMetrics: () => request('/api/metrics'),
   /** Create a metric on a floor the caller manages (docs/owner-on-the-floor.md,
@@ -1391,6 +1413,11 @@ export const api = {
 
   /** Admin launch dashboard: floor visits, signups, waitlist. */
   getFloorStats: () => request('/api/admin/floor-stats'),
+
+  /** One visitor's ordered path through the site, per sitting, for every
+   *  anonymous visitor in the log's 30-day window. Platform admin only;
+   *  the rules are docs/ui-conventions.md, "Journeys". */
+  getJourneys: (): Promise<JourneyFeed> => request('/api/admin/journeys'),
 
   /** Who to pay and where. Platform admin only; see routes/admin.ts. */
   findParticipants: (q: string) =>

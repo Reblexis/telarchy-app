@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EarnTableEditor } from '../components/EarnTableEditor';
 import { useAuth } from '../hooks/useAuth';
-import { api, type FeedbackItem } from '../lib/api';
+import { api, type FeedbackItem, type Journey, type JourneyFeed } from '../lib/api';
 import { TopBar } from './TradePage';
 
 /**
@@ -125,6 +125,86 @@ function Rows({
   );
 }
 
+/** "3m 20s", "45s", "0s": short enough to sit at the end of a row. */
+function shortDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s ? `${m}m ${s}s` : `${m}m`;
+}
+
+/** Just the domain, so one channel reads as one word. */
+function refererLabel(referer: string | null): string {
+  if (!referer) return 'direct';
+  const host = referer.match(/:\/\/([^/]+)/)?.[1] ?? referer;
+  return host.replace(/^www\./, '');
+}
+
+/**
+ * What one visitor did, in order (docs/ui-conventions.md, "Journeys").
+ *
+ * The one block on this page that is a sequence rather than a count, because
+ * the counts cannot say where somebody stopped. Each row reads left to right
+ * the way the visit happened, with the time spent on each page between the
+ * arrows, so a page somebody left after four seconds is visible at a glance.
+ */
+function Journeys({ feed }: { feed: JourneyFeed | null }) {
+  if (!feed) return null;
+  const { summary } = feed;
+  return (
+    <section className="adm-block">
+      <h2 className="pubws-h2">Journeys</h2>
+      <p className="adm-note">
+        {summary.journeys === 0
+          ? 'One visitor, one sitting, in the order it happened.'
+          : `${n(summary.journeys)} sittings by ${n(summary.visitors)} visitors · ${n(summary.bounced)} bounced ` +
+            `(${Math.round((summary.bounced / summary.journeys) * 100)}%) · ${summary.medianSteps} pages median. ` +
+            'A new sitting starts after 30 idle minutes.'}
+      </p>
+      {feed.journeys.length === 0 ? (
+        <p className="adm-empty">No human visits yet.</p>
+      ) : (
+        <ul className="adm-list">
+          {feed.journeys.map((j: Journey) => (
+            <li key={j.id} className="adm-row adm-journey">
+              <span className="adm-left">
+                <span className="adm-journey-path">
+                  {j.steps.map((step, i) => (
+                    <span key={`${step.ts}-${i}`} className="adm-step">
+                      {i > 0 && (
+                        <span className="adm-arrow" aria-hidden="true">
+                          {'→'}
+                        </span>
+                      )}
+                      <span className="adm-step-path adm-mono">{step.path}</span>
+                      {step.secondsOnPage !== null && (
+                        <span className="adm-secs">{shortDuration(step.secondsOnPage)}</span>
+                      )}
+                    </span>
+                  ))}
+                </span>
+                <span className="adm-sub">
+                  {refererLabel(j.referer)} · {countryLabel(j.country ?? '??')} ·{' '}
+                  {new Date(j.startedAt).toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </span>
+              {/* A bounce is the expected outcome, so only it is worth a
+                  word; anything else is read off the chain itself. */}
+              {j.bounced && <span className="adm-tag">bounced</span>}
+              <span className="adm-value">{shortDuration(j.durationSeconds)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export function AdminPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -138,6 +218,9 @@ export function AdminPage() {
    *  The highest-signal list on this page: every row is something the page
    *  failed to say, in the visitor's own words. */
   const [questions, setQuestions] = useState<Awaited<ReturnType<typeof api.getFloorQuestions>> | null>(null);
+  /** What visitors did, in order (owner ask 2026-09-01). The counts above
+   *  say somebody showed up; this says where they stopped. */
+  const [journeys, setJourneys] = useState<JourneyFeed | null>(null);
   const [error, setError] = useState('');
   const [payQ, setPayQ] = useState('');
   const [payRows, setPayRows] = useState<Awaited<ReturnType<typeof api.findParticipants>>['participants'] | null>(null);
@@ -204,6 +287,24 @@ export function AdminPage() {
         .catch(e => {
           console.error('questions fetch failed:', e);
           if (!cancelled) setQuestions({ totalCostUsd: 0, questions: [] });
+        });
+      // Journeys last, and the CALL itself is guarded, not only its promise.
+      // A rejected promise leaves the page standing; a call that throws where
+      // it is made kills the whole poll, taking every other block with it,
+      // which is how one missing admin method blanked the cockpit before.
+      Promise.resolve()
+        .then(() => api.getJourneys())
+        .then(j => {
+          if (!cancelled) setJourneys(j);
+        })
+        .catch(e => {
+          console.error('journeys fetch failed:', e);
+          if (!cancelled)
+            setJourneys({
+              summary: { journeys: 0, bounced: 0, visitors: 0, medianSteps: 0 },
+              topExits: [],
+              journeys: [],
+            });
         });
     };
     load();
@@ -390,6 +491,20 @@ export function AdminPage() {
                   minute: '2-digit',
                 }),
                 value: v.visits,
+              }))}
+            />
+
+            <Journeys feed={journeys} />
+
+            <Rows
+              title="Where they stopped"
+              note="The last page of a sitting. The page most often last-seen is the page losing people."
+              bar
+              empty="No human visits yet."
+              rows={(journeys?.topExits ?? []).map(e => ({
+                key: e.path,
+                left: <span className="adm-mono">{e.path}</span>,
+                value: e.journeys,
               }))}
             />
 

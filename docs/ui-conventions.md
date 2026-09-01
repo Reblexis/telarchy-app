@@ -1613,6 +1613,39 @@ figures that are supposed to mean a stranger showed up. Filtering it on read
 instead would move those hits into the "bot hits" count, which is a
 different lie.
 
+### Journeys: what one visitor did, in order
+
+The counts say a stranger showed up; they never say what happened next. A
+journey is one visitor's ordered path through the site in a single sitting,
+which is the only thing on the page that can answer "where did they stop".
+It is reconstructed from the visitor log already being written, so it covers
+every anonymous visitor without a script, a cookie or a consent banner.
+
+A journey is defined by four rules, and they are rules rather than
+preferences because the owner reads a conclusion off them:
+
+- **One visitor is one address AND one user agent.** An office or a phone
+  network puts many people behind a single address, and merging them would
+  invent a journey nobody took. Splitting one real person across two
+  browsers is the safer error of the two.
+- **Thirty idle minutes ends the sitting.** The next hit from that visitor
+  starts a new journey, so somebody who returns the next day reads as two
+  visits rather than one impossible six-hour session.
+- **Where they came from is the FIRST hit's referer**, never the last. The
+  question is which channel delivered them.
+- **Only humanish rows take part**, by `humanVisitFilter()`, the same rule
+  the counts and the public data room use. A crawler walking forty pages
+  would otherwise be the most interesting journey on the page.
+
+A journey shows its entry path, its exit path, the steps in between with the
+seconds between them, and its duration. A single-hit journey is a bounce and
+is labelled as one: it is the most common outcome and the page must not hide
+it inside an average.
+
+Journeys are the cheap half of session replay: they give the order of pages,
+not the clicks inside a page. The recorded-DOM version and what it would
+cost is `notes/session-replay-2026-09-01.md`.
+
 The cockpit shares no code with the deleted console.
 
 ## Reusing a component's classes: mind the cascade order

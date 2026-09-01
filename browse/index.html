@@ -324,12 +324,13 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h35">Text contrast</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h36">The marketplace (/marketplace)</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h37">The cockpit (/admin)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h38">Reusing a component&#x27;s classes: mind the cascade order</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h39">When in doubt</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h40">What a market says about itself, and what your position is worth</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h41">The data room</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h42">The frontend never speaks HTTP directly</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h43">Telling somebody there are credits to earn</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h38">Journeys: what one visitor did, in order</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h39">Reusing a component&#x27;s classes: mind the cascade order</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h40">When in doubt</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h41">What a market says about itself, and what your position is worth</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h42">The data room</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h43">The frontend never speaks HTTP directly</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h44">Telling somebody there are credits to earn</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-vision-md">docs/vision.md</a></summary>
@@ -5128,8 +5129,37 @@ the owner reading the page does not raise the visits, uniques or top-pages
 figures that are supposed to mean a stranger showed up. Filtering it on read
 instead would move those hits into the &quot;bot hits&quot; count, which is a
 different lie.</p>
+<h3 id="docs-ui-conventions-md--h38">Journeys: what one visitor did, in order</h3>
+<p>The counts say a stranger showed up; they never say what happened next. A
+journey is one visitor's ordered path through the site in a single sitting,
+which is the only thing on the page that can answer &quot;where did they stop&quot;.
+It is reconstructed from the visitor log already being written, so it covers
+every anonymous visitor without a script, a cookie or a consent banner.</p>
+<p>A journey is defined by four rules, and they are rules rather than
+preferences because the owner reads a conclusion off them:</p>
+<ul>
+<li><strong>One visitor is one address AND one user agent.</strong> An office or a phone
+network puts many people behind a single address, and merging them would
+invent a journey nobody took. Splitting one real person across two
+browsers is the safer error of the two.</li>
+<li><strong>Thirty idle minutes ends the sitting.</strong> The next hit from that visitor
+starts a new journey, so somebody who returns the next day reads as two
+visits rather than one impossible six-hour session.</li>
+<li><strong>Where they came from is the FIRST hit's referer</strong>, never the last. The
+question is which channel delivered them.</li>
+<li><strong>Only humanish rows take part</strong>, by <code>humanVisitFilter()</code>, the same rule
+the counts and the public data room use. A crawler walking forty pages
+would otherwise be the most interesting journey on the page.</li>
+</ul>
+<p>A journey shows its entry path, its exit path, the steps in between with the
+seconds between them, and its duration. A single-hit journey is a bounce and
+is labelled as one: it is the most common outcome and the page must not hide
+it inside an average.</p>
+<p>Journeys are the cheap half of session replay: they give the order of pages,
+not the clicks inside a page. The recorded-DOM version and what it would
+cost is <code>notes/session-replay-2026-09-01.md</code>.</p>
 <p>The cockpit shares no code with the deleted console.</p>
-<h2 id="docs-ui-conventions-md--h38">Reusing a component's classes: mind the cascade order</h2>
+<h2 id="docs-ui-conventions-md--h39">Reusing a component's classes: mind the cascade order</h2>
 <p>Several blocks (the contract form, the account dialog, the Manifold import)
 compose the ticket's own classes and then correct one or two properties.
 <code>style.css</code> is one long file and the <code>.ticket-*</code> base rules live near the
@@ -5145,14 +5175,14 @@ before rewriting the markup.</p>
 placeholder, so it reads as a field awaiting digits rather than as a
 glyph; the hug-the-digits behaviour applies to amounts being actively
 edited.</p>
-<h2 id="docs-ui-conventions-md--h39">When in doubt</h2>
+<h2 id="docs-ui-conventions-md--h40">When in doubt</h2>
 <ul>
 <li>Strip color before adding it.</li>
 <li>Add whitespace before adding a divider.</li>
 <li>Use a hairline before using a card.</li>
 <li>Match an existing pattern before inventing one.</li>
 </ul>
-<h3 id="docs-ui-conventions-md--h40">What a market says about itself, and what your position is worth</h3>
+<h3 id="docs-ui-conventions-md--h41">What a market says about itself, and what your position is worth</h3>
 <p>Three facts sit at the right end of the Discussion / Positions / Trades
 row, as three icons with bare numbers (people, drop, bars: the shape
 Manifold's market header uses): how many
@@ -5182,7 +5212,7 @@ with its condition in the hover, never the headline: the breakeven line
 stays first, because a share's payout is linear in the settled value and
 &quot;to win N&quot; alone, as Manifold prints it for a yes/no share, would read as
 a promise here.</p>
-<h2 id="docs-ui-conventions-md--h41">The data room</h2>
+<h2 id="docs-ui-conventions-md--h42">The data room</h2>
 <p><code>telarchy.com/data-room</code> (<code>DataRoomPage</code>, <code>.dr-*</code>) is a document, so it takes
 the 760px column, not the poster's 660px. It is one scrolling page with a
 sticky index of its own sections under the top bar, not a sidebar and not a
@@ -5194,7 +5224,7 @@ charts hand-rolled as inline SVG (a bar per day, one line for a metric's
 readings) rather than a chart library, because the only shapes needed are a
 column and a line. A number the feed refused to compute renders as &quot;not
 published&quot;, never as zero. Spec: <code>docs/data-room.md</code>.</p>
-<h2 id="docs-ui-conventions-md--h42">The frontend never speaks HTTP directly</h2>
+<h2 id="docs-ui-conventions-md--h43">The frontend never speaks HTTP directly</h2>
 <p><code>src/lib/api.ts</code> is the one module that calls <code>fetch</code>. Everything else, page
 or component, calls a method on <code>api</code>. That is not tidiness: the parity guard
 that proves the UI has no capability the public API lacks reads that single
@@ -5202,7 +5232,7 @@ file, so a component doing its own <code>fetch</code> is a capability nobody can
 is also what makes &quot;an assistant acting as you can do what you can do, and
 nothing more&quot; true by construction rather than by review.</p>
 <p><code>api-parity.test.ts</code> fails the build on a <code>fetch(</code> anywhere else under <code>src/</code>.</p>
-<h2 id="docs-ui-conventions-md--h43">Telling somebody there are credits to earn</h2>
+<h2 id="docs-ui-conventions-md--h44">Telling somebody there are credits to earn</h2>
 <p>Discovery goes where the lack is felt, not where attention is cheapest
 (owner ask 2026-08-30; design
 https://claude.ai/code/artifact/9794469a-2222-4fb9-938a-c519b412d771).
