@@ -46,6 +46,9 @@ export interface TradeOutcome {
   consensus: number | null;
   /** Consensus before this trade, so callers can see the interval crossed. */
   prevConsensus: number | null;
+  /** The trader's balance as it stood, in credits. The dry-run path reports
+   *  affordability from it; a real trade has already proven it sufficient. */
+  balance: number;
 }
 
 /**
@@ -97,6 +100,14 @@ export async function executeTradeInTx(
     marketId: string;
     mode: TradeMode;
     tradeId?: string;
+    /**
+     * Quote instead of refuse: skip the balance assertion and report what the
+     * caller could not afford, rather than throwing. Only ever set on the
+     * dry-run path, which rolls the whole transaction back, so a caller can
+     * see how the market answers before anyone has funded it. It changes what
+     * is CHECKED, never what is computed.
+     */
+    quoteOnly?: boolean;
   },
 ): Promise<TradeOutcome> {
   const { workspaceId, agentId, marketId, mode } = opts;
@@ -179,7 +190,7 @@ export async function executeTradeInTx(
     proceeds = directionSellProceeds(shares, direction, amount, b);
     if (proceeds <= 0) throw new AppError('Trade too small', 400);
   } else {
-    if (cost > 0 && !sufficientBalance(balanceUnits, cost))
+    if (cost > 0 && !sufficientBalance(balanceUnits, cost) && !opts.quoteOnly)
       throw new AppError(
         `Insufficient balance: this participant holds ${fromUnits(balanceUnits)} credits and this trade costs ${cost}. ${fundingHint(agentRow)}`,
         400,
@@ -299,6 +310,7 @@ export async function executeTradeInTx(
     probability: newProbability,
     consensus: newConsensus,
     prevConsensus,
+    balance: fromUnits(balanceUnits),
   };
 }
 

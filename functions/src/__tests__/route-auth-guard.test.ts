@@ -92,14 +92,34 @@ describe('optional-auth prefixes', () => {
 });
 
 describe('runtime', () => {
-  test('an unknown /api path is denied before it is routed', async () => {
+  test('an unknown /api path answers 404 for everyone, credentials or not', async () => {
+    // Changed deliberately (2026-09-01). This used to expect 401 for an
+    // anonymous caller: the policy runs before every router, so a path nobody
+    // mounted was refused by authMiddleware and never reached the 404 handler,
+    // and a typo, an unmounted verb and a missing route all claimed to be
+    // credential problems. That is the wrong answer to give an agent exploring
+    // the API, which is what an agent does in its first minute.
+    //
+    // The policy now consults the mounted route table first (route-inventory)
+    // and answers 404 when nothing could serve the request. It grants nothing:
+    // a path that DOES match falls through to exactly the check it faced
+    // before, which the rest of this file and route-auth-matrix pin, and every
+    // endpoint is already published at GET /api/help, so naming a route as
+    // absent discloses nothing that was hidden.
     const anon = await request(app).get('/api/definitely-not-a-route');
-    expect(anon.status).toBe(401);
+    expect(anon.status).toBe(404);
     const master = await request(app)
       .get('/api/definitely-not-a-route')
       .set('X-API-Key', process.env.API_KEY as string)
       .set('X-Workspace-Id', 'ws-guard');
     expect(master.status).toBe(404);
+  });
+
+  test('a real route that needs credentials is still 401, not 404', async () => {
+    // The half of the old assertion that must not change: "you may not" and
+    // "there is no such thing" stay different answers.
+    const anon = await request(app).get('/api/metrics');
+    expect(anon.status).toBe(401);
   });
 
   test('the beta surface (/beta/api/...) gets the same decision as /api/...', async () => {
