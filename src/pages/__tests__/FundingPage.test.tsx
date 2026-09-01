@@ -92,35 +92,78 @@ describe('the funding page', () => {
   test('says what the money is and is not, without making anyone read the doc', async () => {
     renderPage();
     await screen.findByText('128,400');
-    const note = screen.getByText(/can only ever go into your own market pools/);
+    const note = screen.getByText(/go into your own market pools/);
     // The three claims that keep this a service rather than contest entry.
     expect(note.textContent).toMatch(/never a balance you can trade or withdraw/);
-    expect(note.textContent).toMatch(/comes back to the wallet/);
-    expect(note.textContent).toMatch(/does not enter you into the prize season/);
+    expect(note.textContent).toMatch(/returns to your wallet/);
+    expect(note.textContent).toMatch(/not season entry/);
+  });
+
+  // The owner's read of the old page, 2026-09-01: "too much text.. and noisy..
+  // looks shady". A page that argues with you reads like a page with something
+  // to hide, and tiered packages at different rates are the oldest tell there
+  // is. So: one rate, said once, the same at every amount.
+  test('one rate, the same at every amount, and no package sells harder than another', async () => {
+    renderPage();
+    await screen.findByText('128,400');
+    expect(screen.getByText('1,000 credits per $1, any amount')).toBeTruthy();
+    expect(screen.queryByText(/popular/i)).toBeNull();
+    expect(screen.queryByText(/best value/i)).toBeNull();
+    expect(screen.queryByText(/save \d/i)).toBeNull();
+  });
+
+  test('the packages are the four amounts and a custom one, each showing what it buys', async () => {
+    renderPage();
+    await screen.findByText('128,400');
+    for (const [label, credits] of [
+      ['$25', '25,000'],
+      ['$50', '50,000'],
+      ['$100', '100,000'],
+      ['$250', '250,000'],
+    ]) {
+      expect(screen.getByText(label)).toBeTruthy();
+      expect(screen.getByText(credits)).toBeTruthy();
+    }
+    expect(screen.getByText('Custom')).toBeTruthy();
+    expect(screen.getByText('any amount')).toBeTruthy();
   });
 
   test('the button carries the whole trade: dollars in, credits out', async () => {
     renderPage();
     await screen.findByText('128,400');
-    expect(screen.getByText('Pay $50.00 for 50,000 credits')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Pay \$50 by card/ })).toBeTruthy();
+    expect(screen.getByText('50,000 credits into your wallet')).toBeTruthy();
     fireEvent.click(screen.getByText('$250'));
-    expect(screen.getByText('Pay $250.00 for 250,000 credits')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Pay \$250 by card/ })).toBeTruthy();
+    expect(screen.getByText('250,000 credits into your wallet')).toBeTruthy();
+  });
+
+  test('the amount field belongs to Custom and appears only when it is chosen', async () => {
+    renderPage();
+    await screen.findByText('128,400');
+    expect(screen.queryByLabelText('Amount in US dollars')).toBeNull();
+    fireEvent.click(screen.getByText('Custom'));
+    const amt = screen.getByLabelText('Amount in US dollars');
+    fireEvent.change(amt, { target: { value: '30' } });
+    expect(screen.getByRole('button', { name: /Pay \$30 by card/ })).toBeTruthy();
   });
 
   test('a purchase hands off to Stripe and nothing is claimed before it confirms', async () => {
     renderPage();
     await screen.findByText('128,400');
-    fireEvent.click(screen.getByText('Pay $50.00 for 50,000 credits'));
+    fireEvent.click(screen.getByRole('button', { name: /Pay \$50 by card/ }));
     await waitFor(() => expect(buyLiquidityCredits).toHaveBeenCalledWith('ws', 50));
-    expect(screen.getByText(/nothing changes until it confirms/i)).toBeTruthy();
+    expect(screen.getByText(/nothing moves until it confirms/i)).toBeTruthy();
   });
 
   test('an amount outside the API bounds cannot be submitted', async () => {
     renderPage();
     await screen.findByText('128,400');
+    fireEvent.click(screen.getByText('Custom'));
     const amt = screen.getByLabelText('Amount in US dollars');
     fireEvent.change(amt, { target: { value: '2' } });
     expect((screen.getByRole('button', { name: /Pay by card/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('Between $5 and $5,000')).toBeTruthy();
     fireEvent.change(amt, { target: { value: '9000' } });
     expect((screen.getByRole('button', { name: /Pay by card/ }) as HTMLButtonElement).disabled).toBe(true);
     expect(buyLiquidityCredits).not.toHaveBeenCalled();
@@ -132,7 +175,7 @@ describe('the funding page', () => {
     );
     renderPage();
     await screen.findByText('128,400');
-    fireEvent.click(screen.getByText('Pay $50.00 for 50,000 credits'));
+    fireEvent.click(screen.getByRole('button', { name: /Pay \$50 by card/ }));
     expect(await screen.findByText(/disabled on this instance/)).toBeTruthy();
   });
 
@@ -140,7 +183,7 @@ describe('the funding page', () => {
     signedIn = false;
     renderPage();
     expect(await screen.findByText(/This page is the owner's/)).toBeTruthy();
-    expect(screen.queryByLabelText('Amount in US dollars')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Pay/ })).toBeNull();
   });
 });
 
