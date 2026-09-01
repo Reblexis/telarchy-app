@@ -20,6 +20,7 @@ import {
 } from '../db/schema';
 import { consensus, directionSellProceeds, pHigher, resolutionPayouts } from '../lib/amm';
 import { creatorSource, isValidSourceSlug } from '../lib/attribution';
+import { loadBoard } from '../lib/board';
 import { resolutionInstant, settlesOn } from '../lib/date-utils';
 import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { AppError } from '../lib/errors';
@@ -275,6 +276,41 @@ agentsRouter.post(
   }),
 );
 
+/**
+ * Each agent with what it has EARNED beside what it has left.
+ *
+ * A balance answers "how much is in it", which is not the question an owner
+ * asks about a bot they are paying for; they want to know whether it is any
+ * good, and whether it has done anything at all. Most owned bots have not:
+ * 94 had registered and none had ever traded when this was written, so
+ * `totalTrades: 0` is the common and honest answer, and a list that cannot say
+ * it is a list nobody looks at twice.
+ *
+ * The numbers come from lib/board.ts, the module the leaderboard ranks on, over
+ * the public workspaces it ranks over. Deliberately the same source: an owner's
+ * private view of their bot and that bot's public standing must not be able to
+ * disagree.
+ */
+async function withPerformance(rows: Array<typeof agents.$inferSelect>): Promise<Record<string, unknown>[]> {
+  const publicWs = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.visibility, 'public'));
+  const board = await loadBoard(publicWs.map(w => w.id));
+  return rows.map(row => {
+    const { apiKeyHash: _, ...data } = row;
+    const split = board.breakdownById.get(row.id);
+    const activity = board.activityById.get(row.id);
+    return {
+      ...data,
+      balance: fromUnits(data.balance as number),
+      /** Trading profit marked to market, the leaderboard's own number. */
+      earned: board.profitById.get(row.id) ?? 0,
+      settledEarnings: split?.settled ?? 0,
+      openEarnings: split?.open ?? 0,
+      totalTrades: activity?.totalTrades ?? 0,
+      lastTradeAt: activity?.lastTradeAt ?? null,
+    };
+  });
+}
+
 agentsRouter.get(
   '/mine',
   authMiddleware,
@@ -293,20 +329,14 @@ agentsRouter.get(
         .select()
         .from(agents)
         .where(or(eq(agents.authUserId, uid), eq(agents.ownerUserId, uid)));
-      res.json(
-        rows.map(row => {
-          const { apiKeyHash: _, ...data } = row;
-          return { ...data, balance: fromUnits(data.balance as number) };
-        }),
-      );
+      res.json(await withPerformance(rows));
     } else {
       const [agent] = await db.select().from(agents).where(eq(agents.id, authAgentId!));
       if (!agent) {
         res.status(404).json({ error: 'Agent not found' });
         return;
       }
-      const { apiKeyHash: _, ...data } = agent;
-      res.json([{ ...data, balance: fromUnits(data.balance as number) }]);
+      res.json(await withPerformance([agent]));
     }
   }),
 );
@@ -971,8 +1001,10 @@ agentsRouter.use(authMiddleware);
  * single call. Differs from POST /register (unauthenticated, third-party
  * signup) in three ways:
  *
- *   1. The new agent's authUserId is set to the caller's uid when the caller
- *      is a browser session, recording ownership for /agents/mine.
+ *   1. The new agent's ownerUserId is set to the caller's uid when the caller
+ *      is a browser session, recording ownership for /agents/mine. Its
+ *      authUserId stays null: that field means "this human IS this
+ *      participant" and there is at most one of those per account.
  *   2. memberships[] lets you add the agent to multiple workspaces' groups in
  *      one shot. Caller must hold `manage` in each workspace; group ids must
  *      belong to that workspace.

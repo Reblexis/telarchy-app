@@ -326,7 +326,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       auth: 'identity',
       scope: 'account:read',
       description:
-        "List every participant tied to the caller's identity. For browser users: rows with authUserId = your uid. For agent-key callers: a single-row list for the calling agent.",
+        "List every participant tied to the caller's identity. For browser users: the participant that IS you (authUserId = your uid) plus every bot you own (ownerUserId = your uid). For agent-key callers: a single-row list for the calling agent. Each row carries its performance as well as its balance: earned (trading profit marked to market, the same number the public leaderboard ranks on), settledEarnings and openEarnings, totalTrades, and lastTradeAt.",
     },
     {
       method: 'GET',

@@ -990,6 +990,26 @@ export interface JourneyFeed {
   journeys: Journey[];
 }
 
+/** One row of `GET /api/agents/mine`: an agent you own, and how it is doing. */
+export interface MyAgent {
+  id: string;
+  nickname: string | null;
+  bio: string | null;
+  /** Credits it has left. */
+  balance: number;
+  /** Trading profit marked to market, the same number the leaderboard ranks
+   *  on. Zero for a bot that has never traded, which is most of them. */
+  earned: number;
+  settledEarnings: number;
+  openEarnings: number;
+  totalTrades: number;
+  lastTradeAt: string | null;
+  /** Set when this agent IS the signed-in human rather than a bot they own. */
+  authUserId: string | null;
+  ownerUserId: string | null;
+  ownerAgentId: string | null;
+}
+
 export const api = {
   getMetrics: () => request('/api/metrics'),
   /** Create a metric on a floor the caller manages (docs/owner-on-the-floor.md,
@@ -1135,7 +1155,15 @@ export const api = {
   getAgentTrades: (agentId: string, limit = 100) =>
     request(`/api/agents/${encodeURIComponent(agentId)}/trades?limit=${limit}`),
   getAgentMarketPnl: (agentId: string) => request(`/api/agents/${encodeURIComponent(agentId)}/market-pnl`),
-  getMyAgents: () => request('/api/agents/mine'),
+  /** The caller's own participant plus every bot they own, each with what it
+   *  has earned beside what it has left. `earned` is the leaderboard's own
+   *  number, so a bot's private row and its public rank cannot disagree. */
+  getMyAgents: (): Promise<MyAgent[]> => request('/api/agents/mine'),
+  /** Move credits from the caller to another participant. Strictly
+   *  self-initiated by the API: you can fund a bot, and a bot has to send its
+   *  own credits back. */
+  transferCredits: (toAgent: string, amount: number, memo?: string) =>
+    request('/api/agents/transfer', { method: 'POST', body: JSON.stringify({ toAgent, amount, memo }) }),
   registerAgent: (agentId: string) =>
     request('/api/agents/register', { method: 'POST', body: JSON.stringify({ agentId }) }),
   spendAgent: (id: string, amount: number, type: 'betting' | 'tokens', reason: string) =>
@@ -2119,7 +2147,12 @@ export const api = {
     keyLabel?: string;
     keyScopes?: string[];
     memberships?: Array<{ workspaceId: string; groupIds: string[] }>;
-  }) => request('/api/agents', { method: 'POST', body: JSON.stringify(body) }),
+    /** Funds the new bot out of YOUR balance, in the same transaction that
+     *  creates it. Nothing is minted, and if you cannot afford it no bot is
+     *  created at all. Omit or 0 to create an unfunded one. */
+    initialCredits?: number;
+  }): Promise<{ agentId: string; apiKey: string; initialCredits: number }> =>
+    request('/api/agents', { method: 'POST', body: JSON.stringify(body) }),
 
   // Permission groups
   listGroups: () => request('/api/groups'),

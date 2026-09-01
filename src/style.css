@@ -9233,3 +9233,118 @@ textarea.jobform-line--desc {
 @keyframes viz-fade {
   to { opacity: inherit; }
 }
+
+/* ── Agents you own, in the account dialog's "Your AI" section ──────────────
+   Each row answers three questions in the order an owner asks them: did it do
+   anything, what did it earn, what has it got left. On a phone the row stacks
+   and the numbers keep their own line, because a bot with a five-figure
+   balance must not push its own name off the screen. */
+.myagents {
+  list-style: none;
+  margin: 0.2rem 0 0.6rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.myagents-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name earned'
+    'act  bal'
+    'send send';
+  align-items: baseline;
+  gap: 0.15rem 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+}
+.myagents-name {
+  grid-area: name;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.myagents-earned {
+  grid-area: earned;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.myagents-act {
+  grid-area: act;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+.myagents-bal {
+  grid-area: bal;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+/* The button sits under the numbers; the row is already two columns wide. */
+.myagents-row > .acctdlg-ghost {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: 0.35rem;
+}
+.myagents-send {
+  grid-area: send;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: 0.35rem;
+}
+.myagents-send input { width: 6rem; }
+
+.myagents-make {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.myagents-makeform {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+  width: 100%;
+}
+.myagents-makeform label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+.myagents-makeform input { width: 9rem; }
+.myagents-makeform .acctdlg-hint { flex-basis: 100%; margin: 0; }
+
+/* The key panel. It is loud on purpose: the server keeps only a hash, so this
+   is the single moment the key exists anywhere the owner can read it. */
+.myagents-key {
+  margin-top: 0.6rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.myagents-key .acctdlg-hint { flex-basis: 100%; margin: 0; }
+.myagents-keyval {
+  flex: 1 1 14rem;
+  overflow-wrap: anywhere;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+  color: var(--text-primary);
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+}
