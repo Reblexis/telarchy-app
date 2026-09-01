@@ -78,6 +78,19 @@ true, and every change to this feature must preserve all three:
   purchases; `GET /api/liquidity/revenue` (platform admin) totals completed
   revenue over a window.
 
+## Where the wallet is visible
+
+Beside the balance in the top bar: the same drop the market's pool rows wear,
+the number, and a plus that goes to the funding page (owner ask 2026-09-01,
+"liquidity credits are not shown anywhere"). Two purses, so two chips, never
+one sum: the balance trades, the wallet can only ever go behind a market.
+
+It is shown to anyone holding some, and to anyone who could put some behind
+the market they are standing on, for whom an empty wallet still has the plus
+to offer. Standing on a market it leads to that market's funding page;
+anywhere else, to the operator door, since a funding page needs a market to
+fund. The account panel says it in words beside the other two figures.
+
 ## Where an owner buys
 
 `/<floor>/funding` (`src/pages/FundingPage.tsx`), reached from the Buy

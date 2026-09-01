@@ -9103,3 +9103,33 @@ textarea.jobform-line--desc {
   background: var(--accent);
   color: var(--bg-primary);
 }
+
+/* The liquidity wallet beside the balance: the drop the market's pool rows
+   wear, the number, and the way to add to it (owner ask 2026-09-01, and
+   docs/liquidity-purchases.md, "Where an owner buys"). Two purses, so two
+   chips: one trades, one can only ever go behind a market. */
+.acctmenu-wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.acctmenu-wallet:hover { color: var(--text-primary); }
+.acctmenu-drop { display: inline-flex; }
+.acctmenu-plus {
+  display: inline-grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  line-height: 1;
+}
+.acctmenu-wallet:hover .acctmenu-plus { border-color: var(--text-primary); }
