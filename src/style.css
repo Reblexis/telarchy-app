@@ -5188,6 +5188,10 @@ textarea.jobform-line--desc {
   text-align: center;
 }
 .compose-fld input:focus { outline: none; box-shadow: none; }
+.compose-u--pre {
+  margin: 0 0.1rem 0 0;
+  align-self: baseline;
+}
 .compose-u {
   margin-left: 0.18rem;
   font-size: 0.85rem;

@@ -637,6 +637,59 @@ describe('the payoff line', () => {
     expect(container.querySelector('.scale-cursor')).toBeNull();
   });
 
+  test('A RESTING ORDER NAMES ITS LIMIT, never a landing it will not cause', () => {
+    // A resting order moves nothing until it fills, so the value the ticket
+    // shows beside the stake has to be the limit itself. It used to show
+    // the landing of a market buy that was not being placed.
+    const { container } = render(<TradeTicket {...payBase} onPlaceLimit={async () => {}} />);
+    fireEvent.click(screen.getByText('Higher'));
+    fireEvent.click(screen.getByText('Limit'));
+    const compose = container.querySelector('.compose') as HTMLElement;
+    expect(compose.contains(screen.getByLabelText('Limit price in $'))).toBe(true);
+    expect(screen.queryByLabelText('Bet the market to this value in $')).toBeNull();
+  });
+
+  test('and the price lives in the composer, not in a second row of its own', () => {
+    const { container } = render(<TradeTicket {...payBase} onPlaceLimit={async () => {}} />);
+    fireEvent.click(screen.getByText('Higher'));
+    fireEvent.click(screen.getByText('Limit'));
+    expect(container.querySelectorAll('.compose')).toHaveLength(1);
+    expect(container.querySelector('.ticket-amt--price')).toBeNull();
+    expect(container.querySelectorAll('.compose input')).toHaveLength(2);
+  });
+
+  test('typing the limit into the composer composes the whole instruction', () => {
+    render(<TradeTicket {...payBase} onPlaceLimit={async () => {}} />);
+    fireEvent.click(screen.getByText('Higher'));
+    fireEvent.click(screen.getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
+    expect(screen.getByText('Buy Higher with 25 cr under $40,000')).toBeTruthy();
+  });
+
+  test('the line prices the FILL, not a walk the order never takes', () => {
+    const { container } = render(<TradeTicket {...payBase} onPlaceLimit={async () => {}} />);
+    fireEvent.click(screen.getByText('Higher'));
+    fireEvent.click(screen.getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '100000' } });
+    // Filled at a fifth of the range, 25 cr buys 125 shares: the whole stake
+    // gone at the floor, 100 credits up at the ceiling, even at the limit.
+    const s = stops(container);
+    expect(s[0].credits).toBe('-25 cr');
+    expect(s[s.length - 1].credits).toBe('+100 cr');
+    expect(s.find(x => x.credits === '0 cr')?.at).toBeCloseTo(20, 5);
+  });
+
+  test('a limit the market has already passed prices nothing at all', () => {
+    const { container } = render(<TradeTicket {...payBase} onPlaceLimit={async () => {}} />);
+    fireEvent.click(screen.getByText('Higher'));
+    fireEvent.click(screen.getByText('Limit'));
+    // Buying higher waits for a cheaper price, so a limit above the current
+    // call would fill at once: the ticket says so and draws no payoff.
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '400000' } });
+    expect(container.querySelector('.scale')).toBeNull();
+    expect(screen.getByText(/or it fills right now/)).toBeTruthy();
+  });
+
   test('a held position is priced the same way, at what it actually paid', () => {
     const { container } = render(
       <TradeTicket

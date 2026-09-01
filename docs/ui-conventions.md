@@ -797,10 +797,11 @@ success flashes "Placed" on the button itself; errors render inside the
 ticket. Held positions sit at the top of the ticket as rows (tinted
 direction, mono payout, a Sell pill).
 
-Limit mode swaps in a price input in the same underlined register and the
-confirm becomes the whole instruction ("Buy Higher with 25 cr under
-$65,000"), with breakeven exactly at the limit; limit orders are a mode of
-the same ticket, never a second panel. Spec: docs/limit-orders.md.
+Limit mode swaps the composer's right half from the landing value to the
+price itself, in the same underlined register, and the confirm becomes the
+whole instruction ("Buy Higher with 25 cr under $65,000"), with breakeven
+exactly at the limit; limit orders are a mode of the same ticket, never a
+second panel. Spec: docs/limit-orders.md.
 
 **The payoff line is one rule with two rows of type, and nothing else**
 (owner, 2026-09-01: "i want the visualization line to only show on top the
@@ -853,10 +854,20 @@ marked only at the current value, which is exactly where a share bought
 right now breaks even, with the range's ends labelled underneath. A held
 position IS a bet, so it is priced the same way, at what it actually paid.
 
-Two degradations. A market with no range has no landing value, no break-even
+**A resting order names its LIMIT in that same line**, because it moves
+nothing until it fills and so causes no landing to name. The right half is
+the price input itself, in the same underlined register, with one line under
+the slider saying what the pair means ("buy when the market falls under
+it"); limit mode has no second price row of its own. Its rule prices the
+FILL rather than a walk it never takes: the whole stake gone at the far end
+of the range, a credit a share at the near one, and the colour change
+exactly at the limit, which is the whole appeal of naming your own price. A
+limit the market has already passed fills at once rather than resting, so
+the ticket says so and draws nothing.
+
+One degradation. A market with no range has no landing value, no break-even
 and no payout to state, so the ticket falls back to a stake and a confirm
-rather than inventing any of them. A resting limit order breaks even at its
-own price, which is where its rule changes colour.
+rather than inventing any of them.
 
 **The value half of that line is an INPUT.** The numeral that answers "where
 does my bet leave the market" also accepts the answer as the question.
