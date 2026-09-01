@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
@@ -10,6 +10,7 @@ import {
   markets,
   positions,
   proposals,
+  tradeIdempotency,
   trades,
   workspaces,
 } from '../db/schema';
@@ -55,6 +56,23 @@ import {
   type TradeMode,
 } from '../services/trading';
 import { clearBoardCache } from './leaderboard';
+
+/**
+ * A request body in a form two equal bodies always hash the same way: keys
+ * sorted at every level, so `{a,b}` and `{b,a}` are one request rather than a
+ * false Idempotency-Key conflict.
+ */
+function canonicalise(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonicalise);
+  if (v && typeof v === 'object') {
+    return Object.fromEntries(
+      Object.keys(v as Record<string, unknown>)
+        .sort()
+        .map(k => [k, canonicalise((v as Record<string, unknown>)[k])]),
+    );
+  }
+  return v;
+}
 
 export const predictionsRouter = Router();
 
@@ -334,7 +352,63 @@ predictionsRouter.post(
       return;
     }
 
+    /**
+     * Retry safety for callers that are machines.
+     *
+     * A bot whose request times out after the server committed has no safe
+     * move without this: retrying buys again on a curve its own first attempt
+     * moved, and not retrying leaves it unsure whether it holds a position.
+     * The header is optional and changes nothing for callers that omit it.
+     *
+     * The claim row goes in FIRST, inside the same transaction as the trade.
+     * That is what makes the two hard cases work: a concurrent duplicate
+     * blocks on the primary key until the first commits and then replays it,
+     * and a trade that throws rolls the claim back with everything else, so a
+     * failed call leaves the key free for a real retry rather than burning it.
+     */
+    const idemKey = typeof req.headers['idempotency-key'] === 'string' ? req.headers['idempotency-key'].trim() : '';
+    const requestHash = idemKey
+      ? createHash('sha256')
+          .update(JSON.stringify(canonicalise(req.body ?? {})))
+          .digest('hex')
+      : '';
+
+    if (idemKey) {
+      const [seen] = await db
+        .select()
+        .from(tradeIdempotency)
+        .where(
+          and(
+            eq(tradeIdempotency.agentId, agentId),
+            eq(tradeIdempotency.workspaceId, workspaceId),
+            eq(tradeIdempotency.key, idemKey),
+          ),
+        );
+      if (seen) {
+        if (seen.requestHash !== requestHash) {
+          // Replaying the first result here would be worse than refusing: the
+          // caller would believe a trade it never asked for had been placed.
+          res.status(409).json({
+            error:
+              'This Idempotency-Key was already used for a different request. Use a new key for a new trade, or resend the original body to get its result.',
+          });
+          return;
+        }
+        res.status(201).json({ ...(seen.response as Record<string, unknown>), idempotentReplay: true });
+        return;
+      }
+    }
+
     await db.transaction(async tx => {
+      if (idemKey) {
+        await tx.insert(tradeIdempotency).values({
+          agentId,
+          workspaceId,
+          key: idemKey,
+          requestHash,
+          response: {},
+        });
+      }
       const outcome = await executeTradeInTx(tx, { workspaceId, agentId, marketId: marketId!, mode, tradeId });
 
       // Every trade that moves the price runs the fill pass for that market, in
@@ -382,6 +456,20 @@ predictionsRouter.post(
         cost: outcome.isSell ? -outcome.proceeds : outcome.cost,
         newConsensus: settled,
       };
+      if (idemKey) {
+        // The exact body the caller is about to receive, so a retry gets the
+        // answer rather than a reconstruction of it.
+        await tx
+          .update(tradeIdempotency)
+          .set({ response: tradeResponse })
+          .where(
+            and(
+              eq(tradeIdempotency.agentId, agentId),
+              eq(tradeIdempotency.workspaceId, workspaceId),
+              eq(tradeIdempotency.key, idemKey),
+            ),
+          );
+      }
     });
 
     // The board must include this trade on the very next read: the floor rail

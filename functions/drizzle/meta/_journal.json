@@ -694,6 +694,13 @@
       "when": 1788300019000,
       "tag": "0098_na_reading",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1788300022000,
+      "tag": "0099_trade_idempotency",
+      "breakpoints": true
     }
   ]
 }
