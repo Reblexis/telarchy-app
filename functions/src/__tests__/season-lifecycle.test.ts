@@ -845,7 +845,7 @@ describe('settling', () => {
     expect(marker.score).toBe(0);
   });
 
-  test('A TRADE INSIDE THE FINAL 6 HOURS OF A MARKET COUNTS NOTHING (amended 2026-08-28)', async () => {
+  test('A LATE TRADE COUNTS, because there is no window to snipe in (amended 2026-09-01)', async () => {
     await seedFloor(['sniper']);
     const season = (await createSeason()).body.season;
     await startSeason(season.id);
@@ -853,8 +853,13 @@ describe('settling', () => {
     // An honest trade two days out: 40 shares at cost 10, resolution pays 20.
     const resolvedAt = new Date(Date.now() - 1 * HOUR);
     await giveSettledProfit('sniper', 10, 'snipe', WS, { resolvedAt });
-    // The snipe: two hours before resolution, when the reading is knowable,
-    // 40 more shares for almost nothing. Counted, it would add ~19 of score.
+    // Amended 2026-09-01: the 6-hour cutoff is gone, so this counts. It is
+    // not a snipe any more - a market resolves the moment its reading is
+    // filed, so there is no interval in which the reading is knowable and the
+    // book is still open. What the cutoff also did, and what removing it
+    // fixes, was ignore late SELLING: a position sold before resolution was
+    // still scored as if held (season-scores-what-you-held.test.ts).
+    // 40 more shares for 1, paying 20 at resolution: +19 of score.
     await db.insert(trades).values({
       id: 'trade-snipe-late',
       workspaceId: WS,
@@ -870,8 +875,8 @@ describe('settling', () => {
 
     const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
     expect(res.status).toBe(200);
-    // Only the early trade scores: 20 of payout minus 10 of cost.
-    expect(res.body.winners[0].score).toBeCloseTo(10, 5);
+    // Both trades score: 80 shares paying 40, for 11 of cost.
+    expect(res.body.winners[0].score).toBeCloseTo(29, 5);
   });
 
   test('a resolution after the season end scores nothing, however soon after', async () => {

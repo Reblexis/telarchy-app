@@ -1,7 +1,7 @@
 import { and, eq, gt, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { markets, positions, trades } from '../db/schema';
-import { periodEndInstant, resolutionInstant, settlesOn } from './date-utils';
+import { resolutionInstant, settlesOn } from './date-utils';
 import {
   type CalibrationStats,
   computeCalibrationStats,
@@ -13,7 +13,6 @@ import {
   type ProfitMarket,
   voidedStakeKey,
 } from './leaderboard';
-import { SEASON_TRADE_CUTOFF_HOURS } from './seasons';
 
 /**
  * The board: everyone's trading profit marked to market, over ONE named set of
@@ -279,18 +278,6 @@ export function seasonMarketCountsIn(
   return settles.getTime() <= windowEnd.getTime();
 }
 
-/**
- * The instant after which a trade in this market scores nothing.
- *
- * Measured from the PERIOD END, not from settlement: the lag moves when a
- * market pays, never when its answer stopped being unknown. The settled half
- * used to subtract the cutoff from `resolvedAt`, which on a three-day lag
- * lands days after trading has already stopped and therefore cut nothing.
- */
-export function seasonTradeCutoff(market: { targetDate: string }): Date {
-  return new Date(periodEndInstant(market.targetDate).getTime() - SEASON_TRADE_CUTOFF_HOURS * 3_600_000);
-}
-
 export async function loadSeasonSettled(
   workspaceIds: string[],
   windowStart: Date,
@@ -333,20 +320,21 @@ export async function loadSeasonSettled(
     .where(
       and(
         inWindow,
-        // The cutoff: a trade inside the market's final hours counts nothing,
-        // cost and shares both (rules amended 2026-08-28).
+        // NO CUTOFF. Every trade counts, cost and shares both.
         //
-        // Measured from resolvedAt, while the marked half measures from the
-        // period end (seasonTradeCutoff). The two disagree whenever a metric
-        // carries a reporting lag: resolvedAt is then days after trading
-        // stopped, so this cutoff excludes nothing and the final six hours
-        // before the fixing still score. STILL OPEN, deliberately
-        // (bug hunt 2026-08-31, P1-11): the exploit it used to enable is
-        // closed - trading stops at the fixing now - so what remains is a
-        // rule detail, and closing it here means parsing targetDate, which
-        // this half has never done and which several suites rely on it not
-        // doing (their fixtures carry synthetic target dates).
-        sql`${trades.createdAt} <= ${markets.resolvedAt} - make_interval(hours => ${SEASON_TRADE_CUTOFF_HOURS})`,
+        // The 6-hour cutoff existed for one published reason: "it just cannot
+        // farm the prize off a reading that is already visible"
+        // (docs/legal/season-0-rules.md). A market resolves on its reading
+        // now, so the reading becoming visible IS the resolution and there is
+        // no window to farm; the cutoff protected nothing and cost something.
+        //
+        // "Does not count" cut both ways: meant to ignore late BUYING, it
+        // also ignored late SELLING, so a trader could buy before the cutoff,
+        // sell out after it, and still be scored on shares they did not hold
+        // at resolution - the same bankroll scored on market after market for
+        // the price of the spread. Counting every trade makes the arithmetic
+        // self-correcting, because the aggregate nets to zero shares at the
+        // cost of the spread (owner decision 2026-09-01).
       ),
     )
     .groupBy(trades.agentId, trades.workspaceId, trades.marketId, trades.direction);
@@ -432,10 +420,9 @@ async function loadOpenWindowMarked(workspaceIds: string[], windowEnd: Date): Pr
     .filter(m => m.resolvesOn !== null && seasonMarketCountsIn(m, windowEnd));
   if (scored.length === 0) return new Map();
 
-  // Each market's own cutoff, measured from when its answer was fixed.
-  const cutoffs = scored.map(m =>
-    and(eq(trades.marketId, m.id), eq(trades.workspaceId, m.workspaceId), lte(trades.createdAt, seasonTradeCutoff(m))),
-  );
+  // No cutoff here either, for the same reason as the settled half: every
+  // trade counts, so the marked position is the one actually held.
+  const cutoffs = scored.map(m => and(eq(trades.marketId, m.id), eq(trades.workspaceId, m.workspaceId)));
 
   const aggs = await db
     .select({

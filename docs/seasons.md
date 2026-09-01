@@ -63,12 +63,14 @@ markets cancelled inside the window, minus the net cash paid on those
 markets. Nothing marked enters the score: a position still open at the end
 counts zero, however the board values it. The window is `(startsAt, endsAt]`
 on `markets.resolvedAt` (a resolution exactly at the end instant counts; the
-hero market resolving after the end scores nothing that season). Trades
-placed within `SEASON_TRADE_CUTOFF_HOURS` (6) of a market's resolve instant
-do not count, cost and shares both: the market stays tradeable to keep the
-floor's number honest, but a reading that is already visible cannot be
-farmed for prize money. An entrant's scored position in a market is what
-they held 6 hours before it resolved. Before the effective instant the
+hero market resolving after the end scores nothing that season). EVERY TRADE COUNTS, whenever it
+was made. The 6-hour cutoff was removed on 2026-09-01: a market resolves the
+moment a reading dated inside its period is filed, so there is no interval in
+which an already-visible answer can be traded against, which is the only thing
+the cutoff protected. It also ignored late SELLING as well as late buying, so
+a position sold before resolution was still scored as if held, and one
+bankroll could be scored on market after market. An entrant's scored position
+is what they actually held when the market resolved. Before the effective instant the
 previous rule (marked-to-market growth over a start-instant baseline)
 applied, and the standings switch keys at that instant
 (`functions/src/lib/seasons.ts`, `settledScoringActive`).
@@ -103,8 +105,7 @@ every market still open whose resolution instant falls on or before the
 season's end, each open holding valued at that market's current call. An
 entrant with nothing open reads the same number in both columns, which is
 what tells a reader the second contains the first. A market resolving after the end is left out, because
-a resolution after the end pays no season prize, and the 6-hour trade cutoff
-applies unchanged, so a trade too late to be scored is too late to be marked.
+a resolution after the end pays no season prize.
 `markedProjectedPrizeUsd` is the settlement projection run on those numbers,
 from the same function the real projection uses, so it says what the pool
 would pay if those prices held to the end. Both are display: rank, share and
@@ -140,12 +141,6 @@ in "Total if prices hold" and then dropped at settlement, promising dollars
 the season could not pay, against that column's own tooltip. So a season's
 `endsAt` should be set to cover the reporting lags of the metrics it scores
 (owner decision 2026-09-01). Records: `notes/bug-hunt-2026-08-31.md`, P1-10.
-
-**Still open:** the trade cutoff is measured from the period end on the open
-half and from `resolvedAt` on the settled half, so for a lagged market the
-settled half's cutoff lands after trading has already stopped and excludes
-nothing. The exploit that made this urgent is closed - trading stops at the
-fixing now - so what remains is a rule detail (P1-11).
 
 **A season starts because a person started it** (owner decision 2026-09-01,
 reversing the 2026-08-20 direction to make it automatic). Pinning baselines
@@ -424,7 +419,7 @@ marking the target up; the cost is credits, which are worthless, and the
 prize is $500. Under settled scoring a pumped price changes no resolution
 payout, so the pump buys nothing unless the sybils trade AGAINST the
 champion on a market that resolves, i.e. deliberately lose settled money to
-him inside the window and before the 6h cutoff. That residual wealth
+him inside the window. That residual wealth
 transfer is real, unbounded in size, and visible in the trade ledger, which
 is what the disqualification clause is read against.
 

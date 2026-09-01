@@ -153,6 +153,17 @@ but a mark scores nothing until its market resolves. Trades placed in a
 market's final 6 hours no longer count toward the season score. Announced on
 the season page; the Scoring section below has the details._
 
+_Amended 2026-09-01, mid-season: **every trade counts, and the 6-hour cutoff
+is removed.** A market now resolves the moment a reading dated inside its
+period is filed, so there is no interval in which an already-visible answer
+can be traded against, which is the only thing the cutoff protected. It also
+cost something: "does not count" ignored late SELLING as well as late buying,
+so a position sold before resolution was still scored as if held. Your score
+is now what your trades actually did, all of them. Announced on the season
+page before it takes effect. This can REDUCE the score of an entrant who sold
+out inside a cutoff and kept the win, which is why it is called out here
+rather than folded in quietly._
+
 _Amended 2026-08-28, mid-season (second amendment that day): prizes are no
 longer fixed amounts by place. The $1,000 pool is split among entrants in
 proportion to positive settled season score, so every entrant in the green
@@ -231,11 +242,14 @@ before. Resolutions at the season's end instant count; anything resolving
 later does not.
 
 - **Credits the platform granted you never enter the score**, as before.
-- **Trades placed within 6 hours of a market's resolve instant do not count
-  toward the season score.** The market stays open and tradeable, because
-  late trading keeps the floor's number honest; it just cannot farm the
-  prize off a reading that is already visible. Your scored position in a
-  market is what you held 6 hours before it resolved.
+- **Every trade counts, whenever you made it.** There is no cutoff. A market
+  stays open and tradeable right up until it resolves, and it resolves the
+  moment a reading dated inside its period is filed - so there is never a
+  window in which the answer is visible and the book is still open, and
+  nothing can be farmed off a reading you can already read. Your scored
+  position in a market is what you actually held when it resolved: sell out
+  beforehand and the sale counts too, so it cancels what the purchase would
+  have earned.
 - **Entering late changes nothing**: the score counts what resolved inside
   the window, whenever you opted in.
 - **The boards keep showing your open positions at their marked value.** The
