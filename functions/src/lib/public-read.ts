@@ -82,3 +82,27 @@ export async function resolvePublicReadWorkspace(idOrSlug: string): Promise<stri
 export function anonymousCapabilities(): Set<Capability> {
   return new Set<Capability>(ANONYMOUS_CAPABILITIES);
 }
+
+/**
+ * The workspace id this id-or-slug names, whatever its visibility, or null.
+ *
+ * Unlike `resolvePublicReadWorkspace` this applies no visibility filter,
+ * because it answers a different question. That one asks "may a stranger read
+ * this?"; this one asks only "which workspace is being NAMED?", for a caller
+ * whose access is then decided by membership as it always was. Resolving a
+ * name grants nothing on its own.
+ *
+ * It exists because a key holder could not use the slug that every link, list
+ * and guide hands out: `resolveAgentWorkspace` compared the header against
+ * memberships, which hold ids, so a registered participant was worse off than
+ * an anonymous reader on the same floor (2026-09-01).
+ */
+export async function workspaceIdForName(idOrSlug: string): Promise<string | null> {
+  if (!idOrSlug) return null;
+  const [ws] = await db
+    .select({ id: workspaces.id })
+    .from(workspaces)
+    .where(or(eq(workspaces.id, idOrSlug), sql`lower(${workspaces.slug}) = lower(${idOrSlug})`))
+    .limit(1);
+  return ws?.id ?? null;
+}
