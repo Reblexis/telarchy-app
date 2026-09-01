@@ -9256,3 +9256,101 @@ textarea.jobform-line--desc {
 .flchk-row:last-child { border-bottom: 1px solid var(--border-color); }
 .flchk-label { font-size: 0.9rem; font-weight: 600; }
 .flchk-note { font-size: 0.85rem; line-height: 1.5; color: var(--text-tertiary); }
+/* The audience pages' drawings (docs/audience-pages.md, "Pictures").
+   Every colour is a token through a class, never an SVG attribute, so they
+   follow the light and dark themes; the drawing is information rather than
+   an effect, so it is complete whether or not it animates. */
+.viz {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 1.1rem 0 0.2rem;
+  overflow: visible;
+}
+.viz-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.viz-up { fill: none; stroke: var(--higher); stroke-width: 2.5; stroke-linecap: round; }
+.viz-down { fill: none; stroke: var(--lower); stroke-width: 2.5; stroke-dasharray: 5 5; stroke-linecap: round; }
+.viz-gap { fill: none; stroke: var(--text-tertiary); stroke-width: 1.2; stroke-dasharray: 2 4; }
+.viz-tick { stroke: var(--text-tertiary); stroke-width: 1; }
+.viz-check { fill: none; stroke: var(--higher); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.viz-dot { fill: var(--accent); }
+.viz-dot--up { fill: var(--higher); }
+.viz-dot--down { fill: var(--lower); }
+.viz-lab {
+  fill: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.viz-num {
+  fill: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+.viz-cr {
+  fill: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+.viz-cr--up { fill: var(--higher); }
+.viz-cr--down { fill: var(--lower); }
+.viz-many { fill: var(--text-tertiary); opacity: 0.45; }
+.viz-few { fill: var(--accent); }
+.viz-slice { fill: var(--higher); stroke: var(--bg-primary); stroke-width: 1; }
+.viz-rule--down { fill: var(--lower); opacity: 0.32; }
+.viz-rule--up { fill: var(--higher); opacity: 0.36; }
+
+/* A drawing draws itself when it scrolls into view. The COMPLETE state is
+   the default: the hidden state is added by the component only once it has
+   an observer and the reader has not asked for less motion, so a picture
+   can never be lost to an animation that did not run. It never loops; a
+   picture that keeps moving reads as an advert. */
+.viz.is-pending .viz-line,
+.viz.is-pending .viz-up,
+.viz.is-pending .viz-check {
+  stroke-dasharray: 620;
+  stroke-dashoffset: 620;
+}
+.viz.is-pending .viz-down,
+.viz.is-pending .viz-dot,
+.viz.is-pending .viz-num,
+.viz.is-pending .viz-many,
+.viz.is-pending .viz-few,
+.viz.is-pending .viz-slice,
+.viz.is-pending .viz-rule {
+  opacity: 0;
+}
+
+.viz.is-in .viz-line,
+.viz.is-in .viz-up,
+.viz.is-in .viz-check {
+  stroke-dasharray: 620;
+  stroke-dashoffset: 620;
+  animation: viz-draw 1s ease forwards;
+}
+.viz.is-in .viz-up { animation-delay: 0.35s; }
+.viz.is-in .viz-check { animation-delay: 0.85s; }
+.viz.is-in .viz-down,
+.viz.is-in .viz-dot,
+.viz.is-in .viz-num {
+  opacity: 0;
+  animation: viz-fade 0.5s ease forwards;
+  animation-delay: 0.55s;
+}
+.viz.is-in .viz-many,
+.viz.is-in .viz-few,
+.viz.is-in .viz-slice,
+.viz.is-in .viz-rule {
+  opacity: 0;
+  animation: viz-fade 0.4s ease forwards;
+  animation-delay: calc(var(--i, 0) * 11ms);
+}
+.viz.is-in .viz-slice { animation-delay: calc(var(--i, 0) * 42ms); }
+
+@keyframes viz-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes viz-fade {
+  to { opacity: inherit; }
+}

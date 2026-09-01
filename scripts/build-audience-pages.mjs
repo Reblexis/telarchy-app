@@ -48,6 +48,15 @@ function parseTable(lines) {
   return { kind: 'table', head, rows: body };
 }
 
+/**
+ * The drawings a page may name. A picture is a line in the markdown so the
+ * doc stays the single source of a page, but the drawing itself is code, so
+ * the two have to agree: an unknown name fails the build rather than
+ * rendering a hole nobody notices in review. Add one here and in
+ * src/components/AudienceViz.tsx together.
+ */
+const VIZ = new Set(['conditional-pair', 'thin-book', 'pool-split', 'payoff-line']);
+
 function parseCta(line) {
   return line
     .replace(/^CTA:\s*/, '')
@@ -112,6 +121,16 @@ export function parsePage(header, body) {
       i++;
       continue;
     }
+    if (line.startsWith('VIZ: ')) {
+      flushFaq();
+      const name = line.slice(5).trim();
+      if (!VIZ.has(name)) {
+        throw new Error(`${route}: unknown VIZ "${name}" (known: ${[...VIZ].join(', ')})`);
+      }
+      page.blocks.push({ kind: 'viz', name });
+      i++;
+      continue;
+    }
     if (line.startsWith('CTA:')) {
       flushFaq();
       page.cta = parseCta(line);
@@ -146,7 +165,8 @@ export function parsePage(header, body) {
     }
     // Paragraph: consecutive non-empty lines; a bold opening becomes the lead.
     const para = [];
-    while (i < lines.length && lines[i].trim() && !/^(#|\||Q: |CTA:|\d+\. |- )/.test(lines[i])) para.push(lines[i++]);
+    while (i < lines.length && lines[i].trim() && !/^(#|\||Q: |CTA:|VIZ: |\d+\. |- )/.test(lines[i]))
+      para.push(lines[i++]);
     const text = para.join(' ');
     const lm = /^\*\*([^*]+)\*\*\s*(.*)$/s.exec(text);
     if (lm) page.blocks.push({ kind: 'p', lead: plain(lm[1]), text: plain(lm[2]) });
@@ -209,7 +229,8 @@ export type AudienceBlock =
   | { kind: 'ol'; items: string[] }
   | { kind: 'ul'; items: string[] }
   | { kind: 'table'; head: string[]; rows: string[][] }
-  | { kind: 'faq'; items: { q: string; a: string }[] };
+  | { kind: 'faq'; items: { q: string; a: string }[] }
+  | { kind: 'viz'; name: string };
 
 export interface AudiencePage {
   slug: string;
