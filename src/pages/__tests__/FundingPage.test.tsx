@@ -51,9 +51,9 @@ vi.mock('../../components/PageTopBar', () => ({ PageTopBar: () => null }));
 
 import { FundingPage } from '../FundingPage';
 
-const renderPage = () =>
+const renderPage = (search = '') =>
   render(
-    <MemoryRouter initialEntries={['/lookpilot/funding']}>
+    <MemoryRouter initialEntries={[`/lookpilot/funding${search}`]}>
       <Routes>
         <Route path="/:slug/funding" element={<FundingPage />} />
       </Routes>
@@ -62,6 +62,21 @@ const renderPage = () =>
 
 beforeEach(() => {
   signedIn = true;
+  getLiquidityPurchases.mockClear();
+  getLiquidityPurchases.mockResolvedValue({
+    purchases: [
+      {
+        id: 'p1',
+        usdAmount: 120,
+        credits: 120000,
+        creditsPerUsd: 1000,
+        status: 'completed',
+        allocation: null,
+        createdAt: '2026-08-14T10:00:00Z',
+        completedAt: '2026-08-14T10:01:00Z',
+      },
+    ],
+  } as never);
   buyLiquidityCredits.mockClear();
   buyLiquidityCredits.mockResolvedValue({ url: 'https://checkout.stripe.com/c/pay/abc', credits: 50000 } as never);
 });
@@ -126,5 +141,54 @@ describe('the funding page', () => {
     renderPage();
     expect(await screen.findByText(/This page is the owner's/)).toBeTruthy();
     expect(screen.queryByLabelText('Amount in US dollars')).toBeNull();
+  });
+});
+
+/**
+ * Coming back from Stripe. The owner paid $5 on 2026-09-01 and landed on the
+ * operator door, which offers to open a market and says nothing about money:
+ * "i just bought it. 5 credits.. and it redirected me to otto? wtf". The
+ * return belongs here, and here it has to account for the payment.
+ */
+describe('the return from Stripe', () => {
+  test('a completed purchase is confirmed by amount and credits', async () => {
+    renderPage('?liquidity=purchased');
+    expect(await screen.findByText(/payment received/i)).toBeInTheDocument();
+    expect(await screen.findByText(/120,000 credits are in your wallet/i)).toBeInTheDocument();
+  });
+
+  test('a purchase Stripe has not confirmed yet says it is still coming, not that nothing happened', async () => {
+    getLiquidityPurchases.mockResolvedValue({
+      purchases: [
+        {
+          id: 'p2',
+          usdAmount: 5,
+          credits: 5000,
+          creditsPerUsd: 1000,
+          status: 'pending',
+          allocation: null,
+          createdAt: '2026-09-01T11:41:00Z',
+          completedAt: null,
+        },
+      ],
+    } as never);
+    renderPage('?liquidity=purchased');
+    expect(await screen.findByText(/payment received/i)).toBeInTheDocument();
+    expect(screen.getByText(/still confirming/i)).toBeInTheDocument();
+    // It keeps looking rather than leaving a stale number on screen.
+    await waitFor(() => expect(getLiquidityPurchases.mock.calls.length).toBeGreaterThan(1), { timeout: 6000 });
+  });
+
+  test('a cancelled return says nothing was charged and confirms no payment', async () => {
+    renderPage('?liquidity=cancelled');
+    expect(await screen.findByText(/nothing was charged/i)).toBeInTheDocument();
+    expect(screen.queryByText(/payment received/i)).not.toBeInTheDocument();
+  });
+
+  test('arriving without either says neither', async () => {
+    renderPage();
+    expect(await screen.findByText(/credits in your liquidity wallet/i)).toBeInTheDocument();
+    expect(screen.queryByText(/payment received/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/nothing was charged/i)).not.toBeInTheDocument();
   });
 });

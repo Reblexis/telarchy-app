@@ -2044,6 +2044,17 @@ purchase and returns a Stripe Checkout URL. The line item carries a product
 tax code (<code>STRIPE_TAX_CODE</code>, default <code>txcd_10000000</code>, &quot;General -
 Electronically Supplied Services&quot;), which Managed Payments requires and
 only asks for in live mode.</li>
+<li>Stripe returns the payer to the funding page of the workspace they bought
+for, <code>/&lt;floor&gt;/funding?liquidity=purchased</code> (or <code>=cancelled</code> when they back
+out), never to the operator door. That page is where they started, it is
+where the wallet they just filled is shown, and it is the only screen that
+can say what landed; the return target is derived from the workspace, not
+taken from the request, so no caller can aim it elsewhere.</li>
+<li>The returned page says the payment arrived and keeps looking until the
+credits do. Stripe's redirect races its own webhook, so a wallet that has
+not moved yet is normal for a second or two and the page says so rather
+than showing an unchanged number with no explanation; a cancelled return
+says only that nothing was charged.</li>
 <li>Stripe calls <code>POST /api/stripe/webhook</code> (raw body, signature verified,
 no other auth; the route picks its store from the request host, because it
 is mounted before the swap that does it for everything else, and a purchase

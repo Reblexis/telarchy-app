@@ -66,6 +66,17 @@ true, and every change to this feature must preserve all three:
   tax code (`STRIPE_TAX_CODE`, default `txcd_10000000`, "General -
   Electronically Supplied Services"), which Managed Payments requires and
   only asks for in live mode.
+- Stripe returns the payer to the funding page of the workspace they bought
+  for, `/<floor>/funding?liquidity=purchased` (or `=cancelled` when they back
+  out), never to the operator door. That page is where they started, it is
+  where the wallet they just filled is shown, and it is the only screen that
+  can say what landed; the return target is derived from the workspace, not
+  taken from the request, so no caller can aim it elsewhere.
+- The returned page says the payment arrived and keeps looking until the
+  credits do. Stripe's redirect races its own webhook, so a wallet that has
+  not moved yet is normal for a second or two and the page says so rather
+  than showing an unchanged number with no explanation; a cancelled return
+  says only that nothing was charged.
 - Stripe calls `POST /api/stripe/webhook` (raw body, signature verified,
   no other auth; the route picks its store from the request host, because it
   is mounted before the swap that does it for everything else, and a purchase

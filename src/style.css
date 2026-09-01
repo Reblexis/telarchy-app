@@ -8856,6 +8856,18 @@ textarea.jobform-line--desc {
 .fundp-go { width: auto; flex: 1; min-width: 15rem; }
 .fundp-fine { margin-top: 0.9rem; }
 
+/* Coming back from Stripe: a hairline notice, not a card. It carries the ember
+   rule the floor uses for money that just moved; a cancelled return drops to
+   the quiet border, because nothing happened. */
+.fundp-back {
+  margin: 0 0 1.6rem;
+  padding: 0.7rem 0 0.7rem 0.9rem;
+  border-left: 2px solid var(--color-ember);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.fundp-back.is-quiet { border-left-color: var(--border-strong); color: var(--text-tertiary); }
+
 
 /* ---------------------------------------------------------------------------
    The two doors: Otto and your own AI, one hairline stack

@@ -115,8 +115,14 @@ liquidityPurchasesRouter.post(
       usdAmount,
       workspaceName: ws.name,
       purchaseId,
-      successUrl: `${baseUrl()}/manage?liquidity=purchased`,
-      cancelUrl: `${baseUrl()}/manage?liquidity=cancelled`,
+      // Back to where the money was spent. The funding page is the only buy
+      // surface and the only screen that shows the wallet it fills; the
+      // operator door, which used to catch every return, offers to open a
+      // market and says nothing about a payment (owner report 2026-09-01).
+      // Derived from the workspace rather than taken from the request, so
+      // the return cannot be aimed anywhere else.
+      successUrl: `${baseUrl()}/${ws.slug ?? workspaceId}/funding?liquidity=purchased`,
+      cancelUrl: `${baseUrl()}/${ws.slug ?? workspaceId}/funding?liquidity=cancelled`,
     });
     await db
       .update(liquidityPurchases)
