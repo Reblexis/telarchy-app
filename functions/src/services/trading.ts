@@ -127,11 +127,11 @@ export async function executeTradeInTx(
     .from(markets)
     .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)))
     .for('update');
-  if (!market) throw new AppError('Market not found', 404);
-  if (market.resolved) throw new AppError('Market is resolved', 400);
-  if (market.voided) throw new AppError('Market is voided; positions were refunded', 400);
+  if (!market) throw new AppError('Market not found', 404, undefined, 'market_not_found');
+  if (market.resolved) throw new AppError('Market is resolved', 400, undefined, 'market_resolved');
+  if (market.voided) throw new AppError('Market is voided; positions were refunded', 400, undefined, 'market_voided');
   if (!market.active && mode.type !== 'sell') {
-    throw new AppError('Market is closed; only selling existing positions is allowed', 400);
+    throw new AppError('Market is closed; only selling existing positions is allowed', 400, undefined, 'market_closed');
   }
 
   const shares = (market.shares as [number, number]) || [0, 0];
@@ -175,7 +175,7 @@ export async function executeTradeInTx(
     cost = r.cost;
   }
 
-  if (amount <= 0) throw new AppError('Trade too small', 400);
+  if (amount <= 0) throw new AppError('Trade too small', 400, undefined, 'trade_too_small');
 
   const resolvedPosId = `${agentId}_${marketId}_${dirLabel}`;
   const [posRow] = await tx
@@ -186,15 +186,17 @@ export async function executeTradeInTx(
   let proceeds = 0;
   if (isSell) {
     const posShares = posRow?.shares ?? 0;
-    if (posShares < amount) throw new AppError('Insufficient shares to sell', 400, { available: posShares });
+    if (posShares < amount)
+      throw new AppError('Insufficient shares to sell', 400, { available: posShares }, 'insufficient_shares');
     proceeds = directionSellProceeds(shares, direction, amount, b);
-    if (proceeds <= 0) throw new AppError('Trade too small', 400);
+    if (proceeds <= 0) throw new AppError('Trade too small', 400, undefined, 'trade_too_small');
   } else {
     if (cost > 0 && !sufficientBalance(balanceUnits, cost) && !opts.quoteOnly)
       throw new AppError(
         `Insufficient balance: this participant holds ${fromUnits(balanceUnits)} credits and this trade costs ${cost}. ${fundingHint(agentRow)}`,
         400,
         { balance: fromUnits(balanceUnits), cost },
+        'insufficient_balance',
       );
   }
 
