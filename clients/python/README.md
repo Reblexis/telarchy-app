@@ -105,3 +105,21 @@ document. The prose lives at
 [/guides/agent-api](https://telarchy.com/guides/agent-api), and what is
 guaranteed not to change is at
 [/guides/compatibility](https://telarchy.com/guides/compatibility).
+
+## Releasing
+
+Publishing runs from the Actions tab: **Publish Python client**, which builds,
+tests, refuses a version already on PyPI, and uploads.
+
+There is no API token anywhere. It uses PyPI's trusted publishing, so PyPI
+mints a short-lived credential for the run against this repository and this
+workflow file by name. Nothing to store, nothing to rotate, nothing to leak.
+
+One-time setup, on the PyPI account that owns the project:
+
+> pypi.org → Your projects → Publishing → **Add a pending publisher**
+> project `telarchy`, owner `Reblexis`, repository `telarchy-app`,
+> workflow `publish-python.yml`, environment `pypi`
+
+`testpypi` is an option on the same workflow if you want to watch it work
+first.

@@ -1,0 +1,89 @@
+# Publish clients/python to PyPI.
+#
+# Trusted publishing (OIDC), so there is no API token anywhere: not in the
+# repository secrets, not in the keyring, not on anyone's laptop. PyPI is
+# configured to trust this repository and this workflow file by name, and mints
+# a short-lived credential for the run. Nothing to rotate and nothing to leak.
+#
+# One-time setup on PyPI, by the account that will own the project:
+#   pypi.org → Your projects → Publishing → Add a pending publisher
+#     PyPI project name: telarchy
+#     Owner:             Reblexis
+#     Repository:        telarchy-app
+#     Workflow name:     publish-python.yml
+#     Environment:       pypi
+#
+# Then run this workflow from the Actions tab. It refuses to run by accident:
+# it is manual only, and it checks the tree's version is not already on PyPI
+# before it uploads, because a version number cannot be reused.
+name: Publish Python client
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: Where to publish
+        required: true
+        default: pypi
+        type: choice
+        options: [pypi, testpypi]
+
+jobs:
+  publish:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.repository }}
+    permissions:
+      # The only permission trusted publishing needs. No secrets are read.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # The tests are stdlib and need no network. Publishing something that
+      # fails its own suite is the one mistake that cannot be taken back.
+      - name: Test
+        working-directory: clients/python
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Build
+        working-directory: clients/python
+        run: |
+          python3 -m pip install --quiet build
+          python3 -m build
+
+      # A version already on PyPI cannot be replaced, so find out here rather
+      # than from a failed upload.
+      - name: Refuse to republish a version that already exists
+        working-directory: clients/python
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          NAME=$(python3 -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['name'])")
+          echo "about to publish $NAME $VERSION"
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/$NAME/$VERSION/json")
+          if [ "$CODE" = "200" ]; then
+            echo "$NAME $VERSION is already on PyPI. Bump the version in pyproject.toml." >&2
+            exit 1
+          fi
+
+      - name: Check the artifacts the way PyPI will
+        working-directory: clients/python
+        run: |
+          python3 -m pip install --quiet twine
+          python3 -m twine check dist/*
+
+      - name: Publish to PyPI
+        if: inputs.repository == 'pypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: clients/python/dist
+
+      - name: Publish to TestPyPI
+        if: inputs.repository == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: clients/python/dist
+          repository-url: https://test.pypi.org/legacy/
