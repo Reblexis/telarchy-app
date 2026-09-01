@@ -11,7 +11,7 @@ import {
   getUserWorkspaceMemberships as getUserWorkspaceMembershipsForParticipant,
   selectEffectiveWorkspaceId,
 } from '../lib/participants';
-import { anonymousCapabilities, resolvePublicReadWorkspace } from '../lib/public-read';
+import { anonymousCapabilities, resolvePublicReadWorkspace, workspaceIdForName } from '../lib/public-read';
 import { intersectWorkspaceCaps } from '../lib/scopes';
 import type { AuthInfo, Capability, WorkspaceMemberRole } from '../types';
 import { computeCapabilities } from './capabilities';
@@ -100,9 +100,14 @@ async function resolveAgentWorkspace(
   requestedWorkspaceId: string,
 ): Promise<{ workspaceId: string; memberRole: WorkspaceMemberRole } | null> {
   const memberships = await getAgentWorkspaceMemberships(agentId);
-  const membership = memberships.find(row => row.workspaceId === requestedWorkspaceId);
-  if (!membership) return null;
-  return membership;
+  const direct = memberships.find(row => row.workspaceId === requestedWorkspaceId);
+  if (direct) return direct;
+  // The caller may have named the floor by slug, which is the only name a link
+  // hands out. Memberships hold ids, so match again against the resolved one.
+  // This grants nothing: a non-member still finds no membership here.
+  const resolved = await workspaceIdForName(requestedWorkspaceId);
+  if (!resolved) return null;
+  return memberships.find(row => row.workspaceId === resolved) ?? null;
 }
 
 /**
@@ -281,7 +286,13 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     // than quietly answered, because "only on this market" has to mean it
     // even when the agent guesses a header.
     if (keyRecord.workspaceLocked && askedWorkspaceId && askedWorkspaceId !== keyWorkspaceId) {
-      return res.status(403).json({ error: 'This key is limited to one workspace and cannot act in another' });
+      // Compare ids, not the raw header: a pinned key naming its OWN workspace
+      // by slug is the legitimate case, and refusing it would make the lock
+      // mean "and you must know the uuid" rather than "only this floor".
+      const askedId = await workspaceIdForName(askedWorkspaceId);
+      if (askedId !== keyWorkspaceId) {
+        return res.status(403).json({ error: 'This key is limited to one workspace and cannot act in another' });
+      }
     }
     const effectiveWorkspaceId = keyRecord.workspaceLocked ? keyWorkspaceId : (askedWorkspaceId ?? keyWorkspaceId);
     const membership = await resolveAgentWorkspace(agentId, effectiveWorkspaceId);
