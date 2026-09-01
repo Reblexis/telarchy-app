@@ -88,6 +88,7 @@ holder:
 |---|---|
 | `open` | Buy and sell |
 | `closed` | Sell only. It still settles on the real value at its date, so holding through it pays normally |
+| `settling` | Its resolution instant has passed and the reading has not arrived yet. Nothing trades, in either direction; hold and it pays on the real value |
 | `resolved` | Paid out. `actualValue` says what it settled on |
 | `voided` | Cancelled. Everyone is refunded their net cash |
 
@@ -116,7 +117,15 @@ not the same as what a sale would fetch. The trading desk shows the real sale
 value before you confirm.
 
 Three limits: you cannot sell more shares than you hold, the proceeds must come
-to more than nothing, and resolved or voided markets are closed to everything.
+to more than nothing, and resolved, voided or `settling` markets are closed to
+everything.
+
+`settling` is why the third one matters. A market settles on the last reading
+at or before its resolution instant, but a metric with a reporting lag is not
+due for hours or days after that, and the reading is public in the meantime.
+Trading through that window is buying a result you can already read, so it
+stops at the resolution instant rather than at the payout
+(`docs/market-integrity.md`, "Trading stops when the answer is fixed").
 
 ## Where to look
 

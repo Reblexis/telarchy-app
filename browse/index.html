@@ -200,13 +200,14 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h4">I1: a definition edit splits in two</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h5">I1b: a contract&#x27;s definition edits the same way</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h6">I2: what an owner cannot destroy</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h7">Stopping a date is not destroying a market</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h8">There is no reset endpoint</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">I3: the credit ledger</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h10">What the tests enforce</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h11">I5: where a participant&#x27;s money is allowed to come from</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h12">What the tests enforce</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h13">Reconstruction</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h7">Trading stops when the answer is fixed, not when the payout arrives</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h8">Stopping a date is not destroying a market</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">There is no reset endpoint</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h10">I3: the credit ledger</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h11">What the tests enforce</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h12">I5: where a participant&#x27;s money is allowed to come from</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h13">What the tests enforce</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h14">Reconstruction</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-metrics-md">docs/metrics.md</a></summary>
@@ -2327,7 +2328,32 @@ production, and then the destruction happens with no record at all. Holders are
 refunded their net cash at stake, as any void does (<code>vision.md</code>, void refund
 rule), so the escape costs them their position and their price discovery,
 never their money.</p>
-<h3 id="docs-market-integrity-md--h7">Stopping a date is not destroying a market</h3>
+<h3 id="docs-market-integrity-md--h7">Trading stops when the answer is fixed, not when the payout arrives</h3>
+<p>A market settles on the last reading at or before its PERIOD END, but it only
+becomes due at period end plus the metric's <code>settlementLagMinutes</code>, which can
+be up to 90 days. Nothing used to stand between the two: <code>executeTradeInTx</code>
+gated on <code>market.active</code> and no clock, and <code>refreshRelativeDateMarkets</code>
+declares a <code>toDeactivate</code> list it never pushes to, so the only writers of
+<code>active = false</code> are resolve and void themselves.</p>
+<p>So with a three-day lag, September's settling reading is logged and readable
+through <code>/api/metrics</code> on 1 October, and the market kept quoting and filling
+until the 4th. A trader read the answer and bought the winning side at a price
+that did not know it yet. Risk-free, and paid for by everyone already holding.
+Even at zero lag the exposure was a full resolver tick.</p>
+<p><strong>A market stops trading at its resolution instant</strong> (the period end), in both
+directions, and settles when the reading arrives within the lag. Selling is
+closed too, not only buying: after the fixing, a holder of a losing position
+who sells at the last printed price takes out what settlement would not have
+paid, and the pool covers the difference. That is the same leak facing the
+other way.</p>
+<p>This is a fifth market state and not the existing <code>closed</code>, which means
+sell-only and exists for a market whose date was dropped while it still has an
+honest answer coming (see &quot;Stopping a date is not destroying a market&quot; below).
+A market past its fixing is <code>settling</code>: nothing to trade, an answer on the way.</p>
+<p>Owner decision 2026-09-01: &quot;the market should be closed after its resolution
+date is passed and then settled once the information is provided within the
+lag.&quot; Records: <code>notes/bug-hunt-2026-08-31.md</code>, P0-5.</p>
+<h3 id="docs-market-integrity-md--h8">Stopping a date is not destroying a market</h3>
 <p>An owner drops an entry from <code>timePreference.customHorizons</code> when they no
 longer want that market to come back. What happens to the one already open
 depends on whether anybody is in it (owner decision 2026-08-31):</p>
@@ -2344,7 +2370,7 @@ book that will never be read.</li>
 <p>Before 2026-08-31 both cases were deactivated instead: the market vanished
 from the floor while still settling in the background, which is the worst of
 both, and the pool stayed in it either way.</p>
-<h3 id="docs-market-integrity-md--h8">There is no reset endpoint</h3>
+<h3 id="docs-market-integrity-md--h9">There is no reset endpoint</h3>
 <p><code>POST /api/system/reset-economy</code> does not exist and is not reintroduced, guarded
 or otherwise: it zeroed every balance in a workspace, deleted every trade under
 <code>allowLedgerAdmin</code>, and reset all market AMM state behind nothing but the
@@ -2352,7 +2378,7 @@ ordinary <code>manage</code> capability, and the append-only trigger could not s
 because it opted out of the trigger on purpose. A guard has to be remembered,
 and the endpoint has no legitimate use on a live product. Starting a workspace
 over is <code>DELETE /api/workspaces/:id</code> followed by creating a new one.</p>
-<h2 id="docs-market-integrity-md--h9">I3: the credit ledger</h2>
+<h2 id="docs-market-integrity-md--h10">I3: the credit ledger</h2>
 <p><code>trades</code> and <code>liquidity_events</code> are append-only under a trigger (migration
 0055), but they are two of the ways money moves; payouts at settlement, void
 refunds, proposal stakes, proposal rewards, spam penalties, contract payments,
@@ -2387,7 +2413,7 @@ signup grants, transfers, deposits, withdrawals, admin adjustments.</li>
 </ul>
 <p><code>agent_balance_snapshots</code> is a cache rather than the only record; if it and
 the ledger ever disagree, the ledger is right.</p>
-<h3 id="docs-market-integrity-md--h10">What the tests enforce</h3>
+<h3 id="docs-market-integrity-md--h11">What the tests enforce</h3>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -2422,7 +2448,7 @@ the ledger ever disagree, the ledger is right.</p>
 unaggregated OOM-kills the process, and <code>credit_ledger</code> grows faster than
 <code>trades</code> does. The reconciliation query sums database-side; every ledger reader
 must too.</p>
-<h2 id="docs-market-integrity-md--h11">I5: where a participant's money is allowed to come from</h2>
+<h2 id="docs-market-integrity-md--h12">I5: where a participant's money is allowed to come from</h2>
 <p>Prize money is the reason this invariant exists. Credits become settled
 profit, settled profit becomes a season rank, and a season rank becomes real
 money, so any route that creates credits from nothing is a faucet pointed at
@@ -2471,7 +2497,7 @@ faucet, and it has a name on every row.</li>
 <p>Trading is not an exception to any of this: what a market pays out was staked
 by somebody, so a winning agent is holding money that was already in the
 system.</p>
-<h3 id="docs-market-integrity-md--h12">What the tests enforce</h3>
+<h3 id="docs-market-integrity-md--h13">What the tests enforce</h3>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -2490,7 +2516,7 @@ system.</p>
 </tr>
 </tbody>
 </table></div>
-<h2 id="docs-market-integrity-md--h13">Reconstruction</h2>
+<h2 id="docs-market-integrity-md--h14">Reconstruction</h2>
 <p>With all three invariants holding, a workspace's money state is derivable from
 five append-only tables: <code>trades</code> (who bought what at what price),
 <code>liquidity_events</code> (who funded which pool), <code>credit_ledger</code> (every balance
@@ -6340,6 +6366,12 @@ back to this table.</p>
 <td>A buy will never succeed; a sell of an existing position will.</td>
 </tr>
 <tr>
+<td><code>market_settling</code></td>
+<td>400</td>
+<td>The resolution date has passed and the market pays on the reading for that date. Carries <code>resolvesOn</code> and <code>settlesOn</code>.</td>
+<td>Stop trading it. Hold and it settles normally; a metric with a reporting lag settles at <code>settlesOn</code>, not at <code>resolvesOn</code>.</td>
+</tr>
+<tr>
 <td><code>idempotency_key_reuse</code></td>
 <td>409</td>
 <td>That <code>Idempotency-Key</code> was used for a <strong>different</strong> body.</td>
@@ -7575,6 +7607,10 @@ holder:</p>
 <td>Sell only. It still settles on the real value at its date, so holding through it pays normally</td>
 </tr>
 <tr>
+<td><code>settling</code></td>
+<td>Its resolution instant has passed and the reading has not arrived yet. Nothing trades, in either direction; hold and it pays on the real value</td>
+</tr>
+<tr>
 <td><code>resolved</code></td>
 <td>Paid out. <code>actualValue</code> says what it settled on</td>
 </tr>
@@ -7604,7 +7640,14 @@ would pay <strong>if the market resolved right now at its current price</strong>
 not the same as what a sale would fetch. The trading desk shows the real sale
 value before you confirm.</p>
 <p>Three limits: you cannot sell more shares than you hold, the proceeds must come
-to more than nothing, and resolved or voided markets are closed to everything.</p>
+to more than nothing, and resolved, voided or <code>settling</code> markets are closed to
+everything.</p>
+<p><code>settling</code> is why the third one matters. A market settles on the last reading
+at or before its resolution instant, but a metric with a reporting lag is not
+due for hours or days after that, and the reading is public in the meantime.
+Trading through that window is buying a result you can already read, so it
+stops at the resolution instant rather than at the payout
+(<code>docs/market-integrity.md</code>, &quot;Trading stops when the answer is fixed&quot;).</p>
 <h2 id="docs-guides-markets-md--h6">Where to look</h2>
 <ul>
 <li><code>GET /api/predictions/markets</code> lists open markets. A public workspace answers
