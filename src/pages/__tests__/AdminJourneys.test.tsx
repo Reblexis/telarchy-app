@@ -216,4 +216,28 @@ describe('the journeys block', () => {
     // And the blocks that load independently of it are still there.
     expect(await screen.findByText('Signups by day')).toBeTruthy();
   });
+
+  test('counts pages in English, so one page is not "1 pages"', async () => {
+    mount({
+      summary: { journeys: 4, bounced: 3, visitors: 4, medianSteps: 1 },
+      topExits: [],
+      journeys: [journey()],
+    });
+
+    const heading = await screen.findByText('Journeys');
+    const note = heading.closest('.adm-block')!.querySelector('.adm-note')!.textContent!;
+    expect(note).toContain('1 page median');
+    expect(note).not.toContain('1 pages');
+  });
+
+  test('still says pages when there is more than one', async () => {
+    mount({
+      summary: { journeys: 4, bounced: 1, visitors: 4, medianSteps: 3 },
+      topExits: [],
+      journeys: [journey()],
+    });
+
+    const heading = await screen.findByText('Journeys');
+    expect(heading.closest('.adm-block')!.querySelector('.adm-note')!.textContent).toContain('3 pages median');
+  });
 });
