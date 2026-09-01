@@ -129,7 +129,14 @@ import('./app')
      * winner per tick; the rest skip (lib/singleton-jobs.ts). Before this the
      * limit sweep ran up to 8x every 12 seconds, all doing identical work.
      */
+    const { shouldRunScheduledJobs } = await import('./services/release');
     const singleton = (name: Parameters<typeof withSingletonLock>[0], fn: () => Promise<void>) => async () => {
+      // Only the revision serving telarchy.com. A candidate or a branch
+      // preview boots, arms every timer, and reaches the PRODUCTION database,
+      // because background work is outside the per-request store swap
+      // (db/client.ts). See services/release.ts for why both fallbacks say
+      // yes rather than no.
+      if (!(await shouldRunScheduledJobs())) return;
       await withSingletonLock(name, fn);
     };
 

@@ -783,9 +783,25 @@ in the keyring, `_runner/claude_cycle.py`, the cron caller).
 ## Cron schedule (Cloud Scheduler)
 
 The market lifecycle is driven by two endpoints, `POST /api/cron/resolve` and
-`POST /api/cron/refresh`, called with the master key. Both are idempotent and
-cheap when there is nothing to do, and the refresh holds a per-workspace
-cooldown lock. Who calls them depends on the instance:
+`POST /api/cron/refresh`, called with the master key. Both take the same
+advisory lock the in-process timers hold, so a scheduler pass and a container's
+own pass cannot do the work together, and the refresh holds a per-workspace
+cooldown lock as well. Who calls them depends on the instance:
+
+**Only the revision serving telarchy.com runs the in-process jobs.** Every
+revision arms every timer in `server.ts` at boot, and background work is
+outside the per-request store swap by construction (`db/client.ts`:
+"everything outside a request gets production"). So before 2026-09-01 the
+candidate - always warm at `--min-instances 1`, landed by every merge, hours
+before anyone pressed Publish - and every branch preview CI smoke-tests ran
+settlement, the 12-second limit sweep and the daily refresh against live
+markets with code nobody had reviewed. `shouldRunScheduledJobs`
+(`services/release.ts`) gates them on `K_REVISION` matching the serving
+revision. It fails OPEN in both unknown cases, because an instance that
+silently never settles is worse than an extra one that does: off Cloud Run
+there is no revision and the self-hosted instance is the only thing that will
+ever settle its markets, and an unreachable Cloud Run API must not stop
+payouts. Records: `notes/bug-hunt-2026-08-31.md`, P0-3.
 
 - **Managed instance**: two Cloud Scheduler jobs (project `telarchy-e0043`,
   region `us-central1`, legacy `firebase-schedule-*` names). They POST to

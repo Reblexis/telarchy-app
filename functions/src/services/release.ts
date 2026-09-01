@@ -141,6 +141,42 @@ const releaseCache = ttlCache({
   load: () => computeReleaseState(),
 });
 
+/**
+ * Whether a process running `running` should arm and run the scheduled jobs,
+ * given that `serving` is the revision telarchy.com actually sends traffic to.
+ *
+ * Every revision arms every timer in server.ts at boot, and background work is
+ * outside the per-request store swap BY CONSTRUCTION (db/client.ts: everything
+ * outside a request gets production). So the candidate - always warm at
+ * --min-instances 1, landed by every merge to main, hours before anyone
+ * presses Publish - and every branch preview CI smoke-tests were running
+ * settlement, the 12-second limit sweep and the daily refresh against live
+ * markets with unreviewed code (bug hunt 2026-08-31, P0-3).
+ *
+ * Both fallbacks return TRUE, and deliberately:
+ *
+ *  - No `running` means this is not Cloud Run. A self-hosted or local instance
+ *    is the only thing that will ever settle its own markets.
+ *  - No `serving` means the answer could not be fetched. Failing closed there
+ *    stops markets paying out silently, which is worse than the problem: the
+ *    settlement claim in services/predictions.ts already makes a second
+ *    resolver harmless rather than a double payout, so this gate is about
+ *    unreviewed code touching live markets, not about money.
+ */
+export function revisionRunsScheduledJobs(running: string | null, serving: string | null): boolean {
+  if (!running) return true;
+  if (!serving) return true;
+  return running === serving;
+}
+
+/** The same question, asked of this process. Cheap per tick: releaseState is
+ *  TTL-cached, so at most one Cloud Run API call per ten seconds. */
+export async function shouldRunScheduledJobs(): Promise<boolean> {
+  const running = currentRevision();
+  if (!running) return true;
+  return revisionRunsScheduledJobs(running, (await releaseState()).serving);
+}
+
 /** Drop the cache: the answer just changed because we changed it. */
 export function clearReleaseCache(): void {
   releaseCache.clear();
