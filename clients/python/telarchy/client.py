@@ -113,6 +113,7 @@ class Telarchy:
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as res:
                 self._warn_if_deprecated(res.headers)
+                res_headers = res.headers
                 raw = res.read()
         except urllib.error.HTTPError as e:
             raw = e.read()
@@ -129,6 +130,17 @@ class Telarchy:
 
         if not raw:
             return None
+        # Not every endpoint answers JSON. `brief(as_markdown=True)` asks for
+        # `?format=md` and gets markdown, which is the point of it: one read of
+        # a floor, written to be handed to a model. Parsing everything as JSON
+        # made the call this client exists for raise JSONDecodeError.
+        ctype = ""
+        try:
+            ctype = res_headers.get("Content-Type") or ""
+        except Exception:
+            ctype = ""
+        if "json" not in ctype.lower():
+            return raw.decode(errors="replace")
         return json.loads(raw)
 
     @staticmethod
