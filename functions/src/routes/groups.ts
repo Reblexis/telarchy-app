@@ -16,7 +16,13 @@ const SYSTEM_GROUP_TYPES: PermissionGroupType[] = ['public', 'admin', 'trader'];
  *  these presets are what actually grants access. Admins may edit Trader/Public/Custom capabilities. */
 export const SYSTEM_GROUP_CAPABILITIES: Record<'public' | 'admin' | 'trader', Capability[]> = {
   public: ['read'],
-  admin: ['read', 'trade', 'manage', 'manage_workspace'],
+  // NOT manage_workspace. docs/guides/creating.md: "manage_workspace is
+  // not implied by manage, and the Admin group does not have it ... in
+  // practice only the creator can [delete the workspace]". This seeder
+  // used to disagree with lib/participants.ts, so a workspace whose Admin
+  // group was ever re-created through ensureSystemGroups silently handed
+  // every admin teammate workspace deletion (bug hunt 2026-08-31).
+  admin: ['read', 'trade', 'manage'],
   trader: ['read', 'trade'],
 };
 
@@ -254,6 +260,24 @@ groupsRouter.put(
       const parsed = parseCapabilities(capabilities);
       if (!parsed.ok) {
         res.status(400).json({ error: parsed.error });
+        return;
+      }
+      // You cannot grant what you do not hold. `manage` is authority over
+      // the workspace's contents; `manage_workspace` is authority over the
+      // workspace's existence, and the guide promises the second is not
+      // implied by the first. Without this an admin teammate added with
+      // role:"admin" could widen their own group and then delete the floor
+      // (bug hunt 2026-08-31). The documented grant path is unaffected:
+      // somebody who HOLDS manage_workspace, which in practice is the
+      // creator, may still hand it out. Same rule granterCoversScopes
+      // already applies to key scopes.
+      const held = req.auth!.capabilities;
+      const existing = new Set(((group.capabilities as Capability[] | null) ?? []) as Capability[]);
+      const widening = parsed.value.filter(c => !existing.has(c) && !held.has(c));
+      if (widening.length > 0) {
+        res.status(403).json({
+          error: `You cannot grant a capability you do not hold: ${widening.join(', ')}`,
+        });
         return;
       }
       update.capabilities = parsed.value;
