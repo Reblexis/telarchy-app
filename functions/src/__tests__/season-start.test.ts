@@ -1,17 +1,24 @@
 /**
- * A season starts itself.
+ * A season does NOT start itself.
  *
- * Until 2026-08-20 the start was a human calling POST /api/seasons/:id/start at
- * the right minute. That is the one step in a season's life that can silently
- * not happen: nothing errors, nothing alerts, the page keeps saying "starts
- * in", and the baselines get taken whenever somebody notices. The season this
- * was written for was three hours from its start with nobody scheduled to
- * press anything.
+ * Amended 2026-09-01. Between 2026-08-20 and then it did: the start had been a
+ * human calling POST /api/seasons/:id/start at the right minute, which is the
+ * one step in a season's life that can silently not happen, and the season
+ * this file was written for was three hours out with nobody scheduled to press
+ * anything.
  *
- * The half that matters is the asymmetry: starting LATE is fine and expected
- * (the scheduler runs every few minutes, not continuously), starting EARLY is
- * not, because an early baseline scores people on trading they did before the
- * season began.
+ * Owner decision 2026-09-01: "dont autostart season 1 we will start that
+ * manually as needed." Pinning baselines and freezing a workspace set is the
+ * moment a season becomes real money, and it is worth a person being present
+ * for it. The old risk is answered differently: startDueSeasons still runs and
+ * still finds the drafts, and now LOGS them and reports them as
+ * awaitingManualStart, so a season waiting to be started is on the record
+ * rather than invisible.
+ *
+ * What is unchanged and still pinned below: startSeason itself refuses a
+ * season that is not a draft, refuses one that does not exist, never
+ * re-baselines, and keeps pre-registrations. Those are what make a manual
+ * start safe to press twice.
  */
 
 jest.mock('../db/client', () => require('./harness/test-db'));
@@ -59,14 +66,17 @@ async function makeSeason(id: string, startsAt: Date, status = 'draft') {
 
 const statusOf = async (id: string) => (await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, id)))[0]?.status;
 
-describe('a due season starts on its own', () => {
-  test('a draft whose start instant has passed is started', async () => {
+describe('a due season waits for a person', () => {
+  test('a draft whose start instant has passed is reported, NOT started', async () => {
     await seed();
     await makeSeason('past', new Date('2026-08-22T00:00:00Z'));
 
     const r = await startDueSeasons(new Date('2026-08-22T00:07:00Z'));
-    expect(r.started.map(s => s.seasonId)).toEqual(['past']);
-    expect(await statusOf('past')).toBe('running');
+    expect(r.started).toEqual([]);
+    // On the record rather than invisible: the old risk this file was written
+    // for was a season silently not starting.
+    expect(r.awaitingManualStart).toEqual(['past']);
+    expect(await statusOf('past')).toBe('draft');
   });
 
   test('a draft whose start instant has NOT passed is left alone', async () => {
@@ -77,14 +87,17 @@ describe('a due season starts on its own', () => {
 
     const r = await startDueSeasons(new Date('2026-08-21T23:59:00Z'));
     expect(r.started).toEqual([]);
+    // Not even reported as waiting: its instant has not come.
+    expect(r.awaitingManualStart).toEqual([]);
     expect(await statusOf('future')).toBe('draft');
   });
 
-  test('exactly at the start instant counts as due', async () => {
+  test('exactly at the start instant counts as due, and still waits for a person', async () => {
     await seed();
     await makeSeason('exact', new Date('2026-08-22T00:00:00Z'));
     const r = await startDueSeasons(new Date('2026-08-22T00:00:00Z'));
-    expect(r.started.map(s => s.seasonId)).toEqual(['exact']);
+    expect(r.started).toEqual([]);
+    expect(r.awaitingManualStart).toEqual(['exact']);
   });
 
   test('running twice does not re-baseline', async () => {
@@ -92,9 +105,11 @@ describe('a due season starts on its own', () => {
     // from, which is why status is the guard rather than a timestamp.
     await seed();
     await makeSeason('once', new Date('2026-08-22T00:00:00Z'));
-    await startDueSeasons(new Date('2026-08-22T00:05:00Z'));
+    await startSeason('once');
     const second = await startDueSeasons(new Date('2026-08-22T00:15:00Z'));
     expect(second.started).toEqual([]);
+    // Already running, so not even waiting.
+    expect(second.awaitingManualStart).toEqual([]);
     expect(await statusOf('once')).toBe('running');
   });
 
@@ -109,7 +124,7 @@ describe('a due season starts on its own', () => {
   });
 });
 
-describe('what the auto-start preserves', () => {
+describe('what a manual start preserves', () => {
   test('a pre-registration keeps its entry, agreement and contact email', async () => {
     // Entry opens while a season is still a draft, so by the time this fires
     // there are real entries in the table. They must survive the baseline pass.
@@ -127,8 +142,10 @@ describe('what the auto-start preserves', () => {
       baselineProfit: 0,
     });
 
-    const r = await startDueSeasons(new Date('2026-08-22T00:03:00Z'));
-    expect(r.started[0].preRegistrationsKept).toBe(1);
+    // Against startSeason directly: that is what does the work now, and what
+    // a person presses.
+    const started = await startSeason('keep');
+    expect(started.preRegistrationsKept).toBe(1);
 
     const [row] = await db.select().from(seasonEntries).where(eq(seasonEntries.seasonId, 'keep'));
     expect(row.optedIn).toBe(true);
@@ -139,15 +156,16 @@ describe('what the auto-start preserves', () => {
   });
 });
 
-describe('one bad season does not stop the rest', () => {
-  test('a season with nothing to score over is reported, not thrown', async () => {
-    // The realistic failure: no public workspace exists yet. It must not stop
-    // a sibling season from starting, and it must not vanish silently either.
+describe('a start that cannot work says why', () => {
+  test('a season with nothing to score over refuses, and stays a draft', async () => {
+    // The realistic failure: no public workspace exists yet. The person
+    // pressing the button gets the reason, and the season is not left half
+    // started. This used to be collected into startDueSeasons.failed so one
+    // bad season could not stop its siblings; with no auto-start there are no
+    // siblings, and the error reaches the caller instead.
     await makeSeason('nows', new Date('2026-08-22T00:00:00Z'));
-    const r = await startDueSeasons(new Date('2026-08-22T00:05:00Z'));
-    expect(r.started).toEqual([]);
-    expect(r.failed.map(f => f.seasonId)).toEqual(['nows']);
-    expect(r.failed[0].error).toMatch(/No public workspaces/);
+
+    await expect(startSeason('nows')).rejects.toThrow(/No public workspaces/);
     expect(await statusOf('nows')).toBe('draft');
   });
 });

@@ -130,6 +130,34 @@ flip's expected prize equals its expected score contribution and a long
 shot buys nothing in expectation. What remains of F5 is the residue that a
 loss costs nothing; the eligibility floor stays deferred to Season 1.
 
+**A market belongs to the season it SETTLES in.** A metric can carry a
+reporting lag, so a market's answer is fixed at its period end and it pays
+`settlementLagMinutes` later. Membership counts the lag: a market whose
+settlement falls after `endsAt` is not in the season, and the standings do not
+mark it in. Before 2026-09-01 the marked half decided membership by the period
+end while the settled half keyed on `resolvedAt`, so a lagged market was shown
+in "Total if prices hold" and then dropped at settlement, promising dollars
+the season could not pay, against that column's own tooltip. So a season's
+`endsAt` should be set to cover the reporting lags of the metrics it scores
+(owner decision 2026-09-01). Records: `notes/bug-hunt-2026-08-31.md`, P1-10.
+
+**Still open:** the trade cutoff is measured from the period end on the open
+half and from `resolvedAt` on the settled half, so for a lagged market the
+settled half's cutoff lands after trading has already stopped and excludes
+nothing. The exploit that made this urgent is closed - trading stops at the
+fixing now - so what remains is a rule detail (P1-11).
+
+**A season starts because a person started it** (owner decision 2026-09-01,
+reversing the 2026-08-20 direction to make it automatic). Pinning baselines
+and freezing a workspace set is the moment a season becomes real money.
+`POST /api/cron/seasons` still runs and still finds drafts past their start
+instant; it logs them and reports them as `awaitingManualStart` rather than
+starting them, so a season waiting on a person is on the record. Starting one
+is `POST /api/seasons/:id/start`, and **only one season runs at a time**: a
+start is refused while another is running, because the season page and the
+all-time board each pick "the" running season with an unordered query and
+would otherwise price different ones (P1-12).
+
 **Scoring set.** The season scores over ALL public workspaces, live, not the
 set pinned at the start instant. A floor published mid-season counts from the
 moment it is public. Standings (`routes/leaderboard.ts` seasonStandings), the

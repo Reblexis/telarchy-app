@@ -37,16 +37,19 @@ async function allWorkspaceIds(): Promise<string[]> {
 }
 
 /**
- * Start any season whose published start instant has passed.
+ * Report any season whose published start instant has passed. Starts none.
  *
- * A season used to start only when a human called POST /api/seasons/:id/start
- * at the right minute (owner direction 2026-08-20: "make it automatic"). That
- * is the one step in a season's life that can silently not happen: nothing
- * errors, nothing alerts, the page keeps saying "starts in", and the baselines
- * are taken whenever somebody notices.
+ * Between 2026-08-20 and 2026-09-01 this started them, because a start is the
+ * one step in a season's life that can silently not happen: nothing errors,
+ * nothing alerts, the page keeps saying "starts in", and the baselines are
+ * taken whenever somebody notices.
  *
- * Safe to call as often as you like. It only ever moves a DRAFT whose startsAt
- * has passed, so a double call is a no-op and an early call does nothing.
+ * Owner decision 2026-09-01: "dont autostart season 1 we will start that
+ * manually as needed." Pinning baselines and freezing a workspace set is the
+ * moment a season becomes real money. The old risk is answered by keeping this
+ * endpoint and having it LOG what is waiting, so a season nobody has started
+ * is on the record rather than invisible. Starting one is
+ * POST /api/seasons/:id/start.
  */
 cronRouter.post(
   '/seasons',

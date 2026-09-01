@@ -47,6 +47,25 @@ export async function startSeason(seasonId: string): Promise<StartResult> {
   if (!season) throw new SeasonStartError('Season not found', 404);
   if (season.status !== 'draft') throw new SeasonStartError(`Season is ${season.status}, not draft`, 409);
 
+  // One at a time. routes/seasons.ts and routes/leaderboard.ts each pick "the"
+  // running season with an unordered limit(1) / find, so two of them meant the
+  // season page and the all-time board could price different ones, and a
+  // visitor pressing Enter could be told a season that began ten minutes ago
+  // "has closed to new entries". The comment at routes/seasons.ts asserts the
+  // property this now enforces: the first season is deliberately singular
+  // (bug hunt 2026-08-31, P1-12).
+  const [alreadyRunning] = await db
+    .select({ id: prizeSeasons.id, name: prizeSeasons.name })
+    .from(prizeSeasons)
+    .where(eq(prizeSeasons.status, 'running'))
+    .limit(1);
+  if (alreadyRunning) {
+    throw new SeasonStartError(
+      `"${alreadyRunning.name}" is still running; settle it before starting another season`,
+      409,
+    );
+  }
+
   const publicWs = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.visibility, 'public'));
   const workspaceIds = publicWs.map(w => w.id);
   if (workspaceIds.length === 0) throw new SeasonStartError('No public workspaces to score over', 409);
@@ -114,23 +133,27 @@ export async function startSeason(seasonId: string): Promise<StartResult> {
 export async function startDueSeasons(now: Date = new Date()): Promise<{
   started: StartResult[];
   failed: Array<{ seasonId: string; error: string }>;
+  awaitingManualStart?: string[];
 }> {
+  // A SEASON STARTS BECAUSE A PERSON STARTED IT (owner decision 2026-09-01:
+  // "dont autostart season 1 we will start that manually as needed"),
+  // reversing the 2026-08-20 direction to make it automatic. Pinning
+  // baselines and freezing a workspace set is the moment a season becomes
+  // real money, and it is worth a human being present for it.
+  //
+  // The endpoint and this function stay, and answer honestly: a scheduler
+  // still calling POST /api/cron/seasons gets a no-op naming the drafts it
+  // did not start, rather than a silent nothing that reads like "no seasons
+  // were due". Starting one is POST /api/seasons/:id/start.
   const due = await db
-    .select({ id: prizeSeasons.id })
+    .select({ id: prizeSeasons.id, name: prizeSeasons.name })
     .from(prizeSeasons)
     .where(and(eq(prizeSeasons.status, 'draft'), lte(prizeSeasons.startsAt, now)));
-
-  const started: StartResult[] = [];
-  const failed: Array<{ seasonId: string; error: string }> = [];
-  for (const row of due) {
-    try {
-      started.push(await startSeason(row.id));
-    } catch (e) {
-      // A season with no public workspaces to score over is the realistic
-      // case, and it must not stop a sibling season from starting.
-      console.error(`startDueSeasons: ${row.id} failed:`, e);
-      failed.push({ seasonId: row.id, error: e instanceof Error ? e.message : String(e) });
-    }
+  if (due.length > 0) {
+    console.log(
+      `[seasons] ${due.length} draft(s) past their start instant and waiting for a person: ` +
+        due.map(d => `${d.name} (${d.id})`).join(', '),
+    );
   }
-  return { started, failed };
+  return { started: [], failed: [], awaitingManualStart: due.map(d => d.id) };
 }
