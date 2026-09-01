@@ -139,16 +139,14 @@ describe('matched liquidity', () => {
   });
 
   test('an unmatched rule pays trading credits and no pool money', async () => {
-    await db
-      .insert(earnRules)
-      .values({
-        key: 'manifold_link',
-        label: 'Link Manifold',
-        credits: 5000,
-        liquidityCredits: 0,
-        kind: 'flat',
-        note: '',
-      });
+    await db.insert(earnRules).values({
+      key: 'manifold_link',
+      label: 'Link Manifold',
+      credits: 5000,
+      liquidityCredits: 0,
+      kind: 'flat',
+      note: '',
+    });
     clearEarnRuleCache();
     await claimEarn({ agentId: 'bob', key: 'manifold_link', refId: 'mf-1' });
     expect(await balanceOf('bob')).toBe(5000);
