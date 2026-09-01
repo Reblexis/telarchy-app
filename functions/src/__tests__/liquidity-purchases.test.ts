@@ -170,6 +170,32 @@ describe('checkout', () => {
     expect(res.status).toBe(201);
   });
 
+  // The owner paid $5 on 2026-09-01 and Stripe dropped him on the operator
+  // door, a screen offering to open a new market, with no word of the money:
+  // "i just bought it. 5 credits.. and it redirected me to otto? wtf".
+  test('the payer comes back to the funding page of the floor they bought for', async () => {
+    await seedWorkspace(['m1']);
+    await request(app).post(`/api/workspaces/${WS}/liquidity/checkout`).send({ usdAmount: 100 });
+    const body = decodeURIComponent(
+      String(((global.fetch as unknown as jest.Mock).mock.calls[0][1] as { body: string }).body),
+    );
+    expect(body).toContain('success_url=');
+    expect(body).toContain('/floor/funding?liquidity=purchased');
+    expect(body).toContain('/floor/funding?liquidity=cancelled');
+    expect(body).not.toContain('/manage');
+  });
+
+  test('a floor with no slug comes back by id, never to the operator door', async () => {
+    await seedWorkspace(['m1']);
+    await db.update(workspaces).set({ slug: null }).where(eq(workspaces.id, WS));
+    await request(app).post(`/api/workspaces/${WS}/liquidity/checkout`).send({ usdAmount: 100 });
+    const body = decodeURIComponent(
+      String(((global.fetch as unknown as jest.Mock).mock.calls[0][1] as { body: string }).body),
+    );
+    expect(body).toContain(`/${WS}/funding?liquidity=purchased`);
+    expect(body).not.toContain('/manage');
+  });
+
   test('the slug reaches the same checkout as the id', async () => {
     await seedWorkspace(['m1']);
     const res = await request(app).post('/api/workspaces/floor/liquidity/checkout').send({ usdAmount: 100 });

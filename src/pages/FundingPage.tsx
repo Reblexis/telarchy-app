@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PageTopBar } from '../components/PageTopBar';
 import { useAuth } from '../hooks/useAuth';
 import { api, type PublicWorkspace } from '../lib/api';
@@ -38,6 +38,8 @@ const PRESETS = [25, 50, 100, 250];
 
 export function FundingPage() {
   const params = useParams();
+  const [search] = useSearchParams();
+  const returned = search.get('liquidity');
   const idOrSlug = params.slug ?? params.workspaceId;
   const { user, loading: authLoading } = useAuth();
   const [ws, setWs] = useState<PublicWorkspace | null>(null);
@@ -96,6 +98,28 @@ export function FundingPage() {
     load();
   }, [load]);
 
+  // Stripe's redirect races Stripe's webhook: the payer can be standing here
+  // before the money is confirmed. Rather than show them an unchanged wallet
+  // with no explanation, the page says the confirmation is still coming and
+  // keeps looking until it lands (or gives up after a minute and leaves the
+  // purchase row saying "pending", which is the truth).
+  const newest = purchases[0] ?? null;
+  const awaitingStripe = returned === 'purchased' && (!newest || newest.status !== 'completed');
+
+  useEffect(() => {
+    if (!awaitingStripe) return;
+    let tries = 0;
+    const t = setInterval(() => {
+      tries += 1;
+      if (tries > 20) {
+        clearInterval(t);
+        return;
+      }
+      load();
+    }, 3000);
+    return () => clearInterval(t);
+  }, [awaitingStripe, load]);
+
   const dollars = Number(amount.replace(/[^0-9.]/g, ''));
   const valid = Number.isFinite(dollars) && dollars >= 5 && dollars <= 5000;
 
@@ -128,6 +152,20 @@ export function FundingPage() {
         </p>
 
         {loadErr && <p className="adm-err">{loadErr}</p>}
+
+        {returned === 'purchased' && (
+          <p className="fundp-back" role="status">
+            <strong>Payment received.</strong>{' '}
+            {newest && newest.status === 'completed'
+              ? `${cr(newest.credits)} credits are in your wallet, ready to go behind a market.`
+              : 'Still confirming with Stripe; the credits appear here as soon as it does.'}
+          </p>
+        )}
+        {returned === 'cancelled' && (
+          <p className="fundp-back is-quiet" role="status">
+            Nothing was charged. The wallet is as you left it.
+          </p>
+        )}
 
         {canManage === false && (
           <p className="mpg-none">
