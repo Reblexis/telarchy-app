@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { docUrlFor } from '../lib/error-codes';
 import type { AccountScope, KeyScope } from '../lib/scopes';
 import { hasScope } from '../lib/scopes';
 import type { Capability } from '../types';
@@ -22,6 +23,8 @@ export function requireCapability(...caps: Capability[]) {
     return res.status(403).json({
       error: `Forbidden: this identity lacks ${need} in this workspace. Capabilities come from your permission-group membership; ask a workspace admin to grant it, or use a workspace where your group has it.`,
       requiredCapabilities: caps,
+      code: 'not_authorized',
+      doc_url: docUrlFor('not_authorized'),
     });
   };
 }

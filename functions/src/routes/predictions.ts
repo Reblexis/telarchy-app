@@ -17,6 +17,7 @@ import {
 import { AMM_DEFAULTS, consensus, directionTradeCost, pHigher } from '../lib/amm';
 import { isValidDateFormat, periodEndInstant, settlesOn } from '../lib/date-utils';
 import { markDeprecated } from '../lib/deprecation';
+import { docUrlFor } from '../lib/error-codes';
 import { AppError } from '../lib/errors';
 import { emitPricesChanged } from '../lib/market-events';
 import { assertMarketUntraded } from '../lib/market-freeze';
@@ -126,7 +127,11 @@ predictionsRouter.post(
     const { workspaceId } = req.auth!;
     const agentId = req.auth!.agentId;
     if (!agentId) {
-      res.status(403).json({ error: 'A participant identity is required to trade' });
+      res.status(403).json({
+        error: 'A participant identity is required to trade',
+        code: 'identity_required',
+        doc_url: docUrlFor('identity_required'),
+      });
       return;
     }
 
@@ -406,6 +411,8 @@ predictionsRouter.post(
           res.status(409).json({
             error:
               'This Idempotency-Key was already used for a different request. Use a new key for a new trade, or resend the original body to get its result.',
+            code: 'idempotency_key_reuse',
+            doc_url: docUrlFor('idempotency_key_reuse'),
           });
           return;
         }
@@ -627,6 +634,7 @@ predictionsRouter.post(
             balance: fromUnits(agentRow.balance as number),
             cost: budgetCredits,
           },
+          'insufficient_balance',
         );
       }
 

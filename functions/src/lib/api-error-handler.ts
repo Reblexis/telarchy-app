@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { docUrlFor } from './error-codes';
 import { AppError } from './errors';
 
 /**
@@ -18,5 +19,13 @@ export function apiErrorHandler(err: Error, _req: Request, res: Response, _next:
   // driver / internal detail (Postgres text, stack context), so only those
   // get the generic string; the real error is already logged above.
   const message = err instanceof AppError ? err.message : 'Internal error';
-  res.status(status).json({ error: message, ...extra });
+  // The machine-readable half, when the error has one. Omitted entirely rather
+  // than sent as null: `"code": null` reads like a code the caller failed to
+  // recognise, when it means the error simply has not been given one yet.
+  const code = err instanceof AppError ? err.code : undefined;
+  res.status(status).json({
+    error: message,
+    ...extra,
+    ...(code ? { code, doc_url: docUrlFor(code) } : {}),
+  });
 }
