@@ -16,16 +16,16 @@
  * pay, and its own tooltip says markets resolving after the season ends are
  * not counted (bug hunt 2026-08-31, P1-10).
  *
- * They also disagreed about the cutoff: the marked half cut 6 hours before
- * the period end, the settled half 6 hours before `resolvedAt`. With a
- * three-day lag that second one lands days after trading has already stopped,
- * so it cut nothing at all.
+ * The cutoff those halves also disagreed about is gone entirely
+ * (season-scores-what-you-held.test.ts): a market resolves on its reading, so
+ * there is no window in which a visible answer can be traded against, which
+ * is the only thing the cutoff protected.
  *
  * Owner decision 2026-09-01: "the season should end so it covers reasonable
  * reporting lags, and the reporting lag should be counted in it."
  */
 
-import { seasonMarketCountsIn, seasonTradeCutoff } from '../lib/board';
+import { seasonMarketCountsIn } from '../lib/board';
 import { periodEndInstant, settlementInstantFor } from '../lib/date-utils';
 
 const SEASON_END = new Date('2026-10-02T00:00:00Z');
@@ -54,19 +54,5 @@ describe('a market belongs to the season it settles in', () => {
   test('a market with no settlesAt falls back to its period end', () => {
     expect(seasonMarketCountsIn({ targetDate: '2026-09', settlesAt: null }, SEASON_END)).toBe(true);
     expect(seasonMarketCountsIn({ targetDate: '2026-12', settlesAt: null }, SEASON_END)).toBe(false);
-  });
-});
-
-describe('the cutoff is measured from when the answer was fixed', () => {
-  test('it is the period end minus the cutoff, not the settlement instant', () => {
-    const cutoff = seasonTradeCutoff(LAGGED);
-    expect(cutoff.getTime()).toBeLessThan(periodEndInstant(LAGGED.targetDate).getTime());
-    // And nowhere near the settlement, which is three days later.
-    expect(cutoff.getTime()).toBeLessThan(LAGGED.settlesAt.getTime());
-  });
-
-  test('a lagged and a prompt market on the same period share one cutoff', () => {
-    // The lag moves when it PAYS, never when the answer stopped being unknown.
-    expect(seasonTradeCutoff(LAGGED).getTime()).toBe(seasonTradeCutoff(PROMPT).getTime());
   });
 });

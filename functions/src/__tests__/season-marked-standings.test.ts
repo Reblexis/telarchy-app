@@ -226,14 +226,18 @@ describe('the mark beside the season score', () => {
     expect(marked.get(ALICE) ?? 0).toBe(0);
   });
 
-  test('the 6-hour cutoff applies to the mark exactly as to the score', async () => {
-    // Resolves at the very end of the season; a trade an hour before that
-    // instant is inside the cutoff and cannot be scored, so it is not marked.
+  test('a late trade is marked, because there is no cutoff to fall inside of', async () => {
+    // Amended 2026-09-01. This used to assert the 6-hour cutoff dropped a
+    // trade from the mark as well as from the score. The cutoff is gone: a
+    // market resolves the moment its reading is filed, so there is no window
+    // in which a visible answer can be traded against, and the mark shows the
+    // position actually held (docs/legal/season-0-rules.md, amended
+    // 2026-09-01).
     await market({ id: 'm-cutoff', targetDate: '2026-08-31', shares: [0, 1386.29] });
     await trade(ALICE, 'm-cutoff', 'higher', 100, 50, new Date('2026-09-01T00:00:00Z'));
 
     const marked = await loadSeasonMarked([WS], STARTS, ENDS);
-    expect(marked.get(ALICE) ?? 0).toBe(0);
+    expect(marked.get(ALICE) ?? 0).not.toBe(0);
   });
 
   test('a voided market inside the window refunds like the settled score does', async () => {
