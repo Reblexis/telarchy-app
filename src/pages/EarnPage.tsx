@@ -95,6 +95,9 @@ export function EarnPage() {
     return rank(a.key) - rank(b.key) || b.credits - a.credits;
   });
   const streak = mine?.streak ?? null;
+  // Only when there is something to show: an instance that matches no rule
+  // does not need an empty column explaining itself.
+  const anyLiquidity = ordered.some(r => (r.liquidityCredits ?? 0) > 0);
 
   return (
     <div className="pubws">
@@ -127,6 +130,7 @@ export function EarnPage() {
               <tr>
                 <th className="lbt-h is-left">What you do</th>
                 <th className="lbt-h">Credits</th>
+                {anyLiquidity && <th className="lbt-h">Liquidity</th>}
                 {mine && <th className="lbt-h earn-act">&nbsp;</th>}
               </tr>
             </thead>
@@ -156,6 +160,18 @@ export function EarnPage() {
                         <span className="is-zero">none</span>
                       )}
                     </td>
+                    {anyLiquidity && (
+                      // Never added into the credits beside it: one purse
+                      // trades, the other can only ever go behind a market
+                      // (docs/liquidity-purchases.md).
+                      <td className="lbt-num">
+                        {(r.liquidityCredits ?? 0) > 0 ? (
+                          n(r.liquidityCredits ?? 0)
+                        ) : (
+                          <span className="is-zero">-</span>
+                        )}
+                      </td>
+                    )}
                     {mine && (
                       <td className="earn-act">
                         {r.kind === 'open' || (r.kind === 'daily' && !streak?.earnedToday) ? (

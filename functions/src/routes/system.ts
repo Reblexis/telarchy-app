@@ -150,7 +150,17 @@ systemRouter.get(
     res.json({
       rules: rules
         .filter(r => r.enabled)
-        .map(r => ({ key: r.key, label: r.label, credits: r.credits, kind: r.kind, note: r.note })),
+        .map(r => ({
+          key: r.key,
+          label: r.label,
+          credits: r.credits,
+          // The wallet half of the same rule, published beside it: a price
+          // list that showed one purse would understate what a signup is
+          // worth (docs/agent-economy.md).
+          liquidityCredits: r.liquidityCredits,
+          kind: r.kind,
+          note: r.note,
+        })),
     });
   }),
 );
@@ -188,6 +198,7 @@ systemRouter.get(
         key: r.key,
         label: r.label,
         credits: r.credits,
+        liquidityCredits: r.liquidityCredits,
         kind: r.kind,
         note: r.note,
         claimed: isCountable(r.kind) && claimed.has(r.key),

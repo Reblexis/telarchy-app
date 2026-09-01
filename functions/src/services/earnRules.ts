@@ -51,6 +51,11 @@ export interface EarnRule {
   key: string;
   label: string;
   credits: number;
+  /** Walled pool credits paid beside the trading ones. Zero everywhere the
+   *  earn recurs: a rule that pays depth every day is a faucet, and the
+   *  matched amount is what one identity can extract through its own market
+   *  (notes/matched-liquidity-grants-2026-09-01.md). */
+  liquidityCredits: number;
   kind: EarnKind;
   enabled: boolean;
   note: string;
@@ -102,6 +107,7 @@ async function load(): Promise<Map<string, EarnRule>> {
         key: r.key,
         label: r.label,
         credits: r.credits,
+        liquidityCredits: r.liquidityCredits ?? 0,
         kind: asKind(r.kind),
         enabled: r.enabled,
         note: r.note,
@@ -146,6 +152,14 @@ export async function signupCreditsFor(providerId: string | null): Promise<numbe
   return earnCredits('signup_user');
 }
 
+/** The liquidity this task grants beside its credits, right now. */
+export async function earnLiquidityCredits(key: EarnKey): Promise<number> {
+  const rows = await load();
+  const rule = rows.get(key);
+  if (!rule || !rule.enabled) return 0;
+  return Math.max(0, rule.liquidityCredits ?? 0);
+}
+
 /** The whole table, for the public page and the admin editor. */
 export async function listEarnRules(): Promise<EarnRule[]> {
   const rows = await load();
@@ -160,7 +174,7 @@ export async function listEarnRules(): Promise<EarnRule[]> {
  */
 export async function setEarnRule(
   key: string,
-  patch: { credits?: number; enabled?: boolean; note?: string; label?: string },
+  patch: { credits?: number; liquidityCredits?: number; enabled?: boolean; note?: string; label?: string },
   changedBy: string | null,
 ): Promise<EarnRule> {
   const [existing] = await db.select().from(earnRules).where(eq(earnRules.key, key)).limit(1);
@@ -169,8 +183,15 @@ export async function setEarnRule(
   if (patch.credits !== undefined && (!Number.isFinite(patch.credits) || patch.credits < 0)) {
     throw new AppError('credits must be a non-negative number', 400);
   }
+  if (
+    patch.liquidityCredits !== undefined &&
+    (!Number.isFinite(patch.liquidityCredits) || patch.liquidityCredits < 0)
+  ) {
+    throw new AppError('liquidityCredits must be a non-negative number', 400);
+  }
   const next = {
     credits: patch.credits ?? existing.credits,
+    liquidityCredits: patch.liquidityCredits ?? existing.liquidityCredits ?? 0,
     enabled: patch.enabled ?? existing.enabled,
     note: patch.note ?? existing.note,
     label: patch.label ?? existing.label,
@@ -185,6 +206,7 @@ export async function setEarnRule(
       id: randomUUID(),
       key,
       credits: next.credits,
+      liquidityCredits: next.liquidityCredits,
       kind: existing.kind,
       enabled: next.enabled,
       note: next.note,
@@ -196,6 +218,7 @@ export async function setEarnRule(
     key,
     label: next.label,
     credits: next.credits,
+    liquidityCredits: next.liquidityCredits,
     kind: asKind(existing.kind),
     enabled: next.enabled,
     note: next.note,
@@ -209,6 +232,7 @@ export async function earnRuleHistoryFor(key: string) {
   return rows
     .map(r => ({
       credits: r.credits,
+      liquidityCredits: r.liquidityCredits ?? 0,
       enabled: r.enabled,
       note: r.note,
       changedAt: r.changedAt,
@@ -252,6 +276,11 @@ export async function claimEarn(params: {
   credits?: number;
 }): Promise<{ granted: number } | null> {
   const credits = params.credits ?? (await earnCredits(params.key));
+  // Paid beside the credits and never instead of them: depth for a floor of
+  // your own, walled so it can only ever go behind a market
+  // (notes/matched-liquidity-grants-2026-09-01.md). Read before the
+  // transaction, like the price, because it is the same cached table.
+  const liquidity = await earnLiquidityCredits(params.key);
   try {
     return await db.transaction(async tx => {
       await tx.insert(earnClaims).values({
@@ -270,6 +299,15 @@ export async function claimEarn(params: {
           reason: 'signup_grant',
           refId: `earn:${params.key}`,
         });
+      }
+      // Inside the same transaction as the claim row, so the uniqueness that
+      // stops a second payment stops a second wallet grant with it. The
+      // wallet has no ledger of its own; the claim row is its record.
+      if (liquidity > 0) {
+        await tx
+          .update(agents)
+          .set({ liquidityBalance: sql`${agents.liquidityBalance} + ${toUnits(liquidity)}` })
+          .where(eq(agents.id, params.agentId));
       }
       return { granted: credits };
     });

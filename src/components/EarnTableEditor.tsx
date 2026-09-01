@@ -22,6 +22,7 @@ import { api, type EarnRule } from '../lib/api';
 export function EarnTableEditor() {
   const [rules, setRules] = useState<EarnRule[] | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [liqDrafts, setLiqDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [err, setErr] = useState('');
@@ -32,6 +33,7 @@ export function EarnTableEditor() {
       .then(r => {
         setRules(r.rules);
         setDrafts(Object.fromEntries(r.rules.map(x => [x.key, String(x.credits)])));
+        setLiqDrafts(Object.fromEntries(r.rules.map(x => [x.key, String(x.liquidityCredits ?? 0)])));
       })
       .catch(e => setErr((e as Error).message || 'Could not read the earn table'));
   };
@@ -45,10 +47,15 @@ export function EarnTableEditor() {
       setErr(`${rule.label}: credits must be a number, zero or more`);
       return;
     }
+    const liquidityCredits = Number(liqDrafts[rule.key]);
+    if (!Number.isFinite(liquidityCredits) || liquidityCredits < 0) {
+      setErr(`${rule.label}: liquidity must be a number, zero or more`);
+      return;
+    }
     setBusy(rule.key);
     setErr('');
     try {
-      await api.setEarnRule(rule.key, { credits });
+      await api.setEarnRule(rule.key, { credits, liquidityCredits });
       setSaved(rule.key);
       setTimeout(() => setSaved(null), 2000);
       load();
@@ -108,10 +115,25 @@ export function EarnTableEditor() {
                     aria-label={`Credits for ${r.label}`}
                   />
                   <span className="adm-earnunit">cr</span>
+                  {/* The wallet half of the same rule, priced beside it and
+                    never summed with it: one purse trades, the other can
+                    only go behind a market (owner decision 2026-09-01). */}
+                  <input
+                    className="adm-earnamt"
+                    inputMode="numeric"
+                    value={liqDrafts[r.key] ?? ''}
+                    onChange={e => setLiqDrafts(d => ({ ...d, [r.key]: e.target.value.replace(/[^0-9.]/g, '') }))}
+                    aria-label={`Liquidity for ${r.label}`}
+                  />
+                  <span className="adm-earnunit">liq</span>
                   <button
                     type="button"
                     className="adm-paygo"
-                    disabled={busy === r.key || String(r.credits) === (drafts[r.key] ?? '')}
+                    disabled={
+                      busy === r.key ||
+                      (String(r.credits) === (drafts[r.key] ?? '') &&
+                        String(r.liquidityCredits ?? 0) === (liqDrafts[r.key] ?? ''))
+                    }
                     onClick={() => void save(r)}
                   >
                     {busy === r.key ? 'Saving…' : saved === r.key ? 'Saved' : 'Save'}

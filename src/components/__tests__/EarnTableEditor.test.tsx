@@ -14,11 +14,20 @@ const rules = [
     key: 'signup_user',
     label: 'Sign up',
     credits: 10000,
+    liquidityCredits: 300,
     kind: 'flat' as const,
     enabled: true,
     note: 'A person arriving.',
   },
-  { key: 'signup_agent', label: 'API registration', credits: 0, kind: 'flat' as const, enabled: true, note: '' },
+  {
+    key: 'signup_agent',
+    label: 'API registration',
+    credits: 0,
+    liquidityCredits: 0,
+    kind: 'flat' as const,
+    enabled: true,
+    note: '',
+  },
 ];
 
 beforeEach(() => {
@@ -44,7 +53,29 @@ describe('the earn table editor', () => {
     await userEvent.clear(input);
     await userEvent.type(input, '1000');
     await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]);
-    await waitFor(() => expect(vi.mocked(api.setEarnRule)).toHaveBeenCalledWith('signup_user', { credits: 1000 }));
+    await waitFor(() =>
+      expect(vi.mocked(api.setEarnRule)).toHaveBeenCalledWith('signup_user', {
+        credits: 1000,
+        liquidityCredits: 300,
+      }),
+    );
+  });
+
+  // The two purses are priced side by side and saved together, because they
+  // are one rule (owner decision 2026-09-01).
+  test('the matched liquidity is its own field, and re-pricing it saves both', async () => {
+    render(<EarnTableEditor />);
+    const liq = await screen.findByLabelText('Liquidity for Sign up');
+    expect(liq).toHaveValue('300');
+    await userEvent.clear(liq);
+    await userEvent.type(liq, '500');
+    await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]);
+    await waitFor(() =>
+      expect(vi.mocked(api.setEarnRule)).toHaveBeenCalledWith('signup_user', {
+        credits: 10000,
+        liquidityCredits: 500,
+      }),
+    );
   });
 
   test('disabling a rule sends enabled false, never a price of zero', async () => {

@@ -1106,6 +1106,10 @@ export const earnRules = pgTable('earn_rules', {
   key: text('key').primaryKey(),
   label: text('label').notNull(),
   credits: doublePrecision('credits').notNull(),
+  /** Liquidity credits granted beside the trading ones, walled the same as
+   *  bought liquidity (docs/agent-economy.md, owner decision 2026-09-01).
+   *  Zero on every recurring rule: a daily pool grant refills forever. */
+  liquidityCredits: doublePrecision('liquidity_credits').notNull().default(0),
   /** 'flat' | 'cap' */
   kind: text('kind').notNull().default('flat'),
   enabled: boolean('enabled').notNull().default(true),
@@ -1162,6 +1166,7 @@ export const earnRuleHistory = pgTable(
     id: text('id').primaryKey(),
     key: text('key').notNull(),
     credits: doublePrecision('credits').notNull(),
+    liquidityCredits: doublePrecision('liquidity_credits').notNull().default(0),
     kind: text('kind').notNull(),
     enabled: boolean('enabled').notNull(),
     note: text('note').notNull().default(''),
