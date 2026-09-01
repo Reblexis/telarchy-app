@@ -55,7 +55,14 @@ function parseTable(lines) {
  * rendering a hole nobody notices in review. Add one here and in
  * src/components/AudienceViz.tsx together.
  */
-const VIZ = new Set(['conditional-pair', 'thin-book', 'pool-split', 'payoff-line']);
+const VIZ = new Set([
+  'conditional-pair',
+  'thin-book',
+  'pool-split',
+  'payoff-line',
+  'per-metric-exposure',
+  'sealed-number',
+]);
 
 function parseCta(line) {
   return line
@@ -119,6 +126,18 @@ export function parsePage(header, body) {
       flushFaq();
       page.blocks.push({ kind: 'h2', text: plain(line.slice(4)) });
       i++;
+      continue;
+    }
+    if (line.startsWith('```')) {
+      // A fenced block is code, kept line for line. On a page written for
+      // people who build agents, the call IS the explanation.
+      flushFaq();
+      const lang = line.slice(3).trim();
+      const buf = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith('```')) buf.push(lines[i++]);
+      i++;
+      page.blocks.push({ kind: 'code', lang, text: buf.join('\n') });
       continue;
     }
     if (line.startsWith('VIZ: ')) {
@@ -230,7 +249,8 @@ export type AudienceBlock =
   | { kind: 'ul'; items: string[] }
   | { kind: 'table'; head: string[]; rows: string[][] }
   | { kind: 'faq'; items: { q: string; a: string }[] }
-  | { kind: 'viz'; name: string };
+  | { kind: 'viz'; name: string }
+  | { kind: 'code'; lang: string; text: string };
 
 export interface AudiencePage {
   slug: string;

@@ -111,6 +111,44 @@ describe('pictures', () => {
     for (const n of named) expect(component).toContain(`case '${n}'`);
   });
 
+  test('EVERY PAGE WITHOUT A TABLE SPENDS PICTURES, and stays under 400 words', () => {
+    // A comparison page's table IS its picture, so those keep their prose
+    // budget; the pages that argue in paragraphs are the ones that had to
+    // learn to draw (owner ask 2026-09-01, "the same for other pages").
+    const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
+    for (const p of AUDIENCE_PAGES) {
+      const hasTable = p.blocks.some(b => b.kind === 'table');
+      if (hasTable) continue;
+      let n = words(p.h1);
+      for (const b of p.blocks) {
+        if (b.kind === 'p') n += words(b.lead ?? '') + words(b.text ?? '');
+        if (b.kind === 'h2') n += words(b.text);
+        if (b.kind === 'ol' || b.kind === 'ul') n += b.items.reduce((a, i) => a + words(i), 0);
+        if (b.kind === 'faq') n += b.items.reduce((a, i) => a + words(i.q) + words(i.a), 0);
+      }
+      expect({ route: p.route, words: n }).toEqual({ route: p.route, words: expect.any(Number) });
+      expect(n, `${p.route} is ${n} words`).toBeLessThan(400);
+      expect(p.blocks.filter(b => b.kind === 'viz').length, `${p.route} draws nothing`).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  test('a comparison page keeps its table, which is the picture it already had', () => {
+    for (const p of AUDIENCE_PAGES.filter(x => x.route.startsWith('/compare/'))) {
+      expect(p.blocks.some(b => b.kind === 'table')).toBe(true);
+    }
+  });
+
+  test('a fenced block becomes code, kept line for line', () => {
+    const agents = AUDIENCE_PAGES.find(p => p.route === '/for-agents');
+    const code = agents?.blocks.find(b => b.kind === 'code') as { text: string } | undefined;
+    expect(code).toBeTruthy();
+    // A developer's page shows the call rather than describing it, and the
+    // call has to be one that actually answers.
+    expect(code?.text).toContain('curl');
+    expect(code?.text).toContain('X-Workspace-Id');
+    expect(code?.text.split('\n').length).toBeGreaterThan(1);
+  });
+
   test('the picture page spends WORDS, not paragraphs: /forecast is under 400', () => {
     const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
     let n = words(forecast?.h1 ?? '');

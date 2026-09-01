@@ -9157,6 +9157,27 @@ textarea.jobform-line--desc {
 .viz-few { fill: var(--accent); }
 .viz-slice { fill: var(--higher); stroke: var(--bg-primary); stroke-width: 1; }
 .viz-rule--down { fill: var(--lower); opacity: 0.32; }
+.viz-row { fill: var(--bg-secondary); stroke: var(--border-color); stroke-width: 1; }
+.viz-row.is-open { fill: var(--bg-tertiary); stroke: var(--accent); }
+.viz-seal { fill: none; stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 3 4; }
+.viz-open { fill: var(--accent); }
+
+/* A call, shown rather than described: on a page for people who build
+   agents the request IS the explanation, so it is set like code and reads
+   like the terminal it is pasted into. */
+.pubws-aud-code {
+  margin: 1rem 0 0.4rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre;
+}
 .viz-rule--up { fill: var(--higher); opacity: 0.36; }
 
 /* A drawing draws itself when it scrolls into view. The COMPLETE state is

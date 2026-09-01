@@ -83,6 +83,12 @@ function Block({ block }: { block: AudienceBlock }) {
       );
     case 'viz':
       return <AudienceViz name={block.name} />;
+    case 'code':
+      return (
+        <pre className="pubws-aud-code">
+          <code>{block.text}</code>
+        </pre>
+      );
     case 'faq':
       return (
         <dl className="pubws-aud-faq">
