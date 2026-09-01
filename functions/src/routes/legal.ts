@@ -157,9 +157,10 @@ _Amended 2026-09-01, mid-season (second amendment that day): **profit taken
 out of a market you funded is not score, up to what you put into that
 market's pool.** This does not change who may enter or win; it makes the
 Terms' existing sentence effective, which has always said that buying
-liquidity confers no score. Announced on the season page before it takes
-effect. It reduces a score only where someone profited from a book they paid
-for themselves._
+liquidity confers no score. It changed no entrant's score or prize: when it
+took effect, nobody had traded a market they had funded that resolved inside
+the season. It reduces a score only where someone profited from a book they
+paid for themselves._
 
 _Amended 2026-09-01, mid-season: **every trade counts, and the 6-hour cutoff
 is removed.** A market now resolves the moment a reading dated inside its
@@ -167,10 +168,10 @@ period is filed, so there is no interval in which an already-visible answer
 can be traded against, which is the only thing the cutoff protected. It also
 cost something: "does not count" ignored late SELLING as well as late buying,
 so a position sold before resolution was still scored as if held. Your score
-is now what your trades actually did, all of them. Announced on the season
-page before it takes effect. This can REDUCE the score of an entrant who sold
-out inside a cutoff and kept the win, which is why it is called out here
-rather than folded in quietly._
+is now what your trades actually did, all of them. This can REDUCE the score
+of an entrant who sold out inside a cutoff and kept the win, which is why it
+is called out here rather than folded in quietly. It moved three scores when
+it took effect, by at most 12.90 credits and about $10 of prize._
 
 _Amended 2026-08-28, mid-season (second amendment that day): prizes are no
 longer fixed amounts by place. The $1,000 pool is split among entrants in
