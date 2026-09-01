@@ -56,23 +56,37 @@ export function toAbsoluteDate(dateStr: string, baseDate: Date = new Date()): st
   const unit = match[2] as 'h' | 'd' | 'w' | 'm' | 'y';
   const d = new Date(baseDate);
 
+  // All UTC. The result is read back through toISOString, which is UTC, so
+  // doing the arithmetic with the local setters made the answer depend on
+  // the host's timezone: on TZ=America/New_York a base of 2026-03-08T00:30Z
+  // is still 7 March locally, and +7d named 14 March instead of 15.
   switch (unit) {
     case 'h':
       d.setUTCHours(d.getUTCHours() + amount);
       return d.toISOString().slice(0, 13);
     case 'd':
-      d.setDate(d.getDate() + amount);
+      d.setUTCDate(d.getUTCDate() + amount);
       return d.toISOString().slice(0, 10);
     case 'w': {
-      d.setDate(d.getDate() + amount * 7);
+      d.setUTCDate(d.getUTCDate() + amount * 7);
       return toISOWeekString(d);
     }
-    case 'm':
-      d.setMonth(d.getMonth() + amount);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    case 'y':
-      d.setFullYear(d.getFullYear() + amount);
-      return String(d.getFullYear());
+    case 'm': {
+      // From the FIRST of the month, so adding months cannot overflow. Asking
+      // for 31 September rolls to 1 October, so on the 31st `+1m` skipped a
+      // month and `+1m` and `+2m` collided on the one after; the skipped
+      // month's untraded market was then voided by refreshMarkets and never
+      // re-opened (bug hunt 2026-08-31). The day is not part of the answer -
+      // this returns YYYY-MM - so clamping it costs nothing.
+      const firstOfMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+      firstOfMonth.setUTCMonth(firstOfMonth.getUTCMonth() + amount);
+      return `${firstOfMonth.getUTCFullYear()}-${String(firstOfMonth.getUTCMonth() + 1).padStart(2, '0')}`;
+    }
+    case 'y': {
+      // Same reasoning, and it also keeps 29 February from becoming 1 March.
+      const firstOfYear = new Date(Date.UTC(d.getUTCFullYear() + amount, 0, 1));
+      return String(firstOfYear.getUTCFullYear());
+    }
     default:
       return dateStr;
   }

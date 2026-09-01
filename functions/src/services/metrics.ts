@@ -232,6 +232,12 @@ export async function ensureMarketsForTimePreference(
   const nameToId = new Map<string, string>();
   const idToName = new Map<string, string>();
   const idToRangeMax = new Map<string, number>();
+  // The metric's reporting lag, stamped onto every market this path opens.
+  // Without it a market opened through the Dates dialog settled at the bare
+  // period end while the refresh cron's markets on the same metric settled a
+  // lag later, so the dialog's markets fixed on the reading BEFORE the period
+  // they were pricing (bug hunt 2026-08-31).
+  const idToLag = new Map<string, number>();
   let tpMetricName = '';
 
   for (const row of metricRows) {
@@ -239,6 +245,7 @@ export async function ensureMarketsForTimePreference(
     nameToId.set(row.name, row.id);
     idToName.set(row.id, row.name);
     if (row.marketRangeMax != null) idToRangeMax.set(row.id, row.marketRangeMax);
+    idToLag.set(row.id, row.settlementLagMinutes ?? 0);
     if (row.id === tpMetricId) tpMetricName = row.name;
   }
 
@@ -292,7 +299,14 @@ export async function ensureMarketsForTimePreference(
       const key = `${leafId}:${date}`;
       if (existingMarkets.has(key)) continue;
       existingMarkets.add(key);
-      pending.push({ marketId: randomUUID(), metricId: leafId, metricName: leafName, targetDate: date, rangeMax });
+      pending.push({
+        marketId: randomUUID(),
+        metricId: leafId,
+        metricName: leafName,
+        targetDate: date,
+        rangeMax,
+        settlementLagMinutes: idToLag.get(leafId) ?? 0,
+      });
     }
   }
 
