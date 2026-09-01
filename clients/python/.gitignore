@@ -1,0 +1,9 @@
+# Build and bytecode artifacts. __pycache__ was committed with the client's
+# first commit (2026-09-01) because nothing here ignored it; compiled bytecode
+# is per-interpreter and belongs to nobody else's checkout.
+__pycache__/
+*.py[cod]
+dist/
+build/
+*.egg-info/
+.venv/
