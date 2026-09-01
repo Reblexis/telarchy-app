@@ -5981,18 +5981,45 @@ textarea.jobform-line--desc {
 
 /* The about: three drawings in the chart's own vocabulary, three
    sentences, one door (owner direction 2026-08-10: below the floor,
-   strong visuals, minimal text). */
-/* "What can you do?" (owner ask 2026-08-15): the two ways in, above the
-   explainer. Same width and rhythm as the about section below it, so the
-   page reads as one column, and the same drawing vocabulary as the beats. */
-.pubws-do {
+/* The floor's closing lines (2026-09-01). Two sentences and two links in
+   the same column as everything above, replacing an about section and a
+   pair of cards that answered "what is this" for the third and fourth time
+   on one page. The market above is the explanation; these say the two
+   things it cannot show. */
+.pubws-close {
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
+  gap: 0.7rem;
   width: min(92vw, 1100px);
   margin: 0 auto;
-  padding: 0 1.5rem clamp(2.4rem, 6vh, 3.5rem);
+  padding: clamp(2rem, 5vh, 3rem) 1.5rem clamp(1.6rem, 4vh, 2.4rem);
 }
+
+.pubws-close-line {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+
+/* The link is the sentence's own end, not a button competing with it: the
+   one control this page still wants pressed is on screen above. */
+.pubws-close-go {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+}
+.pubws-close-go:hover { text-decoration: underline; }
+.pubws-close-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 
 /* The owner door closes the page, in the same column as everything above. */
 .pubws-door {
@@ -6001,197 +6028,28 @@ textarea.jobform-line--desc {
   padding: 0 1.5rem clamp(3rem, 7vh, 5rem);
 }
 
-.pubws-do-head {
-  margin: 0;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-  text-align: left;
-}
-
-.pubws-do-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
-  gap: 1rem;
-}
-
-/* A card is a button: the whole surface is the affordance, because its job
-   is to hand the reader the control it describes. */
-.pubws-do-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.45rem;
-  padding: 1.3rem 1.4rem 1.15rem;
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  background: var(--bg-secondary);
-  text-align: left;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  transition: border-color 140ms ease, transform 140ms ease;
-}
-.pubws-do-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.pubws-do-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-.pubws-do-art { width: 120px; height: 48px; display: block; margin-bottom: 0.2rem; }
-
-.pubws-do-title {
-  font-family: 'Fraunces', serif;
-  font-optical-sizing: auto;
-  font-weight: 600;
-  font-size: 1.25rem;
-  letter-spacing: -0.01em;
-}
-
-.pubws-do-body {
-  font-size: 0.9rem;
-  line-height: 1.55;
-  color: var(--text-secondary);
-}
-
-.pubws-do-go {
-  margin-top: 0.35rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  color: var(--accent);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pubws-do-card { transition: border-color 140ms ease; }
-  .pubws-do-card:hover { transform: none; }
-}
-
-.pubws-about {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: clamp(1.8rem, 4vh, 2.6rem);
-  width: min(92vw, 1100px);
-  margin: 0 auto;
-  padding: clamp(2.4rem, 6vh, 4rem) 1.5rem clamp(3rem, 7vh, 5rem);
-}
-
-/* "What is this?" heading over the triptych. */
-.pubws-about-head {
-  margin: 0;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-  text-align: left;
-}
-
-/* Three steps across the full content width: a numbered "how it works"
-   triptych, not a narrow stacked list. Each column stacks its step number,
-   drawing, and sentence; the strokes draw themselves in left-to-right on
-   scroll (staggered by --d). */
-/* Three hairline rows: number, drawing, sentence. The drawing sits beside
-   the sentence it illustrates, so there is never a question which is which. */
-.pubws-about-beats { display: block; }
-.pubws-about-beat {
-  display: grid;
-  grid-template-columns: 2.4rem 170px minmax(0, 1fr);
-  align-items: center;
-  gap: 1.6rem;
-  padding: 1.15rem 0;
-  border-top: 1px solid var(--border-color);
-  text-align: left;
-  --d: 0s;
-}
-.pubws-about-beat:last-of-type { border-bottom: 1px solid var(--border-color); }
-@media (max-width: 640px) {
-  /* The drawing drops below the number on a phone rather than squeezing the
-     sentence into a two-word column. */
-  .pubws-about-beat { grid-template-columns: 2.4rem minmax(0, 1fr); gap: 0.6rem 1.1rem; }
-  .pubws-about-beat .pubws-about-art { grid-column: 2; }
-  /* ...and the sentence goes under the drawing, in the same column. Without
-     this it auto-places into the 2.4rem numeral column and wraps one word
-     per line, which is the exact failure the rule above exists to prevent
-     (found on the live floor at 390px, 2026-08-30). */
-  .pubws-about-beat p { grid-column: 2; }
-}
-.pubws-about-beat:nth-child(2) { --d: 0.16s; }
-.pubws-about-beat:nth-child(3) { --d: 0.32s; }
-@media (max-width: 720px) {
-  .pubws-about-beats { grid-template-columns: 1fr; gap: 2rem; }
-}
-/* Big serif numerals are the anchor of each step (the accent lives here). */
-.pubws-about-num {
-  font-family: 'Fraunces', serif;
-  font-size: 1.3rem;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--accent);
-}
-
-/* Reveal-on-scroll (the section adds .is-in via IntersectionObserver). One
-   clip rectangle sweeps across the whole drawing left to right, so the story
-   writes itself in the order it is read - steps, then the fork, then the gap
-   and the call - including the dashed branch, which a stroke-dash draw could
-   not animate (its dashes are the pattern). Each sentence then rises in,
-   staggered per column by --d. */
-.pubws-about-beat {
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.6s ease var(--d), transform 0.6s ease var(--d);
-}
-.pubws-about.is-in .pubws-about-beat { opacity: 1; transform: translateY(0); }
-
-@media (prefers-reduced-motion: reduce) {
-  .pubws-about-beat { opacity: 1; transform: none; transition: none; }
-}
-
-.pubws-about-art {
-  display: block;
-  width: 170px;
-  height: 56px;
-  overflow: visible;
-}
-
-.pubws-about-beat p {
-  margin: 0;
-  font-family: 'Fraunces', serif;
-  font-size: 1.1rem;
-  line-height: 1.55;
-  color: var(--text-primary);
-  /* A row is wide, so the sentence gets a full measure: 34ch was tuned for
-     the old three-column layout and wrapped every row into three short
-     lines with a lake of empty space beside them. */
-  max-width: 62ch;
-}
-
-.ab-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-.ab-up { fill: none; stroke: var(--higher); stroke-width: 2.5; stroke-linecap: round; }
-.ab-down { fill: none; stroke: var(--lower); stroke-width: 2.5; stroke-dasharray: 4 5; stroke-linecap: round; }
-.ab-gap { stroke: var(--text-tertiary); stroke-width: 1.5; stroke-dasharray: 2 4; }
-.ab-tick { stroke: var(--text-tertiary); stroke-width: 1; }
-.ab-check { fill: none; stroke: var(--higher); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-.ab-dot { fill: var(--accent); }
-.ab-dot--up { fill: var(--higher); }
-.ab-dot--down { fill: var(--lower); }
-
-
-/* The door: one email field, one verb. No queue language (owner
-   direction 2026-08-10): entering an email is a request we answer within
-   days, not a line to stand in. */
+/* One row on the column's own hairline: the question on the spine
+   everything above it is set to, the field beside it, wrapping to two rows
+   on a phone. Centred, it was the one block on the page with no left edge. */
 .pubws-setup {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  text-align: center;
-  gap: 0.7rem;
+  justify-content: space-between;
+  gap: 0.9rem 1.5rem;
   width: 100%;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  text-align: left;
 }
 
 .pubws-setup-lead {
   margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
+  font-family: 'Fraunces', serif;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  max-width: 34ch;
 }
 
 .pubws-setup-row {

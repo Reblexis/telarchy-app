@@ -336,18 +336,35 @@ describe('an unfunded market does not offer a bet it cannot take', () => {
  * are on screen, while "a stranger can propose paid work here" is the part
  * nobody guesses.
  */
-describe('what can you do', () => {
-  test('names both sides of the economy', async () => {
-    renderFloor();
-    await screen.findByRole('heading', { name: 'What can you do?' });
-    const section = screen.getByLabelText('What can you do?');
-    expect(within(section).getByText('Trade')).toBeTruthy();
-    expect(within(section).getByText('Do a contract')).toBeTruthy();
-    // The contract side has to say the money is real, or it reads as points.
-    expect(within(section).getByText(/real money/i)).toBeTruthy();
+describe('the floor closes in two lines', () => {
+  test('THE PAGE STOPS EXPLAINING ITSELF FOUR TIMES', async () => {
+    const { container } = renderFloor();
+    await screen.findByLabelText('New here?');
+    // A floor answered "what is this" in its market definition, in three
+    // numbered beats and in two cards, one under the other. The market above
+    // is the explanation; what is left is the part it cannot show.
+    expect(container.querySelector('.pubws-about')).toBeNull();
+    expect(container.querySelector('.pubws-do')).toBeNull();
+    expect(container.querySelector('.pubws-know')).toBeTruthy();
   });
 
-  test('each card sends the reader to the control it names', async () => {
+  test('the half nobody guesses survives: paid work, in real money', async () => {
+    renderFloor();
+    const close = await screen.findByLabelText('New here?');
+    // Watching a market trade never tells a stranger they may offer to do
+    // the work and be paid for it, so that line cannot go with the cards.
+    expect(within(close).getByText(/offer to do the work and name your price/i)).toBeTruthy();
+    expect(within(close).getByText(/real money/i)).toBeTruthy();
+  });
+
+  test('the full explanation is a link, not a section', async () => {
+    renderFloor();
+    const close = await screen.findByLabelText('New here?');
+    const how = within(close).getByRole('link', { name: /how it works/i });
+    expect(how.getAttribute('href')).toBe('/forecast');
+  });
+
+  test('and the contract line still scrolls to the control it names', async () => {
     const into = vi.fn();
     Element.prototype.scrollIntoView = into;
     const ws = h.workspace();
@@ -356,33 +373,35 @@ describe('what can you do', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
 
     const { container } = renderFloor();
-    await screen.findByRole('heading', { name: 'What can you do?' });
-
-    fireEvent.click(screen.getByText('Do a contract'));
+    const close = await screen.findByLabelText('New here?');
+    fireEvent.click(within(close).getByText(/offer a contract/i));
     expect(into).toHaveBeenCalled();
     expect(container.querySelector('.pubws-rail--right')).toBeTruthy();
-
-    into.mockClear();
-    fireEvent.click(screen.getByText('Trade'));
-    expect(into).toHaveBeenCalled();
   });
 
   test('the floor calls them contracts, never jobs', async () => {
     const { container } = renderFloor();
-    await screen.findByRole('heading', { name: 'What can you do?' });
-    // "Top contractors" is the rail's own heading, so the thing they do is a
-    // contract; "jobs" alongside it was two words for one idea.
+    await screen.findByLabelText('New here?');
     expect(container.textContent).not.toMatch(/\bjobs?\b/i);
   });
 });
 
 test('the page explains, then asks, then offers the owner door', async () => {
   const { container } = renderFloor();
-  await screen.findByRole('heading', { name: 'What can you do?' });
-  const order = [...container.querySelectorAll('.pubws-about-head, .pubws-do-head, .pubws-setup-lead')].map(n =>
+  await screen.findByLabelText('New here?');
+  const order = [...container.querySelectorAll('.pubws-know-head, .pubws-close-line, .pubws-setup-lead')].map(n =>
     (n.textContent ?? '').slice(0, 16),
   );
-  expect(order).toEqual(['What is this?', 'What can you do?', 'Want this for yo']);
+  // Two "know" blocks already: the market's own definition, then the
+  // company's. Those are the explanation; the closing lines say only what
+  // they cannot.
+  expect(order).toEqual([
+    'What is this mar',
+    'What is LookPilo',
+    'New here? Telarc',
+    'You can also off',
+    'Want this for yo',
+  ]);
 });
 
 /**

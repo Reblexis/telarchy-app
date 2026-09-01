@@ -1458,31 +1458,36 @@ whose slug and name differ only in case the swap is invisible, and the
 page never sits on a generic label while a 21KB call it does not otherwise
 need comes back.
 
-### The page ends: "What is this?", "What can you do?", the door
+### The page ends: two lines and the door
 
-**The page ends: "What is this?", then "What can you do?", then the owner
-door.** Comprehension before action, and it keeps the two calls to action
-together instead of splitting them around the explainer. The three beats
-say what the floor is; the two cards, Trade and Do a contract, say what
-the reader may do; the email door closes the page, so the asks escalate:
-place a bet, offer a contract, run your own number.
+**A floor stops explaining itself after the market.** The page above the
+fold is the explanation and it SHOWS rather than tells: the company's name,
+one line of what it sells, the number, its chart, and two priced sides a
+visitor can act on. Below that, "What is this market?" carries the metric's
+own definition, which is the settlement text a trader needs, and "What is
+<company>?" carries the company's. That is already twice; a numbered
+explainer and a pair of cards under it answered the same question a third
+and fourth time (cut 2026-09-01, on YC's own reviews of pages that have to
+introduce themselves: a stranger decides in five to ten seconds at the TOP
+of a page, and repeating yourself further down is not extra clarity, see
+`notes/yc-landing-explainer-2026-09-01.md`).
 
-The about section (`.pubws-about`) is three drawings in the chart's own
-vocabulary (step line, branch pair, priced gap plus check), one Fraunces
-sentence each (no mission line below the beats; the beats speak for
-themselves), and one door: an inline email field with a "Get set up"
-button (never call it a waitlist; entering an email is a request answered
-within days, and the confirmation says "Got it. We will get back to you
-within a few days", not queue language). Minimal text is the constraint;
-the drawings reuse product vocabulary, never stock decoration.
+What survives is two sentences, because they are the two things the working
+market cannot show. One says what the mechanism is for and links to the page
+that explains it properly. The other says a stranger may offer to do the
+work and be paid real money for it, which nobody guesses from watching a
+market trade; it stays a call to action that SCROLLS to the contract rail
+rather than a card of equal weight to Trade, whose control is already on
+screen. Two equal-weight cards were the paradox of choice: the reader picks
+neither.
 
-Each card carries a drawing in the chart's own vocabulary, one sentence,
-and a link that SCROLLS to the control it names rather than opening a
-modal: the point is to show where the thing lives on a page the reader
-will come back to. The two sides are not equally obvious, either. The bet
-buttons are on screen, while "a stranger can propose paid work here and be
-paid in real money" is the half nobody guesses, so the contract card is
-the one that must say "real money".
+Both links are the end of their own sentence rather than a button beside it,
+because the one control this page still wants pressed is above them. Then
+the door: an inline email field with a "Get set up" button, one row on the
+column's own hairline, the question on the spine everything else is set to.
+Never call it a waitlist; entering an email is a request answered within
+days, and the confirmation says "Got it. We will get back to you within a
+few days", not queue language.
 
 The ballot, charter, decided list, pitch and footer are deliberately not
 rendered; the API still ships them, so each returns as a render change.

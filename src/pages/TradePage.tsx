@@ -2176,100 +2176,36 @@ export function TradePage() {
         )}
       </main>
 
-      {/* Below the floor: why this exists, in three drawings and three
-          sentences (owner direction 2026-08-10: about section under the
-          main view, strong visuals, minimal text). The drawings reuse the
-          chart's own vocabulary: the step line, the branch pair, the
-          priced gap; nothing here is decoration from outside the product. */}
-      <section className={`pubws-about${aboutIn ? ' is-in' : ''}`} ref={aboutRef} aria-label="What is this?">
-        <h2 className="pubws-about-head">What is this?</h2>
-        {/* Three rows, each locking its drawing beside the sentence it
-            illustrates (redesigned 2026-08-12). Earlier passes put the art in
-            a band above the columns; nothing tied a passage to its step, so it
-            read as a squiggle floating over unrelated text. Hairline rows are
-            also the house rhythm. */}
-        <div className="pubws-about-beats">
-          <div className="pubws-about-beat">
-            <span className="pubws-about-num">01</span>
-            <svg className="pubws-about-art" viewBox="0 0 170 56" aria-hidden="true">
-              <path className="ab-line" d="M8,46 L46,46 L46,34 L88,34 L88,22 L130,22" />
-              <circle className="ab-dot" cx="130" cy="22" r="4.5" />
-            </svg>
-            <p>A real company, run in the open. One number says how it is going.</p>
-          </div>
-          <div className="pubws-about-beat">
-            <span className="pubws-about-num">02</span>
-            <svg className="pubws-about-art" viewBox="0 0 170 56" aria-hidden="true">
-              <path className="ab-line" d="M8,28 L62,28" />
-              <path className="ab-up" d="M62,28 C100,28 110,14 152,10" />
-              <path className="ab-down" d="M62,28 C100,28 110,42 152,46" />
-              <circle className="ab-dot ab-dot--up" cx="152" cy="10" r="4.5" />
-              <circle className="ab-dot ab-dot--down" cx="152" cy="46" r="4.5" />
-            </svg>
-            <p>
-              Anyone can offer to do work and name their price. Participants, human or AI, bet on both worlds: done, and
-              not done.
-            </p>
-          </div>
-          <div className="pubws-about-beat">
-            <span className="pubws-about-num">03</span>
-            <svg className="pubws-about-art" viewBox="0 0 170 56" aria-hidden="true">
-              <line className="ab-gap" x1="30" y1="12" x2="30" y2="44" />
-              <line className="ab-tick" x1="22" y1="12" x2="38" y2="12" />
-              <line className="ab-tick" x1="22" y1="44" x2="38" y2="44" />
-              <circle className="ab-dot ab-dot--up" cx="30" cy="12" r="4" />
-              <circle className="ab-dot ab-dot--down" cx="30" cy="44" r="4" />
-              <path className="ab-check" d="M80,30 L92,42 L120,14" />
-            </svg>
-            <p>
-              The gap between those worlds is a calibrated number. The owner approves on it, and pays for outcomes, not
-              promises.
-            </p>
-          </div>
-        </div>
-      </section>
+      {/* The floor stops explaining itself (2026-09-01). It answered "what
+          is this" three times over: the market's own definition, three
+          numbered beats with drawings, and two cards. The explanation is the
+          page above them, which SHOWS rather than tells (a real company's
+          number, its chart, and two priced sides), and what YC's own reviews
+          ask of a page is that a stranger get it in five to ten seconds at
+          the top, not that the bottom repeat it
+          (`notes/yc-landing-explainer-2026-09-01.md`).
 
-      {/* Two ways in, said plainly (owner ask 2026-08-15). It sits BELOW
-          "What is this?" (owner, same day): comprehension before action, and
-          it keeps the two calls to action together instead of splitting them
-          around the explainer. The three beats above say what this IS; a
-          visitor who understands it still has to be told what they may DO,
-          and the two sides of the economy are not symmetric in how obvious
-          they are: the bet buttons are on screen, while the fact that a
-          stranger can propose paid work and get paid for it is the part
-          nobody guesses. Each card scrolls to the thing it names rather than
-          opening a new surface. */}
-      <section className="pubws-do" aria-label="What can you do?">
-        <h2 className="pubws-do-head">What can you do?</h2>
-        <div className="pubws-do-cards">
-          <button className="pubws-do-card" onClick={() => scrollToAction('trade')}>
-            <svg className="pubws-do-art" viewBox="0 0 120 48" aria-hidden="true">
-              <path className="ab-line" d="M6,34 L34,34 L34,24 L64,24 L64,14 L100,14" />
-              <circle className="ab-dot ab-dot--up" cx="100" cy="14" r="4.5" />
-            </svg>
-            <span className="pubws-do-title">Trade</span>
-            <span className="pubws-do-body">Say where the number lands. You are paid for being right.</span>
-            <span className="pubws-do-go">Place a bet →</span>
+          Two lines survive, because they are the two things the working
+          market cannot show. One: what the mechanism is for, pointing at the
+          page that explains it properly. Two: that a stranger may offer to do
+          the work and be paid real money for it, which nobody guesses from
+          watching a market trade, and which stays a call to action rather
+          than a card of equal weight to Trade, whose control is already on
+          screen. */}
+      <section className="pubws-close" aria-label="New here?">
+        <p className="pubws-close-line">
+          New here? Telarchy prices what a decision does to a number before anyone commits.{' '}
+          <Link className="pubws-close-go" to="/forecast">
+            How it works &rarr;
+          </Link>
+        </p>
+        <p className="pubws-close-line">
+          You can also offer to do the work and name your price. The owner pays in real money if the market says it
+          clears.{' '}
+          <button type="button" className="pubws-close-go" onClick={() => scrollToAction('contract')}>
+            Offer a contract &rarr;
           </button>
-          <button className="pubws-do-card" onClick={() => scrollToAction('contract')}>
-            <svg className="pubws-do-art" viewBox="0 0 120 48" aria-hidden="true">
-              {/* The priced gap, then the approval: same motif as beat 03,
-                  kept at its proportions so the gap reads as the subject and
-                  the check as its consequence. */}
-              <line className="ab-gap" x1="24" y1="8" x2="24" y2="40" />
-              <line className="ab-tick" x1="16" y1="8" x2="32" y2="8" />
-              <line className="ab-tick" x1="16" y1="40" x2="32" y2="40" />
-              <circle className="ab-dot ab-dot--up" cx="24" cy="8" r="4" />
-              <circle className="ab-dot ab-dot--down" cx="24" cy="40" r="4" />
-              <path className="ab-check" d="M62,26 L72,36 L96,12" />
-            </svg>
-            <span className="pubws-do-title">Do a contract</span>
-            <span className="pubws-do-body">
-              Offer work and name your price. The owner pays in real money if the market says it clears.
-            </span>
-            <span className="pubws-do-go">Offer a contract →</span>
-          </button>
-        </div>
+        </p>
       </section>
 
       {/* The door is an email box, not a "waitlist" (owner direction
