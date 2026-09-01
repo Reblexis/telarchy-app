@@ -183,11 +183,16 @@ export interface SettledWindowTradeAgg {
 export function computeSettledWindowProfit(
   marketsList: SettledWindowMarket[],
   aggs: SettledWindowTradeAgg[],
+  ownPoolFunding?: Map<string, number>,
 ): Map<string, number> {
-  return windowProfit(marketsList, aggs, m =>
-    m.voided || m.actualValue === null
-      ? null
-      : resolutionPayouts(Math.min(m.actualValue, m.rangeMax), m.rangeMin, m.rangeMax),
+  return windowProfit(
+    marketsList,
+    aggs,
+    m =>
+      m.voided || m.actualValue === null
+        ? null
+        : resolutionPayouts(Math.min(m.actualValue, m.rangeMax), m.rangeMin, m.rangeMax),
+    ownPoolFunding,
   );
 }
 
@@ -223,6 +228,10 @@ function windowProfit<M extends SettledWindowMarket>(
   marketsList: M[],
   aggs: SettledWindowTradeAgg[],
   factorsFor: (m: M) => [number, number] | null,
+  /** Pool credits each agent put into each market, keyed
+   *  `${agentId} ${workspaceId} ${marketId}`. Absent means none known, which
+   *  scores exactly as it did before. */
+  ownPoolFunding?: Map<string, number>,
 ): Map<string, number> {
   const marketByKey = new Map<string, M>();
   const factorsByKey = new Map<string, [number, number]>();
@@ -237,6 +246,7 @@ function windowProfit<M extends SettledWindowMarket>(
   // floored at zero, so voided markets accumulate cash per agent-market
   // before the flooring.
   const out = new Map<string, number>();
+  const perAgentMarket = new Map<string, { agentId: string; key: string; profit: number }>();
   const voidedCash = new Map<string, { agentId: string; netCash: number }>();
   const add = (agentId: string, amount: number) => {
     out.set(agentId, (out.get(agentId) ?? 0) + amount);
@@ -260,7 +270,33 @@ function windowProfit<M extends SettledWindowMarket>(
     // unwind gap can leave orphans; never pay a negative holding.
     const held = Math.max(0, a.shares);
     const payout = held * (a.direction === 'higher' ? factors[1] : factors[0]);
-    add(a.agentId, payout - a.cost);
+    // Per (agent, market), not straight into the total: the own-funding
+    // offset below is per market and has to see both directions of it.
+    const pk = `${a.agentId} ${k}`;
+    const prev = perAgentMarket.get(pk) ?? { agentId: a.agentId, key: k, profit: 0 };
+    prev.profit += payout - a.cost;
+    perAgentMarket.set(pk, prev);
+  }
+
+  // PROFIT OUT OF A BOOK YOU FUNDED IS NOT SCORE, up to what you put into
+  // that market's pool.
+  //
+  // The Terms have always said buying liquidity "confers no contest entry,
+  // standing, or score" (section 2), and the scoring did not enforce it:
+  // trading profit counted while the LP loss on the other side of the SAME
+  // account did not, so funding your own market and trading against it turned
+  // pool credits into season score roughly one for one (owner decision
+  // 2026-09-01, docs/seasons.md).
+  //
+  // Floored at zero rather than turned into a loss, which is what keeps it
+  // from being a penalty on liquidity: an LP who does not trade their own
+  // book has no profit to reduce, and someone who won MORE than they funded
+  // keeps the excess, because that part was risk against other people. A
+  // genuine trading loss is left alone.
+  for (const e of perAgentMarket.values()) {
+    const ownFunding = ownPoolFunding?.get(`${e.agentId} ${e.key}`) ?? 0;
+    const adjusted = e.profit > 0 ? Math.max(0, e.profit - ownFunding) : e.profit;
+    add(e.agentId, adjusted);
   }
 
   for (const v of voidedCash.values()) {

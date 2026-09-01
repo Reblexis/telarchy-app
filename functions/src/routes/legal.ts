@@ -153,6 +153,14 @@ but a mark scores nothing until its market resolves. Trades placed in a
 market's final 6 hours no longer count toward the season score. Announced on
 the season page; the Scoring section below has the details._
 
+_Amended 2026-09-01, mid-season (second amendment that day): **profit taken
+out of a market you funded is not score, up to what you put into that
+market's pool.** This does not change who may enter or win; it makes the
+Terms' existing sentence effective, which has always said that buying
+liquidity confers no score. Announced on the season page before it takes
+effect. It reduces a score only where someone profited from a book they paid
+for themselves._
+
 _Amended 2026-09-01, mid-season: **every trade counts, and the 6-hour cutoff
 is removed.** A market now resolves the moment a reading dated inside its
 period is filed, so there is no interval in which an already-visible answer

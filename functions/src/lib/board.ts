@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { markets, positions, trades } from '../db/schema';
+import { liquidityEvents, markets, positions, trades } from '../db/schema';
 import { resolutionInstant, settlesOn } from './date-utils';
 import {
   type CalibrationStats,
@@ -339,9 +339,36 @@ export async function loadSeasonSettled(
     )
     .groupBy(trades.agentId, trades.workspaceId, trades.marketId, trades.direction);
 
+  // What each entrant put into each of these markets' pools. Profit out of a
+  // book you funded is not score, up to that amount (docs/seasons.md, and the
+  // Terms' section 2, which has always said buying liquidity confers none).
+  const funding = await db
+    .select({
+      agentId: liquidityEvents.agentId,
+      workspaceId: liquidityEvents.workspaceId,
+      marketId: liquidityEvents.marketId,
+      contributed: sql<number>`coalesce(sum(${liquidityEvents.poolContribution}), 0)::float`,
+    })
+    .from(liquidityEvents)
+    .where(
+      and(
+        isNotNull(liquidityEvents.agentId),
+        inArray(
+          liquidityEvents.marketId,
+          marketRows.map(m => m.id),
+        ),
+      ),
+    )
+    .groupBy(liquidityEvents.agentId, liquidityEvents.workspaceId, liquidityEvents.marketId);
+  const ownPoolFunding = new Map<string, number>();
+  for (const f of funding) {
+    ownPoolFunding.set(`${f.agentId} ${f.workspaceId} ${f.marketId}`, Number(f.contributed));
+  }
+
   return computeSettledWindowProfit(
     marketRows.map(m => ({ ...m, actualValue: m.voided ? null : m.actualValue })),
     aggs.map(a => ({ ...a, shares: Number(a.shares), cost: Number(a.cost) })),
+    ownPoolFunding,
   );
 }
 
