@@ -1450,3 +1450,40 @@ export const seasonEntries = pgTable(
   },
   t => [primaryKey({ columns: [t.seasonId, t.agentId] })],
 );
+
+/**
+ * One row per (participant, workspace, Idempotency-Key) that placed a trade.
+ *
+ * The callers here are bots, so a timed-out request is retried automatically
+ * and unattended. Without this, the retry buys again, on a curve the first
+ * attempt already moved, and the participant pays twice for one decision; not
+ * retrying leaves it unsure whether it holds a position. Neither shows up as
+ * an error, which is why the cost of it was invisible.
+ *
+ * The key is the CALLER's, so it is scoped by participant and workspace: "1"
+ * is a key someone will pick, and two participants picking it must not collide.
+ * `requestHash` is the canonicalised body, so the same key with a different
+ * body is a mistake worth refusing rather than a replay worth serving. Only a
+ * committed trade writes a row, so a call that failed leaves the key free for
+ * a real retry.
+ */
+export const tradeIdempotency = pgTable(
+  'trade_idempotency',
+  {
+    agentId: text('agent_id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    /** The caller's Idempotency-Key header, verbatim. */
+    key: text('key').notNull(),
+    /** SHA-256 of the canonicalised request body, to catch a reused key. */
+    requestHash: text('request_hash').notNull(),
+    /** The exact 201 body the first call returned, replayed to duplicates. */
+    response: jsonb('response').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [
+    primaryKey({ columns: [t.agentId, t.workspaceId, t.key] }),
+    // For the pruning job: these rows are only useful for as long as a client
+    // might still be retrying.
+    index('trade_idempotency_created_idx').on(t.createdAt),
+  ],
+);
