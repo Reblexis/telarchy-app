@@ -465,18 +465,14 @@ export function TradePage() {
   const nowReading = lastReading?.value ?? null;
   // Beside the price, where the since-open chip used to be (owner ask
   // 2026-08-28, "the settles should be above the market graph next to the
-  // market number"): the exact UTC instant stays on the hover.
+  // market number"). The countdown and nothing else: the exact instant is
+  // the hover (owner, 2026-09-01, on the second line of type this carried
+  // for a day: "there should not be the date here? maybe upon hover but
+  // thats it"). Said in the floor's own settle-instant words rather than a
+  // raw UTC string, since a reader who reaches for it is reading it.
   const settleNote = hero ? (
-    <span
-      className="pubws-settle-in"
-      title={hero.resolvesOn ? `settles ${new Date(hero.resolvesOn).toUTCString()}` : undefined}
-    >
+    <span className="pubws-settle-in" title={hero.resolvesOn ? `settles ${settleInstant(hero.resolvesOn)}` : undefined}>
       expected · {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
-      {/* The instant, not only the distance (owner ask 2026-08-31). A market
-        settles on the last reading at or before it, so a push at 23:58 and a
-        push at 00:02 land in different markets: an owner deciding when to
-        report needs the boundary itself, and a tooltip is not that. */}
-      {hero.resolvesOn && <span className="pubws-settle-at">{settleInstant(hero.resolvesOn)}</span>}
     </span>
   ) : null;
   // The number chart renders even with no readings: it draws its own
