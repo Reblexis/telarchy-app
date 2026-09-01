@@ -645,6 +645,40 @@ anonymous while the page says signed in. `auth-store-binding.test.ts` fails if
 that is tidied back. Everything else stays per-store, so a beta workspace is
 real beta data keyed by the real account id.
 
+## A tab that is already open picks the new build up
+
+Publishing swaps the revision, but a browser that already has the app open
+keeps running the bundle it downloaded; nothing on the wire tells it to stop.
+The HTTP layer is not the problem and needs no change: `index.html` is served
+`no-cache` with an ETag and every hashed asset `immutable`, so any fresh
+navigation gets the new build. The case that stays stale is the one with no
+navigation in it, which is the ordinary phone: a tab restored from memory when
+the browser reopens, hours or days later, its timers frozen the whole time.
+
+Every page therefore watches the build it is running (`src/lib/build-watch.ts`,
+mounted once in `App.tsx`):
+
+- The running build is the `/assets/index-<hash>.js` the document loaded. A
+  page served without one is a dev server, and the watch stays inert.
+- It compares that against the entry bundle the served `index.html` names now,
+  read `no-store`. It checks when the tab becomes visible - which is the
+  moment a phone comes back, bfcache restores included - and every five
+  minutes while the tab stays visible. It never checks while hidden, so a
+  backgrounded tab costs nothing.
+- A new build reloads the page by itself when the tab is returning from at
+  least a minute away and nothing is typed into it. Otherwise - the visitor is
+  looking at the page, or a field holds text - it offers the reload as the
+  "new version · reload" pill and waits to be pressed. **Text a visitor typed
+  outranks a fresh build**, always: no automatic reload discards input.
+- One automatic reload a minute at most, so a server answering with an
+  inconsistent index cannot put a tab in a reload loop.
+
+The guard that catches the same staleness from the other side is
+`src/lib/lazy-page.tsx`: a route chunk whose hashed name a deploy rotated away
+fails to load, and the boundary reloads once. That one only fires when the
+visitor navigates to a page they had not opened yet; this one fires while they
+sit still.
+
 ## What the workflow does
 
 On `push` to any branch (or `workflow_dispatch`); pushes touching only

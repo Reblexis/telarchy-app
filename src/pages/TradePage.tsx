@@ -32,7 +32,6 @@ import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import type { FloorRef } from '../lib/agent-prompt';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
 import { api, type PublicWorkspace, setActiveWorkspace } from '../lib/api';
-import { indexBundleSrc } from '../lib/bundle-version';
 import {
   buildHorizonViews,
   captionLabel,
@@ -766,29 +765,10 @@ export function TradePage() {
     };
   }, []);
 
-  // Stale-tab guard (owner report 2026-08-13): a long-open floor tab runs
-  // the bundle it loaded with forever, so a deploy's fixes never reach it.
-  // Every five minutes, compare the bundle the served index references with
-  // the one running; a mismatch offers a reload via the pill in the render.
-  // Inert in dev, where the served page carries no built bundle.
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  useEffect(() => {
-    const current = document.querySelector<HTMLScriptElement>('script[src*="/assets/index-"]')?.getAttribute('src');
-    if (!current) return;
-    const currentPath = new URL(current, window.location.origin).pathname;
-    const check = () => {
-      if (document.hidden) return;
-      api
-        .getServedIndexHtml()
-        .then(html => {
-          const served = indexBundleSrc(html);
-          if (served && served !== currentPath) setUpdateAvailable(true);
-        })
-        .catch(e => console.error('update check failed:', e));
-    };
-    const iv = setInterval(check, 300_000);
-    return () => clearInterval(iv);
-  }, []);
+  // The stale-tab guard is app-wide now (src/components/BuildWatch.tsx): it
+  // was here alone, on a five-minute timer a phone freezes while the tab is
+  // in the background, so the floor never caught up on the one device where
+  // tabs live longest.
 
   // The ticket owns busy/error/flash UI state; the page owns the money
   // plumbing. Errors propagate by throwing so the ticket can show them
@@ -2305,12 +2285,6 @@ export function TradePage() {
           bug kept "happening" in a pre-fix tab). Offer the reload, never
           force it: yanking a composed bet or a selected branch out from
           under the visitor is worse than stale code. */}
-      {updateAvailable && (
-        <button className="pubws-update" onClick={() => window.location.reload()}>
-          new version · reload
-        </button>
-      )}
-
       {ownerDialog?.kind === 'new-metric' && ws && (
         <NewMetricDialog
           workspaceId={ws.workspaceId}

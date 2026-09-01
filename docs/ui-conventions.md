@@ -52,6 +52,12 @@ wordmark never floats aligned to nothing.
 Horizontal padding belongs to the column (`.pubws-main`, `.pubws-doc`),
 never to the blocks inside it, so left edges align down the page.
 
+On every page, a build published while the page stayed open shows as one
+small pill in the bottom right, `.pubws-update`, reading "new version ·
+reload"; pressing it reloads. It is the only fixed element the app draws over
+a page, and it appears only when the reload cannot be taken automatically
+(docs/infra/deploy.md, "A tab that is already open picks the new build up").
+
 ## The doors (login, signup, waitlist)
 
 `AuthShell` (components/AuthShell.tsx) is the frame: same top bar, same

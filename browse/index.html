@@ -643,15 +643,16 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h11">Logging in on the beta</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h12">The beta is admin only</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h13">The permission behind the button</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h14">What the workflow does</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h15">Other workflows</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h16">The container</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h17">Runtime identity</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h18">Keyless deploys</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h19">Master key rotation</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h20">Cron schedule (Cloud Scheduler)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h21">Owner notifications (Resend)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h22">Memory</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h14">A tab that is already open picks the new build up</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h15">What the workflow does</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h16">Other workflows</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h17">The container</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h18">Runtime identity</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h19">Keyless deploys</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h20">Master key rotation</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h21">Cron schedule (Cloud Scheduler)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h22">Owner notifications (Resend)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h23">Memory</a></li>
 </ul></details>
 </li>
 </ul></li>
@@ -3701,6 +3702,11 @@ the column beneath it (<code>--narrow</code> for doors, <code>--wide</code> for 
 wordmark never floats aligned to nothing.</p>
 <p>Horizontal padding belongs to the column (<code>.pubws-main</code>, <code>.pubws-doc</code>),
 never to the blocks inside it, so left edges align down the page.</p>
+<p>On every page, a build published while the page stayed open shows as one
+small pill in the bottom right, <code>.pubws-update</code>, reading &quot;new version ·
+reload&quot;; pressing it reloads. It is the only fixed element the app draws over
+a page, and it appears only when the reload cannot be taken automatically
+(docs/infra/deploy.md, &quot;A tab that is already open picks the new build up&quot;).</p>
 <h2 id="docs-ui-conventions-md--h5">The doors (login, signup, waitlist)</h2>
 <p><code>AuthShell</code> (components/AuthShell.tsx) is the frame: same top bar, same
 Fraunces headline, one narrow column, OAuth buttons above a hairline &quot;or&quot;,
@@ -9586,7 +9592,38 @@ store on every <code>/beta/api</code> call, found nothing, and the caller comes 
 anonymous while the page says signed in. <code>auth-store-binding.test.ts</code> fails if
 that is tidied back. Everything else stays per-store, so a beta workspace is
 real beta data keyed by the real account id.</p>
-<h2 id="docs-infra-deploy-md--h14">What the workflow does</h2>
+<h2 id="docs-infra-deploy-md--h14">A tab that is already open picks the new build up</h2>
+<p>Publishing swaps the revision, but a browser that already has the app open
+keeps running the bundle it downloaded; nothing on the wire tells it to stop.
+The HTTP layer is not the problem and needs no change: <code>index.html</code> is served
+<code>no-cache</code> with an ETag and every hashed asset <code>immutable</code>, so any fresh
+navigation gets the new build. The case that stays stale is the one with no
+navigation in it, which is the ordinary phone: a tab restored from memory when
+the browser reopens, hours or days later, its timers frozen the whole time.</p>
+<p>Every page therefore watches the build it is running (<code>src/lib/build-watch.ts</code>,
+mounted once in <code>App.tsx</code>):</p>
+<ul>
+<li>The running build is the <code>/assets/index-&lt;hash&gt;.js</code> the document loaded. A
+page served without one is a dev server, and the watch stays inert.</li>
+<li>It compares that against the entry bundle the served <code>index.html</code> names now,
+read <code>no-store</code>. It checks when the tab becomes visible - which is the
+moment a phone comes back, bfcache restores included - and every five
+minutes while the tab stays visible. It never checks while hidden, so a
+backgrounded tab costs nothing.</li>
+<li>A new build reloads the page by itself when the tab is returning from at
+least a minute away and nothing is typed into it. Otherwise - the visitor is
+looking at the page, or a field holds text - it offers the reload as the
+&quot;new version · reload&quot; pill and waits to be pressed. <strong>Text a visitor typed
+outranks a fresh build</strong>, always: no automatic reload discards input.</li>
+<li>One automatic reload a minute at most, so a server answering with an
+inconsistent index cannot put a tab in a reload loop.</li>
+</ul>
+<p>The guard that catches the same staleness from the other side is
+<code>src/lib/lazy-page.tsx</code>: a route chunk whose hashed name a deploy rotated away
+fails to load, and the boundary reloads once. That one only fires when the
+visitor navigates to a page they had not opened yet; this one fires while they
+sit still.</p>
+<h2 id="docs-infra-deploy-md--h15">What the workflow does</h2>
 <p>On <code>push</code> to any branch (or <code>workflow_dispatch</code>); pushes touching only
 <code>**/*.md</code> or <code>docs/**</code> do not trigger it. A branch <code>delete</code> event triggers
 only the <code>retire</code> job.</p>
@@ -9626,7 +9663,7 @@ run that ends in <code>failure</code> (a runner dying mid-test, not a red suite)
 genuinely red suite is still left red for a human after four retries. A run
 that loses the concurrency race ends as <code>cancelled</code>, not <code>failure</code>, so it never
 triggers this.</p>
-<h2 id="docs-infra-deploy-md--h15">Other workflows</h2>
+<h2 id="docs-infra-deploy-md--h16">Other workflows</h2>
 <ul>
 <li><code>docker-publish.yml</code> runs in parallel on every push to <code>main</code> and pushes the
 image to <code>ghcr.io/reblexis/telarchy-app</code> (tags <code>latest</code> and <code>sha-&lt;short&gt;</code>;
@@ -9640,7 +9677,7 @@ use. Leave it.</li>
 backend (the Dockerfile copies the built bundle into <code>lib/public</code>); there is
 no separately hosted frontend.</li>
 </ul>
-<h2 id="docs-infra-deploy-md--h16">The container</h2>
+<h2 id="docs-infra-deploy-md--h17">The container</h2>
 <p><code>Dockerfile</code> builds the backend (<code>functions/</code>), the frontend at <code>/</code>, and the
 frontend a second time at <code>/beta/</code> (<code>npm run build:beta</code>, see &quot;Reaching it&quot;).
 The second bundle is built by default (<code>ARG BUILD_BETA=true</code>) because the
@@ -9655,7 +9692,7 @@ database migrations (<code>node lib/migrate.js</code>) before starting the serve
 unset and migrates in the deploy workflow instead, before the revision lands.
 Required env: <code>DATABASE_URL</code>, <code>API_KEY</code>, <code>BETTER_AUTH_SECRET</code>; everything
 else is documented in <code>.env.example</code>.</p>
-<h2 id="docs-infra-deploy-md--h17">Runtime identity</h2>
+<h2 id="docs-infra-deploy-md--h18">Runtime identity</h2>
 <p>The API runs as <code>telarchy-api@telarchy-e0043.iam.gserviceaccount.com</code>, not the
 default compute service account (which holds project Editor and still exists for
 Cloud Build). Its grants are the smallest set the app uses: project roles
@@ -9679,7 +9716,7 @@ no-traffic revision under the new account, smoke-tested through its own tag
 URL (DB, secrets, master key, release describe, <code>/beta</code>), then
 <code>update-traffic</code>. The default compute account keeps project Editor because
 Cloud Build (<code>deploy --source</code>) uses it; removing it is a separate step.</p>
-<h2 id="docs-infra-deploy-md--h18">Keyless deploys</h2>
+<h2 id="docs-infra-deploy-md--h19">Keyless deploys</h2>
 <p>The deploy workflow authenticates with Workload Identity Federation: pool
 <code>github</code>, OIDC provider <code>github</code> (issuer token.actions.githubusercontent.com,
 attribute condition <code>repository_owner == 'Reblexis'</code>), and
@@ -9691,7 +9728,7 @@ path in <code>deploy-cloudrun.yml</code>. No <code>GCP_SA_KEY</code> secret exis
 and <code>cloudrun-deployer</code> carries no user-managed key; the JSON-key path is only
 a bootstrap fallback, deleted from the repository and from the service account
 once a WIF deploy succeeds.</p>
-<h2 id="docs-infra-deploy-md--h19">Master key rotation</h2>
+<h2 id="docs-infra-deploy-md--h20">Master key rotation</h2>
 <p>The master key (<code>API_KEY</code>) is read by exactly one function, <code>isMasterKey</code> in
 <code>functions/src/lib/master-key.ts</code>, which also accepts <code>API_KEY_PREVIOUS</code> when it
 is set. That is the grace window: rotation is not a simultaneous cutover of every
@@ -9709,7 +9746,7 @@ The fleet instance has its own key and is unaffected.</li>
 <li>After 24 hours (and never mid-cycle: cut over between weekly market pairs during a
 season), unset <code>API_KEY_PREVIOUS</code>. The old key then returns 401 everywhere.</li>
 </ol>
-<h2 id="docs-infra-deploy-md--h20">Cron schedule (Cloud Scheduler)</h2>
+<h2 id="docs-infra-deploy-md--h21">Cron schedule (Cloud Scheduler)</h2>
 <p>The market lifecycle is driven by two endpoints, <code>POST /api/cron/resolve</code> and
 <code>POST /api/cron/refresh</code>, called with the master key. Both take the same
 advisory lock the in-process timers hold, so a scheduler pass and a container's
@@ -9805,7 +9842,7 @@ market against the wrong hour's reading.</p>
 gcloud scheduler jobs update http firebase-schedule-dailyMarketRefresh-us-central1 \
   --location=us-central1 --project=telarchy-e0043 --schedule=&quot;10 0 * * *&quot;
 </code></pre>
-<h2 id="docs-infra-deploy-md--h21">Owner notifications (Resend)</h2>
+<h2 id="docs-infra-deploy-md--h22">Owner notifications (Resend)</h2>
 <p>The <code>api</code> service sends mail through Resend (<code>functions/src/lib/notify.ts</code>):
 owner notifications (new waitlist signup, new proposal) and participant
 notifications (a comment under your contract, a reply in your thread, and
@@ -9858,7 +9895,7 @@ agent-economy umbrella does for agents; this is one more key on that team.</p>
 <p>Participant mail also needs <code>BETTER_AUTH_URL</code> (or it falls back to
 <code>https://telarchy.com</code>), because every one of those emails carries a link
 back to the floor and a link to the account settings that switch it off.</p>
-<h2 id="docs-infra-deploy-md--h22">Memory</h2>
+<h2 id="docs-infra-deploy-md--h23">Memory</h2>
 <p><strong>512Mi.</strong> At 256Mi the container is OOM-killed on almost no traffic, and
 Cloud Run answers a killed instance's in-flight requests with 503; the
 endpoint that takes it most often is <code>GET /api/marketplace/:slug</code>, i.e. the
