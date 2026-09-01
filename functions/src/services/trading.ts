@@ -3,7 +3,6 @@ import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agents, limitOrders, markets, positions, trades, workspaces } from '../db/schema';
 import { betTowardsValue, consensus, directionSellProceeds, pHigher, sharesForBudget } from '../lib/amm';
-import { periodEndInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
 import { AppError } from '../lib/errors';
 import { emitPricesChanged } from '../lib/market-events';
 import { restrictedToMembers } from '../lib/public-read';
@@ -157,22 +156,13 @@ export async function executeTradeInTx(
     );
   }
 
-  // The answer is fixed at the PERIOD END; the market is only due at period
-  // end plus the metric's settlementLagMinutes, which can be 90 days. The
-  // settling reading is public in between, so trading through that window is
-  // buying a result you can already read. Both directions: a holder of a
-  // losing position who sells at the last printed price takes out what
-  // settlement would not have paid, and the pool covers it (owner decision
-  // 2026-09-01, docs/market-integrity.md "Trading stops when the answer is
-  // fixed"; bug hunt 2026-08-31, P0-5).
-  if (periodEndInstant(market.targetDate).getTime() <= Date.now()) {
-    throw new AppError(
-      'Market is settling: its resolution date has passed and it pays on the reading for that date',
-      400,
-      { resolvesOn: resolutionInstant(market.targetDate), settlesOn: settlesOn(market) },
-      'market_settling',
-    );
-  }
+  // NO CLOCK GATE. A market past its period keeps trading, because until its
+  // reading is filed nobody has the answer: the September market is a live
+  // question until September's number exists. The answer's ARRIVAL is what
+  // closes the book, by resolving the market, so there is no interval where
+  // the answer is known and trading continues (owner decision 2026-09-01,
+  // docs/market-integrity.md "A market resolves on its reading, not on a
+  // clock"). The resolved and voided refusals above are the whole gate.
 
   if (!market.active && mode.type !== 'sell') {
     throw new AppError('Market is closed; only selling existing positions is allowed', 400, undefined, 'market_closed');

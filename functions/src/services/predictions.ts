@@ -1,8 +1,8 @@
-import { and, asc, count, eq, gt, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gt, gte, inArray, lte, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { agents, liquidityEvents, markets, positions, proposals, trades } from '../db/schema';
+import { agents, liquidityEvents, markets, metricLogs, metrics, positions, proposals, trades } from '../db/schema';
 import { consensus, pHigher, resolutionPayouts } from '../lib/amm';
-import { periodEndInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
+import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
 import { onPricesChanged } from '../lib/market-events';
 import { ttlCache } from '../lib/ttl-cache';
 import { toUnits } from '../lib/validation';
@@ -10,7 +10,7 @@ import type { Metric } from '../types';
 import { applyCredits } from './credits';
 import { emitEvent } from './events';
 import { distributeLPLeftover, voidMarket } from './markets';
-import { getAllMetrics, metricReadingAsOf } from './metrics';
+import { getAllMetrics, metricReadingInPeriod } from './metrics';
 import { notifyMarketResolved } from './notifications';
 import { releaseLimitOrdersForMarket } from './trading';
 
@@ -52,8 +52,13 @@ async function resolveMarketRow(
   const boundary = periodEndInstant(market.targetDate);
   // The reading AND when it was taken: the second half is recorded on the
   // market so the settlement can say how old it was (docs/guides/sources.md).
-  const fixing = await metricReadingAsOf(market.metricId, boundary, workspaceId);
-  let rawValue = fixing?.value ?? null;
+  const fixing = await metricReadingInPeriod(
+    market.metricId,
+    periodStartInstant(market.targetDate),
+    boundary,
+    workspaceId,
+  );
+  const rawValue = fixing?.value ?? null;
 
   // The owner said the number does not exist for this period (owner ask
   // 2026-09-01). That is an answer, not a gap: the market voids, every
@@ -82,14 +87,16 @@ async function resolveMarketRow(
     return { positions: voided.refunded, totalPayout: 0, skipped: true };
   }
   if (rawValue === null) {
-    // No logged value at-or-before the boundary (metric predates value
-    // logging or was created after the boundary). Fall back to the live
-    // value, but make the gap visible: this is the only path where cron
-    // timing can still affect the settled value.
+    // Unreachable by construction, and refusing rather than guessing.
+    // A market is only due once a reading dated INSIDE its period exists
+    // (marketDueness), and such a reading is by definition at-or-before the
+    // boundary, so the fixing is always found. This used to fall back to the
+    // metric's LIVE value, which is the "settles on a number from the wrong
+    // period" shape the whole design exists to remove.
     console.error(
-      `Market ${market.id} (${market.metricName}): no metric log at-or-before ${boundary.toISOString()}, falling back to live value ${metric.total}`,
+      `Market ${market.id} (${market.metricName}): due with no reading at-or-before ${boundary.toISOString()}; refusing to settle on a value from another period`,
     );
-    rawValue = metric.total;
+    return { positions: 0, totalPayout: 0, skipped: true };
   }
   if (rawValue === null || rawValue < 0) {
     console.error(`Market ${market.id} (${market.metricName}): metric value is ${rawValue}, skipping`);
@@ -206,6 +213,76 @@ export function conditionalBranchToSettle(status: string | undefined): 'approved
   return null;
 }
 
+/** How long a market waits for its reading before giving up, when its metric
+ *  declares no longer deadline of its own. A day: long enough for a daily
+ *  collector or a person to file the number, short enough that credits are
+ *  not held on a floor nobody is tending. */
+const GIVE_UP_GRACE_MINUTES = 24 * 60;
+
+/**
+ * Is this market's answer here, and if not, has it waited long enough?
+ *
+ * `due` is true only when a reading dated INSIDE the market's own period
+ * exists. The last reading at-or-before the period end is usually the
+ * PREVIOUS period's number, and settling on that is exactly what this design
+ * exists to avoid.
+ *
+ * `pastDeadline` is the backstop: `settlementLagMinutes` past the period end
+ * with no reading, the market gives up. It is no longer a settlement delay -
+ * nothing about trading or payout is timed off it - it is how long a market
+ * waits for its number before voiding and handing everyone their credits
+ * back. Without it an owner who stops filing freezes other people's money
+ * indefinitely.
+ */
+async function marketDueness(
+  market: typeof markets.$inferSelect,
+  workspaceId: string,
+  now: Date,
+): Promise<{ due: boolean; pastDeadline: boolean }> {
+  const start = periodStartInstant(market.targetDate);
+  const end = periodEndInstant(market.targetDate);
+  if (Number.isNaN(end.getTime())) return { due: false, pastDeadline: false };
+  if (now < end) return { due: false, pastDeadline: false };
+
+  const [inPeriod] = await db
+    .select({ id: metricLogs.id })
+    .from(metricLogs)
+    .where(
+      and(
+        eq(metricLogs.workspaceId, workspaceId),
+        eq(metricLogs.metricId, market.metricId),
+        gte(metricLogs.timestamp, start),
+        lte(metricLogs.timestamp, end),
+      ),
+    )
+    .limit(1);
+  if (inPeriod) return { due: true, pastDeadline: false };
+
+  // For a metric that declares N/A a legitimate answer, the ABSENCE of a
+  // reading is itself the answer, so the market is due at its period end
+  // rather than waiting the deadline out. resolveMarketRow voids it and
+  // publishes the reason (owner ask 2026-08-25, docs/ui-conventions.md
+  // "A market on a number that does not exist yet resolves N/A").
+  const [naMetric] = await db
+    .select({ na: metrics.resolvesNaUntilMeasured })
+    .from(metrics)
+    .where(and(eq(metrics.id, market.metricId), eq(metrics.workspaceId, workspaceId)));
+  if (naMetric?.na) return { due: true, pastDeadline: false };
+
+  const [metricRow] = await db
+    .select({ lag: metrics.settlementLagMinutes })
+    .from(metrics)
+    .where(and(eq(metrics.id, market.metricId), eq(metrics.workspaceId, workspaceId)));
+  // At LEAST the grace, whatever the metric declares. A lag of 0 is the
+  // default and says "the number is knowable at period end", not "give up on
+  // it the same second": readings usually arrive from a collector or a person
+  // shortly afterwards, and voiding instantly would refund markets that were
+  // about to settle honestly. The declared lag wins whenever it is longer.
+  const lagMinutes = Math.max(metricRow?.lag ?? 0, GIVE_UP_GRACE_MINUTES);
+  const deadline = new Date(end.getTime() + lagMinutes * 60_000);
+  return { due: false, pastDeadline: now >= deadline };
+}
+
 export async function resolvePredictions(
   targetDate: string | undefined,
   workspaceId: string,
@@ -226,7 +303,29 @@ export async function resolvePredictions(
   // September total cannot exist at midnight on the 30th). The FIXING below
   // is still the last reading at or before the PERIOD END, so the lag buys
   // time to report the number and never changes which period is priced.
-  const marketsToResolve = openMarkets.filter(m => new Date(settlesOn(m)) <= now);
+  // A market is due when its READING has arrived, not when a clock says so.
+  // The reading has to be dated INSIDE the market's own period: the last
+  // reading at-or-before the period end is usually the PREVIOUS period's
+  // number, and settling on that is the bug the whole design exists to avoid.
+  //
+  // A market with no in-period reading yet is left open and keeps trading,
+  // because nobody has its answer. Its deadline is the metric's
+  // settlementLagMinutes past the period end; past that, it voids and refunds
+  // rather than locking credits forever (owner decision 2026-09-01,
+  // docs/market-integrity.md, notes/resolve-on-the-reading-2026-09-01.md).
+  const dueness = await Promise.all(
+    openMarkets.map(async m => ({ market: m, ...(await marketDueness(m, workspaceId, now)) })),
+  );
+  const marketsToResolve = dueness.filter(d => d.due).map(d => d.market);
+  for (const d of dueness) {
+    if (!d.due && d.pastDeadline) {
+      await voidMarket(
+        d.market,
+        workspaceId,
+        `No reading for ${d.market.targetDate} arrived before this market's deadline, so there is nothing to settle on. Every position was refunded.`,
+      );
+    }
+  }
   if (marketsToResolve.length === 0) return { resolved: 0, totalPayout: 0 };
 
   const allMetrics = await getAllMetrics(workspaceId);

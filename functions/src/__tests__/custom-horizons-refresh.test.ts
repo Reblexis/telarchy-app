@@ -11,8 +11,8 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { and, eq } from 'drizzle-orm';
-import { agents, markets, metrics, trades, workspaces } from '../db/schema';
-import { toAbsoluteDate } from '../lib/date-utils';
+import { agents, markets, metricLogs, metrics, trades, workspaces } from '../db/schema';
+import { periodStartInstant, toAbsoluteDate } from '../lib/date-utils';
 import { desiredMarketDates } from '../lib/time-preference';
 import { toUnits } from '../lib/validation';
 import { refreshRelativeDateMarkets } from '../services/markets';
@@ -215,6 +215,18 @@ describe('refreshRelativeDateMarkets with custom horizons', () => {
       active: true,
       resolved: false,
       voided: false,
+    });
+    // A market resolves on a reading dated inside its own hour, not because
+    // the hour passed (docs/market-integrity.md, "A market resolves on its
+    // reading, not on a clock"). Without this the market stays open, which is
+    // the point: nobody has that hour's number yet.
+    await db.insert(metricLogs).values({
+      id: 'log-hour-past',
+      workspaceId: WS,
+      metricId: 'm-hour',
+      metricName: 'Hourly Metric',
+      value: 42,
+      timestamp: new Date(periodStartInstant(pastHour).getTime() + 60_000),
     });
     await resolvePredictions(undefined, WS);
 
