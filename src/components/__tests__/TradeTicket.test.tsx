@@ -559,6 +559,24 @@ describe('the payoff line', () => {
     expect(container.querySelector('.scale')).toBeNull();
   });
 
+  test('EVERY VALUE ON THE LINE CARRIES THE SAME DECIMALS', () => {
+    // A row reading "0, 33.3, 66.7, 84, 100" is ragged: the one that lands
+    // on a whole number has to say 84.0 like the rest (owner, 2026-09-01).
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const vals = stops(container).map(s => s.value);
+    expect(vals).toEqual(['$0.0k', '$166.7k', '$264.7k', '$333.3k', '$500.0k']);
+    const decimals = vals.map(v => (v.split('.')[1] ?? '').replace(/[^\d]/g, '').length);
+    expect(new Set(decimals).size).toBe(1);
+  });
+
+  test('and drops them together when no value on the line needs one', () => {
+    const { container } = render(<TradeTicket {...payBase} rangeMin={0} rangeMax={12} consensus={6} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const vals = stops(container).map(s => s.value);
+    for (const v of vals) expect(v.includes('.')).toBe(vals[0].includes('.'));
+  });
+
   test('THE INTERIOR STOPS NEVER MOVE, WHATEVER THE STAKE', () => {
     // They used to be spaced off the break-even, so every drag of the
     // slider slid every label sideways (owner, 2026-09-01: "the numbers are
@@ -595,17 +613,37 @@ describe('the payoff line', () => {
     }
   });
 
-  test('HOVERING THE LINE READS OUT THE EXACT PROFIT OR LOSS THERE', () => {
-    const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+  const hover = (container: HTMLElement, x: number) => {
     const scale = container.querySelector('.scale') as HTMLElement;
     scale.getBoundingClientRect = () => ({ left: 0, width: 400, top: 0, height: 40 }) as DOMRect;
-    fireEvent.pointerMove(scale, { clientX: 100 });
+    fireEvent.pointerMove(scale, { clientX: x });
+    return {
+      top: container.querySelector('.scale-cr .scale-cursor')?.textContent ?? '',
+      bottom: container.querySelector('.scale-val .scale-cursor')?.textContent ?? '',
+    };
+  };
+
+  test('HOVERING THE LINE SAYS WHAT THE NUMBERS MEAN, not just what they are', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
     // A quarter along the range is $125,000; 25 cr bought 47.2 shares, so
     // that settles at 47.2266 * 0.25 - 25 = -13 credits.
-    const cur = container.querySelector('.scale-cr .scale-cursor') as HTMLElement;
-    expect(cur.textContent).toBe('-13 cr');
-    expect(container.querySelector('.scale-val .scale-cursor')?.textContent).toBe('$125k');
+    const { top, bottom } = hover(container, 100);
+    expect(top).toBe('you lose 13 cr');
+    expect(bottom).toBe('if it settles at $125.0k');
+  });
+
+  test('and says it as a gain where the bet gains', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    expect(hover(container, 380).top).toBe('you make +20 cr');
+  });
+
+  test('and names the break-even for what it is', () => {
+    const { container } = render(<TradeTicket {...payBase} />);
+    fireEvent.click(screen.getByText('Higher'));
+    // The break-even is at 52.94% of the range: 400px * 0.5294 = 212px.
+    expect(hover(container, 211.7).top).toBe('you break even');
   });
 
   test('the readout follows the pointer and the static stops stand down', () => {
@@ -617,7 +655,7 @@ describe('the payoff line', () => {
     fireEvent.pointerMove(scale, { clientX: 300 });
     expect(container.querySelector('.scale.is-reading')).toBeTruthy();
     expect(Number((container.querySelector('.scale-cr .scale-cursor') as HTMLElement).dataset.at)).toBeCloseTo(75, 5);
-    expect(container.querySelector('.scale-cr .scale-cursor')?.textContent).toBe('+10 cr');
+    expect(container.querySelector('.scale-cr .scale-cursor')?.textContent).toBe('you make +10 cr');
   });
 
   test('leaving the line puts the readout away', () => {

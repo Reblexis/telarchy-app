@@ -1,5 +1,4 @@
 import { type CSSProperties, type PointerEvent as ReactPointerEvent, useState } from 'react';
-import { compactValueOf } from '../lib/floor-horizons';
 import { formatMetricValue } from '../lib/market-quote';
 
 /**
@@ -51,6 +50,28 @@ interface Props {
       which is all the pricing needs: payout is linear in the settled value. */
   shares: number | null;
   spend: number | null;
+}
+
+/**
+ * One format for every value on the line, so the row cannot come out ragged.
+ *
+ * A scale reading "0, 33.3, 66.7, 84, 100" makes the one that happens to land
+ * on a whole number look like a different kind of number (owner, 2026-09-01:
+ * "show the numbers with fixed decimal number count now when its e.g. 84.0 it
+ * shows as 84"). So the whole row shares a divisor, taken from its largest
+ * value, and a decimal count: one if any value on the line needs one, none if
+ * none of them does.
+ */
+function scaleFormatter(values: number[], unit: string): (v: number) => string {
+  const top = Math.max(...values.map(Math.abs));
+  const [divisor, suffix] = top >= 1e9 ? [1e9, 'B'] : top >= 1e6 ? [1e6, 'M'] : top >= 1e4 ? [1e3, 'k'] : [1, ''];
+  const scaled = values.map(v => v / divisor);
+  const decimals = scaled.some(v => Math.abs(v - Math.round(v)) >= 0.05) ? 1 : 0;
+  return (v: number) =>
+    `${unit}${(v / divisor).toLocaleString('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })}${suffix}`;
 }
 
 /**
@@ -127,12 +148,17 @@ export function PayoffLine({ unit, rangeMin, rangeMax, consensus, direction, bre
     return n > 0 ? 'up' : n < 0 ? 'down' : 'even';
   };
 
+  const fmtScale = scaleFormatter(
+    fractions.map(f => rangeMin + f * span),
+    unit,
+  );
+
   const stops = fractions.map((f, i) => {
     const value = rangeMin + f * span;
     const worth = worthAt(f);
     return {
       at: Math.round(f * 10000) / 100,
-      value: compactValueOf(value, unit) ?? '',
+      value: fmtScale(value),
       credits: credits(worth),
       tone: tone(worth),
       style: stopStyle(Math.round(f * 10000) / 100, i === 0, i === fractions.length - 1),
@@ -150,6 +176,13 @@ export function PayoffLine({ unit, rangeMin, rangeMax, consensus, direction, bre
   };
   const cursorAt = read === null ? null : Math.round(read * 10000) / 100;
   const cursorStyle = cursorAt === null ? undefined : stopStyle(cursorAt, false, false);
+  /** The readout says what its two numbers MEAN, because "-13 cr" over
+      "$125k" is two facts a reader has to join up for themselves. */
+  const says = (worth: number) => {
+    const n = Math.round(worth) || 0;
+    if (n === 0) return 'you break even';
+    return n > 0 ? `you make +${n.toLocaleString('en-US')} cr` : `you lose ${Math.abs(n).toLocaleString('en-US')} cr`;
+  };
 
   return (
     <div
@@ -165,7 +198,7 @@ export function PayoffLine({ unit, rangeMin, rangeMax, consensus, direction, bre
         ))}
         {read !== null && cursorAt !== null && (
           <span className={`scale-cursor ${tone(worthAt(read))}`} data-at={String(cursorAt)} style={cursorStyle}>
-            {credits(worthAt(read))}
+            {says(worthAt(read))}
           </span>
         )}
       </div>
@@ -191,7 +224,7 @@ export function PayoffLine({ unit, rangeMin, rangeMax, consensus, direction, bre
         ))}
         {read !== null && cursorAt !== null && (
           <span className="scale-cursor" data-at={String(cursorAt)} style={cursorStyle}>
-            {compactValueOf(rangeMin + read * span, unit)}
+            if it settles at {fmtScale(rangeMin + read * span)}
           </span>
         )}
       </div>
