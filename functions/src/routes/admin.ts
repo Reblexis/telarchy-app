@@ -26,6 +26,7 @@ import { requireCapability } from '../middleware/roles';
 import { ACTIVITY_TYPES, type ActivityType, getActivityFeed } from '../services/activity';
 import { BuildNotConfiguredError, buildConfigured, dispatchBuild, listBranches } from '../services/branches';
 import { earnRuleHistoryFor, listEarnRules, setEarnRule } from '../services/earnRules';
+import { participantFunnel } from '../services/participant-funnel';
 import { PublishRefusedError, publishRevision, releaseState } from '../services/release';
 
 export const adminRouter = Router();
@@ -855,6 +856,36 @@ adminRouter.get(
  * stamp that the public view omits; PATCH edits one price and appends to
  * the append-only history, so a mid-season change stays reconstructable.
  */
+/**
+ * Register-to-first-trade: the step where participants are actually lost.
+ *
+ * Platform-admin only. It is an operational measure, not market data, and it
+ * names how many of the house's own participants it left out so the number
+ * cannot be read as customer behaviour when it is not.
+ *
+ * `?windowDays=` sets how long a participant gets to place a first trade
+ * (default 7). Participants who registered too recently to have had that whole
+ * window are reported as `censored` rather than counted as failures; see
+ * services/participant-funnel.ts for why that is the difference between a
+ * measure of the experience and a measure of signup volume.
+ */
+adminRouter.get(
+  '/participant-funnel',
+  wrap(async (req, res) => {
+    if (!(await isPlatformAuthorized(req))) throw new AppError('Platform admin or master key required', 403);
+    const raw = req.query.windowDays;
+    let windowDays = 7;
+    if (raw !== undefined) {
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n <= 0 || n > 365) {
+        throw new AppError('windowDays must be a number of days between 1 and 365', 400);
+      }
+      windowDays = n;
+    }
+    res.json(await participantFunnel({ windowDays }));
+  }),
+);
+
 adminRouter.get(
   '/earn',
   wrap(async (req, res) => {

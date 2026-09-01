@@ -42,7 +42,13 @@ import {
   resolveSingleMarket,
 } from '../services/predictions';
 import { createConditionalMarkets, subsidyContributionsOf } from '../services/proposals';
-import { closeLimitOrderInTx, executeTradeInTx, fillLimitOrdersInTx, type TradeMode } from '../services/trading';
+import {
+  closeLimitOrderInTx,
+  executeTradeInTx,
+  fillLimitOrdersInTx,
+  fundingHint,
+  type TradeMode,
+} from '../services/trading';
 import { clearBoardCache } from './leaderboard';
 
 export const predictionsRouter = Router();
@@ -433,10 +439,14 @@ predictionsRouter.post(
       const [agentRow] = await tx.select().from(agents).where(eq(agents.id, agentId)).for('update');
       if (!agentRow) throw new AppError('Agent not found', 404);
       if (!sufficientBalance(agentRow.balance as number, budgetCredits)) {
-        throw new AppError('Insufficient balance', 400, {
-          balance: fromUnits(agentRow.balance as number),
-          cost: budgetCredits,
-        });
+        throw new AppError(
+          `Insufficient balance: this participant holds ${fromUnits(agentRow.balance as number)} credits and this order reserves ${budgetCredits}. ${fundingHint(agentRow)}`,
+          400,
+          {
+            balance: fromUnits(agentRow.balance as number),
+            cost: budgetCredits,
+          },
+        );
       }
 
       await applyCredits(tx, {

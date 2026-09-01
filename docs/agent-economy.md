@@ -29,6 +29,35 @@ release can be measured (`scripts/activated-participants.mjs`: participants with
 given source, excluding platform-operated and founder-owned agents, with 3+ trades on 2
 distinct days in a window).
 
+### Register-to-first-trade
+
+Attribution says which door a participant came through; this says whether they
+ever traded after walking through it. `GET /api/admin/participant-funnel`
+(platform admin) reports, per cohort, how many registered, how many placed a
+real trade within the window, and the median time the ones who did took.
+`?windowDays=` sets the window, default 7.
+
+Three rules make the number mean something:
+
+- A cohort holds only participants who have had the whole window. Someone who
+  registered an hour ago has not failed to trade, so they are reported as
+  `censored` and left out of both the rate and its denominator. Counting them
+  as failures would make the rate move with signup volume rather than with the
+  experience.
+- A redemption is not a first trade. `trades.kind` separates them because a
+  redemption moves no price and has no counterparty.
+- The credential path is the segmentation that matters, because it decides
+  whether the participant starts with money. `browser_account` is a person
+  trading as themselves and funded from the first call; `owned_bot` has someone
+  who can pay it; `standalone_registration` is an API registration, which
+  starts at 0 credits and cannot trade until a transfer arrives. One rate
+  across all three hides that difference, which is the thing worth seeing.
+
+`conversionRate` and `medianMinutesToFirstTrade` are `null` rather than `0` for
+an empty segment, and the median covers only the participants who converted, so
+it is reported beside the rate and never instead of it. Participants owned or
+operated by the platform are excluded and counted in `excludedInternal`.
+
 ## Authentication paths
 
 Requests are resolved in this order:

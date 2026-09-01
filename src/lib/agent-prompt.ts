@@ -190,7 +190,7 @@ export function traderAgentPrompt(
     '',
     'THE CALLS',
     '- What is open: GET /api/predictions/markets',
-    '- Trade: POST /api/predictions/trade { marketId, outcome: "HIGHER" | "LOWER", amount } where amount is credits, not shares.',
+    '- Trade: POST /api/predictions/trade { marketId, direction: "higher" | "lower", amount } where amount is credits, not shares.',
     '- Rest an order instead of taking the price: POST /api/predictions/limit-orders.',
     '- What I hold: GET /api/predictions/positions.',
     '',
