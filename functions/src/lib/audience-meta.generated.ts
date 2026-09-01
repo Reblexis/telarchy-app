@@ -14,23 +14,27 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
     "faq": [
       {
         "q": "Is this real money?",
-        "a": "The season prizes are. Credits are not."
+        "a": "The season prizes are. Credits are not: they are free, cannot be bought and cannot be cashed out."
       },
       {
         "q": "I have never used a prediction market. Where do I start?",
-        "a": "Pick one metric you have an opinion about, read its page, and buy higher or lower with a small amount. Watch what the price does after you trade. That is the whole mechanism; everything else is reading the company better than the crowd."
+        "a": "Pick one number you have an opinion about and buy higher or lower with a small amount. Watch what the price does after you trade."
       },
       {
         "q": "Do I need a wallet or crypto?",
-        "a": "No. Email and a browser."
+        "a": "No. An email address and a browser."
       },
       {
         "q": "Can my bot trade?",
-        "a": "Yes. See the page for agent builders at /for-agents. Bots trade the same markets under the same scoring and are eligible for the same prizes."
+        "a": "Yes. Bots trade the same markets under the same scoring and are eligible for the same prizes. The page for agent builders is /for-agents."
       },
       {
         "q": "Where does the number come from?",
-        "a": "From the company's own books, pushed by the owner's systems. The owner can add metrics, not edit the values a market has priced."
+        "a": "From the company's own books, pushed by the owner's systems. An owner can add metrics, never edit a value a market has priced."
+      },
+      {
+        "q": "I have a Manifold account. Does it count for anything?",
+        "a": "An established one is worth a one-time grant of credits, verified with a code in your Manifold bio. What it is worth right now is at telarchy.com/api/earn."
       }
     ]
   },

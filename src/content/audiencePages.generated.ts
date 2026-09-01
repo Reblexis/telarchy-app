@@ -7,7 +7,8 @@ export type AudienceBlock =
   | { kind: 'ol'; items: string[] }
   | { kind: 'ul'; items: string[] }
   | { kind: 'table'; head: string[]; rows: string[][] }
-  | { kind: 'faq'; items: { q: string; a: string }[] };
+  | { kind: 'faq'; items: { q: string; a: string }[] }
+  | { kind: 'viz'; name: string };
 
 export interface AudiencePage {
   slug: string;
@@ -31,84 +32,75 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
     "blocks": [
       {
         "kind": "p",
-        "text": "An owner lists the numbers that decide the most for their company. You say where those numbers will land, and you earn when the consensus was wrong and you were not."
+        "text": "An owner lists the numbers that decide the most. You say where they land."
       },
       {
         "kind": "h2",
-        "text": "Why trade here rather than anywhere else"
+        "text": "Your forecast decides something"
       },
       {
         "kind": "p",
-        "lead": "Nothing of yours is at stake, and the prize is real.",
-        "text": "Credits are free on signup and have no cash value. Season 0 runs from 22 August to 1 October 2026 with a $1,000 pool, and it is not a top-five ladder: everyone who ends the season ahead takes a share in proportion to how right they were, down to a minimum paid share of $1. You cannot lose money here. You can only win it."
+        "lead": "A price here is not a scoreboard.",
+        "text": "It decides whether a real company pays for a job."
+      },
+      {
+        "kind": "viz",
+        "name": "conditional-pair"
       },
       {
         "kind": "p",
-        "lead": "Your edge is worth more on a small book.",
-        "text": "On Polymarket you compete with thousands on the same election. Here most numbers see a few trades a week, so a forecaster who actually reads the company is often the best-informed person on the book, and a mispriced number is the whole opportunity. Early is the advantage, and it is early."
-      },
-      {
-        "kind": "p",
-        "lead": "Your forecast does something.",
-        "text": "A price here is not a scoreboard. It decides whether a paid job gets approved at a real company, and the owner reads it before saying yes. You are not betting on a company. You are steering one."
-      },
-      {
-        "kind": "p",
-        "lead": "You get better at running a company.",
-        "text": "Every market is a real company's number, so every trade is a rep in reading a business: what actually moves revenue, what a proposed job is worth, when the room's consensus is wrong. Viktor's own reason for building it this way: \"using telarchy actually improves your intuition at leading companies/startups as you bet.\" A few months of that is a better education in running a company than most people get before they try."
-      },
-      {
-        "kind": "p",
-        "lead": "A public track record from day one.",
-        "text": "telarchy.com/leaderboard ranks every participant on live valuation, and every participant has a public profile. Bots are eligible on the same terms as people, so bring your own."
-      },
-      {
-        "kind": "p",
-        "lead": "What is on the board right now.",
-        "text": "LookPilot, a software company with about 10,000 paying customers and around $7,500 a month in revenue, runs its 2026 net revenue on Telarchy. The owner cannot edit the number. Anyone can propose a paid job against it, and a market prices what the revenue is expected to do if the job is approved and if it is declined. That is where the trading happens."
+        "text": "Two markets price the same month, one where the work happens and one where it does not. The gap between them is the calibrated number the owner approves on, and you are paid for being right about it."
       },
       {
         "kind": "h2",
-        "text": "How it works"
+        "text": "Your edge is worth more here"
       },
       {
-        "kind": "ol",
-        "items": [
-          "Sign up with email, Google or GitHub. You start with a free grant of credits, connecting a Google or GitHub account is worth another, and trading on a new day pays a daily grant that grows with a streak. What each is worth right now is at telarchy.com/api/earn, because the operator reprices them.",
-          "Pick a metric and trade on where it lands. Prices move with every trade, so a good call early pays more than the same call late.",
-          "When the number comes in, positions settle and the season standings update."
-        ]
+        "kind": "p",
+        "lead": "On a big venue you are one of thousands.",
+        "text": "Here you are often the best-informed person on the book."
+      },
+      {
+        "kind": "viz",
+        "name": "thin-book"
+      },
+      {
+        "kind": "p",
+        "text": "Most numbers see a few trades a week, so a mispriced one is the whole opportunity. Early is the advantage, and it is early."
       },
       {
         "kind": "h2",
-        "text": "How you win credits"
+        "text": "Nothing of yours is at stake"
       },
       {
         "kind": "p",
-        "text": "Every metric on the board has a price: the market's current forecast of where the number will land on a given date. If you think the number will land above that price, you buy higher; below it, you buy lower. Each trade costs credits and moves the price toward your view, so the next person sees a forecast that includes yours."
+        "lead": "Credits are free and cannot be bought.",
+        "text": "Everyone who ends Season 0 ahead takes a share of $1,000, to 1 October 2026."
+      },
+      {
+        "kind": "viz",
+        "name": "pool-split"
       },
       {
         "kind": "p",
-        "text": "When the date arrives, the owner's systems push the real value and the market settles. Every higher share pays out in proportion to how high the number landed in the market's range, every lower share the mirror of that, and the credits land in your balance the same hour. The cheaper your shares were when you bought them, which is to say the further the crowd's price was from the truth, the more you make. If the price moves your way before settlement, you can sell and take the gain early."
+        "text": "Not a top-five ladder. You cannot lose money here, only win it. The prize is for how right you were over the season, which makes it a skill contest and not a wager."
+      },
+      {
+        "kind": "h2",
+        "text": "How you get paid"
       },
       {
         "kind": "p",
-        "text": "Two boards, and they measure different things. The all-time board on telarchy.com/leaderboard ranks your profit with open positions valued at today's prices. A season ranks settled profit only: what markets actually paid you inside the season window, so a position that has not resolved yet scores nothing, and trades made in the last six hours before a market resolves do not count. Nothing to configure, nothing to stake: read the company, disagree with the price where you have a reason, and wait for the number."
+        "lead": "Buy under where the number lands, and the difference is yours.",
+        "text": "Sell earlier if the price comes to you."
+      },
+      {
+        "kind": "viz",
+        "name": "payoff-line"
       },
       {
         "kind": "p",
-        "lead": "On the money, plainly.",
-        "text": "Credits cannot be bought or cashed out. The prize is for how right you were over the season, which makes it a skill contest and not a wager, and it is the shape real money takes here today. Paying forecasters in real money for being right is where Telarchy is going; the season ladder is the first form of it. The details are in the season rules and the terms."
-      },
-      {
-        "kind": "p",
-        "lead": "Coming from Manifold?",
-        "text": "An established Manifold account is worth a fixed grant of credits here, once. It has to be at least 90 days old, not a bot, and either traded in the last 60 days or have markets other people traded; you verify it with a one-time code pasted into your Manifold bio. The current grant is at telarchy.com/api/earn."
-      },
-      {
-        "kind": "p",
-        "lead": "You can also propose the job yourself.",
-        "text": "In the owner's words, from the day the LookPilot floor opened: \"You can now get paid by my company without ever talking to me. I handed LookPilot's spending to a prediction market: propose any job, name your price, and if the market says it raises my 2026 net profit, you get paid.\""
+        "text": "The same picture the trade ticket draws when you place the bet."
       },
       {
         "kind": "h2",
@@ -119,23 +111,27 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
         "items": [
           {
             "q": "Is this real money?",
-            "a": "The season prizes are. Credits are not."
+            "a": "The season prizes are. Credits are not: they are free, cannot be bought and cannot be cashed out."
           },
           {
             "q": "I have never used a prediction market. Where do I start?",
-            "a": "Pick one metric you have an opinion about, read its page, and buy higher or lower with a small amount. Watch what the price does after you trade. That is the whole mechanism; everything else is reading the company better than the crowd."
+            "a": "Pick one number you have an opinion about and buy higher or lower with a small amount. Watch what the price does after you trade."
           },
           {
             "q": "Do I need a wallet or crypto?",
-            "a": "No. Email and a browser."
+            "a": "No. An email address and a browser."
           },
           {
             "q": "Can my bot trade?",
-            "a": "Yes. See the page for agent builders at /for-agents. Bots trade the same markets under the same scoring and are eligible for the same prizes."
+            "a": "Yes. Bots trade the same markets under the same scoring and are eligible for the same prizes. The page for agent builders is /for-agents."
           },
           {
             "q": "Where does the number come from?",
-            "a": "From the company's own books, pushed by the owner's systems. The owner can add metrics, not edit the values a market has priced."
+            "a": "From the company's own books, pushed by the owner's systems. An owner can add metrics, never edit a value a market has priced."
+          },
+          {
+            "q": "I have a Manifold account. Does it count for anything?",
+            "a": "An established one is worth a one-time grant of credits, verified with a code in your Manifold bio. What it is worth right now is at telarchy.com/api/earn."
           }
         ]
       }

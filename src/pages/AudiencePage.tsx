@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { AudienceViz } from '../components/AudienceViz';
 import { PageTopBar } from '../components/PageTopBar';
 import { AUDIENCE_PAGES, type AudienceBlock, type AudiencePage as PageData } from '../content/audiencePages.generated';
 import { withBase } from '../lib/base-path';
@@ -80,6 +81,8 @@ function Block({ block }: { block: AudienceBlock }) {
           </table>
         </div>
       );
+    case 'viz':
+      return <AudienceViz name={block.name} />;
     case 'faq':
       return (
         <dl className="pubws-aud-faq">

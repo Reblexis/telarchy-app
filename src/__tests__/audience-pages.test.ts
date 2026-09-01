@@ -81,3 +81,51 @@ describe('advertised routes are actually served', () => {
     }
   });
 });
+
+/**
+ * Pictures on these pages (docs/audience-pages.md, "Pictures").
+ *
+ * A picture is a line in the markdown, so the doc stays the single source
+ * and the FAQ the crawlers read keeps coming from the same file. The point
+ * of the block is to spend fewer words: /forecast argued its case in 1,160
+ * of them, and a cold visitor decides in five to ten seconds (owner ask
+ * 2026-09-01, and `notes/yc-landing-explainer-2026-09-01.md`).
+ */
+describe('pictures', () => {
+  const forecast = AUDIENCE_PAGES.find(p => p.route === '/forecast');
+
+  test('a VIZ line becomes a picture block, named', () => {
+    expect(forecast).toBeTruthy();
+    const viz = forecast?.blocks.filter(b => b.kind === 'viz') ?? [];
+    expect(viz.length).toBeGreaterThanOrEqual(4);
+    expect(viz.map(v => (v as { name: string }).name)).toContain('conditional-pair');
+  });
+
+  test('EVERY PICTURE THE DOC NAMES IS ONE THE RENDERER KNOWS', () => {
+    // A doc naming a drawing nobody wrote would ship a page with a hole in
+    // it, and a hole is invisible in review.
+    const doc = read('docs/audience-pages.md');
+    const component = read('src/components/AudienceViz.tsx');
+    const named = [...doc.matchAll(/^VIZ: (\S+)$/gm)].map(m => m[1]);
+    expect(named.length).toBeGreaterThan(0);
+    for (const n of named) expect(component).toContain(`case '${n}'`);
+  });
+
+  test('the picture page spends WORDS, not paragraphs: /forecast is under 400', () => {
+    const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
+    let n = words(forecast?.h1 ?? '');
+    for (const b of forecast?.blocks ?? []) {
+      if (b.kind === 'p') n += words(b.lead ?? '') + words(b.text ?? '');
+      if (b.kind === 'h2') n += words(b.text);
+      if (b.kind === 'ol' || b.kind === 'ul') n += b.items.reduce((a, i) => a + words(i), 0);
+      if (b.kind === 'faq') n += b.items.reduce((a, i) => a + words(i.q) + words(i.a), 0);
+    }
+    expect(n).toBeLessThan(400);
+  });
+
+  test('and the FAQ survives, because it is where the structured data comes from', () => {
+    const faq = forecast?.blocks.find(b => b.kind === 'faq');
+    expect(faq).toBeTruthy();
+    expect((faq as { items: unknown[] }).items.length).toBeGreaterThanOrEqual(3);
+  });
+});
