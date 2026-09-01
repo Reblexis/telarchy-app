@@ -18,7 +18,7 @@ import {
 import { settlesOn } from '../lib/date-utils';
 import { AppError } from '../lib/errors';
 import { classifyIps } from '../lib/ip-classify';
-import { getParticipantDisplayNames } from '../lib/participants';
+import { getParticipantDisplayNames, listParticipantsForWorkspace } from '../lib/participants';
 import { isPlatformAuthorized } from '../lib/platform-admin';
 import { humanVisitFilter } from '../lib/visit-log';
 import { wrap } from '../lib/wrap';
@@ -370,9 +370,21 @@ adminRouter.post(
   requireCapability('manage'),
   wrap(async (req, res) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const workspaceId = reqStr(body, 'workspaceId');
     const agentId = reqStr(body, 'agentId');
     const strategy = reqStr(body, 'strategy');
+    // The workspace is the one the caller proved `manage` on, not the one
+    // they named. requireCapability checks the HEADER workspace, so taking
+    // the id from the body let anyone who opened their own floor write rows
+    // into another tenant's telemetry, which that tenant's admin then reads
+    // back as their own (bug hunt 2026-08-31). The fleet pushes for many
+    // workspaces with the master key, which is platform-authorized, so it
+    // keeps naming the workspace explicitly.
+    const askedWorkspaceId = reqStr(body, 'workspaceId');
+    const platform = await isPlatformAuthorized(req);
+    if (!platform && askedWorkspaceId !== req.auth!.workspaceId) {
+      throw new AppError('agent-traces writes into the workspace you sent as X-Workspace-Id', 403);
+    }
+    const workspaceId = platform ? askedWorkspaceId : req.auth!.workspaceId!;
     const startedAt = optDate(body, 'startedAt') ?? new Date();
     const endedAt = optDate(body, 'endedAt') ?? new Date();
     const entries = Array.isArray(body.entries) ? (body.entries as unknown[]) : [];
@@ -476,12 +488,34 @@ adminRouter.post(
     const status = optStr(body, 'status') ?? 'idle';
     const now = new Date();
 
+    // The row is keyed on agentId alone platform-wide, so a caller who could
+    // name any agent could overwrite the operator's own fleet rows, and a
+    // body-supplied workspaceId put the forgery in somebody else's admin
+    // page (bug hunt 2026-08-31). A heartbeat is a participant saying where
+    // it is: it comes from that participant, from whoever administers a
+    // workspace it belongs to, or from the platform operator.
+    const platformHb = await isPlatformAuthorized(req);
+    const askedWorkspace = optStr(body, 'workspaceId');
+    if (!platformHb) {
+      const callerWorkspace = req.auth!.workspaceId;
+      if (askedWorkspace && askedWorkspace !== callerWorkspace) {
+        throw new AppError('agent-heartbeat writes into the workspace you sent as X-Workspace-Id', 403);
+      }
+      if (agentId !== req.auth!.agentId) {
+        const members = await listParticipantsForWorkspace(callerWorkspace!);
+        if (!members.some((m: { id: string }) => m.id === agentId)) {
+          throw new AppError('That participant is not in your workspace', 403);
+        }
+      }
+    }
+    const heartbeatWorkspaceId = platformHb ? askedWorkspace : (askedWorkspace ?? req.auth!.workspaceId);
+
     await db
       .insert(agentHeartbeats)
       .values({
         agentId,
         status,
-        workspaceId: optStr(body, 'workspaceId'),
+        workspaceId: heartbeatWorkspaceId,
         strategy: optStr(body, 'strategy'),
         lastCycleStartedAt: optDate(body, 'lastCycleStartedAt'),
         lastCycleEndedAt: optDate(body, 'lastCycleEndedAt'),
@@ -499,7 +533,7 @@ adminRouter.post(
         target: agentHeartbeats.agentId,
         set: {
           status,
-          workspaceId: optStr(body, 'workspaceId'),
+          workspaceId: heartbeatWorkspaceId,
           strategy: optStr(body, 'strategy'),
           lastCycleStartedAt: optDate(body, 'lastCycleStartedAt'),
           lastCycleEndedAt: optDate(body, 'lastCycleEndedAt'),
