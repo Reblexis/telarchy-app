@@ -7346,9 +7346,21 @@ logged values, contract text and chat need membership. Granting the Public group
 because anyone is one free self-join away from it anyway. An anonymous reader
 gets <code>read</code> and nothing more, even on a floor whose Public group also holds
 <code>trade</code>, because there is no account to debit.</p>
-<p>Flipping a floor OFF public - to private or to unlisted - also strips <code>trade</code>
+<p><strong>Public means tradeable.</strong> A floor that is public grants the Public group
+<code>trade</code>, so a self-join makes you a trader rather than a viewer. It is granted
+where the floor becomes public: at creation when the workspace is created
+public, and in the same transaction as the flip when it is published later. The
+owner keeps <code>manage</code> through the Admin group, which nothing here touches.</p>
+<p>The rule exists because the alternative is a silent dead end. A published floor
+whose Public group held only <code>read</code> reported <code>joinAs: viewer</code>, so every visitor
+could read the prices and none of them could trade, with nothing on the page
+saying why (owner report, 2026-09-01). An owner who genuinely wants a read-only
+public floor, prices visible and trading by invitation, revokes <code>trade</code> from the
+Public group afterwards; that is one deliberate call rather than a default that
+strands everybody.</p>
+<p>Flipping a floor OFF public - to private or to unlisted - strips <code>trade</code>
 from the Public group in the same transaction, so trading rights granted while
-it was open do not survive.</p>
+it was open do not survive. Publishing again grants it back.</p>
 <p><strong>Capabilities</strong> are <code>read</code>, <code>trade</code>, <code>manage</code> and <code>manage_workspace</code>. It is a
 flat set with no implication chain.</p>
 <blockquote>
