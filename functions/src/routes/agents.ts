@@ -159,12 +159,31 @@ agentsRouter.post(
 
     const [ws] = await db
       .select({ id: workspaces.id, visibility: workspaces.visibility })
+      // By id OR slug. `X-Workspace-Id` has taken either for months, because
+      // "someone arriving from a shared link has a slug long before they have
+      // an id" (lib/public-read.ts), and every door hands out slugs:
+      // telarchy.com/<slug>, the public workspace list, the guides. This one
+      // write matched the id column alone, so the call that turns a reader
+      // into a participant answered `404 Workspace not found` about a
+      // workspace that plainly exists. The repository's own reference agent
+      // died on it, on its first call, before doing anything (2026-09-01).
+      //
+      // The visibility check below is unchanged and still runs, so a slug buys
+      // nothing an id did not: a private floor 404s under either name, and
+      // neither can be probed.
       .from(workspaces)
-      .where(eq(workspaces.id, workspaceId));
+      .where(or(eq(workspaces.id, workspaceId), sql`lower(${workspaces.slug}) = lower(${workspaceId})`))
+      .limit(1);
     if (!ws) {
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
+
+    // Everything below writes rows keyed by the workspace, so it must use the
+    // RESOLVED id. The caller may have named the floor by slug, and a key row
+    // or a group lookup carrying a slug where an id belongs is a participant
+    // that exists but is a member of nothing.
+    const wsId = ws.id;
     // Same rule as POST /workspaces/:id/join and the marketplace join: visibility
     // is the access boundary, and a private workspace 404s so the UUID cannot be
     // probed. Without this, anyone who learns a private workspace's UUID could
@@ -174,7 +193,7 @@ agentsRouter.post(
     if (restrictedToMembers(ws.visibility)) {
       const caps = req.auth
         ? await computeCapabilities({
-            workspaceId,
+            workspaceId: wsId,
             uid: req.auth.uid,
             agentId: req.auth.agentId,
             isMasterKey: req.auth.isMasterKey,
@@ -229,7 +248,7 @@ agentsRouter.post(
       // bots that POST /register and expect full access aren't broken. Scoped
       // keys are minted from the authenticated /api/agents and /api/agents/:id/keys
       // endpoints (see lib/scopes.ts).
-      await tx.insert(agentApiKeys).values({ hash: keyHash, keyId, agentId, workspaceId, scopes: ['*'] });
+      await tx.insert(agentApiKeys).values({ hash: keyHash, keyId, agentId, workspaceId: wsId, scopes: ['*'] });
       if (nickname !== undefined && nickname !== null && nickname !== '') {
         await claimNickname(tx, agentId, nickname);
       }
@@ -240,7 +259,7 @@ agentsRouter.post(
     // 'trade' on Public); auto-adding to Trader would bypass the workspace
     // owner's permission policy.
     const { permissionGroups } = await import('../db/schema');
-    const sysGroups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
+    const sysGroups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, wsId));
     const publicGroup = sysGroups.find(g => g.type === 'public');
     if (publicGroup) {
       const currentIds = (publicGroup.memberIds as string[]) ?? [];
@@ -248,7 +267,7 @@ agentsRouter.post(
         await db
           .update(permissionGroups)
           .set({ memberIds: [...currentIds, agentId] })
-          .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, workspaceId)));
+          .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, wsId)));
       }
     }
 

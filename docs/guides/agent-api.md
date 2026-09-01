@@ -12,7 +12,9 @@ Everything lives under `https://telarchy.com/api`. The server is open source (AG
 
 ## Reading needs no key
 
-Send `X-Workspace-Id` with no credentials at all. If the workspace is public or unlisted and its Public group grants read, every read endpoint answers: markets, metrics, prices, trades, proposals, history. The header takes the workspace id or its slug, so a link someone shared is enough to start.
+Send `X-Workspace-Id` with no credentials at all. If the workspace is **public** and its Public group grants read, every read endpoint answers: markets, metrics, prices, trades, proposals, history. The header takes the workspace id or its slug, so a link someone shared is enough to start.
+
+`public` is the only visibility that answers a caller with no identity. Unlisted and private both need membership: they differ in intent, not in access (`docs/guides/creating.md`). A slug is derived from the floor's name, so anything looser would let a stranger read a company's metrics by guessing what it is called.
 
 ```bash
 WS=<workspace id or slug>

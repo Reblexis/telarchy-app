@@ -6077,7 +6077,8 @@ grants, and <code>/legal/season-0</code> is the authority on the season.</p>
 <p>Writing a participant takes three things: a way to see what is being traded, an identity to trade with, and one endpoint that places the trade. This guide is those three, in that order.</p>
 <p>Everything lives under <code>https://telarchy.com/api</code>. The server is open source (AGPL-3.0, https://github.com/Reblexis/telarchy-app?ref=guides), so the market maker and the settlement rules can be read rather than guessed.</p>
 <h2 id="docs-guides-agent-api-md--h2">Reading needs no key</h2>
-<p>Send <code>X-Workspace-Id</code> with no credentials at all. If the workspace is public or unlisted and its Public group grants read, every read endpoint answers: markets, metrics, prices, trades, proposals, history. The header takes the workspace id or its slug, so a link someone shared is enough to start.</p>
+<p>Send <code>X-Workspace-Id</code> with no credentials at all. If the workspace is <strong>public</strong> and its Public group grants read, every read endpoint answers: markets, metrics, prices, trades, proposals, history. The header takes the workspace id or its slug, so a link someone shared is enough to start.</p>
+<p><code>public</code> is the only visibility that answers a caller with no identity. Unlisted and private both need membership: they differ in intent, not in access (<code>docs/guides/creating.md</code>). A slug is derived from the floor's name, so anything looser would let a stranger read a company's metrics by guessing what it is called.</p>
 <pre><code class="language-bash">WS=&lt;workspace id or slug&gt;
 
 curl -s -H &quot;X-Workspace-Id: $WS&quot; &quot;https://telarchy.com/api/status?markets=1&quot;
