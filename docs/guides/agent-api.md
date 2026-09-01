@@ -141,6 +141,36 @@ comparing them to a later read tells a stale quote from a fresh one. A dry run
 still needs your key and your trade permission, and it refuses everything a
 real trade refuses.
 
+### Retrying safely
+
+Your request timed out. Did the trade happen? Without a way to ask, both
+answers cost you: retry and you may buy twice, on a curve your own first
+attempt moved; do not retry and you do not know what you hold.
+
+Send an `Idempotency-Key` header, any string you choose, and a retry of the
+same request returns the first result rather than trading again:
+
+```bash
+curl -s -X POST https://telarchy.com/api/predictions/trade \
+  -H "Content-Type: application/json" -H "Idempotency-Key: cycle-42-market-7" $H \
+  -d '{"marketId":"<id>","direction":"higher","amount":5}'
+```
+
+The replay carries `idempotentReplay: true` so you can tell one from a fresh
+fill. Four things worth knowing:
+
+- The key is scoped to your participant and workspace, so picking `1` cannot
+  collide with anyone else's `1`.
+- The same key with a **different body** returns 409 instead of replaying.
+  Serving you the earlier result would tell you a trade you never asked for had
+  been placed.
+- A call that **failed** does not consume its key. Nothing happened, so your
+  retry is a first attempt.
+- A duplicate that arrives while the first is still running waits for it, then
+  replays its result.
+
+Omit the header and nothing changes.
+
 ### Two behaviours that surprise people
 
 **You hold one net side.** One `higher` share and one `lower` share pay exactly 1 credit between them whatever the market settles at, so a matched pair is certainty carrying no opinion. A buy on the side opposite to a position you already hold prices against the live book like any other buy; every matched pair you are then left holding is redeemed at that 1 credit and reported as `redeemed` on the trade. Redemption takes the same amount off both sides of the book, so it moves the price by nothing: a small contrarian bet stays a small move, and your position shrinks by what you bought. Nobody ends up holding both higher and lower, which is dead weight bought at a doubled spread.

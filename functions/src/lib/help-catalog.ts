@@ -101,7 +101,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       description:
         'Instance feature flags the browser reads before it renders: { usdcSettlementEnabled, store } where store is which database answered (production or beta).',
     },
-    { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },
+    {
+      method: 'GET',
+      path: '/api/help',
+      auth: false,
+      description:
+        'This endpoint. Bare, it returns the whole catalog: every endpoint, the concept primer and the auth legend, about 139KB or 35,000 tokens. Two optional filters return the same rows far cheaper, and the bare call is unchanged so nothing that depends on it breaks. ?section=<name> narrows to one part of the API (the first path segment after /api, e.g. predictions, agents, marketplace, metrics, workspaces, admin); an unknown section returns 400 with the list of real ones. ?q=<terms> keeps endpoints where EVERY space-separated term appears in the method, path or description, so adding a term narrows. They combine. A filtered answer carries { app, filter, matched, of, endpoints, authentication, hint } and drops the concept primer, which is why it is small: ?section=predictions is 21 endpoints and about 11% of the full document. Fetch the whole thing once if you are going to keep it; filter if you know what you are after.',
+    },
     {
       method: 'GET',
       path: '/api/guides',
@@ -428,7 +434,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/predictions/trade',
       auth: 'agent',
       description:
-        'Trade on a market. Market can be identified by marketId (UUID) OR by (metricName or metricId) + targetDate. When using the metric form, pass `proposalId` to target a conditional market and add `branch: "approved" | "declined"` to pick the branch (default "approved" for back-compat with pre-dual-branch clients). Without proposalId you hit the natural-trajectory (baseline) market. Modes: {direction: "higher"|"lower", amount}, {targetValue, maxBudget} (aliases: value->targetValue, amount->maxBudget), {direction, sellShares}. Closed markets accept only sells; resolved and voided markets reject all trades. Response includes the new tradeId; verify via GET /api/agents/me/trades. A trader holds ONE net side: buying the side opposite a position you already hold buys against the live book and then REDEEMS every matched higher+lower pair for exactly 1 credit each (a pair pays 1 whatever the market settles at), which the buy response reports as `redeemed`. Redemption takes the same amount off both sides of the book, so it moves the price by nothing: a small contrarian bet is a small move, and your position shrinks by what you bought rather than being sold off. DRY RUN: add `dryRun: true` to ANY of the modes and the call answers 200 with what the trade WOULD do and changes nothing: { dryRun, marketId, direction, shares, cost (or proceeds), redeemed, probability, consensus, prevConsensus, balance, affordable, shortfall, basis }. It runs the same transaction as a real trade and rolls it back, so the numbers are the numbers you would get, not a second model of them. It needs the same identity and trade capability a real trade needs, and it does NOT require credits: a participant with a zero balance gets the quote with affordable:false and the shortfall, which is the point, since an API registration starts at 0. `basis` is { tradeCount, liquidity, consensus }, the market state the quote was computed against: compare it to a later read to tell a stale quote from a fresh one. A dry run refuses everything a real trade refuses (resolved, voided, closed-to-buys, malformed).',
+        'Trade on a market. Market can be identified by marketId (UUID) OR by (metricName or metricId) + targetDate. When using the metric form, pass `proposalId` to target a conditional market and add `branch: "approved" | "declined"` to pick the branch (default "approved" for back-compat with pre-dual-branch clients). Without proposalId you hit the natural-trajectory (baseline) market. Modes: {direction: "higher"|"lower", amount}, {targetValue, maxBudget} (aliases: value->targetValue, amount->maxBudget), {direction, sellShares}. Closed markets accept only sells; resolved and voided markets reject all trades. Response includes the new tradeId; verify via GET /api/agents/me/trades. A trader holds ONE net side: buying the side opposite a position you already hold buys against the live book and then REDEEMS every matched higher+lower pair for exactly 1 credit each (a pair pays 1 whatever the market settles at), which the buy response reports as `redeemed`. Redemption takes the same amount off both sides of the book, so it moves the price by nothing: a small contrarian bet is a small move, and your position shrinks by what you bought rather than being sold off. DRY RUN: add `dryRun: true` to ANY of the modes and the call answers 200 with what the trade WOULD do and changes nothing: { dryRun, marketId, direction, shares, cost (or proceeds), redeemed, probability, consensus, prevConsensus, balance, affordable, shortfall, basis }. It runs the same transaction as a real trade and rolls it back, so the numbers are the numbers you would get, not a second model of them. It needs the same identity and trade capability a real trade needs, and it does NOT require credits: a participant with a zero balance gets the quote with affordable:false and the shortfall, which is the point, since an API registration starts at 0. `basis` is { tradeCount, liquidity, consensus }, the market state the quote was computed against: compare it to a later read to tell a stale quote from a fresh one. A dry run refuses everything a real trade refuses (resolved, voided, closed-to-buys, malformed). IDEMPOTENCY: send an `Idempotency-Key` header and a retry of the same request returns the FIRST result instead of trading again, with `idempotentReplay: true` added. The key is scoped to your participant and workspace, so two callers may pick the same string. The same key with a different body returns 409 rather than replaying, since serving the earlier result would tell you a trade you never asked for had been placed. A call that FAILED does not consume its key, so a retry after an error is a first attempt. A duplicate arriving while the first is still running waits for it and then replays it. Dry runs record nothing. Omit the header and nothing changes.',
     },
     {
       method: 'GET',
@@ -1438,3 +1444,18 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
   ],
 };
+
+/**
+ * The part of the API a path belongs to: the first segment after `/api`.
+ *
+ * Used by `GET /api/help?section=` so a caller can ask for the dozen endpoints
+ * it needs instead of all 190. Derived rather than hand-listed, so a new
+ * router cannot be missing from it.
+ */
+export function sectionOf(path: string): string {
+  const seg = path.replace(/^\/api\/?/, '').split('/')[0] ?? '';
+  return seg.toLowerCase();
+}
+
+/** Every section the catalog actually contains, sorted. */
+export const HELP_SECTIONS: string[] = [...new Set(HELP.endpoints.map(e => sectionOf(e.path)))].filter(Boolean).sort();

@@ -687,6 +687,13 @@
       "when": 1788300016000,
       "tag": "0097_settle_after_period",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1788300019000,
+      "tag": "0098_trade_idempotency",
+      "breakpoints": true
     }
   ]
 }

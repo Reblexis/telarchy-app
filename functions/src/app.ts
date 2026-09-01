@@ -9,7 +9,7 @@ import { apiErrorHandler } from './lib/api-error-handler';
 import { betaGate } from './lib/beta-gate';
 import { handleBetaBranchChoice, isBetaPath, proxyToCandidate } from './lib/beta-surface';
 import { corsMiddleware } from './lib/cors';
-import { HELP } from './lib/help-catalog';
+import { HELP, HELP_SECTIONS, sectionOf } from './lib/help-catalog';
 import { publicOrigins } from './lib/origins';
 import { isBetaRequest } from './lib/request-env';
 import { wrap } from './lib/wrap';
@@ -356,9 +356,59 @@ app.get('/api', (_req, res) => {
 /**
  * The catalog moved to lib/help-catalog.ts (2026-08-21) so Otto can search the
  * same object this serves. One catalog, one truth about what the API does.
+ *
+ * Bare, it answers with the whole document, and that must not change: the
+ * skill tells agents to fetch this before any non-trivial request, and copies
+ * of the skill in the wild will never be updated. `?section=` and `?q=` are
+ * additive, for callers who know what they are looking for. The whole document
+ * is ~136KB, roughly 34,000 tokens, which is a sixth of a 200k context spent
+ * before an agent has read a single price, while a trading participant needs
+ * about a dozen of these endpoints. Otto reached the same conclusion for its
+ * own tool (services/otto-tools.ts) and filters the same object with the same
+ * every-term-must-match rule.
  */
-app.get('/api/help', (_req, res) => {
-  res.json(HELP);
+app.get('/api/help', (req, res) => {
+  const rawSection = typeof req.query.section === 'string' ? req.query.section.trim().toLowerCase() : '';
+  const rawQuery = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase() : '';
+  if (!rawSection && !rawQuery) {
+    res.json(HELP);
+    return;
+  }
+
+  if (rawSection && !HELP_SECTIONS.includes(rawSection)) {
+    // An empty list would read as "this API has no such endpoints", which is a
+    // confident wrong answer. Name the real sections, as the guides do for a
+    // bad id, so a wrong guess corrects itself in one call.
+    res.status(400).json({
+      error: `Unknown section "${rawSection}".`,
+      sections: HELP_SECTIONS,
+      hint: 'GET /api/help with no query returns every endpoint.',
+    });
+    return;
+  }
+
+  const terms = rawQuery ? rawQuery.split(/\s+/).filter(Boolean) : [];
+  const endpoints = HELP.endpoints.filter(e => {
+    if (rawSection && sectionOf(e.path) !== rawSection) return false;
+    if (!terms.length) return true;
+    const hay = `${e.method} ${e.path} ${e.description}`.toLowerCase();
+    return terms.every(t => hay.includes(t));
+  });
+
+  res.json({
+    app: HELP.app,
+    filter: { ...(rawSection ? { section: rawSection } : {}), ...(rawQuery ? { q: rawQuery } : {}) },
+    matched: endpoints.length,
+    of: HELP.endpoints.length,
+    endpoints,
+    // `auth` on an endpoint is a shorthand, so the legend has to travel with a
+    // filtered answer or the rows cannot be read.
+    authentication: HELP.authentication,
+    hint:
+      endpoints.length === 0
+        ? 'Nothing matched. GET /api/help with no query returns every endpoint, and ?section= takes one of the sections listed by an unknown section.'
+        : 'Concepts and the full endpoint list are at GET /api/help with no query.',
+  });
 });
 
 app.use('/api/cron', cronRouter);

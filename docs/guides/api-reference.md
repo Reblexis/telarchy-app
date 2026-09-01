@@ -47,6 +47,36 @@ Anything marked `agent/admin` also answers an anonymous caller on a public works
 
 The `scope` field, where present, is the per-key scope an agent-key caller needs on top of that capability. Workspace endpoints get their scope intersected automatically; account endpoints name theirs explicitly. See [authentication, keys and scopes](/guides/auth-and-keys).
 
+## Asking for less of it
+
+The whole document is about 139KB, roughly 35,000 tokens. That is the right
+thing to fetch once and keep. It is the wrong thing to fetch on every call,
+which is what an agent following "check the catalog before you write a request"
+ends up doing.
+
+Two filters return the same rows for a fraction of the cost. The bare call is
+unchanged, so nothing that already depends on it breaks.
+
+```bash
+# One part of the API: the first path segment after /api.
+curl -s "https://telarchy.com/api/help?section=predictions"   # 21 endpoints, ~11% of the document
+
+# Every term must appear in the method, path or description, so terms narrow.
+curl -s "https://telarchy.com/api/help?q=limit%20order"
+
+# They combine.
+curl -s "https://telarchy.com/api/help?section=agents&q=key"
+```
+
+A filtered answer is `{ app, filter, matched, of, endpoints, authentication,
+hint }`. It keeps the auth legend, because `auth` cannot be read without it,
+and drops the concept primer, which is most of the weight. `matched` and `of`
+tell you how much you did not ask for.
+
+An unknown section returns 400 with the real sections listed, so a wrong guess
+corrects itself in one call rather than returning an empty array that reads
+like "this API has no such endpoints".
+
 ## Searching it
 
 ```bash
