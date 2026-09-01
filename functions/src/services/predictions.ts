@@ -85,17 +85,42 @@ async function resolveMarketRow(
 
   const actualValue = Math.min(rawValue, market.rangeMax);
   const [lowerPay, higherPay] = resolutionPayouts(actualValue, market.rangeMin, market.rangeMax);
-  const pool = market.pool ?? 0;
-
-  const posRows = await db
-    .select()
-    .from(positions)
-    .where(and(eq(positions.workspaceId, workspaceId), eq(positions.marketId, market.id)));
+  let pool = market.pool ?? 0;
 
   let totalPayout = 0;
   let positionCount = 0;
+  let alreadySettled = false;
 
   await db.transaction(async tx => {
+    // Claim the market before paying anything. Three schedules reach
+    // settlement and no two of them exclude each other: Cloud Scheduler's
+    // POST /api/cron/resolve takes no lock, the in-process timer holds
+    // LOCK_KEYS.resolve, and startupCatchUp holds a DIFFERENT key for the
+    // same work, on every container boot (each deploy lands a candidate at
+    // --min-instances 1). Whoever loses this lock finds resolved = true and
+    // returns, so a holder is paid once however many resolvers arrived
+    // together (bug hunt 2026-08-31, settlement-idempotency.test.ts).
+    const [claimed] = await tx
+      .select({ resolved: markets.resolved, pool: markets.pool })
+      .from(markets)
+      .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)))
+      .for('update');
+    if (!claimed || claimed.resolved) {
+      alreadySettled = true;
+      return;
+    }
+    // The pool as it stands under the lock, not as it stood when the caller
+    // read the row: a trade or an injection can have landed in between, and
+    // the LP leftover is computed from it.
+    pool = claimed.pool ?? 0;
+
+    // Read INSIDE the claim: a position read before the lock is a snapshot
+    // another resolver can already have paid out.
+    const posRows = await tx
+      .select()
+      .from(positions)
+      .where(and(eq(positions.workspaceId, workspaceId), eq(positions.marketId, market.id)));
+
     for (const pos of posRows) {
       if (pos.shares <= 0) continue;
       const payFactor = pos.direction === 'higher' ? higherPay : lowerPay;
@@ -134,10 +159,14 @@ async function resolveMarketRow(
         active: false,
         pool: 0,
       })
-      .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));
+      .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
     await distributeLPLeftover(tx, market.id, poolLeftover, workspaceId);
   });
+
+  // A resolver that lost the claim settled nothing, so it announces nothing
+  // and mails nobody: the winner already did both.
+  if (alreadySettled) return { positions: 0, totalPayout: 0, skipped: true };
 
   emitEvent(
     'market:resolved',

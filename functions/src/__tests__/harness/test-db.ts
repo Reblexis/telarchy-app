@@ -55,6 +55,26 @@ const shared = globalThis.__getTestDbShared();
 const client = shared.client;
 export const db = drizzle(client, { schema });
 
+/**
+ * The connection pool, for the code that needs a session rather than a
+ * query: `lib/singleton-jobs.ts` checks out a dedicated client so a Postgres
+ * advisory lock stays pinned to it. PGlite is real Postgres, so
+ * `pg_try_advisory_lock` genuinely works here; this just gives it the
+ * `connect()` shape `pg.Pool` has. One worker is one connection, so a lock
+ * taken here is held for as long as the job runs and released in the same
+ * `finally` production uses. A test that wants to assert the LOCKING itself
+ * mocks the module instead (singleton-jobs.test.ts).
+ */
+export const pool = {
+  async connect() {
+    return {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      query: (text: string, params?: unknown[]) => client.query(text, params as any[]),
+      release: () => {},
+    };
+  },
+};
+
 let fileReady: Promise<void> | null = null;
 
 export function ensureMigrations(): Promise<void> {
