@@ -26,6 +26,7 @@ import { type ContractorEntry, type ContractorJobPair, computeContractors } from
 import { periodEndInstant, periodStartInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
 import { branchIsShown } from '../lib/market-pairs';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
+import { restrictedToMembers } from '../lib/public-read';
 import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { authMiddleware, getAuthWorkspaceMemberships } from '../middleware/auth';
@@ -371,7 +372,7 @@ marketplaceRouter.get(
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
-    if (ws.visibility === 'private') {
+    if (restrictedToMembers(ws.visibility)) {
       // A private floor is still ITS OWNER'S floor. The route is optionally
       // authed (route-policy), so a signed-in owner or member arrives with
       // req.auth; refusing them 403'd the person who had just created it
@@ -1072,7 +1073,7 @@ marketplaceRouter.get(
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
-    if (ws.visibility === 'private') {
+    if (restrictedToMembers(ws.visibility)) {
       res.status(403).json({ error: 'This workspace is private' });
       return;
     }
@@ -1123,7 +1124,7 @@ marketplaceRouter.get(
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
-    if (ws.visibility === 'private') {
+    if (restrictedToMembers(ws.visibility)) {
       res.status(403).json({ error: 'This workspace is private' });
       return;
     }
@@ -1205,7 +1206,7 @@ marketplaceRouter.get(
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
-    if (ws.visibility === 'private') {
+    if (restrictedToMembers(ws.visibility)) {
       res.status(403).json({ error: 'This workspace is private' });
       return;
     }
@@ -1299,7 +1300,7 @@ marketplaceRouter.get(
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
-    if (ws.visibility === 'private') {
+    if (restrictedToMembers(ws.visibility)) {
       res.status(403).json({ error: 'This workspace is private' });
       return;
     }
@@ -1351,7 +1352,7 @@ marketplaceRouter.post(
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
-    if (ws.visibility === 'private') {
+    if (restrictedToMembers(ws.visibility)) {
       res.status(403).json({ error: 'This workspace is private' });
       return;
     }
@@ -1501,7 +1502,7 @@ marketplaceRouter.get(
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
-    if (ws.visibility === 'private') {
+    if (restrictedToMembers(ws.visibility)) {
       res.status(403).json({ error: 'This workspace is private' });
       return;
     }
@@ -1565,7 +1566,7 @@ marketplaceRouter.get(
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
-    if (ws.visibility === 'private') {
+    if (restrictedToMembers(ws.visibility)) {
       res.status(403).json({ error: 'This workspace is private' });
       return;
     }
@@ -1716,7 +1717,7 @@ marketplaceRouter.get(
   '/:workspaceId/card.png',
   wrap(async (req, res) => {
     const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
-    if (!ws || ws.visibility === 'private') {
+    if (!ws || restrictedToMembers(ws.visibility)) {
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
@@ -1794,7 +1795,7 @@ marketplaceRouter.post(
     // Visibility is the access boundary, not knowledge of the UUID. A private
     // workspace is populated by an admin adding members; nobody self-joins it.
     // 404 rather than 403 so this cannot be used to probe for private IDs.
-    if (ws.visibility === 'private') {
+    if (restrictedToMembers(ws.visibility)) {
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }

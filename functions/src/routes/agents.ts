@@ -26,6 +26,7 @@ import { AppError } from '../lib/errors';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { claimNickname, listParticipantsForWorkspace } from '../lib/participants';
 import { isPlatformAuthorized } from '../lib/platform-admin';
+import { restrictedToMembers } from '../lib/public-read';
 import { granterCoversScopes, parseScopesInput, SCOPE_PRESETS } from '../lib/scopes';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
 import { collapseRedemptions } from '../lib/trade-display';
@@ -170,7 +171,7 @@ agentsRouter.post(
     // self-register into its Public (read) group. A caller who holds 'manage' in
     // the workspace (its owner registering a bot, or the master key) may still
     // register into it.
-    if (ws.visibility === 'private') {
+    if (restrictedToMembers(ws.visibility)) {
       const caps = req.auth
         ? await computeCapabilities({
             workspaceId,

@@ -54,11 +54,15 @@ chosen. The ids: `saas`, `ecommerce`, `marketplace`, `consumer-app`, `agency`,
 takes a `currency` (ISO code, defaults to USD) and a `revenueRangeMax` for the
 primary monetary metric. Everything a template writes is editable afterwards.
 
-**A new floor lands on `unlisted`.** It is live, joinable and tradeable by link,
-it is simply not on telarchy.com's front list until a person puts it there.
+**A new floor lands on `unlisted`, which answers nobody but its own people.**
 Omitting `visibility` gives you unlisted, and asking for `public` is clamped
-down to it. Asking for `private` is honoured. Listing stays a human decision
-while a real-money season scores over every public workspace.
+down to it. Listing stays a human decision while a real-money season scores
+over every public workspace.
+
+Unlisted grants a stranger nothing: the same 403 a private floor gives, on
+every route. It is a floor the owner has not published yet, not a floor with
+an unadvertised address. Its owner and its members reach it normally, and it
+shows on the owner's home page like any other floor of theirs.
 
 **Three floors per account.** The fourth `POST` returns 429 with the cap in the
 body and a link to ask for more.
@@ -211,10 +215,21 @@ published at `GET /api/earn`, so read it rather than a number in a guide.
 
 Two independent switches decide who sees a floor.
 
-**Visibility** is `public` (listed on the front page), `unlisted` (reachable by
-link, not listed) or `private` (no browser page, 403 from every public route,
-and a join attempt answers 404 so the endpoint cannot be used to probe for
-workspace ids).
+**Visibility** is `public` (listed on the front page and readable by anyone)
+or `unlisted` / `private` (no public page, 403 from every public route, and a
+join attempt answers 404 so the endpoint cannot be used to probe for workspace
+ids). **`public` is the only value that answers a caller with no identity.**
+
+Unlisted and private differ in intent, not in access: unlisted is the state a
+floor is born in and returns to, private is the state an owner chooses. Both
+are readable by their owner and their members and by nobody else.
+
+Before 2026-09-01 unlisted answered anonymous reads addressed by id OR SLUG,
+and the slug is derived from the floor's name, so a stranger who guessed a
+company name read every metric name, description, formula, current value and
+up to 500 points of history. That was the default a new floor was created
+with, which made it the answer to "can a founder paste confidential KPIs into
+this" - and the answer was no. Records: `notes/bug-hunt-2026-08-31.md`, P0-7.
 
 **Whether the Public group holds `read`** is the second switch, and it is not
 implied by the first. A public workspace whose Public group lacks `read` keeps a
@@ -225,8 +240,9 @@ because anyone is one free self-join away from it anyway. An anonymous reader
 gets `read` and nothing more, even on a floor whose Public group also holds
 `trade`, because there is no account to debit.
 
-Flipping a floor to private also strips `trade` from the Public group in the
-same transaction, so trading rights granted while it was open do not survive.
+Flipping a floor OFF public - to private or to unlisted - also strips `trade`
+from the Public group in the same transaction, so trading rights granted while
+it was open do not survive.
 
 **Capabilities** are `read`, `trade`, `manage` and `manage_workspace`. It is a
 flat set with no implication chain.

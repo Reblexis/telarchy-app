@@ -55,6 +55,7 @@ if (fs.existsSync(envLocalPath)) {
 import { BETA_PREFIX, isBetaPath } from './lib/beta-surface';
 import { runBootstrap } from './lib/bootstrap';
 import { publicOrigin } from './lib/origin';
+import { restrictedToMembers } from './lib/public-read';
 import { assertTreasuryConfigured } from './lib/usdc';
 import { shouldLogVisit } from './lib/visit-log';
 
@@ -358,7 +359,7 @@ import('./app')
           try {
             const { resolvePublicWorkspace } = await import('./routes/marketplace');
             const ws = await resolvePublicWorkspace(decodeURIComponent(shareMatch[1]));
-            if (ws && ws.visibility !== 'private') {
+            if (ws && !restrictedToMembers(ws.visibility)) {
               const { injectWorkspaceMeta } = await import('./lib/share-meta');
               const html = fs.readFileSync(indexPath, 'utf8');
               res.setHeader('Cache-Control', 'no-cache');

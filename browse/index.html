@@ -6888,11 +6888,14 @@ chosen. The ids: <code>saas</code>, <code>ecommerce</code>, <code>marketplace</c
 <code>financial-independence</code> for a person; <code>blank</code> for nothing. <code>templateParams</code>
 takes a <code>currency</code> (ISO code, defaults to USD) and a <code>revenueRangeMax</code> for the
 primary monetary metric. Everything a template writes is editable afterwards.</p>
-<p><strong>A new floor lands on <code>unlisted</code>.</strong> It is live, joinable and tradeable by link,
-it is simply not on telarchy.com's front list until a person puts it there.
+<p><strong>A new floor lands on <code>unlisted</code>, which answers nobody but its own people.</strong>
 Omitting <code>visibility</code> gives you unlisted, and asking for <code>public</code> is clamped
-down to it. Asking for <code>private</code> is honoured. Listing stays a human decision
-while a real-money season scores over every public workspace.</p>
+down to it. Listing stays a human decision while a real-money season scores
+over every public workspace.</p>
+<p>Unlisted grants a stranger nothing: the same 403 a private floor gives, on
+every route. It is a floor the owner has not published yet, not a floor with
+an unadvertised address. Its owner and its members reach it normally, and it
+shows on the owner's home page like any other floor of theirs.</p>
 <p><strong>Three floors per account.</strong> The fourth <code>POST</code> returns 429 with the cap in the
 body and a link to ask for more.</p>
 <p><strong>The slug comes from the name</strong>: lowercased, every run of non-alphanumerics
@@ -7058,10 +7061,19 @@ transfer or by a workspace admin. Every grant is priced in a live table
 published at <code>GET /api/earn</code>, so read it rather than a number in a guide.</p>
 <h2 id="docs-guides-creating-md--h7">Who else can act</h2>
 <p>Two independent switches decide who sees a floor.</p>
-<p><strong>Visibility</strong> is <code>public</code> (listed on the front page), <code>unlisted</code> (reachable by
-link, not listed) or <code>private</code> (no browser page, 403 from every public route,
-and a join attempt answers 404 so the endpoint cannot be used to probe for
-workspace ids).</p>
+<p><strong>Visibility</strong> is <code>public</code> (listed on the front page and readable by anyone)
+or <code>unlisted</code> / <code>private</code> (no public page, 403 from every public route, and a
+join attempt answers 404 so the endpoint cannot be used to probe for workspace
+ids). <strong><code>public</code> is the only value that answers a caller with no identity.</strong></p>
+<p>Unlisted and private differ in intent, not in access: unlisted is the state a
+floor is born in and returns to, private is the state an owner chooses. Both
+are readable by their owner and their members and by nobody else.</p>
+<p>Before 2026-09-01 unlisted answered anonymous reads addressed by id OR SLUG,
+and the slug is derived from the floor's name, so a stranger who guessed a
+company name read every metric name, description, formula, current value and
+up to 500 points of history. That was the default a new floor was created
+with, which made it the answer to &quot;can a founder paste confidential KPIs into
+this&quot; - and the answer was no. Records: <code>notes/bug-hunt-2026-08-31.md</code>, P0-7.</p>
 <p><strong>Whether the Public group holds <code>read</code></strong> is the second switch, and it is not
 implied by the first. A public workspace whose Public group lacks <code>read</code> keeps a
 counts-only boundary: metric names, market prices and counts are visible, while
@@ -7070,8 +7082,9 @@ logged values, contract text and chat need membership. Granting the Public group
 because anyone is one free self-join away from it anyway. An anonymous reader
 gets <code>read</code> and nothing more, even on a floor whose Public group also holds
 <code>trade</code>, because there is no account to debit.</p>
-<p>Flipping a floor to private also strips <code>trade</code> from the Public group in the
-same transaction, so trading rights granted while it was open do not survive.</p>
+<p>Flipping a floor OFF public - to private or to unlisted - also strips <code>trade</code>
+from the Public group in the same transaction, so trading rights granted while
+it was open do not survive.</p>
 <p><strong>Capabilities</strong> are <code>read</code>, <code>trade</code>, <code>manage</code> and <code>manage_workspace</code>. It is a
 flat set with no implication chain.</p>
 <blockquote>

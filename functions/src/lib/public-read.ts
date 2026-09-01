@@ -17,6 +17,30 @@ import type { Capability } from '../types';
  * than about credentials.
  */
 
+/**
+ * True when this floor answers only its owner and its members.
+ *
+ * `public` is the ONLY value that answers a stranger. Unlisted used to, and
+ * a floor is CREATED unlisted, so a founder's confidential KPIs were readable
+ * by anyone who guessed the company name the slug is derived from (bug hunt
+ * 2026-08-31, P0-7; owner decision 2026-09-01: "unlisted should be same as
+ * private ... private but obviously visible to the owner").
+ *
+ * Unlisted and private differ in intent, not in access: unlisted is the state
+ * a floor is born in, private is the state an owner chooses. Every gate that
+ * used to read `visibility === 'private'` reads this instead, so the two can
+ * never drift apart again. docs/guides/creating.md carries the rule.
+ *
+ * Asking "is it public?" rather than "is it private?" also fails CLOSED. The
+ * column is unconstrained text with a default of 'private', so a value
+ * outside the three restricts rather than exposes; the old question let one
+ * through (a test fixture had been carrying `visibility: 'open'` for
+ * exactly that reason).
+ */
+export function restrictedToMembers(visibility: string | null | undefined): boolean {
+  return visibility !== 'public';
+}
+
 /** What an anonymous caller may ever hold. Read, and nothing else, ever. */
 export const ANONYMOUS_CAPABILITIES: readonly Capability[] = ['read'];
 
@@ -35,9 +59,9 @@ export async function resolvePublicReadWorkspace(idOrSlug: string): Promise<stri
     .where(or(eq(workspaces.id, idOrSlug), sql`lower(${workspaces.slug}) = lower(${idOrSlug})`))
     .limit(1);
   if (!ws) return null;
-  // Private is the owner's own statement about who this is for, and it wins
-  // over whatever the groups happen to say.
-  if (ws.visibility === 'private') return null;
+  // PUBLIC is the only visibility that answers a caller with no identity, and
+  // it wins over whatever the groups happen to say.
+  if (restrictedToMembers(ws.visibility)) return null;
 
   const [publicGroup] = await db
     .select({ capabilities: permissionGroups.capabilities })
