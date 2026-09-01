@@ -1035,7 +1035,12 @@ export function TradePage() {
 
   return (
     <div className="pubws pubws--center">
-      <TopBar user={!!user} ready={!authLoading} floor={idOrSlug ? { idOrSlug, name: ws.name } : null} />
+      <TopBar
+        user={!!user}
+        ready={!authLoading}
+        floor={idOrSlug ? { idOrSlug, name: ws.name } : null}
+        canFund={canManage}
+      />
       {/* Otto, in the corner rather than in the column (owner direction
           2026-08-20): a reader needs him at whatever point of the page their
           question arrives, and the page's job is the market. */}
@@ -2396,12 +2401,16 @@ export function TopBar({
   user,
   ready,
   floor = null,
+  canFund = false,
 }: {
   user: boolean;
   ready: boolean;
   /** Which floor the reader is standing on, so account settings can hand out
    *  a prompt for THIS company rather than a generic one. */
   floor?: FloorRef | null;
+  /** Whether they can put liquidity behind this market, which decides whether
+   *  the wallet chip offers its plus to someone holding nothing yet. */
+  canFund?: boolean;
 }) {
   const navigate = useNavigate();
   // The ROUTER's location, not window's: under a basename (the beta serves at
@@ -2449,7 +2458,7 @@ export function TopBar({
         {ready &&
           (user ? (
             <div className="pubws-fade">
-              <AccountMenu floor={floor} />
+              <AccountMenu floor={floor} canFund={canFund} />
             </div>
           ) : (
             <Link to={authPath('login', location)} className="pubws-login pubws-fade">

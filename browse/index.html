@@ -186,10 +186,11 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><a href="#docs-liquidity-purchases-md--h1">Paid market liquidity</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h2">What is sold, and what is not</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h3">Flow</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h4">Where an owner buys</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h5">Pricing</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h6">Revenue, and what it does not buy</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h7">Enablement</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h4">Where the wallet is visible</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h5">Where an owner buys</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h6">Pricing</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h7">Revenue, and what it does not buy</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h8">Enablement</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-market-integrity-md">docs/market-integrity.md</a></summary>
@@ -2052,7 +2053,17 @@ spends the wallet first whenever it covers the whole amount.</li>
 purchases; <code>GET /api/liquidity/revenue</code> (platform admin) totals completed
 revenue over a window.</li>
 </ul>
-<h2 id="docs-liquidity-purchases-md--h4">Where an owner buys</h2>
+<h2 id="docs-liquidity-purchases-md--h4">Where the wallet is visible</h2>
+<p>Beside the balance in the top bar: the same drop the market's pool rows wear,
+the number, and a plus that goes to the funding page (owner ask 2026-09-01,
+&quot;liquidity credits are not shown anywhere&quot;). Two purses, so two chips, never
+one sum: the balance trades, the wallet can only ever go behind a market.</p>
+<p>It is shown to anyone holding some, and to anyone who could put some behind
+the market they are standing on, for whom an empty wallet still has the plus
+to offer. Standing on a market it leads to that market's funding page;
+anywhere else, to the operator door, since a funding page needs a market to
+fund. The account panel says it in words beside the other two figures.</p>
+<h2 id="docs-liquidity-purchases-md--h5">Where an owner buys</h2>
 <p><code>/&lt;floor&gt;/funding</code> (<code>src/pages/FundingPage.tsx</code>), reached from the Buy
 affordance beside Inject on any open market and open only to someone with
 <code>manage</code> on that floor. It shows the liquidity wallet, the count of open
@@ -2063,13 +2074,13 @@ pools and never a balance, and that buying is not season entry. An instance
 with no Stripe secrets shows the server's own 503 sentence rather than a
 button that silently fails. Placing the credits is a separate act on the
 floor (<code>docs/owner-on-the-floor.md</code>).</p>
-<h2 id="docs-liquidity-purchases-md--h5">Pricing</h2>
+<h2 id="docs-liquidity-purchases-md--h6">Pricing</h2>
 <p><strong>$1 = 1,000 credits of pool liquidity</strong> (<code>LIQUIDITY_CREDITS_PER_USD</code>,
 per-instance env), the owner-confirmed number (2026-08-26, liquidity
 funding design; it supersedes the earlier provisional 100). The rate is
 stamped on each purchase row at creation, so a price change never rewrites
 an old purchase.</p>
-<h2 id="docs-liquidity-purchases-md--h6">Revenue, and what it does not buy</h2>
+<h2 id="docs-liquidity-purchases-md--h7">Revenue, and what it does not buy</h2>
 <p>Completed purchases are the platform's liquidity revenue, and their
 trailing-30-day sum is public as <code>revenue30dUsd</code> on
 <code>GET /api/marketplace/stats</code>: it is what the floor's &quot;Telarchy revenue (USD)&quot;
@@ -2087,7 +2098,7 @@ seasons run, how long they are, and where the money does the most good
 <code>pool(N+1) = max(pool(0), k x revenue(N))</code>).</p>
 <p>A running season's pool never moves. <code>GET /api/liquidity/revenue</code> reports
 what came in, for the books, not for a payout rule.</p>
-<h2 id="docs-liquidity-purchases-md--h7">Enablement</h2>
+<h2 id="docs-liquidity-purchases-md--h8">Enablement</h2>
 <p>Env-gated like USDC settlement: without <code>STRIPE_SECRET_KEY</code> and
 <code>STRIPE_WEBHOOK_SECRET</code> every purchase surface answers 503 and the instance
 sells nothing. That stays the default, and the right state for anyone
