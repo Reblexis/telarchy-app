@@ -25,8 +25,16 @@ beforeEach(async () => {
     { id: 'bob', apiKeyHash: 'h-bob', balance: toUnits(0) },
   ]);
   await db.insert(earnRules).values([
-    { key: 'link_oauth', label: 'Connect a Google or GitHub account', credits: 200, kind: 'flat', note: '' },
-    { key: 'signup_user', label: 'Create an account', credits: 100, kind: 'flat', note: '' },
+    {
+      key: 'link_oauth',
+      label: 'Connect a Google or GitHub account',
+      credits: 200,
+      liquidityCredits: 200,
+      kind: 'flat',
+      note: '',
+    },
+    { key: 'signup_user', label: 'Create an account', credits: 100, liquidityCredits: 100, kind: 'flat', note: '' },
+    { key: 'daily_trade', label: 'Trade today', credits: 25, liquidityCredits: 0, kind: 'daily', note: '' },
   ]);
   clearEarnRuleCache();
 });
@@ -34,6 +42,11 @@ beforeEach(async () => {
 const balanceOf = async (id: string) => {
   const [a] = await db.select({ balance: agents.balance }).from(agents).where(eq(agents.id, id));
   return fromUnits(a.balance as number);
+};
+
+const walletOf = async (id: string) => {
+  const [a] = await db.select({ w: agents.liquidityBalance }).from(agents).where(eq(agents.id, id));
+  return fromUnits(a.w as number);
 };
 
 describe('claiming', () => {
@@ -91,5 +104,70 @@ describe('claiming', () => {
     const r = await claimEarn({ agentId: 'ann', key: 'link_oauth', refId: 'google-9' });
     expect(r).toEqual({ granted: 0 });
     expect(await balanceOf('ann')).toBe(0);
+  });
+});
+
+/**
+ * Matched liquidity (owner decision 2026-09-01, design record
+ * notes/matched-liquidity-grants-2026-09-01.md).
+ *
+ * A grant pays two purses: trading credits, and the walled liquidity a floor
+ * of one's own needs for depth. The rules that carry the weight are the ones
+ * about which rules match and how often, because the matched amount is what
+ * one identity can extract through its own market, once.
+ */
+describe('matched liquidity', () => {
+  test('an earn pays the wallet beside the balance, in one act', async () => {
+    const r = await claimEarn({ agentId: 'ann', key: 'signup_user' });
+    expect(r).toEqual({ granted: 100 });
+    expect(await balanceOf('ann')).toBe(100);
+    expect(await walletOf('ann')).toBe(100);
+  });
+
+  test('the wallet is paid once, however often the claim is retried', async () => {
+    await claimEarn({ agentId: 'ann', key: 'signup_user' });
+    expect(await claimEarn({ agentId: 'ann', key: 'signup_user' })).toBeNull();
+    expect(await walletOf('ann')).toBe(100);
+    expect(await balanceOf('ann')).toBe(100);
+  });
+
+  test('a recurring rule matches nothing: a daily pool grant is a faucet that refills', async () => {
+    await claimEarn({ agentId: 'ann', key: 'daily_trade', period: '2026-09-01' });
+    await claimEarn({ agentId: 'ann', key: 'daily_trade', period: '2026-09-02' });
+    expect(await balanceOf('ann')).toBe(50);
+    expect(await walletOf('ann')).toBe(0);
+  });
+
+  test('an unmatched rule pays trading credits and no pool money', async () => {
+    await db
+      .insert(earnRules)
+      .values({
+        key: 'manifold_link',
+        label: 'Link Manifold',
+        credits: 5000,
+        liquidityCredits: 0,
+        kind: 'flat',
+        note: '',
+      });
+    clearEarnRuleCache();
+    await claimEarn({ agentId: 'bob', key: 'manifold_link', refId: 'mf-1' });
+    expect(await balanceOf('bob')).toBe(5000);
+    expect(await walletOf('bob')).toBe(0);
+  });
+
+  test('the operator can reprice the matched amount, and the price is what the table said at the time', async () => {
+    await setEarnRule('signup_user', { liquidityCredits: 500 }, 'admin');
+    clearEarnRuleCache();
+    await claimEarn({ agentId: 'ann', key: 'signup_user' });
+    expect(await walletOf('ann')).toBe(500);
+    await setEarnRule('signup_user', { liquidityCredits: 0 }, 'admin');
+    clearEarnRuleCache();
+    await claimEarn({ agentId: 'bob', key: 'signup_user' });
+    expect(await walletOf('bob')).toBe(0);
+    expect(await walletOf('ann')).toBe(500);
+  });
+
+  test('a negative matched amount is refused, the same as a negative price', async () => {
+    await expect(setEarnRule('signup_user', { liquidityCredits: -1 }, 'admin')).rejects.toThrow();
   });
 });

@@ -228,6 +228,10 @@ export interface EarnRule {
   key: string;
   label: string;
   credits: number;
+  /** Walled pool credits this earn grants beside the trading ones, for a
+   *  floor of your own (docs/agent-economy.md). Absent on an instance that
+   *  has not migrated. */
+  liquidityCredits?: number;
   /** `flat` a one-time grant, `cap` an "up to", `daily` the streak, `open`
    *  an earn with no ceiling (trading profit). Only flat and cap carry a
    *  number the reader can finish, so only they count toward the tally. */
@@ -1098,7 +1102,7 @@ export const api = {
    *  reconstructable. */
   setEarnRule: (
     key: string,
-    patch: { credits?: number; enabled?: boolean; note?: string },
+    patch: { credits?: number; liquidityCredits?: number; enabled?: boolean; note?: string },
   ): Promise<{ rule: EarnRule }> =>
     request(`/api/admin/earn/${encodeURIComponent(key)}`, {
       method: 'PATCH',

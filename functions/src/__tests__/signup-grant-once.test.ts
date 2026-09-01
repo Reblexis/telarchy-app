@@ -28,9 +28,9 @@ jest.mock('../middleware/auth', () => {
 });
 
 import { eq } from 'drizzle-orm';
-import { agents, authUser, creditLedger } from '../db/schema';
+import { agents, authUser, creditLedger, earnRules } from '../db/schema';
 import { fromUnits } from '../lib/validation';
-import { earnCredits } from '../services/earnRules';
+import { clearEarnRuleCache, earnCredits, earnLiquidityCredits } from '../services/earnRules';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 beforeAll(async () => {
@@ -84,5 +84,53 @@ describe('the signup grant is paid once', () => {
     const signup = rows.filter(r => r.reason === 'signup_grant');
 
     expect(signup).toHaveLength(1);
+  });
+});
+
+/**
+ * The wallet half of the same grant (owner decision 2026-09-01,
+ * notes/matched-liquidity-grants-2026-09-01.md). It is paid where the
+ * credits are paid, so the same rule that stops a double payment stops a
+ * double wallet grant: a signup that landed at twice the price would
+ * otherwise land at twice the depth too.
+ */
+describe('the matched liquidity is paid once, beside it', () => {
+  test('a new browser account holds the published depth, in the walled purse', async () => {
+    await db.insert(authUser).values({ id: UID, name: 'Newcomer', email: 'newcomer@example.com' });
+    await db.insert(earnRules).values({
+      key: 'signup_user',
+      label: 'Create an account',
+      credits: 100,
+      liquidityCredits: 300,
+      kind: 'flat',
+      note: '',
+    });
+    clearEarnRuleCache();
+
+    const participantId = await provisionBrowserParticipant(UID);
+    const [row] = await db.select().from(agents).where(eq(agents.id, participantId));
+
+    expect(fromUnits(row.liquidityBalance as number)).toBe(await earnLiquidityCredits('signup_user'));
+    expect(fromUnits(row.liquidityBalance as number)).toBe(300);
+    // Two purses, never one sum: the depth is not spendable as a trade.
+    expect(fromUnits(row.balance as number)).toBe(await earnCredits('signup_user'));
+  });
+
+  test('a rule that matches nothing leaves the wallet empty', async () => {
+    await db.insert(authUser).values({ id: UID, name: 'Newcomer', email: 'newcomer@example.com' });
+    await db.insert(earnRules).values({
+      key: 'signup_user',
+      label: 'Create an account',
+      credits: 100,
+      liquidityCredits: 0,
+      kind: 'flat',
+      note: '',
+    });
+    clearEarnRuleCache();
+
+    const participantId = await provisionBrowserParticipant(UID);
+    const [row] = await db.select().from(agents).where(eq(agents.id, participantId));
+
+    expect(fromUnits(row.liquidityBalance as number)).toBe(0);
   });
 });

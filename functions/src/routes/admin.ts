@@ -1022,14 +1022,21 @@ adminRouter.patch(
   '/earn/:key',
   wrap(async (req, res) => {
     if (!(await isPlatformAuthorized(req))) throw new AppError('Platform admin or master key required', 403);
-    const { credits, enabled, note, label } = req.body ?? {};
-    if (credits === undefined && enabled === undefined && note === undefined && label === undefined) {
+    const { credits, liquidityCredits, enabled, note, label } = req.body ?? {};
+    if (
+      credits === undefined &&
+      liquidityCredits === undefined &&
+      enabled === undefined &&
+      note === undefined &&
+      label === undefined
+    ) {
       throw new AppError('Nothing to change', 400);
     }
     const rule = await setEarnRule(
       req.params.key as string,
       {
         credits: credits === undefined ? undefined : Number(credits),
+        liquidityCredits: liquidityCredits === undefined ? undefined : Number(liquidityCredits),
         enabled: enabled === undefined ? undefined : enabled === true,
         note: typeof note === 'string' ? note : undefined,
         label: typeof label === 'string' ? label : undefined,

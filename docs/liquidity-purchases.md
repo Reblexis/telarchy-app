@@ -13,6 +13,12 @@ A liquidity purchase is a non-refundable service: sharper prices on the
 buyer's own markets. It is never a credit sale. Three invariants keep that
 true, and every change to this feature must preserve all three:
 
+The same wallet also receives the MATCHED LIQUIDITY the earn table grants
+(`docs/agent-economy.md`, owner decision 2026-09-01), so a floor's first
+markets have depth before anyone pays for any. Granted and bought credits
+are the same money in the same purse and obey every invariant below; what
+differs is only where they came from.
+
 1. **Walled wallet.** A purchase credits the buyer's LIQUIDITY WALLET
    (`agents.liquidity_balance`, the second currency; owner decision
    2026-08-28): spendable only as market-pool injections, never tradeable,

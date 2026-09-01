@@ -26,6 +26,7 @@ const rules = [
     key: 'signup_email',
     label: 'Sign up with an email and password',
     credits: 100,
+    liquidityCredits: 100,
     kind: 'flat' as const,
     note: 'An address costs a farmer almost nothing.',
   },
@@ -166,5 +167,34 @@ describe('/earn, signed in', () => {
     } as never);
     renderPage();
     expect(await screen.findByText(/already earned this on another Telarchy account/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * The wallet half of a grant (owner decision 2026-09-01). A price list that
+ * showed one purse would understate what a signup is worth, and adding the
+ * two into one figure would tell the reader they can trade with depth they
+ * cannot.
+ */
+describe('matched liquidity on the price list', () => {
+  test('is a column of its own, never added into the credits', async () => {
+    (api.getEarnTable as ReturnType<typeof vi.fn>).mockResolvedValue({ rules });
+    renderPage();
+    expect(await screen.findByText('Sign up with an email and password')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /liquidity/i })).toBeInTheDocument();
+    const row = screen.getByText('Sign up with an email and password').closest('tr') as HTMLElement;
+    const cells = [...row.querySelectorAll('td')].map(c => c.textContent);
+    expect(cells).toContain('100');
+    expect(cells.filter(c => c === '100')).toHaveLength(2);
+    expect(cells).not.toContain('200');
+  });
+
+  test('a table where nothing is matched shows no column at all', async () => {
+    (api.getEarnTable as ReturnType<typeof vi.fn>).mockResolvedValue({
+      rules: rules.map(r => ({ ...r, liquidityCredits: 0 })),
+    });
+    renderPage();
+    expect(await screen.findByText('Sign up with an email and password')).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /liquidity/i })).toBeNull();
   });
 });

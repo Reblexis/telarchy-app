@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'crypto';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { type Request, Router } from 'express';
 import { db } from '../db/client';
 import {
@@ -27,7 +27,7 @@ import { wrap } from '../lib/wrap';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships, hashKey } from '../middleware/auth';
 import { requireIdentity, requireScope, requireUser } from '../middleware/roles';
 import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
-import { claimEarn, earnCredits } from '../services/earnRules';
+import { claimEarn, earnCredits, earnLiquidityCredits } from '../services/earnRules';
 import { CURRENT_CONSENT_VERSION } from './legal';
 
 export const userauthRouter = Router();
@@ -53,6 +53,11 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
   // 2026-08-30). Read BEFORE the transaction: it is a cached read, and
   // holding a transaction open across it buys nothing.
   const grant = await earnCredits('signup_user');
+  // The wallet half of the same rule: depth for a floor of their own, walled
+  // so it can only ever go behind a market (docs/agent-economy.md, owner
+  // decision 2026-09-01). Read outside the transaction for the same reason
+  // the price is.
+  const liquidityGrant = await earnLiquidityCredits('signup_user');
 
   // One transaction: an identity created without its grant, or a grant
   // without its identity, are both states nothing later would repair.
@@ -83,6 +88,12 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
     // keeps the one-earn-per-participant index doing its job, keeps the
     // /earn page truthful about what was paid, and keeps identity and grant
     // atomic the way the comment above asks.
+    if (liquidityGrant > 0) {
+      await tx
+        .update(agents)
+        .set({ liquidityBalance: sql`${agents.liquidityBalance} + ${toUnits(liquidityGrant)}` })
+        .where(eq(agents.id, participantId));
+    }
     await tx.insert(earnClaims).values({
       id: randomUUID(),
       agentId: participantId,

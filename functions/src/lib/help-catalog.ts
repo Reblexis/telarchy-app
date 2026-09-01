@@ -1023,7 +1023,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/earn',
       auth: false,
       description:
-        'The earn table: every way to get credits and what each is worth right now. Returns { rules: [{ key, label, credits, kind, note }] }, enabled rules only. kind "flat" grants exactly credits; kind "cap" grants up to that number from a measured signal (the Manifold import grants net worth at 1 mana = 1 credit, capped); kind "daily" recurs once a UTC day (the trade-a-day streak, whose credits field is day one\'s price); kind "open" has no ceiling and no fixed number (trading profit). Public and live: the operator edits these prices at any time, mid-season included, and a contest whose grants decide standings owes its entrants a readable price list. The prices are set by what a signal costs to fake against what it brings, which is the platform\'s whole anti-farming strategy (a grant priced at brought value turns sybil farming into a purchase).',
+        'The earn table: every way to get credits and what each is worth right now. Returns { rules: [{ key, label, credits, liquidityCredits, kind, note }] }, enabled rules only. `liquidityCredits` is the WALLED pool money the same rule grants beside the tradeable credits (2026-09-01): it can only ever go behind a market, which is what gives a floor its first depth, and it is never added into `credits`. Matched on the one-time rules only; a recurring rule grants none. kind "flat" grants exactly credits; kind "cap" grants up to that number from a measured signal (the Manifold import grants net worth at 1 mana = 1 credit, capped); kind "daily" recurs once a UTC day (the trade-a-day streak, whose credits field is day one\'s price); kind "open" has no ceiling and no fixed number (trading profit). Public and live: the operator edits these prices at any time, mid-season included, and a contest whose grants decide standings owes its entrants a readable price list. The prices are set by what a signal costs to fake against what it brings, which is the platform\'s whole anti-farming strategy (a grant priced at brought value turns sybil farming into a purchase).',
     },
     {
       method: 'GET',
@@ -1051,7 +1051,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/admin/earn/:key',
       auth: 'platform admin',
       description:
-        'Re-price one way of earning credits. Body: any of { credits (>= 0), enabled, note, label }. Takes effect on the next grant (the read cache is cleared on write), and appends the new state to the append-only history, so a price changed mid-season stays reconstructable afterwards. 404 on an unknown key: the table is a fixed set of tasks, not a free-form store.',
+        'Re-price one way of earning credits. Body: any of { credits (>= 0), liquidityCredits (>= 0, the walled pool half of the same grant), enabled, note, label }. Takes effect on the next grant (the read cache is cleared on write), and appends the new state to the append-only history, so a price changed mid-season stays reconstructable afterwards. 404 on an unknown key: the table is a fixed set of tasks, not a free-form store.',
     },
     {
       method: 'GET',
