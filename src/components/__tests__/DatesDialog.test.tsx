@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { DatesDialog } from '../DatesDialog';
 
 /**
@@ -10,6 +10,18 @@ import { DatesDialog } from '../DatesDialog';
  * because the two are genuinely different (docs/market-integrity.md,
  * "Stopping a date is not destroying a market").
  */
+
+/** The fixtures name real dates ('2026-08' as the open market) and the
+ *  dialog renders them relative to today, so the clock is pinned to the day
+ *  these expectations describe. Without it the suite goes red on a month
+ *  boundary with nothing changed. */
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date('2026-08-31T12:00:00Z'));
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const getMetric = vi.fn(async () => ({
   id: 'm1',

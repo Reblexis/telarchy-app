@@ -186,6 +186,14 @@ beforeEach(() => {
     thresholds = [];
   } as unknown as typeof IntersectionObserver;
   vi.useFakeTimers({ shouldAdvanceTime: true });
+  // Pin the clock. The fixtures name real dates ('2026-W34', '2026-09')
+  // and the assertions name the words the floor renders for them, and
+  // both of those are relative to today: on 2026-09-01 the September
+  // market stopped reading '30 Sep' and started reading 'this month',
+  // which turned main red on a day nobody had pushed anything
+  // (bug hunt 2026-08-31 flagged the class; the month boundary found
+  // these two files first).
+  vi.setSystemTime(new Date('2026-08-31T12:00:00Z'));
 });
 afterEach(() => {
   vi.useRealTimers();
