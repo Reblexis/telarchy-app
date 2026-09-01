@@ -10,6 +10,7 @@ import {
   markets,
   positions,
   proposals,
+  trades,
   workspaces,
 } from '../db/schema';
 import { AMM_DEFAULTS, consensus, directionTradeCost, pHigher } from '../lib/amm';
@@ -255,10 +256,83 @@ predictionsRouter.post(
       }
     }
 
+    /**
+     * Quote it, do not do it.
+     *
+     * A fresh API registration holds zero credits by design, so its first
+     * write is refused and it has learned nothing about how the market
+     * answers. `dryRun` runs the SAME transaction as a real trade and rolls it
+     * back, which is the only way the numbers it reports can be the numbers
+     * the trade would produce; a second implementation would drift from this
+     * one the first time either changed. It mints nothing, so the rule that a
+     * participant receives credits only from another participant is untouched,
+     * and it needs the same identity and capability a real trade needs, so it
+     * is not a way to probe a market anonymously.
+     */
+    const dryRun = req.body?.dryRun === true;
+
     let tradeResponse!: Record<string, unknown>;
     let eventPayload!: Record<string, unknown>;
     let fills: Awaited<ReturnType<typeof fillLimitOrdersInTx>> = [];
     const tradeId = randomUUID();
+
+    if (dryRun) {
+      // Thrown to roll the transaction back once the answer is in hand. It
+      // never escapes this block.
+      class RollBack extends Error {}
+      let quote!: Record<string, unknown>;
+      try {
+        await db.transaction(async tx => {
+          const [before] = await tx
+            .select()
+            .from(markets)
+            .where(and(eq(markets.id, marketId as string), eq(markets.workspaceId, workspaceId)));
+          // tradeCount is derived, not stored: count the rows that moved this
+          // book. Together with liquidity it is what changes exactly when the
+          // answer below would change.
+          const [counted] = await tx
+            .select({ n: sql<number>`count(*)::int` })
+            .from(trades)
+            .where(and(eq(trades.marketId, marketId as string), eq(trades.workspaceId, workspaceId)));
+          const outcome = await executeTradeInTx(tx, {
+            workspaceId,
+            agentId,
+            marketId: marketId as string,
+            mode,
+            tradeId,
+            quoteOnly: true,
+          });
+          const price = outcome.isSell ? outcome.proceeds : outcome.cost;
+          const shortfall = outcome.isSell ? 0 : Math.max(0, Math.round((price - outcome.balance) * 1e6) / 1e6);
+          quote = {
+            dryRun: true,
+            marketId,
+            direction: outcome.direction,
+            shares: outcome.shares,
+            ...(outcome.isSell ? { proceeds: outcome.proceeds } : { cost: outcome.cost, redeemed: outcome.redeemed }),
+            probability: outcome.probability,
+            consensus: outcome.consensus,
+            prevConsensus: outcome.prevConsensus,
+            balance: outcome.balance,
+            affordable: shortfall === 0,
+            shortfall,
+            // What the quote was computed against. A caller comparing this to
+            // a later read can tell a stale quote from a fresh one; both
+            // fields move whenever the answer would.
+            basis: {
+              tradeCount: counted?.n ?? 0,
+              liquidity: before?.liquidity ?? 0,
+              consensus: outcome.prevConsensus,
+            },
+          };
+          throw new RollBack();
+        });
+      } catch (e) {
+        if (!(e instanceof RollBack)) throw e;
+      }
+      res.status(200).json(quote);
+      return;
+    }
 
     await db.transaction(async tx => {
       const outcome = await executeTradeInTx(tx, { workspaceId, agentId, marketId: marketId!, mode, tradeId });

@@ -15,7 +15,7 @@ import { isBetaRequest } from './lib/request-env';
 import { wrap } from './lib/wrap';
 import { requireConsentIfUser } from './middleware/consent';
 import { requireCapability } from './middleware/roles';
-import { apiAuthPolicy } from './middleware/route-policy';
+import { apiAuthPolicy, installRouteMatchers } from './middleware/route-policy';
 import { activityRouter } from './routes/activity';
 import { adminRouter } from './routes/admin';
 import { agentsRouter } from './routes/agents';
@@ -414,6 +414,10 @@ app.use('/api/groups', groupsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/activity', activityRouter);
 app.use('/api', systemRouter);
+
+// Now that every router is mounted, the policy above can tell an unrouted path
+// from an unauthorized one. Must stay after the last app.use of an /api router.
+installRouteMatchers(app);
 
 app.use('/api', (req: Request, res: Response) => {
   res.status(404).json({ error: 'Not found', path: req.originalUrl });

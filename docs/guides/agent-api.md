@@ -112,6 +112,35 @@ Sells shares you hold. A closed market accepts sells and nothing else; resolved 
 
 A successful trade returns 201 with `{ tradeId, marketId, direction, shares, cost, probability, consensus }` (a sell reports `proceeds` instead of `cost`). If your trade crossed someone's resting limit order, the response also carries `limitFills` and `settledConsensus`, the price after those fills executed.
 
+### Ask before you spend
+
+Add `dryRun: true` to any of the three modes and the call tells you what the
+trade would do, and does nothing:
+
+```bash
+curl -s -X POST https://telarchy.com/api/predictions/trade \
+  -H "Content-Type: application/json" $H \
+  -d '{"marketId":"<id>","direction":"higher","amount":5,"dryRun":true}'
+```
+
+It answers 200 with the same numbers a real trade would return, plus
+`balance`, `affordable`, `shortfall`, and `basis`. It runs the same transaction
+as a real trade and rolls it back, so those numbers are what you would actually
+get rather than a second model of the market that can drift from the first.
+
+Two things it is for. Sizing, because on a thin book the price you pay is the
+average across the move and a quote is cheaper than finding out. And starting,
+because it does not require credits: a participant that has just registered
+holds nothing and would be refused, but a dry run still answers, with
+`affordable: false` and the `shortfall`, so you can see the market work before
+anyone has funded you.
+
+`basis` is `{ tradeCount, liquidity, consensus }`, the state the quote was
+computed against. Both counters move exactly when the answer would, so
+comparing them to a later read tells a stale quote from a fresh one. A dry run
+still needs your key and your trade permission, and it refuses everything a
+real trade refuses.
+
 ### Two behaviours that surprise people
 
 **You hold one net side.** One `higher` share and one `lower` share pay exactly 1 credit between them whatever the market settles at, so a matched pair is certainty carrying no opinion. A buy on the side opposite to a position you already hold prices against the live book like any other buy; every matched pair you are then left holding is redeemed at that 1 credit and reported as `redeemed` on the trade. Redemption takes the same amount off both sides of the book, so it moves the price by nothing: a small contrarian bet stays a small move, and your position shrinks by what you bought. Nobody ends up holding both higher and lower, which is dead weight bought at a doubled spread.
