@@ -42,31 +42,29 @@ flow FROM the person competing FOR the chance at the prize.
 |---|---|---|---|---|
 | 1 | **Today.** Credits free and non-purchasable. Prize is a published skill score, paid by Telarchy from its own funds. | No | Free-entry skill contest | Cleanest position available. Chance and consideration both absent. |
 | 2 | **Owner buys liquidity, and that liquidity can never become anyone's score.** | No | Same as 1, plus a B2B service sale | Same as 1. The purchase buys sharper prices on your own floor, not standing in a contest. |
-| 3 | **Owner buys liquidity, and the self-deal loop converts it into their own score** (the #2 proposal, as currently built). | **Yes** | Paid skill contest | **The live question.** Consideration is now present, so only "no chance" is holding it up, and paid skill contests are prohibited outright in a minority of states. |
+| 3 | **Owner buys liquidity, and the design INTENDS that it can become score** (the #2 proposal). | **Yes, by design** | Paid skill contest | Legal in most US states. A minority historically barred entry fees for skill contests: Colorado, Maryland, Nebraska, North Dakota and Vermont, with Vermont revising to permit them. Florida bars wagering on skill contests but courts allow skill games where the prize is not made of entry fees, does not vary with fees collected, the operator does not compete, and the prize is announced in advance - which this design satisfies. |
 | 4 | **Credits sold directly, used to trade, prize by score.** | **Yes** | Paid skill contest | Same question as 3, more plainly. Nothing is hidden in a loop, which if anything makes it easier to answer. |
 | 5 | **Credits sold AND redeemable for cash.** | Yes, both ways | Real-money wagering on event outcomes | The one that changes regulator. CEA event-contract territory, plus state gambling. Do not build this without counsel first. |
 | 6 | **A buys liquidity; B, genuinely unrelated, trades and wins.** | No, not by B | Free-entry skill contest for B | Fine on its face - and this is the answer to your puzzle below. |
-| 7 | **A buys liquidity; B is A's second account, or coordinated with A.** | Yes, in substance | Row 3 wearing a disguise | Same as 3. Nobody is fooled by the account boundary. |
+| 7 | **A buys liquidity; B is A's second account, or coordinated with A.** | Not by the STRUCTURE; only by a cheat | Row 1, with a rule-breaker in it | Fine. Cheating does not change what the contest is. Disqualify under the published clause, which is the expected and sufficient response. |
 
 ## Your puzzle, answered
 
 > its weird to me that this wouldnt be legal yet buying it and then other
 > account trading on it and extracting that way would be
 
-It is not weird, and the two are not actually different, because the law
-tracks **who paid**, not **whether money entered the system**.
+It is not weird, and the instinct behind it was right.
 
-Consideration must flow from the contestant. In row 6 the contestant is B,
-and B paid nothing, so there is no consideration from the person competing -
-A's purchase is somebody else's service fee. In row 7 the contestant is A
-wearing B as a hat, so A paid, and the account boundary is exactly the sort
-of form-over-substance argument that fails. Courts and regulators look
-through affiliated accounts as a matter of routine; it is not a clever
-loophole, it is the first thing they check.
+What matters is whether the PROMOTION requires consideration, not whether
+money can be made to reach a winner by somebody breaking the rules. Rows 1, 2,
+6 and 7 are all the same promotion: free entry, no purchase path. Row 7 is
+that promotion with a cheat in it, and a cheat is disqualified, not a
+redefinition of the contest.
 
-So rows 3 and 7 are the same design and rows 1, 2 and 6 are the same design.
-The account structure is not the variable. The variable is whether the person
-whose score wins the prize is the person whose money made the score possible.
+Row 3 is genuinely different, because there the payment path is INTENDED and
+built. That is the only line that matters here: did we design a way to pay
+for standing, or did somebody break a rule. Designing one is a legal
+question. Somebody breaking a rule is an enforcement question.
 
 ## What "no chance" is doing, and how load-bearing it is
 
@@ -90,6 +88,45 @@ states excluded, or not worth doing.
 no gambling regardless of how chancy it is. That is why row 1 is worth
 protecting even though the skill argument is also strong: it means you only
 have to win one of the two arguments.
+
+## Does a two-account circumvention put this on us? No.
+
+Asked 2026-09-01: "is it legally fine that someone could technically
+circumvent that with two accounts". I first said it was a real risk, on a
+sham-AMOE argument. **That was wrong, and researched sources say so.** The
+correction is the most useful thing in this note, so it is written up rather
+than quietly dropped.
+
+**The consideration analysis is about the promotion's STRUCTURE, not about
+how rules are enforced or whether people break them.** An illegal lottery is
+prize + chance + consideration, and the question is whether entering
+*requires* something of value. A contest where entry is free does not become
+a paid contest because a participant cheats to buy an advantage. Rule
+enforcement and rule-breaking are a different subject from the legal
+characterization of the promotion.
+
+**The AMOE doctrine does not even apply here.** "Alternative method of entry"
+is the rule for promotions that HAVE a purchase path - buy a product to
+enter, or mail a postcard instead - where the free path must be genuinely
+equal or it is a sham. Telarchy has no purchase path to entry at all. Entry
+is simply free, for everybody, with no paid alternative alongside it. There
+is no AMOE to be a sham, so the sham-AMOE argument was misapplied.
+
+What is actually expected of an operator is what Telarchy already does:
+publish rules, reserve the right to disqualify, and enforce reasonably. The
+ToS and the season rules both carry the clause ("entries that we determine,
+acting reasonably, are operated by one person as several accounts, or that
+collude to distort prices"). That is the standard answer to cheating, and it
+is the correct one.
+
+So: **someone running two accounts to convert liquidity into score is
+cheating, and cheating is their problem and an enforcement matter, not a
+change in what the contest legally is.**
+
+The counterparty idea (score only counts from markets that had real
+opposition) is therefore a PRODUCT question if it is anything - a market
+nobody contested is weak evidence of forecasting skill - and not a legal
+requirement. It was proposed here as a legal fix and it was not one.
 
 ## The specific questions worth paying for
 
@@ -127,3 +164,41 @@ If you want purchasable credits for supply reasons rather than as a fix for
 the loop, that is row 4, and it is worth asking question 1 first. It is a
 real business model, it is legal in most of the US, and the states where it
 is not are known and enumerable.
+
+## Sources
+
+Researched 2026-09-01, and the reason the position above changed.
+
+- Realtime Media, *Contests and Sweepstakes Laws By State* -
+  https://www.rtm.com/blog/contests-and-sweepstakes-laws-by-state
+  (a contest judged on skill may charge an entry fee in most states, because
+  chance is absent; Colorado, Maryland, Nebraska, North Dakota and Vermont
+  are named as the historic exceptions)
+- Olshan, *Vermont Revises Law to Permit Entry Fee to Enter a Skill Contest* -
+  https://www.olshanlaw.com/Advertising-Law-Blog/Vermont-Entry-Fee-Skill-Contest
+  (Vermont moved to the majority; the exception list is shorter than it was)
+- Realtime Media, *No Purchase Necessary Laws and Your Sweepstakes* -
+  https://www.rtm.com/blog/no-purchase-necessary-laws-and-your-sweepstakes
+  (AMOE is the mechanism for promotions that HAVE a purchase path; removing
+  any one of prize, chance or consideration is what makes a promotion lawful)
+- Holland & Knight, *Marketers Beware: Your Social Media Sweepstakes or
+  Contests Could Be Illegal* -
+  https://www.hklaw.com/en/insights/publications/2022/05/marketers-beware-your-social-media-sweepstakes-or-contests-could-be
+  (the analysis is of what the promotion requires, and disqualification for
+  rule-breaking is the expected response to cheating rather than a change in
+  the promotion's character)
+- Jones Day, *Pitfalls of Sweepstakes and Contests* -
+  https://www.jonesday.com/-/media/files/publications/2007/11/pitfalls-of-sweepstakes-and-contests/files/pitfalls-of-sweepstakes/fileattachment/pitfalls-of-sweepstakes.pdf
+- Congressional Research Service, *CFTC Issues Proposed Rule Regarding
+  Prediction Markets* - https://www.congress.gov/crs-product/LSB11441
+  and *Prediction Markets: Policy Issues for Congress* -
+  https://www.congress.gov/crs-product/IF13187
+  (event contracts are swaps under the CEA and must be listed on a
+  CFTC-registered DCM; this is the regime real-money staking on outcomes
+  enters, and the one play money keeps Telarchy out of)
+- CFTC, *Prediction Markets; Public Interest Determinations*, proposed rule
+  10 June 2026 -
+  https://www.federalregister.gov/documents/2026/06/12/2026-11854/prediction-markets-public-interest-determinations
+
+Still not legal advice, and the state lists above are the kind of thing that
+moves - Vermont moved. Confirm them before relying on one.
