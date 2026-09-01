@@ -601,17 +601,29 @@ workspacesRouter.put(
       // so trading rights granted while it was open must not survive
       // (docs/guides/creating.md). Unlisted counts now that it grants a
       // stranger nothing.
-      if (restrictedToMembers(update.visibility) && !restrictedToMembers(ws.visibility)) {
+      // The same switch in both directions (docs/guides/creating.md, "Public
+      // means tradeable"). Publishing grants the Public group `trade`, so a
+      // self-join makes a trader; going restricted takes it back. Only the
+      // grant is new: the strip has been here since floors could be taken
+      // private, and the missing half left a published floor reporting
+      // `joinAs: viewer`, readable by everyone and tradeable by nobody, with
+      // nothing on the page explaining why (owner report, 2026-09-01). An
+      // owner who wants prices public and trading by invitation revokes
+      // `trade` afterwards, which is one deliberate call.
+      const becameRestricted = restrictedToMembers(update.visibility) && !restrictedToMembers(ws.visibility);
+      const becamePublic =
+        update.visibility !== undefined &&
+        !restrictedToMembers(update.visibility) &&
+        restrictedToMembers(ws.visibility);
+      if (becameRestricted || becamePublic) {
         const [publicGroup] = await tx
           .select()
           .from(permissionGroups)
           .where(and(eq(permissionGroups.workspaceId, wsId), eq(permissionGroups.type, 'public')));
         const caps = (publicGroup?.capabilities as string[] | null) ?? [];
-        if (publicGroup && caps.includes('trade')) {
-          await tx
-            .update(permissionGroups)
-            .set({ capabilities: caps.filter(c => c !== 'trade') })
-            .where(eq(permissionGroups.id, publicGroup.id));
+        const next = becameRestricted ? caps.filter(c => c !== 'trade') : [...new Set([...caps, 'trade'])];
+        if (publicGroup && next.length !== caps.length) {
+          await tx.update(permissionGroups).set({ capabilities: next }).where(eq(permissionGroups.id, publicGroup.id));
         }
       }
     });

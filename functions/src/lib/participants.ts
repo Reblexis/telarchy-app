@@ -289,7 +289,11 @@ export async function provisionWorkspace(
       description: 'Participants explicitly added to this workspace.',
       memberIds: [],
       permissions: {},
-      capabilities: ['read'],
+      // A floor created public is tradeable from its first moment
+      // (docs/guides/creating.md, "Public means tradeable"). A restricted
+      // floor seeds without `trade` and is granted it when it is published;
+      // nothing trades on a floor that is not public anyway.
+      capabilities: visibility === 'public' ? ['read', 'trade'] : ['read'],
       createdAt: now,
     },
     {

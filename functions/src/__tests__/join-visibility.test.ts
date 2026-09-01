@@ -233,9 +233,14 @@ describe('taking a workspace private revokes open trading', () => {
     expect(after.capabilities as string[]).toContain('read');
   });
 
-  test('going public without trade leaves the Public group untouched', async () => {
+  test('publishing a floor grants the Public group trade', async () => {
+    // The rule (docs/guides/creating.md, "Public means tradeable"): a public
+    // floor is a tradeable one. Before this, publishing left the Public group
+    // on `read`, so every visitor could read the prices and none could trade,
+    // and the page said nothing about why (owner report, 2026-09-01).
     await seedAgents();
     await seedWorkspace('ws-view', 'private');
+    expect((await publicGroupOf('ws-view')).capabilities as string[]).not.toContain('trade');
 
     const res = await request(app)
       .put('/api/workspaces/ws-view/settings')
@@ -245,8 +250,66 @@ describe('taking a workspace private revokes open trading', () => {
     expect(res.status).toBe(200);
 
     const after = await publicGroupOf('ws-view');
-    // "public, look but do not trade" stays a valid configuration.
-    expect(after.capabilities as string[]).toContain('read');
-    expect(after.capabilities as string[]).not.toContain('trade');
+    expect(after.capabilities as string[]).toEqual(expect.arrayContaining(['read', 'trade']));
+  });
+
+  test('a floor created public is tradeable from the first moment', async () => {
+    await seedAgents();
+    await seedWorkspace('ws-born-public', 'public');
+    const g = await publicGroupOf('ws-born-public');
+    expect(g.capabilities as string[]).toEqual(expect.arrayContaining(['read', 'trade']));
+  });
+
+  test('an unlisted or private floor is seeded without trade', async () => {
+    await seedAgents();
+    await seedWorkspace('ws-unlisted', 'unlisted');
+    await seedWorkspace('ws-private', 'private');
+    for (const id of ['ws-unlisted', 'ws-private']) {
+      expect((await publicGroupOf(id)).capabilities as string[]).not.toContain('trade');
+    }
+  });
+
+  test('publish, unpublish and publish again ends tradeable, with no duplicate caps', async () => {
+    await seedAgents();
+    await seedWorkspace('ws-round', 'private');
+    const flip = (visibility: string) =>
+      request(app)
+        .put('/api/workspaces/ws-round/settings')
+        .set('X-Test-Agent-Id', OWNER)
+        .set('X-Workspace-Id', 'ws-round')
+        .send({ visibility });
+
+    await flip('public');
+    await flip('private');
+    expect((await publicGroupOf('ws-round')).capabilities as string[]).not.toContain('trade');
+    await flip('public');
+    const caps = (await publicGroupOf('ws-round')).capabilities as string[];
+    expect(caps).toEqual(expect.arrayContaining(['read', 'trade']));
+    expect(caps.filter(c => c === 'trade')).toHaveLength(1);
+    expect(caps.filter(c => c === 'read')).toHaveLength(1);
+  });
+
+  test('publishing grants trade and nothing more, and leaves the other groups alone', async () => {
+    // The owner keeps manage through Admin; publishing must not hand `manage`
+    // or `manage_workspace` to the public, and must not touch the other groups.
+    await seedAgents();
+    await seedWorkspace('ws-caps', 'private');
+    const before = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, 'ws-caps'));
+    await request(app)
+      .put('/api/workspaces/ws-caps/settings')
+      .set('X-Test-Agent-Id', OWNER)
+      .set('X-Workspace-Id', 'ws-caps')
+      .send({ visibility: 'public' });
+
+    const pub = await publicGroupOf('ws-caps');
+    expect(pub.capabilities as string[]).not.toContain('manage');
+    expect(pub.capabilities as string[]).not.toContain('manage_workspace');
+
+    const after = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, 'ws-caps'));
+    for (const group of after) {
+      if (group.type === 'public') continue;
+      const was = before.find(b => b.id === group.id);
+      expect(group.capabilities).toEqual(was?.capabilities);
+    }
   });
 });
