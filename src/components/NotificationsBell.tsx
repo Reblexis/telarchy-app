@@ -31,6 +31,7 @@ const KIND_VERB: Record<NotificationItem['kind'], string> = {
   anyComment: 'commented',
   settled: 'settled',
   decision: 'was decided',
+  stale: 'is about to settle on an old number',
 };
 
 function timeAgo(iso: string): string {
@@ -201,7 +202,13 @@ export function NotificationsBell() {
                           ? `${n.actor} ${KIND_VERB[n.kind]}`
                           : n.kind === 'settled'
                             ? 'A market you traded settled'
-                            : `A contract ${KIND_VERB[n.kind]}`}
+                            : n.kind === 'stale'
+                              ? // Not a contract, and nobody did it: it is the
+                                // owner's own market about to settle on a
+                                // number nobody has taken (2026-09-01, it read
+                                // "A contract undefined").
+                                'Your market needs its number'
+                              : `A contract ${KIND_VERB[n.kind]}`}
                       </span>
                       <span className="notif-time">{timeAgo(n.at)}</span>
                     </span>

@@ -27,14 +27,27 @@ export function readingIsStaleFor(
   return readingAt.getTime() < start.getTime();
 }
 
-/** How close a market has to be before a stale reading is worth an email:
- *  near enough that the owner can still act, far enough that the mail is not
- *  the first they hear of it. */
+/** The furthest out a nudge ever goes, whatever the period. Two days is long
+ *  enough to act on and short enough that it is not background noise. */
 export const NUDGE_WINDOW_MS = 48 * 60 * 60 * 1000;
 
-/** True while a market is inside the window before its settlement instant. */
-export function settlingSoon(targetDate: string, now: Date, windowMs = NUDGE_WINDOW_MS): boolean {
+/**
+ * True while a market is close enough to settling that a missing reading is
+ * worth saying out loud.
+ *
+ * The window is the LAST QUARTER of the market's own period, capped at two
+ * days. A flat 48 hours was wrong on anything short: a market on today is
+ * inside 48 hours from the moment it opens, so every daily market nagged its
+ * owner at midnight, before they could possibly have taken the day's reading
+ * (owner report 2026-09-01, four of these at once). A quarter of a day is six
+ * hours, a quarter of an hour is fifteen minutes, and a month still gets the
+ * full two days.
+ */
+export function settlingSoon(targetDate: string, now: Date, capMs = NUDGE_WINDOW_MS): boolean {
   const end = periodEndInstant(targetDate).getTime();
+  const start = periodStartInstant(targetDate)?.getTime() ?? end - capMs;
   const t = now.getTime();
-  return end > t && end - t <= windowMs;
+  if (end <= t) return false;
+  const windowMs = Math.min(capMs, Math.max(60_000, (end - start) / 4));
+  return end - t <= windowMs;
 }

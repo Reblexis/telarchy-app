@@ -8251,10 +8251,16 @@ that reading is. Nothing about that changed (owner decision 2026-08-31: it
 settles, and it says so). What changed is that the staleness is no longer
 silent, in three places:</p>
 <ul>
-<li><strong>The bell.</strong> While a market of yours is inside 48 hours of settling and
-the reading it would settle on was taken BEFORE the period it settles for,
-the owner gets an item saying so, with the market and the age of the
-reading. It is derived at read time, so it appears while it is true and is
+<li><strong>The bell.</strong> While a market of yours is close to settling and the reading
+it would settle on was taken BEFORE the period it settles for, the owner
+gets an item saying so, with the market and the age of the reading. Close
+means the last quarter of that market's own period, capped at two days: six
+hours on a daily market, fifteen minutes on an hourly one, two days on a
+monthly one. A flat 48 hours nagged every daily market from the moment it
+opened, before anyone could have taken the day's reading (owner report
+2026-09-01). A metric declared N/A-until-measured is skipped when it has no
+reading at all, because its market voids and refunds rather than settling on
+anything wrong. It is derived at read time, so it appears while it is true and is
 gone the moment a reading lands. It is the one notification kind outside the
 preference matrix: every other kind is news about other people, and this one
 says a market of yours is about to settle on a number nobody measured.</li>

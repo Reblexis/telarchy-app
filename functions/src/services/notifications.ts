@@ -28,6 +28,7 @@ import {
   marketMessages,
   markets,
   metricLogs,
+  metrics as metricsTable,
   notificationReads,
   permissionGroups,
   proposalMessages,
@@ -813,6 +814,16 @@ export async function listNotifications(
       .where(and(inArray(markets.workspaceId, myManaged), eq(markets.resolved, false), eq(markets.active, true)));
     const soon = open.filter(m => settlingSoon(m.targetDate, now));
     if (soon.length > 0) {
+      // A metric declared N/A-until-measured has a designed answer for never
+      // having been read: its market voids and refunds, with the reason
+      // published (docs/ui-conventions.md). Nothing goes wrong, so nudging
+      // about it is noise (owner report 2026-09-01).
+      const naRows = await db
+        .select({ id: metricsTable.id, na: metricsTable.resolvesNaUntilMeasured })
+        .from(metricsTable)
+        .where(inArray(metricsTable.id, [...new Set(soon.map(m => m.metricId))]));
+      const naUntilMeasured = new Set(naRows.filter(r => r.na).map(r => r.id));
+
       const readingRows = await db
         .select({ metricId: metricLogs.metricId, at: sql<Date>`max(${metricLogs.timestamp})` })
         .from(metricLogs)
@@ -821,6 +832,7 @@ export async function listNotifications(
       const lastReading = new Map(readingRows.map(r => [r.metricId, r.at ? new Date(r.at) : null]));
       for (const m of soon) {
         const at = lastReading.get(m.metricId) ?? null;
+        if (at === null && naUntilMeasured.has(m.metricId)) continue;
         if (readingIsStaleFor(m.targetDate, at, now)) {
           staleSoon.push({
             marketId: m.id,

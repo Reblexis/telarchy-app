@@ -136,7 +136,10 @@ export type PayoutMethod = (
  */
 export interface NotificationItem {
   id: string;
-  kind: 'comment' | 'reply' | 'contract' | 'anyComment' | 'settled' | 'decision';
+  /** `stale` is the one the matrix does not govern: a market of yours is
+   *  about to settle on a reading nobody took in the period it settles for
+   *  (docs/guides/sources.md). */
+  kind: 'comment' | 'reply' | 'contract' | 'anyComment' | 'settled' | 'decision' | 'stale';
   at: string;
   actor: string | null;
   subject: string;
