@@ -92,6 +92,11 @@ same account, so funding your own market and trading against it converted
 pool credits into season score roughly one for one (owner decision
 2026-09-01: "make trading on your own market not give u profit").
 
+Both halves of the standings apply it. The settled score and the marked
+"Total if prices hold" column read the same funding, so a book you paid for
+cannot be marked as a lead the settlement then declines to pay: that split is
+P1-10 and it has happened once already.
+
 It is deliberately about the MARKET you funded, not about who you are. No
 account is excluded from anything, which is why this is the rule rather than
 strictEligibility: eligibility asks who you are and shrinks the field, this
