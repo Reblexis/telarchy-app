@@ -653,6 +653,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
         'Member-friendly workspace activity feed. Same shape as /api/admin/activity, but: deposits and withdrawals are hidden, and trade entries have actor=null (anonymized) for callers without the manage capability. Manage-capable callers see the full feed (identical to /api/admin/activity) and can request the deposit/withdrawal types via ?types. Query: same as /api/admin/activity. Returns { activities, supportedTypes, nextCursor } where supportedTypes reflects what the caller is allowed to filter on.',
     },
     {
+      method: 'GET',
+      path: '/api/admin/participant-funnel',
+      auth: 'admin',
+      description:
+        'Register-to-first-trade conversion, the step where participants are lost. ?windowDays=N (default 7, 1-365) is how long a participant gets to place a first trade. Returns { generatedAt, windowDays, overall, byCredentialPath, bySource, excludedInternal }; each segment carries { segment, registered, converted, conversionRate, medianMinutesToFirstTrade, censored }. Participants who registered too recently to have had the whole window are `censored`, counted separately and left out of both the rate and its denominator, so the number tracks the experience rather than signup volume. Redemptions are not first trades (trades.kind). byCredentialPath splits browser_account (a person trading as themselves, funded from the first call), owned_bot and standalone_registration (an API registration, which starts at 0 credits). conversionRate and medianMinutesToFirstTrade are null rather than 0 when a segment is empty, and the median covers only those who converted, so read it beside the rate.',
+    },
+    {
       method: 'POST',
       path: '/api/admin/agent-heartbeat',
       auth: 'admin',

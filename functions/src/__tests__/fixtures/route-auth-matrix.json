@@ -134,6 +134,11 @@
     "agent": 403,
     "master": 200
   },
+  "GET /api/admin/participant-funnel": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
   "GET /api/admin/participants": {
     "anon": 401,
     "agent": 403,
