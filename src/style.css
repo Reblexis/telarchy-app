@@ -5150,94 +5150,102 @@ textarea.jobform-line--desc {
   color: var(--text-tertiary);
 }
 
-/* The two annotations: the value the bet lands on, over its own mark, and
-   where the market stands now over its. Separate rows, because a small bet
-   leaves the two marks a hair apart and one row would stack the labels.
-   Both pin at the card's edges (PayoffLine.labelStyle). */
-.pay-new,
-.pay-now {
-  position: relative;
-  white-space: nowrap;
+/* The stake and the value it buys, on one line over the slider, either of
+   which a trader can type into (owner, 2026-09-01). Same register as the
+   single numeral it replaces: mono, underlined, no box. */
+.compose {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.55rem;
 }
-.pay-new {
-  height: 1.3rem;
-  margin-bottom: 0.1rem;
-}
-.pay-now {
-  height: 1.15rem;
-  margin-top: 0.2rem;
-  font-size: 0.74rem;
-  color: var(--text-tertiary);
-}
-/* DIRECT children only. The label and the value inside the positioned span
-   are spans too, and positioning those as well stacked the number on top of
-   its own label (owner report, 2026-08-31, seeing "34.9" over "new value").
-   jsdom applies no stylesheet, so the suite cannot see this class of bug:
-   it is caught by looking at the card. */
-.pay-new > span,
-.pay-now > span {
-  position: absolute;
-  bottom: 0;
-}
-/* The value the trader is choosing, so it carries the weight of one: full
-   ink, mono, and bigger than the label beside it. Quiet grey was the bug
-   (owner, 2026-08-31: "the push is not nearly visible enough even though
-   the target value is pretty important"). */
-.pay-new-k {
-  font-size: 0.74rem;
-  color: var(--text-tertiary);
-}
-.pay-new-v {
+.compose-fld {
+  display: inline-flex;
+  align-items: baseline;
   font-family: 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
-  font-size: 0.95rem;
+  font-size: 1.75rem;
   font-weight: 600;
+  line-height: 1.15;
   color: var(--text-primary);
+  border-bottom: 2px solid var(--border-strong);
+  cursor: text;
+  transition: border-color 120ms ease;
 }
-/* What the bet is worth at five settlement values across the range. This is
-   the whole of the four fact rows it replaced (owner, 2026-08-31): the
-   maximum is the end column, the slope is the step between any two, the
-   break-even is where red turns green, and the landing is the caption. */
-/* Every stop is a point ON the track: a tick inside it and a label over
-   that tick, so the two halves of the picture are one scale rather than a
-   table beside a bar. The break-even is a stop like any other (owner,
-   2026-08-31: "the 0 credit profit point should be just like any other..
-   among the other ones.. not separate"), which is why nothing here is
-   styled as a note. */
-.pay-tick {
+.compose-fld:focus-within { border-bottom-color: var(--accent); }
+.compose-fld input {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 1ch;
+  max-width: 12ch;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: center;
+}
+.compose-fld input:focus { outline: none; box-shadow: none; }
+.compose-u {
+  margin-left: 0.18rem;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+.compose-arrow {
+  font-size: 1.1rem;
+  color: var(--text-tertiary);
+}
+
+/* The payoff line: one rule across the range with two rows of type and
+   nothing else, what the bet is worth above it and where the number would
+   have to settle below it (owner, 2026-09-01: "only show on top the credit
+   gains/losses and on bottom the different values it settles at thats it").
+   The colour change IS the break-even, which is also the stop reading 0 cr.
+   Both ends of the range are always stops: dropping the top one whenever
+   the break-even came near it left a ticket whose every figure was a loss,
+   never showing the bet could win. */
+.scale { margin-top: 0.55rem; }
+.scale-row {
+  position: relative;
+  height: 1.1rem;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+}
+.scale-row > span { position: absolute; }
+.scale-cr { font-weight: 600; }
+.scale-cr .up { color: var(--higher); }
+.scale-cr .down { color: var(--lower); }
+.scale-cr .even { color: var(--text-primary); }
+.scale-val {
+  margin-top: 0.3rem;
+  color: var(--text-tertiary);
+}
+.rule {
+  position: relative;
+  display: flex;
+  height: 8px;
+  margin: 0.28rem 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+/* The soft tokens are for large washes behind text; at 8px they vanish, so
+   the rule tints the side colour itself. */
+.rule-lose--higher,
+.rule-lose--lower { background: var(--lower); opacity: 0.32; }
+.rule-win--higher,
+.rule-win--lower { background: var(--higher); opacity: 0.36; }
+.rule-tick {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--text-tertiary);
-  opacity: 0.45;
+  background: var(--bg-secondary);
+  opacity: 0.85;
 }
-.pay-stops {
-  position: relative;
-  height: 2.3rem;
-  margin-top: 0.4rem;
-  font-size: 0.78rem;
-}
-.pay-stop {
-  position: absolute;
-  top: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  white-space: nowrap;
-  font-family: 'JetBrains Mono', monospace;
-  font-variant-numeric: tabular-nums;
-}
-.pay-stop u {
-  text-decoration: none;
-  font-size: 0.72rem;
-  color: var(--text-tertiary);
-}
-.pay-stop b { font-weight: 600; }
-.pay-stop .up { color: var(--higher); }
-.pay-stop .down { color: var(--lower); }
-.pay-stop .even { color: var(--text-primary); }
 
 
 /* Quick / Limit, Manifold's top-right toggle. */

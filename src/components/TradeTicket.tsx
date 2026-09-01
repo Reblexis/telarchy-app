@@ -420,7 +420,6 @@ export function TradeTicket({
               ? rangeMin + (held.totalCost / held.shares) * (rangeMax - rangeMin)
               : rangeMin + (1 - held.totalCost / held.shares) * (rangeMax - rangeMin)
           }
-          push={null}
           shares={held.shares}
           spend={held.totalCost}
         />
@@ -605,7 +604,6 @@ export function TradeTicket({
           consensus={consensus}
           direction={null}
           breakeven={null}
-          push={null}
           shares={null}
           spend={null}
         />
@@ -613,24 +611,40 @@ export function TradeTicket({
 
       {dir && (
         <>
-          {/* The amount is one number, typed or slid, and nothing else: no box,
-          no stepper chips. The underline is the input; the slider under it
-          is the same value in the side's colour. */}
-          <label className="ticket-amt">
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={amount}
-              style={{ width: `${Math.max(1, amount.length)}ch` }}
-              onChange={e => {
-                setAmount(e.target.value.replace(/[^0-9]/g, ''));
-                setTarget(null);
-              }}
-              aria-label="Credits to spend"
-            />
-            <span className="ticket-amt-unit">cr</span>
-          </label>
+          {/* The stake and the value it buys, on one line, either of which
+          a trader can type into (owner, 2026-09-01: "X cr -> {X} value
+          above the slider where the user can edit both the input fields").
+          Typing a stake spends a budget; typing a value bets to it and the
+          stake becomes the cost of getting there. Still no box and no
+          stepper chips: the underline is the input. */}
+          <div className="compose">
+            <label className="compose-fld">
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={amount}
+                style={{ width: `${Math.max(1, amount.length)}ch` }}
+                onChange={e => {
+                  setAmount(e.target.value.replace(/[^0-9]/g, ''));
+                  setTarget(null);
+                }}
+                aria-label="Credits to spend"
+              />
+              <span className="compose-u">cr</span>
+            </label>
+            {hasPayoff && targetInput !== null && (
+              <>
+                <span className="compose-arrow" aria-hidden="true">
+                  &rarr;
+                </span>
+                <span className="compose-fld">
+                  {unit}
+                  {targetInput}
+                </span>
+              </>
+            )}
+          </div>
           {/* The track is logarithmic (lib/bet-slider.ts): the ceiling is the
           whole balance, and linearly that crams every sensible stake into
           the leftmost pixels (user report 2026-08-21). */}
@@ -687,15 +701,8 @@ export function TradeTicket({
               consensus={consensus}
               direction={dir}
               breakeven={winFacts ? winFacts.breakeven : null}
-              push={isLimit ? null : newValue}
               shares={winFacts ? winFacts.maxPayout : null}
               spend={winFacts ? winFacts.spend : null}
-              pushLabel={
-                <>
-                  {unit}
-                  {targetInput}
-                </>
-              }
             />
           )}
 
