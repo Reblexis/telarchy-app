@@ -67,7 +67,14 @@ const BETTOR = 'agent-bettor';
 const BETTOR_KEY = 'test-bettor-raw-key';
 const METRIC = 'metric-act';
 const MARKET = 'market-2026-04';
-const TARGET = '2026-04'; // April 2026; today (2026-05-02) is after this period
+// A period that has NOT ended. `closed` means deactivated by the time
+// preference while an honest answer is still coming, which is why a sell
+// is allowed: the holder is getting out BEFORE the target date arrives, as
+// the header above says. This fixture used a past period, which only
+// behaved as `closed` because nothing gated on the clock; a market past its
+// resolution instant is `settling` now and trades in neither direction
+// (docs/market-integrity.md, "Trading stops when the answer is fixed").
+const TARGET = '2099-04';
 
 const RANGE_MIN = 0;
 const RANGE_MAX = 100;

@@ -184,6 +184,37 @@ refunded their net cash at stake, as any void does (`vision.md`, void refund
 rule), so the escape costs them their position and their price discovery,
 never their money.
 
+### Trading stops when the answer is fixed, not when the payout arrives
+
+A market settles on the last reading at or before its PERIOD END, but it only
+becomes due at period end plus the metric's `settlementLagMinutes`, which can
+be up to 90 days. Nothing used to stand between the two: `executeTradeInTx`
+gated on `market.active` and no clock, and `refreshRelativeDateMarkets`
+declares a `toDeactivate` list it never pushes to, so the only writers of
+`active = false` are resolve and void themselves.
+
+So with a three-day lag, September's settling reading is logged and readable
+through `/api/metrics` on 1 October, and the market kept quoting and filling
+until the 4th. A trader read the answer and bought the winning side at a price
+that did not know it yet. Risk-free, and paid for by everyone already holding.
+Even at zero lag the exposure was a full resolver tick.
+
+**A market stops trading at its resolution instant** (the period end), in both
+directions, and settles when the reading arrives within the lag. Selling is
+closed too, not only buying: after the fixing, a holder of a losing position
+who sells at the last printed price takes out what settlement would not have
+paid, and the pool covers the difference. That is the same leak facing the
+other way.
+
+This is a fifth market state and not the existing `closed`, which means
+sell-only and exists for a market whose date was dropped while it still has an
+honest answer coming (see "Stopping a date is not destroying a market" below).
+A market past its fixing is `settling`: nothing to trade, an answer on the way.
+
+Owner decision 2026-09-01: "the market should be closed after its resolution
+date is passed and then settled once the information is provided within the
+lag." Records: `notes/bug-hunt-2026-08-31.md`, P0-5.
+
 ### Stopping a date is not destroying a market
 
 An owner drops an entry from `timePreference.customHorizons` when they no

@@ -36,6 +36,7 @@ export const ERROR_CODES = [
   'market_voided',
   /** Deactivated by the time preference: sells only. Retryable as a sell. */
   'market_closed',
+  'market_settling',
   /** An Idempotency-Key already used for a DIFFERENT request body. */
   'idempotency_key_reuse',
   /** The action needs a participant, and the caller is anonymous. */
