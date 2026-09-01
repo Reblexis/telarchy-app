@@ -201,7 +201,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h4">I1: a definition edit splits in two</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h5">I1b: a contract&#x27;s definition edits the same way</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h6">I2: what an owner cannot destroy</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h7">Trading stops when the answer is fixed, not when the payout arrives</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h7">A market resolves on its reading, not on a clock</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h8">Stopping a date is not destroying a market</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">There is no reset endpoint</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h10">I3: the credit ledger</a></li>
@@ -2358,31 +2358,34 @@ production, and then the destruction happens with no record at all. Holders are
 refunded their net cash at stake, as any void does (<code>vision.md</code>, void refund
 rule), so the escape costs them their position and their price discovery,
 never their money.</p>
-<h3 id="docs-market-integrity-md--h7">Trading stops when the answer is fixed, not when the payout arrives</h3>
-<p>A market settles on the last reading at or before its PERIOD END, but it only
-becomes due at period end plus the metric's <code>settlementLagMinutes</code>, which can
-be up to 90 days. Nothing used to stand between the two: <code>executeTradeInTx</code>
-gated on <code>market.active</code> and no clock, and <code>refreshRelativeDateMarkets</code>
-declares a <code>toDeactivate</code> list it never pushes to, so the only writers of
-<code>active = false</code> are resolve and void themselves.</p>
-<p>So with a three-day lag, September's settling reading is logged and readable
-through <code>/api/metrics</code> on 1 October, and the market kept quoting and filling
-until the 4th. A trader read the answer and bought the winning side at a price
-that did not know it yet. Risk-free, and paid for by everyone already holding.
-Even at zero lag the exposure was a full resolver tick.</p>
-<p><strong>A market stops trading at its resolution instant</strong> (the period end), in both
-directions, and settles when the reading arrives within the lag. Selling is
-closed too, not only buying: after the fixing, a holder of a losing position
-who sells at the last printed price takes out what settlement would not have
-paid, and the pool covers the difference. That is the same leak facing the
-other way.</p>
-<p>This is a fifth market state and not the existing <code>closed</code>, which means
-sell-only and exists for a market whose date was dropped while it still has an
-honest answer coming (see &quot;Stopping a date is not destroying a market&quot; below).
-A market past its fixing is <code>settling</code>: nothing to trade, an answer on the way.</p>
-<p>Owner decision 2026-09-01: &quot;the market should be closed after its resolution
-date is passed and then settled once the information is provided within the
-lag.&quot; Records: <code>notes/bug-hunt-2026-08-31.md</code>, P0-5.</p>
+<h3 id="docs-market-integrity-md--h7">A market resolves on its reading, not on a clock</h3>
+<p>A market settles on a reading dated inside its own period. <strong>It resolves the
+moment that reading arrives, and not before, whatever the clock says.</strong>
+Trading stays open until then, because until then nobody has the answer: the
+September market is a live question until September's number is filed.</p>
+<p>The rule this replaces stopped trading at the period end. That closed a live
+question early, because the normal case for a metric with a reporting lag is
+that the number is not knowable at period end - which is the whole reason the
+lag exists. It protected against the calendar rather than against the answer.</p>
+<p>The thing actually worth protecting against is trading with the answer in
+hand, and this design makes that impossible by construction rather than by a
+deadline: there is no interval in which the answer exists and the book is
+open, because the answer's arrival IS the resolution.</p>
+<p><strong>A market whose reading never arrives is voided, not left open.</strong>
+<code>settlementLagMinutes</code> is that deadline: how long a market waits for its
+reading before it gives up, voids and refunds every position, with the reason
+published. It is no longer a settlement delay, and nothing about trading is
+timed off it. Without the deadline an owner who stops filing could freeze
+other people's credits indefinitely.</p>
+<p>The cost is named rather than hidden: an owner knows their own number before
+they file it, so they can trade against people who are guessing for as long as
+the deadline allows. That asymmetry exists in any owner-reported market and the
+period end merely bounded it. The deadline bounds it here, and
+<code>strictEligibility</code> keeps such an account out of prize payouts entirely.
+Reputation carries the rest (owner decision 2026-09-01, who took that trade
+deliberately: &quot;the cost is fine its reputation based&quot;).</p>
+<p>Records: <code>notes/resolve-on-the-reading-2026-09-01.md</code>,
+<code>notes/bug-hunt-2026-08-31.md</code> P0-5.</p>
 <h3 id="docs-market-integrity-md--h8">Stopping a date is not destroying a market</h3>
 <p>An owner drops an entry from <code>timePreference.customHorizons</code> when they no
 longer want that market to come back. What happens to the one already open
@@ -6453,8 +6456,8 @@ back to this table.</p>
 <tr>
 <td><code>market_settling</code></td>
 <td>400</td>
-<td>The resolution date has passed and the market pays on the reading for that date. Carries <code>resolvesOn</code> and <code>settlesOn</code>.</td>
-<td>Stop trading it. Hold and it settles normally; a metric with a reporting lag settles at <code>settlesOn</code>, not at <code>resolvesOn</code>.</td>
+<td><strong>Retired 2026-09-01, never returned.</strong> It meant &quot;the resolution date has passed&quot;, from the fortnight when a market stopped trading at its period end. A market past its period keeps trading now and resolves when its reading arrives, so there is nothing for this to describe. Listed because a published code is never reused.</td>
+<td>Nothing. If you branch on it, that branch is dead.</td>
 </tr>
 <tr>
 <td><code>workspace_not_public</code></td>
@@ -7711,8 +7714,8 @@ holder:</p>
 <td>Sell only. It still settles on the real value at its date, so holding through it pays normally</td>
 </tr>
 <tr>
-<td><code>settling</code></td>
-<td>Its resolution instant has passed and the reading has not arrived yet. Nothing trades, in either direction; hold and it pays on the real value</td>
+<td>awaiting its reading</td>
+<td>Its period has ended and the reading has not arrived. It KEEPS TRADING, because nobody has the answer yet. It resolves the moment a reading dated inside its period is filed, or voids and refunds if none comes before the metric's deadline</td>
 </tr>
 <tr>
 <td><code>resolved</code></td>
@@ -7744,18 +7747,16 @@ would pay <strong>if the market resolved right now at its current price</strong>
 not the same as what a sale would fetch. The trading desk shows the real sale
 value before you confirm.</p>
 <p>Three limits: you cannot sell more shares than you hold, the proceeds must come
-to more than nothing, and resolved, voided or <code>settling</code> markets are closed to
-everything.</p>
+to more than nothing, and resolved or voided markets are closed to everything.</p>
 <p>A fourth, about the floor rather than the market: <strong>trading needs a public
 workspace</strong>. A floor that is not public is still being built, and nothing
 trades on it - not its owner, not its members, and not a resting limit order
 (<code>docs/guides/creating.md</code>).</p>
-<p><code>settling</code> is why the third one matters. A market settles on the last reading
-at or before its resolution instant, but a metric with a reporting lag is not
-due for hours or days after that, and the reading is public in the meantime.
-Trading through that window is buying a result you can already read, so it
-stops at the resolution instant rather than at the payout
-(<code>docs/market-integrity.md</code>, &quot;Trading stops when the answer is fixed&quot;).</p>
+<p>A market whose period has ENDED is not closed. It resolves when a reading
+dated inside its period arrives, so until that happens the question is still
+open and so is the book (<code>docs/market-integrity.md</code>, &quot;A market resolves on its
+reading, not on a clock&quot;). There is no window in which the answer is known and
+trading continues, because the answer arriving is what ends the trading.</p>
 <h2 id="docs-guides-markets-md--h6">Where to look</h2>
 <ul>
 <li><code>GET /api/predictions/markets</code> lists open markets. A public workspace answers

@@ -126,11 +126,34 @@ test('the first reading ends the state: a flagged metric with a reading settles 
   expect(m.actualValue).toBe(12_000_000);
 });
 
-test('without the flag nothing changes: no reading falls back to the live value', async () => {
+test('without the flag, no reading means the question is still open', async () => {
+  // Amended 2026-09-01. This used to assert a fallback to the metric's LIVE
+  // value, i.e. settling on a number from a different period. A market
+  // resolves on a reading dated inside its OWN period now, so a metric that
+  // has not reported yet leaves its market open and trading, and the flag is
+  // what turns "no reading" into an answer rather than a wait
+  // (docs/market-integrity.md, "A market resolves on its reading, not on a
+  // clock").
   await seed({ flagged: false });
   await resolvePredictions(undefined, WS);
   const m = await market();
   expect(m.voided).toBe(false);
-  expect(m.resolved).toBe(true);
-  expect(m.actualValue).toBe(0);
+  expect(m.resolved).toBe(false);
+  expect(m.actualValue).toBeNull();
+});
+
+test('without the flag, a market whose reading never comes voids at its deadline', async () => {
+  // The backstop that keeps "still open" from meaning "locked forever": past
+  // the metric's deadline with nothing filed, the market gives up and every
+  // position is refunded.
+  await seed({ flagged: false });
+  await db.update(metrics).set({ settlementLagMinutes: 1 }).where(eq(metrics.id, METRIC));
+  // Far enough past the period that even the give-up grace has elapsed.
+  const wellPast = new Date(periodEndInstant(TARGET).getTime() + 40 * 24 * 3_600_000);
+  await resolvePredictions(wellPast.toISOString().slice(0, 10), WS);
+
+  const m = await market();
+  expect(m.voided).toBe(true);
+  const [trader] = await db.select().from(agents).where(eq(agents.id, TRADER));
+  expect(Number(trader.balance)).toBeGreaterThan(0);
 });

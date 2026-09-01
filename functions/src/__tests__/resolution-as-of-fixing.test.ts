@@ -138,18 +138,20 @@ describe('settlement fixing at resolvesOn', () => {
     expect((await resolvedMarket()).actualValue).toBe(7.5);
   });
 
-  test('no logs at-or-before the boundary: falls back to the live value, loudly', async () => {
+  test('no reading for the period: the market is left OPEN, not settled on a guess', async () => {
+    // Amended 2026-09-01. This used to assert a fallback to the metric's LIVE
+    // value when nothing was logged at-or-before the boundary, which is the
+    // "settles on a number from another period" shape the reading-triggered
+    // design removes. A market with no reading of its own is not due: the
+    // question is still open, and so is the book
+    // (docs/market-integrity.md, "A market resolves on its reading").
     await seedWorld({ logs: [{ offsetMs: +2_000, value: 42 }] });
 
-    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
-    try {
-      await resolvePredictions(undefined, WS);
-      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('no metric log at-or-before'));
-    } finally {
-      consoleError.mockRestore();
-    }
+    await resolvePredictions(undefined, WS);
 
-    expect((await resolvedMarket()).actualValue).toBe(LIVE_VALUE);
+    const [m] = await db.select().from(markets).where(eq(markets.id, MARKET));
+    expect(m.resolved).toBe(false);
+    expect(m.actualValue).toBeNull();
   });
 
   test('metricValueAsOf treats a log exactly at the boundary as pre-boundary', async () => {

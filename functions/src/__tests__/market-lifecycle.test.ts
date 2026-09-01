@@ -14,8 +14,9 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { eq } from 'drizzle-orm';
-import { agents, markets, metrics, positions, trades, workspaces } from '../db/schema';
+import { agents, markets, metricLogs, metrics, positions, trades, workspaces } from '../db/schema';
 import { initialPool, resolutionPayouts, sharesForBudget } from '../lib/amm';
+import { periodStartInstant } from '../lib/date-utils';
 import { fromUnits, toUnits } from '../lib/validation';
 import { getMarkets, resolvePredictions } from '../services/predictions';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
@@ -23,6 +24,19 @@ import { db, ensureMigrations, truncateAll } from './harness/test-db';
 beforeAll(async () => {
   await ensureMigrations();
 });
+/** The reading a market settles on: dated inside its own period, which is
+ *  what makes it this period's answer rather than the previous one's. */
+async function fileReadingInPeriod(value: number) {
+  await db.insert(metricLogs).values({
+    id: `log-${value}-${Math.random().toString(36).slice(2, 8)}`,
+    workspaceId: WS,
+    metricId: METRIC,
+    metricName: 'Revenue',
+    value,
+    timestamp: new Date(periodStartInstant(TARGET).getTime() + 60_000),
+  });
+}
+
 beforeEach(async () => {
   await truncateAll();
 });
@@ -154,6 +168,13 @@ describe('market lifecycle: open → closed → resolved with attribution', () =
     // 4. Time passes; the metric's actual value lands at 80 (deep in "higher" territory).
     const ACTUAL_VALUE = 80;
     await db.update(metrics).set({ value: ACTUAL_VALUE }).where(eq(metrics.id, METRIC));
+    // A market resolves on a READING DATED INSIDE ITS PERIOD, not on the
+    // metric's current value (docs/market-integrity.md, "A market resolves on
+    // its reading, not on a clock"). Setting metrics.value used to be enough
+    // because the resolver fell back to the live number; it no longer does,
+    // because that is how a market ended up settling on another period's
+    // figure.
+    await fileReadingInPeriod(ACTUAL_VALUE);
 
     // 5. Cron runs the day after the target period ends.
     const result = await resolvePredictions(RESOLVE_DAY, WS);

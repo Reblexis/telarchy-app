@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, desc, eq, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
 import { db } from '../db/client';
 import { markets, metricLogs, metrics, updates } from '../db/schema';
 import { AMM_DEFAULTS, consensus as ammConsensus } from '../lib/amm';
@@ -354,6 +354,41 @@ export async function deleteMetric(id: string, workspaceId: string): Promise<voi
  * (docs/guides/sources.md, "Stale at the boundary is said out loud"), which a
  * trader would otherwise have to reconstruct from two logs.
  */
+/**
+ * The latest reading dated INSIDE [start, end], or null.
+ *
+ * This is the one a market settles on. `metricReadingAsOf` bounds only above,
+ * so on a period with no reading of its own it returns the PREVIOUS period's
+ * number, and settling on that is the shape the reading-triggered design
+ * exists to remove (docs/market-integrity.md, "A market resolves on its
+ * reading, not on a clock").
+ */
+export async function metricReadingInPeriod(
+  metricId: string,
+  start: Date,
+  end: Date,
+  workspaceId: string,
+): Promise<{ value: number; at: Date; na: boolean } | null> {
+  const [row] = await db
+    .select()
+    .from(metricLogs)
+    .where(
+      and(
+        eq(metricLogs.workspaceId, workspaceId),
+        eq(metricLogs.metricId, metricId),
+        gte(metricLogs.timestamp, start),
+        lte(metricLogs.timestamp, end),
+      ),
+    )
+    .orderBy(desc(metricLogs.timestamp))
+    .limit(1);
+  if (!row) return null;
+  // Same shape as metricReadingAsOf: outlook wins, because a computed
+  // metric's `value` is forced to 0 and the real number rides on `outlook`,
+  // and `na` is the owner saying the number does not exist for this period.
+  return { value: row.outlook ?? row.value, at: row.timestamp as Date, na: row.na === true };
+}
+
 export async function metricReadingAsOf(
   metricId: string,
   instant: Date,

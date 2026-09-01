@@ -104,19 +104,25 @@ describe('the number typed after the month', () => {
       settlesAt: new Date('2026-10-04T00:00:00Z'),
     });
 
+    // Amended 2026-09-01: this used to assert the market waited out its lag
+    // even once September's number was in. A market resolves on its READING
+    // now, so the answer arriving is what settles it and the lag is only the
+    // deadline for giving up (docs/market-integrity.md, "A market resolves on
+    // its reading, not on a clock").
+
+    // 1 October, September's number not yet typed: the question is still open.
+    await resolvePredictions('2026-10-01', WS);
+    const [beforeTheNumber] = await db.select().from(markets).where(eq(markets.id, 'mk1'));
+    expect(beforeTheNumber.resolved).toBe(false);
+
     // Typed on 3 October, dated to the last moment of September.
     const all = await getAllMetrics(WS);
     await logSpecificMetrics(['m1'], all, WS, new Date('2026-09-30T23:59:00Z'));
     const [logged] = await db.select().from(metricLogs).where(eq(metricLogs.metricId, 'm1'));
     expect(logged.timestamp.toISOString()).toBe('2026-09-30T23:59:00.000Z');
 
-    // On 1 October the market is not due yet: its lag is still running.
-    await resolvePredictions('2026-10-01', WS);
-    const [early] = await db.select().from(markets).where(eq(markets.id, 'mk1'));
-    expect(early.resolved).toBe(false);
-
-    // On 4 October it settles, on the September reading.
-    await resolvePredictions('2026-10-04', WS);
+    // And it settles on it, without waiting the rest of the lag out.
+    await resolvePredictions('2026-10-03', WS);
     const [settled] = await db.select().from(markets).where(eq(markets.id, 'mk1'));
     expect(settled.resolved).toBe(true);
     expect(settled.actualValue).toBe(4812);
