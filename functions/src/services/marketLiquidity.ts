@@ -11,6 +11,29 @@ import { applyCredits } from './credits';
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+/**
+ * What a market's book becomes when somebody adds `poolContribution` to its
+ * pool.
+ *
+ * b SCALES WITH THE POOL. It is not recomputed as `newPool / ln 2`, because
+ * that is the size only a CENTRED book has: a market that opens off-centre
+ * opens anchored, and `anchoredMarketState` sizes it thinner on purpose
+ * (`b = subsidy / max(-ln p, -ln(1-p))`) so the cash actually paid in covers
+ * the off-centre worst case exactly. Resizing to the symmetric answer on the
+ * next injection inflated b and the anchor's seed shares by
+ * `worstCase / ln 2` while the pool grew only by the contribution, and the
+ * price did not move, so nothing said anything had happened. The difference
+ * was minted at settlement: on the market the docs name (a metric reading 0
+ * on a 0-1000 range, auto-funded 2000), a ONE NANOCREDIT injection took the
+ * worst case from 2,000 to 11,288 against a pool of 2,000, and a 5,000
+ * credit buy then settled 8,738 credits out of nothing (bug hunt
+ * 2026-08-31, anchored-injection-solvency.test.ts).
+ *
+ * Scaling preserves whatever ratio the book already had, so a centred book
+ * is unaffected: its b WAS `pool / ln 2`, so `b * newPool / pool` is
+ * `newPool / ln 2` again. The shares scale by the same factor, which is what
+ * leaves the price where it was.
+ */
 export function liquidityStateAfterPoolContribution(
   shares: [number, number],
   liquidity: number,
@@ -20,7 +43,13 @@ export function liquidityStateAfterPoolContribution(
   const hasLiquidity = liquidity > 0;
   const oldPool = hasLiquidity ? (pool ?? 0) : 0;
   const newPool = oldPool + poolContribution;
-  const newLiquidity = newPool / Math.LN2;
+  // A book with no depth yet has no ratio to preserve and no shares to
+  // scale, so it is sized the way a fresh centred market is; the caller
+  // anchors it afterwards if it should open off-centre
+  // (anchorUntradedMarketTx). A book with depth but no pool on record cannot
+  // be scaled from, and is treated the same way rather than dividing by zero.
+  const scalable = hasLiquidity && oldPool > 0;
+  const newLiquidity = scalable ? liquidity * (newPool / oldPool) : newPool / Math.LN2;
   const bRatio = hasLiquidity ? newLiquidity / liquidity : 1;
   const newShares: [number, number] = hasLiquidity ? [shares[0] * bRatio, shares[1] * bRatio] : [0, 0];
   return { newPool, newLiquidity, newShares };

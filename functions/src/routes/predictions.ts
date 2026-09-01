@@ -30,7 +30,11 @@ import { requireCapability } from '../middleware/roles';
 import { applyCredits } from '../services/credits';
 import { settleDailyStreak } from '../services/earnRules';
 import { emitEvent } from '../services/events';
-import { anchorUntradedMarketTx, applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
+import {
+  anchorUntradedMarketTx,
+  applyAgentLiquidityInjectionTx,
+  liquidityStateAfterPoolContribution,
+} from '../services/marketLiquidity';
 import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { notifyCommentPosted } from '../services/notifications';
@@ -1133,16 +1137,18 @@ predictionsRouter.post(
 
     const balanceUnits = agent.balance as number;
     // `amount` = credits the agent spends per market (pool contribution).
-    // The LMSR b parameter (liquidity) is derived from the pool: b = pool / ln(2).
+    // The same arithmetic the single-market injection uses, CALLED rather
+    // than transcribed: this endpoint carried its own copy, so the anchored
+    // sizing fix would have landed in one door and not the other (bug hunt
+    // 2026-08-31). The loop below still exists because one credit debit
+    // covers every market in the batch.
     const marketUpdates = marketRows.map(m => {
-      const oldShares = (m.shares as [number, number]) || [0, 0];
-      const hasLiquidity = m.liquidity > 0;
-      const oldPool = hasLiquidity ? (m.pool ?? 0) : 0;
-      const newPool = oldPool + amount;
-      // b parameter derived from pool so that pool = b * ln(2) always holds.
-      const newLiquidity = newPool / Math.LN2; // newPool / ln(2) = newPool * log2(e)
-      const bRatio = hasLiquidity ? newLiquidity / m.liquidity : 1;
-      const newShares: [number, number] = hasLiquidity ? [oldShares[0] * bRatio, oldShares[1] * bRatio] : [0, 0];
+      const { newPool, newLiquidity, newShares } = liquidityStateAfterPoolContribution(
+        (m.shares as [number, number]) || [0, 0],
+        m.liquidity,
+        m.pool,
+        amount,
+      );
       return { market: m, newLiquidity, newShares, newPool, poolContribution: amount };
     });
 
