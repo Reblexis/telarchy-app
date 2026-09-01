@@ -120,6 +120,26 @@ Two more rules worth knowing at settlement time:
   position with the reason published. The first reading ends that state for
   good.
 
+## N/A is an answer, not a gap
+
+A reading can say the number DOES NOT EXIST for its moment: `PUT
+/api/metrics/:id { na: true }`, or `value: null`, which means the same thing.
+The market whose fixing lands on that reading voids as N/A, every position is
+refunded and the reason is published, which is the same answer
+`resolvesNaUntilMeasured` gives a metric nobody has ever read, now available
+for any single period (owner ask 2026-09-01).
+
+The distinction it exists for: **N/A is not zero.** An implied valuation with
+no round closed is not a company worth nothing, and a market settling on that
+zero would pay whoever bet low on a fact nobody established. The flag on the
+reading is what makes it N/A; the number in the row is only the last one that
+was true.
+
+It is per moment rather than a mode: a later real reading ends it, and a
+market whose period ends after that settles on the number as usual. On the
+floor it is one checkbox in the report dialog, "There is no number for this,
+and that is the answer".
+
 ## The number is final after the period, not at it
 
 A market used to settle at the first instant after its period, which is fine

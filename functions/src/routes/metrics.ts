@@ -301,6 +301,7 @@ metricsRouter.put(
       oldValue,
       updateNote = '',
       asOf: rawAsOf,
+      na: rawNaReading,
       settlementLagMinutes: rawLag,
       timePreference: rawTP,
       resetsEvery: rawResets,
@@ -327,6 +328,17 @@ metricsRouter.put(
         return;
       }
       asOf = parsed;
+    }
+
+    // "The number does not exist for this moment", which is not zero (owner
+    // ask 2026-09-01). Sent as `na: true`, or as `value: null`, which is what
+    // a client naturally reaches for; both mean the same reading.
+    const naReading = rawNaReading === true || fields.value === null;
+    if (naReading) {
+      // The row still needs a number in its value column, and the one it
+      // carries is the last one that was true. What makes the reading N/A is
+      // the flag, never the number.
+      delete (fields as { value?: unknown }).value;
     }
 
     // How long after a period this metric's number is final. New markets stamp
@@ -631,8 +643,8 @@ metricsRouter.put(
     // last week's $1,179.72 total as a reading inside the new week, which is
     // exactly what the resetsEvery rule exists to keep off the chart
     // (2026-08-17).
-    if (update.value !== undefined || update.formula !== undefined) {
-      await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId, asOf);
+    if (update.value !== undefined || update.formula !== undefined || naReading) {
+      await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId, asOf, naReading);
     }
     if (update.value !== undefined) {
       const metric = allMetrics.find(m => m.id === id);

@@ -1030,6 +1030,9 @@ export const api = {
        *  total typed in October is dated into September, which is how a market
        *  with a reporting lag settles on it (docs/guides/sources.md). */
       asOf?: string;
+      /** The number does not exist for that moment, which is not zero. The
+       *  market whose fixing lands on it voids as N/A and refunds. */
+      na?: boolean;
     },
   ) => requestWithWorkspace(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }, { workspaceId }),
   /** Partial metric update. The full-object `updateMetric` is for the editor;

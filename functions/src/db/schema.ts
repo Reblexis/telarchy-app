@@ -1040,6 +1040,14 @@ export const metricLogs = pgTable(
      *  it is the blend of value and future market consensus, so it differs from value. NULL on rows written before
      *  migration 0018. */
     outlook: doublePrecision('outlook'),
+    /**
+     * True when this reading says the number does NOT EXIST for its moment,
+     * which is not the same as zero (owner ask 2026-09-01). A market whose
+     * fixing lands on one voids as N/A and refunds every position, with the
+     * reason published: the same answer resolvesNaUntilMeasured gives a metric
+     * nobody has ever read, available for any single period.
+     */
+    na: boolean('na').notNull().default(false),
     timestamp: timestamp('timestamp').notNull().defaultNow(),
   },
   t => [

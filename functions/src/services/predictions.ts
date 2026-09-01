@@ -54,6 +54,19 @@ async function resolveMarketRow(
   // market so the settlement can say how old it was (docs/guides/sources.md).
   const fixing = await metricReadingAsOf(market.metricId, boundary, workspaceId);
   let rawValue = fixing?.value ?? null;
+
+  // The owner said the number does not exist for this period (owner ask
+  // 2026-09-01). That is an answer, not a gap: the market voids, every
+  // position is refunded, and the reason is published, exactly as it is for a
+  // metric nobody has ever read.
+  if (fixing?.na) {
+    const voided = await voidMarket(
+      market,
+      workspaceId,
+      `N/A: "${market.metricName}" was reported as not existing for ${market.targetDate}, so there is nothing to settle on. Every position was refunded.`,
+    );
+    return { positions: voided.refunded, totalPayout: 0, skipped: true };
+  }
   if (rawValue === null && metric.resolvesNaUntilMeasured) {
     // A number that does not exist yet has no fixing (owner ask 2026-08-25:
     // "if not invested.. it resolves N/A"). The market is N/A: voided, every

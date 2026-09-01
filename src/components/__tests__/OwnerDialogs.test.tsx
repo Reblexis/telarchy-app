@@ -469,6 +469,27 @@ describe('dialog 4: report the number', () => {
     await waitFor(() => expect(reportMetricValue.mock.calls[0][2]).not.toHaveProperty('asOf'));
   });
 
+  // Owner ask 2026-09-01: N/A is an answer, not a gap. An implied valuation
+  // with no round closed is not a company worth nothing.
+  test('the number can be reported as not existing, and that is not a zero', async () => {
+    render(<ReportValueDialog {...props} lastValue={0} rangeEditable={false} onDone={() => {}} />);
+    fireEvent.click(screen.getByText(/There is no number for this/));
+    expect(screen.getByText('Report it as not existing')).toBeTruthy();
+    expect(screen.getByText(/voids as N\/A, with every position refunded/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Report it as not existing'));
+    await waitFor(() => expect(reportMetricValue.mock.calls[0][2]).toMatchObject({ na: true }));
+  });
+
+  test('and it needs no number typed, because there is not one', async () => {
+    render(<ReportValueDialog {...props} lastValue={null} lastAt={null} rangeEditable={false} onDone={() => {}} />);
+    const go = screen.getByRole('button', { name: /Report/ }) as HTMLButtonElement;
+    expect(go.disabled).toBe(true);
+    fireEvent.click(screen.getByText(/There is no number for this/));
+    expect((screen.getByRole('button', { name: /Report it as not existing/ }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+  });
+
   test('a range the owner typed under the reading is refused, not sent', async () => {
     render(<ReportValueDialog {...props} lastValue={0} rangeMax={1000} rangeEditable={true} onDone={() => {}} />);
     fireEvent.change(screen.getByLabelText('The new reading'), { target: { value: '4200' } });
