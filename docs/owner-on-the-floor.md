@@ -248,7 +248,9 @@ been writing (owner direction 2026-08-23, `services/setup-handoff.ts`).
 - **Closing a market** is not a floor control: it voids other people's
   positions, which does not belong one click from a button that buys
   liquidity. API only, until the interaction is designed.
-- **Rare and dangerous settings** (visibility, deleting a workspace,
-  permission groups) stay on the API and reach a surface only when someone
-  asks for one.
+- **Rare and dangerous settings** (deleting a workspace, permission groups,
+  memberships) stay on the API and reach a surface only when someone asks for
+  one. Visibility left this list on 2026-08-28: publishing is one button on
+  the floor, because a floor nobody can trade on is not a setting, it is the
+  thing standing between an owner and their first forecaster.
 - **Bulk anything.** One floor, one owner, one change at a time.
