@@ -358,7 +358,7 @@ export async function metricReadingAsOf(
   metricId: string,
   instant: Date,
   workspaceId: string,
-): Promise<{ value: number; at: Date } | null> {
+): Promise<{ value: number; at: Date; na: boolean } | null> {
   const [row] = await db
     .select()
     .from(metricLogs)
@@ -372,7 +372,7 @@ export async function metricReadingAsOf(
     .orderBy(desc(metricLogs.timestamp))
     .limit(1);
   if (!row) return null;
-  return { value: row.outlook ?? row.value, at: row.timestamp as Date };
+  return { value: row.outlook ?? row.value, at: row.timestamp as Date, na: row.na === true };
 }
 
 export async function metricValueAsOf(metricId: string, instant: Date, workspaceId: string): Promise<number | null> {
@@ -431,6 +431,10 @@ export async function logSpecificMetrics(
    * be fillable"). Never in the future: the route refuses that.
    */
   asOf?: Date,
+  /** True writes a reading that says the number does not exist for that
+   *  moment. Its markets void as N/A rather than settling on a zero nobody
+   *  measured (owner ask 2026-09-01). */
+  na = false,
 ): Promise<void> {
   // We log two numbers per row: `value` (what the user types into the "Now:"
   // editor for leaves; 0 for composites, since the PUT route zeroes value on
@@ -451,6 +455,7 @@ export async function logSpecificMetrics(
       metricName: m.name,
       value: m.value,
       outlook: m.total ?? m.value,
+      na,
       timestamp: asOf ?? new Date(),
     }));
 

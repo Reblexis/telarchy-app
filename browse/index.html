@@ -590,10 +590,11 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h3">Backfilling a past you can prove</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h4">Two histories, and only one of them settles markets</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h5">The fixing: what a market actually settles on</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h6">The number is final after the period, not at it</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h7">Stale at the boundary is said out loud</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h8">Push on a schedule, as often as your shortest market</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h9">Sources are context, not ingestion</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h6">N/A is an answer, not a gap</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h7">The number is final after the period, not at it</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h8">Stale at the boundary is said out loud</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h9">Push on a schedule, as often as your shortest market</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-sources-md--h10">Sources are context, not ingestion</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-time-preference-md">docs/guides/time-preference.md</a></summary>
@@ -8220,7 +8221,22 @@ an investment, say) and the market voids as N/A instead, refunding every
 position with the reason published. The first reading ends that state for
 good.</li>
 </ul>
-<h2 id="docs-guides-sources-md--h6">The number is final after the period, not at it</h2>
+<h2 id="docs-guides-sources-md--h6">N/A is an answer, not a gap</h2>
+<p>A reading can say the number DOES NOT EXIST for its moment: <code>PUT /api/metrics/:id { na: true }</code>, or <code>value: null</code>, which means the same thing.
+The market whose fixing lands on that reading voids as N/A, every position is
+refunded and the reason is published, which is the same answer
+<code>resolvesNaUntilMeasured</code> gives a metric nobody has ever read, now available
+for any single period (owner ask 2026-09-01).</p>
+<p>The distinction it exists for: <strong>N/A is not zero.</strong> An implied valuation with
+no round closed is not a company worth nothing, and a market settling on that
+zero would pay whoever bet low on a fact nobody established. The flag on the
+reading is what makes it N/A; the number in the row is only the last one that
+was true.</p>
+<p>It is per moment rather than a mode: a later real reading ends it, and a
+market whose period ends after that settles on the number as usual. On the
+floor it is one checkbox in the report dialog, &quot;There is no number for this,
+and that is the answer&quot;.</p>
+<h2 id="docs-guides-sources-md--h7">The number is final after the period, not at it</h2>
 <p>A market used to settle at the first instant after its period, which is fine
 for a level and impossible for a total: September revenue net of refunds is
 not knowable at midnight on the 30th, so the market settled on the owner's
@@ -8245,7 +8261,7 @@ have without the lag.</p>
 <p>On the floor, an owner reporting after a period has closed and before its
 market has settled is offered one checkbox: &quot;This is September's number, not
 today's&quot;. It sends the <code>asOf</code>.</p>
-<h2 id="docs-guides-sources-md--h7">Stale at the boundary is said out loud</h2>
+<h2 id="docs-guides-sources-md--h8">Stale at the boundary is said out loud</h2>
 <p>A market settles on the last reading at or before its instant, however old
 that reading is. Nothing about that changed (owner decision 2026-08-31: it
 settles, and it says so). What changed is that the staleness is no longer
@@ -8277,7 +8293,7 @@ rather than something a trader has to reconstruct from two logs.</li>
 three days, which was wrong in both directions at once: an hourly market is
 stale within the hour, and a market on next year's revenue is not stale after
 a week.</p>
-<h2 id="docs-guides-sources-md--h8">Push on a schedule, as often as your shortest market</h2>
+<h2 id="docs-guides-sources-md--h9">Push on a schedule, as often as your shortest market</h2>
 <p>There is no scheduler inside Telarchy. &quot;Auto-sync&quot; means you write a script and
 run it on a cron, and the script does one <code>GET /api/metrics</code> to find the id and
 one <code>PUT</code> per number it measured.</p>
@@ -8309,7 +8325,7 @@ disagreeing with itself.</p>
 <p>Note that <code>POST /api/metrics/logs/purge</code> exists and deletes reading rows. It
 destroys the history markets settle against. There is no reason to run it on a
 live floor.</p>
-<h2 id="docs-guides-sources-md--h9">Sources are context, not ingestion</h2>
+<h2 id="docs-guides-sources-md--h10">Sources are context, not ingestion</h2>
 <p>This is the part the old guide got wrong, and it matters because the name
 suggests otherwise.</p>
 <p><strong>A source is an information store for people to read.</strong> It has a name, a

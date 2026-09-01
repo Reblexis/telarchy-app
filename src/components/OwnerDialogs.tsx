@@ -595,6 +595,11 @@ export function ReportValueDialog({
   const [backdate, setBackdate] = useState(false);
   const [asOfDay, setAsOfDay] = useState('');
   const [asOfHour, setAsOfHour] = useState('');
+  // "It does not exist for this period", which is not zero: an implied
+  // valuation with no round closed is not a company worth nothing (owner ask
+  // 2026-09-01). The market voids and refunds instead of paying whoever bet
+  // low on a fact nobody established.
+  const [na, setNa] = useState(false);
   const [range, setRange] = useState(fmtCr(rangeMax));
   const [rangeTouched, setRangeTouched] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -628,7 +633,7 @@ export function ReportValueDialog({
   const overRange = valid && parsed > rangeMax;
 
   const report = async () => {
-    if (!valid) {
+    if (!valid && !na) {
       setErr('A number.');
       return;
     }
@@ -644,6 +649,7 @@ export function ReportValueDialog({
     setErr('');
     try {
       await api.reportMetricValue(workspaceId, metricId, {
+        ...(na ? { na: true } : {}),
         value: parsed,
         oldValue: lastValue ?? 0,
         updateNote: note.trim(),
@@ -804,13 +810,32 @@ export function ReportValueDialog({
           </label>
         )}
 
+        <button
+          type="button"
+          className={`odlg-backdate${na ? ' is-on' : ''}`}
+          aria-pressed={na}
+          onClick={() => setNa(v => !v)}
+        >
+          <span className="odlg-backdate-box" aria-hidden="true">
+            {na ? '✓' : ''}
+          </span>
+          <span>
+            There is no number for this, and that is the answer
+            <span className="odlg-note-left">
+              Not zero: the market on it voids and everyone gets their credits back.
+            </span>
+          </span>
+        </button>
+
         {err && <p className="ticket-err">{err}</p>}
-        <button className="ticket-go" disabled={busy || !valid} onClick={() => void report()}>
-          {busy ? 'Reporting…' : valid ? `Report ${unit}${fmtCr(parsed)}` : 'Report'}
+        <button className="ticket-go" disabled={busy || (!valid && !na)} onClick={() => void report()}>
+          {busy ? 'Reporting…' : na ? 'Report it as not existing' : valid ? `Report ${unit}${fmtCr(parsed)}` : 'Report'}
           <span className="ticket-go-sub">
-            {asOfInstant
-              ? `Filed at ${asOfInstant.slice(0, 16).replace('T', ', ')} UTC, which decides the market that settles on it.`
-              : 'Public, timestamped, and kept beside the old one for good.'}
+            {na
+              ? 'The market that settles on this moment voids as N/A, with every position refunded and the reason published.'
+              : asOfInstant
+                ? `Filed at ${asOfInstant.slice(0, 16).replace('T', ', ')} UTC, which decides the market that settles on it.`
+                : 'Public, timestamped, and kept beside the old one for good.'}
           </span>
         </button>
       </div>
