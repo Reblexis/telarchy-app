@@ -97,7 +97,7 @@ export interface WorkspaceContext {
     /**
      * Priced impact per horizon: approved consensus minus declined. Live
      * horizons first, largest impact first; a voided pair appears only on a
-     * contract the owner has already ruled on (lib/market-pairs.ts).
+     * proposal the owner has already ruled on (lib/market-pairs.ts).
      */
     impact: Array<{
       metricId: string;
@@ -109,7 +109,7 @@ export interface WorkspaceContext {
       approved: number | null;
       declined: number | null;
       delta: number | null;
-      /** What the floor prices for this metric and date with no contract attached. */
+      /** What the floor prices for this metric and date with no proposal attached. */
       baseline: number | null;
       /** Trades behind each branch's price. Zero means nobody has traded it. */
       approvedTrades: number | null;
@@ -227,7 +227,7 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
   const contracts = await Promise.all(
     liveProposals.map(async p => {
       // The priced impact is the ballot's set, filtered by the ballot's rule:
-      // a voided pair is the record of a decided contract and dead weight on
+      // a voided pair is the record of a decided proposal and dead weight on
       // a pending one (lib/market-pairs.ts). A brief and a page quoting
       // different deltas is the failure this prevents.
       const all = await getProposalMarketSummariesForProposal(p.id, workspaceId);
@@ -357,7 +357,7 @@ function branchTrades(approved: number | null, declined: number | null): string 
 }
 
 /**
- * Everything above the contracts: who this floor is, what it is judged on,
+ * Everything above the proposals: who this floor is, what it is judged on,
  * and what the crowd currently says. Both renderers open with it, because it
  * is the part that is small, slow-moving and useless to fetch piecemeal.
  */
@@ -367,7 +367,7 @@ function renderFloorHead(ctx: WorkspaceContext, out: string[]): void {
   if (ctx.runningSince) out.push(`Running its numbers through Telarchy since ${ctx.runningSince}.`);
   out.push('');
   out.push(
-    'This is a Telarchy floor: the owner publishes the numbers they are judged on, anyone may post a contract (a job with a price), and a market prices what approving each contract would do to those numbers. Traders earn by being right.',
+    'This is a Telarchy floor: the owner publishes the numbers they are judged on, anyone may post a proposal (a job with a price), and a market prices what approving each proposal would do to those numbers. Traders earn by being right.',
   );
 
   if (ctx.about) {
@@ -399,7 +399,7 @@ function renderFloorHead(ctx: WorkspaceContext, out: string[]): void {
 /**
  * The same facts as prose. This is what goes to an OUTSIDE agent: markdown,
  * because that is what every model reads best, and one document rather than a
- * JSON tree, because a reader answering "is this contract worth it" should not
+ * JSON tree, because a reader answering "is this proposal worth it" should not
  * have to join three arrays first. Otto is handed renderContextIndex instead;
  * see docs/vision.md, "The workspace brief".
  */
@@ -408,7 +408,7 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
   renderFloorHead(ctx, out);
 
   // Two lists, because they answer two different questions. A reader looking
-  // for "what should the owner approve" must not find a decided contract's
+  // for "what should the owner approve" must not find a decided proposal's
   // number at the top of it, which is exactly the mistake the one-list version
   // invited (notes/otto-brief-misread-2026-08-31.md).
   const open = ctx.contracts.filter(c => c.decisionOpen);
@@ -419,30 +419,30 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
     out.push('', `### ${c.title} (${ask}, ${c.status}, by ${c.proposedBy})`);
     if (!c.decisionOpen) {
       out.push(
-        `This contract was already ${c.status}, so no approval decision is left on it: the prices below are the record of what the market said when the owner ruled.`,
+        `This proposal was already ${c.status}, so no approval decision is left on it: the prices below are the record of what the market said when the owner ruled.`,
       );
     }
     if (c.description) out.push(c.description);
     for (const i of c.impact) {
       const name = `${i.metricName}${i.metricDefined ? '' : ' (this metric is no longer defined on the floor)'}`;
-      const baseline = i.baseline === null ? '' : ` Without this contract the floor prices ${num(i.baseline)}.`;
+      const baseline = i.baseline === null ? '' : ` Without this proposal the floor prices ${num(i.baseline)}.`;
       out.push(
         `Priced impact on ${name} ${i.targetDate}: if approved ${num(i.approved)}, if declined ${num(i.declined)}, difference ${i.delta === null ? 'not priced yet' : num(i.delta)}. ${when(i.resolvesOn, i.settled)}.${baseline} ${branchTrades(i.approvedTrades, i.declinedTrades)}.`,
       );
     }
-    if (c.impact.length === 0) out.push('No market prices this contract yet.');
+    if (c.impact.length === 0) out.push('No market prices this proposal yet.');
     if (c.declineReason) out.push(`Declined because: ${c.declineReason}`);
     for (const m of c.recentComments) out.push(`Comment from ${m.from}: ${m.content}`);
   };
 
-  out.push('', '## Contracts open for a decision');
+  out.push('', '## Proposals open for a decision');
   out.push(
-    'These are the only contracts an approval still moves. The difference is what the market says approving would do to the number, against declining it.',
+    'These are the only proposals an approval still moves. The difference is what the market says approving would do to the number, against declining it.',
   );
-  if (open.length === 0) out.push('None: every contract here has been decided.');
+  if (open.length === 0) out.push('None: every proposal here has been decided.');
   for (const c of open) renderContract(c);
 
-  out.push('', '## Contracts already decided');
+  out.push('', '## Proposals already decided');
   out.push('The owner has ruled on these. Their prices are history, not an upside anyone can still take.');
   if (decided.length === 0) out.push('None yet.');
   for (const c of decided) renderContract(c);
@@ -472,14 +472,14 @@ function renderFloorTail(ctx: WorkspaceContext, out: string[]): void {
 
 /**
  * What Otto is handed as fixed context: the floor itself in full, and its
- * contracts as a LIST rather than a priced matrix.
+ * proposals as a LIST rather than a priced matrix.
  *
  * A reasoner given every number already flattened onto one page answers from
  * the page. That is measured, not assumed: on 2026-08-31 the answer that got
  * four things wrong was produced with zero tool calls, and five of the
  * previous thirty answers used any tool at all
  * (notes/otto-brief-misread-2026-08-31.md). Removing the prices from what he
- * is handed is what turns "which contract is worth approving" from a question
+ * is handed is what turns "which proposal is worth approving" from a question
  * he can answer by scanning into one he has to go and price.
  *
  * The endpoints are named here rather than left to `find_endpoint`, because
@@ -496,12 +496,12 @@ export function renderContextIndex(ctx: WorkspaceContext): string {
   const line = (c: WorkspaceContext['contracts'][number]) =>
     `- ${c.title} (${c.askUsd ? `$${c.askUsd}` : 'no ask'}, ${c.status}, by ${c.proposedBy}, id ${c.id})`;
 
-  out.push('', '## Contracts');
+  out.push('', '## Proposals');
   out.push(
-    'Titles only. No price of a contract is in front of you, deliberately: the market moves and this list does not, so a number you quote from memory is a number you made up. Go and read it.',
+    'Titles only. No price of a proposal is in front of you, deliberately: the market moves and this list does not, so a number you quote from memory is a number you made up. Go and read it.',
   );
   out.push('', `### Open for a decision (${open.length})`);
-  if (open.length === 0) out.push('None: every contract here has been decided.');
+  if (open.length === 0) out.push('None: every proposal here has been decided.');
   for (const c of open) out.push(line(c));
   out.push('', `### Already decided (${decided.length})`);
   if (decided.length === 0) out.push('None yet.');
@@ -509,16 +509,16 @@ export function renderContextIndex(ctx: WorkspaceContext): string {
 
   out.push('', '### Where the numbers are');
   out.push(
-    `- GET /api/marketplace/${ref}/contracts - EVERY contract with its live priced impact, per metric and date, with the baseline and the trades behind each branch. It carries the gist of each pitch too, so this ONE call answers "what is worth approving" on its own: read it and answer. Opening contracts one at a time afterwards buys you nothing and costs the person waiting. Add ?horizons=all for horizons that have already resolved.`,
+    `- GET /api/marketplace/${ref}/contracts - EVERY proposal with its live priced impact, per metric and date, with the baseline and the trades behind each branch. It carries the gist of each pitch too, so this ONE call answers "what is worth approving" on its own: read it and answer. Opening proposals one at a time afterwards buys you nothing and costs the person waiting. Add ?horizons=all for horizons that have already resolved.`,
   );
   out.push(
-    '- GET /api/proposals/<id> - one contract in full, when you need its pitch or its conversation rather than its price.',
+    '- GET /api/proposals/<id> - one proposal in full, when you need its pitch or its conversation rather than its price.',
   );
   out.push(
-    `- GET /api/marketplace/${ref}/context - the whole brief, every contract priced, when you genuinely want all of it at once.`,
+    `- GET /api/marketplace/${ref}/context - the whole brief, every proposal priced, when you genuinely want all of it at once.`,
   );
   out.push(
-    'Each of those states, per horizon, when it resolves and whether that has passed, how many trades made the price, and what the floor prices without the contract. Read those before you compare two numbers: a settled horizon, an untraded seed and a live price look identical if you only read the difference.',
+    'Each of those states, per horizon, when it resolves and whether that has passed, how many trades made the price, and what the floor prices without the proposal. Read those before you compare two numbers: a settled horizon, an untraded seed and a live price look identical if you only read the difference.',
   );
 
   renderFloorTail(ctx, out);

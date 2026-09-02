@@ -126,7 +126,7 @@ configuration, and the system keeps the markets you asked for in existence.
 
 Markets are the product of metrics, sampled dates and custom horizons, and every
 one of them needs liquidity or it has no price. Three metrics at density 3 plus
-two custom horizons is fifteen markets, and each contract posted against that
+two custom horizons is fifteen markets, and each proposal posted against that
 floor spawns two more per market. Set `newMarketLiquidityCredits` with that
 number in mind, and see [open a floor](/guides/creating) for how funding
 actually behaves when your balance runs short.

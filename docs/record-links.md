@@ -6,7 +6,7 @@ they can price a question. Linking one is an earn: it pays the price in
 the earn table for that provider, once per participant and once per
 external account across the whole platform.
 
-This file is the contract. `docs/agent-economy.md` owns the earn table
+This file is the proposal. `docs/agent-economy.md` owns the earn table
 itself; the pricing argument is the telarchy umbrella's
 `notes/earn-table-design-2026-08-30.md`.
 

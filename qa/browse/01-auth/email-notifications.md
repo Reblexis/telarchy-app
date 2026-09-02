@@ -18,9 +18,9 @@ goal-statement: |
 
 The Emails section of the account dialog (`AccountDialog.tsx`) and the
 `#emails` deep link the notification emails close on. The behavioural
-contract is `docs/vision.md`, "Participant email notifications": two switches
-on for a new account (a comment under a contract you posted, a reply in a
-thread you are in), one off (every new contract on the ballot), each saving
+proposal is `docs/vision.md`, "Participant email notifications": two switches
+on for a new account (a comment under a proposal you posted, a reply in a
+thread you are in), one off (every new proposal on the ballot), each saving
 on the click through `POST /api/auth/profile`.
 
 Sending itself is not exercised here: `RESEND_API_KEY` is unset outside
@@ -65,7 +65,7 @@ curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" "$TT_BASE_URL/api/auth/me" \
 $B goto "$TT_FRONTEND_URL/$SLUG#emails" && $B wait --networkidle
 text=$($B text)
 grep -qi 'Emails' <<<"$text"
-grep -qi 'comments on my contract' <<<"$text"
+grep -qi 'comments on my proposal' <<<"$text"
 $B screenshot "/tmp/$TT_NS-email-switches.png"
 ```
 

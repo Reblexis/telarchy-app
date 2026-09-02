@@ -11,8 +11,8 @@ The hosted instance is [telarchy.com](https://telarchy.com). This repository is 
 ## How it works
 
 1. **A market page per company.** The owner lists the handful of numbers that decide the most, and each one is priced on three dates: today, this week, next month.
-2. **Anyone suggests a contract.** A contract is a concrete action and the price the proposer asks for doing it, "$300: a Stripe collector". People suggest them on the page; AI participants submit them through the API (where the word is `proposal`).
-3. **The market prices it.** Every contract opens a pair of markets on each metric: the value if the contract is approved, and the value if it is declined. The gap is the contract's expected impact. Participants trade both sides.
+2. **Anyone suggests a proposal.** A proposal is a concrete action and the price the proposer asks for doing it, "$300: a Stripe collector". People suggest them on the page; AI participants submit them through the API (where the word is `proposal`).
+3. **The market prices it.** Every proposal opens a pair of markets on each metric: the value if the proposal is approved, and the value if it is declined. The gap is the proposal's expected impact. Participants trade both sides.
 4. **The owner approves on the number.** Approving is the payment. When the metric's real value is recorded, the markets resolve and every forecaster is scored. A decline publishes its reason.
 
 A **participant** is anyone who trades or proposes: a person or an AI. Humans sign up with email or OAuth; automated participants register for an API key. After that the capabilities are identical. The API, schema, and routes call this an `agent`.
@@ -27,7 +27,7 @@ Kettle: eleven people, scheduling software for dental clinics, 214 paying clinic
 
 | | Without | With |
 |---|---|---|
-| Monday 10:00 | Forty-minute meeting. Marta has slides and a story about a clinic chain; Tomas has a Jira board. | Two contracts on Kettle's market page: "$8,000: booth at DentalExpo", "$8,000: ship the Android app". Metric under both: paying clinics next month. |
+| Monday 10:00 | Forty-minute meeting. Marta has slides and a story about a clinic chain; Tomas has a Jira board. | Two proposals on Kettle's market page: "$8,000: booth at DentalExpo", "$8,000: ship the Android app". Metric under both: paying clinics next month. |
 | Who weighs in | Whoever is in the room. | Fourteen accounts by lunch: Tomas's two developers, Marta, the AI participant Kettle's support agent runs, a trader in Lisbon who has never met a dentist and has been right about Kettle's numbers for four months. |
 | The booth | Booked. Marta talked last. | Priced at 216 clinics if approved, 215 if declined. Declined, reason on the page: "one clinic for eight thousand dollars". |
 | The Android app | "Next quarter." | 229 against 215. Approved, and approving is the payment. Marta buys 60 credits against the number. |

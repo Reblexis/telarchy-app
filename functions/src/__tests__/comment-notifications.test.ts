@@ -1,6 +1,6 @@
 /**
  * Participant email notifications (docs/vision.md, "Participant email
- * notifications"): who actually gets mail when a comment lands or a contract
+ * notifications"): who actually gets mail when a comment lands or a proposal
  * goes on the ballot.
  *
  * These are the rules a person notices when they are broken: being mailed
@@ -114,7 +114,7 @@ async function comment(id: string, from: string, content = 'a comment') {
     .values({ id, workspaceId: WS, proposalId: 'prop-1', from, content, createdAt: new Date() });
 }
 
-describe('a comment under a contract', () => {
+describe('a comment under a proposal', () => {
   test('reaches the poster, and never the person who wrote it', async () => {
     await human('poster', 'poster@example.com');
     await human('commenter', 'commenter@example.com');
@@ -166,7 +166,7 @@ describe('a comment under a contract', () => {
 
     expect(sent).toHaveLength(1);
     expect(sent[0].to).toBe('poster@example.com');
-    expect(sent[0].text).toContain('a contract you posted');
+    expect(sent[0].text).toContain('a proposal you posted');
   });
 
   test('a switched-off participant hears nothing', async () => {
@@ -249,14 +249,14 @@ describe('a comment under a market', () => {
   });
 });
 
-describe("a comment under a contract's conditional market", () => {
+describe("a comment under a proposal's conditional market", () => {
   /**
    * The bug this pins (found on the live floor 2026-08-19): a conditional
-   * market belongs to a contract, but comments on it went into the market
+   * market belongs to a proposal, but comments on it went into the market
    * thread, which has no poster, so the person being asked to do the work
-   * heard nothing about half the conversation about their own contract.
+   * heard nothing about half the conversation about their own proposal.
    */
-  test('reaches the contract poster, not just the thread', async () => {
+  test('reaches the proposal poster, not just the thread', async () => {
     await human('poster', 'poster@example.com');
     await human('trader', 'trader@example.com');
     await seedWorkspace(['poster', 'trader']);
@@ -282,10 +282,10 @@ describe("a comment under a contract's conditional market", () => {
     await notifyCommentPosted({ workspaceId: WS, from: 'trader', content: 'priced too high', marketId: 'mkt-cond' });
 
     expect(sent.map(s => s.to)).toEqual(['poster@example.com']);
-    // Titled by the contract, not the branch market: that is what the
+    // Titled by the proposal, not the branch market: that is what the
     // reader recognises in an inbox.
     expect(sent[0].subject).toContain('Ship the landing page');
-    expect(sent[0].text).toContain('a contract you posted');
+    expect(sent[0].text).toContain('a proposal you posted');
   });
 
   test('a base market has no poster to reach', async () => {
@@ -317,7 +317,7 @@ describe("a comment under a contract's conditional market", () => {
   });
 });
 
-describe('a new contract on the ballot', () => {
+describe('a new proposal on the ballot', () => {
   test('reaches only the members who asked for it, never the poster', async () => {
     await human('poster', 'poster@example.com', { notifyNewProposal: true });
     await human('watcher', 'watcher@example.com', { notifyNewProposal: true });
@@ -346,8 +346,8 @@ describe('a new contract on the ballot', () => {
   });
 });
 
-describe('a decision on your own contract', () => {
-  /** A contract already decided, the way the routes leave it before mailing. */
+describe('a decision on your own proposal', () => {
+  /** A proposal already decided, the way the routes leave it before mailing. */
   async function decided(fields: Record<string, unknown>) {
     await db.insert(proposals).values({
       id: 'prop-1',
@@ -371,7 +371,7 @@ describe('a decision on your own contract', () => {
     expect(sent.map(s => s.to)).toEqual(['poster@example.com']);
     expect(sent[0].subject).toBe('Approved: Ship the landing page');
     expect(sent[0].text).toContain('$300');
-    expect(sent[0].text).toContain('/lookpilot#contract=prop-1');
+    expect(sent[0].text).toContain('/lookpilot#proposal=prop-1');
   });
 
   test('a decline carries the written reason', async () => {
@@ -410,7 +410,7 @@ describe('a decision on your own contract', () => {
     expect(sent[0].text).toContain('declined as spam');
   });
 
-  test('says nothing while the contract is still pending, or once withdrawn', async () => {
+  test('says nothing while the proposal is still pending, or once withdrawn', async () => {
     await human('poster', 'poster@example.com');
     await seedWorkspace(['poster']);
     await decided({ status: 'pending', resolvedAt: null });
@@ -451,11 +451,11 @@ describe('watching every comment on a floor', () => {
 
     await notifyCommentPosted({ workspaceId: WS, from: 'commenter', content: 'hello', proposalId: 'prop-1' });
 
-    // Only the contract's poster, on the switch that is on by default.
+    // Only the proposal's poster, on the switch that is on by default.
     expect(sent.map(s => s.to)).toEqual(['poster@example.com']);
   });
 
-  test('a watcher hears about a comment on a contract that is not theirs', async () => {
+  test('a watcher hears about a comment on a proposal that is not theirs', async () => {
     await human('poster', 'poster@example.com', { notifyCommentOnMyProposal: false });
     await human('owner', 'owner@example.com', { notifyAnyComment: true });
     await human('commenter', 'commenter@example.com');
@@ -484,7 +484,7 @@ describe('watching every comment on a floor', () => {
     await human('owner', 'owner@example.com', { notifyAnyComment: true });
     await human('commenter', 'commenter@example.com');
     await seedWorkspace(['owner', 'commenter']);
-    // The contract is the watcher's own, so both switches would fire.
+    // The proposal is the watcher's own, so both switches would fire.
     await db.insert(proposals).values({
       id: 'prop-1',
       workspaceId: WS,
@@ -497,10 +497,10 @@ describe('watching every comment on a floor', () => {
 
     expect(sent).toHaveLength(1);
     // And it names the closer reason, not the floor-wide one.
-    expect(sent[0].text).toContain('commented on a contract you posted');
+    expect(sent[0].text).toContain('commented on a proposal you posted');
   });
 
-  test('it covers market threads too, not only contracts', async () => {
+  test('it covers market threads too, not only proposals', async () => {
     await human('owner', 'owner@example.com', { notifyAnyComment: true });
     await human('trader', 'trader@example.com');
     await seedWorkspace(['owner', 'trader']);
@@ -536,11 +536,11 @@ describe('watching every comment on a floor', () => {
 });
 
 // Owner ask 2026-08-24: "add email notifications on traded market resolving
-// as well as a contract on which user traded / commented / made being
+// as well as a proposal on which user traded / commented / made being
 // approved/declined". The proposer's mail already existed; these two blocks
 // pin the new recipients.
 
-describe('a decision reaches everyone with money or words on the contract', () => {
+describe('a decision reaches everyone with money or words on the proposal', () => {
   async function decidedWithPair(fields: Record<string, unknown> = {}) {
     await db.insert(proposals).values({
       id: 'prop-1',
@@ -604,11 +604,11 @@ describe('a decision reaches everyone with money or words on the contract', () =
 
     expect(sent.map(x => x.to).sort()).toEqual(['poster@example.com', 'trader@example.com', 'voice@example.com']);
     const traderMail = sent.find(x => x.to === 'trader@example.com')!;
-    // Not "your contract": they took a side on it, they do not own it.
-    expect(traderMail.text).toContain('this contract');
+    // Not "your proposal": they took a side on it, they do not own it.
+    expect(traderMail.text).toContain('this proposal');
     expect(traderMail.text).toContain('you traded or commented');
     const posterMail = sent.find(x => x.to === 'poster@example.com')!;
-    expect(posterMail.text).toContain('your contract');
+    expect(posterMail.text).toContain('your proposal');
   });
 
   test('the switch works, and the decider is never told about their own act', async () => {

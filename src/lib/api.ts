@@ -130,9 +130,9 @@ export type PayoutMethod = (
 
 /**
  * One thing that happened to this participant (GET /api/notifications).
- * `kind` says what: someone commented on a contract they posted, someone
- * replied in a thread they are in, a new contract went on a ballot where they
- * trade, or one of their own contracts was decided.
+ * `kind` says what: someone commented on a proposal they posted, someone
+ * replied in a thread they are in, a new proposal went on a ballot where they
+ * trade, or one of their own proposals was decided.
  */
 export interface NotificationItem {
   id: string;
@@ -165,17 +165,17 @@ export interface NotificationsPayload {
  * POST /api/auth/profile.
  */
 export interface NotificationPrefs {
-  /** Someone commented under a contract you posted. On for a new account. */
+  /** Someone commented under a proposal you posted. On for a new account. */
   commentOnMyProposal: boolean;
   /** Someone else commented in a thread you are in. On for a new account. */
   replyToMyComment: boolean;
-  /** Every new contract on a workspace you belong to. Off until asked for. */
+  /** Every new proposal on a workspace you belong to. Off until asked for. */
   newProposal: boolean;
   /** Every comment anywhere on a workspace you belong to. Off until asked for. */
   anyComment: boolean;
   /** A market you traded settled, with its value. On for a new account. */
   marketResolved: boolean;
-  /** A contract you traded or commented on was approved or declined. On for
+  /** A proposal you traded or commented on was approved or declined. On for
    *  a new account. The proposer's own decision mail has no switch. */
   contractDecided: boolean;
 }
@@ -632,7 +632,7 @@ export interface PublicProposal {
    *  also resolves nicknames). */
   proposedByHandle?: string;
   createdAt: string;
-  /** When this contract's words or price were last edited, null if never.
+  /** When this proposal's words or price were last edited, null if never.
    *  The marker is public; the log itself is GET /api/proposals/:id/revisions
    *  (docs/market-integrity.md, I1b). */
   editedAt?: string | null;
@@ -1302,7 +1302,7 @@ export const api = {
     askUsd?: number;
     payoutHandle?: string;
   }) => request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
-  /** Edit a contract's definition: words and price both, published as
+  /** Edit a proposal's definition: words and price both, published as
    *  revisions; a traded pair keeps its markets and positions untouched
    *  (docs/market-integrity.md, I1b). The proposer or a workspace manager;
    *  the server decides which. */
@@ -1338,7 +1338,7 @@ export const api = {
   publishRelease: () => request('/api/admin/publish', { method: 'POST', body: JSON.stringify({}) }),
   editProposal: (id: string, body: { title?: string; description?: string; askUsd?: number | null }) =>
     request(`/api/proposals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  /** What changed on a contract, oldest first. */
+  /** What changed on a proposal, oldest first. */
   getProposalRevisions: (id: string) =>
     request(`/api/proposals/${id}/revisions`) as Promise<{
       revisions: Array<{ field: string; oldValue: string | null; newValue: string | null; at: string }>;

@@ -134,7 +134,7 @@ function activityLine(r: Listing): string {
   }
   if (r.tradesThisWeek) parts.push(`${r.tradesThisWeek} trades this week`);
   if (r.pendingJobs > 0) {
-    parts.push(r.pendingJobs === 1 ? '1 contract priced now' : `${r.pendingJobs} contracts priced now`);
+    parts.push(r.pendingJobs === 1 ? '1 proposal priced now' : `${r.pendingJobs} proposals priced now`);
   }
   return parts.join(' · ');
 }

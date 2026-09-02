@@ -1,7 +1,7 @@
 /**
  * HTTP-level tests for the per-market message thread.
  *
- * Mirrors the proposal-messages contract one level down: each market has
+ * Mirrors the proposal-messages proposal one level down: each market has
  * its own thread. Used most commonly by AI agents to attach a one-line
  * rationale after a trade ("traded toward 3.5; thesis: channel substitution
  * routes refunds to Stripe").

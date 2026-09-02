@@ -4,7 +4,7 @@
  * These are named after the rules in docs/vision.md, "The workspace brief",
  * because each one was a wrong answer before it was a test. On 2026-08-31 the
  * floor's own market maker read this brief and recommended, as the best priced
- * upside on the Telarchy floor, an already-approved contract whose +11.79 came
+ * upside on the Telarchy floor, an already-approved proposal whose +11.79 came
  * from a voided pair on a horizon that resolved the next morning, on a metric
  * the brief listed under a different name. Every number he quoted was in the
  * payload. None of them meant what the payload made them look like.
@@ -145,8 +145,8 @@ const briefMd = async () => (await request(app).get(`/api/marketplace/${WS}/cont
 const impactOf = (body: any, proposalId: string) =>
   body.contracts.find((c: any) => c.id === proposalId).impact as Array<Record<string, any>>;
 
-describe('a voided pair is not priced upside on a contract nobody has decided', () => {
-  test('the brief drops a voided pair on a PENDING contract', async () => {
+describe('a voided pair is not priced upside on a proposal nobody has decided', () => {
+  test('the brief drops a voided pair on a PENDING proposal', async () => {
     await seed();
     await market({ id: 'live-a', targetDate: LIVE, shares: [0, 10], proposalId: 'prop-pending', branch: 'approved' });
     await market({ id: 'live-d', targetDate: LIVE, shares: [0, 0], proposalId: 'prop-pending', branch: 'declined' });
@@ -172,7 +172,7 @@ describe('a voided pair is not priced upside on a contract nobody has decided', 
     expect(await briefMd()).not.toContain(PAST);
   });
 
-  test('a DECIDED contract keeps its voided pairs, because they are the record', async () => {
+  test('a DECIDED proposal keeps its voided pairs, because they are the record', async () => {
     await seed();
     await market({
       id: 'dec-a',
@@ -353,7 +353,7 @@ describe('one metric is one name', () => {
 });
 
 describe('the markdown is ordered for a decision', () => {
-  test('contracts still open for a decision come before decided ones', async () => {
+  test('proposals still open for a decision come before decided ones', async () => {
     await seed();
     await market({ id: 'live-a', targetDate: LIVE, shares: [0, 10], proposalId: 'prop-pending', branch: 'approved' });
     await market({ id: 'live-d', targetDate: LIVE, shares: [0, 0], proposalId: 'prop-pending', branch: 'declined' });
@@ -361,8 +361,8 @@ describe('the markdown is ordered for a decision', () => {
     await market({ id: 'app-d', targetDate: LIVE, shares: [0, 0], proposalId: 'prop-approved', branch: 'declined' });
 
     const md = await briefMd();
-    const open = md.indexOf('Contracts open for a decision');
-    const decided = md.indexOf('Contracts already decided');
+    const open = md.indexOf('Proposals open for a decision');
+    const decided = md.indexOf('Proposals already decided');
     expect(open).toBeGreaterThan(-1);
     expect(decided).toBeGreaterThan(open);
     expect(md.indexOf('LessWrong')).toBeGreaterThan(open);
@@ -370,7 +370,7 @@ describe('the markdown is ordered for a decision', () => {
     expect(md.indexOf('Manifold market')).toBeGreaterThan(decided);
   });
 
-  test('a decided contract states its outcome where its impact is read', async () => {
+  test('a decided proposal states its outcome where its impact is read', async () => {
     await seed();
     await market({ id: 'app-a', targetDate: LIVE, shares: [0, 40], proposalId: 'prop-approved', branch: 'approved' });
     await market({ id: 'app-d', targetDate: LIVE, shares: [0, 0], proposalId: 'prop-approved', branch: 'declined' });
@@ -380,7 +380,7 @@ describe('the markdown is ordered for a decision', () => {
     expect(await briefMd()).toMatch(/already approved.*no approval decision is left/i);
   });
 
-  test('live horizons come before settled ones inside one contract', async () => {
+  test('live horizons come before settled ones inside one proposal', async () => {
     await seed();
     // Seeded settled-first on purpose: order must come from the rule, not from
     // whatever order the rows happen to arrive in.
@@ -397,13 +397,13 @@ describe('the markdown is ordered for a decision', () => {
 });
 
 /**
- * The third reader of the same rule. Otto is told to fetch a contract's
+ * The third reader of the same rule. Otto is told to fetch a proposal's
  * pricing from GET /api/proposals/:id (docs/vision.md, "The workspace
  * brief"), so a door that hands him a retired horizon there would put back
  * exactly what the brief stopped doing.
  */
 describe('GET /api/proposals/:id applies the same live-pair rule', () => {
-  test('a voided pair is not returned on a PENDING contract', async () => {
+  test('a voided pair is not returned on a PENDING proposal', async () => {
     await seed();
     await market({ id: 'live-a', targetDate: LIVE, shares: [0, 10], proposalId: 'prop-pending', branch: 'approved' });
     await market({ id: 'live-d', targetDate: LIVE, shares: [0, 0], proposalId: 'prop-pending', branch: 'declined' });
@@ -421,7 +421,7 @@ describe('GET /api/proposals/:id applies the same live-pair rule', () => {
     expect(res.body.markets.map((m: any) => m.targetDate)).toEqual([LIVE]);
   });
 
-  test('a DECIDED contract still returns its voided pairs, because they are the record', async () => {
+  test('a DECIDED proposal still returns its voided pairs, because they are the record', async () => {
     await seed();
     await market({
       id: 'dec-a',

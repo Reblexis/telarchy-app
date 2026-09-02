@@ -140,7 +140,7 @@ describe('publishing', () => {
     auth = { workspaceId: WS, capabilities: new Set(['manage']), agentId: 'agent-pub' };
     const delegated = await request(app)
       .post(`/api/workspaces/${WS}/announcements`)
-      .send({ body: 'Week 35 results: 57 trades, one contract paid.' });
+      .send({ body: 'Week 35 results: 57 trades, one proposal paid.' });
     expect(delegated.status).toBe(201);
     expect(delegated.body.publishedBy).toBe('results-agent');
 

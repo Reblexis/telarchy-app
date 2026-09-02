@@ -4,7 +4,7 @@
  * Sells on a closed market are allowed (so participants can exit positions
  * before the target date arrives); buys on a closed market are rejected with
  * a clear error. Both flows go through the real express app and auth
- * middleware so the test exercises the public contract.
+ * middleware so the test exercises the public proposal.
  */
 
 jest.mock('../db/client', () => require('./harness/test-db'));

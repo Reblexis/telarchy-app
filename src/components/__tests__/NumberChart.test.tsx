@@ -170,7 +170,7 @@ describe('hover', () => {
   });
 });
 
-describe('hover on a marker with a contract open', () => {
+describe('hover on a marker with a proposal open', () => {
   test('lists the pair in the tooltip', () => {
     const { container } = render(
       <NumberChart
@@ -210,7 +210,7 @@ describe('hover on a marker with a contract open', () => {
   });
 });
 
-describe('a contract open', () => {
+describe('a proposal open', () => {
   const withPairs = [
     {
       marketId: 'today',
@@ -263,7 +263,7 @@ describe('a contract open', () => {
     expect(container.querySelector('.nchart-pair-delta')?.textContent).toBe('-1.5');
   });
 
-  test('no contract, no pair and no legend', () => {
+  test('no proposal, no pair and no legend', () => {
     const { container } = render(
       <NumberChart
         points={points}

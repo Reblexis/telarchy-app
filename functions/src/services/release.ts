@@ -279,7 +279,7 @@ export async function publishRevision(revision?: string): Promise<{ published: s
   // ReplaceService: the Knative-style API takes no PATCH — the original
   // implementation PATCHed a partial spec and got an HTML 404 back from the
   // Google front end, so the button errored on every press while the IAM it
-  // blamed was fine (found 2026-08-21, the first real press). The contract is
+  // blamed was fine (found 2026-08-21, the first real press). The proposal is
   // GET the whole service, rewrite spec.traffic, PUT the whole thing back —
   // exactly what `gcloud run services update-traffic` does.
   svc.spec = { ...svc.spec, traffic: [{ revisionName: target, percent: 100 }, ...keptTags] };

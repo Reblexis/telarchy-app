@@ -66,7 +66,7 @@ async function seedNumber(opts: { liquidity?: number; description?: string } = {
     id: 'metric-1',
     workspaceId: WS,
     name: 'Monthly disputes arbitrated',
-    description: opts.description ?? 'Counted on-chain from the arbitrator contract.',
+    description: opts.description ?? 'Counted on-chain from the arbitrator proposal.',
     value: 0,
     formula: '',
     marketRangeMax: 5000,
@@ -184,7 +184,7 @@ describe('decisions that a default must never be mistaken for', () => {
     expect(itemOf(await buildChecklist(WS), 'participation').status).toBe('done');
   });
 
-  test('auto-funding off with no funded contract is not a contract policy', async () => {
+  test('auto-funding off with no funded proposal is not a proposal policy', async () => {
     expect(itemOf(await buildChecklist(WS), 'contracts').status).toBe('open');
   });
 
@@ -195,7 +195,7 @@ describe('decisions that a default must never be mistaken for', () => {
     expect(itemOf(c, 'contracts').note).toMatch(/25 credits/);
   });
 
-  test('auto-funding the workspace default is not a contract policy either', async () => {
+  test('auto-funding the workspace default is not a proposal policy either', async () => {
     // 0.5 per market is what workspace creation sets, and it prices nothing.
     await db.update(workspaces).set({ autoFundNewMarkets: true, newMarketLiquidityCredits: 0.5 });
     const c = await buildChecklist(WS);
@@ -218,7 +218,7 @@ describe('the rest of the specification', () => {
     expect(itemOf(await buildChecklist(WS), 'decisions').status).toBe('done');
   });
 
-  test('a decided contract counts even with no charter', async () => {
+  test('a decided proposal counts even with no charter', async () => {
     await db.insert(proposals).values({
       id: 'p-1',
       workspaceId: WS,

@@ -5,7 +5,7 @@
  * Two things this pins, both of which are promises to somebody:
  *  - a document the owner has NOT published is not in the brief, however
  *    convenient it would be for the answer;
- *  - the brief's contract impact is the same number the floor's ballot
+ *  - the brief's proposal impact is the same number the floor's ballot
  *    shows, because it comes from the same function.
  */
 
@@ -132,7 +132,7 @@ async function seed(opts: { publicCaps?: string[]; publishDocument?: boolean } =
 }
 
 describe('the workspace brief', () => {
-  test('carries the company, its numbers, its markets and its contracts', async () => {
+  test('carries the company, its numbers, its markets and its proposals', async () => {
     await seed();
     const res = await request(app).get(`/api/marketplace/${WS}/context`);
     expect(res.status).toBe(200);
@@ -338,7 +338,7 @@ describe('the answer prompt', () => {
 });
 
 describe('the brief and the floor agree', () => {
-  test('an unpriced contract reports no delta rather than zero', async () => {
+  test('an unpriced proposal reports no delta rather than zero', async () => {
     await seed();
     const ctx = (await buildWorkspaceContext(WS))!;
     // No conditional markets exist, so there is nothing priced yet. Zero

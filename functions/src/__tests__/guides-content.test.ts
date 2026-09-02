@@ -76,6 +76,15 @@ describe('docs/guides is the source of the served guides', () => {
     }
   });
 
+  // docs/guides/contracts.md became get-paid.md when the floor stopped calling
+  // a proposal a contract (docs/ui-conventions.md). The old address is in
+  // llms.txt copies, bookmarks and agent prompts written before that.
+  test('a section that was renamed still answers at its old id', async () => {
+    const r = await request(app).get('/api/guides/contracts');
+    expect(r.status).toBe(200);
+    expect(r.text).toBe(GUIDE_SECTIONS.find(s => s.id === 'get-paid')?.content);
+  });
+
   test('an unknown section 404s with the list of valid ids', async () => {
     const r = await request(app).get('/api/guides/no-such-guide');
     expect(r.status).toBe(404);

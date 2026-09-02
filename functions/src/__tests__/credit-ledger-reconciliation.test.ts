@@ -53,7 +53,7 @@ const app = express();
 app.use(express.json());
 app.use('/api/predictions', authMiddleware, predictionsRouter);
 // Mirrors the production handler in app.ts, including the `extra` spread:
-// a test that flattens the error shape cannot assert the contract a caller
+// a test that flattens the error shape cannot assert the proposal a caller
 // actually sees.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: any, res: any, _next: any) => {

@@ -161,7 +161,7 @@ class Telarchy:
         return self._request("GET", "/marketplace/workspaces/public")
 
     def brief(self, id_or_slug: str | None = None, *, as_markdown: bool = True) -> Any:
-        """The whole floor in one read: metrics, prices, contracts, documents.
+        """The whole floor in one read: metrics, prices, proposals, documents.
 
         Written to be handed straight to a model. Price a market without reading
         this and you are pricing a number whose definition you never read.
@@ -374,7 +374,7 @@ class Telarchy:
     # --------------------------------------------------------------- the rest
 
     def help(self, *, section: str | None = None, q: str | None = None) -> dict[str, Any]:
-        """The live endpoint catalog, which is the contract.
+        """The live endpoint catalog, which is the proposal.
 
         Filter it. The whole document is about 35,000 tokens; ``section``
         narrows to one part of the API and ``q`` to matching terms.

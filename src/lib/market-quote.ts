@@ -28,7 +28,7 @@ function fmtEdge(v: number): string {
 
 /**
  * The one line that turns a price into a payout. A cents price on a binary
- * contract states its own payout; ours is linear in the settled value, so
+ * proposal states its own payout; ours is linear in the settled value, so
  * the price alone would be a true number under a false assumption.
  *
  * Eight words, and it stays that way (owner, 2026-08-31, on the eighteen-word

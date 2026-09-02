@@ -87,9 +87,18 @@ guidesRouter.get('/_categories', (_req, res) => {
   res.json(GUIDE_CATEGORIES);
 });
 
+/**
+ * Section ids that a link printed before a rename still carries: served as
+ * the section they became, so a bookmark, an llms.txt copy or an agent's
+ * prompt written against the old address keeps working. `contracts` became
+ * `get-paid` when the floor stopped calling a proposal a contract
+ * (docs/ui-conventions.md, "The thing on the ballot is a PROPOSAL").
+ */
+export const GUIDE_ALIASES: Record<string, string> = { contracts: 'get-paid' };
+
 // GET /api/guides/:section - markdown for a specific section
 guidesRouter.get('/:section', (req, res) => {
-  const section = sectionMap.get(req.params.section);
+  const section = sectionMap.get(GUIDE_ALIASES[req.params.section] ?? req.params.section);
   if (!section) {
     // Self-correcting 404: agents often arrive via a stale or guessed link.
     // Listing the valid ids lets them retry without crawling the website.

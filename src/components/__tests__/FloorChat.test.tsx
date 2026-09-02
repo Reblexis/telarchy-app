@@ -80,7 +80,7 @@ describe('Otto', () => {
     });
     render(<FloorChat {...props} />);
     openHim();
-    fireEvent.click(screen.getByText('Which contract would you take?'));
+    fireEvent.click(screen.getByText('Which proposal would you take?'));
     expect(await screen.findByText('That is a lot of questions.')).toBeTruthy();
   });
 });

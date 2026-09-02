@@ -2,7 +2,7 @@
  * Every API path written into a copied agent prompt must be a route this app
  * actually mounts.
  *
- * Companion to agent-prompt-contract.test.ts, which checks the trade call's
+ * Companion to agent-prompt-proposal.test.ts, which checks the trade call's
  * body. This one is the cheap general net: it reads `src/lib/agent-prompt.ts`
  * as text, pulls out every `METHOD /api/...` it tells an agent to call, and
  * checks each against the real router stack. A renamed or moved route now

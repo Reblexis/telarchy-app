@@ -1,6 +1,6 @@
 /**
  * The notification matrix (owner ask 2026-08-24: "there should be web mobile
- * and email", per kind, like Manifold's settings). The contract is
+ * and email", per kind, like Manifold's settings). The proposal is
  * docs/vision.md, "Participant notifications".
  *
  * One KIND is one thing that can happen to you; one CHANNEL is one way of
@@ -19,7 +19,7 @@
  *   touched the settings and a new kind needs no backfill.
  *
  * The proposer's decision email stays outside the matrix entirely: a decision
- * on a contract YOU POSTED always mails (owner ask 2026-08-19), whatever the
+ * on a proposal YOU POSTED always mails (owner ask 2026-08-19), whatever the
  * `decision` row says. The `decision` kind governs everyone else.
  */
 
@@ -33,9 +33,9 @@ export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 
 /**
  * The defaults are the design (docs/vision.md): personal kinds, the answers
- * to your own activity, are on everywhere; the firehoses (new contracts,
+ * to your own activity, are on everywhere; the firehoses (new proposals,
  * every comment), whose volume is set by strangers, are off except that the
- * bell has always shown new contracts and keeps doing so.
+ * bell has always shown new proposals and keeps doing so.
  */
 export const CHANNEL_DEFAULTS: Record<NotificationKindId, Record<NotificationChannel, boolean>> = {
   comment: { web: true, email: true, mobile: true },

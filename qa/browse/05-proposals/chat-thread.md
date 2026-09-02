@@ -106,7 +106,7 @@ case "$status" in 200|201|400|413|422) ;; *) echo "huge body returned $status"; 
 
 ### T6. The thread outlives the decision
 
-The floor keeps a decided contract's conversation open (docs/vision.md,
+The floor keeps a decided proposal's conversation open (docs/vision.md,
 "the conversation outlives the decision"), so the API must accept a
 comment on an approved or declined proposal, not only a pending one.
 

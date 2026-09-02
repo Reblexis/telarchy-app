@@ -244,19 +244,19 @@ export const agents = pgTable(
      * Email notification switches (owner ask 2026-08-19; docs/vision.md,
      * "Participant email notifications"). They live on the participant rather
      * than the browser account because the thing being notified about (a
-     * comment, a contract) happens to a participant, and one human can hold
+     * comment, a proposal) happens to a participant, and one human can hold
      * several. Mail only ever reaches a participant with a browser account
      * attached; a key-only bot has no address and is skipped.
      *
-     * On by default: someone commented under a contract this participant
+     * On by default: someone commented under a proposal this participant
      * posted. An answer addressed to you that nobody tells you about is the
      * comment box breaking its own promise.
      */
     notifyCommentOnMyProposal: boolean('notify_comment_on_my_proposal').notNull().default(true),
     /** On by default: someone else commented in a thread this participant has
-     *  commented in (contract or market), i.e. a reply to them. */
+     *  commented in (proposal or market), i.e. a reply to them. */
     notifyReplyToMyComment: boolean('notify_reply_to_my_comment').notNull().default(true),
-    /** OFF by default: every new contract on the ballot of a workspace this
+    /** OFF by default: every new proposal on the ballot of a workspace this
      *  participant belongs to. Volume is set by strangers, so this one is
      *  opt-in rather than opt-out. */
     notifyNewProposal: boolean('notify_new_proposal').notNull().default(false),
@@ -268,7 +268,7 @@ export const agents = pgTable(
     /** ON by default: a market this participant traded settled, with the value
      *  it settled at. The answer to a bet they placed, so opt-out. */
     notifyMarketResolved: boolean('notify_market_resolved').notNull().default(true),
-    /** ON by default: a contract this participant traded on or commented under
+    /** ON by default: a proposal this participant traded on or commented under
      *  was approved or declined. The proposer's own decision mail is switchless
      *  (services/notifications.ts); this switch covers everyone else with money
      *  or words on the outcome. */
@@ -281,7 +281,7 @@ export const agents = pgTable(
     /**
      * How far this participant has read the notifications inbox
      * (GET /api/notifications). The inbox itself is derived from comments,
-     * contracts and decisions rather than stored, so this one timestamp is
+     * proposals and decisions rather than stored, so this one timestamp is
      * the entire read state: anything newer is unread.
      *
      * Defaults to now(), and migration 0064 backfilled existing rows the same
@@ -682,7 +682,7 @@ export const liquidityEvents = pgTable(
  * `agents.balance` is a cache of this table's sum. Before migration 0060 it
  * was the only record: about twenty-five call sites incremented it directly
  * (payouts, void refunds, proposal stakes and rewards, spam penalties,
- * contract payments, signup grants, admin adjustments, limit-order holds) and
+ * proposal payments, signup grants, admin adjustments, limit-order holds) and
  * none of them left a row, so a wrong balance could not be explained and a
  * lost one could not be rebuilt.
  *
@@ -746,10 +746,10 @@ export const metricDefinitionRevisions = pgTable(
 );
 
 /**
- * Every edit to a contract's definition, in the order it happened.
+ * Every edit to a proposal's definition, in the order it happened.
  *
  * Same rule and same shape as `metricDefinitionRevisions`, for the same
- * reason (docs/market-integrity.md, I1b): a contract's title, description and
+ * reason (docs/market-integrity.md, I1b): a proposal's title, description and
  * price are what a trader prices "if approved" against, and editing them in
  * place is only honest if the change is published to whoever is already
  * holding. `askUsd` is here too, even though changing it re-anchors an

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 /**
  * The comment thread under the one market view, and specifically what a
  * notification link does to it: a row that says "someone commented on your
- * contract" must land on THAT comment, not near it. The panel opens even
+ * proposal" must land on THAT comment, not near it. The panel opens even
  * when it was collapsed, scrolls the line into view, and flashes it once;
  * the flash is an arrival, never a selected state left behind.
  */
@@ -84,9 +84,9 @@ describe('a comment a notification points at', () => {
   });
 });
 
-describe('a contract covers both branch markets', () => {
+describe('a proposal covers both branch markets', () => {
   // Owner report 2026-08-21: "why dont i see any trades made on the
-  // conditional markets". A contract opens on "if approved"; when its only
+  // conditional markets". A proposal opens on "if approved"; when its only
   // trades sat on the declined branch, the branch-scoped panel answered
   // "Trades (0)", which read as the trades having been lost.
   const trade = (id: string, handle: string) => ({

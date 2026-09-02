@@ -1,5 +1,5 @@
 /**
- * Visibility contract on GET /api/agents/:idOrNickname/public.
+ * Visibility proposal on GET /api/agents/:idOrNickname/public.
  *
  * Stats and activeWorkspaces stay aggregated over public-visibility workspaces
  * (the documented privacy contract shared with /api/leaderboard). The detail

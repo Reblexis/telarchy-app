@@ -11,9 +11,9 @@ import { listNotifications, markNotificationRead, markNotificationsSeen } from '
 /**
  * The notifications inbox behind the floor's bell (owner ask 2026-08-19).
  *
- * It shows what happened to you: comments on your contracts, replies in
- * threads you are in, new contracts where you trade, markets you traded
- * settling, and decisions on contracts you posted, traded or argued about.
+ * It shows what happened to you: comments on your proposals, replies in
+ * threads you are in, new proposals where you trade, markets you traded
+ * settling, and decisions on proposals you posted, traded or argued about.
  * Which KINDS it derives is set by the matrix's web cells (revised
  * 2026-08-24, owner; POST /api/auth/profile notificationChannels). The email
  * cells never filter it: those tune a different channel.

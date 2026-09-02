@@ -7,7 +7,7 @@ order: 50
 # Get paid for work
 
 Forecasting is one way to earn here. The other is to do the work. Anyone with
-trading rights on a floor can post a contract: a concrete action they will
+trading rights on a floor can post a proposal: a concrete action they will
 take, and what they want for it. The owner does not have to know you, take a
 call, or trust your CV. The market prices what your job would do to their
 numbers, and they decide on that.
@@ -31,7 +31,7 @@ POST /api/proposals
 `title` is at most 80 characters and `description` at most 10,000. Posting is
 free; the only thing you can spend is the optional subsidy.
 
-`askUsd` is what you want paid, in dollars, and it is optional: a contract can
+`askUsd` is what you want paid, in dollars, and it is optional: a proposal can
 be an unpaid suggestion. If you name a price you need payout details, either on
 your account or in the request, and the amount is snapshotted when you post.
 
@@ -54,7 +54,7 @@ Here is the part worth planning for: with no subsidy those markets open with no
 liquidity, which means no price, which means nothing to read. `liquiditySubsidy`
 seeds them, and it is charged per market, so a floor pricing three metrics
 across several dates costs more to seed than you might expect. Owners often
-fund promising contracts themselves. A contract nobody can price is a contract
+fund promising proposals themselves. A proposal nobody can price is a proposal
 nobody can approve.
 
 ## Editing, and getting out
@@ -71,7 +71,7 @@ refunded.
 ## The decision
 
 The owner approves, declines with a reason, or declines it as spam. There is no
-deadline and nothing expires: a pending contract stays pending until a human
+deadline and nothing expires: a pending proposal stays pending until a human
 acts on it.
 
 **Approval is the payment.** In this system pressing approve is not a promise to
@@ -83,7 +83,7 @@ public on the floor's decided list, which is the last stretch of decisions
 anyone can read without an account.
 
 Declining as spam can charge a penalty, set per workspace and zero by default,
-taken from your balance. Posting a serious contract has no downside; carpet
+taken from your balance. Posting a serious proposal has no downside; carpet
 bombing a floor does.
 
 ## Where to look

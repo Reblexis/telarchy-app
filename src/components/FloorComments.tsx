@@ -14,17 +14,17 @@ import { api } from '../lib/api';
  *
  * The subject follows the page, and its two halves are addressed
  * separately on purpose: `proposalId` routes the CONVERSATION, which
- * belongs to the contract and survives switching branch, while the market
+ * belongs to the proposal and survives switching branch, while the market
  * ids route POSITIONS AND TRADES. A caller that passes only the proposal
  * gets comments and no activity at all (the tabs hide themselves), which
- * is how a contract with a real trade in it rendered as "Comments (0)"
+ * is how a proposal with a real trade in it rendered as "Comments (0)"
  * and nothing else.
  *
- * A contract passes BOTH branch markets, labeled, and the tabs show their
+ * A proposal passes BOTH branch markets, labeled, and the tabs show their
  * union (owner report 2026-08-21: "why dont i see any trades made on the
  * conditional markets"). Scoping activity to the branch on screen was the
- * same bug in a subtler coat: a contract opens on "if approved", so a
- * contract whose trades all sat on the declined branch answered
+ * same bug in a subtler coat: a proposal opens on "if approved", so a
+ * proposal whose trades all sat on the declined branch answered
  * "Trades (0)" until the reader happened to flip the toggle.
  */
 
@@ -77,7 +77,7 @@ type BranchLabel = 'approved' | 'declined';
 interface Props {
   idOrSlug: string;
   /** The market(s) drive positions/trades; proposalId routes the comment
-   *  thread. A contract passes `markets` with both labeled branches and the
+   *  thread. A proposal passes `markets` with both labeled branches and the
    *  tabs show their union; a baseline market passes `marketId` alone. */
   subject: { marketId?: string; proposalId?: string; markets?: Array<{ marketId: string; branch: BranchLabel }> };
   canPost: boolean;
@@ -133,7 +133,7 @@ export function FloorComments({
   const [error, setError] = useState('');
 
   // Every market whose activity belongs on the tabs: both labeled branches
-  // of a contract, or the one baseline market. The key is order-stable so a
+  // of a proposal, or the one baseline market. The key is order-stable so a
   // branch switch (which reorders nothing here) does not refetch.
   const activityMarkets: Array<{ marketId: string; branch?: BranchLabel }> = subject.markets?.length
     ? subject.markets
@@ -158,7 +158,7 @@ export function FloorComments({
   }, [idOrSlug, threadKey]);
 
   // Positions/trades load on subject change too, so counts are ready. One
-  // fetch per market, merged: a contract's two branches answer together,
+  // fetch per market, merged: a proposal's two branches answer together,
   // trades newest-first across both. A branch whose fetch fails contributes
   // nothing rather than sinking the other's rows.
   useEffect(() => {

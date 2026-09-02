@@ -156,17 +156,29 @@ offers either says the work: run, trade, set up. "Ask" survives in exactly
 one place, the signed-out reader, for whom it is the truth
 (docs/owner-on-the-floor.md, "Handing it to your own agent").
 
-**The thing a proposer sells is a CONTRACT, never a "job".** The rail
-beside it reads "Top contractors", and contractors do contracts.
-"Contract" also says what it is more exactly than "job" does: an offer at
-a price that someone has to accept, which is the whole mechanism. The
-board is "Contracts", the action is "Suggest a contract", and a
-participant "offers" one rather than "suggesting a job".
+**The thing on the ballot is a PROPOSAL, never a "contract" or a "job".**
+An owner puts their own actions on the ballot beside the ones strangers
+offer (docs/owner-on-the-floor.md), and an owner's proposal has no ask and
+no counterparty, so "contract" is wrong for it; "job" was wrong for the same
+reason. "Proposal" covers both, and it is the word the API, the skill and
+the guides already use, so a visitor now reads one word everywhere. The
+board is "Proposals", the action is "Propose", and a participant "offers" or
+"proposes" one. The people who get paid are still **contractors** ("Top
+contractors" in the rail): a contractor is someone whose proposal carried a
+price and was approved, and the noun for the person survives the rename of
+the thing.
 
-The API keeps its own word, `proposal` (`POST /api/proposals`,
-`proposalId`, `proposals` in payloads), and so do component and CSS names
-(`JobsBoard`, `.jobform-*`). Renaming those buys nothing and breaks every
-client; the rule is about what a visitor reads.
+The API keeps its identifiers: `proposal` where it already had it
+(`POST /api/proposals`, `proposalId`) and `contracts` where a payload or a
+path used that word before the rename (`GET
+/api/marketplace/:idOrSlug/contracts`, `proposals[]` and `contractsTotal`
+in the brief, the `contract` notification kind, `contractDecided`). So do
+component and CSS names (`JobsBoard`, `.jobform-*`). Renaming those buys
+nothing and breaks every client; the rule is about what a visitor reads,
+and the prose describing those keys says proposal. A floor link from a
+notification is `#proposal=<id>`; the older `#contract=<id>` still opens
+the same proposal, because it is printed in emails already sent. The rule
+is checked mechanically by `src/__tests__/proposal-not-proposal.test.ts`.
 
 ## The market's activity is one list
 
@@ -312,7 +324,7 @@ uppercase caption and a row of tabs):
   heading drops it into a narrow column beside the price, four words tall
   and over the leaderboard rail, because the heading's placement comes
   from rules that assume it is a block child of the column.
-- **With a contract selected the SAME sentence carries the condition**
+- **With a proposal selected the SAME sentence carries the condition**
   (owner ask 2026-08-28: modify the question, never add a second line
   under it): "What will be {company}'s {metric} {date} if {who} is paid
   ${ask} to do: {task}?", the "?" at the true end. The world phrase ("is
@@ -321,7 +333,7 @@ uppercase caption and a row of tabs):
   of a taller stack.
 - **No per-horizon role caption, and no cross-horizon conflict mark on the
   ballot.** One clock at a time, with a way to the others, is the whole
-  rule, on the headline and on a contract alike.
+  rule, on the headline and on a proposal alike.
 
 **Metric names are short handles.** A segment has to fit beside its
 siblings and the metric word has to scan inside the sentence, so a floor
@@ -398,9 +410,9 @@ any of it.
 not capped; the metric log is read once per distinct metric, not once per
 market, so the cost is per metric.
 
-### A contract keeps the clock line, and says which world it is
+### A proposal keeps the clock line, and says which world it is
 
-The caption block does not change shape when a contract is opened. Same
+The caption block does not change shape when a proposal is opened. Same
 pickers, same one sentence, in the same positions; the sentence itself
 grows the condition, naming the world the number belongs to:
 
@@ -420,21 +432,21 @@ the horizon on screen. The world phrase is the branch toggle: `WorldWord`
 renders `is paid $100` / `is not paid $100` with both phrases in one grid
 cell so the sentence cannot reflow on a switch. One rule everywhere: **one
 clock at a time, with a way to the others**, on the headline and on a
-contract alike; the big number stays the metric's own number in the
+proposal alike; the big number stays the metric's own number in the
 metric's own unit, never an "impact" abstraction that exists nowhere else
-on the floor. A contract's effect on both horizons at once is deliberately
+on the floor. A proposal's effect on both horizons at once is deliberately
 not shown (that is the cross-horizon conflict mark, which does not exist).
 
 - **The caption is rendered for both states**, not duplicated into two
   branches. A second copy is how the two drift.
 - **The back affordance survives** the caption not being the back button.
-  A contract still needs one way out to the floor.
+  A proposal still needs one way out to the floor.
 - **The world line is one sentence, not a label plus a value.** It reads as
   English because a stranger has to understand what the number is
   conditional on before the number means anything.
 - **With one open horizon nothing changes**: same caption, same world line.
 
-In contract mode the headline is the question the market actually prices,
+In proposal mode the headline is the question the market actually prices,
 naming who is paid and how much ("What is <metric> @ <date> if <proposer>
 is paid $<ask> to do: <task>", the task in ink and the rest a register
 quieter). In the conditional headline the paid phrase IS the world toggle
@@ -443,42 +455,42 @@ paid $X" in the declined one, dotted underline as the click affordance, and
 clicking it flips the branch. Both phrases stack in one grid cell so the
 headline sizes to the longer phrase and never reflows on a switch, whatever
 the ask's width; the inactive phrase waits a step below at opacity 0 and
-rises in on a 240ms crossfade (reduced-motion snaps). The contract's own
+rises in on a 240ms crossfade (reduced-motion snaps). The proposal's own
 description sits under the headline as the details; it is NOT repeated
-under the contract row on the board. The price is the selected branch's
+under the proposal row on the board. The price is the selected branch's
 call, the since-open chip becomes the impact (approved minus declined, the
 same number whichever branch is on screen), and the chart draws the
 branch's own history (fetched per market from
 `/api/marketplace/:id/markets/:marketId/history`, falling back to the
 market's current call as a single point when nobody has traded it yet, so
-a fresh contract shows a chart rather than blank space). The ticket trades
+a fresh proposal shows a chart rather than blank space). The ticket trades
 that branch: its probability and liquidity must come from the active
 market, not the baseline, or payouts, the bet ghost and position worth are
 all computed against the wrong curve. Positions refetch on every switch,
 because they belong to the market on screen.
 
-A manager edits a contract in place: the words save without touching the
+A manager edits a proposal in place: the words save without touching the
 market; the price only moves while nobody has traded the pair, and the
 server says so plainly when it will not (docs/market-integrity.md, I1b).
 Same three fields as posting one, same order.
 
-### A contract ships every pair of the grid, and the board reads the pair on screen
+### A proposal ships every pair of the grid, and the board reads the pair on screen
 
-A contract's `markets` carries EVERY pair the engine spawned for it, one
+A proposal's `markets` carries EVERY pair the engine spawned for it, one
 per baseline market of the grid (metrics x dates is small by construction;
 `marketPairCount` stays equal to `markets.length` and is kept for readers
 that predate this). The board, the ticket and the chart all pick a
-contract's pair by (metric, date) of the horizon on screen, never by date
+proposal's pair by (metric, date) of the horizon on screen, never by date
 alone and never by position; only a payload with no `metricId` on its pairs
 (older builds) falls back to date-only matching. The number the board
 prints is therefore, by construction, the approved consensus minus the
-declined consensus of the two markets the chart draws when that contract
+declined consensus of the two markets the chart draws when that proposal
 is opened, and when that pair is unpriced the board prints "open", exactly
 as the ticket says "impact not yet priced": the largest-delta fallback
 exists only for the moment before the markets arrive and no horizon is
 known, never for an unpriced pair, because a borrowed number under the
 wrong caption is the mismatch this section exists to prevent. The suite seeds a two-metric, three-date grid with six pairs per
-contract and asserts (a) the payload ships all six, (b) the board's
+proposal and asserts (a) the payload ships all six, (b) the board's
 printed impact equals approved minus declined of the pair for the metric
 AND date on screen, and (c) that pair is the one the ticket trades.
 
@@ -525,10 +537,10 @@ the quiet register (`.pubws-settle-in`; the countdown ticks by the
 minute, exact UTC instant on hover), so a tight column wraps it whole
 under the price, never mid-phrase. It sits where the since-open
 chip used to sit; the chip is gone (owner ask 2026-08-28: "instead of
-the arrow and down since"). A selected contract's impact chip still
+the arrow and down since"). A selected proposal's impact chip still
 renders there as the bare arrow and delta ("▲ +7.8"; the "impact by
 <date>" prose wrapped the stat to three lines, owner report 2026-08-28),
-because the impact is the contract's one number - and the whole stat is
+because the impact is the proposal's one number - and the whole stat is
 ONE line: price, chip, qualifier, never stacked. The
 price carries the metric's currency symbol when the trimmed
 parenthetical tail names one (e.g. "USD" -> "$"; the same prefix runs
@@ -602,15 +614,15 @@ reading by then"), because it changes what a bet is.
   (`2D 1W ALL`, `1W 1M ALL`, `1M 3M ALL` by granularity) override it.
   **Switching dates tweens the axis and the line** over about 400ms,
   ease-out, rather than snapping, so a reader sees where the window went.
-  **With a contract open, every marker in the window grows the contract's
-  pair on that market**: a green dot for the metric if the contract is
+  **With a proposal open, every marker in the window grows the proposal's
+  pair on that market**: a green dot for the metric if the proposal is
   approved, a red dot if it is declined, joined by a bar whose length is
   the priced impact, while the amber dot stays the market without the
-  contract. Only the selected date is labeled (both values and the impact);
+  proposal. Only the selected date is labeled (both values and the impact);
   the others show the pair small and grey. Labels never collide: the dots
   stay where the values are, the labels keep a minimum gap and stay inside
   the plot, and a label that had to move gets a hairline leader to its dot. A one-line legend under the
-  chart says it in the contract's words ("if Jason is paid $80" / "if not"
+  chart says it in the proposal's words ("if Jason is paid $80" / "if not"
   / "the market now"). Whichever branch the markets price higher sits on
   top. The impact is stated from the world on screen, on the chart and in
   the chip beside the price alike: "+7.8" with "if approved" selected is
@@ -698,7 +710,7 @@ every trade against it. The floor borrows the baseline's call to DRAW such
 a branch (a blank chart is worse than an honest prior), but that borrowed
 number must not decide whether the page offers a bet: `funded` is carried
 separately from it, and an unfunded market replaces the two bet verbs with
-one line saying nobody has funded a market for this contract yet.
+one line saying nobody has funded a market for this proposal yet.
 Composing a bet and meeting "this market has no liquidity" at submit is
 the bug this rule exists to prevent.
 
@@ -962,9 +974,9 @@ The price replay reads every row, always.
 
 ### Where markets open
 
-**Conditional (contract) markets open ANCHORED**: a fresh pair opens at the
+**Conditional (proposal) markets open ANCHORED**: a fresh pair opens at the
 baseline market's current value rather than the range midpoint, and the
-approved branch opens at baseline minus the contract's ask, because
+approved branch opens at baseline minus the proposal's ask, because
 approval burns the ask into the resolving metric the day it is paid. **The
 ask-adjustment applies only to a metric that the payment actually moves**:
 the name must carry a currency tail, the same "(USD)" convention that puts
@@ -974,7 +986,7 @@ the payment at all, so its pair opens unadjusted; subtracting the ask from
 it would clamp the approved branch at the range floor. Subtracting a dollar
 ask from a metric counted in people or hours is a category error that
 drives every approved branch to the range floor and prints the same fake
-negative impact on every contract. A non-monetary metric anchors both
+negative impact on every proposal. A non-monetary metric anchors both
 branches at the baseline and lets traders price the whole difference.
 
 **A baseline market opens at the metric's own current value**, not at the
@@ -1037,14 +1049,14 @@ Under the bet buttons sits the conversation: a quiet "Discussion (N)"
 toggle expanding the thread in place, hairline rows, mono names, and the
 underline composer for signed-in traders ("Sign up to join the
 conversation" otherwise). The subject follows the one view: the baseline
-market's thread normally, the selected contract's proposal thread when one
+market's thread normally, the selected proposal's proposal thread when one
 is open. Reading is public via GET /api/marketplace/:idOrSlug/comments
 (Open workspaces only); writing uses the same authenticated message
 endpoints API participants use.
 
-Beside Discussion sit Positions and Trades. **For a contract they cover
-BOTH branch markets, not the branch on screen.** A contract opens on "if
-approved", and a contract whose trades all sit on the declined branch
+Beside Discussion sit Positions and Trades. **For a proposal they cover
+BOTH branch markets, not the branch on screen.** A proposal opens on "if
+approved", and a proposal whose trades all sit on the declined branch
 would otherwise answer "Trades (0)", which reads as the trades having been
 lost. The panel fetches both branches, sums the counts, merges the rows
 (trades newest first) and labels each row with its world ("if approved" /
@@ -1064,10 +1076,10 @@ regardless.
 ### The floor's live poll
 
 **The floor's live poll (every fifteen seconds) refreshes DATA, never the
-view.** The selected contract, the branch toggle, an expanded description
+view.** The selected proposal, the branch toggle, an expanded description
 and the drawn chart are the viewer's state, and a tick may only overwrite
 prices and histories in place. Two specific rules follow: view state resets
-on a contract change and nowhere else, and a history refresh never blanks
+on a proposal change and nowhere else, and a history refresh never blanks
 first, or the chart collapses to its single-point fallback for a frame and
 reads as a blink.
 
@@ -1083,62 +1095,62 @@ yanking a composed bet or a selected branch out from under the visitor is
 worse than stale code. In dev (no built bundle in the served page) the
 check is inert.
 
-### The contracts board (right rail)
+### The proposals board (right rail)
 
-The contracts board IS the right rail, under a bare "Contracts" label; it
+The proposals board IS the right rail, under a bare "Proposals" label; it
 renders for everyone, with proposing routed to /signup when anonymous.
-**One number per contract** (as few numbers as possible): the impact, which
+**One number per proposal** (as few numbers as possible): the impact, which
 is if-done minus if-not-done, green/red, "open" while unpriced, under a
 single right-aligned column label ("impact if done", or "impact by <date>"
 when the horizon on screen has a date) rather than a label per row. The
 two branch values are not shown. Rows carry the title, the proposer, and
-the USD ask (the two required facts of a contract), and are ranked by
+the USD ask (the two required facts of a proposal), and are ranked by
 impact, since the ballot is a ranking the owner acts on.
 
-**A contract prints what is behind it, and the ballot is ordered by it.**
-Under the impact, in the drop the market's own pool rows wear, every contract
+**A proposal prints what is behind it, and the ballot is ordered by it.**
+Under the impact, in the drop the market's own pool rows wear, every proposal
 carries the credits behind its forecast: both branches of every pair, added
-up, because half the money is not the number a reader comparing two contracts
+up, because half the money is not the number a reader comparing two proposals
 wants. Quiet and mono, so the impact stays the headline it has always been.
 The pending list is ranked by that pool, deepest first, with impact breaking
-a tie (owner decision 2026-09-02: "contracts are ordered by total liquidity
-available"). A contract nobody has funded sits at the bottom rather than at
+a tie (owner decision 2026-09-02: "proposals are ordered by total liquidity
+available"). A proposal nobody has funded sits at the bottom rather than at
 the top by accident of its own unpriced delta, and the propose footer says
 what moves one up, because the person about to post one is exactly who needs
-to know. Decided contracts stay ranked by impact: nothing can be funded into
+to know. Decided proposals stay ranked by impact: nothing can be funded into
 them any more.
 
-**The board opens on the live ballot; decided contracts are folded away.**
-An approved or declined contract is history: nothing about it can be traded
-on or influenced any more, and decided contracts carry the largest impacts,
+**The board opens on the live ballot; decided proposals are folded away.**
+An approved or declined proposal is history: nothing about it can be traded
+on or influenced any more, and decided proposals carry the largest impacts,
 so ranking them in with the pending ones buried the handful a visitor could
 still act on under the archive of ones they could not. The list therefore
-shows the pending contracts, and ONE hairline row at the foot of it stands
+shows the pending proposals, and ONE hairline row at the foot of it stands
 for the rest: the count on the left ("7 decided"), SHOW or HIDE in the
 accent on the right, and a chevron that turns. Expanded, the decided
-contracts appear beneath that row as the same rows they always were, still
+proposals appear beneath that row as the same rows they always were, still
 ranked by impact. The row is only there when there is something on both
 sides of it to separate: a board with nothing decided has no fold, and a
 board with nothing pending has no ballot to bury, so it shows the decided
-contracts as the list and no fold either. Two rules protect the
+proposals as the list and no fold either. Two rules protect the
 selection, which is what the page's one market view is pointed at: a
-selected decided contract forces the fold open, because a
-`#contract=<id>` link from a notification must never land on a row the
-fold is hiding; and hiding the fold while a decided contract is selected
+selected decided proposal forces the fold open, because a
+`#proposal=<id>` link from a notification must never land on a row the
+fold is hiding; and hiding the fold while a decided proposal is selected
 releases that selection, so the control can never be dead.
 
 **The board is a
-selector, not a second trading surface**: selecting a contract re-points
-the page's ONE market view and ONE ticket at that contract's conditional
+selector, not a second trading surface**: selecting a proposal re-points
+the page's ONE market view and ONE ticket at that proposal's conditional
 pair, rather than growing a smaller market underneath. Both branches are
 on the page (every proposal branches into two worlds and both are visible):
 an "if approved" / "if declined" pill toggle under the headline picks
 which branch the view shows and the ticket trades (approved by default,
 green for approved, red for declined, matching the chart). Both rails
-carry the same top margin on desktop so the "Top traders" and "Contracts"
+carry the same top margin on desktop so the "Top traders" and "Proposals"
 headings sit at the same height.
 
-**"+ Offer to do a contract"** opens a dialog that is the ticket's STRUCTURE,
+**"+ Propose"** opens a dialog that is the ticket's STRUCTURE,
 not just its underlines: the USD ask is the hero numeric at the top
 exactly where the ticket puts its bet amount ($ unit, mono, auto-width
 underline), the title / pitch fields are quiet left-aligned underlines with
@@ -1148,15 +1160,15 @@ near the first press; there is no separate line under the fields and no
 facts table): `.ticket-go` carries a quieter second line
 (`.ticket-go-sub`) saying that posting is free and what approval pays, the
 exact phrase the board shows under its own button so the two surfaces never
-disagree. Posting a contract costs nothing; the only credits a proposer can
+disagree. Posting a proposal costs nothing; the only credits a proposer can
 put in are the optional `liquiditySubsidy` on the branch markets, and the
 credits back on approval are the workspace's `proposalReward`, which is 0
 unless the workspace sets it. Color only speaks as state: accent focus,
 red errors and the full title counter, green ONLY on the placed flash; the
 confirm is the neutral `.ticket-go` whose main label progresses "Suggest a
-contract" (disabled, invalid) to "Offer this for $N" (ready) to
+proposal" (disabled, invalid) to "Offer this for $N" (ready) to
 "Submitting..." to "Added to ballot" (green flash, sub-line hidden, then
-the dialog closes). A $0 contract is a valid contract and needs no payment
+the dialog closes). A $0 proposal is a valid proposal and needs no payment
 details; a non-zero ask with no account payment details shows a warning
 and disables the confirm. The ask is sent as `askUsd` and stored on the
 proposal; when non-zero it is *also* composed into the title as "$N: ..."
@@ -1164,8 +1176,8 @@ because that reads well and travels into the activity log and share text,
 but the stored column is what anything financial reads. Rows prefer
 `askUsd` and fall back to parsing the title only for proposals created
 before the column existed. There is no paid-to field: payment details
-belong in account settings, not in a contract; the account settings dialog
-edits them, and the server refuses a paid contract without them.
+belong in account settings, not in a proposal; the account settings dialog
+edits them, and the server refuses a paid proposal without them.
 
 A proposer stakes only what they choose to subsidise: `liquiditySubsidy` is
 charged per branch market, and it comes back in full at decision time,
@@ -1197,7 +1209,7 @@ mistaken for the provider pills a few lines below it.
 
 **Notifications** is one of those sections (tab id `emails`): three
 toggles for the notifications a participant gets by mail (a comment under
-my contract, a reply in a thread I am in, every new contract), each saving
+my proposal, a reply in a thread I am in, every new proposal), each saving
 on the click with no separate confirm, because a switch that needs a Save
 button reads as a form rather than a switch. This dialog is the only place
 they are edited. The `/account` URL resolves: it redirects to the floor
@@ -1238,7 +1250,7 @@ each provider asks only for its own fields (crypto adds a network pill
 row), and the server validates per provider (IBAN mod-97, per-network
 address shapes) with the refusal surfacing verbatim beside the save. The
 stored object lives in `agents.payout_method`; its human-readable summary
-is derived into `agents.payout_handle`, which is what paid-contract
+is derived into `agents.payout_handle`, which is what paid-proposal
 proposals snapshot.
 
 The Manifold import row: a flat grant for an established account, priced in
@@ -1328,10 +1340,10 @@ badge per row turns twelve rows into a field of noise). Opening a row
 reads THAT row: the count drops by one, its hairline goes, and the rest
 stay as they were. "Mark all read" stays for the sweep.
 
-**A row lands on the thing it names.** `/<slug>#contract=<id>&comment=<id>`
-selects the contract, opens its thread, scrolls the named comment into
+**A row lands on the thing it names.** `/<slug>#proposal=<id>&comment=<id>`
+selects the proposal, opens its thread, scrolls the named comment into
 view and runs `.is-flashed` on it: one wash of the accent that fades out
-over 1.8s. Rows with no comment flash the contract headline instead. The
+over 1.8s. Rows with no comment flash the proposal headline instead. The
 class is shared, so anything the floor ever needs to point at flashes the
 same way. It is deliberately not a selected state, because a highlight
 that stays turns into something to dismiss and the reader already knows
@@ -1342,11 +1354,11 @@ answer to "which one?") and the scroll stops gliding.
 
 The board is signed-in only; the anonymous poster stays clean. On
 viewports >=1120px the page becomes the trading floor proper: a
-three-column grid with the leaders rail on the left and the contracts
+three-column grid with the leaders rail on the left and the proposals
 board on the right. Both rails render for both tiers, hide entirely when
 empty, sit sticky beside the poster, and the chart stops breaking out
 (100% of the center column). Below 1120px the rails stack under the
-poster, and the contracts come BEFORE the standings: the action before the
+poster, and the proposals come BEFORE the standings: the action before the
 proof. The floor column keeps a small gap under the top bar on narrow
 viewports.
 
@@ -1368,9 +1380,9 @@ with a header row (`.pubws-lb-head`): the tiny uppercase label on the
 left, a right-aligned mono meta on the right, a hairline underneath, rows
 following directly. The meta says what the numbers are: "this market" over
 the traders, "impact" over the contractors, "impact by Sep" over the
-contracts, and the season's countdown over the season block (the one meta
+proposals, and the season's countdown over the season block (the one meta
 in primary colour and bold, because it is the number that says whether to
-act today). The contracts board's column label is that header's meta.
+act today). The proposals board's column label is that header's meta.
 
 **Both leaderboards rank on what the market says right now, not on what
 has settled.** The rail stacks two blocks, traders then contractors, five
@@ -1396,18 +1408,18 @@ trade reorders them without a reload.
   stands. Trades on markets whose rows are gone entirely cannot be valued
   and count nothing. The row shows the signed profit in credits.
 - **Top contractors** rank by the market's current valuation of the
-  contracts they posted, NOT by dollars collected. A contract's value is
+  proposals they posted, NOT by dollars collected. A proposal's value is
   its priced impact: the approved branch's consensus minus the declined
   branch's, on the workspace's hero metric (the soonest-resolving baseline
-  market's metric), taking the largest-magnitude horizon when a contract
-  is priced on several. Pending and approved contracts both count, so a
-  contract posted minutes ago scores as soon as anyone prices it;
-  declined, withdrawn, and removed contracts count zero, because the work
-  never happens. A contract the market has not priced yet contributes
+  market's metric), taking the largest-magnitude horizon when a proposal
+  is priced on several. Pending and approved proposals both count, so a
+  proposal posted minutes ago scores as soon as anyone prices it;
+  declined, withdrawn, and removed proposals count zero, because the work
+  never happens. A proposal the market has not priced yet contributes
   zero rather than dropping its poster from the board. The score is signed
-  and carried in the hero metric's own unit (a contract the market thinks
-  hurts the number reads negative); dollars earned on approved contracts
-  drop to the row's second line, alongside the contract count. House
+  and carried in the hero metric's own unit (a proposal the market thinks
+  hurts the number reads negative); dollars earned on approved proposals
+  drop to the row's second line, alongside the proposal count. House
   accounts are NOT excluded here: a contractor's score is priced by other
   people, so it cannot be self-granted.
 
@@ -1531,7 +1543,7 @@ What survives is two sentences, because they are the two things the working
 market cannot show. One says what the mechanism is for and links to the page
 that explains it properly. The other says a stranger may offer to do the
 work and be paid real money for it, which nobody guesses from watching a
-market trade; it stays a call to action that SCROLLS to the contract rail
+market trade; it stays a call to action that SCROLLS to the proposal rail
 rather than a card of equal weight to Trade, whose control is already on
 screen. Two equal-weight cards were the paradox of choice: the reader picks
 neither.
@@ -1594,7 +1606,7 @@ full-width step-line spark of the hero market's real trade history ending
 on the live-call dot (same held-call semantics as the poster chart, value
 range padded 35% so a quiet market still draws through the middle instead
 of along the floor of the box), and a footer of when it settles plus the
-activity behind it (participants, trades this week, contracts currently
+activity behind it (participants, trades this week, proposals currently
 being priced).
 
 The last cell of the grid is always the listing tile, and it is the only
@@ -1611,7 +1623,7 @@ quiet line underneath it.
 **Card copy says only what is unique.** The per-card line is the
 workspace's `description`, which is the workspace ONE-LINER (a few words
 naming what this is), not a call to action. When every card recites the
-same "propose a contract and a price" pitch, the pitch belongs in the
+same "propose a proposal and a price" pitch, the pitch belongs in the
 page's lead paragraph and the cards say what only they can say: "Webcam
 head tracker for sims, sold on Steam", "This platform, running on itself".
 
@@ -1631,7 +1643,7 @@ way. Dual scope stays first-class in the lead itself: a personal goal sits
 beside a company's revenue. Never "one number": the pitch is the set a company
 cares about (owner rule 2026-08-27), and since self-serve creation
 (2026-08-28) the lead speaks to both sides, the trader and the person with
-a number to put up. The paid-contract mechanism belongs to each market's
+a number to put up. The paid-proposal mechanism belongs to each market's
 own page, not the front door.
 
 ## The cockpit (/admin)
@@ -1721,7 +1733,7 @@ The cockpit shares no code with the deleted console.
 
 ## Reusing a component's classes: mind the cascade order
 
-Several blocks (the contract form, the account dialog, the Manifold import)
+Several blocks (the proposal form, the account dialog, the Manifold import)
 compose the ticket's own classes and then correct one or two properties.
 `style.css` is one long file and the `.ticket-*` base rules live near the
 bottom, so **a correction written as a bare single class loses to the base
@@ -1757,7 +1769,7 @@ come out of), and how many credits have been traded on it over its life.
 Each carries its meaning as a hover; none is a sentence, because they are
 counts on a row of counts.
 
-A contract shows the same three, about the branch on screen. A conditional
+A proposal shows the same three, about the branch on screen. A conditional
 market is a market like any other: it has its own pool, its own traders and
 its own traded credits, and none of them is the baseline's. So the row
 follows the toggle, reading the approved world's numbers under "if

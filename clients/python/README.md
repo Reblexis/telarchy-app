@@ -97,7 +97,7 @@ cd clients/python && python3 -m unittest discover -s tests
 No network and nothing to install: the HTTP goes to a local stub, so what is
 asserted is the request the client actually puts on the wire.
 
-## The contract
+## The proposal
 
 `GET /api/help` is the source of truth, generated from the routes it describes.
 Filter it: `t.help(section="predictions")` is about a tenth of the whole

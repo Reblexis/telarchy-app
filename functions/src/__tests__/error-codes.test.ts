@@ -12,7 +12,7 @@
  *
  * 1. ADDITIVE. `error` keeps its exact wording and meaning, so nothing that
  *    reads it today breaks. `code` appears BESIDE it.
- * 2. A code is a promise. Once published it is part of the contract and cannot
+ * 2. A code is a promise. Once published it is part of the proposal and cannot
  *    be repurposed, so the vocabulary is a closed union in one file and every
  *    member has to be documented before this suite passes.
  *

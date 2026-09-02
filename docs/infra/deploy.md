@@ -623,7 +623,7 @@ at telarchy.com/beta instead of on a run.app URL.
 
 What it means in practice:
 
-- Workspaces, metrics, markets, trades, contracts and credits on the beta are
+- Workspaces, metrics, markets, trades, proposals and credits on the beta are
   the beta's own. Nothing you do to them touches the live floor.
 - Anything that writes to the ACCOUNT is live: signing up, password changes,
   profile edits, notification settings. Test those on the beta and you have
@@ -898,8 +898,8 @@ gcloud scheduler jobs update http firebase-schedule-dailyMarketRefresh-us-centra
 
 The `api` service sends mail through Resend (`functions/src/lib/notify.ts`):
 owner notifications (new waitlist signup, new proposal) and participant
-notifications (a comment under your contract, a reply in your thread, and
-opt-in new-contract alerts; see docs/vision.md, "Participant email
+notifications (a comment under your proposal, a reply in your thread, and
+opt-in new-proposal alerts; see docs/vision.md, "Participant email
 notifications"). Two pieces of service config, set once on Cloud Run and
 inherited by every CI deploy (the workflow's `--update-env-vars` and
 `--update-secrets` are merged into the service's configuration and name only

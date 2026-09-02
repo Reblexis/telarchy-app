@@ -1,5 +1,5 @@
 /**
- * The data room's contract (docs/data-room.md).
+ * The data room's proposal (docs/data-room.md).
  *
  * Three things are pinned here, each of which has a way of breaking silently
  * on a public page:
@@ -226,7 +226,7 @@ describe('what the feed publishes', () => {
     }
   });
 
-  it('leaves removed entries out, so the contract rows add up', async () => {
+  it('leaves removed entries out, so the proposal rows add up', async () => {
     await seed();
     // Removed is the admin taking an entry off the board because it should
     // never have been there (spam, a duplicate, a test row), not a decision.

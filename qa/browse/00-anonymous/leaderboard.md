@@ -157,7 +157,7 @@ None — this spec only reads.
 - No assertion on tie-breaking semantics under live data (covered by the
   unit test at `functions/src/__tests__/leaderboard.test.ts`).
 - T8 needs a second session to place the trade, so unattended runs skip it;
-  the freshness contract itself is pinned server-side by
+  the freshness proposal itself is pinned server-side by
   `functions/src/__tests__/leaderboard-freshness.test.ts`.
 - No assertion that the sidebar link points to `/leaderboard`; covered by
   signed-in flows rather than this anonymous spec.

@@ -141,13 +141,13 @@ None — this spec only reads.
 (`.mkt-thesis`, no page title: this is the home page since 2026-08-20 and
 "Marketplace" labelled the furniture), one lead paragraph
 stating the mechanism (one number someone is trying to move; anyone can
-propose a paid contract; the market prices it; the owner pays only for
+propose a paid proposal; the market prices it; the owner pays only for
 the ones worth it), and a `.mkt-grid` of `.mkt-card` cells, one per
 public workspace. Each card carries the name, the live number in accent
 mono, the metric name, the owner's one-line description, a
 `.mkt-spark` step line of the hero market's real trade history ending in
 `.mkt-spark-dot`, and a footer of "settles <day month year>" plus
-participants / trades this week / contracts being priced. The final cell
+participants / trades this week / proposals being priced. The final cell
 is always `.mkt-card--new` ("List your own number", big plus in a
 `.mkt-new-mark` disc), present even when no workspace is listed. It is
 the only interactive cell: "Get set up" opens an email field in place,

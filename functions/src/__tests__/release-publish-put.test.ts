@@ -5,7 +5,7 @@
  * PATCHed a partial spec at the Knative-style services endpoint. That API
  * has no PATCH, so the Google front end answered 404 as an HTML page and
  * every press of "Publish this build" surfaced as "Internal error" - while
- * the error text blamed IAM, which was fine. The contract this pins: GET
+ * the error text blamed IAM, which was fine. The proposal this pins: GET
  * the whole service, rewrite spec.traffic, PUT the WHOLE object back
  * (metadata included - it carries the resourceVersion Cloud Run checks),
  * keeping tagged entries so the beta URL survives the publish.

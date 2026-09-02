@@ -229,10 +229,10 @@ export function LeaderPage() {
 
         <section className="lbp-section" aria-label="Contractors">
           <h2 className="pubws-h2">Contractors</h2>
-          <p className="lbp-note">What each poster's live contracts are worth: approving minus declining, summed.</p>
+          <p className="lbp-note">What each poster's live proposals are worth: approving minus declining, summed.</p>
           {contractors === null ? null : contractors.length === 0 ? (
             <p className="lbp-empty">
-              No contracts on the board yet. Offer one and the market prices what it is worth.
+              No proposals on the board yet. Offer one and the market prices what it is worth.
             </p>
           ) : (
             <table className="lbt">

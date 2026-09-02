@@ -19,7 +19,7 @@ goal-statement: |
 
 `POST /api/setup/ask`, `GET /api/setup/checklist`, `src/components/SetupChat.tsx`
 and the specification in `functions/src/lib/setup-spec.ts`. The behavioural
-contract is the operator-door design note (private notes).
+proposal is the operator-door design note (private notes).
 
 Three claims are worth a test, and none of them is "the model answered":
 

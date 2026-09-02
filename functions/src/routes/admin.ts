@@ -861,7 +861,7 @@ adminRouter.post(
 /**
  * Who to pay, and where. Platform admin only, and deliberately only here.
  *
- * The owner approves a contract and then has to send real money to a stranger.
+ * The owner approves a proposal and then has to send real money to a stranger.
  * Until now that meant reading the database by hand, because payout details are
  * stripped from every participant route that is not the participant themselves
  * (`routes/agents.ts`), which is the right default and the reason this needed

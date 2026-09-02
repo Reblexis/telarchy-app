@@ -6,7 +6,7 @@ import { FloorModal } from './FloorModal';
 /**
  * The owner's three dialogs (docs/owner-on-the-floor.md, "The v1 controls").
  *
- * Each wears the contract dialog's anatomy exactly (JobsBoard's jobform: the
+ * Each wears the proposal dialog's anatomy exactly (JobsBoard's jobform: the
  * ticket head with the hero amount and the close, 2px jobform underlines,
  * the ruled ticket-facts rows, one ticket-go whose sub-line carries the
  * consequence), so the owner's dialogs read as siblings of the one dialog
@@ -59,7 +59,7 @@ function parseCredits(raw: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/** The contract dialog's hero amount, in credits: same head, same block, the
+/** The proposal dialog's hero amount, in credits: same head, same block, the
  *  unit after the number the way the floor writes credits. */
 function CreditsHero({
   label,

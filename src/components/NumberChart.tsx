@@ -24,8 +24,8 @@ export interface NumberMarker {
   resolvesOn: string;
   consensus: number | null;
   selected: boolean;
-  /** The open contract's conditional pair on this market, when one is open:
-   *  what the metric reads if the contract is approved and if it is declined. */
+  /** The open proposal's conditional pair on this market, when one is open:
+   *  what the metric reads if the proposal is approved and if it is declined. */
   pair?: { approved: number | null; declined: number | null } | null;
 }
 
@@ -44,7 +44,7 @@ interface Props {
   /** Which world the impact label is stated from: '+7.8' on the approved
    *  branch becomes '-7.8' on the declined one (owner ask 2026-08-26). */
   impactFrom?: 'approved' | 'declined';
-  /** The legend under the chart when a contract is open, in its own words:
+  /** The legend under the chart when a proposal is open, in its own words:
    *  "if Jason is paid $80" / "if not" / "the market now". */
   legend?: { approved: string; declined: string } | null;
   now?: Date;
@@ -439,7 +439,7 @@ export function NumberChart({
           return (
             <g key={m.marketId} className={m.selected ? 'nchart-marker is-selected' : 'nchart-marker'}>
               <line x1={mx} x2={mx} y1={PAD_T - 6} y2={H - PAD_B + 6} />
-              {/* The contract's pair: green if approved, red if declined, a
+              {/* The proposal's pair: green if approved, red if declined, a
                 bar between them whose length is the priced impact. */}
               {hasPair && ay !== null && dy !== null && (
                 <g className="nchart-pair">

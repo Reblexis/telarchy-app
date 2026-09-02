@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
  *
  * Owner report 2026-08-31 ("the conditional markets should be just the same as
  * any other, it should show the statistics below"). The floor used to hide the
- * row entirely whenever a contract was on screen, so a branch with its own
+ * row entirely whenever a proposal was on screen, so a branch with its own
  * funded book looked like a market with no liquidity at all.
  *
  * The row is about the BRANCH on screen, never the baseline: the approved
@@ -48,7 +48,7 @@ const h = vi.hoisted(() => {
         probability: 0.5,
         liquidity: 200,
         // The baseline's own three, deliberately unlike the branches' below,
-        // so a leak from baseline to contract is visible in the assertion.
+        // so a leak from baseline to proposal is visible in the assertion.
         pool: 139,
         traderCount: 9,
         tradedVolume: 4_242,
@@ -152,7 +152,7 @@ async function facts(): Promise<string> {
     .join(' ');
 }
 
-/** Put the contract on screen, the way a reader does: click its row. */
+/** Put the proposal on screen, the way a reader does: click its row. */
 async function selectContract() {
   fireEvent.click(await screen.findByTitle('rewrite the store page'));
 }
@@ -185,10 +185,10 @@ describe('a conditional market says the same things about itself as any other', 
     expect(await facts()).toBe('9 139 4,242');
   });
 
-  test('a contract on screen shows the row, not nothing', async () => {
+  test('a proposal on screen shows the row, not nothing', async () => {
     renderFloor();
     await selectContract();
-    // The bug: the row was hidden whenever a contract was selected, so a
+    // The bug: the row was hidden whenever a proposal was selected, so a
     // funded branch read as a market with no pool at all.
     expect(await screen.findByLabelText('Market facts')).toBeTruthy();
   });
@@ -211,7 +211,7 @@ describe('a conditional market says the same things about itself as any other', 
     await waitFor(async () => expect(await facts()).toBe('2 77 250'));
   });
 
-  test("a contract never borrows the baseline's numbers", async () => {
+  test("a proposal never borrows the baseline's numbers", async () => {
     renderFloor();
     await selectContract();
     await waitFor(async () => expect(await facts()).toBe('2 77 250'));

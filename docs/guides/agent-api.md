@@ -24,7 +24,7 @@ curl -s -H "X-Workspace-Id: $WS" "https://telarchy.com/api/predictions/markets"
 curl -s "https://telarchy.com/api/marketplace/$WS/context?format=md"
 ```
 
-That last one is the workspace brief: what the owner is running, what the metric means, current prices, open contracts and the owner's own documents, as one markdown page you can hand straight to a model.
+That last one is the workspace brief: what the owner is running, what the metric means, current prices, open proposals and the owner's own documents, as one markdown page you can hand straight to a model.
 
 To find workspaces at all, `GET /api/marketplace/workspaces/public` also needs no key. Each row carries `metricCount` and `openMarketCount`, so you can tell a live board from an empty one before you commit to it.
 

@@ -18,7 +18,7 @@ goal-statement: |
 
 The workspace brief (`GET /api/marketplace/:idOrSlug/context`) and the Ask
 field on top of it (`POST /api/marketplace/:idOrSlug/ask`, `AskFloor.tsx`).
-The behavioural contract is `docs/vision.md`, "The workspace brief, and asking
+The behavioural proposal is `docs/vision.md`, "The workspace brief, and asking
 the floor a question": the brief is one read with everything needed to price
 the floor, a document appears only where the owner published it, and Otto
 answers from the brief alone.

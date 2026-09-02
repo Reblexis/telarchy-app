@@ -11,7 +11,7 @@
  * not be explained, and a lost one could not be rebuilt. `trades` and
  * `liquidity_events` were append-only and protected, but they are two of a
  * dozen ways money moves; payouts, void refunds, proposal stakes and rewards,
- * spam penalties, contract payments, signup grants, limit-order holds and
+ * spam penalties, proposal payments, signup grants, limit-order holds and
  * admin adjustments were all invisible.
  *
  * `credit-ledger-ownership.test.ts` greps the backend and fails if any file

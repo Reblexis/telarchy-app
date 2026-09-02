@@ -131,8 +131,9 @@ export function TradePage() {
    *  a visitor's question actually forms. */
   const [askingOtto, setAskingOtto] = useState(false);
 
-  // A notification points AT something: #contract=<id> opens the floor on
-  // that contract, and #comment=<id> says which line in its thread the
+  // A notification points AT something: #proposal=<id> opens the floor on
+  // that proposal (the older #contract=<id> does the same, because it is
+  // printed in emails already sent), and #comment=<id> says which line in its thread the
   // reader was told about. Landing them on the page and leaving them to find
   // it is most of the way to not having linked at all, so the comment id is
   // handed to FloorComments, which opens the thread, scrolls to that line and
@@ -156,14 +157,14 @@ export function TradePage() {
     const hash = location.hash.replace(/^#/, '');
     if (!hash) return;
     const params = new URLSearchParams(hash);
-    const contract = params.get('contract');
+    const proposal = params.get('proposal') ?? params.get('contract');
     const comment = params.get('comment');
-    if (!contract && !comment) return;
-    if (contract) setSelectedJobId(contract);
+    if (!proposal && !comment) return;
+    if (proposal) setSelectedJobId(proposal);
     setFocusCommentId(comment);
-    // With no comment to point at, the contract itself is the thing the
+    // With no comment to point at, the proposal itself is the thing the
     // notification named, so that is what flashes.
-    if (contract && !comment) {
+    if (proposal && !comment) {
       setFlashContract(true);
       setTimeout(() => setFlashContract(false), 1800);
     }
@@ -215,10 +216,10 @@ export function TradePage() {
     | { kind: 'inject'; marketId: string; marketLabel: string; pool: number; traders: number }
     | { kind: 'report'; metricId: string; metricName: string }
   >(null);
-  // Who the viewer is as a participant, so the floor can tell "my contract"
+  // Who the viewer is as a participant, so the floor can tell "my proposal"
   // from someone else's. A proposer edits their own; a manager edits any.
   const [myAgentId, setMyAgentId] = useState<string | null>(null);
-  // Editing the selected contract in place (owner ask 2026-08-20). Same shape
+  // Editing the selected proposal in place (owner ask 2026-08-20). Same shape
   // as the metric definition editor above: words and price save in place; an
   // untraded pair re-anchors, a traded one keeps its markets and positions
   // and the revision row discloses the change (docs/market-integrity.md I1b).
@@ -318,7 +319,7 @@ export function TradePage() {
 
   // Once the floor is loaded (the workspace header is pinned), ask who we
   // are HERE. The manage capability is what the server checks on every
-  // manage endpoint (approve, decline, edit any contract), so it is what
+  // manage endpoint (approve, decline, edit any proposal), so it is what
   // decides whether to draw those controls. Deliberately not gated on the
   // silent join: the owner of a floor that is not open-join never joins,
   // and they are exactly who these controls exist for.
@@ -377,7 +378,7 @@ export function TradePage() {
       setSelectedJobId(null);
       reload();
     } catch (e) {
-      setDecideErr((e as Error).message || 'Could not remove the contract');
+      setDecideErr((e as Error).message || 'Could not remove the proposal');
     } finally {
       setDecideBusy(false);
     }
@@ -510,7 +511,7 @@ export function TradePage() {
   })();
   // The distinct numbers this floor prices, in the same label shape the rest
   // of the page uses (metricLabelOf owns that; see floor-horizons.ts). Feeds
-  // the propose form's placeholder, so a proposer is told what their contract
+  // the propose form's placeholder, so a proposer is told what their proposal
   // is supposed to move.
   const metricNames = useMemo(
     () =>
@@ -527,7 +528,7 @@ export function TradePage() {
     [ws?.markets, ws?.name],
   );
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
-  // A contract is editable by whoever posted it (and by a manager) while it is
+  // A proposal is editable by whoever posted it (and by a manager) while it is
   // still on the ballot. The server decides the same thing again; this only
   // decides whether to draw the button.
   const canEditJob =
@@ -546,7 +547,7 @@ export function TradePage() {
       // everything that reads prose, and separately as the number anything
       // financial reads. The server refuses the two disagreeing.
       const task = jobTitle.trim();
-      if (!task) throw new Error('A contract needs a title');
+      if (!task) throw new Error('A proposal needs a title');
       const fullTitle = askNum > 0 ? `$${askNum}: ${task}` : task;
       await api.editProposal(selectedJob.id, {
         title: fullTitle,
@@ -556,13 +557,13 @@ export function TradePage() {
       setEditingJob(false);
       reload();
     } catch (e) {
-      setJobErr(e instanceof Error ? e.message : 'Could not save the contract');
+      setJobErr(e instanceof Error ? e.message : 'Could not save the proposal');
     } finally {
       setJobSaving(false);
     }
   };
 
-  // The contract's pair for the horizon on screen, not whichever pair the
+  // The proposal's pair for the horizon on screen, not whichever pair the
   // payload happened to list first.
   // By (metric, date): with several metrics read on one date, the date alone
   // would pick another metric's pair.
@@ -674,7 +675,7 @@ export function TradePage() {
   // and left alone, the series froze at the instant the reader arrived: they
   // would watch an hour of trades move the headline while the chart kept a
   // snapshot. The payload's inline series is refreshed by the reload, so this
-  // only matters for a market it does not carry (a contract's branch).
+  // only matters for a market it does not carry (a proposal's branch).
   const horizonPricesRef = useRef<() => void>(() => {});
   horizonPricesRef.current = () => {
     if (!heroMarketId || !wsKey || heroPricesInline) return;
@@ -867,7 +868,7 @@ export function TradePage() {
   // static at the bottom. Dep on `ws` so the observer attaches once the
   // section actually renders.
   // "What can you do?" sends the reader to the control it names: the bet
-  // buttons, or the contracts board. Scrolling beats opening a modal here,
+  // buttons, or the proposals board. Scrolling beats opening a modal here,
   // because the point is to show WHERE the thing lives on a page they will
   // come back to, not to start the action for them.
   const scrollToAction = (what: 'trade' | 'contract') => {
@@ -1171,9 +1172,9 @@ export function TradePage() {
                 </button>
               )}
               {/* The clock line renders in BOTH states (owner design
-                2026-08-20). Opening a contract used to replace it, which took
+                2026-08-20). Opening a proposal used to replace it, which took
                 the arrows away and pinned the page to markets[0], so a
-                contract's number depended on the horizon the reader happened
+                proposal's number depended on the horizon the reader happened
                 to be on before they clicked in. Rendered once here, never
                 copied into the branch below, because a second copy is how the
                 two drift. */}
@@ -1279,7 +1280,7 @@ export function TradePage() {
                is visible, the sentence is what the selection means. Its
                metric and date are cycle words too: clicking one steps to the
                next option and LOOPS (the 2026-08-20 arrow rule); with one
-               option the word is plain text. With a contract selected the
+               option the word is plain text. With a proposal selected the
                SAME sentence carries the condition ("...if Ada is paid $80
                to do: rewrite the store page?", owner ask 2026-08-28: modify
                the question, do not add a second line under it), which is
@@ -1355,7 +1356,7 @@ export function TradePage() {
               {selectedJob && (
                 <>
                   {editingJob ? (
-                    /* Editing a contract in place (owner ask 2026-08-20). The
+                    /* Editing a proposal in place (owner ask 2026-08-20). The
                      words save without touching the market; the price only
                      moves while nobody has traded the pair, and the server
                      says so plainly when it will not (docs/market-integrity.md
@@ -1379,7 +1380,7 @@ export function TradePage() {
                           value={jobTitle}
                           maxLength={80}
                           onChange={e => setJobTitle(e.target.value)}
-                          aria-label="Contract title"
+                          aria-label="Proposal title"
                         />
                       </label>
                       <label className="jobform-field">
@@ -1389,12 +1390,12 @@ export function TradePage() {
                           rows={4}
                           value={jobDesc}
                           onChange={e => setJobDesc(e.target.value)}
-                          aria-label="Contract details"
+                          aria-label="Proposal details"
                         />
                       </label>
                       <p className="pubws-settle">
                         Editing the words keeps the market and every position, and publishes that it changed. The price
-                        can only move while nobody has traded this contract yet.
+                        can only move while nobody has traded this proposal yet.
                       </p>
                       <div>
                         <button
@@ -1434,7 +1435,7 @@ export function TradePage() {
                       </>
                     )
                   )}
-                  {/* Edited, and when: a trader who priced this contract before
+                  {/* Edited, and when: a trader who priced this proposal before
                     the wording moved is entitled to know that it moved. */}
                   {!editingJob && selectedJob.editedAt && (
                     <p className="pubws-proposal-meta">
@@ -1446,7 +1447,7 @@ export function TradePage() {
                       })}
                     </p>
                   )}
-                  {/* The proposer's own controls. A contract is a listing its
+                  {/* The proposer's own controls. A proposal is a listing its
                     author should be able to correct: a typo, a clearer
                     description, a price they got wrong before anyone traded. */}
                   {canEditJob && !editingJob && (
@@ -1462,7 +1463,7 @@ export function TradePage() {
                           setEditingJob(true);
                         }}
                       >
-                        Edit contract
+                        Edit proposal
                       </button>
                     </div>
                   )}
@@ -1528,7 +1529,7 @@ export function TradePage() {
                                 setRemoveArmed(true);
                                 setDecideErr('');
                               }}
-                              title="Take this contract off the board. Stakes are refunded."
+                              title="Take this proposal off the board. Stakes are refunded."
                             >
                               Remove
                             </button>
@@ -1540,7 +1541,7 @@ export function TradePage() {
                             className="pubws-decide-reason"
                             value={declineReason}
                             onChange={e => setDeclineReason(e.target.value)}
-                            placeholder="Why not, published on the contract"
+                            placeholder="Why not, published on the proposal"
                             aria-label="Decline reason"
                             autoFocus
                           />
@@ -1631,8 +1632,8 @@ export function TradePage() {
                      price is the row's left cell with the settle countdown
                      beside it, where the since-open chip used to be (owner
                      ask 2026-08-28: "instead of the arrow and down since").
-                     A contract's impact chip still renders, because the
-                     impact is the contract's one number. The centre is the
+                     A proposal's impact chip still renders, because the
+                     impact is the proposal's one number. The centre is the
                      chart's own title. */
                     corner={
                       <span className="pubws-stat">
@@ -1675,7 +1676,7 @@ export function TradePage() {
                         points={hero.metricHistory}
                         markers={datesOf(horizons, hero.metricId).flatMap(d => {
                           if (!d.resolvesOn) return [];
-                          // The open contract's pair on this date, by (metric, date).
+                          // The open proposal's pair on this date, by (metric, date).
                           const pr = selectedJob?.markets.find(
                             m =>
                               m.targetDate === d.targetDate && (m.metricId === undefined || m.metricId === d.metricId),
@@ -1809,7 +1810,7 @@ export function TradePage() {
 
           {/* A decision pauses trading, not the conversation (owner ask
             2026-08-20, docs/vision.md "the conversation outlives the
-            decision"): a decided contract drops the bet verbs and keeps
+            decision"): a decided proposal drops the bet verbs and keeps
             its thread, readable and open to new comments. */}
           {active && (trading || (canTrade && !user && !authLoading)) ? (
             <section
@@ -1857,7 +1858,7 @@ export function TradePage() {
                 ) : (
                   <p className="pubws-unfunded" role="status">
                     {selectedJob
-                      ? 'This contract has no market yet. The owner funds one, or the proposer can back it themselves.'
+                      ? 'This proposal has no market yet. The owner funds one, or the proposer can back it themselves.'
                       : 'This market has no liquidity yet, so there is nothing to trade against.'}
                   </p>
                 ))}
@@ -1922,7 +1923,7 @@ export function TradePage() {
                   idOrSlug={idOrSlug}
                   trailing={
                     hero && active ? (
-                      /* The market ON SCREEN says what it holds, contract
+                      /* The market ON SCREEN says what it holds, proposal
                          branches included (owner report 2026-08-31: "the
                          conditional markets should be just the same as any
                          other"). This used to be gated on `!selectedJob`, so
@@ -1953,13 +1954,13 @@ export function TradePage() {
                       />
                     ) : null
                   }
-                  /* A contract passes its proposal AND both branch markets
+                  /* A proposal passes its proposal AND both branch markets
                    (owner reports 2026-08-15 "if there is a trade why don't I
                    see it down here", 2026-08-21 "why dont i see any trades
                    made on the conditional markets"). The conversation
-                   belongs to the CONTRACT and survives switching branch;
+                   belongs to the PROPOSAL and survives switching branch;
                    positions and trades cover BOTH branches, labeled, because
-                   scoping them to the branch on screen made a contract whose
+                   scoping them to the branch on screen made a proposal whose
                    trades sat on the other branch answer "Trades (0)". */
                   focusCommentId={focusCommentId}
                   onFocusHandled={() => setFocusCommentId(null)}
@@ -2140,7 +2141,7 @@ export function TradePage() {
             on in the chart and the board itself; the rail slot goes to the
             thing a visitor can act on. */}
         {ws.proposals !== undefined && hero ? (
-          <aside className="pubws-rail pubws-rail--right" aria-label="Contracts">
+          <aside className="pubws-rail pubws-rail--right" aria-label="Proposals">
             <JobsBoard
               proposals={ws.proposals}
               unit={unit}
@@ -2204,7 +2205,7 @@ export function TradePage() {
           You can also offer to do the work and name your price. The owner pays in real money if the market says it
           clears.{' '}
           <button type="button" className="pubws-close-go" onClick={() => scrollToAction('contract')}>
-            Offer a contract &rarr;
+            Offer a proposal &rarr;
           </button>
         </p>
       </section>
@@ -2213,7 +2214,7 @@ export function TradePage() {
           2026-08-10): anyone who wants their own numbers run this way gets
           set up within days, so the copy promises contact, not a queue. One
           field, zero friction. It closes the page because the two calls to
-          action escalate: trade, offer a contract, run your own number. */}
+          action escalate: trade, offer a proposal, run your own number. */}
       <section className="pubws-door" aria-label="Get set up">
         <SetupForm source={ws.slug || idOrSlug || 'floor'} />
       </section>

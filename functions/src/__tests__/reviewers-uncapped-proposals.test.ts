@@ -3,13 +3,13 @@
  *
  * docs/guides/proposals.md: maxPendingProposalsPerParticipant is a brake on
  * what strangers can queue for a reviewer to look at; a reviewer's own
- * contracts are theirs to manage, so whoever holds manage on the floor (the
+ * proposals are theirs to manage, so whoever holds manage on the floor (the
  * owner, their admins, a platform admin acting there) may post any number of
- * pending contracts whatever the cap says. Everyone else is still refused
+ * pending proposals whatever the cap says. Everyone else is still refused
  * with 429 { pending, cap } once they reach it.
  *
  * Owner report 2026-09-02: the owner of a floor with cap 3 was refused their
- * fourth contract with "You have 3 pending proposals; this workspace allows
+ * fourth proposal with "You have 3 pending proposals; this workspace allows
  * at most 3 per participant." A first fix exempted the workspace's creator
  * row only, and the owner was still refused: the Telarchy and LookPilot
  * floors were created by the admin account, and the owner posts there as a
@@ -131,10 +131,10 @@ async function pendingOf(agentId: string) {
 }
 
 describe('the pending-proposals cap never applies to anyone who can review the queue', () => {
-  test('the owner posts past the cap and every contract is accepted', async () => {
+  test('the owner posts past the cap and every proposal is accepted', async () => {
     await seed(3);
     for (let i = 1; i <= 5; i++) {
-      const r = await asOwner(`Owner contract ${i}`);
+      const r = await asOwner(`Owner proposal ${i}`);
       expect([r.status, r.body.error]).toEqual([201, undefined]);
     }
     expect(await pendingOf(OWNER)).toBe(5);
@@ -150,7 +150,7 @@ describe('the pending-proposals cap never applies to anyone who can review the q
   test('a reviewer who is not the creator row (platform admin on a floor the admin account made) is not capped', async () => {
     await seed(3);
     for (let i = 1; i <= 5; i++) {
-      const r = await asReviewer(`Reviewer contract ${i}`);
+      const r = await asReviewer(`Reviewer proposal ${i}`);
       expect([r.status, r.body.error]).toEqual([201, undefined]);
     }
     expect(await pendingOf(REVIEWER)).toBe(5);

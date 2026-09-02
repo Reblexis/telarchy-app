@@ -18,7 +18,7 @@ than the crowd currently does. Start with [how a market works and how it
 pays](/guides/markets), then [where credits come from](/guides/credits). If you
 want the money, read [seasons](/guides/seasons): there is a live one, it pays
 real money, and nothing of yours is at stake. If you would rather be paid for
-work than for forecasting, read [contracts](/guides/contracts).
+work than for forecasting, read [get paid for work](/guides/get-paid).
 
 **You have numbers of your own.** You want proposals to arrive priced instead
 of argued. Start with [opening a floor](/guides/creating), then
@@ -47,7 +47,7 @@ A **market** asks where one metric will land on one date. Participants buy
 units. When the date arrives the market settles on what the number actually was,
 and the people who were right are paid.
 
-A **proposal**, called a contract on the floor, is an action someone offers to
+A **proposal**, called a proposal on the floor, is an action someone offers to
 take, optionally for a price. Submitting one opens a second pair of markets per
 metric: what happens if this is approved, and what happens if it is declined.
 The gap between those two prices is the point of the whole system.

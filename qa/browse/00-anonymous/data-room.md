@@ -16,7 +16,7 @@ goal-statement: |
 
 ## What this tests
 
-`GET /api/data-room` and `src/pages/DataRoomPage.tsx`. The behavioural contract
+`GET /api/data-room` and `src/pages/DataRoomPage.tsx`. The behavioural proposal
 is `docs/data-room.md`: one anonymous read carries the prose and every figure,
 the page renders that response and nothing else, a figure that could not be
 computed is `null` and reads as "not published", and the traffic history
@@ -94,7 +94,7 @@ jq -e '.evidence.traffic.byDay[0] | has("ip") or has("path") or has("referer") |
 jq -e '.evidence.traffic.keptSince == .evidence.traffic.byDay[0].day' <<<"$feed" >/dev/null
 ```
 
-### T5. The contract rows add up to the total
+### T5. The proposal rows add up to the total
 
 ```bash
 # A published total whose own rows sum to less reads as a mistake. Removed

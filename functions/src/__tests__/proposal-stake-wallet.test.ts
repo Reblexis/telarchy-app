@@ -3,7 +3,7 @@
  * is pool money and spends FIRST, and a tradeable balance is only ever
  * touched for what the wallet could not cover.
  *
- * A contract's conditional pair is a pool like any other, so staking one has
+ * A proposal's conditional pair is a pool like any other, so staking one has
  * to obey the same order as the Inject button. It matters more since
  * 2026-09-01: every account is granted matched liquidity at signup, so a
  * proposer whose pool money is entirely in the wallet is now the ordinary
@@ -67,7 +67,7 @@ const purses = async (id: string) => {
   return { balance: fromUnits(a.balance as number), wallet: fromUnits(a.liquidityBalance as number) };
 };
 
-describe('staking a contract spends the wallet first', () => {
+describe('staking a proposal spends the wallet first', () => {
   test('a stake the wallet covers never touches the tradeable balance', async () => {
     // 50 per market across the approved and declined branches: 100 in all,
     // which the 300-credit wallet covers on its own.

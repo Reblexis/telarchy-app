@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 /**
  * The floor's bell. What matters: the unread count is visible without
  * opening anything, the panel lists what happened with a link that lands on
- * the contract itself, reading clears the count without emptying the list,
+ * the proposal itself, reading clears the count without emptying the list,
  * and an empty inbox says what will appear there rather than "no data".
  */
 
@@ -73,25 +73,25 @@ describe('the notifications bell', () => {
     expect(await screen.findByText('2')).toBeTruthy();
   });
 
-  test('lists what happened, and links a contract row to that contract', async () => {
+  test('lists what happened, and links a proposal row to that proposal', async () => {
     bell();
     fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
     expect(await screen.findByText('$2000: Create a Telarchy tournament')).toBeTruthy();
-    expect(screen.getByText(/trader-9 commented on your contract/)).toBeTruthy();
+    expect(screen.getByText(/trader-9 commented on your proposal/)).toBeTruthy();
     const link = screen.getAllByRole('link')[0] as HTMLAnchorElement;
     // The comment row points at the COMMENT, so the floor can flash the line
     // rather than dropping the reader on the page it lives on.
-    expect(link.getAttribute('href')).toBe('/telarchy#contract=prop-1&comment=msg-7');
-    // A decision has no comment, so it points at the contract alone.
+    expect(link.getAttribute('href')).toBe('/telarchy#proposal=prop-1&comment=msg-7');
+    // A decision has no comment, so it points at the proposal alone.
     expect((screen.getAllByRole('link')[1] as HTMLAnchorElement).getAttribute('href')).toBe(
-      '/telarchy#contract=prop-2',
+      '/telarchy#proposal=prop-2',
     );
   });
 
-  test('a decision on my own contract reads as mine, with the reason', async () => {
+  test('a decision on my own proposal reads as mine, with the reason', async () => {
     bell();
     fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
-    expect(await screen.findByText(/A contract was decided/)).toBeTruthy();
+    expect(await screen.findByText(/A proposal was decided/)).toBeTruthy();
     expect(screen.getByText('out of scope this quarter')).toBeTruthy();
   });
 
@@ -108,7 +108,7 @@ describe('the notifications bell', () => {
     getNotifications.mockImplementationOnce(async () => ({ unread: 0, seenAt: null, notifications: [] }));
     bell();
     fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
-    expect(await screen.findByText(/Comments on your contracts/)).toBeTruthy();
+    expect(await screen.findByText(/Comments on your proposals/)).toBeTruthy();
   });
 });
 

@@ -8,7 +8,7 @@
  * deploy-cloudrun.yml --ref <branch>"), and the handler masked every >=500
  * body into "Internal error", so the one string written to be read never
  * reached the person debugging it. The help catalog promises that message;
- * the mask broke the contract.
+ * the mask broke the proposal.
  */
 
 import type { NextFunction, Request, Response } from 'express';

@@ -791,14 +791,14 @@ export interface ContractEdit {
   askUsd?: number | null;
 }
 
-/** A paid contract's title carries its price by convention ("$200: ..."). */
+/** A paid proposal's title carries its price by convention ("$200: ..."). */
 function askInTitle(title: string): number | null {
   const m = title.match(/^\$(\d+):/);
   return m ? parseInt(m[1], 10) : null;
 }
 
 /**
- * Edit a contract's definition. Words and price both edit in place and are
+ * Edit a proposal's definition. Words and price both edit in place and are
  * published as revisions (I1b in docs/market-integrity.md; the traded-ask
  * rule revised 2026-08-22, owner).
  *
@@ -807,7 +807,7 @@ function askInTitle(title: string): number | null {
  * number, free because nobody is in it. Once anyone has traded, the pair is
  * left exactly where trading put it, because taking a market away from the
  * people in it is what I2 forbids; the append-only revision row beside the
- * contract is what tells a holder the deal's number moved.
+ * proposal is what tells a holder the deal's number moved.
  *
  * Returns the fields that actually changed, so a caller can tell an edit from
  * a re-save of identical text.
@@ -826,12 +826,12 @@ export async function editProposalDefinition(
 
   const isProposer = !!by.agentId && proposal.proposedBy === by.agentId;
   if (!isProposer && !by.canManage) {
-    throw new AppError("Only the contract's proposer, or a workspace manager, may edit it", 403);
+    throw new AppError("Only the proposal's proposer, or a workspace manager, may edit it", 403);
   }
-  // An approved contract's terms are the deal the owner agreed to pay for,
+  // An approved proposal's terms are the deal the owner agreed to pay for,
   // and a declined one's are what the published reason refers to.
   if (proposal.status !== 'pending') {
-    throw new AppError(`Only a pending contract can be edited; this one is ${proposal.status}`, 409);
+    throw new AppError(`Only a pending proposal can be edited; this one is ${proposal.status}`, 409);
   }
 
   const nextTitle = edit.title !== undefined ? edit.title.trim() : proposal.title;
@@ -847,7 +847,7 @@ export async function editProposalDefinition(
   }
   if (nextAsk === 0 && titled !== null) {
     throw new AppError(
-      `The title says $${titled} but the contract asks for nothing; drop the price from the title`,
+      `The title says $${titled} but the proposal asks for nothing; drop the price from the title`,
       400,
     );
   }
@@ -861,7 +861,7 @@ export async function editProposalDefinition(
   // The ask is burned into the approved branch's opening anchor. Re-anchoring
   // (void and respawn at the new number) is only free while nobody is in the
   // pair; after the first trade the markets stay where trading put them and
-  // only the number on the contract moves, disclosed by the revision row
+  // only the number on the proposal moves, disclosed by the revision row
   // (docs/market-integrity.md, I1b, revised 2026-08-22).
   let pairIsTraded = false;
   if (changed.includes('askUsd')) {
@@ -927,7 +927,7 @@ export async function editProposalDefinition(
   return { changed, reanchored };
 }
 
-/** Every edit to one contract, oldest first. */
+/** Every edit to one proposal, oldest first. */
 export async function proposalRevisionsFor(proposalId: string, workspaceId: string) {
   return db
     .select()

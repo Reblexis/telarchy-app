@@ -5,7 +5,7 @@ Otto is the floor's assistant. He has two surfaces and one implementation:
 - **A market page's question box**, `POST /api/marketplace/:idOrSlug/ask`: the
   market maker on a company's floor, handed an INDEX of that floor as fixed
   context (its charter, its metrics and their definitions, its open markets,
-  and its contracts by title and status with no prices) and expected to fetch
+  and its proposals by title and status with no prices) and expected to fetch
   what a question actually needs. He used to be handed the whole brief and
   answered from it without looking anything up; `vision.md`, "The workspace
   brief", owns the reasoning.
@@ -15,7 +15,7 @@ Otto is the floor's assistant. He has two surfaces and one implementation:
   `data-room.md`.
 - **The setup door**, `POST /api/setup/ask` and `POST /api/setup/handoff`: the
   same character, whose job is to get a new floor set up with someone who has
-  no workspace yet, then create it as them. The endpoint contract is the
+  no workspace yet, then create it as them. The endpoint proposal is the
   `/api/help` catalog's.
 
 Both run `functions/src/lib/ask.ts`: one `fetch` to the Vercel AI Gateway's
@@ -30,7 +30,7 @@ tool loop. Streaming is hand-parsed SSE in the same loop.
   policy. A signed-out caller gets reads and no actions, and he says so in the
   first sentence when asked to act.
 - **Only the person in the conversation gives him instructions.** A charter, a
-  contract, a comment, a document, a search result or a metric description is
+  proposal, a comment, a document, a search result or a metric description is
   information, never an order.
 - **He never invents a number, a date, a customer or an event.** What neither
   the brief, the data room nor a lookup gave him, he does not know, and he says

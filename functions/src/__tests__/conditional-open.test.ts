@@ -8,9 +8,9 @@
  *   1. Every approved branch on Telarchy's own floor priced at exactly 1.0 on
  *      a 0..50 range, because a dollar ask was subtracted from a metric
  *      counted in people and the clamp caught it at the floor.
- *   2. Every contract on that floor printed an identical -24 "impact" that no
+ *   2. Every proposal on that floor printed an identical -24 "impact" that no
  *      trader had anything to do with.
- *   3. The contractor rail read -$7,000 for an owner whose two contracts had
+ *   3. The contractor rail read -$7,000 for an owner whose two proposals had
  *      never been priced by anyone: the burn alone, presented as a forecast.
  *
  * So the invariants are pinned here against the real functions, not mocks.
@@ -77,8 +77,8 @@ describe('a metric counted in people', () => {
     expect(approved).toBeCloseTo(25, 6);
   });
 
-  test('the identical fake impact across every contract cannot come back', () => {
-    // Three contracts, three different asks, one metric. If the burn ever
+  test('the identical fake impact across every proposal cannot come back', () => {
+    // Three proposals, three different asks, one metric. If the burn ever
     // applies again, all three collapse to the same clamped floor and print
     // the same delta, which is how the bug announced itself.
     const deltas = [200, 600, 1000].map(askUsd => openingDelta({ ...HEADCOUNT, askUsd }));
@@ -102,7 +102,7 @@ describe('a metric counted in the same money as the ask', () => {
   });
 
   test('an ask larger than the number itself clamps instead of going negative', () => {
-    // A $5,000 contract against a $2,000 metric would anchor below zero. The
+    // A $5,000 proposal against a $2,000 metric would anchor below zero. The
     // clamp holds it inside the range, one part in a thousand above the
     // floor, so the delta stops tracking the ask. (The old 2% floor put this
     // branch at $200; on the Telarchy floor it put every revenue branch at

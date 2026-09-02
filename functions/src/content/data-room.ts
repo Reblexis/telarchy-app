@@ -107,7 +107,7 @@ else, and a count that hid them would be a nicer number and a false one.
 
 block:traction
 
-Contracts are the jobs side of the floor. Anyone may propose a piece of work and
+Proposals are the jobs side of the floor. Anyone may propose a piece of work and
 a price, the markets price what approving it would do to the metric, and the
 owner approves or declines with a written reason. Every decision is public and
 sits on the floor next to the market that priced it.

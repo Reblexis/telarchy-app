@@ -15,7 +15,7 @@ import { describe, expect, test, vi } from 'vitest';
  * price it.
  */
 
-// Opening the form fetches the account, to warn when a paid contract has
+// Opening the form fetches the account, to warn when a paid proposal has
 // nowhere for the money to go. Not what these tests are about.
 vi.mock('../../lib/api', () => ({
   api: { getParticipant: async () => ({ payoutHandle: 'paid@example.com' }) },
@@ -40,8 +40,8 @@ function openForm(props: Partial<React.ComponentProps<typeof JobsBoard>> = {}) {
       <JobsBoard {...base} workspaceName="LookPilot" {...props} />
     </MemoryRouter>,
   );
-  // The exact CTA, not a loose regex: "Contracts" is also the board heading.
-  fireEvent.click(screen.getByText('+ Offer to do a contract'));
+  // The exact CTA, not a loose regex: "Proposals" is also the board heading.
+  fireEvent.click(screen.getByText('+ Propose'));
 }
 
 describe("the phrase for a floor's numbers", () => {
@@ -66,28 +66,28 @@ describe("the phrase for a floor's numbers", () => {
 describe('the form suggests the right thing', () => {
   test('the title names this workspace, not the one it was written for', () => {
     openForm({ workspaceName: 'Telarchy' });
-    expect(screen.getByLabelText('Contract title').getAttribute('placeholder')).toBe(
+    expect(screen.getByLabelText('Proposal title').getAttribute('placeholder')).toBe(
       'I will do a very useful thing for Telarchy',
     );
   });
 
-  test('the pitch names the numbers the contract has to move', () => {
+  test('the pitch names the numbers the proposal has to move', () => {
     openForm({ workspaceName: 'LookPilot', metricNames: ['LookPilot net 2026'] });
-    expect(screen.getByLabelText('Contract pitch').getAttribute('placeholder')).toBe(
+    expect(screen.getByLabelText('Proposal pitch').getAttribute('placeholder')).toBe(
       'This will affect LookPilot net 2026 in this way because of these reasons',
     );
   });
 
   test('a floor with two numbers names both', () => {
     openForm({ metricNames: ['net revenue', 'weekly traders'] });
-    expect(screen.getByLabelText('Contract pitch').getAttribute('placeholder')).toContain(
+    expect(screen.getByLabelText('Proposal pitch').getAttribute('placeholder')).toContain(
       'net revenue and weekly traders',
     );
   });
 
   test('before the markets load it still reads as a sentence', () => {
     openForm({ metricNames: [] });
-    expect(screen.getByLabelText('Contract pitch').getAttribute('placeholder')).toBe(
+    expect(screen.getByLabelText('Proposal pitch').getAttribute('placeholder')).toBe(
       'This will affect the number on this page in this way because of these reasons',
     );
   });
@@ -103,7 +103,7 @@ describe('a floor whose metrics are named after the company', () => {
       workspaceName: 'LookPilot',
       metricNames: ['weekly net revenue', 'monthly net revenue'],
     });
-    const pitch = screen.getByLabelText('Contract pitch').getAttribute('placeholder')!;
+    const pitch = screen.getByLabelText('Proposal pitch').getAttribute('placeholder')!;
     expect(pitch).toBe(
       'This will affect weekly net revenue and monthly net revenue in this way because of these reasons',
     );
