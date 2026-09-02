@@ -70,6 +70,7 @@ export function MarketFacts({
   pool,
   volume,
   canManage = false,
+  canTrade = false,
   onInject,
   fundingHref,
 }: {
@@ -77,6 +78,11 @@ export function MarketFacts({
   pool: number;
   volume: number;
   canManage?: boolean;
+  /** Anyone who can trade this market can deepen it, which is what the API
+   *  has always said (`requireCapability('trade')`) and what the button did
+   *  not (owner ask 2026-09-02). Depth is not an owner's private duty: a
+   *  trader who wants a market worth trading can pay for one. */
+  canTrade?: boolean;
   /** Opens the inject-liquidity dialog; the parent owns it. */
   onInject?: () => void;
   /** The floor's funding page, where the credits to inject are bought. */
@@ -95,7 +101,7 @@ export function MarketFacts({
       <span title={`${short(volume)} credits traded on this market over its life`}>
         <Bars /> {short(volume)}
       </span>
-      {canManage && onInject && (
+      {(canManage || canTrade) && onInject && (
         <button type="button" className="pubws-facts-act" onClick={onInject}>
           Inject
         </button>

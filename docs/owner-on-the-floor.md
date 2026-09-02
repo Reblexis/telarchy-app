@@ -144,11 +144,17 @@ The age of the reading is the entire nudge, and it is only ever true text:
 "4 days old · this market settles on it in 3d", turning to the accent colour
 past three days. No badge, no blink, no email.
 
-**3. Inject liquidity**, a button beside the pool on every open market. The
-dialog states the pool now and the traders on it, takes an amount, and says
-the two true things before the first injection, not after: deepening makes
-the price harder to move and being right pay more, and a pool never thins
-back out. `POST /api/predictions/markets/:id/liquidity`.
+**3. Inject liquidity**, a button beside the pool on every open market, and
+the one control here that is NOT the owner's alone: anyone who can trade a
+market can deepen it, which is what the endpoint has always said
+(`requireCapability('trade')`) and what the button did not until 2026-09-02.
+Depth is not an owner's private duty; a trader who wants a market worth
+trading may pay for one. The dialog states the pool now and the traders on
+it, takes an amount, and says the true things before the first injection
+rather than after: deepening makes the price harder to move and being right
+pay more, a pool never thins back out, and credits behind a market are not
+scored as profit on it (`docs/seasons.md`), so funding a book you trade pays
+you nothing. `POST /api/predictions/markets/:id/liquidity`.
 
 **Where the credits come from** is one page, not a dialog: `/<floor>/funding`,
 reached by a Buy affordance beside Inject and only by someone who can manage

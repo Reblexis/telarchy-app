@@ -209,6 +209,29 @@ describe('dialog 2: add a date', () => {
 });
 
 describe('dialog 3: inject liquidity', () => {
+  /**
+   * Anyone who can trade can fund a market now (owner ask 2026-09-02), so
+   * the dialog is read by traders and not only by owners. It has to say the
+   * thing a trader does not know: credits put behind a market are not scored
+   * as profit on that market (docs/seasons.md, "Profit out of a book you
+   * funded is not score"). Telling them afterwards, in the standings, is
+   * telling them too late.
+   */
+  test('says what funding a market does to the funder score', () => {
+    render(
+      <InjectLiquidityDialog
+        workspaceId="ws"
+        marketId="mkt-1"
+        marketLabel="LookPilot net 2026 (USD) · this week"
+        pool={9800}
+        traders={9}
+        onClose={() => {}}
+        onDone={() => {}}
+      />,
+    );
+    expect(screen.getByText(/not scored as profit on this market/i)).toBeInTheDocument();
+  });
+
   test('moves exactly the amount typed, into the named market, on the named floor', async () => {
     const onDone = vi.fn();
     render(

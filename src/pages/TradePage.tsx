@@ -1933,6 +1933,7 @@ export function TradePage() {
                         pool={active.pool}
                         volume={active.volume}
                         canManage={canManage}
+                        canTrade={trading}
                         fundingHref={`/${idOrSlug ?? ''}/funding`}
                         onInject={() =>
                           setOwnerDialog({
