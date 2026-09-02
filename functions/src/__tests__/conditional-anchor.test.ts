@@ -187,7 +187,7 @@ describe('anchored conditional opens', () => {
 
 describe('anchored open solvency', () => {
   test('the subsidy covers the worst case at every anchor, including the extremes', async () => {
-    for (const p of [0.02, 0.1, 0.35, 0.5, 0.65, 0.9, 0.98]) {
+    for (const p of [0, 0.001, 0.02, 0.1, 0.35, 0.5, 0.65, 0.9, 0.98, 0.999, 1]) {
       const subsidy = 250;
       const { liquidity: b, shares } = anchoredMarketState(subsidy, p);
       for (const dir of [0, 1] as const) {

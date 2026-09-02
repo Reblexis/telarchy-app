@@ -7,7 +7,7 @@
  *
  *   1. Every approved branch on Telarchy's own floor priced at exactly 1.0 on
  *      a 0..50 range, because a dollar ask was subtracted from a metric
- *      counted in people and the clamp caught it at p = 0.02.
+ *      counted in people and the clamp caught it at the floor.
  *   2. Every contract on that floor printed an identical -24 "impact" that no
  *      trader had anything to do with.
  *   3. The contractor rail read -$7,000 for an owner whose two contracts had
@@ -70,7 +70,7 @@ describe('a metric counted in people', () => {
 
   test('never pins the approved branch at the range floor', () => {
     // The exact production failure: a $300 ask on a headcount drove the
-    // anchor to -275, the clamp caught it at p = 0.02, and every approved
+    // anchor to -275, the clamp caught it at the floor, and every approved
     // branch printed 1.0 on a 0..50 range.
     const approved = openBranch({ ...HEADCOUNT, askUsd: 300, branch: 'approved' });
     expect(approved).toBeGreaterThan(1);
@@ -103,11 +103,14 @@ describe('a metric counted in the same money as the ask', () => {
 
   test('an ask larger than the number itself clamps instead of going negative', () => {
     // A $5,000 contract against a $2,000 metric would anchor below zero. The
-    // clamp holds it inside the range, so the delta stops tracking the ask.
+    // clamp holds it inside the range, one part in a thousand above the
+    // floor, so the delta stops tracking the ask. (The old 2% floor put this
+    // branch at $200; on the Telarchy floor it put every revenue branch at
+    // $20 against a $5 reading, owner report 2026-09-02.)
     const small = { metricName: 'Revenue (USD)', baseline: 2000, rangeMax: 10_000 };
     const approved = openBranch({ ...small, askUsd: 5000, branch: 'approved' });
     expect(approved).toBeGreaterThan(0);
-    expect(approved).toBeCloseTo(10_000 * 0.02, 6);
+    expect(approved).toBeCloseTo(10_000 * 0.001, 6);
     expect(openingDelta({ ...small, askUsd: 5000 })).toBeGreaterThan(-5000);
   });
 });
@@ -159,10 +162,11 @@ describe('the anchored book itself', () => {
   test('an extreme anchor is clamped, and the clamp is visible in the price', () => {
     // Callers must not read a clamped open as a market opinion: it is the
     // arithmetic refusing to place an infinite bet.
+    // One part in a thousand of a 0..50 range: 0.05 and 49.95.
     const state = anchoredMarketState(250, -3);
-    expect(consensus(state.shares, state.liquidity, 0, 50)!).toBeCloseTo(1, 6);
+    expect(consensus(state.shares, state.liquidity, 0, 50)!).toBeCloseTo(0.05, 6);
     const high = anchoredMarketState(250, 4);
-    expect(consensus(high.shares, high.liquidity, 0, 50)!).toBeCloseTo(49, 6);
+    expect(consensus(high.shares, high.liquidity, 0, 50)!).toBeCloseTo(49.95, 6);
   });
 
   test('the subsidy bounds the worst case at every anchor', () => {

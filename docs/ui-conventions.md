@@ -985,18 +985,24 @@ down so the subsidy exactly covers the anchored worst case
 buys its anchor with a slightly thinner book, never with unminted credits.
 
 The cost is paid in depth, and the operator controls it with the range. A
-value sitting near a range edge clamps to [0.02, 0.98] and opens with a
-much thinner book than the same credits would buy at the middle, so a
-market on a number parked at the bottom of its band is cheap to move. The
-fix is a range the number sits inside, not a midpoint open that prices it
-somewhere it has never been.
+value sitting near a range edge clamps to [0.001, 0.999] and opens with a
+thinner book than the same credits would buy at the middle (at the clamp,
+about 1.8 times thinner than the old 2% floor bought, and 10 times thinner
+than the centre), so a market on a number parked at the bottom of its band
+is cheap to move. The fix is a range the number sits inside, not a midpoint
+open that prices it somewhere it has never been.
 
 **A metric sitting AT or past a range edge anchors at the edge**, never at
 the midpoint. An LMSR cannot quote certainty, so the seeding clamps into
-[0.02, 0.98] of the range, and the market opens as low (or as high) as a
-solvent book can be placed. The midpoint is the worst answer available
+[0.001, 0.999] of the range, one part in a thousand, and the market opens
+as low (or as high) as that. The midpoint is the worst answer available
 there: a revenue metric reading $0 on a 0-1,000 range opened its daily
-market at $500 and paid whoever pushed it back down.
+market at $500 and paid whoever pushed it back down. The old floor of 2%
+was the same mistake at a smaller scale: a $5 reading on that range opened
+every daily market, and every conditional branch under it, at $20, and a
+valuation reading $0 on a 0-20,000,000 range opened at $400,000. A reading
+inside the clamp opens at the reading itself; a reading at the edge opens
+one part in a thousand from it, which is the closest a solvent book gets.
 
 **Every path that opens a book on an untraded baseline market opens it the
 same way.** The daily spawn, the refresh that funds a market which opened

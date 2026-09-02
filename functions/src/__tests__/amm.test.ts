@@ -1,4 +1,5 @@
 import {
+  anchoredMarketState,
   betTowardsValue,
   consensus,
   directionSellProceeds,
@@ -209,6 +210,47 @@ describe('resolutionPayouts', () => {
     const [lower, higher] = resolutionPayouts(2000, 0, 1000);
     expect(lower).toBe(0);
     expect(higher).toBe(1);
+  });
+});
+
+describe('anchoredMarketState', () => {
+  const impliedP = (shares: [number, number], b: number) => pHigher(shares, b);
+
+  test('a reading inside the clamp opens at the reading itself, not at a price floor', () => {
+    // Telarchy revenue: $5 on a 0-1,000 range. Under the old 2% floor this
+    // opened at $20 (owner report 2026-09-02).
+    const { liquidity, shares } = anchoredMarketState(250, 0.005);
+    expect(impliedP(shares, liquidity)).toBeCloseTo(0.005, 9);
+  });
+
+  test('a reading at the range floor opens one part in a thousand above it', () => {
+    // Implied valuation: $0 on a 0-20,000,000 range opened at $400,000; the
+    // honest open is the lowest price a solvent book can hold, 20,000.
+    const { liquidity, shares } = anchoredMarketState(250, 0);
+    expect(impliedP(shares, liquidity)).toBeCloseTo(0.001, 9);
+    const top = anchoredMarketState(250, 1);
+    expect(impliedP(top.shares, top.liquidity)).toBeCloseTo(0.999, 9);
+  });
+
+  test('a value past the range edge clamps to the same one-in-a-thousand', () => {
+    const below = anchoredMarketState(250, -0.4);
+    expect(impliedP(below.shares, below.liquidity)).toBeCloseTo(0.001, 9);
+    const above = anchoredMarketState(250, 1.7);
+    expect(impliedP(above.shares, above.liquidity)).toBeCloseTo(0.999, 9);
+  });
+
+  test('the subsidy covers the worst case exactly at the clamp, so the floor costs depth and never credits', () => {
+    for (const p of [0, 0.001, 0.005, 0.5, 0.999, 1]) {
+      const { liquidity, shares } = anchoredMarketState(250, p);
+      const q = impliedP(shares, liquidity);
+      const worst = liquidity * Math.max(-Math.log(q), -Math.log(1 - q));
+      expect(worst).toBeCloseTo(250, 6);
+    }
+    // The price of the floor: the book at the clamp is thinner than at the
+    // centre by ln(1000)/ln(2), about ten times, and no thinner.
+    const centre = anchoredMarketState(250, 0.5).liquidity;
+    const edge = anchoredMarketState(250, 0).liquidity;
+    expect(centre / edge).toBeCloseTo(Math.log(1000) / Math.LN2, 6);
   });
 });
 
