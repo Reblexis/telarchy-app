@@ -1,0 +1,847 @@
+[
+ {
+  "id": "ba447e68-4f30-46a0-90c3-c5fe20a74a3a",
+  "metric": "Active traders",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "39a343ce-e456-4af5-a6e3-bd1e78cc059d",
+  "pool": 250,
+  "shares": [
+   41.961616797,
+   0
+  ],
+  "liquidity": 329.4416505686109
+ },
+ {
+  "id": "f6804998-e2fa-4245-9a10-ece60e555a1a",
+  "metric": "Active traders",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "4c2e8d9b-53ef-4ca3-9bc2-14e5683dea5a",
+  "pool": 250,
+  "shares": [
+   231.16863773,
+   0
+  ],
+  "liquidity": 126.41539506657838
+ },
+ {
+  "id": "a8f3055a-678a-4045-9882-eafd3204858a",
+  "metric": "Active traders",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "5af1b919-f3f7-4b8a-8ed0-69628a982762",
+  "pool": 250,
+  "shares": [
+   95.230634269,
+   0
+  ],
+  "liquidity": 286.29300906478363
+ },
+ {
+  "id": "56c1b6ee-1615-45c8-b1c1-5968847558a2",
+  "metric": "Active traders",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "77965b1c-54ef-4e90-ace5-98757b794b75",
+  "pool": 250,
+  "shares": [
+   246.829483588,
+   0
+  ],
+  "liquidity": 77.66686681995148
+ },
+ {
+  "id": "9d7854e1-b78c-4bfd-a5c2-99f598e41fc5",
+  "metric": "Active traders",
+  "targetDate": "2026-09",
+  "branch": "declined",
+  "proposalId": "77965b1c-54ef-4e90-ace5-98757b794b75",
+  "pool": 250,
+  "shares": [
+   246.829483588,
+   0
+  ],
+  "liquidity": 77.66686681995148
+ },
+ {
+  "id": "53033c3e-4140-4bae-b6da-6b0024a6e3ca",
+  "metric": "Active traders",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "951734b3-871d-48be-8c1f-834a830ec16f",
+  "pool": 250,
+  "shares": [
+   246.829483588,
+   0
+  ],
+  "liquidity": 77.66686681995148
+ },
+ {
+  "id": "86b0b8dd-577e-4b13-bb89-3ba7d930ea53",
+  "metric": "Active traders",
+  "targetDate": "2026-09",
+  "branch": "declined",
+  "proposalId": "951734b3-871d-48be-8c1f-834a830ec16f",
+  "pool": 250,
+  "shares": [
+   246.829483588,
+   0
+  ],
+  "liquidity": 77.66686681995148
+ },
+ {
+  "id": "03319995-b314-4a37-8a96-5126c67d287e",
+  "metric": "Active traders",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "ddbe3f0b-ec79-4c23-86b1-f1ae4cb09411",
+  "pool": 250,
+  "shares": [
+   41.961616797,
+   0
+  ],
+  "liquidity": 329.4416505686109
+ },
+ {
+  "id": "50a124a8-04b7-47d4-acb5-e720f0f04e1c",
+  "metric": "Active traders",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "971f2567-daaf-477c-9b7f-97d91f83f7f1",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "5ab61ce5-478f-4193-9f6e-8a5b8b44e68f",
+  "metric": "Active traders",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "971f2567-daaf-477c-9b7f-97d91f83f7f1",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "8cbd7108-ca39-47bf-a07c-4c1bd1c07f92",
+  "metric": "Active traders",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "a479c8bd-6065-4147-b21e-f4b9f9a68215",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "8aed5e63-2b77-4ccb-8c28-7994cff107a6",
+  "metric": "Active traders",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "a479c8bd-6065-4147-b21e-f4b9f9a68215",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "f75a7eef-40e9-463f-8009-7a9813a17d35",
+  "metric": "Active traders",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "b8fa3e66-8dad-4e3f-8d2d-0c3a4a733c4f",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "a360e9bb-b810-4af3-b28a-87e4c425be89",
+  "metric": "Active traders",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "b8fa3e66-8dad-4e3f-8d2d-0c3a4a733c4f",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "87743546-5129-4a33-b730-6406e3af8060",
+  "metric": "Active traders",
+  "targetDate": "2026-W36",
+  "branch": "approved",
+  "proposalId": "1d0d9656-f9f8-4c5d-ac7a-29ba83f53241",
+  "pool": 250,
+  "shares": [
+   241.746776804,
+   0
+  ],
+  "liquidity": 98.98133774717901
+ },
+ {
+  "id": "405ae3b8-2434-476d-86c4-4d4e322429e0",
+  "metric": "Active traders",
+  "targetDate": "2026-W36",
+  "branch": "approved",
+  "proposalId": "971f2567-daaf-477c-9b7f-97d91f83f7f1",
+  "pool": 250,
+  "shares": [
+   241.746776804,
+   0
+  ],
+  "liquidity": 98.98133774717901
+ },
+ {
+  "id": "2fdd7e89-eee4-44e8-ae45-2a5dadf5d421",
+  "metric": "Active traders",
+  "targetDate": "2026-W36",
+  "branch": "declined",
+  "proposalId": "971f2567-daaf-477c-9b7f-97d91f83f7f1",
+  "pool": 250,
+  "shares": [
+   241.746776804,
+   0
+  ],
+  "liquidity": 98.98133774717901
+ },
+ {
+  "id": "91c9dcb0-aa6b-4bc8-9aa0-d1f85fa00c53",
+  "metric": "Active traders",
+  "targetDate": "2026-W36",
+  "branch": "approved",
+  "proposalId": "a479c8bd-6065-4147-b21e-f4b9f9a68215",
+  "pool": 250,
+  "shares": [
+   241.746776804,
+   0
+  ],
+  "liquidity": 98.98133774717901
+ },
+ {
+  "id": "4646988b-6037-48bd-8738-0e03aeb8b5d5",
+  "metric": "Active traders",
+  "targetDate": "2026-W36",
+  "branch": "declined",
+  "proposalId": "a479c8bd-6065-4147-b21e-f4b9f9a68215",
+  "pool": 250,
+  "shares": [
+   241.746776804,
+   0
+  ],
+  "liquidity": 98.98133774717901
+ },
+ {
+  "id": "32291a02-d6d7-4b5a-a8a5-29b078409362",
+  "metric": "Active traders",
+  "targetDate": "2026-W36",
+  "branch": "approved",
+  "proposalId": "b8fa3e66-8dad-4e3f-8d2d-0c3a4a733c4f",
+  "pool": 250,
+  "shares": [
+   241.746776804,
+   0
+  ],
+  "liquidity": 98.98133774717901
+ },
+ {
+  "id": "122c3755-286d-44fd-990f-5fa0eb6be741",
+  "metric": "Active traders",
+  "targetDate": "2026-W36",
+  "branch": "declined",
+  "proposalId": "b8fa3e66-8dad-4e3f-8d2d-0c3a4a733c4f",
+  "pool": 250,
+  "shares": [
+   241.746776804,
+   0
+  ],
+  "liquidity": 98.98133774717901
+ },
+ {
+  "id": "65a0cf7e-9d90-4b88-a577-d4440e55efb9",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "01969f53-24d9-43ad-bc57-ac5838cc9ae6",
+  "pool": 62.958888,
+  "shares": [
+   57.70231672,
+   0
+  ],
+  "liquidity": 32.90959255072949
+ },
+ {
+  "id": "0ca5a4b0-0ab0-40b9-aeb6-7899169cbda6",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "1d0d9656-f9f8-4c5d-ac7a-29ba83f53241",
+  "pool": 97.775556,
+  "shares": [
+   89.612067161,
+   0
+  ],
+  "liquidity": 51.10880785221356
+ },
+ {
+  "id": "10662f2c-1006-4cb2-832a-4012607e027b",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "5af1b919-f3f7-4b8a-8ed0-69628a982762",
+  "pool": 250,
+  "shares": [
+   229.126969017,
+   0
+  ],
+  "liquidity": 130.67889854856352
+ },
+ {
+  "id": "9317ab5f-7f0e-462d-955e-a798021027f0",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "8b556bb5-10cb-47eb-9a16-5dfde0b131fd",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "653f6ed5-0303-4a0a-bd6e-0d594fb40e13",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "971f2567-daaf-477c-9b7f-97d91f83f7f1",
+  "pool": 147.666666,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 213.0379667428069
+ },
+ {
+  "id": "ef69534e-631a-41b7-a55c-36873fa391d9",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09",
+  "branch": "declined",
+  "proposalId": "971f2567-daaf-477c-9b7f-97d91f83f7f1",
+  "pool": 147.666666,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 213.0379667428069
+ },
+ {
+  "id": "72d03097-2bf1-478f-8470-3298c2a83b13",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "9a4fea61-074e-4857-a9bd-c3c69aa170bf",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "101e5a6c-b0f2-4b64-adaa-6b0915e7dcdc",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "a479c8bd-6065-4147-b21e-f4b9f9a68215",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "5daa5be4-7542-4112-8249-51ca24690f3c",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09",
+  "branch": "declined",
+  "proposalId": "a479c8bd-6065-4147-b21e-f4b9f9a68215",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "26e75ebc-eea8-47d1-aaa8-d381ee879460",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "b8fa3e66-8dad-4e3f-8d2d-0c3a4a733c4f",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "304c0131-7cf6-4d72-987b-d30345389389",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09",
+  "branch": "declined",
+  "proposalId": "b8fa3e66-8dad-4e3f-8d2d-0c3a4a733c4f",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "c9fad45a-8a69-40d3-9ef2-d6133a2325d0",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09-02",
+  "branch": null,
+  "proposalId": null,
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "8d7f0afd-90de-4c30-892f-5bf7db15787a",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "099b0029-d5c6-4976-b9cb-cb4b39a6aaf5",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "dd0f27b0-6b83-4185-a86c-c79cbc179153",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "099b0029-d5c6-4976-b9cb-cb4b39a6aaf5",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "af48c066-dcc9-4572-8c88-c2a3df812efd",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "105f1412-091a-4e71-b468-f6c0eee85c83",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "b0458668-68c5-465b-a010-8d8e013b0f18",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "105f1412-091a-4e71-b468-f6c0eee85c83",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "66a9daed-3fc3-4bfe-b7d5-49c841f2c4a5",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "971f2567-daaf-477c-9b7f-97d91f83f7f1",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "ae9eb8cf-635b-4269-bfe0-8e3baebba33e",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "971f2567-daaf-477c-9b7f-97d91f83f7f1",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "972cd9d3-cfc4-4f80-b6bf-e3c828240fc1",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "a479c8bd-6065-4147-b21e-f4b9f9a68215",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "e6625b0f-8776-4639-a5d5-713088d93df9",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "a479c8bd-6065-4147-b21e-f4b9f9a68215",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "019c9f2b-cc95-4e4a-ba4e-a3d0545993dc",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "b8fa3e66-8dad-4e3f-8d2d-0c3a4a733c4f",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "7906e773-09ba-40a7-8cec-8f990871dffa",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "b8fa3e66-8dad-4e3f-8d2d-0c3a4a733c4f",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "f184166a-17ac-4019-a431-551b05606853",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-W36",
+  "branch": "approved",
+  "proposalId": "1d0d9656-f9f8-4c5d-ac7a-29ba83f53241",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "bbc4368f-ab7f-4dbe-adc0-c2754b78ad66",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-W36",
+  "branch": "approved",
+  "proposalId": "971f2567-daaf-477c-9b7f-97d91f83f7f1",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "d485d106-4fac-4e10-a1b7-4079bbf97a82",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-W36",
+  "branch": "declined",
+  "proposalId": "971f2567-daaf-477c-9b7f-97d91f83f7f1",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "58217458-502d-41c9-8acc-e19eb2108e7b",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-W36",
+  "branch": "approved",
+  "proposalId": "a479c8bd-6065-4147-b21e-f4b9f9a68215",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "14d9a81e-bc9d-4a7e-b6b0-a8429a563a96",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-W36",
+  "branch": "declined",
+  "proposalId": "a479c8bd-6065-4147-b21e-f4b9f9a68215",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "78711a62-26d5-449f-a207-9b226239addf",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-W36",
+  "branch": "approved",
+  "proposalId": "b8fa3e66-8dad-4e3f-8d2d-0c3a4a733c4f",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "96886525-5b02-4335-bfa6-4c800f635d6c",
+  "metric": "Implied valuation (USD)",
+  "targetDate": "2026-W36",
+  "branch": "declined",
+  "proposalId": "b8fa3e66-8dad-4e3f-8d2d-0c3a4a733c4f",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "2d1907fc-dccc-4a71-a8b4-9588497e5110",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "01969f53-24d9-43ad-bc57-ac5838cc9ae6",
+  "pool": 62.958888,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 90.83047549748368
+ },
+ {
+  "id": "6c876067-017d-4973-86b1-6e5dcbd86c4f",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "5af1b919-f3f7-4b8a-8ed0-69628a982762",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "309df87a-ff59-4d03-bd09-1fe8c0650d0f",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "8b556bb5-10cb-47eb-9a16-5dfde0b131fd",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "75990e47-c34b-4c32-9dfc-65fce0242c76",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09",
+  "branch": "approved",
+  "proposalId": "9a4fea61-074e-4857-a9bd-c3c69aa170bf",
+  "pool": 250,
+  "shares": [
+   0,
+   0
+  ],
+  "liquidity": 360.67376022224084
+ },
+ {
+  "id": "bfd462f9-15ce-4223-8cd5-16b9f2ffaca6",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09-02",
+  "branch": null,
+  "proposalId": null,
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "4065e04c-65e1-4bfb-b339-8e918630e0e0",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "099b0029-d5c6-4976-b9cb-cb4b39a6aaf5",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "ab0e09f5-9e11-4714-9c5e-09fbd13decb3",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "099b0029-d5c6-4976-b9cb-cb4b39a6aaf5",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "7ce87be4-11e1-40fe-8abf-ad4dc3af56da",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "105f1412-091a-4e71-b468-f6c0eee85c83",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "609088aa-b186-4dbe-a7c1-81e50788cfc1",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "105f1412-091a-4e71-b468-f6c0eee85c83",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "43eca1cf-040e-47b9-9127-4268bc72a45a",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "971f2567-daaf-477c-9b7f-97d91f83f7f1",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "7f3735c8-72af-40da-899b-67262bb58953",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "971f2567-daaf-477c-9b7f-97d91f83f7f1",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "d6d15508-2a67-4e10-a467-b6210892fcc1",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "a479c8bd-6065-4147-b21e-f4b9f9a68215",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "fdadaf4a-8577-4123-a95d-e0f3ba65cdbb",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "a479c8bd-6065-4147-b21e-f4b9f9a68215",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "acb5e0c0-15e4-4e6e-99a2-282a4a33701f",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "approved",
+  "proposalId": "b8fa3e66-8dad-4e3f-8d2d-0c3a4a733c4f",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ },
+ {
+  "id": "e21c9855-5f29-4d79-815d-1e58bd24ce4d",
+  "metric": "Telarchy revenue (USD)",
+  "targetDate": "2026-09-02",
+  "branch": "declined",
+  "proposalId": "b8fa3e66-8dad-4e3f-8d2d-0c3a4a733c4f",
+  "pool": 250,
+  "shares": [
+   248.708934783,
+   0
+  ],
+  "liquidity": 63.90555465883286
+ }
+]
