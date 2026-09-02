@@ -29,7 +29,9 @@ Viktor36 then funded and traded by hand, all times UTC (the screenshot's
 | 16:31:34 | declined, 2026-09 | bet lower, 900 credits, 12,500 to 6,699 |
 
 The screenshot was taken between 16:18 and 16:31: the approved side of the
-month pair was funded and traded, the declined side still had no liquidity.
+month pair was funded and traded, the declined side still had no liquidity. Viktor confirmed it afterwards:
+"i think the issue was i didnt inject liquidity in declined branch still
+checkf or issues".
 
 ## Why it read as broken
 
