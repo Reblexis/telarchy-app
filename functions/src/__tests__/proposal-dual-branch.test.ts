@@ -324,3 +324,86 @@ describe('paired summary shape', () => {
     }
   });
 });
+
+describe('approveProposal — a reward the owner cannot pay is refused before anything changes', () => {
+  // docs/guides/proposals.md, "Approving": the reward is checked first, so a
+  // 409 leaves the proposal exactly as it was. Until 2026-09-02 the declined
+  // branch was voided and refunded before the reward was attempted, and an
+  // owner whose balance had gone negative (the wallet-first staking bug)
+  // was left with a pending proposal whose declined branch was already gone.
+  async function seedBrokeOwner() {
+    await seedWorkspaceAndMetrics();
+    await db.update(workspaces).set({ proposalReward: 20 }).where(eq(workspaces.id, WS));
+    await db
+      .update(agents)
+      .set({ balance: toUnits(5) })
+      .where(eq(agents.id, OWNER));
+    await insertProposal('p1');
+    await createConditionalMarkets('p1', WS, {});
+  }
+
+  async function balanceOf(agentId: string): Promise<number> {
+    const [row] = await db.select().from(agents).where(eq(agents.id, agentId));
+    return row.balance as number;
+  }
+
+  test('the declined branch stays open after the 409', async () => {
+    await seedBrokeOwner();
+    await expect(approveProposal('p1', WS, OWNER)).rejects.toThrow(/insufficient/i);
+    const grouped = await branchesFor('p1');
+    expect(Object.keys(grouped)).toHaveLength(2);
+    for (const pair of Object.values(grouped)) {
+      expect(pair).toHaveLength(2);
+      for (const m of pair) {
+        expect(m.voided).toBe(false);
+        expect(m.resolved).toBe(false);
+      }
+    }
+    const [p] = await db.select().from(proposals).where(eq(proposals.id, 'p1'));
+    expect(p.status).toBe('pending');
+  });
+
+  test('no credits move: neither the buyout nor the reward runs', async () => {
+    await seedBrokeOwner();
+    const ownerBefore = await balanceOf(OWNER);
+    const proposerBefore = await balanceOf(PROPOSER);
+    await expect(approveProposal('p1', WS, OWNER)).rejects.toThrow(/insufficient/i);
+    expect(await balanceOf(OWNER)).toBe(ownerBefore);
+    expect(await balanceOf(PROPOSER)).toBe(proposerBefore);
+  });
+
+  test('the 409 names what is needed and what the owner has', async () => {
+    await seedBrokeOwner();
+    await expect(approveProposal('p1', WS, OWNER)).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringMatching(/need 20, have 5/),
+    });
+  });
+
+  test('a negative owner balance is refused the same way', async () => {
+    await seedBrokeOwner();
+    await db
+      .update(agents)
+      .set({ balance: toUnits(-1716.229992) })
+      .where(eq(agents.id, OWNER));
+    await expect(approveProposal('p1', WS, OWNER)).rejects.toThrow(/have -1716\.229992/);
+    const grouped = await branchesFor('p1');
+    for (const pair of Object.values(grouped)) for (const m of pair) expect(m.voided).toBe(false);
+  });
+
+  test('once the owner can pay, the same approve goes through', async () => {
+    await seedBrokeOwner();
+    await expect(approveProposal('p1', WS, OWNER)).rejects.toThrow(/insufficient/i);
+    await db
+      .update(agents)
+      .set({ balance: toUnits(1000) })
+      .where(eq(agents.id, OWNER));
+    const r = await approveProposal('p1', WS, OWNER);
+    expect(r.rewardPaid).toBe(20);
+    const grouped = await branchesFor('p1');
+    for (const pair of Object.values(grouped)) {
+      expect(pair.find(m => m.branch === 'declined')!.voided).toBe(true);
+      expect(pair.find(m => m.branch === 'approved')!.voided).toBe(false);
+    }
+  });
+});

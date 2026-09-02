@@ -8741,10 +8741,9 @@ the market until it resolves.</li>
 and your balance cannot cover it, the whole approve returns 409 naming what
 you need and what you have.</li>
 </ul>
-<p>One sharp edge in that order: the declined branch is voided before the reward is
-attempted, so an approve that fails on 409 leaves the proposal pending with its
-declined branch already gone. Top up and approve again; you will not get that
-branch's price discovery back.</p>
+<p>The reward is checked before anything else moves. An approve that returns 409
+leaves the proposal exactly as it was: still pending, both branches still open
+and priced, no stake bought out. Top up and approve again.</p>
 <h2 id="docs-guides-proposals-md--h5">Declining, and why the reason is enforced</h2>
 <p><code>POST /api/proposals/:id/decline</code> takes <code>{ declineReason?, refund? }</code>.</p>
 <p><strong>A reason is required exactly when your workspace has a charter set.</strong> That
