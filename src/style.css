@@ -9039,18 +9039,51 @@ textarea.jobform-line--desc {
   font-size: 0.74rem;
   color: var(--text-tertiary);
 }
-.dates-danger {
+/* The dates dialog's own pieces (docs/owner-on-the-floor.md, dialog 2). */
+.dates-what { color: var(--text-primary); }
+.dates-empty { margin: 0; font-size: 0.86rem; line-height: 1.5; color: var(--text-secondary); }
+.dates-add { margin-left: 0; align-self: flex-start; }
+.dates-add-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.8rem;
-  margin-top: 1rem;
   padding-top: 0.8rem;
   border-top: 1px solid var(--border-color);
 }
-.dates-danger-say { font-size: 0.76rem; line-height: 1.5; color: var(--text-tertiary); }
-.dates-danger-btn { flex: none; color: var(--delete-color); }
-.dates-danger-btn:hover { border-color: var(--delete-color); color: var(--delete-color); }
+.dates-seg { flex-wrap: nowrap; }
+/* A link set in the running text: the same words, underlined, no chrome. */
+.dates-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.dates-link:hover { color: var(--text-primary); }
+.dates-link:disabled { cursor: default; opacity: 0.6; }
+.dates-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-top: 0.2rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+.dates-foot .odlg-dayrow { flex-wrap: wrap; }
+.dates-lag-n { color: var(--text-primary); }
+.dates-lag-field { width: 3rem; }
+/* The way out is red, but it is a link, not a warning box; --lower is the
+   red that is defined on both themes. */
+.dates-remove { flex: none; color: var(--lower); text-decoration: none; }
+.dates-remove:hover { color: var(--lower); text-decoration: underline; }
 
 /* The audience pages' first call to action, directly under the headline. It is
    the same action as the one at the foot, set smaller: a reader who has just

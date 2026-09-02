@@ -20,9 +20,13 @@ describe('reading an entry back', () => {
     expect(describeEntry('+1w').ahead).toBe(1);
   });
 
-  test('an absolute entry says the date and that it happens once', () => {
-    expect(describeEntry('2026-12-31').label).toBe('2026-12-31, once');
+  test('an absolute entry says the date in words and that it happens once', () => {
+    expect(describeEntry('2026-12-31').label).toBe('31 December 2026, once');
+    expect(describeEntry('2026-12').label).toBe('December 2026, once');
     expect(describeEntry('2026-12').every).toBe('once');
+    expect(describeEntry('2026').label).toBe('2026, once');
+    expect(describeEntry('2026-W36').label).toBe('Week 36 of 2026, once');
+    expect(describeEntry('2026-12-31T14').label).toBe('31 December 2026, 14:00 UTC, once');
   });
 });
 

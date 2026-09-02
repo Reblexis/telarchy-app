@@ -80,6 +80,36 @@ export function resolveEntry(entry: string, now: Date = new Date()): string {
   }
 }
 
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+/** An absolute entry in words ("31 December 2026", "December 2026"), the way
+ *  the dialog's list promises it (docs/owner-on-the-floor.md, dialog 2). An
+ *  entry in a shape the server never writes is shown as stored. */
+function absoluteInWords(raw: string): string {
+  let m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2})$/);
+  if (m) return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}, ${m[4]}:00 UTC`;
+  m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
+  m = raw.match(/^(\d{4})-W(\d{2})$/);
+  if (m) return `Week ${Number(m[2])} of ${m[1]}`;
+  m = raw.match(/^(\d{4})-(\d{2})$/);
+  if (m) return `${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
+  return raw;
+}
+
 /** A stored entry read back as the sentence the dialog shows. */
 export function describeEntry(entry: string): HorizonEntry {
   const raw = entry.trim();
@@ -88,7 +118,7 @@ export function describeEntry(entry: string): HorizonEntry {
     const every = UNIT_TO_EVERY[m[2]];
     return { entry: raw, every, ahead: Number(m[1]), label: `Every ${every}` };
   }
-  return { entry: raw, every: 'once', ahead: 0, label: `${raw}, once` };
+  return { entry: raw, every: 'once', ahead: 0, label: `${absoluteInWords(raw)}, once` };
 }
 
 /** The entry to store for a choice made in the dialog. */

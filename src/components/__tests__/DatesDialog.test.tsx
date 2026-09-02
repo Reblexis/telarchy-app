@@ -67,32 +67,90 @@ describe('the list', () => {
     open();
     expect(await screen.findByText('Every month')).toBeTruthy();
     expect(screen.getByText('Every day')).toBeTruthy();
-    expect(screen.getByText('2026-12-31, once')).toBeTruthy();
+    expect(screen.getByText('31 December 2026, once')).toBeTruthy();
   });
 
   test('and what each one currently holds', async () => {
     open();
-    expect(await screen.findByText(/next one 2026-08 · 150 cr · 4 traders/)).toBeTruthy();
+    expect(await screen.findByText(/^2026-08 · 150 cr · 4 traders$/)).toBeTruthy();
     // The daily entry has no market open on it in this fixture, and says so
     // rather than showing another market's numbers.
     expect(screen.getByText('no market open on it')).toBeTruthy();
   });
 });
 
-describe('adding one', () => {
-  test('offers the repeats the API has always had, daily included', async () => {
+/** A sentence with the date set in its own mono span reads as one string
+ *  here, the way the owner reads it. */
+const sentence = (cls: string) => (document.querySelector(`.${cls}`)?.textContent ?? '').replace(/\s+/g, ' ');
+
+/** The add form is folded behind one chip while the metric has dates
+ *  (docs/owner-on-the-floor.md, dialog 2), so every add starts by opening it. */
+const openAdd = async () => {
+  await screen.findByText('Every month');
+  fireEvent.click(screen.getByRole('button', { name: /Add a date/ }));
+};
+
+describe('the list comes first, and adding is folded away', () => {
+  test('with dates, the form is behind one chip and opens on it', async () => {
     open();
     await screen.findByText('Every month');
-    for (const label of ['every hour', 'every day', 'every week', 'every month', 'every year', 'once']) {
-      expect(screen.getByText(label)).toBeTruthy();
-    }
+    expect(screen.queryByText('How often')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Open the market/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Add a date/ }));
+    expect(screen.getByText('How often')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Open the market/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Add a date/ })).toBeNull();
   });
 
-  test('a repeat stores the rolling entry, and keeps the ones already there', async () => {
+  test('"Not now" folds it away again', async () => {
     open();
-    await screen.findByText('Every month');
-    fireEvent.click(screen.getByText('every day'));
-    fireEvent.click(screen.getByText('tomorrow'));
+    await openAdd();
+    fireEvent.click(screen.getByText('Not now'));
+    expect(screen.queryByText('How often')).toBeNull();
+    expect(screen.getByRole('button', { name: /Add a date/ })).toBeTruthy();
+  });
+
+  test('with no dates, the form is open and there is no chip', async () => {
+    getMetric.mockResolvedValueOnce({ id: 'm1', timePreference: { enabled: false, halfLife: 1, customHorizons: [] } });
+    open([]);
+    expect(await screen.findByText('How often')).toBeTruthy();
+    expect(screen.getByText(/No dates yet/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Add a date/ })).toBeNull();
+    expect(screen.queryByText('Not now')).toBeNull();
+  });
+});
+
+describe('adding one', () => {
+  test('offers the six the API has always had, on one row', async () => {
+    open();
+    await openAdd();
+    const row = screen.getByRole('group', { name: 'How often' });
+    const labels = Array.from(row.querySelectorAll('button')).map(b => b.textContent);
+    expect(labels).toEqual(['hourly', 'daily', 'weekly', 'monthly', 'yearly', 'once']);
+  });
+
+  test('a repeat starts with the current period, and one line says so with the date', async () => {
+    open();
+    await openAdd();
+    fireEvent.click(screen.getByText('daily'));
+    expect(sentence('dates-start')).toMatch(/^Starts with today, 2026-08-31\. /);
+    // No "which one" control: the alternative is the link in that line.
+    expect(screen.queryByRole('group', { name: 'Which one' })).toBeNull();
+    fireEvent.click(screen.getByText(/Open the market/));
+    await waitFor(() =>
+      expect(patchMetric.mock.calls[0][2]).toMatchObject({
+        timePreference: { customHorizons: ['+0m', '+0d', '2026-12-31'] },
+      }),
+    );
+  });
+
+  test('the link flips it to the next period, which is the +1 entry', async () => {
+    open();
+    await openAdd();
+    fireEvent.click(screen.getByText('daily'));
+    fireEvent.click(screen.getByText('Start with tomorrow instead'));
+    expect(sentence('dates-start')).toMatch(/^Starts with tomorrow, 2026-09-01\. /);
+    expect(screen.getByText('Start with today instead')).toBeTruthy();
     fireEvent.click(screen.getByText(/Open the market/));
     await waitFor(() =>
       expect(patchMetric.mock.calls[0][2]).toMatchObject({
@@ -101,11 +159,11 @@ describe('adding one', () => {
     );
   });
 
-  test('once asks for a day instead of which one, and refuses without it', async () => {
+  test('once asks for a day instead of a period, and refuses without it', async () => {
     open();
-    await screen.findByText('Every month');
+    await openAdd();
     fireEvent.click(screen.getByText('once'));
-    expect(screen.queryByText('tomorrow')).toBeNull();
+    expect(screen.queryByText(/Starts with/)).toBeNull();
     fireEvent.click(screen.getByText(/Open the market/));
     await waitFor(() => expect(screen.getByText('Pick a date.')).toBeTruthy());
     expect(patchMetric).not.toHaveBeenCalled();
@@ -151,7 +209,45 @@ describe('stopping one', () => {
   });
 });
 
+describe('how long after a period the number is final', () => {
+  test('is a footer sentence with the number in it, not a field', async () => {
+    open();
+    await screen.findByText('Every month');
+    expect(sentence('dates-final')).toMatch(/^Final 0 days after each period/);
+    expect(screen.queryByLabelText('Days after the period')).toBeNull();
+  });
+
+  test('reads the stored lag back', async () => {
+    getMetric.mockResolvedValueOnce({
+      id: 'm1',
+      settlementLagMinutes: 3 * 24 * 60,
+      timePreference: { enabled: false, halfLife: 1, customHorizons: ['+0m'] },
+    });
+    open();
+    await screen.findByText('Every month');
+    expect(sentence('dates-final')).toMatch(/^Final 3 days after each period/);
+  });
+
+  test('"change" opens the field, and the write carries it', async () => {
+    open();
+    await screen.findByText('Every month');
+    fireEvent.click(screen.getByText('change'));
+    const field = screen.getByLabelText('Days after the period');
+    fireEvent.change(field, { target: { value: '3' } });
+    await openAdd();
+    fireEvent.click(screen.getByText(/Open the market/));
+    await waitFor(() => expect(patchMetric.mock.calls[0][2]).toMatchObject({ settlementLagMinutes: 3 * 24 * 60 }));
+  });
+});
+
 describe('removing the metric', () => {
+  test('is a link in the footer with no sentence around it', async () => {
+    open();
+    await screen.findByText('Every month');
+    expect(screen.getByText('Remove metric')).toBeTruthy();
+    expect(screen.queryByText(/everything above/)).toBeNull();
+  });
+
   test('names what is in the way and refuses before the press, not after', async () => {
     open();
     await screen.findByText('Every month');
