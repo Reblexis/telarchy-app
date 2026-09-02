@@ -55,7 +55,9 @@ const RANGE_MAX = 1000;
 /** The metric reads $0 on a 0-1,000 range: the reported case. */
 const VALUE = 0;
 /** 2% of the range, the lowest a solvent LMSR book can be seeded at. */
-const FLOOR_OPEN = 20;
+// One part in a thousand of a 0-1,000 range (ANCHOR_P_FLOOR); it was 2%, $20,
+// until 2026-09-02.
+const FLOOR_OPEN = 1;
 const MIDPOINT = 500;
 
 const app = express();
