@@ -369,35 +369,78 @@ export async function createConditionalMarkets(
         m.pool = effectiveSubsidy;
       }
 
+      // Which purse each contributor actually paid from, so the liquidity
+      // rows below record it and leftovers return where they came from.
+      const paidFrom = new Map<string, Array<{ from: 'liquidity' | 'balance'; credits: number }>>();
       for (const [contributorId, perMarket] of funded) {
         const cost = Math.round(perMarket * newMarkets.length * 1e6) / 1e6;
-        await applyCredits(tx, {
-          agentId: contributorId,
-          workspaceId,
-          deltaUnits: -toUnits(cost),
-          reason: 'liquidity',
-          refType: 'proposal',
-          refId: proposalId,
-          also: { spentBetting: sql`${agents.spentBetting} + ${cost}` },
-        });
+        // The wallet spends FIRST and the tradeable balance only finishes
+        // what it could not cover, exactly as an injection does
+        // (services/marketLiquidity.ts, docs/liquidity-purchases.md). Until
+        // 2026-09-02 this debited the balance for the whole stake while the
+        // affordability check above counted both purses, so a proposer whose
+        // pool money was in the wallet paid on credit: a 300-credit wallet
+        // and a 10-credit balance staked 100 and ended at minus 90.
+        const [contributorRow] = await tx.select().from(agents).where(eq(agents.id, contributorId));
+        const wantUnits = toUnits(cost);
+        const walletUnits = Math.min((contributorRow?.liquidityBalance as number) ?? 0, wantUnits);
+        const balanceUnits = wantUnits - walletUnits;
+        if (walletUnits > 0) {
+          // The wallet is not the ledger's currency: its audit trail is the
+          // liquidity events below, so no ledger row and no trading stat.
+          await tx
+            .update(agents)
+            .set({ liquidityBalance: sql`${agents.liquidityBalance} - ${walletUnits}` })
+            .where(eq(agents.id, contributorId));
+        }
+        if (balanceUnits > 0) {
+          const balanceCredits = fromUnits(balanceUnits);
+          await applyCredits(tx, {
+            agentId: contributorId,
+            workspaceId,
+            deltaUnits: -balanceUnits,
+            reason: 'liquidity',
+            refType: 'proposal',
+            refId: proposalId,
+            also: { spentBetting: sql`${agents.spentBetting} + ${balanceCredits}` },
+          });
+        }
+        const parts: Array<{ from: 'liquidity' | 'balance'; credits: number }> = [];
+        if (walletUnits > 0) parts.push({ from: 'liquidity', credits: fromUnits(walletUnits) });
+        if (balanceUnits > 0) parts.push({ from: 'balance', credits: fromUnits(balanceUnits) });
+        paidFrom.set(contributorId, parts);
       }
 
       // anchorP is spawn-time working state, not a column.
       await tx.insert(markets).values(newMarkets.map(({ anchorP: _a, ...row }) => row));
 
       if (funded.length > 0) {
+        // One row per purse the stake came out of, so a leftover returns to
+        // the purse that paid it (services/markets.ts, distributeLPLeftover)
+        // and granted or bought liquidity never leaks into a tradeable
+        // balance. `perMarket` is split in the same proportion the whole
+        // stake was.
         const liqRows = newMarkets.flatMap(m =>
-          funded.map(([contributorId, perMarket]) => ({
-            id: randomUUID(),
-            workspaceId,
-            marketId: m.id as string,
-            agentId: contributorId,
-            amount: perMarket,
-            poolContribution: perMarket,
-            totalLiquidity: m.liquidity as number,
-            type: 'proposal-subsidy',
-            createdAt: new Date(),
-          })),
+          funded.flatMap(([contributorId, perMarket]) => {
+            const parts = paidFrom.get(contributorId) ?? [];
+            const total = parts.reduce((sum, part) => sum + part.credits, 0);
+            const shares =
+              total > 0
+                ? parts.map(part => ({ from: part.from, credits: (perMarket * part.credits) / total }))
+                : [{ from: 'balance' as const, credits: perMarket }];
+            return shares.map(share => ({
+              id: randomUUID(),
+              workspaceId,
+              marketId: m.id as string,
+              agentId: contributorId,
+              amount: share.credits,
+              poolContribution: share.credits,
+              totalLiquidity: m.liquidity as number,
+              type: 'proposal-subsidy',
+              fundedFrom: share.from,
+              createdAt: new Date(),
+            }));
+          }),
         );
         await tx.insert(liquidityEvents).values(liqRows);
         for (const r of liqRows) emitPricesChanged(workspaceId, r.marketId);
