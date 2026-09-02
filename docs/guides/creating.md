@@ -273,7 +273,10 @@ strands everybody.
 
 Flipping a floor OFF public - to private or to unlisted - strips `trade`
 from the Public group in the same transaction, so trading rights granted while
-it was open do not survive. Publishing again grants it back.
+it was open do not survive. Publishing again grants it back. Only a write that
+names `visibility` touches the Public group: renaming the floor, changing its
+description or dates, or any other settings edit leaves the group exactly as it
+was.
 
 **Capabilities** are `read`, `trade`, `manage` and `manage_workspace`. It is a
 flat set with no implication chain.

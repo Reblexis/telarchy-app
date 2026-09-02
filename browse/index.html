@@ -7631,7 +7631,10 @@ Public group afterwards; that is one deliberate call rather than a default that
 strands everybody.</p>
 <p>Flipping a floor OFF public - to private or to unlisted - strips <code>trade</code>
 from the Public group in the same transaction, so trading rights granted while
-it was open do not survive. Publishing again grants it back.</p>
+it was open do not survive. Publishing again grants it back. Only a write that
+names <code>visibility</code> touches the Public group: renaming the floor, changing its
+description or dates, or any other settings edit leaves the group exactly as it
+was.</p>
 <p><strong>Capabilities</strong> are <code>read</code>, <code>trade</code>, <code>manage</code> and <code>manage_workspace</code>. It is a
 flat set with no implication chain.</p>
 <blockquote>
