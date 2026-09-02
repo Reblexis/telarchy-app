@@ -34,7 +34,8 @@ function worstCaseLiability(shares: [number, number], b: number): number {
 }
 
 const SUBSIDY = 2000;
-const OPENING_P = 0.02;
+// The clamp's floor: the thinnest book an anchored open can produce.
+const OPENING_P = 0.001;
 
 describe('an injection keeps the pool covering the book', () => {
   test('an anchored open is covered exactly, which is what makes the rest a rule', () => {

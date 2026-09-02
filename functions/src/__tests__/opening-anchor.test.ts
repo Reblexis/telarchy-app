@@ -62,7 +62,7 @@ describe('openingAnchorP', () => {
     // The reported bug (owner, 2026-08-31): "Telarchy revenue (USD)", range 0
     // to 1,000, reading $0 every hour, opened its daily market at $499.97.
     // Returning null here is what handed it the midpoint. p=0 is not a price
-    // an LMSR can quote, but anchoredMarketState clamps into [0.02, 0.98], so
+    // an LMSR can quote, but anchoredMarketState clamps into [0.001, 0.999], so
     // the book opens as low as it can hold instead of in the middle of a range
     // the number is sitting at the bottom of.
     expect(openingAnchorP('2026-W34', 0, 1000, NOW)).toBe(0);

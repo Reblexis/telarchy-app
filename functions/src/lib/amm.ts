@@ -130,6 +130,13 @@ export function initialPool(b: number): number {
 }
 
 /**
+ * The closest an anchored open gets to a range edge, as a probability. The
+ * one place the clamp lives; `openingAnchorP` and the conditional anchors
+ * return the raw position and rely on this.
+ */
+export const ANCHOR_P_FLOOR = 0.001;
+
+/**
  * Open a market AT a chosen probability instead of the 50/50 center
  * (owner decision 2026-08-11: a job's conditional markets open at the
  * baseline market's current value, because a fresh pair sitting at the
@@ -144,8 +151,17 @@ export function initialPool(b: number): number {
  */
 export function anchoredMarketState(subsidy: number, p: number): { liquidity: number; shares: [number, number] } {
   if (subsidy <= 0) return { liquidity: 0, shares: [0, 0] };
-  // Clamp: at the extremes the seed shares (and worst-case loss) diverge.
-  const p0 = Number.isFinite(p) ? Math.min(0.98, Math.max(0.02, p)) : 0.5;
+  // Clamp: at the extremes the seed shares (and worst-case loss) diverge, so
+  // the open stops one part in a thousand from either edge. That is the
+  // whole cost of the floor: b = subsidy / ln(1000) there, about ten times
+  // thinner than a centre open and 1.8 times thinner than the 2% floor this
+  // replaced. The 2% floor was itself a midpoint in miniature: a $5 revenue
+  // reading on a 0-1,000 range opened every daily market and every
+  // conditional branch under it at $20, and a $0 valuation on a 0-20,000,000
+  // range opened at $400,000 (owner report 2026-09-02). A reading inside the
+  // clamp now opens at the reading; a reading at the edge opens as close to
+  // it as a solvent book can be placed (docs/ui-conventions.md).
+  const p0 = Number.isFinite(p) ? Math.min(1 - ANCHOR_P_FLOOR, Math.max(ANCHOR_P_FLOOR, p)) : 0.5;
   const worstCase = Math.max(-Math.log(p0), -Math.log(1 - p0));
   const b = subsidy / worstCase;
   const diff = b * Math.log(p0 / (1 - p0));
