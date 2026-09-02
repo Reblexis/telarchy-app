@@ -610,7 +610,14 @@ workspacesRouter.put(
       // nothing on the page explaining why (owner report, 2026-09-01). An
       // owner who wants prices public and trading by invitation revokes
       // `trade` afterwards, which is one deliberate call.
-      const becameRestricted = restrictedToMembers(update.visibility) && !restrictedToMembers(ws.visibility);
+      // Only a write that NAMES visibility touches the group. An absent key
+      // used to count as restricted (undefined is not 'public'), so renaming
+      // a published floor silently took its trade away (owner report
+      // 2026-09-02, Wallpaper Animator).
+      const becameRestricted =
+        update.visibility !== undefined &&
+        restrictedToMembers(update.visibility) &&
+        !restrictedToMembers(ws.visibility);
       const becamePublic =
         update.visibility !== undefined &&
         !restrictedToMembers(update.visibility) &&

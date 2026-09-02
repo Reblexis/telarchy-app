@@ -233,6 +233,45 @@ describe('taking a workspace private revokes open trading', () => {
     expect(after.capabilities as string[]).toContain('read');
   });
 
+  test('a settings edit that does not name visibility leaves the Public group alone', async () => {
+    // docs/guides/creating.md: "Only a write that names `visibility` touches
+    // the Public group." Until 2026-09-02 an absent visibility counted as
+    // restricted (undefined is not 'public'), so editing the description of a
+    // published floor silently stripped `trade`; the Wallpaper Animator floor
+    // went read-only that way four hours after it was published, and its
+    // owner could not trade on his own proposal (owner report 2026-09-02).
+    await seedAgents();
+    await seedWorkspace('ws-open-edit', 'public');
+    const group = await publicGroupOf('ws-open-edit');
+    await db
+      .update(permissionGroups)
+      .set({ capabilities: ['read', 'trade'] })
+      .where(eq(permissionGroups.id, group.id));
+
+    for (const body of [{ name: 'Renamed floor' }, { description: 'A new description' }, { subjectAbout: 'about' }]) {
+      const res = await request(app)
+        .put('/api/workspaces/ws-open-edit/settings')
+        .set('X-Test-Agent-Id', OWNER)
+        .set('X-Workspace-Id', 'ws-open-edit')
+        .send(body);
+      expect(res.status).toBe(200);
+      const after = await publicGroupOf('ws-open-edit');
+      expect(after.capabilities as string[]).toEqual(expect.arrayContaining(['read', 'trade']));
+    }
+  });
+
+  test('re-sending visibility=public on a public floor changes nothing', async () => {
+    await seedAgents();
+    await seedWorkspace('ws-open-again', 'public');
+    const res = await request(app)
+      .put('/api/workspaces/ws-open-again/settings')
+      .set('X-Test-Agent-Id', OWNER)
+      .set('X-Workspace-Id', 'ws-open-again')
+      .send({ visibility: 'public' });
+    expect(res.status).toBe(200);
+    expect((await publicGroupOf('ws-open-again')).capabilities as string[]).toEqual(['read', 'trade']);
+  });
+
   test('publishing a floor grants the Public group trade', async () => {
     // The rule (docs/guides/creating.md, "Public means tradeable"): a public
     // floor is a tradeable one. Before this, publishing left the Public group
