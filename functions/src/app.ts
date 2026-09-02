@@ -43,6 +43,7 @@ import { updatesRouter } from './routes/updates';
 import { userauthRouter } from './routes/userauth';
 import { waitlistRouter } from './routes/waitlist';
 import { workspacesRouter } from './routes/workspaces';
+import { xWorkbenchRouter } from './routes/x-workbench';
 import { runningPreviewTag } from './services/release';
 
 export const app = express();
@@ -459,6 +460,9 @@ app.use('/api/workspaces', workspacesRouter);
 // the JSON parser (raw body).
 app.use('/api', liquidityPurchasesRouter);
 app.use('/api/groups', groupsRouter);
+// Mounted BEFORE the admin router so /api/admin/x/* resolves here rather
+// than falling through to the admin router's own :param routes.
+app.use('/api/admin/x', xWorkbenchRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/activity', activityRouter);
 app.use('/api', systemRouter);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EarnTableEditor } from '../components/EarnTableEditor';
+import { XWorkbench } from '../components/XWorkbench';
 import { useAuth } from '../hooks/useAuth';
 import { api, type FeedbackItem, type Journey, type JourneyFeed } from '../lib/api';
 import { TopBar } from './TradePage';
@@ -342,6 +343,8 @@ export function AdminPage() {
             they surface. Search is explicit rather than a list on load: a page
             that prints everybody's payout handle the moment it opens is a page
             you cannot screen-share. */}
+        <XWorkbench />
+
         <section className="adm-block">
           <h2 className="pubws-h2">Who to pay</h2>
           <p className="adm-note">

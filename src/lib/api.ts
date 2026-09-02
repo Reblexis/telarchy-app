@@ -1014,6 +1014,41 @@ export interface MyAgent {
   ownerAgentId: string | null;
 }
 
+export interface XPost {
+  id: string;
+  author: string;
+  authorName: string;
+  text: string;
+  likes: number;
+  replies: number;
+  createdAt: string | null;
+}
+
+export interface XReply {
+  id: string;
+  sourcePostId: string;
+  sourceAuthor: string | null;
+  sourceText: string | null;
+  text: string;
+  replyId: string | null;
+  likes: number | null;
+  replies: number | null;
+  metricsAt: string | null;
+  hasNumber: boolean;
+  disagrees: boolean;
+  length: number;
+  createdAt: string;
+}
+
+export type XSummary =
+  | { enough: false; note: string }
+  | {
+      enough: true;
+      median: number;
+      anyEngagement: number;
+      features: { label: string; on: number; off: number }[];
+    };
+
 export const api = {
   getMetrics: () => request('/api/metrics'),
   /** Create a metric on a floor the caller manages (docs/owner-on-the-floor.md,
@@ -1336,6 +1371,35 @@ export const api = {
   /** Give the revision answering this request 100% of the traffic. Pressed on
    *  the beta, so it publishes the build you are looking at. */
   publishRelease: () => request('/api/admin/publish', { method: 'POST', body: JSON.stringify({}) }),
+
+  // The X workbench (docs/x-workbench.md). Platform admin only; every call
+  // goes through this module, like every other call the UI makes.
+  xLookupPost: (url: string): Promise<{ post: XPost }> =>
+    request('/api/admin/x/lookup', { method: 'POST', body: JSON.stringify({ url }) }),
+  xDraftReply: (input: {
+    postId?: string;
+    postAuthor?: string;
+    postText: string;
+    messages: { role: 'user' | 'assistant'; content: string }[];
+  }): Promise<{ draft: { reply: string; reason: string; note?: string } }> =>
+    request('/api/admin/x/draft', { method: 'POST', body: JSON.stringify(input) }),
+  xRecordReply: (input: {
+    sourcePostId: string;
+    sourceAuthor?: string;
+    sourceText?: string;
+    text: string;
+    replyId?: string;
+  }): Promise<{ recorded: XReply }> => request('/api/admin/x/record', { method: 'POST', body: JSON.stringify(input) }),
+  xAttachReplyId: (id: string, replyId: string): Promise<{ recorded: XReply }> =>
+    request(`/api/admin/x/record/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ replyId }),
+    }),
+  xLog: (): Promise<{ replies: XReply[]; summary: XSummary; draftingConfigured: boolean }> =>
+    request('/api/admin/x/log'),
+  xGetVoiceProfile: (): Promise<{ profile: string; draftingConfigured: boolean }> => request('/api/admin/x/profile'),
+  xSetVoiceProfile: (profile: string): Promise<{ ok: boolean }> =>
+    request('/api/admin/x/profile', { method: 'PUT', body: JSON.stringify({ profile }) }),
   editProposal: (id: string, body: { title?: string; description?: string; askUsd?: number | null }) =>
     request(`/api/proposals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   /** What changed on a proposal, oldest first. */

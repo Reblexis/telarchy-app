@@ -254,6 +254,10 @@ jobs:
       # purchase is registered against one URL, so a preview would take a
       # payment nothing ever credits. Without them every purchase surface
       # answers 503, which is the correct state for a self-hosted instance.
+      # ANTHROPIC_API_KEY is what the X workbench drafts with
+      # (docs/x-workbench.md). Without it the workbench still reads posts and
+      # keeps the log, and every draft call answers 503, which is the correct
+      # state for a self-hosted instance that has not brought its own key.
       - name: Deploy candidate (no traffic)
         if: steps.auth_check.outputs.skip != 'true'
         run: |
@@ -268,7 +272,7 @@ jobs:
             --max-instances 4 \
             --set-cloudsql-instances ${{ vars.CLOUDSQL_INSTANCE }} \
             --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app,DB_POOL_MAX=4,SELF_SYNC_WORKSPACE_ID=2015d2e5-999c-4f94-aa19-e3733451732f \
-            --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest,GITHUB_ACTIONS_TOKEN=GITHUB_ACTIONS_TOKEN:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest \
+            --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest,GITHUB_ACTIONS_TOKEN=GITHUB_ACTIONS_TOKEN:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest \
             --clear-base-image \
             --quiet
 

@@ -1116,6 +1116,61 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
         "What one visitor did, in order (platform admin). Reconstructs sittings from the same human-filtered visitor log floor-stats counts, so it covers anonymous visitors with no script, cookie or consent banner, and sees pages rather than clicks. A visitor is one address AND one user agent; 30 idle minutes ends a sitting; the referer reported is the FIRST hit's, the channel that delivered them. Returns { summary: { journeys, bounced, visitors, medianSteps }, topExits: [{ path, journeys }] (where sittings ENDED, the page losing people), journeys: [{ id, ip, userAgent, country, referer, startedAt, entryPath, exitPath, durationSeconds, bounced, steps: [{ path, ts, secondsOnPage }] }] } over the log's 30-day retention window, newest first, capped at 300 while the summary counts them all.",
     },
     {
+      method: 'POST',
+      path: '/api/admin/x/lookup',
+      auth: 'admin',
+      description:
+        "Read one public X post (platform admin). Body: { url or id } (a status URL or a bare id). Returns { post: { id, author, authorName, text, likes, replies, createdAt } } from X's public single-post read, which needs no X credential because the token is derived from the id. 502 with a plain message when X refuses: that read is undocumented and will break one day, and the workbench falls back to the owner pasting the text. Part of the X workbench (docs/x-workbench.md).",
+    },
+    {
+      method: 'POST',
+      path: '/api/admin/x/draft',
+      auth: 'admin',
+      description:
+        "Draft a reply to a post, or argue about the draft (platform admin). Body: { postText (required), postId?, postAuthor?, messages: [{ role: 'user'|'assistant', content }] }. The messages carry the whole conversation, so a follow-up like 'shorter' means shorter than the last draft. Returns { draft: { reply, reason, note? } }, where reason is one word (disagree|number|question|counterexample|skip) and an empty reply with reason 'skip' is a legitimate answer. Writes in the owner's voice using the profile stored via /api/admin/x/profile and a digest of what his recorded replies earned. 503 when ANTHROPIC_API_KEY is not set.",
+    },
+    {
+      method: 'POST',
+      path: '/api/admin/x/record',
+      auth: 'admin',
+      description:
+        'Record a reply the owner actually sent (platform admin). Body: { sourcePostId, text, sourceAuthor?, sourceText?, replyId? }. The reply id is optional because the text is recorded when he sends it and the id is pasted afterwards, if at all; PATCH /api/admin/x/record/:id attaches it later, which is what turns metrics on. Nothing here posts to X.',
+    },
+    {
+      method: 'GET',
+      path: '/api/admin/x/log',
+      auth: 'admin',
+      description:
+        'Every recorded reply with its metrics, newest first, plus { summary }: either { enough: false, note } below ten scored replies, or { enough: true, median, anyEngagement, features: [{ label, on, off }] } comparing mean likes with and without each tracked feature (carries a number, disagrees, under 200 characters). Refusing to claim a pattern from three data points is deliberate.',
+    },
+    {
+      method: 'PATCH',
+      path: '/api/admin/x/record/:id',
+      auth: 'admin',
+      description:
+        'Attach the id of the reply he posted to a recorded reply (platform admin). Body: { replyId } (a status URL or a bare id). This is what turns metrics on for that row; until then the log shows it as untracked.',
+    },
+    {
+      method: 'GET',
+      path: '/api/admin/x/profile',
+      auth: 'admin',
+      description:
+        'The voice profile the drafts imitate and the facts they may state (platform admin). Stored in the database rather than the repository because it is personal writing. With no profile set, drafting still works and states no specific facts.',
+    },
+    {
+      method: 'PUT',
+      path: '/api/admin/x/profile',
+      auth: 'admin',
+      description: 'Replace the voice profile (platform admin). Body: { profile }.',
+    },
+    {
+      method: 'POST',
+      path: '/api/cron/x-metrics',
+      auth: 'platform admin',
+      description:
+        "Refresh likes and replies on recorded X replies that have an id, oldest-refreshed first, 25 per pass (docs/x-workbench.md). Cloud Scheduler runs it every six hours; a reply's numbers move fastest in its first day. A reply that can no longer be read is stamped rather than retried forever.",
+    },
+    {
       method: 'GET',
       path: '/api/admin/participants',
       auth: 'admin',

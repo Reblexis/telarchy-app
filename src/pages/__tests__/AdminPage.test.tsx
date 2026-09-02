@@ -28,6 +28,9 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: authUser, loadin
 // The top bar drags in the whole floor page; the cockpit is what this spec
 // is about.
 vi.mock('../TradePage', () => ({ TopBar: () => null }));
+// The workbench has its own tests; stubbed here so the cockpit's own tests
+// do not have to keep its API surface in their mock.
+vi.mock('../../components/XWorkbench', () => ({ XWorkbench: () => null }));
 
 import { api } from '../../lib/api';
 import { AdminPage } from '../AdminPage';
