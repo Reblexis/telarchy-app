@@ -30,7 +30,18 @@ jest.mock('../middleware/auth', () => ({
 import express from 'express';
 import request from 'supertest';
 import { DATA_ROOM_MARKDOWN, KNOWN_BLOCKS } from '../content/data-room';
-import { agents, markets, metricLogs, metrics, pageVisits, proposals, systemConfig, workspaces } from '../db/schema';
+import {
+  agents,
+  earnClaims,
+  markets,
+  metricLogs,
+  metrics,
+  pageVisits,
+  proposals,
+  recordLinks,
+  systemConfig,
+  workspaces,
+} from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { toUnits } from '../lib/validation';
@@ -177,16 +188,29 @@ describe('what the feed publishes', () => {
     expect(f.steps[1].shareOfAbove).toBeCloseTo(byId.accounts / byId.loads, 6);
   });
 
-  it('counts a verified participant from the row the record-link router writes', async () => {
+  it('counts a verified participant as one we PAID for a record, nothing else', async () => {
     await seed();
-    await db.insert(agents).values([{ id: 'a2', apiKeyHash: 'h2', balance: toUnits(100) }]);
-    await db.insert(systemConfig).values([
-      { key: 'record-handle:manifold:a1', value: { handle: 'a1', externalId: 'x1' } },
-      { key: 'record-handle:manifold:a2', value: { handle: 'a2', externalId: 'x2' } },
-      // The shape the route deleted on 2026-09-01 wrote; migration 0100 removed
-      // every such row, and a count that still read it published zero.
-      { key: 'manifold-claimed:agent:ghost', value: { username: 'ghost' } },
+    await db.insert(agents).values([
+      { id: 'a2', apiKeyHash: 'h2', balance: toUnits(100) },
+      { id: 'badged-only', apiKeyHash: 'h3', balance: toUnits(100) },
     ]);
+    await db.insert(earnClaims).values(
+      ['a1', 'a2'].map(id => ({
+        id: `claim-${id}`,
+        agentId: id,
+        key: 'manifold_link' as const,
+        refId: `x-${id}`,
+        credits: 5000,
+      })),
+    );
+    // A free badge, which since 2026-09-02 costs a bio edit, is not
+    // evidence and must not appear on the data room as if it were.
+    await db
+      .insert(recordLinks)
+      .values([{ agentId: 'badged-only', provider: 'manifold', externalId: 'x-free', handle: 'four_days_old' }]);
+    // The shape the route deleted on 2026-09-01 wrote; migration 0100 removed
+    // every such row, and a count that still read it published zero.
+    await db.insert(systemConfig).values([{ key: 'manifold-claimed:agent:ghost', value: { username: 'ghost' } }]);
     const { body } = await request(app).get('/api/data-room');
     expect(body.evidence.traction.verifiedParticipants).toBe(2);
     const byId = Object.fromEntries(body.evidence.funnel.steps.map((s: { id: string; n: number }) => [s.id, s.n]));

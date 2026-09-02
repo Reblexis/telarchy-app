@@ -1,21 +1,11 @@
-import { and, asc, count, eq, gte, like, ne, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gte, ne, sql } from 'drizzle-orm';
 import { CHANGE_DAYS, CHANGELOG_BUILT_AT, CHANGES, TOTAL_CHANGES } from '../content/changelog';
 import { type BlockName, CONTENT_UPDATED_AT, DATA_ROOM_MARKDOWN, KNOWN_BLOCKS } from '../content/data-room';
 import { db } from '../db/client';
-import {
-  agents,
-  authUser,
-  markets,
-  pageVisits,
-  proposals,
-  systemConfig,
-  trades,
-  trafficDaily,
-  workspaces,
-} from '../db/schema';
+import { agents, authUser, markets, pageVisits, proposals, trades, trafficDaily, workspaces } from '../db/schema';
 import { ttlCache } from '../lib/ttl-cache';
 import { humanVisitFilter } from '../lib/visit-log';
-import { MANIFOLD_HANDLE_PREFIX, platformStats } from './platform-stats';
+import { paidManifoldLinkCount, platformStats } from './platform-stats';
 
 /**
  * The data room: Telarchy's own books, prose and numbers in one payload.
@@ -167,13 +157,9 @@ function funnel(counts: { loads: number; accounts: number; verified: number; wee
 async function traction() {
   const [participants] = await db.select({ n: count() }).from(agents);
   const [accounts] = await db.select({ n: count() }).from(authUser);
-  // A verified participant is a paid Manifold link, read from the same key
-  // the stats route reads (platform-stats.ts); this page and that route
-  // must publish the same number.
-  const [verified] = await db
-    .select({ n: count() })
-    .from(systemConfig)
-    .where(like(systemConfig.key, `${MANIFOLD_HANDLE_PREFIX}%`));
+  // The verified set has one definition, in platform-stats.ts: participants
+  // whose Manifold record was PAID for. A free badge is not evidence.
+  const verifiedCount = await paidManifoldLinkCount();
   const [tradeRow] = await db
     .select({
       n: count(),
@@ -201,7 +187,7 @@ async function traction() {
   return {
     participants: Number(participants.n),
     accounts: Number(accounts.n),
-    verifiedParticipants: Number(verified.n),
+    verifiedParticipants: verifiedCount,
     trades: Number(tradeRow.n),
     creditsTraded: Math.round(Number(tradeRow.credits)),
     openMarkets: Number(openMarkets.n),

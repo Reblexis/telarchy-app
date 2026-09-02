@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, count, desc, eq, gt, gte, inArray, like, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, ne, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import {
@@ -15,7 +15,6 @@ import {
   proposalMessages,
   proposalRevisions,
   proposals,
-  systemConfig,
   trades,
   workspaces,
 } from '../db/schema';
@@ -33,7 +32,7 @@ import { authMiddleware, getAuthWorkspaceMemberships } from '../middleware/auth'
 import { requireIdentity } from '../middleware/roles';
 import { dataRoomTool } from '../services/data-room';
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
-import { MANIFOLD_HANDLE_PREFIX, platformStats } from '../services/platform-stats';
+import { paidManifoldLinkCount, platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
 import { webSearchTool } from '../services/web-search';
 import { buildWorkspaceContext, renderContextIndex, renderContextMarkdown } from '../services/workspace-context';
@@ -999,17 +998,14 @@ async function buildFloorPayload(ws: PublicWs) {
     );
   }
 
-  // Platform-wide count of completed Manifold imports. Public on purpose: a
-  // prediction market on "how many forecasters brought their record over"
-  // cannot resolve on a number only the owner can see, and this audience will
-  // not take it on faith. Counts paid links rather than workspace membership,
-  // so it reads the same from anywhere, and reads the one key shape the
-  // record-link router writes (services/platform-stats.ts).
-  const [manifoldRow] = await db
-    .select({ n: count() })
-    .from(systemConfig)
-    .where(like(systemConfig.key, `${MANIFOLD_HANDLE_PREFIX}%`));
-  const manifoldImportCount = manifoldRow?.n ?? 0;
+  // Platform-wide count of Manifold records we PAID for. Public on purpose:
+  // a prediction market on "how many forecasters brought their record over"
+  // cannot resolve on a number only the owner can see, and this audience
+  // will not take it on faith. Defined once, in platform-stats.ts, and
+  // deliberately not the free badge: since 2026-09-02 anyone can link an
+  // account they hold, so a badge count would answer a different question
+  // from the one the market asks.
+  const manifoldImportCount = await paidManifoldLinkCount();
 
   return {
     workspaceId,
