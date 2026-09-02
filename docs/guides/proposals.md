@@ -114,10 +114,9 @@ balance:
   and your balance cannot cover it, the whole approve returns 409 naming what
   you need and what you have.
 
-One sharp edge in that order: the declined branch is voided before the reward is
-attempted, so an approve that fails on 409 leaves the proposal pending with its
-declined branch already gone. Top up and approve again; you will not get that
-branch's price discovery back.
+The reward is checked before anything else moves. An approve that returns 409
+leaves the proposal exactly as it was: still pending, both branches still open
+and priced, no stake bought out. Top up and approve again.
 
 ## Declining, and why the reason is enforced
 

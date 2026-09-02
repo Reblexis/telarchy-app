@@ -532,6 +532,36 @@ export async function approveProposal(
   if (!proposal) throw new AppError('Proposal not found', 404);
   if (proposal.status !== 'pending') throw new AppError('Proposal is not pending', 400);
 
+  // The reward is the one step below that can refuse, so it is checked
+  // before anything moves (docs/guides/proposals.md, "Approving"): a 409
+  // must leave the proposal exactly as it was, both branches open and
+  // priced. Until 2026-09-02 the declined branch was voided first, and an
+  // owner whose balance had gone negative was left with a pending proposal
+  // whose declined branch, and its price discovery, were already gone. The
+  // locked re-check inside the paying transaction below still guards the
+  // debit itself; this early read only decides whether to start.
+  const [wsRewardRow] = await db
+    .select({ proposalReward: workspaces.proposalReward })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId));
+  const configuredReward = wsRewardRow?.proposalReward ?? 0;
+  if (configuredReward > 0) {
+    const payerId = await resolveWorkspaceOwnerAgentId(workspaceId);
+    if (!payerId) {
+      throw new AppError('Workspace has no owner participant; cannot pay proposal reward', 409);
+    }
+    if (payerId !== proposal.proposedBy) {
+      const [payer] = await db.select({ balance: agents.balance }).from(agents).where(eq(agents.id, payerId));
+      if (!payer) throw new AppError('Workspace owner participant not found', 409);
+      if (!sufficientBalance(payer.balance as number, configuredReward)) {
+        throw new AppError(
+          `Workspace owner balance insufficient to pay proposal reward: need ${configuredReward}, have ${fromUnits(payer.balance as number)}`,
+          409,
+        );
+      }
+    }
+  }
+
   // The declined-branch counterfactual never materialises once approved, so
   // void it and refund any positions. The approved branch stays live and
   // resolves against the actual KPI at target date.
