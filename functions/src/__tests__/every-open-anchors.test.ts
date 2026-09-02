@@ -198,8 +198,9 @@ describe('a book that already has a price is never re-anchored', () => {
   });
 
   test('a conditional branch is never anchored to the metric value', async () => {
-    // Its price is the baseline adjusted for the branch and the ask, which is
-    // services/proposals.ts's question, not this one.
+    // Its price is the baseline adjusted for the branch and the ask
+    // (lib/branch-anchor.ts). With no baseline market at all there is no
+    // such price, and the centre is what is left.
     await db.insert(proposals).values({
       id: 'prop-1',
       workspaceId: WS,
@@ -212,5 +213,119 @@ describe('a book that already has a price is never re-anchored', () => {
     await seedBareMarket('mk-cond', { proposalId: 'prop-1' });
     await request(app).post('/api/predictions/markets/mk-cond/liquidity').send({ amount: 250 });
     expect(await priceOf('mk-cond')).toBeCloseTo(MIDPOINT, 0);
+  });
+});
+
+describe('a branch that spawned unfunded opens at the baseline price when first given money', () => {
+  // docs/guides/creating.md, "A conditional pair opens at the baseline
+  // price ... whenever its book is first given money". The Wallpaper
+  // Animator floor's price-cut proposal carried no subsidy, its owner
+  // deepened both branches a minute later, and they opened at $12,500 on a
+  // 0-25,000 range while the unconditional 31 Dec market sat at $6,126
+  // (owner report 2026-09-02: "it should liquidate at the main unconditional
+  // market value unless specified otherwise").
+  const BASELINE = 300;
+  async function seedBaselineAt(value: number, id = 'mk-base') {
+    // A funded, anchored baseline sitting at `value`: seed it bare, fund it
+    // through the route and let the metric value place it.
+    await db.update(metrics).set({ value }).where(eq(metrics.id, METRIC));
+    await seedBareMarket(id);
+    await request(app).post(`/api/predictions/markets/${id}/liquidity`).send({ amount: 250 });
+    expect(await priceOf(id)).toBeCloseTo(value, 0);
+  }
+  async function seedProposal(id: string, askUsd = 0) {
+    await db.insert(proposals).values({
+      id,
+      workspaceId: WS,
+      title: askUsd > 0 ? `$${askUsd}: A paid job` : 'A proposal',
+      description: 'x',
+      status: 'pending',
+      proposedBy: OWNER,
+      askUsd,
+      createdAt: new Date(),
+    });
+  }
+  async function seedBranch(id: string, proposalId: string, branch: 'approved' | 'declined') {
+    await seedBareMarket(id, { proposalId });
+    await db.update(markets).set({ branch }).where(eq(markets.id, id));
+  }
+
+  test('the declined branch opens where the unconditional market is', async () => {
+    await seedBaselineAt(BASELINE);
+    await seedProposal('prop-free');
+    await seedBranch('mk-declined', 'prop-free', 'declined');
+    await request(app).post('/api/predictions/markets/mk-declined/liquidity').send({ amount: 250 });
+    expect(await priceOf('mk-declined')).toBeCloseTo(BASELINE, 0);
+  });
+
+  test('a free proposal opens both branches at the same number', async () => {
+    await seedBaselineAt(BASELINE);
+    await seedProposal('prop-free');
+    await seedBranch('mk-a', 'prop-free', 'approved');
+    await seedBranch('mk-d', 'prop-free', 'declined');
+    await request(app).post('/api/predictions/markets/mk-a/liquidity').send({ amount: 250 });
+    await request(app).post('/api/predictions/markets/mk-d/liquidity').send({ amount: 100 });
+    expect(await priceOf('mk-a')).toBeCloseTo(BASELINE, 0);
+    expect(await priceOf('mk-d')).toBeCloseTo(BASELINE, 0);
+  });
+
+  test('the approved branch of a paid job opens lower by its ask on a net-money metric', async () => {
+    await db.update(metrics).set({ name: 'Telarchy net revenue (USD)' }).where(eq(metrics.id, METRIC));
+    await db.update(markets).set({ metricName: 'Telarchy net revenue (USD)' }).where(eq(markets.workspaceId, WS));
+    await seedBaselineAt(BASELINE);
+    await db.update(markets).set({ metricName: 'Telarchy net revenue (USD)' }).where(eq(markets.workspaceId, WS));
+    await seedProposal('prop-paid', 100);
+    await seedBranch('mk-paid-a', 'prop-paid', 'approved');
+    await seedBranch('mk-paid-d', 'prop-paid', 'declined');
+    await db.update(markets).set({ metricName: 'Telarchy net revenue (USD)' }).where(eq(markets.workspaceId, WS));
+    await request(app).post('/api/predictions/markets/mk-paid-a/liquidity').send({ amount: 250 });
+    await request(app).post('/api/predictions/markets/mk-paid-d/liquidity').send({ amount: 250 });
+    expect(await priceOf('mk-paid-a')).toBeCloseTo(BASELINE - 100, 0);
+    expect(await priceOf('mk-paid-d')).toBeCloseTo(BASELINE, 0);
+  });
+
+  test('the baseline is the one for the SAME settle date, not another horizon', async () => {
+    await seedBaselineAt(BASELINE);
+    // A far market of the same metric priced elsewhere must not be the anchor.
+    await db.update(metrics).set({ value: 900 }).where(eq(metrics.id, METRIC));
+    await seedBareMarket('mk-far', { targetDate: toAbsoluteDate('+12w') });
+    await request(app).post('/api/predictions/markets/mk-far/liquidity').send({ amount: 250 });
+    await seedProposal('prop-near');
+    await seedBranch('mk-near-d', 'prop-near', 'declined');
+    await request(app).post('/api/predictions/markets/mk-near-d/liquidity').send({ amount: 250 });
+    expect(await priceOf('mk-near-d')).toBeCloseTo(BASELINE, 0);
+  });
+
+  test('a branch with an unfunded baseline opens at the centre', async () => {
+    await seedBareMarket('mk-base-dead');
+    await seedProposal('prop-dead');
+    await seedBranch('mk-dead-d', 'prop-dead', 'declined');
+    await request(app).post('/api/predictions/markets/mk-dead-d/liquidity').send({ amount: 250 });
+    expect(await priceOf('mk-dead-d')).toBeCloseTo(MIDPOINT, 0);
+  });
+
+  test('a branch anyone has traded is never re-opened by a top-up', async () => {
+    await seedBaselineAt(BASELINE);
+    await seedProposal('prop-traded');
+    await seedBranch('mk-traded', 'prop-traded', 'declined');
+    // Someone traded it at the centre: shares are not [0, 0] any more.
+    await db
+      .update(markets)
+      .set({ shares: [0, 40], liquidity: 100, pool: 100 * Math.LN2 })
+      .where(eq(markets.id, 'mk-traded'));
+    const before = await priceOf('mk-traded');
+    await request(app).post('/api/predictions/markets/mk-traded/liquidity').send({ amount: 250 });
+    expect(await priceOf('mk-traded')).toBeCloseTo(before, 0);
+  });
+
+  test('the bulk top-up opens a bare branch at the baseline too', async () => {
+    await seedBaselineAt(BASELINE);
+    await seedProposal('prop-bulk');
+    await seedBranch('mk-bulk-d', 'prop-bulk', 'declined');
+    const res = await request(app)
+      .post('/api/predictions/markets/liquidity/bulk')
+      .send({ amount: 250, proposalId: 'prop-bulk' });
+    expect(res.status).toBe(200);
+    expect(await priceOf('mk-bulk-d')).toBeCloseTo(BASELINE, 0);
   });
 });

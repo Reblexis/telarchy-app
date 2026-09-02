@@ -7555,7 +7555,13 @@ traded, the price moves half as far. Thin markets swing on pocket change; deep
 ones need conviction.</li>
 <li><strong>A conditional pair opens at the baseline price</strong> rather than at the middle
 of the range, which costs a slightly thinner book for the same money, because
-an LMSR that starts off centre has a larger worst case to cover.</li>
+an LMSR that starts off centre has a larger worst case to cover. It opens
+there whenever its book is first given money: at spawn when the proposal
+carries a subsidy, or at the first injection when it spawned unfunded and
+someone deepens it later. The approved branch of a paid job opens lower by
+its ask on a metric the payment burns out of (<code>net</code> money). Only a branch
+whose baseline market has no price yet opens at the centre, and a branch
+anyone has traded is never re-opened.</li>
 </ul>
 <p>The default of 0.5 credits per market is deliberately small, and it is thin
 enough to matter: measured on the beta, one five-credit trade against a market

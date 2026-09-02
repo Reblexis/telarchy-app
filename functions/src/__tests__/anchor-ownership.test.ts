@@ -65,11 +65,16 @@ test('every file that opens a book by hand also asks where it opens', () => {
   expect(predictions && /anchorUntradedMarketTx\(/.test(predictions.text)).toBe(true);
 });
 
-test("a conditional branch is out of the baseline anchor's reach", () => {
-  // Belt and braces on the guard itself: proposals.ts prices the branches, so
-  // anchorUntradedMarketTx must decline a market that belongs to a proposal.
-  // every-open-anchors.test.ts proves the behaviour; this proves the reason is
-  // still written down where the next reader will look.
-  const owner = files.find(f => f.path === 'services/marketLiquidity.ts');
-  expect(owner && /if \(market\.proposalId\) return false;/.test(owner.text)).toBe(true);
+test('a conditional branch is priced by one formula, wherever its book opens', () => {
+  // The spawn (services/proposals.ts) and the first injection into a branch
+  // that spawned unfunded (services/marketLiquidity.ts) both ask
+  // lib/branch-anchor.ts where the branch opens: the baseline's consensus,
+  // less the ask on the approved branch of a burning metric. Two copies of
+  // that arithmetic would be the third opinion this file exists to prevent.
+  for (const path of ['services/proposals.ts', 'services/marketLiquidity.ts']) {
+    const f = files.find(x => x.path === path);
+    expect(f && /from '\.\.\/lib\/branch-anchor'/.test(f.text)).toBe(true);
+  }
+  const helper = files.find(f => f.path === 'lib/branch-anchor.ts');
+  expect(helper && /export function branchAnchorP\(/.test(helper.text)).toBe(true);
 });
