@@ -72,3 +72,27 @@ solvent because that is what the function does.
 Recommendation: adopt the rule. The floor already promises that an open is
 not a forecast; keeping that promise for the life of an untraded book is
 the same promise.
+
+## Record: the untraded books were re-anchored by hand, 07:05 UTC 2026-09-02
+
+Sixty-five open markets in the Telarchy workspace with no trades were set
+to the price the engine would open them at now, by the rule proposed
+above applied once: baselines at the reading, conditional branches at
+their baseline's current price (the re-anchored baseline, for the daily
+ones) minus the ask on the approved branch of a money metric. For each,
+the pool is untouched and `anchoredMarketState(pool, anchor)` supplied the
+new shares and b, so every book is exactly as solvent as before. Nobody
+held a position in any of them, so no one's money moved. Their previous
+shares and b are in `notes/reanchor-2026-09-02-before.json`, by market id.
+
+What a visitor sees after it: the daily "Telarchy revenue (USD)" market
+and the branches under it at $5 (were $20), "Implied valuation (USD)" at
+$20,000 (was $400,000), "Active traders" dailies at 4 (were 1.0), the four
+September revenue branches on approved jobs at $98.40, the baseline's
+price (were $500), and the valuation branches at their baselines' $806k
+and $820k (were $10,000,000). Resolved markets were not touched; the $500
+and $10,000,000 prints in the history of approved jobs are what those
+markets settled at and stay.
+
+The clamp change itself reaches the floor when the build is published;
+until then a daily market opened at midnight still opens at the old floor.
