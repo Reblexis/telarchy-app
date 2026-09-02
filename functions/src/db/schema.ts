@@ -121,7 +121,7 @@ export const workspaces = pgTable('workspaces', {
   proposalReward: doublePrecision('proposal_reward').notNull().default(0),
   /** Penalty deducted from proposer (paid to workspace owner) when a proposal is declined as spam. 0 = no penalty. */
   spamPenalty: doublePrecision('spam_penalty').notNull().default(0),
-  /** Per-participant cap on simultaneously pending proposals in this workspace. 0 disables the cap. Never applies to the owner (createdBy). */
+  /** Per-participant cap on simultaneously pending proposals in this workspace. 0 disables the cap. Never applies to a caller holding manage (owner, admins, platform admins). */
   maxPendingProposalsPerParticipant: integer('max_pending_proposals').notNull().default(0),
 });
 
