@@ -131,5 +131,5 @@ export function entryFor(every: Every, ahead: number, day: string, hour: string)
  *  another one follows it. */
 export function repeatSentence(every: Every): string {
   if (every === 'once') return 'One market, on that date, and nothing after it.';
-  return `A new market every ${every}, each opening with the liquidity below.`;
+  return `A new market every ${every}, each opening with the liquidity above.`;
 }
