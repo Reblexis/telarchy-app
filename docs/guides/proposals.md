@@ -81,7 +81,10 @@ undecided condition has nothing to settle against.
 
 If you want a ceiling on how many can pile up, `maxPendingProposalsPerParticipant`
 caps pending contracts per participant (0, off, by default) and returns 429 with
-`{ pending, cap }`.
+`{ pending, cap }`. The cap never applies to the workspace owner: it is a brake on
+what strangers can queue for you to review, and a queue of your own contracts is
+your own to manage, so the owner may post any number of pending contracts on their
+floor whatever the cap says.
 
 ## Approving is the payment
 

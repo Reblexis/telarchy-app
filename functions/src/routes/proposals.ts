@@ -112,14 +112,19 @@ proposalsRouter.post(
       }
     }
 
+    // The pending cap is a brake on what strangers can queue for the owner to
+    // review; the owner's own queue is theirs to manage, so the cap never
+    // applies to them (docs/guides/proposals.md, owner ask 2026-09-02).
     const [wsForCap] = await db
       .select({
         maxPending: workspaces.maxPendingProposalsPerParticipant,
+        ownerId: workspaces.createdBy,
       })
       .from(workspaces)
       .where(eq(workspaces.id, workspaceId));
     const cap = wsForCap?.maxPending ?? 0;
-    if (cap > 0) {
+    const isOwner = wsForCap?.ownerId === proposedBy;
+    if (cap > 0 && !isOwner) {
       const pending = await countPendingProposalsByProposer(workspaceId, proposedBy);
       if (pending >= cap) {
         res.status(429).json({
