@@ -1,8 +1,9 @@
 import { randomUUID } from 'crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { db } from '../db/client';
-import { agents, liquidityEvents, markets, metrics } from '../db/schema';
+import { agents, liquidityEvents, markets, metrics, proposals } from '../db/schema';
 import { anchoredMarketState } from '../lib/amm';
+import { askUsdOf, branchAnchorP } from '../lib/branch-anchor';
 import { AppError } from '../lib/errors';
 import { emitPricesChanged } from '../lib/market-events';
 import { openingAnchorP } from '../lib/market-open';
@@ -208,23 +209,48 @@ export async function anchorUntradedMarketTx(
   if (shares[0] !== 0 || shares[1] !== 0) return false;
   const pool = market.pool ?? 0;
   if (!(market.liquidity > 0) || pool <= 0) return false;
-  // A conditional branch opens at the BASELINE market's consensus adjusted for
-  // the branch and the proposal's ask (services/proposals.ts), which is a
-  // different question with a different input. The metric's own value is the
-  // wrong number for it, so this function does not answer for one.
-  if (market.proposalId) return false;
-
-  const [metric] = await tx
-    .select({ value: metrics.value })
-    .from(metrics)
-    .where(and(eq(metrics.id, market.metricId), eq(metrics.workspaceId, params.workspaceId)));
-  const anchorP = openingAnchorP(
-    market.targetDate,
-    metric?.value,
-    market.rangeMax,
-    params.now ?? new Date(),
-    market.rangeMin,
-  );
+  let anchorP: number | null;
+  if (market.proposalId) {
+    // A conditional branch opens at the BASELINE market's consensus for the
+    // same metric and settle date, adjusted for the branch and the
+    // proposal's ask (lib/branch-anchor.ts, the formula the spawn uses). The
+    // metric's own value is the wrong number for it. Until 2026-09-02 this
+    // function declined branches altogether, so a pair that spawned with no
+    // subsidy and was deepened a minute later opened at the middle of its
+    // range while the unconditional market sat at the reading (owner
+    // report, Wallpaper Animator: $12,500 against $6,126).
+    const [baseline] = await tx
+      .select()
+      .from(markets)
+      .where(
+        and(
+          eq(markets.workspaceId, params.workspaceId),
+          eq(markets.metricId, market.metricId),
+          eq(markets.targetDate, market.targetDate),
+          isNull(markets.proposalId),
+          eq(markets.active, true),
+          eq(markets.resolved, false),
+        ),
+      );
+    if (!baseline) return false;
+    const [proposal] = await tx
+      .select({ askUsd: proposals.askUsd, title: proposals.title })
+      .from(proposals)
+      .where(and(eq(proposals.id, market.proposalId), eq(proposals.workspaceId, params.workspaceId)));
+    anchorP = branchAnchorP(baseline, market.branch === 'declined' ? 'declined' : 'approved', askUsdOf(proposal));
+  } else {
+    const [metric] = await tx
+      .select({ value: metrics.value })
+      .from(metrics)
+      .where(and(eq(metrics.id, market.metricId), eq(metrics.workspaceId, params.workspaceId)));
+    anchorP = openingAnchorP(
+      market.targetDate,
+      metric?.value,
+      market.rangeMax,
+      params.now ?? new Date(),
+      market.rangeMin,
+    );
+  }
   if (anchorP === null) return false;
 
   const anchored = anchoredMarketState(pool, anchorP);

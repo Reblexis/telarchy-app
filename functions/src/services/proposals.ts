@@ -13,11 +13,11 @@ import {
   workspaces,
 } from '../db/schema';
 import { anchoredMarketState, consensus } from '../lib/amm';
+import { askUsdOf, branchAnchorP } from '../lib/branch-anchor';
 import { resolutionInstant } from '../lib/date-utils';
 import { AppError } from '../lib/errors';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { emitPricesChanged } from '../lib/market-events';
-import { metricSubtractsContractAsk } from '../lib/metric-unit';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import {
   fromUnits,
@@ -171,23 +171,11 @@ export async function createConditionalMarkets(
       .select({ askUsd: proposals.askUsd, title: proposals.title })
       .from(proposals)
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
-    // Rows that predate the askUsd column carry the price only as the
-    // "$N: ..." title convention; parse it back so their approved branch
-    // still opens ask-adjusted.
-    const titleAsk = proposalRowForAsk?.title?.match(/^\$(\d+):/)?.[1];
-    const askUsd = proposalRowForAsk?.askUsd ?? (titleAsk ? parseInt(titleAsk, 10) : 0);
-    const anchorFor = (src: (typeof sourceMarkets)[number], branch: ConditionalBranch): number | null => {
-      const c0 = consensus(src.shares as [number, number], src.liquidity, src.rangeMin, src.rangeMax);
-      if (c0 === undefined) return null;
-      // The ask burns out of the metric only when approving actually moves
-      // it: money, and net of what the owner pays out (2026-08-15).
-      // Against a headcount, or against gross weekly revenue, subtracting
-      // dollars pinned every approved branch at the range floor.
-      const burn = metricSubtractsContractAsk(src.metricName) ? askUsd : 0;
-      const value = branch === 'approved' ? c0 - burn : c0;
-      const span = src.rangeMax - src.rangeMin;
-      return span > 0 ? (value - src.rangeMin) / span : null;
-    };
+    // The same formula answers for a branch that spawned unfunded and is
+    // given its first money later (services/marketLiquidity.ts).
+    const askUsd = askUsdOf(proposalRowForAsk);
+    const anchorFor = (src: (typeof sourceMarkets)[number], branch: ConditionalBranch): number | null =>
+      branchAnchorP(src, branch, askUsd);
     // Desired set is (metric, targetDate, branch) so both branches are tracked.
     const desiredKeys = new Set<string>();
     for (const src of sourceMarkets) {
