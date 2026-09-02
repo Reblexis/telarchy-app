@@ -112,19 +112,20 @@ proposalsRouter.post(
       }
     }
 
-    // The pending cap is a brake on what strangers can queue for the owner to
-    // review; the owner's own queue is theirs to manage, so the cap never
-    // applies to them (docs/guides/proposals.md, owner ask 2026-09-02).
+    // The pending cap is a brake on what strangers can queue for a reviewer
+    // to look at; a reviewer's own queue is theirs to manage, so the cap never
+    // applies to anyone holding manage here: the owner, the admins they added,
+    // a platform admin acting on this floor (docs/guides/proposals.md, owner
+    // ask 2026-09-02). The creator row is not the test: the Telarchy and
+    // LookPilot floors were created by the admin account, and the owner posts
+    // there as a platform admin.
     const [wsForCap] = await db
-      .select({
-        maxPending: workspaces.maxPendingProposalsPerParticipant,
-        ownerId: workspaces.createdBy,
-      })
+      .select({ maxPending: workspaces.maxPendingProposalsPerParticipant })
       .from(workspaces)
       .where(eq(workspaces.id, workspaceId));
     const cap = wsForCap?.maxPending ?? 0;
-    const isOwner = wsForCap?.ownerId === proposedBy;
-    if (cap > 0 && !isOwner) {
+    const canReview = req.auth!.capabilities.has('manage');
+    if (cap > 0 && !canReview) {
       const pending = await countPendingProposalsByProposer(workspaceId, proposedBy);
       if (pending >= cap) {
         res.status(429).json({

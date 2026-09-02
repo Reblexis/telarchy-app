@@ -8499,10 +8499,12 @@ still pending gets voided and refunded, because a conditional market on an
 undecided condition has nothing to settle against.</p>
 <p>If you want a ceiling on how many can pile up, <code>maxPendingProposalsPerParticipant</code>
 caps pending contracts per participant (0, off, by default) and returns 429 with
-<code>{ pending, cap }</code>. The cap never applies to the workspace owner: it is a brake on
-what strangers can queue for you to review, and a queue of your own contracts is
-your own to manage, so the owner may post any number of pending contracts on their
-floor whatever the cap says.</p>
+<code>{ pending, cap }</code>. The cap never applies to anyone who can review the queue,
+i.e. whoever holds the <code>manage</code> capability on the floor: the owner, the admins
+they added, and a platform admin acting there. It is a brake on what strangers
+can queue for a reviewer to look at, and a reviewer's own contracts are their
+own to manage, so they may post any number of pending contracts whatever the cap
+says.</p>
 <h2 id="docs-guides-proposals-md--h4">Approving is the payment</h2>
 <p>At the press, the agreed amount is owed and the contract counts as paid. Nothing
 sits between the button and that record. Whatever rail carries the dollars
