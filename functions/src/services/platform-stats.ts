@@ -1,6 +1,6 @@
-import { and, count, eq, gt, inArray, like, sql } from 'drizzle-orm';
+import { and, count, eq, gt, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { agents, liquidityPurchases, markets, systemConfig, trades, workspaces } from '../db/schema';
+import { agents, earnClaims, liquidityPurchases, markets, trades, workspaces } from '../db/schema';
 import { ttlCache } from '../lib/ttl-cache';
 
 /**
@@ -13,13 +13,39 @@ import { ttlCache } from '../lib/ttl-cache';
  * is one function and both call it. See docs/data-room.md.
  */
 /**
- * Where a paid Manifold link lives: `record-handle:manifold:<agentId>`, as
- * the record-link router writes it (routes/recordLinks.ts, `handleKey`).
- * Every count of "verified" participants on the platform reads this prefix
- * and no other, so the stats route, the public floor and the data room
- * cannot disagree about who is verified.
+ * The verified set: participants whose Manifold record we PAID for.
+ *
+ * Deliberately `earn_claims` rather than the `record_links` badge table.
+ * Since 2026-09-02 anyone can link an account they can prove they hold,
+ * qualified or not (docs/record-links.md), so the badge is no longer a
+ * quality signal: a Manifold account opened this morning can wear one.
+ * These counts are public and a prediction market resolves against them,
+ * so they keep counting exactly the set they always counted, which is
+ * the one a farmer cannot enter cheaply.
+ *
+ * This is the one place the set is defined. Three readers had it inlined
+ * as a `system_config` key prefix; migration 0100 emptied that prefix on
+ * 2026-09-01 and every one of them silently read zero for sixteen hours,
+ * settling two daily markets on nothing
+ * (notes/verified-traders-zero-2026-09-02.md).
  */
-export const MANIFOLD_HANDLE_PREFIX = 'record-handle:manifold:';
+export const MANIFOLD_PAID_KEY = 'manifold_link';
+
+/** How many participants have been paid for a Manifold record. */
+export async function paidManifoldLinkCount(): Promise<number> {
+  const [row] = await db.select({ n: count() }).from(earnClaims).where(eq(earnClaims.key, MANIFOLD_PAID_KEY));
+  return Number(row?.n ?? 0);
+}
+
+/** Which of these participants are in the verified set. */
+export async function paidManifoldLinkAgents(agentIds: string[]): Promise<Set<string>> {
+  if (agentIds.length === 0) return new Set();
+  const rows = await db
+    .select({ agentId: earnClaims.agentId })
+    .from(earnClaims)
+    .where(and(eq(earnClaims.key, MANIFOLD_PAID_KEY), inArray(earnClaims.agentId, agentIds)));
+  return new Set(rows.map(r => r.agentId));
+}
 
 export interface PlatformStats {
   marketsActive: number;
@@ -69,32 +95,13 @@ async function computePlatformStats(): Promise<PlatformStats> {
   // gesture must not count; abs(cost) so sells are activity too). It is
   // public for the same reason manifoldImportCount is: a resolution source
   // has to be readable by the people being asked to trust it.
-  //
-  // "Synced" is a `record-handle:manifold:<agentId>` row, the row the
-  // record-link router writes when a link is paid (docs/record-links.md) and
-  // the only key shape since migration 0100. That migration rewrote the old
-  // `manifold-claimed:agent:` rows and deleted them while this read still
-  // named the old key, and the floor said zero traders for sixteen hours
-  // (2026-09-01 18:40 UTC). One shape, read from one constant.
   const spendByAgent = await db
     .select({ id: trades.agentId, spend: sql<number>`sum(abs(${trades.cost}))` })
     .from(trades)
     .where(gt(trades.createdAt, weekAgo))
     .groupBy(trades.agentId);
   const qualifying = spendByAgent.filter(r => Number(r.spend) >= 100).map(r => r.id);
-  const claimedRows =
-    qualifying.length > 0
-      ? await db
-          .select({ key: systemConfig.key })
-          .from(systemConfig)
-          .where(
-            inArray(
-              systemConfig.key,
-              qualifying.map(id => `${MANIFOLD_HANDLE_PREFIX}${id}`),
-            ),
-          )
-      : [];
-  const weeklyActiveVerifiedTraders = claimedRows.length;
+  const weeklyActiveVerifiedTraders = (await paidManifoldLinkAgents(qualifying)).size;
 
   let marketsActive = 0;
   let tradesThisWeek = 0;
@@ -121,10 +128,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
   // Platform-wide count of completed Manifold imports. It is a platform
   // number rather than a property of any one workspace, and a public
   // prediction market resolves against it.
-  const [manifoldRow] = await db
-    .select({ n: count() })
-    .from(systemConfig)
-    .where(like(systemConfig.key, `${MANIFOLD_HANDLE_PREFIX}%`));
+  const manifoldImportCount = await paidManifoldLinkCount();
 
   // The revenue rail, public for the same reason the trader count is: the
   // floor prices "Telarchy revenue (USD)" and a market cannot resolve on a
@@ -149,7 +153,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
     agentsActive: Number(agentCount.count),
     tradesThisWeek,
     weeklyActiveVerifiedTraders,
-    manifoldImportCount: Number(manifoldRow?.n ?? 0),
+    manifoldImportCount,
     revenue30dUsd,
   };
 }

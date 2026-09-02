@@ -22,7 +22,17 @@ jest.mock('../middleware/auth', () => ({
 
 import express from 'express';
 import request from 'supertest';
-import { agents, liquidityPurchases, markets, metrics, systemConfig, trades, workspaces } from '../db/schema';
+import {
+  agents,
+  earnClaims,
+  liquidityPurchases,
+  markets,
+  metrics,
+  recordLinks,
+  systemConfig,
+  trades,
+  workspaces,
+} from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { toUnits } from '../lib/validation';
@@ -56,15 +66,20 @@ async function seed() {
     { id: 'unverified-whale', apiKeyHash: 'h4', balance: toUnits(0) },
     { id: 'verified-stale', apiKeyHash: 'h5', balance: toUnits(0) },
   ]);
-  // The verified set: a synced Manifold account per agent, recorded the way
-  // the record-link router records it (`record-handle:<provider>:<agentId>`,
-  // docs/record-links.md). That is the only key shape since migration 0100.
-  await db.insert(systemConfig).values([
-    { key: 'record-handle:manifold:verified-whale', value: { handle: 'whale' } },
-    { key: 'record-handle:manifold:verified-seller', value: { handle: 'seller' } },
-    { key: 'record-handle:manifold:verified-gesture', value: { handle: 'gesture' } },
-    { key: 'record-handle:manifold:verified-stale', value: { handle: 'stale' } },
-  ]);
+  // The verified set is who was PAID for a Manifold record, which is an
+  // `earn_claims` row. Deliberately not the `record_links` badge: since
+  // 2026-09-02 anyone holding an account can wear one (docs/record-links.md),
+  // so a badge count would answer a different question from the one the
+  // public market asks.
+  await db.insert(earnClaims).values(
+    ['verified-whale', 'verified-seller', 'verified-gesture', 'verified-stale'].map(id => ({
+      id: `claim-${id}`,
+      agentId: id,
+      key: 'manifold_link' as const,
+      refId: `mf-${id}`,
+      credits: 5000,
+    })),
+  );
   await db
     .insert(metrics)
     .values([{ id: 'm1', workspaceId: WS, name: 'M', value: 0, formula: '0', marketRangeMax: 100 }]);
@@ -116,41 +131,54 @@ describe('GET /api/marketplace/stats', () => {
   // became zero on the floor, two daily markets settled on 0, and the next
   // day's market opened at the lowest price the book can hold. The count reads
   // the key the record-link router writes, and nothing else.
-  test('a Manifold link recorded by the record-link router counts; the retired key does not', async () => {
+  test('THE RULE: a paid record counts; a free badge and the retired key do not', async () => {
     await seed();
-    // A row in the shape the deleted route wrote. Migration 0100 removes these,
-    // so one that somehow survives must not count either: there is one key
-    // shape, and a second reader of a second shape is how the count broke.
-    await db.insert(agents).values([{ id: 'legacy-whale', apiKeyHash: 'h9', balance: toUnits(0) }]);
+    // Two things that must not count, for the same reason. `legacy-whale`
+    // wears a badge and was never paid, which since 2026-09-02 costs a bio
+    // edit; `stale-key-whale` has a row in the shape the deleted route
+    // wrote, which migration 0102 removes but a survivor must not revive.
+    await db.insert(agents).values([
+      { id: 'legacy-whale', apiKeyHash: 'h9', balance: toUnits(0) },
+      { id: 'stale-key-whale', apiKeyHash: 'h10', balance: toUnits(0) },
+    ]);
+    await db
+      .insert(recordLinks)
+      .values([{ agentId: 'legacy-whale', provider: 'manifold', externalId: 'mf-free', handle: 'legacy' }]);
     await db
       .insert(systemConfig)
-      .values([{ key: 'manifold-claimed:agent:legacy-whale', value: { username: 'legacy' } }]);
-    await db.insert(trades).values([
-      {
+      .values([{ key: 'manifold-claimed:agent:stale-key-whale', value: { username: 'stale-key' } }]);
+    await db.insert(trades).values(
+      ['legacy-whale', 'stale-key-whale'].map((agentId, i) => ({
         workspaceId: WS,
         marketId: 'mkt1',
-        direction: 'higher',
+        direction: 'higher' as const,
         shares: 1,
-        id: 't7',
-        agentId: 'legacy-whale',
+        id: `t7${i}`,
+        agentId,
         cost: 500,
         createdAt: new Date(Date.now() - 1 * DAY),
-      },
-    ]);
+      })),
+    );
     const res = await request(app).get('/api/marketplace/stats');
     expect(res.status).toBe(200);
     expect(res.body.weeklyActiveVerifiedTraders).toBe(2);
-    // The import count is the same rows: four record-handle links, not the
-    // legacy row and not the pending claim.
+    // Four paid records: not the free badge, not the legacy row, not a
+    // pending claim.
     expect(res.body.manifoldImportCount).toBe(4);
   });
 
-  test('manifoldImportCount counts paid Manifold links, not links to other providers or pending claims', async () => {
+  test('manifoldImportCount counts paid Manifold links, not other providers or pending claims', async () => {
     await seed();
-    await db.insert(systemConfig).values([
-      { key: 'record-handle:polymarket:verified-whale', value: { handle: '0xwhale' } },
-      { key: 'manifold-claim:someone', value: { code: 'telarchy-abc', username: 'someone' } },
-    ]);
+    await db.insert(earnClaims).values({
+      id: 'claim-poly',
+      agentId: 'verified-whale',
+      key: 'polymarket_link',
+      refId: '0xwhale',
+      credits: 5000,
+    });
+    await db
+      .insert(systemConfig)
+      .values([{ key: 'record-link:manifold:someone', value: { code: 'telarchy-abc', handle: 'someone' } }]);
     const res = await request(app).get('/api/marketplace/stats');
     expect(res.status).toBe(200);
     expect(res.body.manifoldImportCount).toBe(4);
