@@ -135,17 +135,23 @@ async function computePlatformStats(): Promise<PlatformStats> {
   // number only the owner can see. Dated by when the money actually landed
   // (`completedAt`), falling back to the row's creation for pre-`completedAt`
   // rows, which is the same window `GET /api/liquidity/revenue` reports.
+  // Purchases by the house (platform-admin accounts) are left out: the
+  // operator paying itself is not revenue (docs/metrics.md, owner report
+  // 2026-09-02, when the floor's whole $5 was the owner's own card). A
+  // buyer with no agents row still counts, hence the left join.
   const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const paid = await db
     .select({
       usdAmount: liquidityPurchases.usdAmount,
       completedAt: liquidityPurchases.completedAt,
       createdAt: liquidityPurchases.createdAt,
+      house: agents.platformAdmin,
     })
     .from(liquidityPurchases)
+    .leftJoin(agents, eq(agents.id, liquidityPurchases.agentId))
     .where(eq(liquidityPurchases.status, 'completed'));
   const revenue30dUsd = paid
-    .filter(r => new Date(r.completedAt ?? r.createdAt) >= monthAgo)
+    .filter(r => r.house !== true && new Date(r.completedAt ?? r.createdAt) >= monthAgo)
     .reduce((sum, r) => sum + Number(r.usdAmount), 0);
 
   return {

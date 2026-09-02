@@ -2151,7 +2151,13 @@ an old purchase.</p>
 trailing-30-day sum is public as <code>revenue30dUsd</code> on
 <code>GET /api/marketplace/stats</code>: it is what the floor's &quot;Telarchy revenue (USD)&quot;
 metric settles on, so the buyers of the service and the traders pricing it
-read the same number (docs/metrics.md, &quot;Revenue, trailing 30 days&quot;).</p>
+read the same number (docs/metrics.md, &quot;Revenue, trailing 30 days&quot;). A purchase
+made by the house is not revenue: an account flagged platform admin is
+Telarchy's own operator, and the operator paying itself moves no money into the
+business. Both <code>revenue30dUsd</code> and <code>GET /api/liquidity/revenue</code> leave those
+purchases out of the total; the books endpoint reports them separately as
+<code>houseUsd</code> and <code>housePurchases</code> so the money that did pass through Stripe is
+still accounted for.</p>
 <p><strong>A payment buys liquidity credits and nothing else.</strong> It is not a share of a
 prize, not an entry, and no formula binds a season's pool to it. Telarchy
 sizes each season's prize itself, before that season opens, out of its own
@@ -2669,7 +2675,7 @@ not done.</p>
 <p>Money Telarchy itself was paid in the trailing 30 days: managed-tier subscriptions, platform fees on contracts, federation fees, any invoice paid to Telarchy, in USD, net of refunds. Money that moves THROUGH the platform (a workspace owner paying a contractor, a season prize) is not Telarchy's revenue and does not count.</p>
 <ul>
 <li><strong>Why this metric:</strong> it is the number every other one on this page is a proxy for, and pricing it on the public floor is the honest way to say what the platform has (nothing yet) and let forecasters price when that changes.</li>
-<li><strong>How to compute:</strong> <code>GET /api/marketplace/stats</code> publishes <code>revenue30dUsd</code> and the hourly <code>POST /api/cron/self-sync</code> records it verbatim, the same way <code>weeklyActiveVerifiedTraders</code> is recorded. The number sums the rails the platform can see: today that is completed paid-liquidity purchases (<code>liquidity_purchases</code>, status <code>completed</code>, dated by when the money landed), the same window <code>GET /api/liquidity/revenue</code> reports. The owner's hand came off the metric when that rail went live (2026-08-28); a payment arriving on a rail the platform cannot see is added to the computation, never typed into the metric, because the next hourly run overwrites a hand-entered value.</li>
+<li><strong>How to compute:</strong> <code>GET /api/marketplace/stats</code> publishes <code>revenue30dUsd</code> and the hourly <code>POST /api/cron/self-sync</code> records it verbatim, the same way <code>weeklyActiveVerifiedTraders</code> is recorded. The number sums the rails the platform can see: today that is completed paid-liquidity purchases (<code>liquidity_purchases</code>, status <code>completed</code>, dated by when the money landed), the same window <code>GET /api/liquidity/revenue</code> reports. Purchases made by the house are excluded: an account flagged platform admin is Telarchy's own operator, and the operator paying itself is not revenue, so a test or demonstration purchase from the owner's account never moves the number other people are trading. The owner's hand came off the metric when that rail went live (2026-08-28); a payment arriving on a rail the platform cannot see is added to the computation, never typed into the metric, because the next hourly run overwrites a hand-entered value.</li>
 <li><strong>Markets:</strong> today, this week, next month (<code>+0d</code>, <code>+0w</code>, and the absolute next-month date every floor metric carries), like every metric on a public floor (docs/ui-conventions.md, &quot;The question line&quot;). Range 0 to 1,000.</li>
 </ul>
 <h3 id="docs-metrics-md--h12">Implied valuation (USD)</h3>

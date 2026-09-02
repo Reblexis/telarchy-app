@@ -430,5 +430,29 @@ describe('history and revenue', () => {
     expect(revenue.status).toBe(200);
     expect(revenue.body.totalUsd).toBe(100);
     expect(revenue.body.purchases).toBe(1);
+    expect(revenue.body.houseUsd).toBe(0);
+    expect(revenue.body.housePurchases).toBe(0);
+  });
+
+  // docs/liquidity-purchases.md, "Revenue, and what it does not buy": a
+  // purchase by the house (platform admin) is not revenue, and the books
+  // report it separately so the money that passed through Stripe is still
+  // accounted for.
+  test('the books leave house purchases out of the total and report them separately', async () => {
+    await seedWorkspace(['m1']);
+    await db.insert(agents).values({ id: 'house', apiKeyHash: 'h-house', balance: toUnits(0), platformAdmin: true });
+    const base = { workspaceId: WS, credits: 1000, creditsPerUsd: 1000, status: 'completed', completedAt: new Date() };
+    await db.insert(liquidityPurchases).values([
+      { ...base, id: 'h1', agentId: 'house', usdAmount: 5 },
+      { ...base, id: 'h2', agentId: 'house', usdAmount: 50 },
+      { ...base, id: 'b1', agentId: 'buyer', usdAmount: 100 },
+      { ...base, id: 'b2', agentId: 'buyer', usdAmount: 20 },
+    ]);
+    const revenue = await request(app).get('/api/liquidity/revenue');
+    expect(revenue.status).toBe(200);
+    expect(revenue.body.totalUsd).toBe(120);
+    expect(revenue.body.purchases).toBe(2);
+    expect(revenue.body.houseUsd).toBe(55);
+    expect(revenue.body.housePurchases).toBe(2);
   });
 });
