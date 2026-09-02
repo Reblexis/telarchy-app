@@ -75,17 +75,18 @@ test('a metric reading $0 on a 0-1000 range does not open its market at $500', a
   await insertPendingMarkets(pending('mk-zero', 1000), WS);
 
   const opened = await openingValue('mk-zero');
-  // 2% of the range: the lowest price an LMSR book can be seeded at without
-  // its worst-case loss diverging (anchoredMarketState's clamp). The number
-  // that matters is that it is nowhere near 500.
-  expect(opened).toBeCloseTo(20, 1);
+  // One part in a thousand of the range: the lowest price an LMSR book is
+  // seeded at (anchoredMarketState's clamp, ANCHOR_P_FLOOR). It was 2%, $20,
+  // until 2026-09-02, when a $5 reading opened every daily market at $20.
+  // The number that matters is that it is nowhere near 500.
+  expect(opened).toBeCloseTo(1, 1);
   expect(opened).toBeLessThan(100);
 });
 
 test('a metric reading its range top opens at the top, not the middle', async () => {
   await seed({ balance: 500, value: 50, rangeMax: 50 });
   await insertPendingMarkets(pending('mk-top', 50), WS);
-  expect(await openingValue('mk-top')).toBeCloseTo(49, 1);
+  expect(await openingValue('mk-top')).toBeCloseTo(49.95, 1);
 });
 
 test('an ordinary mid-range value still opens exactly at the value', async () => {
@@ -98,10 +99,10 @@ test('a far-horizon market opens at the measured value too, never at the midpoin
   // Owner rule 2026-08-31: the midpoint is an artifact of the range the
   // operator picked, so a 2099 market opens where the number actually is.
   // A value at the floor clamps to the lowest price a solvent book holds
-  // (2% of the range), which is still the far side of the range from 500.
+  // (one part in a thousand of the range), the far side of the range from 500.
   await seed({ balance: 500, value: 0, rangeMax: 1000 });
   await insertPendingMarkets(pending('mk-far', 1000, '2099-12-31'), WS);
-  expect(await openingValue('mk-far')).toBeCloseTo(20, 0);
+  expect(await openingValue('mk-far')).toBeCloseTo(1, 0);
 });
 
 test('a market funded by a LATER refresh is anchored too, not left at the midpoint', async () => {
