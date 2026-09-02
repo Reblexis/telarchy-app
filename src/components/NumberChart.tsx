@@ -259,9 +259,18 @@ export function NumberChart({
     ...inWindow.flatMap(m => [m.pair?.approved, m.pair?.declined].filter((v): v is number => typeof v === 'number')),
     ...(preview ? [preview.value] : []),
   ];
-  const lo = ys.length ? Math.min(...ys) : 0;
-  const hi = ys.length ? Math.max(...ys) : 1;
-  const span_y = hi - lo || Math.max(1, Math.abs(hi) * 0.2);
+  const rawLo = ys.length ? Math.min(...ys) : 0;
+  const rawHi = ys.length ? Math.max(...ys) : 1;
+  // The axis never magnifies a wobble into a cliff (docs/ui-conventions.md):
+  // it spans at least a tenth of the largest value drawn, widened around the
+  // middle of what is there. Three readings within an hour, 6,107 to 6,126,
+  // used to fill the plot from floor to ceiling (owner report 2026-09-02).
+  const scale = Math.max(Math.abs(rawLo), Math.abs(rawHi));
+  const minSpan = scale > 0 ? scale * 0.1 : 1;
+  const widen = Math.max(0, minSpan - (rawHi - rawLo)) / 2;
+  const lo = rawLo - widen;
+  const hi = rawHi + widen;
+  const span_y = hi - lo;
   const y0 = lo - span_y * 0.25;
   const y1 = hi + span_y * 0.25;
   const y = (v: number) => PAD_T + (1 - (v - y0) / (y1 - y0)) * (H - PAD_T - PAD_B);

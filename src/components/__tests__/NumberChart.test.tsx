@@ -341,3 +341,73 @@ describe('the label number tiers', () => {
     expect(fmt(19.8, '')).toBe('19.8');
   });
 });
+
+describe('the vertical axis never magnifies a wobble into a cliff', () => {
+  // docs/ui-conventions.md, "The number chart": the axis spans at least a
+  // tenth of the largest value drawn. The Wallpaper Animator floor's net
+  // revenue read 6,107.52 then 6,125.84 within seventeen minutes, and the
+  // chart drew that as a wall from the floor to the ceiling of the plot at
+  // the now rule (owner report 2026-09-02, "why does the graph look so weird").
+  const plotHeight = GEOM.wide.H - 16 - 24;
+  const dotYs = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('.nchart-dot')).map(c => Number(c.getAttribute('cy')));
+
+  test('a third-of-a-percent wobble is a small step, not the whole plot', () => {
+    const now = new Date('2026-09-02T21:00:00Z');
+    const { container } = render(
+      <NumberChart
+        points={[
+          { at: '2026-09-02T16:12:39Z', value: 6107.52 },
+          { at: '2026-09-02T16:23:27Z', value: 6125.84 },
+          { at: '2026-09-02T16:29:31Z', value: 6125.84 },
+        ]}
+        markers={[
+          { marketId: 'w', resolvesOn: '2026-09-07T00:00:00Z', consensus: 6107.52, selected: false },
+          { marketId: 'y', resolvesOn: '2027-01-01T00:00:00Z', consensus: 6125.84, selected: true },
+        ]}
+        selectedResolvesOn="2027-01-01T00:00:00Z"
+        granularity="other"
+        unit="$"
+        now={now}
+      />,
+    );
+    const ys = dotYs(container);
+    expect(ys).toHaveLength(3);
+    const spread = Math.max(...ys) - Math.min(...ys);
+    // 18.32 on a floor of 612.6 (a tenth of 6,125.84), then 25% padding each
+    // side: about 2% of the plot.
+    expect(spread).toBeLessThan(plotHeight * 0.05);
+    expect(spread).toBeGreaterThan(0);
+  });
+
+  test('a real move still fills the plot', () => {
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={[]}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        unit="$"
+        now={NOW}
+      />,
+    );
+    const ys = dotYs(container);
+    // 2 to 5 is a 150% move: the readings span the plot minus the padding.
+    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(plotHeight * 0.6);
+  });
+
+  test('a metric at zero keeps a unit of room rather than a zero-height axis', () => {
+    const { container } = render(
+      <NumberChart
+        points={[{ at: '2026-08-20T10:00:00Z', value: 0 }]}
+        markers={[]}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        unit="$"
+        now={NOW}
+      />,
+    );
+    const [y] = dotYs(container);
+    expect(Number.isFinite(y)).toBe(true);
+  });
+});
