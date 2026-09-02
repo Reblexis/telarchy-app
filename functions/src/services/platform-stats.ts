@@ -12,6 +12,15 @@ import { ttlCache } from '../lib/ttl-cache';
  * the resolution source and the page describing it start disagreeing, so there
  * is one function and both call it. See docs/data-room.md.
  */
+/**
+ * Where a paid Manifold link lives: `record-handle:manifold:<agentId>`, as
+ * the record-link router writes it (routes/recordLinks.ts, `handleKey`).
+ * Every count of "verified" participants on the platform reads this prefix
+ * and no other, so the stats route, the public floor and the data room
+ * cannot disagree about who is verified.
+ */
+export const MANIFOLD_HANDLE_PREFIX = 'record-handle:manifold:';
+
 export interface PlatformStats {
   marketsActive: number;
   agentsActive: number;
@@ -60,6 +69,13 @@ async function computePlatformStats(): Promise<PlatformStats> {
   // gesture must not count; abs(cost) so sells are activity too). It is
   // public for the same reason manifoldImportCount is: a resolution source
   // has to be readable by the people being asked to trust it.
+  //
+  // "Synced" is a `record-handle:manifold:<agentId>` row, the row the
+  // record-link router writes when a link is paid (docs/record-links.md) and
+  // the only key shape since migration 0100. That migration rewrote the old
+  // `manifold-claimed:agent:` rows and deleted them while this read still
+  // named the old key, and the floor said zero traders for sixteen hours
+  // (2026-09-01 18:40 UTC). One shape, read from one constant.
   const spendByAgent = await db
     .select({ id: trades.agentId, spend: sql<number>`sum(abs(${trades.cost}))` })
     .from(trades)
@@ -74,7 +90,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
           .where(
             inArray(
               systemConfig.key,
-              qualifying.map(id => `manifold-claimed:agent:${id}`),
+              qualifying.map(id => `${MANIFOLD_HANDLE_PREFIX}${id}`),
             ),
           )
       : [];
@@ -108,7 +124,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
   const [manifoldRow] = await db
     .select({ n: count() })
     .from(systemConfig)
-    .where(like(systemConfig.key, 'manifold-claimed:agent:%'));
+    .where(like(systemConfig.key, `${MANIFOLD_HANDLE_PREFIX}%`));
 
   // The revenue rail, public for the same reason the trader count is: the
   // floor prices "Telarchy revenue (USD)" and a market cannot resolve on a

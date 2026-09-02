@@ -33,7 +33,7 @@ import { authMiddleware, getAuthWorkspaceMemberships } from '../middleware/auth'
 import { requireIdentity } from '../middleware/roles';
 import { dataRoomTool } from '../services/data-room';
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
-import { platformStats } from '../services/platform-stats';
+import { MANIFOLD_HANDLE_PREFIX, platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
 import { webSearchTool } from '../services/web-search';
 import { buildWorkspaceContext, renderContextIndex, renderContextMarkdown } from '../services/workspace-context';
@@ -1002,12 +1002,13 @@ async function buildFloorPayload(ws: PublicWs) {
   // Platform-wide count of completed Manifold imports. Public on purpose: a
   // prediction market on "how many forecasters brought their record over"
   // cannot resolve on a number only the owner can see, and this audience will
-  // not take it on faith. Counts claims rather than workspace membership, so it
-  // reads the same from anywhere.
+  // not take it on faith. Counts paid links rather than workspace membership,
+  // so it reads the same from anywhere, and reads the one key shape the
+  // record-link router writes (services/platform-stats.ts).
   const [manifoldRow] = await db
     .select({ n: count() })
     .from(systemConfig)
-    .where(like(systemConfig.key, 'manifold-claimed:agent:%'));
+    .where(like(systemConfig.key, `${MANIFOLD_HANDLE_PREFIX}%`));
   const manifoldImportCount = manifoldRow?.n ?? 0;
 
   return {
