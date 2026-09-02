@@ -75,10 +75,18 @@ pays, how much, and for how many markets.
 
 **1. One pair, not eighteen.** Spawn the conditional pair for the market the
 contract is actually about (the hero horizon, or the metric the contract
-names), not the cross-product of every metric and date on the floor. This is
-the single biggest change: it cuts the cost by an order of magnitude on a
-real floor, makes a 50-credit stake mean something, and removes the seventeen
-pairs nobody reads. Everything else is easier afterwards.
+names), not the cross-product of every metric and date on the floor. It
+would cut the cost by an order of magnitude on a real floor, make a
+50-credit stake mean something, and remove the seventeen pairs nobody reads.
+
+> **REJECTED 2026-09-02 (Viktor): "dont cut contracts pairs".** A contract
+> keeps a pair per baseline market, so a floor with nine open markets keeps
+> spawning eighteen. That settles the cost side: the grid is not shrinking,
+> so the funding model has to carry the whole of it, and the default of zero
+> and per-instance funding below stop being half a fix. It also raises the
+> stake on ordering by pool, because eighteen unfunded pairs are now the
+> normal state of a fresh contract and the board has to put them somewhere
+> honest.
 
 **2. Contract depth becomes its own setting.** `contractLiquidityCredits`
 beside `newMarketLiquidityCredits`, defaulting low, so an owner decides what
