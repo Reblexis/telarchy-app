@@ -27,7 +27,7 @@ For workspaces created in week N, the fraction still WAU (above) in week N+4. St
 The hero metric of the Telarchy floor, and the one metric the platform computes itself: `GET /api/marketplace/stats` returns it and the hourly `POST /api/cron/self-sync` records it verbatim on the floor's metric. Distinct participants who (a) have a Manifold account synced (the verified set: each maps to a public Manifold profile anyone can check) and (b) placed trades totalling at least 100 credits in absolute cost across the trailing 7 days, sells included.
 
 - **Why this metric:** credits are free, so a costless gesture must not count, and a resolution source has to be readable by the people asked to trust it; both the verification and the number are public.
-- **How to compute:** `functions/src/services/platform-stats.ts`: sum `abs(cost)` of `trades` per `agentId` over the trailing 7 days, keep those at or above 100, count the ones with a `manifold-claimed:agent:<id>` row in `system_config`. Cached for one minute.
+- **How to compute:** `functions/src/services/platform-stats.ts`: sum `abs(cost)` of `trades` per `agentId` over the trailing 7 days, keep those at or above 100, count the ones with a `record-handle:manifold:<id>` row in `system_config`, which is the row the record-link router writes when a Manifold link is paid (`docs/record-links.md`). Cached for one minute. The verified set has exactly one key shape: `manifoldImportCount` on the stats route and on every public floor, and the data room's verified-participants count, are the count of those same rows, so the three numbers cannot disagree with each other or with this one.
 
 ## Network quality (the moat)
 

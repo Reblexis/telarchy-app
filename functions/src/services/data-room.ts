@@ -15,7 +15,7 @@ import {
 } from '../db/schema';
 import { ttlCache } from '../lib/ttl-cache';
 import { humanVisitFilter } from '../lib/visit-log';
-import { platformStats } from './platform-stats';
+import { MANIFOLD_HANDLE_PREFIX, platformStats } from './platform-stats';
 
 /**
  * The data room: Telarchy's own books, prose and numbers in one payload.
@@ -167,10 +167,13 @@ function funnel(counts: { loads: number; accounts: number; verified: number; wee
 async function traction() {
   const [participants] = await db.select({ n: count() }).from(agents);
   const [accounts] = await db.select({ n: count() }).from(authUser);
+  // A verified participant is a paid Manifold link, read from the same key
+  // the stats route reads (platform-stats.ts); this page and that route
+  // must publish the same number.
   const [verified] = await db
     .select({ n: count() })
     .from(systemConfig)
-    .where(like(systemConfig.key, 'manifold-claimed:agent:%'));
+    .where(like(systemConfig.key, `${MANIFOLD_HANDLE_PREFIX}%`));
   const [tradeRow] = await db
     .select({
       n: count(),

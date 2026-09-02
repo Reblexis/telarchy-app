@@ -56,12 +56,14 @@ async function seed() {
     { id: 'unverified-whale', apiKeyHash: 'h4', balance: toUnits(0) },
     { id: 'verified-stale', apiKeyHash: 'h5', balance: toUnits(0) },
   ]);
-  // The verified set: a synced Manifold account per agent.
+  // The verified set: a synced Manifold account per agent, recorded the way
+  // the record-link router records it (`record-handle:<provider>:<agentId>`,
+  // docs/record-links.md). That is the only key shape since migration 0100.
   await db.insert(systemConfig).values([
-    { key: 'manifold-claimed:agent:verified-whale', value: { username: 'whale' } },
-    { key: 'manifold-claimed:agent:verified-seller', value: { username: 'seller' } },
-    { key: 'manifold-claimed:agent:verified-gesture', value: { username: 'gesture' } },
-    { key: 'manifold-claimed:agent:verified-stale', value: { username: 'stale' } },
+    { key: 'record-handle:manifold:verified-whale', value: { handle: 'whale' } },
+    { key: 'record-handle:manifold:verified-seller', value: { handle: 'seller' } },
+    { key: 'record-handle:manifold:verified-gesture', value: { handle: 'gesture' } },
+    { key: 'record-handle:manifold:verified-stale', value: { handle: 'stale' } },
   ]);
   await db
     .insert(metrics)
@@ -106,6 +108,63 @@ describe('GET /api/marketplace/stats', () => {
     expect(res.status).toBe(200);
     // verified-whale (150 summed) and verified-seller (120 abs via sells).
     expect(res.body.weeklyActiveVerifiedTraders).toBe(2);
+  });
+
+  // 2026-09-01 18:40 UTC: migration 0100 rewrote every Manifold link from
+  // `manifold-claimed:agent:` to `record-handle:manifold:` and deleted the old
+  // rows, while this count still looked for the old key. Four verified traders
+  // became zero on the floor, two daily markets settled on 0, and the next
+  // day's market opened at the lowest price the book can hold. The count reads
+  // the key the record-link router writes, and nothing else.
+  test('a Manifold link recorded by the record-link router counts; the retired key does not', async () => {
+    await seed();
+    // A row in the shape the deleted route wrote. Migration 0100 removes these,
+    // so one that somehow survives must not count either: there is one key
+    // shape, and a second reader of a second shape is how the count broke.
+    await db.insert(agents).values([{ id: 'legacy-whale', apiKeyHash: 'h9', balance: toUnits(0) }]);
+    await db
+      .insert(systemConfig)
+      .values([{ key: 'manifold-claimed:agent:legacy-whale', value: { username: 'legacy' } }]);
+    await db.insert(trades).values([
+      {
+        workspaceId: WS,
+        marketId: 'mkt1',
+        direction: 'higher',
+        shares: 1,
+        id: 't7',
+        agentId: 'legacy-whale',
+        cost: 500,
+        createdAt: new Date(Date.now() - 1 * DAY),
+      },
+    ]);
+    const res = await request(app).get('/api/marketplace/stats');
+    expect(res.status).toBe(200);
+    expect(res.body.weeklyActiveVerifiedTraders).toBe(2);
+    // The import count is the same rows: four record-handle links, not the
+    // legacy row and not the pending claim.
+    expect(res.body.manifoldImportCount).toBe(4);
+  });
+
+  test('manifoldImportCount counts paid Manifold links, not links to other providers or pending claims', async () => {
+    await seed();
+    await db.insert(systemConfig).values([
+      { key: 'record-handle:polymarket:verified-whale', value: { handle: '0xwhale' } },
+      { key: 'manifold-claim:someone', value: { code: 'telarchy-abc', username: 'someone' } },
+    ]);
+    const res = await request(app).get('/api/marketplace/stats');
+    expect(res.status).toBe(200);
+    expect(res.body.manifoldImportCount).toBe(4);
+  });
+
+  test('the public floor reports the same manifoldImportCount as the stats route', async () => {
+    await seed();
+    const [stats, floor] = await Promise.all([
+      request(app).get('/api/marketplace/stats'),
+      request(app).get(`/api/marketplace/${WS}`),
+    ]);
+    expect(floor.status).toBe(200);
+    expect(floor.body.manifoldImportCount).toBe(4);
+    expect(floor.body.manifoldImportCount).toBe(stats.body.manifoldImportCount);
   });
 
   test('is zero on an empty platform rather than absent', async () => {
