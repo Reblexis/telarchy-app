@@ -228,4 +228,61 @@ describe('GET /api/marketplace/stats', () => {
     expect(res.status).toBe(200);
     expect(res.body.revenue30dUsd).toBe(30);
   });
+
+  // The operator paying itself is not revenue (docs/metrics.md, "Revenue,
+  // trailing 30 days"). Owner report 2026-09-02: the whole $5 the floor showed
+  // was the owner's own card, from an account flagged platform admin.
+  test('a purchase made by the house (platform admin) is not revenue', async () => {
+    await seed();
+    await db.insert(agents).values([
+      { id: 'house', apiKeyHash: 'h-house', balance: toUnits(0), platformAdmin: true },
+      { id: 'buyer', apiKeyHash: 'h-buyer', balance: toUnits(0) },
+    ]);
+    const base = { workspaceId: 'w1', credits: 1000, creditsPerUsd: 1000, status: 'completed' };
+    await db.insert(liquidityPurchases).values([
+      { ...base, id: 'h1', agentId: 'house', usdAmount: 5, completedAt: new Date(Date.now() - 1 * DAY) },
+      { ...base, id: 'h2', agentId: 'house', usdAmount: 50, completedAt: new Date(Date.now() - 2 * DAY) },
+      { ...base, id: 'b1', agentId: 'buyer', usdAmount: 25, completedAt: new Date(Date.now() - 2 * DAY) },
+    ]);
+    const res = await request(app).get('/api/marketplace/stats');
+    expect(res.status).toBe(200);
+    expect(res.body.revenue30dUsd).toBe(25);
+  });
+
+  test('when the house is the only buyer, revenue is zero, not the house total', async () => {
+    await seed();
+    await db.insert(agents).values([{ id: 'house', apiKeyHash: 'h-house', balance: toUnits(0), platformAdmin: true }]);
+    await db.insert(liquidityPurchases).values([
+      {
+        id: 'h1',
+        workspaceId: 'w1',
+        agentId: 'house',
+        credits: 5000,
+        creditsPerUsd: 1000,
+        usdAmount: 5,
+        status: 'completed',
+        completedAt: new Date(Date.now() - 1 * DAY),
+      },
+    ]);
+    const res = await request(app).get('/api/marketplace/stats');
+    expect(res.body.revenue30dUsd).toBe(0);
+  });
+
+  test('a buyer whose account row is missing still counts (no join drops paying customers)', async () => {
+    await seed();
+    await db.insert(liquidityPurchases).values([
+      {
+        id: 'o1',
+        workspaceId: 'w1',
+        agentId: 'ghost-buyer',
+        credits: 7000,
+        creditsPerUsd: 1000,
+        usdAmount: 7,
+        status: 'completed',
+        completedAt: new Date(Date.now() - 1 * DAY),
+      },
+    ]);
+    const res = await request(app).get('/api/marketplace/stats');
+    expect(res.body.revenue30dUsd).toBe(7);
+  });
 });

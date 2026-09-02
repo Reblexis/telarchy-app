@@ -583,7 +583,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/liquidity/revenue',
       auth: 'platform admin',
       description:
-        'Completed liquidity revenue over a window (?from=&to=, ISO dates, default all time): { totalUsd, purchases, from, to }. Bookkeeping, not a payout rule: a purchase buys liquidity credits only, and no formula ties a season prize to revenue - Telarchy sizes each season itself, from its own funds, before that season opens (docs/liquidity-purchases.md).',
+        'Completed liquidity revenue over a window (?from=&to=, ISO dates, default all time): { totalUsd, purchases, houseUsd, housePurchases, from, to }. totalUsd and purchases exclude purchases made by the house (accounts flagged platform admin: the operator paying itself is not revenue); those are reported separately as houseUsd and housePurchases. Bookkeeping, not a payout rule: a purchase buys liquidity credits only, and no formula ties a season prize to revenue - Telarchy sizes each season itself, from its own funds, before that season opens (docs/liquidity-purchases.md).',
     },
     {
       method: 'POST',
@@ -1211,7 +1211,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/marketplace/stats',
       auth: false,
       description:
-        'Aggregate platform stats: marketsActive, agentsActive, tradesThisWeek, weeklyActiveVerifiedTraders (distinct participants with a Manifold account synced AND trades totalling >= 100 credits, abs(cost), in the trailing 7 days, across all workspaces; the resolution source for the Telarchy dogfooding workspace\'s hero metric - verified profiles are listed on the leaderboard), manifoldImportCount, revenue30dUsd (money Telarchy itself was paid in the trailing 30 days, USD: today the sum of completed paid-liquidity purchases, the only rail that exists; the resolution source for the "Telarchy revenue (USD)" metric).',
+        'Aggregate platform stats: marketsActive, agentsActive, tradesThisWeek, weeklyActiveVerifiedTraders (distinct participants with a Manifold account synced AND trades totalling >= 100 credits, abs(cost), in the trailing 7 days, across all workspaces; the resolution source for the Telarchy dogfooding workspace\'s hero metric - verified profiles are listed on the leaderboard), manifoldImportCount, revenue30dUsd (money Telarchy itself was paid in the trailing 30 days, USD: today the sum of completed paid-liquidity purchases, the only rail that exists, excluding purchases made by the house, i.e. accounts flagged platform admin, since the operator paying itself is not revenue; the resolution source for the "Telarchy revenue (USD)" metric).',
     },
     {
       method: 'GET',

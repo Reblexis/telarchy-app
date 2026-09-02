@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { desc, eq } from 'drizzle-orm';
 import { type Request, type Response, Router } from 'express';
 import { db } from '../db/client';
-import { liquidityPurchases, workspaces } from '../db/schema';
+import { agents, liquidityPurchases, workspaces } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { publicOrigins } from '../lib/origins';
 import { isPlatformAuthorized } from '../lib/platform-admin';
@@ -170,7 +170,9 @@ liquidityPurchasesRouter.get(
  * No formula turns it into a prize (owner decision 2026-08-30): a payment
  * buys liquidity credits, and Telarchy sizes each season itself, out of its
  * own funds, before that season opens (docs/liquidity-purchases.md).
- * Platform admin only.
+ * Platform admin only. A purchase by the house (a platform-admin account) is
+ * not revenue, since the operator paying itself moves no money into the
+ * business; it is reported separately so the Stripe flow still reconciles.
  */
 liquidityPurchasesRouter.get(
   '/liquidity/revenue',
@@ -181,14 +183,27 @@ liquidityPurchasesRouter.get(
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
       throw new AppError('from and to must be ISO dates', 400);
     }
-    const rows = await db.select().from(liquidityPurchases).where(eq(liquidityPurchases.status, 'completed'));
+    const rows = await db
+      .select({
+        usdAmount: liquidityPurchases.usdAmount,
+        completedAt: liquidityPurchases.completedAt,
+        createdAt: liquidityPurchases.createdAt,
+        house: agents.platformAdmin,
+      })
+      .from(liquidityPurchases)
+      .leftJoin(agents, eq(agents.id, liquidityPurchases.agentId))
+      .where(eq(liquidityPurchases.status, 'completed'));
     const inWindow = rows.filter(r => {
       const at = r.completedAt ? new Date(r.completedAt) : new Date(r.createdAt);
       return at >= from && at <= to;
     });
+    const house = inWindow.filter(r => r.house === true);
+    const revenue = inWindow.filter(r => r.house !== true);
     res.json({
-      totalUsd: inWindow.reduce((sum, r) => sum + r.usdAmount, 0),
-      purchases: inWindow.length,
+      totalUsd: revenue.reduce((sum, r) => sum + r.usdAmount, 0),
+      purchases: revenue.length,
+      houseUsd: house.reduce((sum, r) => sum + r.usdAmount, 0),
+      housePurchases: house.length,
       from,
       to,
     });

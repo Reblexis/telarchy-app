@@ -142,7 +142,13 @@ Completed purchases are the platform's liquidity revenue, and their
 trailing-30-day sum is public as `revenue30dUsd` on
 `GET /api/marketplace/stats`: it is what the floor's "Telarchy revenue (USD)"
 metric settles on, so the buyers of the service and the traders pricing it
-read the same number (docs/metrics.md, "Revenue, trailing 30 days").
+read the same number (docs/metrics.md, "Revenue, trailing 30 days"). A purchase
+made by the house is not revenue: an account flagged platform admin is
+Telarchy's own operator, and the operator paying itself moves no money into the
+business. Both `revenue30dUsd` and `GET /api/liquidity/revenue` leave those
+purchases out of the total; the books endpoint reports them separately as
+`houseUsd` and `housePurchases` so the money that did pass through Stripe is
+still accounted for.
 
 **A payment buys liquidity credits and nothing else.** It is not a share of a
 prize, not an entry, and no formula binds a season's pool to it. Telarchy
