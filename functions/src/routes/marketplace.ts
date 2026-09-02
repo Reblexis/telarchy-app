@@ -32,7 +32,7 @@ import { authMiddleware, getAuthWorkspaceMemberships } from '../middleware/auth'
 import { requireIdentity } from '../middleware/roles';
 import { dataRoomTool } from '../services/data-room';
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
-import { paidManifoldLinkCount, platformStats } from '../services/platform-stats';
+import { linkedManifoldCount, platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
 import { webSearchTool } from '../services/web-search';
 import { buildWorkspaceContext, renderContextIndex, renderContextMarkdown } from '../services/workspace-context';
@@ -998,14 +998,13 @@ async function buildFloorPayload(ws: PublicWs) {
     );
   }
 
-  // Platform-wide count of Manifold records we PAID for. Public on purpose:
-  // a prediction market on "how many forecasters brought their record over"
-  // cannot resolve on a number only the owner can see, and this audience
-  // will not take it on faith. Defined once, in platform-stats.ts, and
-  // deliberately not the free badge: since 2026-09-02 anyone can link an
-  // account they hold, so a badge count would answer a different question
-  // from the one the market asks.
-  const manifoldImportCount = await paidManifoldLinkCount();
+  // Platform-wide count of linked Manifold accounts, paid or not. Public on
+  // purpose: a prediction market on "how many Manifold users will link their
+  // account" cannot resolve on a number only the owner can see, and this
+  // audience will not take it on faith. Defined once, in platform-stats.ts,
+  // and it is the link rather than the payment because a link is what the
+  // market asks about (docs/metrics.md, "Manifold accounts linked").
+  const manifoldImportCount = await linkedManifoldCount();
 
   return {
     workspaceId,

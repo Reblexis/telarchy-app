@@ -80,6 +80,16 @@ async function seed() {
       credits: 5000,
     })),
   );
+  // Everyone who was paid also wears the link, as in production: the claim
+  // route writes the link first and pays second (docs/record-links.md).
+  await db.insert(recordLinks).values(
+    ['verified-whale', 'verified-seller', 'verified-gesture', 'verified-stale'].map(id => ({
+      agentId: id,
+      provider: 'manifold',
+      externalId: `mf-${id}`,
+      handle: id,
+    })),
+  );
   await db
     .insert(metrics)
     .values([{ id: 'm1', workspaceId: WS, name: 'M', value: 0, formula: '0', marketRangeMax: 100 }]);
@@ -131,7 +141,7 @@ describe('GET /api/marketplace/stats', () => {
   // became zero on the floor, two daily markets settled on 0, and the next
   // day's market opened at the lowest price the book can hold. The count reads
   // the key the record-link router writes, and nothing else.
-  test('THE RULE: a paid record counts; a free badge and the retired key do not', async () => {
+  test('THE RULE: a paid record is verified; a free badge and the retired key are not', async () => {
     await seed();
     // Two things that must not count, for the same reason. `legacy-whale`
     // wears a badge and was never paid, which since 2026-09-02 costs a bio
@@ -162,13 +172,35 @@ describe('GET /api/marketplace/stats', () => {
     const res = await request(app).get('/api/marketplace/stats');
     expect(res.status).toBe(200);
     expect(res.body.weeklyActiveVerifiedTraders).toBe(2);
-    // Four paid records: not the free badge, not the legacy row, not a
-    // pending claim.
-    expect(res.body.manifoldImportCount).toBe(4);
+    // Five linked accounts: the four paid ones and the free badge. The
+    // linked count answers a different question from the verified set
+    // (docs/metrics.md, "Manifold accounts linked"): a link is a link,
+    // paid or not. The legacy row is not a link and does not count.
+    expect(res.body.manifoldImportCount).toBe(5);
   });
 
-  test('manifoldImportCount counts paid Manifold links, not other providers or pending claims', async () => {
+  // Owner decision 2026-09-02: the market at manifold.markets asks how many
+  // Manifold users will LINK their account, and the owner's own five-day-old
+  // account, linked and unpaid, read as nothing. The count is links.
+  test('THE RULE: manifoldImportCount counts linked Manifold accounts, paid or not', async () => {
     await seed();
+    await db.insert(agents).values([{ id: 'five-days-old', apiKeyHash: 'h11', balance: toUnits(0) }]);
+    await db
+      .insert(recordLinks)
+      .values([{ agentId: 'five-days-old', provider: 'manifold', externalId: 'mf-fresh', handle: 'Viktor36' }]);
+    const res = await request(app).get('/api/marketplace/stats');
+    expect(res.status).toBe(200);
+    expect(res.body.manifoldImportCount).toBe(5);
+    // And the free link still buys nothing on the verified side.
+    expect(res.body.weeklyActiveVerifiedTraders).toBe(2);
+  });
+
+  test('manifoldImportCount counts Manifold links only, not other providers, pending claims or unlinked payments', async () => {
+    await seed();
+    // A Polymarket link is a link, but not a Manifold one.
+    await db
+      .insert(recordLinks)
+      .values([{ agentId: 'verified-whale', provider: 'polymarket', externalId: '0xwhale', handle: 'whale.eth' }]);
     await db.insert(earnClaims).values({
       id: 'claim-poly',
       agentId: 'verified-whale',
@@ -176,9 +208,19 @@ describe('GET /api/marketplace/stats', () => {
       refId: '0xwhale',
       credits: 5000,
     });
+    // A pending claim is a code in a bio nobody has verified yet.
     await db
       .insert(systemConfig)
       .values([{ key: 'record-link:manifold:someone', value: { code: 'telarchy-abc', handle: 'someone' } }]);
+    // Paid once, since relinked away and never relinked: not linked.
+    await db.insert(agents).values([{ id: 'paid-then-unlinked', apiKeyHash: 'h12', balance: toUnits(0) }]);
+    await db.insert(earnClaims).values({
+      id: 'claim-unlinked',
+      agentId: 'paid-then-unlinked',
+      key: 'manifold_link',
+      refId: 'mf-gone',
+      credits: 5000,
+    });
     const res = await request(app).get('/api/marketplace/stats');
     expect(res.status).toBe(200);
     expect(res.body.manifoldImportCount).toBe(4);

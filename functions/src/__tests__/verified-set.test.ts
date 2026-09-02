@@ -25,10 +25,16 @@ process.env.BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET || 'verified-set
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { randomUUID } from 'crypto';
+import { eq } from 'drizzle-orm';
 import { agents, earnClaims, recordLinks, trades } from '../db/schema';
 import { clearAllTtlCaches } from '../lib/ttl-cache';
 import { toUnits } from '../lib/validation';
-import { paidManifoldLinkAgents, paidManifoldLinkCount, platformStats } from '../services/platform-stats';
+import {
+  linkedManifoldCount,
+  paidManifoldLinkAgents,
+  paidManifoldLinkCount,
+  platformStats,
+} from '../services/platform-stats';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const PAID = 'vs-paid';
@@ -82,7 +88,33 @@ describe('the public counts', () => {
     // The failure itself: a count that reads a store nothing writes any
     // more answers zero, and zero is a number a market will settle on.
     const stats = await platformStats();
-    expect(stats.manifoldImportCount).toBe(1);
+    expect(stats.manifoldImportCount).toBe(2);
+  });
+
+  // docs/metrics.md, "Manifold accounts linked": the linked count is who
+  // wears a Manifold link, paid or not. Owner decision 2026-09-02, after
+  // the owner's own unpaid link read as nothing on the market that
+  // resolves on this number.
+  test('THE RULE: manifoldImportCount counts linked accounts, paid or not', async () => {
+    expect(await linkedManifoldCount()).toBe(2);
+    expect((await platformStats()).manifoldImportCount).toBe(2);
+    // The verified set is unchanged by that: still only the paid one.
+    expect(await paidManifoldLinkCount()).toBe(1);
+  });
+
+  test('a paid record that is no longer linked is not a linked account', async () => {
+    await db.delete(recordLinks).where(eq(recordLinks.agentId, PAID));
+    clearAllTtlCaches();
+    expect(await linkedManifoldCount()).toBe(1);
+    expect(await paidManifoldLinkCount()).toBe(1);
+  });
+
+  test('a link to another provider is not a Manifold link', async () => {
+    await db
+      .insert(recordLinks)
+      .values([{ agentId: PAID, provider: 'polymarket', externalId: '0xpaid', handle: 'paid.eth' }]);
+    clearAllTtlCaches();
+    expect(await linkedManifoldCount()).toBe(2);
   });
 
   test('weekly active verified traders counts a paid trader over the 100-credit floor', async () => {

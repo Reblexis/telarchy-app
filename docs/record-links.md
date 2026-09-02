@@ -164,4 +164,7 @@ with. The refusal says to make the username public and try again.
   record does not: it links, pays nothing, and says why.
 - A linked handle is shown as a badge on the participant's profile and on
   the leaderboard, for every provider, paid or not.
+- A Manifold link, paid or not, counts toward the public linked-accounts
+  number (`manifoldImportCount`, `docs/metrics.md`). The verified-trader
+  count does not read links at all.
 - One external account is badged by at most one participant at a time.

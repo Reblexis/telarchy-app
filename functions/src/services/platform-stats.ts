@@ -1,6 +1,6 @@
 import { and, count, eq, gt, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { agents, earnClaims, liquidityPurchases, markets, trades, workspaces } from '../db/schema';
+import { agents, earnClaims, liquidityPurchases, markets, recordLinks, trades, workspaces } from '../db/schema';
 import { ttlCache } from '../lib/ttl-cache';
 
 /**
@@ -19,9 +19,10 @@ import { ttlCache } from '../lib/ttl-cache';
  * Since 2026-09-02 anyone can link an account they can prove they hold,
  * qualified or not (docs/record-links.md), so the badge is no longer a
  * quality signal: a Manifold account opened this morning can wear one.
- * These counts are public and a prediction market resolves against them,
- * so they keep counting exactly the set they always counted, which is
- * the one a farmer cannot enter cheaply.
+ * The trader count is public and a market resolves against it, so it
+ * keeps counting exactly the set it always counted, which is the one a
+ * farmer cannot enter cheaply. The linked count (`linkedManifoldCount`)
+ * is the other question and reads the badge table on purpose.
  *
  * This is the one place the set is defined. Three readers had it inlined
  * as a `system_config` key prefix; migration 0100 emptied that prefix on
@@ -45,6 +46,22 @@ export async function paidManifoldLinkAgents(agentIds: string[]): Promise<Set<st
     .from(earnClaims)
     .where(and(eq(earnClaims.key, MANIFOLD_PAID_KEY), inArray(earnClaims.agentId, agentIds)));
   return new Set(rows.map(r => r.agentId));
+}
+
+/**
+ * The linked set: participants who wear a Manifold link, paid or not.
+ *
+ * A different question from the verified set above, and kept apart on
+ * purpose (docs/metrics.md, "Manifold accounts linked"). The public market
+ * that resolves on `manifoldImportCount` asks how many Manifold users will
+ * LINK their account, so it counts links: the owner's own five-day-old
+ * account, linked and unpaid, read as nothing under the paid definition
+ * (owner decision 2026-09-02). A fresh account moves this number and never
+ * the trader count.
+ */
+export async function linkedManifoldCount(): Promise<number> {
+  const [row] = await db.select({ n: count() }).from(recordLinks).where(eq(recordLinks.provider, 'manifold'));
+  return Number(row?.n ?? 0);
 }
 
 export interface PlatformStats {
@@ -125,10 +142,10 @@ async function computePlatformStats(): Promise<PlatformStats> {
     }),
   );
 
-  // Platform-wide count of completed Manifold imports. It is a platform
-  // number rather than a property of any one workspace, and a public
-  // prediction market resolves against it.
-  const manifoldImportCount = await paidManifoldLinkCount();
+  // Platform-wide count of linked Manifold accounts, paid or not. It is a
+  // platform number rather than a property of any one workspace, and a
+  // public prediction market resolves against it.
+  const manifoldImportCount = await linkedManifoldCount();
 
   // The revenue rail, public for the same reason the trader count is: the
   // floor prices "Telarchy revenue (USD)" and a market cannot resolve on a
