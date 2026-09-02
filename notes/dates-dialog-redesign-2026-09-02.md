@@ -1,8 +1,9 @@
 # The dates dialog, redesigned (proposal, 2026-09-02)
 
-**Status: proposal.** Nothing here is built. Viktor's verdict on the
-canvas picks the direction; the doc edit below lands first, then tests,
-then code, per the usual order.
+**Status: built, 2026-09-02.** Viktor picked the recommended row ("ok do
+it"), so the doc edit below is in `docs/owner-on-the-floor.md`, the tests
+in `src/components/__tests__/DatesDialog.test.tsx`, and the code conforms
+(PR #173). The strict cut and the two alternates stay sketched.
 
 **Owner report 2026-09-02 (Viktor)**, on the dialog as shipped:
 "this looks horribly unintuitive and tgoo bloated please do better".
