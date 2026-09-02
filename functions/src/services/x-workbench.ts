@@ -7,9 +7,9 @@
  * with no X credential at all.
  */
 import { randomUUID } from 'crypto';
-import { desc, eq, isNotNull } from 'drizzle-orm';
+import { desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { xReplies, xVoiceProfile } from '../db/schema';
+import { xReplies, xSearches, xVoiceProfile } from '../db/schema';
 import { AppError } from '../lib/errors';
 
 export interface XPost {
@@ -211,6 +211,7 @@ export async function draftReply(
 
 export async function recordReply(input: {
   sourcePostId: string;
+  searchId?: string | null;
   sourceAuthor?: string | null;
   sourceText?: string | null;
   sourceFollowers?: number | null;
@@ -225,6 +226,7 @@ export async function recordReply(input: {
     sourceFollowers: input.sourceFollowers ?? null,
     text: input.text,
     replyId: input.replyId ?? null,
+    searchId: input.searchId ?? null,
     hasNumber: hasNumber(input.text),
     disagrees: disagrees(input.text),
     length: input.text.length,
@@ -296,4 +298,118 @@ export async function refreshMetrics(limit = 25) {
     }
   }
   return { checked: rows.length, updated };
+}
+
+// --- search prompts ----------------------------------------------------------
+
+/**
+ * What each past query actually produced: posts pasted back, replies sent, and
+ * the likes those replies earned. A query that returns a hundred posts he never
+ * answers is a worse query than one that returns three he does, which is why
+ * the yield is counted in replies rather than in results.
+ */
+export async function searchYield() {
+  const rows = await db
+    .select({
+      id: xSearches.id,
+      query: xSearches.query,
+      rationale: xSearches.rationale,
+      harvested: xSearches.harvested,
+      lastUsedAt: xSearches.lastUsedAt,
+      createdAt: xSearches.createdAt,
+      replies: sql<number>`count(${xReplies.id})::int`,
+      likes: sql<number>`coalesce(sum(${xReplies.likes}), 0)::int`,
+    })
+    .from(xSearches)
+    .leftJoin(xReplies, eq(xReplies.searchId, xSearches.id))
+    .groupBy(xSearches.id)
+    .orderBy(desc(xSearches.createdAt))
+    .limit(50);
+  return rows;
+}
+
+const SEARCH_RULES = `You propose ONE X (Twitter) search query for the owner to run by hand. He cannot search programmatically, so the query has to be worth the minute it costs him.
+
+What a good query is here:
+- Uses X search operators. Useful ones: quoted phrases, OR, parentheses, -filter:replies (thread starters only, which are the ones still gathering readers), min_faves:N (skips dead posts), lang:en, within_time:24h, -filter:links.
+- Aimed at conversations he can add a number or a counterexample to, not at news about his subject. A thread of people arguing about whether forecasting works is worth ten headlines about a prediction market company.
+- Different from the queries that yielded nothing before. Adjacent to the ones that produced replies people engaged with.
+- Narrow enough that the Latest tab is readable. If it would return a wall, add a min_faves or a second required term.
+
+Return JSON only: {"query": "...", "rationale": "<one sentence: what this should surface and why, given what worked before>"}`;
+
+/**
+ * The next query to try, chosen against the record of what past queries
+ * produced. With no history it still proposes something, because the first
+ * query has to come from somewhere.
+ */
+export async function suggestSearch(avoid: string[] = []): Promise<{ query: string; rationale: string }> {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) {
+    throw new AppError('Search suggestions need ANTHROPIC_API_KEY.', 503);
+  }
+  const [profile, history] = await Promise.all([getVoiceProfile(), searchYield()]);
+  const record = history.length
+    ? 'QUERIES ALREADY TRIED, with what each produced:\n' +
+      history
+        .map(
+          h => `"${h.query}" -> ${h.harvested} posts pasted back, ${h.replies} replies sent, ${h.likes} likes earned`,
+        )
+        .join('\n')
+    : 'No queries tried yet.';
+  const banned = avoid.length ? `\n\nDo not repeat any of these: ${avoid.map(q => `"${q}"`).join(', ')}` : '';
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({
+      model: process.env.X_DRAFT_MODEL ?? 'claude-sonnet-5',
+      max_tokens: 300,
+      system: SEARCH_RULES + (profile ? `\n\nWHO HE IS AND WHAT HE CAN SPEAK TO:\n${profile}` : ''),
+      messages: [{ role: 'user', content: `${record}${banned}\n\nPropose the next query.` }],
+    }),
+  });
+  if (!res.ok) throw new AppError(`Search suggestion failed (${res.status}).`, 502);
+  const body = (await res.json()) as { content?: { text?: string }[] };
+  const raw = (body.content ?? []).map(c => c.text ?? '').join('');
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) throw new AppError('Search suggestion came back unparseable.', 502);
+  const parsed = JSON.parse(match[0]) as { query?: string; rationale?: string };
+  if (!parsed.query?.trim()) throw new AppError('Search suggestion came back empty.', 502);
+  return { query: parsed.query.trim(), rationale: (parsed.rationale ?? '').trim() };
+}
+
+export async function saveSearch(query: string, rationale?: string) {
+  const row = {
+    id: randomUUID(),
+    query,
+    rationale: rationale ?? null,
+    harvested: 0,
+    lastUsedAt: null as Date | null,
+  };
+  await db.insert(xSearches).values(row);
+  return row;
+}
+
+/**
+ * The ids he found by running a query. Each is looked up so he can see what he
+ * is about to answer; the count is recorded against the search whether or not
+ * he ends up replying to any of them, because "this query surfaced nothing
+ * usable" is exactly the signal the next suggestion needs.
+ */
+export async function harvestSearch(searchId: string, ids: string[]) {
+  const posts: XPost[] = [];
+  const failed: string[] = [];
+  for (const raw of ids) {
+    try {
+      posts.push(await fetchPost(parsePostId(raw)));
+    } catch {
+      failed.push(raw);
+    }
+  }
+  await db
+    .update(xSearches)
+    .set({ harvested: sql`${xSearches.harvested} + ${ids.length}`, lastUsedAt: new Date() })
+    .where(eq(xSearches.id, searchId));
+  return { posts, failed };
 }

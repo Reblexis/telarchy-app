@@ -144,6 +144,26 @@
     "agent": 403,
     "master": 400
   },
+  "POST /api/admin/x/searches/:id/harvest": {
+    "anon": 401,
+    "agent": 403,
+    "master": 400
+  },
+  "POST /api/admin/x/searches/suggest": {
+    "anon": 401,
+    "agent": 403,
+    "master": 503
+  },
+  "GET /api/admin/x/searches": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "POST /api/admin/x/searches": {
+    "anon": 401,
+    "agent": 403,
+    "master": 400
+  },
   "GET /api/agents/:id/balance": {
     "anon": 401,
     "agent": 403,

@@ -9433,3 +9433,7 @@ textarea.jobform-line--desc {
 }
 .adm-linkbtn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
 a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; }
+.xw-search { margin-bottom: 1.5rem; }
+.xw-query { display: block; font-family: var(--font-mono, monospace); font-size: 0.85rem; word-break: break-word; margin-bottom: 0.3rem; }
+.xw-harvest { margin-top: 0.6rem; }
+.xw-harvest textarea { width: 100%; margin-bottom: 0.4rem; }

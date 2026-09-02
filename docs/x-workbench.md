@@ -9,6 +9,30 @@ chosen to spend, but reading ONE post by id is free, and the owner always has
 the id: he is looking at the post. So the workbench takes the id as its input
 and never needs a search credential.
 
+## Finding posts: the search loop
+
+X search needs a paid credential, so the workbench does not search. It proposes
+a query, the owner runs it himself on X, and he pastes back the ids he found.
+That manual step is what makes the loop learn: a query is remembered with what
+it produced, and the next proposal is chosen against that record.
+
+1. **Get a search prompt.** One query in X's search syntax, plus one line on
+   why. The proposal is made against every query already tried and what each
+   yielded: posts pasted back, replies sent, likes earned. A query that
+   returned a hundred posts he never answered scores worse than one that
+   returned three he did, which is why yield is counted in replies rather than
+   in results.
+2. **Run it on X.** The link opens the query on the Latest tab, because Top is
+   the algorithm again. Following it records the query, which is what starts
+   counting its yield.
+3. **Paste back the ids.** Up to 25 links or ids at a time, whitespace or comma
+   separated. Each is read so he can see what he is about to answer, and the
+   count lands on the search whether or not he replies to any: "this query
+   surfaced nothing usable" is exactly the signal the next proposal needs.
+4. **Work on one**, which loads it into the workbench below. A reply sent from
+   a candidate is recorded against its search, so the yield is real rather than
+   inferred.
+
 ## What the owner does
 
 1. Pastes an X post URL or id.
@@ -89,6 +113,10 @@ All platform admin. Documented in `/api/help` like every other route.
 | `GET /api/admin/x/log` | recorded replies, their metrics, and the summary |
 | `GET/PUT /api/admin/x/profile` | the voice and facts text |
 | `POST /api/cron/x-metrics` | refresh metrics (scheduler) |
+| `POST /api/admin/x/searches/suggest` | `{ avoid? }` -> `{ suggestion: { query, rationale } }` |
+| `POST /api/admin/x/searches` | keep a query he decided to run |
+| `GET /api/admin/x/searches` | every query with its harvested / replies / likes |
+| `POST /api/admin/x/searches/:id/harvest` | `{ ids }` -> the posts, and the count against the search |
 
 ## Storage
 
@@ -100,9 +128,13 @@ its metrics.
 
 `x_voice_profile` is a single row of text with an updated-at.
 
+`x_searches` holds the query, its rationale, and `harvested`, the number of
+posts pasted back from it. `x_replies.search_id` is the link that lets a query
+be judged by the replies it produced.
+
 ## What it is not
 
-Not a scheduler, not a poster, not an inbox. It does not find posts (that is
-the reply queue over Hacker News and Manifold, and the owner's own saved
-searches on X). It handles the step between "I am looking at a post worth
+Not a scheduler, not a poster, not an inbox. It does not search X (nothing can, without a
+paid credential; it proposes queries the owner runs himself). Finding posts
+elsewhere is the reply queue's job, over Hacker News and Manifold. It handles the step between "I am looking at a post worth
 answering" and "I have answered it well and know whether it worked".

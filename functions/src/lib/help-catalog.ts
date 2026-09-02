@@ -1144,6 +1144,34 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
         'Every recorded reply with its metrics, newest first, plus { summary }: either { enough: false, note } below ten scored replies, or { enough: true, median, anyEngagement, features: [{ label, on, off }] } comparing mean likes with and without each tracked feature (carries a number, disagrees, under 200 characters). Refusing to claim a pattern from three data points is deliberate.',
     },
     {
+      method: 'POST',
+      path: '/api/admin/x/searches/suggest',
+      auth: 'admin',
+      description:
+        'Propose the next X search query to run BY HAND (platform admin). X search needs a paid credential, so the loop is: this proposes, the owner runs it, he pastes the ids back. The proposal is made against what past queries produced (posts pasted back, replies sent, likes earned), not against a hunch. Body: { avoid?: string[] } (queries not to repeat). Returns { suggestion: { query, rationale } }. 503 without ANTHROPIC_API_KEY.',
+    },
+    {
+      method: 'POST',
+      path: '/api/admin/x/searches',
+      auth: 'admin',
+      description:
+        'Keep a query the owner decided to run (platform admin). Body: { query, rationale? }. Recording it is what makes its yield countable afterwards.',
+    },
+    {
+      method: 'GET',
+      path: '/api/admin/x/searches',
+      auth: 'admin',
+      description:
+        'Every query tried, newest first, each with what it produced: harvested (posts pasted back), replies (answers sent from it) and likes (what those answers earned). A query returning a hundred posts he never answers scores worse than one returning three he does.',
+    },
+    {
+      method: 'POST',
+      path: '/api/admin/x/searches/:id/harvest',
+      auth: 'admin',
+      description:
+        "The post ids found by running a query (platform admin). Body: { ids } as an array or one whitespace/comma separated string, capped at 25 per call. Each is read so the owner can see what he is about to answer; returns { posts, failed }. The count is recorded against the search whether or not he replies to any, because 'this query surfaced nothing usable' is the signal the next suggestion needs.",
+    },
+    {
       method: 'PATCH',
       path: '/api/admin/x/record/:id',
       auth: 'admin',

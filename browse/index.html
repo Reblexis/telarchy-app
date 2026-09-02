@@ -398,13 +398,14 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><details><summary><a class="file" href="#file--docs-x-workbench-md">docs/x-workbench.md</a></summary>
 <ul>
 <li><a href="#docs-x-workbench-md--h1">The X workbench</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h2">What the owner does</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h3">Reading a post</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h4">Drafting</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h5">Performance and what it learns</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h6">Endpoints</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h7">Storage</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h8">What it is not</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h2">Finding posts: the search loop</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h3">What the owner does</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h4">Reading a post</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h5">Drafting</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h6">Performance and what it learns</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h7">Endpoints</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h8">Storage</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h9">What it is not</a></li>
 </ul></details>
 </li>
 </ul></li>
@@ -6287,7 +6288,30 @@ posted, and gets later drafts that are shaped by what worked.</p>
 chosen to spend, but reading ONE post by id is free, and the owner always has
 the id: he is looking at the post. So the workbench takes the id as its input
 and never needs a search credential.</p>
-<h2 id="docs-x-workbench-md--h2">What the owner does</h2>
+<h2 id="docs-x-workbench-md--h2">Finding posts: the search loop</h2>
+<p>X search needs a paid credential, so the workbench does not search. It proposes
+a query, the owner runs it himself on X, and he pastes back the ids he found.
+That manual step is what makes the loop learn: a query is remembered with what
+it produced, and the next proposal is chosen against that record.</p>
+<ol>
+<li><strong>Get a search prompt.</strong> One query in X's search syntax, plus one line on
+why. The proposal is made against every query already tried and what each
+yielded: posts pasted back, replies sent, likes earned. A query that
+returned a hundred posts he never answered scores worse than one that
+returned three he did, which is why yield is counted in replies rather than
+in results.</li>
+<li><strong>Run it on X.</strong> The link opens the query on the Latest tab, because Top is
+the algorithm again. Following it records the query, which is what starts
+counting its yield.</li>
+<li><strong>Paste back the ids.</strong> Up to 25 links or ids at a time, whitespace or comma
+separated. Each is read so he can see what he is about to answer, and the
+count lands on the search whether or not he replies to any: &quot;this query
+surfaced nothing usable&quot; is exactly the signal the next proposal needs.</li>
+<li><strong>Work on one</strong>, which loads it into the workbench below. A reply sent from
+a candidate is recorded against its search, so the yield is real rather than
+inferred.</li>
+</ol>
+<h2 id="docs-x-workbench-md--h3">What the owner does</h2>
 <ol>
 <li>Pastes an X post URL or id.</li>
 <li>Sees the post: author, text, likes, replies, when.</li>
@@ -6305,7 +6329,7 @@ across them says.</li>
 That line is not a technical limit, it is the rule that keeps his account his
 (X suspends accounts that automate posting, and copy under his name is the one
 thing he must approve).</p>
-<h2 id="docs-x-workbench-md--h3">Reading a post</h2>
+<h2 id="docs-x-workbench-md--h4">Reading a post</h2>
 <p><code>cdn.syndication.twimg.com/tweet-result?id=&lt;id&gt;&amp;token=&lt;derived&gt;</code> returns a
 public post's text, author, and counts with no credential. The token is a
 deterministic function of the id, which is why this works without a key. It is
@@ -6315,7 +6339,7 @@ rather than showing an empty post, and the owner can paste the text by hand
 <p>What it gives: <code>text</code>, <code>user.screen_name</code>, <code>user.name</code>, <code>favorite_count</code>,
 <code>conversation_count</code>, <code>created_at</code>. It does NOT give impressions, so
 &quot;performance&quot; here means likes and replies, and the log says that.</p>
-<h2 id="docs-x-workbench-md--h4">Drafting</h2>
+<h2 id="docs-x-workbench-md--h5">Drafting</h2>
 <p>One Anthropic call, the same rules the reply queue uses (one to three
 sentences, add a number or a counterexample, never pitch, never link, no
 em-dashes, skip when there is nothing to say), plus two things the queue does
@@ -6333,7 +6357,7 @@ writing samples and the facts he is allowed to state, it is personal, and this
 repository is prepared for a public release. <code>/admin</code> has a textarea for it;
 seeding it is a one-time paste. With no profile, drafting still works and says
 in the UI that it is writing generically.</p>
-<h2 id="docs-x-workbench-md--h5">Performance and what it learns</h2>
+<h2 id="docs-x-workbench-md--h6">Performance and what it learns</h2>
 <p><code>POST /api/cron/x-metrics</code> refreshes counts for every recorded reply whose
 post id is known, newest first, oldest refreshed least often. Cloud Scheduler
 runs it every six hours; a reply's numbers move fastest in its first day and
@@ -6345,7 +6369,7 @@ features (carries a number, disagrees, under 200 characters) is associated
 with the better half. With fewer than ten recorded replies the summary says so
 instead of pretending to a pattern; three data points are not a finding, and
 copy advice from three data points is how superstition starts.</p>
-<h2 id="docs-x-workbench-md--h6">Endpoints</h2>
+<h2 id="docs-x-workbench-md--h7">Endpoints</h2>
 <p>All platform admin. Documented in <code>/api/help</code> like every other route.</p>
 <div class="tablewrap"><table>
 <thead>
@@ -6383,19 +6407,38 @@ copy advice from three data points is how superstition starts.</p>
 <td><code>POST /api/cron/x-metrics</code></td>
 <td>refresh metrics (scheduler)</td>
 </tr>
+<tr>
+<td><code>POST /api/admin/x/searches/suggest</code></td>
+<td><code>{ avoid? }</code> -&gt; <code>{ suggestion: { query, rationale } }</code></td>
+</tr>
+<tr>
+<td><code>POST /api/admin/x/searches</code></td>
+<td>keep a query he decided to run</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/x/searches</code></td>
+<td>every query with its harvested / replies / likes</td>
+</tr>
+<tr>
+<td><code>POST /api/admin/x/searches/:id/harvest</code></td>
+<td><code>{ ids }</code> -&gt; the posts, and the count against the search</td>
+</tr>
 </tbody>
 </table></div>
-<h2 id="docs-x-workbench-md--h7">Storage</h2>
+<h2 id="docs-x-workbench-md--h8">Storage</h2>
 <p>One table, <code>x_replies</code>: the source post (id, author, text, author follower
 count if known), what he sent (text, reply id, when), the metrics (likes,
 replies, refreshed-at), and the derived features used by the summary. Append
 only in spirit: a recorded reply is never edited except to attach its id and
 its metrics.</p>
 <p><code>x_voice_profile</code> is a single row of text with an updated-at.</p>
-<h2 id="docs-x-workbench-md--h8">What it is not</h2>
-<p>Not a scheduler, not a poster, not an inbox. It does not find posts (that is
-the reply queue over Hacker News and Manifold, and the owner's own saved
-searches on X). It handles the step between &quot;I am looking at a post worth
+<p><code>x_searches</code> holds the query, its rationale, and <code>harvested</code>, the number of
+posts pasted back from it. <code>x_replies.search_id</code> is the link that lets a query
+be judged by the replies it produced.</p>
+<h2 id="docs-x-workbench-md--h9">What it is not</h2>
+<p>Not a scheduler, not a poster, not an inbox. It does not search X (nothing can, without a
+paid credential; it proposes queries the owner runs himself). Finding posts
+elsewhere is the reply queue's job, over Hacker News and Manifold. It handles the step between &quot;I am looking at a post worth
 answering&quot; and &quot;I have answered it well and know whether it worked&quot;.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
