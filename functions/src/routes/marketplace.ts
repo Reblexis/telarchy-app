@@ -720,7 +720,7 @@ async function buildFloorPayload(ws: PublicWs) {
       .orderBy(desc(proposals.createdAt))
       .limit(40);
     const names = await getParticipantDisplayNames(pending.map(p => p.proposedBy));
-    // When each contract was last edited, so the floor can say "edited" beside
+    // When each proposal was last edited, so the floor can say "edited" beside
     // one whose words or price moved after people started pricing it
     // (docs/market-integrity.md, I1b). The log itself is behind
     // GET /api/proposals/:id/revisions; this is only the marker.
@@ -788,11 +788,11 @@ async function buildFloorPayload(ws: PublicWs) {
       rangeMax: number;
     }
     const byProposal = new Map<string, Map<string, PairGroup>>();
-    // A voided pair is dead weight on a PENDING contract: it was voided
+    // A voided pair is dead weight on a PENDING proposal: it was voided
     // because its horizon was retired, yet it kept printing its last delta
     // on the ballot (seen 2026-08-15, when the near horizon moved to a
-    // weekly cadence and every contract still showed its old monthly
-    // number). Decided contracts keep everything, voided included: their
+    // weekly cadence and every proposal still showed its old monthly
+    // number). Decided proposals keep everything, voided included: their
     // markets are the record of what was priced when the owner ruled.
     // The rule itself is lib/market-pairs.ts, so the brief cannot drift from
     // the ballot again (it did, until 2026-08-31).
@@ -853,7 +853,7 @@ async function buildFloorPayload(ws: PublicWs) {
 
     openProposals = pending.map(p => {
       const pairs = [...(byProposal.get(p.id)?.values() ?? [])].map(g => ({
-        // With several metrics on one date, the floor picks a contract's
+        // With several metrics on one date, the floor picks a proposal's
         // pair by (metric, date), never by date alone.
         metricId: g.metricId,
         metricName: g.metricName,
@@ -882,7 +882,7 @@ async function buildFloorPayload(ws: PublicWs) {
       // them once a floor priced two metrics on three dates, so the pair of
       // the market on screen could be missing and the board printed the
       // largest delta of some other metric instead (owner report 2026-08-26,
-      // docs/ui-conventions.md "A contract ships every pair of the grid").
+      // docs/ui-conventions.md "A proposal ships every pair of the grid").
       // The matrix is metrics x dates, small by construction.
       pairs.sort((a, b) => Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0));
       return {
@@ -932,12 +932,12 @@ async function buildFloorPayload(ws: PublicWs) {
       .from(proposals)
       .where(and(eq(proposals.workspaceId, workspaceId), inArray(proposals.status, ['pending', 'approved'])));
     const liveJobIds = liveJobs.map(j => j.id);
-    // Voided branch markets are kept for a DECIDED contract and dropped for a
+    // Voided branch markets are kept for a DECIDED proposal and dropped for a
     // pending one, the same rule the ballot follows.
     //
-    // Approving a contract voids its declined branch, and that branch's last
+    // Approving a proposal voids its declined branch, and that branch's last
     // price is exactly what the impact was measured against, so a decided
-    // contract's score has to read it. A PENDING contract's voided pairs are
+    // proposal's score has to read it. A PENDING proposal's voided pairs are
     // something else: a retired horizon, or a generation spawned during a
     // bug. Counting those made the contractor rail read -48 and -108.21 on
     // the Telarchy floor (owner report 2026-08-15) long after the live pairs
@@ -1158,7 +1158,7 @@ marketplaceRouter.get(
 /**
  * The workspace brief: one read that carries what this floor is about (owner
  * ask 2026-08-20). Identity and charter, every metric with its definition and
- * recent readings, the open markets and their current prices, every contract
+ * recent readings, the open markets and their current prices, every proposal
  * with the market's priced impact and its conversation, the owner's
  * announcements, and any document the owner published as a public source.
  *
@@ -1171,7 +1171,7 @@ marketplaceRouter.get(
  * 403, and a workspace whose Public group cannot read is refused rather than
  * summarised, because the brief IS the contents.
  */
-/** How much of a contract's pitch this read carries: enough to know what the
+/** How much of a proposal's pitch this read carries: enough to know what the
  *  work is, not the whole case for it. */
 const DESCRIPTION_CHARS = 300;
 /** Comfortably inside the 24,000-character cap on one assistant tool result
@@ -1179,12 +1179,12 @@ const DESCRIPTION_CHARS = 300;
 const SAFE_RESULT_CHARS = 22_000;
 
 /**
- * The contracts, priced, small enough to read in one go.
+ * The proposals, priced, small enough to read in one go.
  *
- * The brief and the floor's public payload both answer "which contract is
+ * The brief and the floor's public payload both answer "which proposal is
  * worth approving", and both answer it inside tens of kilobytes, which is
  * more than an assistant's tool result holds: on 2026-08-31 Otto was handed
- * the ballot, got it truncated mid-list, and opened five contracts one at a
+ * the ballot, got it truncated mid-list, and opened five proposals one at a
  * time to see the rest. A payload that has to be cut is not an answer, so
  * this one carries what pricing a decision needs and nothing else.
  *
@@ -1223,7 +1223,7 @@ marketplaceRouter.get(
       return;
     }
 
-    // The brief carries the newest 25 contracts, so on a busy floor this read
+    // The brief carries the newest 25 proposals, so on a busy floor this read
     // is showing a window. A window a reader does not know about is a silent
     // cut, which is the failure this endpoint exists to end, so it is stated.
     const [countRow] = await db
@@ -1234,7 +1234,7 @@ marketplaceRouter.get(
 
     const all = req.query.horizons === 'all';
     // Enough of the pitch to know what the work IS. A title alone does not say
-    // it, and a reader who cannot tell goes and opens the contract, which is
+    // it, and a reader who cannot tell goes and opens the proposal, which is
     // the round trip this endpoint exists to remove (measured 2026-08-31: the
     // priceless first version still drew five per question).
     const gist = (text: string) =>
@@ -1430,7 +1430,7 @@ marketplaceRouter.post(
 
     try {
       // Otto gets an INDEX of the floor as fixed context, not its brief: the
-      // priced impact of every contract, handed over unasked, is what he
+      // priced impact of every proposal, handed over unasked, is what he
       // answers from instead of looking (docs/vision.md, "The workspace
       // brief"). What he gets instead is doors he opens himself: Telarchy's
       // data room, the web, the API catalog, and the API itself,
@@ -1443,7 +1443,7 @@ marketplaceRouter.post(
         dataRoomTool(),
         // The web, on the same terms as the operator door has had since
         // 2026-08-24. It matters more here, not less: a visitor's question
-        // about a competitor or a claim in a contract is exactly the question
+        // about a competitor or a claim in a proposal is exactly the question
         // no brief can hold, and the alternative to a lookup is a guess.
         // Results arrive fenced, and the prompt forbids anything inside the
         // fence from causing a call, because on this surface Otto is holding

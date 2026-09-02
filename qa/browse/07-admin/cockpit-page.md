@@ -17,7 +17,7 @@ goal-statement: |
 ## What this tests
 
 `GET /api/admin/floor-stats`, `GET /api/feedback`, and `src/pages/AdminPage.tsx`.
-The behavioural contract is `docs/ui-conventions.md`, "The cockpit": the
+The behavioural proposal is `docs/ui-conventions.md`, "The cockpit": the
 endpoints are platform-admin gated server-side, the page renders the waitlist
 and the reports in full rather than summarising them, and a caller who is not
 a platform admin is bounced to the floor with no error screen.

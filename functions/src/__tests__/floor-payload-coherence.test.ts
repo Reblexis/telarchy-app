@@ -9,13 +9,13 @@
  *     page drew the year's $77k line under the week's $213 call;
  *   - a weekly market targeted a week that had not started, so its chart drew
  *     this week's accumulation against next week's forecast;
- *   - a contract's conditional pair sat on a horizon the floor no longer had,
+ *   - a proposal's conditional pair sat on a horizon the floor no longer had,
  *     so its "impact" was priced on a week nobody could trade;
  *   - an approved branch priced at 1.0 on a 0..50 range, from a dollar ask
  *     subtracted off a headcount.
  *
  * So this file is not about one endpoint's happy path. It builds a floor that
- * looks like production - several open markets, contracts, decided contracts, trades,
+ * looks like production - several open markets, proposals, decided proposals, trades,
  * readings - and then asserts the CROSS-FIELD invariants a reader depends on.
  * A change that breaks any of them changes what the floor means, and should
  * fail here before anyone sees it.
@@ -120,7 +120,7 @@ type Floor = {
 
 /**
  * A floor with more markets than it shows: a dollar metric
- * and a countable one, contracts in every state, real trades, real readings.
+ * and a countable one, proposals in every state, real trades, real readings.
  */
 async function seedFloor() {
   await db.insert(agents).values([
@@ -257,8 +257,8 @@ async function seedFloor() {
     },
   ]);
 
-  // One pending contract priced on BOTH clocks, one approved and one declined,
-  // each with the branch pairs a decided contract keeps.
+  // One pending proposal priced on BOTH clocks, one approved and one declined,
+  // each with the branch pairs a decided proposal keeps.
   await db.insert(proposals).values([
     {
       id: 'prop-pending',
@@ -329,7 +329,7 @@ async function seedFloor() {
     branch('cm-p-y-d', 'prop-pending', 'declined', YEAR_METRIC, 'Net 2026 (USD)', '2026-12', 150_000, [0, 0]),
     branch('cm-p-w-a', 'prop-pending', 'approved', WEEK_METRIC, 'Revenue this week (USD)', '2026-W34', 8_000, [0, 0]),
     branch('cm-p-w-d', 'prop-pending', 'declined', WEEK_METRIC, 'Revenue this week (USD)', '2026-W34', 8_000, [0, 0]),
-    // An approved contract keeps the world that happened and voids the other.
+    // An approved proposal keeps the world that happened and voids the other.
     branch('cm-a-y-a', 'prop-approved', 'approved', YEAR_METRIC, 'Net 2026 (USD)', '2026-12', 150_000, [0, 5]),
     branch('cm-a-y-d', 'prop-approved', 'declined', YEAR_METRIC, 'Net 2026 (USD)', '2026-12', 150_000, [0, 3], true),
     branch('cm-d-y-a', 'prop-declined', 'approved', YEAR_METRIC, 'Net 2026 (USD)', '2026-12', 150_000, [0, 2], true),
@@ -369,7 +369,7 @@ describe('every market describes itself completely', () => {
     }
   });
 
-  test('the list is soonest-first, which is the contract the floor reverses', async () => {
+  test('the list is soonest-first, which is the proposal the floor reverses', async () => {
     // The page flips this to show the decision first. If the server ever
     // shipped another order, the floor would call the week its decision.
     const f = await floor();
@@ -461,8 +461,8 @@ describe('every horizon carries its own history', () => {
   });
 });
 
-describe('a contract is priced on horizons this floor actually has', () => {
-  test('a contract ships every pair it was spawned with, one per baseline market', async () => {
+describe('a proposal is priced on horizons this floor actually has', () => {
+  test('a proposal ships every pair it was spawned with, one per baseline market', async () => {
     // Owner report 2026-08-26: the payload shipped the three largest pairs, and
     // on a grid of two metrics by three dates the pair of the market on screen
     // could be one of the missing ones, so the board printed another metric's
@@ -480,7 +480,7 @@ describe('a contract is priced on horizons this floor actually has', () => {
 
   test('every pending pair sits on an open horizon', async () => {
     // The failure this pins: the weekly baseline rolled to a new week and the
-    // contracts' weekly pairs stayed on the old one, so the ballot showed an
+    // proposals' weekly pairs stayed on the old one, so the ballot showed an
     // impact priced on a week that was no longer on the page.
     const f = await floor();
     const open = new Set(f.markets.map(m => `${m.metricName}:${m.targetDate}`));
@@ -506,7 +506,7 @@ describe('a contract is priced on horizons this floor actually has', () => {
   test("a branch price stays inside the metric's band, and an untraded pair predicts nothing", async () => {
     // Both halves of the 2026-08-15 failure: an approved branch pinned at the
     // range floor by a dollar ask, and an identical fake impact on every
-    // contract. An untraded pair must open at zero delta.
+    // proposal. An untraded pair must open at zero delta.
     const f = await floor();
     const pending = f.proposals.find(p => p.id === 'prop-pending')!;
     for (const pair of pending.markets) {
@@ -522,13 +522,13 @@ describe('a contract is priced on horizons this floor actually has', () => {
     expect(traded.delta!).toBeGreaterThan(0);
   });
 
-  test('a decided contract keeps the record and never resurrects the dead world', async () => {
+  test('a decided proposal keeps the record and never resurrects the dead world', async () => {
     const f = await floor();
     const approved = f.proposals.find(p => p.id === 'prop-approved')!;
     const declined = f.proposals.find(p => p.id === 'prop-declined')!;
     expect(approved.status).toBe('approved');
     expect(declined.status).toBe('declined');
-    // A decided contract still shows the impact that was priced for it.
+    // A decided proposal still shows the impact that was priced for it.
     for (const p of [approved, declined]) {
       expect(p.markets.length).toBeGreaterThan(0);
       expect(p.markets[0].delta).not.toBeNull();

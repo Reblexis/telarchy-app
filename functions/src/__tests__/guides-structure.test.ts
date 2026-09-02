@@ -6,7 +6,7 @@ import { GUIDE_CATEGORIES } from '../routes/guides';
  * Static check of the /api/guides structure: every section is tagged with a
  * known category and an order; categories are exhaustive (no orphaned
  * sections); ordering is unique within a category. The Stripe-style
- * grouping is the contract the GuidesPage UI and external readers depend
+ * grouping is the proposal the GuidesPage UI and external readers depend
  * on, so a typo here surfaces as a build failure rather than a confusing
  * UI later.
  *

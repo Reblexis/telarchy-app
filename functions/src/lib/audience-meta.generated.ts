@@ -56,7 +56,7 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
       },
       {
         "q": "Is the API stable?",
-        "a": "The catalog at /api/help is the contract; changes land there first."
+        "a": "The catalog at /api/help is the proposal; changes land there first."
       }
     ]
   },

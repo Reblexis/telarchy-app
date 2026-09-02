@@ -215,7 +215,7 @@ proposalsRouter.post(
       workspaceId,
     ).catch(e => console.error('emitEvent failed:', e));
 
-    // Participants who asked to hear about new contracts here (off by default,
+    // Participants who asked to hear about new proposals here (off by default,
     // docs/vision.md "Participant email notifications").
     void notifyProposalCreated({ workspaceId, proposedBy, title, description });
 
@@ -307,9 +307,9 @@ proposalsRouter.get(
     // spawned rather than what is still worth reading.
     const branchMarketCount = allMarkets.reduce((n, p) => n + (p.approved ? 1 : 0) + (p.declined ? 1 : 0), 0);
     // What is worth reading is the ballot's rule: a voided pair is the record
-    // of a decided contract and dead weight on a pending one
+    // of a decided proposal and dead weight on a pending one
     // (lib/market-pairs.ts). This endpoint is the one Otto is told to fetch a
-    // contract's pricing from, so a retired horizon returned here would put
+    // proposal's pricing from, so a retired horizon returned here would put
     // back exactly what the brief stopped doing.
     const proposalMarkets = allMarkets
       .map(pair => ({
@@ -443,10 +443,10 @@ proposalsRouter.delete(
 );
 
 /**
- * Edit a contract: its title, its description, its price.
+ * Edit a proposal: its title, its description, its price.
  *
  * `trade` is the capability floor because the proposer is a trader, not a
- * manager; who may actually edit THIS contract (its proposer, or anyone with
+ * manager; who may actually edit THIS proposal (its proposer, or anyone with
  * manage) is decided in the service, next to the rest of the rules. See
  * docs/market-integrity.md I1b for why the words edit in place and the price
  * only moves while the pair is untraded.
@@ -468,7 +468,7 @@ proposalsRouter.patch(
         res.status(400).json({ error: 'title must be a string' });
         return;
       }
-      // Same 80 characters as creation: a contract title is a task name that has
+      // Same 80 characters as creation: a proposal title is a task name that has
       // to fit the rail row and the conditional headline.
       const err = validateContent(title, 'title', 80);
       if (err) {
@@ -508,7 +508,7 @@ proposalsRouter.patch(
   }),
 );
 
-/** What changed on a contract, and when: the log the floor renders beside it. */
+/** What changed on a proposal, and when: the log the floor renders beside it. */
 proposalsRouter.get(
   '/:proposalId/revisions',
   requireCapability('read'),
@@ -609,7 +609,7 @@ proposalsRouter.post(
     await db.insert(proposalMessages).values({ id, workspaceId, proposalId, from, content, createdAt: new Date() });
 
     // Tell the people this comment is addressed to (docs/vision.md,
-    // "Participant email notifications"): the contract's poster and anyone
+    // "Participant email notifications"): the proposal's poster and anyone
     // already in the thread. Fire-and-forget: posting must not wait on mail.
     void notifyCommentPosted({ workspaceId, from, content, proposalId });
 

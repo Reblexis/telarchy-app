@@ -241,7 +241,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
           },
           {
             "q": "Is the API stable?",
-            "a": "The catalog at /api/help is the contract; changes land there first."
+            "a": "The catalog at /api/help is the proposal; changes land there first."
           }
         ]
       }

@@ -336,7 +336,7 @@ export function AdminPage() {
 
         <EarnTableEditor />
 
-        {/* Who to pay, and where (owner ask 2026-08-20). Approving a contract
+        {/* Who to pay, and where (owner ask 2026-08-20). Approving a proposal
             means sending real money to a stranger, and their payout details are
             stripped from every other route by design, so this is the one place
             they surface. Search is explicit rather than a list on load: a page

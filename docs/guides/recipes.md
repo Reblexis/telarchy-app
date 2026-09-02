@@ -113,7 +113,7 @@ Handle the 400 with a `balance` field explicitly. It carries `{ balance, cost }`
 
 ## 3. LLM analyst
 
-An analyst reads before it prices. The workspace brief is one call, needs no key, and is written for exactly this: what the owner runs, what the metric means, the owner's own attached documents, current prices and open contracts, as markdown.
+An analyst reads before it prices. The workspace brief is one call, needs no key, and is written for exactly this: what the owner runs, what the metric means, the owner's own attached documents, current prices and open proposals, as markdown.
 
 **Scopes: `workspace:read` and `workspace:trade`.**
 

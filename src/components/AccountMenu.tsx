@@ -101,7 +101,7 @@ export function AccountMenu({
   // switches. Every notification email closes with "turn it off in account
   // settings"; landing the reader on the floor, or even in the dialog's
   // first section, and leaving them to hunt is the same as not linking.
-  // Router-driven, for the same reason as the floor's #contract link: an
+  // Router-driven, for the same reason as the floor's #proposal link: an
   // in-app navigation to #emails moves the hash by pushState, which fires no
   // hashchange event.
   useEffect(() => {

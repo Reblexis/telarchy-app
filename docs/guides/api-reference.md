@@ -128,7 +128,7 @@ echo "$HELP" | jq -r '.endpoints[] | select(.path|test("limit-orders")) | "\(.me
 # Everything you can call with no credentials.
 echo "$HELP" | jq -r '.endpoints[] | select(.auth == false) | "\(.method) \(.path)"'
 
-# The full contract for one endpoint, errors included.
+# The full proposal for one endpoint, errors included.
 echo "$HELP" | jq -r '.endpoints[] | select(.path == "/api/predictions/trade") | .description'
 
 # What a scope reaches.

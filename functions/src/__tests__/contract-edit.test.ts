@@ -1,5 +1,5 @@
 /**
- * Editing a contract: what a proposer may change, and what the market keeps
+ * Editing a proposal: what a proposer may change, and what the market keeps
  * (docs/market-integrity.md, I1b).
  *
  * Words and price both edit in place and are published as revisions. The
@@ -18,7 +18,7 @@ import { toUnits } from '../lib/validation';
 import { editProposalDefinition, proposalRevisionsFor } from '../services/proposals';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
-const WS = 'ws-contract-edit';
+const WS = 'ws-proposal-edit';
 const PROPOSER = 'agent-proposer';
 const OTHER = 'agent-other';
 const OWNER = 'agent-owner';
@@ -121,7 +121,7 @@ async function seedPair(opts: { traded?: boolean } = {}) {
 
 const reload = async () => (await db.select().from(proposals).where(eq(proposals.id, PROPOSAL)))[0];
 
-describe('who may edit a contract', () => {
+describe('who may edit a proposal', () => {
   test('the proposer may', async () => {
     await editProposalDefinition(PROPOSAL, WS, { description: 'Now six languages.' }, asProposer);
     expect((await reload()).description).toBe('Now six languages.');
@@ -139,7 +139,7 @@ describe('who may edit a contract', () => {
     expect((await reload()).description).toBe('Five languages.');
   });
 
-  test('a decided contract is closed to edits', async () => {
+  test('a decided proposal is closed to edits', async () => {
     await db.update(proposals).set({ status: 'approved' }).where(eq(proposals.id, PROPOSAL));
     await expect(
       editProposalDefinition(PROPOSAL, WS, { description: 'after the fact' }, asProposer),
@@ -253,9 +253,9 @@ describe('the price is machinery', () => {
   });
 
   test('a workspace manager can move the ask too, traded or not', async () => {
-    // The owner edits any contract with the same rules as its proposer
+    // The owner edits any proposal with the same rules as its proposer
     // (owner ask 2026-08-22: "add support for the workspace owner to edit
-    // contracts as well, including price").
+    // proposals as well, including price").
     await seedPair({ traded: true });
     const result = await editProposalDefinition(
       PROPOSAL,
@@ -272,7 +272,7 @@ describe('the price is machinery', () => {
     expect(revs.find(r => r.field === 'askUsd')?.changedBy).toBe(OWNER);
   });
 
-  test('the words are still editable on a traded contract', async () => {
+  test('the words are still editable on a traded proposal', async () => {
     await seedPair({ traded: true });
     const result = await editProposalDefinition(PROPOSAL, WS, { description: 'Clarified.' }, asProposer);
     expect(result.changed).toEqual(['description']);
@@ -295,7 +295,7 @@ describe('one price, stated once', () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
-  test('a priced title on a free contract is refused', async () => {
+  test('a priced title on a free proposal is refused', async () => {
     await expect(
       editProposalDefinition(
         PROPOSAL,

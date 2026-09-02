@@ -12,7 +12,7 @@ that the state can be recreated. History: notes/decisions/market-integrity.md.
 ## The five invariants
 
 **I1. A live market is never reset as a side effect.** (Applies to a
-contract's definition as well as a metric's: see I1b.) Destroying a market is a
+proposal's definition as well as a metric's: see I1b.) Destroying a market is a
 deliberate act with its own endpoint. It is never something that merely happens
 because an owner edited a field.
 
@@ -91,7 +91,7 @@ rule:
   append-only: which metric, which field, the old value, the new value, who
   changed it, when. Nothing serves those rows and nothing renders them, so the
   table is an internal audit trail today, not disclosure: a trader cannot yet
-  see whether the goalposts moved after they took their position. (A contract's
+  see whether the goalposts moved after they took their position. (A proposal's
   `proposal_revisions` are served and rendered; the metric's are the half that
   is missing.) Saving unchanged text writes nothing, because a log full of
   non-changes makes "did anything move?" harder to answer, not easier.
@@ -116,20 +116,20 @@ disclosure, not prevention, because no code can tell a clarification from a
 redefinition. That mitigation is specified and not built: the revisions are
 written and never published, so the risk is currently carried by traders who
 cannot see it. Serving `metric_definition_revisions` beside the definition, the
-way a contract's revisions already are, is what closes the gap.
+way a proposal's revisions already are, is what closes the gap.
 
-## I1b: a contract's definition edits the same way
+## I1b: a proposal's definition edits the same way
 
-A contract
+A proposal
 (`proposals`) is a definition too, and its conditional pair is a live market
 that prices it, so the split is the same one I1 draws for a metric:
 
 - **Words are edited in place, and published.** The title and the description
   are what a trader reads before pricing "if this is approved". The proposer,
-  or anyone with `manage`, may edit them while the contract is still pending.
+  or anyone with `manage`, may edit them while the proposal is still pending.
   The pair keeps its price, its pool and every position; the change writes an
   append-only `proposal_revisions` row, rendered on the floor beside the
-  contract, so someone already holding can see the goalposts move.
+  proposal, so someone already holding can see the goalposts move.
 - **The price edits like the words do.** While the pair is untraded, changing the ask **re-anchors** it
   (the branch markets are voided and respawned at the new number, which costs
   nothing because nobody is in them). Once anyone has traded either branch,
@@ -138,13 +138,13 @@ that prices it, so the split is the same one I1 draws for a metric:
   because taking the pair away from people who are in it is what I2 forbids.
   The protection is the same one I1 settled on for a metric's words:
   disclosure, not prevention. The change writes its append-only
-  `proposal_revisions` row, rendered beside the contract, so someone already
+  `proposal_revisions` row, rendered beside the proposal, so someone already
   holding can see the deal's number move and trade on the new one.
-- **The title may not disagree with the ask.** A paid contract's title carries
+- **The title may not disagree with the ask.** A paid proposal's title carries
   its price by convention ("$200: rewrite the store page"), and two places
   stating one number is how they end up stating two. An edit whose title names
   a different price than `askUsd` is refused with 400.
-- **Only while pending.** An approved contract's terms are the deal the owner
+- **Only while pending.** An approved proposal's terms are the deal the owner
   agreed to pay for, and a declined one's are what the published reason refers
   to. Neither is editable; the endpoint answers 409.
 
@@ -252,7 +252,7 @@ over is `DELETE /api/workspaces/:id` followed by creating a new one.
 
 `trades` and `liquidity_events` are append-only under a trigger (migration
 0055), but they are two of the ways money moves; payouts at settlement, void
-refunds, proposal stakes, proposal rewards, spam penalties, contract payments,
+refunds, proposal stakes, proposal rewards, spam penalties, proposal payments,
 signup grants, Manifold grants, admin adjustments, limit-order holds and top-ups
 all move money too, and every one of them goes through the ledger.
 
@@ -366,7 +366,7 @@ With all three invariants holding, a workspace's money state is derivable from
 five append-only tables: `trades` (who bought what at what price),
 `liquidity_events` (who funded which pool), `credit_ledger` (every balance
 delta with its reason), `metric_definition_revisions` (what each market was
-settling on at each moment) and `proposal_revisions` (what each contract's
+settling on at each moment) and `proposal_revisions` (what each proposal's
 words and ask were at each moment). Losing `agents.balance` costs nothing but
 a replay; losing any of the five is unrecoverable, which is why all five carry
 the append-only trigger.

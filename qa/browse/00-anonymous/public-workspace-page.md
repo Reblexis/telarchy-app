@@ -95,7 +95,7 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
   ("today", "this week") or "on <settle day>". With more than one metric or
   date the sentence's word is a cycle button (dotted underline,
   `.pubws-ask-word--live`) that steps to the next option and loops; with one
-  option it is plain text. Selecting a contract keeps the pickers and folds
+  option it is plain text. Selecting a proposal keeps the pickers and folds
   the condition into the SAME sentence ("What will be <company>'s <metric>
   <date> if <proposer> is paid $<ask> to do: <task>?", `?` at the end, the
   sentence on a wider measure), leaving the identity block in place; there
@@ -411,17 +411,17 @@ in dev.
 ## What can you do, and what a shared link says (2026-08-15)
 
 **"What can you do?" section:** BELOW "What is this?" and above the email
-door, two cards, Trade and Do a contract. Assert that document order, since
+door, two cards, Trade and Do a proposal. Assert that document order, since
 the point of it is comprehension before action:
 `.pubws-about-head` then `.pubws-do-head` then `.pubws-setup-lead`. Each scrolls to the control it names (`.pubws-bet` /
-`.pubws-rail--right`) rather than opening a modal. The contract card must
+`.pubws-rail--right`) rather than opening a modal. The proposal card must
 name real money; without it the offer reads as points.
 
 **Vocabulary guard:** no string the APP renders may contain "floor" or
-"job". The board is Contracts, the action is Offer to do a contract.
+"job". The board is Proposals, the action is Offer to do a proposal.
 
 Owner-authored content is exempt and must be, because it is data: a
-metric's stored description, a workspace charter, and contract titles are
+metric's stored description, a workspace charter, and proposal titles are
 written by the owner, and a metric's description is part of its DEFINITION
 (`docs/vision.md`), so editing one to change a word VOIDS every open market
 on it. LookPilot's metric description still reads "everything it pays out
@@ -434,6 +434,6 @@ must not match `/\\b(floor|jobs?)\\b/i`. The API keeps `proposal`.
 
 **Share unfurl:** `curl -s https://telarchy.com/<slug> | grep og:description`
 must contain BOTH the workspace's own line and what Telarchy is ("One
-number, run in the open on Telarchy: ... offer a contract to move it").
+number, run in the open on Telarchy: ... offer a proposal to move it").
 A card that only describes the product reads like a link to that product
 rather than to a market on it (owner report 2026-08-15).

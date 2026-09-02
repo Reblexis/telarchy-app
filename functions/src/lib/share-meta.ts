@@ -35,7 +35,7 @@ export interface ShareMetaWorkspace {
  * the mechanism instead of repeating them.
  */
 const MECHANISM =
-  'One number, run in the open on Telarchy: bet on where it lands, or offer a contract to move it and get paid if the owner approves.';
+  'One number, run in the open on Telarchy: bet on where it lands, or offer a proposal to move it and get paid if the owner approves.';
 
 /** First sentence-ish fragment of a charter, for workspaces with no description. */
 function workspaceLead(ws: ShareMetaWorkspace): string {

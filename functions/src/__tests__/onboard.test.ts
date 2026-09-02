@@ -2,7 +2,7 @@
  * HTTP-level tests for key-first onboarding (POST /api/onboard) and the
  * claim flow (GET/POST /api/onboard/claim).
  *
- * The contract under test: one unauthenticated call yields a participant with
+ * The proposal under test: one unauthenticated call yields a participant with
  * the reduced unclaimed grant, a workspace it owns, a scoped key, and a claim
  * URL; claiming binds a browser account, tops the balance up to the full
  * grant, consumes the token, and removes the account's zero-activity

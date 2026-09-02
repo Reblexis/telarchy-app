@@ -1,8 +1,8 @@
 /**
  * The conversation outlives the decision (docs/vision.md, owner ask
- * 2026-08-20): a decided contract's thread stays open, because what a
+ * 2026-08-20): a decided proposal's thread stays open, because what a
  * decision pauses is trading, not the talk about the outcome. The floor
- * renders the comment box on approved and declined contracts, so this
+ * renders the comment box on approved and declined proposals, so this
  * pins the guarantee it leans on: posting a message to a proposal in any
  * decided status still lands.
  */
@@ -76,7 +76,7 @@ function post(proposalId: string, content: string) {
     .send({ content });
 }
 
-describe('a decided contract keeps its thread open', () => {
+describe('a decided proposal keeps its thread open', () => {
   test.each(['approved', 'declined'])('posting on a %s proposal lands', async status => {
     await seed(status);
     const r = await post(`prop-${status}`, 'delivered, see the number');

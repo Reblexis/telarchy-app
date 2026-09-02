@@ -143,18 +143,18 @@ case "$status" in 400|404|409|422) ;; *) echo "expected 4xx for late conditional
 
 Auto.
 
-### T6. A contract's Positions/Trades tabs cover BOTH branches
+### T6. A proposal's Positions/Trades tabs cover BOTH branches
 
 Owner report 2026-08-21: "why dont i see any trades made on the conditional
-markets". A contract opens on "if approved"; when its only trades sat on the
+markets". A proposal opens on "if approved"; when its only trades sat on the
 declined branch, the branch-scoped panel answered "Trades (0)".
 
 **Steps:**
-1. On a public floor, place a trade on a contract's DECLINED branch (switch
-   the toggle to "if declined" first), or pick a contract whose trades are
+1. On a public floor, place a trade on a proposal's DECLINED branch (switch
+   the toggle to "if declined" first), or pick a proposal whose trades are
    known to sit on one branch only
    (`curl -s -H "X-Workspace-Id: <ws>" "$TT_BASE_URL/api/predictions/markets/<branchMarketId>/trades"`).
-2. Select the contract; leave the branch toggle on its default
+2. Select the proposal; leave the branch toggle on its default
    ("if approved").
 3. Read the panel toggles under the bet buttons, then open Trades.
 

@@ -107,16 +107,16 @@ export const SETUP_SPEC: SetupDecision[] = [
   },
   {
     id: 'contracts',
-    label: 'Contracts',
+    label: 'Proposals',
     question:
-      'When someone offers to do paid work for you, does its market get funded automatically, or do you decide per contract?',
-    why: 'A contract nobody has priced is a contract you are approving on a feeling. Funding every one is simple and wasteful; funding by hand means the good ones sometimes sit unpriced. An agent reading the contract can decide, which is the version that scales without going blind.',
+      'When someone offers to do paid work for you, does its market get funded automatically, or do you decide per proposal?',
+    why: 'A proposal nobody has priced is a proposal you are approving on a feeling. Funding every one is simple and wasteful; funding by hand means the good ones sometimes sit unpriced. An agent reading the proposal can decide, which is the version that scales without going blind.',
     options: [
-      'Auto-fund every contract market with a flat amount',
-      'Your agent reads each contract and funds it in proportion to what it is worth to you',
+      'Auto-fund every proposal market with a flat amount',
+      'Your agent reads each proposal and funds it in proportion to what it is worth to you',
       'You decide by hand on the market',
     ],
-    api: 'PUT /api/workspaces/:id/settings { autoFundNewMarkets, newMarketLiquidityCredits }; per contract, GET /api/proposals then POST /api/predictions/markets/:id/liquidity on its conditional pair; POST /api/predictions/markets/liquidity/bulk { amount, proposalId }.',
+    api: 'PUT /api/workspaces/:id/settings { autoFundNewMarkets, newMarketLiquidityCredits }; per proposal, GET /api/proposals then POST /api/predictions/markets/:id/liquidity on its conditional pair; POST /api/predictions/markets/liquidity/bulk { amount, proposalId }.',
   },
   {
     id: 'participation',

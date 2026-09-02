@@ -18,7 +18,7 @@ describe('the defaults are the design', () => {
       expect(CHANNEL_DEFAULTS[kind]).toEqual({ web: true, email: true, mobile: true });
     }
     expect(CHANNEL_DEFAULTS.anyComment).toEqual({ web: false, email: false, mobile: false });
-    // The bell has always shown new contracts; mail and push stay opt-in.
+    // The bell has always shown new proposals; mail and push stay opt-in.
     expect(CHANNEL_DEFAULTS.contract).toEqual({ web: true, email: false, mobile: false });
   });
 });

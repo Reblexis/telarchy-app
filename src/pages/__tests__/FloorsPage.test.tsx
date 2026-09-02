@@ -146,7 +146,7 @@ describe('marketplace', () => {
   test('the footer leads with settlement, then the activity behind it', async () => {
     renderPage();
     await screen.findByText('settles 31 August 2026');
-    expect(screen.getByText(/14 participants · 108 trades this week · 2 contracts priced now/)).toBeInTheDocument();
+    expect(screen.getByText(/14 participants · 108 trades this week · 2 proposals priced now/)).toBeInTheDocument();
   });
 
   test('listing your own number is a cell of the grid, not a footnote', async () => {
@@ -322,9 +322,9 @@ describe('the activity line', () => {
     // Only the proposal count is known from the listing payload; the
     // participant and trade counts are still in flight.
     const line = container.querySelector('.mkt-card-activity')?.textContent ?? '';
-    expect(line).toBe('2 contracts priced now');
+    expect(line).toBe('2 proposals priced now');
     release(payload);
-    await screen.findByText(/14 participants · 108 trades this week · 2 contracts priced now/);
+    await screen.findByText(/14 participants · 108 trades this week · 2 proposals priced now/);
   });
 });
 

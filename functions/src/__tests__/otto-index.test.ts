@@ -110,7 +110,7 @@ async function seed() {
     workspaceId: WS,
     proposedBy: 'owner',
     title: '$300: Post a Manifold market',
-    description: 'A LONG PITCH nobody needs before they have asked about this contract.',
+    description: 'A LONG PITCH nobody needs before they have asked about this proposal.',
     askUsd: 300,
     status: 'approved',
   });
@@ -119,7 +119,7 @@ async function seed() {
     workspaceId: WS,
     proposalId: 'prop-1',
     from: 'owner',
-    content: 'A COMMENT that belongs on the contract, not in his head.',
+    content: 'A COMMENT that belongs on the proposal, not in his head.',
   });
   await db.insert(markets).values([
     {
@@ -176,7 +176,7 @@ async function seed() {
   ]);
 }
 
-/** More contracts, each with its own priced pair, so size claims mean something. */
+/** More proposals, each with its own priced pair, so size claims mean something. */
 async function addContracts(n: number) {
   for (let i = 0; i < n; i++) {
     const id = `prop-extra-${i}`;
@@ -184,9 +184,9 @@ async function addContracts(n: number) {
       id,
       workspaceId: WS,
       proposedBy: 'owner',
-      title: `$${10 * (i + 1)}: contract number ${i}`,
+      title: `$${10 * (i + 1)}: proposal number ${i}`,
       description:
-        'A pitch of the length a real contract carries, several sentences of it, because that is what the brief has to hold and the index does not.',
+        'A pitch of the length a real proposal carries, several sentences of it, because that is what the brief has to hold and the index does not.',
       askUsd: 10 * (i + 1),
       status: i % 2 === 0 ? 'pending' : 'approved',
     });
@@ -217,7 +217,7 @@ async function addContracts(n: number) {
 
 const index = async () => renderContextIndex((await buildWorkspaceContext(WS))!);
 
-describe('the index carries what a floor IS, never what its contracts are worth', () => {
+describe('the index carries what a floor IS, never what its proposals are worth', () => {
   test('no priced impact reaches him unasked', async () => {
     const md = await index();
     // The pair prices 32.98 against 25; neither may appear, nor the words the
@@ -227,7 +227,7 @@ describe('the index carries what a floor IS, never what its contracts are worth'
     expect(md).not.toContain('32.98');
   });
 
-  test('a contract is one line: what it is, what it costs, where it stands', async () => {
+  test('a proposal is one line: what it is, what it costs, where it stands', async () => {
     const md = await index();
     expect(md).toContain('$300: Post a Manifold market');
     expect(md).toContain('approved');
@@ -247,7 +247,7 @@ describe('the index carries what a floor IS, never what its contracts are worth'
     expect(md).toContain('Revenue is Steam developer share');
   });
 
-  test('an open market keeps its price, because that is the floor, not a contract', async () => {
+  test('an open market keeps its price, because that is the floor, not a proposal', async () => {
     const md = await index();
     expect(md).toMatch(/market says/);
   });
@@ -259,8 +259,8 @@ describe('the index carries what a floor IS, never what its contracts are worth'
     expect(md).toContain('/context');
   });
 
-  test('the index is a fraction of the brief once a floor has real contracts', async () => {
-    // A one-contract floor proves nothing: the index carries a fixed block
+  test('the index is a fraction of the brief once a floor has real proposals', async () => {
+    // A one-proposal floor proves nothing: the index carries a fixed block
     // naming the endpoints, so it can be longer than a toy brief. What has to
     // hold is that it stops growing with the priced matrix, which is the part
     // that made the real Telarchy brief 46KB.
@@ -307,7 +307,7 @@ describe('the floor hands Otto the index, not the brief', () => {
 
 /**
  * The prompt has to describe the payload the route actually sends. It said
- * "every contract with its priced impact" for as long as that was true and
+ * "every proposal with its priced impact" for as long as that was true and
  * for one commit after it stopped being true, which is the belief that keeps
  * him from looking: an assistant told it is already holding the number does
  * not go and fetch it.
@@ -333,10 +333,10 @@ describe('the prompt describes what he is actually holding', () => {
 
   test('it never promises him a priced impact he was not given', async () => {
     const system = await systemTurn();
-    expect(system).not.toMatch(/every contract with its priced impact/i);
+    expect(system).not.toMatch(/every proposal with its priced impact/i);
   });
 
-  test('it says the contracts are a list and the prices are a call away', async () => {
+  test('it says the proposals are a list and the prices are a call away', async () => {
     const system = await systemTurn();
     expect(system).toMatch(/titles?[^.]*\bno prices?\b|no prices?[^.]*\btitles?\b/i);
     expect(system).toMatch(/call_api|go and read|fetch/i);

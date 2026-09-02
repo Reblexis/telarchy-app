@@ -310,14 +310,14 @@ describe('the credit ledger and the revision log are append-only too', () => {
 });
 
 /**
- * `proposal_revisions` is the contract-side twin of the metric revision log:
- * a contract's title, description and ask edit in place, and the revision row
+ * `proposal_revisions` is the proposal-side twin of the metric revision log:
+ * a proposal's title, description and ask edit in place, and the revision row
  * is the only thing that shows a holder the goalposts moved after they took
  * a position (docs/market-integrity.md, "Words are edited in place, and
  * published"). Created in 0066 with the same shape but, until 0080, without
  * the trigger; the first conformance audit (2026-08-25) found the gap.
  */
-describe('the contract revision log is append-only', () => {
+describe('the proposal revision log is append-only', () => {
   const revisionRow = {
     id: 'prev-1',
     workspaceId: WS,
@@ -328,13 +328,13 @@ describe('the contract revision log is append-only', () => {
     changedBy: AGENT,
   };
 
-  test('a contract revision can be written', async () => {
+  test('a proposal revision can be written', async () => {
     await seed();
     await db.insert(proposalRevisions).values(revisionRow);
     expect(await db.select().from(proposalRevisions)).toHaveLength(1);
   });
 
-  test('a contract revision cannot be edited or deleted', async () => {
+  test('a proposal revision cannot be edited or deleted', async () => {
     await seed();
     await db.insert(proposalRevisions).values(revisionRow);
 

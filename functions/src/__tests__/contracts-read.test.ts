@@ -1,12 +1,12 @@
 /**
  * GET /api/marketplace/:idOrSlug/contracts: the one read that answers "which
- * contract is worth approving".
+ * proposal is worth approving".
  *
  * It exists because of a measurement, not a preference. On 2026-08-31 Otto was
  * told the floor's public payload answered that question in one call. It does
  * carry the answer, inside 86KB, and an assistant's tool result is capped at
  * 24,000 characters, so what he actually got was the list cut in half and an
- * instruction to ask for something narrower. He then opened five contracts one
+ * instruction to ask for something narrower. He then opened five proposals one
  * at a time and the answer cost twice what it should have. A payload that has
  * to be truncated is not an answer.
  *
@@ -43,7 +43,7 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
  *  endpoint exists to stay under, so it is named rather than inlined. */
 const TOOL_RESULT_CAP = 24_000;
 
-const WS = 'ws-contracts';
+const WS = 'ws-proposals';
 const LIVE = '2030-06';
 const PAST = '2020-01';
 
@@ -78,7 +78,7 @@ async function seed(opts: { publicCaps?: string[]; visibility?: string } = {}) {
   });
 }
 
-async function contract(
+async function proposal(
   id: string,
   status: string,
   horizons: Array<{ date: string; approvedShares: number; voided?: boolean }>,
@@ -89,7 +89,7 @@ async function contract(
     proposedBy: 'owner',
     title: `$100: ${id}`,
     description:
-      'A pitch of the length a real contract carries. Several sentences of reasoning about why the work matters, what done looks like, and who is doing it, because that is what the full brief holds and this read does not.',
+      'A pitch of the length a real proposal carries. Several sentences of reasoning about why the work matters, what done looks like, and who is doing it, because that is what the full brief holds and this read does not.',
     askUsd: 100,
     status,
   });
@@ -98,7 +98,7 @@ async function contract(
     workspaceId: WS,
     proposalId: id,
     from: 'owner',
-    content: 'A conversation that belongs on the contract page.',
+    content: 'A conversation that belongs on the proposal page.',
   });
   for (const h of horizons) {
     for (const [branch, shares] of [
@@ -130,10 +130,10 @@ const get = (q = '') => request(app).get(`/api/marketplace/${WS}/contracts${q}`)
 
 describe('THE WHOLE FLOOR FITS IN ONE TOOL RESULT', () => {
   test('a floor the size of the real one lands under the assistant tool cap', async () => {
-    // Twenty contracts, three live horizons each plus retired ones, which is
+    // Twenty proposals, three live horizons each plus retired ones, which is
     // bigger than the floor that broke this.
     for (let i = 0; i < 20; i++) {
-      await contract(`c${i}`, i % 3 === 0 ? 'pending' : 'approved', [
+      await proposal(`c${i}`, i % 3 === 0 ? 'pending' : 'approved', [
         { date: LIVE, approvedShares: 10 + i },
         { date: '2031-01', approvedShares: 5 },
         { date: '2032-01', approvedShares: 8 },
@@ -152,7 +152,7 @@ describe('THE WHOLE FLOOR FITS IN ONE TOOL RESULT', () => {
     // are the elastic part, so they are what goes; the prices never do,
     // because they are the answer.
     for (let i = 0; i < 90; i++) {
-      await contract(`c${i}`, 'pending', [
+      await proposal(`c${i}`, 'pending', [
         { date: LIVE, approvedShares: 10 },
         { date: '2031-01', approvedShares: 5 },
         { date: '2032-01', approvedShares: 7 },
@@ -165,12 +165,12 @@ describe('THE WHOLE FLOOR FITS IN ONE TOOL RESULT', () => {
     expect(JSON.stringify(res.body).length).toBeLessThan(TOOL_RESULT_CAP);
   });
 
-  test('a floor with more contracts than one read holds SAYS so, never silently', async () => {
-    // The brief carries the newest 25 contracts. A reader deciding what to
+  test('a floor with more proposals than one read holds SAYS so, never silently', async () => {
+    // The brief carries the newest 25 proposals. A reader deciding what to
     // approve has to know when there are older ones it is not being shown,
     // because a silent cut is the failure this whole endpoint exists to end.
     for (let i = 0; i < 30; i++) {
-      await contract(`c${i}`, 'pending', [{ date: LIVE, approvedShares: 10 }]);
+      await proposal(`c${i}`, 'pending', [{ date: LIVE, approvedShares: 10 }]);
     }
     const res = await get();
     expect(res.body.contracts).toHaveLength(25);
@@ -179,7 +179,7 @@ describe('THE WHOLE FLOOR FITS IN ONE TOOL RESULT', () => {
   });
 
   test('a floor that fits says nothing about omission', async () => {
-    await contract('c1', 'pending', [{ date: LIVE, approvedShares: 10 }]);
+    await proposal('c1', 'pending', [{ date: LIVE, approvedShares: 10 }]);
     const res = await get();
     expect(res.body.contractsTotal).toBe(1);
     expect(res.body.olderContractsOmitted).toBeUndefined();
@@ -189,13 +189,13 @@ describe('THE WHOLE FLOOR FITS IN ONE TOOL RESULT', () => {
 
 describe('it carries what pricing a decision needs, and nothing else', () => {
   test('the gist of the pitch, never the conversation or the market plumbing', async () => {
-    await contract('c1', 'pending', [{ date: LIVE, approvedShares: 20 }]);
+    await proposal('c1', 'pending', [{ date: LIVE, approvedShares: 20 }]);
     const res = await get();
     // Without this the absence assertions below pass on a 404.
     expect(res.status).toBe(200);
     const body = JSON.stringify(res.body);
     // Enough of the pitch to know what the work IS, since a reader who cannot
-    // tell that from the title goes and opens the contract, which is the round
+    // tell that from the title goes and opens the proposal, which is the round
     // trip this endpoint exists to remove.
     expect(res.body.contracts[0].description).toContain('A pitch of the length');
     expect(body).not.toContain('A conversation that belongs');
@@ -203,7 +203,7 @@ describe('it carries what pricing a decision needs, and nothing else', () => {
   });
 
   test('a long pitch is cut and says it was cut', async () => {
-    await contract('c1', 'pending', [{ date: LIVE, approvedShares: 20 }]);
+    await proposal('c1', 'pending', [{ date: LIVE, approvedShares: 20 }]);
     await db
       .update(proposals)
       .set({ description: 'x'.repeat(3000) })
@@ -214,7 +214,7 @@ describe('it carries what pricing a decision needs, and nothing else', () => {
   });
 
   test('each horizon says what it is a price of', async () => {
-    await contract('c1', 'pending', [{ date: LIVE, approvedShares: 20 }]);
+    await proposal('c1', 'pending', [{ date: LIVE, approvedShares: 20 }]);
     const [c] = (await get()).body.contracts;
     expect(c).toMatchObject({ id: 'c1', askUsd: 100, status: 'pending', decisionOpen: true });
     const [h] = c.impact;
@@ -230,7 +230,7 @@ describe('it carries what pricing a decision needs, and nothing else', () => {
 
 describe('live horizons only, because a settled one cannot be influenced', () => {
   test('a settled horizon is left out by default', async () => {
-    await contract('c1', 'approved', [
+    await proposal('c1', 'approved', [
       { date: LIVE, approvedShares: 20 },
       { date: PAST, approvedShares: 40 },
     ]);
@@ -239,7 +239,7 @@ describe('live horizons only, because a settled one cannot be influenced', () =>
   });
 
   test('?horizons=all adds them back for anyone reading the record', async () => {
-    await contract('c1', 'approved', [
+    await proposal('c1', 'approved', [
       { date: LIVE, approvedShares: 20 },
       { date: PAST, approvedShares: 40 },
     ]);
@@ -247,25 +247,25 @@ describe('live horizons only, because a settled one cannot be influenced', () =>
     expect(c.impact.map((h: any) => h.targetDate)).toEqual([LIVE, PAST]);
   });
 
-  test('a contract whose every horizon has settled still appears, with an empty impact', async () => {
-    await contract('c1', 'approved', [{ date: PAST, approvedShares: 40 }]);
+  test('a proposal whose every horizon has settled still appears, with an empty impact', async () => {
+    await proposal('c1', 'approved', [{ date: PAST, approvedShares: 40 }]);
     const [c] = (await get()).body.contracts;
     expect(c.impact).toEqual([]);
   });
 });
 
 describe('the same rules the rest of the floor holds', () => {
-  test('a voided pair is dropped on a pending contract and kept on a decided one', async () => {
-    await contract('pend', 'pending', [{ date: LIVE, approvedShares: 20, voided: true }]);
-    await contract('done', 'approved', [{ date: LIVE, approvedShares: 20, voided: true }]);
+  test('a voided pair is dropped on a pending proposal and kept on a decided one', async () => {
+    await proposal('pend', 'pending', [{ date: LIVE, approvedShares: 20, voided: true }]);
+    await proposal('done', 'approved', [{ date: LIVE, approvedShares: 20, voided: true }]);
     const byId = new Map((await get()).body.contracts.map((c: any) => [c.id, c]));
     expect((byId.get('pend') as any).impact).toEqual([]);
     expect((byId.get('done') as any).impact).toHaveLength(1);
   });
 
-  test('contracts still open for a decision come first', async () => {
-    await contract('done', 'approved', [{ date: LIVE, approvedShares: 40 }]);
-    await contract('pend', 'pending', [{ date: LIVE, approvedShares: 10 }]);
+  test('proposals still open for a decision come first', async () => {
+    await proposal('done', 'approved', [{ date: LIVE, approvedShares: 40 }]);
+    await proposal('pend', 'pending', [{ date: LIVE, approvedShares: 10 }]);
     const ids = (await get()).body.contracts.map((c: any) => c.id);
     expect(ids).toEqual(['pend', 'done']);
   });

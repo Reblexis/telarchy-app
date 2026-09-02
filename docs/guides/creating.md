@@ -6,7 +6,7 @@ order: 10
 ---
 # Open a floor
 
-A floor is one workspace: your numbers, the markets on them, and the contracts
+A floor is one workspace: your numbers, the markets on them, and the proposals
 people offer you against them. Opening one takes two API calls.
 
 ## There is no admin console
@@ -17,7 +17,7 @@ settings page and click save" is dead. What exists in a browser today, on a
 public or unlisted floor, is the trading page itself, and on it the owner gets
 four things:
 
-- the approve, decline and remove bar on each contract,
+- the approve, decline and remove bar on each proposal,
 - the hero metric's description, edited in place,
 - the "What is *name*?" blurb,
 - announcements, published and edited at `<floor>/announcements`.
@@ -82,7 +82,7 @@ you expect to rename.
 ```
 POST /api/metrics
 { "name": "Net revenue 2026 (USD)",
-  "description": "Stripe gross minus refunds and approved contracts, read on the 1st.",
+  "description": "Stripe gross minus refunds and approved proposals, read on the 1st.",
   "value": 0,
   "marketRangeMax": 250000,
   "timePreference": { "enabled": true, "halfLife": 1 } }
@@ -195,7 +195,7 @@ requires the owner to have a participant record with a balance to spend.
 some of the new markets, the affordable ones are funded at the full rate now and
 the rest open unfunded, to be picked up by a later refresh as the balance
 allows. That beats the old behaviour, where a day's rollover left every market
-at zero because the balance was short of the whole day's need. A contract's
+at zero because the balance was short of the whole day's need. A proposal's
 conditional markets follow a different rule, described in
 [deciding a proposal](/guides/proposals).
 
@@ -251,7 +251,7 @@ this" - and the answer was no. Records: `notes/bug-hunt-2026-08-31.md`, P0-7.
 **Whether the Public group holds `read`** is the second switch, and it is not
 implied by the first. A public workspace whose Public group lacks `read` keeps a
 counts-only boundary: metric names, market prices and counts are visible, while
-logged values, contract text and chat need membership. Granting the Public group
+logged values, proposal text and chat need membership. Granting the Public group
 `read` makes it an open floor, where the whole ballot is in the public payload
 because anyone is one free self-join away from it anyway. An anonymous reader
 gets `read` and nothing more, even on a floor whose Public group also holds
@@ -280,7 +280,7 @@ flat set with no implication chain.
 
 > **`manage_workspace` is not implied by `manage`, and the Admin group does not
 > have it.** A teammate you add with `role: "admin"` lands in a group carrying
-> `read`, `trade` and `manage`. They can approve contracts, edit metrics,
+> `read`, `trade` and `manage`. They can approve proposals, edit metrics,
 > publish announcements, edit the charter and manage groups. They get 403 on
 > every lifecycle setting (`visibility`, `autoFundNewMarkets`,
 > `newMarketLiquidityCredits`, `proposalReward`, `spamPenalty`,

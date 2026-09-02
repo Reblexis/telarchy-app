@@ -19,7 +19,7 @@ import { api } from '../lib/api';
  * and the dialogs (docs/ui-conventions.md, "Hairlines, not cards").
  *
  * Neither row says "ask" once someone is signed in, because neither is only
- * answering: Otto trades, offers contracts and writes numbers as the person,
+ * answering: Otto trades, offers proposals and writes numbers as the person,
  * and so does their own agent once it holds a key (owner ask 2026-08-31). The
  * words change with what the reader may actually do, so a trader is offered
  * trading and a manager is offered running the thing.
@@ -123,8 +123,8 @@ export function AgentDoors({
   const note = !signedIn
     ? 'Otto can act for you once you have an account. The prompt reads the public brief and needs no key.'
     : manager
-      ? 'Both act as you: numbers, dates, liquidity, contracts. Yours works on a key you choose.'
-      : 'Otto places bets and offers contracts as you. Your own AI does the same, on a key you choose.';
+      ? 'Both act as you: numbers, dates, liquidity, proposals. Yours works on a key you choose.'
+      : 'Otto places bets and offers proposals as you. Your own AI does the same, on a key you choose.';
 
   const promptFor = (g: KeyGrant): string =>
     manager && state

@@ -41,7 +41,7 @@ describe('injectWorkspaceMeta', () => {
     // this link in a Discord has no idea what the site does, and a lone
     // product one-liner reads like a link to the product itself.
     expect(out).toContain('A real Steam product. The winner ships. One number, run in the open on Telarchy');
-    expect(out).toMatch(/offer a contract to move it and get paid/);
+    expect(out).toMatch(/offer a proposal to move it and get paid/);
     expect(out).toContain('og:url" content="https://telarchy.com/marketplace/lookpilot"');
     // The static generic tags must be gone, or scrapers see two competing sets.
     expect(out).not.toContain('Generic site description.');

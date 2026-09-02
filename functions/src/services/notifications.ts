@@ -1,11 +1,11 @@
 /**
- * Participant email notifications (owner ask 2026-08-19; the contract is
+ * Participant email notifications (owner ask 2026-08-19; the proposal is
  * docs/vision.md, "Participant email notifications").
  *
- * The switches all live on the participant row: a comment under a contract
+ * The switches all live on the participant row: a comment under a proposal
  * you posted, a reply in a thread you are in, a market you traded settling,
- * a contract you traded or commented on being decided (all on by default),
- * and the two firehoses, every new contract and every comment on a workspace
+ * a proposal you traded or commented on being decided (all on by default),
+ * and the two firehoses, every new proposal and every comment on a workspace
  * (off by default). This module owns who gets mail and what it says;
  * lib/notify.ts owns the transport.
  *
@@ -15,9 +15,9 @@
  *   with `void`, and every failure inside is logged and swallowed, because a
  *   comment that 500s when Resend is down is a worse product than a comment
  *   that goes unannounced.
- * - **One person, one email per event.** A contract's poster who also
+ * - **One person, one email per event.** A proposal's poster who also
  *   commented in its thread matches two switches; they still get exactly one
- *   message, and it names the closer reason (it is their contract).
+ *   message, and it names the closer reason (it is their proposal).
  */
 
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
@@ -54,19 +54,19 @@ type Reason =
   | 'market-resolved';
 
 const REASON_LINE: Record<Reason, string> = {
-  'my-proposal': 'You are getting this because someone commented on a contract you posted.',
+  'my-proposal': 'You are getting this because someone commented on a proposal you posted.',
   reply: 'You are getting this because you commented in this thread.',
-  'new-proposal': 'You are getting this because you asked to hear about new contracts here.',
+  'new-proposal': 'You are getting this because you asked to hear about new proposals here.',
   'any-comment': 'You are getting this because you asked to hear about every comment on this workspace.',
-  decision: 'You are getting this because you posted this contract. Decisions on your own contracts are always sent.',
-  'decision-involved': 'You are getting this because you traded or commented on this contract.',
+  decision: 'You are getting this because you posted this proposal. Decisions on your own proposals are always sent.',
+  'decision-involved': 'You are getting this because you traded or commented on this proposal.',
   'market-resolved': 'You are getting this because you traded this market.',
 };
 
 /**
  * The column each reason reads, so a switch is checked in exactly one place.
  * `null` means the reason has no switch and always sends: a decision on your
- * own contract is the answer to a question you asked, usually with money on
+ * own proposal is the answer to a question you asked, usually with money on
  * it, so the only reason anyone would turn it off is by mistake.
  */
 const REASON_COLUMN: Record<
@@ -189,10 +189,10 @@ async function deliver(recipients: Recipient[], subject: string, body: (r: Recip
 }
 
 /**
- * Someone posted a comment. Notifies the contract's poster (their contract)
+ * Someone posted a comment. Notifies the proposal's poster (their proposal)
  * and everyone else already in the thread (a reply), minus the author.
  *
- * Called for both comment surfaces: `proposalId` is a contract thread,
+ * Called for both comment surfaces: `proposalId` is a proposal thread,
  * `marketId` a market thread. A market thread has no poster, so only the
  * reply switch can fire there.
  */
@@ -205,7 +205,7 @@ export async function notifyCommentPosted(opts: {
 }): Promise<void> {
   const { workspaceId, from, content, proposalId, marketId } = opts;
   try {
-    // Reason precedence: the contract's poster is claimed first, so a poster
+    // Reason precedence: the proposal's poster is claimed first, so a poster
     // who also commented gets the my-proposal line rather than the reply one
     // and, either way, exactly one email.
     const wanted = new Map<string, Reason>();
@@ -240,9 +240,9 @@ export async function notifyCommentPosted(opts: {
       if (!market) return;
       subjectLabel = `${market.metricName} ${market.targetDate}`;
 
-      // A conditional market BELONGS to a contract, so a comment on one is
-      // a comment about that contract and its poster is owed it exactly as
-      // if it had landed in the contract's own thread. Without this, the
+      // A conditional market BELONGS to a proposal, so a comment on one is
+      // a comment about that proposal and its poster is owed it exactly as
+      // if it had landed in the proposal's own thread. Without this, the
       // half of the conversation that happens on the branch markets is
       // silent to the one person being asked to do the work.
       if (market.proposalId) {
@@ -313,8 +313,8 @@ export async function notifyCommentPosted(opts: {
 }
 
 /**
- * A contract went on the ballot. Notifies every member of the workspace who
- * asked to hear about new contracts, minus the poster. Membership is the
+ * A proposal went on the ballot. Notifies every member of the workspace who
+ * asked to hear about new proposals, minus the poster. Membership is the
  * permission groups' member lists, i.e. the same set the workspace itself
  * calls its participants.
  */
@@ -347,14 +347,14 @@ export async function notifyProposalCreated(opts: {
     const settings = await floorUrl(workspaceId, '#emails');
 
     await pushDeliver(wanted, {
-      title: `New contract on ${name}`,
+      title: `New proposal on ${name}`,
       body: title,
       url,
     });
 
-    await deliver(recipients, `New contract on ${name}: ${title}`, r =>
+    await deliver(recipients, `New proposal on ${name}: ${title}`, r =>
       [
-        `${author} put a contract on the ballot for ${name}:`,
+        `${author} put a proposal on the ballot for ${name}:`,
         '',
         title,
         ...(description?.trim() ? ['', preview(description)] : []),
@@ -366,17 +366,17 @@ export async function notifyProposalCreated(opts: {
       ].join('\n'),
     );
   } catch (e) {
-    console.error('new-contract notification failed:', e);
+    console.error('new-proposal notification failed:', e);
   }
 }
 
 /**
- * The owner decided on a contract: approved, declined, or declined as spam.
+ * The owner decided on a proposal: approved, declined, or declined as spam.
  * Mails the proposer, and only the proposer.
  *
  * This one has no switch (owner ask 2026-08-19). Every other email here is
  * news about someone else's activity, which a person is entitled to tune; a
- * decision is the answer to the question they asked by posting the contract,
+ * decision is the answer to the question they asked by posting the proposal,
  * with their ask price on it. Somebody who filed a job and closed the tab has
  * nothing else to bring them back, so the only reason this would ever be off
  * is a mis-click.
@@ -408,7 +408,7 @@ export async function notifyProposalDecided(opts: { workspaceId: string; proposa
 
     // The proposer first (switchless), then everyone else with money or words
     // on the outcome (owner ask 2026-08-24): whoever traded either branch or
-    // commented anywhere in the contract's conversation. The decider is never
+    // commented anywhere in the proposal's conversation. The decider is never
     // told about their own act.
     const wanted = new Map<string, Reason>([[proposal.proposedBy, 'decision' as Reason]]);
     const pairMarkets = await db
@@ -442,7 +442,7 @@ export async function notifyProposalDecided(opts: { workspaceId: string; proposa
     const recipients = await resolveRecipients(wanted);
     if (recipients.length === 0 && wanted.size === 0) return;
 
-    const { url, name } = await floorUrl(workspaceId, `#contract=${encodeURIComponent(proposalId)}`);
+    const { url, name } = await floorUrl(workspaceId, `#proposal=${encodeURIComponent(proposalId)}`);
     const settings = await floorUrl(workspaceId, '#emails');
     const verb = approved ? 'approved' : proposal.status === 'declined_spam' ? 'declined as spam' : 'declined';
     // A decline with no reason is a fact worth stating, not a blank space: it
@@ -451,15 +451,15 @@ export async function notifyProposalDecided(opts: { workspaceId: string; proposa
 
     await pushDeliver(wanted, {
       title: `${approved ? 'Approved' : 'Declined'}: ${proposal.title}`,
-      body: reason ? `Reason: ${preview(reason, 140)}` : `${name} ${verb} this contract.`,
+      body: reason ? `Reason: ${preview(reason, 140)}` : `${name} ${verb} this proposal.`,
       url,
     });
 
     await deliver(recipients, `${approved ? 'Approved' : 'Declined'}: ${proposal.title}`, r =>
       [
-        // "your contract" is the proposer's sentence; everyone else hears
-        // about a contract they took a side on, not one they own.
-        r.reason === 'decision' ? `${name} ${verb} your contract:` : `${name} ${verb} this contract:`,
+        // "your proposal" is the proposer's sentence; everyone else hears
+        // about a proposal they took a side on, not one they own.
+        r.reason === 'decision' ? `${name} ${verb} your proposal:` : `${name} ${verb} this proposal:`,
         '',
         proposal.title,
         ...(proposal.askUsd
@@ -515,8 +515,8 @@ export async function notifyMarketResolved(opts: { workspaceId: string; marketId
     const recipients = await resolveRecipients(wanted);
     if (recipients.length === 0 && wanted.size === 0) return;
 
-    // A branch market settles a contract's question, so the subject names the
-    // contract when there is one; the bare label is a metric and its period.
+    // A branch market settles a proposal's question, so the subject names the
+    // proposal when there is one; the bare label is a metric and its period.
     let subjectLabel = `${market.metricName} ${market.targetDate}`;
     if (market.proposalId) {
       const [proposal] = await db
@@ -575,7 +575,7 @@ export interface NotificationItem {
   at: Date;
   /** Who caused it, as a display handle. Null for events with no actor. */
   actor: string | null;
-  /** What it happened to: a contract title, or a market's name. */
+  /** What it happened to: a proposal title, or a market's name. */
   subject: string;
   /** The comment, the pitch, or the decline reason. May be empty. */
   detail: string;
@@ -626,7 +626,7 @@ export async function listNotifications(
     .where(eq(notificationReads.agentId, participantId));
   const readIds = new Set(readRows.map(r => r.itemId));
 
-  // Where this participant is a member: the scope of "a new contract".
+  // Where this participant is a member: the scope of "a new proposal".
   const groups = await db
     .select({
       workspaceId: permissionGroups.workspaceId,
@@ -673,7 +673,7 @@ export async function listNotifications(
       .from(proposals)
       .where(eq(proposals.proposedBy, participantId)),
     // Markets this participant traded: the scope of "a market I traded
-    // settled" and half the scope of "a contract I am involved in".
+    // settled" and half the scope of "a proposal I am involved in".
     db.select({ marketId: trades.marketId }).from(trades).where(eq(trades.agentId, participantId)),
   ]);
   const myTradedMarketIds = [...new Set(myTradeRows.map(t => t.marketId))];
@@ -695,8 +695,8 @@ export async function listNotifications(
   const inMarketThreads = [...joinedMarketThreadAt.keys()];
   const titleOf = new Map(myProposals.map(p => [p.id, p.title]));
 
-  // Conditional markets belong to a contract, so their threads are part of
-  // that contract's conversation (see notifyCommentPosted).
+  // Conditional markets belong to a proposal, so their threads are part of
+  // that proposal's conversation (see notifyCommentPosted).
   const myBranchMarkets =
     myProposalIds.length === 0
       ? []
@@ -761,7 +761,7 @@ export async function listNotifications(
           .limit(limit * 2),
   ]);
 
-  // Settled markets I traded, and decided contracts I am involved in
+  // Settled markets I traded, and decided proposals I am involved in
   // (traded either branch, or commented in the conversation). Owner ask
   // 2026-08-24: the bell carries these, not only the mail.
   const tradedMarkets =
@@ -961,14 +961,14 @@ export async function listNotifications(
     if (c.from === participantId) continue;
     const mine = myProposalIds.includes(c.proposalId);
     // A thread I merely joined owes me nothing older than my first message
-    // in it; my own contract's thread owes me everything.
+    // in it; my own proposal's thread owes me everything.
     if (!mine && c.createdAt.getTime() < (joinedProposalThreadAt.get(c.proposalId) ?? Infinity)) continue;
     items.push({
       id: `pm-${c.id}`,
       kind: mine ? 'comment' : 'reply',
       at: c.createdAt,
       actor: handle(c.from),
-      subject: titleOf.get(c.proposalId) ?? 'a contract',
+      subject: titleOf.get(c.proposalId) ?? 'a proposal',
       detail: c.content,
       workspaceSlug: slugs.get(c.workspaceId) ?? null,
       proposalId: c.proposalId,
@@ -981,7 +981,7 @@ export async function listNotifications(
   for (const c of marketComments) {
     if (c.from === participantId) continue;
     const owned = branchOwner.get(c.marketId);
-    // Same cutoff as contract threads: a branch market of my own contract
+    // Same cutoff as proposal threads: a branch market of my own proposal
     // owes me everything, a thread I joined only what came after I spoke.
     if (!owned && c.createdAt.getTime() < (joinedMarketThreadAt.get(c.marketId) ?? Infinity)) continue;
     items.push({
@@ -989,7 +989,7 @@ export async function listNotifications(
       kind: owned ? 'comment' : 'reply',
       at: c.createdAt,
       actor: handle(c.from),
-      subject: owned ? (titleOf.get(owned) ?? 'a contract') : (marketLabel.get(c.marketId) ?? 'a market'),
+      subject: owned ? (titleOf.get(owned) ?? 'a proposal') : (marketLabel.get(c.marketId) ?? 'a market'),
       detail: c.content,
       workspaceSlug: slugs.get(c.workspaceId) ?? null,
       proposalId: owned ?? null,
@@ -1016,11 +1016,11 @@ export async function listNotifications(
     });
   }
 
-  // A decision on your own contract is the one thing here you were actually
+  // A decision on your own proposal is the one thing here you were actually
   // waiting for, so it is in the inbox even though no email switch covers it.
   // Withdrawing is your own doing and removing is admin cleanup, not a
   // decision, so neither produces a row (docs/vision.md, "Two neighbouring
-  // events stay silent on purpose"); a removed contract still carries a
+  // events stay silent on purpose"); a removed proposal still carries a
   // resolvedAt, which is why the status is checked and not only the date.
   for (const p of myProposals) {
     if (!p.resolvedAt || p.status === 'pending' || p.status === 'withdrawn' || p.status === 'removed') continue;
@@ -1077,8 +1077,8 @@ export async function listNotifications(
     });
   }
 
-  // A verdict on a contract I traded or commented on. Same `dec-` id space as
-  // my own contracts' decisions: the sets are disjoint (mine are filtered out
+  // A verdict on a proposal I traded or commented on. Same `dec-` id space as
+  // my own proposals' decisions: the sets are disjoint (mine are filtered out
   // of involvedDecided), so one id never means two rows.
   for (const p of involvedDecided) {
     items.push({
@@ -1107,7 +1107,7 @@ export async function listNotifications(
       kind: 'anyComment',
       at: c.createdAt,
       actor: handle(c.from),
-      subject: titleOf.get(c.proposalId) ?? 'a contract',
+      subject: titleOf.get(c.proposalId) ?? 'a proposal',
       detail: c.content,
       workspaceSlug: slugs.get(c.workspaceId) ?? null,
       proposalId: c.proposalId,

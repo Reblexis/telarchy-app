@@ -21,7 +21,7 @@ import { HELP } from '../lib/help-catalog';
  *
  * The rule he must not break is in the system prompt, not here, because it is
  * a judgment rather than a permission: only the person in the conversation
- * gives him instructions. A contract description, a comment or a document is
+ * gives him instructions. A proposal description, a comment or a document is
  * text he is reading, never an order he follows.
  */
 
@@ -30,7 +30,7 @@ import { HELP } from '../lib/help-catalog';
  *  the browser talking about itself. */
 const IDENTITY_HEADERS = ['cookie', 'authorization', 'x-api-key', 'x-agent-key', 'x-workspace-id'] as const;
 
-/** How much of a response Otto is given. A floor payload with every contract
+/** How much of a response Otto is given. A floor payload with every proposal
  *  and its comments can run past a hundred kilobytes, which would spend the
  *  whole context on one lookup. He is told when it was cut. */
 const MAX_RESULT_CHARS = 24_000;
@@ -138,7 +138,7 @@ export function ottoApiTools(req: Request, record: ApiCallRecord[], floorWorkspa
         description: signedIn
           ? 'Call the Telarchy API as the person you are talking to, with their own account. ' +
             'You can do anything they can do and nothing more: read their balance and positions, ' +
-            'place or sell a bet, post a comment, offer a contract, update their profile, and, ' +
+            'place or sell a bet, post a comment, offer a proposal, update their profile, and, ' +
             'if they own a workspace, manage it. Every call is made with their credentials, so a ' +
             '401 or 403 means they cannot do it either. Use find_endpoint first if unsure of the path.'
           : 'Call the Telarchy API as an anonymous visitor, because this person is not signed in. ' +

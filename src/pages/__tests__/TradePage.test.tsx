@@ -165,7 +165,7 @@ function renderFloor(entries: string[] = ['/lookpilot']) {
  */
 function BellStandIn() {
   const navigate = useNavigate();
-  return <button onClick={() => navigate('/lookpilot#contract=job-1&comment=c-2')}>stand-in notification</button>;
+  return <button onClick={() => navigate('/lookpilot#proposal=job-1&comment=c-2')}>stand-in notification</button>;
 }
 
 // Imported after the mocks so the page picks them up.
@@ -364,7 +364,7 @@ describe('the floor closes in two lines', () => {
     expect(how.getAttribute('href')).toBe('/forecast');
   });
 
-  test('and the contract line still scrolls to the control it names', async () => {
+  test('and the proposal line still scrolls to the control it names', async () => {
     const into = vi.fn();
     Element.prototype.scrollIntoView = into;
     const ws = h.workspace();
@@ -374,12 +374,12 @@ describe('the floor closes in two lines', () => {
 
     const { container } = renderFloor();
     const close = await screen.findByLabelText('New here?');
-    fireEvent.click(within(close).getByText(/offer a contract/i));
+    fireEvent.click(within(close).getByText(/offer a proposal/i));
     expect(into).toHaveBeenCalled();
     expect(container.querySelector('.pubws-rail--right')).toBeTruthy();
   });
 
-  test('the floor calls them contracts, never jobs', async () => {
+  test('the floor calls them proposals, never jobs', async () => {
     const { container } = renderFloor();
     await screen.findByLabelText('New here?');
     expect(container.textContent).not.toMatch(/\bjobs?\b/i);
@@ -405,13 +405,13 @@ test('the page explains, then asks, then offers the owner door', async () => {
 });
 
 /**
- * A selected contract must show its branch market's positions and trades,
+ * A selected proposal must show its branch market's positions and trades,
  * not just the conversation (owner report 2026-08-15: an external user's
- * contract had a real trade on the approved branch and the panel rendered
+ * proposal had a real trade on the approved branch and the panel rendered
  * "Comments (0)" alone).
  */
-describe('the activity panel under a selected contract', () => {
-  test('asks for the branch market, not only the contract thread', async () => {
+describe('the activity panel under a selected proposal', () => {
+  test('asks for the branch market, not only the proposal thread', async () => {
     const { api } = await import('../../lib/api');
     const ws = h.workspace();
     ws.joinAs = 'trader';
@@ -422,7 +422,7 @@ describe('the activity panel under a selected contract', () => {
     const row = await screen.findByTitle('rewrite the store page');
     fireEvent.click(row);
 
-    // The comment thread stays keyed to the contract; the activity read is
+    // The comment thread stays keyed to the proposal; the activity read is
     // keyed to the branch market on screen.
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-approved'));
     expect(vi.mocked(api.getFloorComments)).toHaveBeenCalledWith(
@@ -432,9 +432,9 @@ describe('the activity panel under a selected contract', () => {
   });
 
   // The conversation outlives the decision (owner ask 2026-08-20,
-  // docs/vision.md): hiding the whole trade section on a decided contract
+  // docs/vision.md): hiding the whole trade section on a decided proposal
   // buried its thread exactly when the outcome is worth discussing.
-  test('a decided contract keeps its comment thread, without the bet verbs', async () => {
+  test('a decided proposal keeps its comment thread, without the bet verbs', async () => {
     const { api } = await import('../../lib/api');
     const ws = h.workspace();
     ws.joinAs = 'trader';
@@ -864,22 +864,30 @@ describe('which market is the headline, across a poll', () => {
  * implementation did nothing in the most common case of all.
  */
 describe('a notification link lands on what it names', () => {
-  test('an in-app click selects the contract and points at the comment', async () => {
+  test('an in-app click selects the proposal and points at the comment', async () => {
     renderFloor();
     await screen.findByTitle('rewrite the store page');
-    // The floor starts on the baseline market, not on the contract.
+    // The floor starts on the baseline market, not on the proposal.
     expect(screen.queryByRole('button', { name: 'if declined' })).toBeNull();
 
     fireEvent.click(screen.getByText('stand-in notification'));
 
-    // The contract is open: its branch toggle only exists when one is.
+    // The proposal is open: its branch toggle only exists when one is.
     // (What the floor then does with the comment id is FloorComments'
-    // contract, pinned in its own spec; this one is about the hash arriving
+    // proposal, pinned in its own spec; this one is about the hash arriving
     // at all, which is the half that was broken.)
     expect(await screen.findByRole('button', { name: 'if declined' })).toBeTruthy();
   });
 
   test('a pasted link works the same on first paint', async () => {
+    renderFloor(['/lookpilot#proposal=job-1']);
+    expect(await screen.findByRole('button', { name: 'if declined' })).toBeTruthy();
+  });
+
+  // The link was `#contract=<id>` until the rename (docs/ui-conventions.md,
+  // "The thing on the ballot is a PROPOSAL"), and it is printed in every
+  // email sent before it, so it keeps opening the same proposal.
+  test('an older #contract= link from an email already sent still opens the proposal', async () => {
     renderFloor(['/lookpilot#contract=job-1']);
     expect(await screen.findByRole('button', { name: 'if declined' })).toBeTruthy();
   });
@@ -913,21 +921,21 @@ describe('the floor carries Otto', () => {
 });
 
 /**
- * Opening a contract used to REPLACE the clock line with the contract's own
+ * Opening a proposal used to REPLACE the clock line with the proposal's own
  * header, so the horizon arrows vanished and `pair` fell back to
  * `selectedJob.markets[0]`. The backend was never the problem:
  * createConditionalMarkets spawns a pair per baseline market, so a two-clock
- * floor gives a contract four conditional markets and the API serves all of
+ * floor gives a proposal four conditional markets and the API serves all of
  * them. The floor reached exactly one, and WHICH one depended on the horizon
- * the reader happened to be on before they clicked in, so a contract's number
+ * the reader happened to be on before they clicked in, so a proposal's number
  * moved with state nobody could see.
  *
- * The rule these pin (docs/ui-conventions.md, "A contract keeps the clock
+ * The rule these pin (docs/ui-conventions.md, "A proposal keeps the clock
  * line"): the question line and its cycle words render in BOTH states, and
- * the contract adds one sentence underneath naming the world.
+ * the proposal adds one sentence underneath naming the world.
  */
-describe('a contract keeps the clock line', () => {
-  /** A floor with two open horizons, and a contract priced on both. */
+describe('a proposal keeps the clock line', () => {
+  /** A floor with two open horizons, and a proposal priced on both. */
   function twoClocks() {
     const ws = h.workspace();
     // The activity panel (and its per-branch read) only renders for someone
@@ -985,7 +993,7 @@ describe('a contract keeps the clock line', () => {
     return ws;
   }
 
-  test('the metric picker survives opening a contract', async () => {
+  test('the metric picker survives opening a proposal', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
@@ -999,12 +1007,12 @@ describe('a contract keeps the clock line', () => {
     await screen.findByRole('button', { name: 'if approved' });
 
     // The regression: this used to be 0, because the caption and its
-    // controls lived in the branch that a selected contract replaced.
+    // controls lived in the branch that a selected proposal replaced.
     expect(screen.getAllByRole('button', { name: /^Show / }).length).toBe(2);
     expect(screen.getByRole('button', { name: /^Date: / })).toBeTruthy();
   });
 
-  test('the clock line still names the metric and its settle day on a contract', async () => {
+  test('the clock line still names the metric and its settle day on a proposal', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
@@ -1023,7 +1031,7 @@ describe('a contract keeps the clock line', () => {
     expect(ask?.textContent).toMatch(/ on \d/);
   });
 
-  test('the contract folds its condition into the one question sentence', async () => {
+  test('the proposal folds its condition into the one question sentence', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
@@ -1041,7 +1049,7 @@ describe('a contract keeps the clock line', () => {
     expect(document.querySelector('.pubws-question')).toBeNull();
   });
 
-  test('picking the other metric re-points the contract at that market', async () => {
+  test('picking the other metric re-points the proposal at that market', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     vi.mocked(api.getMarketActivity).mockClear();
@@ -1080,7 +1088,7 @@ describe('a contract keeps the clock line', () => {
 });
 
 describe('the floor pins its own workspace context', () => {
-  // Owner report 2026-08-22: editing a contract answered "Proposal not
+  // Owner report 2026-08-22: editing a proposal answered "Proposal not
   // found" because the workspace header still named a previously visited
   // floor. The pin used to happen only inside the silent join's success
   // path, which a viewer-mode visitor (and an owner of a non-open floor)

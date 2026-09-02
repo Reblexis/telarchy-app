@@ -4,12 +4,12 @@ import { describe, expect, test, vi } from 'vitest';
 
 /**
  * The board opens on the live ballot (docs/ui-conventions.md, "The board
- * opens on the live ballot; decided contracts are folded away").
+ * opens on the live ballot; decided proposals are folded away").
  *
- * Owner report 2026-09-01, on a floor with four pending contracts and seven
- * approved ones: "there are too many contracts visible". The approved ones
+ * Owner report 2026-09-01, on a floor with four pending proposals and seven
+ * approved ones: "there are too many proposals visible". The approved ones
  * are history AND carry the largest impacts, so the impact ranking put the
- * whole archive above the fold and the four contracts a visitor could still
+ * whole archive above the fold and the four proposals a visitor could still
  * act on in the top corner.
  */
 
@@ -21,8 +21,8 @@ import { JobsBoard } from '../JobsBoard';
 
 const HORIZON = '2026-09';
 
-/** One contract with one priced pair on the horizon the board is reading. */
-const contract = (id: string, title: string, delta: number, status: string) =>
+/** One proposal with one priced pair on the horizon the board is reading. */
+const proposal = (id: string, title: string, delta: number, status: string) =>
   ({
     id,
     title,
@@ -56,13 +56,13 @@ const contract = (id: string, title: string, delta: number, status: string) =>
 // The owner's own board, in miniature: the pending ones are small, the
 // decided ones are the big numbers that were burying them.
 const PENDING = [
-  contract('p1', 'Publish a LessWrong post', 2.5, 'pending'),
-  contract('p2', 'Add Manifold workspace', 1.5, 'pending'),
+  proposal('p1', 'Publish a LessWrong post', 2.5, 'pending'),
+  proposal('p2', 'Add Manifold workspace', 1.5, 'pending'),
 ];
 const DECIDED = [
-  contract('d1', 'Trade 100 credits every week', 18.9, 'approved'),
-  contract('d2', 'Ten minutes of best advice', 9.9, 'approved'),
-  contract('d3', 'A market on Manifold', 7.8, 'declined'),
+  proposal('d1', 'Trade 100 credits every week', 18.9, 'approved'),
+  proposal('d2', 'Ten minutes of best advice', 9.9, 'approved'),
+  proposal('d3', 'A market on Manifold', 7.8, 'declined'),
 ];
 
 const base = {
@@ -88,7 +88,7 @@ function board(props: Partial<React.ComponentProps<typeof JobsBoard>> = {}) {
 const titles = () => screen.getAllByRole('button').map(b => b.textContent ?? '');
 
 describe('the board opens on the live ballot', () => {
-  test('the pending contracts are the list, and the decided ones are not on it', () => {
+  test('the pending proposals are the list, and the decided ones are not on it', () => {
     board();
     expect(screen.getByText('Publish a LessWrong post')).toBeTruthy();
     expect(screen.getByText('Add Manifold workspace')).toBeTruthy();
@@ -140,17 +140,17 @@ describe('the board opens on the live ballot', () => {
     expect(screen.queryByText('3 decided')).toBeNull();
   });
 
-  test('a board with no contracts at all still shows the empty line, not a fold', () => {
+  test('a board with no proposals at all still shows the empty line, not a fold', () => {
     board({ proposals: [] });
     expect(screen.getByText(/Nothing on the ballot yet/)).toBeTruthy();
     expect(screen.queryByText(/decided/)).toBeNull();
   });
 
-  test('the pending contracts keep their impact ranking', () => {
+  test('the pending proposals keep their impact ranking', () => {
     board({
       proposals: [
-        contract('p2', 'Add Manifold workspace', 1.5, 'pending'),
-        contract('p1', 'Publish a LessWrong post', 2.5, 'pending'),
+        proposal('p2', 'Add Manifold workspace', 1.5, 'pending'),
+        proposal('p1', 'Publish a LessWrong post', 2.5, 'pending'),
       ],
     });
     const rows = titles().filter(t => t.includes('Manifold workspace') || t.includes('LessWrong'));
@@ -159,21 +159,21 @@ describe('the board opens on the live ballot', () => {
   });
 });
 
-describe('the fold never hides the contract the page is pointed at', () => {
-  test('a selected decided contract is visible on the first paint', () => {
+describe('the fold never hides the proposal the page is pointed at', () => {
+  test('a selected decided proposal is visible on the first paint', () => {
     board({ selectedId: 'd2' });
     expect(screen.getByText('Ten minutes of best advice')).toBeTruthy();
     expect(screen.getByText('Hide')).toBeTruthy();
   });
 
-  test('hiding while a decided contract is selected releases the selection', () => {
+  test('hiding while a decided proposal is selected releases the selection', () => {
     const onSelect = vi.fn();
     board({ selectedId: 'd2', onSelect });
     fireEvent.click(screen.getByText('Hide'));
     expect(onSelect).toHaveBeenCalledWith('d2');
   });
 
-  test('hiding with a pending contract selected leaves the selection alone', () => {
+  test('hiding with a pending proposal selected leaves the selection alone', () => {
     const onSelect = vi.fn();
     board({ selectedId: 'p1', onSelect });
     fireEvent.click(screen.getByText('Show'));

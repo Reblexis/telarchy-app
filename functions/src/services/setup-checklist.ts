@@ -236,17 +236,17 @@ export async function buildChecklist(workspaceId: string): Promise<Checklist> {
       ws.autoFundNewMarkets && (ws.newMarketLiquidityCredits ?? 0) >= SHOVE_CREDITS
         ? { status: 'done', note: `Auto-funding every new market with ${ws.newMarketLiquidityCredits} credits.` }
         : contractMarkets.some(m => (m.liquidity ?? 0) > 0)
-          ? { status: 'done', note: 'Contract markets are funded by hand or by an agent.' }
+          ? { status: 'done', note: 'Proposal markets are funded by hand or by an agent.' }
           : ws.autoFundNewMarkets && (ws.newMarketLiquidityCredits ?? 0) > 0
             ? {
                 status: 'open',
-                note: `Auto-funding ${ws.newMarketLiquidityCredits} credits per market, which is too thin to price anything. Raise it or fund contracts deliberately.`,
+                note: `Auto-funding ${ws.newMarketLiquidityCredits} credits per market, which is too thin to price anything. Raise it or fund proposals deliberately.`,
               }
             : {
                 status: 'open',
                 note: proposalCount?.n
-                  ? `${proposalCount?.n} contract(s) posted and their markets hold nothing.`
-                  : 'No rule yet for funding a contract market when one arrives.',
+                  ? `${proposalCount?.n} proposal(s) posted and their markets hold nothing.`
+                  : 'No rule yet for funding a proposal market when one arrives.',
               },
 
     participation: publicCaps.includes('trade')
@@ -264,7 +264,7 @@ export async function buildChecklist(workspaceId: string): Promise<Checklist> {
             status: 'done',
             note:
               (decidedCount?.n ?? 0) > 0
-                ? `${decidedCount?.n} contract(s) decided${(ws.charter ?? '').trim() ? ' and a charter published' : ''}.`
+                ? `${decidedCount?.n} proposal(s) decided${(ws.charter ?? '').trim() ? ' and a charter published' : ''}.`
                 : 'A charter says what you will do with the price.',
           }
         : { status: 'open', note: 'No charter and nothing decided yet, so nobody knows what a price buys them.' },

@@ -203,7 +203,7 @@ describe('a book that already has a price is never re-anchored', () => {
     await db.insert(proposals).values({
       id: 'prop-1',
       workspaceId: WS,
-      title: 'A contract',
+      title: 'A proposal',
       description: 'x',
       status: 'pending',
       proposedBy: OWNER,

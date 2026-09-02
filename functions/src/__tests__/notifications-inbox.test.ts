@@ -65,7 +65,7 @@ async function seedFloor(memberIds: string[]) {
   });
 }
 
-async function contract(id: string, proposedBy: string, title: string, extra: Record<string, unknown> = {}) {
+async function proposal(id: string, proposedBy: string, title: string, extra: Record<string, unknown> = {}) {
   await db.insert(proposals).values({ id, workspaceId: WS, proposedBy, title, description: 'pitch', ...extra });
 }
 
@@ -74,25 +74,25 @@ async function comment(id: string, proposalId: string, from: string, content: st
 }
 
 describe('the inbox', () => {
-  test('carries comments on my contract, replies in my threads, and new contracts', async () => {
+  test('carries comments on my proposal, replies in my threads, and new proposals', async () => {
     await participant('me');
     await participant('other');
     await participant('stranger');
     await seedFloor(['me', 'other', 'stranger']);
-    await contract('c-mine', 'me', 'My contract');
-    await contract('c-theirs', 'other', 'Their contract');
-    await comment('m1', 'c-mine', 'other', 'question about your contract', new Date('2026-08-19T10:00:00Z'));
+    await proposal('c-mine', 'me', 'My proposal');
+    await proposal('c-theirs', 'other', 'Their proposal');
+    await comment('m1', 'c-mine', 'other', 'question about your proposal', new Date('2026-08-19T10:00:00Z'));
     await comment('m2', 'c-theirs', 'me', 'my own question', new Date('2026-08-19T10:05:00Z'));
     await comment('m3', 'c-theirs', 'stranger', 'answering you', new Date('2026-08-19T10:10:00Z'));
 
     const { items, unread } = await listNotifications('me');
     const kinds = items.map(i => `${i.kind}:${i.actor}`);
 
-    // Newest first: the reply, then the new contract, then the comment.
+    // Newest first: the reply, then the new proposal, then the comment.
     expect(kinds).toContain('comment:other');
     expect(kinds).toContain('reply:stranger');
     expect(kinds).toContain('contract:other');
-    // Never my own comment, never my own contract.
+    // Never my own comment, never my own proposal.
     expect(items.some(i => i.actor === 'me')).toBe(false);
     expect(unread).toBe(items.length);
     expect(items[0].at.getTime()).toBeGreaterThanOrEqual(items[items.length - 1].at.getTime());
@@ -105,7 +105,7 @@ describe('the inbox', () => {
     await participant('other');
     await participant('stranger');
     await seedFloor(['me', 'other', 'stranger']);
-    await contract('c-theirs', 'other', 'Their contract');
+    await proposal('c-theirs', 'other', 'Their proposal');
     await comment('old1', 'c-theirs', 'other', 'before me', new Date('2026-08-19T09:00:00Z'));
     await comment('old2', 'c-theirs', 'stranger', 'also before me', new Date('2026-08-19T09:30:00Z'));
     await comment('mine', 'c-theirs', 'me', 'my first reply', new Date('2026-08-19T10:00:00Z'));
@@ -113,8 +113,8 @@ describe('the inbox', () => {
 
     const { items } = await listNotifications('me');
     const ids = items.map(i => i.commentId);
-    // Only what came after I spoke is news addressed to me. (The contract
-    // itself still lands as a new-contract item; that one is correct.)
+    // Only what came after I spoke is news addressed to me. (The proposal
+    // itself still lands as a new-proposal item; that one is correct.)
     expect(ids).toContain('after');
     expect(ids).not.toContain('old1');
     expect(ids).not.toContain('old2');
@@ -167,7 +167,7 @@ describe('the inbox', () => {
     });
     await participant('other');
     await seedFloor(['me', 'other']);
-    await contract('c-mine', 'me', 'My contract');
+    await proposal('c-mine', 'me', 'My proposal');
     await comment(
       'm1',
       'c-mine',
@@ -180,11 +180,11 @@ describe('the inbox', () => {
     expect(items.map(i => i.kind)).toContain('comment');
   });
 
-  test('counts a comment on a conditional market against its contract', async () => {
+  test('counts a comment on a conditional market against its proposal', async () => {
     await participant('me');
     await participant('trader');
     await seedFloor(['me', 'trader']);
-    await contract('c-mine', 'me', 'My contract');
+    await proposal('c-mine', 'me', 'My proposal');
     await db.insert(markets).values({
       id: 'mkt-cond',
       workspaceId: WS,
@@ -214,8 +214,8 @@ describe('the inbox', () => {
     const { items } = await listNotifications('me');
     expect(items).toHaveLength(1);
     expect(items[0].kind).toBe('comment');
-    // Titled by the contract, and linked to it, not to the branch market.
-    expect(items[0].subject).toBe('My contract');
+    // Titled by the proposal, and linked to it, not to the branch market.
+    expect(items[0].subject).toBe('My proposal');
     expect(items[0].proposalId).toBe('c-mine');
     expect(items[0].workspaceSlug).toBe('lookpilot');
     // The row points at the comment itself, which is what lets the floor
@@ -223,10 +223,10 @@ describe('the inbox', () => {
     expect(items[0].commentId).toBe('mm1');
   });
 
-  test('a decision on my own contract lands, with the reason', async () => {
+  test('a decision on my own proposal lands, with the reason', async () => {
     await participant('me');
     await seedFloor(['me']);
-    await contract('c-mine', 'me', 'My contract', {
+    await proposal('c-mine', 'me', 'My proposal', {
       status: 'declined',
       resolvedAt: new Date('2026-08-19T12:00:00Z'),
       declineReason: 'out of scope this quarter',
@@ -242,7 +242,7 @@ describe('the inbox', () => {
     await participant('me');
     await participant('other');
     await seedFloor(['me', 'other']);
-    await contract('c-mine', 'me', 'My contract');
+    await proposal('c-mine', 'me', 'My proposal');
     await comment('m1', 'c-mine', 'other', 'hello', new Date('2026-08-19T10:00:00Z'));
 
     expect((await listNotifications('me')).unread).toBe(1);
@@ -256,7 +256,7 @@ describe('the inbox', () => {
     await participant('me');
     await participant('other');
     await seedFloor(['me', 'other']);
-    await contract('c-mine', 'me', 'My contract');
+    await proposal('c-mine', 'me', 'My proposal');
     await comment('m1', 'c-mine', 'other', 'first', new Date('2026-08-19T10:00:00Z'));
     await comment('m2', 'c-mine', 'other', 'second', new Date('2026-08-19T10:01:00Z'));
 
@@ -279,7 +279,7 @@ describe('the inbox', () => {
     // account is not counted as unread.
     await participant('other');
     await seedFloor(['me', 'other']);
-    await contract('c-old', 'other', 'Older contract');
+    await proposal('c-old', 'other', 'Older proposal');
     await db.insert(authUser).values({ id: 'u-fresh', name: 'fresh', email: 'fresh@example.com' });
     await db.insert(agents).values({ id: 'me', apiKeyHash: 'h', balance: 0, nickname: 'me', authUserId: 'u-fresh' });
 
@@ -289,7 +289,7 @@ describe('the inbox', () => {
 });
 
 // The matrix's new kinds and its web cells (owner ask 2026-08-24: the bell
-// carries settlements and decisions on contracts you are involved in, and
+// carries settlements and decisions on proposals you are involved in, and
 // each kind's web cell decides whether the bell derives it at all).
 
 describe('the matrix in the bell', () => {
@@ -342,18 +342,18 @@ describe('the matrix in the bell', () => {
     expect(settled!.marketId).toBe('mkt-1');
   });
 
-  test('removing my contract from the board is not a decision and leaves no row', async () => {
+  test('removing my proposal from the board is not a decision and leaves no row', async () => {
     // docs/vision.md: withdrawing is your own doing, removing is admin
     // cleanup; neither is a decision, so neither produces a record. The
     // remove path stamps resolvedAt like a decision does, which is how a
-    // removed contract used to surface as "Declined." in the bell.
+    // removed proposal used to surface as "Declined." in the bell.
     await participant('me');
     await seedFloor(['me']);
-    await contract('c-removed', 'me', 'Spam that got cleaned up', {
+    await proposal('c-removed', 'me', 'Spam that got cleaned up', {
       status: 'removed',
       resolvedAt: new Date('2026-08-19T12:00:00Z'),
     });
-    await contract('c-withdrawn', 'me', 'Changed my mind', {
+    await proposal('c-withdrawn', 'me', 'Changed my mind', {
       status: 'withdrawn',
       resolvedAt: new Date('2026-08-19T13:00:00Z'),
     });
@@ -362,11 +362,11 @@ describe('the matrix in the bell', () => {
     expect(items.filter(i => i.kind === 'decision')).toEqual([]);
   });
 
-  test('a decision on a contract I traded lands, though it is not mine', async () => {
+  test('a decision on a proposal I traded lands, though it is not mine', async () => {
     await participant('me');
     await participant('other');
     await seedFloor(['me', 'other']);
-    await contract('c-theirs', 'other', 'Their contract', {
+    await proposal('c-theirs', 'other', 'Their proposal', {
       status: 'declined',
       resolvedAt: new Date('2026-08-24T11:00:00Z'),
       declineReason: 'not now',
@@ -377,7 +377,7 @@ describe('the matrix in the bell', () => {
     const { items } = await listNotifications('me');
     const dec = items.find(i => i.kind === 'decision');
     expect(dec).toBeDefined();
-    expect(dec!.subject).toBe('Their contract');
+    expect(dec!.subject).toBe('Their proposal');
     expect(dec!.detail).toBe('not now');
   });
 
@@ -394,7 +394,7 @@ describe('the matrix in the bell', () => {
       notificationChannels: { contract: { web: false } },
     });
     await seedFloor(['me', 'other']);
-    await contract('c-new', 'other', 'A new contract');
+    await proposal('c-new', 'other', 'A new proposal');
 
     const { items, unread } = await listNotifications('me');
     expect(items.find(i => i.kind === 'contract')).toBeUndefined();
@@ -414,9 +414,9 @@ describe('the matrix in the bell', () => {
       notificationChannels: { anyComment: { web: true } },
     });
     await seedFloor(['me', 'other']);
-    await contract('c-mine', 'me', 'My contract');
-    await contract('c-theirs', 'other', 'Their contract');
-    // On MY contract: already carried as kind comment, never twice.
+    await proposal('c-mine', 'me', 'My proposal');
+    await proposal('c-theirs', 'other', 'Their proposal');
+    // On MY proposal: already carried as kind comment, never twice.
     await comment('m1', 'c-mine', 'other', 'on yours', new Date('2026-08-24T09:00:00Z'));
     // On theirs, a thread I am not in: only the firehose carries it.
     await comment('m2', 'c-theirs', 'other', 'somewhere else', new Date('2026-08-24T09:05:00Z'));

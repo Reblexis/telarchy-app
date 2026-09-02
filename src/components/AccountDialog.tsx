@@ -49,12 +49,12 @@ interface Participant {
  * Email is mail, Mobile is a browser push (owner ask 2026-08-24).
  */
 const NOTIFICATION_ROWS: Array<{ kind: NotificationKindId; label: string }> = [
-  { kind: 'comment', label: 'Someone comments on my contract' },
+  { kind: 'comment', label: 'Someone comments on my proposal' },
   { kind: 'reply', label: 'Someone replies in a thread I am in' },
   { kind: 'settled', label: 'A market I traded settles' },
-  { kind: 'decision', label: 'A contract I traded or commented on is decided' },
-  { kind: 'contract', label: 'A new contract goes on the ballot' },
-  { kind: 'anyComment', label: 'Any comment, under any contract or market' },
+  { kind: 'decision', label: 'A proposal I traded or commented on is decided' },
+  { kind: 'contract', label: 'A new proposal goes on the ballot' },
+  { kind: 'anyComment', label: 'Any comment, under any proposal or market' },
 ];
 const CHANNEL_LABELS: Array<{ channel: NotificationChannel; label: string }> = [
   { channel: 'web', label: 'Web' },
@@ -1038,8 +1038,8 @@ export function AccountDialog({
                     <span className="ticket-label">Point your own AI at Telarchy</span>
                     <p className="acctdlg-hint">
                       {floor
-                        ? `Paste this into Claude, ChatGPT or your own agent. It reads ${floor.name}'s public brief: every number with its history, what the markets predict, and every contract with its priced impact.`
-                        : "Paste this into Claude, ChatGPT or your own agent. It reads a floor's public brief: every number with its history, what the markets predict, and every contract with its priced impact."}
+                        ? `Paste this into Claude, ChatGPT or your own agent. It reads ${floor.name}'s public brief: every number with its history, what the markets predict, and every proposal with its priced impact.`
+                        : "Paste this into Claude, ChatGPT or your own agent. It reads a floor's public brief: every number with its history, what the markets predict, and every proposal with its priced impact."}
                     </p>
                     <pre className="acctdlg-prompt">{agentPrompt(window.location.origin, floor)}</pre>
                     <button

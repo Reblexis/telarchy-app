@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { PageTopBar } from '../components/PageTopBar';
 import { api, type GuideCategory, type GuideSection } from '../lib/api';
 import { withBase } from '../lib/base-path';
@@ -167,7 +167,13 @@ function GuideIndex() {
   );
 }
 
+/** Old guide addresses, same map as the API's GUIDE_ALIASES
+ *  (functions/src/routes/guides.ts): a link printed before a rename lands on
+ *  the guide it became rather than on "That guide is not here". */
+const GUIDE_ALIASES: Record<string, string> = { contracts: 'get-paid' };
+
 export function GuidesPage() {
   const { section } = useParams<{ section?: string }>();
+  if (section && GUIDE_ALIASES[section]) return <Navigate to={`/guides/${GUIDE_ALIASES[section]}`} replace />;
   return section ? <OneGuide section={section} /> : <GuideIndex />;
 }

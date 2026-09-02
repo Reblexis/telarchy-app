@@ -95,8 +95,8 @@ one rule reads it.
 money.** "Net revenue (USD)" is money. "Weekly active traders" is not. That flag
 puts a `$` on the public number, and it feeds one behaviour that changes what
 traders see: when a metric is money **and** its name contains the word "net", a
-contract's approved branch opens at the baseline minus the ask, because
-approving a $400 contract takes $400 out of a number that is already net of what
+proposal's approved branch opens at the baseline minus the ask, because
+approving a $400 proposal takes $400 out of a number that is already net of what
 you pay out.
 
 Two consequences to plan for:
@@ -107,7 +107,7 @@ Two consequences to plan for:
   the platform inventing a move nobody made.
 - **Gross numbers must not say "net".** Subtracting an ask from a gross revenue
   metric, or from a headcount, drives every approved branch toward the range
-  floor and prints an identical fake loss on every contract. That happened once,
+  floor and prints an identical fake loss on every proposal. That happened once,
   on Telarchy's own floor, which is why the rule is two conditions and not one.
 
 Granularity is not a field either. It is derived from the dates a market is

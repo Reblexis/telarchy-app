@@ -1,6 +1,6 @@
 /**
  * The prompts a person copies out of the agent panel are instructions to a
- * machine, so every API call written into them is a contract this suite has to
+ * machine, so every API call written into them is a proposal this suite has to
  * hold, exactly like a route's own tests.
  *
  * The 2026-09-01 DX review found `traderAgentPrompt` telling agents to send
@@ -64,11 +64,11 @@ app.use((err: Error, _req: any, res: any, _next: any) => {
 /** The file the copy button reads from. Parsed as text, on purpose. */
 const PROMPT_SRC = join(__dirname, '..', '..', '..', 'src', 'lib', 'agent-prompt.ts');
 
-const WS = 'ws-prompt-contract';
+const WS = 'ws-prompt-proposal';
 const OWNER = 'agent-prompt-owner';
 const TRADER = 'agent-prompt-trader';
-const METRIC = 'metric-prompt-contract';
-const MARKET = 'market-prompt-contract';
+const METRIC = 'metric-prompt-proposal';
+const MARKET = 'market-prompt-proposal';
 
 beforeAll(async () => {
   await ensureMigrations();
@@ -85,7 +85,7 @@ async function seed(): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
     wsId: WS,
-    name: 'Prompt Contract',
+    name: 'Prompt Proposal',
     createdBy: OWNER,
     ownerAgentId: OWNER,
     visibility: 'public',

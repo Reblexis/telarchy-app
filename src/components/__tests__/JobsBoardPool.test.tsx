@@ -3,13 +3,13 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test, vi } from 'vitest';
 
 /**
- * What is behind a contract, on the board (owner ask 2026-09-02: "show total
- * liquidity next to a contract in the contracts panel", and the rule it
- * serves: "contracts are ordered by total liquidity available").
+ * What is behind a proposal, on the board (owner ask 2026-09-02: "show total
+ * liquidity next to a proposal in the proposals panel", and the rule it
+ * serves: "proposals are ordered by total liquidity available").
  *
  * The pool is the sum of BOTH branches across every pair, because that is
- * what somebody put behind this contract's forecast; a reader comparing two
- * contracts is comparing conviction, and half of it is not the number.
+ * what somebody put behind this proposal's forecast; a reader comparing two
+ * proposals is comparing conviction, and half of it is not the number.
  */
 
 vi.mock('../../lib/api', () => ({
@@ -42,7 +42,7 @@ const pair = (targetDate: string, approvedPool: number | null, declinedPool: num
   rangeMax: 25_000,
 });
 
-const contract = (id: string, title: string, pools: Array<[number | null, number | null]>, delta = 100) =>
+const proposal = (id: string, title: string, pools: Array<[number | null, number | null]>, delta = 100) =>
   ({
     id,
     title,
@@ -65,11 +65,11 @@ const base = {
   workspaceName: 'Telarchy',
 };
 
-describe('the pool behind a contract', () => {
+describe('the pool behind a proposal', () => {
   test('is both branches of every pair, added up', () => {
     expect(
       poolOf(
-        contract('c', 'x', [
+        proposal('c', 'x', [
           [250, 250],
           [1_000, 500],
         ]),
@@ -78,16 +78,16 @@ describe('the pool behind a contract', () => {
   });
 
   test('counts a branch with no market as nothing, not as a hole', () => {
-    expect(poolOf(contract('c', 'x', [[250, null]]))).toBe(250);
-    expect(poolOf(contract('c', 'x', [[null, null]]))).toBe(0);
+    expect(poolOf(proposal('c', 'x', [[250, null]]))).toBe(250);
+    expect(poolOf(proposal('c', 'x', [[null, null]]))).toBe(0);
   });
 
-  test('prints beside the contract, under its impact', () => {
+  test('prints beside the proposal, under its impact', () => {
     render(
       <MemoryRouter>
         <JobsBoard
           {...base}
-          proposals={[contract('c1', 'Open source a trading agent', [[3_500, 3_480]])]}
+          proposals={[proposal('c1', 'Open source a trading agent', [[3_500, 3_480]])]}
           horizonDate="2026-10"
           horizonMetricId="rev"
         />
@@ -96,7 +96,7 @@ describe('the pool behind a contract', () => {
     expect(screen.getByText('6,980')).toBeInTheDocument();
   });
 
-  // The rule the number exists for: money decides the order, so a contract
+  // The rule the number exists for: money decides the order, so a proposal
   // somebody funded is read first.
   test('orders the ballot deepest first', () => {
     render(
@@ -104,9 +104,9 @@ describe('the pool behind a contract', () => {
         <JobsBoard
           {...base}
           proposals={[
-            contract('thin', 'A contract nobody funded', [[250, 250]]),
-            contract('deep', 'A contract somebody believes in', [[18_000, 18_556]]),
-            contract('mid', 'A contract in between', [[3_000, 3_000]]),
+            proposal('thin', 'A proposal nobody funded', [[250, 250]]),
+            proposal('deep', 'A proposal somebody believes in', [[18_000, 18_556]]),
+            proposal('mid', 'A proposal in between', [[3_000, 3_000]]),
           ]}
           horizonDate="2026-10"
           horizonMetricId="rev"
@@ -114,15 +114,15 @@ describe('the pool behind a contract', () => {
       </MemoryRouter>,
     );
     const titles = [...document.querySelectorAll('.pubws-ballot-title')].map(n => n.textContent);
-    expect(titles).toEqual(['A contract somebody believes in', 'A contract in between', 'A contract nobody funded']);
+    expect(titles).toEqual(['A proposal somebody believes in', 'A proposal in between', 'A proposal nobody funded']);
   });
 
-  test('a contract with nothing behind it still shows the zero, and sits last', () => {
+  test('a proposal with nothing behind it still shows the zero, and sits last', () => {
     render(
       <MemoryRouter>
         <JobsBoard
           {...base}
-          proposals={[contract('empty', 'Unfunded', [[null, null]]), contract('funded', 'Funded', [[500, 500]])]}
+          proposals={[proposal('empty', 'Unfunded', [[null, null]]), proposal('funded', 'Funded', [[500, 500]])]}
           horizonDate="2026-10"
           horizonMetricId="rev"
         />
@@ -134,7 +134,7 @@ describe('the pool behind a contract', () => {
   });
 
   // Somebody has to tell the person about to post one that money moves it.
-  test('the propose footer says what puts a contract up the list', () => {
+  test('the propose footer says what puts a proposal up the list', () => {
     render(
       <MemoryRouter>
         <JobsBoard {...base} proposals={[]} horizonDate="2026-10" horizonMetricId="rev" />

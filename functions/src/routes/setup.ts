@@ -40,7 +40,7 @@ setupRouter.post(
       return;
     }
 
-    // Same conversation contract as the floor: the caller keeps the turns and
+    // Same conversation proposal as the floor: the caller keeps the turns and
     // sends them back, the server keeps the last twelve.
     const raw = Array.isArray(req.body?.messages)
       ? req.body.messages

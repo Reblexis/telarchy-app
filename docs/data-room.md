@@ -86,7 +86,7 @@ and no second pipeline that could drift. The response is cached for 60 seconds
 so a traffic spike cannot turn the page into a load test.
 
 A published total whose own rows do not add up reads as a mistake even when
-neither figure is wrong, so the contract counts exclude `removed` entries: an
+neither figure is wrong, so the proposal counts exclude `removed` entries: an
 admin taking a row off the board because it should never have been there (spam,
 a duplicate, a test row) is not a decision, and counting it would leave the
 approved, declined, pending and withdrawn rows summing to less than the total.

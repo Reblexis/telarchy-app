@@ -8,7 +8,7 @@ timeout: 90s
 goal-horizon: short
 goal-statement: |
   As a trader coming back to the floor, one bell tells me what happened
-  while I was away, and clicking a row takes me to the contract it is
+  while I was away, and clicking a row takes me to the proposal it is
   about.
 ---
 
@@ -18,9 +18,9 @@ goal-statement: |
 
 The floor's inbox: `GET /api/notifications`, `POST /api/notifications/seen`,
 `NotificationsBell.tsx`, and the `#contract=<id>` deep link a row points at.
-The behavioural contract is `docs/vision.md`, "The notifications inbox": the
-bell shows everything (comments on your contracts, replies in your threads,
-new contracts where you trade, decisions on your own contracts), and the
+The behavioural proposal is `docs/vision.md`, "The notifications inbox": the
+bell shows everything (comments on your proposals, replies in your threads,
+new proposals where you trade, decisions on your own proposals), and the
 email switches never filter it.
 
 ## Setup
@@ -40,9 +40,9 @@ tt_add_member "$WS" "$OUID" "trader"
 tt_add_member "$WS" "$PUID" "trader"
 SLUG=$(curl -sf -b "$OJAR" "$TT_BASE_URL/api/marketplace/$WS" | jq -r '.slug')
 
-# The owner posts a contract; the other participant comments on it.
+# The owner posts a proposal; the other participant comments on it.
 PROP=$(curl -sf -b "$OJAR" -H "X-Workspace-Id: $WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"title":"Inbox spec contract","description":"pitch"}' \
+  -X POST -d '{"title":"Inbox spec proposal","description":"pitch"}' \
   "$TT_BASE_URL/api/proposals" | jq -r '.id')
 curl -sf -b "$PJAR" -H "X-Workspace-Id: $WS" -H 'Content-Type: application/json' \
   -X POST -d '{"content":"how will you measure this?"}' \
@@ -59,7 +59,7 @@ $B wait --networkidle
 
 ## Tests
 
-### T1. The comment reaches the inbox as a comment on my contract
+### T1. The comment reaches the inbox as a comment on my proposal
 
 ```bash
 curl -sf -b "$OJAR" "$TT_BASE_URL/api/notifications" \
@@ -81,8 +81,8 @@ curl -sf -b "$OJAR" "$TT_BASE_URL/api/notifications" \
 $B goto "$TT_FRONTEND_URL/$SLUG" && $B wait --networkidle
 $B click '[aria-label^="What'"'"'s new"]'
 text=$($B text)
-grep -qi 'Inbox spec contract' <<<"$text"
-grep -qi "commented on your contract" <<<"$text"
+grep -qi 'Inbox spec proposal' <<<"$text"
+grep -qi "commented on your proposal" <<<"$text"
 $B screenshot "/tmp/$TT_NS-notifications.png"
 ```
 
@@ -101,7 +101,7 @@ MSG=$(curl -sf -b "$OJAR" -H "X-Workspace-Id: $WS" \
   "$TT_BASE_URL/api/proposals/$PROP/messages" | jq -r '.[0].id')
 $B goto "$TT_FRONTEND_URL/$SLUG#contract=$PROP&comment=$MSG" && $B wait --networkidle
 text=$($B text)
-grep -qi 'Inbox spec contract' <<<"$text"
+grep -qi 'Inbox spec proposal' <<<"$text"
 # The thread opens on its own and the named line is on screen.
 grep -qi 'how will you measure this' <<<"$text"
 # The flash is an arrival, not a state: it is gone a couple of seconds later.
@@ -122,7 +122,7 @@ Auto.
 
 ## Known gaps
 
-- The decision row (your contract approved or declined) is covered by the
+- The decision row (your proposal approved or declined) is covered by the
   backend suite only; driving an approval needs a `manage` session this spec
   does not set up.
 - No assertion that the unread hairline is visually present, only that the

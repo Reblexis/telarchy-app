@@ -250,7 +250,7 @@ describe('horizon histories', () => {
 });
 
 describe('public ballot disclosure gate', () => {
-  test('a pending contract drops pairs from a retired horizon; a decided one keeps its record', async () => {
+  test('a pending proposal drops pairs from a retired horizon; a decided one keeps its record', async () => {
     await seed(['read', 'trade']);
     // The near horizon moved to a weekly cadence, so the old monthly pair was
     // voided. It kept printing its last delta on the ballot until 2026-08-15.
@@ -289,8 +289,8 @@ describe('public ballot disclosure gate', () => {
         proposalId: 'prop-open',
         branch: 'declined',
       },
-      // The declined contract's own pair, voided at decision time: this one
-      // stays, because a decided contract's markets are what was priced.
+      // The declined proposal's own pair, voided at decision time: this one
+      // stays, because a decided proposal's markets are what was priced.
       {
         id: 'mkt-dec-appr',
         workspaceId: WS,
@@ -318,7 +318,7 @@ describe('public ballot disclosure gate', () => {
     if (decided?.markets) expect(decided.markets.length).toBeGreaterThan(0);
   });
 
-  test("the contractor score ignores a pending contract's dead pairs too", async () => {
+  test("the contractor score ignores a pending proposal's dead pairs too", async () => {
     await seed(['read', 'trade']);
     // The score is denominated in the HERO metric, which is the soonest
     // baseline market: without one there is nothing to price against and
@@ -345,7 +345,7 @@ describe('public ballot disclosure gate', () => {
     ]);
     // Same zombie as above. The ballot stopped printing its delta on
     // 2026-08-15, but topContractors kept scoring it, so the Telarchy rail
-    // read -48 and -108.21 for contracts whose live pairs were at zero.
+    // read -48 and -108.21 for proposals whose live pairs were at zero.
     await db.insert(markets).values([
       {
         id: 'mkt-zombie-appr',
@@ -745,7 +745,7 @@ describe('the primary horizon server-side', () => {
     await addWeeklyClock();
     const res = await request(app).get(`/api/marketplace/${WS}`);
     expect(res.status).toBe(200);
-    // markets still ship soonest-first: the contract is unchanged.
+    // markets still ship soonest-first: the proposal is unchanged.
     expect(res.body.markets[0].targetDate).toBe('2026-W34');
     expect(res.body.heroMetricDescription).toBe('The year, cumulative.');
   });
@@ -753,7 +753,7 @@ describe('the primary horizon server-side', () => {
   test("a contractor's impact is denominated in the far horizon's metric", async () => {
     await seed(['read', 'trade']);
     await addWeeklyClock();
-    // The pending contract's pair is on the YEAR metric, so it can only be
+    // The pending proposal's pair is on the YEAR metric, so it can only be
     // scored if the hero metric is the year's.
     const res = await request(app).get(`/api/marketplace/${WS}`);
     const scored = (res.body.topContractors as Array<{ pricedJobs: number }>).find(c => c.pricedJobs > 0);

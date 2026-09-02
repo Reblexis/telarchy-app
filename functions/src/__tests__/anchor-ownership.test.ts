@@ -11,7 +11,7 @@
  *  - `services/marketLiquidity.ts` opens BASELINE markets, at the metric's own
  *    current value (`anchorUntradedMarketTx`).
  *  - `services/proposals.ts` opens CONDITIONAL branches, at the baseline
- *    market's consensus adjusted for the branch and the contract's ask. That
+ *    market's consensus adjusted for the branch and the proposal's ask. That
  *    is a different question with a different input, which is why it is a
  *    second owner rather than a duplicate.
  *

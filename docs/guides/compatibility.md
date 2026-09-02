@@ -14,7 +14,7 @@ this plainly.
 
 What you get instead is notice.
 
-## The contract
+## The proposal
 
 **`GET /api/help` is the surface.** It is generated from the same module the
 router is tested against, in both directions: a registered route missing from
@@ -77,7 +77,7 @@ No sunset date has been set for any of them.
 - Ignore unknown response fields.
 - Read `Deprecation` and `X-Telarchy-Deprecation` and surface them wherever you
   would surface a warning.
-- The server is open source (AGPL-3.0), so when the contract is genuinely
+- The server is open source (AGPL-3.0), so when the proposal is genuinely
   ambiguous the settlement rules and the market maker can be read rather than
   guessed.
 

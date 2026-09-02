@@ -209,7 +209,7 @@ export async function anchorUntradedMarketTx(
   const pool = market.pool ?? 0;
   if (!(market.liquidity > 0) || pool <= 0) return false;
   // A conditional branch opens at the BASELINE market's consensus adjusted for
-  // the branch and the contract's ask (services/proposals.ts), which is a
+  // the branch and the proposal's ask (services/proposals.ts), which is a
   // different question with a different input. The metric's own value is the
   // wrong number for it, so this function does not answer for one.
   if (market.proposalId) return false;

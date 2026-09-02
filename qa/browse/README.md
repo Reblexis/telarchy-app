@@ -118,7 +118,7 @@ against the floor.
 
 **Known gaps this leaves**, in priority order:
 
-1. Proposing a contract and the owner approving or declining it, on the
+1. Proposing a proposal and the owner approving or declining it, on the
    floor. This is a live, load-bearing flow with no browser spec since
    `05-proposals/propose-approve-decline` was deleted.
 2. The floor itself (chart, ticket, rails, branch toggle) has no dedicated
@@ -191,7 +191,7 @@ explains itself.
 | File | Surface |
 | --- | --- |
 | `chat-thread.md` | `GET/POST /api/proposals/:id/messages` |
-| `edit-contract.md` | `PATCH /api/proposals/:id`: words in place, price only before the first trade |
+| `edit-proposal.md` | `PATCH /api/proposals/:id`: words in place, price only before the first trade |
 
 ### 06-participants
 

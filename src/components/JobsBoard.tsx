@@ -11,7 +11,7 @@ import { FloorModal } from './FloorModal';
  * A proposal is an OFFER TO DO WORK at a price ("$80: I will ..."), never a
  * request for someone else to do it. Every label here has to carry that
  * direction: a public reader asked "can i ask anything and you'll do it with
- * my credits?" when the button said "Suggest a contract" and the only money beside
+ * my credits?" when the button said "Suggest a proposal" and the only money beside
  * it was a credit cost. Credits are the anti-spam stake; the payout is USD to
  * the proposer. Its conditional
  * pair prices what happens to the metric if the money is sent.
@@ -72,9 +72,9 @@ function fmtDelta(d: number, unit: string): string {
 }
 
 /**
- * What is behind a contract: both branches of every pair, added up (owner ask
- * 2026-09-02). A contract's forecast is two books, and half the money is not
- * the number a reader comparing two contracts wants. A branch with no market
+ * What is behind a proposal: both branches of every pair, added up (owner ask
+ * 2026-09-02). A proposal's forecast is two books, and half the money is not
+ * the number a reader comparing two proposals wants. A branch with no market
  * counts as nothing rather than as a hole, which is not the same as a market
  * nobody has funded (zero).
  */
@@ -116,7 +116,7 @@ function headlineDelta(p: PublicProposal): number | null {
 }
 
 /**
- * This contract's priced impact on one horizon: the pair for the metric AND
+ * This proposal's priced impact on one horizon: the pair for the metric AND
  * the date on screen. Date alone picked the first pair on that date, which
  * on a floor with two metrics read on one date was whichever had the larger
  * delta (owner report 2026-08-26).
@@ -189,17 +189,17 @@ export function JobsBoard({
     [],
   );
 
-  // The board opens on the live ballot: pending contracts are the list and
+  // The board opens on the live ballot: pending proposals are the list and
   // the decided ones are folded behind one row (owner report 2026-09-01,
-  // "there are too many contracts visible"). A decided contract cannot be
-  // traded on or influenced, and decided contracts carry the largest
+  // "there are too many proposals visible"). A decided proposal cannot be
+  // traded on or influenced, and decided proposals carry the largest
   // impacts, so ranking them in with the pending ones put the whole archive
   // above the fold. Both groups keep the impact ranking the owner acts on.
   // docs/ui-conventions.md, "The board opens on the live ballot".
   const isPending = (p: PublicProposal) => !p.status || p.status === 'pending';
   const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
-  // Money decides the order (owner decision 2026-09-02: "contracts are
-  // ordered by total liquidity available"), so a contract somebody funded is
+  // Money decides the order (owner decision 2026-09-02: "proposals are
+  // ordered by total liquidity available"), so a proposal somebody funded is
   // read first and one nobody has backed sits at the bottom rather than at
   // the top by accident of its own unpriced delta. Impact breaks a tie.
   const byPool = (a: PublicProposal, b: PublicProposal) => poolOf(b) - poolOf(a) || byImpact(a, b);
@@ -210,13 +210,13 @@ export function JobsBoard({
   // ARE the list and there is no fold; a board with nothing decided has
   // nothing to fold away.
   const foldable = pending.length > 0 && decided.length > 0;
-  // A `#contract=<id>` link from a notification can point the page at a
-  // decided contract, and the fold must never hide the row the view is
+  // A `#proposal=<id>` link from a notification can point the page at a
+  // decided proposal, and the fold must never hide the row the view is
   // pointed at.
   const decidedSelected = !!selectedId && decided.some(p => p.id === selectedId);
   const showDecided = !foldable || foldOpen || decidedSelected;
   const toggleFold = () => {
-    // Collapsing releases a selected decided contract rather than hiding it,
+    // Collapsing releases a selected decided proposal rather than hiding it,
     // so the control can never be dead.
     if (showDecided && decidedSelected && selectedId) onSelect(selectedId);
     setFoldOpen(!showDecided);
@@ -232,7 +232,7 @@ export function JobsBoard({
 
   const submit = async () => {
     if (!title.trim()) {
-      setFormErr('Add a contract.');
+      setFormErr('Add a proposal.');
       return;
     }
     // The title carries the price because it reads well and travels
@@ -261,8 +261,8 @@ export function JobsBoard({
     }
   };
 
-  /** One contract's row. The same object in both groups: the fold changes
-      which contracts are listed, never how a contract reads. */
+  /** One proposal's row. The same object in both groups: the fold changes
+      which proposals are listed, never how a proposal reads. */
   const row = (p: PublicProposal) => {
     const delta = impactOf(p);
     const selected = selectedId === p.id;
@@ -332,7 +332,7 @@ export function JobsBoard({
                 ordered by. */}
             <span
               className="pubws-ballot-pool"
-              title={`${Math.round(poolOf(p)).toLocaleString()} credits behind this contract`}
+              title={`${Math.round(poolOf(p)).toLocaleString()} credits behind this proposal`}
             >
               <PoolDrop />
               {Math.round(poolOf(p)).toLocaleString()}
@@ -344,9 +344,9 @@ export function JobsBoard({
   };
 
   return (
-    <section className="pubws-section" aria-label="Contracts">
+    <section className="pubws-section" aria-label="Proposals">
       <div className="pubws-lb-head">
-        <h2 className="pubws-h2">Contracts</h2>
+        <h2 className="pubws-h2">Proposals</h2>
         {/* One column label for the whole list instead of one per row; it is
             the header's meta, the same anatomy as the standings rail. */}
         {proposals.length > 0 && (
@@ -400,7 +400,7 @@ export function JobsBoard({
       <div className="pubws-propose">
         <p className="pubws-propose-lead">Do you think you could do something useful for {workspaceName}?</p>
         <button className="pubws-propose-cta" onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}>
-          + Offer to do a contract
+          + Propose
         </button>
         {/* Surface the upside on the board itself, not only inside the form.
             The credit bounty is the workspace's own proposalReward and
@@ -444,7 +444,7 @@ export function JobsBoard({
 
             <label className="jobform-field">
               <span className="ticket-label">
-                Contract{' '}
+                Proposal{' '}
                 <span
                   className={`jobform-count${title.length >= 70 ? ' is-max' : title.length >= 60 ? ' is-near' : ''}`}
                 >
@@ -457,7 +457,7 @@ export function JobsBoard({
                 onChange={e => setTitle(e.target.value)}
                 placeholder={`I will do a very useful thing for ${workspaceName || 'this company'}`}
                 maxLength={70}
-                aria-label="Contract title"
+                aria-label="Proposal title"
               />
             </label>
 
@@ -469,14 +469,14 @@ export function JobsBoard({
                 onChange={e => setDesc(e.target.value)}
                 placeholder={`This will affect ${metricsPhrase(metricNames)} in this way because of these reasons`}
                 rows={3}
-                aria-label="Contract pitch"
+                aria-label="Proposal pitch"
               />
             </label>
 
             {/* A paid job cannot go up without somewhere for the money to
                 go; the warning names the fix and the confirm stays off. */}
             {needsPayout && (
-              <p className="ticket-err">A paid contract needs payment details first: add them in your account menu.</p>
+              <p className="ticket-err">A paid proposal needs payment details first: add them in your account menu.</p>
             )}
             {formErr && <p className="ticket-err">{formErr}</p>}
             {/* The whole deal rides the confirm itself (owner direction
@@ -494,7 +494,7 @@ export function JobsBoard({
                   ? 'Submitting…'
                   : formValid && askNum > 0
                     ? `Offer this for $${askNum}`
-                    : 'Suggest a contract'}
+                    : 'Propose'}
               {!placed && (
                 <span className="ticket-go-sub">
                   {/* The bounty is the workspace's own proposalReward, like

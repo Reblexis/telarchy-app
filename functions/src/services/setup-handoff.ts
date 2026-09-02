@@ -11,7 +11,7 @@ import type { Checklist } from './setup-checklist';
  * It was assembled from a template until then, which made it correct and
  * useless: a template cannot know that this operator reads their number off a
  * subgraph, that they already run two floors, or that the only thing still
- * undecided is how contract markets get funded. Otto has read the whole
+ * undecided is how proposal markets get funded. Otto has read the whole
  * conversation, so he can write the version their own agent can act on.
  *
  * The reason a model may write it at all is that it does not have to be

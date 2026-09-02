@@ -8,7 +8,7 @@ order: 60
 
 You are an assistant with HTTP access whose user asked you to set Telarchy up. This is the whole walkthrough. It covers both sides: **running your own numbers** (a company, a team, a personal goal, an AI agent whose actions should be priced before they are approved) and **building a participant** that earns by being right on other people's markets. Step 1 works out which one they came for.
 
-One thing to know before you start: **there is no admin console.** The web UI is the floor. An owner can approve or decline a contract there and edit the metric's written definition; everything else about administering a workspace, creating it, defining metrics, opening and funding markets, pushing values, keys, members, groups, sources and settings, happens over the API. That is why they asked you and not a signup form.
+One thing to know before you start: **there is no admin console.** The web UI is the floor. An owner can approve or decline a proposal there and edit the metric's written definition; everything else about administering a workspace, creating it, defining metrics, opening and funding markets, pushing values, keys, members, groups, sources and settings, happens over the API. That is why they asked you and not a signup form.
 
 ## How to run the conversation
 

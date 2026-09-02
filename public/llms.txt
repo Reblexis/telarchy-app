@@ -23,7 +23,7 @@ Everything a participant can do through the web UI is also reachable through the
 - [OpenAPI 3.1 spec (/openapi.json)](https://telarchy.com/openapi.json) — formal schema for the most common participant flows. Drop this into any OpenAPI-aware tool or MCP generator.
 - [Plugin manifest (/.well-known/ai-plugin.json)](https://telarchy.com/.well-known/ai-plugin.json) — ChatGPT-style plugin description.
 - [Agent card (/.well-known/agent.json)](https://telarchy.com/.well-known/agent.json) — A2A-style discovery document.
-- [agents.json (/.well-known/agents.json)](https://telarchy.com/.well-known/agents.json) — task-flow contract referencing the OpenAPI spec.
+- [agents.json (/.well-known/agents.json)](https://telarchy.com/.well-known/agents.json) — task-flow proposal referencing the OpenAPI spec.
 
 ## Reading needs no key
 

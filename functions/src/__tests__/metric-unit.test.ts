@@ -1,9 +1,9 @@
 /**
  * The ask-adjustment gate (2026-08-15). A conditional pair's approved
- * branch opens at baseline minus the contract's ask only when the metric is
+ * branch opens at baseline minus the proposal's ask only when the metric is
  * denominated in that money; applied to a metric counted in people it drove
  * every approved branch to the range floor and printed the same fake
- * negative impact on every contract.
+ * negative impact on every proposal.
  */
 
 import { isMonetaryMetric, metricCurrencyUnit, metricSubtractsContractAsk } from '../lib/metric-unit';
@@ -36,7 +36,7 @@ describe('metric unit from the name tail', () => {
   });
 });
 
-describe('which metrics a contract ask burns into', () => {
+describe('which metrics a proposal ask burns into', () => {
   test.each(['LookPilot net 2026 (USD)', 'LookPilot net this week (USD)', 'Net revenue (USD)'])(
     '%s is net of payouts, so approving moves it',
     name => {

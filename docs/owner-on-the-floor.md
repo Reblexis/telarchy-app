@@ -190,7 +190,7 @@ the floor lacks, and the controls for it are already on the page.
 
 The definition edit (words free, every change recorded in
 `metric_definition_revisions`, though nothing renders those rows to a trader
-yet, `docs/market-integrity.md`) and the contract
+yet, `docs/market-integrity.md`) and the proposal
 decisions (approve, decline, edit) predate this doc and stay as they are.
 
 ## Machinery, and the trap v1 refuses to ship
@@ -212,7 +212,7 @@ assistants: **Otto**, and **your own AI**. The rows are the hairline the page
 already uses for Otto, never a card (`docs/ui-conventions.md`).
 
 Neither row says "ask" to anyone signed in, because neither is only
-answering: Otto trades, offers contracts and writes numbers as the person,
+answering: Otto trades, offers proposals and writes numbers as the person,
 and their own agent does the same once it holds a key. The words say what the
 reader may actually do:
 

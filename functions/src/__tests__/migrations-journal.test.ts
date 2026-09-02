@@ -13,7 +13,7 @@ import { join } from 'path';
  * it anyway (it globbed the directory), 820 tests went green, and the deploy of
  * the code that selects `resets_every` 500'd every public floor until the column
  * was added by hand. The harness now reads the journal; this test makes the
- * two sides of that contract match, so the omission cannot be silent.
+ * two sides of that proposal match, so the omission cannot be silent.
  *
  * Static: no database, no server, milliseconds.
  */

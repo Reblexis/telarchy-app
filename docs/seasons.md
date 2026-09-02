@@ -317,7 +317,7 @@ Weekly doublings, walked in daily steps by
 `scripts/season-liquidity-ramp.mjs` (idempotent: it computes the run day's target
 from the schedule and tops up the difference, so a missed day catches up in one
 step), funded from the `lookpilot-kpi-sync` house account. Every open market on
-the hero workspace rides the same ramp, baseline and contract branches alike,
+the hero workspace rides the same ramp, baseline and proposal branches alike,
 because the game moves to whichever book is thinnest. The ramp covers the hero
 workspace only; other public floors keep their own
 `newMarketLiquidityCredits`. The script is not scheduled anywhere: it is run by
@@ -333,7 +333,7 @@ not the rule (see F1).
 
 1. **Every market on a season workspace opens at the season `b`.** Not
    discretionary, not per-market tuning: the same rule for the baseline market
-   and for both branches of every contract pair. Credits are free; unequal
+   and for both branches of every proposal pair. Credits are free; unequal
    books just move the game to whichever book is thinnest. The workspace's
    `newMarketLiquidityCredits` carries the opening pool (1,386 for Season 0),
    and `liquidity` in `POST /api/predictions/markets` is POOL CREDITS, not `b`.
@@ -341,7 +341,7 @@ not the rule (see F1).
    untraded market can be cancelled and reopened at a different size without
    leaving the floor empty.
 2. **Conditional pairs get the same `b` per branch as the baseline.** A
-   contract's two branches are where the product's actual claim lives (the gap
+   proposal's two branches are where the product's actual claim lives (the gap
    between them is the priced impact). Branches take
    `newMarketLiquidityCredits` at spawn, which is set to the season's opening
    pool.

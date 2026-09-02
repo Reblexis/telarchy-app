@@ -136,7 +136,7 @@ describe('anchored conditional opens', () => {
     // The ask burns out of the metric only when the metric IS that money.
     // Against a metric counted in people this subtracted dollars from a
     // headcount, pinning every approved branch at the range floor and
-    // printing the same fake negative impact on every contract.
+    // printing the same fake negative impact on every proposal.
     await db.update(metrics).set({ name: 'Weekly active traders' }).where(eq(metrics.id, 'metric-anchor'));
     await db.update(markets).set({ metricName: 'Weekly active traders' }).where(eq(markets.id, 'mkt-base-anchor'));
     const res = await propose({

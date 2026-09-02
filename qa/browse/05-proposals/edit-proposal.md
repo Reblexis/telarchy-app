@@ -1,5 +1,5 @@
 ---
-id: 05-proposals-edit-contract
+id: 05-proposals-edit-proposal
 tags: [api-only, fast]
 isolation: workspace
 parallel-safe: true
@@ -7,13 +7,13 @@ needs: [auth, master-key]
 timeout: 60s
 goal-horizon: short
 goal-statement: |
-  As the participant who posted a contract, I can fix its title, its
+  As the participant who posted a proposal, I can fix its title, its
   description and its price while it is pending; once someone has traded,
   a price edit leaves the markets and every position exactly where trading
   put them, disclosed by a revision.
 ---
 
-# Browse test: editing a contract you posted
+# Browse test: editing a proposal you posted
 
 ## What this tests
 
@@ -131,7 +131,7 @@ curl -s -X PATCH "$TT_API/api/proposals/$PID" \
 
 **Expected:** 400, "The title says $999 but the ask is $300; make them agree".
 
-### T6. A stranger cannot edit someone else's contract
+### T6. A stranger cannot edit someone else's proposal
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -X PATCH "$TT_API/api/proposals/$PID" \
@@ -141,12 +141,12 @@ curl -s -o /dev/null -w '%{http_code}\n' -X PATCH "$TT_API/api/proposals/$PID" \
 
 **Expected:** `403`. A caller with `manage` gets `200` on the same body.
 
-### T7. A decided contract is closed
+### T7. A decided proposal is closed
 
 Approve it (`POST /api/proposals/$PID/approve` with the admin key), then retry
 T1's edit.
 
-**Expected:** `409`, naming the status. An approved contract's terms are the
+**Expected:** `409`, naming the status. An approved proposal's terms are the
 deal the owner agreed to pay for.
 
 ## Known gaps
@@ -154,4 +154,4 @@ deal the owner agreed to pay for.
 - The floor's own edit button is not driven here (this spec is api-only); the
   UI path is the same endpoint.
 - Nothing checks that a re-anchored pair keeps the proposer's liquidity
-  subsidy; `contract-edit.test.ts` covers the respawn, not the credit flow.
+  subsidy; `proposal-edit.test.ts` covers the respawn, not the credit flow.

@@ -3,11 +3,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test, vi } from 'vitest';
 
 /**
- * The impact a contract prints is the approved-minus-declined delta of the
+ * The impact a proposal prints is the approved-minus-declined delta of the
  * pair for the metric AND the date on screen (owner report 2026-08-26: "the
  * impact shown doesn match the actual approved-declined result of the
  * markets"). The fixture is the grid the old fixtures never had: two metrics
- * read on the same three dates, six pairs per contract, the larger delta on
+ * read on the same three dates, six pairs per proposal, the larger delta on
  * the OTHER metric.
  */
 
@@ -67,7 +67,7 @@ const base = {
   workspaceName: 'LookPilot',
 };
 
-describe('the impact a contract prints', () => {
+describe('the impact a proposal prints', () => {
   test('is the pair of the metric AND date on screen, not the largest on that date', () => {
     expect(deltaAt(job, '2026-W35', 'rev')).toBe(36);
     expect(deltaAt(job, '2026-W35', 'rvw')).toBe(60);

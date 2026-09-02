@@ -1,7 +1,7 @@
 # Agent telemetry protocol
 
 How third-party trading agents report their cycles to the platform. The
-protocol is open: any agent that follows the contract below is stored
+protocol is open: any agent that follows the proposal below is stored
 exactly like the platform's first-party bots, with the same heartbeats and
 traces, and is read back through the admin read endpoints
 (`GET /api/admin/agent-heartbeats`, `GET /api/admin/agent-traces`, both
@@ -13,7 +13,7 @@ admins. There is no allowlist and no opt-in beyond the protocol itself.
 The wire contract (fields, caps, response codes) is carried by the
 `/api/help` catalog; the served guide `agent-telemetry` is the human
 summary. This document owns what the catalog cannot hold: the outcome
-vocabulary, the reasoning contract, cadence and retention.
+vocabulary, the reasoning proposal, cadence and retention.
 
 ## When to use this
 

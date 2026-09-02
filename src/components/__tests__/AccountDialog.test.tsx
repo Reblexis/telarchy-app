@@ -213,9 +213,9 @@ describe('the picker matches what the server accepts', () => {
 describe('the notification matrix', () => {
   test('shows every kind with its three channel cells, defaults included', async () => {
     render(<AccountDialog onClose={() => {}} initialTab="emails" />);
-    const mineWeb = await screen.findByRole('switch', { name: /comments on my contract: Web/i });
+    const mineWeb = await screen.findByRole('switch', { name: /comments on my proposal: Web/i });
     expect(mineWeb.getAttribute('aria-checked')).toBe('true');
-    // The new-contract firehose: bell on, mail and push off.
+    // The new-proposal firehose: bell on, mail and push off.
     expect(screen.getByRole('switch', { name: /goes on the ballot: Web/i }).getAttribute('aria-checked')).toBe('true');
     expect(screen.getByRole('switch', { name: /goes on the ballot: Email/i }).getAttribute('aria-checked')).toBe(
       'false',
@@ -281,7 +281,7 @@ describe('the section rail', () => {
   test('picking a section swaps the fields', async () => {
     render(<AccountDialog onClose={() => {}} />);
     fireEvent.click(await screen.findByRole('tab', { name: 'Notifications' }));
-    expect(await screen.findByRole('switch', { name: /comments on my contract: Web/i })).toBeTruthy();
+    expect(await screen.findByRole('switch', { name: /comments on my proposal: Web/i })).toBeTruthy();
     expect(screen.queryByLabelText('Username')).toBeNull();
   });
 });

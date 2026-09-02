@@ -1,7 +1,7 @@
 /**
  * Linking a forecasting record, for any provider (docs/record-links.md).
  *
- * Written before the implementation. What is pinned here is the contract
+ * Written before the implementation. What is pinned here is the proposal
  * in that doc rather than the shape of the code: the proof, the two
  * uniqueness rules, what qualifies, and the promise that a provider is
  * an object plus a price row and nothing else.

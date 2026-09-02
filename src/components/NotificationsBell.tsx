@@ -6,9 +6,9 @@ import { api, type NotificationItem } from '../lib/api';
  * The floor's inbox (owner ask 2026-08-19): one bell in the top bar that
  * answers "what happened while I was away".
  *
- * It shows EVERYTHING, deliberately: comments on your contracts, replies in
- * threads you are in, new contracts where you trade, and decisions on your
- * own contracts, whether or not the matching email is switched on. The
+ * It shows EVERYTHING, deliberately: comments on your proposals, replies in
+ * threads you are in, new proposals where you trade, and decisions on your
+ * own proposals, whether or not the matching email is switched on. The
  * switches tune interruption; this is the record.
  *
  * The count is set in the floor's own instrument type (mono, amber), the
@@ -25,9 +25,9 @@ import { api, type NotificationItem } from '../lib/api';
  */
 
 const KIND_VERB: Record<NotificationItem['kind'], string> = {
-  comment: 'commented on your contract',
+  comment: 'commented on your proposal',
   reply: 'replied in a thread you are in',
-  contract: 'put a contract on the ballot',
+  contract: 'put a proposal on the ballot',
   anyComment: 'commented',
   settled: 'settled',
   decision: 'was decided',
@@ -43,7 +43,7 @@ function timeAgo(iso: string): string {
 }
 
 /**
- * Where a row goes: the floor, the contract when there is one, and the
+ * Where a row goes: the floor, the proposal when there is one, and the
  * comment itself when the row is about a comment. The floor reads these off
  * the hash, opens the thread and flashes the line, so a row lands on the
  * thing it named rather than near it.
@@ -51,7 +51,7 @@ function timeAgo(iso: string): string {
 function hrefFor(n: NotificationItem): string | null {
   if (!n.workspaceSlug) return null;
   const parts: string[] = [];
-  if (n.proposalId) parts.push(`contract=${encodeURIComponent(n.proposalId)}`);
+  if (n.proposalId) parts.push(`proposal=${encodeURIComponent(n.proposalId)}`);
   if (n.commentId) parts.push(`comment=${encodeURIComponent(n.commentId)}`);
   return parts.length > 0 ? `/${n.workspaceSlug}#${parts.join('&')}` : `/${n.workspaceSlug}`;
 }
@@ -183,7 +183,7 @@ export function NotificationsBell() {
             <p className="notif-empty">Loading…</p>
           ) : items.length === 0 ? (
             <p className="notif-empty">
-              Nothing yet. Comments on your contracts, answers in your threads, and new contracts where you trade land
+              Nothing yet. Comments on your proposals, answers in your threads, and new proposals where you trade land
               here.
             </p>
           ) : (
@@ -196,19 +196,19 @@ export function NotificationsBell() {
                       <span className={`notif-kind notif-kind--${n.kind}`}>
                         {/* No actor means the system did it: a settlement, or
                             a decision. Which noun leads depends on the kind;
-                            "Your contract" was wrong the moment decisions on
-                            OTHER people's contracts started landing here. */}
+                            "Your proposal" was wrong the moment decisions on
+                            OTHER people's proposals started landing here. */}
                         {n.actor
                           ? `${n.actor} ${KIND_VERB[n.kind]}`
                           : n.kind === 'settled'
                             ? 'A market you traded settled'
                             : n.kind === 'stale'
-                              ? // Not a contract, and nobody did it: it is the
+                              ? // Not a proposal, and nobody did it: it is the
                                 // owner's own market about to settle on a
                                 // number nobody has taken (2026-09-01, it read
-                                // "A contract undefined").
+                                // "A proposal undefined").
                                 'Your market needs its number'
-                              : `A contract ${KIND_VERB[n.kind]}`}
+                              : `A proposal ${KIND_VERB[n.kind]}`}
                       </span>
                       <span className="notif-time">{timeAgo(n.at)}</span>
                     </span>

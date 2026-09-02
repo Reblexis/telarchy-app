@@ -16,13 +16,13 @@ import { api } from '../lib/api';
  * 25" has no way to judge whether 25 is right without knowing what the company
  * sells, how the number is measured and what has already been priced. That
  * knowledge exists, spread across a chart, a definition, a charter, eight
- * contracts and the owner's data room, and reading all of it is more work than
+ * proposals and the owner's data room, and reading all of it is more work than
  * the bet is worth. Asking someone is not.
  *
  * A named character rather than a neutral answer box, because the answer a
  * visitor actually wants is "what would you do", and no answer service says
  * that. He is allowed opinions and advice; he is not allowed to invent a
- * number (functions/src/lib/ask.ts holds that contract).
+ * number (functions/src/lib/ask.ts holds that rule).
  *
  * In the corner rather than in the column: the page's job is the market, and
  * the reader who needs him needs him at any point in the page, not at one
@@ -89,7 +89,7 @@ export function FloorChat({
     `What does ${workspaceName} actually do?`,
     metricLabel ? `Is ${metricLabel.toLowerCase()} priced right?` : 'Is this market priced right?',
     // The third opener says what changed: signed in, he does things.
-    signedIn ? 'What am I holding, and what is it worth?' : 'Which contract would you take?',
+    signedIn ? 'What am I holding, and what is it worth?' : 'Which proposal would you take?',
   ];
 
   useEffect(() => {
@@ -157,8 +157,8 @@ export function FloorChat({
           <>
             <p className="otto-msg otto-msg--otto">
               {signedIn
-                ? 'I watch this floor. Ask what the company does or where the price should be, and I can act for you: place a bet, offer a contract, tell you what you hold.'
-                : 'I watch this floor. Ask what the company does, whether the price looks right, or which contract I would take.'}
+                ? 'I watch this floor. Ask what the company does or where the price should be, and I can act for you: place a bet, offer a proposal, tell you what you hold.'
+                : 'I watch this floor. Ask what the company does, whether the price looks right, or which proposal I would take.'}
             </p>
             <div className="otto-openers">
               {openers.map(o => (

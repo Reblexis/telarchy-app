@@ -13,7 +13,7 @@ their own credits at stake price both. The gap between them is what you decide
 on.
 
 This guide is the owner's side. The proposer's side, including how to write one
-and what it costs to post, is [get paid for work](/guides/contracts).
+and what it costs to post, is [get paid for work](/guides/get-paid).
 
 ## The number you are reading
 
@@ -31,7 +31,7 @@ it there.
 
 Three places give you the same numbers:
 
-- **The floor.** Each contract in the right rail carries its impact on the
+- **The floor.** Each proposal in the right rail carries its impact on the
   headline horizon, and selecting one swaps the chart and the ticket onto the
   approved branch so you can trade it yourself.
 - **`GET /api/proposals/:id`.** `markets[]` carries one row per metric and date:
@@ -40,19 +40,19 @@ Three places give you the same numbers:
   side has no price. For a caller with `manage`, the row also carries the
   proposer's `payoutHandle`, which is where the money goes if you approve.
 - **`GET /api/marketplace/:workspaceId/context?format=md`.** The whole floor as
-  one markdown brief, contracts and their priced impact included. This is the
+  one markdown brief, proposals and their priced impact included. This is the
   form to hand a model.
 
 **A pair with no liquidity has no price and tells you nothing.** That is the
-usual reason a contract sits there reading "open" instead of a number. Posting
+usual reason a proposal sits there reading "open" instead of a number. Posting
 is free, so a proposer who paid no subsidy has left you nothing to read.
 
 You can fund it yourself. `POST /api/predictions/markets/liquidity/bulk
 { amount, proposalId }` puts `amount` credits into **each** branch under that
-contract, so the bill is `amount` times the number of markets, and it needs
+proposal, so the bill is `amount` times the number of markets, and it needs
 `manage`. `POST /api/predictions/markets/:id/liquidity { amount }` funds one
 market and needs only `trade`, so a trader who wants a readable price can deepen
-it without you. Top-ups on a pending contract are recorded as durable subsidy
+it without you. Top-ups on a pending proposal are recorded as durable subsidy
 and re-seeded when target dates roll forward, so they do not evaporate.
 
 If `autoFundNewMarkets` is on, the workspace tries to seed a new pair itself,
@@ -73,24 +73,24 @@ thin pair is still a priced pair; an unfunded one is nothing at all.
 All four need the `manage` capability. The proposer has a fifth, `POST
 /api/proposals/:id/withdraw`, which voids both branches and moves no money.
 
-Nothing expires. There is no deadline on a pending contract and no sweep that
+Nothing expires. There is no deadline on a pending proposal and no sweep that
 decides for you: it stays pending until a person acts. The one automatic thing
-is that a branch market reaching its own resolution date while the contract is
+is that a branch market reaching its own resolution date while the proposal is
 still pending gets voided and refunded, because a conditional market on an
 undecided condition has nothing to settle against.
 
 If you want a ceiling on how many can pile up, `maxPendingProposalsPerParticipant`
-caps pending contracts per participant (0, off, by default) and returns 429 with
+caps pending proposals per participant (0, off, by default) and returns 429 with
 `{ pending, cap }`. The cap never applies to anyone who can review the queue,
 i.e. whoever holds the `manage` capability on the floor: the owner, the admins
 they added, and a platform admin acting there. It is a brake on what strangers
-can queue for a reviewer to look at, and a reviewer's own contracts are their
-own to manage, so they may post any number of pending contracts whatever the cap
+can queue for a reviewer to look at, and a reviewer's own proposals are their
+own to manage, so they may post any number of pending proposals whatever the cap
 says.
 
 ## Approving is the payment
 
-At the press, the agreed amount is owed and the contract counts as paid. Nothing
+At the press, the agreed amount is owed and the proposal counts as paid. Nothing
 sits between the button and that record. Whatever rail carries the dollars
 afterwards, your bank transfer included, settles a debt already incurred rather
 than making a second decision.
@@ -99,8 +99,8 @@ So do not treat approve as "I will decide once I see the work", and do not offer
 a proposer a staged or on-delivery arrangement. If you are not ready to owe the
 money, the answer is decline.
 
-The platform does not move dollars. It records what you owe: approved contracts
-sum into `approvedUsd`, and the proposer's payout handle is on the contract. You
+The platform does not move dollars. It records what you owe: approved proposals
+sum into `approvedUsd`, and the proposer's payout handle is on the proposal. You
 send the money on whatever rail their handle names.
 
 Two credit movements do happen automatically on approve, both out of your
@@ -115,7 +115,7 @@ balance:
   you need and what you have.
 
 One sharp edge in that order: the declined branch is voided before the reward is
-attempted, so an approve that fails on 409 leaves the contract pending with its
+attempted, so an approve that fails on 409 leaves the proposal pending with its
 declined branch already gone. Top up and approve again; you will not get that
 branch's price discovery back.
 
@@ -128,7 +128,7 @@ coupling is the point. Making a public commitment about what you will do with
 the market's answer is what turns the requirement on. A floor that promises
 nothing stays frictionless; a floor that promises something cannot quietly skip
 the one decline that is embarrassing to explain. Maximum 4000 characters, and it
-is published permanently on the contract.
+is published permanently on the proposal.
 
 `refund: true` is the "genuine idea, just not this one" variant: it voids both
 branches instead of one, so the proposer's whole staked liquidity comes straight
@@ -145,7 +145,7 @@ by hand.
 whatever the proposer actually has, and credits it to you. It takes no reason.
 There is no button for it on the floor; it is an API call.
 
-**Remove** takes a contract off the board entirely: a duplicate, a test row,
+**Remove** takes a proposal off the board entirely: a duplicate, a test row,
 something that should never have been there. Every stake is refunded first. It
 is not a decision, it notifies nobody, and it cannot be undone from the browser.
 
@@ -167,7 +167,7 @@ and the number arrives to prove them right or wrong. It is also what makes a
 decline auditable later, because "we declined and the metric did what the
 market said it would" is a record you can point at.
 
-Neither branch settles if you never decided. A contract still pending at a
+Neither branch settles if you never decided. A proposal still pending at a
 market's resolution instant created no world, so both branches void there and
 everyone is refunded.
 
@@ -183,7 +183,7 @@ what you will do with the number and the reasons you may decline anyway, stated
 in advance so they cannot be invented afterwards. Set it with `PUT
 /api/workspaces/:id/settings { charter }` (up to 20000 characters, `manage`).
 
-**Push back on unbounded contracts.** A market is only useful when execution is
+**Push back on unbounded proposals.** A market is only useful when execution is
 near-certain and the outcome is uncertain, because those are the two doubts it
 cannot tell apart. "Improve onboarding" has no stated quantity. "Hire a senior
 engineer this month" needs somebody else to say yes, so a low price could mean
@@ -193,7 +193,7 @@ the onboarding flow, interview 20 churned customers, publish the new pricing
 page.
 
 The strongest shape is one where pressing approve **is** the action. A paid
-contract already is: the press is the payment. A proposal an AI participant
+proposal already is: the press is the payment. A proposal an AI participant
 executes on approval already is. Everything else, "publish the post", "wire the
 money", happens soon after the press rather than at it, and that gap is where
 the price quietly absorbs the odds of you getting round to it. When no mechanism
