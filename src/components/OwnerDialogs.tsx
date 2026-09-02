@@ -404,7 +404,7 @@ export function InjectLiquidityDialog({
     <FloorModal onClose={onClose} label="Inject liquidity">
       <div className="jobform">
         <CreditsHero
-          label={`Inject liquidity, from your balance · ${marketLabel}`}
+          label={`Inject liquidity · ${marketLabel}`}
           value={amount}
           onChange={setAmount}
           disabled={busy}
@@ -430,6 +430,16 @@ export function InjectLiquidityDialog({
         </div>
 
         {err && <p className="ticket-err">{err}</p>}
+        {/* Anyone who can trade may fund a market (owner ask 2026-09-02), so
+          this is read by traders too, and a trader is owed the part they do
+          not know before they pay rather than afterwards in the standings
+          (docs/seasons.md). Liquidity credits go first, then the tradeable
+          balance: one direction only, which is why the note names the
+          consequence rather than the purse. */}
+        <p className="adm-note">
+          Credits behind a market are not scored as profit on this market, so funding a book you trade pays you nothing.
+          What the market does not pay out comes back to you.
+        </p>
         <button className="ticket-go" disabled={busy} onClick={() => void inject()}>
           {busy ? 'Adding…' : amountNum ? `Add ${fmtCr(amountNum)} cr` : 'Add'}
           <span className="ticket-go-sub">

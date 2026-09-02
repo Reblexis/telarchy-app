@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import { MarketFacts } from '../MarketFacts';
 
@@ -20,5 +20,34 @@ describe('MarketFacts', () => {
       '11k',
       '1.8m',
     ]);
+  });
+
+  /**
+   * Anyone who can trade a market can deepen it (owner ask 2026-09-02:
+   * "make it actually possible for anyone to inject liquidity into any
+   * market"). The API has always allowed it, `requireCapability('trade')`;
+   * only the button was owner-only, so in a browser the depth of every
+   * market was the owner's problem alone.
+   */
+  test('a trader is offered Inject, not only the owner', () => {
+    render(<MarketFacts traders={1} pool={100} volume={0} canTrade onInject={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Inject' })).toBeInTheDocument();
+  });
+
+  test('someone who cannot trade the market is offered nothing to click', () => {
+    render(<MarketFacts traders={1} pool={100} volume={0} onInject={() => {}} fundingHref="/f/funding" />);
+    expect(screen.queryByRole('button', { name: 'Inject' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Buy' })).toBeNull();
+  });
+
+  // Buying credits is the owner's page: it funds THIS floor's pools out of
+  // the owner's own money, so it stays where it was.
+  test('Buy stays with the owner', () => {
+    const { rerender } = render(
+      <MarketFacts traders={1} pool={100} volume={0} canTrade onInject={() => {}} fundingHref="/f/funding" />,
+    );
+    expect(screen.queryByRole('link', { name: 'Buy' })).toBeNull();
+    rerender(<MarketFacts traders={1} pool={100} volume={0} canManage onInject={() => {}} fundingHref="/f/funding" />);
+    expect(screen.getByRole('link', { name: 'Buy' })).toBeInTheDocument();
   });
 });
