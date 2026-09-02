@@ -602,7 +602,12 @@ reading by then"), because it changes what a bet is.
   every open market of this metric as a marker at its settle instant
   carrying that market's current call. Readings are joined by straight
   segments with a dot at each reading and a dashed hold from the last one
-  to now (the value in force); a step line read as a staircase. **It is about the market on
+  to now (the value in force); a step line read as a staircase. **The
+  vertical axis never magnifies a wobble into a cliff**: it spans at least a
+  tenth of the largest value drawn (readings, markers and the pair), so a
+  reading that moved a third of a percent draws as a small step and only a
+  real move fills the plot; three readings within an hour used to draw as a
+  full-height wall at the now rule. **It is about the market on
   screen**: the selected market's marker is amber and labeled; the others
   are grey and unlabeled, and one that falls outside the window is simply
   not drawn. Hovering snaps to the nearest reading on the past side (the dot sits on
