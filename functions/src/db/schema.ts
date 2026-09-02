@@ -1524,3 +1524,54 @@ export const tradeIdempotency = pgTable(
     index('trade_idempotency_created_idx').on(t.createdAt),
   ],
 );
+
+/**
+ * The X workbench (docs/x-workbench.md): one row per reply the owner sent,
+ * so later drafts can be shaped by what actually earned attention.
+ *
+ * The source post is denormalised on purpose. X's public read for a single
+ * post is undocumented and will break one day; when it does, the log must
+ * still read as a record of what he answered, not as a list of dead ids.
+ *
+ * `replyId` is nullable because he records the text at the moment he sends it
+ * and pastes the id afterwards, if at all. A row with no id is still evidence
+ * of what he wrote; it just cannot carry metrics.
+ */
+export const xReplies = pgTable(
+  'x_replies',
+  {
+    id: text('id').primaryKey(),
+    /** The post he answered. */
+    sourcePostId: text('source_post_id').notNull(),
+    sourceAuthor: text('source_author'),
+    sourceText: text('source_text'),
+    sourceFollowers: integer('source_followers'),
+    /** What he actually sent, which is often not what was drafted. */
+    text: text('text').notNull(),
+    /** The reply's own post id, once he pastes it. Null until then. */
+    replyId: text('reply_id'),
+    /** Metrics, refreshed by the cron; null until the reply id exists. */
+    likes: integer('likes'),
+    replies: integer('replies'),
+    metricsAt: timestamp('metrics_at'),
+    /** Features the summary correlates against engagement. Stored rather than
+     *  recomputed so the log cannot silently change meaning when the
+     *  heuristics are tuned. */
+    hasNumber: boolean('has_number').notNull().default(false),
+    disagrees: boolean('disagrees').notNull().default(false),
+    length: integer('length').notNull().default(0),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [index('x_replies_created_idx').on(t.createdAt), uniqueIndex('x_replies_reply_id_idx').on(t.replyId)],
+);
+
+/**
+ * His writing samples and the facts a draft may state, kept in the database
+ * rather than the repository: it is personal text and this repo is prepared
+ * for a public release. One row, id 'default'.
+ */
+export const xVoiceProfile = pgTable('x_voice_profile', {
+  id: text('id').primaryKey(),
+  profile: text('profile').notNull(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});

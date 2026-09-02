@@ -145,3 +145,17 @@ cronRouter.post(
     res.json({ ok: true, lock: ran, workspaces: results });
   }),
 );
+
+/**
+ * Refresh engagement on the owner's recorded X replies (docs/x-workbench.md).
+ * Every six hours is plenty: a reply's numbers move fastest in its first day
+ * and barely after a week, and each refresh is one unauthenticated read.
+ */
+cronRouter.post(
+  '/x-metrics',
+  wrap(async (req, res) => {
+    if (!validateApiKey(req, res)) return;
+    const { refreshMetrics } = await import('../services/x-workbench');
+    res.json(await refreshMetrics());
+  }),
+);

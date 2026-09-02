@@ -342,6 +342,7 @@ const ROUTER_MOUNTS: Record<string, string> = {
   'legal.ts': '/api/legal',
   'data-room.ts': '/api/data-room',
   'cron.ts': '/api/cron',
+  'x-workbench.ts': '/api/admin/x',
   'waitlist.ts': '/api/waitlist',
   'recordLinks.ts': '/api/import',
   'onboard.ts': '/api/onboard',
