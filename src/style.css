@@ -9052,6 +9052,9 @@ textarea.jobform-line--desc {
   border-top: 1px solid var(--border-color);
 }
 .dates-seg { flex-wrap: nowrap; }
+.dates-add-head .dates-link { font-size: 0.74rem; color: var(--text-tertiary); }
+.dates-add-head .dates-link:hover { color: var(--text-primary); }
+.dates-start .odlg-mono { font-size: inherit; }
 /* A link set in the running text: the same words, underlined, no chrome. */
 .dates-link {
   padding: 0;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { describeEntry, entryFor, resolveEntry } from '../horizon-entries';
+import { describeEntry, entryFor, repeatSentence, resolveEntry } from '../horizon-entries';
 
 /**
  * The two kinds of horizon entry, told apart.
@@ -71,5 +71,12 @@ describe('writing an entry from the dialog', () => {
   test('once stores the day, and the hour when one was picked', () => {
     expect(entryFor('once', 0, '2026-12-31', '')).toBe('2026-12-31');
     expect(entryFor('once', 0, '2026-12-31', '18:00')).toBe('2026-12-31T18');
+  });
+});
+
+describe('what the button promises', () => {
+  test('a repeat points at the liquidity field, which sits above the button', () => {
+    expect(repeatSentence('week')).toBe('A new market every week, each opening with the liquidity above.');
+    expect(repeatSentence('once')).toBe('One market, on that date, and nothing after it.');
   });
 });
