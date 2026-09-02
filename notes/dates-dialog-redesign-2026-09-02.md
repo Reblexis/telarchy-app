@@ -7,7 +7,7 @@ then code, per the usual order.
 **Owner report 2026-09-02 (Viktor)**, on the dialog as shipped:
 "this looks horribly unintuitive and tgoo bloated please do better".
 
-Canvas with the mockups (three states, two low-fi alternates):
+Canvas with the mockups (three states, a YC strict cut, two low-fi alternates):
 https://claude.ai/code/artifact/594d7aca-be39-4151-998b-4acd876a2823
 
 YC's published guidance on the same question, fetched and quoted:
@@ -72,6 +72,32 @@ acts:
 Nothing is removed from the API surface or from what the dialog can do.
 What changes is what the owner has to read before doing the common
 thing.
+
+## Where YC pushes further than the recommendation
+
+`notes/yc-product-simplicity-2026-09-02.md` applies Seibel's test ("does a
+truly desperate customer need that feature to start?") and Garry Tan's
+removal test to the same dialog and cuts deeper in four places. The
+"Strict cut" artboard on the canvas shows the result: the list, one row of
+four (daily, weekly, monthly, once), a "1,000 cr each · change" line, one
+button. No footer.
+
+| Element | Recommendation (hi-fi row) | Strict cut (YC) |
+|---|---|---|
+| Hourly, yearly | On the row | Off the surface, API only, until an owner asks |
+| This / next period | Default this, one link flips it | Default only, no control |
+| Settlement lag | Footer sentence, "change" reveals the field | A default; no field until an owner brings the problem |
+| Remove metric | Footer link | Out of this dialog, onto the metric itself |
+| Liquidity | Field above the button | Default with a "change" link |
+
+The recommendation stops short of the strict cut because
+`docs/owner-on-the-floor.md` promises three of those things today (the six
+cadences, lag in this dialog, removal in this dialog) and the lag exists
+because an owner asked for it two days ago. Each step towards the strict
+cut is a doc edit first, and Viktor's call, not the redesign's. YC's own
+caveat applies: with a handful of owners, the test is a few conversations,
+not an experiment ("Does it solve the problem I want it to solve? That's
+it.").
 
 ## The doc edit that would land first
 
