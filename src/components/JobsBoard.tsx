@@ -71,6 +71,24 @@ function fmtDelta(d: number, unit: string): string {
   return `${d > 0 ? '+' : d < 0 ? '-' : ''}${fmtVal(Math.abs(d), unit).replace(/^([+-])?/, '')}`;
 }
 
+/**
+ * What is behind a contract: both branches of every pair, added up (owner ask
+ * 2026-09-02). A contract's forecast is two books, and half the money is not
+ * the number a reader comparing two contracts wants. A branch with no market
+ * counts as nothing rather than as a hole, which is not the same as a market
+ * nobody has funded (zero).
+ */
+/** The pool's mark, the same drop the market facts use. */
+const PoolDrop = () => (
+  <svg width="9" height="11" viewBox="0 0 12 15" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+    <path d="M6 1.5C6 1.5 1.5 6.5 1.5 9.3a4.5 4.5 0 0 0 9 0C10.5 6.5 6 1.5 6 1.5Z" />
+  </svg>
+);
+
+export function poolOf(p: PublicProposal): number {
+  return (p.markets ?? []).reduce((sum, m) => sum + (m.approvedPool ?? 0) + (m.declinedPool ?? 0), 0);
+}
+
 /** Round-1 convention: the USD ask is composed into the title ("$80: ...").
     Parse it back out so the row can show cost as a structured field. */
 export function splitAsk(title: string): { ask: number | null; rest: string } {
@@ -180,7 +198,12 @@ export function JobsBoard({
   // docs/ui-conventions.md, "The board opens on the live ballot".
   const isPending = (p: PublicProposal) => !p.status || p.status === 'pending';
   const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
-  const pending = proposals.filter(isPending).sort(byImpact);
+  // Money decides the order (owner decision 2026-09-02: "contracts are
+  // ordered by total liquidity available"), so a contract somebody funded is
+  // read first and one nobody has backed sits at the bottom rather than at
+  // the top by accident of its own unpriced delta. Impact breaks a tie.
+  const byPool = (a: PublicProposal, b: PublicProposal) => poolOf(b) - poolOf(a) || byImpact(a, b);
+  const pending = proposals.filter(isPending).sort(byPool);
   const decided = proposals.filter(p => !isPending(p)).sort(byImpact);
 
   // A board with nothing pending has no ballot to bury, so the decided ones
@@ -303,6 +326,17 @@ export function JobsBoard({
             ) : (
               <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>
             )}
+            {/* What is behind the forecast, in the drop the market's own pool
+                rows wear. Quiet and mono under the delta: it is what the
+                number above it is worth trusting, and it is what the list is
+                ordered by. */}
+            <span
+              className="pubws-ballot-pool"
+              title={`${Math.round(poolOf(p)).toLocaleString()} credits behind this contract`}
+            >
+              <PoolDrop />
+              {Math.round(poolOf(p)).toLocaleString()}
+            </span>
           </span>
         </button>
       </li>
@@ -374,7 +408,8 @@ export function JobsBoard({
             hardcoded "plus 500 cr" was a promise most floors do not keep. */}
         <p className="pubws-propose-cost">
           Free to post. Approved means <strong>you are paid in real money</strong>
-          {proposalReward > 0 ? <>, plus {proposalReward.toLocaleString()}&nbsp;cr</> : null}.
+          {proposalReward > 0 ? <>, plus {proposalReward.toLocaleString()}&nbsp;cr</> : null}. Put credits behind it and
+          it moves up.
         </p>
       </div>
 

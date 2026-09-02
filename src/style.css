@@ -3023,6 +3023,19 @@ button.notif-row-link {
   flex: none;
 }
 
+/* What is behind the contract, under its impact: the drop the market's own
+   pool rows wear, quiet enough that the delta stays the headline
+   (docs/ui-conventions.md). It is also what the ballot is ordered by. */
+.pubws-ballot-pool {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
 
 /* The account corner: an avatar that opens what a trader needs here. */
 .acctmenu {

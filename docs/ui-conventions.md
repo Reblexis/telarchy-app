@@ -1095,6 +1095,19 @@ two branch values are not shown. Rows carry the title, the proposer, and
 the USD ask (the two required facts of a contract), and are ranked by
 impact, since the ballot is a ranking the owner acts on.
 
+**A contract prints what is behind it, and the ballot is ordered by it.**
+Under the impact, in the drop the market's own pool rows wear, every contract
+carries the credits behind its forecast: both branches of every pair, added
+up, because half the money is not the number a reader comparing two contracts
+wants. Quiet and mono, so the impact stays the headline it has always been.
+The pending list is ranked by that pool, deepest first, with impact breaking
+a tie (owner decision 2026-09-02: "contracts are ordered by total liquidity
+available"). A contract nobody has funded sits at the bottom rather than at
+the top by accident of its own unpriced delta, and the propose footer says
+what moves one up, because the person about to post one is exactly who needs
+to know. Decided contracts stay ranked by impact: nothing can be funded into
+them any more.
+
 **The board opens on the live ballot; decided contracts are folded away.**
 An approved or declined contract is history: nothing about it can be traded
 on or influenced any more, and decided contracts carry the largest impacts,
