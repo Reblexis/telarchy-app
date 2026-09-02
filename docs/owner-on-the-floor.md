@@ -64,29 +64,32 @@ the metric immediately opens dialog 2 for it, because a metric with no date
 has no market and the flow does not let the owner stop before one.
 
 **2. The dates**, opened from the `dates` chip on the date row, or straight
-after dialog 1 while the metric still has none. It is the whole subject in
-one place: what this metric is priced on, what comes back, and how to stop
-either. A list that could only be added to was a list that could only be got
-wrong once (owner ask 2026-08-31).
+after dialog 1 while the metric still has none. It opens on the list: each
+line says what the metric is priced on ("Every month", "Every day",
+"31 December 2026, once"), what that line's open market holds (next date,
+pool, traders), and a Stop. A list that could only be added to was a list
+that could only be got wrong once (owner ask 2026-08-31). Each line says
+what it IS rather than when it next lands, because a repeat and a one-off
+look identical on the floor.
 
-Each line says what it IS rather than when it next lands, because a repeat
-and a one-off look identical on the floor: "Every month", "Every day",
-"31 December 2026, once", each with what its open market currently holds
-(next date, pool, traders) and a Stop.
-
-Adding one asks how often, in the vocabulary the API always had and the floor
-never offered: every hour, day, week, month, year, or once. A repeat then
-asks which one of the period, today or tomorrow, this week or next, which is
-exactly the `+0d` / `+1d` the entry stores. Once asks for a day, with an
+Adding one is folded behind a single "+ Add a date" chip while the metric
+has any date, and open, with no chip, while it has none, so a new metric's
+first visit asks one question: how often. The six answers sit on one row
+(hourly, daily, weekly, monthly, yearly, once) in the vocabulary the API
+always had. A repeat starts with the current period, and one line under the
+picker names the date it starts with and offers the next period instead;
+that is the `+0d` / `+1d` the entry stores. Once asks for a day, with an
 optional UTC hour, since markets settle on the hour. Under it, the liquidity
 each one opens with, and the heading says whose credits that is.
 
-**How long after a period the number is final** is a line at the top of the
-same dialog, because it belongs to the metric rather than to any one date: a
-monthly total that needs three days of refunds says three, and markets opened
-afterwards settle three days after their period rather than at its last
-second. Markets already open keep the instant they opened with, so changing it
-never moves a settlement people are trading against.
+**How long after a period the number is final** is a sentence at the foot
+of the same dialog with the number in it ("Final 3 days after each period"),
+because it belongs to the metric rather than to any one date and is changed
+rarely: a monthly total that needs three days of refunds says three, and
+markets opened afterwards settle three days after their period rather than
+at its last second. Pressing "change" opens the field. Markets already open
+keep the instant they opened with, so changing it never moves a settlement
+people are trading against.
 
 **Stopping a date says which of two things it will do, before the press.**
 The two are genuinely different (`docs/market-integrity.md`, "Stopping a date
@@ -95,10 +98,11 @@ running and settles on its own date untouched, and only the next one never
 opens; if nobody has, the market goes and its pool comes back to the wallet
 that funded it.
 
-**Removing the metric** sits at the foot of the same dialog, because it is
-the same kind of act. It lists what is in the way first: a traded market
-blocks it and the button says so instead of throwing a 409 after the click,
-while untraded ones simply go with their pools returned.
+**Removing the metric** is a link in the same footer, because it is the
+same kind of act as stopping every date. Its confirmation lists what is in
+the way first: a traded market blocks it and the button says so instead of
+throwing a 409 after the click, while untraded ones simply go with their
+pools returned.
 
 Every one of those is the same write: `timePreference.customHorizons` on the
 metric, adding an entry or dropping one, plus `metrics.liquidityCredits` for

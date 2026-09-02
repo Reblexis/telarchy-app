@@ -36,9 +36,17 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/** The submit button, by class: its LABEL changes with the load state, which
- *  is part of what is being tested. */
-const goButton = () => document.querySelector('.ticket-go') as HTMLButtonElement;
+/** The submit button, by class, or null: while the dates are unread the
+ *  dialog shows no add form at all, and a button that does exist must be
+ *  dead. Either satisfies the rule; a live button breaks it. */
+const goButton = () => document.querySelector('.ticket-go') as HTMLButtonElement | null;
+const noLiveButton = () => {
+  const go = goButton();
+  if (go) {
+    expect(go.disabled).toBe(true);
+    fireEvent.click(go);
+  }
+};
 
 const open = () =>
   render(
@@ -60,10 +68,7 @@ describe('the dialog cannot write dates it has not read', () => {
     getMetric.mockImplementation(() => new Promise(() => {}));
     open();
 
-    const go = goButton();
-    expect(go.disabled).toBe(true);
-
-    fireEvent.click(go);
+    noLiveButton();
     expect(patchMetric).not.toHaveBeenCalled();
   });
 
@@ -72,7 +77,8 @@ describe('the dialog cannot write dates it has not read', () => {
     open();
 
     await waitFor(() => expect(getMetric).toHaveBeenCalled());
-    fireEvent.click(goButton());
+    await waitFor(() => expect(screen.getByText('500')).toBeTruthy());
+    noLiveButton();
 
     await waitFor(() => expect(patchMetric).not.toHaveBeenCalled());
   });
@@ -85,6 +91,7 @@ describe('the dialog cannot write dates it has not read', () => {
     open();
 
     await screen.findByText('Every month');
+    fireEvent.click(screen.getByRole('button', { name: /Add a date/ }));
     const go = await screen.findByRole('button', { name: /Open the market/ });
     await waitFor(() => expect((go as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(go);

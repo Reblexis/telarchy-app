@@ -27,12 +27,14 @@ import { FloorModal } from './FloorModal';
  * comes back. The dialog says which of those before the press, never after.
  */
 
+/** Six on one row, the "every" carried by the heading so they fit the
+ *  card's width (docs/owner-on-the-floor.md, dialog 2). */
 const EVERY_CHOICES: Array<{ id: Every; label: string }> = [
-  { id: 'hour', label: 'every hour' },
-  { id: 'day', label: 'every day' },
-  { id: 'week', label: 'every week' },
-  { id: 'month', label: 'every month' },
-  { id: 'year', label: 'every year' },
+  { id: 'hour', label: 'hourly' },
+  { id: 'day', label: 'daily' },
+  { id: 'week', label: 'weekly' },
+  { id: 'month', label: 'monthly' },
+  { id: 'year', label: 'yearly' },
   { id: 'once', label: 'once' },
 ];
 
@@ -92,6 +94,12 @@ export function DatesDialog({
   // three days of refunds to be true settles three days after the month, not
   // at midnight on the 30th when it cannot exist yet (owner ask 2026-08-31).
   const [lagDays, setLagDays] = useState('0');
+  // The field is behind "change" in the footer; the sentence carries the
+  // number the rest of the time.
+  const [editingLag, setEditingLag] = useState(false);
+  // The add form is folded behind one chip while the metric has dates, and
+  // open while it has none; that is decided once the dates are read.
+  const [adding, setAdding] = useState(false);
   const [stopping, setStopping] = useState<HorizonEntry | null>(null);
   const [removing, setRemoving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -115,6 +123,9 @@ export function DatesDialog({
       cancelled = true;
     };
   }, [workspaceId, metricId]);
+
+  const hasDates = entries !== null && entries.length > 0;
+  const formOpen = entries !== null && (!hasDates || adding);
 
   const factsByDate = useMemo(() => new Map(markets.map(m => [m.targetDate, m])), [markets]);
   const factsFor = (e: HorizonEntry) => factsByDate.get(resolveEntry(e.entry));
@@ -306,8 +317,11 @@ export function DatesDialog({
     );
   }
 
-  // --- The list, and one more ---------------------------------------------
+  // --- The list first, then one more ---------------------------------------
   const creditsNum = parseCredits(credits);
+  const lagShown = lagDays.trim() === '' ? '0' : lagDays.trim();
+  const startsWith = every === 'once' ? null : WHICH[every][ahead === 0 ? 0 : 1];
+  const otherStart = every === 'once' ? null : WHICH[every][ahead === 0 ? 1 : 0];
   return (
     <FloorModal onClose={onClose} label="Dates">
       <div className="jobform">
@@ -318,142 +332,154 @@ export function DatesDialog({
           </button>
         </div>
 
-        {/* A property of the metric, so it sits with the metric rather than
-          inside the add form: how long after a period its number is final,
-          which is when its markets settle (docs/guides/sources.md). */}
-        <div className="jobform-field dates-lag">
-          <span className="ticket-label">This number is final how long after each period?</span>
-          <span className="odlg-dayrow">
-            <input
-              className="jobform-line odlg-mono odlg-day"
-              value={lagDays}
-              disabled={busy}
-              onChange={e => setLagDays(e.target.value)}
-              aria-label="Days after the period"
-            />
-            <span className="odlg-or">
-              {lagDays.trim() === '0' || lagDays.trim() === ''
-                ? 'days: a market settles the moment its period ends'
-                : `days: a market settles ${lagDays.trim()} after its period ends, which is your window to report`}
-            </span>
-          </span>
-          <span className="odlg-note-left">Markets already open keep the day they were opened with.</span>
-        </div>
-
-        <div className="ticket-facts">
-          {entries === null && <p className="odlg-note-left">Reading the dates…</p>}
-          {entries?.length === 0 && (
-            <p className="odlg-note-left">No dates yet, so this metric has no market. Add one below.</p>
-          )}
-          {entries?.map(e => {
-            const facts = factsFor(e);
-            return (
-              <div className="ticket-fact dates-line" key={e.entry}>
-                <span className="ticket-fact-k">
-                  {e.label}
-                  <span className="dates-sub">
-                    {facts
-                      ? `next one ${facts.targetDate} · ${fmtCr(facts.pool)} cr · ${
-                          facts.traded ? `${facts.traders} ${facts.traders === 1 ? 'trader' : 'traders'}` : 'nobody yet'
-                        }`
-                      : 'no market open on it'}
+        {entries === null && !err && <p className="odlg-note-left">Reading the dates…</p>}
+        {entries?.length === 0 && (
+          <p className="dates-empty">No dates yet, so no market. Pick how often this number is priced.</p>
+        )}
+        {hasDates && (
+          <div className="ticket-facts">
+            {entries?.map(e => {
+              const facts = factsFor(e);
+              return (
+                <div className="ticket-fact dates-line" key={e.entry}>
+                  <span className="ticket-fact-k">
+                    <span className="dates-what">{e.label}</span>
+                    <span className="dates-sub">
+                      {facts
+                        ? `${facts.targetDate} · ${fmtCr(facts.pool)} cr · ${
+                            facts.traded
+                              ? `${facts.traders} ${facts.traders === 1 ? 'trader' : 'traders'}`
+                              : 'nobody yet'
+                          }`
+                        : 'no market open on it'}
+                    </span>
                   </span>
-                </span>
-                <button type="button" className="pubws-facts-act" onClick={() => setStopping(e)}>
-                  Stop
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="jobform-field">
-          <span className="ticket-label">Add another</span>
-          <span className="pubws-seg odlg-seg" role="group" aria-label="How often">
-            {EVERY_CHOICES.map(c => (
-              <button
-                key={c.id}
-                type="button"
-                className={`pubws-seg-btn${every === c.id ? ' is-active' : ''}`}
-                aria-pressed={every === c.id}
-                disabled={busy}
-                onClick={() => setEvery(c.id)}
-              >
-                {c.label}
-              </button>
-            ))}
-          </span>
-        </div>
-
-        {every === 'once' ? (
-          <div className="jobform-field">
-            <span className="ticket-label">Which day</span>
-            <span className="odlg-dayrow">
-              <input
-                type="date"
-                className="jobform-line odlg-mono odlg-day"
-                value={day}
-                disabled={busy}
-                onChange={e => setDay(e.target.value)}
-                aria-label="Pick a date"
-              />
-              <span className="odlg-or">at</span>
-              <input
-                type="time"
-                step={3600}
-                className="jobform-line odlg-mono odlg-day"
-                value={hour}
-                disabled={busy || !day}
-                onChange={e => setHour(e.target.value)}
-                aria-label="Pick an hour, UTC"
-              />
-              <span className="odlg-or">UTC, optional</span>
-            </span>
-          </div>
-        ) : (
-          <div className="jobform-field">
-            <span className="ticket-label">Which one</span>
-            <span className="pubws-seg odlg-seg" role="group" aria-label="Which one">
-              {WHICH[every].map((label, i) => (
-                <button
-                  key={label}
-                  type="button"
-                  className={`pubws-seg-btn${ahead === i ? ' is-active' : ''}`}
-                  aria-pressed={ahead === i}
-                  disabled={busy}
-                  onClick={() => setAhead(i)}
-                >
-                  {label}
-                </button>
-              ))}
-            </span>
+                  <button type="button" className="pubws-facts-act" onClick={() => setStopping(e)}>
+                    Stop
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        <div className="jobform-field">
-          <span className="ticket-label">Liquidity behind each one · from your {fmtCr(spendable)} cr</span>
-          <input
-            className="jobform-line odlg-mono"
-            value={credits}
-            disabled={busy}
-            onChange={e => setCredits(e.target.value)}
-            aria-label="Credits behind the market"
-          />
-        </div>
+        {hasDates && !adding && (
+          <button type="button" className="pubws-date-add dates-add" onClick={() => setAdding(true)}>
+            + Add a date
+          </button>
+        )}
 
-        {err && <p className="ticket-err">{err}</p>}
-        <button className="ticket-go" disabled={busy || entries === null} onClick={() => void add()}>
-          {busy
-            ? 'Opening…'
-            : entries === null
-              ? 'Reading this metric\u2019s dates…'
-              : `Open the market · ${creditsNum === null ? '—' : fmtCr(creditsNum)} cr`}
-          <span className="ticket-go-sub">{repeatSentence(every)}</span>
-        </button>
+        {formOpen && (
+          <>
+            {hasDates && (
+              <div className="dates-add-head">
+                <span className="ticket-label">Add a date</span>
+                <button type="button" className="dates-link" onClick={() => setAdding(false)}>
+                  Not now
+                </button>
+              </div>
+            )}
 
-        <div className="dates-danger">
-          <span className="dates-danger-say">Remove the metric and everything above.</span>
-          <button type="button" className="pubws-facts-act dates-danger-btn" onClick={() => setRemoving(true)}>
+            <div className="jobform-field">
+              <span className="ticket-label">How often</span>
+              <span className="pubws-seg odlg-seg dates-seg" role="group" aria-label="How often">
+                {EVERY_CHOICES.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`pubws-seg-btn${every === c.id ? ' is-active' : ''}`}
+                    aria-pressed={every === c.id}
+                    disabled={busy}
+                    onClick={() => setEvery(c.id)}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </span>
+              {every === 'once' ? (
+                <span className="odlg-dayrow">
+                  <input
+                    type="date"
+                    className="jobform-line odlg-mono odlg-day"
+                    value={day}
+                    disabled={busy}
+                    onChange={e => setDay(e.target.value)}
+                    aria-label="Pick a date"
+                  />
+                  <span className="odlg-or">at</span>
+                  <input
+                    type="time"
+                    step={3600}
+                    className="jobform-line odlg-mono odlg-day"
+                    value={hour}
+                    disabled={busy || !day}
+                    onChange={e => setHour(e.target.value)}
+                    aria-label="Pick an hour, UTC"
+                  />
+                  <span className="odlg-or">UTC, optional</span>
+                </span>
+              ) : (
+                <span className="odlg-note-left dates-start">
+                  Starts with {startsWith},{' '}
+                  <span className="odlg-mono">{resolveEntry(entryFor(every, ahead, day, hour))}</span>.{' '}
+                  <button
+                    type="button"
+                    className="dates-link"
+                    disabled={busy}
+                    onClick={() => setAhead(ahead === 0 ? 1 : 0)}
+                  >
+                    Start with {otherStart} instead
+                  </button>
+                </span>
+              )}
+            </div>
+
+            <div className="jobform-field">
+              <span className="ticket-label">Liquidity behind each one · of your {fmtCr(spendable)} cr</span>
+              <input
+                className="jobform-line odlg-mono"
+                value={credits}
+                disabled={busy}
+                onChange={e => setCredits(e.target.value)}
+                aria-label="Credits behind the market"
+              />
+            </div>
+
+            {err && <p className="ticket-err">{err}</p>}
+            <button className="ticket-go" disabled={busy} onClick={() => void add()}>
+              {busy ? 'Opening…' : `Open the market · ${creditsNum === null ? '—' : fmtCr(creditsNum)} cr`}
+              <span className="ticket-go-sub">{repeatSentence(every)}</span>
+            </button>
+          </>
+        )}
+        {!formOpen && err && <p className="ticket-err">{err}</p>}
+
+        {/* Two facts about the metric itself, kept quiet: how long after a
+          period its number is final (docs/guides/sources.md), and the way out. */}
+        <div className="dates-foot">
+          {editingLag ? (
+            <span className="odlg-dayrow">
+              <span className="odlg-or">Final</span>
+              <input
+                className="jobform-line odlg-mono dates-lag-field"
+                value={lagDays}
+                disabled={busy}
+                autoFocus
+                onChange={e => setLagDays(e.target.value)}
+                aria-label="Days after the period"
+              />
+              <span className="odlg-or">days after each period. Open markets keep their day.</span>
+            </span>
+          ) : (
+            <span className="dates-final">
+              Final <span className="odlg-mono dates-lag-n">{lagShown}</span> {lagShown === '1' ? 'day' : 'days'} after
+              each period ·{' '}
+              <button type="button" className="dates-link" onClick={() => setEditingLag(true)}>
+                change
+              </button>
+            </span>
+          )}
+          <button type="button" className="dates-link dates-remove" onClick={() => setRemoving(true)}>
             Remove metric
           </button>
         </div>
