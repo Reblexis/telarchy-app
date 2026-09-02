@@ -18,9 +18,13 @@ import {
   draftReply,
   fetchPost,
   getVoiceProfile,
+  harvestSearch,
   parsePostId,
   recordReply,
+  saveSearch,
+  searchYield,
   setVoiceProfile,
+  suggestSearch,
   summarise,
 } from '../services/x-workbench';
 
@@ -80,6 +84,7 @@ xWorkbenchRouter.post(
       sourceFollowers: Number.isFinite(req.body?.sourceFollowers) ? req.body.sourceFollowers : null,
       text,
       replyId: req.body?.replyId ? parsePostId(String(req.body.replyId)) : null,
+      searchId: req.body?.searchId ? String(req.body.searchId) : null,
     });
     res.status(201).json({ recorded: row });
   }),
@@ -112,6 +117,54 @@ xWorkbenchRouter.get(
       summary: summarise(rows),
       draftingConfigured: draftingConfigured(),
     });
+  }),
+);
+
+/**
+ * The next query to run by hand. X search needs a credential he has not
+ * bought, so the loop is: this proposes, he runs it, he pastes back the ids.
+ */
+xWorkbenchRouter.post(
+  '/searches/suggest',
+  wrap(async (req, res) => {
+    await requireOwner(req);
+    const avoid = Array.isArray(req.body?.avoid) ? req.body.avoid.map(String).slice(0, 20) : [];
+    res.json({ suggestion: await suggestSearch(avoid) });
+  }),
+);
+
+/** Keep a query he decided to run, so its yield can be counted. */
+xWorkbenchRouter.post(
+  '/searches',
+  wrap(async (req, res) => {
+    await requireOwner(req);
+    const query = String(req.body?.query ?? '').trim();
+    if (!query) throw new AppError('query is required', 400);
+    res.status(201).json({ search: await saveSearch(query, req.body?.rationale) });
+  }),
+);
+
+/** Every query tried, with the posts, replies and likes it produced. */
+xWorkbenchRouter.get(
+  '/searches',
+  wrap(async (req, res) => {
+    await requireOwner(req);
+    res.json({ searches: await searchYield() });
+  }),
+);
+
+/** The ids he found by running one. Looks each up so he can pick. */
+xWorkbenchRouter.post(
+  '/searches/:id/harvest',
+  wrap(async (req, res) => {
+    await requireOwner(req);
+    const ids = Array.isArray(req.body?.ids)
+      ? req.body.ids.map(String).filter((x: string) => x.trim())
+      : String(req.body?.ids ?? '')
+          .split(/[\s,]+/)
+          .filter(Boolean);
+    if (!ids.length) throw new AppError('ids are required', 400);
+    res.json(await harvestSearch(String(req.params.id), ids.slice(0, 25)));
   }),
 );
 

@@ -1554,6 +1554,10 @@ export const xReplies = pgTable(
     likes: integer('likes'),
     replies: integer('replies'),
     metricsAt: timestamp('metrics_at'),
+    /** The search that surfaced this post, when it came from one. This is what
+     *  lets a query be judged by the replies it produced rather than by how
+     *  many posts it returned. */
+    searchId: text('search_id'),
     /** Features the summary correlates against engagement. Stored rather than
      *  recomputed so the log cannot silently change meaning when the
      *  heuristics are tuned. */
@@ -1575,3 +1579,29 @@ export const xVoiceProfile = pgTable('x_voice_profile', {
   profile: text('profile').notNull(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
+
+/**
+ * Search prompts for X (docs/x-workbench.md, "Finding posts").
+ *
+ * X's search needs a paid credential, so the owner runs the query himself and
+ * pastes back the ids he found. That makes a search worth remembering: the
+ * query, how many posts it yielded, and, through `x_replies.search_id`, how
+ * many of those were worth answering and what those answers earned. The next
+ * suggestion is chosen against that record rather than against a hunch.
+ */
+export const xSearches = pgTable(
+  'x_searches',
+  {
+    id: text('id').primaryKey(),
+    /** The query, in X's search syntax, exactly as he should paste it. */
+    query: text('query').notNull(),
+    /** One line on why this query, shown next to it and kept for the record. */
+    rationale: text('rationale'),
+    /** How many post ids he pasted back from running it. Zero is a result:
+     *  a query that surfaces nothing is a query to stop suggesting. */
+    harvested: integer('harvested').notNull().default(0),
+    lastUsedAt: timestamp('last_used_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [index('x_searches_created_idx').on(t.createdAt)],
+);

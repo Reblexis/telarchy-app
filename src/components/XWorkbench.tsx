@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, type XPost, type XReply, type XSummary } from '../lib/api';
+import { api, type XPost, type XReply, type XSearch, type XSummary } from '../lib/api';
 
 /**
  * The X workbench (docs/x-workbench.md): paste a post, argue about the reply,
@@ -24,6 +24,11 @@ export function XWorkbench() {
   const [configured, setConfigured] = useState(true);
   const [profile, setProfile] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [suggestion, setSuggestion] = useState<{ query: string; rationale: string } | null>(null);
+  const [search, setSearch] = useState<XSearch | null>(null);
+  const [harvestIds, setHarvestIds] = useState('');
+  const [candidates, setCandidates] = useState<XPost[] | null>(null);
+  const [searches, setSearches] = useState<XSearch[] | null>(null);
 
   const refreshLog = () =>
     api
@@ -35,8 +40,15 @@ export function XWorkbench() {
       })
       .catch(e => setErr((e as Error).message));
 
+  const refreshSearches = () =>
+    api
+      .xSearches()
+      .then(r => setSearches(r.searches))
+      .catch(() => setSearches([]));
+
   useEffect(() => {
     refreshLog();
+    refreshSearches();
   }, []);
 
   const text = post?.text || manualText;
@@ -98,6 +110,7 @@ export function XWorkbench() {
         sourceAuthor: post?.author,
         sourceText: text,
         text: edited,
+        searchId: search?.id,
       })
       .then(() => {
         refreshLog();
@@ -124,6 +137,122 @@ export function XWorkbench() {
         this can watch what it earned. Nothing here posts to X.
         {!configured ? ' Drafting is off until ANTHROPIC_API_KEY is set on the server.' : ''}
       </p>
+
+      {/* The search loop. X search needs a credential we do not have, so the
+          machine proposes the query, he runs it, and he pastes back the ids.
+          What each query produced is what shapes the next proposal. */}
+      <div className="xw-search">
+        <div className="xw-actions">
+          <button
+            className="adm-paygo"
+            onClick={() => {
+              setErr('');
+              setBusy('suggest');
+              api
+                .xSuggestSearch((searches ?? []).map(x => x.query))
+                .then(r => {
+                  setSuggestion(r.suggestion);
+                  setSearch(null);
+                  setCandidates(null);
+                })
+                .catch(e => setErr((e as Error).message))
+                .finally(() => setBusy(''));
+            }}
+            disabled={busy === 'suggest' || !configured}
+          >
+            {busy === 'suggest' ? 'Thinking' : suggestion ? 'Another search' : 'Get a search prompt'}
+          </button>
+          {searches?.length ? <span className="adm-sub">{searches.length} tried so far</span> : null}
+        </div>
+
+        {suggestion ? (
+          <div className="xw-draft">
+            <code className="xw-query">{suggestion.query}</code>
+            {suggestion.rationale ? <p className="adm-sub">{suggestion.rationale}</p> : null}
+            <div className="xw-actions">
+              <a
+                className="adm-paygo"
+                href={`https://x.com/search?q=${encodeURIComponent(suggestion.query)}&f=live`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => {
+                  // Taking the query is what makes it worth remembering: from
+                  // here on its yield is counted against it.
+                  if (!search) {
+                    api
+                      .xSaveSearch(suggestion.query, suggestion.rationale)
+                      .then(r => {
+                        setSearch(r.search);
+                        refreshSearches();
+                      })
+                      .catch(e => setErr((e as Error).message));
+                  }
+                }}
+              >
+                Run it on X
+              </a>
+            </div>
+            {search ? (
+              <form
+                className="xw-harvest"
+                onSubmit={e => {
+                  e.preventDefault();
+                  if (!harvestIds.trim()) return;
+                  setBusy('harvest');
+                  api
+                    .xHarvestSearch(search.id, harvestIds)
+                    .then(r => {
+                      setCandidates(r.posts);
+                      if (r.failed.length) setErr(`Could not read: ${r.failed.join(', ')}`);
+                      setHarvestIds('');
+                      refreshSearches();
+                    })
+                    .catch(e => setErr((e as Error).message))
+                    .finally(() => setBusy(''));
+                }}
+              >
+                <textarea
+                  className="xw-paste"
+                  rows={2}
+                  placeholder="Paste the post links or ids you found, separated by spaces or newlines"
+                  value={harvestIds}
+                  onChange={e => setHarvestIds(e.target.value)}
+                />
+                <button className="adm-paygo" type="submit" disabled={busy === 'harvest' || !harvestIds.trim()}>
+                  {busy === 'harvest' ? 'Reading' : 'Read these'}
+                </button>
+              </form>
+            ) : null}
+          </div>
+        ) : null}
+
+        {candidates?.length ? (
+          <ul className="adm-list">
+            {candidates.map(c => (
+              <li key={c.id} className="adm-report">
+                <div className="adm-report-head">
+                  <strong>@{c.author}</strong>
+                  <span className="adm-sub">
+                    {c.likes} likes · {c.replies} replies
+                  </span>
+                </div>
+                <p className="adm-report-body">{c.text}</p>
+                <button
+                  className="adm-paygo"
+                  onClick={() => {
+                    setPost(c);
+                    setDraft(null);
+                    setTurns([]);
+                    setInput(c.id);
+                  }}
+                >
+                  Work on this one
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
 
       <form
         className="adm-payform"
@@ -283,6 +412,22 @@ export function XWorkbench() {
           ))}
         </ul>
       )}
+
+      {searches?.length ? (
+        <>
+          <h3 className="pubws-h2 xw-h3">Searches tried</h3>
+          <ul className="adm-list">
+            {searches.map(x => (
+              <li key={x.id} className="adm-report">
+                <code className="xw-query">{x.query}</code>
+                <p className="adm-sub">
+                  {x.harvested} posts read · {x.replies ?? 0} replies sent · {x.likes ?? 0} likes earned
+                </p>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
 
       <p className="adm-note">
         <button

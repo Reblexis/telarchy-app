@@ -1024,6 +1024,18 @@ export interface XPost {
   createdAt: string | null;
 }
 
+export interface XSearch {
+  id: string;
+  query: string;
+  rationale: string | null;
+  harvested: number;
+  lastUsedAt: string | null;
+  createdAt: string;
+  /** Present on the yield view: replies sent from this search and what they earned. */
+  replies?: number;
+  likes?: number;
+}
+
 export interface XReply {
   id: string;
   sourcePostId: string;
@@ -1389,6 +1401,7 @@ export const api = {
     sourceText?: string;
     text: string;
     replyId?: string;
+    searchId?: string;
   }): Promise<{ recorded: XReply }> => request('/api/admin/x/record', { method: 'POST', body: JSON.stringify(input) }),
   xAttachReplyId: (id: string, replyId: string): Promise<{ recorded: XReply }> =>
     request(`/api/admin/x/record/${encodeURIComponent(id)}`, {
@@ -1397,6 +1410,16 @@ export const api = {
     }),
   xLog: (): Promise<{ replies: XReply[]; summary: XSummary; draftingConfigured: boolean }> =>
     request('/api/admin/x/log'),
+  xSuggestSearch: (avoid: string[] = []): Promise<{ suggestion: { query: string; rationale: string } }> =>
+    request('/api/admin/x/searches/suggest', { method: 'POST', body: JSON.stringify({ avoid }) }),
+  xSaveSearch: (query: string, rationale?: string): Promise<{ search: XSearch }> =>
+    request('/api/admin/x/searches', { method: 'POST', body: JSON.stringify({ query, rationale }) }),
+  xSearches: (): Promise<{ searches: XSearch[] }> => request('/api/admin/x/searches'),
+  xHarvestSearch: (id: string, ids: string): Promise<{ posts: XPost[]; failed: string[] }> =>
+    request(`/api/admin/x/searches/${encodeURIComponent(id)}/harvest`, {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
   xGetVoiceProfile: (): Promise<{ profile: string; draftingConfigured: boolean }> => request('/api/admin/x/profile'),
   xSetVoiceProfile: (profile: string): Promise<{ ok: boolean }> =>
     request('/api/admin/x/profile', { method: 'PUT', body: JSON.stringify({ profile }) }),
