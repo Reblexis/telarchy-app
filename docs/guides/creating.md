@@ -110,8 +110,8 @@ goal line is a market rather than a column.
 the range at spawn time and prices inside it, ranges start at zero, and
 settlement clamps the actual value to the range top. A metric that can reach
 500,000 on a range of 1,000 settles at the ceiling and pays every "higher"
-holder in full no matter what happened. You cannot change the range while a
-market is open, which is the next section.
+holder in full no matter what happened. A range edit later applies from now
+on, which is the next section: a traded book keeps the range it opened with.
 
 ## Editing, and the two edits that are refused
 
@@ -127,10 +127,18 @@ table as an internal audit trail rather than as disclosure to your traders. If
 a reworded definition changes what the market settles on, say so in an
 announcement.
 
-**Machinery is refused.** `formula` and `marketRangeMax` are what an open market
-settles on, so changing either while any market on that metric is unresolved
-returns 409 naming the field and the market. Wait for it to resolve, or void it
-deliberately first.
+**The formula is refused.** `formula` is what an open market settles on, so
+changing it while any market on that metric has trades returns 409 naming the
+field and the market. Wait for it to resolve, or void it deliberately first.
+While every open market on the metric is untraded, the edit voids them (pools
+refunded) and respawns them at the new formula.
+
+**The range applies from now on.** `marketRangeMax` is accepted at any time. A
+traded market keeps the range it opened with until it settles; every untraded
+open market is voided (its pool refunded) and respawned at the new range, and
+every market that opens afterwards uses it. Nobody's money moves under a
+changed rule, and a range a live market has outgrown can be widened for the
+markets that follow.
 
 A `value` sent to a computed metric is not refused and not stored: the route
 sets the stored value to 0 and returns 200, because a computed metric reads its

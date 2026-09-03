@@ -1,12 +1,12 @@
 import { randomUUID } from 'crypto';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, ne, sql } from 'drizzle-orm';
 import type { db } from '../db/client';
 import { agents, liquidityEvents, markets, metrics, proposals } from '../db/schema';
-import { anchoredMarketState } from '../lib/amm';
+import { anchoredMarketState, consensus } from '../lib/amm';
 import { askUsdOf, branchAnchorP } from '../lib/branch-anchor';
 import { AppError } from '../lib/errors';
 import { emitPricesChanged } from '../lib/market-events';
-import { openingAnchorP } from '../lib/market-open';
+import { openingAnchorP, siblingAnchorP } from '../lib/market-open';
 import { fromUnits, MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits } from '../lib/validation';
 import { applyCredits } from './credits';
 
@@ -239,17 +239,56 @@ export async function anchorUntradedMarketTx(
       .where(and(eq(proposals.id, market.proposalId), eq(proposals.workspaceId, params.workspaceId)));
     anchorP = branchAnchorP(baseline, market.branch === 'declined' ? 'declined' : 'approved', askUsdOf(proposal));
   } else {
-    const [metric] = await tx
-      .select({ value: metrics.value })
-      .from(metrics)
-      .where(and(eq(metrics.id, market.metricId), eq(metrics.workspaceId, params.workspaceId)));
-    anchorP = openingAnchorP(
+    // A metric that already has a traded open book has a better opening
+    // price than its reading: that book is the market's own forecast of the
+    // same number, and the only price anyone has paid for
+    // (docs/ui-conventions.md, "Where markets open"; owner report
+    // 2026-09-03, a yearly valuation book at the $20,000 clamp beside a
+    // September book five trades had carried to $820,000). The traded book
+    // whose settlement is nearest wins; with none, the reading governs.
+    const siblings = await tx
+      .select({
+        targetDate: markets.targetDate,
+        shares: markets.shares,
+        liquidity: markets.liquidity,
+        rangeMin: markets.rangeMin,
+        rangeMax: markets.rangeMax,
+      })
+      .from(markets)
+      .where(
+        and(
+          eq(markets.workspaceId, params.workspaceId),
+          eq(markets.metricId, market.metricId),
+          ne(markets.id, market.id),
+          isNull(markets.proposalId),
+          eq(markets.active, true),
+          eq(markets.resolved, false),
+          gt(markets.tradedVolume, 0),
+        ),
+      );
+    anchorP = siblingAnchorP(
       market.targetDate,
-      metric?.value,
+      siblings.map(s => ({
+        targetDate: s.targetDate,
+        price: consensus(s.shares as [number, number], s.liquidity, s.rangeMin, s.rangeMax) ?? null,
+      })),
       market.rangeMax,
       params.now ?? new Date(),
       market.rangeMin,
     );
+    if (anchorP === null) {
+      const [metric] = await tx
+        .select({ value: metrics.value })
+        .from(metrics)
+        .where(and(eq(metrics.id, market.metricId), eq(metrics.workspaceId, params.workspaceId)));
+      anchorP = openingAnchorP(
+        market.targetDate,
+        metric?.value,
+        market.rangeMax,
+        params.now ?? new Date(),
+        market.rangeMin,
+      );
+    }
   }
   if (anchorP === null) return false;
 

@@ -227,6 +227,18 @@ export async function voidOpenMarketsForMetrics(metricIds: Set<string>, workspac
   }
 }
 
+/** Void the named open markets (each pool refunds to its funders). Used by a
+ *  range edit, which voids only the untraded books on the metric
+ *  (docs/market-integrity.md, "The range applies from now on"). */
+export async function voidMarketsById(marketIds: string[], workspaceId: string): Promise<void> {
+  if (marketIds.length === 0) return;
+  const rows = await db
+    .select()
+    .from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.id, marketIds), eq(markets.resolved, false)));
+  for (const m of rows) await voidMarket(m, workspaceId);
+}
+
 export { openingAnchorP } from '../lib/market-open';
 
 export type PendingMarket = {

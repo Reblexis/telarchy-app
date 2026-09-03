@@ -95,16 +95,23 @@ rule:
   `proposal_revisions` are served and rendered; the metric's are the half that
   is missing.) Saving unchanged text writes nothing, because a log full of
   non-changes makes "did anything move?" harder to answer, not easier.
-- **Machinery is refused while anyone is in the market, respawned while
-  nobody is.** A market stores its own `rangeMin`/`rangeMax` and prices inside
-  them, so changing the metric's range under a traded market makes the stated
-  range and the traded range disagree with nothing on screen saying so; that
-  edit is refused with a 409 naming the field and the market. But a book
-  nobody has money in protects nobody: while every open market on the metric
-  is untraded, the edit voids them (each pool refunds to its funders) and the
-  reconcile respawns them at the new machinery. This is what lets a metric be
-  created with only a name and a description and get its range right
-  afterwards, before the first trade.
+- **The formula is refused while anyone is in the market, respawned while
+  nobody is.** A formula change redefines the number every open market
+  settles on; that edit is refused with a 409 naming the field and the
+  market. But a book nobody has money in protects nobody: while every open
+  market on the metric is untraded, the edit voids them (each pool refunds
+  to its funders) and the reconcile respawns them at the new machinery.
+- **The range applies from now on, never under anyone's money.** A market
+  stores its own `rangeMin`/`rangeMax` and prices inside them, so a range
+  edit on the metric (`marketRangeMax`) applies to every book that opens
+  after it and to every open book nobody has traded (voided and respawned
+  at the new range, pools refunded); a traded book keeps the range it
+  opened with, to its settlement, and the floor says so beside it. This is
+  what lets a metric be created with only a name and a description and
+  get its range right afterwards, and lets an owner widen a range that a
+  live book has already outgrown without waiting for it to settle. A
+  traded book's range never grows: a reading above it settles at the top,
+  as always.
 - **A leaf metric's `value` is a measurement, not a definition.** It is always
   allowed; the daily sync depends on it. On a computed metric `value` is not
   settable: a value in the request is ignored and the stored value is the
@@ -291,7 +298,9 @@ the ledger ever disagree, the ledger is right.
 |---|---|
 | `credit-ledger-ownership.test.ts` | no file but `services/credits.ts` writes `agents.balance`; `reset-economy` stays deleted. Distinguishes creating a row at zero (fine) from zeroing an existing one (the reset-economy shape). |
 | `credit-ledger-reconciliation.test.ts` | `sum(credit_ledger) == agents.balance` per participant after grants, buys, a sell, a pool injection and a void; every row's `balance_after` replays; and a hand-written balance change is detected, so the check can actually fail. |
-| `metric-edit-does-not-void.test.ts` | words edit in place with the market, price and positions intact; revisions logged with old and new; rename syncs `markets.metricName`; machinery 409s while open and applies once closed. |
+| `metric-edit-does-not-void.test.ts` | words edit in place with the market, price and positions intact; revisions logged with old and new; rename syncs `markets.metricName`; the formula 409s while open and applies once closed; a range edit leaves the traded book's range alone. |
+| `range-applies-from-now-on.test.ts` | a range edit with a traded book is accepted; the traded book keeps its range; untraded books void and respawn at the new range; the formula is still refused. |
+| `open-at-the-traded-sibling.test.ts` | a new baseline book opens at the nearest-settling traded sibling's price; the reading governs when there is none or it has settled. |
 | `market-freeze.test.ts` | each of the three destructive paths refuses for its own reason and allows the case it should; `voidMarket` itself stays unfrozen so the engine keeps working. |
 | `ledger-append-only.test.ts` | the trigger on both new tables, in both directions. |
 

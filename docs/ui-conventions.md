@@ -1053,6 +1053,17 @@ valuation reading $0 on a 0-20,000,000 range opened at $400,000. A reading
 inside the clamp opens at the reading itself; a reading at the edge opens
 one part in a thousand from it, which is the closest a solvent book gets.
 
+**A baseline book on a metric that already has a traded open book opens
+at that book's price, not at the reading.** The traded book whose settlement
+is nearest the new one's is the market's own forecast of the same number,
+and the only price on the floor anyone has paid for; the reading is the
+past, and on a metric that voids until measured it is not even a number.
+A yearly valuation book that opened at the $0 reading, clamped to $20,000,
+beside a September book five trades had carried to $820,000, told a
+stranger the floor expected a forty-fold fall nobody believed and nobody
+bet. Only a metric with no traded open book opens at the reading, as
+above. A conditional pair keeps anchoring to its own baseline.
+
 **Every path that opens a book on an untraded baseline market opens it the
 same way.** The daily spawn, the refresh that funds a market which opened
 unfunded because the balance was short, a hand-made market from

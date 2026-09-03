@@ -54,14 +54,36 @@ inputs, one full-width ink button that carries its own cost, the segmented
 picker). All three appear only to callers with the `manage` capability, as
 additions to the page a visitor sees.
 
-**1. New metric**, opened from `+ metric` at the end of the metric picker
-row. Two fields: the name, and what it is. The description is the settlement
-sentence, so the dialog says so: the market settles on these words, they can
-be refined later, and every edit is kept and shown. Nothing else is asked;
-the range defaults and is corrected later (see "machinery" below), value
-starts at zero, and the first reading is what makes the number real. Adding
-the metric immediately opens dialog 2 for it, because a metric with no date
-has no market and the flow does not let the owner stop before one.
+**1. The metrics**, opened from the `metrics` chip at the end of the
+metric picker row, the twin of the `dates` chip on the row beneath it. It
+opens on the list, one line per metric: the name, the range its books
+price inside, how many dates it has, and whether anyone is in it. A list
+that could only be added to was a list that could only be got wrong once
+(owner ask 2026-08-31), and a control that vanished without a trace read
+as a control that never existed (owner report 2026-09-03: "where do i
+modify metric raange exactly i dont see tha tsetting anywhere"). Adding
+one is folded behind a single "+ Add a metric" chip under the list, and
+open, with no chip, while the floor has none. The add form is two fields:
+the name, and what it is. The description is the settlement sentence, so
+the form says so: the market settles on these words, they can be refined
+later, and every edit is kept and shown. Nothing else is asked; the range
+defaults and is corrected on the sheet, value starts at zero, and the
+first reading is what makes the number real. Adding the metric
+immediately opens dialog 2 for it, because a metric with no date has no
+market and the flow does not let the owner stop before one.
+
+Tapping a line opens **the metric's sheet**, everything the floor knows
+about it on its own line, edited in place: the name and what it is (the
+words, free to edit, every change kept as a revision); the range, with
+the rule printed under the field in the words that apply right now
+("Nobody has traded, so this re-opens every book at the new range" or
+"1 book is traded and keeps its range; the new range applies to every
+book that opens after this", `docs/market-integrity.md`, "The range
+applies from now on"); the dates, as a line that opens dialog 2; how long
+after a period the number is final; the credits a new book opens with
+(`metrics.liquidityCredits`); and, in the footer, the remove link with
+the confirmation dialog 2 has today. The sheet is where an owner goes
+looking for the range; the report dialog (4) is where it finds them.
 
 **2. The dates**, opened from the `dates` chip on the date row, or straight
 after dialog 1 while the metric still has none. It opens on the list: each

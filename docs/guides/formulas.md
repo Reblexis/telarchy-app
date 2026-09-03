@@ -84,9 +84,12 @@ max({Output} - 500, 0)
 
 A formula is what an open market settles on, so changing it while any market on
 that metric is unresolved is refused with 409, naming the field and the market.
-`marketRangeMax` is refused the same way, and on a computed metric so is a
-`value` you try to write. Wait for the market to resolve, or void it
-deliberately first. Getting the formula right before the first market opens is
+On a computed metric so is a `value` you try to write. Wait for the market
+to resolve, or void it deliberately first. `marketRangeMax` is the exception:
+a range edit is accepted at any time and applies from now on, to every book
+that opens after it and to the open books nobody has traded (voided and
+respawned at the new range, pools refunded); a traded book keeps the range it
+opened with until it settles. Getting the formula right before the first market opens is
 much cheaper than either.
 
 Names and descriptions are not settlement machinery and change freely, at any

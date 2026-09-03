@@ -55,3 +55,36 @@ export function openingAnchorP(
   if (span <= 0) return null;
   return (value - rangeMin) / span;
 }
+
+/**
+ * Where a fresh baseline market opens when the metric already has a traded
+ * open baseline book: at the price of the traded book whose settlement is
+ * nearest the new one's, or null when there is none (then the reading
+ * governs, `openingAnchorP`). Docs: docs/ui-conventions.md, "Where markets
+ * open". The reading is the past; a traded sibling is the market's own
+ * forecast of the same number and the only price on the floor anyone has
+ * paid for. A period that has already ended still returns null.
+ */
+export function siblingAnchorP(
+  targetDate: string,
+  siblings: Array<{ targetDate: string; price: number | null }>,
+  rangeMax: number,
+  now: Date = new Date(),
+  rangeMin: number = AMM_DEFAULTS.rangeMin,
+): number | null {
+  const end = periodEndInstant(targetDate)?.getTime();
+  if (!end || !Number.isFinite(end)) return null;
+  if (end - now.getTime() <= 0) return null;
+  const span = rangeMax - rangeMin;
+  if (span <= 0) return null;
+  let best: { distance: number; price: number } | null = null;
+  for (const s of siblings) {
+    if (typeof s.price !== 'number' || !Number.isFinite(s.price)) continue;
+    const sEnd = periodEndInstant(s.targetDate)?.getTime();
+    if (!sEnd || !Number.isFinite(sEnd)) continue;
+    const distance = Math.abs(sEnd - end);
+    if (best === null || distance < best.distance) best = { distance, price: s.price };
+  }
+  if (best === null) return null;
+  return (best.price - rangeMin) / span;
+}
