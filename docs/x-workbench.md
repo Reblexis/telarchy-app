@@ -21,7 +21,11 @@ it produced, and the next proposal is chosen against that record.
    yielded: posts pasted back, replies sent, likes earned. A query that
    returned a hundred posts he never answered scores worse than one that
    returned three he did, which is why yield is counted in replies rather than
-   in results.
+   in results. The model hands the proposal back as a structured field (a
+   forced tool call), never as prose to be scraped: a fenced code block, a
+   preamble, or a rationale long enough to lose its closing brace is not a
+   reason for the button to fail. A reply that carries no query at all is the
+   only failure, and it says so.
 2. **Run it on X.** The link opens the query on the Latest tab, because Top is
    the algorithm again. Following it records the query, which is what starts
    counting its yield.
