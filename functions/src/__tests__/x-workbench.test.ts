@@ -6,6 +6,8 @@
 import {
   disagrees,
   hasNumber,
+  POST_RULES,
+  parseDraft,
   parsePostId,
   parseSuggestion,
   summarise,
@@ -160,5 +162,78 @@ describe('parseSuggestion', () => {
     expect(() => parseSuggestion(text('{"rationale": "only this"}'))).toThrow(/no query/);
     expect(() => parseSuggestion(tool({ query: '   ' }))).toThrow(/no query/);
     expect(() => parseSuggestion({ content: [] })).toThrow(/no query/);
+  });
+});
+
+describe('parseDraft', () => {
+  // docs/x-workbench.md, "What the owner does" step 4: every turn comes back
+  // as the revised text AND what it says to him. The forced tool call is the
+  // shape asked for; a prose answer is still read rather than thrown away.
+  const tool = (input: unknown) => ({
+    content: [{ type: 'tool_use', name: 'draft', input }],
+  });
+  const text = (t: string) => ({ content: [{ type: 'text', text: t }] });
+
+  test('reads the forced tool call: text, reason, and its answer to him', () => {
+    expect(
+      parseDraft(
+        tool({
+          text: 'A reply.',
+          reason: 'number',
+          answer: 'Led with the 6 of 8.',
+        }),
+      ),
+    ).toEqual({
+      text: 'A reply.',
+      reason: 'number',
+      answer: 'Led with the 6 of 8.',
+    });
+  });
+
+  test('an empty text with reason skip is a legitimate answer, not a failure', () => {
+    expect(parseDraft(tool({ text: '', reason: 'skip', answer: 'Nothing to add here.' }))).toEqual({
+      text: '',
+      reason: 'skip',
+      answer: 'Nothing to add here.',
+    });
+  });
+
+  test('a fenced or brace-less json answer still parses', () => {
+    expect(parseDraft(text('```json\n{"text": "T", "reason": "test", "answer": "A"}\n```'))).toEqual({
+      text: 'T',
+      reason: 'test',
+      answer: 'A',
+    });
+    expect(parseDraft(text('{"text": "T2", "reason": "test", "answer": "cut off'))).toEqual({
+      text: 'T2',
+      reason: 'test',
+      answer: 'cut off',
+    });
+  });
+
+  test('the older reply/note field names are still understood', () => {
+    expect(parseDraft(tool({ reply: 'R', reason: 'disagree', note: 'N' }))).toEqual({
+      text: 'R',
+      reason: 'disagree',
+      answer: 'N',
+    });
+  });
+
+  test('plain prose with no object is taken as the text, so nothing is lost', () => {
+    expect(parseDraft(text('Just a sentence.'))).toEqual({
+      text: 'Just a sentence.',
+      reason: 'draft',
+      answer: '',
+    });
+  });
+});
+
+describe('the rules a drafted post obeys (docs/x-workbench.md, "Writing his own post")', () => {
+  test('say link in the reply, no hashtags, the length band, and never bait', () => {
+    expect(POST_RULES).toMatch(/link[\s\S]*first reply/i);
+    expect(POST_RULES).toMatch(/hashtag/i);
+    expect(POST_RULES).toMatch(/100 to 280/);
+    expect(POST_RULES).toMatch(/bait/i);
+    expect(POST_RULES).toMatch(/called-it\|test\|milestone\|demo\|quote\|correction\|other/);
   });
 });

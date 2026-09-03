@@ -1,20 +1,40 @@
 import { useEffect, useState } from 'react';
 import { api, type XPost, type XReply, type XSearch, type XSummary } from '../lib/api';
 
+type Turn = { role: 'user' | 'assistant'; content: string };
+
+/** What it said to him on an assistant turn, kept inside the turn so the
+ *  model remembers what it said and the screen can show it. */
+function answerOf(turn: Turn): string {
+  try {
+    const parsed = JSON.parse(turn.content) as { answer?: string };
+    return parsed.answer ?? '';
+  } catch {
+    return '';
+  }
+}
+
 /**
- * The X workbench (docs/x-workbench.md): paste a post, argue about the reply,
- * record what you sent, watch what it earned.
+ * The X workbench (docs/x-workbench.md): paste a post and argue about the
+ * reply, or give it an idea and argue about the post; record what you sent,
+ * watch what it earned.
  *
  * The argument is the point. A first draft is a starting position, and the
  * turns below it are where the owner's judgement enters, so the conversation
- * stays on screen instead of each draft replacing the last.
+ * stays on screen, both sides of it, instead of each draft replacing the last.
  */
 export function XWorkbench() {
+  const [mode, setMode] = useState<'reply' | 'post'>('reply');
+  const [idea, setIdea] = useState('');
   const [input, setInput] = useState('');
   const [post, setPost] = useState<XPost | null>(null);
   const [manualText, setManualText] = useState('');
-  const [turns, setTurns] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
-  const [draft, setDraft] = useState<{ reply: string; reason: string; note?: string } | null>(null);
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [draft, setDraft] = useState<{
+    text: string;
+    reason: string;
+    answer: string;
+  } | null>(null);
   const [edited, setEdited] = useState('');
   const [say, setSay] = useState('');
   const [busy, setBusy] = useState('');
@@ -24,7 +44,10 @@ export function XWorkbench() {
   const [configured, setConfigured] = useState(true);
   const [profile, setProfile] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [suggestion, setSuggestion] = useState<{ query: string; rationale: string } | null>(null);
+  const [suggestion, setSuggestion] = useState<{
+    query: string;
+    rationale: string;
+  } | null>(null);
   const [search, setSearch] = useState<XSearch | null>(null);
   const [harvestIds, setHarvestIds] = useState('');
   const [candidates, setCandidates] = useState<XPost[] | null>(null);
@@ -73,28 +96,51 @@ export function XWorkbench() {
       .finally(() => setBusy(''));
   };
 
+  const switchMode = (m: 'reply' | 'post') => {
+    if (m === mode) return;
+    setMode(m);
+    setDraft(null);
+    setTurns([]);
+    setEdited('');
+    setErr('');
+  };
+
+  /** One turn of the argument, in either mode. The whole conversation goes
+   *  back every time, and the assistant turn keeps its answer so the model
+   *  remembers what it said and the screen can show it. */
   const ask = (message?: string) => {
-    if (!text.trim()) {
-      setErr('No post text to work from.');
+    const source = mode === 'post' ? idea : text;
+    if (!source.trim()) {
+      setErr(mode === 'post' ? 'No idea to work from.' : 'No post text to work from.');
       return;
     }
     setErr('');
     setBusy('draft');
     const next = message ? [...turns, { role: 'user' as const, content: message }] : turns;
-    api
-      .xDraftReply({
-        postId: post?.id,
-        postAuthor: post?.author,
-        postText: text,
-        messages: next,
-      })
-      .then(r => {
-        setDraft(r.draft);
-        setEdited(r.draft.reply);
-        setTurns([
-          ...next,
-          { role: 'assistant', content: JSON.stringify({ reply: r.draft.reply, reason: r.draft.reason }) },
-        ]);
+    const call =
+      mode === 'post'
+        ? api.xDraftPost({ idea, messages: next }).then(r => ({
+            text: r.draft.post,
+            reason: r.draft.reason,
+            answer: r.draft.answer,
+          }))
+        : api
+            .xDraftReply({
+              postId: post?.id,
+              postAuthor: post?.author,
+              postText: text,
+              messages: next,
+            })
+            .then(r => ({
+              text: r.draft.reply,
+              reason: r.draft.reason,
+              answer: r.draft.answer,
+            }));
+    call
+      .then(d => {
+        setDraft(d);
+        setEdited(d.text);
+        setTurns([...next, { role: 'assistant', content: JSON.stringify(d) }]);
         setSay('');
       })
       .catch(e => setErr((e as Error).message))
@@ -104,14 +150,19 @@ export function XWorkbench() {
   const record = () => {
     if (!edited.trim()) return;
     setBusy('record');
+    const body =
+      mode === 'post'
+        ? { kind: 'post' as const, text: edited }
+        : {
+            kind: 'reply' as const,
+            sourcePostId: post?.id ?? input,
+            sourceAuthor: post?.author,
+            sourceText: text,
+            text: edited,
+            searchId: search?.id,
+          };
     api
-      .xRecordReply({
-        sourcePostId: post?.id ?? input,
-        sourceAuthor: post?.author,
-        sourceText: text,
-        text: edited,
-        searchId: search?.id,
-      })
+      .xRecordReply(body)
       .then(() => {
         refreshLog();
         setDraft(null);
@@ -120,21 +171,23 @@ export function XWorkbench() {
         setPost(null);
         setInput('');
         setManualText('');
+        setIdea('');
       })
       .catch(e => setErr((e as Error).message))
       .finally(() => setBusy(''));
   };
 
   const intent = edited.trim()
-    ? `https://x.com/intent/post?text=${encodeURIComponent(edited)}${post ? `&in_reply_to=${post.id}` : ''}`
+    ? `https://x.com/intent/post?text=${encodeURIComponent(edited)}${mode === 'reply' && post ? `&in_reply_to=${post.id}` : ''}`
     : '';
+  const ready = mode === 'post' ? idea.trim() : text.trim();
 
   return (
     <section className="adm-block">
       <h2 className="pubws-h2">X workbench</h2>
       <p className="adm-note">
-        Paste a post, argue about the reply until it is right, send it yourself, then paste back the id of your reply so
-        this can watch what it earned. Nothing here posts to X.
+        Paste a post and argue about the reply, or give it an idea and argue about the post, until it is right. Send it
+        yourself, then paste back the id so this can watch what it earned. Nothing here posts to X.
         {!configured ? ' Drafting is off until ANTHROPIC_API_KEY is set on the server.' : ''}
       </p>
 
@@ -254,27 +307,47 @@ export function XWorkbench() {
         ) : null}
       </div>
 
-      <form
-        className="adm-payform"
-        onSubmit={e => {
-          e.preventDefault();
-          lookup();
-        }}
-      >
-        <input
-          className="adm-payq"
-          placeholder="x.com/someone/status/123... or just the id"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-        />
-        <button className="adm-paygo" type="submit" disabled={busy === 'lookup' || !input.trim()}>
-          {busy === 'lookup' ? 'Reading' : 'Read post'}
+      {/* Two ways in: someone's post, or his own idea. Same argument after. */}
+      <div className="xw-actions xw-modes">
+        <button className="adm-paygo" aria-pressed={mode === 'reply'} onClick={() => switchMode('reply')}>
+          Answer a post
         </button>
-      </form>
+        <button className="adm-paygo" aria-pressed={mode === 'post'} onClick={() => switchMode('post')}>
+          Write a post
+        </button>
+      </div>
+
+      {mode === 'reply' ? (
+        <form
+          className="adm-payform"
+          onSubmit={e => {
+            e.preventDefault();
+            lookup();
+          }}
+        >
+          <input
+            className="adm-payq"
+            placeholder="x.com/someone/status/123... or just the id"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+          />
+          <button className="adm-paygo" type="submit" disabled={busy === 'lookup' || !input.trim()}>
+            {busy === 'lookup' ? 'Reading' : 'Read post'}
+          </button>
+        </form>
+      ) : (
+        <textarea
+          className="xw-paste"
+          placeholder="Your idea, a number you want to say, or a rough draft of the post"
+          value={idea}
+          onChange={e => setIdea(e.target.value)}
+          rows={3}
+        />
+      )}
 
       {err ? <p className="adm-err">{err}</p> : null}
 
-      {post ? (
+      {mode === 'post' ? null : post ? (
         <div className="xw-post">
           <div className="adm-report-head">
             <strong>@{post.author}</strong>
@@ -295,24 +368,30 @@ export function XWorkbench() {
         />
       )}
 
-      {text.trim() ? (
+      {ready ? (
         <>
           <div className="xw-actions">
             <button className="adm-paygo" onClick={() => ask()} disabled={busy === 'draft' || !configured}>
-              {busy === 'draft' ? 'Thinking' : draft ? 'Draft again' : 'Draft a reply'}
+              {busy === 'draft'
+                ? 'Thinking'
+                : draft
+                  ? 'Draft again'
+                  : mode === 'post'
+                    ? 'Draft a post'
+                    : 'Draft a reply'}
             </button>
           </div>
 
           {draft ? (
             <div className="xw-draft">
               <span className="adm-tag">{draft.reason}</span>
-              {draft.note ? <p className="adm-sub">{draft.note}</p> : null}
+              {draft.answer ? <p className="adm-sub xw-answer">{draft.answer}</p> : null}
               <textarea
                 className="adm-payq"
                 value={edited}
                 onChange={e => setEdited(e.target.value)}
                 rows={4}
-                aria-label="The reply you will send"
+                aria-label={mode === 'post' ? 'The post you will publish' : 'The reply you will send'}
               />
               <div className="xw-actions">
                 {intent ? (
@@ -321,7 +400,7 @@ export function XWorkbench() {
                   </a>
                 ) : null}
                 <button className="adm-paygo" onClick={record} disabled={busy === 'record' || !edited.trim()}>
-                  I sent this
+                  {mode === 'post' ? 'I posted this' : 'I sent this'}
                 </button>
               </div>
 
@@ -336,7 +415,7 @@ export function XWorkbench() {
               >
                 <input
                   className="adm-payq"
-                  placeholder="Tell it what is wrong: shorter, lead with the number, you are wrong about..."
+                  placeholder="Tell it what is wrong, or ask it something: shorter, lead with the number, why that line?"
                   value={say}
                   onChange={e => setSay(e.target.value)}
                 />
@@ -344,15 +423,15 @@ export function XWorkbench() {
                   Push back
                 </button>
               </form>
-              {turns.filter(t => t.role === 'user').length ? (
+              {/* Both sides, oldest first, so the exchange reads as one. The
+                  latest answer is already above the draft; the rest is here. */}
+              {turns.length > 1 ? (
                 <ul className="adm-list xw-turns">
-                  {turns
-                    .filter(t => t.role === 'user')
-                    .map((t, i) => (
-                      <li key={i} className="adm-sub">
-                        you: {t.content}
-                      </li>
-                    ))}
+                  {turns.slice(0, -1).map((t, i) => (
+                    <li key={i} className={t.role === 'user' ? 'adm-sub' : 'adm-sub xw-answer'}>
+                      {t.role === 'user' ? `you: ${t.content}` : `it: ${answerOf(t)}`}
+                    </li>
+                  ))}
                 </ul>
               ) : null}
             </div>
@@ -381,7 +460,7 @@ export function XWorkbench() {
             <li key={r.id} className="adm-report">
               <div className="adm-report-head">
                 <span className="adm-sub">
-                  to @{r.sourceAuthor ?? 'unknown'} · {r.createdAt.slice(0, 10)}
+                  {r.kind === 'post' ? 'your post' : `to @${r.sourceAuthor ?? 'unknown'}`} · {r.createdAt.slice(0, 10)}
                 </span>
                 <span className="adm-sub">
                   {r.replyId ? `${r.likes ?? '?'} likes · ${r.replies ?? '?'} replies` : 'no id yet, not tracked'}
@@ -402,7 +481,7 @@ export function XWorkbench() {
                     }
                   }}
                 >
-                  <input className="adm-payq" name="rid" placeholder="url or id of the reply you posted" />
+                  <input className="adm-payq" name="rid" placeholder="url or id of what you posted" />
                   <button className="adm-paygo" type="submit">
                     Track it
                   </button>

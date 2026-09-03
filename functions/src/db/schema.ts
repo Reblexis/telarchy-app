@@ -1541,8 +1541,11 @@ export const xReplies = pgTable(
   'x_replies',
   {
     id: text('id').primaryKey(),
-    /** The post he answered. */
-    sourcePostId: text('source_post_id').notNull(),
+    /** 'reply' to someone's post, or 'post', one of his own. A post has no
+     *  source; a reply must have one (docs/x-workbench.md, "Storage"). */
+    kind: text('kind').notNull().default('reply'),
+    /** The post he answered. Null for a post of his own. */
+    sourcePostId: text('source_post_id'),
     sourceAuthor: text('source_author'),
     sourceText: text('source_text'),
     sourceFollowers: integer('source_followers'),

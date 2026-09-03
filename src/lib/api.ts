@@ -118,7 +118,12 @@ export type CryptoNetwork = 'ethereum' | 'base' | 'arbitrum' | 'optimism' | 'pol
 export type PayoutMethod = (
   | { provider: 'paypal'; email: string }
   | { provider: 'bank'; iban: string; holder: string }
-  | { provider: 'crypto'; network: CryptoNetwork; asset: string; address: string }
+  | {
+      provider: 'crypto';
+      network: CryptoNetwork;
+      asset: string;
+      address: string;
+    }
   | { provider: 'revolut'; handle: string }
   | { provider: 'wise'; email: string }
   | { provider: 'other'; details: string }
@@ -711,7 +716,12 @@ export interface DataRoomFeed {
   generatedAt: string;
   doc: {
     updatedAt: string;
-    sections: Array<{ id: string; title: string; markdown: string; blocks: DataRoomBlock[] }>;
+    sections: Array<{
+      id: string;
+      title: string;
+      markdown: string;
+      blocks: DataRoomBlock[];
+    }>;
   };
   evidence: {
     pulse: {
@@ -989,7 +999,12 @@ export interface Journey {
 }
 
 export interface JourneyFeed {
-  summary: { journeys: number; bounced: number; visitors: number; medianSteps: number };
+  summary: {
+    journeys: number;
+    bounced: number;
+    visitors: number;
+    medianSteps: number;
+  };
   topExits: Array<{ path: string; journeys: number }>;
   journeys: Journey[];
 }
@@ -1038,7 +1053,9 @@ export interface XSearch {
 
 export interface XReply {
   id: string;
-  sourcePostId: string;
+  /** 'reply' to someone's post, or 'post', one of his own. */
+  kind: 'reply' | 'post';
+  sourcePostId: string | null;
   sourceAuthor: string | null;
   sourceText: string | null;
   text: string;
@@ -1074,7 +1091,15 @@ export const api = {
   ): Promise<{ ok: boolean; id: string; warnings?: string[] }> =>
     requestWithWorkspace(
       '/api/metrics',
-      { method: 'POST', body: JSON.stringify({ ...body, value: 0, formula: '', timePreference: null }) },
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          ...body,
+          value: 0,
+          formula: '',
+          timePreference: null,
+        }),
+      },
       { workspaceId },
     ),
   /** One metric, with its stored timePreference. The floor's "+ date" control
@@ -1083,8 +1108,11 @@ export const api = {
   getMetric: (
     workspaceId: string,
     id: string,
-  ): Promise<{ id: string; name: string; timePreference?: TimePreference | null }> =>
-    requestWithWorkspace(`/api/metrics/${id}`, {}, { workspaceId }),
+  ): Promise<{
+    id: string;
+    name: string;
+    timePreference?: TimePreference | null;
+  }> => requestWithWorkspace(`/api/metrics/${id}`, {}, { workspaceId }),
   createMetric: (body: {
     name: string;
     description: string;
@@ -1105,7 +1133,11 @@ export const api = {
       timePreference?: TimePreference | null;
       marketRangeMax?: number;
     },
-  ) => request(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  ) =>
+    request(`/api/metrics/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
   /** Report a new reading (docs/owner-on-the-floor.md, dialog 4). `oldValue`
    *  is what the route needs to write the public `updates` row; `updateNote`
    *  is the owner's optional sentence, and the route defaults it to "Value
@@ -1144,7 +1176,11 @@ export const api = {
     },
   ) => requestWithWorkspace(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }, { workspaceId }),
   deleteMetric: (id: string) => request(`/api/metrics/${id}`, { method: 'DELETE' }),
-  reorderMetrics: (ids: string[]) => request('/api/metrics/reorder', { method: 'POST', body: JSON.stringify({ ids }) }),
+  reorderMetrics: (ids: string[]) =>
+    request('/api/metrics/reorder', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
   getMetricLogs: (metricId: string) => request(`/api/metrics/${metricId}/logs`),
   getUpdates: (limit?: number) => request(`/api/updates${limit ? `?limit=${limit}` : ''}`),
   getStatus: () => request('/api/status'),
@@ -1156,12 +1192,19 @@ export const api = {
    *  entrants a readable price list. */
   getEarnTable: (): Promise<{ rules: EarnRule[] }> => request('/api/earn'),
   /** The same list with the viewer's own state on it. */
-  getMyEarn: (): Promise<{ earned: number; available: number; streak: DailyStreak | null; rules: MyEarnRule[] }> =>
-    request('/api/earn/me'),
+  getMyEarn: (): Promise<{
+    earned: number;
+    available: number;
+    streak: DailyStreak | null;
+    rules: MyEarnRule[];
+  }> => request('/api/earn/me'),
   /** Pay for any attached provider account not yet paid for. Safe to
    *  re-run: it reconciles against the accounts actually linked. */
-  syncEarnLinks: (): Promise<{ granted: number; paid: string[]; takenElsewhere: string[] }> =>
-    request('/api/earn/links/sync', { method: 'POST' }),
+  syncEarnLinks: (): Promise<{
+    granted: number;
+    paid: string[];
+    takenElsewhere: string[];
+  }> => request('/api/earn/links/sync', { method: 'POST' }),
   /** The operator's view: disabled rows and the last-changed stamp too. */
   getAdminEarnTable: (): Promise<{ rules: EarnRule[] }> => request('/api/admin/earn'),
   /** Re-price one task. Takes effect on the next grant and is appended to
@@ -1169,7 +1212,12 @@ export const api = {
    *  reconstructable. */
   setEarnRule: (
     key: string,
-    patch: { credits?: number; liquidityCredits?: number; enabled?: boolean; note?: string },
+    patch: {
+      credits?: number;
+      liquidityCredits?: number;
+      enabled?: boolean;
+      note?: string;
+    },
   ): Promise<{ rule: EarnRule }> =>
     request(`/api/admin/earn/${encodeURIComponent(key)}`, {
       method: 'PATCH',
@@ -1214,11 +1262,20 @@ export const api = {
    *  self-initiated by the API: you can fund a bot, and a bot has to send its
    *  own credits back. */
   transferCredits: (toAgent: string, amount: number, memo?: string) =>
-    request('/api/agents/transfer', { method: 'POST', body: JSON.stringify({ toAgent, amount, memo }) }),
+    request('/api/agents/transfer', {
+      method: 'POST',
+      body: JSON.stringify({ toAgent, amount, memo }),
+    }),
   registerAgent: (agentId: string) =>
-    request('/api/agents/register', { method: 'POST', body: JSON.stringify({ agentId }) }),
+    request('/api/agents/register', {
+      method: 'POST',
+      body: JSON.stringify({ agentId }),
+    }),
   spendAgent: (id: string, amount: number, type: 'betting' | 'tokens', reason: string) =>
-    request(`/api/agents/${id}/spend`, { method: 'POST', body: JSON.stringify({ amount, type, reason }) }),
+    request(`/api/agents/${id}/spend`, {
+      method: 'POST',
+      body: JSON.stringify({ amount, type, reason }),
+    }),
   getTreasury: () => request('/api/agents/treasury', {}, true),
   /** No auth — same treasury address as minted deposits use; 503 if server has no treasury key. */
   getDepositAddress: () =>
@@ -1229,17 +1286,35 @@ export const api = {
       usdcContract: string;
     }>,
   depositForMe: (txHash: string) =>
-    request('/api/agents/me/deposit', { method: 'POST', body: JSON.stringify({ txHash }) }),
+    request('/api/agents/me/deposit', {
+      method: 'POST',
+      body: JSON.stringify({ txHash }),
+    }),
   depositForAgent: (agentId: string, txHash: string) =>
-    request(`/api/agents/${agentId}/deposit`, { method: 'POST', body: JSON.stringify({ txHash }) }),
+    request(`/api/agents/${agentId}/deposit`, {
+      method: 'POST',
+      body: JSON.stringify({ txHash }),
+    }),
   withdrawFromMe: (amount: number) =>
-    request('/api/agents/me/withdraw', { method: 'POST', body: JSON.stringify({ amount }) }),
+    request('/api/agents/me/withdraw', {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    }),
   withdrawFromAgent: (agentId: string, amount: number) =>
-    request(`/api/agents/${agentId}/withdraw`, { method: 'POST', body: JSON.stringify({ amount }) }),
+    request(`/api/agents/${agentId}/withdraw`, {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    }),
   setMyWallet: (walletAddress: string) =>
-    request('/api/agents/me/wallet', { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
+    request('/api/agents/me/wallet', {
+      method: 'PUT',
+      body: JSON.stringify({ walletAddress }),
+    }),
   setAgentWallet: (agentId: string, walletAddress: string) =>
-    request(`/api/agents/${agentId}/wallet`, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
+    request(`/api/agents/${agentId}/wallet`, {
+      method: 'PUT',
+      body: JSON.stringify({ walletAddress }),
+    }),
 
   // Markets & Trading
   getMarkets: (
@@ -1270,7 +1345,10 @@ export const api = {
   getMarketPositions: (id: string, workspaceId?: string) =>
     requestWithWorkspace(`/api/predictions/markets/${id}/positions`, {}, { workspaceId }),
   createMarket: (metricId: string, targetDate: string) =>
-    request('/api/predictions/markets', { method: 'POST', body: JSON.stringify({ metricId, targetDate }) }),
+    request('/api/predictions/markets', {
+      method: 'POST',
+      body: JSON.stringify({ metricId, targetDate }),
+    }),
   deleteMarket: (id: string) => request(`/api/predictions/markets/${id}`, { method: 'DELETE' }),
   refreshMarkets: (proposalId?: string) =>
     request('/api/predictions/markets/refresh', {
@@ -1278,7 +1356,10 @@ export const api = {
       body: JSON.stringify(proposalId ? { proposalId } : {}),
     }),
   resolvePredictions: (targetDate?: string) =>
-    request('/api/predictions/resolve', { method: 'POST', body: JSON.stringify({ targetDate }) }),
+    request('/api/predictions/resolve', {
+      method: 'POST',
+      body: JSON.stringify({ targetDate }),
+    }),
   trade: (body: Record<string, unknown>, workspaceId?: string) =>
     requestWithWorkspace('/api/predictions/trade', { method: 'POST', body: JSON.stringify(body) }, { workspaceId }),
   // Description-only metric update (PUT accepts partial bodies). Changing the
@@ -1369,14 +1450,22 @@ export const api = {
    *  (docs/infra/deploy.md, "Any branch can be built"). Platform admin only. */
   getBranches: () =>
     request('/api/admin/branches') as Promise<{
-      branches: Array<{ name: string; sha: string; tag: string | null; built: boolean }>;
+      branches: Array<{
+        name: string;
+        sha: string;
+        tag: string | null;
+        built: boolean;
+      }>;
       error: string | null;
       buildConfigured: boolean;
     }>,
   /** Ask CI to build a branch as a preview. 501 names the terminal command
    *  when the instance holds no GitHub token. */
   buildBranch: (branch: string) =>
-    request('/api/admin/branches/build', { method: 'POST', body: JSON.stringify({ branch }) }) as Promise<{
+    request('/api/admin/branches/build', {
+      method: 'POST',
+      body: JSON.stringify({ branch }),
+    }) as Promise<{
       ok: true;
       tag: string;
     }>,
@@ -1387,48 +1476,92 @@ export const api = {
   // The X workbench (docs/x-workbench.md). Platform admin only; every call
   // goes through this module, like every other call the UI makes.
   xLookupPost: (url: string): Promise<{ post: XPost }> =>
-    request('/api/admin/x/lookup', { method: 'POST', body: JSON.stringify({ url }) }),
+    request('/api/admin/x/lookup', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    }),
   xDraftReply: (input: {
     postId?: string;
     postAuthor?: string;
     postText: string;
     messages: { role: 'user' | 'assistant'; content: string }[];
-  }): Promise<{ draft: { reply: string; reason: string; note?: string } }> =>
-    request('/api/admin/x/draft', { method: 'POST', body: JSON.stringify(input) }),
+  }): Promise<{ draft: { reply: string; reason: string; answer: string } }> =>
+    request('/api/admin/x/draft', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  /** A post of his own from an idea, through the same argument (docs/x-workbench.md,
+   *  "Writing his own post"). */
+  xDraftPost: (input: {
+    idea: string;
+    messages: { role: 'user' | 'assistant'; content: string }[];
+  }): Promise<{ draft: { post: string; reason: string; answer: string } }> =>
+    request('/api/admin/x/compose', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
   xRecordReply: (input: {
-    sourcePostId: string;
+    kind?: 'reply' | 'post';
+    sourcePostId?: string;
     sourceAuthor?: string;
     sourceText?: string;
     text: string;
     replyId?: string;
     searchId?: string;
-  }): Promise<{ recorded: XReply }> => request('/api/admin/x/record', { method: 'POST', body: JSON.stringify(input) }),
+  }): Promise<{ recorded: XReply }> =>
+    request('/api/admin/x/record', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
   xAttachReplyId: (id: string, replyId: string): Promise<{ recorded: XReply }> =>
     request(`/api/admin/x/record/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify({ replyId }),
     }),
-  xLog: (): Promise<{ replies: XReply[]; summary: XSummary; draftingConfigured: boolean }> =>
-    request('/api/admin/x/log'),
+  xLog: (): Promise<{
+    replies: XReply[];
+    summary: XSummary;
+    draftingConfigured: boolean;
+  }> => request('/api/admin/x/log'),
   xSuggestSearch: (avoid: string[] = []): Promise<{ suggestion: { query: string; rationale: string } }> =>
-    request('/api/admin/x/searches/suggest', { method: 'POST', body: JSON.stringify({ avoid }) }),
+    request('/api/admin/x/searches/suggest', {
+      method: 'POST',
+      body: JSON.stringify({ avoid }),
+    }),
   xSaveSearch: (query: string, rationale?: string): Promise<{ search: XSearch }> =>
-    request('/api/admin/x/searches', { method: 'POST', body: JSON.stringify({ query, rationale }) }),
+    request('/api/admin/x/searches', {
+      method: 'POST',
+      body: JSON.stringify({ query, rationale }),
+    }),
   xSearches: (): Promise<{ searches: XSearch[] }> => request('/api/admin/x/searches'),
   xHarvestSearch: (id: string, ids: string): Promise<{ posts: XPost[]; failed: string[] }> =>
     request(`/api/admin/x/searches/${encodeURIComponent(id)}/harvest`, {
       method: 'POST',
       body: JSON.stringify({ ids }),
     }),
-  xGetVoiceProfile: (): Promise<{ profile: string; draftingConfigured: boolean }> => request('/api/admin/x/profile'),
+  xGetVoiceProfile: (): Promise<{
+    profile: string;
+    draftingConfigured: boolean;
+  }> => request('/api/admin/x/profile'),
   xSetVoiceProfile: (profile: string): Promise<{ ok: boolean }> =>
-    request('/api/admin/x/profile', { method: 'PUT', body: JSON.stringify({ profile }) }),
+    request('/api/admin/x/profile', {
+      method: 'PUT',
+      body: JSON.stringify({ profile }),
+    }),
   editProposal: (id: string, body: { title?: string; description?: string; askUsd?: number | null }) =>
-    request(`/api/proposals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    request(`/api/proposals/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   /** What changed on a proposal, oldest first. */
   getProposalRevisions: (id: string) =>
     request(`/api/proposals/${id}/revisions`) as Promise<{
-      revisions: Array<{ field: string; oldValue: string | null; newValue: string | null; at: string }>;
+      revisions: Array<{
+        field: string;
+        oldValue: string | null;
+        newValue: string | null;
+        at: string;
+      }>;
     }>,
   approveProposal: (id: string) => request(`/api/proposals/${id}/approve`, { method: 'POST' }),
   /** `declineReason` is published permanently on the proposal. Required by the
@@ -1438,11 +1571,17 @@ export const api = {
   declineProposal: (id: string, declineReason?: string, refund?: boolean) =>
     request(`/api/proposals/${id}/decline`, {
       method: 'POST',
-      body: JSON.stringify({ declineReason: declineReason?.trim() || null, refund: refund === true }),
+      body: JSON.stringify({
+        declineReason: declineReason?.trim() || null,
+        refund: refund === true,
+      }),
     }),
   getProposalMessages: (id: string) => request(`/api/proposals/${id}/messages`),
   sendProposalMessage: (id: string, content: string) =>
-    request(`/api/proposals/${id}/messages`, { method: 'POST', body: JSON.stringify({ content }) }),
+    request(`/api/proposals/${id}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
 
   /** Public floor read: the thread under a market or a proposal, no
       account needed (Open workspaces only). */
@@ -1503,7 +1642,9 @@ export const api = {
    *  participant or the external account has already been paid; `why`
    *  says which. The link is made either way. */
   claimRecordLink: (provider: string): Promise<{ handle: string; granted: number; why?: string }> =>
-    request(`/api/import/${encodeURIComponent(provider)}/claim`, { method: 'POST' }),
+    request(`/api/import/${encodeURIComponent(provider)}/claim`, {
+      method: 'POST',
+    }),
 
   /** The handful of flags a page needs before it knows who is looking:
    *  which store this build reads, and whether signups are open. */
@@ -1545,7 +1686,11 @@ export const api = {
         platformOperated: boolean;
         createdAt: string;
         approvedUsd: number;
-        approvedContracts: Array<{ title: string; askUsd: number; approvedAt: string | null }>;
+        approvedContracts: Array<{
+          title: string;
+          askUsd: number;
+          approvedAt: string | null;
+        }>;
       }>;
     }>,
   /** Every question asked of a floor, newest first, with its answer. */
@@ -1577,7 +1722,9 @@ export const api = {
     if (opts.kind) q.set('kind', opts.kind);
     if (opts.status) q.set('status', opts.status);
     const qs = q.toString();
-    return request(`/api/feedback${qs ? `?${qs}` : ''}`) as Promise<{ items: FeedbackItem[] }>;
+    return request(`/api/feedback${qs ? `?${qs}` : ''}`) as Promise<{
+      items: FeedbackItem[];
+    }>;
   },
 
   getFloorComments: (
@@ -1633,7 +1780,12 @@ export const api = {
         consensus: number | null;
         pool: number;
       } | null;
-      items: Array<{ id: string; label: string; status: 'done' | 'open'; note: string }>;
+      items: Array<{
+        id: string;
+        label: string;
+        status: 'done' | 'open';
+        note: string;
+      }>;
     } | null;
   }> => request('/api/setup/ask', { method: 'POST', body: JSON.stringify({ messages, settled }) }, true),
 
@@ -1737,13 +1889,23 @@ export const api = {
         body: JSON.stringify({ messages, settled }),
       },
       true,
-    ) as Promise<{ handoff: string; settled: string[]; open: string[]; written: boolean }>,
+    ) as Promise<{
+      handoff: string;
+      settled: string[];
+      open: string[];
+      written: boolean;
+    }>,
 
   /** What is still open on a floor, read from the database. The endpoint the
    *  handoff prompt tells an operator's own agent to call first. */
   setupChecklist: (workspaceId: string) =>
     request(`/api/setup/checklist?workspaceId=${encodeURIComponent(workspaceId)}`, {}, true) as Promise<{
-      workspace: { id: string; name: string; slug: string | null; visibility: string } | null;
+      workspace: {
+        id: string;
+        name: string;
+        slug: string | null;
+        visibility: string;
+      } | null;
       items: Array<{
         id: string;
         label: string;
@@ -1806,8 +1968,12 @@ export const api = {
       body: JSON.stringify({ content }),
     }),
 
-  getHooksStatus: (): Promise<{ active: boolean; lastPolledAt?: string; intervalMs?: number; nextPollAt?: string }> =>
-    request('/api/events/hooks/status'),
+  getHooksStatus: (): Promise<{
+    active: boolean;
+    lastPolledAt?: string;
+    intervalMs?: number;
+    nextPollAt?: string;
+  }> => request('/api/events/hooks/status'),
 
   // Member-friendly workspace activity feed (requires `read` capability).
   // Hides deposits/withdrawals and anonymizes trade actors for non-admins.
@@ -1869,9 +2035,18 @@ export const api = {
     requestWithWorkspace('/api/admin/agent-heartbeats', {}, { workspaceId }),
 
   getAgentTraces: (
-    params: { agentId?: string; since?: string; limit?: number; scopeWorkspaceId?: string | 'all' },
+    params: {
+      agentId?: string;
+      since?: string;
+      limit?: number;
+      scopeWorkspaceId?: string | 'all';
+    },
     workspaceId?: string,
-  ): Promise<{ traces: AgentTrace[]; scope?: string; isPlatformAdmin?: boolean }> => {
+  ): Promise<{
+    traces: AgentTrace[];
+    scope?: string;
+    isPlatformAdmin?: boolean;
+  }> => {
     const q = new URLSearchParams();
     if (params.agentId) q.set('agentId', params.agentId);
     if (params.since) q.set('since', params.since);
@@ -1895,7 +2070,11 @@ export const api = {
     }),
 
   // Marketplace (public, no auth)
-  getStats: async (): Promise<{ marketsActive: number; agentsActive: number; tradesThisWeek: number }> => {
+  getStats: async (): Promise<{
+    marketsActive: number;
+    agentsActive: number;
+    tradesThisWeek: number;
+  }> => {
     const res = await fetch(`${API_BASE}/api/marketplace/stats`);
     if (!res.ok) throw new Error(`Stats request failed: ${res.status}`);
     return res.json();
@@ -1952,7 +2131,9 @@ export const api = {
   },
   /** This participant's entry state for the running season. */
   getMySeason: async (): Promise<MySeasonEntry> => {
-    const res = await fetch(`${API_BASE}/api/seasons/me`, { credentials: 'include' });
+    const res = await fetch(`${API_BASE}/api/seasons/me`, {
+      credentials: 'include',
+    });
     if (!res.ok) throw new Error(`Season entry request failed: ${res.status}`);
     return res.json();
   },
@@ -1967,7 +2148,11 @@ export const api = {
    */
   setMySeasonEntry: async (
     optedIn: boolean,
-    opts: { acceptedRules?: boolean; confirmedOver18?: boolean; contactEmail?: string } = {},
+    opts: {
+      acceptedRules?: boolean;
+      confirmedOver18?: boolean;
+      contactEmail?: string;
+    } = {},
   ): Promise<{ optedIn: boolean }> => {
     const res = await fetch(`${API_BASE}/api/seasons/me`, {
       method: 'PUT',
@@ -2025,12 +2210,20 @@ export const api = {
   getFloorLeaders: async (
     limit = 100,
     workspaceIdOrSlug?: string,
-  ): Promise<{ participants: LeaderboardEntry[]; seasonMode: boolean; season: PrizeSeason | null }> => {
+  ): Promise<{
+    participants: LeaderboardEntry[];
+    seasonMode: boolean;
+    season: PrizeSeason | null;
+  }> => {
     const { seasons } = await api.getSeasons();
     const season = pickCurrentSeason(seasons);
     if (season?.status === 'running') {
       const { participants } = await api.getSeasonStandings(season.id, limit);
-      return { participants: participants.map(seasonStandingToEntry), seasonMode: true, season };
+      return {
+        participants: participants.map(seasonStandingToEntry),
+        seasonMode: true,
+        season,
+      };
     }
     const { participants } = await api.getLeaderboard(limit, workspaceIdOrSlug);
     return { participants, seasonMode: false, season };
@@ -2056,7 +2249,9 @@ export const api = {
     return res.json();
   },
   joinWorkspace: (workspaceId: string) =>
-    request(`/api/marketplace/${encodeURIComponent(workspaceId)}/join`, { method: 'POST' }),
+    request(`/api/marketplace/${encodeURIComponent(workspaceId)}/join`, {
+      method: 'POST',
+    }),
 
   // Notifications inbox (the bell). Workspace-agnostic: one inbox per
   // participant across every floor.
@@ -2065,17 +2260,25 @@ export const api = {
     request('/api/notifications/seen', { method: 'POST' }),
   /** Read one row: the count drops by one, not all at once. */
   markNotificationRead: (itemId: string): Promise<{ ok: boolean }> =>
-    request(`/api/notifications/${encodeURIComponent(itemId)}/read`, { method: 'POST' }),
+    request(`/api/notifications/${encodeURIComponent(itemId)}/read`, {
+      method: 'POST',
+    }),
   /** The mobile channel: whether push is configured, and the VAPID public key
    *  a browser needs to subscribe. */
   getPushKey: (): Promise<{ configured: boolean; publicKey: string | null }> =>
     request('/api/notifications/push-key', {}, true),
   /** Register this browser as one of my mobile addresses. */
   registerPushSubscription: (subscription: unknown): Promise<{ ok: boolean }> =>
-    request('/api/notifications/push-subscriptions', { method: 'POST', body: JSON.stringify({ subscription }) }),
+    request('/api/notifications/push-subscriptions', {
+      method: 'POST',
+      body: JSON.stringify({ subscription }),
+    }),
   /** Forget this browser's subscription. */
   deletePushSubscription: (endpoint: string): Promise<{ ok: boolean }> =>
-    request('/api/notifications/push-subscriptions', { method: 'DELETE', body: JSON.stringify({ endpoint }) }),
+    request('/api/notifications/push-subscriptions', {
+      method: 'DELETE',
+      body: JSON.stringify({ endpoint }),
+    }),
 
   // User auth / profile
   getProfile: () => request('/api/auth/me'),
@@ -2094,8 +2297,16 @@ export const api = {
     /** Whether the tradeable balance may fund market pools once the
      *  liquidity wallet is empty (the wallet is always spent first). */
     poolFromBalance?: boolean;
-  }) => request('/api/auth/profile', { method: 'POST', body: JSON.stringify(opts ?? {}) }),
-  recordConsent: () => request('/api/auth/consent', { method: 'POST', body: JSON.stringify({ accepted: true }) }),
+  }) =>
+    request('/api/auth/profile', {
+      method: 'POST',
+      body: JSON.stringify(opts ?? {}),
+    }),
+  recordConsent: () =>
+    request('/api/auth/consent', {
+      method: 'POST',
+      body: JSON.stringify({ accepted: true }),
+    }),
   // Key-first onboarding claim (see /claim page and POST /api/onboard)
   onboardClaimInfo: (token: string) => request(`/api/onboard/claim/${encodeURIComponent(token)}`, {}, true),
   onboardClaim: (token: string) =>
@@ -2129,7 +2340,12 @@ export const api = {
   resolveWorkspacePath: (
     owner: string,
     slug: string,
-  ): Promise<{ workspaceId: string; canonicalOwner: string; canonicalSlug: string; moved: boolean }> =>
+  ): Promise<{
+    workspaceId: string;
+    canonicalOwner: string;
+    canonicalSlug: string;
+    moved: boolean;
+  }> =>
     request(`/api/workspaces/resolve?owner=${encodeURIComponent(owner)}&slug=${encodeURIComponent(slug)}`, {}, true),
   getWorkspace: (id: string) => request(`/api/workspaces/${id}`),
   getWorkspaceStats: (id: string) => request(`/api/workspaces/${id}/stats`),
@@ -2148,14 +2364,21 @@ export const api = {
       spamPenalty?: number;
       maxPendingProposalsPerParticipant?: number;
     },
-  ) => request(`/api/workspaces/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
+  ) =>
+    request(`/api/workspaces/${id}/settings`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
   deleteWorkspace: (id: string) => request(`/api/workspaces/${id}`, { method: 'DELETE' }),
   /** Every announcement on a public floor, newest first. Anonymous read, so
    *  the floor can show them before a visitor has an account. */
   getWorkspaceAnnouncements: (idOrSlug: string): Promise<{ announcements: Announcement[] }> =>
     request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/announcements`),
   publishAnnouncement: (workspaceId: string, body: string): Promise<Announcement> =>
-    request(`/api/workspaces/${workspaceId}/announcements`, { method: 'POST', body: JSON.stringify({ body }) }),
+    request(`/api/workspaces/${workspaceId}/announcements`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    }),
   /** Corrects an announcement. The server keeps the original body and stamps
    *  editedAt; there is no delete. */
   editAnnouncement: (workspaceId: string, announcementId: string, body: string): Promise<Announcement> =>
@@ -2167,9 +2390,15 @@ export const api = {
   listSources: () => request('/api/sources'),
   getSource: (id: string) => request(`/api/sources/${id}`),
   createTextSource: (body: { name: string; description?: string; content?: string }) =>
-    request('/api/sources', { method: 'POST', body: JSON.stringify({ ...body, type: 'text' }) }),
+    request('/api/sources', {
+      method: 'POST',
+      body: JSON.stringify({ ...body, type: 'text' }),
+    }),
   updateSource: (id: string, body: { name?: string; description?: string; content?: string }) =>
-    request(`/api/sources/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    request(`/api/sources/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
   deleteSource: (id: string) => request(`/api/sources/${id}`, { method: 'DELETE' }),
   getSourceTree: (id: string, path?: string, ref?: string) => {
     const params = new URLSearchParams();
@@ -2185,7 +2414,10 @@ export const api = {
   },
   getGitHubRepos: (state: string) => request(`/api/sources/github/repos?state=${encodeURIComponent(state)}`),
   connectGitHub: (body: { state: string; repos: string[] }) =>
-    request('/api/sources/github/connect', { method: 'POST', body: JSON.stringify(body) }),
+    request('/api/sources/github/connect', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
   // Feedback (bug reports / help requests)
   submitFeedback: (body: {
@@ -2209,17 +2441,36 @@ export const api = {
     const qs = q.toString() ? `?${q}` : '';
     return request(`/api/feedback${qs}`, {}, true);
   },
-  updateFeedback: (id: string, body: { status?: 'open' | 'triaged' | 'resolved' | 'closed'; adminNotes?: string }) =>
-    request(`/api/feedback/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }, true),
+  updateFeedback: (
+    id: string,
+    body: {
+      status?: 'open' | 'triaged' | 'resolved' | 'closed';
+      adminNotes?: string;
+    },
+  ) => request(`/api/feedback/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }, true),
 
   // API keys & authenticated agent creation (used by the API page).
   // /api/agents/:id/keys uses :id=me to operate on the calling agent.
   listAgentKeys: (agentId: string) => request(`/api/agents/${encodeURIComponent(agentId)}/keys`),
   mintAgentKey: (
     agentId: string,
-    body: { label?: string; scopes?: string[]; workspaceId?: string; workspaceLocked?: boolean },
-  ): Promise<{ keyId: string; apiKey: string; scopes: string[]; workspaceId: string; workspaceLocked: boolean }> =>
-    request(`/api/agents/${encodeURIComponent(agentId)}/keys`, { method: 'POST', body: JSON.stringify(body) }),
+    body: {
+      label?: string;
+      scopes?: string[];
+      workspaceId?: string;
+      workspaceLocked?: boolean;
+    },
+  ): Promise<{
+    keyId: string;
+    apiKey: string;
+    scopes: string[];
+    workspaceId: string;
+    workspaceLocked: boolean;
+  }> =>
+    request(`/api/agents/${encodeURIComponent(agentId)}/keys`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   updateAgentKey: (agentId: string, keyId: string, body: { label?: string | null; scopes?: string[] }) =>
     request(`/api/agents/${encodeURIComponent(agentId)}/keys/${encodeURIComponent(keyId)}`, {
       method: 'PATCH',
