@@ -215,7 +215,16 @@ export function TradePage() {
     | { kind: 'new-metric' }
     | { kind: 'add-date'; metricId: string; metricName: string }
     | { kind: 'dates'; metricId: string; metricName: string }
-    | { kind: 'inject'; marketId: string; marketLabel: string; pool: number; traders: number }
+    | {
+        kind: 'inject';
+        marketId: string;
+        marketLabel: string;
+        pool: number;
+        traders: number;
+        /** The metric a baseline market respawns on; a proposal branch has none. */
+        metricId?: string;
+        metricName?: string;
+      }
     | { kind: 'report'; metricId: string; metricName: string }
   >(null);
   // Who the viewer is as a participant, so the floor can tell "my proposal"
@@ -1952,6 +1961,11 @@ export function TradePage() {
                             }`,
                             pool: active.pool,
                             traders: active.traders,
+                            /* A branch never respawns, so only a baseline
+                               market carries the metric the second number
+                               (what new markets open with) belongs to. */
+                            metricId: selectedJob ? undefined : hero.metricId,
+                            metricName: selectedJob ? undefined : metricLabel,
                           })
                         }
                       />
@@ -2307,6 +2321,10 @@ export function TradePage() {
           marketLabel={ownerDialog.marketLabel}
           pool={ownerDialog.pool}
           traders={ownerDialog.traders}
+          metricId={ownerDialog.metricId}
+          metricName={ownerDialog.metricName}
+          canManage={canManage}
+          defaultCredits={defaultCredits}
           onClose={() => setOwnerDialog(null)}
           onDone={() => {
             setOwnerDialog(null);

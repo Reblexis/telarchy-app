@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
 import { settleDayOf } from '../lib/floor-horizons';
 import { FloorModal } from './FloorModal';
@@ -361,13 +361,39 @@ export function AddDateDialog({
   );
 }
 
-/** Dialog 3: inject liquidity into one open market. */
+/** A standing number keeps its fraction: the platform's own default is 0.5
+ *  a market, and rounding it to 1 would misreport what the owner is about to
+ *  replace. Thousands are whole numbers, as everywhere else on the floor. */
+function fmtStanding(n: number): string {
+  if (n >= 1000) return Math.round(n).toLocaleString('en-US');
+  return n.toFixed(2).replace(/\.?0+$/, '');
+}
+
+/** Zero is a valid standing number (new markets open unfunded), so unlike the
+ *  amount going in now it is refused only when it is not a number. */
+function parseStanding(raw: string): number | null {
+  const t = raw.replace(/,/g, '').trim();
+  if (t === '') return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/** Dialog 3: inject liquidity into one open market, and, for someone who can
+ *  manage the floor, set what every new market on the metric opens with
+ *  (docs/owner-on-the-floor.md, "Two numbers for someone who can manage the
+ *  floor"). The second number is the metric's own `liquidityCredits`, the one
+ *  the Add-a-date dialog writes; a proposal branch never respawns, so the
+ *  caller passes no metricId there and the dialog is one number for all. */
 export function InjectLiquidityDialog({
   workspaceId,
   marketId,
   marketLabel,
   pool,
   traders,
+  metricId,
+  metricName,
+  canManage = false,
+  defaultCredits = 0,
   onClose,
   onDone,
 }: {
@@ -376,6 +402,12 @@ export function InjectLiquidityDialog({
   marketLabel: string;
   pool: number;
   traders: number;
+  /** The metric this market respawns on; absent on a proposal branch. */
+  metricId?: string;
+  metricName?: string;
+  canManage?: boolean;
+  /** The workspace's own default, what a metric with no number opens with. */
+  defaultCredits?: number;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -384,14 +416,50 @@ export function InjectLiquidityDialog({
   const [err, setErr] = useState('');
   const amountNum = parseCredits(amount);
 
+  const offersStanding = canManage && !!metricId;
+  // What the metric opens new markets with today: null until loaded, and
+  // the workspace default when the metric has no number of its own.
+  const [current, setCurrent] = useState<number | null>(null);
+  const [standing, setStanding] = useState('');
+  useEffect(() => {
+    if (!offersStanding || !metricId) return;
+    let live = true;
+    api
+      .getMetric(workspaceId, metricId)
+      .then(m => {
+        if (!live) return;
+        const own = (m as { liquidityCredits?: number | null }).liquidityCredits;
+        const now = typeof own === 'number' ? own : defaultCredits;
+        setCurrent(now);
+        setStanding(fmtStanding(now));
+      })
+      .catch(e => live && setErr(e instanceof Error ? e.message : String(e)));
+    return () => {
+      live = false;
+    };
+  }, [offersStanding, workspaceId, metricId, defaultCredits]);
+  const standingNum = offersStanding ? parseStanding(standing) : null;
+  const standingChanged = offersStanding && current !== null && standingNum !== null && standingNum !== current;
+
   const inject = async () => {
     if (amountNum === null) {
       setErr('A number of credits.');
       return;
     }
+    if (offersStanding && standingNum === null) {
+      setErr('A number of credits for every opening.');
+      return;
+    }
     setBusy(true);
     setErr('');
     try {
+      // The standing number first: refused, nothing has moved; and once
+      // written, a refused injection leaves a number a retry rewrites
+      // without harm. The other order could move credits and lose the number.
+      if (standingChanged && metricId) {
+        await api.patchMetric(workspaceId, metricId, { liquidityCredits: standingNum });
+        setCurrent(standingNum);
+      }
       await api.injectLiquidity(marketId, amountNum, workspaceId);
       onDone();
     } catch (e) {
@@ -400,17 +468,69 @@ export function InjectLiquidityDialog({
     }
   };
 
+  const label = `Inject liquidity · ${marketLabel}`;
+  const go = amountNum
+    ? standingChanged && standingNum !== null
+      ? `Add ${fmtCr(amountNum)} cr · ${fmtStanding(standingNum)} cr on every opening`
+      : `Add ${fmtCr(amountNum)} cr`
+    : 'Add';
+
   return (
     <FloorModal onClose={onClose} label="Inject liquidity">
       <div className="jobform">
-        <CreditsHero
-          label={`Inject liquidity · ${marketLabel}`}
-          value={amount}
-          onChange={setAmount}
-          disabled={busy}
-          ariaLabel="Credits to add to the pool"
-          onClose={onClose}
-        />
+        {offersStanding ? (
+          <div className="ticket-head jobform-head">
+            <div className="jobform-askblock" style={{ flex: 1 }}>
+              <p className="ticket-label">{label}</p>
+              <div className="inject-two">
+                <div className="jobform-askblock">
+                  <p className="ticket-label">Now, into this market</p>
+                  <label className="ticket-amt ticket-amt--price jobform-ask">
+                    <input
+                      value={amount}
+                      style={{ width: `${Math.max(4, amount.length)}ch` }}
+                      onChange={e => setAmount(e.target.value.replace(/[^0-9,]/g, ''))}
+                      placeholder="0"
+                      inputMode="numeric"
+                      aria-label="Credits to add to the pool"
+                      disabled={busy}
+                      required
+                    />
+                    <span className="ticket-amt-unit">cr</span>
+                  </label>
+                </div>
+                <div className="jobform-askblock">
+                  <p className="ticket-label">And each time it opens again</p>
+                  <label className="ticket-amt ticket-amt--price jobform-ask">
+                    <input
+                      value={standing}
+                      style={{ width: `${Math.max(4, standing.length)}ch` }}
+                      onChange={e => setStanding(e.target.value.replace(/[^0-9,.]/g, ''))}
+                      placeholder={current === null ? '…' : '0'}
+                      inputMode="decimal"
+                      aria-label="Credits every new market on this metric opens with"
+                      disabled={busy || current === null}
+                      required
+                    />
+                    <span className="ticket-amt-unit">cr</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <button className="ticket-close" aria-label="Close" onClick={onClose}>
+              ×
+            </button>
+          </div>
+        ) : (
+          <CreditsHero
+            label={label}
+            value={amount}
+            onChange={setAmount}
+            disabled={busy}
+            ariaLabel="Credits to add to the pool"
+            onClose={onClose}
+          />
+        )}
 
         <div className="ticket-facts">
           <div className="ticket-fact">
@@ -427,6 +547,15 @@ export function InjectLiquidityDialog({
             <span className="ticket-fact-k">Traders on it</span>
             <span className="ticket-fact-v">{fmtCr(traders)}</span>
           </div>
+          {offersStanding && current !== null && standingNum !== null && (
+            <div className="ticket-fact">
+              <span className="ticket-fact-k">Next market on this metric opens with</span>
+              <span className="ticket-fact-v">
+                {fmtStanding(standingNum)} cr
+                {standingChanged && <span className="inject-was"> · was {fmtStanding(current)}</span>}
+              </span>
+            </div>
+          )}
         </div>
 
         {err && <p className="ticket-err">{err}</p>}
@@ -439,9 +568,16 @@ export function InjectLiquidityDialog({
         <p className="adm-note">
           Credits behind a market are not scored as profit on this market, so funding a book you trade pays you nothing.
           What the market does not pay out comes back to you.
+          {offersStanding && (
+            <>
+              {' '}
+              The second number is what every new {metricName ?? 'market on this metric'}
+              {metricName ? ' market' : ''} opens with, every date on it included, out of your wallet as it opens.
+            </>
+          )}
         </p>
         <button className="ticket-go" disabled={busy} onClick={() => void inject()}>
-          {busy ? 'Adding…' : amountNum ? `Add ${fmtCr(amountNum)} cr` : 'Add'}
+          {busy ? 'Adding…' : go}
           <span className="ticket-go-sub">
             Harder to move, and pays more to be right. One way only: a pool never thins back out.
           </span>

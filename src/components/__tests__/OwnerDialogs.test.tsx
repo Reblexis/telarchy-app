@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type React from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
@@ -270,6 +271,140 @@ describe('dialog 3: inject liquidity', () => {
     fireEvent.change(screen.getByLabelText('Credits to add to the pool'), { target: { value: 'lots' } });
     fireEvent.click(screen.getByRole('button', { name: /^Add/ }));
     await waitFor(() => expect(screen.getByText('A number of credits.')).toBeTruthy());
+    expect(injectLiquidity).not.toHaveBeenCalled();
+  });
+});
+
+describe('dialog 3: the second number, what every new market on this metric opens with', () => {
+  const owner = (over: Partial<React.ComponentProps<typeof InjectLiquidityDialog>> = {}) => (
+    <InjectLiquidityDialog
+      workspaceId="ws"
+      marketId="mkt-1"
+      marketLabel="LookPilot net 2026 (USD) · this week"
+      pool={2412}
+      traders={7}
+      metricId="m1"
+      metricName="LookPilot net 2026 (USD)"
+      canManage
+      defaultCredits={1000}
+      onClose={() => {}}
+      onDone={() => {}}
+      {...over}
+    />
+  );
+  const metricWith = (liquidityCredits: number | null) =>
+    getMetric.mockResolvedValueOnce({
+      id: 'm1',
+      name: 'LookPilot net 2026 (USD)',
+      liquidityCredits,
+      timePreference: { enabled: false, halfLife: 1, customHorizons: ['+0w'] },
+    } as never);
+
+  test('a trader is shown one number only, and never writes the metric', async () => {
+    render(owner({ canManage: false }));
+    fireEvent.change(screen.getByLabelText('Credits to add to the pool'), { target: { value: '2000' } });
+    expect(screen.queryByLabelText('Credits every new market on this metric opens with')).toBeNull();
+    fireEvent.click(screen.getByText('Add 2,000 cr'));
+    await waitFor(() => expect(injectLiquidity).toHaveBeenCalledWith('mkt-1', 2000, 'ws'));
+    expect(getMetric).not.toHaveBeenCalled();
+    expect(patchMetric).not.toHaveBeenCalled();
+  });
+
+  test('a proposal branch never respawns, so it offers one number even to the owner', () => {
+    render(owner({ metricId: undefined }));
+    expect(screen.queryByLabelText('Credits every new market on this metric opens with')).toBeNull();
+    expect(getMetric).not.toHaveBeenCalled();
+  });
+
+  test("the owner sees the second number prefilled with the metric's own standing liquidity", async () => {
+    metricWith(500);
+    render(owner());
+    const standing = await screen.findByLabelText('Credits every new market on this metric opens with');
+    await waitFor(() => expect((standing as HTMLInputElement).value).toBe('500'));
+    expect(screen.getByText(/each time it opens again/i)).toBeInTheDocument();
+  });
+
+  test('a metric with no number of its own is prefilled with the workspace default', async () => {
+    metricWith(null);
+    render(owner({ defaultCredits: 1386 }));
+    const standing = await screen.findByLabelText('Credits every new market on this metric opens with');
+    await waitFor(() => expect((standing as HTMLInputElement).value).toBe('1,386'));
+  });
+
+  test('the facts row says what the next market opens with, and what it was when that changes', async () => {
+    metricWith(0.5);
+    render(owner());
+    const standing = await screen.findByLabelText('Credits every new market on this metric opens with');
+    await waitFor(() => expect((standing as HTMLInputElement).value).toBe('0.5'));
+    expect(screen.getByText(/next market on this metric opens with/i)).toBeInTheDocument();
+    expect(screen.queryByText(/was 0\.5/)).toBeNull();
+    fireEvent.change(standing, { target: { value: '500' } });
+    expect(screen.getByText('500 cr')).toBeInTheDocument();
+    expect(screen.getByText(/was 0\.5/)).toBeInTheDocument();
+  });
+
+  test('the note says the number is shared by every date on the metric', async () => {
+    metricWith(500);
+    render(owner());
+    await screen.findByLabelText('Credits every new market on this metric opens with');
+    expect(screen.getByText(/every new LookPilot net 2026 \(USD\) market/i)).toBeInTheDocument();
+  });
+
+  test('submitting moves the credits AND writes the changed standing number; the button names both', async () => {
+    metricWith(0.5);
+    const onDone = vi.fn();
+    render(owner({ onDone }));
+    const standing = await screen.findByLabelText('Credits every new market on this metric opens with');
+    await waitFor(() => expect((standing as HTMLInputElement).value).toBe('0.5'));
+    fireEvent.change(standing, { target: { value: '500' } });
+    fireEvent.click(screen.getByText('Add 1,000 cr · 500 cr on every opening'));
+    await waitFor(() => expect(injectLiquidity).toHaveBeenCalledWith('mkt-1', 1000, 'ws'));
+    expect(patchMetric).toHaveBeenCalledWith('ws', 'm1', { liquidityCredits: 500 });
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  test('an unchanged standing number is not written', async () => {
+    metricWith(500);
+    render(owner());
+    const standing = await screen.findByLabelText('Credits every new market on this metric opens with');
+    await waitFor(() => expect((standing as HTMLInputElement).value).toBe('500'));
+    fireEvent.click(screen.getByRole('button', { name: /^Add 1,000 cr/ }));
+    await waitFor(() => expect(injectLiquidity).toHaveBeenCalled());
+    expect(patchMetric).not.toHaveBeenCalled();
+    // Unchanged, the button carries the one act it performs.
+    expect(screen.queryByText(/on every opening/)).toBeNull();
+  });
+
+  test('zero is a valid standing number: new markets on this metric open unfunded', async () => {
+    metricWith(500);
+    render(owner());
+    const standing = await screen.findByLabelText('Credits every new market on this metric opens with');
+    await waitFor(() => expect((standing as HTMLInputElement).value).toBe('500'));
+    fireEvent.change(standing, { target: { value: '0' } });
+    fireEvent.click(screen.getByText('Add 1,000 cr · 0 cr on every opening'));
+    await waitFor(() => expect(patchMetric).toHaveBeenCalledWith('ws', 'm1', { liquidityCredits: 0 }));
+  });
+
+  test('a non-number in the second field reaches no API', async () => {
+    metricWith(500);
+    render(owner());
+    const standing = await screen.findByLabelText('Credits every new market on this metric opens with');
+    fireEvent.change(standing, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Add/ }));
+    await waitFor(() => expect(screen.getByText('A number of credits for every opening.')).toBeTruthy());
+    expect(injectLiquidity).not.toHaveBeenCalled();
+    expect(patchMetric).not.toHaveBeenCalled();
+  });
+
+  test('the standing number is written before the credits move, so a refused write moves nothing', async () => {
+    metricWith(0.5);
+    patchMetric.mockRejectedValueOnce(new Error('Forbidden'));
+    render(owner());
+    const standing = await screen.findByLabelText('Credits every new market on this metric opens with');
+    await waitFor(() => expect((standing as HTMLInputElement).value).toBe('0.5'));
+    fireEvent.change(standing, { target: { value: '500' } });
+    fireEvent.click(screen.getByText('Add 1,000 cr · 500 cr on every opening'));
+    await waitFor(() => expect(screen.getByText('Forbidden')).toBeTruthy());
     expect(injectLiquidity).not.toHaveBeenCalled();
   });
 });
