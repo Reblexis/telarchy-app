@@ -216,7 +216,10 @@ describe('machinery edits and open markets (docs/market-integrity.md)', () => {
     expect(open[0].rangeMax).toBe(50000);
   });
 
-  test('a range change is still refused the moment anyone has money in a market', async () => {
+  test('a range change with money in a market is accepted and leaves that market alone', async () => {
+    // Since 2026-09-03 the range applies from now on (docs/market-integrity.md):
+    // the traded book keeps its 5,000, the metric moves to 50,000 for the
+    // books that follow. Pinned in range-applies-from-now-on.test.ts.
     await db.insert(trades).values({
       id: 't-freeze',
       workspaceId: WS,
@@ -226,10 +229,12 @@ describe('machinery edits and open markets (docs/market-integrity.md)', () => {
       shares: 1,
       cost: toUnits(10),
     });
-    const res = await request(app).put('/api/metrics/m-priced').send({ marketRangeMax: 50000 }).expect(409);
-    expect(res.body.error).toMatch(/has trades/);
+    await request(app).put('/api/metrics/m-priced').send({ marketRangeMax: 50000 }).expect(200);
     const [mkt] = await db.select().from(markets).where(eq(markets.id, 'mkt-open'));
     expect(mkt.resolved).toBe(false);
+    expect(mkt.voided).toBe(false);
     expect(mkt.rangeMax).toBe(5000);
+    const [metric] = await db.select().from(metrics).where(eq(metrics.id, 'm-priced'));
+    expect(metric.marketRangeMax).toBe(50000);
   });
 });
