@@ -401,12 +401,13 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><a href="#docs-x-workbench-md--h1">The X workbench</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h2">Finding posts: the search loop</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h3">What the owner does</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h4">Reading a post</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h5">Drafting</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h6">Performance and what it learns</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h7">Endpoints</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h8">Storage</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h9">What it is not</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h4">Writing his own post</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h5">Reading a post</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h6">Drafting</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h7">Performance and what it learns</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h8">Endpoints</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h9">Storage</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h10">What it is not</a></li>
 </ul></details>
 </li>
 </ul></li>
@@ -6366,10 +6367,15 @@ inferred.</li>
 <ol>
 <li>Pastes an X post URL or id.</li>
 <li>Sees the post: author, text, likes, replies, when.</li>
-<li>Gets a drafted reply in his voice, with a one-word reason.</li>
+<li>Gets a drafted reply in his voice, with a one-word reason and its answer
+to him.</li>
 <li>Talks to it (&quot;shorter&quot;, &quot;lead with the number&quot;, &quot;you are wrong about the
-Google market&quot;) until the draft is right. The conversation is the feature,
-not a nicety: the first draft is a starting position, and the argument is
+Google market&quot;, &quot;why that number?&quot;) until the draft is right. Every turn
+comes back as two things: the revised text, and what it says to him
+about it (what it changed, why it holds its ground, or the answer to what
+he asked). Both stay on screen, so the exchange reads as a conversation
+and not as a vending machine. The conversation is the feature, not a
+nicety: the first draft is a starting position, and the argument is
 where his judgement enters.</li>
 <li>Copies the final text, or opens X with it prefilled, and posts it himself.</li>
 <li>Pastes back the id of the reply he posted, so the workbench can watch it.</li>
@@ -6380,7 +6386,32 @@ across them says.</li>
 That line is not a technical limit, it is the rule that keeps his account his
 (X suspends accounts that automate posting, and copy under his name is the one
 thing he must approve).</p>
-<h2 id="docs-x-workbench-md--h4">Reading a post</h2>
+<h2 id="docs-x-workbench-md--h4">Writing his own post</h2>
+<p>The same loop, mirrored: instead of pasting someone's post he types an idea
+(a sentence, a number he wants to say, a rough draft) and gets a post in his
+voice, with a one-word reason for its shape and its answer to him. He argues
+with it exactly as with a reply, sends it himself, and pastes back the id so
+it is watched like a reply. Nothing here posts to X.</p>
+<p>What a draft post obeys, learned from the record of what travels on X for
+founders in this space (the research is a record, kept in the umbrella's
+notes, and the rules here are what it concluded):</p>
+<ul>
+<li>Text only. If there is a link, it goes in the first reply, never in the
+body. No hashtags, no @mentions of large accounts, no emoji.</li>
+<li>Two to four lines, 100 to 280 characters, the meaning in the first line.</li>
+<li>A number only when it is real and in the voice profile, and then early.
+A market that was right is stated beside the thing it missed; a record is
+never boasted without the miss.</li>
+<li>No pitch, no &quot;we are excited&quot;, nothing that reads as marketing. Written
+the way he would say it to a friend.</li>
+<li>Never bait, never rage, never a fight with a critic: one credible reader
+muting the account costs more than a hundred likes.</li>
+<li>Reason is one word naming the shape: called-it (a market resolved),
+test (something the reader can check), milestone (numbers), demo (the
+thing working, prompt quoted), quote (answering a bigger account's
+complaint with what was built), correction, or other.</li>
+</ul>
+<h2 id="docs-x-workbench-md--h5">Reading a post</h2>
 <p><code>cdn.syndication.twimg.com/tweet-result?id=&lt;id&gt;&amp;token=&lt;derived&gt;</code> returns a
 public post's text, author, and counts with no credential. The token is a
 deterministic function of the id, which is why this works without a key. It is
@@ -6390,7 +6421,7 @@ rather than showing an empty post, and the owner can paste the text by hand
 <p>What it gives: <code>text</code>, <code>user.screen_name</code>, <code>user.name</code>, <code>favorite_count</code>,
 <code>conversation_count</code>, <code>created_at</code>. It does NOT give impressions, so
 &quot;performance&quot; here means likes and replies, and the log says that.</p>
-<h2 id="docs-x-workbench-md--h5">Drafting</h2>
+<h2 id="docs-x-workbench-md--h6">Drafting</h2>
 <p>One Anthropic call, the same rules the reply queue uses (one to three
 sentences, add a number or a counterexample, never pitch, never link, no
 em-dashes, skip when there is nothing to say), plus two things the queue does
@@ -6408,7 +6439,7 @@ writing samples and the facts he is allowed to state, it is personal, and this
 repository is prepared for a public release. <code>/admin</code> has a textarea for it;
 seeding it is a one-time paste. With no profile, drafting still works and says
 in the UI that it is writing generically.</p>
-<h2 id="docs-x-workbench-md--h6">Performance and what it learns</h2>
+<h2 id="docs-x-workbench-md--h7">Performance and what it learns</h2>
 <p><code>POST /api/cron/x-metrics</code> refreshes counts for every recorded reply whose
 post id is known, newest first, oldest refreshed least often. Cloud Scheduler
 runs it every six hours; a reply's numbers move fastest in its first day and
@@ -6420,7 +6451,7 @@ features (carries a number, disagrees, under 200 characters) is associated
 with the better half. With fewer than ten recorded replies the summary says so
 instead of pretending to a pattern; three data points are not a finding, and
 copy advice from three data points is how superstition starts.</p>
-<h2 id="docs-x-workbench-md--h7">Endpoints</h2>
+<h2 id="docs-x-workbench-md--h8">Endpoints</h2>
 <p>All platform admin. Documented in <code>/api/help</code> like every other route.</p>
 <div class="tablewrap"><table>
 <thead>
@@ -6436,11 +6467,15 @@ copy advice from three data points is how superstition starts.</p>
 </tr>
 <tr>
 <td><code>POST /api/admin/x/draft</code></td>
-<td><code>{ postId, postText, messages[] }</code> -&gt; <code>{ reply, reason }</code>, the conversation carried in <code>messages</code></td>
+<td><code>{ postId, postText, messages[] }</code> -&gt; <code>{ reply, reason, answer }</code>, the conversation carried in <code>messages</code></td>
+</tr>
+<tr>
+<td><code>POST /api/admin/x/compose</code></td>
+<td><code>{ idea, messages[] }</code> -&gt; <code>{ post, reason, answer }</code>, his own post from an idea, same conversation shape</td>
 </tr>
 <tr>
 <td><code>POST /api/admin/x/record</code></td>
-<td><code>{ sourcePostId, text, replyId? }</code> -&gt; stores what he sent</td>
+<td><code>{ kind?, sourcePostId?, text, replyId? }</code> -&gt; stores what he sent; a <code>post</code> has no source, a <code>reply</code> must have one</td>
 </tr>
 <tr>
 <td><code>PATCH /api/admin/x/record/:id</code></td>
@@ -6476,17 +6511,18 @@ copy advice from three data points is how superstition starts.</p>
 </tr>
 </tbody>
 </table></div>
-<h2 id="docs-x-workbench-md--h8">Storage</h2>
-<p>One table, <code>x_replies</code>: the source post (id, author, text, author follower
-count if known), what he sent (text, reply id, when), the metrics (likes,
+<h2 id="docs-x-workbench-md--h9">Storage</h2>
+<p>One table, <code>x_replies</code>: the kind (<code>reply</code> or <code>post</code>), the source post for a
+reply (id, author, text, author follower count if known; absent for a post
+of his own), what he sent (text, its id on X, when), the metrics (likes,
 replies, refreshed-at), and the derived features used by the summary. Append
-only in spirit: a recorded reply is never edited except to attach its id and
+only in spirit: a recorded row is never edited except to attach its id and
 its metrics.</p>
 <p><code>x_voice_profile</code> is a single row of text with an updated-at.</p>
 <p><code>x_searches</code> holds the query, its rationale, and <code>harvested</code>, the number of
 posts pasted back from it. <code>x_replies.search_id</code> is the link that lets a query
 be judged by the replies it produced.</p>
-<h2 id="docs-x-workbench-md--h9">What it is not</h2>
+<h2 id="docs-x-workbench-md--h10">What it is not</h2>
 <p>Not a scheduler, not a poster, not an inbox. It does not search X (nothing can, without a
 paid credential; it proposes queries the owner runs himself). Finding posts
 elsewhere is the reply queue's job, over Hacker News and Manifold. It handles the step between &quot;I am looking at a post worth

@@ -169,7 +169,12 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       auth: 'public-read',
       description: 'List all metrics with computed totals and depths, sorted by depth then order.',
     },
-    { method: 'GET', path: '/api/metrics/:id', auth: 'public-read', description: 'Get a single metric by ID.' },
+    {
+      method: 'GET',
+      path: '/api/metrics/:id',
+      auth: 'public-read',
+      description: 'Get a single metric by ID.',
+    },
     {
       method: 'POST',
       path: '/api/metrics',
@@ -252,7 +257,12 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       description:
         'Reorder metrics within their depth level. Body: { ids: string[] }, an ordered list of metric ids. Order is written 1-based: the metric at index 0 gets order=1. Caller is responsible for keeping each call scoped to one depth level. Ids not in the workspace are ignored. Returns { updated }.',
     },
-    { method: 'GET', path: '/api/updates', auth: 'admin', description: 'Update history. Query: ?limit=N' },
+    {
+      method: 'GET',
+      path: '/api/updates',
+      auth: 'admin',
+      description: 'Update history. Query: ?limit=N',
+    },
     {
       method: 'POST',
       path: '/api/agents/register',
@@ -1127,14 +1137,21 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/admin/x/draft',
       auth: 'admin',
       description:
-        "Draft a reply to a post, or argue about the draft (platform admin). Body: { postText (required), postId?, postAuthor?, messages: [{ role: 'user'|'assistant', content }] }. The messages carry the whole conversation, so a follow-up like 'shorter' means shorter than the last draft. Returns { draft: { reply, reason, note? } }, where reason is one word (disagree|number|question|counterexample|skip) and an empty reply with reason 'skip' is a legitimate answer. Writes in the owner's voice using the profile stored via /api/admin/x/profile and a digest of what his recorded replies earned. 503 when ANTHROPIC_API_KEY is not set.",
+        "Draft a reply to a post, or argue about the draft (platform admin). Body: { postText (required), postId?, postAuthor?, messages: [{ role: 'user'|'assistant', content }] }. The messages carry the whole conversation, so a follow-up like 'shorter' means shorter than the last draft. Returns { draft: { reply, reason, answer } }, where reason is one word (disagree|number|question|counterexample|skip), an empty reply with reason 'skip' is a legitimate answer, and answer is what it says to the owner (what it changed, why it holds its ground, or the reply to what he asked). Writes in the owner's voice using the profile stored via /api/admin/x/profile and a digest of what his recorded replies earned. 503 when ANTHROPIC_API_KEY is not set.",
+    },
+    {
+      method: 'POST',
+      path: '/api/admin/x/compose',
+      auth: 'admin',
+      description:
+        "Draft a post of the owner's own from an idea, or argue about the draft (platform admin). Body: { idea (required), messages: [{ role: 'user'|'assistant', content }] }, the same conversation shape as /api/admin/x/draft. Returns { draft: { post, reason, answer } }, where reason names the post's shape in one word (called-it|test|milestone|demo|quote|correction|other) and answer is what it says to the owner. The post obeys docs/x-workbench.md, 'Writing his own post': text only, link in the first reply, two to four lines, 100 to 280 characters, no hashtags, never bait. 503 when ANTHROPIC_API_KEY is not set.",
     },
     {
       method: 'POST',
       path: '/api/admin/x/record',
       auth: 'admin',
       description:
-        'Record a reply the owner actually sent (platform admin). Body: { sourcePostId, text, sourceAuthor?, sourceText?, replyId? }. The reply id is optional because the text is recorded when he sends it and the id is pasted afterwards, if at all; PATCH /api/admin/x/record/:id attaches it later, which is what turns metrics on. Nothing here posts to X.',
+        "Record a reply or a post the owner actually sent (platform admin). Body: { kind? ('reply', the default, or 'post'), sourcePostId (required for a reply, absent for a post), text, sourceAuthor?, sourceText?, replyId? }. The reply id is optional because the text is recorded when he sends it and the id is pasted afterwards, if at all; PATCH /api/admin/x/record/:id attaches it later, which is what turns metrics on. Nothing here posts to X.",
     },
     {
       method: 'GET',
@@ -1447,9 +1464,24 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       description:
         'Record the browser-account user accepting Terms and Privacy Policy. Body: { accepted: true }. Required before any other authenticated request succeeds for new accounts. Agent-key callers are exempt from consent gating and do not need to call this.',
     },
-    { method: 'GET', path: '/api/legal', auth: false, description: 'Legal index: lists available legal documents.' },
-    { method: 'GET', path: '/api/legal/terms', auth: false, description: 'Current Terms of Service (markdown).' },
-    { method: 'GET', path: '/api/legal/privacy', auth: false, description: 'Current Privacy Policy (markdown).' },
+    {
+      method: 'GET',
+      path: '/api/legal',
+      auth: false,
+      description: 'Legal index: lists available legal documents.',
+    },
+    {
+      method: 'GET',
+      path: '/api/legal/terms',
+      auth: false,
+      description: 'Current Terms of Service (markdown).',
+    },
+    {
+      method: 'GET',
+      path: '/api/legal/privacy',
+      auth: false,
+      description: 'Current Privacy Policy (markdown).',
+    },
     {
       method: 'GET',
       path: '/api/legal/season-0',

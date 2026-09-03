@@ -7,7 +7,7 @@
  * with no X credential at all.
  */
 import { randomUUID } from 'crypto';
-import { desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { xReplies, xSearches, xVoiceProfile } from '../db/schema';
 import { AppError } from '../lib/errors';
@@ -86,11 +86,11 @@ export const disagrees = (t: string) => /\b(not|no|wrong|but|actually|disagree|e
  * notice the pattern, never to copy a winner, because copying a winner is how
  * an account starts repeating itself.
  */
-export async function performanceDigest(): Promise<string> {
+export async function performanceDigest(kind: 'reply' | 'post' = 'reply'): Promise<string> {
   const rows = await db
     .select()
     .from(xReplies)
-    .where(isNotNull(xReplies.likes))
+    .where(and(isNotNull(xReplies.likes), eq(xReplies.kind, kind)))
     .orderBy(desc(xReplies.likes))
     .limit(50);
   if (rows.length < 5) return '';
@@ -99,10 +99,11 @@ export async function performanceDigest(): Promise<string> {
     `${r.hasNumber ? ', has a number' : ''}${r.disagrees ? ', disagrees' : ''}: ${r.text}`;
   const best = rows.slice(0, 5).map(line);
   const worst = rows.slice(-5).map(line);
+  const noun = kind === 'post' ? 'POSTS' : 'REPLIES';
   return (
-    'HIS REPLIES THAT EARNED THE MOST:\n' +
+    `HIS ${noun} THAT EARNED THE MOST:\n` +
     best.join('\n') +
-    '\n\nHIS REPLIES THAT EARNED THE LEAST:\n' +
+    `\n\nHIS ${noun} THAT EARNED THE LEAST:\n` +
     worst.join('\n') +
     '\n\nNotice what separates them. Do not copy the winners.'
   );
@@ -135,7 +136,25 @@ Rules for a reply:
 - Avoid the words bet, odds and alignment; "market" is fine when the thread is about markets.
 - If the post gives him nothing worth saying, say so: reply "" and reason "skip". Skipping is often right.
 
-Return JSON only: {"reply": "...", "reason": "<one word: disagree|number|question|counterexample|skip>", "note": "<optional one sentence to him, e.g. what you changed or why you pushed back>"}`;
+Hand the draft back through the draft tool: text (the reply, empty when skipping), reason (one word: disagree|number|question|counterexample|skip), and answer: what you say to him. A sentence on what you did when nothing was asked; when he pushed back or asked something, as many sentences as the answer needs, in plain words.`;
+
+/**
+ * What a post of his own obeys (docs/x-workbench.md, "Writing his own post").
+ * The rules are the conclusion of the record of what travels on X for
+ * founders in his space; the record itself lives in the umbrella's notes.
+ */
+export const POST_RULES = `You draft posts on X for the owner of this workspace, from an idea he gives you: a sentence, a number he wants to say, a rough draft. He reads every draft and posts it himself, or not. You are one half of an argument about what to say, not a vending machine: when he pushes back or asks something, answer him, and change your position or defend it.
+
+Rules for a post, from the record of what travels for founders in his space:
+- Text only. If a link belongs with it, say so in your answer and keep it out of the body: it goes in the first reply. No hashtags, no @mentions of large accounts, no emoji.
+- Two to four lines, 100 to 280 characters. The meaning is in the first line: a reader who stops there has the point.
+- A number only when it is real and in the voice profile below, and then early. A market that was right is stated beside the thing it missed; never boast a record without the miss.
+- No pitch, no "we are excited", nothing that reads as marketing. Written the way he would say it to a friend. Flat concrete claims, short declaratives. No em-dashes.
+- Never bait, never rage, never a fight with a critic. One credible reader muting the account costs more than a hundred likes.
+- Avoid the words bet, odds and alignment; "market" is fine.
+- One idea per post. If his idea is two posts, say so in your answer and draft the first.
+
+Hand the draft back through the draft tool: text (the post), reason (one word for its shape: called-it|test|milestone|demo|quote|correction|other), and answer: what you say to him. A sentence on what you did when nothing was asked; when he pushed back or asked something, as many sentences as the answer needs, in plain words.`;
 
 export interface DraftTurn {
   role: 'user' | 'assistant';
@@ -145,7 +164,124 @@ export interface DraftTurn {
 export interface Draft {
   reply: string;
   reason: string;
-  note?: string;
+  answer: string;
+}
+
+export interface PostDraft {
+  post: string;
+  reason: string;
+  answer: string;
+}
+
+/** The shape every draft comes back in, so nothing is scraped out of prose. */
+const DRAFT_TOOL = {
+  name: 'draft',
+  description: 'The drafted text, the one-word reason for its shape, and what you say to him about it.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      text: {
+        type: 'string',
+        description: 'The reply or post. Empty when the reason is skip.',
+      },
+      reason: { type: 'string', description: 'One word.' },
+      answer: {
+        type: 'string',
+        description: 'What you say to him: what you did, why you hold your ground, or the answer to what he asked.',
+      },
+    },
+    required: ['text', 'reason', 'answer'],
+  },
+};
+
+type MessageBlock = { type?: string; text?: string; input?: unknown };
+
+const clean = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+
+/**
+ * The first {...} in a text answer, repaired when the model lost the closing
+ * brace or a closing quote, else the named fields pulled out by regex. Null
+ * when there is no object at all.
+ */
+function readObject(raw: string, fields: string[]): Record<string, string> | null {
+  const start = raw.indexOf('{');
+  if (start === -1) return null;
+  const chunk = raw.slice(start).replace(/```\s*$/, '');
+  for (const c of [chunk, chunk.trim() + '}', chunk.trim() + '"}']) {
+    const end = c.lastIndexOf('}');
+    if (end === -1) continue;
+    try {
+      const parsed = JSON.parse(c.slice(0, end + 1)) as Record<string, unknown>;
+      const out: Record<string, string> = {};
+      for (const f of fields) out[f] = clean(parsed[f]);
+      return out;
+    } catch {
+      /* try the next repair */
+    }
+  }
+  const out: Record<string, string> = {};
+  for (const f of fields) {
+    const m = chunk.match(new RegExp(`"${f}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`));
+    if (!m) continue;
+    try {
+      out[f] = clean(JSON.parse(`"${m[1]}"`));
+    } catch {
+      out[f] = clean(m[1]);
+    }
+  }
+  return out;
+}
+
+/**
+ * A draft out of a messages response: the forced tool call first, then a
+ * text answer read leniently (fenced, prefixed, brace-less), then plain
+ * prose taken as the text itself so nothing he paid for is thrown away.
+ */
+export function parseDraft(body: { content?: MessageBlock[] }): {
+  text: string;
+  reason: string;
+  answer: string;
+} {
+  const blocks = body.content ?? [];
+  const call = blocks.find(b => b.type === 'tool_use' && b.input && typeof b.input === 'object');
+  if (call) {
+    const input = call.input as Record<string, unknown>;
+    return {
+      text: clean(input.text ?? input.reply ?? input.post),
+      reason: clean(input.reason) || 'draft',
+      answer: clean(input.answer ?? input.note),
+    };
+  }
+  const raw = blocks.map(b => b.text ?? '').join('');
+  const obj = readObject(raw, ['text', 'reply', 'post', 'reason', 'answer', 'note']);
+  if (!obj) return { text: raw.trim(), reason: 'draft', answer: '' };
+  return {
+    text: obj.text || obj.reply || obj.post || '',
+    reason: obj.reason || 'draft',
+    answer: obj.answer || obj.note || '',
+  };
+}
+
+/** One drafting call: the system prompt, the conversation, the forced tool. */
+async function callDraft(key: string, system: string, messages: DraftTurn[]) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: process.env.X_DRAFT_MODEL ?? 'claude-sonnet-5',
+      max_tokens: 800,
+      system,
+      messages,
+      tools: [DRAFT_TOOL],
+      tool_choice: { type: 'tool', name: 'draft' },
+    }),
+  });
+  if (!res.ok) throw new AppError(`Drafting failed (${res.status}).`, 502);
+  return parseDraft((await res.json()) as { content?: MessageBlock[] });
 }
 
 export function draftingConfigured(): boolean {
@@ -174,43 +310,44 @@ export async function draftReply(
     ...conversation.slice(-12), // the argument, bounded
   ];
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
+  const d = await callDraft(key, system, messages);
+  return { reply: d.text, reason: d.reason, answer: d.answer };
+}
+
+/**
+ * A post of his own, from an idea, through the same argument. The digest it
+ * learns from is his posts' record, not his replies': the two are different
+ * games on X and a pattern from one says nothing about the other.
+ */
+export async function draftPost(idea: string, conversation: DraftTurn[]): Promise<PostDraft> {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) {
+    throw new AppError('Drafting is not configured (no ANTHROPIC_API_KEY).', 503);
+  }
+  const [profile, digest] = await Promise.all([getVoiceProfile(), performanceDigest('post')]);
+  const system =
+    POST_RULES +
+    (profile
+      ? `\n\nVOICE PROFILE AND FACTS HE MAY STATE:\n${profile}`
+      : '\n\nNo voice profile is set, so write plainly and state no specific facts or numbers about his companies beyond what his idea says.') +
+    (digest ? `\n\n${digest}` : '');
+  const messages: DraftTurn[] = [
+    {
+      role: 'user',
+      content: `His idea for a post:\n\n${idea}\n\nDraft the post.`,
     },
-    body: JSON.stringify({
-      model: process.env.X_DRAFT_MODEL ?? 'claude-sonnet-5',
-      max_tokens: 400,
-      system,
-      messages,
-    }),
-  });
-  if (!res.ok) {
-    throw new AppError(`Drafting failed (${res.status}).`, 502);
-  }
-  const body = (await res.json()) as { content?: { text?: string }[] };
-  const raw = (body.content ?? []).map(c => c.text ?? '').join('');
-  const match = raw.match(/\{[\s\S]*\}/);
-  if (!match) return { reply: raw.trim(), reason: 'draft' };
-  try {
-    const parsed = JSON.parse(match[0]) as Draft;
-    return {
-      reply: (parsed.reply ?? '').trim(),
-      reason: (parsed.reason ?? 'draft').trim(),
-      note: parsed.note?.trim(),
-    };
-  } catch {
-    return { reply: raw.trim(), reason: 'draft' };
-  }
+    ...conversation.slice(-12),
+  ];
+  const d = await callDraft(key, system, messages);
+  return { post: d.text, reason: d.reason, answer: d.answer };
 }
 
 // --- the log -----------------------------------------------------------------
 
 export async function recordReply(input: {
-  sourcePostId: string;
+  /** 'reply' (the default) needs sourcePostId; 'post' has none. */
+  kind?: 'reply' | 'post';
+  sourcePostId?: string | null;
   searchId?: string | null;
   sourceAuthor?: string | null;
   sourceText?: string | null;
@@ -218,9 +355,14 @@ export async function recordReply(input: {
   text: string;
   replyId?: string | null;
 }) {
+  const kind = input.kind ?? 'reply';
+  if (kind === 'reply' && !input.sourcePostId) {
+    throw new AppError('A reply needs the post it answers.', 400);
+  }
   const row = {
     id: randomUUID(),
-    sourcePostId: input.sourcePostId,
+    kind,
+    sourcePostId: kind === 'post' ? null : (input.sourcePostId as string),
     sourceAuthor: input.sourceAuthor ?? null,
     sourceText: input.sourceText ?? null,
     sourceFollowers: input.sourceFollowers ?? null,
@@ -370,8 +512,6 @@ const PROPOSE_QUERY_TOOL = {
   },
 };
 
-type MessageBlock = { type?: string; text?: string; input?: unknown };
-
 /**
  * The proposal out of a messages response. The forced tool call is the shape
  * asked for; the text fallbacks exist because a model that answers in prose
@@ -386,7 +526,6 @@ export function parseSuggestion(body: { content?: MessageBlock[] }): {
 } {
   const blocks = body.content ?? [];
   const fail = () => new AppError('Search suggestion came back with no query.', 502);
-  const clean = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 
   const call = blocks.find(b => b.type === 'tool_use' && b.input && typeof b.input === 'object');
   if (call) {
@@ -396,37 +535,9 @@ export function parseSuggestion(body: { content?: MessageBlock[] }): {
     return { query, rationale: clean(input.rationale) };
   }
 
-  const raw = blocks.map(b => b.text ?? '').join('');
-  const start = raw.indexOf('{');
-  if (start === -1) throw fail();
-  const chunk = raw.slice(start).replace(/```\s*$/, '');
-  const candidates = [chunk, chunk.trim() + '}', chunk.trim() + '"}'];
-  for (const c of candidates) {
-    const end = c.lastIndexOf('}');
-    if (end === -1) continue;
-    try {
-      const parsed = JSON.parse(c.slice(0, end + 1)) as {
-        query?: unknown;
-        rationale?: unknown;
-      };
-      const query = clean(parsed.query);
-      if (query) return { query, rationale: clean(parsed.rationale) };
-    } catch {
-      /* try the next repair */
-    }
-  }
-  const field = (name: string) => {
-    const m = chunk.match(new RegExp(`"${name}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`));
-    if (!m) return '';
-    try {
-      return clean(JSON.parse(`"${m[1]}"`));
-    } catch {
-      return clean(m[1]);
-    }
-  };
-  const query = field('query');
-  if (!query) throw fail();
-  return { query, rationale: field('rationale') };
+  const obj = readObject(blocks.map(b => b.text ?? '').join(''), ['query', 'rationale']);
+  if (!obj?.query) throw fail();
+  return { query: obj.query, rationale: obj.rationale ?? '' };
 }
 
 /**

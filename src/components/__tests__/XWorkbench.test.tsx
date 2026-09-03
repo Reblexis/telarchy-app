@@ -11,6 +11,7 @@ vi.mock('../../lib/api', () => ({
     xLog: vi.fn(),
     xLookupPost: vi.fn(),
     xDraftReply: vi.fn(),
+    xDraftPost: vi.fn(),
     xRecordReply: vi.fn(),
     xAttachReplyId: vi.fn(),
     xSuggestSearch: vi.fn(),
@@ -25,23 +26,34 @@ vi.mock('../../lib/api', () => ({
 import { api } from '../../lib/api';
 import { XWorkbench } from '../XWorkbench';
 
-const emptyLog = { replies: [], summary: { enough: false as const, note: '0 replies' }, draftingConfigured: true };
+const emptyLog = {
+  replies: [],
+  summary: { enough: false as const, note: '0 replies' },
+  draftingConfigured: true,
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
   (api.xLog as ReturnType<typeof vi.fn>).mockResolvedValue(emptyLog);
-  (api.xSearches as ReturnType<typeof vi.fn>).mockResolvedValue({ searches: [] });
+  (api.xSearches as ReturnType<typeof vi.fn>).mockResolvedValue({
+    searches: [],
+  });
 });
 
 describe('the X workbench', () => {
   test('a broken X read still lets him draft from pasted text', async () => {
     (api.xLookupPost as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('X returned 404 for that post.'));
     (api.xDraftReply as ReturnType<typeof vi.fn>).mockResolvedValue({
-      draft: { reply: 'HP beat its own forecasts in 6 of 8 cases.', reason: 'counterexample' },
+      draft: {
+        reply: 'HP beat its own forecasts in 6 of 8 cases.',
+        reason: 'counterexample',
+      },
     });
     render(<XWorkbench />);
 
-    fireEvent.change(screen.getByPlaceholderText(/status\/123/), { target: { value: '999' } });
+    fireEvent.change(screen.getByPlaceholderText(/status\/123/), {
+      target: { value: '999' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /read post/i }));
     await screen.findByText(/X returned 404/);
 
@@ -70,18 +82,26 @@ describe('the X workbench', () => {
       },
     });
     const draftFn = api.xDraftReply as ReturnType<typeof vi.fn>;
-    draftFn.mockResolvedValueOnce({ draft: { reply: 'A long first attempt at a reply.', reason: 'disagree' } });
-    draftFn.mockResolvedValueOnce({ draft: { reply: 'Short one.', reason: 'disagree' } });
+    draftFn.mockResolvedValueOnce({
+      draft: { reply: 'A long first attempt at a reply.', reason: 'disagree' },
+    });
+    draftFn.mockResolvedValueOnce({
+      draft: { reply: 'Short one.', reason: 'disagree' },
+    });
 
     render(<XWorkbench />);
-    fireEvent.change(screen.getByPlaceholderText(/status\/123/), { target: { value: '42' } });
+    fireEvent.change(screen.getByPlaceholderText(/status\/123/), {
+      target: { value: '42' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /read post/i }));
     await screen.findByText(/Markets cannot price internal work/);
 
     fireEvent.click(screen.getByRole('button', { name: /draft a reply/i }));
     await screen.findByDisplayValue(/A long first attempt/);
 
-    fireEvent.change(screen.getByPlaceholderText(/what is wrong/i), { target: { value: 'shorter' } });
+    fireEvent.change(screen.getByPlaceholderText(/what is wrong/i), {
+      target: { value: 'shorter' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /push back/i }));
     await screen.findByDisplayValue('Short one.');
 
@@ -95,15 +115,27 @@ describe('the X workbench', () => {
 
   test('recording what he sent stores the edited text, not the draft', async () => {
     (api.xLookupPost as ReturnType<typeof vi.fn>).mockResolvedValue({
-      post: { id: '42', author: 'someone', authorName: 'S', text: 'A claim.', likes: 0, replies: 0, createdAt: null },
+      post: {
+        id: '42',
+        author: 'someone',
+        authorName: 'S',
+        text: 'A claim.',
+        likes: 0,
+        replies: 0,
+        createdAt: null,
+      },
     });
     (api.xDraftReply as ReturnType<typeof vi.fn>).mockResolvedValue({
       draft: { reply: 'The draft.', reason: 'disagree' },
     });
-    (api.xRecordReply as ReturnType<typeof vi.fn>).mockResolvedValue({ recorded: {} });
+    (api.xRecordReply as ReturnType<typeof vi.fn>).mockResolvedValue({
+      recorded: {},
+    });
 
     render(<XWorkbench />);
-    fireEvent.change(screen.getByPlaceholderText(/status\/123/), { target: { value: '42' } });
+    fireEvent.change(screen.getByPlaceholderText(/status\/123/), {
+      target: { value: '42' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /read post/i }));
     await screen.findByText('A claim.');
     fireEvent.click(screen.getByRole('button', { name: /draft a reply/i }));
@@ -122,7 +154,10 @@ describe('the X workbench', () => {
 
   test('the search loop: suggest, take it, paste ids, work on one', async () => {
     (api.xSuggestSearch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      suggestion: { query: 'futarchy -filter:replies min_faves:5', rationale: 'Thread starters, not headlines.' },
+      suggestion: {
+        query: 'futarchy -filter:replies min_faves:5',
+        rationale: 'Thread starters, not headlines.',
+      },
     });
     (api.xSaveSearch as ReturnType<typeof vi.fn>).mockResolvedValue({
       search: {
@@ -175,14 +210,35 @@ describe('the X workbench', () => {
       suggestion: { query: 'q', rationale: '' },
     });
     (api.xSaveSearch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      search: { id: 's9', query: 'q', rationale: null, harvested: 0, lastUsedAt: null, createdAt: '2026-09-02' },
+      search: {
+        id: 's9',
+        query: 'q',
+        rationale: null,
+        harvested: 0,
+        lastUsedAt: null,
+        createdAt: '2026-09-02',
+      },
     });
     (api.xHarvestSearch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      posts: [{ id: '7', author: 'a', authorName: 'A', text: 'A claim.', likes: 0, replies: 0, createdAt: null }],
+      posts: [
+        {
+          id: '7',
+          author: 'a',
+          authorName: 'A',
+          text: 'A claim.',
+          likes: 0,
+          replies: 0,
+          createdAt: null,
+        },
+      ],
       failed: [],
     });
-    (api.xDraftReply as ReturnType<typeof vi.fn>).mockResolvedValue({ draft: { reply: 'Mine.', reason: 'disagree' } });
-    (api.xRecordReply as ReturnType<typeof vi.fn>).mockResolvedValue({ recorded: {} });
+    (api.xDraftReply as ReturnType<typeof vi.fn>).mockResolvedValue({
+      draft: { reply: 'Mine.', reason: 'disagree' },
+    });
+    (api.xRecordReply as ReturnType<typeof vi.fn>).mockResolvedValue({
+      recorded: {},
+    });
 
     render(<XWorkbench />);
     fireEvent.click(screen.getByRole('button', { name: /get a search prompt/i }));
@@ -200,5 +256,125 @@ describe('the X workbench', () => {
         searchId: 's9',
       }),
     );
+  });
+
+  test('the reply draft shows what it says to him, not only the text', async () => {
+    (api.xLookupPost as ReturnType<typeof vi.fn>).mockResolvedValue({
+      post: {
+        id: '42',
+        author: 'someone',
+        authorName: 'S',
+        text: 'A claim.',
+        likes: 0,
+        replies: 0,
+        createdAt: null,
+      },
+    });
+    (api.xDraftReply as ReturnType<typeof vi.fn>).mockResolvedValue({
+      draft: {
+        reply: 'The draft.',
+        reason: 'disagree',
+        answer: 'I led with the counterexample because the claim is absolute.',
+      },
+    });
+    render(<XWorkbench />);
+    fireEvent.change(screen.getByPlaceholderText(/status\/123/), {
+      target: { value: '42' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /read post/i }));
+    await screen.findByText('A claim.');
+    fireEvent.click(screen.getByRole('button', { name: /draft a reply/i }));
+    await screen.findByDisplayValue('The draft.');
+    expect(screen.getByText(/led with the counterexample/)).toBeTruthy();
+  });
+
+  test('write a post: an idea becomes a draft, with its answer, and X opens without a reply target', async () => {
+    (api.xDraftPost as ReturnType<typeof vi.fn>).mockResolvedValue({
+      draft: {
+        post: 'Season 0, week 2: 244 markets, 233 agents, 4 humans.',
+        reason: 'milestone',
+        answer: 'Numbers first, the humans line is the hook.',
+      },
+    });
+    render(<XWorkbench />);
+    fireEvent.click(screen.getByRole('button', { name: /write a post/i }));
+    fireEvent.change(screen.getByPlaceholderText(/your idea/i), {
+      target: { value: '244 markets, 233 agents, only 4 humans' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /draft a post/i }));
+    await screen.findByDisplayValue(/Season 0, week 2/);
+    expect(screen.getByText(/humans line is the hook/)).toBeTruthy();
+    expect((api.xDraftPost as ReturnType<typeof vi.fn>).mock.calls[0][0].idea).toBe(
+      '244 markets, 233 agents, only 4 humans',
+    );
+    const open = screen.getByRole('link', { name: /open x with this/i });
+    expect(open.getAttribute('href')).not.toContain('in_reply_to');
+  });
+
+  test('write a post: each turn shows both sides and sends the whole argument', async () => {
+    const draftFn = api.xDraftPost as ReturnType<typeof vi.fn>;
+    draftFn.mockResolvedValueOnce({
+      draft: {
+        post: 'A long first attempt at a post.',
+        reason: 'milestone',
+        answer: 'First pass.',
+      },
+    });
+    draftFn.mockResolvedValueOnce({
+      draft: {
+        post: 'Short one.',
+        reason: 'milestone',
+        answer: 'Cut the second line.',
+      },
+    });
+    render(<XWorkbench />);
+    fireEvent.click(screen.getByRole('button', { name: /write a post/i }));
+    fireEvent.change(screen.getByPlaceholderText(/your idea/i), {
+      target: { value: 'an idea' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /draft a post/i }));
+    await screen.findByDisplayValue(/A long first attempt/);
+
+    fireEvent.change(screen.getByPlaceholderText(/what is wrong/i), {
+      target: { value: 'shorter' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /push back/i }));
+    await screen.findByDisplayValue('Short one.');
+
+    // Both sides of the exchange stay on screen: it is a conversation.
+    expect(screen.getByText(/you: shorter/)).toBeTruthy();
+    expect(screen.getByText(/First pass\./)).toBeTruthy();
+    expect(screen.getByText(/Cut the second line/)).toBeTruthy();
+    const second = draftFn.mock.calls[1][0];
+    expect(second.idea).toBe('an idea');
+    expect(second.messages).toHaveLength(2);
+    expect(second.messages[0].role).toBe('assistant');
+    expect(second.messages[1]).toEqual({ role: 'user', content: 'shorter' });
+  });
+
+  test('recording a post of his own sends kind post and no source', async () => {
+    (api.xDraftPost as ReturnType<typeof vi.fn>).mockResolvedValue({
+      draft: { post: 'The draft.', reason: 'test', answer: '' },
+    });
+    (api.xRecordReply as ReturnType<typeof vi.fn>).mockResolvedValue({
+      recorded: {},
+    });
+    render(<XWorkbench />);
+    fireEvent.click(screen.getByRole('button', { name: /write a post/i }));
+    fireEvent.change(screen.getByPlaceholderText(/your idea/i), {
+      target: { value: 'an idea' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /draft a post/i }));
+    const box = await screen.findByDisplayValue('The draft.');
+    fireEvent.change(box, { target: { value: 'What I actually posted.' } });
+    fireEvent.click(screen.getByRole('button', { name: /i posted this/i }));
+    await waitFor(() => {
+      const sent = (api.xRecordReply as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(sent).toMatchObject({
+        kind: 'post',
+        text: 'What I actually posted.',
+      });
+      expect(sent.sourcePostId).toBeUndefined();
+    });
   });
 });

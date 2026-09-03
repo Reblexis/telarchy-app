@@ -15,6 +15,7 @@ import { wrap } from '../lib/wrap';
 import {
   type DraftTurn,
   draftingConfigured,
+  draftPost,
   draftReply,
   fetchPost,
   getVoiceProfile,
@@ -63,10 +64,34 @@ xWorkbenchRouter.post(
         )
       : [];
     const draft = await draftReply(
-      { id: String(req.body?.postId ?? ''), author: req.body?.postAuthor, text },
+      {
+        id: String(req.body?.postId ?? ''),
+        author: req.body?.postAuthor,
+        text,
+      },
       messages,
     );
     res.json({ draft });
+  }),
+);
+
+/**
+ * A post of his own, from an idea, or the argument about it. Same
+ * conversation shape as /draft; the idea is passed every turn so "shorter"
+ * is shorter than the last draft of THIS idea.
+ */
+xWorkbenchRouter.post(
+  '/compose',
+  wrap(async (req, res) => {
+    await requireOwner(req);
+    const idea = String(req.body?.idea ?? '').trim();
+    if (!idea) throw new AppError('idea is required', 400);
+    const messages = Array.isArray(req.body?.messages)
+      ? (req.body.messages as DraftTurn[]).filter(
+          m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim(),
+        )
+      : [];
+    res.json({ draft: await draftPost(idea, messages) });
   }),
 );
 
@@ -77,8 +102,10 @@ xWorkbenchRouter.post(
     await requireOwner(req);
     const text = String(req.body?.text ?? '').trim();
     if (!text) throw new AppError('text is required', 400);
+    const kind = req.body?.kind === 'post' ? 'post' : 'reply';
     const row = await recordReply({
-      sourcePostId: parsePostId(String(req.body?.sourcePostId ?? '')),
+      kind,
+      sourcePostId: kind === 'post' ? null : parsePostId(String(req.body?.sourcePostId ?? '')),
       sourceAuthor: req.body?.sourceAuthor ?? null,
       sourceText: req.body?.sourceText ?? null,
       sourceFollowers: Number.isFinite(req.body?.sourceFollowers) ? req.body.sourceFollowers : null,
@@ -173,7 +200,10 @@ xWorkbenchRouter.get(
   '/profile',
   wrap(async (req, res) => {
     await requireOwner(req);
-    res.json({ profile: await getVoiceProfile(), draftingConfigured: draftingConfigured() });
+    res.json({
+      profile: await getVoiceProfile(),
+      draftingConfigured: draftingConfigured(),
+    });
   }),
 );
 

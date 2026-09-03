@@ -41,10 +41,15 @@ it produced, and the next proposal is chosen against that record.
 
 1. Pastes an X post URL or id.
 2. Sees the post: author, text, likes, replies, when.
-3. Gets a drafted reply in his voice, with a one-word reason.
+3. Gets a drafted reply in his voice, with a one-word reason and its answer
+   to him.
 4. Talks to it ("shorter", "lead with the number", "you are wrong about the
-   Google market") until the draft is right. The conversation is the feature,
-   not a nicety: the first draft is a starting position, and the argument is
+   Google market", "why that number?") until the draft is right. Every turn
+   comes back as two things: the revised text, and what it says to him
+   about it (what it changed, why it holds its ground, or the answer to what
+   he asked). Both stay on screen, so the exchange reads as a conversation
+   and not as a vending machine. The conversation is the feature, not a
+   nicety: the first draft is a starting position, and the argument is
    where his judgement enters.
 5. Copies the final text, or opens X with it prefilled, and posts it himself.
 6. Pastes back the id of the reply he posted, so the workbench can watch it.
@@ -55,6 +60,33 @@ Nothing here posts to X. The workbench drafts and remembers; the owner sends.
 That line is not a technical limit, it is the rule that keeps his account his
 (X suspends accounts that automate posting, and copy under his name is the one
 thing he must approve).
+
+## Writing his own post
+
+The same loop, mirrored: instead of pasting someone's post he types an idea
+(a sentence, a number he wants to say, a rough draft) and gets a post in his
+voice, with a one-word reason for its shape and its answer to him. He argues
+with it exactly as with a reply, sends it himself, and pastes back the id so
+it is watched like a reply. Nothing here posts to X.
+
+What a draft post obeys, learned from the record of what travels on X for
+founders in this space (the research is a record, kept in the umbrella's
+notes, and the rules here are what it concluded):
+
+- Text only. If there is a link, it goes in the first reply, never in the
+  body. No hashtags, no @mentions of large accounts, no emoji.
+- Two to four lines, 100 to 280 characters, the meaning in the first line.
+- A number only when it is real and in the voice profile, and then early.
+  A market that was right is stated beside the thing it missed; a record is
+  never boasted without the miss.
+- No pitch, no "we are excited", nothing that reads as marketing. Written
+  the way he would say it to a friend.
+- Never bait, never rage, never a fight with a critic: one credible reader
+  muting the account costs more than a hundred likes.
+- Reason is one word naming the shape: called-it (a market resolved),
+  test (something the reader can check), milestone (numbers), demo (the
+  thing working, prompt quoted), quote (answering a bigger account's
+  complaint with what was built), correction, or other.
 
 ## Reading a post
 
@@ -111,8 +143,9 @@ All platform admin. Documented in `/api/help` like every other route.
 | Endpoint | Effect |
 |---|---|
 | `POST /api/admin/x/lookup` | `{ url or id }` -> the post, or a clear failure |
-| `POST /api/admin/x/draft` | `{ postId, postText, messages[] }` -> `{ reply, reason }`, the conversation carried in `messages` |
-| `POST /api/admin/x/record` | `{ sourcePostId, text, replyId? }` -> stores what he sent |
+| `POST /api/admin/x/draft` | `{ postId, postText, messages[] }` -> `{ reply, reason, answer }`, the conversation carried in `messages` |
+| `POST /api/admin/x/compose` | `{ idea, messages[] }` -> `{ post, reason, answer }`, his own post from an idea, same conversation shape |
+| `POST /api/admin/x/record` | `{ kind?, sourcePostId?, text, replyId? }` -> stores what he sent; a `post` has no source, a `reply` must have one |
 | `PATCH /api/admin/x/record/:id` | `{ replyId }` -> attach the id once he has it |
 | `GET /api/admin/x/log` | recorded replies, their metrics, and the summary |
 | `GET/PUT /api/admin/x/profile` | the voice and facts text |
@@ -124,10 +157,11 @@ All platform admin. Documented in `/api/help` like every other route.
 
 ## Storage
 
-One table, `x_replies`: the source post (id, author, text, author follower
-count if known), what he sent (text, reply id, when), the metrics (likes,
+One table, `x_replies`: the kind (`reply` or `post`), the source post for a
+reply (id, author, text, author follower count if known; absent for a post
+of his own), what he sent (text, its id on X, when), the metrics (likes,
 replies, refreshed-at), and the derived features used by the summary. Append
-only in spirit: a recorded reply is never edited except to attach its id and
+only in spirit: a recorded row is never edited except to attach its id and
 its metrics.
 
 `x_voice_profile` is a single row of text with an updated-at.

@@ -9475,6 +9475,8 @@ textarea.jobform-line--desc {
 .xw-draft textarea { width: 100%; margin: 0.4rem 0; }
 .xw-turns { margin: 0.5rem 0 0; }
 .xw-turns li { border: 0; padding: 0.15rem 0; }
+.xw-answer { color: var(--ink, inherit); white-space: pre-wrap; }
+.xw-modes .adm-paygo[aria-pressed='true'] { text-decoration: underline; font-weight: 600; }
 .xw-profile { margin: 0.5rem 0 1rem; }
 .xw-profile textarea { width: 100%; margin-bottom: 0.5rem; font-family: var(--font-mono, monospace); font-size: 0.85rem; }
 .xw-h3 { font-size: 1rem; margin-top: 2rem; }
