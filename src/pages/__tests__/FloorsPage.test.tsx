@@ -334,6 +334,82 @@ describe('the activity line', () => {
  * been showing the soonest, so LookPilot advertised the few hundred dollars
  * this week had earned so far instead of the net 2026 it is judged on.
  */
+describe('liquidity on the card', () => {
+  test('the activity line leads with the credits in the pools, never the LMSR parameter', async () => {
+    // Two open markets: 1,000 and 3,200 credits in their pools. `liquidity`
+    // beside `pool` is b = pool / ln 2 and must never reach the screen
+    // (owner report 2026-08-30).
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      ...payload,
+      markets: [
+        { ...payload.markets[0], pool: 1000, liquidity: 1442.7 },
+        {
+          marketId: 'm-2',
+          metricName: 'LookPilot revenue (monthly, USD)',
+          consensus: 80000,
+          targetDate: '2026-09',
+          pool: 3200,
+          liquidity: 4616.6,
+        },
+      ],
+    } as never);
+    renderPage();
+    expect(await screen.findByText(/4,200 cr liquidity · 14 participants · 108 trades this week/)).toBeInTheDocument();
+    expect(screen.queryByText(/6,059|1,443|4,617/)).toBeNull();
+  });
+
+  test('a workspace with no open markets says nothing about liquidity rather than zero', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({ ...payload, markets: [] } as never);
+    renderPage();
+    await screen.findByText(/14 participants/);
+    expect(screen.queryByText(/liquidity/)).toBeNull();
+  });
+
+  test('the grid is ordered by liquidity, deepest first', async () => {
+    vi.mocked(api.getPublicWorkspaces).mockResolvedValue([
+      { ...listing, workspaceId: 'ws-shallow', slug: 'shallow', name: 'Shallow' },
+      { ...listing, workspaceId: 'ws-deep', slug: 'deep', name: 'Deep' },
+      { ...listing, workspaceId: 'ws-mid', slug: 'mid', name: 'Mid' },
+    ] as never);
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async (key: string) => {
+      const pool = { shallow: 50, deep: 9000, mid: 700 }[key] ?? 0;
+      return { ...payload, markets: [{ ...payload.markets[0], pool }] } as never;
+    });
+    renderPage();
+    await screen.findByText(/9,000 cr liquidity/);
+    await screen.findByText(/50 cr liquidity/);
+    await screen.findByText(/700 cr liquidity/);
+    const names = Array.from(document.querySelectorAll('.mkt-card-name')).map(n => n.textContent);
+    expect(names).toEqual(['Deep', 'Mid', 'Shallow']);
+  });
+
+  test("the owner's own not-public card takes the same order rather than pinning to the front", async () => {
+    signedIn = true;
+    vi.mocked(api.listWorkspaces).mockResolvedValue([{ id: 'ws-mine', name: 'Mine', visibility: 'private' }] as never);
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async (key: string) => {
+      const pool = key === 'ws-mine' ? 10 : 5000;
+      return { ...payload, markets: [{ ...payload.markets[0], pool }] } as never;
+    });
+    renderPage();
+    await screen.findByText(/5,000 cr liquidity/);
+    await screen.findByText(/10 cr liquidity/);
+    const names = Array.from(document.querySelectorAll('.mkt-card-name')).map(n => n.textContent);
+    expect(names).toEqual(['LookPilot', 'Mine']);
+  });
+
+  test('cards whose liquidity has not landed keep their arrival order', async () => {
+    vi.mocked(api.getPublicWorkspaces).mockResolvedValue([
+      { ...listing, workspaceId: 'a', slug: 'a', name: 'Alpha' },
+      { ...listing, workspaceId: 'b', slug: 'b', name: 'Beta' },
+    ] as never);
+    vi.mocked(api.getMarketplaceWorkspace).mockReturnValue(new Promise(() => {}) as never);
+    renderPage();
+    await screen.findByText('Alpha');
+    const names = Array.from(document.querySelectorAll('.mkt-card-name')).map(n => n.textContent);
+    expect(names).toEqual(['Alpha', 'Beta']);
+  });
+});
+
 describe('which number a card shows', () => {
   test('the furthest-resolving market, not the soonest', async () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({

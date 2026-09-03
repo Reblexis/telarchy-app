@@ -47,9 +47,27 @@ interface Listing {
   } | null;
   participants: number | null;
   tradesThisWeek: number | null;
+  /** Credits actually in the pools of the open markets, summed; null until
+   *  the payload lands. Never the LMSR parameter (docs/ui-conventions.md,
+   *  "The marketplace"). The grid orders on it. */
+  liquidity: number | null;
   /** Set for the caller's own floors: 'unlisted' | 'private' badges the card
    *  "Yours · not public yet"; a public own floor is a card like any other. */
   mineVisibility?: string;
+}
+
+/** Credits in the pools of the open markets, summed. An empty market list
+ *  is "nothing to say" rather than zero, so the card stays quiet. */
+function poolLiquidityOf(ws: { markets?: Array<{ pool?: number }> }): number | null {
+  const markets = ws.markets ?? [];
+  if (markets.length === 0) return null;
+  return markets.reduce((sum, m) => sum + (m.pool ?? 0), 0);
+}
+
+/** Deepest liquidity first; cards without it yet, and ties, keep their
+ *  arrival order (Array.prototype.sort is stable). */
+function byLiquidity(a: Listing, b: Listing): number {
+  return (b.liquidity ?? -1) - (a.liquidity ?? -1);
 }
 
 function fmtHero(v: number, unit: string): string {
@@ -129,6 +147,9 @@ function MarketSpark({
  */
 function activityLine(r: Listing): string {
   const parts: string[] = [];
+  if (r.liquidity !== null) {
+    parts.push(`${Math.round(r.liquidity).toLocaleString('en-US')} cr liquidity`);
+  }
   if (r.participants !== null) {
     parts.push(r.participants === 1 ? '1 participant' : `${r.participants} participants`);
   }
@@ -267,6 +288,7 @@ export function FloorsPage() {
             hero: null,
             participants: null,
             tradesThisWeek: null,
+            liquidity: null,
             mineVisibility: w.visibility ?? 'private',
           }));
         if (mine.length === 0) return;
@@ -287,6 +309,7 @@ export function FloorsPage() {
                         ...r,
                         participants: ws.participantCount ?? null,
                         tradesThisWeek: ws.tradesThisWeek ?? null,
+                        liquidity: poolLiquidityOf(ws),
                         hero: m
                           ? {
                               metricName: m.metricName,
@@ -325,6 +348,7 @@ export function FloorsPage() {
           hero: null,
           participants: null,
           tradesThisWeek: null,
+          liquidity: null,
         }));
         setListings(base);
         base.forEach(row => {
@@ -347,6 +371,7 @@ export function FloorsPage() {
                         ...r,
                         participants: ws.participantCount ?? null,
                         tradesThisWeek: ws.tradesThisWeek ?? null,
+                        liquidity: poolLiquidityOf(ws),
                         hero: m
                           ? {
                               metricName: m.metricName,
@@ -402,7 +427,7 @@ export function FloorsPage() {
           </div>
         ) : (
           <div className="mkt-grid">
-            {listings.map(r => (
+            {[...listings].sort(byLiquidity).map(r => (
               <Link key={r.workspaceId} className="mkt-card" to={`/${r.slug || `marketplace/${r.workspaceId}`}`}>
                 <span className="mkt-card-head">
                   <span className="mkt-card-name">{r.name}</span>

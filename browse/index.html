@@ -5272,8 +5272,17 @@ full-width step-line spark of the hero market's real trade history ending
 on the live-call dot (same held-call semantics as the poster chart, value
 range padded 35% so a quiet market still draws through the middle instead
 of along the floor of the box), and a footer of when it settles plus the
-activity behind it (participants, trades this week, proposals currently
-being priced).</p>
+activity behind it: the liquidity first (&quot;4,200 cr liquidity&quot;, the credits
+actually sitting in the pools of the workspace's open markets, never the
+LMSR parameter), then participants, trades this week, and proposals
+currently being priced. A fact that has not arrived yet is left out of the
+line rather than shown as zero.</p>
+<p>The grid is ordered by that liquidity, deepest first, because pool depth is
+what a trader can actually win and the row of cards is where they choose.
+The caller's own not-yet-public cards take part in the same order rather
+than pinning to the front. Cards whose liquidity has not landed yet, or
+that tie, keep their arrival order, so the grid does not jump as payloads
+come in except to move a card up to its place.</p>
 <p>The last cell of the grid is always the listing tile, and it is the only
 interactive cell: a solid panel on a faint accent wash with a large plus
 set inside a disc (dashed emptiness reads as unfinished, and a bare
