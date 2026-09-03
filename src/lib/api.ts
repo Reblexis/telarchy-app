@@ -1080,6 +1080,24 @@ export type XSummary =
 
 export const api = {
   getMetrics: () => request('/api/metrics'),
+  /** Every metric on one floor, for the owner's metrics dialog
+   *  (docs/owner-on-the-floor.md, dialog 1): what each is, its range, its
+   *  words. Keyed by the floor, not the session's active workspace, the way
+   *  every other floor control is. `settlementLagMinutes` and
+   *  `liquidityCredits` ride along when the server sends them. */
+  getMetricsIn: (
+    workspaceId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      name: string;
+      description: string;
+      value: number;
+      marketRangeMax?: number;
+      settlementLagMinutes?: number;
+      liquidityCredits?: number | null;
+    }>
+  > => requestWithWorkspace('/api/metrics', {}, { workspaceId }),
   /** Create a metric on a floor the caller manages (docs/owner-on-the-floor.md,
    *  dialog 1). Name and description only: value starts at 0, range defaults
    *  and is correctable until the first trade, and the date comes next.
@@ -1167,6 +1185,12 @@ export const api = {
     workspaceId: string,
     id: string,
     body: {
+      /** The words: free to edit, every change kept as a revision. */
+      name?: string;
+      description?: string;
+      /** The top of the range new books price inside. Applies from now on:
+       *  traded books keep theirs (docs/market-integrity.md). */
+      marketRangeMax?: number;
       liquidityCredits?: number | null;
       timePreference?: TimePreference | null;
       /** How long after a period this number is final. New markets settle that

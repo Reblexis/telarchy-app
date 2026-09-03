@@ -9138,6 +9138,25 @@ textarea.jobform-line--desc {
    red that is defined on both themes. */
 .dates-remove { flex: none; color: var(--lower); text-decoration: none; }
 .dates-remove:hover { color: var(--lower); text-decoration: underline; }
+/* The metrics dialog's sheet (docs/owner-on-the-floor.md, dialog 1): the
+   range as "0 to N" in mono, the rule under it, and three fact lines that
+   each edit in place. */
+.metrics-range-head { padding-top: 0; border-top: none; }
+.metrics-range {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.metrics-range-to { font-weight: 400; color: var(--text-tertiary); }
+.metrics-range-n { border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
+.metrics-range-field { width: 9rem; font-size: inherit; }
+.metrics-range-rule { margin: 0; }
+.metrics-facts { margin-top: 0.2rem; padding-top: 0.2rem; border-top: 1px solid var(--border-color); }
+.metrics-credits-field { width: 5rem; }
+.dates-line .dates-sub.odlg-dayrow { display: flex; }
 
 /* The audience pages' first call to action, directly under the headline. It is
    the same action as the one at the foot, set smaller: a reader who has just

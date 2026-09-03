@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import remarkBreaks from 'remark-breaks';
@@ -19,6 +19,7 @@ import { Logo } from '../components/Logo';
 import { ManifoldButton } from '../components/ManifoldButton';
 import { MarketChart } from '../components/MarketChart';
 import { MarketFacts } from '../components/MarketFacts';
+import { MetricsDialog } from '../components/MetricsDialog';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart } from '../components/NumberChart';
 import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog, ReportValueDialog } from '../components/OwnerDialogs';
@@ -210,8 +211,10 @@ export function TradePage() {
   // One slot: they never stack, and adding a metric flows straight into adding
   // its date, because a metric with no date has no market.
   const [publishBusy, setPublishBusy] = useState(false);
+  const openNewMetric = useCallback(() => setOwnerDialog({ kind: 'new-metric' }), []);
   const [ownerDialog, setOwnerDialog] = useState<
     | null
+    | { kind: 'metrics' }
     | { kind: 'new-metric' }
     | { kind: 'add-date'; metricId: string; metricName: string }
     | { kind: 'dates'; metricId: string; metricName: string }
@@ -1206,14 +1209,18 @@ export function TradePage() {
                         {captionLabel(m.metricLabel, ws.name)}
                       </button>
                     ))}
+                    {/* The way into the metrics, the twin of the `dates` chip on
+                     the row under it (docs/owner-on-the-floor.md, dialog 1). It
+                     used to be a `+ metric` that only added; the range and the
+                     words of a metric already on the floor had no way in. */}
                     {canManage && (
                       <button
                         type="button"
-                        className="pubws-seg-btn pubws-seg-add"
-                        aria-label="Add a metric"
-                        onClick={() => setOwnerDialog({ kind: 'new-metric' })}
+                        className="pubws-date-add"
+                        aria-label="Metrics"
+                        onClick={() => setOwnerDialog({ kind: 'metrics' })}
                       >
-                        + metric
+                        metrics
                       </button>
                     )}
                   </span>
@@ -1224,10 +1231,10 @@ export function TradePage() {
                       <button
                         type="button"
                         className="pubws-date-add"
-                        aria-label="Add a metric"
-                        onClick={() => setOwnerDialog({ kind: 'new-metric' })}
+                        aria-label="Metrics"
+                        onClick={() => setOwnerDialog({ kind: 'metrics' })}
                       >
-                        + metric
+                        metrics
                       </button>
                     )}
                   </>
@@ -2226,6 +2233,27 @@ export function TradePage() {
           bug kept "happening" in a pre-fix tab). Offer the reload, never
           force it: yanking a composed bet or a selected branch out from
           under the visitor is worse than stale code. */}
+      {ownerDialog?.kind === 'metrics' && ws && (
+        <MetricsDialog
+          workspaceId={ws.workspaceId}
+          markets={horizons.map(h => ({
+            metricId: h.metricId,
+            targetDate: h.targetDate,
+            label: h.label,
+            pool: h.pool,
+            traders: h.traderCount ?? 0,
+            tradedVolume: h.tradedVolume ?? 0,
+          }))}
+          defaultCredits={defaultCredits}
+          onOpenDates={(metricId, metricName) => setOwnerDialog({ kind: 'dates', metricId, metricName })}
+          onAdd={openNewMetric}
+          onClose={() => setOwnerDialog(null)}
+          onDone={() => {
+            setOwnerDialog(null);
+            reload();
+          }}
+        />
+      )}
       {ownerDialog?.kind === 'new-metric' && ws && (
         <NewMetricDialog
           workspaceId={ws.workspaceId}
