@@ -182,6 +182,27 @@ pay more, a pool never thins back out, and credits behind a market are not
 scored as profit on it (`docs/seasons.md`), so funding a book you trade pays
 you nothing. `POST /api/predictions/markets/:id/liquidity`.
 
+**Two numbers for someone who can manage the floor**, one for everyone
+else. A floor's markets come round again (today, this week, this month
+respawn as each settles), and an owner who deepens this week's book wants
+next week's to open deep without coming back. So beside the amount going
+into this market now, the dialog offers a second number: what every new
+market on this metric opens with. It is the metric's own standing
+liquidity, `metrics.liquidityCredits`, the same number the Add-a-date
+dialog writes, prefilled with its current value or the workspace default
+when the metric has none, and written with `PUT /api/metrics/:id` only when
+it changed. Zero is a valid answer and means new markets on this metric open
+unfunded. The facts row says what the next market opens with and, when the
+number is changing, what it was. One standing number per metric, shared by
+every date on it, and the note under the facts says so; it is drawn from the
+owner's wallet as each market opens, which is why a trader, who funds nothing
+at spawn, is shown one number only. A proposal's branch markets never
+respawn, so on a branch the dialog is one number for everyone. The standing
+number is written before the credits move: a refused write leaves nothing
+moved, and a refused injection leaves a number that a retry writes again
+without harm. The button carries both: "Add 1,000 cr · 500 cr on every
+opening".
+
 **Where the credits come from** is one page, not a dialog: `/<floor>/funding`,
 reached by a Buy affordance beside Inject and only by someone who can manage
 the floor. Money with a history is read more often than it is spent, so it

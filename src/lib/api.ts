@@ -1130,6 +1130,8 @@ export const api = {
     id: string;
     name: string;
     timePreference?: TimePreference | null;
+    /** What a new market on this metric opens with; null means the workspace default. */
+    liquidityCredits?: number | null;
   }> => requestWithWorkspace(`/api/metrics/${id}`, {}, { workspaceId }),
   createMetric: (body: {
     name: string;

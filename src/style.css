@@ -5474,6 +5474,17 @@ textarea.jobform-line--desc {
   color: var(--text-tertiary);
 }
 
+/* The inject dialog's two numbers side by side: now, and on every opening
+   (docs/owner-on-the-floor.md). Each is the same hero numeral as the one it
+   used to be alone. */
+.inject-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 0.3rem;
+}
+.inject-was { font-weight: 500; color: var(--text-tertiary); }
+
 /* The limit price: same object, quieter size, unit in front ($65,000). */
 .ticket-amt--price input { font-size: 1.4rem; }
 
