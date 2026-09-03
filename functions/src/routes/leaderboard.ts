@@ -210,7 +210,8 @@ leaderboardRouter.get(
 
     const seasonId = typeof req.query.seasonId === 'string' ? req.query.seasonId.trim() : '';
     if (seasonId) {
-      await seasonStandings(seasonId, limit, res);
+      const out = await seasonStandingsPayload(seasonId, limit);
+      res.status(out.status).json(out.body);
       return;
     }
 
@@ -392,14 +393,19 @@ async function currentSeasonPrizes(): Promise<{
  * Only opted-in entrants appear. A baseline row exists for every participant
  * who had traded when the season started (that is what makes late opt-in
  * harmless), and those rows are not entries.
+ *
+ * Returned as a payload rather than written to the response so the Manifold
+ * update (routes/manifold-update.ts) can quote exactly what this page shows.
  */
-async function seasonStandings(seasonId: string, limit: number, res: import('express').Response) {
+export async function seasonStandingsPayload(
+  seasonId: string,
+  limit: number,
+): Promise<{ status: number; body: unknown }> {
   const [season] = await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, seasonId)).limit(1);
   // 404 rather than falling through to the global board: a typo'd season id
   // silently answering with all-time profit would be read as season standings.
   if (!season) {
-    res.status(404).json({ error: 'Season not found' });
-    return;
+    return { status: 404, body: { error: 'Season not found' } };
   }
 
   const ladder = (season.ladder ?? []) as LadderRung[];
@@ -446,8 +452,7 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
         markedProjectedPrizeUsd: null,
         enteredAt: e.enteredAt,
       }));
-    res.json({ season: meta, participants: rows });
-    return;
+    return { status: 200, body: { season: meta, participants: rows } };
   }
 
   const entries = await db
@@ -455,8 +460,7 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
     .from(seasonEntries)
     .where(and(eq(seasonEntries.seasonId, seasonId), eq(seasonEntries.optedIn, true)));
   if (entries.length === 0) {
-    res.json({ season: meta, participants: [] });
-    return;
+    return { status: 200, body: { season: meta, participants: [] } };
   }
 
   const dress = await decorate(entries.map(e => e.agentId));
@@ -479,8 +483,7 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
         prizeUsd: e.prizeUsd ?? 0,
         claimState: e.prizeUsd && e.prizeUsd > 0 ? e.claimState : null,
       }));
-    res.json({ season: meta, participants: rows });
-    return;
+    return { status: 200, body: { season: meta, participants: rows } };
   }
 
   // Running: live board over every workspace that is public RIGHT NOW, not
@@ -587,13 +590,16 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
     : null;
   const markedPrizeById = new Map(markedProjection?.ranked.map(r => [r.agentId, r.prizeUsd]) ?? []);
 
-  res.json({
-    season: { ...meta, workspacesDropped: pinned.filter(id => !publicIds.has(id)).length },
-    participants: rows.slice(0, limit).map((r, i) => ({
-      ...r,
-      rank: i + 1,
-      projectedPrizeUsd: projectedById.get(r.id) ?? 0,
-      markedProjectedPrizeUsd: marked ? (markedPrizeById.get(r.id) ?? 0) : null,
-    })),
-  });
+  return {
+    status: 200,
+    body: {
+      season: { ...meta, workspacesDropped: pinned.filter(id => !publicIds.has(id)).length },
+      participants: rows.slice(0, limit).map((r, i) => ({
+        ...r,
+        rank: i + 1,
+        projectedPrizeUsd: projectedById.get(r.id) ?? 0,
+        markedProjectedPrizeUsd: marked ? (markedPrizeById.get(r.id) ?? 0) : null,
+      })),
+    },
+  };
 }

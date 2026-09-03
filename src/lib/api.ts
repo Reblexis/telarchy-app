@@ -1473,6 +1473,12 @@ export const api = {
    *  the beta, so it publishes the build you are looking at. */
   publishRelease: () => request('/api/admin/publish', { method: 'POST', body: JSON.stringify({}) }),
 
+  // The Manifold update (docs/manifold-update.md): the standings comment the
+  // owner posts on the recruiting market, written server-side so it agrees
+  // with the season page to the cent. Platform admin only.
+  manifoldUpdate: (): Promise<{ text: string; linked: number; seasonId: string | null; generatedAt: string }> =>
+    request('/api/admin/manifold-update'),
+
   // The X workbench (docs/x-workbench.md). Platform admin only; every call
   // goes through this module, like every other call the UI makes.
   xLookupPost: (url: string): Promise<{ post: XPost }> =>

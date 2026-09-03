@@ -28,6 +28,7 @@ import { guidesRouter } from './routes/guides';
 import { leaderboardRouter } from './routes/leaderboard';
 import { legalRouter } from './routes/legal';
 import { liquidityPurchasesRouter, stripeWebhookHandler } from './routes/liquidityPurchases';
+import { manifoldUpdateRouter } from './routes/manifold-update';
 import { marketplaceRouter } from './routes/marketplace';
 import { metricsRouter } from './routes/metrics';
 import { notificationsRouter } from './routes/notifications';
@@ -463,6 +464,7 @@ app.use('/api/groups', groupsRouter);
 // Mounted BEFORE the admin router so /api/admin/x/* resolves here rather
 // than falling through to the admin router's own :param routes.
 app.use('/api/admin/x', xWorkbenchRouter);
+app.use('/api/admin/manifold-update', manifoldUpdateRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/activity', activityRouter);
 app.use('/api', systemRouter);

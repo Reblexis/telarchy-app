@@ -31,6 +31,7 @@ vi.mock('../TradePage', () => ({ TopBar: () => null }));
 // The workbench has its own tests; stubbed here so the cockpit's own tests
 // do not have to keep its API surface in their mock.
 vi.mock('../../components/XWorkbench', () => ({ XWorkbench: () => null }));
+vi.mock('../../components/ManifoldUpdate', () => ({ ManifoldUpdate: () => null }));
 
 import { api } from '../../lib/api';
 import { AdminPage } from '../AdminPage';
