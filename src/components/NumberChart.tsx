@@ -1,5 +1,6 @@
 import type { ReactNode, PointerEvent as ReactPointerEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { forecastDayOf } from '../lib/floor-horizons';
 import { GEOM } from './MarketChart';
 
 /**
@@ -47,6 +48,11 @@ interface Props {
   /** The legend under the chart when a proposal is open, in its own words:
    *  "if Jason is paid $80" / "if not" / "the market now". */
   legend?: { approved: string; declined: string } | null;
+  /** The legend that names the marks when no proposal is open (docs/
+   *  ui-conventions.md, "The price and the chart"): the ink line "actual",
+   *  the amber dot "market's call for <day>", the grey dots "other open
+   *  dates" only when there are any. A proposal's legend replaces it. */
+  marksLegend?: boolean;
   now?: Date;
   height?: number;
   /** The composed bet's ghost (owner ask 2026-08-28): where the SELECTED
@@ -202,6 +208,7 @@ export function NumberChart({
   corner,
   center,
   legend = null,
+  marksLegend = false,
   impactFrom = 'approved',
   now: nowProp,
   height,
@@ -554,6 +561,24 @@ export function NumberChart({
           {dayLabel(x0)}
         </text>
       </svg>
+      {!legend && marksLegend && (
+        <div className="nchart-legend" aria-label="Legend">
+          <span>
+            <i className="nchart-legend-line" />
+            actual
+          </span>
+          <span>
+            <i className="nchart-legend-dot nchart-legend-dot--now" />
+            market's call for {forecastDayOf(selectedResolvesOn)}
+          </span>
+          {markers.some(m => !m.selected) && (
+            <span>
+              <i className="nchart-legend-dot nchart-legend-dot--other" />
+              other open dates
+            </span>
+          )}
+        </div>
+      )}
       {legend && (
         <div className="nchart-legend" aria-label="Legend">
           <span>

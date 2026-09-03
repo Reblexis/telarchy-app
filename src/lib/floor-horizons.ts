@@ -563,3 +563,35 @@ export function settleInstant(iso: string): string {
   const mm = String(d.getUTCMinutes()).padStart(2, '0');
   return `${day}, ${hh}:${mm} UTC`;
 }
+
+/**
+ * The summary line under the question (docs/ui-conventions.md, "The price
+ * and the chart"): the definition's first sentence, so a reader knows what
+ * the number IS before they see it. A sentence ends at ". ", "! " or "? "
+ * (or at the end of the text); a decimal point or an abbreviation like
+ * "e.g." is not followed by a space and a capital, so it does not end one.
+ * No definition, no line.
+ */
+export function firstSentenceOf(description: string | null | undefined): string | null {
+  const text = (description ?? '').trim();
+  if (!text) return null;
+  const m = text.match(/^[\s\S]*?[.!?](?=\s+[A-Z0-9"'(]|\s*$)/);
+  return (m ? m[0] : text).trim();
+}
+
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * The day a market is forecasting, as the date picker names it: the day
+ * before the settle instant ("2026-10-01T00:00:00Z" is September's market,
+ * so "30 Sep"), UTC, short. Null for an instant that does not parse.
+ */
+export function forecastDayOf(resolvesOn: string | null | undefined): string | null {
+  if (!resolvesOn) return null;
+  const t = new Date(resolvesOn).getTime();
+  if (!Number.isFinite(t)) return null;
+  // Own month names: en-GB short months print "Sept" in current ICU data,
+  // and the picker above says "30 SEP".
+  const d = new Date(t - 1);
+  return `${d.getUTCDate()} ${SHORT_MONTHS[d.getUTCMonth()]}`;
+}

@@ -1461,3 +1461,41 @@ outstanding, no trade behind them) is a price rather than a blank, so a top-up
 never re-opens it. And a conditional branch is `services/proposals.ts`'s
 question, priced off the baseline adjusted for the branch and the ask; anchoring
 it at the metric's own value would erase the adjustment.
+
+## 2026-09-03: one chart is the hero, and the two numbers are named
+
+**Reported 2026-09-03 by a Manifold trader (Quroe), on Discord, after
+Viktor asked why he had bet Lower on LookPilot's September net revenue:**
+"I didn't understand the significance of the $6k figure." "I literally
+just didn't understand what the $6k figure represented at all, so I was
+shooting from the hip thinking that this was a company that just started
+right out of the gates." "I feel like having a toggle that
+separates/overlays the graphs would be a simple solution." "I am a very
+intuitive, gut instinct trader. If I am starved of information, I function
+on heuristic".
+
+What the floor showed him: two numbers stacked at the same size ($6,669
+"expected · settles in 27d" over $7,719 "as of 25m ago") with qualifiers
+that named neither one; two charts of equal size on different y-axes, so
+the same $6,669 sat at the bottom of the market chart and mid-height of
+the number chart; the market chart's x-axis starting on 22 Aug, the day
+the market opened; and nothing on the page saying the metric is a rolling
+30-day total for a product with years of sales.
+
+**Decided 2026-09-03 (Viktor: "yes i like A")**, from three directions
+drafted on a design canvas: the number chart becomes the hero with the
+market's call on its future side, the two numbers get names ("now",
+"market's call") and dates, the market's own price history shrinks to a
+strip captioned "how the call moved", and a legend names the marks. This
+is the overlay the trader asked for, without a toggle: the 2026-08-27
+MARKET/NUMBER switch was removed because a newcomer never found the
+number behind it, and that reason still holds.
+
+**The line under the question.** The canvas first showed "The number is a
+rolling 30-day total for an app that has sold 8,700 copies on Steam. Not
+a lifetime figure, not a new company." Viktor: "i dont like this part Not
+a lifetime figure, not a new company. I would maybe prefer the
+description to not be there at all or maybe for it to bein general a
+summary of the full 'what is this market' descirption". So the line is
+the definition's first sentence, or nothing. No new field: an owner who
+wants a different summary writes a different first sentence.

@@ -39,6 +39,8 @@ import {
   dateQuestionOf,
   dateSegmentOf,
   datesOf,
+  firstSentenceOf,
+  forecastDayOf,
   type HorizonView,
   horizonById,
   metricLabelOf,
@@ -473,7 +475,8 @@ export function TradePage() {
   // raw UTC string, since a reader who reaches for it is reading it.
   const settleNote = hero ? (
     <span className="pubws-settle-in" title={hero.resolvesOn ? `settles ${settleInstant(hero.resolvesOn)}` : undefined}>
-      expected · {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
+      {forecastDayOf(hero.resolvesOn) ? `for ${forecastDayOf(hero.resolvesOn)} · ` : ''}
+      {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
     </span>
   ) : null;
   // The number chart renders even with no readings: it draws its own
@@ -1353,6 +1356,14 @@ export function TradePage() {
                   </>
                 )}
               </h2>
+              {/* The summary line (docs/ui-conventions.md, "The price and the
+                chart"): the definition's first sentence, so a reader knows
+                what the number is before the numbers. A Manifold trader read
+                a rolling 30-day total as the lifetime revenue of a company
+                "that just started right out of the gates" (2026-09-03). */}
+              {firstSentenceOf(horizonDescription) && (
+                <p className="pubws-instrument-sum pubws-enter pubws-enter--1">{firstSentenceOf(horizonDescription)}</p>
+              )}
               {selectedJob && (
                 <>
                   {editingJob ? (
@@ -1615,36 +1626,37 @@ export function TradePage() {
               {hero?.settlesNaForNow && (
                 <p className="pubws-na-note pubws-enter pubws-enter--2">{settleNoteOf(hero)}</p>
               )}
-              {consensus !== null && (
+              {consensus !== null && hero && (
                 <div className="pubws-enter pubws-enter--3">
-                  {/* Both charts, always (docs/ui-conventions.md, "The price
-                 and the chart"): the market's call as the hero, the number
-                 itself below it with every open market of this metric as a
-                 marker, the selected one amber. The N/A caveat is the only
-                 settle note left under the stat row. */}
-                  <MarketChart
-                    key={active.marketId}
-                    series={chartSeries}
-                    consensus={consensus}
-                    unit={unit}
-                    ranges={['1D', '1W']}
-                    /* The stat row (owner ask 2026-08-28, Manifold scale): the
-                     price is the row's left cell with the settle countdown
-                     beside it, where the since-open chip used to be (owner
-                     ask 2026-08-28: "instead of the arrow and down since").
-                     A proposal's impact chip still renders, because the
-                     impact is the proposal's one number. The centre is the
-                     chart's own title. */
-                    corner={
-                      <span className="pubws-stat">
+                  {/* One chart is the hero (docs/ui-conventions.md, "The price
+                    and the chart", 2026-09-03): the two numbers named side by
+                    side, the number's own chart with the market's call on it,
+                    and how the call moved as a strip below. The N/A caveat is
+                    the only settle note left under the stat row. */}
+                  <div className="pubws-stats">
+                    {/* The reading, ink: the value in force with its age,
+                      because a reading is only trustworthy with its age on it. */}
+                    <div className="pubws-stat-block pubws-stat--now">
+                      <span className="pubws-price">
+                        {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
+                      </span>
+                      <span className="pubws-stat-what">now</span>
+                      {lastReading?.at && (
+                        <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
+                          read {timeAgoOf(lastReading.at, now) ?? ''}
+                        </span>
+                      )}
+                    </div>
+                    {/* The market's call, amber: the consensus, its name, the
+                      day it is for and the countdown. A proposal's impact chip
+                      rides beside the value: the impact is the proposal's one
+                      number, and silence read as a broken page. Bare arrow +
+                      delta (owner ask 2026-08-28). */}
+                    <div className="pubws-stat-block pubws-stat--call">
+                      <span className="pubws-stat-value">
                         <span className="pubws-price">
                           <AnimatedNumber value={consensus} render={v => `${unit}${formatValue(v)}`} />
                         </span>
-                        {/* The impact is the job's one number, so it is always
-                          said: priced, zero-so-far, or not yet priced. Silence
-                          read as a broken page. Bare arrow + delta (owner ask
-                          2026-08-28, "just show the arrow and +num"): the
-                          prose around it made the stat wrap to three lines. */}
                         {selectedJob &&
                           (jobImpact === null ? (
                             <span className="pubws-delta-chip">not yet priced</span>
@@ -1658,77 +1670,68 @@ export function TradePage() {
                               {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)}
                             </span>
                           ))}
-                        {settleNote}
                       </span>
-                    }
-                    center={<span className="pubws-chart-cap">market</span>}
-                    preview={chartPreview}
-                    orders={chartOrders}
-                    secondary={chartSecondary}
-                  />
-                  {/* The number chart, always on below the market chart (owner
-                    ask 2026-08-28, replacing the MARKET/NUMBER toggle): the
-                    metric's own trajectory at a quieter height, its reading
-                    and its age as the row's left stat, its title centred. */}
-                  {hero && (
-                    <div className="pubws-numchart">
-                      <NumberChart
-                        points={hero.metricHistory}
-                        markers={datesOf(horizons, hero.metricId).flatMap(d => {
-                          if (!d.resolvesOn) return [];
-                          // The open proposal's pair on this date, by (metric, date).
-                          const pr = selectedJob?.markets.find(
-                            m =>
-                              m.targetDate === d.targetDate && (m.metricId === undefined || m.metricId === d.metricId),
-                          );
-                          return [
-                            {
-                              marketId: d.marketId,
-                              resolvesOn: d.resolvesOn,
-                              consensus: d.consensus,
-                              selected: d.marketId === hero.marketId,
-                              pair: pr ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus } : null,
-                            },
-                          ];
-                        })}
-                        impactFrom={branch}
-                        legend={
-                          selectedJob
-                            ? {
-                                approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
-                                declined: 'if not',
-                              }
-                            : null
-                        }
-                        selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
-                        granularity={granularityOf(hero.targetDate)}
-                        unit={unit}
-                        now={now}
-                        preview={chartPreview}
-                        /* The reading is the number chart's own stat (owner
-                          ask 2026-08-28): the current value where the market
-                          chart carries its price, with its age beside it,
-                          because a reading is only trustworthy with its age
-                          on it. */
-                        corner={
-                          <span className="pubws-stat">
-                            <span className="pubws-price">
-                              {nowReading !== null ? `${unit}${formatValue(nowReading)}` : ''}
-                            </span>
-                            {lastReading?.at && (
-                              <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
-                                as of {timeAgoOf(lastReading.at, now) ?? ''}
-                              </span>
-                            )}
-                          </span>
-                        }
-                        /* Titled by the metric itself (owner ask 2026-08-28:
-                          "instead of number use the metric name"), the same
-                          caption shape the question line uses. */
-                        center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
-                      />
+                      <span className="pubws-stat-what">market's call</span>
+                      {settleNote}
                     </div>
-                  )}
+                  </div>
+                  {/* The number chart, the hero: titled by the metric itself
+                    (caption-shaped), its left cell empty because the stats
+                    are above, a legend naming the marks below. */}
+                  <div className="pubws-numchart">
+                    <NumberChart
+                      points={hero.metricHistory}
+                      markers={datesOf(horizons, hero.metricId).flatMap(d => {
+                        if (!d.resolvesOn) return [];
+                        // The open proposal's pair on this date, by (metric, date).
+                        const pr = selectedJob?.markets.find(
+                          m => m.targetDate === d.targetDate && (m.metricId === undefined || m.metricId === d.metricId),
+                        );
+                        return [
+                          {
+                            marketId: d.marketId,
+                            resolvesOn: d.resolvesOn,
+                            consensus: d.consensus,
+                            selected: d.marketId === hero.marketId,
+                            pair: pr ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus } : null,
+                          },
+                        ];
+                      })}
+                      impactFrom={branch}
+                      marksLegend
+                      legend={
+                        selectedJob
+                          ? {
+                              approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
+                              declined: 'if not',
+                            }
+                          : null
+                      }
+                      selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
+                      granularity={granularityOf(hero.targetDate)}
+                      unit={unit}
+                      now={now}
+                      preview={chartPreview}
+                      center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
+                    />
+                  </div>
+                  {/* How the call moved: the market's own price history as a
+                    strip at half height. The "how did we get here", not the
+                    hero. The composed bet's ghost draws here too. */}
+                  <div className="pubws-callhist">
+                    <MarketChart
+                      key={active.marketId}
+                      series={chartSeries}
+                      consensus={consensus}
+                      unit={unit}
+                      ranges={['1D', '1W']}
+                      height={130}
+                      center={<span className="pubws-chart-cap">how the call moved</span>}
+                      preview={chartPreview}
+                      orders={chartOrders}
+                      secondary={chartSecondary}
+                    />
+                  </div>
                 </div>
               )}
               {/* What is left to reach the price, in the reader's own arithmetic
