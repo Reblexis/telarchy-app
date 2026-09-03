@@ -108,7 +108,7 @@ describe('the model and its effort (docs/x-workbench.md, "Drafting")', () => {
     process.env = { ...env };
   });
 
-  test('by default the draft goes to the Anthropic API as Fable, thinking adaptively at high effort', async () => {
+  test('by default the draft goes to the Anthropic API as Opus 5, thinking adaptively at high effort', async () => {
     process.env.ANTHROPIC_API_KEY = 'anth';
     delete process.env.X_DRAFT_MODEL;
     delete process.env.X_DRAFT_EFFORT;
@@ -116,7 +116,7 @@ describe('the model and its effort (docs/x-workbench.md, "Drafting")', () => {
     await draftPost('idea', []);
     expect(calls[0].url).toBe('https://api.anthropic.com/v1/messages');
     expect(calls[0].headers['x-api-key']).toBe('anth');
-    expect(calls[0].body.model).toBe('claude-fable-5-1');
+    expect(calls[0].body.model).toBe('claude-opus-5');
     expect(calls[0].body.thinking).toEqual({ type: 'adaptive' });
     expect(calls[0].body.output_config).toEqual({ effort: 'high' });
     // Fable refuses a forced tool choice, so the tool is offered, not forced.
@@ -194,6 +194,114 @@ describe('the model and its effort (docs/x-workbench.md, "Drafting")', () => {
     const draft = await draftPost('idea', []);
     expect(draft.post).toBe('Not a chart, an org structure.');
     expect(draft.answer).toBe('A — B');
+  });
+});
+
+describe('a refusal never reaches him as an empty draft (docs/x-workbench.md, "Drafting")', () => {
+  const env = { ...process.env };
+  afterEach(() => {
+    process.env = { ...env };
+  });
+  const refusal = { stop_reason: 'refusal', content: [] };
+  const drafted = {
+    content: [
+      {
+        type: 'tool_use',
+        name: 'draft',
+        input: { text: 'T', reason: 'test', answer: 'A' },
+      },
+    ],
+  };
+
+  test('the model that refuses is retried once on the fallback, whose draft is what he gets', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    process.env.X_DRAFT_MODEL = 'claude-fable-5-1';
+    delete process.env.X_DRAFT_FALLBACK;
+    let n = 0;
+    const calls = mockFetch(() => (n++ === 0 ? refusal : drafted));
+    const draft = await draftPost('idea', []);
+    expect(draft).toEqual({ post: 'T', reason: 'test', answer: 'A' });
+    expect(calls).toHaveLength(2);
+    expect(calls[0].body.model).toBe('claude-fable-5-1');
+    expect(calls[1].body.model).toBe('claude-opus-5');
+  });
+
+  test('X_DRAFT_FALLBACK names the second model, on its own transport', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    process.env.AI_GATEWAY_API_KEY = 'gw';
+    process.env.X_DRAFT_MODEL = 'claude-fable-5-1';
+    process.env.X_DRAFT_FALLBACK = 'openai/gpt-5.6-luna';
+    let n = 0;
+    const calls = mockFetch(() =>
+      n++ === 0
+        ? refusal
+        : {
+            choices: [
+              {
+                message: {
+                  tool_calls: [
+                    {
+                      function: {
+                        name: 'draft',
+                        arguments: '{"text":"L","reason":"test","answer":"A"}',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+    );
+    const draft = await draftPost('idea', []);
+    expect(draft.post).toBe('L');
+    expect(calls[1].url).toBe('https://ai-gateway.vercel.sh/v1/chat/completions');
+    expect(calls[1].body.model).toBe('openai/gpt-5.6-luna');
+  });
+
+  test('when the fallback refuses too, it is an error he sees, not an empty draft', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    process.env.X_DRAFT_MODEL = 'claude-fable-5-1';
+    const calls = mockFetch(() => refusal);
+    await expect(draftPost('idea', [])).rejects.toMatchObject({
+      status: 502,
+      message: expect.stringMatching(/declined/),
+    });
+    expect(calls).toHaveLength(2);
+  });
+
+  test('a primary that is the fallback is not retried on itself', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    delete process.env.X_DRAFT_MODEL;
+    const calls = mockFetch(() => refusal);
+    await expect(draftReply({ id: '1', text: 'A claim.' }, [])).rejects.toMatchObject({ status: 502 });
+    expect(calls).toHaveLength(1);
+  });
+
+  test('a reply with no content at all counts as a refusal, whatever the stop reason says', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    process.env.X_DRAFT_MODEL = 'claude-fable-5-1';
+    let n = 0;
+    const calls = mockFetch(() => (n++ === 0 ? { stop_reason: 'end_turn', content: [] } : drafted));
+    const draft = await draftPost('idea', []);
+    expect(draft.post).toBe('T');
+    expect(calls).toHaveLength(2);
+  });
+
+  test('a skip is not a refusal: an empty text with reason skip and an answer comes through as is', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    delete process.env.X_DRAFT_MODEL;
+    const calls = mockAnthropic({
+      text: '',
+      reason: 'skip',
+      answer: 'Nothing to add.',
+    });
+    const draft = await draftReply({ id: '1', text: 'A claim.' }, []);
+    expect(draft).toEqual({
+      reply: '',
+      reason: 'skip',
+      answer: 'Nothing to add.',
+    });
+    expect(calls).toHaveLength(1);
   });
 });
 
