@@ -541,8 +541,8 @@ describe('the one horizon', () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoMarkets() as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-price')?.textContent).toBeTruthy());
-    expect(container.querySelector('.pubws-price')!.textContent).toContain('78');
+    await waitFor(() => expect(container.querySelector('.pubws-stat--call .pubws-price')?.textContent).toBeTruthy());
+    expect(container.querySelector('.pubws-stat--call .pubws-price')!.textContent).toContain('78');
     // The removal itself: a second open market must not put a way back to the
     // second clock on the page.
     expect(container.querySelectorAll('.pubws-horizon')).toHaveLength(0);
@@ -553,8 +553,8 @@ describe('the one horizon', () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.workspace() as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-price')?.textContent).toBeTruthy());
-    expect(container.querySelector('.pubws-price')!.textContent).toContain('80');
+    await waitFor(() => expect(container.querySelector('.pubws-stat--call .pubws-price')?.textContent).toBeTruthy());
+    expect(container.querySelector('.pubws-stat--call .pubws-price')!.textContent).toContain('80');
   });
 });
 
@@ -727,7 +727,7 @@ describe('the price series belongs to the market on screen', () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(payload() as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-stat .pubws-price')?.textContent).toBe('$78,571'));
+    await waitFor(() => expect(container.querySelector('.pubws-stat--call .pubws-price')?.textContent).toBe('$78,571'));
     expect(series(container)).not.toContain('213');
   });
 });
@@ -777,7 +777,7 @@ describe('which market is the headline, across a poll', () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(floor() as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('78'));
+    await waitFor(() => expect(container.querySelector('.pubws-stat--call .pubws-price')!.textContent).toContain('78'));
 
     // The hourly refresh opens a monthly market between the two. Inserted at
     // index 1, it is exactly what a position-based pick would grab.
@@ -805,7 +805,7 @@ describe('which market is the headline, across a poll', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100);
     });
-    expect(container.querySelector('.pubws-price')!.textContent).toContain('78');
+    expect(container.querySelector('.pubws-stat--call .pubws-price')!.textContent).toContain('78');
   });
 
   test('a market resolving later than the headline does take it over', async () => {
@@ -814,7 +814,7 @@ describe('which market is the headline, across a poll', () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(floor() as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('78'));
+    await waitFor(() => expect(container.querySelector('.pubws-stat--call .pubws-price')!.textContent).toContain('78'));
 
     const with2027 = floor();
     with2027.markets = [
@@ -836,14 +836,16 @@ describe('which market is the headline, across a poll', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15_200);
     });
-    await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('120'));
+    await waitFor(() =>
+      expect(container.querySelector('.pubws-stat--call .pubws-price')!.textContent).toContain('120'),
+    );
   });
 
   test('a retired market leaves the headline on whatever is left', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(floor() as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('78'));
+    await waitFor(() => expect(container.querySelector('.pubws-stat--call .pubws-price')!.textContent).toContain('78'));
 
     const soloWeek = h.workspace();
     soloWeek.markets = [floor().markets[0]];
@@ -851,7 +853,9 @@ describe('which market is the headline, across a poll', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15_200);
     });
-    await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('213'));
+    await waitFor(() =>
+      expect(container.querySelector('.pubws-stat--call .pubws-price')!.textContent).toContain('213'),
+    );
   });
 });
 
@@ -1119,9 +1123,8 @@ describe('a market with no price yet', () => {
   });
 });
 
-describe('the chart control row', () => {
-  test('the price rides the market row and the number chart is always on', async () => {
-    const { api } = await import('../../lib/api');
+describe('the stat row and the one chart (docs/ui-conventions.md, "The price and the chart")', () => {
+  const oneMarket = () => {
     const ws = h.workspace();
     ws.markets = [
       {
@@ -1142,81 +1145,134 @@ describe('the chart control row', () => {
         marketId: 'm-hero',
         metricName: 'LookPilot net 2026 (USD)',
         targetDate: '2026-12',
-        description: 'The year.',
+        description: 'The year, net of refunds. Contract payouts are NOT subtracted.',
         points: [{ at: '2026-08-15T09:00:00Z', value: 45_339 }],
       },
     ];
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    return ws;
+  };
+
+  test("the reading and the market's call are named, side by side, above one chart", async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(oneMarket() as never);
     const { container } = renderFloor();
-    // The stat row (owner ask 2026-08-28): the price is the left cell of
-    // the market chart's control row, and there is no MARKET/NUMBER
-    // switch, because the number chart renders below, always.
-    await waitFor(() => expect(container.querySelector('.pubws-stat .pubws-price')).toBeTruthy());
-    expect(container.querySelector('.pubws-stat .pubws-price')?.textContent).toBe('$78,571');
-    expect(screen.queryByRole('button', { name: 'market' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'number' })).toBeNull();
-    expect(container.querySelector('.pubws-numchart .nchart')).toBeTruthy();
-    // Each chart names itself in its centred title; the countdown sits
-    // beside the price, where the since-open chip used to be.
-    expect(screen.getByText('market').className).toContain('pubws-chart-cap');
-    // The number chart is titled by the metric itself, caption-shaped (the
-    // leading company name stripped). Scoped: the caption and question line
-    // say the name too.
-    expect(container.querySelector('.pubws-numchart .pubws-chart-cap')?.textContent).toBe('net 2026');
-    // THE COUNTDOWN, AND ONLY THE COUNTDOWN. The exact instant is the
-    // hover, never a second line of type beside the price (owner,
-    // 2026-09-01: "there should not be the date here? maybe upon hover but
-    // thats it").
-    const settle = container.querySelector('.pubws-stat .pubws-settle-in') as HTMLElement;
-    expect(settle.textContent).toMatch(/^expected · settles in \S+$/);
+    // Two named numbers in ONE row: the reading, ink, on the left; the
+    // market's call, amber, on the right. A Manifold trader read the old
+    // unnamed stack as a lifetime total of a brand-new company (2026-09-03).
+    await waitFor(() => expect(container.querySelector('.pubws-stats')).toBeTruthy());
+    const now = container.querySelector('.pubws-stats .pubws-stat--now') as HTMLElement;
+    const call = container.querySelector('.pubws-stats .pubws-stat--call') as HTMLElement;
+    expect(now.querySelector('.pubws-price')?.textContent).toBe('$45,339');
+    expect(now.querySelector('.pubws-stat-what')?.textContent).toBe('now');
+    expect(now.querySelector('.pubws-updated')?.textContent).toMatch(/^read .+ ago$|^read just now$/);
+    expect(call.querySelector('.pubws-price')?.textContent).toBe('$78,571');
+    expect(call.querySelector('.pubws-stat-what')?.textContent).toBe("market's call");
+    // The day being forecast is the day before the settle instant, as the
+    // picker names it, then THE COUNTDOWN, AND ONLY THE COUNTDOWN (owner,
+    // 2026-09-01): the exact instant is the hover.
+    const settle = call.querySelector('.pubws-settle-in') as HTMLElement;
+    expect(settle.textContent).toMatch(/^for 30 Dec · settles in \S+$/);
     expect(settle.textContent).not.toMatch(/UTC|\d{4}/);
-    expect(container.querySelector('.pubws-settle-at')).toBeNull();
-    // It is still one hover away, in the same words the rest of the floor
-    // uses for a settle instant.
     expect(settle.title).toMatch(/^settles \d+ \w+ \d{4}, \d{2}:\d{2} UTC$/);
-    // The metric's latest reading is the number chart's own stat, the same
-    // register as the price, with its age beside it.
-    expect(container.querySelector('.pubws-numchart .pubws-price')?.textContent).toBe('$45,339');
-    expect(container.querySelector('.pubws-numchart .pubws-updated')?.textContent).toMatch(
-      /^as of .+ ago$|^as of just now$/,
-    );
+    expect(container.querySelector('.pubws-settle-at')).toBeNull();
+    // The stats live above the chart, not inside either chart's control row.
+    expect(container.querySelector('.pubws-numchart .pubws-price')).toBeNull();
+    expect(container.querySelector('.pubws-callhist .pubws-price')).toBeNull();
+    expect(container.textContent).not.toContain('expected');
   });
 
-  test('no reading yet means no "now" in the centre', async () => {
+  test('the number chart is the hero and the market history is a captioned strip below it', async () => {
     const { api } = await import('../../lib/api');
-    const ws = h.workspace();
-    ws.markets = [
-      {
-        marketId: 'm-hero',
-        metricId: 'metric-1',
-        metricName: 'LookPilot net 2026 (USD)',
-        targetDate: '2026-12',
-        resolvesOn: '2026-12-31T00:00:00Z',
-        consensus: 78_571,
-        probability: 0.5,
-        liquidity: 200,
-        rangeMin: 0,
-        rangeMax: 150_000,
-      },
-    ];
-    ws.horizonHistories = [
-      {
-        marketId: 'm-hero',
-        metricName: 'LookPilot net 2026 (USD)',
-        targetDate: '2026-12',
-        description: 'The year.',
-        points: [],
-      },
-    ];
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(oneMarket() as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-numchart .nchart')).toBeTruthy());
+    const num = container.querySelector('.pubws-numchart') as HTMLElement;
+    const hist = container.querySelector('.pubws-callhist') as HTMLElement;
+    expect(hist).toBeTruthy();
+    // Document order IS reading order: the number first, how the call moved after.
+    expect(num.compareDocumentPosition(hist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Each names itself in the centre of its row: the metric, caption-shaped
+    // (the leading company name stripped), and the strip's own words.
+    expect(num.querySelector('.pubws-chart-cap')?.textContent).toBe('net 2026');
+    expect(hist.querySelector('.pubws-chart-cap')?.textContent).toBe('how the call moved');
+    expect(screen.queryByText('market')).toBeNull();
+    // There is still no MARKET/NUMBER switch.
+    expect(screen.queryByRole('button', { name: 'market' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'number' })).toBeNull();
+  });
+
+  test('a legend under the number chart names the marks', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(oneMarket() as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-numchart .nchart-legend')).toBeTruthy());
+    const legend = container.querySelector('.pubws-numchart .nchart-legend') as HTMLElement;
+    expect(legend.textContent).toContain('actual');
+    expect(legend.textContent).toContain("market's call for 30 Dec");
+    // One open market of this metric: no grey dots, so no words for them.
+    expect(legend.textContent).not.toContain('other open dates');
+  });
+
+  test('with other open dates the legend says what the grey dots are', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = oneMarket();
+    ws.markets.push({
+      marketId: 'm-week',
+      metricId: 'metric-1',
+      metricName: 'LookPilot net 2026 (USD)',
+      targetDate: '2026-W35',
+      resolvesOn: '2026-08-31T00:00:00Z',
+      consensus: 46_000,
+      probability: 0.5,
+      liquidity: 200,
+      rangeMin: 0,
+      rangeMax: 150_000,
+    });
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-numchart .nchart-legend')).toBeTruthy());
+    expect(container.querySelector('.pubws-numchart .nchart-legend')?.textContent).toContain('other open dates');
+  });
+
+  test("the definition's first sentence sits under the question", async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(oneMarket() as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).toBeTruthy());
+    expect(container.querySelector('.pubws-instrument-sum')?.textContent).toBe('The year, net of refunds.');
+    // Right under the question, before the numbers.
+    const ask = container.querySelector('.pubws-instrument-ask') as HTMLElement;
+    const sum = container.querySelector('.pubws-instrument-sum') as HTMLElement;
+    const stats = container.querySelector('.pubws-stats') as HTMLElement;
+    expect(ask.compareDocumentPosition(sum) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(sum.compareDocumentPosition(stats) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('no definition, no line', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = oneMarket();
+    ws.horizonHistories[0].description = null as unknown as string;
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-stats')).toBeTruthy());
+    expect(container.querySelector('.pubws-instrument-sum')).toBeNull();
+  });
+
+  test('no reading yet: the reading says so and carries no age', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = oneMarket();
+    ws.horizonHistories[0].points = [];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
     // No reading: the number chart stays, in its own "no reading yet"
     // state (hiding it read as the graph collapsing, owner report
-    // 2026-08-28), and its stat shows no value and no age.
+    // 2026-08-28), and the reading's block says so with no age on it.
     await screen.findByText(/settles in/);
-    expect(screen.queryByText(/now /)).toBeNull();
+    expect(container.querySelector('.pubws-stat--now .pubws-price')?.textContent).toBe('no reading yet');
+    expect(container.querySelector('.pubws-stat--now .pubws-updated')).toBeNull();
     expect(container.querySelector('.pubws-numchart .nchart-empty')?.textContent).toBe('no reading yet');
-    expect(container.querySelector('.pubws-numchart .pubws-updated')).toBeNull();
+    // The call is still named and dated.
+    expect(container.querySelector('.pubws-stat--call .pubws-price')?.textContent).toBe('$78,571');
   });
 });
 

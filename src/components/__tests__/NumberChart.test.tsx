@@ -411,3 +411,71 @@ describe('the vertical axis never magnifies a wobble into a cliff', () => {
     expect(Number.isFinite(y)).toBe(true);
   });
 });
+
+describe('the legend names the marks (docs/ui-conventions.md, "The price and the chart")', () => {
+  const markers = [
+    { marketId: 'sep', resolvesOn: '2026-10-01T00:00:00Z', consensus: 19.8, selected: true },
+    { marketId: 'week', resolvesOn: '2026-08-31T00:00:00Z', consensus: 6.5, selected: false },
+  ];
+
+  test('actual, the call for the day before the selected settle instant, and the other open dates', () => {
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={markers}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+        marksLegend
+      />,
+    );
+    const legend = container.querySelector('.nchart-legend') as HTMLElement;
+    expect(legend.textContent).toContain('actual');
+    expect(legend.textContent).toContain("market's call for 30 Sep");
+    expect(legend.textContent).toContain('other open dates');
+  });
+
+  test('no other open dates, no words for them', () => {
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={[markers[0]]}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+        marksLegend
+      />,
+    );
+    expect(container.querySelector('.nchart-legend')?.textContent).not.toContain('other open dates');
+  });
+
+  test('a proposal legend replaces it', () => {
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={markers}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+        marksLegend
+        legend={{ approved: 'if Ada is paid $80', declined: 'if not' }}
+      />,
+    );
+    expect(container.querySelectorAll('.nchart-legend').length).toBe(1);
+    expect(container.querySelector('.nchart-legend')?.textContent).toContain('if Ada is paid $80');
+    expect(container.querySelector('.nchart-legend')?.textContent).not.toContain('actual');
+  });
+
+  test('without the flag there is no legend, as before', () => {
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={markers}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+      />,
+    );
+    expect(container.querySelector('.nchart-legend')).toBeNull();
+  });
+});

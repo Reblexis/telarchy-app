@@ -9,6 +9,8 @@ import {
   dateQuestionOf,
   dateSegmentOf,
   datesOf,
+  firstSentenceOf,
+  forecastDayOf,
   horizonById,
   horizonLabel,
   metricLabelOf,
@@ -558,5 +560,46 @@ describe('compactValueOf', () => {
   test('null and non-finite give nothing', () => {
     expect(compactValueOf(null, '$')).toBeNull();
     expect(compactValueOf(Number.NaN, '')).toBeNull();
+  });
+});
+
+describe('firstSentenceOf: the summary line under the question', () => {
+  test('is the definition up to its first sentence end', () => {
+    expect(
+      firstSentenceOf(
+        'Everything LookPilot earned in the last 30 days from Steam and direct sales, net of refunds. Contract payouts are NOT subtracted.',
+      ),
+    ).toBe('Everything LookPilot earned in the last 30 days from Steam and direct sales, net of refunds.');
+    expect(firstSentenceOf('Is it up? Then yes.')).toBe('Is it up?');
+    expect(firstSentenceOf('Ship it!\nMore below.')).toBe('Ship it!');
+  });
+
+  test('a definition with no sentence end prints whole, trimmed', () => {
+    expect(firstSentenceOf('  Net revenue in USD  ')).toBe('Net revenue in USD');
+  });
+
+  test('a decimal or an abbreviation is not a sentence end', () => {
+    expect(firstSentenceOf('Sales above 1.5k a day. Then more.')).toBe('Sales above 1.5k a day.');
+    expect(firstSentenceOf('Steam reviews, e.g. positive ones, in %. Not refunds.')).toBe(
+      'Steam reviews, e.g. positive ones, in %.',
+    );
+  });
+
+  test('no definition, no line', () => {
+    expect(firstSentenceOf(null)).toBeNull();
+    expect(firstSentenceOf(undefined)).toBeNull();
+    expect(firstSentenceOf('   ')).toBeNull();
+  });
+});
+
+describe('forecastDayOf: the day being forecast, as the picker names it', () => {
+  test('is the day before the settle instant, UTC, short', () => {
+    expect(forecastDayOf('2026-10-01T00:00:00Z')).toBe('30 Sep');
+    expect(forecastDayOf('2026-12-31T00:00:00Z')).toBe('30 Dec');
+    expect(forecastDayOf('2026-09-03T23:59:59Z')).toBe('3 Sep');
+  });
+  test('an unparsable instant is nothing', () => {
+    expect(forecastDayOf('soon')).toBeNull();
+    expect(forecastDayOf(null)).toBeNull();
   });
 });

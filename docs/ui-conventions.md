@@ -528,70 +528,93 @@ floors) are defined in docs/metrics.md.
 
 ### The price and the chart
 
-The consensus is a compact stat, not a poster number (owner ask
-2026-08-28, Manifold scale: the chart is the hero, the price a reading on
-it). It renders as the LEFT cell of the market chart's own control row,
-`.pubws-price` at roughly a third of its old size, read as "$7,146
-expected · settles in 33d": the qualifier is ONE non-breaking unit in
-the quiet register (`.pubws-settle-in`; the countdown ticks by the
-minute, exact UTC instant on hover), so a tight column wraps it whole
-under the price, never mid-phrase. It sits where the since-open
-chip used to sit; the chip is gone (owner ask 2026-08-28: "instead of
-the arrow and down since"). A selected proposal's impact chip still
-renders there as the bare arrow and delta ("▲ +7.8"; the "impact by
-<date>" prose wrapped the stat to three lines, owner report 2026-08-28),
-because the impact is the proposal's one number - and the whole stat is
-ONE line: price, chip, qualifier, never stacked. The
-price carries the metric's currency symbol when the trimmed
-parenthetical tail names one (e.g. "USD" -> "$"; the same prefix runs
-through every numeral in the chart).
-A market with no price yet (no liquidity) keeps the pickers, prints a
-centred "no price yet" where the stat row would be and the no-liquidity
-note where the bets would be, and draws no charts: the pickers are how a
-reader leaves it for a market that has one.
+**One chart is the hero: the number's own, with the market's call drawn on
+it.** A newcomer reads the floor top to bottom: what the number is, what it
+reads now, what the market says it will read, then the picture of both on
+one axis. Everything in this section serves that order (decision record:
+`notes/decisions/ui-conventions.md`, 2026-09-03).
 
-**Both charts always render; there is no view toggle** (owner ask
-2026-08-28, replacing the MARKET/NUMBER switch of 2026-08-27: a newcomer
-never found the number behind it). The market chart is the hero, directly
-under the stat row; the number chart follows at the SAME geometry (one
-`GEOM`, one width, one height; owner ask 2026-08-28, "the two graphs
-should have same dimensions"). Each chart names itself in the
-CENTRE of its own control row (`.pubws-chart-cap`, the tiny-uppercase
-register): "market" on the prediction, and the METRIC'S OWN NAME on the
-number chart (`captionLabel`, the leading company name stripped, the
-same caption shape the question line uses; owner ask 2026-08-28), and
-each keeps its own range chips at its
-row's right, in each chart's own range vocabulary. The number chart's
-left cell is its own stat (owner ask 2026-08-28), symmetric with the
-price: the value in force at the price's own size, read as "$6,391 as
-of 2d 4h ago" (`timeAgoOf` from the latest reading's instant, the exact
-UTC instant as its hover title), because a reading is only trustworthy
-with its age on it. The composed bet's ghost draws on BOTH charts: the
-market chart moves its live dot's ghost, and the number chart draws the
-same ghost on the selected market's marker (`preview` on both
+**The summary line.** When the metric has a definition, its FIRST SENTENCE
+prints under the question line in the quiet register
+(`.pubws-instrument-sum`, `firstSentenceOf`), so a reader knows what the
+number is before they see it: "Everything LookPilot earned in the last 30
+days from Steam and direct sales, net of Valve's cut and refunds." A
+definition with no sentence end prints whole; a metric with no definition
+prints no line. The full definition stays where it was, under "What is
+this market?"; an owner who wants a different summary writes a different
+first sentence.
+
+**The stat row** (`.pubws-stats`) is two named numbers in ONE row, the
+reading on the left and the market's call on the right, each a block
+(`.pubws-stat-block`) of the value at the price size (`.pubws-price`,
+mono, tabular) over two quiet lines: what the number is
+(`.pubws-stat-what`), then its date.
+
+- The reading (`.pubws-stat--now`, ink): the value in force, "now", then
+  "read 25m ago" (`.pubws-updated`, `timeAgoOf` from the latest reading's
+  instant, the exact UTC instant as its hover title), because a reading is
+  only trustworthy with its age on it. A metric with no reading yet prints
+  "no reading yet" in the value's place and no age.
+- The market's call (`.pubws-stat--call`, amber): the consensus, "market's
+  call", then "for 30 Sep · settles in 27d" (`.pubws-settle-in`: the day
+  being forecast, which is the day before the settle instant, exactly as
+  the date picker names it, and the countdown ticking by the minute, the
+  exact UTC instant on hover; "settling" once it is). A selected proposal's
+  impact chip sits beside the value as the bare arrow and delta
+  ("▲ +7.8"), because the impact is the proposal's one number.
+
+The price carries the metric's currency symbol when the trimmed
+parenthetical tail names one (e.g. "USD" -> "$"; the same prefix runs
+through every numeral in the charts). A market with no price yet (no
+liquidity) keeps the pickers, prints a centred "no price yet" where the
+stat row would be and the no-liquidity note where the bets would be, and
+draws no charts: the pickers are how a reader leaves it for a market that
+has one.
+
+**The number chart is the hero** (`NumberChart`, `.pubws-numchart`),
+directly under the stat row at the wide geometry (`GEOM`): the metric's
+readings, the "now" rule, and on the future side every open market of
+this metric as a marker at its settle instant carrying its call, the
+selected one amber and labeled. Its control row keeps the metric's own
+name centred (`.pubws-chart-cap`, `captionLabel`, the leading company
+name stripped) and its range chips on the right; the left cell is empty,
+the stats are above. **A legend under the plot names the marks** in a few
+words each (`.nchart-legend`): the ink line "actual", the amber dot
+"market's call for 30 Sep", and the grey dots "other open dates" only
+when there are any; with a proposal open the proposal's legend replaces
+it. The market chart and the number chart used to stack at equal size
+with a stat each and no words joining them; a Manifold trader read the
+$6k on the bottom one as a lifetime total and bet against a company he
+thought had just started.
+
+**The market's own history is a strip below** (`.pubws-callhist`,
+`MarketChart` at half height): how the call moved since the market
+opened, captioned "how the call moved" in the centre of its row with its
+chips (`1D 1W ALL`) on the right and nothing in its left cell. It is the
+"how did we get here", not the hero. The composed bet's ghost draws on
+BOTH charts: the strip moves its live dot's ghost, and the number chart
+draws the same ghost on the selected market's marker (`preview` on both
 components, one value from the ticket).
 
-**When a market settles is said once, beside the price.** The date
+**When a market settles is said once, beside the call.** The date
 picker names each market by its clock and settle day (`TODAY · 26 AUG`,
 `THIS WEEK · 30 AUG`, `30 SEP`), the question line by its clock alone
 ("today", "this week", "on 30 Sep", the exact UTC settle instant as the
-word's hover title), and the countdown rides the stat row next to the
-price, whether or not the metric has readings, so the settle clock never
-leaves the page. That countdown carries the distance ALONE: the exact UTC
-instant is its hover title, in the same words the rest of the floor uses
-for one, and never a second line of type beside the price. A metric with no reading yet keeps its number chart
-too, in the component's own "no reading yet" state with the market's
-marker (hiding it read as the graph collapsing, owner report
-2026-08-28); its stat shows no value and no age. The former "resolves 30
-September 2026" line is gone,
-and neither the segments nor the question repeat the timer. The one
-thing that still prints under the stat row is the N/A caveat of a metric
-with no reading yet ("N/A, all bets refunded, if there is still no
+word's hover title), and the countdown rides the call's date line, whether
+or not the metric has readings, so the settle clock never leaves the page.
+That countdown carries the distance ALONE: the exact UTC instant is its
+hover title, in the same words the rest of the floor uses for one, and
+never a second line of type. A metric with no reading yet keeps its
+number chart too, in the component's own "no reading yet" state with the
+market's marker (hiding it read as the graph collapsing, owner report
+2026-08-28). Neither the segments nor the question repeat the timer. The
+one thing that still prints under the stat row is the N/A caveat of a
+metric with no reading yet ("N/A, all bets refunded, if there is still no
 reading by then"), because it changes what a bet is.
 
-- **The market chart** is the prediction (`MarketChart`): one amber
-  step line of the market's call over its lifetime, gradient fill, labeled
-  end dot, crosshair. The series STARTS at the price the market opened at,
+- **The market chart** is the prediction (`MarketChart`, the strip): one
+  amber step line of the market's call over its lifetime, gradient fill,
+  labeled end dot, crosshair. The series STARTS at the price the market opened at,
   stamped with its creation time, because a pair that opens anchored and
   has traded once is otherwise a single point, which draws as a flat line
   and a cliff at the live dot and reads as if every trade happened at once.

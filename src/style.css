@@ -2481,7 +2481,45 @@ button.notif-row-link {
 
 /* The number chart under the market chart: one clear step of air, and a
    quieter plot (its height comes from the component). */
-.pubws-numchart { margin-top: 1.1rem; }
+.pubws-numchart { margin-top: 0.6rem; }
+
+/* The stat row (docs/ui-conventions.md, "The price and the chart",
+   2026-09-03): two named numbers in one row, the reading left in ink, the
+   market's call right in amber, each a value over two quiet lines. */
+.pubws-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  width: 100%;
+  margin-top: 1.2rem;
+}
+.pubws-stat-block { display: flex; flex-direction: column; gap: 5px; min-width: 0; text-align: left; }
+.pubws-stat--call { align-items: flex-end; text-align: right; }
+.pubws-stat--call .pubws-price { color: var(--accent); }
+.pubws-stat-value { display: inline-flex; align-items: baseline; gap: 0.6rem; }
+.pubws-stat-what {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* How the call moved: the market's price history as a strip under the
+   number chart. */
+.pubws-callhist { margin-top: 1.4rem; }
+
+/* The summary line under the question: the definition's first sentence,
+   in the register of the pitch, never louder than the question. */
+.pubws-instrument-sum {
+  margin: 0 auto 0.4rem;
+  max-width: 48ch;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-align: center;
+}
 
 /* Each chart's title, centred in its control row: the same tiny uppercase
    register as section labels, so the two plots name themselves without
@@ -4566,6 +4604,8 @@ textarea.jobform-line--desc {
 .nchart-legend-dot--approved { background: var(--higher); }
 .nchart-legend-dot--declined { background: var(--lower); }
 .nchart-legend-dot--now { background: var(--accent); }
+.nchart-legend-dot--other { background: var(--text-tertiary); opacity: 0.7; }
+.nchart-legend-line { display: inline-block; width: 14px; height: 2px; background: var(--text-primary); margin-right: 6px; vertical-align: middle; }
 .nchart-tip-approved { color: var(--higher); }
 .nchart-tip-declined { color: var(--lower); }
 

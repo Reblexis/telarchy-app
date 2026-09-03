@@ -4296,68 +4296,88 @@ fresh period, which is not &quot;unmeasured&quot;).</p>
 <p>The metrics that use the flag (&quot;Implied valuation (USD)&quot; on both public
 floors) are defined in docs/metrics.md.</p>
 <h3 id="docs-ui-conventions-md--h18">The price and the chart</h3>
-<p>The consensus is a compact stat, not a poster number (owner ask
-2026-08-28, Manifold scale: the chart is the hero, the price a reading on
-it). It renders as the LEFT cell of the market chart's own control row,
-<code>.pubws-price</code> at roughly a third of its old size, read as &quot;$7,146
-expected · settles in 33d&quot;: the qualifier is ONE non-breaking unit in
-the quiet register (<code>.pubws-settle-in</code>; the countdown ticks by the
-minute, exact UTC instant on hover), so a tight column wraps it whole
-under the price, never mid-phrase. It sits where the since-open
-chip used to sit; the chip is gone (owner ask 2026-08-28: &quot;instead of
-the arrow and down since&quot;). A selected proposal's impact chip still
-renders there as the bare arrow and delta (&quot;▲ +7.8&quot;; the &quot;impact by
-<date>&quot; prose wrapped the stat to three lines, owner report 2026-08-28),
-because the impact is the proposal's one number - and the whole stat is
-ONE line: price, chip, qualifier, never stacked. The
-price carries the metric's currency symbol when the trimmed
+<p><strong>One chart is the hero: the number's own, with the market's call drawn on
+it.</strong> A newcomer reads the floor top to bottom: what the number is, what it
+reads now, what the market says it will read, then the picture of both on
+one axis. Everything in this section serves that order (decision record:
+<code>notes/decisions/ui-conventions.md</code>, 2026-09-03).</p>
+<p><strong>The summary line.</strong> When the metric has a definition, its FIRST SENTENCE
+prints under the question line in the quiet register
+(<code>.pubws-instrument-sum</code>, <code>firstSentenceOf</code>), so a reader knows what the
+number is before they see it: &quot;Everything LookPilot earned in the last 30
+days from Steam and direct sales, net of Valve's cut and refunds.&quot; A
+definition with no sentence end prints whole; a metric with no definition
+prints no line. The full definition stays where it was, under &quot;What is
+this market?&quot;; an owner who wants a different summary writes a different
+first sentence.</p>
+<p><strong>The stat row</strong> (<code>.pubws-stats</code>) is two named numbers in ONE row, the
+reading on the left and the market's call on the right, each a block
+(<code>.pubws-stat-block</code>) of the value at the price size (<code>.pubws-price</code>,
+mono, tabular) over two quiet lines: what the number is
+(<code>.pubws-stat-what</code>), then its date.</p>
+<ul>
+<li>The reading (<code>.pubws-stat--now</code>, ink): the value in force, &quot;now&quot;, then
+&quot;read 25m ago&quot; (<code>.pubws-updated</code>, <code>timeAgoOf</code> from the latest reading's
+instant, the exact UTC instant as its hover title), because a reading is
+only trustworthy with its age on it. A metric with no reading yet prints
+&quot;no reading yet&quot; in the value's place and no age.</li>
+<li>The market's call (<code>.pubws-stat--call</code>, amber): the consensus, &quot;market's
+call&quot;, then &quot;for 30 Sep · settles in 27d&quot; (<code>.pubws-settle-in</code>: the day
+being forecast, which is the day before the settle instant, exactly as
+the date picker names it, and the countdown ticking by the minute, the
+exact UTC instant on hover; &quot;settling&quot; once it is). A selected proposal's
+impact chip sits beside the value as the bare arrow and delta
+(&quot;▲ +7.8&quot;), because the impact is the proposal's one number.</li>
+</ul>
+<p>The price carries the metric's currency symbol when the trimmed
 parenthetical tail names one (e.g. &quot;USD&quot; -&gt; &quot;$&quot;; the same prefix runs
-through every numeral in the chart).
-A market with no price yet (no liquidity) keeps the pickers, prints a
-centred &quot;no price yet&quot; where the stat row would be and the no-liquidity
-note where the bets would be, and draws no charts: the pickers are how a
-reader leaves it for a market that has one.</p>
-<p><strong>Both charts always render; there is no view toggle</strong> (owner ask
-2026-08-28, replacing the MARKET/NUMBER switch of 2026-08-27: a newcomer
-never found the number behind it). The market chart is the hero, directly
-under the stat row; the number chart follows at the SAME geometry (one
-<code>GEOM</code>, one width, one height; owner ask 2026-08-28, &quot;the two graphs
-should have same dimensions&quot;). Each chart names itself in the
-CENTRE of its own control row (<code>.pubws-chart-cap</code>, the tiny-uppercase
-register): &quot;market&quot; on the prediction, and the METRIC'S OWN NAME on the
-number chart (<code>captionLabel</code>, the leading company name stripped, the
-same caption shape the question line uses; owner ask 2026-08-28), and
-each keeps its own range chips at its
-row's right, in each chart's own range vocabulary. The number chart's
-left cell is its own stat (owner ask 2026-08-28), symmetric with the
-price: the value in force at the price's own size, read as &quot;$6,391 as
-of 2d 4h ago&quot; (<code>timeAgoOf</code> from the latest reading's instant, the exact
-UTC instant as its hover title), because a reading is only trustworthy
-with its age on it. The composed bet's ghost draws on BOTH charts: the
-market chart moves its live dot's ghost, and the number chart draws the
-same ghost on the selected market's marker (<code>preview</code> on both
+through every numeral in the charts). A market with no price yet (no
+liquidity) keeps the pickers, prints a centred &quot;no price yet&quot; where the
+stat row would be and the no-liquidity note where the bets would be, and
+draws no charts: the pickers are how a reader leaves it for a market that
+has one.</p>
+<p><strong>The number chart is the hero</strong> (<code>NumberChart</code>, <code>.pubws-numchart</code>),
+directly under the stat row at the wide geometry (<code>GEOM</code>): the metric's
+readings, the &quot;now&quot; rule, and on the future side every open market of
+this metric as a marker at its settle instant carrying its call, the
+selected one amber and labeled. Its control row keeps the metric's own
+name centred (<code>.pubws-chart-cap</code>, <code>captionLabel</code>, the leading company
+name stripped) and its range chips on the right; the left cell is empty,
+the stats are above. <strong>A legend under the plot names the marks</strong> in a few
+words each (<code>.nchart-legend</code>): the ink line &quot;actual&quot;, the amber dot
+&quot;market's call for 30 Sep&quot;, and the grey dots &quot;other open dates&quot; only
+when there are any; with a proposal open the proposal's legend replaces
+it. The market chart and the number chart used to stack at equal size
+with a stat each and no words joining them; a Manifold trader read the
+$6k on the bottom one as a lifetime total and bet against a company he
+thought had just started.</p>
+<p><strong>The market's own history is a strip below</strong> (<code>.pubws-callhist</code>,
+<code>MarketChart</code> at half height): how the call moved since the market
+opened, captioned &quot;how the call moved&quot; in the centre of its row with its
+chips (<code>1D 1W ALL</code>) on the right and nothing in its left cell. It is the
+&quot;how did we get here&quot;, not the hero. The composed bet's ghost draws on
+BOTH charts: the strip moves its live dot's ghost, and the number chart
+draws the same ghost on the selected market's marker (<code>preview</code> on both
 components, one value from the ticket).</p>
-<p><strong>When a market settles is said once, beside the price.</strong> The date
+<p><strong>When a market settles is said once, beside the call.</strong> The date
 picker names each market by its clock and settle day (<code>TODAY · 26 AUG</code>,
 <code>THIS WEEK · 30 AUG</code>, <code>30 SEP</code>), the question line by its clock alone
 (&quot;today&quot;, &quot;this week&quot;, &quot;on 30 Sep&quot;, the exact UTC settle instant as the
-word's hover title), and the countdown rides the stat row next to the
-price, whether or not the metric has readings, so the settle clock never
-leaves the page. That countdown carries the distance ALONE: the exact UTC
-instant is its hover title, in the same words the rest of the floor uses
-for one, and never a second line of type beside the price. A metric with no reading yet keeps its number chart
-too, in the component's own &quot;no reading yet&quot; state with the market's
-marker (hiding it read as the graph collapsing, owner report
-2026-08-28); its stat shows no value and no age. The former &quot;resolves 30
-September 2026&quot; line is gone,
-and neither the segments nor the question repeat the timer. The one
-thing that still prints under the stat row is the N/A caveat of a metric
-with no reading yet (&quot;N/A, all bets refunded, if there is still no
+word's hover title), and the countdown rides the call's date line, whether
+or not the metric has readings, so the settle clock never leaves the page.
+That countdown carries the distance ALONE: the exact UTC instant is its
+hover title, in the same words the rest of the floor uses for one, and
+never a second line of type. A metric with no reading yet keeps its
+number chart too, in the component's own &quot;no reading yet&quot; state with the
+market's marker (hiding it read as the graph collapsing, owner report
+2026-08-28). Neither the segments nor the question repeat the timer. The
+one thing that still prints under the stat row is the N/A caveat of a
+metric with no reading yet (&quot;N/A, all bets refunded, if there is still no
 reading by then&quot;), because it changes what a bet is.</p>
 <ul>
-<li><strong>The market chart</strong> is the prediction (<code>MarketChart</code>): one amber
-step line of the market's call over its lifetime, gradient fill, labeled
-end dot, crosshair. The series STARTS at the price the market opened at,
+<li><strong>The market chart</strong> is the prediction (<code>MarketChart</code>, the strip): one
+amber step line of the market's call over its lifetime, gradient fill,
+labeled end dot, crosshair. The series STARTS at the price the market opened at,
 stamped with its creation time, because a pair that opens anchored and
 has traded once is otherwise a single point, which draws as a flat line
 and a cliff at the live dot and reads as if every trade happened at once.
