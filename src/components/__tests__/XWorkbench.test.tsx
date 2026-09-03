@@ -377,4 +377,37 @@ describe('the X workbench', () => {
       expect(sent.sourcePostId).toBeUndefined();
     });
   });
+
+  test('a search suggestion can be argued with: its answer shows and the turns are sent', async () => {
+    const suggest = api.xSuggestSearch as ReturnType<typeof vi.fn>;
+    suggest.mockResolvedValueOnce({
+      suggestion: {
+        query: 'forecasting',
+        rationale: 'Broad.',
+        answer: 'A first pass.',
+      },
+    });
+    suggest.mockResolvedValueOnce({
+      suggestion: {
+        query: 'forecasting min_faves:20',
+        rationale: 'Narrower.',
+        answer: 'Raised min_faves, as you asked.',
+      },
+    });
+    render(<XWorkbench />);
+    fireEvent.click(screen.getByRole('button', { name: /get a search prompt/i }));
+    await screen.findByText('forecasting');
+    expect(screen.getByText(/A first pass/)).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText(/narrower/i), {
+      target: { value: 'narrower' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^argue$/i }));
+    await screen.findByText('forecasting min_faves:20');
+    expect(screen.getByText(/Raised min_faves/)).toBeTruthy();
+    const second = suggest.mock.calls[1];
+    expect(second[1]).toHaveLength(2);
+    expect(second[1][0].role).toBe('assistant');
+    expect(second[1][1]).toEqual({ role: 'user', content: 'narrower' });
+  });
 });

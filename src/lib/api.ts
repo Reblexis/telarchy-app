@@ -1523,10 +1523,15 @@ export const api = {
     summary: XSummary;
     draftingConfigured: boolean;
   }> => request('/api/admin/x/log'),
-  xSuggestSearch: (avoid: string[] = []): Promise<{ suggestion: { query: string; rationale: string } }> =>
+  xSuggestSearch: (
+    avoid: string[] = [],
+    messages: { role: 'user' | 'assistant'; content: string }[] = [],
+  ): Promise<{
+    suggestion: { query: string; rationale: string; answer: string };
+  }> =>
     request('/api/admin/x/searches/suggest', {
       method: 'POST',
-      body: JSON.stringify({ avoid }),
+      body: JSON.stringify({ avoid, messages }),
     }),
   xSaveSearch: (query: string, rationale?: string): Promise<{ search: XSearch }> =>
     request('/api/admin/x/searches', {

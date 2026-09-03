@@ -21,11 +21,14 @@ it produced, and the next proposal is chosen against that record.
    yielded: posts pasted back, replies sent, likes earned. A query that
    returned a hundred posts he never answered scores worse than one that
    returned three he did, which is why yield is counted in replies rather than
-   in results. The model hands the proposal back as a structured field (a
-   forced tool call), never as prose to be scraped: a fenced code block, a
-   preamble, or a rationale long enough to lose its closing brace is not a
-   reason for the button to fail. A reply that carries no query at all is the
-   only failure, and it says so.
+   in results. The proposal comes back with what it says to him, and he can
+   argue with it as with a draft ("narrower", "not about Polymarket", "why
+   this one?"): the next turn answers and proposes again. "Another search"
+   starts over and avoids every query already proposed. The model hands the
+   proposal back as a structured field (a tool call), never as prose to be
+   scraped: a fenced code block, a preamble, or a rationale long enough to
+   lose its closing brace is not a reason for the button to fail. A reply
+   that carries no query at all is the only failure, and it says so.
 2. **Run it on X.** The link opens the query on the Latest tab, because Top is
    the algorithm again. Following it records the query, which is what starts
    counting its yield.
@@ -103,10 +106,20 @@ What it gives: `text`, `user.screen_name`, `user.name`, `favorite_count`,
 
 ## Drafting
 
-One Anthropic call, the same rules the reply queue uses (one to three
-sentences, add a number or a counterexample, never pitch, never link, no
-em-dashes, skip when there is nothing to say), plus two things the queue does
-not have:
+One call to the smartest model the platform can reach, thinking at high
+effort, for every proposal the workbench makes (a reply, a post, a search
+query). `X_DRAFT_MODEL` names it (default `claude-fable-5-1` on the Anthropic
+key; a slug with a provider prefix such as `openai/gpt-5.6-luna` goes through
+the Vercel AI Gateway on the floor's key, at the same effort) and
+`X_DRAFT_EFFORT` sets the effort (default `high`); both change without a
+deploy. Every proposal is a conversation: it comes back with what it says to
+him, he pushes back or asks, and the next turn answers and revises. A draft
+never carries an em-dash or an en-dash; one the model wrote anyway becomes a
+comma before he sees it.
+
+A reply follows the rules the reply queue uses (one to three sentences, add a
+number or a counterexample, never pitch, never link, skip when there is
+nothing to say), plus two things the queue does not have:
 
 - **The conversation.** Every turn of the owner's argument with the draft is
   sent back, so "shorter" means shorter than the last one.

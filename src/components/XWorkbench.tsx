@@ -47,7 +47,10 @@ export function XWorkbench() {
   const [suggestion, setSuggestion] = useState<{
     query: string;
     rationale: string;
+    answer: string;
   } | null>(null);
+  const [suggestTurns, setSuggestTurns] = useState<Turn[]>([]);
+  const [suggestSay, setSuggestSay] = useState('');
   const [search, setSearch] = useState<XSearch | null>(null);
   const [harvestIds, setHarvestIds] = useState('');
   const [candidates, setCandidates] = useState<XPost[] | null>(null);
@@ -93,6 +96,28 @@ export function XWorkbench() {
         setPost(null);
         setErr(`${(e as Error).message} You can paste the post text below instead.`);
       })
+      .finally(() => setBusy(''));
+  };
+
+  /** A search proposal, or one more turn of the argument about it. A fresh
+   *  proposal avoids every query already tried or proposed; a push-back
+   *  keeps the conversation so "narrower" means narrower than this one. */
+  const propose = (message?: string) => {
+    setErr('');
+    setBusy('suggest');
+    const fresh = !message;
+    const avoid = (searches ?? []).map(x => x.query).concat(fresh && suggestion ? [suggestion.query] : []);
+    const next = fresh ? [] : [...suggestTurns, { role: 'user' as const, content: message }];
+    api
+      .xSuggestSearch(avoid, next)
+      .then(r => {
+        setSuggestion(r.suggestion);
+        setSuggestTurns([...next, { role: 'assistant', content: JSON.stringify(r.suggestion) }]);
+        setSuggestSay('');
+        setSearch(null);
+        setCandidates(null);
+      })
+      .catch(e => setErr((e as Error).message))
       .finally(() => setBusy(''));
   };
 
@@ -196,23 +221,7 @@ export function XWorkbench() {
           What each query produced is what shapes the next proposal. */}
       <div className="xw-search">
         <div className="xw-actions">
-          <button
-            className="adm-paygo"
-            onClick={() => {
-              setErr('');
-              setBusy('suggest');
-              api
-                .xSuggestSearch((searches ?? []).map(x => x.query))
-                .then(r => {
-                  setSuggestion(r.suggestion);
-                  setSearch(null);
-                  setCandidates(null);
-                })
-                .catch(e => setErr((e as Error).message))
-                .finally(() => setBusy(''));
-            }}
-            disabled={busy === 'suggest' || !configured}
-          >
+          <button className="adm-paygo" onClick={() => propose()} disabled={busy === 'suggest' || !configured}>
             {busy === 'suggest' ? 'Thinking' : suggestion ? 'Another search' : 'Get a search prompt'}
           </button>
           {searches?.length ? <span className="adm-sub">{searches.length} tried so far</span> : null}
@@ -222,6 +231,33 @@ export function XWorkbench() {
           <div className="xw-draft">
             <code className="xw-query">{suggestion.query}</code>
             {suggestion.rationale ? <p className="adm-sub">{suggestion.rationale}</p> : null}
+            {suggestion.answer ? <p className="adm-sub xw-answer">{suggestion.answer}</p> : null}
+            <form
+              className="adm-payform"
+              onSubmit={e => {
+                e.preventDefault();
+                if (suggestSay.trim()) propose(suggestSay.trim());
+              }}
+            >
+              <input
+                className="adm-payq"
+                placeholder="Argue with it: narrower, not about Polymarket, why this one?"
+                value={suggestSay}
+                onChange={e => setSuggestSay(e.target.value)}
+              />
+              <button className="adm-paygo" type="submit" disabled={busy === 'suggest' || !suggestSay.trim()}>
+                Argue
+              </button>
+            </form>
+            {suggestTurns.length > 1 ? (
+              <ul className="adm-list xw-turns">
+                {suggestTurns.slice(0, -1).map((t, i) => (
+                  <li key={i} className={t.role === 'user' ? 'adm-sub' : 'adm-sub xw-answer'}>
+                    {t.role === 'user' ? `you: ${t.content}` : `it: ${answerOf(t)}`}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <div className="xw-actions">
               <a
                 className="adm-paygo"

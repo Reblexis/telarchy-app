@@ -7,7 +7,7 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { xReplies } from '../db/schema';
-import { draftPost, draftReply, recordReply } from '../services/x-workbench';
+import { draftingConfigured, draftPost, draftReply, recordReply, suggestSearch } from '../services/x-workbench';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 beforeAll(async () => {
@@ -17,19 +17,25 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-function mockAnthropic(input: unknown) {
-  const calls: any[] = [];
-  global.fetch = jest.fn(async (_url: any, init: any) => {
-    calls.push(JSON.parse(init.body));
+function mockFetch(reply: (url: string) => unknown) {
+  const calls: { url: string; headers: Record<string, string>; body: any }[] = [];
+  global.fetch = jest.fn(async (url: any, init: any) => {
+    calls.push({
+      url: String(url),
+      headers: init.headers,
+      body: JSON.parse(init.body),
+    });
     return {
       ok: true,
       status: 200,
-      json: async () => ({
-        content: [{ type: 'tool_use', name: 'draft', input }],
-      }),
+      json: async () => reply(String(url)),
     } as any;
   }) as any;
   return calls;
+}
+
+function mockAnthropic(input: unknown, name = 'draft') {
+  return mockFetch(() => ({ content: [{ type: 'tool_use', name, input }] }));
 }
 
 describe('draftPost', () => {
@@ -51,10 +57,10 @@ describe('draftPost', () => {
       reason: 'milestone',
       answer: 'Led with the numbers you gave; the last line is the hook.',
     });
-    // The request is a forced tool call, and the idea is what it works from.
-    expect(calls[0].tool_choice).toEqual({ type: 'tool', name: 'draft' });
-    expect(calls[0].messages[0].content).toContain('244 markets and 233 agents');
-    expect(calls[0].system).toMatch(/first reply/i);
+    // The draft tool is offered and the idea is what it works from.
+    expect(calls[0].body.tools[0].name).toBe('draft');
+    expect(calls[0].body.messages[0].content).toContain('244 markets and 233 agents');
+    expect(calls[0].body.system).toMatch(/first reply/i);
   });
 
   test('the whole argument is sent back, bounded, so "shorter" means shorter than the last one', async () => {
@@ -69,7 +75,7 @@ describe('draftPost', () => {
       content: `turn ${i}`,
     }));
     await draftPost('idea', turns);
-    const sent = calls[0].messages;
+    const sent = calls[0].body.messages;
     expect(sent[0].role).toBe('user');
     expect(sent).toHaveLength(13); // the opening plus the last twelve turns
     expect(sent[sent.length - 1].content).toBe('turn 19');
@@ -93,6 +99,137 @@ describe('draftPost', () => {
       reason: 'number',
       answer: 'You asked for the number first.',
     });
+  });
+});
+
+describe('the model and its effort (docs/x-workbench.md, "Drafting")', () => {
+  const env = { ...process.env };
+  afterEach(() => {
+    process.env = { ...env };
+  });
+
+  test('by default the draft goes to the Anthropic API as Fable, thinking adaptively at high effort', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    delete process.env.X_DRAFT_MODEL;
+    delete process.env.X_DRAFT_EFFORT;
+    const calls = mockAnthropic({ text: 'T', reason: 'test', answer: 'A' });
+    await draftPost('idea', []);
+    expect(calls[0].url).toBe('https://api.anthropic.com/v1/messages');
+    expect(calls[0].headers['x-api-key']).toBe('anth');
+    expect(calls[0].body.model).toBe('claude-fable-5-1');
+    expect(calls[0].body.thinking).toEqual({ type: 'adaptive' });
+    expect(calls[0].body.output_config).toEqual({ effort: 'high' });
+    // Fable refuses a forced tool choice, so the tool is offered, not forced.
+    expect(calls[0].body.tool_choice).toBeUndefined();
+  });
+
+  test('X_DRAFT_EFFORT changes the effort without a deploy', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    process.env.X_DRAFT_EFFORT = 'max';
+    const calls = mockAnthropic({ text: 'T', reason: 'test', answer: 'A' });
+    await draftPost('idea', []);
+    expect(calls[0].body.output_config).toEqual({ effort: 'max' });
+  });
+
+  test('a slug with a provider prefix goes through the gateway on the floor key, at the same effort', async () => {
+    process.env.X_DRAFT_MODEL = 'openai/gpt-5.6-luna';
+    process.env.AI_GATEWAY_API_KEY = 'gw';
+    delete process.env.ANTHROPIC_API_KEY;
+    const calls = mockFetch(() => ({
+      choices: [
+        {
+          message: {
+            content: null,
+            tool_calls: [
+              {
+                function: {
+                  name: 'draft',
+                  arguments: '{"text":"L","reason":"test","answer":"From luna."}',
+                },
+              },
+            ],
+          },
+        },
+      ],
+    }));
+    const draft = await draftPost('idea', [
+      { role: 'assistant', content: '{}' },
+      { role: 'user', content: 'shorter' },
+    ]);
+    expect(draft).toEqual({ post: 'L', reason: 'test', answer: 'From luna.' });
+    expect(calls[0].url).toBe('https://ai-gateway.vercel.sh/v1/chat/completions');
+    expect(calls[0].headers.Authorization).toBe('Bearer gw');
+    expect(calls[0].body.model).toBe('openai/gpt-5.6-luna');
+    expect(calls[0].body.reasoning_effort).toBe('high');
+    expect(calls[0].body.tool_choice).toEqual({
+      type: 'function',
+      function: { name: 'draft' },
+    });
+    // The system prompt travels as the first message, then the conversation.
+    expect(calls[0].body.messages[0].role).toBe('system');
+    expect(calls[0].body.messages[calls[0].body.messages.length - 1]).toEqual({
+      role: 'user',
+      content: 'shorter',
+    });
+  });
+
+  test("draftingConfigured follows the chosen transport's key", () => {
+    delete process.env.X_DRAFT_MODEL;
+    delete process.env.ANTHROPIC_API_KEY;
+    process.env.AI_GATEWAY_API_KEY = 'gw';
+    expect(draftingConfigured()).toBe(false);
+    process.env.X_DRAFT_MODEL = 'openai/gpt-5.6-luna';
+    expect(draftingConfigured()).toBe(true);
+    delete process.env.AI_GATEWAY_API_KEY;
+    expect(draftingConfigured()).toBe(false);
+  });
+
+  test('an em-dash the model wrote becomes a comma before he sees it', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    mockAnthropic({
+      text: 'Not a chart — an org structure.',
+      reason: 'test',
+      answer: 'A — B',
+    });
+    const draft = await draftPost('idea', []);
+    expect(draft.post).toBe('Not a chart, an org structure.');
+    expect(draft.answer).toBe('A — B');
+  });
+});
+
+describe('arguing with a search suggestion', () => {
+  const env = { ...process.env };
+  afterEach(() => {
+    process.env = { ...env };
+  });
+
+  test('the turns go back after the record, and the answer comes with the query', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    const calls = mockAnthropic(
+      {
+        query: 'forecasting -filter:replies min_faves:20',
+        rationale: 'Narrower.',
+        answer: 'Raised min_faves, as you asked.',
+      },
+      'propose_query',
+    );
+    const s = await suggestSearch(
+      ['old query'],
+      [
+        { role: 'assistant', content: '{"query":"forecasting"}' },
+        { role: 'user', content: 'narrower' },
+      ],
+    );
+    expect(s).toEqual({
+      query: 'forecasting -filter:replies min_faves:20',
+      rationale: 'Narrower.',
+      answer: 'Raised min_faves, as you asked.',
+    });
+    const sent = calls[0].body.messages;
+    expect(sent).toHaveLength(3);
+    expect(sent[0].content).toMatch(/old query/);
+    expect(sent[2]).toEqual({ role: 'user', content: 'narrower' });
+    expect(calls[0].body.thinking).toEqual({ type: 'adaptive' });
   });
 });
 
