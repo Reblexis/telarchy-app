@@ -300,7 +300,8 @@ export function parseDraft(body: ProposalBody): {
  * through the Vercel AI Gateway on the floor's key; anything else is a Claude
  * model on the Anthropic key. Both settings change without a deploy.
  */
-const DEFAULT_DRAFT_MODEL = 'claude-fable-5-1';
+const DEFAULT_DRAFT_MODEL = 'claude-opus-5';
+const DEFAULT_DRAFT_FALLBACK = 'claude-opus-5';
 const DEFAULT_DRAFT_EFFORT = 'high';
 const GATEWAY = 'https://ai-gateway.vercel.sh/v1/chat/completions';
 
@@ -313,8 +314,14 @@ function draftEffort(): string {
 function viaGateway(model: string): boolean {
   return model.includes('/');
 }
+function draftFallback(): string {
+  return process.env.X_DRAFT_FALLBACK || DEFAULT_DRAFT_FALLBACK;
+}
+function keyFor(model: string): string | undefined {
+  return viaGateway(model) ? process.env.AI_GATEWAY_API_KEY : process.env.ANTHROPIC_API_KEY;
+}
 function draftKey(): string | undefined {
-  return viaGateway(draftModel()) ? process.env.AI_GATEWAY_API_KEY : process.env.ANTHROPIC_API_KEY;
+  return keyFor(draftModel());
 }
 
 export function draftingConfigured(): boolean {
@@ -344,15 +351,27 @@ interface ProposalTool {
   input_schema: Record<string, unknown>;
 }
 
+/** A reply the model declined to make: a refusal stop, or nothing in it at
+ *  all (no tool call, no prose), whatever the stop reason says. */
+function refused(body: ProposalBody & { stop_reason?: string }): boolean {
+  if (body.stop_reason === 'refusal') return true;
+  return !toolInput(body) && !proseOf(body).trim();
+}
+
 /**
- * One proposing call: the system prompt, the conversation, the tool to
- * answer through. Claude thinks adaptively at the set effort and is offered
- * the tool (Fable refuses a forced choice); the gateway is asked to reason at
- * the same effort and forced onto the tool, which OpenAI models accept.
+ * One call to one model. Claude thinks adaptively at the set effort and is
+ * offered the tool (Fable refuses a forced choice); the gateway is asked to
+ * reason at the same effort and forced onto the tool, which OpenAI models
+ * accept.
  */
-async function callProposal(system: string, messages: DraftTurn[], tool: ProposalTool, what: string): Promise<unknown> {
-  const key = requireDraftKey();
-  const model = draftModel();
+async function proposeWith(
+  model: string,
+  key: string,
+  system: string,
+  messages: DraftTurn[],
+  tool: ProposalTool,
+  what: string,
+): Promise<ProposalBody & { stop_reason?: string }> {
   const effort = draftEffort();
   const res = viaGateway(model)
     ? await fetch(GATEWAY, {
@@ -397,7 +416,27 @@ async function callProposal(system: string, messages: DraftTurn[], tool: Proposa
         }),
       });
   if (!res.ok) throw new AppError(`${what} failed (${res.status}).`, 502);
-  return res.json();
+  return (await res.json()) as ProposalBody & { stop_reason?: string };
+}
+
+/**
+ * One proposing call: the system prompt, the conversation, the tool to
+ * answer through. A refusal from the set model is retried once on the
+ * fallback (skipped when it is the same model, or its key is missing), and a
+ * refusal from both is an error he sees, never an empty draft
+ * (docs/x-workbench.md, "Drafting").
+ */
+async function callProposal(system: string, messages: DraftTurn[], tool: ProposalTool, what: string): Promise<unknown> {
+  requireDraftKey();
+  const primary = draftModel();
+  const fallback = draftFallback();
+  const models = [primary, ...(fallback !== primary && keyFor(fallback) ? [fallback] : [])];
+  for (const model of models) {
+    const body = await proposeWith(model, keyFor(model) as string, system, messages, tool, what);
+    if (!refused(body)) return body;
+    console.warn(`x workbench: ${model} declined to draft (${what.toLowerCase()})`);
+  }
+  throw new AppError(`${what}: the model declined to draft this one. Try other words, or another model.`, 502);
 }
 
 export async function draftReply(

@@ -106,16 +106,21 @@ What it gives: `text`, `user.screen_name`, `user.name`, `favorite_count`,
 
 ## Drafting
 
-One call to the smartest model the platform can reach, thinking at high
+One call to the smartest model that will do the job, thinking at high
 effort, for every proposal the workbench makes (a reply, a post, a search
-query). `X_DRAFT_MODEL` names it (default `claude-fable-5-1` on the Anthropic
+query). `X_DRAFT_MODEL` names it (default `claude-opus-5` on the Anthropic
 key; a slug with a provider prefix such as `openai/gpt-5.6-luna` goes through
 the Vercel AI Gateway on the floor's key, at the same effort) and
 `X_DRAFT_EFFORT` sets the effort (default `high`); both change without a
-deploy. Every proposal is a conversation: it comes back with what it says to
-him, he pushes back or asks, and the next turn answers and revises. A draft
-never carries an em-dash or an en-dash; one the model wrote anyway becomes a
-comma before he sees it.
+deploy. Fable 5.1 is not the default because it refuses this job outright
+(a refusal stop with no content, every time, on replies and posts alike).
+A refusal from whichever model is set is retried once on `X_DRAFT_FALLBACK`
+(default `claude-opus-5`, skipped when it is the same model), and if that
+refuses too it is an error he sees, never an empty draft. Every proposal is
+a conversation: it comes back with what it says to him, he pushes back or
+asks, and the next turn answers and revises. A draft never carries an
+em-dash or an en-dash; one the model wrote anyway becomes a comma before he
+sees it.
 
 A reply follows the rules the reply queue uses (one to three sentences, add a
 number or a counterexample, never pitch, never link, skip when there is
