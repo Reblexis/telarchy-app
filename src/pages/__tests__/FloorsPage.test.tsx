@@ -37,7 +37,13 @@ const payload = {
   participantCount: 14,
   tradesThisWeek: 108,
   markets: [
-    { marketId: 'm-1', metricName: 'LookPilot revenue (monthly, USD)', consensus: 77315.69, targetDate: '2026-08' },
+    {
+      marketId: 'm-1',
+      metricName: 'LookPilot revenue (monthly, USD)',
+      consensus: 77315.69,
+      targetDate: '2026-08',
+      pool: 1000,
+    },
   ],
   // Shaped like the real payload: the inline price replay names its market.
   marketHistory: [
@@ -146,7 +152,8 @@ describe('marketplace', () => {
   test('the footer leads with settlement, then the activity behind it', async () => {
     renderPage();
     await screen.findByText('settles 31 August 2026');
-    expect(screen.getByText(/14 participants · 108 trades this week · 2 proposals priced now/)).toBeInTheDocument();
+    const row = await screen.findByLabelText('Market facts');
+    expect(row).toHaveTextContent(/^14\s*1,000\s*108\s*2$/);
   });
 
   test('listing your own number is a cell of the grid, not a footnote', async () => {
@@ -309,22 +316,44 @@ describe('loading', () => {
   });
 });
 
-describe('the activity line', () => {
-  test('never leaves a separator hanging while counts are still loading', async () => {
+describe('the facts row', () => {
+  test("is icons and bare numbers with the meaning on hover, the market page's row", async () => {
+    renderPage();
+    const row = await screen.findByLabelText('Market facts');
+    await waitFor(() => expect(row.querySelectorAll('svg').length).toBe(4));
+    expect(screen.getByTitle(/14 participants/)).toHaveTextContent('14');
+    expect(screen.getByTitle(/1,000 credits in the pools/)).toHaveTextContent('1,000');
+    expect(screen.getByTitle(/108 trades this week/)).toHaveTextContent('108');
+    expect(screen.getByTitle(/2 proposals priced now/)).toHaveTextContent('2');
+    expect(row.textContent).not.toMatch(/participants|trades|proposals|liquidity/);
+  });
+
+  test('shows only the facts that have landed while counts are still loading', async () => {
     let release: (v: unknown) => void = () => {};
     vi.mocked(api.getMarketplaceWorkspace).mockReturnValue(
       new Promise(r => {
         release = r;
       }) as never,
     );
-    const { container } = renderPage();
+    renderPage();
     await screen.findByText('LookPilot');
     // Only the proposal count is known from the listing payload; the
-    // participant and trade counts are still in flight.
-    const line = container.querySelector('.mkt-card-activity')?.textContent ?? '';
-    expect(line).toBe('2 proposals priced now');
+    // participant, pool and trade counts are still in flight.
+    const row = screen.getByLabelText('Market facts');
+    expect(row.querySelectorAll('svg').length).toBe(1);
+    expect(row).toHaveTextContent(/^2$/);
     release(payload);
-    await screen.findByText(/14 participants · 108 trades this week · 2 proposals priced now/);
+    await waitFor(() => expect(row.querySelectorAll('svg').length).toBe(4));
+  });
+
+  test('no proposals means no proposals cell rather than a zero', async () => {
+    vi.mocked(api.getPublicWorkspaces).mockResolvedValue([
+      { ...listing, proposalStats: { ...listing.proposalStats, pending: 0 } },
+    ] as never);
+    renderPage();
+    const row = await screen.findByLabelText('Market facts');
+    await waitFor(() => expect(row.querySelectorAll('svg').length).toBe(3));
+    expect(screen.queryByTitle(/proposals priced now/)).toBeNull();
   });
 });
 
@@ -335,7 +364,7 @@ describe('the activity line', () => {
  * this week had earned so far instead of the net 2026 it is judged on.
  */
 describe('liquidity on the card', () => {
-  test('the activity line leads with the credits in the pools, never the LMSR parameter', async () => {
+  test('the drop counts the credits in the pools, never the LMSR parameter', async () => {
     // Two open markets: 1,000 and 3,200 credits in their pools. `liquidity`
     // beside `pool` is b = pool / ln 2 and must never reach the screen
     // (owner report 2026-08-30).
@@ -354,15 +383,24 @@ describe('liquidity on the card', () => {
       ],
     } as never);
     renderPage();
-    expect(await screen.findByText(/4,200 cr liquidity · 14 participants · 108 trades this week/)).toBeInTheDocument();
+    expect(await screen.findByTitle(/4,200 credits in the pools/)).toHaveTextContent('4,200');
     expect(screen.queryByText(/6,059|1,443|4,617/)).toBeNull();
+  });
+
+  test('a deep pool takes the short form the market page uses', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      ...payload,
+      markets: [{ ...payload.markets[0], pool: 24600 }],
+    } as never);
+    renderPage();
+    expect(await screen.findByTitle(/25k credits in the pools/)).toHaveTextContent('25k');
   });
 
   test('a workspace with no open markets says nothing about liquidity rather than zero', async () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({ ...payload, markets: [] } as never);
     renderPage();
-    await screen.findByText(/14 participants/);
-    expect(screen.queryByText(/liquidity/)).toBeNull();
+    await screen.findByTitle(/14 participants/);
+    expect(screen.queryByTitle(/credits in the pools/)).toBeNull();
   });
 
   test('the grid is ordered by liquidity, deepest first', async () => {
@@ -376,9 +414,9 @@ describe('liquidity on the card', () => {
       return { ...payload, markets: [{ ...payload.markets[0], pool }] } as never;
     });
     renderPage();
-    await screen.findByText(/9,000 cr liquidity/);
-    await screen.findByText(/50 cr liquidity/);
-    await screen.findByText(/700 cr liquidity/);
+    await screen.findByTitle(/9,000 credits in the pools/);
+    await screen.findByTitle(/^50 credits in the pools/);
+    await screen.findByTitle(/700 credits in the pools/);
     const names = Array.from(document.querySelectorAll('.mkt-card-name')).map(n => n.textContent);
     expect(names).toEqual(['Deep', 'Mid', 'Shallow']);
   });
@@ -391,8 +429,8 @@ describe('liquidity on the card', () => {
       return { ...payload, markets: [{ ...payload.markets[0], pool }] } as never;
     });
     renderPage();
-    await screen.findByText(/5,000 cr liquidity/);
-    await screen.findByText(/10 cr liquidity/);
+    await screen.findByTitle(/5,000 credits in the pools/);
+    await screen.findByTitle(/^10 credits in the pools/);
     const names = Array.from(document.querySelectorAll('.mkt-card-name')).map(n => n.textContent);
     expect(names).toEqual(['LookPilot', 'Mine']);
   });

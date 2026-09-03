@@ -8,13 +8,13 @@
  * (docs/owner-on-the-floor.md): the Inject button opens the inject-liquidity
  * dialog beside the number it changes, never on a settings screen.
  */
-function short(n: number): string {
+export function short(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`;
   if (n >= 10_000) return `${Math.round(n / 1000)}k`;
   return Math.round(n).toLocaleString('en-US');
 }
 
-const People = () => (
+export const People = () => (
   <svg
     width="14"
     height="14"
@@ -32,7 +32,7 @@ const People = () => (
     <path d="M21.5 20a6.5 6.5 0 0 0-5-6.3" />
   </svg>
 );
-const Drop = () => (
+export const Drop = () => (
   <svg
     width="14"
     height="14"
@@ -47,7 +47,7 @@ const Drop = () => (
     <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />
   </svg>
 );
-const Bars = () => (
+export const Bars = () => (
   <svg
     width="14"
     height="14"
@@ -62,6 +62,26 @@ const Bars = () => (
     <path d="M10 20V4" />
     <path d="M16 20v-7" />
     <path d="M22 20H2" />
+  </svg>
+);
+
+/** A proposal being priced: the marketplace card's fourth fact. */
+export const Page = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+    <path d="M14 3v6h6" />
+    <path d="M8 13h8" />
+    <path d="M8 17h5" />
   </svg>
 );
 
