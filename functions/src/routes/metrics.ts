@@ -17,7 +17,7 @@ import { fromUnits, liquiditySpendableUnits } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { emitEvent } from '../services/events';
-import { voidOpenMarketsForMetrics } from '../services/markets';
+import { voidMarketsById, voidOpenMarketsForMetrics } from '../services/markets';
 import * as svc from '../services/metrics';
 import type { TimePreference } from '../types';
 
@@ -509,8 +509,39 @@ metricsRouter.put(
     // pool refunds to its funders) and respawned below at the new machinery.
     // This is what lets a metric be created from a name and a description
     // alone and get its range right before the first trade.
+    // The range is the exception (docs/market-integrity.md, "The range
+    // applies from now on"): a range edit never touches a traded book, so it
+    // is never refused. It voids and respawns the untraded books and applies
+    // to every book that opens later; a traded book keeps the range it
+    // opened with, to its settlement (owner report 2026-09-03: the control
+    // vanished once any book was traded, with no way to widen a range a
+    // live book had outgrown).
+    const onlyTheRange = settlementFields.length === 1 && settlementFields[0] === 'the market range';
     let respawnAfterMachineryChange = false;
-    if (settlementFields.length > 0) {
+    if (onlyTheRange) {
+      const openMarkets = await db
+        .select({ id: markets.id })
+        .from(markets)
+        .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)));
+      if (openMarkets.length > 0) {
+        const tradedRows = await db
+          .selectDistinct({ marketId: trades.marketId })
+          .from(trades)
+          .where(
+            and(
+              eq(trades.workspaceId, workspaceId),
+              inArray(
+                trades.marketId,
+                openMarkets.map(m => m.id),
+              ),
+            ),
+          );
+        const tradedIds = new Set(tradedRows.map(r => r.marketId));
+        const untraded = openMarkets.filter(m => !tradedIds.has(m.id)).map(m => m.id);
+        if (untraded.length > 0) await voidMarketsById(untraded, workspaceId);
+        respawnAfterMachineryChange = true;
+      }
+    } else if (settlementFields.length > 0) {
       const openMarkets = await db
         .select({ id: markets.id, targetDate: markets.targetDate })
         .from(markets)

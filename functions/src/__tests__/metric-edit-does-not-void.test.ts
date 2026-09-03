@@ -227,18 +227,20 @@ describe('the machinery half: refused while a market is open', () => {
     expect((await market()).resolved).toBe(false);
   });
 
-  test('the market range cannot change under a traded market', async () => {
+  test('the market range applies from now on: the traded market keeps its own range', async () => {
+    // Since 2026-09-03 (docs/market-integrity.md, "The range applies from
+    // now on") the edit is accepted; the traded book keeps the range it
+    // opened with, and the metric's number governs the books that follow.
+    // The rule itself is pinned in range-applies-from-now-on.test.ts.
     await seed();
     await buy(50);
     const res = await put({ marketRangeMax: 500 });
-    expect(res.status).toBe(409);
-    expect(res.body.fields).toEqual(['the market range']);
+    expect(res.status).toBe(200);
 
     const [row] = await db.select().from(metrics).where(eq(metrics.id, METRIC));
-    expect(row.marketRangeMax).toBe(100);
-    // The failure this prevents: metric says 0..500, market still prices
-    // 0..100, and nothing on screen says they differ.
+    expect(row.marketRangeMax).toBe(500);
     expect((await market()).rangeMax).toBe(100);
+    expect((await market()).voided).toBe(false);
   });
 
   test('with no open market, the same edit is allowed', async () => {

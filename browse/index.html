@@ -2390,16 +2390,23 @@ see whether the goalposts moved after they took their position. (A proposal's
 <code>proposal_revisions</code> are served and rendered; the metric's are the half that
 is missing.) Saving unchanged text writes nothing, because a log full of
 non-changes makes &quot;did anything move?&quot; harder to answer, not easier.</li>
-<li><strong>Machinery is refused while anyone is in the market, respawned while
-nobody is.</strong> A market stores its own <code>rangeMin</code>/<code>rangeMax</code> and prices inside
-them, so changing the metric's range under a traded market makes the stated
-range and the traded range disagree with nothing on screen saying so; that
-edit is refused with a 409 naming the field and the market. But a book
-nobody has money in protects nobody: while every open market on the metric
-is untraded, the edit voids them (each pool refunds to its funders) and the
-reconcile respawns them at the new machinery. This is what lets a metric be
-created with only a name and a description and get its range right
-afterwards, before the first trade.</li>
+<li><strong>The formula is refused while anyone is in the market, respawned while
+nobody is.</strong> A formula change redefines the number every open market
+settles on; that edit is refused with a 409 naming the field and the
+market. But a book nobody has money in protects nobody: while every open
+market on the metric is untraded, the edit voids them (each pool refunds
+to its funders) and the reconcile respawns them at the new machinery.</li>
+<li><strong>The range applies from now on, never under anyone's money.</strong> A market
+stores its own <code>rangeMin</code>/<code>rangeMax</code> and prices inside them, so a range
+edit on the metric (<code>marketRangeMax</code>) applies to every book that opens
+after it and to every open book nobody has traded (voided and respawned
+at the new range, pools refunded); a traded book keeps the range it
+opened with, to its settlement, and the floor says so beside it. This is
+what lets a metric be created with only a name and a description and
+get its range right afterwards, and lets an owner widen a range that a
+live book has already outgrown without waiting for it to settle. A
+traded book's range never grows: a reading above it settles at the top,
+as always.</li>
 <li><strong>A leaf metric's <code>value</code> is a measurement, not a definition.</strong> It is always
 allowed; the daily sync depends on it. On a computed metric <code>value</code> is not
 settable: a value in the request is ignored and the stored value is the
@@ -2596,7 +2603,15 @@ the ledger ever disagree, the ledger is right.</p>
 </tr>
 <tr>
 <td><code>metric-edit-does-not-void.test.ts</code></td>
-<td>words edit in place with the market, price and positions intact; revisions logged with old and new; rename syncs <code>markets.metricName</code>; machinery 409s while open and applies once closed.</td>
+<td>words edit in place with the market, price and positions intact; revisions logged with old and new; rename syncs <code>markets.metricName</code>; the formula 409s while open and applies once closed; a range edit leaves the traded book's range alone.</td>
+</tr>
+<tr>
+<td><code>range-applies-from-now-on.test.ts</code></td>
+<td>a range edit with a traded book is accepted; the traded book keeps its range; untraded books void and respawn at the new range; the formula is still refused.</td>
+</tr>
+<tr>
+<td><code>open-at-the-traded-sibling.test.ts</code></td>
+<td>a new baseline book opens at the nearest-settling traded sibling's price; the reading governs when there is none or it has settled.</td>
 </tr>
 <tr>
 <td><code>market-freeze.test.ts</code></td>
@@ -2920,14 +2935,35 @@ modal (the bet ticket's anatomy: centered tertiary labels, bottom-line
 inputs, one full-width ink button that carries its own cost, the segmented
 picker). All three appear only to callers with the <code>manage</code> capability, as
 additions to the page a visitor sees.</p>
-<p><strong>1. New metric</strong>, opened from <code>+ metric</code> at the end of the metric picker
-row. Two fields: the name, and what it is. The description is the settlement
-sentence, so the dialog says so: the market settles on these words, they can
-be refined later, and every edit is kept and shown. Nothing else is asked;
-the range defaults and is corrected later (see &quot;machinery&quot; below), value
-starts at zero, and the first reading is what makes the number real. Adding
-the metric immediately opens dialog 2 for it, because a metric with no date
-has no market and the flow does not let the owner stop before one.</p>
+<p><strong>1. The metrics</strong>, opened from the <code>metrics</code> chip at the end of the
+metric picker row, the twin of the <code>dates</code> chip on the row beneath it. It
+opens on the list, one line per metric: the name, the range its books
+price inside, how many dates it has, and whether anyone is in it. A list
+that could only be added to was a list that could only be got wrong once
+(owner ask 2026-08-31), and a control that vanished without a trace read
+as a control that never existed (owner report 2026-09-03: &quot;where do i
+modify metric raange exactly i dont see tha tsetting anywhere&quot;). Adding
+one is folded behind a single &quot;+ Add a metric&quot; chip under the list, and
+open, with no chip, while the floor has none. The add form is two fields:
+the name, and what it is. The description is the settlement sentence, so
+the form says so: the market settles on these words, they can be refined
+later, and every edit is kept and shown. Nothing else is asked; the range
+defaults and is corrected on the sheet, value starts at zero, and the
+first reading is what makes the number real. Adding the metric
+immediately opens dialog 2 for it, because a metric with no date has no
+market and the flow does not let the owner stop before one.</p>
+<p>Tapping a line opens <strong>the metric's sheet</strong>, everything the floor knows
+about it on its own line, edited in place: the name and what it is (the
+words, free to edit, every change kept as a revision); the range, with
+the rule printed under the field in the words that apply right now
+(&quot;Nobody has traded, so this re-opens every book at the new range&quot; or
+&quot;1 book is traded and keeps its range; the new range applies to every
+book that opens after this&quot;, <code>docs/market-integrity.md</code>, &quot;The range
+applies from now on&quot;); the dates, as a line that opens dialog 2; how long
+after a period the number is final; the credits a new book opens with
+(<code>metrics.liquidityCredits</code>); and, in the footer, the remove link with
+the confirmation dialog 2 has today. The sheet is where an owner goes
+looking for the range; the report dialog (4) is where it finds them.</p>
 <p><strong>2. The dates</strong>, opened from the <code>dates</code> chip on the date row, or straight
 after dialog 1 while the metric still has none. It opens on the list: each
 line says what the metric is priced on (&quot;Every month&quot;, &quot;Every day&quot;,
@@ -4838,6 +4874,16 @@ every daily market, and every conditional branch under it, at $20, and a
 valuation reading $0 on a 0-20,000,000 range opened at $400,000. A reading
 inside the clamp opens at the reading itself; a reading at the edge opens
 one part in a thousand from it, which is the closest a solvent book gets.</p>
+<p><strong>A baseline book on a metric that already has a traded open book opens
+at that book's price, not at the reading.</strong> The traded book whose settlement
+is nearest the new one's is the market's own forecast of the same number,
+and the only price on the floor anyone has paid for; the reading is the
+past, and on a metric that voids until measured it is not even a number.
+A yearly valuation book that opened at the $0 reading, clamped to $20,000,
+beside a September book five trades had carried to $820,000, told a
+stranger the floor expected a forty-fold fall nobody believed and nobody
+bet. Only a metric with no traded open book opens at the reading, as
+above. A conditional pair keeps anchoring to its own baseline.</p>
 <p><strong>Every path that opens a book on an untraded baseline market opens it the
 same way.</strong> The daily spawn, the refresh that funds a market which opened
 unfunded because the balance was short, a hand-made market from
@@ -7661,8 +7707,8 @@ goal line is a market rather than a column.</p>
 the range at spawn time and prices inside it, ranges start at zero, and
 settlement clamps the actual value to the range top. A metric that can reach
 500,000 on a range of 1,000 settles at the ceiling and pays every &quot;higher&quot;
-holder in full no matter what happened. You cannot change the range while a
-market is open, which is the next section.</p>
+holder in full no matter what happened. A range edit later applies from now
+on, which is the next section: a traded book keeps the range it opened with.</p>
 <h2 id="docs-guides-creating-md--h5">Editing, and the two edits that are refused</h2>
 <p>Since 2026-08-18, editing a definition does not void markets. That rule splits
 the fields in two.</p>
@@ -7674,10 +7720,17 @@ and who changed it. There is no endpoint serving those rows today, so treat the
 table as an internal audit trail rather than as disclosure to your traders. If
 a reworded definition changes what the market settles on, say so in an
 announcement.</p>
-<p><strong>Machinery is refused.</strong> <code>formula</code> and <code>marketRangeMax</code> are what an open market
-settles on, so changing either while any market on that metric is unresolved
-returns 409 naming the field and the market. Wait for it to resolve, or void it
-deliberately first.</p>
+<p><strong>The formula is refused.</strong> <code>formula</code> is what an open market settles on, so
+changing it while any market on that metric has trades returns 409 naming the
+field and the market. Wait for it to resolve, or void it deliberately first.
+While every open market on the metric is untraded, the edit voids them (pools
+refunded) and respawns them at the new formula.</p>
+<p><strong>The range applies from now on.</strong> <code>marketRangeMax</code> is accepted at any time. A
+traded market keeps the range it opened with until it settles; every untraded
+open market is voided (its pool refunded) and respawned at the new range, and
+every market that opens afterwards uses it. Nobody's money moves under a
+changed rule, and a range a live market has outgrown can be widened for the
+markets that follow.</p>
 <p>A <code>value</code> sent to a computed metric is not refused and not stored: the route
 sets the stored value to 0 and returns 200, because a computed metric reads its
 formula and nothing else. To move the number, change the formula or the leaves
@@ -8121,9 +8174,12 @@ max({Output} - 500, 0)
 <h2 id="docs-guides-formulas-md--h5">The edit a live market refuses</h2>
 <p>A formula is what an open market settles on, so changing it while any market on
 that metric is unresolved is refused with 409, naming the field and the market.
-<code>marketRangeMax</code> is refused the same way, and on a computed metric so is a
-<code>value</code> you try to write. Wait for the market to resolve, or void it
-deliberately first. Getting the formula right before the first market opens is
+On a computed metric so is a <code>value</code> you try to write. Wait for the market
+to resolve, or void it deliberately first. <code>marketRangeMax</code> is the exception:
+a range edit is accepted at any time and applies from now on, to every book
+that opens after it and to the open books nobody has traded (voided and
+respawned at the new range, pools refunded); a traded book keeps the range it
+opened with until it settles. Getting the formula right before the first market opens is
 much cheaper than either.</p>
 <p>Names and descriptions are not settlement machinery and change freely, at any
 time, with the market untouched. See <a href="/guides/creating">open a floor</a> for the
