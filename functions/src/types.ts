@@ -27,6 +27,10 @@ export interface Metric {
   marketRangeMax?: number;
   /** Markets void (N/A) while the metric has no logged reading; see schema. */
   resolvesNaUntilMeasured?: boolean;
+  /** How long after a period the number is final, in minutes (docs/guides/sources.md). */
+  settlementLagMinutes?: number;
+  /** Credits a new book on this metric opens with; null means the workspace default. */
+  liquidityCredits?: number | null;
   timeSeries?: Array<{ date: string; value: number }>;
   missingMarkets?: string[];
   /** Half-life inherited from the nearest TP-enabled ancestor. Set on descendants
