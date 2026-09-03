@@ -240,7 +240,14 @@ export async function recordReply(input: {
  * data points are not a finding, and copy advice from three data points is
  * how superstition starts.
  */
-export function summarise(rows: { likes: number | null; hasNumber: boolean; disagrees: boolean; length: number }[]) {
+export function summarise(
+  rows: {
+    likes: number | null;
+    hasNumber: boolean;
+    disagrees: boolean;
+    length: number;
+  }[],
+) {
   const scored = rows.filter(r => r.likes !== null) as {
     likes: number;
     hasNumber: boolean;
@@ -260,7 +267,11 @@ export function summarise(rows: { likes: number | null; hasNumber: boolean; disa
   const feature = (pick: (r: (typeof scored)[number]) => boolean, label: string) => {
     const on = mean(scored.filter(pick).map(r => r.likes));
     const off = mean(scored.filter(r => !pick(r)).map(r => r.likes));
-    return { label, on: Math.round(on * 10) / 10, off: Math.round(off * 10) / 10 };
+    return {
+      label,
+      on: Math.round(on * 10) / 10,
+      off: Math.round(off * 10) / 10,
+    };
   };
   return {
     enough: true,
@@ -288,7 +299,11 @@ export async function refreshMetrics(limit = 25) {
       const post = await fetchPost(row.replyId as string);
       await db
         .update(xReplies)
-        .set({ likes: post.likes, replies: post.replies, metricsAt: new Date() })
+        .set({
+          likes: post.likes,
+          replies: post.replies,
+          metricsAt: new Date(),
+        })
         .where(eq(xReplies.id, row.id));
       updated++;
     } catch {
@@ -336,7 +351,83 @@ What a good query is here:
 - Different from the queries that yielded nothing before. Adjacent to the ones that produced replies people engaged with.
 - Narrow enough that the Latest tab is readable. If it would return a wall, add a min_faves or a second required term.
 
-Return JSON only: {"query": "...", "rationale": "<one sentence: what this should surface and why, given what worked before>"}`;
+Hand the proposal back through the propose_query tool: the query, and a rationale of one sentence (under 40 words) on what it should surface and why, given what worked before.`;
+
+/** The shape the model is made to answer in, so nothing is scraped out of prose. */
+const PROPOSE_QUERY_TOOL = {
+  name: 'propose_query',
+  description: 'The one X search query to run next, with a one-sentence rationale.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      query: { type: 'string', description: 'The query, in X search syntax.' },
+      rationale: {
+        type: 'string',
+        description: 'One sentence, under 40 words.',
+      },
+    },
+    required: ['query', 'rationale'],
+  },
+};
+
+type MessageBlock = { type?: string; text?: string; input?: unknown };
+
+/**
+ * The proposal out of a messages response. The forced tool call is the shape
+ * asked for; the text fallbacks exist because a model that answers in prose
+ * anyway (a fenced block, a preamble, a rationale long enough to lose its
+ * closing brace) still contains the query, and losing it over a brace is what
+ * "Search suggestion came back unparseable" was. Only a reply with no query
+ * at all fails.
+ */
+export function parseSuggestion(body: { content?: MessageBlock[] }): {
+  query: string;
+  rationale: string;
+} {
+  const blocks = body.content ?? [];
+  const fail = () => new AppError('Search suggestion came back with no query.', 502);
+  const clean = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+
+  const call = blocks.find(b => b.type === 'tool_use' && b.input && typeof b.input === 'object');
+  if (call) {
+    const input = call.input as { query?: unknown; rationale?: unknown };
+    const query = clean(input.query);
+    if (!query) throw fail();
+    return { query, rationale: clean(input.rationale) };
+  }
+
+  const raw = blocks.map(b => b.text ?? '').join('');
+  const start = raw.indexOf('{');
+  if (start === -1) throw fail();
+  const chunk = raw.slice(start).replace(/```\s*$/, '');
+  const candidates = [chunk, chunk.trim() + '}', chunk.trim() + '"}'];
+  for (const c of candidates) {
+    const end = c.lastIndexOf('}');
+    if (end === -1) continue;
+    try {
+      const parsed = JSON.parse(c.slice(0, end + 1)) as {
+        query?: unknown;
+        rationale?: unknown;
+      };
+      const query = clean(parsed.query);
+      if (query) return { query, rationale: clean(parsed.rationale) };
+    } catch {
+      /* try the next repair */
+    }
+  }
+  const field = (name: string) => {
+    const m = chunk.match(new RegExp(`"${name}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`));
+    if (!m) return '';
+    try {
+      return clean(JSON.parse(`"${m[1]}"`));
+    } catch {
+      return clean(m[1]);
+    }
+  };
+  const query = field('query');
+  if (!query) throw fail();
+  return { query, rationale: field('rationale') };
+}
 
 /**
  * The next query to try, chosen against the record of what past queries
@@ -361,22 +452,27 @@ export async function suggestSearch(avoid: string[] = []): Promise<{ query: stri
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+    },
     body: JSON.stringify({
       model: process.env.X_DRAFT_MODEL ?? 'claude-sonnet-5',
-      max_tokens: 300,
+      max_tokens: 600,
       system: SEARCH_RULES + (profile ? `\n\nWHO HE IS AND WHAT HE CAN SPEAK TO:\n${profile}` : ''),
-      messages: [{ role: 'user', content: `${record}${banned}\n\nPropose the next query.` }],
+      messages: [
+        {
+          role: 'user',
+          content: `${record}${banned}\n\nPropose the next query.`,
+        },
+      ],
+      tools: [PROPOSE_QUERY_TOOL],
+      tool_choice: { type: 'tool', name: 'propose_query' },
     }),
   });
   if (!res.ok) throw new AppError(`Search suggestion failed (${res.status}).`, 502);
-  const body = (await res.json()) as { content?: { text?: string }[] };
-  const raw = (body.content ?? []).map(c => c.text ?? '').join('');
-  const match = raw.match(/\{[\s\S]*\}/);
-  if (!match) throw new AppError('Search suggestion came back unparseable.', 502);
-  const parsed = JSON.parse(match[0]) as { query?: string; rationale?: string };
-  if (!parsed.query?.trim()) throw new AppError('Search suggestion came back empty.', 502);
-  return { query: parsed.query.trim(), rationale: (parsed.rationale ?? '').trim() };
+  return parseSuggestion((await res.json()) as { content?: MessageBlock[] });
 }
 
 export async function saveSearch(query: string, rationale?: string) {
@@ -409,7 +505,10 @@ export async function harvestSearch(searchId: string, ids: string[]) {
   }
   await db
     .update(xSearches)
-    .set({ harvested: sql`${xSearches.harvested} + ${ids.length}`, lastUsedAt: new Date() })
+    .set({
+      harvested: sql`${xSearches.harvested} + ${ids.length}`,
+      lastUsedAt: new Date(),
+    })
     .where(eq(xSearches.id, searchId));
   return { posts, failed };
 }

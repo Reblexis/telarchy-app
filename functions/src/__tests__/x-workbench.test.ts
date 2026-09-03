@@ -3,7 +3,14 @@
  * because every rule here is arithmetic or a regex: they run in milliseconds
  * and fail with the value rather than a status code.
  */
-import { disagrees, hasNumber, parsePostId, summarise, syndicationToken } from '../services/x-workbench';
+import {
+  disagrees,
+  hasNumber,
+  parsePostId,
+  parseSuggestion,
+  summarise,
+  syndicationToken,
+} from '../services/x-workbench';
 
 describe('parsePostId', () => {
   test('takes a bare id', () => {
@@ -52,7 +59,11 @@ describe('reply features', () => {
 describe('summarise', () => {
   const reply = (
     likes: number | null,
-    over: Partial<{ hasNumber: boolean; disagrees: boolean; length: number }> = {},
+    over: Partial<{
+      hasNumber: boolean;
+      disagrees: boolean;
+      length: number;
+    }> = {},
   ) => ({
     likes,
     hasNumber: false,
@@ -85,5 +96,69 @@ describe('summarise', () => {
     expect(out.anyEngagement).toBe(50);
     const numbers = out.features?.find(f => f.label === 'carries a number');
     expect(numbers).toEqual({ label: 'carries a number', on: 10, off: 0 });
+  });
+});
+
+describe('parseSuggestion', () => {
+  // docs/x-workbench.md, "Get a search prompt": the proposal is a structured
+  // field, and a fenced block, a preamble, or a rationale long enough to lose
+  // its closing brace is not a reason for the button to fail. Each of the text
+  // shapes below is one the model actually returned on 2026-09-03, and the
+  // third is the one that produced "Search suggestion came back unparseable".
+  const tool = (input: unknown) => ({
+    content: [{ type: 'tool_use', name: 'propose_query', input }],
+  });
+  const text = (t: string) => ({ content: [{ type: 'text', text: t }] });
+
+  test('reads the forced tool call, which is the shape asked for', () => {
+    expect(parseSuggestion(tool({ query: 'forecasting min_faves:5', rationale: 'because' }))).toEqual({
+      query: 'forecasting min_faves:5',
+      rationale: 'because',
+    });
+  });
+
+  test('trims the query and tolerates a missing rationale', () => {
+    expect(parseSuggestion(tool({ query: '  a OR b  ' }))).toEqual({
+      query: 'a OR b',
+      rationale: '',
+    });
+  });
+
+  test('a fenced json block still parses', () => {
+    expect(parseSuggestion(text('```json\n{"query": "q1", "rationale": "r1"}\n```'))).toEqual({
+      query: 'q1',
+      rationale: 'r1',
+    });
+  });
+
+  test('a preamble before the object still parses', () => {
+    expect(parseSuggestion(text('Here is the query:\n{"query": "q2", "rationale": "r2"}'))).toEqual({
+      query: 'q2',
+      rationale: 'r2',
+    });
+  });
+
+  test('Search suggestion came back unparseable: a reply that lost its closing brace still yields the query', () => {
+    const raw =
+      '{"query": "(\\"forecasting is useless\\" OR \\"nobody can predict\\") -filter:replies min_faves:5 lang:en", "rationale": "Surfaces original posts where people argue that forecasting does not work."';
+    expect(parseSuggestion(text(raw))).toEqual({
+      query: '("forecasting is useless" OR "nobody can predict") -filter:replies min_faves:5 lang:en',
+      rationale: 'Surfaces original posts where people argue that forecasting does not work.',
+    });
+  });
+
+  test('a reply cut off inside the rationale still yields the query', () => {
+    const raw = '{"query": "q3", "rationale": "this goes on and on and';
+    expect(parseSuggestion(text(raw))).toEqual({
+      query: 'q3',
+      rationale: 'this goes on and on and',
+    });
+  });
+
+  test('a reply with no query at all is the one failure, and says so', () => {
+    expect(() => parseSuggestion(text('I cannot propose a query.'))).toThrow(/no query/);
+    expect(() => parseSuggestion(text('{"rationale": "only this"}'))).toThrow(/no query/);
+    expect(() => parseSuggestion(tool({ query: '   ' }))).toThrow(/no query/);
+    expect(() => parseSuggestion({ content: [] })).toThrow(/no query/);
   });
 });
