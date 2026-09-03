@@ -3,6 +3,8 @@
  * because every rule here is arithmetic or a regex: they run in milliseconds
  * and fail with the value rather than a status code.
  */
+
+import type { ProposalBody } from '../services/x-workbench';
 import {
   disagrees,
   hasNumber,
@@ -12,6 +14,7 @@ import {
   parseSuggestion,
   summarise,
   syndicationToken,
+  withoutDashes,
 } from '../services/x-workbench';
 
 describe('parsePostId', () => {
@@ -113,9 +116,18 @@ describe('parseSuggestion', () => {
   const text = (t: string) => ({ content: [{ type: 'text', text: t }] });
 
   test('reads the forced tool call, which is the shape asked for', () => {
-    expect(parseSuggestion(tool({ query: 'forecasting min_faves:5', rationale: 'because' }))).toEqual({
+    expect(
+      parseSuggestion(
+        tool({
+          query: 'forecasting min_faves:5',
+          rationale: 'because',
+          answer: '',
+        }),
+      ),
+    ).toEqual({
       query: 'forecasting min_faves:5',
       rationale: 'because',
+      answer: '',
     });
   });
 
@@ -123,6 +135,7 @@ describe('parseSuggestion', () => {
     expect(parseSuggestion(tool({ query: '  a OR b  ' }))).toEqual({
       query: 'a OR b',
       rationale: '',
+      answer: '',
     });
   });
 
@@ -130,6 +143,7 @@ describe('parseSuggestion', () => {
     expect(parseSuggestion(text('```json\n{"query": "q1", "rationale": "r1"}\n```'))).toEqual({
       query: 'q1',
       rationale: 'r1',
+      answer: '',
     });
   });
 
@@ -137,6 +151,7 @@ describe('parseSuggestion', () => {
     expect(parseSuggestion(text('Here is the query:\n{"query": "q2", "rationale": "r2"}'))).toEqual({
       query: 'q2',
       rationale: 'r2',
+      answer: '',
     });
   });
 
@@ -146,6 +161,7 @@ describe('parseSuggestion', () => {
     expect(parseSuggestion(text(raw))).toEqual({
       query: '("forecasting is useless" OR "nobody can predict") -filter:replies min_faves:5 lang:en',
       rationale: 'Surfaces original posts where people argue that forecasting does not work.',
+      answer: '',
     });
   });
 
@@ -154,6 +170,32 @@ describe('parseSuggestion', () => {
     expect(parseSuggestion(text(raw))).toEqual({
       query: 'q3',
       rationale: 'this goes on and on and',
+      answer: '',
+    });
+  });
+
+  test('reads a gateway reply, and the answer beside the query', () => {
+    expect(
+      parseSuggestion({
+        choices: [
+          {
+            message: {
+              tool_calls: [
+                {
+                  function: {
+                    name: 'propose_query',
+                    arguments: '{"query":"q9","rationale":"r9","answer":"Narrower, as you asked."}',
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      query: 'q9',
+      rationale: 'r9',
+      answer: 'Narrower, as you asked.',
     });
   });
 
@@ -219,12 +261,47 @@ describe('parseDraft', () => {
     });
   });
 
-  test('plain prose with no object is taken as the text, so nothing is lost', () => {
+  test('plain prose with no object is taken as its answer, so nothing is lost and no prose lands in the draft', () => {
     expect(parseDraft(text('Just a sentence.'))).toEqual({
-      text: 'Just a sentence.',
+      text: '',
       reason: 'draft',
-      answer: '',
+      answer: 'Just a sentence.',
     });
+  });
+
+  // docs/x-workbench.md, "Drafting": a slug with a provider prefix goes through
+  // the gateway, whose replies have the OpenAI shape.
+  test('reads a gateway reply: the tool call arguments, or prose as its answer', () => {
+    const gw = (message: NonNullable<ProposalBody['choices']>[number]['message']) => ({ choices: [{ message }] });
+    expect(
+      parseDraft(
+        gw({
+          content: null,
+          tool_calls: [
+            {
+              function: {
+                name: 'draft',
+                arguments: '{"text":"T","reason":"test","answer":"A"}',
+              },
+            },
+          ],
+        }),
+      ),
+    ).toEqual({ text: 'T', reason: 'test', answer: 'A' });
+    expect(parseDraft(gw({ content: 'Only prose.' }))).toEqual({
+      text: '',
+      reason: 'draft',
+      answer: 'Only prose.',
+    });
+  });
+});
+
+describe('a draft never carries an em-dash or an en-dash (docs/x-workbench.md, "Drafting")', () => {
+  test('one the model wrote becomes a comma before he sees it', () => {
+    expect(withoutDashes('Not a chart — an org structure.')).toBe('Not a chart, an org structure.');
+    expect(withoutDashes('a—b')).toBe('a, b');
+    expect(withoutDashes('2024–2026')).toBe('2024, 2026');
+    expect(withoutDashes('a - b and -filter:replies')).toBe('a - b and -filter:replies');
   });
 });
 

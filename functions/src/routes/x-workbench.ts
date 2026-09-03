@@ -156,7 +156,12 @@ xWorkbenchRouter.post(
   wrap(async (req, res) => {
     await requireOwner(req);
     const avoid = Array.isArray(req.body?.avoid) ? req.body.avoid.map(String).slice(0, 20) : [];
-    res.json({ suggestion: await suggestSearch(avoid) });
+    const messages = Array.isArray(req.body?.messages)
+      ? (req.body.messages as DraftTurn[]).filter(
+          m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim(),
+        )
+      : [];
+    res.json({ suggestion: await suggestSearch(avoid, messages) });
   }),
 );
 

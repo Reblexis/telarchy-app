@@ -1137,7 +1137,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/admin/x/draft',
       auth: 'admin',
       description:
-        "Draft a reply to a post, or argue about the draft (platform admin). Body: { postText (required), postId?, postAuthor?, messages: [{ role: 'user'|'assistant', content }] }. The messages carry the whole conversation, so a follow-up like 'shorter' means shorter than the last draft. Returns { draft: { reply, reason, answer } }, where reason is one word (disagree|number|question|counterexample|skip), an empty reply with reason 'skip' is a legitimate answer, and answer is what it says to the owner (what it changed, why it holds its ground, or the reply to what he asked). Writes in the owner's voice using the profile stored via /api/admin/x/profile and a digest of what his recorded replies earned. 503 when ANTHROPIC_API_KEY is not set.",
+        "Draft a reply to a post, or argue about the draft (platform admin). Body: { postText (required), postId?, postAuthor?, messages: [{ role: 'user'|'assistant', content }] }. The messages carry the whole conversation, so a follow-up like 'shorter' means shorter than the last draft. Returns { draft: { reply, reason, answer } }, where reason is one word (disagree|number|question|counterexample|skip), an empty reply with reason 'skip' is a legitimate answer, and answer is what it says to the owner (what it changed, why it holds its ground, or the reply to what he asked). Writes in the owner's voice using the profile stored via /api/admin/x/profile and a digest of what his recorded replies earned. The model and its effort are X_DRAFT_MODEL (default claude-fable-5-1; a provider-prefixed slug goes through the AI gateway) and X_DRAFT_EFFORT (default high). 503 when the drafting key is not set.",
     },
     {
       method: 'POST',
@@ -1165,7 +1165,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/admin/x/searches/suggest',
       auth: 'admin',
       description:
-        'Propose the next X search query to run BY HAND (platform admin). X search needs a paid credential, so the loop is: this proposes, the owner runs it, he pastes the ids back. The proposal is made against what past queries produced (posts pasted back, replies sent, likes earned), not against a hunch. Body: { avoid?: string[] } (queries not to repeat). Returns { suggestion: { query, rationale } }. 503 without ANTHROPIC_API_KEY.',
+        "Propose the next X search query to run by hand, or argue about the proposal (platform admin). Body: { avoid?: string[], messages?: [{ role: 'user'|'assistant', content }] }, the same conversation shape as /api/admin/x/draft. Returns { suggestion: { query, rationale, answer } }: the query in X search syntax, one sentence on why given what past queries produced, and what it says to the owner. The model and its effort are X_DRAFT_MODEL and X_DRAFT_EFFORT (docs/x-workbench.md, 'Drafting'). 503 when the drafting key is not set.",
     },
     {
       method: 'POST',

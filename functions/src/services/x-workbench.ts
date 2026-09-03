@@ -196,7 +196,40 @@ const DRAFT_TOOL = {
 
 type MessageBlock = { type?: string; text?: string; input?: unknown };
 
+/** A reply from either transport: Anthropic content blocks, or the gateway's
+ *  OpenAI-shaped choices. */
+export type ProposalBody = {
+  content?: MessageBlock[];
+  choices?: {
+    message?: {
+      content?: string | null;
+      tool_calls?: { function?: { name?: string; arguments?: string } }[];
+    };
+  }[];
+};
+
 const clean = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+
+/** The tool call's input, from whichever shape the reply has, or null. */
+function toolInput(body: ProposalBody): Record<string, unknown> | null {
+  const block = (body.content ?? []).find(b => b.type === 'tool_use' && b.input && typeof b.input === 'object');
+  if (block) return block.input as Record<string, unknown>;
+  const args = body.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+  if (typeof args === 'string' && args.trim()) {
+    try {
+      return JSON.parse(args) as Record<string, unknown>;
+    } catch {
+      return readObject(args, ['text', 'reply', 'post', 'reason', 'answer', 'note', 'query', 'rationale']);
+    }
+  }
+  return null;
+}
+
+/** Whatever prose the reply carried, from whichever shape. */
+function proseOf(body: ProposalBody): string {
+  const blocks = (body.content ?? []).map(b => b.text ?? '').join('');
+  return blocks || (body.choices?.[0]?.message?.content ?? '');
+}
 
 /**
  * The first {...} in a text answer, repaired when the model lost the closing
@@ -233,28 +266,27 @@ function readObject(raw: string, fields: string[]): Record<string, string> | nul
 }
 
 /**
- * A draft out of a messages response: the forced tool call first, then a
- * text answer read leniently (fenced, prefixed, brace-less), then plain
- * prose taken as the text itself so nothing he paid for is thrown away.
+ * A draft out of a reply from either transport: the tool call first, then a
+ * text answer read leniently (fenced, prefixed, brace-less), then plain prose
+ * taken as what it says to him, so nothing he paid for is thrown away and no
+ * prose lands in the draft box.
  */
-export function parseDraft(body: { content?: MessageBlock[] }): {
+export function parseDraft(body: ProposalBody): {
   text: string;
   reason: string;
   answer: string;
 } {
-  const blocks = body.content ?? [];
-  const call = blocks.find(b => b.type === 'tool_use' && b.input && typeof b.input === 'object');
-  if (call) {
-    const input = call.input as Record<string, unknown>;
+  const input = toolInput(body);
+  if (input) {
     return {
       text: clean(input.text ?? input.reply ?? input.post),
       reason: clean(input.reason) || 'draft',
       answer: clean(input.answer ?? input.note),
     };
   }
-  const raw = blocks.map(b => b.text ?? '').join('');
+  const raw = proseOf(body);
   const obj = readObject(raw, ['text', 'reply', 'post', 'reason', 'answer', 'note']);
-  if (!obj) return { text: raw.trim(), reason: 'draft', answer: '' };
+  if (!obj) return { text: '', reason: 'draft', answer: raw.trim() };
   return {
     text: obj.text || obj.reply || obj.post || '',
     reason: obj.reason || 'draft',
@@ -262,40 +294,117 @@ export function parseDraft(body: { content?: MessageBlock[] }): {
   };
 }
 
-/** One drafting call: the system prompt, the conversation, the forced tool. */
-async function callDraft(key: string, system: string, messages: DraftTurn[]) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: process.env.X_DRAFT_MODEL ?? 'claude-sonnet-5',
-      max_tokens: 800,
-      system,
-      messages,
-      tools: [DRAFT_TOOL],
-      tool_choice: { type: 'tool', name: 'draft' },
-    }),
-  });
-  if (!res.ok) throw new AppError(`Drafting failed (${res.status}).`, 502);
-  return parseDraft((await res.json()) as { content?: MessageBlock[] });
+/**
+ * Which model proposes, and how hard it thinks (docs/x-workbench.md,
+ * "Drafting"). A slug with a provider prefix (openai/gpt-5.6-luna) goes
+ * through the Vercel AI Gateway on the floor's key; anything else is a Claude
+ * model on the Anthropic key. Both settings change without a deploy.
+ */
+const DEFAULT_DRAFT_MODEL = 'claude-fable-5-1';
+const DEFAULT_DRAFT_EFFORT = 'high';
+const GATEWAY = 'https://ai-gateway.vercel.sh/v1/chat/completions';
+
+function draftModel(): string {
+  return process.env.X_DRAFT_MODEL || DEFAULT_DRAFT_MODEL;
+}
+function draftEffort(): string {
+  return process.env.X_DRAFT_EFFORT || DEFAULT_DRAFT_EFFORT;
+}
+function viaGateway(model: string): boolean {
+  return model.includes('/');
+}
+function draftKey(): string | undefined {
+  return viaGateway(draftModel()) ? process.env.AI_GATEWAY_API_KEY : process.env.ANTHROPIC_API_KEY;
 }
 
 export function draftingConfigured(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+  return Boolean(draftKey());
+}
+
+function requireDraftKey(): string {
+  const key = draftKey();
+  if (!key) {
+    const name = viaGateway(draftModel()) ? 'AI_GATEWAY_API_KEY' : 'ANTHROPIC_API_KEY';
+    throw new AppError(`Drafting is not configured (no ${name}).`, 503);
+  }
+  return key;
+}
+
+/** A draft never carries an em-dash or an en-dash: one the model wrote
+ *  anyway becomes a comma before he sees it. Hyphens are left alone, since
+ *  search operators and compound words need them. */
+export function withoutDashes(text: string): string {
+  return text.replace(/\s*[\u2014\u2013]\s*/g, ', ');
+}
+
+/** The shape a proposal is asked for, in the vocabulary each transport uses. */
+interface ProposalTool {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+}
+
+/**
+ * One proposing call: the system prompt, the conversation, the tool to
+ * answer through. Claude thinks adaptively at the set effort and is offered
+ * the tool (Fable refuses a forced choice); the gateway is asked to reason at
+ * the same effort and forced onto the tool, which OpenAI models accept.
+ */
+async function callProposal(system: string, messages: DraftTurn[], tool: ProposalTool, what: string): Promise<unknown> {
+  const key = requireDraftKey();
+  const model = draftModel();
+  const effort = draftEffort();
+  const res = viaGateway(model)
+    ? await fetch(GATEWAY, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model,
+          max_completion_tokens: 4000,
+          reasoning_effort: effort,
+          messages: [{ role: 'system', content: system }, ...messages],
+          tools: [
+            {
+              type: 'function',
+              function: {
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.input_schema,
+              },
+            },
+          ],
+          tool_choice: { type: 'function', function: { name: tool.name } },
+        }),
+      })
+    : await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 4000,
+          system,
+          messages,
+          tools: [tool],
+          thinking: { type: 'adaptive' },
+          output_config: { effort },
+        }),
+      });
+  if (!res.ok) throw new AppError(`${what} failed (${res.status}).`, 502);
+  return res.json();
 }
 
 export async function draftReply(
   post: { id: string; author?: string; text: string },
   conversation: DraftTurn[],
 ): Promise<Draft> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) {
-    throw new AppError('Drafting is not configured (no ANTHROPIC_API_KEY).', 503);
-  }
+  requireDraftKey();
   const [profile, digest] = await Promise.all([getVoiceProfile(), performanceDigest()]);
   const system =
     RULES +
@@ -310,8 +419,8 @@ export async function draftReply(
     ...conversation.slice(-12), // the argument, bounded
   ];
 
-  const d = await callDraft(key, system, messages);
-  return { reply: d.text, reason: d.reason, answer: d.answer };
+  const d = parseDraft((await callProposal(system, messages, DRAFT_TOOL, 'Drafting')) as ProposalBody);
+  return { reply: withoutDashes(d.text), reason: d.reason, answer: d.answer };
 }
 
 /**
@@ -320,10 +429,7 @@ export async function draftReply(
  * games on X and a pattern from one says nothing about the other.
  */
 export async function draftPost(idea: string, conversation: DraftTurn[]): Promise<PostDraft> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) {
-    throw new AppError('Drafting is not configured (no ANTHROPIC_API_KEY).', 503);
-  }
+  requireDraftKey();
   const [profile, digest] = await Promise.all([getVoiceProfile(), performanceDigest('post')]);
   const system =
     POST_RULES +
@@ -338,8 +444,8 @@ export async function draftPost(idea: string, conversation: DraftTurn[]): Promis
     },
     ...conversation.slice(-12),
   ];
-  const d = await callDraft(key, system, messages);
-  return { post: d.text, reason: d.reason, answer: d.answer };
+  const d = parseDraft((await callProposal(system, messages, DRAFT_TOOL, 'Drafting')) as ProposalBody);
+  return { post: withoutDashes(d.text), reason: d.reason, answer: d.answer };
 }
 
 // --- the log -----------------------------------------------------------------
@@ -493,7 +599,9 @@ What a good query is here:
 - Different from the queries that yielded nothing before. Adjacent to the ones that produced replies people engaged with.
 - Narrow enough that the Latest tab is readable. If it would return a wall, add a min_faves or a second required term.
 
-Hand the proposal back through the propose_query tool: the query, and a rationale of one sentence (under 40 words) on what it should surface and why, given what worked before.`;
+He can argue with the proposal ("narrower", "not about Polymarket", "why this one?"): answer him, and propose again or defend the query.
+
+Hand the proposal back through the propose_query tool: the query, a rationale of one sentence (under 40 words) on what it should surface and why, given what worked before, and answer: what you say to him. A sentence when nothing was asked; when he pushed back or asked something, as many sentences as the answer needs.`;
 
 /** The shape the model is made to answer in, so nothing is scraped out of prose. */
 const PROPOSE_QUERY_TOOL = {
@@ -507,8 +615,12 @@ const PROPOSE_QUERY_TOOL = {
         type: 'string',
         description: 'One sentence, under 40 words.',
       },
+      answer: {
+        type: 'string',
+        description: 'What you say to him: what you did, or the answer to what he asked.',
+      },
     },
-    required: ['query', 'rationale'],
+    required: ['query', 'rationale', 'answer'],
   },
 };
 
@@ -520,24 +632,29 @@ const PROPOSE_QUERY_TOOL = {
  * "Search suggestion came back unparseable" was. Only a reply with no query
  * at all fails.
  */
-export function parseSuggestion(body: { content?: MessageBlock[] }): {
+export function parseSuggestion(body: ProposalBody): {
   query: string;
   rationale: string;
+  answer: string;
 } {
-  const blocks = body.content ?? [];
   const fail = () => new AppError('Search suggestion came back with no query.', 502);
-
-  const call = blocks.find(b => b.type === 'tool_use' && b.input && typeof b.input === 'object');
-  if (call) {
-    const input = call.input as { query?: unknown; rationale?: unknown };
+  const input = toolInput(body);
+  if (input) {
     const query = clean(input.query);
     if (!query) throw fail();
-    return { query, rationale: clean(input.rationale) };
+    return {
+      query,
+      rationale: clean(input.rationale),
+      answer: clean(input.answer),
+    };
   }
-
-  const obj = readObject(blocks.map(b => b.text ?? '').join(''), ['query', 'rationale']);
+  const obj = readObject(proseOf(body), ['query', 'rationale', 'answer']);
   if (!obj?.query) throw fail();
-  return { query: obj.query, rationale: obj.rationale ?? '' };
+  return {
+    query: obj.query,
+    rationale: obj.rationale ?? '',
+    answer: obj.answer ?? '',
+  };
 }
 
 /**
@@ -545,11 +662,11 @@ export function parseSuggestion(body: { content?: MessageBlock[] }): {
  * produced. With no history it still proposes something, because the first
  * query has to come from somewhere.
  */
-export async function suggestSearch(avoid: string[] = []): Promise<{ query: string; rationale: string }> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) {
-    throw new AppError('Search suggestions need ANTHROPIC_API_KEY.', 503);
-  }
+export async function suggestSearch(
+  avoid: string[] = [],
+  conversation: DraftTurn[] = [],
+): Promise<{ query: string; rationale: string; answer: string }> {
+  requireDraftKey();
   const [profile, history] = await Promise.all([getVoiceProfile(), searchYield()]);
   const record = history.length
     ? 'QUERIES ALREADY TRIED, with what each produced:\n' +
@@ -560,30 +677,14 @@ export async function suggestSearch(avoid: string[] = []): Promise<{ query: stri
         .join('\n')
     : 'No queries tried yet.';
   const banned = avoid.length ? `\n\nDo not repeat any of these: ${avoid.map(q => `"${q}"`).join(', ')}` : '';
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: process.env.X_DRAFT_MODEL ?? 'claude-sonnet-5',
-      max_tokens: 600,
-      system: SEARCH_RULES + (profile ? `\n\nWHO HE IS AND WHAT HE CAN SPEAK TO:\n${profile}` : ''),
-      messages: [
-        {
-          role: 'user',
-          content: `${record}${banned}\n\nPropose the next query.`,
-        },
-      ],
-      tools: [PROPOSE_QUERY_TOOL],
-      tool_choice: { type: 'tool', name: 'propose_query' },
-    }),
-  });
-  if (!res.ok) throw new AppError(`Search suggestion failed (${res.status}).`, 502);
-  return parseSuggestion((await res.json()) as { content?: MessageBlock[] });
+  const system = SEARCH_RULES + (profile ? `\n\nWHO HE IS AND WHAT HE CAN SPEAK TO:\n${profile}` : '');
+  const messages: DraftTurn[] = [
+    { role: 'user', content: `${record}${banned}\n\nPropose the next query.` },
+    ...conversation.slice(-12),
+  ];
+  return parseSuggestion(
+    (await callProposal(system, messages, PROPOSE_QUERY_TOOL, 'Search suggestion')) as ProposalBody,
+  );
 }
 
 export async function saveSearch(query: string, rationale?: string) {
