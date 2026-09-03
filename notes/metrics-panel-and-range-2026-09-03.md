@@ -186,3 +186,17 @@ range rule (section 3), and the sibling-price open (section 4). Section
 4 is the cheapest and fixes the thing that looks broken to a stranger
 today; section 3 is one sentence and one gate; section 2 is the UI work.
 Tests first for 3 and 4, named after the rules above.
+
+## Decision
+
+Viktor, 2026-09-03, on the design canvas
+(https://claude.ai/code/artifact/de9e97e3-df26-4177-8111-e9ecbdddada2, four
+frames: the chip on the floor, the list, the sheet with a trade in it, the
+sheet with none): "ok looks good". All three sections built on branch
+`metrics-panel-and-range`; the governing sentences are in
+`docs/market-integrity.md` ("The range applies from now on"),
+`docs/ui-conventions.md` ("A baseline book on a metric that already has a
+traded open book opens at that book's price") and
+`docs/owner-on-the-floor.md` (dialog 1, "The metrics"). Open questions above
+were decided as recommended: the range can shrink for future books; the lag
+and the opening credits show on the sheet and stay in dates too.
