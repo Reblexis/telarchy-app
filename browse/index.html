@@ -199,6 +199,14 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-liquidity-purchases-md--h8">Enablement</a></li>
 </ul></details>
 </li>
+<li><details><summary><a class="file" href="#file--docs-manifold-update-md">docs/manifold-update.md</a></summary>
+<ul>
+<li><a href="#docs-manifold-update-md--h1">The Manifold update</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-manifold-update-md--h2">What the owner does</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-manifold-update-md--h3">What the text says</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-manifold-update-md--h4">Surface</a></li>
+</ul></details>
+</li>
 <li><details><summary><a class="file" href="#file--docs-market-integrity-md">docs/market-integrity.md</a></summary>
 <ul>
 <li><a href="#docs-market-integrity-md--h1">Market integrity</a></li>
@@ -780,6 +788,10 @@ the top.</p>
 <tr>
 <td><code>otto.md</code></td>
 <td>Otto, the floor's assistant: surfaces, guarantees, tools and budgets, the eval as the conformance check</td>
+</tr>
+<tr>
+<td><code>manifold-update.md</code></td>
+<td>The <code>/admin</code> card that writes the standings comment the owner posts on the Manifold recruiting market</td>
 </tr>
 <tr>
 <td><code>data-room.md</code></td>
@@ -2214,6 +2226,57 @@ them (<code>:latest</code> is read when a revision starts, never after).</p>
 completed purchase enters <code>revenue30dUsd</code>, which is the settlement source of
 the public &quot;Telarchy revenue (USD)&quot; market, so a test payment there would put
 money that does not exist into a number other people are trading.</p>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-manifold-update-md">
+<p class="filelabel">docs/manifold-update.md</p>
+<h1 id="docs-manifold-update-md--h1">The Manifold update</h1>
+<p>A card on <code>/admin</code> that writes the standings update the owner posts as a
+comment on the Telarchy recruiting market on Manifold
+(<code>manifold.markets/Telarchyagents/how-many-manifold-users-will-claim</code>).
+It exists because he posts the same update every few days and was assembling
+it by hand from two API responses. The card assembles it; he copies it and
+posts it himself. Nothing here posts to Manifold.</p>
+<h2 id="docs-manifold-update-md--h2">What the owner does</h2>
+<ol>
+<li>Opens <code>/admin</code>. The card already shows the text, read fresh on every load.</li>
+<li>Presses &quot;Copy&quot;, pastes it as a comment on the market.</li>
+</ol>
+<h2 id="docs-manifold-update-md--h3">What the text says</h2>
+<p>Three parts, in this order, in plain text that survives a paste into
+Manifold's comment box:</p>
+<ol>
+<li><strong>Status.</strong> The number the market resolves on: linked Manifold accounts,
+the same <code>manifoldImportCount</code> that <code>GET /api/marketplace/stats</code> reports.
+&quot;Status: 12 linked Manifolders.&quot;</li>
+<li><strong>By settled profit.</strong> Every entrant of the current season, in the order
+the season standings rank them, each with the prize the season would pay
+if it settled now and the settled score behind it:
+<code>1. @CharlyBone ($192.99 | +232.91cr settled)</code>. Entrants whose settled
+score is zero share one line at the end, ranked as a group:
+<code>4.-8. @Quroe, ert, pokos ($0 | +0cr settled so far)</code>. An entrant with
+a negative settled score is listed on their own line with the negative
+number, not hidden in the group.</li>
+<li><strong>Total if prices hold.</strong> The top five entrants by the marked score (open
+positions valued at the current call, <code>markedScore</code> in the standings),
+each with the prize the pool would pay on that mark, rounded to whole
+dollars: <code>2. @Quroe ($276 | +1172.61cr total)</code>. Entrants whose mark is
+zero or below are not listed here.</li>
+</ol>
+<p>Names are Manifold handles where the entrant has linked one, prefixed with
+<code>@</code> so Manifold renders a mention; otherwise the Telarchy nickname, plain.</p>
+<p>Every number comes from the season standings (<code>GET /api/leaderboard?seasonId=</code>)
+and from the linked count, never recomputed here: the card must agree with
+the season page to the cent, because the comment is a public claim about who
+is winning money.</p>
+<p>With no running season the card carries only the status line and says that
+no season is running.</p>
+<h2 id="docs-manifold-update-md--h4">Surface</h2>
+<p><code>GET /api/admin/manifold-update</code> (platform admin only) returns
+<code>{ text, linked, seasonId, generatedAt }</code>; the card renders <code>text</code> in a
+read-only box with a Copy button. Read-only on purpose: the wording is fixed
+by this doc, and a change to it is a change here first.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>

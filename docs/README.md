@@ -20,6 +20,7 @@ the top.
 | `market-integrity.md` | The four integrity invariants for a live season |
 | `seasons.md` | Seasons: bounded cash tournaments for traders |
 | `otto.md` | Otto, the floor's assistant: surfaces, guarantees, tools and budgets, the eval as the conformance check |
+| `manifold-update.md` | The `/admin` card that writes the standings comment the owner posts on the Manifold recruiting market |
 | `data-room.md` | The public data room: what telarchy.com publishes about itself |
 | `metrics.md` | The metrics Telarchy tracks about Telarchy |
 | `ui-conventions.md` | The one frontend design doc |

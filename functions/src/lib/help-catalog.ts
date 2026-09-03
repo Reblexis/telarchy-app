@@ -1168,6 +1168,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
         "Propose the next X search query to run by hand, or argue about the proposal (platform admin). Body: { avoid?: string[], messages?: [{ role: 'user'|'assistant', content }] }, the same conversation shape as /api/admin/x/draft. Returns { suggestion: { query, rationale, answer } }: the query in X search syntax, one sentence on why given what past queries produced, and what it says to the owner. The model and its effort are X_DRAFT_MODEL and X_DRAFT_EFFORT (docs/x-workbench.md, 'Drafting'). 503 when the drafting key is not set.",
     },
     {
+      method: 'GET',
+      path: '/api/admin/manifold-update',
+      auth: 'admin',
+      description:
+        "The standings comment the owner posts on the Telarchy recruiting market on Manifold (platform admin). Returns { text, linked, seasonId, generatedAt }: text is the plain-text update (status line with the linked Manifold count that the market resolves on, the running season's entrants by settled profit with the prize each would be paid now, and the top five by mark with what the pool would pay if prices held), quoting GET /api/leaderboard?seasonId= and the marketplace linked count, never recomputed. Nothing here posts to Manifold; the owner copies it (docs/manifold-update.md).",
+    },
+    {
       method: 'POST',
       path: '/api/admin/x/searches',
       auth: 'admin',
