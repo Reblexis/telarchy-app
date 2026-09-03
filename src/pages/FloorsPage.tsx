@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Bars, Drop, Page, People, short } from '../components/MarketFacts';
 import { CreateWorkspaceDialog } from '../components/OwnerDialogs';
 import { useAuth } from '../hooks/useAuth';
 import type { PrizeSeason } from '../lib/api';
@@ -140,24 +141,36 @@ function MarketSpark({
 }
 
 /**
- * The activity behind a market, as one line. Built by joining the facts that
- * exist rather than by chaining separators: counts arrive per card on their
- * own request, and a fact that has not landed yet must not leave a leading
- * "·" hanging in the footer.
+ * The activity behind a market as the market page's facts row: icons and
+ * bare numbers, meaning on hover (docs/ui-conventions.md, "The
+ * marketplace"). Counts arrive per card on their own request, so a fact
+ * that has not landed yet is left out rather than shown as zero.
  */
-function activityLine(r: Listing): string {
-  const parts: string[] = [];
-  if (r.liquidity !== null) {
-    parts.push(`${Math.round(r.liquidity).toLocaleString('en-US')} cr liquidity`);
-  }
-  if (r.participants !== null) {
-    parts.push(r.participants === 1 ? '1 participant' : `${r.participants} participants`);
-  }
-  if (r.tradesThisWeek) parts.push(`${r.tradesThisWeek} trades this week`);
-  if (r.pendingJobs > 0) {
-    parts.push(r.pendingJobs === 1 ? '1 proposal priced now' : `${r.pendingJobs} proposals priced now`);
-  }
-  return parts.join(' · ');
+function ActivityFacts({ r }: { r: Listing }) {
+  return (
+    <span className="mkt-card-activity pubws-facts" aria-label="Market facts">
+      {r.participants !== null && (
+        <span title={`${r.participants} participant${r.participants === 1 ? '' : 's'}`}>
+          <People /> {short(r.participants)}
+        </span>
+      )}
+      {r.liquidity !== null && (
+        <span title={`${short(r.liquidity)} credits in the pools of its open markets, which winnings come out of`}>
+          <Drop /> {short(r.liquidity)}
+        </span>
+      )}
+      {r.tradesThisWeek !== null && (
+        <span title={`${r.tradesThisWeek} trades this week`}>
+          <Bars /> {short(r.tradesThisWeek)}
+        </span>
+      )}
+      {r.pendingJobs > 0 && (
+        <span title={`${r.pendingJobs} proposal${r.pendingJobs === 1 ? '' : 's'} priced now`}>
+          <Page /> {short(r.pendingJobs)}
+        </span>
+      )}
+    </span>
+  );
 }
 
 /**
@@ -456,7 +469,7 @@ export function FloorsPage() {
                     today. Activity follows it. */}
                 <span className="mkt-card-facts">
                   {r.hero?.settles && <span className="mkt-card-settles">settles {r.hero.settles}</span>}
-                  <span className="mkt-card-activity">{activityLine(r)}</span>
+                  <ActivityFacts r={r} />
                 </span>
               </Link>
             ))}

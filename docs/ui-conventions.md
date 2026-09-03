@@ -1611,11 +1611,14 @@ full-width step-line spark of the hero market's real trade history ending
 on the live-call dot (same held-call semantics as the poster chart, value
 range padded 35% so a quiet market still draws through the middle instead
 of along the floor of the box), and a footer of when it settles plus the
-activity behind it: the liquidity first ("4,200 cr liquidity", the credits
-actually sitting in the pools of the workspace's open markets, never the
-LMSR parameter), then participants, trades this week, and proposals
-currently being priced. A fact that has not arrived yet is left out of the
-line rather than shown as zero.
+activity behind it as the market page's facts row (`MarketFacts`): icons
+and bare numbers, never a sentence. Four facts in this order, each a
+hover title that says what it counts: people = participants, drop =
+the credits actually sitting in the pools of the workspace's open markets
+(never the LMSR parameter), bars = trades this week, page = proposals
+priced now. Numbers take the facts row's short form (`4,200`, `25k`,
+`1.2m`). A fact that has not arrived yet is left out of the row rather
+than shown as zero; the proposals cell appears only when there are any.
 
 The grid is ordered by that liquidity, deepest first, because pool depth is
 what a trader can actually win and the row of cards is where they choose.

@@ -6422,7 +6422,18 @@ textarea.jobform-line--desc {
   padding-top: 0.55rem;
 }
 .mkt-card-settles { color: var(--text-secondary); }
-.mkt-card-activity { line-height: 1.45; }
+/* The market page's facts row, on the card: icons and bare numbers, left
+   aligned under the settlement line, at the footer's own size and color. */
+.mkt-card-activity.pubws-facts {
+  margin: 0.15rem 0 0;
+  justify-content: flex-start;
+  gap: 0.2rem 0.9rem;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.mkt-card-activity.pubws-facts span { display: inline-flex; align-items: center; gap: 0.3rem; cursor: help; }
 
 /* The listing tile: same cell as a market, and the only interactive one.
    Solid surface with a faint accent wash (dashed emptiness read as
