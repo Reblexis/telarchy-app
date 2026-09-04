@@ -34,6 +34,7 @@ import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import type { FloorRef } from '../lib/agent-prompt';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
 import { api, type PublicWorkspace, setActiveWorkspace } from '../lib/api';
+import { parseFloorHash } from '../lib/floor-hash';
 import {
   buildHorizonViews,
   captionLabel,
@@ -158,6 +159,9 @@ export function TradePage() {
   // flashes it once. The hash is consumed on arrival so it does not fight the
   // back button or the #account link that shares this bar.
   const [focusCommentId, setFocusCommentId] = useState<string | null>(null);
+  // A trade a profile row points at (docs/ui-conventions.md, "A trade has an
+  // address"): handed to FloorComments, which opens Activity and flashes it.
+  const [focusTradeId, setFocusTradeId] = useState<string | null>(null);
   const [flashContract, setFlashContract] = useState(false);
   //
   // Driven by the ROUTER's hash, not by the hashchange event. A click on the
@@ -172,17 +176,19 @@ export function TradePage() {
   }, [selectedJobId]);
 
   useEffect(() => {
-    const hash = location.hash.replace(/^#/, '');
-    if (!hash) return;
-    const params = new URLSearchParams(hash);
-    const proposal = params.get('proposal') ?? params.get('contract');
-    const comment = params.get('comment');
-    if (!proposal && !comment) return;
+    const parsed = parseFloorHash(location.hash);
+    if (!parsed) return;
+    const { proposal, comment, market, trade } = parsed;
     if (proposal) setSelectedJobId(proposal);
+    // #market= steps the page to that market (a profile's link to a trade on
+    // a baseline market); selection is by id, so a market that has since
+    // resolved falls back to the primary rather than to nothing.
+    if (market) setHorizonId(market);
     setFocusCommentId(comment);
-    // With no comment to point at, the proposal itself is the thing the
-    // notification named, so that is what flashes.
-    if (proposal && !comment) {
+    setFocusTradeId(trade);
+    // With no comment or trade to point at, the proposal itself is the thing
+    // the notification named, so that is what flashes.
+    if (proposal && !comment && !trade) {
       setFlashContract(true);
       setTimeout(() => setFlashContract(false), 1800);
     }
@@ -2039,7 +2045,11 @@ export function TradePage() {
                    scoping them to the branch on screen made a proposal whose
                    trades sat on the other branch answer "Trades (0)". */
                   focusCommentId={focusCommentId}
-                  onFocusHandled={() => setFocusCommentId(null)}
+                  focusTradeId={focusTradeId}
+                  onFocusHandled={() => {
+                    setFocusCommentId(null);
+                    setFocusTradeId(null);
+                  }}
                   subject={
                     selectedJob
                       ? {

@@ -750,6 +750,13 @@
       "when": 1788483628000,
       "tag": "0106_proposal_decided_pricing",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1788483629000,
+      "tag": "0107_trade_consensus",
+      "breakpoints": true
     }
   ]
 }

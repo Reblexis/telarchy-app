@@ -371,13 +371,22 @@ export interface LeaderboardEntry {
 export interface PublicProfilePosition {
   workspaceId: string;
   workspaceName: string;
+  /** The floor's slug: every row links back through it. */
+  workspaceSlug: string;
   marketId: string;
   proposalId: string | null;
+  /** The proposal a conditional position is conditional on, in words. */
+  proposalTitle?: string | null;
   metricName: string | null;
   targetDate: string | null;
   direction: 'higher' | 'lower';
   shares: number;
   totalCost: number;
+  /** The shares at the payout factor the market calls right now: the
+   *  board's mark (docs/seasons.md F1), so these sum to stats.openEarnings. */
+  worth: number | null;
+  /** worth minus totalCost. */
+  profit: number | null;
   status: 'open' | 'conditional' | 'closed' | 'resolved';
   probabilityHigher: number | null;
   consensus: number | null;
@@ -388,8 +397,10 @@ export interface PublicProfileTrade {
   id: string;
   workspaceId: string;
   workspaceName: string;
+  workspaceSlug: string;
   marketId: string;
   proposalId: string | null;
+  proposalTitle?: string | null;
   metricName: string | null;
   targetDate: string | null;
   /** Null for a redemption: both sides leave the book at once. */
@@ -399,12 +410,21 @@ export interface PublicProfileTrade {
   kind: 'buy' | 'sell' | 'redeem';
   shares: number;
   cost: number;
+  /** Credits per share (cost over shares); null for a redemption. */
+  price: number | null;
+  /** The market's call before and after this trade, recorded at trade
+   *  time. Null on a redemption and on trades from before the platform
+   *  recorded it: not recorded, never zero. */
+  consensusBefore: number | null;
+  consensusAfter: number | null;
   createdAt: string;
 }
 
 export interface ProfileProposedJob {
   id: string;
   workspaceId: string;
+  workspaceName: string;
+  workspaceSlug: string;
   title: string;
   askUsd: number | null;
   status: string;
@@ -429,6 +449,8 @@ export interface PublicParticipantProfile {
   parent: { id: string; nickname: string | null } | null;
   /** Participants this one created the same way (its sub-agents). */
   children: Array<{ id: string; nickname: string | null }>;
+  /** Tradeable credits right now, platform-wide. */
+  balance: number;
   stats: {
     rank: number | null;
     calibration: number | null;
@@ -438,6 +460,9 @@ export interface PublicParticipantProfile {
     openEarnings: number;
     resolvedMarkets: number;
     totalTrades: number;
+    /** Credits moved by buys and sells on public floors; redemptions do not count. */
+    tradedVolume: number;
+
     lastTradeAt: string | null;
   };
   activeWorkspaces: Array<{ id: string; name: string }>;

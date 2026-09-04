@@ -319,6 +319,12 @@ export async function executeTradeInTx(
     // Explicit rather than defaulted: the only other writer of this table is
     // the redemption below, and the two must never be told apart by accident.
     kind: 'trade',
+    // What the trade found and what it left: the profile's "moved the market
+    // a -> b" (docs/ui-conventions.md, "What the platform records at trade
+    // time"). Written here, in the same transaction, so it can never drift
+    // from the book it describes.
+    consensusBefore: prevConsensus,
+    consensusAfter: newConsensus,
     createdAt: new Date(),
   });
 

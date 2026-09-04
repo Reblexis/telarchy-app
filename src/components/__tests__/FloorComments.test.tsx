@@ -195,3 +195,68 @@ describe('a proposal covers both branch markets', () => {
     expect(row.textContent).not.toContain('if ');
   });
 });
+
+describe('a trade a profile points at', () => {
+  // docs/ui-conventions.md, "A trade has an address": #trade=<id> opens the
+  // Activity tab, scrolls that row into view and flashes it once, the way a
+  // pointed-at comment does. A trade no longer in the list is handled, not
+  // waited on.
+  const trade = (id: string, handle: string, shares: number, cost: number) => ({
+    id,
+    handle,
+    direction: 'higher',
+    kind: 'buy',
+    shares,
+    cost,
+    createdAt: new Date().toISOString(),
+  });
+
+  beforeEach(() => {
+    getMarketActivity.mockImplementation(async () => ({
+      positions: [],
+      trades: [trade('t-new', 'genzy', 1204, 855), trade('t-target', 'vire', 21191.72, 6300)],
+      pool: [],
+    }));
+  });
+
+  const marketProps = { ...props, subject: { marketId: 'mkt-1' } };
+
+  test('opens the Activity tab and flashes that trade', async () => {
+    const onFocusHandled = vi.fn();
+    render(
+      <MemoryRouter>
+        <FloorComments {...marketProps} focusTradeId="t-target" onFocusHandled={onFocusHandled} />
+      </MemoryRouter>,
+    );
+    const row = (await screen.findByText('vire')).closest('li')!;
+    expect(row.getAttribute('data-trade-id')).toBe('t-target');
+    await waitFor(() => expect(row.className).toContain('is-flashed'));
+    expect(row.scrollIntoView).toHaveBeenCalled();
+    expect(screen.getByText('genzy').closest('li')!.className).not.toContain('is-flashed');
+    expect(onFocusHandled).toHaveBeenCalled();
+  });
+
+  test('a trade that is no longer listed is handled, not waited on', async () => {
+    const onFocusHandled = vi.fn();
+    render(
+      <MemoryRouter>
+        <FloorComments {...marketProps} focusTradeId="t-gone" onFocusHandled={onFocusHandled} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(onFocusHandled).toHaveBeenCalled());
+    expect(document.querySelector('.is-flashed')).toBeNull();
+    // The tab is still open on the right market.
+    expect(await screen.findByText('genzy')).toBeInTheDocument();
+  });
+
+  test('an Activity row names the price per share', async () => {
+    render(
+      <MemoryRouter>
+        <FloorComments {...marketProps} />
+      </MemoryRouter>,
+    );
+    (await screen.findByText('Activity (2)')).click();
+    const row = (await screen.findByText('vire')).closest('li')!;
+    expect(row.textContent).toContain('bought 21,192 at 0.297 cr');
+  });
+});
