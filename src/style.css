@@ -2413,6 +2413,11 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
    two lines on a phone rather than shrinking their labels. */
 .pubws-instrument-label {
   margin: 0;
+  /* Above the question line that follows it: that heading enters with a
+     transform, which starts a stacking context of its own, and an open
+     chip menu was painting UNDER it (preview 2026-09-04). */
+  position: relative;
+  z-index: 5;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -5089,7 +5094,7 @@ textarea.jobform-line--desc {
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-color);
 }
-.pubws-lb-head .pubws-h2 { margin: 0; }
+.pubws-lb-head .pubws-h2 { margin: 0; white-space: nowrap; }
 .pubws-lb-head--bare { border-bottom: none; padding-bottom: 0.25rem; }
 .pubws-lb-meta {
   font-family: 'JetBrains Mono', monospace;
