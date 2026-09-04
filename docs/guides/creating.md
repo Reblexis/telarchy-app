@@ -197,13 +197,20 @@ consensus is undefined, the floor shows nothing to read, and a trade returns 400
 saying someone has to fund it first. This is the single most common reason a
 floor looks broken.
 
-Two workspace settings decide whether that happens to you:
+Two workspace settings decide whether that happens to the metric's own
+books:
 
 - `autoFundNewMarkets`, on by default at creation.
-- `newMarketLiquidityCredits`, 0.5 credits per new market at creation.
+- `newMarketLiquidityCredits`, 0.5 credits per new market at creation, the
+  default behind any date that names no number of its own.
 
 Both need the granular `manage_workspace` capability, and turning auto-fund on
-requires the owner to have a participant record with a balance to spend.
+requires the owner to have a participant record with a balance to spend. Each
+date a metric is priced on can carry its own two numbers instead,
+`timePreference.horizonCredits[entry] = { book, proposal }`: what the book on
+that date opens with (falling back to `liquidityCredits` on the metric, then
+the workspace default) and what a proposal's branch on it opens with, which
+defaults to 0 and is never covered by the workspace settings.
 
 **Funding is partial rather than all-or-nothing.** When your balance covers only
 some of the new markets, the affordable ones are funded at the full rate now and

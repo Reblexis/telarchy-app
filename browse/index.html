@@ -2970,7 +2970,7 @@ the form says so: the market settles on these words, they can be refined
 later, and every edit is kept and shown. Nothing else is asked; the range
 defaults and is corrected on the sheet, value starts at zero, and the
 first reading is what makes the number real. Adding the metric
-immediately opens dialog 2 for it, because a metric with no date has no
+immediately opens its sheet at the add-a-date form, because a metric with no date has no
 market and the flow does not let the owner stop before one.</p>
 <p>Tapping a line opens <strong>the metric's sheet</strong>, everything the floor knows
 about it on its own line, edited in place: the name and what it is (the
@@ -2979,28 +2979,49 @@ the rule printed under the field in the words that apply right now
 (&quot;Nobody has traded, so this re-opens every book at the new range&quot; or
 &quot;1 book is traded and keeps its range; the new range applies to every
 book that opens after this&quot;, <code>docs/market-integrity.md</code>, &quot;The range
-applies from now on&quot;); the dates, as a line that opens dialog 2; how long
-after a period the number is final; the credits a new book opens with
-(<code>metrics.liquidityCredits</code>); and, in the footer, the remove link with
-the confirmation dialog 2 has today. The sheet is where an owner goes
-looking for the range; the report dialog (4) is where it finds them.</p>
-<p><strong>2. The dates</strong>, opened from the <code>dates</code> chip on the date row, or straight
-after dialog 1 while the metric still has none. It opens on the list: each
-line says what the metric is priced on (&quot;Every month&quot;, &quot;Every day&quot;,
-&quot;31 December 2026, once&quot;), what that line's open market holds (next date,
-pool, traders), and a Stop. A list that could only be added to was a list
-that could only be got wrong once (owner ask 2026-08-31). Each line says
-what it IS rather than when it next lands, because a repeat and a one-off
-look identical on the floor.</p>
-<p>Adding one is folded behind a single &quot;+ Add a date&quot; chip while the metric
-has any date, and open, with no chip, while it has none, so a new metric's
-first visit asks one question: how often. The six answers sit on one row
-(hourly, daily, weekly, monthly, yearly, once) in the vocabulary the API
-always had. A repeat starts with the current period, and one line under the
-picker names the date it starts with and offers the next period instead;
-that is the <code>+0d</code> / <code>+1d</code> the entry stores. Once asks for a day, with an
-optional UTC hour, since markets settle on the hour. Under it, the liquidity
-each one opens with, and the heading says whose credits that is.</p>
+applies from now on&quot;); the dates, as rows on the sheet itself; how long
+after a period the number is final; and, in the footer, the remove link
+with its confirmation. The sheet is where an owner goes looking for the
+range; the report dialog (4) is where it finds them.</p>
+<p><strong>2. The dates are rows on the sheet</strong>, not a dialog of their own (owner
+decision 2026-09-04, design record in the telarchy umbrella,
+<code>notes/proposal-liquidity-per-metric-2026-09-04.md</code>). Each row is one
+entry of <code>timePreference.customHorizons</code> and says what the metric is
+priced on (&quot;Every day&quot;, &quot;Every week&quot;, &quot;31 December 2026, once&quot;), what
+that row's open market holds (next date, pool, traders), and a Stop. Each
+row says what it IS rather than when it next lands, because a repeat and
+a one-off look identical on the floor. The <code>dates</code> chip on the floor's
+date row opens the sheet of the metric on screen.</p>
+<p><strong>Two numbers on every row, in credits: &quot;Book opens with&quot; and &quot;Proposal
+opens with&quot;.</strong> The book is the metric's own market on that date; a
+proposal gets a branch of that book, one pair per row, and the pair is
+what prices the proposal. Both numbers leave the owner's wallet as the
+market opens, and a repeating row pays them again every time it comes
+round. The book number is what the owner has always funded and defaults
+to the metric's standing number, then the workspace default. <strong>The
+proposal number defaults to 0</strong>, and 0 means the proposer funds their
+own: a proposal is the proposer's to price, and the owner pays only on
+a row where they chose a number because they want the price before the
+proposer pays for one (owner decision 2026-09-04, same design record).
+A proposal that spawns with nothing behind it reads &quot;no price yet&quot; on
+the floor with the Inject button beside it for a manager, in place of
+the bet buttons. Both numbers are stored on the entry,
+<code>timePreference.horizonCredits[entry] = { book, proposal }</code>, and edited
+inline on the row; the Save button under the rows carries what changed
+(&quot;Save · 250 cr behind each weekly proposal&quot;) and writes nothing when
+nothing did. Markets already open keep what they hold: these numbers
+are for openings, and Inject is for a book that is open.</p>
+<p><strong>Adding a date</strong> is folded behind a single &quot;+ Add a date&quot; chip under
+the rows while the metric has any, and open, with no chip, while it has
+none, so a new metric's first visit asks one question: how often. The
+six answers sit on one row (hourly, daily, weekly, monthly, yearly,
+once) in the vocabulary the API always had. A repeat starts with the
+current period, and one line under the picker names the date it starts
+with and offers the next period instead; that is the <code>+0d</code> / <code>+1d</code> the
+entry stores. Once asks for a day, with an optional UTC hour, since
+markets settle on the hour. Under it, the same two numbers the rows
+carry, the book prefilled from the metric's standing number and the
+proposal at 0, and the heading says whose credits that is.</p>
 <p><strong>How long after a period the number is final</strong> is a sentence at the foot
 of the same dialog with the number in it (&quot;Final 3 days after each period&quot;),
 because it belongs to the metric rather than to any one date and is changed
@@ -3020,10 +3041,11 @@ same kind of act as stopping every date. Its confirmation lists what is in
 the way first: a traded market blocks it and the button says so instead of
 throwing a 409 after the click, while untraded ones simply go with their
 pools returned.</p>
-<p>Every one of those is the same write: <code>timePreference.customHorizons</code> on the
-metric, adding an entry or dropping one, plus <code>metrics.liquidityCredits</code> for
-what a new market opens with. The reconcile runs on the same request, so one
-call opens the market, and one call stops it. No second call to forget.</p>
+<p>Every one of those is the same write: <code>timePreference</code> on the metric,
+<code>customHorizons</code> adding an entry or dropping one and <code>horizonCredits</code>
+carrying the two numbers for each entry. The reconcile runs on the same
+request, so one call opens the market, and one call stops it. No second
+call to forget.</p>
 <p><strong>4. Report the number</strong>, the owner's most frequent act, opened from the
 line under the market's own number: &quot;Yours: $44,439 [Report]&quot;. Markets settle
 on the metric's stored value, so a floor whose owner cannot report settles
@@ -3070,26 +3092,25 @@ rather than after: deepening makes the price harder to move and being right
 pay more, a pool never thins back out, and credits behind a market are not
 scored as profit on it (<code>docs/seasons.md</code>), so funding a book you trade pays
 you nothing. <code>POST /api/predictions/markets/:id/liquidity</code>.</p>
-<p><strong>Two numbers for someone who can manage the floor</strong>, one for everyone
+<p><strong>Three numbers for someone who can manage the floor</strong>, one for everyone
 else. A floor's markets come round again (today, this week, this month
 respawn as each settles), and an owner who deepens this week's book wants
 next week's to open deep without coming back. So beside the amount going
-into this market now, the dialog offers a second number: what every new
-market on this metric opens with. It is the metric's own standing
-liquidity, <code>metrics.liquidityCredits</code>, the same number the Add-a-date
-dialog writes, prefilled with its current value or the workspace default
-when the metric has none, and written with <code>PUT /api/metrics/:id</code> only when
-it changed. Zero is a valid answer and means new markets on this metric open
-unfunded. The facts row says what the next market opens with and, when the
-number is changing, what it was. One standing number per metric, shared by
-every date on it, and the note under the facts says so; it is drawn from the
-owner's wallet as each market opens, which is why a trader, who funds nothing
-at spawn, is shown one number only. A proposal's branch markets never
-respawn, so on a branch the dialog is one number for everyone. The standing
-number is written before the credits move: a refused write leaves nothing
-moved, and a refused injection leaves a number that a retry writes again
-without harm. The button carries both: &quot;Add 1,000 cr · 500 cr on every
-opening&quot;.</p>
+into this market now, the dialog offers the two numbers of this market's
+own date row (dialog 2): what the book opens with each time this date
+comes round, and what a proposal's branch on it opens with, prefilled with
+their current values and written to <code>timePreference.horizonCredits</code> with
+<code>PUT /api/metrics/:id</code> only when they changed. Zero is a valid answer for
+either: a book at zero opens unfunded, a proposal at zero is the
+proposer's to fund. The facts row says what the next book and the next
+proposal on this date open with and, when a number is changing, what it
+was. A trader, who funds nothing at spawn, is shown the amount only. A
+proposal's branch market never respawns, so on a branch the dialog is
+one number for everyone. The standing numbers are written before the
+credits move: a refused write leaves nothing moved, and a refused
+injection leaves numbers that a retry writes again without harm. The
+button carries what changed: &quot;Add 1,000 cr · 250 cr behind each
+proposal&quot;.</p>
 <p><strong>Where the credits come from</strong> is one page, not a dialog: <code>/&lt;floor&gt;/funding</code>,
 reached by a Buy affordance beside Inject and only by someone who can manage
 the floor. Money with a history is read more often than it is spent, so it
@@ -6068,7 +6089,7 @@ instead, because that is the recruiting line that brought them.</p>
 <p><strong>Per-workspace prioritization by liquidity.</strong> Owners allocate liquidity by importance. Metrics the owner cares about most get rich pools (<code>autoFundNewMarkets</code> plus targeted <code>POST /predictions/markets/:id/liquidity</code> injections), pulling tight forecasts. Less critical metrics get smaller pools and looser consensus. Priorities become a continuous knob, not a binary &quot;track or do not track&quot; choice. The pool you put on a metric is itself a legible signal of how much you care.</p>
 </li>
 </ol>
-<p><strong>A conditional market is never born dead if anyone can pay.</strong> A proposal may name no <code>liquiditySubsidy</code>, and a market at zero liquidity has no price at all: it charts as nothing and the server refuses every trade against it, so a public floor would show jobs whose only response to a visitor is a refusal. Funding therefore falls through: the proposal's named contributors first, then the workspace's own auto-fund setting (<code>autoFundNewMarkets</code> x <code>newMarketLiquidityCredits</code>, debited from the workspace owner exactly as baseline markets are), and if the owner cannot cover the full amount, <strong>whatever they can cover</strong>, down to one nanocredit per market. A thin market is a market; all-or-nothing funding leaves untradeable jobs on a floor whose owner holds less than the ask. Only when nobody can pay anything do the markets spawn unfunded, and the floor then says so in place of the bet buttons rather than offering a bet the server must reject.</p>
+<p><strong>A conditional market is the proposer's to fund, and the owner's only where they said so.</strong> A proposal may name no <code>liquiditySubsidy</code>, and a market at zero liquidity has no price at all: it charts as nothing and the server refuses every trade against it. Funding falls through: the proposal's named contributors first, then, per date, the &quot;Proposal opens with&quot; number the owner set on that date (<code>timePreference.horizonCredits[entry].proposal</code>, debited from the workspace owner as baseline markets are, and when the owner cannot cover the full amount, the same share of every branch down to the minimum contribution). That number defaults to 0 (owner decision 2026-09-04, design record in the telarchy umbrella, <code>notes/proposal-liquidity-per-metric-2026-09-04.md</code>): a proposal is the proposer's to price, and an owner who auto-funded every proposal watched credits disappear from their account for questions they never asked. The workspace's <code>autoFundNewMarkets</code> never covers a proposal. When nobody pays, the markets spawn unfunded and the floor says so in place of the bet buttons, with Inject beside it for a manager, rather than offering a bet the server must reject.</p>
 <ol start="3">
 <li><strong>Per-proposal conviction-weighted influence.</strong> A trader confident in a conditional forecast can fund that market more heavily via <code>liquiditySubsidy</code> on <code>POST /api/proposals</code>, or via <code>POST /predictions/markets/:id/liquidity</code> on the specific market (any participant with the <code>trade</code> capability, funded from their own balance); admins can bulk-fund every market under a proposal via <code>POST /predictions/markets/liquidity/bulk</code>. Their conviction translates to influence in two ways: the trader's own position size, plus the LP subsidy that pulls other forecasters in to compete on the now-more-tradable market. High-conviction calls become high-signal markets, which is precisely the right thing.</li>
 </ol>
@@ -8090,13 +8111,20 @@ more.</p>
 consensus is undefined, the floor shows nothing to read, and a trade returns 400
 saying someone has to fund it first. This is the single most common reason a
 floor looks broken.</p>
-<p>Two workspace settings decide whether that happens to you:</p>
+<p>Two workspace settings decide whether that happens to the metric's own
+books:</p>
 <ul>
 <li><code>autoFundNewMarkets</code>, on by default at creation.</li>
-<li><code>newMarketLiquidityCredits</code>, 0.5 credits per new market at creation.</li>
+<li><code>newMarketLiquidityCredits</code>, 0.5 credits per new market at creation, the
+default behind any date that names no number of its own.</li>
 </ul>
 <p>Both need the granular <code>manage_workspace</code> capability, and turning auto-fund on
-requires the owner to have a participant record with a balance to spend.</p>
+requires the owner to have a participant record with a balance to spend. Each
+date a metric is priced on can carry its own two numbers instead,
+<code>timePreference.horizonCredits[entry] = { book, proposal }</code>: what the book on
+that date opens with (falling back to <code>liquidityCredits</code> on the metric, then
+the workspace default) and what a proposal's branch on it opens with, which
+defaults to 0 and is never covered by the workspace settings.</p>
 <p><strong>Funding is partial rather than all-or-nothing.</strong> When your balance covers only
 some of the new markets, the affordable ones are funded at the full rate now and
 the rest open unfunded, to be picked up by a later refresh as the balance
@@ -9194,19 +9222,29 @@ one markdown brief, proposals and their priced impact included. This is the
 form to hand a model.</li>
 </ul>
 <p><strong>A pair with no liquidity has no price and tells you nothing.</strong> That is the
-usual reason a proposal sits there reading &quot;open&quot; instead of a number. Posting
-is free, so a proposer who paid no subsidy has left you nothing to read.</p>
+usual reason a proposal sits there reading &quot;no price yet&quot; instead of a number.
+Posting is free, and a proposal is the proposer's to price: a proposer who
+paid no subsidy has left you nothing to read.</p>
 <p>You can fund it yourself. <code>POST /api/predictions/markets/liquidity/bulk { amount, proposalId }</code> puts <code>amount</code> credits into <strong>each</strong> branch under that
 proposal, so the bill is <code>amount</code> times the number of markets, and it needs
 <code>manage</code>. <code>POST /api/predictions/markets/:id/liquidity { amount }</code> funds one
 market and needs only <code>trade</code>, so a trader who wants a readable price can deepen
 it without you. Top-ups on a pending proposal are recorded as durable subsidy
 and re-seeded when target dates roll forward, so they do not evaporate.</p>
-<p>If <code>autoFundNewMarkets</code> is on, the workspace tries to seed a new pair itself,
-and it handles a short balance differently from a baseline market: rather than
-funding some pairs and leaving others at zero, it divides what you have across
-every new market so all of them get something, down to one nanocredit each. A
-thin pair is still a priced pair; an unfunded one is nothing at all.</p>
+<p><strong>Or decide it once, per date.</strong> Every date a metric is priced on carries a
+&quot;Proposal opens with&quot; number beside its &quot;Book opens with&quot;
+(<code>timePreference.horizonCredits[entry].proposal</code>, set on the metric's sheet
+on the floor or with <code>PUT /api/metrics/:id</code>). When a proposal arrives and no
+listed contributor can pay, each branch opens with its own date's number,
+from your wallet, then your balance; a proposal across three dates is three
+different bills. <strong>The number defaults to 0</strong>, and 0 means the pair spawns
+unfunded and the floor says so in place of the bet buttons: the owner pays
+only on a date where they chose a number because they want the price before
+the proposer pays for one. When your wallet covers only part of the bill,
+every branch gets the same share of what it asked for, down to the minimum
+contribution, rather than some branches everything and others nothing. The
+workspace's <code>autoFundNewMarkets</code> and <code>newMarketLiquidityCredits</code> fund the
+metric's own books and never a proposal.</p>
 <h2 id="docs-guides-proposals-md--h3">The four ways it ends</h2>
 <div class="tablewrap"><table>
 <thead>
@@ -9933,6 +9971,16 @@ one. A standing intraday ladder is <code>[&quot;+1h&quot;, &quot;+2h&quot;, ...]
 <code>YYYY-MM-DDTHH</code> (hour, UTC). One market, resolving at the end of that period,
 never recreated. Dates whose period has already passed are pruned on save
 rather than rejected, so re-saving an old config never fails.</p>
+<p><strong>What each date opens with</strong> rides on the same object, keyed by the entry:
+<code>horizonCredits: { &quot;+0w&quot;: { &quot;book&quot;: 500, &quot;proposal&quot;: 250 } }</code>. <code>book</code> is what
+the metric's own market on that date opens with, in credits, paid by the
+workspace owner as it opens (absent or <code>null</code> falls back to <code>liquidityCredits</code>
+on the metric, then the workspace default). <code>proposal</code> is what a proposal's
+branch market on that date opens with when the proposer has not funded it,
+also from the owner; it defaults to 0, which means the proposer funds their
+own (see <a href="/guides/proposals">deciding a proposal</a>). Keys that name no entry in
+<code>customHorizons</code> are dropped on save. A rolling entry pays both numbers again
+every time it comes round.</p>
 <p>Two properties to plan around:</p>
 <ul>
 <li><strong>A custom horizon is just another date to price.</strong> It appears on the chart

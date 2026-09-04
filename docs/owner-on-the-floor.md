@@ -69,7 +69,7 @@ the form says so: the market settles on these words, they can be refined
 later, and every edit is kept and shown. Nothing else is asked; the range
 defaults and is corrected on the sheet, value starts at zero, and the
 first reading is what makes the number real. Adding the metric
-immediately opens dialog 2 for it, because a metric with no date has no
+immediately opens its sheet at the add-a-date form, because a metric with no date has no
 market and the flow does not let the owner stop before one.
 
 Tapping a line opens **the metric's sheet**, everything the floor knows
@@ -79,30 +79,52 @@ the rule printed under the field in the words that apply right now
 ("Nobody has traded, so this re-opens every book at the new range" or
 "1 book is traded and keeps its range; the new range applies to every
 book that opens after this", `docs/market-integrity.md`, "The range
-applies from now on"); the dates, as a line that opens dialog 2; how long
-after a period the number is final; the credits a new book opens with
-(`metrics.liquidityCredits`); and, in the footer, the remove link with
-the confirmation dialog 2 has today. The sheet is where an owner goes
-looking for the range; the report dialog (4) is where it finds them.
+applies from now on"); the dates, as rows on the sheet itself; how long
+after a period the number is final; and, in the footer, the remove link
+with its confirmation. The sheet is where an owner goes looking for the
+range; the report dialog (4) is where it finds them.
 
-**2. The dates**, opened from the `dates` chip on the date row, or straight
-after dialog 1 while the metric still has none. It opens on the list: each
-line says what the metric is priced on ("Every month", "Every day",
-"31 December 2026, once"), what that line's open market holds (next date,
-pool, traders), and a Stop. A list that could only be added to was a list
-that could only be got wrong once (owner ask 2026-08-31). Each line says
-what it IS rather than when it next lands, because a repeat and a one-off
-look identical on the floor.
+**2. The dates are rows on the sheet**, not a dialog of their own (owner
+decision 2026-09-04, design record in the telarchy umbrella,
+`notes/proposal-liquidity-per-metric-2026-09-04.md`). Each row is one
+entry of `timePreference.customHorizons` and says what the metric is
+priced on ("Every day", "Every week", "31 December 2026, once"), what
+that row's open market holds (next date, pool, traders), and a Stop. Each
+row says what it IS rather than when it next lands, because a repeat and
+a one-off look identical on the floor. The `dates` chip on the floor's
+date row opens the sheet of the metric on screen.
 
-Adding one is folded behind a single "+ Add a date" chip while the metric
-has any date, and open, with no chip, while it has none, so a new metric's
-first visit asks one question: how often. The six answers sit on one row
-(hourly, daily, weekly, monthly, yearly, once) in the vocabulary the API
-always had. A repeat starts with the current period, and one line under the
-picker names the date it starts with and offers the next period instead;
-that is the `+0d` / `+1d` the entry stores. Once asks for a day, with an
-optional UTC hour, since markets settle on the hour. Under it, the liquidity
-each one opens with, and the heading says whose credits that is.
+**Two numbers on every row, in credits: "Book opens with" and "Proposal
+opens with".** The book is the metric's own market on that date; a
+proposal gets a branch of that book, one pair per row, and the pair is
+what prices the proposal. Both numbers leave the owner's wallet as the
+market opens, and a repeating row pays them again every time it comes
+round. The book number is what the owner has always funded and defaults
+to the metric's standing number, then the workspace default. **The
+proposal number defaults to 0**, and 0 means the proposer funds their
+own: a proposal is the proposer's to price, and the owner pays only on
+a row where they chose a number because they want the price before the
+proposer pays for one (owner decision 2026-09-04, same design record).
+A proposal that spawns with nothing behind it reads "no price yet" on
+the floor with the Inject button beside it for a manager, in place of
+the bet buttons. Both numbers are stored on the entry,
+`timePreference.horizonCredits[entry] = { book, proposal }`, and edited
+inline on the row; the Save button under the rows carries what changed
+("Save · 250 cr behind each weekly proposal") and writes nothing when
+nothing did. Markets already open keep what they hold: these numbers
+are for openings, and Inject is for a book that is open.
+
+**Adding a date** is folded behind a single "+ Add a date" chip under
+the rows while the metric has any, and open, with no chip, while it has
+none, so a new metric's first visit asks one question: how often. The
+six answers sit on one row (hourly, daily, weekly, monthly, yearly,
+once) in the vocabulary the API always had. A repeat starts with the
+current period, and one line under the picker names the date it starts
+with and offers the next period instead; that is the `+0d` / `+1d` the
+entry stores. Once asks for a day, with an optional UTC hour, since
+markets settle on the hour. Under it, the same two numbers the rows
+carry, the book prefilled from the metric's standing number and the
+proposal at 0, and the heading says whose credits that is.
 
 **How long after a period the number is final** is a sentence at the foot
 of the same dialog with the number in it ("Final 3 days after each period"),
@@ -126,10 +148,11 @@ the way first: a traded market blocks it and the button says so instead of
 throwing a 409 after the click, while untraded ones simply go with their
 pools returned.
 
-Every one of those is the same write: `timePreference.customHorizons` on the
-metric, adding an entry or dropping one, plus `metrics.liquidityCredits` for
-what a new market opens with. The reconcile runs on the same request, so one
-call opens the market, and one call stops it. No second call to forget.
+Every one of those is the same write: `timePreference` on the metric,
+`customHorizons` adding an entry or dropping one and `horizonCredits`
+carrying the two numbers for each entry. The reconcile runs on the same
+request, so one call opens the market, and one call stops it. No second
+call to forget.
 
 **4. Report the number**, the owner's most frequent act, opened from the
 line under the market's own number: "Yours: $44,439 [Report]". Markets settle
@@ -182,26 +205,25 @@ pay more, a pool never thins back out, and credits behind a market are not
 scored as profit on it (`docs/seasons.md`), so funding a book you trade pays
 you nothing. `POST /api/predictions/markets/:id/liquidity`.
 
-**Two numbers for someone who can manage the floor**, one for everyone
+**Three numbers for someone who can manage the floor**, one for everyone
 else. A floor's markets come round again (today, this week, this month
 respawn as each settles), and an owner who deepens this week's book wants
 next week's to open deep without coming back. So beside the amount going
-into this market now, the dialog offers a second number: what every new
-market on this metric opens with. It is the metric's own standing
-liquidity, `metrics.liquidityCredits`, the same number the Add-a-date
-dialog writes, prefilled with its current value or the workspace default
-when the metric has none, and written with `PUT /api/metrics/:id` only when
-it changed. Zero is a valid answer and means new markets on this metric open
-unfunded. The facts row says what the next market opens with and, when the
-number is changing, what it was. One standing number per metric, shared by
-every date on it, and the note under the facts says so; it is drawn from the
-owner's wallet as each market opens, which is why a trader, who funds nothing
-at spawn, is shown one number only. A proposal's branch markets never
-respawn, so on a branch the dialog is one number for everyone. The standing
-number is written before the credits move: a refused write leaves nothing
-moved, and a refused injection leaves a number that a retry writes again
-without harm. The button carries both: "Add 1,000 cr · 500 cr on every
-opening".
+into this market now, the dialog offers the two numbers of this market's
+own date row (dialog 2): what the book opens with each time this date
+comes round, and what a proposal's branch on it opens with, prefilled with
+their current values and written to `timePreference.horizonCredits` with
+`PUT /api/metrics/:id` only when they changed. Zero is a valid answer for
+either: a book at zero opens unfunded, a proposal at zero is the
+proposer's to fund. The facts row says what the next book and the next
+proposal on this date open with and, when a number is changing, what it
+was. A trader, who funds nothing at spawn, is shown the amount only. A
+proposal's branch market never respawns, so on a branch the dialog is
+one number for everyone. The standing numbers are written before the
+credits move: a refused write leaves nothing moved, and a refused
+injection leaves numbers that a retry writes again without harm. The
+button carries what changed: "Add 1,000 cr · 250 cr behind each
+proposal".
 
 **Where the credits come from** is one page, not a dialog: `/<floor>/funding`,
 reached by a Buy affordance beside Inject and only by someone who can manage

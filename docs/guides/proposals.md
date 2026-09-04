@@ -44,8 +44,9 @@ Three places give you the same numbers:
   form to hand a model.
 
 **A pair with no liquidity has no price and tells you nothing.** That is the
-usual reason a proposal sits there reading "open" instead of a number. Posting
-is free, so a proposer who paid no subsidy has left you nothing to read.
+usual reason a proposal sits there reading "no price yet" instead of a number.
+Posting is free, and a proposal is the proposer's to price: a proposer who
+paid no subsidy has left you nothing to read.
 
 You can fund it yourself. `POST /api/predictions/markets/liquidity/bulk
 { amount, proposalId }` puts `amount` credits into **each** branch under that
@@ -55,11 +56,20 @@ market and needs only `trade`, so a trader who wants a readable price can deepen
 it without you. Top-ups on a pending proposal are recorded as durable subsidy
 and re-seeded when target dates roll forward, so they do not evaporate.
 
-If `autoFundNewMarkets` is on, the workspace tries to seed a new pair itself,
-and it handles a short balance differently from a baseline market: rather than
-funding some pairs and leaving others at zero, it divides what you have across
-every new market so all of them get something, down to one nanocredit each. A
-thin pair is still a priced pair; an unfunded one is nothing at all.
+**Or decide it once, per date.** Every date a metric is priced on carries a
+"Proposal opens with" number beside its "Book opens with"
+(`timePreference.horizonCredits[entry].proposal`, set on the metric's sheet
+on the floor or with `PUT /api/metrics/:id`). When a proposal arrives and no
+listed contributor can pay, each branch opens with its own date's number,
+from your wallet, then your balance; a proposal across three dates is three
+different bills. **The number defaults to 0**, and 0 means the pair spawns
+unfunded and the floor says so in place of the bet buttons: the owner pays
+only on a date where they chose a number because they want the price before
+the proposer pays for one. When your wallet covers only part of the bill,
+every branch gets the same share of what it asked for, down to the minimum
+contribution, rather than some branches everything and others nothing. The
+workspace's `autoFundNewMarkets` and `newMarketLiquidityCredits` fund the
+metric's own books and never a proposal.
 
 ## The four ways it ends
 

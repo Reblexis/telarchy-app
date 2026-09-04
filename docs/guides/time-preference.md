@@ -107,6 +107,17 @@ one. A standing intraday ladder is `["+1h", "+2h", ...]`.
 never recreated. Dates whose period has already passed are pruned on save
 rather than rejected, so re-saving an old config never fails.
 
+**What each date opens with** rides on the same object, keyed by the entry:
+`horizonCredits: { "+0w": { "book": 500, "proposal": 250 } }`. `book` is what
+the metric's own market on that date opens with, in credits, paid by the
+workspace owner as it opens (absent or `null` falls back to `liquidityCredits`
+on the metric, then the workspace default). `proposal` is what a proposal's
+branch market on that date opens with when the proposer has not funded it,
+also from the owner; it defaults to 0, which means the proposer funds their
+own (see [deciding a proposal](/guides/proposals)). Keys that name no entry in
+`customHorizons` are dropped on save. A rolling entry pays both numbers again
+every time it comes round.
+
 Two properties to plan around:
 
 - **A custom horizon is just another date to price.** It appears on the chart
