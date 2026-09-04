@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type React from 'react';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * The owner's three dialogs (docs/owner-on-the-floor.md, "The v1 controls").
@@ -14,11 +14,12 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const createMetricIn = vi.fn(async () => ({ id: 'm-new', name: 'Steam wishlists' }));
 const createWorkspace = vi.fn(async () => ({ id: 'ws-new', ownerHandle: 'viktor', slug: 'meridian' }));
-const getMetric = vi.fn(async () => ({
+const STORED_METRIC = {
   id: 'm1',
   name: 'LookPilot net 2026 (USD)',
   timePreference: { enabled: false, halfLife: 1, customHorizons: ['2026-12'] },
-}));
+};
+const getMetric = vi.fn(async () => STORED_METRIC);
 const patchMetric = vi.fn(async () => ({}));
 const reportMetricValue = vi.fn(async () => ({}));
 const injectLiquidity = vi.fn(async () => ({}));
@@ -48,10 +49,15 @@ import {
 beforeEach(() => {
   createMetricIn.mockClear();
   createWorkspace.mockClear();
-  getMetric.mockClear();
-  patchMetric.mockClear();
+  // Reset, not clear: a once-implementation a test queued and did not use
+  // must not leak into the next one.
+  getMetric.mockReset();
+  getMetric.mockImplementation(async () => STORED_METRIC);
+  patchMetric.mockReset();
+  patchMetric.mockImplementation(async () => ({}));
+  injectLiquidity.mockReset();
+  injectLiquidity.mockImplementation(async () => ({}));
   reportMetricValue.mockClear();
-  injectLiquidity.mockClear();
 });
 
 describe('dialog 1: new metric', () => {
@@ -85,7 +91,21 @@ describe('dialog 1: new metric', () => {
   });
 });
 
-describe('dialog 2: add a date', () => {
+describe('dialog 2: add a date, right after the metric is created', () => {
+  /**
+   * The same form the sheet's rows fold behind "+ Add a date"
+   * (docs/owner-on-the-floor.md, "Adding a date"): how often, which period
+   * it starts with, and the two numbers every row carries. It writes ONE
+   * PUT: the entry into customHorizons and its numbers into horizonCredits.
+   */
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-09-03T12:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const renderIt = (onDone = vi.fn(), extra: { defaultCredits?: number; spendable?: number } = {}) =>
     render(
       <AddDateDialog
@@ -98,114 +118,117 @@ describe('dialog 2: add a date', () => {
         onDone={onDone}
       />,
     );
+  const ready = async () => {
+    const go = await screen.findByRole('button', { name: /Open the weekly book/ });
+    await waitFor(() => expect((go as HTMLButtonElement).disabled).toBe(false));
+  };
+
+  test('the head names the metric, and the form asks how often first', async () => {
+    renderIt();
+    await ready();
+    expect(screen.getByText('Add a date · LookPilot net 2026 (USD)')).toBeTruthy();
+    const row = screen.getByRole('group', { name: 'How often' });
+    expect(Array.from(row.querySelectorAll('button')).map(b => b.textContent)).toEqual([
+      'hourly',
+      'daily',
+      'weekly',
+      'monthly',
+      'yearly',
+      'once',
+    ]);
+  });
 
   // A fresh workspace carries 0.5 credits per auto-funded market, so the
   // dialog used to prefill 1 and opened the owner's first market at a credit
   // (walkthrough, 2026-08-30). A market nobody can move is worse than none.
-  test('a decoration-sized workspace default is not what the first market opens with', () => {
+  test('a decoration-sized workspace default is not what the first book opens with', async () => {
     renderIt(vi.fn(), { defaultCredits: 0.5, spendable: 50000 });
-    expect(screen.getByText(/Open the market · 1,000 cr/)).toBeTruthy();
+    await ready();
+    expect((screen.getByLabelText('Credits behind the book') as HTMLInputElement).value).toBe('1,000');
   });
 
-  test('the prefill never asks for more than the owner holds', () => {
-    renderIt(vi.fn(), { defaultCredits: 0.5, spendable: 200 });
-    expect(screen.getByText(/Open the market · 200 cr/)).toBeTruthy();
+  test('the book number says whose credits it is, and the proposal number starts at 0', async () => {
+    renderIt(vi.fn(), { spendable: 5000 });
+    await ready();
+    expect(screen.getByText('The book opens with · of your 5,000 cr')).toBeTruthy();
+    expect((screen.getByLabelText('Credits behind the book') as HTMLInputElement).value).toBe('1,200');
+    expect((screen.getByLabelText('Credits behind each proposal') as HTMLInputElement).value).toBe('0');
   });
 
-  test('the heading names the metric and what is behind it, both from the caller', () => {
+  test('the prefill never asks for more than the owner holds', async () => {
     renderIt(vi.fn(), { spendable: 200 });
-    expect(screen.getByText('Liquidity behind LookPilot net 2026 (USD) · from your 200 cr')).toBeTruthy();
+    await ready();
+    expect((screen.getByLabelText('Credits behind the book') as HTMLInputElement).value).toBe('200');
   });
 
-  test('a calendar pick is a ROLLING entry appended to the stored horizons, with the liquidity as the metric depth', async () => {
-    renderIt();
-    // "this week" is preselected; the button carries the prefilled cost.
-    fireEvent.click(screen.getByText(/Open the market · 1,200 cr/));
-    await waitFor(() => expect(patchMetric).toHaveBeenCalled());
-    const [wsId, id, body] = patchMetric.mock.calls[0] as unknown as [
-      string,
-      string,
-      { liquidityCredits: number; timePreference: { enabled: boolean; customHorizons: string[] } },
-    ];
-    expect(wsId).toBe('ws');
-    expect(id).toBe('m1');
-    expect(body.liquidityCredits).toBe(1200);
-    // The stored '2026-12' survives; the rolling entry joins it.
-    expect(body.timePreference.customHorizons).toEqual(['2026-12', '+0w']);
-    expect(body.timePreference.enabled).toBe(false);
+  test('a repeat is a ROLLING entry appended to the stored horizons, both numbers keyed by it', async () => {
+    const onDone = vi.fn();
+    renderIt(onDone);
+    await ready();
+    fireEvent.click(screen.getByText('monthly'));
+    fireEvent.change(screen.getByLabelText('Credits behind each proposal'), { target: { value: '250' } });
+    fireEvent.click(screen.getByRole('button', { name: /Open the monthly book · 1,200 cr/ }));
+    await waitFor(() => expect(patchMetric).toHaveBeenCalledTimes(1));
+    expect(patchMetric).toHaveBeenCalledWith('ws', 'm1', {
+      timePreference: {
+        enabled: false,
+        halfLife: 1,
+        // The stored '2026-12' survives; the rolling entry joins it.
+        customHorizons: ['2026-12', '+0m'],
+        horizonCredits: { '+0m': { book: 1200, proposal: 250 } },
+      },
+    });
+    // The book number lives on the entry now, never on the metric.
+    expect(patchMetric.mock.calls[0][2]).not.toHaveProperty('liquidityCredits');
+    expect(onDone).toHaveBeenCalled();
   });
 
-  test('the picker is always there; a picked day is one-shot and deselects the chips', async () => {
+  test('once asks for a day and an optional UTC hour, and the entry carries the hour', async () => {
     renderIt();
-    // No mode toggle (Manifold's shape): the date input is already rendered.
-    const input = screen.getByLabelText('Pick a date');
-    fireEvent.change(input, { target: { value: '2026-09-30' } });
-    // The chip is no longer the selection.
-    expect(screen.getByText('this week').getAttribute('aria-pressed')).toBe('false');
-    fireEvent.click(screen.getByText(/Open the market/));
-    await waitFor(() => expect(patchMetric).toHaveBeenCalled());
-    const [, , body] = patchMetric.mock.calls[0] as unknown as [
-      string,
-      string,
-      { timePreference: { customHorizons: string[] } },
-    ];
-    expect(body.timePreference.customHorizons).toEqual(['2026-12', '2026-09-30']);
-  });
-
-  test('an hour makes an hour market: the entry gains its UTC hour and the fact says when', async () => {
-    renderIt();
+    await ready();
+    fireEvent.click(screen.getByText('once'));
     fireEvent.change(screen.getByLabelText('Pick a date'), { target: { value: '2026-09-30' } });
-    const time = screen.getByLabelText('Pick an hour, UTC');
-    // Minutes snap to the hour: markets settle on the hour, never at :30.
-    fireEvent.change(time, { target: { value: '14:30' } });
-    expect(screen.getByText(/14:59 UTC/)).toBeTruthy();
-    fireEvent.click(screen.getByText(/Open the market/));
+    fireEvent.change(screen.getByLabelText('Pick an hour, UTC'), { target: { value: '14:00' } });
+    fireEvent.click(screen.getByRole('button', { name: /Open the book/ }));
     await waitFor(() => expect(patchMetric).toHaveBeenCalled());
-    const [, , body] = patchMetric.mock.calls[0] as unknown as [
-      string,
-      string,
-      { timePreference: { customHorizons: string[] } },
-    ];
-    expect(body.timePreference.customHorizons).toEqual(['2026-12', '2026-09-30T14']);
+    expect(patchMetric.mock.calls[0][2]).toMatchObject({
+      timePreference: {
+        customHorizons: ['2026-12', '2026-09-30T14'],
+        horizonCredits: { '2026-09-30T14': { book: 1200, proposal: 0 } },
+      },
+    });
   });
 
-  test('the hour is disabled until a day is picked, and a chip clears both', () => {
+  test('the hour is disabled until a day is picked', async () => {
     renderIt();
+    await ready();
+    fireEvent.click(screen.getByText('once'));
     const time = screen.getByLabelText('Pick an hour, UTC') as HTMLInputElement;
     expect(time.disabled).toBe(true);
     fireEvent.change(screen.getByLabelText('Pick a date'), { target: { value: '2026-09-30' } });
     expect(time.disabled).toBe(false);
-    fireEvent.change(time, { target: { value: '14:00' } });
-    fireEvent.click(screen.getByText('this month'));
-    expect(time.value).toBe('');
-    expect(time.disabled).toBe(true);
   });
 
-  test('clicking a chip clears the picked day and goes back to rolling', async () => {
+  test('the book number typed is the number sent, and the button restates it', async () => {
     renderIt();
-    const input = screen.getByLabelText('Pick a date') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: '2026-09-30' } });
-    fireEvent.click(screen.getByText('this month'));
-    expect(input.value).toBe('');
-    fireEvent.click(screen.getByText(/Open the market/));
+    await ready();
+    fireEvent.change(screen.getByLabelText('Credits behind the book'), { target: { value: '2,500' } });
+    fireEvent.click(screen.getByRole('button', { name: /Open the weekly book · 2,500 cr/ }));
     await waitFor(() => expect(patchMetric).toHaveBeenCalled());
-    const [, , body] = patchMetric.mock.calls[0] as unknown as [
-      string,
-      string,
-      { timePreference: { customHorizons: string[] } },
-    ];
-    expect(body.timePreference.customHorizons).toEqual(['2026-12', '+0m']);
+    expect(patchMetric.mock.calls[0][2]).toMatchObject({
+      timePreference: { horizonCredits: { '+0w': { book: 2500, proposal: 0 } } },
+    });
   });
 
-  test('the liquidity typed is the liquidity sent, and the button restates it', async () => {
+  test('the form is not live before the stored dates are read, so adding one never drops another', async () => {
+    getMetric.mockImplementationOnce(() => new Promise(() => {}));
     renderIt();
-    const amount = screen.getByLabelText('Credits behind the market');
-    fireEvent.change(amount, { target: { value: '2,500' } });
-    expect(screen.getByText(/Open the market · 2,500 cr/)).toBeTruthy();
-    fireEvent.click(screen.getByText(/Open the market · 2,500 cr/));
-    await waitFor(() => expect(patchMetric).toHaveBeenCalled());
-    const [, , body] = patchMetric.mock.calls[0] as unknown as [string, string, { liquidityCredits: number }];
-    expect(body.liquidityCredits).toBe(2500);
+    const go = document.querySelector('.ticket-go') as HTMLButtonElement | null;
+    if (go) {
+      expect(go.disabled).toBe(true);
+      fireEvent.click(go);
+    }
+    expect(patchMetric).not.toHaveBeenCalled();
   });
 });
 
@@ -275,7 +298,7 @@ describe('dialog 3: inject liquidity', () => {
   });
 });
 
-describe('dialog 3: the second number, what every new market on this metric opens with', () => {
+describe('dialog 3: a baseline market whose date has no row falls back to the metric-level number', () => {
   const owner = (over: Partial<React.ComponentProps<typeof InjectLiquidityDialog>> = {}) => (
     <InjectLiquidityDialog
       workspaceId="ws"
@@ -406,6 +429,204 @@ describe('dialog 3: the second number, what every new market on this metric open
     fireEvent.click(screen.getByText('Add 1,000 cr · 500 cr on every opening'));
     await waitFor(() => expect(screen.getByText('Forbidden')).toBeTruthy());
     expect(injectLiquidity).not.toHaveBeenCalled();
+  });
+});
+
+describe('dialog 3: three numbers for a manager on a baseline market with a date row', () => {
+  /**
+   * The market's own date row (dialog 2) rides in the inject dialog: what the
+   * book opens with each time this date comes round, and what a proposal's
+   * branch on it opens with (docs/owner-on-the-floor.md, "Three numbers for
+   * someone who can manage the floor"). Written to horizonCredits with the
+   * whole timePreference, before the credits move, only when changed.
+   */
+  const owner = (over: Partial<React.ComponentProps<typeof InjectLiquidityDialog>> = {}) => (
+    <InjectLiquidityDialog
+      workspaceId="ws"
+      marketId="mkt-1"
+      marketLabel="Daily active users · this week"
+      pool={3000}
+      traders={4}
+      metricId="m1"
+      metricName="Daily active users"
+      targetDate="2026-12"
+      canManage
+      defaultCredits={1000}
+      onClose={() => {}}
+      onDone={() => {}}
+      {...over}
+    />
+  );
+  const stored = (over: { liquidityCredits?: number | null; horizonCredits?: Record<string, unknown> } = {}) =>
+    getMetric.mockResolvedValueOnce({
+      id: 'm1',
+      name: 'Daily active users',
+      liquidityCredits: over.liquidityCredits ?? null,
+      timePreference: {
+        enabled: false,
+        halfLife: 1,
+        customHorizons: ['+0w', '2026-12'],
+        ...(over.horizonCredits ? { horizonCredits: over.horizonCredits } : {}),
+      },
+    } as never);
+  const bookField = () => screen.findByLabelText('Credits the book on this date opens with');
+  const proposalField = () => screen.getByLabelText('Credits behind each proposal on this date');
+
+  test("the book number is the row's, and the proposal number defaults to 0", async () => {
+    stored({ horizonCredits: { '2026-12': { book: 500 } } });
+    render(owner());
+    const book = await bookField();
+    await waitFor(() => expect((book as HTMLInputElement).value).toBe('500'));
+    expect((proposalField() as HTMLInputElement).value).toBe('0');
+    expect(screen.getByText('Each time it opens again')).toBeTruthy();
+    expect(screen.getByText('Behind each proposal on this date')).toBeTruthy();
+  });
+
+  test("a row with no book number shows the metric's standing number, then the workspace default", async () => {
+    stored({ liquidityCredits: 700 });
+    render(owner());
+    await waitFor(() =>
+      expect((screen.getByLabelText('Credits the book on this date opens with') as HTMLInputElement).value).toBe('700'),
+    );
+    stored({ liquidityCredits: null });
+    render(owner({ defaultCredits: 1386, marketId: 'mkt-2' }));
+    await waitFor(() =>
+      expect(
+        screen.getAllByLabelText('Credits the book on this date opens with').map(e => (e as HTMLInputElement).value),
+      ).toContain('1,386'),
+    );
+  });
+
+  test('the facts rows say what the next book and the next proposal on this date open with, and what they were', async () => {
+    stored({ horizonCredits: { '2026-12': { book: 500, proposal: 0 } } });
+    render(owner());
+    await waitFor(() =>
+      expect((screen.getByLabelText('Credits the book on this date opens with') as HTMLInputElement).value).toBe('500'),
+    );
+    expect(screen.getByText('Next market on this date opens with')).toBeTruthy();
+    expect(screen.getByText('Next proposal on this date opens with')).toBeTruthy();
+    expect(screen.queryByText(/was 0/)).toBeNull();
+    fireEvent.change(proposalField(), { target: { value: '250' } });
+    expect(screen.getByText(/was 0$/)).toBeTruthy();
+    expect(screen.getByText('Add 1,000 cr · 250 cr behind each proposal')).toBeTruthy();
+  });
+
+  test('the note says what the third number is and what zero means', async () => {
+    stored();
+    render(owner());
+    await bookField();
+    expect(screen.getByText(/at zero, the proposer funds their own/)).toBeTruthy();
+    expect(screen.getByText(/proposal's market on this date opens with/)).toBeTruthy();
+  });
+
+  test('a changed proposal number is written to horizonCredits, whole timePreference, before the credits move', async () => {
+    stored({ horizonCredits: { '+0w': { book: 300, proposal: 50 }, '2026-12': { book: 500 } } });
+    const onDone = vi.fn();
+    const order: string[] = [];
+    patchMetric.mockImplementationOnce(async () => {
+      order.push('patch');
+      return {};
+    });
+    injectLiquidity.mockImplementationOnce(async () => {
+      order.push('inject');
+      return {};
+    });
+    render(owner({ onDone }));
+    await waitFor(() =>
+      expect((screen.getByLabelText('Credits the book on this date opens with') as HTMLInputElement).value).toBe('500'),
+    );
+    fireEvent.change(proposalField(), { target: { value: '250' } });
+    fireEvent.click(screen.getByText('Add 1,000 cr · 250 cr behind each proposal'));
+    await waitFor(() => expect(injectLiquidity).toHaveBeenCalledWith('mkt-1', 1000, 'ws'));
+    expect(patchMetric).toHaveBeenCalledWith('ws', 'm1', {
+      timePreference: {
+        enabled: false,
+        halfLife: 1,
+        customHorizons: ['+0w', '2026-12'],
+        horizonCredits: { '+0w': { book: 300, proposal: 50 }, '2026-12': { book: 500, proposal: 250 } },
+      },
+    });
+    expect(order).toEqual(['patch', 'inject']);
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  test('a changed book number is written too, and the button names both changes', async () => {
+    stored({ horizonCredits: { '2026-12': { book: 500 } } });
+    render(owner());
+    const book = await bookField();
+    await waitFor(() => expect((book as HTMLInputElement).value).toBe('500'));
+    fireEvent.change(book, { target: { value: '800' } });
+    expect(screen.getByText('Add 1,000 cr · 800 cr on every opening')).toBeTruthy();
+    fireEvent.change(proposalField(), { target: { value: '250' } });
+    fireEvent.click(screen.getByText('Add 1,000 cr · 800 cr on every opening · 250 cr behind each proposal'));
+    await waitFor(() => expect(injectLiquidity).toHaveBeenCalled());
+    expect(patchMetric.mock.calls[0][2]).toMatchObject({
+      timePreference: { horizonCredits: { '2026-12': { book: 800, proposal: 250 } } },
+    });
+  });
+
+  test('unchanged numbers are not written', async () => {
+    stored({ horizonCredits: { '2026-12': { book: 500, proposal: 250 } } });
+    render(owner());
+    await waitFor(() =>
+      expect((screen.getByLabelText('Credits the book on this date opens with') as HTMLInputElement).value).toBe('500'),
+    );
+    fireEvent.click(screen.getByText('Add 1,000 cr'));
+    await waitFor(() => expect(injectLiquidity).toHaveBeenCalled());
+    expect(patchMetric).not.toHaveBeenCalled();
+  });
+
+  test('zero is a valid answer for either: the book opens unfunded, the proposer funds their own', async () => {
+    stored({ horizonCredits: { '2026-12': { book: 500, proposal: 250 } } });
+    render(owner());
+    const book = await bookField();
+    await waitFor(() => expect((book as HTMLInputElement).value).toBe('500'));
+    fireEvent.change(book, { target: { value: '0' } });
+    fireEvent.change(proposalField(), { target: { value: '0' } });
+    fireEvent.click(screen.getByText('Add 1,000 cr · 0 cr on every opening · 0 cr behind each proposal'));
+    await waitFor(() => expect(injectLiquidity).toHaveBeenCalled());
+    expect(patchMetric.mock.calls[0][2]).toMatchObject({
+      timePreference: { horizonCredits: { '2026-12': { book: 0, proposal: 0 } } },
+    });
+  });
+
+  test('a refused write moves nothing', async () => {
+    stored({ horizonCredits: { '2026-12': { book: 500 } } });
+    patchMetric.mockRejectedValueOnce(new Error('Forbidden'));
+    render(owner());
+    await bookField();
+    fireEvent.change(proposalField(), { target: { value: '250' } });
+    fireEvent.click(screen.getByText('Add 1,000 cr · 250 cr behind each proposal'));
+    await waitFor(() => expect(screen.getByText('Forbidden')).toBeTruthy());
+    expect(injectLiquidity).not.toHaveBeenCalled();
+  });
+
+  test('a non-number in the third field reaches no API', async () => {
+    stored();
+    render(owner());
+    await bookField();
+    fireEvent.change(proposalField(), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Add/ }));
+    await waitFor(() => expect(screen.getByText('A number of credits behind each proposal.')).toBeTruthy());
+    expect(injectLiquidity).not.toHaveBeenCalled();
+    expect(patchMetric).not.toHaveBeenCalled();
+  });
+
+  test('a trader sees the amount only, and never reads or writes the metric', async () => {
+    render(owner({ canManage: false }));
+    expect(screen.queryByLabelText('Credits the book on this date opens with')).toBeNull();
+    expect(screen.queryByLabelText('Credits behind each proposal on this date')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Credits to add to the pool'), { target: { value: '2000' } });
+    fireEvent.click(screen.getByText('Add 2,000 cr'));
+    await waitFor(() => expect(injectLiquidity).toHaveBeenCalledWith('mkt-1', 2000, 'ws'));
+    expect(getMetric).not.toHaveBeenCalled();
+    expect(patchMetric).not.toHaveBeenCalled();
+  });
+
+  test('a proposal branch never respawns, so it is one number even for the owner', () => {
+    render(owner({ metricId: undefined }));
+    expect(screen.queryByLabelText('Credits the book on this date opens with')).toBeNull();
+    expect(screen.queryByLabelText('Credits behind each proposal on this date')).toBeNull();
   });
 });
 

@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { settleDayOf } from '../lib/floor-horizons';
+import { resolveEntry } from '../lib/horizon-entries';
+import type { HorizonCredits, TimePreference } from '../types';
+import { AddDateForm, wholeTimePreference } from './AddDateForm';
 import { FloorModal } from './FloorModal';
 
 /**
@@ -11,36 +13,9 @@ import { FloorModal } from './FloorModal';
  * the ruled ticket-facts rows, one ticket-go whose sub-line carries the
  * consequence), so the owner's dialogs read as siblings of the one dialog
  * every trader already knows. Each does exactly one thing: a metric is a
- * name and what it is; a date is one date and the liquidity behind it; an
+ * name and what it is; a date is one date and the two numbers behind it; an
  * injection is an amount.
  */
-
-/** The dates the segmented row offers, in the API's own grammar.
- *  Calendar picks are ROLLING entries (+0w rolls into next week's market when
- *  this week's resolves); the picker's day is the one-shot absolute it is. */
-function quickDates(now: Date = new Date()): Array<{ label: string; entry: string; preview: string }> {
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const next = new Date(Date.UTC(y, m + 1, 1));
-  return [
-    { label: 'this week', entry: '+0w', preview: isoWeekOf(now) },
-    { label: 'this month', entry: '+0m', preview: `${y}-${pad(m + 1)}` },
-    { label: 'next month', entry: '+1m', preview: `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}` },
-    { label: `end of ${y}`, entry: String(y), preview: String(y) },
-  ];
-}
-
-function isoWeekOf(d: Date): string {
-  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const day = t.getUTCDay() || 7;
-  t.setUTCDate(t.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  return `${t.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-}
-
-const DATE_SHAPE = /^(\d{4}|\d{4}-\d{2}|\d{4}-W\d{2}|\d{4}-\d{2}-\d{2}(T\d{2})?)$/;
 
 function fmtCr(n: number): string {
   return Math.round(n).toLocaleString('en-US');
@@ -187,18 +162,10 @@ export function NewMetricDialog({
   );
 }
 
-/** What the add-date dialog prefills: enough to price, never more than held. */
-export function firstMarketCredits(workspaceDefault: number, spendable: number): number {
-  // 25 credits is where the setup doctrine stops calling a pool a decoration
-  // (lib/setup-spec.ts); below it the workspace default says nothing about
-  // what this market should carry.
-  const wanted = workspaceDefault >= 25 ? workspaceDefault : 1000;
-  const affordable = spendable > 0 ? Math.min(wanted, spendable) : wanted;
-  return Math.max(1, Math.floor(affordable));
-}
-
-/** Dialog 2: one date, and the liquidity behind it. The same dialog whether
- *  it follows dialog 1 or opens from + date on any metric. */
+/** Dialog 2: the date right after a metric is created, when the metric has
+ *  none (docs/owner-on-the-floor.md, "Adding a date"). The same form the
+ *  sheet's rows fold behind "+ Add a date", on its own because a metric
+ *  with no date has no market and the flow does not stop before one. */
 export function AddDateDialog({
   workspaceId,
   metricId,
@@ -217,145 +184,44 @@ export function AddDateDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
-  // Manifold's close-date shape (their close-time-section): preset chips above
-  // an always-visible date picker, the chips being shortcuts, never a second
-  // mode. Ours differ in one semantic: a chip is a ROLLING entry, a picked day
-  // is one-shot, so a day in the picker deselects the chips and clearing it
-  // hands them back.
-  const [picked, setPicked] = useState<string>('+0w');
-  const [day, setDay] = useState('');
-  // A UTC hour, '' meaning the whole day. Markets settle on the hour
-  // (targetDate YYYY-MM-DDTHH), so the time field carries hours only.
-  const [hour, setHour] = useState('');
-  // A workspace opens with 0.5 credits per auto-funded market
-  // (DEFAULT_MARKET_LIQUIDITY_CREDITS), which the platform's own setup
-  // checklist calls a decoration: five credits shove such a market's price
-  // across its band. Prefilling that number opened the owner's first market
-  // at one credit (walkthrough, 2026-08-30), so the dialog prefills what
-  // they can actually put behind it: the workspace's default when it is big
-  // enough to price anything, a thousand otherwise, and never more than they
-  // hold, since the server refuses what the balance will not cover.
-  const [credits, setCredits] = useState(fmtCr(firstMarketCredits(defaultCredits, spendable)));
-  const [busy, setBusy] = useState(false);
+  // The stored horizons are the source of truth, never the dates on screen:
+  // read before the form goes live, so adding one date cannot drop another.
+  const [stored, setStored] = useState<TimePreference | null | undefined>(undefined);
+  const [standing, setStanding] = useState<number | null>(null);
   const [err, setErr] = useState('');
-
-  const quick = useMemo(() => quickDates(), []);
-  const usingDay = day !== '';
-  const entry = usingDay ? (hour ? `${day}T${hour.slice(0, 2)}` : day) : picked;
-  const previewDate = usingDay ? day : (quick.find(q => q.entry === picked)?.preview ?? null);
-  const settleDay = previewDate && DATE_SHAPE.test(previewDate) ? settleDayOf(previewDate) : null;
-  const settleClock = usingDay && hour ? `${hour.slice(0, 2)}:59` : '23:59';
-  const creditsNum = parseCredits(credits);
-
-  const open = async () => {
-    if (usingDay && !DATE_SHAPE.test(day)) {
-      setErr('Pick a date.');
-      return;
-    }
-    if (creditsNum === null) {
-      setErr('A number of credits.');
-      return;
-    }
-    setBusy(true);
-    setErr('');
-    try {
-      // The stored horizons are the source of truth, never the dates on
-      // screen: a curve-generated date echoed back would freeze the curve.
-      const metric = await api.getMetric(workspaceId, metricId);
-      const tp = metric.timePreference ?? null;
-      const existing = tp?.customHorizons ?? [];
-      await api.patchMetric(workspaceId, metricId, {
-        liquidityCredits: creditsNum,
-        timePreference: {
-          enabled: tp?.enabled ?? false,
-          halfLife: tp?.halfLife ?? 1,
-          customHorizons: existing.includes(entry) ? existing : [...existing, entry],
-        },
-      });
-      onDone();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-      setBusy(false);
-    }
-  };
+  useEffect(() => {
+    let live = true;
+    api
+      .getMetric(workspaceId, metricId)
+      .then(m => {
+        if (!live) return;
+        setStored(m.timePreference ?? null);
+        setStanding(typeof m.liquidityCredits === 'number' ? m.liquidityCredits : null);
+      })
+      .catch(e => live && setErr(e instanceof Error ? e.message : String(e)));
+    return () => {
+      live = false;
+    };
+  }, [workspaceId, metricId]);
 
   return (
     <FloorModal onClose={onClose} label="Add a date">
       <div className="jobform">
-        <CreditsHero
-          label={`Liquidity behind ${metricName} · from your ${fmtCr(spendable)} cr`}
-          value={credits}
-          onChange={setCredits}
-          disabled={busy}
-          ariaLabel="Credits behind the market"
-          onClose={onClose}
-        />
-
-        <div className="jobform-field">
-          <span className="ticket-label">Priced for</span>
-          <span className="pubws-seg odlg-seg" role="group" aria-label="Date">
-            {quick.map(q => (
-              <button
-                key={q.entry}
-                type="button"
-                className={`pubws-seg-btn${!usingDay && picked === q.entry ? ' is-active' : ''}`}
-                aria-pressed={!usingDay && picked === q.entry}
-                disabled={busy}
-                onClick={() => {
-                  setDay('');
-                  setHour('');
-                  setPicked(q.entry);
-                }}
-              >
-                {q.label}
-              </button>
-            ))}
-          </span>
-          <span className="odlg-dayrow">
-            <span className="odlg-or">or an exact day</span>
-            <input
-              className="jobform-line odlg-mono odlg-day"
-              type="date"
-              value={day}
-              disabled={busy}
-              min={new Date().toISOString().slice(0, 10)}
-              onChange={e => setDay(e.target.value)}
-              aria-label="Pick a date"
-            />
-            <span className="odlg-or">at</span>
-            <input
-              className="jobform-line odlg-mono odlg-day"
-              type="time"
-              step={3600}
-              value={hour}
-              disabled={busy || !usingDay}
-              // Markets settle on the hour; minutes typed in a browser that
-              // ignores step are snapped rather than silently kept.
-              onChange={e => setHour(e.target.value ? `${e.target.value.slice(0, 2)}:00` : '')}
-              aria-label="Pick an hour, UTC"
-            />
-            <span className="odlg-or">UTC, optional</span>
-          </span>
+        <div className="ticket-head jobform-head">
+          <p className="ticket-label">Add a date · {metricName}</p>
+          <button className="ticket-close" aria-label="Close" onClick={onClose}>
+            ×
+          </button>
         </div>
-
-        {settleDay && (
-          <div className="ticket-facts">
-            <div className="ticket-fact">
-              <span className="ticket-fact-k">Settles</span>
-              <span className="ticket-fact-v">
-                {settleDay}, {settleClock} UTC, on your last reading
-              </span>
-            </div>
-          </div>
-        )}
-
         {err && <p className="ticket-err">{err}</p>}
-        <button className="ticket-go" disabled={busy} onClick={() => void open()}>
-          {busy ? 'Opening…' : `Open the market${creditsNum ? ` · ${fmtCr(creditsNum)} cr` : ''}`}
-          <span className="ticket-go-sub">
-            What traders can win. Whatever the market does not pay out comes back when it settles.
-          </span>
-        </button>
+        <AddDateForm
+          workspaceId={workspaceId}
+          metricId={metricId}
+          stored={stored}
+          standingCredits={standing ?? defaultCredits}
+          spendable={spendable}
+          onDone={onDone}
+        />
       </div>
     </FloorModal>
   );
@@ -379,11 +245,15 @@ function parseStanding(raw: string): number | null {
 }
 
 /** Dialog 3: inject liquidity into one open market, and, for someone who can
- *  manage the floor, set what every new market on the metric opens with
- *  (docs/owner-on-the-floor.md, "Two numbers for someone who can manage the
- *  floor"). The second number is the metric's own `liquidityCredits`, the one
- *  the Add-a-date dialog writes; a proposal branch never respawns, so the
- *  caller passes no metricId there and the dialog is one number for all. */
+ *  manage the floor, the two numbers of this market's own date row
+ *  (docs/owner-on-the-floor.md, "Three numbers for someone who can manage
+ *  the floor"): what the book opens with each time this date comes round,
+ *  and what a proposal's branch on it opens with, written to
+ *  `timePreference.horizonCredits[entry]` before the credits move, only
+ *  when changed. A market whose date has no row of its own (a curve date)
+ *  falls back to the metric's own `liquidityCredits`, one standing number.
+ *  A proposal branch never respawns, so the caller passes no metricId
+ *  there and the dialog is one number for all. */
 export function InjectLiquidityDialog({
   workspaceId,
   marketId,
@@ -392,6 +262,7 @@ export function InjectLiquidityDialog({
   traders,
   metricId,
   metricName,
+  targetDate,
   canManage = false,
   defaultCredits = 0,
   onClose,
@@ -405,6 +276,8 @@ export function InjectLiquidityDialog({
   /** The metric this market respawns on; absent on a proposal branch. */
   metricId?: string;
   metricName?: string;
+  /** The market's date, to find its row among the metric's entries. */
+  targetDate?: string;
   canManage?: boolean;
   /** The workspace's own default, what a metric with no number opens with. */
   defaultCredits?: number;
@@ -417,10 +290,13 @@ export function InjectLiquidityDialog({
   const amountNum = parseCredits(amount);
 
   const offersStanding = canManage && !!metricId;
-  // What the metric opens new markets with today: null until loaded, and
-  // the workspace default when the metric has no number of its own.
-  const [current, setCurrent] = useState<number | null>(null);
+  // What this date opens with today: null until loaded. `entry` is the row
+  // the numbers belong to, null when the date has no row of its own.
+  const [current, setCurrent] = useState<{ book: number; proposal: number } | null>(null);
+  const [entry, setEntry] = useState<string | null>(null);
+  const [stored, setStored] = useState<TimePreference | null>(null);
   const [standing, setStanding] = useState('');
+  const [proposal, setProposal] = useState('');
   useEffect(() => {
     if (!offersStanding || !metricId) return;
     let live = true;
@@ -428,18 +304,28 @@ export function InjectLiquidityDialog({
       .getMetric(workspaceId, metricId)
       .then(m => {
         if (!live) return;
-        const own = (m as { liquidityCredits?: number | null }).liquidityCredits;
-        const now = typeof own === 'number' ? own : defaultCredits;
-        setCurrent(now);
-        setStanding(fmtStanding(now));
+        const own = m.liquidityCredits;
+        const metricNumber = typeof own === 'number' ? own : defaultCredits;
+        const tp = m.timePreference ?? null;
+        const row = targetDate ? ((tp?.customHorizons ?? []).find(h => resolveEntry(h) === targetDate) ?? null) : null;
+        const hc = row ? tp?.horizonCredits?.[row] : undefined;
+        const book = typeof hc?.book === 'number' ? hc.book : metricNumber;
+        const prop = hc?.proposal ?? 0;
+        setStored(tp);
+        setEntry(row);
+        setCurrent({ book, proposal: prop });
+        setStanding(fmtStanding(book));
+        setProposal(fmtStanding(prop));
       })
       .catch(e => live && setErr(e instanceof Error ? e.message : String(e)));
     return () => {
       live = false;
     };
-  }, [offersStanding, workspaceId, metricId, defaultCredits]);
+  }, [offersStanding, workspaceId, metricId, targetDate, defaultCredits]);
   const standingNum = offersStanding ? parseStanding(standing) : null;
-  const standingChanged = offersStanding && current !== null && standingNum !== null && standingNum !== current;
+  const proposalNum = offersStanding && entry ? parseStanding(proposal) : null;
+  const standingChanged = offersStanding && current !== null && standingNum !== null && standingNum !== current.book;
+  const proposalChanged = !!entry && current !== null && proposalNum !== null && proposalNum !== current.proposal;
 
   const inject = async () => {
     if (amountNum === null) {
@@ -450,15 +336,31 @@ export function InjectLiquidityDialog({
       setErr('A number of credits for every opening.');
       return;
     }
+    if (entry && proposalNum === null) {
+      setErr('A number of credits behind each proposal.');
+      return;
+    }
     setBusy(true);
     setErr('');
     try {
-      // The standing number first: refused, nothing has moved; and once
-      // written, a refused injection leaves a number a retry rewrites
-      // without harm. The other order could move credits and lose the number.
-      if (standingChanged && metricId) {
-        await api.patchMetric(workspaceId, metricId, { liquidityCredits: standingNum });
-        setCurrent(standingNum);
+      // The standing numbers first: refused, nothing has moved; and once
+      // written, a refused injection leaves numbers a retry rewrites
+      // without harm. The other order could move credits and lose them.
+      if (metricId && (standingChanged || proposalChanged)) {
+        if (entry) {
+          const credits: Record<string, HorizonCredits> = { ...(stored?.horizonCredits ?? {}) };
+          credits[entry] = {
+            ...(credits[entry] ?? {}),
+            ...(standingChanged && standingNum !== null ? { book: standingNum } : {}),
+            ...(proposalChanged && proposalNum !== null ? { proposal: proposalNum } : {}),
+          };
+          const tp = wholeTimePreference(stored, stored?.customHorizons ?? [], credits);
+          await api.patchMetric(workspaceId, metricId, { timePreference: tp });
+          setStored(tp);
+        } else {
+          await api.patchMetric(workspaceId, metricId, { liquidityCredits: standingNum });
+        }
+        setCurrent({ book: standingNum ?? current?.book ?? 0, proposal: proposalNum ?? current?.proposal ?? 0 });
       }
       await api.injectLiquidity(marketId, amountNum, workspaceId);
       onDone();
@@ -470,9 +372,11 @@ export function InjectLiquidityDialog({
 
   const label = `Inject liquidity · ${marketLabel}`;
   const go = amountNum
-    ? standingChanged && standingNum !== null
-      ? `Add ${fmtCr(amountNum)} cr · ${fmtStanding(standingNum)} cr on every opening`
-      : `Add ${fmtCr(amountNum)} cr`
+    ? [
+        `Add ${fmtCr(amountNum)} cr`,
+        ...(standingChanged && standingNum !== null ? [`${fmtStanding(standingNum)} cr on every opening`] : []),
+        ...(proposalChanged && proposalNum !== null ? [`${fmtStanding(proposalNum)} cr behind each proposal`] : []),
+      ].join(' · ')
     : 'Add';
 
   return (
@@ -482,7 +386,7 @@ export function InjectLiquidityDialog({
           <div className="ticket-head jobform-head">
             <div className="jobform-askblock" style={{ flex: 1 }}>
               <p className="ticket-label">{label}</p>
-              <div className="inject-two">
+              <div className={entry ? 'inject-two inject-three' : 'inject-two'}>
                 <div className="jobform-askblock">
                   <p className="ticket-label">Now, into this market</p>
                   <label className="ticket-amt ticket-amt--price jobform-ask">
@@ -500,7 +404,7 @@ export function InjectLiquidityDialog({
                   </label>
                 </div>
                 <div className="jobform-askblock">
-                  <p className="ticket-label">And each time it opens again</p>
+                  <p className="ticket-label">{entry ? 'Each time it opens again' : 'And each time it opens again'}</p>
                   <label className="ticket-amt ticket-amt--price jobform-ask">
                     <input
                       value={standing}
@@ -508,13 +412,35 @@ export function InjectLiquidityDialog({
                       onChange={e => setStanding(e.target.value.replace(/[^0-9,.]/g, ''))}
                       placeholder={current === null ? '…' : '0'}
                       inputMode="decimal"
-                      aria-label="Credits every new market on this metric opens with"
+                      aria-label={
+                        entry
+                          ? 'Credits the book on this date opens with'
+                          : 'Credits every new market on this metric opens with'
+                      }
                       disabled={busy || current === null}
                       required
                     />
                     <span className="ticket-amt-unit">cr</span>
                   </label>
                 </div>
+                {entry && (
+                  <div className="jobform-askblock">
+                    <p className="ticket-label">Behind each proposal on this date</p>
+                    <label className="ticket-amt ticket-amt--price jobform-ask">
+                      <input
+                        value={proposal}
+                        style={{ width: `${Math.max(4, proposal.length)}ch` }}
+                        onChange={e => setProposal(e.target.value.replace(/[^0-9,.]/g, ''))}
+                        placeholder={current === null ? '…' : '0'}
+                        inputMode="decimal"
+                        aria-label="Credits behind each proposal on this date"
+                        disabled={busy || current === null}
+                        required
+                      />
+                      <span className="ticket-amt-unit">cr</span>
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
             <button className="ticket-close" aria-label="Close" onClick={onClose}>
@@ -549,10 +475,21 @@ export function InjectLiquidityDialog({
           </div>
           {offersStanding && current !== null && standingNum !== null && (
             <div className="ticket-fact">
-              <span className="ticket-fact-k">Next market on this metric opens with</span>
+              <span className="ticket-fact-k">
+                {entry ? 'Next market on this date opens with' : 'Next market on this metric opens with'}
+              </span>
               <span className="ticket-fact-v">
                 {fmtStanding(standingNum)} cr
-                {standingChanged && <span className="inject-was"> · was {fmtStanding(current)}</span>}
+                {standingChanged && <span className="inject-was"> · was {fmtStanding(current.book)}</span>}
+              </span>
+            </div>
+          )}
+          {entry && current !== null && proposalNum !== null && (
+            <div className="ticket-fact">
+              <span className="ticket-fact-k">Next proposal on this date opens with</span>
+              <span className="ticket-fact-v">
+                {fmtStanding(proposalNum)} cr
+                {proposalChanged && <span className="inject-was"> · was {fmtStanding(current.proposal)}</span>}
               </span>
             </div>
           )}
@@ -568,7 +505,15 @@ export function InjectLiquidityDialog({
         <p className="adm-note">
           Credits behind a market are not scored as profit on this market, so funding a book you trade pays you nothing.
           What the market does not pay out comes back to you.
-          {offersStanding && (
+          {offersStanding && entry && (
+            <>
+              {' '}
+              The second number is what the {metricName ?? 'metric'} book on this date opens with, every time it comes
+              round, out of your wallet as it opens. The third is what a proposal's market on this date opens with,
+              every time it comes round, from your wallet too; at zero, the proposer funds their own.
+            </>
+          )}
+          {offersStanding && !entry && (
             <>
               {' '}
               The second number is what every new {metricName ?? 'market on this metric'}

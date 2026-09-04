@@ -6,6 +6,20 @@ export interface TimePreference {
    *  re-resolved against today on every refresh) or an absolute "YYYY",
    *  "YYYY-MM", "YYYY-Www", "YYYY-MM-DD" (one-shot, dropped once past). */
   customHorizons?: string[];
+  /** What each entry of customHorizons opens with, in credits, keyed by the
+   *  entry string ("+0d", "+1w", "2026-12-31"). `book` is the metric's own
+   *  market on that date (null or absent: the metric's liquidityCredits, then
+   *  the workspace default); `proposal` is a proposal's branch on that date
+   *  when the proposer has not funded it (absent: 0, the proposer funds their
+   *  own). Both leave the owner's wallet as the market opens, every time the
+   *  date comes round. Keys naming no entry are dropped on save
+   *  (docs/guides/time-preference.md, "What each date opens with"). */
+  horizonCredits?: Record<string, HorizonCredits>;
+}
+
+export interface HorizonCredits {
+  book?: number | null;
+  proposal?: number;
 }
 
 export interface Metric {
