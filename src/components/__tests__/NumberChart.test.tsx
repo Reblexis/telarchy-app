@@ -431,7 +431,7 @@ describe('the legend names the marks (docs/ui-conventions.md, "The price and the
     );
     const legend = container.querySelector('.nchart-legend') as HTMLElement;
     expect(legend.textContent).toContain('actual');
-    expect(legend.textContent).toContain("market's call for 30 Sep");
+    expect(legend.textContent).toContain('the market expects for 30 Sep');
     expect(legend.textContent).toContain('other open dates');
   });
 

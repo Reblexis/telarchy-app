@@ -894,15 +894,9 @@ export function TradePage() {
   // stated from the world on screen (owner ask 2026-08-26): approved minus
   // declined on the approved branch, declined minus approved on the
   // declined one, so "if declined" reads -7.8 where "if approved" read +7.8.
-  // Impact is the delta on the floor's one horizon, which is also the only
-  // market on screen, so `pair` already IS that pair. Kept as its own name
-  // because the ballot passes the same target date and the two must agree.
-  const jobImpact =
-    pair && pair.approvedConsensus !== null && pair.declinedConsensus !== null
-      ? branch === 'declined'
-        ? pair.declinedConsensus - pair.approvedConsensus
-        : pair.approvedConsensus - pair.declinedConsensus
-      : null;
+  // The impact prints as approved minus declined in the headline, the same
+  // sign whichever world is on screen (docs/ui-conventions.md, "A proposal
+  // is one sentence, one number, one action").
   const impactUnit = unit;
   // The probability the position panel values a position at: the live one
   // when the socket has spoken for this market, else the payload's.
@@ -1254,7 +1248,10 @@ export function TradePage() {
             </section>
           )}
           {hero && active && (
-            <section className="pubws-instrument" aria-label="The market">
+            <section
+              className={`pubws-instrument${selectedJob ? ' pubws-instrument--proposal' : ''}`}
+              aria-label="The market"
+            >
               {/* Selecting a job re-points this one view at its conditional
                 market; the condition is stated above the same headline so
                 the page never grows a second market. */}
@@ -1273,6 +1270,31 @@ export function TradePage() {
                 <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
                   ← Back to the market
                 </button>
+              )}
+              {/* The eyebrow (docs/ui-conventions.md, "A proposal is one
+                sentence, one number, one action"): the proposal's required
+                facts once, in the caption register: the word, the proposer,
+                the ask, the day it was posted. */}
+              {selectedJob && (
+                <p className="pubws-proposal-eyebrow pubws-enter pubws-enter--1">
+                  <span className="pubws-proposal-eyebrow-word">Proposal</span>
+                  <span>by {selectedJob.proposedByName ?? 'someone'}</span>
+                  <span>
+                    {splitAsk(selectedJob.title).ask !== null
+                      ? `$${splitAsk(selectedJob.title).ask} to them`
+                      : 'no pay asked'}
+                  </span>
+                  {selectedJob.createdAt && (
+                    <span>
+                      posted{' '}
+                      {new Date(selectedJob.createdAt).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        timeZone: 'UTC',
+                      })}
+                    </span>
+                  )}
+                </p>
               )}
               {/* The clock line renders in BOTH states (owner design
                 2026-08-20). Opening a proposal used to replace it, which took
@@ -1426,7 +1448,7 @@ export function TradePage() {
                 what the number is before the numbers. A Manifold trader read
                 a rolling 30-day total as the lifetime revenue of a company
                 "that just started right out of the gates" (2026-09-03). */}
-              {firstSentenceOf(horizonDescription) && (
+              {!selectedJob && firstSentenceOf(horizonDescription) && (
                 <p className="pubws-instrument-sum pubws-enter pubws-enter--1">{firstSentenceOf(horizonDescription)}</p>
               )}
               {selectedJob && (
@@ -1499,16 +1521,15 @@ export function TradePage() {
                     </div>
                   ) : (
                     selectedJob.description && (
-                      <>
-                        <p className={`pubws-details pubws-enter pubws-enter--1${descExpanded ? '' : ' is-clamped'}`}>
-                          {selectedJob.description}
-                        </p>
+                      <div className="pubws-details-block pubws-enter pubws-enter--1">
+                        <span className="pubws-details-head">What {selectedJob.proposedByName ?? 'they'} would do</span>
+                        <p className={`pubws-details${descExpanded ? '' : ' is-clamped'}`}>{selectedJob.description}</p>
                         {selectedJob.description.length > 220 && (
                           <button className="pubws-details-more" onClick={() => setDescExpanded(v => !v)}>
                             {descExpanded ? 'less' : 'more'}
                           </button>
                         )}
-                      </>
+                      </div>
                     )
                   )}
                   {/* Edited, and when: a trader who priced this proposal before
@@ -1526,29 +1547,30 @@ export function TradePage() {
                   {/* The proposer's own controls. A proposal is a listing its
                     author should be able to correct: a typo, a clearer
                     description, a price they got wrong before anyone traded. */}
-                  {canEditJob && !editingJob && (
-                    <div className="pubws-ownerbar pubws-enter pubws-enter--1">
-                      <button
-                        className="pubws-decide"
-                        onClick={() => {
-                          const split = splitAsk(selectedJob.title);
-                          setJobAsk(split.ask !== null ? String(split.ask) : '');
-                          setJobTitle(split.rest);
-                          setJobDesc(selectedJob.description ?? '');
-                          setJobErr('');
-                          setEditingJob(true);
-                        }}
-                      >
-                        Edit proposal
-                      </button>
-                    </div>
-                  )}
                   {/* The owner's press, on the floor itself (owner ask
-                    2026-08-11). Approve is the money verb, green; decline
-                    asks for the reason the charter promises to publish. */}
-                  {canManage && (
+                    2026-08-11), ONE row (docs/ui-conventions.md, "The
+                    decision bar"): Approve is the money verb, green, the only
+                    filled button; Decline beside it asks for the reason the
+                    charter promises to publish; Edit proposal and Remove are
+                    housekeeping, so they sit at the row's end as quiet text.
+                    A proposer who cannot manage sees only their Edit. */}
+                  {(canManage || (canEditJob && !editingJob)) && (
                     <div className="pubws-ownerbar pubws-enter pubws-enter--1">
-                      {declineReason === null ? (
+                      {!canManage ? (
+                        <button
+                          className="pubws-decide pubws-decide--quiet"
+                          onClick={() => {
+                            const split = splitAsk(selectedJob.title);
+                            setJobAsk(split.ask !== null ? String(split.ask) : '');
+                            setJobTitle(split.rest);
+                            setJobDesc(selectedJob.description ?? '');
+                            setJobErr('');
+                            setEditingJob(true);
+                          }}
+                        >
+                          Edit proposal
+                        </button>
+                      ) : declineReason === null ? (
                         <>
                           {/* Approve and decline are decisions, so they only
                             apply while the job is still on the ballot. */}
@@ -1578,38 +1600,55 @@ export function TradePage() {
                             test row. Two-step, because it is not a decision and
                             cannot be undone from the UI. Every stake is
                             refunded server-side first. */}
-                          {removeArmed ? (
-                            <>
+                          <span className="pubws-ownerbar-quiet">
+                            {canEditJob && !editingJob && !removeArmed && (
                               <button
-                                className="pubws-decide pubws-decide--decline"
-                                disabled={decideBusy}
-                                onClick={() => void removeJob()}
-                              >
-                                {decideBusy ? 'Removing…' : 'Confirm remove'}
-                              </button>
-                              <button
-                                className="pubws-decide"
+                                className="pubws-decide pubws-decide--quiet"
                                 onClick={() => {
-                                  setRemoveArmed(false);
-                                  setDecideErr('');
+                                  const split = splitAsk(selectedJob.title);
+                                  setJobAsk(split.ask !== null ? String(split.ask) : '');
+                                  setJobTitle(split.rest);
+                                  setJobDesc(selectedJob.description ?? '');
+                                  setJobErr('');
+                                  setEditingJob(true);
                                 }}
                               >
-                                Cancel
+                                Edit proposal
                               </button>
-                            </>
-                          ) : (
-                            <button
-                              className="pubws-decide"
-                              disabled={decideBusy}
-                              onClick={() => {
-                                setRemoveArmed(true);
-                                setDecideErr('');
-                              }}
-                              title="Take this proposal off the board. Stakes are refunded."
-                            >
-                              Remove
-                            </button>
-                          )}
+                            )}
+                            {removeArmed ? (
+                              <>
+                                <button
+                                  className="pubws-decide pubws-decide--decline"
+                                  disabled={decideBusy}
+                                  onClick={() => void removeJob()}
+                                >
+                                  {decideBusy ? 'Removing…' : 'Confirm remove'}
+                                </button>
+                                <button
+                                  className="pubws-decide"
+                                  onClick={() => {
+                                    setRemoveArmed(false);
+                                    setDecideErr('');
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                className="pubws-decide pubws-decide--quiet"
+                                disabled={decideBusy}
+                                onClick={() => {
+                                  setRemoveArmed(true);
+                                  setDecideErr('');
+                                }}
+                                title="Take this proposal off the board. Stakes are refunded."
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </span>
                         </>
                       ) : (
                         <>
@@ -1667,27 +1706,11 @@ export function TradePage() {
                 price and blank space. A market always has a call, so fall
                 back to that single point and let the chart hold it. */}
               {/* Every proposal branches into two worlds and both are on the
-                page (owner decision 2026-08-10): the toggle picks which one
-                the ticket trades, the chart draws the other as a quiet
-                second line, and the gap between the lines is the impact. */}
-              {selectedJob && pair?.declinedMarketId && (
-                <div className="pubws-branch pubws-enter pubws-enter--2" role="group" aria-label="Branch">
-                  <button
-                    className={`pubws-branch-opt pubws-branch-opt--approved${branch === 'approved' ? ' is-active' : ''}`}
-                    aria-pressed={branch === 'approved'}
-                    onClick={() => setBranch('approved')}
-                  >
-                    if approved
-                  </button>
-                  <button
-                    className={`pubws-branch-opt pubws-branch-opt--declined${branch === 'declined' ? ' is-active' : ''}`}
-                    aria-pressed={branch === 'declined'}
-                    onClick={() => setBranch('declined')}
-                  >
-                    if declined
-                  </button>
-                </div>
-              )}
+                page (owner decision 2026-08-10): the world word in the
+                sentence and the two branch cells under the headline pick
+                which one the ticket trades; the chart draws the other as a
+                quiet second line, and the gap between the lines is the
+                impact (the separate toggle row left on 2026-09-04). */}
               {hero?.settlesNaForNow && (
                 <p className="pubws-na-note pubws-enter pubws-enter--2">{settleNoteOf(hero)}</p>
               )}
@@ -1698,59 +1721,125 @@ export function TradePage() {
                     side, the number's own chart with the market's call on it,
                     and how the call moved as a strip below. The N/A caveat is
                     the only settle note left under the stat row. */}
-                  <div className="pubws-stats">
-                    {/* The reading, ink: the value in force with its age,
+                  {selectedJob && pair ? (
+                    <>
+                      {/* The proposal's one number, big (docs/ui-conventions.md,
+                        "A proposal is one sentence, one number, one action"):
+                        approved minus declined, the same sign whichever world
+                        is on screen, a plain sentence saying what it is, and
+                        the countdown in its quiet register. */}
+                      <div className="pubws-impact">
+                        {pair.approvedConsensus === null || pair.declinedConsensus === null ? (
+                          <span className="pubws-price pubws-price--muted">not yet priced</span>
+                        ) : pair.approvedConsensus === pair.declinedConsensus ? (
+                          <span className="pubws-price">±{impactUnit}0</span>
+                        ) : (
+                          <span
+                            key={`imp-${Math.round(pair.approvedConsensus - pair.declinedConsensus)}`}
+                            className={`pubws-price ${pair.approvedConsensus - pair.declinedConsensus > 0 ? 'is-up' : 'is-down'}`}
+                          >
+                            {formatDelta(pair.approvedConsensus - pair.declinedConsensus, impactUnit)}
+                          </span>
+                        )}
+                        <span className="pubws-impact-what">
+                          {captionLabel(metricLabel, ws.name)} {dateQuestionOf(hero).on ? 'on ' : ''}
+                          {dateQuestionOf(hero).word} if this is approved
+                        </span>
+                        {settleNote}
+                      </div>
+                      {/* The metric's own number, in its own unit, as three
+                        cells in the stat row's shape: the reading, and the two
+                        worlds. The two worlds are the branch toggle. */}
+                      <div className="pubws-stats pubws-stats--three">
+                        <div className="pubws-stat-block pubws-stat--now">
+                          <span className="pubws-stat-what">
+                            now
+                            {lastReading?.at && (
+                              <>
+                                {' · '}
+                                <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
+                                  read {timeAgoOf(lastReading.at, now) ?? ''}
+                                </span>
+                              </>
+                            )}
+                          </span>
+                          <span className="pubws-price">
+                            {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className={`pubws-stat-block pubws-stat-btn pubws-stat-btn--approved${branch === 'approved' ? ' is-active' : ''}`}
+                          aria-label="if approved"
+                          aria-pressed={branch === 'approved'}
+                          onClick={() => setBranch('approved')}
+                        >
+                          <span className="pubws-stat-what">if approved</span>
+                          <span className="pubws-price">
+                            {pair.approvedConsensus !== null
+                              ? `${unit}${formatValue(
+                                  branch === 'approved' && consensus !== null ? consensus : pair.approvedConsensus,
+                                )}`
+                              : 'no price yet'}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`pubws-stat-block pubws-stat-btn pubws-stat-btn--declined${branch === 'declined' ? ' is-active' : ''}`}
+                          aria-label="if declined"
+                          aria-pressed={branch === 'declined'}
+                          onClick={() => setBranch('declined')}
+                        >
+                          <span className="pubws-stat-what">if declined</span>
+                          <span className="pubws-price">
+                            {pair.declinedConsensus !== null
+                              ? `${unit}${formatValue(
+                                  branch === 'declined' && consensus !== null ? consensus : pair.declinedConsensus,
+                                )}`
+                              : 'no price yet'}
+                          </span>
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="pubws-stats">
+                      {/* The reading, ink: the value in force with its age,
                       because a reading is only trustworthy with its age on it. */}
-                    <div className="pubws-stat-block pubws-stat--now">
-                      {/* The caption line FIRST (revised 2026-09-04, the home
+                      <div className="pubws-stat-block pubws-stat--now">
+                        {/* The caption line FIRST (revised 2026-09-04, the home
                         board's cell shape): what the number is and its age,
                         then the value under it. */}
-                      <span className="pubws-stat-what">
-                        now
-                        {lastReading?.at && (
-                          <>
-                            {' · '}
-                            <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
-                              read {timeAgoOf(lastReading.at, now) ?? ''}
-                            </span>
-                          </>
-                        )}
-                      </span>
-                      <span className="pubws-price">
-                        {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
-                      </span>
-                    </div>
-                    {/* The market's call, amber: the consensus, its name, the
-                      day it is for and the countdown. A proposal's impact chip
-                      rides beside the value: the impact is the proposal's one
-                      number, and silence read as a broken page. Bare arrow +
-                      delta (owner ask 2026-08-28). */}
-                    <div className="pubws-stat-block pubws-stat--call">
-                      <span className="pubws-stat-what">
-                        market's call
-                        {settleNote && <>{' · '}</>}
-                        {settleNote}
-                      </span>
-                      <span className="pubws-stat-value">
-                        <span className="pubws-price">
-                          <AnimatedNumber value={consensus} render={v => `${unit}${formatValue(v)}`} />
+                        <span className="pubws-stat-what">
+                          now
+                          {lastReading?.at && (
+                            <>
+                              {' · '}
+                              <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
+                                read {timeAgoOf(lastReading.at, now) ?? ''}
+                              </span>
+                            </>
+                          )}
                         </span>
-                        {selectedJob &&
-                          (jobImpact === null ? (
-                            <span className="pubws-delta-chip">not yet priced</span>
-                          ) : jobImpact === 0 ? (
-                            <span className="pubws-delta-chip">±{impactUnit}0</span>
-                          ) : (
-                            <span
-                              key={`imp-${Math.round(jobImpact)}`}
-                              className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}
-                            >
-                              {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)}
-                            </span>
-                          ))}
-                      </span>
+                        <span className="pubws-price">
+                          {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
+                        </span>
+                      </div>
+                      {/* The market's call, amber: the consensus, its plain
+                      name, the day it is for and the countdown. */}
+                      <div className="pubws-stat-block pubws-stat--call">
+                        <span className="pubws-stat-what">
+                          the market expects
+                          {settleNote && <>{' · '}</>}
+                          {settleNote}
+                        </span>
+                        <span className="pubws-stat-value">
+                          <span className="pubws-price">
+                            <AnimatedNumber value={consensus} render={v => `${unit}${formatValue(v)}`} />
+                          </span>
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   {/* The number chart, the hero: titled by the metric itself
                     (caption-shaped), its left cell empty because the stats
                     are above, a legend naming the marks below. */}
@@ -2526,6 +2615,11 @@ export function TopBar({
  *  underline so a clickable word looks the same everywhere on the floor.
  *  The inner span re-mounts (keyed) and slides in, so a changed word is
  *  seen changing. */
+/* A menu word (docs/ui-conventions.md, "The question line": the metric and
+   the date are menu words). The word opens a list of every option with the
+   current one marked; picking one selects it directly. It used to step to
+   the next option (2026-08-28 to 2026-09-04), which hid how many there were
+   and could not go straight to one. */
 function CycleWord({
   what,
   options,
@@ -2537,6 +2631,23 @@ function CycleWord({
   activeKey: string;
   onStep: (key: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onDown);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onDown);
+    };
+  }, [open]);
   const idx = Math.max(
     0,
     options.findIndex(o => o.key === activeKey),
@@ -2550,19 +2661,49 @@ function CycleWord({
       </span>
     );
   }
-  const next = options[(idx + 1) % options.length];
   return (
-    <button
-      type="button"
-      className="pubws-ask-word pubws-ask-word--live"
-      title={active.title}
-      onClick={() => onStep(next.key)}
-      aria-label={`${what}: ${active.label}. Show ${next.label}`}
-    >
-      <span key={active.key} className="pubws-ask-word-inner">
-        {active.label}
-      </span>
-    </button>
+    <span className="pubws-ask-menu-root" ref={rootRef}>
+      <button
+        type="button"
+        className="pubws-ask-word pubws-ask-word--live"
+        title={active.title}
+        onClick={() => setOpen(v => !v)}
+        aria-label={`${what}: ${active.label}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span key={active.key} className="pubws-ask-word-inner">
+          {active.label}
+        </span>
+      </button>
+      {open && (
+        <ul className="pubws-ask-menu" role="listbox" aria-label={what}>
+          {options.map(o => (
+            <li
+              key={o.key}
+              role="option"
+              aria-selected={o.key === active.key}
+              className={`pubws-ask-opt${o.key === active.key ? ' is-active' : ''}`}
+              title={o.title}
+              onClick={() => {
+                setOpen(false);
+                if (o.key !== active.key) onStep(o.key);
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setOpen(false);
+                  if (o.key !== active.key) onStep(o.key);
+                }
+              }}
+              tabIndex={0}
+            >
+              {o.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </span>
   );
 }
 

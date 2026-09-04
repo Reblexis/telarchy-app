@@ -323,7 +323,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h16">Trading floor (root slug page)</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h17">The top bar and the account menu</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h18">The question line: the pickers, and the sentence</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h19">A proposal keeps the clock line, and says which world it is</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h19">A proposal is one sentence, one number, one action</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h20">A proposal ships every pair of the grid, and the board reads the pair on screen</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h21">A market on a number that does not exist yet resolves N/A</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h22">The price and the chart</a></li>
@@ -4344,7 +4344,7 @@ buttons before the question, and the board under the home page's headline
 had already taught the caption's shape):</p>
 <pre><code>        [ NET REVENUE v ]  ·  [ THIS MONTH · SETTLES 30 SEP v ]     &lt;- two chips, each a menu
         What will be LookPilot's net revenue this month?
-              NOW · READ 35M AGO   |   MARKET'S CALL · FOR 30 SEP
+              NOW · READ 35M AGO   |   THE MARKET EXPECTS · FOR 30 SEP
               $7,674               |   $6,850
                   [ HIGHER ]  [ LOWER ]
 </code></pre>
@@ -4383,15 +4383,20 @@ because the sentence needs its subject (a deliberate relaxation of the
 leading copy of the company's name via <code>captionLabel</code>).</p>
 </li>
 <li>
-<p><strong>The sentence's metric and date are cycle words</strong> (<code>.pubws-ask-word</code>,
+<p><strong>The sentence's metric and date are menu words</strong> (<code>.pubws-ask-word</code>,
 the world word's dotted underline, so a clickable word looks the same
-everywhere on the floor). Clicking one steps to the next option and
-LOOPS (the 2026-08-20 arrow rule: a control that sometimes does nothing
-is worse than one that always moves); with one option the word is plain
-text and no control. A named clock reads as its own adverb, &quot;today&quot;,
-&quot;this week&quot;, &quot;this month&quot;, with no preposition; any other date reads as
-&quot;on&quot; plus its settle day (&quot;on 30 Sep&quot;), computed by <code>dateQuestionOf</code>.
-The word's tooltip carries the full settle instant.</p>
+everywhere on the floor; revised 2026-09-04, they used to cycle).
+Clicking one opens a small list (<code>.pubws-ask-menu</code>, <code>role=&quot;listbox&quot;</code>) of
+EVERY option for that word, the current one marked, and picking one
+selects it directly and closes the list; Escape or a click outside
+closes it with nothing changed. The chips above carry the same two
+choices with a visible chevron; the words are the same choices in the
+sentence a reader is already looking at. With one option the word is
+plain text and no control. A named clock reads as its own adverb,
+&quot;today&quot;, &quot;this week&quot;, &quot;this month&quot;, with no preposition; any other date
+reads as &quot;on&quot; plus its settle day (&quot;on 30 Sep&quot;), computed by
+<code>dateQuestionOf</code>. The word's tooltip carries the full settle instant;
+each date option's does too.</p>
 </li>
 <li>
 <p><strong>Picking a metric keeps the date when it can.</strong> A reader on &quot;this week&quot;
@@ -4499,37 +4504,90 @@ any of it.</p>
 <p><strong>A floor with six markets ships six histories.</strong> <code>horizonHistories</code> is
 not capped; the metric log is read once per distinct metric, not once per
 market, so the cost is per metric.</p>
-<h3 id="docs-ui-conventions-md--h19">A proposal keeps the clock line, and says which world it is</h3>
-<p>The caption block does not change shape when a proposal is opened. Same
-pickers, same one sentence, in the same positions; the sentence itself
-grows the condition, naming the world the number belongs to:</p>
-<pre><code>        [ WEEKLY ACTIVE TRADERS ]  ...
-        [ this week · 30 Aug ]  [ 30 Sep ]
-        What will be LookPilot's weekly active traders this week
-                if Jason is paid $100 for making a market?
+<h3 id="docs-ui-conventions-md--h19">A proposal is one sentence, one number, one action</h3>
+<p>Opening a proposal changes what the caption block is for. The floor's
+caption block sells the number; the proposal view sells what this proposal
+does to it (decision record: <code>notes/decisions/ui-conventions.md</code>,
+2026-09-04, YC Design Review reading in
+<code>telarchy/notes/yc-proposal-page-design.md</code>). So in proposal view the block
+is left-aligned (<code>.pubws-instrument--proposal</code>) and reads, top to bottom:</p>
+<pre><code>  ← Back to the market
+  PROPOSAL · BY JASON · $100 TO THEM · POSTED 3 SEP
+  [ WEEKLY ACTIVE TRADERS v ]  ·  [ THIS WEEK · SETTLES 30 AUG v ]
+  What will be LookPilot's weekly active traders this week
+  if Jason is paid $100 to do: make a market?
+  ──────────────────────────────────────────
+  WHAT JASON WOULD DO
+  &lt;the proposal's own description, left-aligned, clamped, &quot;more&quot;&gt;
+  ──────────────────────────────────────────
+  [ Approve, pay $100 ]  [ Decline ]              Edit proposal   Remove
 
-                    17.5
-              [ HIGHER ]  [ LOWER ]
+  +7.8   weekly active traders this week if this is approved · settles in 3d
+  NOW · READ 35M AGO  |  IF APPROVED  |  IF DECLINED
+  17.5                |  25.3         |  17.5
 </code></pre>
-<p>Everything the floor already does then works unchanged: the pickers change
-the horizon and the conditional pair follows, because <code>pair</code> resolves by
-the horizon on screen. The world phrase is the branch toggle: <code>WorldWord</code>
-renders <code>is paid $100</code> / <code>is not paid $100</code> with both phrases in one grid
-cell so the sentence cannot reflow on a switch. One rule everywhere: <strong>one
-clock at a time, with a way to the others</strong>, on the headline and on a
-proposal alike; the big number stays the metric's own number in the
-metric's own unit, never an &quot;impact&quot; abstraction that exists nowhere else
-on the floor. A proposal's effect on both horizons at once is deliberately
-not shown (that is the cross-horizon conflict mark, which does not exist).</p>
 <ul>
-<li><strong>The caption is rendered for both states</strong>, not duplicated into two
-branches. A second copy is how the two drift.</li>
-<li><strong>The back affordance survives</strong> the caption not being the back button.
-A proposal still needs one way out to the floor.</li>
-<li><strong>The world line is one sentence, not a label plus a value.</strong> It reads as
+<li>
+<p><strong>The caption chips stay</strong> (owner ask 2026-09-04, &quot;doing both&quot;): the
+metric chip and the date chip render in proposal view exactly as on the
+floor, left-aligned, and the sentence's metric and date are menu words
+as well (&quot;The question line&quot;). Two ways to the same two choices, one
+visibly a control, one in the sentence a reader is already looking at.</p>
+</li>
+<li>
+<p><strong>The summary line is not rendered in proposal view.</strong> The definition's
+first sentence describes the metric, and the question already names it;
+the line belongs to the metric's own view.</p>
+</li>
+<li>
+<p><strong>The eyebrow</strong> (<code>.pubws-proposal-eyebrow</code>, the caption register) carries
+the proposal's required facts once: the word &quot;Proposal&quot;, the proposer,
+the USD ask (&quot;$100 to them&quot;, or &quot;no pay asked&quot; for an owner's own
+proposal), and the day it was posted.</p>
+</li>
+<li>
+<p><strong>The sentence is unchanged</strong>: &quot;What will be <company>'s <metric> <date>
+if <proposer> is paid $<ask> to do: <task>?&quot;, the task in ink, the paid
+phrase the world toggle (<code>WorldWord</code>). There is no separate branch
+toggle any more: the world word and the two branch cells under the
+headline are the two ways to switch. In the left-aligned view the
+phrase sizes to the ACTIVE phrase (the inactive one is absolutely
+positioned), so &quot;is paid $200&quot; is not followed by the width of &quot;is not
+paid $200&quot; before &quot;to do:&quot;; the tail may reflow on a switch, which on a
+left edge moves nothing the reader was looking at.</p>
+</li>
+<li>
+<p><strong>The details</strong> sit between two hairlines under a label &quot;What <proposer>
+would do&quot; (<code>.pubws-details-head</code>), left-aligned prose, clamped at 220
+characters with &quot;more&quot; / &quot;less&quot;.</p>
+</li>
+<li>
+<p><strong>The impact is the headline number in proposal view</strong>
+(<code>.pubws-impact</code>): the delta at the price size with the sign (&quot;+7.8&quot;,
+&quot;±0&quot;, &quot;not yet priced&quot;), then one plain sentence, &quot;<metric> <date> if
+this is approved&quot;, then the countdown in its quiet register. Under it,
+three cells on hairlines in the stat row's own shape (<code>.pubws-stats pubws-stats--three</code>, caption first, value under): &quot;now&quot; with its age,
+&quot;if approved&quot; (green) and &quot;if declined&quot; (red); the two branch cells are
+the branch toggle (<code>button</code>, <code>aria-pressed</code>, <code>.is-active</code>). The floor's
+rule that the big number is the metric's own number applies to the
+floor; on a proposal the metric's own number is the pair of cells, in
+the metric's own unit, and the headline is their difference in that
+same unit. The chart is unchanged.</p>
+</li>
+<li>
+<p><strong>The words are plain.</strong> A visitor reads &quot;the market expects&quot;, never
+&quot;market's call&quot;; the rail's column label is &quot;change by <date> if
+approved&quot;; a credit figure spells &quot;credits&quot; where there is room.</p>
+</li>
+<li>
+<p><strong>The back affordance survives</strong>: a proposal still needs one way out to
+the floor.</p>
+</li>
+<li>
+<p><strong>The world line is one sentence, not a label plus a value.</strong> It reads as
 English because a stranger has to understand what the number is
-conditional on before the number means anything.</li>
-<li><strong>With one open horizon nothing changes</strong>: same caption, same world line.</li>
+conditional on before the number means anything.</p>
+</li>
 </ul>
 <p>In proposal mode the headline is the question the market actually prices,
 naming who is paid and how much (&quot;What is <metric> @ <date> if <proposer>
@@ -4537,14 +4595,12 @@ is paid $<ask> to do: <task>&quot;, the task in ink and the rest a register
 quieter). In the conditional headline the paid phrase IS the world toggle
 (<code>.pubws-world</code>): green &quot;is paid $X&quot; in the approved branch, red &quot;is not
 paid $X&quot; in the declined one, dotted underline as the click affordance, and
-clicking it flips the branch. Both phrases stack in one grid cell so the
-headline sizes to the longer phrase and never reflows on a switch, whatever
-the ask's width; the inactive phrase waits a step below at opacity 0 and
-rises in on a 240ms crossfade (reduced-motion snaps). The proposal's own
+clicking it flips the branch. The inactive phrase waits a step below at
+opacity 0 and rises in on a 240ms crossfade (reduced-motion snaps). The proposal's own
 description sits under the headline as the details; it is NOT repeated
 under the proposal row on the board. The price is the selected branch's
-call, the since-open chip becomes the impact (approved minus declined, the
-same number whichever branch is on screen), and the chart draws the
+call, the headline is the impact (approved minus declined, the same number
+whichever branch is on screen), and the chart draws the
 branch's own history (fetched per market from
 <code>/api/marketplace/:id/markets/:marketId/history</code>, falling back to the
 market's current call as a single point when nobody has traded it yet, so
@@ -4614,14 +4670,15 @@ prints under the question line in the quiet register
 number is before they see it: &quot;Everything LookPilot earned in the last 30
 days from Steam and direct sales, net of Valve's cut and refunds.&quot; A
 definition with no sentence end prints whole; a metric with no definition
-prints no line. The full definition stays where it was, under &quot;What is
-this market?&quot;; an owner who wants a different summary writes a different
-first sentence.</p>
+prints no line, and the proposal view prints none either (the question
+names the metric there). The full definition stays where it was, under
+&quot;What is this market?&quot;; an owner who wants a different summary writes a
+different first sentence.</p>
 <p><strong>The stat row</strong> (<code>.pubws-stats</code>) is two named numbers in ONE row, two
 cells on hairlines the way the home board draws its cells (revised
 2026-09-04): a 1px <code>var(--border-color)</code> rule above and below the row and
 one between the cells, each cell (<code>.pubws-stat-block</code>) a mono small-caps
-caption line first (&quot;NOW · READ 35M AGO&quot;, &quot;MARKET'S CALL · FOR 30 SEP&quot;,
+caption line first (&quot;NOW · READ 35M AGO&quot;, &quot;THE MARKET EXPECTS · FOR 30 SEP&quot;,
 <code>.pubws-stat-what</code>) and the value under it at the price size
 (<code>.pubws-price</code>, mono, tabular, 2.1rem), the reading left-aligned in its
 cell and the call left-aligned in its own, so the two numbers start on
@@ -4632,13 +4689,16 @@ the same vertical rhythm.</p>
 instant, the exact UTC instant as its hover title), because a reading is
 only trustworthy with its age on it. A metric with no reading yet prints
 &quot;no reading yet&quot; in the value's place and no age.</li>
-<li>The market's call (<code>.pubws-stat--call</code>, amber): the consensus, &quot;market's
-call&quot;, then &quot;for 30 Sep · settles in 27d&quot; (<code>.pubws-settle-in</code>: the day
+<li>The market's call (<code>.pubws-stat--call</code>, amber): the consensus, &quot;the
+market expects&quot; (a visitor never reads &quot;market's call&quot;: the phrase is the
+docs' word for the consensus, not the page's), then &quot;for 30 Sep · settles in 27d&quot; (<code>.pubws-settle-in</code>: the day
 being forecast, which is the day before the settle instant, exactly as
 the date picker names it, and the countdown ticking by the minute, the
 exact UTC instant on hover; &quot;settling&quot; once it is). A selected proposal's
 impact chip sits beside the value as the bare arrow and delta
-(&quot;▲ +7.8&quot;), because the impact is the proposal's one number.</li>
+(&quot;▲ +7.8&quot;) on the floor's stat row; in proposal view the row is replaced
+by the impact headline (&quot;A proposal is one sentence, one number, one
+action&quot;).</li>
 </ul>
 <p>The price carries the metric's currency symbol when the trimmed
 parenthetical tail names one (e.g. &quot;USD&quot; -&gt; &quot;$&quot;; the same prefix runs
@@ -4656,7 +4716,7 @@ name centred (<code>.pubws-chart-cap</code>, <code>captionLabel</code>, the lead
 name stripped) and its range chips on the right; the left cell is empty,
 the stats are above. <strong>A legend under the plot names the marks</strong> in a few
 words each (<code>.nchart-legend</code>): the ink line &quot;actual&quot;, the amber dot
-&quot;market's call for 30 Sep&quot;, and the grey dots &quot;other open dates&quot; only
+&quot;the market expects for 30 Sep&quot;, and the grey dots &quot;other open dates&quot; only
 when there are any; with a proposal open the proposal's legend replaces
 it. The market chart and the number chart used to stack at equal size
 with a stat each and no words joining them; a Manifold trader read the
@@ -5131,10 +5191,14 @@ reader happens to be looking at. The baseline market has one world and
 carries no label.</p>
 <h3 id="docs-ui-conventions-md--h28">The decision bar</h3>
 <p>A manage-capable session (the owner) gets a decision bar on a selected
-contract: &quot;Approve, pay $N&quot; as the one money-colored pill, and Decline,
-which opens the published-reason field in place (the charter promises the
-reason lands on the proposal, so the confirm stays off until a reason is
-typed). Nobody else ever renders the bar; the backend enforces manage
+proposal: ONE row (<code>.pubws-ownerbar</code>), &quot;Approve, pay $N&quot; as the only filled
+button, Decline beside it as an outline, and the housekeeping verbs, Edit
+proposal and Remove, as quiet text buttons (<code>.pubws-decide--quiet</code>) at the
+row's right end, because they are not decisions. Decline opens the
+published-reason field in place (the charter promises the reason lands on
+the proposal, so the confirm stays off until a reason is typed). A
+proposer who is not a manager sees only their Edit proposal in the same
+row. Nobody else ever renders the bar; the backend enforces manage
 regardless.</p>
 <h3 id="docs-ui-conventions-md--h29">The floor's live poll</h3>
 <p><strong>The floor's live poll (every fifteen seconds) refreshes DATA, never the
@@ -5160,8 +5224,9 @@ check is inert.</p>
 renders for everyone, with proposing routed to /signup when anonymous.
 <strong>One number per proposal</strong> (as few numbers as possible): the impact, which
 is if-done minus if-not-done, green/red, &quot;open&quot; while unpriced, under a
-single right-aligned column label (&quot;impact if done&quot;, or &quot;impact by <date>&quot;
-when the horizon on screen has a date) rather than a label per row. The
+single right-aligned column label (&quot;change if approved&quot;, or &quot;change by
+<date> if approved&quot; when the horizon on screen has a date) rather than a
+label per row. The
 two branch values are not shown. Rows carry the title, the proposer, and
 the USD ask (the two required facts of a proposal), and are ranked by
 impact, since the ballot is a ranking the owner acts on.</p>

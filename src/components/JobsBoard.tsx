@@ -376,7 +376,7 @@ export function JobsBoard({
             the header's meta, the same anatomy as the standings rail. */}
         {proposals.length > 0 && (
           <span className="pubws-lb-meta" aria-hidden="true">
-            {horizonDate ? `impact by ${horizonLabel(horizonDate)}` : 'impact if done'}
+            {horizonDate ? `change by ${horizonLabel(horizonDate)} if approved` : 'change if approved'}
           </span>
         )}
       </div>

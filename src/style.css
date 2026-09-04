@@ -9931,3 +9931,147 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .own-quiet svg { width: 14px; height: 14px; }
 .own + .pubws-aud-nav,
 .own .pubws-aud-nav { margin-top: 2.4rem; }
+
+/* ===== The proposal view: one sentence, one number, one action =====
+   (docs/ui-conventions.md, "A proposal is one sentence, one number, one
+   action"; decision 2026-09-04). Left-aligned, so the eyebrow, the chips,
+   the question, the details, the decision row and the impact share one
+   edge and a reader who only reads the headlines still gets the page. */
+.pubws-instrument--proposal { text-align: left; }
+.pubws-instrument--proposal .pubws-back { margin-left: 0; margin-right: auto; }
+.pubws-instrument--proposal .pubws-instrument-label { justify-content: flex-start; margin-top: 0.8rem; }
+.pubws-instrument--proposal .pubws-instrument-ask { margin-left: 0; margin-right: 0; max-width: 44ch; }
+.pubws-instrument--proposal .pubws-ownerbar { justify-content: space-between; margin-top: 1rem; }
+
+.pubws-proposal-eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  margin: 0.9rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pubws-proposal-eyebrow-word { font-weight: 600; color: var(--accent); }
+
+.pubws-details-block {
+  max-width: 60ch;
+  margin-top: 1.4rem;
+  padding: 1rem 0 0.9rem;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.pubws-details-head {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pubws-details-block .pubws-details {
+  max-width: none;
+  margin: 0.55rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+.pubws-details-block .pubws-details-more { margin: 0.3rem 0 0; }
+
+/* Housekeeping verbs in the decision row: text, not pills. */
+.pubws-ownerbar-quiet { display: inline-flex; gap: 1.1rem; align-items: center; margin-left: auto; }
+.pubws-decide--quiet {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+.pubws-decide--quiet:hover:not(:disabled) { color: var(--text-primary); border: none; }
+
+/* The impact, big, then a plain sentence and the countdown. */
+.pubws-impact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.9rem;
+  margin-top: 1.6rem;
+}
+.pubws-impact .pubws-price { font-size: clamp(2rem, 6vw, 2.75rem); }
+.pubws-impact .pubws-price.is-up { color: var(--higher); }
+.pubws-impact .pubws-price.is-down { color: var(--lower); }
+.pubws-price--muted { color: var(--text-tertiary); font-weight: 500; }
+.pubws-impact-what { font-size: 0.95rem; color: var(--text-secondary); }
+
+/* Three cells under it in the stat row's shape; the two worlds are the
+   toggle. */
+.pubws-stats--three { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 1rem; }
+.pubws-stats--three .pubws-stat-block + .pubws-stat-block { padding-left: 1.25rem; }
+.pubws-stats--three .pubws-price { font-size: 1.5rem; }
+.pubws-stat-btn { border: none; font: inherit; cursor: pointer; }
+.pubws-stat-btn--approved .pubws-price { color: var(--higher); }
+.pubws-stat-btn--declined .pubws-price { color: var(--lower); }
+.pubws-stat-btn:not(.is-active) .pubws-price { opacity: 0.55; }
+.pubws-stat-btn.is-active .pubws-stat-what { color: var(--text-primary); }
+.pubws-stat-btn:hover:not(.is-active) .pubws-price { opacity: 1; }
+.pubws-stat-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Captions a reader must read: 12px, one grey lighter (YC Design Review:
+   small light-grey text on dark is the thing visitors cannot read). */
+.pubws-stat-what,
+.pubws-updated,
+.pubws-settle-in { font-size: 0.75rem; color: var(--text-secondary); }
+
+/* In the left-aligned proposal view the world phrase sizes to the ACTIVE
+   phrase, not the longer of the two: the inactive one waits absolutely
+   positioned, so "is paid $200" is not followed by the width of "is not
+   paid $200" before "to do:". */
+.pubws-instrument--proposal .pubws-world { display: inline-block; position: relative; }
+.pubws-instrument--proposal .pubws-world--approved .pubws-world-opt--declined,
+.pubws-instrument--proposal .pubws-world--declined .pubws-world-opt--approved {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* The menu behind a menu word (docs/ui-conventions.md, "The question
+   line"): every option, the current one marked, in the body face. */
+.pubws-ask-menu-root { position: relative; display: inline-block; }
+.pubws-ask-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 100%;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+  text-align: left;
+  white-space: nowrap;
+  animation: chip-in 160ms ease-out;
+}
+.pubws-ask-opt {
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.pubws-ask-opt:hover,
+.pubws-ask-opt:focus-visible { background: var(--bg-secondary); color: var(--text-primary); outline: none; }
+.pubws-ask-opt.is-active { color: var(--text-primary); font-weight: 600; }
+.pubws-ask-opt.is-active::before { content: '· '; color: var(--accent); }
+@media (prefers-reduced-motion: reduce) {
+  .pubws-ask-menu { animation: none; }
+}

@@ -569,7 +569,7 @@ export function NumberChart({
           </span>
           <span>
             <i className="nchart-legend-dot nchart-legend-dot--now" />
-            market's call for {forecastDayOf(selectedResolvesOn)}
+            the market expects for {forecastDayOf(selectedResolvesOn)}
           </span>
           {markers.some(m => !m.selected) && (
             <span>
