@@ -627,6 +627,16 @@ export const trades = pgTable(
      * redemption is never rendered as a sell nobody placed.
      */
     kind: text('kind').notNull().default('trade'),
+    /**
+     * The market's call before and after this trade, written by the trade
+     * transaction itself so a profile can say how far a trade moved the
+     * market without replaying the book (docs/ui-conventions.md, "What the
+     * platform records at trade time"). Null on rows written before the
+     * columns existed and on redemption rows, which move no price; a reader
+     * treats null as "not recorded", never as zero.
+     */
+    consensusBefore: doublePrecision('consensus_before'),
+    consensusAfter: doublePrecision('consensus_after'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   t => [

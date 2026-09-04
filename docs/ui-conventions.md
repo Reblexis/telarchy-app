@@ -232,6 +232,92 @@ It is called Activity rather than Trades for one reason: a funded market
 nobody has traded used to answer "Trades (0)", which looks exactly like a
 market nobody funded either.
 
+## The participant profile (/participants/:id)
+
+`telarchy.com/participants/<handle>` (`ParticipantProfilePage`, `.prof-*`
+styles) is a trader's public record, modelled on what a prediction-market
+account page shows: who they are, how they are doing, and every bet they
+made, each one a door back to the market it was made on. Standalone, in the
+`.pubws` language, one 640px column, hairlines and mono numbers.
+
+The header is the picture, the handle, the linked Manifold handle when one
+is verified, and one line of standing: "Trading since <month day, year> ·
+#N on the leaderboard" (the rank line is omitted when the participant has
+no rank). The bio follows when set.
+
+**The stats strip** is one ruled band of three cells, and every number in
+it is one the platform already reports elsewhere, so the profile never
+disagrees with another page:
+
+- **Profit**: the trading profit marked to market that the leaderboard
+  ranks on, the same number, with "N settled · N open" beneath it. Green
+  when positive, red when negative.
+- **Balance**: the participant's tradeable credits right now, platform-wide
+  (the live point of the balance history), with "N cr in positions"
+  beneath: what their open positions are worth at the current call, summed.
+- **Trades**: how many, with "N cr traded · last <ago>" beneath. The
+  traded figure is credits moved by their buys and sells on public floors;
+  redemptions are not trades and do not count.
+
+**The balance chart** draws the daily balance snapshots the API returns,
+ending on the live point, with three range chips (1W, 1M, All; 1M is the
+default). It is the balance, not profit: the snapshots are of the balance
+and the line is labelled so. One ink line on a hairline baseline, first and
+last values as mono labels; nothing is drawn when there are fewer than two
+points.
+
+**Positions** are rows, one per market and direction the participant holds,
+heaviest first. The title is the metric and its date ("Active traders ·
+Sep 2026"); a conditional position carries "if <proposal title>" after it.
+The sub-line is the holding and where the market stands: "N higher ·
+<workspace> · market at <consensus>, P% higher". The right column is the
+position's profit (worth minus spent, coloured), and under it "worth N ·
+spent N". Worth is the shares marked at the current payout factor, the
+same mark the board uses (docs/seasons.md F1), so the position profits sum
+to the open profit in the strip. Every row links to the market on its
+floor.
+
+**Trades** are rows, newest first, and each one says what was done in
+plain words: "Bought 21,192 higher on Active traders · Sep 2026", "Sold
+…", or "Redeemed N matched pairs" for a redemption (docs/ui-conventions.md
+"A trader holds ONE net side"). The sub-line carries the price paid per
+share ("0.297 cr a share", cost over shares) and, when the trade recorded
+it, how far it moved the market: "moved the market 18.9 → 20.2", the
+market's call before and after that trade. A trade from before the
+platform recorded the call shows the price alone; a redemption moves
+nothing and shows neither. The right columns are the credits moved and how
+long ago. **Every trade row is a link to that trade on its floor** (below).
+
+**Proposals** lists what the participant proposed, with the ask, the
+status and the floor, each row linking to the proposal on its floor. A
+visitor reads "proposal" (docs/ui-conventions.md "Vocabulary a visitor
+reads"); this section was called "Proposed jobs" and is not.
+
+### A trade has an address
+
+A trade on the profile links to `/<workspace slug>#market=<marketId>&trade=<tradeId>`
+(a trade on a proposal's branch links to `#proposal=<proposalId>&trade=<tradeId>`,
+because the floor shows a proposal's two branches together). The floor
+handles the hash the way it handles `#comment=`: `market=` steps the page to
+that market, `proposal=` opens that proposal, and `trade=` opens the
+Activity tab, scrolls the row carrying that trade id into view and fires
+the arrival flash once. The hash is consumed on arrival. A trade that is
+no longer in the Activity list (the list holds the newest 50) lands the
+reader on the right market with the tab open and nothing flashed; that is
+still the right floor, and better than a dead link.
+
+For the two pages to say the same thing about one trade, an Activity row
+on the floor also names the price per share: "bought 21,192 at 0.297 cr".
+
+### What the platform records at trade time
+
+The trades ledger keeps, beside direction, shares and cost, the market's
+call before and after the trade (`consensusBefore`, `consensusAfter`),
+written by the trade transaction itself so a display never has to replay
+the book to know what a trade did. Rows written before the columns
+existed are null there, and every reader treats null as "not recorded",
+never as zero. Redemption rows move no price and record nothing.
+
 ## Trading floor (root slug page)
 
 `telarchy.com/<slug>` (`TradePage`, `.pubws-*` styles; `/marketplace/:idOrSlug`

@@ -469,9 +469,8 @@ agentsRouter.get(
   '/:idOrNickname/public',
   optionalAuthMiddleware,
   wrap(async (req, res) => {
-    const { computeCalibrationStats, computeProfitBreakdown, isSettledMarket, voidedStakeKey } = await import(
-      '../lib/leaderboard'
-    );
+    const { computeCalibrationStats, computeProfitBreakdown, currentPayoutFactors, isSettledMarket, voidedStakeKey } =
+      await import('../lib/leaderboard');
     type ProfitMarket = import('../lib/leaderboard').ProfitMarket;
     const idOrNickname = req.params.idOrNickname as string;
 
@@ -489,9 +488,12 @@ agentsRouter.get(
     }
 
     const allWs = await db
-      .select({ id: workspaces.id, name: workspaces.name, visibility: workspaces.visibility })
+      .select({ id: workspaces.id, name: workspaces.name, slug: workspaces.slug, visibility: workspaces.visibility })
       .from(workspaces);
     const wsNameById = new Map(allWs.map(w => [w.id, w.name]));
+    // Every row on the profile links back through the floor's slug
+    // (docs/ui-conventions.md, "A trade has an address").
+    const wsSlugById = new Map(allWs.map(w => [w.id, w.slug ?? w.id]));
     const publicWsIds = allWs.filter(w => w.visibility === 'public').map(w => w.id);
 
     // Resolve which workspaces the *caller* can see beyond public ones. Master
@@ -521,6 +523,7 @@ agentsRouter.get(
       totalEarnings: 0,
       settledEarnings: 0,
       openEarnings: 0,
+      tradedVolume: 0,
       resolvedMarkets: 0,
       totalTrades: 0,
       lastTradeAt: null as string | null,
@@ -648,6 +651,8 @@ agentsRouter.get(
               shares: trades.shares,
               cost: trades.cost,
               kind: trades.kind,
+              consensusBefore: trades.consensusBefore,
+              consensusAfter: trades.consensusAfter,
               createdAt: trades.createdAt,
             })
             .from(trades)
@@ -662,6 +667,8 @@ agentsRouter.get(
               shares: number;
               cost: number;
               kind: string;
+              consensusBefore: number | null;
+              consensusAfter: number | null;
               createdAt: Date;
             }>,
           ),
@@ -751,9 +758,14 @@ agentsRouter.get(
       const marketByKey = new Set(statsMarkets.map(m => `${m.workspaceId}:${m.id}`));
       const netCashByAgent = new Map<string, number>();
       const tradeCountByAgent = new Map<string, number>();
+      // Credits moved by buys and sells; a redemption is bookkeeping, not a
+      // trade, and does not count (docs/ui-conventions.md, "The stats strip").
+      const tradedVolumeByAgent = new Map<string, number>();
       const lastTradeByAgent = new Map<string, Date>();
       for (const t of statsTrades) {
         tradeCountByAgent.set(t.agentId, (tradeCountByAgent.get(t.agentId) ?? 0) + 1);
+        if (t.kind !== 'redeem')
+          tradedVolumeByAgent.set(t.agentId, (tradedVolumeByAgent.get(t.agentId) ?? 0) + Math.abs(t.cost));
         const prev = lastTradeByAgent.get(t.agentId);
         if (t.createdAt && (!prev || t.createdAt > prev)) lastTradeByAgent.set(t.agentId, t.createdAt);
         if (!marketByKey.has(`${t.workspaceId}:${t.marketId}`)) continue;
@@ -813,6 +825,7 @@ agentsRouter.get(
           openEarnings: breakdownByAgent.get(agent.id)?.open ?? 0,
           resolvedMarkets: q?.resolvedMarkets ?? 0,
           totalTrades: tradeCountByAgent.get(agent.id) ?? 0,
+          tradedVolume: Math.round((tradedVolumeByAgent.get(agent.id) ?? 0) * 100) / 100,
           lastTradeAt: last ? last.toISOString() : null,
         };
       }
@@ -830,6 +843,24 @@ agentsRouter.get(
     const activeWorkspaces = Array.from(activeWorkspaceIds).map(id => ({ id, name: wsNameById.get(id) ?? id }));
 
     const ownerTrades = tradeRows.filter(t => t.agentId === agent.id && viewerWsIds.has(t.workspaceId));
+    // A conditional row says which proposal it is conditional on, in words.
+    const proposalIdsInScope = Array.from(
+      new Set(
+        [...ownerTrades, ...positionRows.filter(p => p.agentId === agent.id)]
+          .map(r => marketById.get(r.marketId)?.proposalId)
+          .filter((id): id is string => !!id),
+      ),
+    );
+    const proposalTitleById = new Map(
+      proposalIdsInScope.length > 0
+        ? (
+            await db
+              .select({ id: proposals.id, title: proposals.title })
+              .from(proposals)
+              .where(inArray(proposals.id, proposalIdsInScope))
+          ).map(p => [p.id, p.title] as const)
+        : [],
+    );
     const ownerPositions = positionRows.filter(
       p => p.agentId === agent.id && p.shares > 0 && viewerWsIds.has(p.workspaceId),
     );
@@ -852,18 +883,27 @@ agentsRouter.get(
           : m.proposalId
             ? 'conditional'
             : 'open';
+      // Worth at the board's mark (docs/seasons.md F1): the payout factor the
+      // market calls right now, so the position profits on the profile sum
+      // to the open profit in its stats strip.
+      const factors = currentPayoutFactors({ ...m, voided: false } as ProfitMarket);
+      const worth = factors ? p.shares * (p.direction === 'higher' ? factors[1] : factors[0]) : null;
       return [
         {
           workspaceId: p.workspaceId,
           workspaceName: wsNameById.get(p.workspaceId) ?? p.workspaceId,
+          workspaceSlug: wsSlugById.get(p.workspaceId) ?? p.workspaceId,
           marketId: p.marketId,
           proposalId: m.proposalId ?? null,
+          proposalTitle: m.proposalId ? (proposalTitleById.get(m.proposalId) ?? null) : null,
           metricName: m.metricName,
           targetDate: m.targetDate,
           resolvesOn: settlesOn(m),
           direction: p.direction as 'higher' | 'lower',
           shares: p.shares,
           totalCost: p.totalCost,
+          worth: worth === null ? null : Math.round(worth * 100) / 100,
+          profit: worth === null ? null : Math.round((worth - p.totalCost) * 100) / 100,
           status,
           probabilityHigher: liq > 0 ? Math.round(pHigher(mShares, liq) * 10000) / 10000 : null,
           consensus: consensus(mShares, liq, m.rangeMin, m.rangeMax) ?? null,
@@ -897,8 +937,10 @@ agentsRouter.get(
           id: t.row.id,
           workspaceId: t.row.workspaceId,
           workspaceName: wsNameById.get(t.row.workspaceId) ?? t.row.workspaceId,
+          workspaceSlug: wsSlugById.get(t.row.workspaceId) ?? t.row.workspaceId,
           marketId: t.row.marketId,
           proposalId: m?.proposalId ?? null,
+          proposalTitle: m?.proposalId ? (proposalTitleById.get(m.proposalId) ?? null) : null,
           metricName: m?.metricName ?? null,
           targetDate: m?.targetDate ?? null,
           resolvesOn: m?.targetDate ? resolutionInstant(m.targetDate) : null,
@@ -907,6 +949,12 @@ agentsRouter.get(
           kind: t.kind,
           shares: t.shares,
           cost: t.kind === 'buy' ? t.cost : -t.cost,
+          // Credits per share, and the call before and after (null when the
+          // row predates the columns, and always for a redemption, which
+          // moves nothing): docs/ui-conventions.md, "The participant profile".
+          price: t.kind === 'redeem' || t.shares <= 0 ? null : Math.abs(t.cost) / t.shares,
+          consensusBefore: t.kind === 'redeem' ? null : (t.row.consensusBefore ?? null),
+          consensusAfter: t.kind === 'redeem' ? null : (t.row.consensusAfter ?? null),
           createdAt: t.row.createdAt,
         };
       });
@@ -963,6 +1011,8 @@ agentsRouter.get(
     const proposedJobs = proposedRows.map(p => ({
       id: p.id,
       workspaceId: p.workspaceId,
+      workspaceName: wsNameById.get(p.workspaceId) ?? p.workspaceId,
+      workspaceSlug: wsSlugById.get(p.workspaceId) ?? p.workspaceId,
       title: p.title,
       askUsd: p.askUsd ?? null,
       status: p.status,
@@ -980,6 +1030,9 @@ agentsRouter.get(
       parent: lineage.parent,
       children: lineage.children,
       stats: entry ?? emptyStats,
+      // Tradeable credits right now, platform-wide: the live point of
+      // balanceHistory as a number the strip can print.
+      balance: fromUnits(agent.balance as number),
       activeWorkspaces,
       openPositions: openPositionsCapped,
       recentTrades,

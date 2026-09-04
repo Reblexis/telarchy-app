@@ -88,6 +88,13 @@ interface Props {
    * onFocusHandled so the flash is an arrival, not a state the row sits in.
    */
   focusCommentId?: string | null;
+  /**
+   * A trade to point at, from a profile link (docs/ui-conventions.md, "A
+   * trade has an address"). Same arrival as a comment: the Activity tab
+   * opens, the row scrolls into view and flashes once. A trade no longer in
+   * the list is handled, not waited on.
+   */
+  focusTradeId?: string | null;
   onFocusHandled?: () => void;
   /** Rendered at the right end of the tabs row: the market's facts. */
   trailing?: ReactNode;
@@ -119,6 +126,7 @@ export function FloorComments({
   canPost,
   onRequireSignup,
   focusCommentId = null,
+  focusTradeId = null,
   onFocusHandled,
   trailing,
 }: Props) {
@@ -126,6 +134,7 @@ export function FloorComments({
   const activityReqRef = useRef(0);
   const [flashId, setFlashId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
+  const activityRef = useRef<HTMLUListElement | null>(null);
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [activity, setActivity] = useState<{ positions: Holder[]; trades: TradeItem[]; pool: PoolItem[] } | null>(null);
   const [draft, setDraft] = useState('');
@@ -222,6 +231,26 @@ export function FloorComments({
     onFocusHandled?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusCommentId, comments]);
+
+  // A pointed-at trade opens Activity the same way, and flashes its row once
+  // the list has rendered. Handled either way: the list holds the newest
+  // rows only, and a trade that has scrolled out of it still landed the
+  // reader on the right market.
+  useEffect(() => {
+    if (focusTradeId) setTab('activity');
+  }, [focusTradeId]);
+  useEffect(() => {
+    if (!focusTradeId || activity === null) return;
+    const el = activityRef.current?.querySelector(`[data-trade-id="${CSS.escape(focusTradeId)}"]`);
+    if (el) {
+      const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
+      setFlashId(focusTradeId);
+      setTimeout(() => setFlashId(null), 1800);
+    }
+    onFocusHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTradeId, activity]);
 
   const post = async () => {
     const content = draft.trim();
@@ -366,10 +395,14 @@ export function FloorComments({
           ) : merged.length === 0 ? (
             <p className="pubws-comments-empty">Nothing yet: no pool behind it and nobody in it.</p>
           ) : (
-            <ul className="pubws-mkt-list">
+            <ul className="pubws-mkt-list" ref={activityRef}>
               {merged.map(item =>
                 item.row === 'trade' ? (
-                  <li key={item.id} className="pubws-mkt-row">
+                  <li
+                    key={item.id}
+                    className={`pubws-mkt-row${flashId === item.id ? ' is-flashed' : ''}`}
+                    data-trade-id={item.id}
+                  >
                     <span className={`prof-dir prof-dir--${item.direction}`}>
                       {item.direction === 'higher' ? '▲' : '▼'}
                     </span>
@@ -379,6 +412,9 @@ export function FloorComments({
                     {item.branch && <span className="pubws-mkt-branch">if {item.branch}</span>}
                     <span className="pubws-mkt-act">
                       {item.kind === 'buy' ? 'bought' : 'sold'} {fmtShares(item.shares)}
+                      {/* The price per share, so this row and the profile's say
+                        the same thing about one trade. */}
+                      {item.shares > 0 ? ` at ${(item.cost / item.shares).toFixed(3)} cr` : ''}
                     </span>
                     <span className="pubws-mkt-val">{fmtCr(item.cost)} cr</span>
                     <span className="pubws-mkt-time">{timeAgo(item.createdAt)}</span>
