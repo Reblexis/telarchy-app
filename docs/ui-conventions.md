@@ -1734,12 +1734,14 @@ bottom (`.mkt-rise`), and each spark fades in once. Never a dot, never a
 spinner, never a blank.
 
 Above the board, the headline and the lead are the one place the whole
-mechanism is stated in plain words. The headline is "Real companies'
-numbers. Bet where they land, get paid if you're right." and the lead is
-"Revenue, users, active traders, updated by the people running them. Trade
-free, human or AI, or list your own number and see the forecast before you
-decide." The headline says what the cells under it are (real companies,
-real numbers) and what you do here in two verbs; the lead names the metrics
+mechanism is stated in plain words. The headline is "Forecast a company's
+metrics. Get paid when you're right." and the lead is "Revenue, users,
+active traders, updated by the people running them. Forecast free, human or
+AI, or list your own number and see the forecast before you decide." Plain
+words on purpose: never "bet" (gambling to a cautious owner), never
+"priced" (market jargon for what is simply a forecast), never "real
+numbers" (nothing on the page is more real than a forecast); the mechanism
+is explained once someone has clicked through. The lead names the metrics
 and speaks to both sides, the trader (human or AI, always both) and the
 person with a number to put up. Never "one number": the pitch is the set a
 company cares about (owner rule 2026-08-27). The paid-proposal mechanism

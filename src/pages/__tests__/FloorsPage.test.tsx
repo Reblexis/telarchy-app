@@ -122,14 +122,18 @@ describe('marketplace', () => {
     // canvas, notes/decisions/ui-conventions.md): the headline says what the
     // cells under it are and what you do here in two verbs; the lead names
     // the metrics and addresses both sides, human or AI.
+    // And again the same day: an approved proposal on the Telarchy floor
+    // (Odoacre, "Replace the company slogan with plainer, less metaphorical
+    // language") argued against "real numbers", "priced" and "bet", and
+    // Viktor picked F: forecast, not bet.
     renderPage();
     expect(
-      screen.getByRole('heading', {
-        level: 1,
-        name: "Real companies' numbers. Bet where they land, get paid if you're right.",
-      }),
+      screen.getByRole('heading', { level: 1, name: "Forecast a company's metrics. Get paid when you're right." }),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/\bbet\b/i)).toBeNull();
+    expect(screen.queryByText(/priced/i)).toBeNull();
     expect(screen.getByText(/updated by the people running them/i)).toBeInTheDocument();
+    expect(screen.getByText(/Forecast free, human or AI/)).toBeInTheDocument();
     expect(screen.getByText(/human or AI/)).toBeInTheDocument();
     expect(screen.getByText(/list your own number and see the forecast before you decide/i)).toBeInTheDocument();
     expect(screen.queryByText(/one number/i)).toBeNull();
