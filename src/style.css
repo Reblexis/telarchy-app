@@ -9478,6 +9478,12 @@ textarea.jobform-line--desc {
 .dates-add-field { width: 7rem; }
 @media (max-width: 480px) {
   .dates-add-numbers { grid-template-columns: 1fr; }
+  /* The words need the room on a phone: the number columns sit tight on
+     their inputs so "Every week" and "nobody yet" stay on one line. */
+  .metrics-dates-table th:nth-child(2),
+  .metrics-dates-table th:nth-child(3) { width: 4.2rem; }
+  .metrics-dates-table th:nth-child(4) { width: 2.7rem; }
+  .metrics-dates-table td { padding-right: 0.2rem; }
 }
 
 /* The audience pages' first call to action, directly under the headline. It is
