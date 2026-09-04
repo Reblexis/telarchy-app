@@ -5713,6 +5713,12 @@ textarea.jobform-line--desc {
   margin-top: 0.3rem;
 }
 .inject-was { font-weight: 500; color: var(--text-tertiary); }
+/* Three on a baseline market with a date row: now, each opening of the
+   book, and behind each proposal on the date. */
+.inject-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 560px) {
+  .inject-three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 /* The limit price: same object, quieter size, unit in front ($65,000). */
 .ticket-amt--price input { font-size: 1.4rem; }
@@ -9395,8 +9401,67 @@ textarea.jobform-line--desc {
 .metrics-range-field { width: 9rem; font-size: inherit; }
 .metrics-range-rule { margin: 0; }
 .metrics-facts { margin-top: 0.2rem; padding-top: 0.2rem; border-top: 1px solid var(--border-color); }
-.metrics-credits-field { width: 5rem; }
 .dates-line .dates-sub.odlg-dayrow { display: flex; }
+/* The dates as rows on the sheet (docs/owner-on-the-floor.md, dialog 2):
+   what each is, what is open on it, the two numbers edited in place, and
+   Stop. The table scrolls inside its own box on a narrow screen; the page
+   never does. */
+.metrics-dates { gap: 0.6rem; }
+.metrics-dates-scroll { overflow-x: auto; }
+.metrics-dates-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+.metrics-dates-table th {
+  padding: 0 0 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  text-align: left;
+  white-space: nowrap;
+}
+.metrics-dates-table th.num,
+.metrics-dates-table td.num { text-align: right; }
+.metrics-dates-table td {
+  padding: 0.5rem 0.4rem 0.5rem 0;
+  border-top: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+.metrics-dates-table td:last-child { padding-right: 0; }
+.metrics-dates-what { display: block; white-space: nowrap; }
+.metrics-dates-what .dates-sub { white-space: nowrap; }
+.metrics-dates-open { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; }
+.metrics-dates-cell { display: inline-flex; align-items: baseline; gap: 0.3rem; white-space: nowrap; }
+.metrics-dates-input {
+  width: 5.5ch;
+  padding: 0 0 2px;
+  border: none;
+  border-bottom: 2px solid var(--border-strong);
+  border-radius: 0;
+  background: none;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+.metrics-dates-input:focus { outline: none; border-bottom-color: var(--accent); }
+.metrics-dates-input::placeholder { color: var(--text-tertiary); font-weight: 400; }
+.metrics-dates-input.is-zero { font-weight: 500; color: var(--text-tertiary); }
+.metrics-dates-unit { font-size: 0.74rem; color: var(--text-tertiary); }
+.metrics-dates-note { margin: 0; }
+/* The add form's two numbers, side by side where there is room. */
+.dates-add-numbers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+.dates-add-field { width: 7rem; }
+@media (max-width: 480px) {
+  .dates-add-numbers { grid-template-columns: 1fr; }
+}
 
 /* The audience pages' first call to action, directly under the headline. It is
    the same action as the one at the foot, set smaller: a reader who has just

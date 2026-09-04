@@ -6,7 +6,6 @@ import remarkGfm from 'remark-gfm';
 import { AccountMenu } from '../components/AccountMenu';
 import { AgentDoors } from '../components/AgentDoors';
 import { AnimatedNumber } from '../components/AnimatedNumber';
-import { DatesDialog } from '../components/DatesDialog';
 import { DiscordButton } from '../components/DiscordButton';
 import { EarnDoor } from '../components/EarnDoor';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
@@ -278,6 +277,8 @@ export function TradePage() {
         /** The metric a baseline market respawns on; a proposal branch has none. */
         metricId?: string;
         metricName?: string;
+        /** The baseline market's date, to find its row among the metric's entries. */
+        targetDate?: string;
       }
     | { kind: 'report'; metricId: string; metricName: string }
   >(null);
@@ -1937,7 +1938,9 @@ export function TradePage() {
                 ) : (
                   <p className="pubws-unfunded" role="status">
                     {selectedJob
-                      ? 'This proposal has no market yet. The owner funds one, or the proposer can back it themselves.'
+                      ? canManage
+                        ? 'This proposal has no price yet. Nobody has put credits behind it: the proposer can, or you can, with Inject.'
+                        : 'This proposal has no market yet. The owner funds one, or the proposer can back it themselves.'
                       : 'This market has no liquidity yet, so there is nothing to trade against.'}
                   </p>
                 ))}
@@ -2033,6 +2036,7 @@ export function TradePage() {
                                (what new markets open with) belongs to. */
                             metricId: selectedJob ? undefined : hero.metricId,
                             metricName: selectedJob ? undefined : metricLabel,
+                            targetDate: selectedJob ? undefined : hero.targetDate,
                           })
                         }
                       />
@@ -2317,7 +2321,10 @@ export function TradePage() {
           bug kept "happening" in a pre-fix tab). Offer the reload, never
           force it: yanking a composed bet or a selected branch out from
           under the visitor is worse than stale code. */}
-      {ownerDialog?.kind === 'metrics' && ws && (
+      {/* The metrics, and the dates as rows on each metric's sheet: the
+          `dates` chip opens the same dialog straight onto the metric on
+          screen (docs/owner-on-the-floor.md, dialogs 1 and 2). */}
+      {(ownerDialog?.kind === 'metrics' || ownerDialog?.kind === 'dates') && ws && (
         <MetricsDialog
           workspaceId={ws.workspaceId}
           markets={horizons.map(h => ({
@@ -2329,7 +2336,8 @@ export function TradePage() {
             tradedVolume: h.tradedVolume ?? 0,
           }))}
           defaultCredits={defaultCredits}
-          onOpenDates={(metricId, metricName) => setOwnerDialog({ kind: 'dates', metricId, metricName })}
+          spendable={(balance ?? 0) + liquidityWallet}
+          initialMetricId={ownerDialog.kind === 'dates' ? ownerDialog.metricId : undefined}
           onAdd={openNewMetric}
           onClose={() => setOwnerDialog(null)}
           onDone={() => {
@@ -2350,28 +2358,6 @@ export function TradePage() {
           workspaceId={ws.workspaceId}
           metricId={ownerDialog.metricId}
           metricName={ownerDialog.metricName}
-          defaultCredits={defaultCredits}
-          spendable={(balance ?? 0) + liquidityWallet}
-          onClose={() => setOwnerDialog(null)}
-          onDone={() => {
-            setOwnerDialog(null);
-            reload();
-          }}
-        />
-      )}
-      {ownerDialog?.kind === 'dates' && ws && (
-        <DatesDialog
-          workspaceId={ws.workspaceId}
-          metricId={ownerDialog.metricId}
-          metricName={ownerDialog.metricName}
-          markets={horizons
-            .filter(h => h.metricId === ownerDialog.metricId)
-            .map(h => ({
-              targetDate: h.targetDate,
-              pool: h.pool,
-              traders: h.traderCount ?? 0,
-              traded: (h.tradedVolume ?? 0) > 0 || (h.traderCount ?? 0) > 0,
-            }))}
           defaultCredits={defaultCredits}
           spendable={(balance ?? 0) + liquidityWallet}
           onClose={() => setOwnerDialog(null)}
@@ -2421,6 +2407,7 @@ export function TradePage() {
           traders={ownerDialog.traders}
           metricId={ownerDialog.metricId}
           metricName={ownerDialog.metricName}
+          targetDate={ownerDialog.targetDate}
           canManage={canManage}
           defaultCredits={defaultCredits}
           onClose={() => setOwnerDialog(null)}

@@ -1179,9 +1179,12 @@ export const api = {
   ): Promise<{
     id: string;
     name: string;
+    /** Carries customHorizons and, per entry, horizonCredits { book, proposal }. */
     timePreference?: TimePreference | null;
-    /** What a new market on this metric opens with; null means the workspace default. */
+    /** What a new market on this metric opens with when its date names no
+     *  book number of its own; null means the workspace default. */
     liquidityCredits?: number | null;
+    settlementLagMinutes?: number;
   }> => requestWithWorkspace(`/api/metrics/${id}`, {}, { workspaceId }),
   createMetric: (body: {
     name: string;
@@ -1244,6 +1247,9 @@ export const api = {
        *  traded books keep theirs (docs/market-integrity.md). */
       marketRangeMax?: number;
       liquidityCredits?: number | null;
+      /** Sent as a WHOLE object: customHorizons is the full list, and
+       *  horizonCredits carries the two opening numbers per entry (keys that
+       *  name no entry are dropped server-side). */
       timePreference?: TimePreference | null;
       /** How long after a period this number is final. New markets settle that
        *  far after their period end; open ones keep the instant they opened
