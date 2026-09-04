@@ -5053,7 +5053,6 @@ textarea.jobform-line--desc {
   .pubws-rail--left { border-right: 1px solid var(--border-color); padding-right: clamp(1rem, 2vw, 1.6rem); }
   .pubws-rail--right { border-left: 1px solid var(--border-color); padding-left: clamp(1rem, 2vw, 1.6rem); }
   /* The page end spans the three columns. */
-  .pubws-main--floor .pubws-end { grid-column: 1 / -1; }
 }
 
 @media (max-width: 1119.98px) {
@@ -6296,6 +6295,13 @@ textarea.jobform-line--desc {
    hairlines the way the home board draws them, each a small-caps label, one
    sentence in the display face, and one control. Stacks to one column on a
    phone. Before it, two sentences and a separate email row. */
+.pubws-end-wrap {
+  width: 100%;
+  max-width: 1340px;
+  margin: 0 auto;
+  padding: 0 1.25rem 3rem;
+  box-sizing: border-box;
+}
 .pubws-end {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

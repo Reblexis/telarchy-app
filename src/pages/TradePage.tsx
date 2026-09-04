@@ -2282,6 +2282,11 @@ export function TradePage() {
             The door is an email box, not a "waitlist" (owner direction
             2026-08-10): anyone who wants their own numbers run this way gets
             set up within days, so the copy promises contact, not a queue. */}
+      </main>
+      {/* Outside the floor grid on purpose: a sticky rail is constrained by
+          the grid CONTAINER, not its own row, so a board inside the grid
+          had the rails sliding over it (preview 2026-09-04). */}
+      <div className="pubws-end-wrap">
         <section className="pubws-end" aria-label="Next steps">
           <div className="pubws-end-cell">
             <h2 className="pubws-h2 pubws-end-label">New here?</h2>
@@ -2305,7 +2310,7 @@ export function TradePage() {
             <SetupForm source={ws.slug || idOrSlug || 'floor'} />
           </div>
         </section>
-      </main>
+      </div>
 
       {/* The floor is designed to stay open, so every deploy would strand
           this tab on old code forever (owner report 2026-08-13: a fixed
