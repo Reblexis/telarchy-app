@@ -212,7 +212,7 @@ describe('marketplace', () => {
       'See what a decision does to your numbers before you say yes.',
     );
     expect(cell?.querySelector('.mkt-new-sub')).toHaveTextContent(
-      'List the metrics you care about. Traders, human or AI, price every proposal against them; you approve on a calibrated number.',
+      'List your metrics. Traders, people or bots, price each proposal against them, and you decide on the price.',
     );
     // Label, sentence, line, door: in that order.
     const kids = [...(cell?.children ?? [])];
@@ -297,15 +297,15 @@ describe('marketplace', () => {
     expect(card?.textContent).not.toMatch(/compan/i);
   });
 
-  test('the listing cell carries the owner sentence and label: calibrated number, human or AI', async () => {
-    // The approval wedge never appears without the calibrated-number clause,
-    // and the wedge covers humans and AI in the same breath (AGENTS.md).
+  test('the listing cell carries the owner sentence and label: the approval is a price, people or bots', async () => {
+    // The approval is priced and the proposer can be a person or a bot, said
+    // once and plainly (AGENTS.md, revised 2026-09-04).
     renderPage();
     const card = (await screen.findByText('See what a decision does to your numbers before you say yes.')).closest(
       '.mkt-cell--new',
     );
-    expect(card?.textContent).toMatch(/calibrated number/);
-    expect(card?.textContent).toMatch(/human or AI/);
+    expect(card?.textContent).toMatch(/you decide on the price/);
+    expect(card?.textContent).toMatch(/people or bots/);
     expect(card?.querySelector('.mkt-new-label')).toHaveTextContent('Your own numbers');
   });
 

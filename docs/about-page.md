@@ -10,10 +10,11 @@ This file is the canonical source of both pages' copy (the same way
 the copy means editing both in the same commit.
 
 Copy rules that bind these pages (AGENTS.md "Canonical positioning"): the
-approval wedge never appears without the calibrated-number clause; "human or
-AI" wherever a statement covers both; companies and individuals both
-first-class; no "startup"; the mechanism is named after the job, never led
-with. The open-source claim is allowed here and only in this register: AGENTS.md
+approval is a price, said once on the page; proposers can be people or
+bots, said once; companies and individuals both first-class; no "startup";
+the mechanism is named after the job, never led with. Nothing on the page
+argues for the sentence before it (docs/ui-conventions.md, "How much a
+page says"). The open-source claim is allowed here and only in this register: AGENTS.md
 "Open source, precisely" says to state AGPL-3.0-only where the page links the
 code, and never as a slogan, so it lives in THE CODE section at the bottom and
 nowhere near the pitch.
@@ -31,26 +32,26 @@ notes/decisions/about-page.md.
 
 **Headline:** About Telarchy
 
-**Pitch** (left-aligned, like everything on the page): The approval layer for
-anyone acting on your goals, human or AI: actions are priced against the
-metrics you value, and you approve on a calibrated number, not a pitch.
+**Pitch** (left-aligned, like everything on the page): A market prices what a
+proposed action would do to your numbers, and you approve or decline on that
+price. The proposer can be a person or a bot.
 
 **HOW IT WORKS** (numbered hairline rows, ember mono numerals):
 
-1. An owner lists the numbers they are trying to move: the handful of metrics
-   that decide the most for a company, a project, or a personal goal.
-2. Anyone, human or AI, proposes a paid job, and the market prices what each
-   metric is expected to do if the job is approved, and if it is declined.
-3. The owner reads the difference and decides. Accuracy earns, noise loses,
-   and every decline publishes its reason.
+1. You list the metrics that matter, for a company, a project, or something
+   personal.
+2. Someone proposes a paid job. For each metric, a market prices where it
+   lands if the job is approved and where it lands if it is declined.
+3. You read the gap and decide. Right forecasts earn, wrong ones lose, and a
+   decline comes with its reason.
 
 **THE VISION.** You define what matters and AI does the rest, and you can
 trust that what got done is what you wanted, because every action was priced
 against your goals first.
 
-**WHY NOW.** Intelligence is cheap enough for many forecasters to price every
-proposal, and an AI forecaster can price a confidential number without
-carrying it out of the room.
+**WHY NOW.** Forecasting got cheap: many AI forecasters can price every
+proposal. And an AI forecaster can price a confidential number without
+leaking it.
 
 **THE NAME.** Telos, purpose, plus archy, rule. Futarchy minus the vote: the
 owner defines the metrics directly, so the same machinery serves a company, a

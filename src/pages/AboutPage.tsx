@@ -14,12 +14,10 @@ import { PageTopBar } from '../components/PageTopBar';
  */
 export function AboutPage() {
   const steps = [
-    'An owner lists the numbers they are trying to move: the handful of ' +
-      'metrics that decide the most for a company, a project, or a personal goal.',
-    'Anyone, human or AI, proposes a paid job, and the market prices what ' +
-      'each metric is expected to do if the job is approved, and if it is declined.',
-    'The owner reads the difference and decides. Accuracy earns, noise ' +
-      'loses, and every decline publishes its reason.',
+    'You list the metrics that matter, for a company, a project, or something personal.',
+    'Someone proposes a paid job. For each metric, a market prices where it lands if the ' +
+      'job is approved and where it lands if it is declined.',
+    'You read the gap and decide. Right forecasts earn, wrong ones lose, and a decline ' + 'comes with its reason.',
   ];
 
   return (
@@ -29,8 +27,8 @@ export function AboutPage() {
         <header className="pubws-hero pubws-hero--left">
           <h1 className="pubws-name">About Telarchy</h1>
           <p className="pubws-pitch">
-            The approval layer for anyone acting on your goals, human or AI: actions are priced against the metrics you
-            value, and you approve on a calibrated number, not a pitch.
+            A market prices what a proposed action would do to your numbers, and you approve or decline on that price.
+            The proposer can be a person or a bot.
           </p>
         </header>
 
@@ -57,8 +55,8 @@ export function AboutPage() {
         <section className="pubws-section pubws-story">
           <h2 className="pubws-h2">Why now</h2>
           <p>
-            Intelligence is cheap enough for many forecasters to price every proposal, and an AI forecaster can price a
-            confidential number without carrying it out of the room.
+            Forecasting got cheap: many AI forecasters can price every proposal. And an AI forecaster can price a
+            confidential number without leaking it.
           </p>
         </section>
 

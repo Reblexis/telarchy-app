@@ -28,7 +28,7 @@ export function WaitlistPage() {
   return (
     <AuthShell
       title="Telarchy"
-      lead="The approval layer for your decisions: participants, human or AI, price what each action would do to the numbers you care about, and you approve on a calibrated number."
+      lead="Leave an email and we set up your workspace with you: which numbers to list, who can trade them, and how the values get in."
       foot={
         <>
           Just want to trade? <Link to="/marketplace">The live markets are open</Link>.

@@ -132,8 +132,8 @@ export function SeasonPage() {
             whether to spend eight weeks on this deserves to know the platform
             is still being launched before they decide, not after. */}
         <p className="seasonp-experimental">
-          Season 0 is the first one and the platform is still launching. Expect rough edges, and tell us if something
-          looks wrong: where a bug affects standings we publish the correction.
+          First season, new platform. If something looks wrong, report it. A bug that touches standings gets a published
+          correction.
         </p>
         {/* The rules require every mid-season change to be announced HERE
             before it takes effect. Remove when Season 0 settles. Collapsed by
@@ -147,15 +147,15 @@ export function SeasonPage() {
                 resolve, so that depth would have scored nothing. Extending
                 can only add to a score, never subtract, which is the
                 amendment clause's test. */}
-            Rule change, 2026-08-31, effective now: the season runs one day longer, to 2 October, so the September
-            markets resolving on 1 October score. It can only add to a score, never take one away.
+            Rule change, 2026-08-31: the season runs one day longer, to 2 October, so markets resolving on 1 October
+            score.
             <span className="seasonp-rulechanges-toggle" aria-hidden="true">
               earlier changes
             </span>
           </summary>
           <p className="seasonp-experimental">
             {season.payoutMode === 'proportional'
-              ? 'Rule change, 2026-08-28: the pool is split in proportion to positive settled profit, replacing the fixed prizes by place. Every entrant in the green is paid a share.'
+              ? 'Rule change, 2026-08-28: the pool is split in proportion to settled profit instead of fixed prizes by place.'
               : "Rule change, 2026-08-28: only markets that resolve during the season score. Open positions score nothing until they do, and trades in a market's final 6 hours do not count."}
           </p>
           {season.payoutMode === 'proportional' && (
@@ -165,12 +165,10 @@ export function SeasonPage() {
             </p>
           )}
           <p className="seasonp-experimental">
-            Rule change, 2026-08-25: workspace owners and admins are eligible, and their trades count like any other. It
-            widens who may enter and reduces nobody's standing.
+            Rule change, 2026-08-25: workspace owners and admins can enter, and their trades count like any other.
           </p>
           <p className="seasonp-experimental">
-            Rule change, 2026-08-22: a prize no longer requires a positive score; place alone decides it. The change
-            only increases what is paid.
+            Rule change, 2026-08-22: a prize no longer requires a positive score; place alone decides it.
           </p>
         </details>
         {/* The real channel, inline, rather than a sentence pointing at an icon
@@ -193,11 +191,11 @@ export function SeasonPage() {
                number worth stating beside the pool is the dust floor, so
                nobody wonders why a $0.40 share was not paid. */
             <p className="seasonp-note">
-              Split in proportion to positive settled profit: twice the profit, twice the share. Losses pay nothing
+              Split in proportion to settled profit. A loss pays nothing
               {season.minPayoutUsd > 0
                 ? `, and a share under $${season.minPayoutUsd.toLocaleString()} rolls into the next season's pool`
                 : ''}
-              . Your projected share is in the standings below.
+              . Your projected share is in the standings.
             </p>
           ) : (
             /* Each rung's bar length IS the prize, scaled to first place, so

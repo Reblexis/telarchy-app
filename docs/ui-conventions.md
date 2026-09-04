@@ -162,6 +162,13 @@ Concretely, the sentences to cut on sight:
   that says how the table works is the table failing.
 - **Pricing or fairness philosophy.** What a thing is worth is a number
   on the row. Why it is worth that is a design record.
+- **The sentence that argues for the sentence before it.** "That is the
+  point", "on purpose", "which is what makes it a skill contest", "it can
+  only add to a score, never take one away", "your credits are never
+  spent". A rule is stated; it is not defended, reassured about, or
+  explained twice. A refrain ("human or AI", "calibrated number") appears
+  once on a page at most, and plain words ("people or bots", "you decide
+  on the price") are preferred to the canonical phrase.
 
 What never gets cut for length: a disclaimer's operative words ("not
 advice from X"), the consequence of an irreversible action, eligibility
@@ -174,7 +181,9 @@ The house benchmark is the login page and the market list's headline.
 Adopted 2026-08-30 (owner: "less words.. everywher on the website.. i
 feel like ther eare useless explanations not releevant to users"); the
 survey of what was cut and the outside evidence behind the rule are in
-the telarchy umbrella, `notes/yc-website-copy-2026-08-30.md`.
+the telarchy umbrella, `notes/yc-website-copy-2026-08-30.md`. The
+refrain and justification rules were added 2026-09-04 after a reader
+called the copy "cloyingly Claudish" (notes/decisions/ui-conventions.md).
 
 ## Vocabulary a visitor reads
 

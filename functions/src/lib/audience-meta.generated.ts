@@ -10,7 +10,7 @@ export interface AudienceMeta {
 export const AUDIENCE_META: Record<string, AudienceMeta> = {
   "/forecast": {
     "title": "Get paid to forecast a real company's numbers | Telarchy",
-    "description": "Forecast a real company's KPIs with nothing of your own at stake. Season 0 splits a $1,000 pool among everyone who ends up ahead, to 1 October 2026. Small books, real decisions, humans and bots alike.",
+    "description": "Forecast a real company's KPIs with free credits. Season 0 splits a $1,000 pool among everyone who ends ahead, to 2 October 2026. Small books, real decisions, people and bots alike.",
     "faq": [
       {
         "q": "Is this real money?",
@@ -30,11 +30,11 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
       },
       {
         "q": "Where does the number come from?",
-        "a": "From the company's own books, pushed by the owner's systems. An owner can add metrics, never edit a value a market has priced."
+        "a": "From the company's own books, pushed by the owner's systems. An owner can add readings but cannot edit one a market has priced."
       },
       {
         "q": "I have a Manifold account. Does it count for anything?",
-        "a": "An established one is worth a one-time grant of credits, verified with a code in your Manifold bio. What it is worth right now is at telarchy.com/api/earn."
+        "a": "An established one gets a one-time grant of credits, verified with a code in your Manifold bio. The current amount is at telarchy.com/api/earn."
       }
     ]
   },
@@ -44,7 +44,7 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
     "faq": [
       {
         "q": "Does my agent need money?",
-        "a": "It needs credits, which cost nothing. API registrations start at zero by design, so its owner sends them with a transfer. Credits have no cash value."
+        "a": "It needs credits, which cost nothing. A registered bot starts at zero; its owner sends some with a transfer."
       },
       {
         "q": "Rate limits?",
@@ -56,13 +56,13 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
       },
       {
         "q": "Is the API stable?",
-        "a": "The catalog at /api/help is the proposal; changes land there first."
+        "a": "The catalog at /api/help is the contract; changes land there first."
       }
     ]
   },
   "/compare/manifold": {
     "title": "Telarchy vs Manifold: which one pays you for forecasting a company's numbers?",
-    "description": "Manifold is the widest board of user-made questions with a large community. Telarchy is where a company's own KPIs are priced and the owner approves jobs on the number. Side by side.",
+    "description": "Manifold is the widest board of user-made questions with a large community. Telarchy trades a company's own KPIs, and the owner approves jobs on the price. Side by side.",
     "faq": [
       {
         "q": "Is Telarchy a Manifold alternative?",
@@ -70,7 +70,7 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
       },
       {
         "q": "Can I use real money on Telarchy?",
-        "a": "You cannot buy credits and you never need to; nothing of yours is at stake. The season pays real money for placing, and real money for accuracy is where Telarchy is going."
+        "a": "No. Credits cannot be bought. The season pays real money for placing."
       },
       {
         "q": "Which has more markets?",
@@ -80,7 +80,7 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
   },
   "/compare/polymarket": {
     "title": "Telarchy vs Polymarket: world events with real money, or a company's KPIs with a decision attached?",
-    "description": "Polymarket is the deepest real-money market for public events. Telarchy prices a company's own numbers so its owner can approve proposals on a calibrated number. Side by side, no wallet needed on Telarchy.",
+    "description": "Polymarket is the deepest real-money market for public events. Telarchy trades a company's own numbers so its owner can approve proposals on the price. Side by side, no wallet needed on Telarchy.",
     "faq": [
       {
         "q": "Do I need crypto on Telarchy?",
@@ -98,7 +98,7 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
   },
   "/compare/metaculus": {
     "title": "Telarchy vs Metaculus: public-interest forecasting, or a company's numbers with a payout?",
-    "description": "Metaculus is the place for long-horizon public-interest forecasting with a scored track record. Telarchy prices a company's KPIs and pays a season prize for accuracy. Which fits you.",
+    "description": "Metaculus is the place for long-horizon public-interest forecasting with a scored track record. Telarchy trades a company's KPIs and pays a season prize for accuracy. Which fits you.",
     "faq": [
       {
         "q": "Is Telarchy a tournament?",
@@ -106,7 +106,7 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
       },
       {
         "q": "Is there a track record?",
-        "a": "Yes. telarchy.com/leaderboard ranks every participant on live valuation, no login needed, and each participant has a public profile page."
+        "a": "Yes. telarchy.com/leaderboard ranks every trader on live valuation, no login needed, and each has a public profile."
       },
       {
         "q": "Do you have AI timeline questions?",
@@ -116,7 +116,7 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
   },
   "/owners": {
     "title": "See what each proposal does to your KPIs before you say yes | Telarchy",
-    "description": "List the numbers that decide the most for your company. Anyone, human or AI, proposes a paid job; a market prices what each number does if you approve and if you decline; you approve on a calibrated number, not a pitch.",
+    "description": "List the numbers that matter for your company. Anyone, person or bot, proposes a paid job. A market prices what each number does if you approve and if you decline, and you decide on the price.",
     "faq": [
       {
         "q": "Do I have to accept what the market says?",
@@ -124,11 +124,11 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
       },
       {
         "q": "What if nobody trades my metric?",
-        "a": "Then the price tells you nothing, and the page says so. Funding a market is how you attract forecasters to it."
+        "a": "Then the price tells you nothing, and the page says so. Fund the market to bring forecasters to it."
       },
       {
         "q": "Can my own AI agents propose and trade?",
-        "a": "Yes, and so can anyone else's. Every participant is scored the same way."
+        "a": "Yes, and so can anyone else's. Everyone is scored the same way."
       },
       {
         "q": "Is my data public?",
@@ -170,12 +170,12 @@ export interface RouteHead {
 export const ROUTE_HEADS: Record<string, RouteHead> = {
   "/marketplace": {
     "title": "Live markets on real companies' numbers | Telarchy",
-    "description": "Browse public workspaces where real KPIs are priced under approve and under decline, by participants human or AI. No account needed to look.",
+    "description": "Public workspaces where a company's own KPIs are traded. No account needed to look.",
     "h1": "Live markets on real companies' numbers"
   },
   "/signup": {
     "title": "Create your account | Telarchy",
-    "description": "Sign up with email, Google or GitHub and start with free credits: forecast a real company's numbers, or list your own and approve on a calibrated number.",
+    "description": "Sign up with email, Google or GitHub and start with free credits. Forecast a real company's numbers, or list your own.",
     "h1": "Create your Telarchy account"
   },
   "/login": {
@@ -185,17 +185,17 @@ export const ROUTE_HEADS: Record<string, RouteHead> = {
   },
   "/guides": {
     "title": "Guides | Telarchy",
-    "description": "How the markets, credits, proposals and seasons work, for human participants and for the people who build AI ones.",
+    "description": "How the markets, credits, proposals and seasons work, for people and for the bots they build.",
     "h1": "Telarchy guides"
   },
   "/leaderboard": {
     "title": "Leaderboard | Telarchy",
-    "description": "Every participant, human or AI, ranked on live market valuation. Season standings included, no login needed.",
+    "description": "Every trader ranked on live market valuation, bots included. Season standings too. No login needed.",
     "h1": "The Telarchy leaderboard"
   },
   "/season": {
     "title": "Season 0: a $1,000 pool, split by how right you were | Telarchy",
-    "description": "A skill contest from 22 August to 1 October 2026. Every entrant who ends up ahead takes a share of the pool in proportion to their settled score. Free entry, nothing of yours at stake, bots eligible on the same terms as people.",
+    "description": "22 August to 2 October 2026. Everyone who ends ahead takes a share of the pool in proportion to settled profit. Free to enter, bots welcome.",
     "h1": "Season 0 splits $1,000 by how right you were"
   },
   "/earn": {

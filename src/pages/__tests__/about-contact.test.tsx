@@ -15,26 +15,28 @@ import contactSrc from '../ContactPage.tsx?raw';
  */
 
 describe('AboutPage', () => {
-  test('the approval wedge never appears without the calibrated-number clause', () => {
+  test('the pitch says the approval is a price, in plain words', () => {
     render(
       <MemoryRouter>
         <AboutPage />
       </MemoryRouter>,
     );
-    // AGENTS.md, confirmed 2026-07-12: "approval layer" spoken bare collides
-    // with the HITL-approval-queue category. The same sentence must say the
-    // approval is priced.
-    const pitch = screen.getByText(/approval layer/i);
-    expect(pitch.textContent).toMatch(/calibrated number/i);
+    // AGENTS.md, confirmed 2026-07-12 and revised 2026-09-04: the approval
+    // is priced, said once and plainly, never "calibrated number" welded to
+    // every sentence.
+    const pitch = document.querySelector('.pubws-pitch')?.textContent ?? '';
+    expect(pitch).toMatch(/approve or decline on that price/);
+    expect(pitch).not.toMatch(/calibrated number/i);
   });
 
-  test('participant symmetry: the wedge covers humans and AI in the same breath', () => {
+  test('participant symmetry: the pitch says the proposer can be a person or a bot', () => {
     render(
       <MemoryRouter>
         <AboutPage />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/approval layer/i).textContent).toMatch(/human or AI/i);
+    const pitch = document.querySelector('.pubws-pitch')?.textContent ?? '';
+    expect(pitch).toMatch(/a person or a bot/);
   });
 
   test('metrics are plural: the handful that decide the most, never "one number"', () => {
@@ -45,7 +47,7 @@ describe('AboutPage', () => {
         <AboutPage />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/handful of metrics that decide the most/i)).toBeTruthy();
+    expect(screen.getByText(/the metrics that matter/i)).toBeTruthy();
     expect(screen.queryByText(/one number/i)).toBeNull();
   });
 
