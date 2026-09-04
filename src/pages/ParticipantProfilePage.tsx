@@ -316,7 +316,9 @@ export function ParticipantProfilePage() {
   const handle = profile ? (profile.nickname ?? (readableId(profile.id) ? profile.id : 'anonymous')) : '';
   const inPositions = profile ? profile.openPositions.reduce((sum, p) => sum + (p.worth ?? 0), 0) : 0;
   // An older payload carries the balance only as the last history point.
-  const balance = profile ? (profile.balance ?? profile.balanceHistory?.at(-1)?.balance ?? 0) : 0;
+  const balance = profile
+    ? (profile.balance ?? profile.balanceHistory?.[profile.balanceHistory.length - 1]?.balance ?? 0)
+    : 0;
   const since = profile
     ? new Date(profile.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '';
