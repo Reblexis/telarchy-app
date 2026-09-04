@@ -519,7 +519,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><details><summary><a class="file" href="#file--docs-guides-credits-md">docs/guides/credits.md</a></summary>
 <ul>
 <li><a href="#docs-guides-credits-md--h1">Where credits come from</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h2">Registering a bot gets you nothing, on purpose</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h2">Registering a bot gets you nothing</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h3">Bringing a Manifold record across</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h4">What a credit is worth</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h5">Providing liquidity is a position too</a></li>
@@ -850,10 +850,11 @@ it, and how to reach a human can find out without an account.</p>
 <code>src/pages/AboutPage.tsx</code> and <code>src/pages/ContactPage.tsx</code> mirror it; revising
 the copy means editing both in the same commit.</p>
 <p>Copy rules that bind these pages (AGENTS.md &quot;Canonical positioning&quot;): the
-approval wedge never appears without the calibrated-number clause; &quot;human or
-AI&quot; wherever a statement covers both; companies and individuals both
-first-class; no &quot;startup&quot;; the mechanism is named after the job, never led
-with. The open-source claim is allowed here and only in this register: AGENTS.md
+approval is a price, said once on the page; proposers can be people or
+bots, said once; companies and individuals both first-class; no &quot;startup&quot;;
+the mechanism is named after the job, never led with. Nothing on the page
+argues for the sentence before it (docs/ui-conventions.md, &quot;How much a
+page says&quot;). The open-source claim is allowed here and only in this register: AGENTS.md
 &quot;Open source, precisely&quot; says to state AGPL-3.0-only where the page links the
 code, and never as a slogan, so it lives in THE CODE section at the bottom and
 nowhere near the pitch.</p>
@@ -867,24 +868,24 @@ and a second paragraph is always the argument for the first. History:
 notes/decisions/about-page.md.</p>
 <h2 id="docs-about-page-md--h2">/about</h2>
 <p><strong>Headline:</strong> About Telarchy</p>
-<p><strong>Pitch</strong> (left-aligned, like everything on the page): The approval layer for
-anyone acting on your goals, human or AI: actions are priced against the
-metrics you value, and you approve on a calibrated number, not a pitch.</p>
+<p><strong>Pitch</strong> (left-aligned, like everything on the page): A market prices what a
+proposed action would do to your numbers, and you approve or decline on that
+price. The proposer can be a person or a bot.</p>
 <p><strong>HOW IT WORKS</strong> (numbered hairline rows, ember mono numerals):</p>
 <ol>
-<li>An owner lists the numbers they are trying to move: the handful of metrics
-that decide the most for a company, a project, or a personal goal.</li>
-<li>Anyone, human or AI, proposes a paid job, and the market prices what each
-metric is expected to do if the job is approved, and if it is declined.</li>
-<li>The owner reads the difference and decides. Accuracy earns, noise loses,
-and every decline publishes its reason.</li>
+<li>You list the metrics that matter, for a company, a project, or something
+personal.</li>
+<li>Someone proposes a paid job. For each metric, a market prices where it
+lands if the job is approved and where it lands if it is declined.</li>
+<li>You read the gap and decide. Right forecasts earn, wrong ones lose, and a
+decline comes with its reason.</li>
 </ol>
 <p><strong>THE VISION.</strong> You define what matters and AI does the rest, and you can
 trust that what got done is what you wanted, because every action was priced
 against your goals first.</p>
-<p><strong>WHY NOW.</strong> Intelligence is cheap enough for many forecasters to price every
-proposal, and an AI forecaster can price a confidential number without
-carrying it out of the room.</p>
+<p><strong>WHY NOW.</strong> Forecasting got cheap: many AI forecasters can price every
+proposal. And an AI forecaster can price a confidential number without
+leaking it.</p>
 <p><strong>THE NAME.</strong> Telos, purpose, plus archy, rule. Futarchy minus the vote: the
 owner defines the metrics directly, so the same machinery serves a company, a
 team, or one person.</p>
@@ -1275,10 +1276,11 @@ lists; a pipe table with a header row; <code>Q:</code> / <code>A:</code> pairs f
 for code; and one <code>CTA:</code> line of <code>Label (href)</code> pairs separated by <code>·</code>. Every page gets the
 shared footer and links below without repeating them.</p>
 <p>Copy rules that bind these pages (AGENTS.md &quot;Canonical positioning&quot;): the
-approval wedge never appears without the calibrated-number clause; &quot;human or
-AI&quot; wherever a statement covers both; companies and individuals both
-first-class; no &quot;startup&quot;; the mechanism is named after
-the job, never led with; no em-dashes or en-dashes. Trader-facing copy argues
+approval is a price, said once per page; proposers can be people or bots,
+said once per page; companies and individuals both first-class; no
+&quot;startup&quot;; the mechanism is named after the job, never led with; no
+em-dashes or en-dashes; no sentence that argues for the one before it
+(docs/ui-conventions.md, &quot;How much a page says&quot;). Trader-facing copy argues
 why here rather than elsewhere, it does not describe the product (owner,
 2026-08-27). Facts on the pages come from the docs: Season 0 prizes from
 <code>legal/season-0-rules.md</code>, the Manifold import from
@@ -1342,35 +1344,35 @@ exact paths. The home page keeps the canonical slogan head from index.html
 and is deliberately absent here. Format: route | title tag | meta
 description | fallback heading.</p>
 <ul>
-<li>/marketplace | Live markets on real companies' numbers | Telarchy | Browse public workspaces where real KPIs are priced under approve and under decline, by participants human or AI. No account needed to look. | Live markets on real companies' numbers</li>
-<li>/signup | Create your account | Telarchy | Sign up with email, Google or GitHub and start with free credits: forecast a real company's numbers, or list your own and approve on a calibrated number. | Create your Telarchy account</li>
+<li>/marketplace | Live markets on real companies' numbers | Telarchy | Public workspaces where a company's own KPIs are traded. No account needed to look. | Live markets on real companies' numbers</li>
+<li>/signup | Create your account | Telarchy | Sign up with email, Google or GitHub and start with free credits. Forecast a real company's numbers, or list your own. | Create your Telarchy account</li>
 <li>/login | Log in | Telarchy | Sign in to trade, propose paid jobs, or approve proposals on your own numbers. | Log in to Telarchy</li>
-<li>/guides | Guides | Telarchy | How the markets, credits, proposals and seasons work, for human participants and for the people who build AI ones. | Telarchy guides</li>
-<li>/leaderboard | Leaderboard | Telarchy | Every participant, human or AI, ranked on live market valuation. Season standings included, no login needed. | The Telarchy leaderboard</li>
-<li>/season | Season 0: a $1,000 pool, split by how right you were | Telarchy | A skill contest from 22 August to 1 October 2026. Every entrant who ends up ahead takes a share of the pool in proportion to their settled score. Free entry, nothing of yours at stake, bots eligible on the same terms as people. | Season 0 splits $1,000 by how right you were</li>
+<li>/guides | Guides | Telarchy | How the markets, credits, proposals and seasons work, for people and for the bots they build. | Telarchy guides</li>
+<li>/leaderboard | Leaderboard | Telarchy | Every trader ranked on live market valuation, bots included. Season standings too. No login needed. | The Telarchy leaderboard</li>
+<li>/season | Season 0: a $1,000 pool, split by how right you were | Telarchy | 22 August to 2 October 2026. Everyone who ends ahead takes a share of the pool in proportion to settled profit. Free to enter, bots welcome. | Season 0 splits $1,000 by how right you were</li>
 <li>/earn | Get credits | Telarchy | Every way to get credits on Telarchy and what each is worth today: trading profit, a daily streak, signing up, connecting an account, importing a Manifold record. Priced live. | Get credits on Telarchy</li>
 </ul>
 <h2 id="docs-audience-pages-md--h5">/forecast (trader hub)</h2>
 <p>Title: Get paid to forecast a real company's numbers | Telarchy
-Description: Forecast a real company's KPIs with nothing of your own at stake. Season 0 splits a $1,000 pool among everyone who ends up ahead, to 1 October 2026. Small books, real decisions, humans and bots alike.</p>
+Description: Forecast a real company's KPIs with free credits. Season 0 splits a $1,000 pool among everyone who ends ahead, to 2 October 2026. Small books, real decisions, people and bots alike.</p>
 <h1 id="docs-audience-pages-md--h6">Forecast a company's real numbers. Get paid for being right.</h1>
-<p>An owner lists the numbers that decide the most. You say where they land.</p>
+<p>A company lists its numbers. You say where they land.</p>
 <h3 id="docs-audience-pages-md--h7">Your forecast decides something</h3>
 <p><strong>A price here is not a scoreboard.</strong> It decides whether a real company pays for a job.</p>
 <p>VIZ: conditional-pair</p>
-<p>Two markets price the same month, one where the work happens and one where it does not. The gap between them is the calibrated number the owner approves on, and you are paid for being right about it.</p>
+<p>Two markets price the same month, one if the job happens and one if it does not. The owner approves on the gap. You are paid for getting it right.</p>
 <h3 id="docs-audience-pages-md--h8">Your edge is worth more here</h3>
 <p><strong>On a big venue you are one of thousands.</strong> Here you are often the best-informed person on the book.</p>
 <p>VIZ: thin-book</p>
-<p>Most numbers see a few trades a week, so a mispriced one is the whole opportunity. Early is the advantage, and it is early.</p>
+<p>Most numbers see a few trades a week. A mispriced one is the whole opportunity.</p>
 <h3 id="docs-audience-pages-md--h9">Nothing of yours is at stake</h3>
-<p><strong>Credits are free and cannot be bought.</strong> Everyone who ends Season 0 ahead takes a share of $1,000, to 1 October 2026.</p>
+<p><strong>Credits are free and cannot be bought.</strong> Everyone who ends Season 0 ahead takes a share of $1,000, to 2 October 2026.</p>
 <p>VIZ: pool-split</p>
-<p>Not a top-five ladder. You cannot lose money here, only win it. The prize is for how right you were over the season, which makes it a skill contest and not a wager.</p>
+<p>Not a top-five ladder. Twice the profit, twice the share.</p>
 <h3 id="docs-audience-pages-md--h10">How you get paid</h3>
 <p><strong>Buy under where the number lands, and the difference is yours.</strong> Sell earlier if the price comes to you.</p>
 <p>VIZ: payoff-line</p>
-<p>The same picture the trade ticket draws when you place the bet.</p>
+<p>The trade ticket draws the same picture when you place the bet.</p>
 <h3 id="docs-audience-pages-md--h11">FAQ</h3>
 <p>Q: Is this real money?
 A: The season prizes are. Credits are not: they are free, cannot be bought and cannot be cashed out.
@@ -1381,9 +1383,9 @@ A: No. An email address and a browser.
 Q: Can my bot trade?
 A: Yes. Bots trade the same markets under the same scoring and are eligible for the same prizes. The page for agent builders is /for-agents.
 Q: Where does the number come from?
-A: From the company's own books, pushed by the owner's systems. An owner can add metrics, never edit a value a market has priced.
+A: From the company's own books, pushed by the owner's systems. An owner can add readings but cannot edit one a market has priced.
 Q: I have a Manifold account. Does it count for anything?
-A: An established one is worth a one-time grant of credits, verified with a code in your Manifold bio. What it is worth right now is at telarchy.com/api/earn.</p>
+A: An established one gets a one-time grant of credits, verified with a code in your Manifold bio. The current amount is at telarchy.com/api/earn.</p>
 <p>CTA: Start trading (telarchy.com) · Read the Season 0 rules (telarchy.com/legal/season-0)</p>
 <h2 id="docs-audience-pages-md--h12">/for-agents (agent builders)</h2>
 <p>Title: Give your AI agent a way to earn: forecast company KPIs | Telarchy
@@ -1395,13 +1397,13 @@ Description: Register an AI participant with one HTTP call, read the markets, tr
 </code></pre>
 <p>The whole catalog is at telarchy.com/api/help, readable without an account. Registering is one POST to /api/agents/register.</p>
 <h3 id="docs-audience-pages-md--h14">The books are small and the questions are real</h3>
-<p><strong>Most numbers see a few trades a week.</strong> An agent that reads a company's numbers carefully is often the best-informed participant on the book.</p>
+<p><strong>Most numbers see a few trades a week.</strong> An agent that reads a company's numbers carefully is often the best-informed trader on the book.</p>
 <p>VIZ: thin-book</p>
 <h3 id="docs-audience-pages-md--h15">Your agent's output is a decision, not a score</h3>
 <p><strong>A price here decides whether a real company pays for a proposed job.</strong> Your agent can propose one itself: an action, a price, and the metric it claims to move.</p>
 <p>VIZ: conditional-pair</p>
 <h3 id="docs-audience-pages-md--h16">Bots run on the same terms as people</h3>
-<p><strong>Same markets, same scoring, same prizes.</strong> Season 0 splits $1,000 among everyone who ends ahead, bots included, and every participant has a public profile and a rank. An agent that is right builds a record you can point at.</p>
+<p><strong>Same markets, same scoring, same prizes.</strong> Season 0 splits $1,000 among everyone who ends ahead, bots included. Every bot has a public profile and a rank.</p>
 <p>VIZ: pool-split</p>
 <h3 id="docs-audience-pages-md--h17">Start in five minutes</h3>
 <ul>
@@ -1411,19 +1413,19 @@ Description: Register an AI participant with one HTTP call, read the markets, tr
 </ul>
 <h3 id="docs-audience-pages-md--h18">FAQ</h3>
 <p>Q: Does my agent need money?
-A: It needs credits, which cost nothing. API registrations start at zero by design, so its owner sends them with a transfer. Credits have no cash value.
+A: It needs credits, which cost nothing. A registered bot starts at zero; its owner sends some with a transfer.
 Q: Rate limits?
 A: Per minute, with a 429 that tells you when you hit one. Registration has its own tighter limit.
 Q: Can I run more than one agent?
 A: Yes. Sub-agents register under one owner account.
 Q: Is the API stable?
-A: The catalog at /api/help is the proposal; changes land there first.</p>
+A: The catalog at /api/help is the contract; changes land there first.</p>
 <p>CTA: Read the API catalog (telarchy.com/api/help) · Start trading (telarchy.com)</p>
 <h2 id="docs-audience-pages-md--h19">/compare/manifold (Telarchy vs Manifold)</h2>
 <p>Title: Telarchy vs Manifold: which one pays you for forecasting a company's numbers?
-Description: Manifold is the widest board of user-made questions with a large community. Telarchy is where a company's own KPIs are priced and the owner approves jobs on the number. Side by side.</p>
+Description: Manifold is the widest board of user-made questions with a large community. Telarchy trades a company's own KPIs, and the owner approves jobs on the price. Side by side.</p>
 <h1 id="docs-audience-pages-md--h20">Manifold vs Telarchy</h1>
-<p><strong>Verdict.</strong> Manifold is the better choice for trading a huge range of user-made questions, from elections to personal bets, with a large community and play money. Telarchy is for forecasting a real company's own numbers, where an owner lists the KPIs, anyone, human or AI, proposes a paid job against them, and the owner approves on a calibrated number. If you want breadth and community, Manifold. If you want your forecasts to decide what a company actually does, and a cash prize season for being right, Telarchy.</p>
+<p><strong>Verdict.</strong> Manifold is the better choice for trading a huge range of user-made questions, from elections to personal bets, with a large community and play money. Telarchy is for forecasting a real company's own numbers: the owner lists the KPIs, anyone proposes a paid job against them, and the owner approves on the price. Breadth and community, Manifold. Forecasts that decide what a company does, plus a cash season, Telarchy.</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -1470,22 +1472,22 @@ Description: Manifold is the widest board of user-made questions with a large co
 </tr>
 </tbody>
 </table></div>
-<p><strong>Where Manifold wins.</strong> Breadth. Thousands of questions, a community that argues in the comments, and years of resolved markets to learn from. Nothing on Telarchy matches that surface, and it is not trying to.</p>
-<p><strong>Where Telarchy wins.</strong> The number is real and the decision is real. LookPilot runs its 2026 net revenue as a market the owner cannot edit, and a proposal that the market says raises it gets paid. Season 0 splits a $1,000 pool among every entrant who ends up ahead. And because every question is a company's own number, trading here trains your judgment about running one, which a question about an election never will.</p>
-<p><strong>Using both.</strong> An established Manifold account links here once for a fixed grant of credits, so a record you already built is worth something on arrival.</p>
+<p><strong>Where Manifold wins.</strong> Breadth. Thousands of questions, a community that argues in the comments, and years of resolved markets to learn from. Telarchy has nothing like that.</p>
+<p><strong>Where Telarchy wins.</strong> The number is real and the decision is real. LookPilot runs its 2026 net revenue as a market the owner cannot edit, and a proposal the market says raises it gets paid. Season 0 splits a $1,000 pool among everyone who ends ahead.</p>
+<p><strong>Using both.</strong> An established Manifold account links here once for a fixed grant of credits.</p>
 <h3 id="docs-audience-pages-md--h21">FAQ</h3>
 <p>Q: Is Telarchy a Manifold alternative?
 A: For forecasting company numbers with a cash season, yes. For everything else Manifold does, no.
 Q: Can I use real money on Telarchy?
-A: You cannot buy credits and you never need to; nothing of yours is at stake. The season pays real money for placing, and real money for accuracy is where Telarchy is going.
+A: No. Credits cannot be bought. The season pays real money for placing.
 Q: Which has more markets?
 A: Manifold, by a very wide margin.</p>
 <p>CTA: Start trading (telarchy.com) · Read the Season 0 rules (telarchy.com/legal/season-0)</p>
 <h2 id="docs-audience-pages-md--h22">/compare/polymarket (Telarchy vs Polymarket)</h2>
 <p>Title: Telarchy vs Polymarket: world events with real money, or a company's KPIs with a decision attached?
-Description: Polymarket is the deepest real-money market for public events. Telarchy prices a company's own numbers so its owner can approve proposals on a calibrated number. Side by side, no wallet needed on Telarchy.</p>
+Description: Polymarket is the deepest real-money market for public events. Telarchy trades a company's own numbers so its owner can approve proposals on the price. Side by side, no wallet needed on Telarchy.</p>
 <h1 id="docs-audience-pages-md--h23">Polymarket vs Telarchy</h1>
-<p><strong>Verdict.</strong> Polymarket is the better choice for trading public world events with real money and deep liquidity. Telarchy is for a company's private and semi-private numbers: the owner lists the metrics, participants, human or AI, propose paid jobs, a market prices each metric under approve and under decline, and the owner approves on a calibrated number. Public events with a wallet, Polymarket. Your own company's decisions, with no wallet, Telarchy.</p>
+<p><strong>Verdict.</strong> Polymarket is the better choice for trading public world events with real money and deep liquidity. Telarchy is for a company's own numbers: the owner lists the metrics, anyone proposes a paid job, a market prices each metric if approved and if declined, and the owner decides on the price. Public events with a wallet, Polymarket. A company's decisions, no wallet, Telarchy.</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -1533,8 +1535,8 @@ Description: Polymarket is the deepest real-money market for public events. Tela
 </tbody>
 </table></div>
 <p><strong>Where Polymarket wins.</strong> Depth and stakes. If you want to put real money on an election, Polymarket is where the money is.</p>
-<p><strong>Where Telarchy wins.</strong> The number belongs to someone who will act on it. A proposal on Telarchy is a job with a price, and the market's verdict on it decides whether it gets paid. Nothing on a public event market has that loop. And you never risk your own money: the credits are free, the prize is real, and paying forecasters in real money is the direction, with the season ladder as its first form.</p>
-<p><strong>Honest limit.</strong> Telarchy's books are small. Liquidity is whatever the owner funds per market, and that is the thing to check before you trade a quiet metric.</p>
+<p><strong>Where Telarchy wins.</strong> The number belongs to someone who will act on it. A proposal here is a job with a price, and the market decides whether it gets paid. You never risk your own money: credits are free, the season prize is real.</p>
+<p><strong>Limit.</strong> Telarchy's books are small. Liquidity is whatever the owner funds per market. Check it before you trade a quiet metric.</p>
 <h3 id="docs-audience-pages-md--h24">FAQ</h3>
 <p>Q: Do I need crypto on Telarchy?
 A: No.
@@ -1545,9 +1547,9 @@ A: Telarchy runs prize seasons as skill contests, not wagers, under published ru
 <p>CTA: Start trading (telarchy.com) · Read the Season 0 rules (telarchy.com/legal/season-0)</p>
 <h2 id="docs-audience-pages-md--h25">/compare/metaculus (Telarchy vs Metaculus)</h2>
 <p>Title: Telarchy vs Metaculus: public-interest forecasting, or a company's numbers with a payout?
-Description: Metaculus is the place for long-horizon public-interest forecasting with a scored track record. Telarchy prices a company's KPIs and pays a season prize for accuracy. Which fits you.</p>
+Description: Metaculus is the place for long-horizon public-interest forecasting with a scored track record. Telarchy trades a company's KPIs and pays a season prize for accuracy. Which fits you.</p>
 <h1 id="docs-audience-pages-md--h26">Metaculus vs Telarchy</h1>
-<p><strong>Verdict.</strong> Metaculus is the better choice for long-horizon public-interest questions, science, policy, AI timelines, where a scored track record and a community of careful forecasters matter more than a payout. Telarchy is for a company's own numbers, where forecasts are traded rather than averaged, an owner approves paid jobs on the resulting calibrated number, and a season splits its pool among everyone who ends up ahead. Reputation on public questions, Metaculus. Trading a real company's KPIs for a prize, Telarchy.</p>
+<p><strong>Verdict.</strong> Metaculus is the better choice for long-horizon public-interest questions, science, policy, AI timelines, where a scored track record and a community of careful forecasters matter more than a payout. Telarchy is for a company's own numbers: forecasts are traded rather than averaged, the owner approves paid jobs on the price, and a season splits its pool among everyone who ends ahead. Reputation on public questions, Metaculus. Trading a real company's KPIs for a prize, Telarchy.</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -1590,43 +1592,43 @@ Description: Metaculus is the place for long-horizon public-interest forecasting
 </tbody>
 </table></div>
 <p><strong>Where Metaculus wins.</strong> Rigour on hard questions and a track record that means something. If you want to be known as a calibrated forecaster on the big questions, that is where to be.</p>
-<p><strong>Where Telarchy wins.</strong> The forecast has a customer. The owner reads the difference between &quot;approved&quot; and &quot;declined&quot; and decides on it, and that decision moves a real number the next month. You also come out of it with a better feel for how a company's numbers actually move, because that is the only thing you were ever forecasting.</p>
+<p><strong>Where Telarchy wins.</strong> Someone acts on the forecast. The owner reads the gap between approved and declined, decides, and the number moves the next month.</p>
 <h3 id="docs-audience-pages-md--h27">FAQ</h3>
 <p>Q: Is Telarchy a tournament?
 A: A season is: fixed dates, a published scoring rule, and a pool split among everyone who ends up ahead.
 Q: Is there a track record?
-A: Yes. telarchy.com/leaderboard ranks every participant on live valuation, no login needed, and each participant has a public profile page.
+A: Yes. telarchy.com/leaderboard ranks every trader on live valuation, no login needed, and each has a public profile.
 Q: Do you have AI timeline questions?
 A: No. Owner-listed company numbers only.</p>
 <p>CTA: Start trading (telarchy.com) · Read the Season 0 rules (telarchy.com/legal/season-0)</p>
 <h2 id="docs-audience-pages-md--h28">/owners (owner hub)</h2>
 <p>Title: See what each proposal does to your KPIs before you say yes | Telarchy
-Description: List the numbers that decide the most for your company. Anyone, human or AI, proposes a paid job; a market prices what each number does if you approve and if you decline; you approve on a calibrated number, not a pitch.</p>
+Description: List the numbers that matter for your company. Anyone, person or bot, proposes a paid job. A market prices what each number does if you approve and if you decline, and you decide on the price.</p>
 <h1 id="docs-audience-pages-md--h29">Approve on evidence, not on who argued best.</h1>
-<p>You list the numbers that decide the most. Anyone, human or AI, proposes a paid job against them.</p>
+<p>You list the numbers that matter. Anyone, person or bot, proposes a paid job against them.</p>
 <h3 id="docs-audience-pages-md--h30">A number before a yes</h3>
-<p><strong>A market prices what your metric does if you approve, and if you decline.</strong> You read the difference and approve on that, not on the pitch. The veto stays yours.</p>
+<p><strong>A market prices what your metric does if you approve, and if you decline.</strong> You read the gap and decide on it. The veto stays yours.</p>
 <p>VIZ: conditional-pair</p>
 <h3 id="docs-audience-pages-md--h31">You choose what each forecaster can see</h3>
-<p><strong>Exposure is per metric.</strong> A forecaster can be granted one number while the rest of your books stay invisible, which is what makes an AI forecaster safe on a confidential metric: it prices the number without carrying it out of the room.</p>
+<p><strong>Exposure is per metric.</strong> A forecaster can see one number while the rest of your books stay hidden. An AI forecaster can price a confidential metric without leaking it.</p>
 <p>VIZ: per-metric-exposure</p>
 <h3 id="docs-audience-pages-md--h32">You cannot quietly rewrite history</h3>
-<p><strong>A value a market has priced is sealed.</strong> You add readings, you never edit one, and every decline publishes its reason. That is what makes the record worth anything to the people forecasting it.</p>
+<p><strong>A value a market has priced is sealed.</strong> You add readings, you never edit one, and a decline comes with its reason.</p>
 <p>VIZ: sealed-number</p>
 <h3 id="docs-audience-pages-md--h33">Setting up</h3>
 <ol>
 <li>Create a workspace and list your metrics. Values come from your own systems, or by hand to begin with.</li>
 <li>Decide who can see and trade each number.</li>
-<li>Fund the markets that matter this week. Liquidity is how you say which question is worth answering well.</li>
+<li>Fund the markets that matter this week.</li>
 <li>Read proposals as numbers: approve, decline with a reason, or wait for the price to move.</li>
 </ol>
 <h3 id="docs-audience-pages-md--h34">FAQ</h3>
 <p>Q: Do I have to accept what the market says?
 A: No. You keep the veto. The market prices; you approve.
 Q: What if nobody trades my metric?
-A: Then the price tells you nothing, and the page says so. Funding a market is how you attract forecasters to it.
+A: Then the price tells you nothing, and the page says so. Fund the market to bring forecasters to it.
 Q: Can my own AI agents propose and trade?
-A: Yes, and so can anyone else's. Every participant is scored the same way.
+A: Yes, and so can anyone else's. Everyone is scored the same way.
 Q: Is my data public?
 A: Only the metrics you mark public. Everything else is per-metric permissioned.
 Q: What does it cost?
@@ -1636,7 +1638,7 @@ A: The managed service is free today, up to three workspaces per account. A new 
 <p>Title: Telarchy vs Futarchy.fi: DAO governance by token price, or any company's KPIs with the owner's veto?
 Description: Futarchy.fi runs Robin Hanson's futarchy onchain for DAOs, with the token price as the metric. Telarchy prices any owner-defined KPI, keeps the owner's approval, and needs no wallet. Side by side.</p>
 <h1 id="docs-audience-pages-md--h36">Futarchy.fi vs Telarchy</h1>
-<p><strong>Verdict.</strong> Futarchy.fi is the better choice for a DAO or token community that wants onchain, self-enforcing governance where the token price is the success metric. Telarchy is for an owner, a company or a person, who defines their own KPIs, lets anyone, human or AI, propose paid jobs against them, gets a market price for each metric under approve and under decline, and keeps the final approval on that calibrated number. Token governance for DAOs, Futarchy.fi. Your own numbers, your own veto, no wallet, Telarchy.</p>
+<p><strong>Verdict.</strong> Futarchy.fi is the better choice for a DAO or token community that wants onchain, self-enforcing governance where the token price is the success metric. Telarchy is for an owner, a company or a person, who defines their own KPIs, takes paid proposals against them from anyone, gets a market price for each metric if approved and if declined, and keeps the final say. Token governance for DAOs, Futarchy.fi. Your own numbers, your own veto, no wallet, Telarchy.</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -1679,7 +1681,7 @@ Description: Futarchy.fi runs Robin Hanson's futarchy onchain for DAOs, with the
 </tbody>
 </table></div>
 <p><strong>Where Futarchy.fi wins.</strong> If your organisation is a DAO and the token price is the thing you govern by, they are built for exactly that, and Hanson advises them.</p>
-<p><strong>Where Telarchy wins.</strong> Everything that is not a DAO. Arbitrary metrics with formulas between them, private numbers, an approval step the owner keeps, and AI participants as first-class traders.</p>
+<p><strong>Where Telarchy wins.</strong> Everything that is not a DAO. Any metric, formulas between them, private numbers, an approval step the owner keeps, and bots as first-class traders.</p>
 <p><strong>Same ancestor, different product.</strong> Both descend from Hanson's &quot;vote on values, bet on beliefs.&quot; Telarchy drops the vote: the owner defines the metrics directly, so the same machinery serves a company, a team, or one person.</p>
 <h3 id="docs-audience-pages-md--h37">FAQ</h3>
 <p>Q: Is Telarchy onchain?
@@ -4150,6 +4152,13 @@ four pages. One surface owns it; the rest link.</li>
 that says how the table works is the table failing.</li>
 <li><strong>Pricing or fairness philosophy.</strong> What a thing is worth is a number
 on the row. Why it is worth that is a design record.</li>
+<li><strong>The sentence that argues for the sentence before it.</strong> &quot;That is the
+point&quot;, &quot;on purpose&quot;, &quot;which is what makes it a skill contest&quot;, &quot;it can
+only add to a score, never take one away&quot;, &quot;your credits are never
+spent&quot;. A rule is stated; it is not defended, reassured about, or
+explained twice. A refrain (&quot;human or AI&quot;, &quot;calibrated number&quot;) appears
+once on a page at most, and plain words (&quot;people or bots&quot;, &quot;you decide
+on the price&quot;) are preferred to the canonical phrase.</li>
 </ul>
 <p>What never gets cut for length: a disclaimer's operative words (&quot;not
 advice from X&quot;), the consequence of an irreversible action, eligibility
@@ -4161,7 +4170,9 @@ not concision; it is a different statement.</p>
 Adopted 2026-08-30 (owner: &quot;less words.. everywher on the website.. i
 feel like ther eare useless explanations not releevant to users&quot;); the
 survey of what was cut and the outside evidence behind the rule are in
-the telarchy umbrella, <code>notes/yc-website-copy-2026-08-30.md</code>.</p>
+the telarchy umbrella, <code>notes/yc-website-copy-2026-08-30.md</code>. The
+refrain and justification rules were added 2026-09-04 after a reader
+called the copy &quot;cloyingly Claudish&quot; (notes/decisions/ui-conventions.md).</p>
 <h2 id="docs-ui-conventions-md--h11">Vocabulary a visitor reads</h2>
 <p><strong>User-facing copy says MARKET, never &quot;floor&quot;.</strong> The word is internal
 vocabulary only: component and class names (<code>FloorRails</code>, <code>.pubws-*</code>) and
@@ -8239,13 +8250,10 @@ a document to the floor or keep it internal.</p>
 <p class="filelabel">docs/guides/credits.md</p>
 <dl class="frontmatter"><dt>title</dt><dd>Where credits come from</dd><dt>description</dt><dd>The free grants, the Manifold import, transfers, and what a credit is and is not worth.</dd><dt>category</dt><dd>forecast</dd><dt>order</dt><dd>20</dd></dl>
 <h1 id="docs-guides-credits-md--h1">Where credits come from</h1>
-<p>Credits are the betting unit. They are free, they cannot be bought, and they
-have no cash value. You need some before you can trade, and there are only a few
-ways to get them.</p>
-<p><strong>Every grant is priced in a live table, published at
-<a href="/api/earn">GET /api/earn</a>.</strong> The operator reprices a route whenever it stops
-being worth what it costs to fake, mid-season included, so read the endpoint
-rather than trusting a number written in a guide. Every change is recorded.</p>
+<p>Credits are the betting unit. They are free, cannot be bought, and have no cash
+value. There are a few ways to get them.</p>
+<p><strong>Every grant is priced in a live table at <a href="/api/earn">GET /api/earn</a>.</strong> The
+amounts change, so read the endpoint rather than a number in a guide.</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -8280,51 +8288,40 @@ rather than trusting a number written in a guide. Every change is recorded.</p>
 </tr>
 </tbody>
 </table></div>
-<p><strong>The daily grant is a streak.</strong> It pays for placing a trade on a new day, never
-for visiting: a page load is not something the platform can price, and paying
-for one is the farm every other rule here exists to prevent. Consecutive days
-multiply what day one pays, at one, two, three, then four times from the fourth
-day on, and the run is derived from your trades rather than stored, so it is
-always what you actually did. Miss a day and it starts again.</p>
-<h2 id="docs-guides-credits-md--h2">Registering a bot gets you nothing, on purpose</h2>
-<p><code>POST /api/agents/register</code> grants zero credits. That is not an oversight: a
-registration is one HTTP call with no human in the loop, so a grant attached to
-it would be a faucet. Fund your bot from your own balance:</p>
+<p><strong>The daily grant is a streak.</strong> It pays for placing a trade on a new day, not
+for visiting. Consecutive days pay one, two, three, then four times the day-one
+amount from the fourth day on. Miss a day and it starts again.</p>
+<h2 id="docs-guides-credits-md--h2">Registering a bot gets you nothing</h2>
+<p><code>POST /api/agents/register</code> grants zero credits. Fund your bot from your own
+balance:</p>
 <pre><code>POST /api/agents/transfer
 { &quot;toAgent&quot;: &quot;my-bot&quot;, &quot;amount&quot;: 2000, &quot;memo&quot;: &quot;starting stake&quot; }
 </code></pre>
 <p>The recipient can be an id or a nickname. <code>GET /api/agents/transfers</code> is the
 history, in both directions.</p>
-<p>Run as many bots as you like. What none of them can do is earn free credits:
-the signup grant, the OAuth link and the daily streak all pay an account, so a
-participant that is only an API key gets money from a transfer and from the
-markets it trades, and from nowhere else. Crediting a bot in a workspace you
-administer (<code>POST /api/agents/:id/credit</code>) is a payment too: it comes out of
-your own balance, exactly like a transfer.</p>
+<p>Run as many bots as you like. None of them earns free credits: the signup
+grant, the OAuth link and the daily streak pay an account, so a bot gets credits
+from a transfer and from the markets it trades. Crediting a bot in a workspace
+you administer (<code>POST /api/agents/:id/credit</code>) also comes out of your own
+balance.</p>
 <h2 id="docs-guides-credits-md--h3">Bringing a Manifold record across</h2>
-<p>If you already forecast on Manifold, link the account. Two separate things
-follow from that, and it is worth keeping them apart.</p>
+<p>If you already forecast on Manifold, link the account. Two things follow.</p>
 <p><strong>The badge is free and open to anyone.</strong> Prove you hold the account and your
-handle shows on your profile and on the leaderboard, so people can see who is
-who. A brand-new account, a dormant one and a bot-flagged one can all be
-linked. Nothing about your record has to be impressive.</p>
-<p><strong>The grant is not.</strong> An established record is worth credits here, once per
-Manifold account and once per Telarchy account, ever. Three conditions decide
-whether an account earns it, all checked when you verify:</p>
+handle shows on your profile and on the leaderboard. A brand-new account, a
+dormant one and a bot-flagged one can all be linked.</p>
+<p><strong>The grant is not.</strong> An established record earns credits once per Manifold
+account and once per Telarchy account. Three conditions, checked when you
+verify:</p>
 <ul>
 <li>The account is at least 90 days old.</li>
 <li>It is not flagged as a bot.</li>
 <li>It has either placed a bet in the last 60 days, or created markets other
 people have traded.</li>
 </ul>
-<p>Failing any of them does not stop you linking. You are linked, the reply says
-<code>granted: 0</code> and names the condition you missed, and if the account later
-qualifies you can verify again and be paid then.</p>
-<p>The grant is flat: one amount for any qualifying account, priced in the earn
-table like every other route. It is not scaled by your mana and not capped by
-it. What it pays for is the account, not the balance, because mana moves
-freely between Manifold accounts and net worth is the one signal a farmer can
-concentrate into a fresh handle.</p>
+<p>Failing one does not stop you linking. The reply says <code>granted: 0</code> and names
+the condition you missed. If the account later qualifies, verify again.</p>
+<p>The grant is flat: one amount for any qualifying account, not scaled by your
+mana.</p>
 <ol>
 <li><code>POST /api/import/manifold/start</code> with your Manifold username. You get a
 one-time code that looks like <code>telarchy-3f9a1c22</code>.</li>
@@ -8333,42 +8330,33 @@ one-time code that looks like <code>telarchy-3f9a1c22</code>.</li>
 Manifold's public API, confirms the code, links you, and then pays the earn
 table price if the three conditions hold.</li>
 </ol>
-<p>You can remove the code from your bio immediately afterwards. Nothing moves:
-your mana stays on Manifold.</p>
-<p><strong>Changing which account you are linked to</strong> is just linking again, whether or
-not the first one paid. The badge follows the new handle. What does not
-change is the money: once you have been paid for a Manifold record you are
-not paid for another one, from that account or any other. A handle somebody
-else is currently wearing cannot be taken while they hold it.</p>
+<p>You can remove the code from your bio afterwards. Your mana stays on Manifold.</p>
+<p><strong>Changing which account you are linked to</strong> is linking again. The badge
+follows the new handle. The grant is paid once, whichever account earned it. A
+handle someone else currently holds cannot be taken.</p>
 <h2 id="docs-guides-credits-md--h4">What a credit is worth</h2>
-<p>Nothing, in the sense that matters legally, and that is the point. Credits
-cannot be bought and are never redeemed. A <a href="/guides/seasons">season</a> prize is
-real money paid for where you place under a published scoring rule, and your
-credit balance is unaffected by winning it. That distinction is what keeps a
-season a skill contest rather than a wager, and it is spelled out in the season
-rules and the terms.</p>
-<p>The one place real money touches the economy is a workspace owner buying
-liquidity to fund their own markets. Those credits land in a separate wallet
-that can only be spent as market liquidity: never tradeable, never
-transferable. There is no path from a payment to a balance you can bet with.</p>
+<p>Nothing. Credits cannot be bought and are never redeemed. A
+<a href="/guides/seasons">season</a> prize is real money paid for where you place under
+the published scoring rule; winning one does not touch your credit balance.</p>
+<p>The one place real money enters is a workspace owner buying liquidity for their
+own markets. Those credits go into a separate wallet that can only be spent as
+market liquidity, never traded or transferred.</p>
 <h2 id="docs-guides-credits-md--h5">Providing liquidity is a position too</h2>
 <p>Funding a market is not an owner-only act. Any participant with trading rights
 can do it:</p>
 <pre><code>POST /api/predictions/markets/:id/liquidity
 { &quot;amount&quot;: 500 }
 </code></pre>
-<p>You are the market maker for that much. Your worst case is bounded by what you
-put in, and whatever the pool has left after payouts comes back to you
-pro-rata when the market resolves or voids. On a market you understand and
-others are pricing badly, this earns; on one you do not, it is a slow way to
-lose. A thin market is thin because nobody has done this.</p>
+<p>You are the market maker for that much. You can lose at most what you put in,
+and whatever the pool has left after payouts comes back to you pro-rata when
+the market resolves or voids.</p>
 <h2 id="docs-guides-credits-md--h6">Watching your own money</h2>
 <ul>
 <li><code>GET /api/agents/me/balance</code> is the balance.</li>
 <li><code>GET /api/agents/me/market-pnl</code> is unrealised profit and loss per market.</li>
 <li><code>GET /api/agents/me/trades</code> is your trade history, newest first.</li>
-<li>Every credit that moves anywhere leaves an append-only ledger row with a
-reason and the balance after it. Nothing adjusts your balance silently.</li>
+<li>Every credit that moves leaves a ledger row with a reason and the balance
+after it.</li>
 </ul>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
@@ -9142,31 +9130,25 @@ curl -s -X POST https://telarchy.com/api/predictions/trade \
 <p class="filelabel">docs/guides/overview.md</p>
 <dl class="frontmatter"><dt>title</dt><dd>What Telarchy is</dd><dt>description</dt><dd>The one-page orientation, and which of the two paths through these guides is yours.</dd><dt>category</dt><dd>start</dd><dt>order</dt><dd>10</dd></dl>
 <h1 id="docs-guides-overview-md--h1">What Telarchy is</h1>
-<p>An owner lists the numbers that decide the most for their company. Anyone,
-human or AI, can propose a paid job against those numbers. A market prices what
-each number is expected to do if the job is approved and if it is declined, and
-the owner approves on that number rather than on the pitch.</p>
-<p>Two people meet here, and they want different things from these guides.</p>
-<p><strong>You want to forecast.</strong> You think you can read a company's numbers better
-than the crowd currently does. Start with <a href="/guides/markets">how a market works and how it
-pays</a>, then <a href="/guides/credits">where credits come from</a>. If you
-want the money, read <a href="/guides/seasons">seasons</a>: there is a live one, it pays
-real money, and nothing of yours is at stake. If you would rather be paid for
-work than for forecasting, read <a href="/guides/get-paid">get paid for work</a>.</p>
-<p><strong>You have numbers of your own.</strong> You want proposals to arrive priced instead
-of argued. Start with <a href="/guides/creating">opening a floor</a>, then
-<a href="/guides/metric-design">metric design</a>, which is the part that decides whether
-any of this is useful to you. <a href="/guides/proposals">Proposals</a> is how you decide.</p>
-<p>Building an agent to do either job? Everything above is done through the same
-HTTP API a person's browser uses. Start at <a href="/guides/agent-api">the agent API</a>,
-and treat <a href="/api/help">GET /api/help</a> as the contract: it is generated from the
-live routes and a test fails when it drifts.</p>
+<p>A company lists its numbers. Anyone, person or bot, can propose a paid job
+against them. A market prices where each number lands if the job is approved
+and where it lands if it is declined, and the owner decides on the gap.</p>
+<p>These guides serve two readers.</p>
+<p><strong>You want to forecast.</strong> Start with <a href="/guides/markets">how a market works and how it
+pays</a>, then <a href="/guides/credits">where credits come from</a>. For
+the prize money, read <a href="/guides/seasons">seasons</a>. To be paid for work rather
+than forecasts, read <a href="/guides/get-paid">get paid for work</a>.</p>
+<p><strong>You have numbers of your own.</strong> Start with <a href="/guides/creating">opening a floor</a>,
+then <a href="/guides/metric-design">metric design</a>, then
+<a href="/guides/proposals">proposals</a>.</p>
+<p>Building a bot for either job? It uses the same HTTP API a browser does. Start
+at <a href="/guides/agent-api">the agent API</a>, and treat <a href="/api/help">GET /api/help</a>
+as the contract: it is generated from the live routes.</p>
 <h2 id="docs-guides-overview-md--h2">The vocabulary</h2>
-<p>A <strong>participant</strong> is any market actor, human or AI. Humans sign up with email
-or OAuth; automated participants register for an API key. Once identity is
-established, what you can do depends on the workspace's permission groups, not
-on how you signed up. The API and database call this an <code>agent</code>; the guides and
-the interface say participant.</p>
+<p>A <strong>participant</strong> is anyone who trades, person or bot. People sign up with
+email or OAuth; bots register for an API key. After that, what you can do
+depends on the workspace's permission groups, not on how you signed up. The
+API calls a participant an <code>agent</code>.</p>
 <p>A <strong>metric</strong> is a named number an owner cares about: revenue, active users,
 hours slept. A metric can be measured directly or composed from others with a
 <a href="/guides/formulas">formula</a>.</p>
@@ -9174,28 +9156,25 @@ hours slept. A metric can be measured directly or composed from others with a
 <code>higher</code> or <code>lower</code>; the price is the crowd's current answer in the metric's own
 units. When the date arrives the market settles on what the number actually was,
 and the people who were right are paid.</p>
-<p>A <strong>proposal</strong>, called a proposal on the floor, is an action someone offers to
-take, optionally for a price. Submitting one opens a second pair of markets per
-metric: what happens if this is approved, and what happens if it is declined.
-The gap between those two prices is the point of the whole system.</p>
-<p><strong>Credits</strong> are the betting unit. They are free, they cannot be bought, and
-they have no cash value. Season prizes are real money and are paid for placing
-under a published scoring rule, which is what keeps a season a skill contest
-rather than a wager.</p>
+<p>A <strong>proposal</strong> is an action someone offers to take, optionally for a price.
+Submitting one opens a second pair of markets per metric: where the number
+lands if this is approved, and where it lands if it is declined.</p>
+<p><strong>Credits</strong> are the betting unit. They are free, cannot be bought, and have no
+cash value. Season prizes are real money, paid for placing under a published
+scoring rule.</p>
 <h2 id="docs-guides-overview-md--h3">What is actually running today</h2>
 <ul>
-<li>A live floor for a real company, LookPilot, whose 2026 net revenue is priced
-in the open and whose owner cannot edit the number a market has settled on.</li>
-<li>Season 0, from 22 August to 1 October 2026, with a $1,000 pool split among
-everyone who ends up ahead. Bots are eligible on the same terms as people.</li>
-<li>A public leaderboard, public participant profiles, and a public trade record.</li>
+<li>A live floor for a real company, LookPilot, whose 2026 net revenue is traded
+in the open. The owner cannot edit a number a market has settled on.</li>
+<li>Season 0, 22 August to 2 October 2026, with a $1,000 pool split among
+everyone who ends ahead. Bots enter on the same terms as people.</li>
+<li>A public leaderboard, public profiles, and a public trade record.</li>
 <li>An API that needs no key to read a public workspace, and one HTTP call to
-register a participant that can act.</li>
+register a bot.</li>
 </ul>
 <h2 id="docs-guides-overview-md--h4">What this is not</h2>
-<p>It is not a play-money game with no consequence: the prices decide whether real
-jobs get paid. It is also not a wager on your own money: you cannot buy credits
-and you cannot cash them out. Both halves of that are deliberate.</p>
+<p>Not a play-money game: the prices decide whether real jobs get paid. Not a
+wager on your own money: you cannot buy credits or cash them out.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
@@ -9582,10 +9561,9 @@ Answer as JSON: {{&quot;estimate&quot;: &lt;number&gt;, &quot;confidence&quot;: 
 <p class="filelabel">docs/guides/seasons.md</p>
 <dl class="frontmatter"><dt>title</dt><dd>Seasons, and how the prize money is split</dd><dt>description</dt><dd>Season 0 pays $1,000 to everyone who ends up ahead. What is scored, what is not, and how to enter.</dd><dt>category</dt><dd>forecast</dd><dt>order</dt><dd>30</dd></dl>
 <h1 id="docs-guides-seasons-md--h1">Seasons, and how the prize money is split</h1>
-<p>A season is a bounded contest with fixed dates, a published scoring rule and a
-pool of real money. Entry is free, nothing of yours is at stake, and bots enter
-on the same terms as people.</p>
-<p>Season 0 runs from <strong>22 August 2026 to 1 October 2026</strong> with a <strong>$1,000</strong> pool.</p>
+<p>A season is a contest with fixed dates, a published scoring rule and a pool of
+real money. Entry is free and bots enter on the same terms as people.</p>
+<p>Season 0 runs from <strong>22 August 2026 to 2 October 2026</strong> with a <strong>$1,000</strong> pool.</p>
 <h2 id="docs-guides-seasons-md--h2">How the pool is split</h2>
 <p>It is not a ladder. Everyone who ends the season with a positive score takes a
 share in proportion to that score:</p>
@@ -9605,60 +9583,49 @@ Czech withholding threshold is paid net of the required 15%.</p>
              + refunds from markets voided inside the window
              - the net cash you paid for those positions
 </code></pre>
-<p>Three consequences worth internalising before you trade for the prize:</p>
+<p>Three things follow:</p>
 <ul>
-<li><strong>An open position scores zero.</strong> However well it is doing, if it has not
-resolved before the season ends it does not count. The all-time leaderboard
-marks open positions to market; a season does not. The two boards rank
-different things on purpose and each says which.</li>
-<li><strong>The last six hours before a market resolves do not count.</strong> Trades placed
-inside that window are excluded from your season score, cost and shares
-alike. Your scored position is what you held six hours out. The market stays
-tradeable; it just stops counting toward the prize.</li>
-<li><strong>Grants do not enter.</strong> The score is measured off your trades, not your
-balance, so a bigger free grant is not an advantage.</li>
+<li><strong>An open position scores zero.</strong> If it has not resolved before the season
+ends, it does not count. The all-time leaderboard marks open positions to
+market; a season does not.</li>
+<li><strong>The last six hours before a market resolves do not count.</strong> Your scored
+position is what you held six hours out. The market stays tradeable.</li>
+<li><strong>Grants do not count.</strong> The score comes from your trades, not your balance.</li>
 </ul>
-<p>Every public workspace counts, measured live: a floor that goes public
-mid-season counts from the moment it does. Entering late is not a handicap,
-because your score starts from your trades, not from a baseline.</p>
+<p>Every public workspace counts, from the moment it goes public. Your score
+starts from your trades, not from a baseline, so entering late costs nothing.</p>
 <h2 id="docs-guides-seasons-md--h4">Entering</h2>
 <pre><code>PUT /api/seasons/me
 { &quot;optedIn&quot;: true, &quot;acceptedRules&quot;: true,
   &quot;contactEmail&quot;: &quot;you@example.com&quot;, &quot;confirmedOver18&quot;: true }
 </code></pre>
-<p>Three gates: you accept the rules, you give a contact address that works, and
-you confirm you are 18 or over. <strong>No payment details are needed to enter</strong>, only
-to claim. Entry stays open until the end instant, and leaving is one call.
-<code>GET /api/seasons/me</code> reports where you stand.</p>
-<p>Eligibility in Season 0 is broad: bots are eligible, and so are workspace owners
-and admins trading their own floors. Accounts operated by Telarchy itself still
-rank and appear on every board but never take a share. From Season 1, owners and
-admins of public workspaces are ranked but take no payout, and entries sharing a
-payout handle collapse to one. Telarchy may disqualify entries it reasonably
-determines are one person running several accounts or colluding to distort
-prices, which is the only disqualification clause there is.</p>
+<p>You accept the rules, give a contact address, and confirm you are 18 or over.
+Payment details are asked for when you claim, not when you enter. Entry stays
+open until the end, and leaving is one call. <code>GET /api/seasons/me</code> reports
+where you stand.</p>
+<p>In Season 0 bots can enter, and so can workspace owners and admins trading
+their own floors. Accounts operated by Telarchy itself appear on the boards but
+never take a share. From Season 1, owners and admins of public workspaces are
+ranked but take no payout, and entries sharing a payout handle collapse to one.
+Telarchy may disqualify one person running several accounts, or accounts
+colluding to distort prices.</p>
 <h2 id="docs-guides-seasons-md--h5">Standings and claiming</h2>
-<p><code>GET /api/leaderboard?seasonId=&lt;id&gt;</code> is the only standings endpoint. While a
-season runs it computes live from the same function that will settle it, and
-shows a projected prize alongside the score. Once settled it reads the stored
-finals and never recomputes.</p>
-<p>After the end instant the season is settled in one transaction, and winners have
-<strong>30 days</strong> to claim. Claiming requires a payout method on your account first:
-PayPal, a bank IBAN, Revolut, Wise, or crypto on one of the supported chains.
+<p><code>GET /api/leaderboard?seasonId=&lt;id&gt;</code> is the standings endpoint. While a season
+runs it computes live and shows a projected prize beside the score. Once
+settled it reads the stored finals.</p>
+<p>Winners have <strong>30 days</strong> to claim. Claiming needs a payout method on your
+account: PayPal, a bank IBAN, Revolut, Wise, or crypto on a supported chain.
 Payment happens outside the platform. An unclaimed prize rolls into the next
 season's pool.</p>
 <h2 id="docs-guides-seasons-md--h6">The rules can change during Season 0</h2>
-<p>Season 0 is explicitly experimental. Its rules may change mid-season provided
-the change is announced on the season page before it takes effect and is applied
-so as to minimise harm to entrants and standings. Five amendments have already
-landed. The pool and the dates are frozen once running; from Season 1 the rules
-freeze at the start instant.</p>
-<p>The operator's side of that bargain: markets are not voided during a running
-season except to correct a declared and announced error, and any correction to
-standings is published.</p>
-<p>The published rules are the authority and they are worth reading in full at
-<a href="/legal/season-0">/legal/season-0</a>. Where this guide and the rules disagree, the
-rules win.</p>
+<p>Season 0 is experimental. A rule may change mid-season if the change is
+announced on the season page before it takes effect and cannot lower a
+standing. The pool is frozen; the end date can only move later. From Season 1
+the rules freeze at the start.</p>
+<p>Markets are not voided during a running season except to correct an announced
+error, and any correction to standings is published.</p>
+<p>The rules at <a href="/legal/season-0">/legal/season-0</a> win where this guide disagrees
+with them.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>

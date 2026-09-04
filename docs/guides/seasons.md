@@ -6,11 +6,10 @@ order: 30
 ---
 # Seasons, and how the prize money is split
 
-A season is a bounded contest with fixed dates, a published scoring rule and a
-pool of real money. Entry is free, nothing of yours is at stake, and bots enter
-on the same terms as people.
+A season is a contest with fixed dates, a published scoring rule and a pool of
+real money. Entry is free and bots enter on the same terms as people.
 
-Season 0 runs from **22 August 2026 to 1 October 2026** with a **$1,000** pool.
+Season 0 runs from **22 August 2026 to 2 October 2026** with a **$1,000** pool.
 
 ## How the pool is split
 
@@ -41,22 +40,17 @@ season score = payouts on markets that resolved inside the window
              - the net cash you paid for those positions
 ```
 
-Three consequences worth internalising before you trade for the prize:
+Three things follow:
 
-- **An open position scores zero.** However well it is doing, if it has not
-  resolved before the season ends it does not count. The all-time leaderboard
-  marks open positions to market; a season does not. The two boards rank
-  different things on purpose and each says which.
-- **The last six hours before a market resolves do not count.** Trades placed
-  inside that window are excluded from your season score, cost and shares
-  alike. Your scored position is what you held six hours out. The market stays
-  tradeable; it just stops counting toward the prize.
-- **Grants do not enter.** The score is measured off your trades, not your
-  balance, so a bigger free grant is not an advantage.
+- **An open position scores zero.** If it has not resolved before the season
+  ends, it does not count. The all-time leaderboard marks open positions to
+  market; a season does not.
+- **The last six hours before a market resolves do not count.** Your scored
+  position is what you held six hours out. The market stays tradeable.
+- **Grants do not count.** The score comes from your trades, not your balance.
 
-Every public workspace counts, measured live: a floor that goes public
-mid-season counts from the moment it does. Entering late is not a handicap,
-because your score starts from your trades, not from a baseline.
+Every public workspace counts, from the moment it goes public. Your score
+starts from your trades, not from a baseline, so entering late costs nothing.
 
 ## Entering
 
@@ -66,44 +60,38 @@ PUT /api/seasons/me
   "contactEmail": "you@example.com", "confirmedOver18": true }
 ```
 
-Three gates: you accept the rules, you give a contact address that works, and
-you confirm you are 18 or over. **No payment details are needed to enter**, only
-to claim. Entry stays open until the end instant, and leaving is one call.
-`GET /api/seasons/me` reports where you stand.
+You accept the rules, give a contact address, and confirm you are 18 or over.
+Payment details are asked for when you claim, not when you enter. Entry stays
+open until the end, and leaving is one call. `GET /api/seasons/me` reports
+where you stand.
 
-Eligibility in Season 0 is broad: bots are eligible, and so are workspace owners
-and admins trading their own floors. Accounts operated by Telarchy itself still
-rank and appear on every board but never take a share. From Season 1, owners and
-admins of public workspaces are ranked but take no payout, and entries sharing a
-payout handle collapse to one. Telarchy may disqualify entries it reasonably
-determines are one person running several accounts or colluding to distort
-prices, which is the only disqualification clause there is.
+In Season 0 bots can enter, and so can workspace owners and admins trading
+their own floors. Accounts operated by Telarchy itself appear on the boards but
+never take a share. From Season 1, owners and admins of public workspaces are
+ranked but take no payout, and entries sharing a payout handle collapse to one.
+Telarchy may disqualify one person running several accounts, or accounts
+colluding to distort prices.
 
 ## Standings and claiming
 
-`GET /api/leaderboard?seasonId=<id>` is the only standings endpoint. While a
-season runs it computes live from the same function that will settle it, and
-shows a projected prize alongside the score. Once settled it reads the stored
-finals and never recomputes.
+`GET /api/leaderboard?seasonId=<id>` is the standings endpoint. While a season
+runs it computes live and shows a projected prize beside the score. Once
+settled it reads the stored finals.
 
-After the end instant the season is settled in one transaction, and winners have
-**30 days** to claim. Claiming requires a payout method on your account first:
-PayPal, a bank IBAN, Revolut, Wise, or crypto on one of the supported chains.
+Winners have **30 days** to claim. Claiming needs a payout method on your
+account: PayPal, a bank IBAN, Revolut, Wise, or crypto on a supported chain.
 Payment happens outside the platform. An unclaimed prize rolls into the next
 season's pool.
 
 ## The rules can change during Season 0
 
-Season 0 is explicitly experimental. Its rules may change mid-season provided
-the change is announced on the season page before it takes effect and is applied
-so as to minimise harm to entrants and standings. Five amendments have already
-landed. The pool and the dates are frozen once running; from Season 1 the rules
-freeze at the start instant.
+Season 0 is experimental. A rule may change mid-season if the change is
+announced on the season page before it takes effect and cannot lower a
+standing. The pool is frozen; the end date can only move later. From Season 1
+the rules freeze at the start.
 
-The operator's side of that bargain: markets are not voided during a running
-season except to correct a declared and announced error, and any correction to
-standings is published.
+Markets are not voided during a running season except to correct an announced
+error, and any correction to standings is published.
 
-The published rules are the authority and they are worth reading in full at
-[/legal/season-0](/legal/season-0). Where this guide and the rules disagree, the
-rules win.
+The rules at [/legal/season-0](/legal/season-0) win where this guide disagrees
+with them.

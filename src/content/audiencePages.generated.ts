@@ -28,12 +28,12 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
     "route": "/forecast",
     "audience": "trader hub",
     "title": "Get paid to forecast a real company's numbers | Telarchy",
-    "description": "Forecast a real company's KPIs with nothing of your own at stake. Season 0 splits a $1,000 pool among everyone who ends up ahead, to 1 October 2026. Small books, real decisions, humans and bots alike.",
+    "description": "Forecast a real company's KPIs with free credits. Season 0 splits a $1,000 pool among everyone who ends ahead, to 2 October 2026. Small books, real decisions, people and bots alike.",
     "h1": "Forecast a company's real numbers. Get paid for being right.",
     "blocks": [
       {
         "kind": "p",
-        "text": "An owner lists the numbers that decide the most. You say where they land."
+        "text": "A company lists its numbers. You say where they land."
       },
       {
         "kind": "h2",
@@ -50,7 +50,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       },
       {
         "kind": "p",
-        "text": "Two markets price the same month, one where the work happens and one where it does not. The gap between them is the calibrated number the owner approves on, and you are paid for being right about it."
+        "text": "Two markets price the same month, one if the job happens and one if it does not. The owner approves on the gap. You are paid for getting it right."
       },
       {
         "kind": "h2",
@@ -67,7 +67,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       },
       {
         "kind": "p",
-        "text": "Most numbers see a few trades a week, so a mispriced one is the whole opportunity. Early is the advantage, and it is early."
+        "text": "Most numbers see a few trades a week. A mispriced one is the whole opportunity."
       },
       {
         "kind": "h2",
@@ -76,7 +76,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Credits are free and cannot be bought.",
-        "text": "Everyone who ends Season 0 ahead takes a share of $1,000, to 1 October 2026."
+        "text": "Everyone who ends Season 0 ahead takes a share of $1,000, to 2 October 2026."
       },
       {
         "kind": "viz",
@@ -84,7 +84,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       },
       {
         "kind": "p",
-        "text": "Not a top-five ladder. You cannot lose money here, only win it. The prize is for how right you were over the season, which makes it a skill contest and not a wager."
+        "text": "Not a top-five ladder. Twice the profit, twice the share."
       },
       {
         "kind": "h2",
@@ -101,7 +101,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       },
       {
         "kind": "p",
-        "text": "The same picture the trade ticket draws when you place the bet."
+        "text": "The trade ticket draws the same picture when you place the bet."
       },
       {
         "kind": "h2",
@@ -128,11 +128,11 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
           },
           {
             "q": "Where does the number come from?",
-            "a": "From the company's own books, pushed by the owner's systems. An owner can add metrics, never edit a value a market has priced."
+            "a": "From the company's own books, pushed by the owner's systems. An owner can add readings but cannot edit one a market has priced."
           },
           {
             "q": "I have a Manifold account. Does it count for anything?",
-            "a": "An established one is worth a one-time grant of credits, verified with a code in your Manifold bio. What it is worth right now is at telarchy.com/api/earn."
+            "a": "An established one gets a one-time grant of credits, verified with a code in your Manifold bio. The current amount is at telarchy.com/api/earn."
           }
         ]
       }
@@ -176,7 +176,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Most numbers see a few trades a week.",
-        "text": "An agent that reads a company's numbers carefully is often the best-informed participant on the book."
+        "text": "An agent that reads a company's numbers carefully is often the best-informed trader on the book."
       },
       {
         "kind": "viz",
@@ -202,7 +202,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Same markets, same scoring, same prizes.",
-        "text": "Season 0 splits $1,000 among everyone who ends ahead, bots included, and every participant has a public profile and a rank. An agent that is right builds a record you can point at."
+        "text": "Season 0 splits $1,000 among everyone who ends ahead, bots included. Every bot has a public profile and a rank."
       },
       {
         "kind": "viz",
@@ -229,7 +229,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
         "items": [
           {
             "q": "Does my agent need money?",
-            "a": "It needs credits, which cost nothing. API registrations start at zero by design, so its owner sends them with a transfer. Credits have no cash value."
+            "a": "It needs credits, which cost nothing. A registered bot starts at zero; its owner sends some with a transfer."
           },
           {
             "q": "Rate limits?",
@@ -241,7 +241,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
           },
           {
             "q": "Is the API stable?",
-            "a": "The catalog at /api/help is the proposal; changes land there first."
+            "a": "The catalog at /api/help is the contract; changes land there first."
           }
         ]
       }
@@ -262,13 +262,13 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
     "route": "/compare/manifold",
     "audience": "Telarchy vs Manifold",
     "title": "Telarchy vs Manifold: which one pays you for forecasting a company's numbers?",
-    "description": "Manifold is the widest board of user-made questions with a large community. Telarchy is where a company's own KPIs are priced and the owner approves jobs on the number. Side by side.",
+    "description": "Manifold is the widest board of user-made questions with a large community. Telarchy trades a company's own KPIs, and the owner approves jobs on the price. Side by side.",
     "h1": "Manifold vs Telarchy",
     "blocks": [
       {
         "kind": "p",
         "lead": "Verdict.",
-        "text": "Manifold is the better choice for trading a huge range of user-made questions, from elections to personal bets, with a large community and play money. Telarchy is for forecasting a real company's own numbers, where an owner lists the KPIs, anyone, human or AI, proposes a paid job against them, and the owner approves on a calibrated number. If you want breadth and community, Manifold. If you want your forecasts to decide what a company actually does, and a cash prize season for being right, Telarchy."
+        "text": "Manifold is the better choice for trading a huge range of user-made questions, from elections to personal bets, with a large community and play money. Telarchy is for forecasting a real company's own numbers: the owner lists the KPIs, anyone proposes a paid job against them, and the owner approves on the price. Breadth and community, Manifold. Forecasts that decide what a company does, plus a cash season, Telarchy."
       },
       {
         "kind": "table",
@@ -318,17 +318,17 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Where Manifold wins.",
-        "text": "Breadth. Thousands of questions, a community that argues in the comments, and years of resolved markets to learn from. Nothing on Telarchy matches that surface, and it is not trying to."
+        "text": "Breadth. Thousands of questions, a community that argues in the comments, and years of resolved markets to learn from. Telarchy has nothing like that."
       },
       {
         "kind": "p",
         "lead": "Where Telarchy wins.",
-        "text": "The number is real and the decision is real. LookPilot runs its 2026 net revenue as a market the owner cannot edit, and a proposal that the market says raises it gets paid. Season 0 splits a $1,000 pool among every entrant who ends up ahead. And because every question is a company's own number, trading here trains your judgment about running one, which a question about an election never will."
+        "text": "The number is real and the decision is real. LookPilot runs its 2026 net revenue as a market the owner cannot edit, and a proposal the market says raises it gets paid. Season 0 splits a $1,000 pool among everyone who ends ahead."
       },
       {
         "kind": "p",
         "lead": "Using both.",
-        "text": "An established Manifold account links here once for a fixed grant of credits, so a record you already built is worth something on arrival."
+        "text": "An established Manifold account links here once for a fixed grant of credits."
       },
       {
         "kind": "h2",
@@ -343,7 +343,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
           },
           {
             "q": "Can I use real money on Telarchy?",
-            "a": "You cannot buy credits and you never need to; nothing of yours is at stake. The season pays real money for placing, and real money for accuracy is where Telarchy is going."
+            "a": "No. Credits cannot be bought. The season pays real money for placing."
           },
           {
             "q": "Which has more markets?",
@@ -368,13 +368,13 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
     "route": "/compare/polymarket",
     "audience": "Telarchy vs Polymarket",
     "title": "Telarchy vs Polymarket: world events with real money, or a company's KPIs with a decision attached?",
-    "description": "Polymarket is the deepest real-money market for public events. Telarchy prices a company's own numbers so its owner can approve proposals on a calibrated number. Side by side, no wallet needed on Telarchy.",
+    "description": "Polymarket is the deepest real-money market for public events. Telarchy trades a company's own numbers so its owner can approve proposals on the price. Side by side, no wallet needed on Telarchy.",
     "h1": "Polymarket vs Telarchy",
     "blocks": [
       {
         "kind": "p",
         "lead": "Verdict.",
-        "text": "Polymarket is the better choice for trading public world events with real money and deep liquidity. Telarchy is for a company's private and semi-private numbers: the owner lists the metrics, participants, human or AI, propose paid jobs, a market prices each metric under approve and under decline, and the owner approves on a calibrated number. Public events with a wallet, Polymarket. Your own company's decisions, with no wallet, Telarchy."
+        "text": "Polymarket is the better choice for trading public world events with real money and deep liquidity. Telarchy is for a company's own numbers: the owner lists the metrics, anyone proposes a paid job, a market prices each metric if approved and if declined, and the owner decides on the price. Public events with a wallet, Polymarket. A company's decisions, no wallet, Telarchy."
       },
       {
         "kind": "table",
@@ -429,12 +429,12 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Where Telarchy wins.",
-        "text": "The number belongs to someone who will act on it. A proposal on Telarchy is a job with a price, and the market's verdict on it decides whether it gets paid. Nothing on a public event market has that loop. And you never risk your own money: the credits are free, the prize is real, and paying forecasters in real money is the direction, with the season ladder as its first form."
+        "text": "The number belongs to someone who will act on it. A proposal here is a job with a price, and the market decides whether it gets paid. You never risk your own money: credits are free, the season prize is real."
       },
       {
         "kind": "p",
-        "lead": "Honest limit.",
-        "text": "Telarchy's books are small. Liquidity is whatever the owner funds per market, and that is the thing to check before you trade a quiet metric."
+        "lead": "Limit.",
+        "text": "Telarchy's books are small. Liquidity is whatever the owner funds per market. Check it before you trade a quiet metric."
       },
       {
         "kind": "h2",
@@ -474,13 +474,13 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
     "route": "/compare/metaculus",
     "audience": "Telarchy vs Metaculus",
     "title": "Telarchy vs Metaculus: public-interest forecasting, or a company's numbers with a payout?",
-    "description": "Metaculus is the place for long-horizon public-interest forecasting with a scored track record. Telarchy prices a company's KPIs and pays a season prize for accuracy. Which fits you.",
+    "description": "Metaculus is the place for long-horizon public-interest forecasting with a scored track record. Telarchy trades a company's KPIs and pays a season prize for accuracy. Which fits you.",
     "h1": "Metaculus vs Telarchy",
     "blocks": [
       {
         "kind": "p",
         "lead": "Verdict.",
-        "text": "Metaculus is the better choice for long-horizon public-interest questions, science, policy, AI timelines, where a scored track record and a community of careful forecasters matter more than a payout. Telarchy is for a company's own numbers, where forecasts are traded rather than averaged, an owner approves paid jobs on the resulting calibrated number, and a season splits its pool among everyone who ends up ahead. Reputation on public questions, Metaculus. Trading a real company's KPIs for a prize, Telarchy."
+        "text": "Metaculus is the better choice for long-horizon public-interest questions, science, policy, AI timelines, where a scored track record and a community of careful forecasters matter more than a payout. Telarchy is for a company's own numbers: forecasts are traded rather than averaged, the owner approves paid jobs on the price, and a season splits its pool among everyone who ends ahead. Reputation on public questions, Metaculus. Trading a real company's KPIs for a prize, Telarchy."
       },
       {
         "kind": "table",
@@ -530,7 +530,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Where Telarchy wins.",
-        "text": "The forecast has a customer. The owner reads the difference between \"approved\" and \"declined\" and decides on it, and that decision moves a real number the next month. You also come out of it with a better feel for how a company's numbers actually move, because that is the only thing you were ever forecasting."
+        "text": "Someone acts on the forecast. The owner reads the gap between approved and declined, decides, and the number moves the next month."
       },
       {
         "kind": "h2",
@@ -545,7 +545,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
           },
           {
             "q": "Is there a track record?",
-            "a": "Yes. telarchy.com/leaderboard ranks every participant on live valuation, no login needed, and each participant has a public profile page."
+            "a": "Yes. telarchy.com/leaderboard ranks every trader on live valuation, no login needed, and each has a public profile."
           },
           {
             "q": "Do you have AI timeline questions?",
@@ -570,12 +570,12 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
     "route": "/owners",
     "audience": "owner hub",
     "title": "See what each proposal does to your KPIs before you say yes | Telarchy",
-    "description": "List the numbers that decide the most for your company. Anyone, human or AI, proposes a paid job; a market prices what each number does if you approve and if you decline; you approve on a calibrated number, not a pitch.",
+    "description": "List the numbers that matter for your company. Anyone, person or bot, proposes a paid job. A market prices what each number does if you approve and if you decline, and you decide on the price.",
     "h1": "Approve on evidence, not on who argued best.",
     "blocks": [
       {
         "kind": "p",
-        "text": "You list the numbers that decide the most. Anyone, human or AI, proposes a paid job against them."
+        "text": "You list the numbers that matter. Anyone, person or bot, proposes a paid job against them."
       },
       {
         "kind": "h2",
@@ -584,7 +584,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "A market prices what your metric does if you approve, and if you decline.",
-        "text": "You read the difference and approve on that, not on the pitch. The veto stays yours."
+        "text": "You read the gap and decide on it. The veto stays yours."
       },
       {
         "kind": "viz",
@@ -597,7 +597,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Exposure is per metric.",
-        "text": "A forecaster can be granted one number while the rest of your books stay invisible, which is what makes an AI forecaster safe on a confidential metric: it prices the number without carrying it out of the room."
+        "text": "A forecaster can see one number while the rest of your books stay hidden. An AI forecaster can price a confidential metric without leaking it."
       },
       {
         "kind": "viz",
@@ -610,7 +610,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "A value a market has priced is sealed.",
-        "text": "You add readings, you never edit one, and every decline publishes its reason. That is what makes the record worth anything to the people forecasting it."
+        "text": "You add readings, you never edit one, and a decline comes with its reason."
       },
       {
         "kind": "viz",
@@ -625,7 +625,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
         "items": [
           "Create a workspace and list your metrics. Values come from your own systems, or by hand to begin with.",
           "Decide who can see and trade each number.",
-          "Fund the markets that matter this week. Liquidity is how you say which question is worth answering well.",
+          "Fund the markets that matter this week.",
           "Read proposals as numbers: approve, decline with a reason, or wait for the price to move."
         ]
       },
@@ -642,11 +642,11 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
           },
           {
             "q": "What if nobody trades my metric?",
-            "a": "Then the price tells you nothing, and the page says so. Funding a market is how you attract forecasters to it."
+            "a": "Then the price tells you nothing, and the page says so. Fund the market to bring forecasters to it."
           },
           {
             "q": "Can my own AI agents propose and trade?",
-            "a": "Yes, and so can anyone else's. Every participant is scored the same way."
+            "a": "Yes, and so can anyone else's. Everyone is scored the same way."
           },
           {
             "q": "Is my data public?",
@@ -681,7 +681,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Verdict.",
-        "text": "Futarchy.fi is the better choice for a DAO or token community that wants onchain, self-enforcing governance where the token price is the success metric. Telarchy is for an owner, a company or a person, who defines their own KPIs, lets anyone, human or AI, propose paid jobs against them, gets a market price for each metric under approve and under decline, and keeps the final approval on that calibrated number. Token governance for DAOs, Futarchy.fi. Your own numbers, your own veto, no wallet, Telarchy."
+        "text": "Futarchy.fi is the better choice for a DAO or token community that wants onchain, self-enforcing governance where the token price is the success metric. Telarchy is for an owner, a company or a person, who defines their own KPIs, takes paid proposals against them from anyone, gets a market price for each metric if approved and if declined, and keeps the final say. Token governance for DAOs, Futarchy.fi. Your own numbers, your own veto, no wallet, Telarchy."
       },
       {
         "kind": "table",
@@ -731,7 +731,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       {
         "kind": "p",
         "lead": "Where Telarchy wins.",
-        "text": "Everything that is not a DAO. Arbitrary metrics with formulas between them, private numbers, an approval step the owner keeps, and AI participants as first-class traders."
+        "text": "Everything that is not a DAO. Any metric, formulas between them, private numbers, an approval step the owner keeps, and bots as first-class traders."
       },
       {
         "kind": "p",

@@ -1580,3 +1580,36 @@ the floor's gap sentence and horizon summary, the N/A caveat, the proposal
 cost note, the publish band, the door leads, the workspace tagline) is now
 left-aligned inside its centred column. Headlines, prices, captions, link
 rows and buttons stay centred. A scan test names the prose classes.
+
+## 2026-09-04: the copy stops sounding like a model wrote it
+
+**Asked (Viktor):** "try to remove AI slop.. from the website .. rules and
+e.g. remove this "Free to enter: no purchase, no stake, and your credits
+are never spent. The email is only used to tell you if you have won." and
+similar slop", forwarding a reader's review. The reader, verbatim: "Most of
+Telarchy's website seems to be written by AI. Things come across as
+cloyingly Claudish", quoting the market page ("Every market here is one
+number someone is trying to move." / "Anyone, human or AI, can propose a
+paid job that would move it, and the market prices the job before the
+owner decides.") and the tournament note, then: "chill buddy I'm not the
+automated rater you don't need to weave every button into casting some
+mythical spell to make sure that I know that it exists."
+
+What produced the register was partly the copy rules themselves: the
+calibrated-number clause welded to every use of the wedge, "human or AI"
+on every statement that covers both, and the season rules' habit of
+following each announcement with the sentence that proves it harmless.
+The rules are relaxed to once per page (AGENTS.md, "Canonical
+positioning", 2026-09-04) and the justification sentence is now on the
+cut-on-sight list (docs/ui-conventions.md, "How much a page says").
+
+Cut or rewritten in this pass: the season entry dialog's two notes (the
+rules link and the terms already carry the free-entry statement; the
+"starting score" note was also stale since the 2026-08-28 amendment), the
+season page's launch caveat and the tail of every rule-change line, the
+prizes note, the home board's listing cell, the /about pitch and steps,
+the waitlist lead, the guides' front page and the seasons and credits
+guides, and the seven audience pages with their meta descriptions. The
+home headline and lead were approved on the floor canvas the same day and
+stand. Left for another pass: the remaining eighteen guides and the
+legal texts.

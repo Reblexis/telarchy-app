@@ -227,8 +227,7 @@ function ListYourNumberCell() {
       <span className="mkt-new-label">Your own numbers</span>
       <span className="mkt-new-title">See what a decision does to your numbers before you say yes.</span>
       <span className="mkt-new-sub">
-        List the metrics you care about. Traders, human or AI, price every proposal against them; you approve on a
-        calibrated number.
+        List your metrics. Traders, people or bots, price each proposal against them, and you decide on the price.
       </span>
       {user || loading ? (
         <button type="button" className="mkt-new-cta" disabled={loading} onClick={() => setCreating(true)}>
