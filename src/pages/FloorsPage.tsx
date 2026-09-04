@@ -146,7 +146,7 @@ function MarketSpark({
   return (
     <svg className="mkt-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
       <path d={area} className="mkt-spark-area" />
-      <path d={d} className="mkt-spark-line" pathLength={1} />
+      <path d={d} className="mkt-spark-line" />
       <circle cx={x(t1)} cy={y(consensus)} r="3" className="mkt-spark-dot" />
     </svg>
   );
