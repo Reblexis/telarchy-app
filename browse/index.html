@@ -412,12 +412,13 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h2">Finding posts: the search loop</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h3">What the owner does</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h4">Writing his own post</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h5">Reading a post</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h6">Drafting</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h7">Performance and what it learns</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h8">Endpoints</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h9">Storage</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h10">What it is not</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h5">Asking it what to post</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h6">Reading a post</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h7">Drafting</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h8">Performance and what it learns</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h9">Endpoints</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h10">Storage</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h11">What it is not</a></li>
 </ul></details>
 </li>
 </ul></li>
@@ -6610,7 +6611,28 @@ test (something the reader can check), milestone (numbers), demo (the
 thing working, prompt quoted), quote (answering a bigger account's
 complaint with what was built), correction, or other.</li>
 </ul>
-<h2 id="docs-x-workbench-md--h5">Reading a post</h2>
+<h2 id="docs-x-workbench-md--h5">Asking it what to post</h2>
+<p>He can ask it questions instead of handing it a draft: what kind of posts to
+write, whether an idea is worth one, why a reply earned nothing, what to try
+next week. It answers from three things, in this order of trust, and says
+which one an answer rests on:</p>
+<ul>
+<li><strong>His own record.</strong> Every search, reply and post recorded here, with what
+each earned. His base rate beats anyone else's.</li>
+<li><strong>The playbook.</strong> What is measured to travel on X for founders in his
+space: the ranking code X published, large-sample benchmarks, a sample
+read from X itself, comparable founders' posts and their own lessons, and
+YC's launch and writing advice. The playbook is bundled content in the app
+(<code>functions/src/content/x-playbook.ts</code>), distilled from the research
+record kept in the umbrella's notes, and is revised when that record is.</li>
+<li><strong>The voice profile.</strong> Who he is and what he can truthfully say.</li>
+</ul>
+<p>When neither the record nor the playbook says, it says so rather than
+inventing a rule, and a number it quotes comes from one of them. An answer
+that ends in something to post says so; &quot;Write a post&quot; is where that goes
+next. It is the same argument as everywhere else here: the turns are kept,
+so a follow-up means what it meant in the last one.</p>
+<h2 id="docs-x-workbench-md--h6">Reading a post</h2>
 <p><code>cdn.syndication.twimg.com/tweet-result?id=&lt;id&gt;&amp;token=&lt;derived&gt;</code> returns a
 public post's text, author, and counts with no credential. The token is a
 deterministic function of the id, which is why this works without a key. It is
@@ -6620,7 +6642,7 @@ rather than showing an empty post, and the owner can paste the text by hand
 <p>What it gives: <code>text</code>, <code>user.screen_name</code>, <code>user.name</code>, <code>favorite_count</code>,
 <code>conversation_count</code>, <code>created_at</code>. It does NOT give impressions, so
 &quot;performance&quot; here means likes and replies, and the log says that.</p>
-<h2 id="docs-x-workbench-md--h6">Drafting</h2>
+<h2 id="docs-x-workbench-md--h7">Drafting</h2>
 <p>One call to the smartest model that will do the job, thinking at high
 effort, for every proposal the workbench makes (a reply, a post, a search
 query). <code>X_DRAFT_MODEL</code> names it (default <code>claude-opus-5</code> on the Anthropic
@@ -6652,7 +6674,7 @@ writing samples and the facts he is allowed to state, it is personal, and this
 repository is prepared for a public release. <code>/admin</code> has a textarea for it;
 seeding it is a one-time paste. With no profile, drafting still works and says
 in the UI that it is writing generically.</p>
-<h2 id="docs-x-workbench-md--h7">Performance and what it learns</h2>
+<h2 id="docs-x-workbench-md--h8">Performance and what it learns</h2>
 <p><code>POST /api/cron/x-metrics</code> refreshes counts for every recorded reply whose
 post id is known, newest first, oldest refreshed least often. Cloud Scheduler
 runs it every six hours; a reply's numbers move fastest in its first day and
@@ -6664,7 +6686,7 @@ features (carries a number, disagrees, under 200 characters) is associated
 with the better half. With fewer than ten recorded replies the summary says so
 instead of pretending to a pattern; three data points are not a finding, and
 copy advice from three data points is how superstition starts.</p>
-<h2 id="docs-x-workbench-md--h8">Endpoints</h2>
+<h2 id="docs-x-workbench-md--h9">Endpoints</h2>
 <p>All platform admin. Documented in <code>/api/help</code> like every other route.</p>
 <div class="tablewrap"><table>
 <thead>
@@ -6681,6 +6703,10 @@ copy advice from three data points is how superstition starts.</p>
 <tr>
 <td><code>POST /api/admin/x/draft</code></td>
 <td><code>{ postId, postText, messages[] }</code> -&gt; <code>{ reply, reason, answer }</code>, the conversation carried in <code>messages</code></td>
+</tr>
+<tr>
+<td><code>POST /api/admin/x/ask</code></td>
+<td><code>{ messages[] }</code> -&gt; <code>{ answer }</code>, a question about what to post, answered from his record and the playbook</td>
 </tr>
 <tr>
 <td><code>POST /api/admin/x/compose</code></td>
@@ -6724,7 +6750,7 @@ copy advice from three data points is how superstition starts.</p>
 </tr>
 </tbody>
 </table></div>
-<h2 id="docs-x-workbench-md--h9">Storage</h2>
+<h2 id="docs-x-workbench-md--h10">Storage</h2>
 <p>One table, <code>x_replies</code>: the kind (<code>reply</code> or <code>post</code>), the source post for a
 reply (id, author, text, author follower count if known; absent for a post
 of his own), what he sent (text, its id on X, when), the metrics (likes,
@@ -6735,7 +6761,7 @@ its metrics.</p>
 <p><code>x_searches</code> holds the query, its rationale, and <code>harvested</code>, the number of
 posts pasted back from it. <code>x_replies.search_id</code> is the link that lets a query
 be judged by the replies it produced.</p>
-<h2 id="docs-x-workbench-md--h10">What it is not</h2>
+<h2 id="docs-x-workbench-md--h11">What it is not</h2>
 <p>Not a scheduler, not a poster, not an inbox. It does not search X (nothing can, without a
 paid credential; it proposes queries the owner runs himself). Finding posts
 elsewhere is the reply queue's job, over Hacker News and Manifold. It handles the step between &quot;I am looking at a post worth

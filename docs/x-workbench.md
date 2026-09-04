@@ -91,6 +91,29 @@ notes, and the rules here are what it concluded):
   thing working, prompt quoted), quote (answering a bigger account's
   complaint with what was built), correction, or other.
 
+## Asking it what to post
+
+He can ask it questions instead of handing it a draft: what kind of posts to
+write, whether an idea is worth one, why a reply earned nothing, what to try
+next week. It answers from three things, in this order of trust, and says
+which one an answer rests on:
+
+- **His own record.** Every search, reply and post recorded here, with what
+  each earned. His base rate beats anyone else's.
+- **The playbook.** What is measured to travel on X for founders in his
+  space: the ranking code X published, large-sample benchmarks, a sample
+  read from X itself, comparable founders' posts and their own lessons, and
+  YC's launch and writing advice. The playbook is bundled content in the app
+  (`functions/src/content/x-playbook.ts`), distilled from the research
+  record kept in the umbrella's notes, and is revised when that record is.
+- **The voice profile.** Who he is and what he can truthfully say.
+
+When neither the record nor the playbook says, it says so rather than
+inventing a rule, and a number it quotes comes from one of them. An answer
+that ends in something to post says so; "Write a post" is where that goes
+next. It is the same argument as everywhere else here: the turns are kept,
+so a follow-up means what it meant in the last one.
+
 ## Reading a post
 
 `cdn.syndication.twimg.com/tweet-result?id=<id>&token=<derived>` returns a
@@ -162,6 +185,7 @@ All platform admin. Documented in `/api/help` like every other route.
 |---|---|
 | `POST /api/admin/x/lookup` | `{ url or id }` -> the post, or a clear failure |
 | `POST /api/admin/x/draft` | `{ postId, postText, messages[] }` -> `{ reply, reason, answer }`, the conversation carried in `messages` |
+| `POST /api/admin/x/ask` | `{ messages[] }` -> `{ answer }`, a question about what to post, answered from his record and the playbook |
 | `POST /api/admin/x/compose` | `{ idea, messages[] }` -> `{ post, reason, answer }`, his own post from an idea, same conversation shape |
 | `POST /api/admin/x/record` | `{ kind?, sourcePostId?, text, replyId? }` -> stores what he sent; a `post` has no source, a `reply` must have one |
 | `PATCH /api/admin/x/record/:id` | `{ replyId }` -> attach the id once he has it |

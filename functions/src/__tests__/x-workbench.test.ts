@@ -4,6 +4,7 @@
  * and fail with the value rather than a status code.
  */
 
+import { X_PLAYBOOK } from '../content/x-playbook';
 import type { ProposalBody } from '../services/x-workbench';
 import {
   disagrees,
@@ -312,5 +313,16 @@ describe('the rules a drafted post obeys (docs/x-workbench.md, "Writing his own 
     expect(POST_RULES).toMatch(/100 to 280/);
     expect(POST_RULES).toMatch(/bait/i);
     expect(POST_RULES).toMatch(/called-it\|test\|milestone\|demo\|quote\|correction\|other/);
+  });
+});
+
+describe('the playbook the Ask chat answers from (docs/x-workbench.md, "Asking it what to post")', () => {
+  test('carries the measured rules, the two phases, the founders, YC, and the falsifiers', () => {
+    expect(X_PLAYBOOK).toMatch(/replies/i);
+    expect(X_PLAYBOOK).toMatch(/link[^\n]*first reply/i);
+    expect(X_PLAYBOOK).toMatch(/falsifier/i);
+    expect(X_PLAYBOOK).toMatch(/Y Combinator|YC/);
+    expect(X_PLAYBOOK).toMatch(/median/i);
+    expect(X_PLAYBOOK).toMatch(/mute/i);
   });
 });
