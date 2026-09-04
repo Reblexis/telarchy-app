@@ -1,4 +1,6 @@
 import { Component, type ComponentType, lazy, type ReactNode, Suspense } from 'react';
+import { PageShell } from '../components/Ghosts';
+import { PageTopBar } from '../components/PageTopBar';
 
 /**
  * Route-level code splitting with a self-healing failure path.
@@ -33,9 +35,11 @@ export function lazyPage<K extends string, P extends object>(
   return function LazyRoute(props: P) {
     return (
       <ChunkBoundary>
-        {/* No spinner: pages own their own loading states, and a chunk on a
-            same-origin connection arrives faster than a spinner can paint. */}
-        <Suspense fallback={null}>
+        {/* Never nothing: the top bar over a ghost column, with the mark
+            where the page will put it (docs/ui-conventions.md, "While a
+            page loads"). A blank document for the length of the download
+            was what /about showed before 2026-09-04. */}
+        <Suspense fallback={<PageShell bar={<PageTopBar />} />}>
           <Inner {...props} />
         </Suspense>
       </ChunkBoundary>

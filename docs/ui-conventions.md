@@ -58,6 +58,40 @@ reload"; pressing it reloads. It is the only fixed element the app draws over
 a page, and it appears only when the reload cannot be taken automatically
 (docs/infra/deploy.md, "A tab that is already open picks the new build up").
 
+## While a page loads
+
+A page never shows a sentence it will take back, and never a dot in an
+empty room. Three rules, in order of effect:
+
+1. **Data rides in the HTML on a full load.** The server puts what the
+   page needs for its first paint into the document it serves: the whole
+   home payload for `/` (`#telarchy-home`, the body of `GET
+   /api/marketplace/home`), and a floor's name and one-liner for a share
+   link (`#telarchy-floor`). The client reads the element once on mount
+   through `src/lib/inline-data.ts`, deletes it, and treats it as the
+   first response; a client-side navigation to the same page fetches
+   instead. A page asks for its data in ONE request, never a waterfall.
+2. **Where data is still on its way, grey bars hold the exact shape of
+   what is coming.** The ghost (`.pubws-ghost`, `bg-tertiary`, 4px radius,
+   one slow sweep of 5% light across it) is drawn at the real element's
+   height and width in the real layout, so nothing moves when the content
+   lands. A floor draws its three columns as ghosts with the name from the
+   share hint painted at once in the headline slot; the home page draws
+   the board; a page whose code is still downloading draws the top bar
+   over an empty column (`lazy-page.tsx` renders `PageShell`, never
+   `null`).
+3. **Content rises in, in order.** Landed content gets `.pubws-rise`
+   (opacity and 10px of travel, 0.55s), staggered 60 ms per sibling from
+   the top, and a chart draws itself once; nothing loops. While anything
+   is still pending a 2px accent hairline runs under the top bar
+   (`.pubws-progress`, to 70% in 0.9s, then to 100% and fading when the
+   page is whole).
+
+`prefers-reduced-motion` turns the sweep, the rise and the draw off and
+shows the content plain. The old motif, an accent dot rippling in the
+space (`.pubws-loading-dot`), is gone from every page (owner decision
+2026-09-04, notes/decisions/ui-conventions.md).
+
 ## The doors (login, signup, waitlist)
 
 `AuthShell` (components/AuthShell.tsx) is the frame: same top bar, same
@@ -1636,23 +1670,30 @@ eye.
 ## The marketplace (/marketplace)
 
 `telarchy.com/marketplace` renders standalone in the same design language
-(`.pubws-topbar`, Fraunces, mono numerals, one accent), as
-`repeat(auto-fill, minmax(19rem, 1fr))` cards that read the same with two
-listings or twenty. Each card carries, in this order: the workspace name
-and its live number (accent mono), the metric name, the owner's own
-one-line description (three lines, then clipped), THE MARKET ITSELF as a
-full-width step-line spark of the hero market's real trade history ending
-on the live-call dot (same held-call semantics as the poster chart, value
-range padded 35% so a quiet market still draws through the middle instead
-of along the floor of the box), and a footer of when it settles plus the
-activity behind it as the market page's facts row (`MarketFacts`): icons
-and bare numbers, never a sentence. Four facts in this order, each a
-hover title that says what it counts: people = participants, drop =
-the credits actually sitting in the pools of the workspace's open markets
-(never the LMSR parameter), bars = trades this week, page = proposals
-priced now. Numbers take the facts row's short form (`4,200`, `25k`,
-`1.2m`). A fact that has not arrived yet is left out of the row rather
-than shown as zero; the proposals cell appears only when there are any.
+(`.pubws-topbar`, Fraunces, mono numerals, one accent). The listings are
+one hairline-ruled BOARD (`.mkt-board`), not a row of boxed cards: a grid of
+`repeat(auto-fill, minmax(19rem, 1fr))` cells separated by 1px
+`var(--border-color)` rules (a 1px gap over the border colour, closed by a
+rule underneath), each cell on the page background, so the page reads as a
+single instrument that grows with the list rather than as five panels. A
+cell carries, in this order: the workspace name (Fraunces), one mono
+caption line in small caps naming the metric and when it settles ("NET
+REVENUE · SETTLES 30 SEP"), the live number as the largest thing in the
+cell (accent mono, 2.1rem), the owner's own one-line description (two
+lines, then clipped), THE MARKET ITSELF as a full-width step-line spark of
+the hero market's real trade history ending on the live-call dot (same
+held-call semantics as the poster chart, value range padded 35% so a quiet
+market still draws through the middle instead of along the floor of the
+box), and a footer of the activity behind it as the market page's facts
+row (`MarketFacts`): icons and bare numbers, never a sentence. Four facts
+in this order, each a hover title that says what it counts: people =
+participants, drop = the credits actually sitting in the pools of the
+workspace's open markets (never the LMSR parameter), bars = trades this
+week, page = proposals priced now. Numbers take the facts row's short form
+(`4,200`, `25k`, `1.2m`). A fact that has not arrived yet is left out of
+the row rather than shown as zero; the proposals cell appears only when
+there are any. Hovering a cell lifts its background to `bg-secondary`;
+nothing moves.
 
 The grid is ordered by that liquidity, deepest first, because pool depth is
 what a trader can actually win and the row of cards is where they choose.
@@ -1661,16 +1702,16 @@ than pinning to the front. Cards whose liquidity has not landed yet, or
 that tie, keep their arrival order, so the grid does not jump as payloads
 come in except to move a card up to its place.
 
-The last cell of the grid is always the listing tile, and it is the only
-interactive cell: a solid panel on a faint accent wash with a large plus
-set inside a disc (dashed emptiness reads as unfinished, and a bare
-floating glyph reads as a stray mark rather than an affordance), the line
-"List your own number", and a "Get set up" button that opens an email
-field IN PLACE (the tile leads to entering your email, not to another
-page). Submitting posts to /api/waitlist and the tile answers "Got it. We
-will get back to you within a few days." Never queue language, matching
-the floor's own email door. Listing is part of the marketplace, never a
-quiet line underneath it.
+The last cell of the board is always the listing cell, and it is the only
+interactive one: it spans two columns where the row has room, and reads
+"Put your own number up here." over "A company, a project, or something you
+run yourself. Name it, add the number, share the link. Forecasts start with
+the first trade." and an accent "Create your own" link with an arrow. "Put
+up" is what a trader says; "list" is what a marketplace says. The last
+sentence answers the doubt a visitor actually has: what happens after they
+press it. Signed in it opens the create dialog; signed out it is the door
+to signing up. Listing is part of the marketplace, never a quiet line
+underneath it.
 
 **Card copy says only what is unique.** The per-card line is the
 workspace's `description`, which is the workspace ONE-LINER (a few words
@@ -1679,24 +1720,35 @@ same "propose a proposal and a price" pitch, the pitch belongs in the
 page's lead paragraph and the cards say what only they can say: "Webcam
 head tracker for sims, sold on Steam", "This platform, running on itself".
 
-While the page loads it shows the market page's own motif, never a blank
-page and never a spinner: the accent call dot rippling (`.pubws-loading`)
-in the space the cards will occupy, and again at card scale in each card's
-chart slot until that market's own payload lands, since every card fetches
-its number separately. The chart slot keeps its height either way, so
-nothing jumps when the number arrives, and the footer's activity line is
-joined from the facts that exist, so a count still in flight never leaves
-a separator hanging.
+While the board loads it follows the rule in "While a page loads": the
+board is drawn at once as GHOST cells in the exact geometry of the real
+ones (`.mkt-ghost`, `role="status"`, `aria-label="Loading"`), and on a
+full document load the server has already put the whole home payload in
+the HTML (`GET /api/marketplace/home`, inlined as `#telarchy-home`), so a
+visitor who arrives at telarchy.com sees the numbers in the first paint and
+the ghosts only on a client-side return to the page. The home page makes
+ONE request, never one per card; the season strip is part of the same
+payload. When the payload lands the cells rise in 60 ms steps, top to
+bottom (`.mkt-rise`), and each spark draws itself once. Never a dot, never
+a spinner, never a blank.
 
-Above the grid, the lead paragraph is the one place the whole mechanism is
-stated in plain words: real numbers priced by people betting on where they
-land, being right pays, and anyone can put their own numbers up the same
-way. Dual scope stays first-class in the lead itself: a personal goal sits
-beside a company's revenue. Never "one number": the pitch is the set a company
-cares about (owner rule 2026-08-27), and since self-serve creation
-(2026-08-28) the lead speaks to both sides, the trader and the person with
-a number to put up. The paid-proposal mechanism belongs to each market's
-own page, not the front door.
+Above the board, the headline and the lead are the one place the whole
+mechanism is stated in plain words. The headline is "Real companies'
+numbers. Bet where they land, get paid if you're right." and the lead is
+"Revenue, users, active traders, updated by the people running them. Trade
+free, human or AI, or list your own number and see the forecast before you
+decide." The headline says what the cells under it are (real companies,
+real numbers) and what you do here in two verbs; the lead names the metrics
+and speaks to both sides, the trader (human or AI, always both) and the
+person with a number to put up. Never "one number": the pitch is the set a
+company cares about (owner rule 2026-08-27). The paid-proposal mechanism
+belongs to each market's own page, not the front door. The season sits
+between them as ONE line on hairlines (`.mkt-season`): the season name in
+accent small caps, the clock in mono, the prize sentence with its operative
+words ("Free to enter, no purchase, no stake"), and the door as a pill on
+the right. A faint radial accent glow (`.mkt-glow`, 9% accent at the
+centre, gone by 62%) sits behind the headline for depth; it is the only
+gradient on the page.
 
 ## The cockpit (/admin)
 

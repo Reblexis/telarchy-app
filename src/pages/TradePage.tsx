@@ -14,6 +14,7 @@ import { FloorChat } from '../components/FloorChat';
 import { FloorChecklist } from '../components/FloorChecklist';
 import { FloorComments } from '../components/FloorComments';
 import { LeaderboardRail } from '../components/FloorRails';
+import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { Logo } from '../components/Logo';
 import { ManifoldButton } from '../components/ManifoldButton';
@@ -55,6 +56,7 @@ import {
   timeAgoOf,
   timeLeftOf,
 } from '../lib/floor-horizons';
+import { dropInline, readInline } from '../lib/inline-data';
 import { maxWinLabel, payoutLine } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
@@ -114,6 +116,19 @@ export function TradePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [ws, setWs] = useState<PublicWorkspace | null>(null);
+  // The name and one-liner the server planted in a share link's HTML
+  // (#telarchy-floor), so the headline paints before the payload lands.
+  // Only honoured for the floor this address names; read once and dropped.
+  const [hint] = useState(() => {
+    const h = readInline<{ id: string; slug: string | null; name: string; description: string | null }>(
+      'telarchy-floor',
+    );
+    if (!h || !idOrSlug) return null;
+    return h.id === idOrSlug || (h.slug ?? '').toLowerCase() === idOrSlug.toLowerCase() ? h : null;
+  });
+  useEffect(() => {
+    dropInline('telarchy-floor');
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
   const [positions, setPositions] = useState<TicketPosition[]>([]);
@@ -1013,15 +1028,52 @@ export function TradePage() {
   }
 
   if (!ws) {
-    // The loading screen is the market's own motif (the amber call dot,
-    // rippling) where the market is about to appear; no spinner, no text.
+    // While the floor loads (docs/ui-conventions.md, "While a page loads"):
+    // the three columns as ghosts in the real geometry, the name from the
+    // share hint painted at once in the headline slot, never a dot.
     return (
       <div className="pubws pubws--center">
-        <TopBar user={!!user} ready={!authLoading} />
-        <main className="pubws-main">
-          <div className="pubws-loading" role="status" aria-label="Loading">
-            <span className="pubws-loading-dot" />
+        <TopBar user={!!user} ready={!authLoading} busy />
+        <main className="pubws-main pubws-main--floor pubws-main--ghost">
+          <aside className="pubws-rail pubws-rail--left" aria-hidden="true">
+            <Ghost w={90} h={9} style={{ marginBottom: 8 }} />
+            <GhostRows n={7} />
+          </aside>
+          <div className="pubws-center">
+            <header className="pubws-ident">
+              {hint ? (
+                <>
+                  <h1 className="pubws-ws-name">{hint.name}</h1>
+                  {hint.description && <p className="pubws-ws-tagline">{hint.description}</p>}
+                </>
+              ) : (
+                <>
+                  <Ghost w={180} h={34} style={{ margin: '4px auto 0' }} />
+                  <Ghost w={220} h={12} style={{ margin: '12px auto 0' }} />
+                </>
+              )}
+            </header>
+            <div className="pubws-ghost-instrument" aria-hidden="true">
+              <Ghost w={300} h={30} r={8} style={{ margin: '24px auto 0' }} />
+              <Ghost w={320} h={30} r={8} style={{ margin: '8px auto 0' }} />
+              <Ghost w="60%" h={20} style={{ margin: '24px auto 0' }} />
+              <Ghost w="46%" h={20} style={{ margin: '8px auto 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 28 }}>
+                <Ghost w={90} h={34} />
+                <Ghost w={90} h={34} />
+              </div>
+              <Ghost w="100%" h={200} r={6} style={{ marginTop: 20 }} />
+              <div style={{ display: 'flex', gap: 14, marginTop: 22 }}>
+                <Ghost w="50%" h={58} r={10} />
+                <Ghost w="50%" h={58} r={10} />
+              </div>
+            </div>
+            <LoadingStatus />
           </div>
+          <aside className="pubws-rail pubws-rail--right" aria-hidden="true">
+            <Ghost w={90} h={9} style={{ marginBottom: 8 }} />
+            <GhostRows n={7} />
+          </aside>
         </main>
       </div>
     );
@@ -2369,9 +2421,14 @@ export function TopBar({
   ready,
   floor = null,
   canFund = false,
+  busy = false,
 }: {
   user: boolean;
   ready: boolean;
+  /** Whether the page under the bar is still waiting on its payload: while
+   *  it is, a 2px accent hairline runs along the bar's bottom edge
+   *  (docs/ui-conventions.md, "While a page loads"). */
+  busy?: boolean;
   /** Which floor the reader is standing on, so account settings can hand out
    *  a prompt for THIS company rather than a generic one. */
   floor?: FloorRef | null;
@@ -2386,6 +2443,7 @@ export function TopBar({
   const location = useLocation();
   return (
     <nav className="pubws-topbar">
+      {busy && <span className="pubws-progress" aria-hidden="true" />}
       {/* The logo answers "what else is there to trade?": it opens the
           floor selection (owner ask 2026-08-14; previously the default
           floor itself, which from a floor was a no-op). */}

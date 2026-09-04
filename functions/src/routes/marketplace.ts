@@ -26,6 +26,7 @@ import { periodEndInstant, periodStartInstant, resolutionInstant, settlesOn } fr
 import { branchIsShown } from '../lib/market-pairs';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
 import { restrictedToMembers } from '../lib/public-read';
+import { listPublicSeasons, type PublicSeason } from '../lib/public-seasons';
 import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { authMiddleware, getAuthWorkspaceMemberships } from '../middleware/auth';
@@ -221,110 +222,129 @@ marketplaceRouter.get(
   }),
 );
 
+/**
+ * Every public workspace as the listing shows it: the row a visitor sees on
+ * the home page before opening a floor. Shared by GET /workspaces/public and
+ * the home payload so the two can never drift.
+ */
+export async function listPublicWorkspaces() {
+  const rows = await db
+    .select({
+      id: workspaces.id,
+      name: workspaces.name,
+      slug: workspaces.slug,
+      createdBy: workspaces.createdBy,
+      description: workspaces.description,
+      visibility: workspaces.visibility,
+      proposalReward: workspaces.proposalReward,
+      spamPenalty: workspaces.spamPenalty,
+      maxPendingProposalsPerParticipant: workspaces.maxPendingProposalsPerParticipant,
+    })
+    .from(workspaces)
+    .where(eq(workspaces.visibility, 'public'));
+
+  if (rows.length === 0) return [];
+
+  const ownerHandles = await getOwnerHandles(rows.map(r => r.createdBy));
+
+  const wsIds = rows.map(r => r.id);
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const statRows = await db
+    .select({
+      workspaceId: proposals.workspaceId,
+      status: proposals.status,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(proposals)
+    .where(and(inArray(proposals.workspaceId, wsIds), gte(proposals.createdAt, since), ne(proposals.status, 'removed')))
+    .groupBy(proposals.workspaceId, proposals.status);
+
+  const statsByWs = new Map<
+    string,
+    { total: number; approved: number; declined: number; declinedSpam: number; withdrawn: number; pending: number }
+  >();
+  for (const id of wsIds) {
+    statsByWs.set(id, { total: 0, approved: 0, declined: 0, declinedSpam: 0, withdrawn: 0, pending: 0 });
+  }
+  for (const row of statRows) {
+    const s = statsByWs.get(row.workspaceId);
+    if (!s) continue;
+    s.total += row.n;
+    if (row.status === 'approved') s.approved += row.n;
+    else if (row.status === 'declined') s.declined += row.n;
+    else if (row.status === 'declined_spam') s.declinedSpam += row.n;
+    else if (row.status === 'withdrawn') s.withdrawn += row.n;
+    else if (row.status === 'pending') s.pending += row.n;
+  }
+
+  // Activity counts so an agent can tell empty workspaces from active ones in
+  // one call, before joining. metricCount = metrics defined; openMarketCount =
+  // markets still tradeable (active, not resolved/voided).
+  const metricRows = await db
+    .select({
+      workspaceId: metrics.workspaceId,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(metrics)
+    .where(inArray(metrics.workspaceId, wsIds))
+    .groupBy(metrics.workspaceId);
+  const metricCountByWs = new Map<string, number>(metricRows.map(r => [r.workspaceId, r.n]));
+
+  const openMarketRows = await db
+    .select({
+      workspaceId: markets.workspaceId,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(markets)
+    .where(
+      and(
+        inArray(markets.workspaceId, wsIds),
+        eq(markets.active, true),
+        eq(markets.resolved, false),
+        eq(markets.voided, false),
+      ),
+    )
+    .groupBy(markets.workspaceId);
+  const openMarketCountByWs = new Map<string, number>(openMarketRows.map(r => [r.workspaceId, r.n]));
+
+  return rows.map(r => ({
+    workspaceId: r.id,
+    name: r.name,
+    slug: r.slug,
+    ownerId: ownerHandles.get(r.createdBy)?.ownerId ?? null,
+    ownerHandle: ownerHandles.get(r.createdBy)?.ownerHandle ?? null,
+    description: r.description,
+    visibility: r.visibility,
+    proposalReward: r.proposalReward,
+    spamPenalty: r.spamPenalty,
+    maxPendingProposalsPerParticipant: r.maxPendingProposalsPerParticipant,
+    metricCount: metricCountByWs.get(r.id) ?? 0,
+    openMarketCount: openMarketCountByWs.get(r.id) ?? 0,
+    proposalStats: statsByWs.get(r.id)!,
+  }));
+}
+
+export type PublicListing = Awaited<ReturnType<typeof listPublicWorkspaces>>[number];
+
 marketplaceRouter.get(
   '/workspaces/public',
   wrap(async (_req, res) => {
-    const rows = await db
-      .select({
-        id: workspaces.id,
-        name: workspaces.name,
-        slug: workspaces.slug,
-        createdBy: workspaces.createdBy,
-        description: workspaces.description,
-        visibility: workspaces.visibility,
-        proposalReward: workspaces.proposalReward,
-        spamPenalty: workspaces.spamPenalty,
-        maxPendingProposalsPerParticipant: workspaces.maxPendingProposalsPerParticipant,
-      })
-      .from(workspaces)
-      .where(eq(workspaces.visibility, 'public'));
+    res.json(await listPublicWorkspaces());
+  }),
+);
 
-    if (rows.length === 0) {
-      res.json([]);
-      return;
-    }
-
-    const ownerHandles = await getOwnerHandles(rows.map(r => r.createdBy));
-
-    const wsIds = rows.map(r => r.id);
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const statRows = await db
-      .select({
-        workspaceId: proposals.workspaceId,
-        status: proposals.status,
-        n: sql<number>`count(*)::int`,
-      })
-      .from(proposals)
-      .where(
-        and(inArray(proposals.workspaceId, wsIds), gte(proposals.createdAt, since), ne(proposals.status, 'removed')),
-      )
-      .groupBy(proposals.workspaceId, proposals.status);
-
-    const statsByWs = new Map<
-      string,
-      { total: number; approved: number; declined: number; declinedSpam: number; withdrawn: number; pending: number }
-    >();
-    for (const id of wsIds) {
-      statsByWs.set(id, { total: 0, approved: 0, declined: 0, declinedSpam: 0, withdrawn: 0, pending: 0 });
-    }
-    for (const row of statRows) {
-      const s = statsByWs.get(row.workspaceId);
-      if (!s) continue;
-      s.total += row.n;
-      if (row.status === 'approved') s.approved += row.n;
-      else if (row.status === 'declined') s.declined += row.n;
-      else if (row.status === 'declined_spam') s.declinedSpam += row.n;
-      else if (row.status === 'withdrawn') s.withdrawn += row.n;
-      else if (row.status === 'pending') s.pending += row.n;
-    }
-
-    // Activity counts so an agent can tell empty workspaces from active ones in
-    // one call, before joining. metricCount = metrics defined; openMarketCount =
-    // markets still tradeable (active, not resolved/voided).
-    const metricRows = await db
-      .select({
-        workspaceId: metrics.workspaceId,
-        n: sql<number>`count(*)::int`,
-      })
-      .from(metrics)
-      .where(inArray(metrics.workspaceId, wsIds))
-      .groupBy(metrics.workspaceId);
-    const metricCountByWs = new Map<string, number>(metricRows.map(r => [r.workspaceId, r.n]));
-
-    const openMarketRows = await db
-      .select({
-        workspaceId: markets.workspaceId,
-        n: sql<number>`count(*)::int`,
-      })
-      .from(markets)
-      .where(
-        and(
-          inArray(markets.workspaceId, wsIds),
-          eq(markets.active, true),
-          eq(markets.resolved, false),
-          eq(markets.voided, false),
-        ),
-      )
-      .groupBy(markets.workspaceId);
-    const openMarketCountByWs = new Map<string, number>(openMarketRows.map(r => [r.workspaceId, r.n]));
-
-    res.json(
-      rows.map(r => ({
-        workspaceId: r.id,
-        name: r.name,
-        slug: r.slug,
-        ownerId: ownerHandles.get(r.createdBy)?.ownerId ?? null,
-        ownerHandle: ownerHandles.get(r.createdBy)?.ownerHandle ?? null,
-        description: r.description,
-        visibility: r.visibility,
-        proposalReward: r.proposalReward,
-        spamPenalty: r.spamPenalty,
-        maxPendingProposalsPerParticipant: r.maxPendingProposalsPerParticipant,
-        metricCount: metricCountByWs.get(r.id) ?? 0,
-        openMarketCount: openMarketCountByWs.get(r.id) ?? 0,
-        proposalStats: statsByWs.get(r.id)!,
-      })),
-    );
+/**
+ * GET /home: the home page in one call. Seasons, every public workspace, and
+ * each one's floor payload, so the client paints with data on its first
+ * render instead of after three waterfall stages (seasons, the listing, then
+ * one floor per row). server.ts inlines the same object into index.html for a
+ * full document load of `/`. Registered before `/:workspaceId` so "home" is
+ * never read as a slug.
+ */
+marketplaceRouter.get(
+  '/home',
+  wrap(async (_req, res) => {
+    res.json(await getHomePayload());
   }),
 );
 
@@ -393,6 +413,80 @@ marketplaceRouter.get(
     res.json(await buildFloorPayload(ws));
   }),
 );
+
+export interface HomePayload {
+  at: string;
+  seasons: PublicSeason[];
+  listings: Array<PublicListing & { floor: unknown | null }>;
+}
+
+/**
+ * Build the home payload once, uncached. Floors are built in parallel; one
+ * floor that throws becomes `floor: null` (logged) so a single broken
+ * workspace cannot take the home page down with it. `floorOf` is injectable
+ * for exactly that test.
+ */
+export async function buildHomePayload(
+  opts: { floorOf?: (ws: PublicWs) => Promise<unknown> } = {},
+): Promise<HomePayload> {
+  const floorOf = opts.floorOf ?? buildFloorPayload;
+  const [seasons, listings] = await Promise.all([listPublicSeasons(), listPublicWorkspaces()]);
+  const ids = listings.map(l => l.workspaceId);
+  const wsRows = ids.length > 0 ? await db.select().from(workspaces).where(inArray(workspaces.id, ids)) : [];
+  const wsById = new Map(wsRows.map(w => [w.id, w]));
+  const floors = await Promise.all(
+    listings.map(async l => {
+      const ws = wsById.get(l.workspaceId);
+      if (!ws) return null;
+      try {
+        return await floorOf(ws);
+      } catch (e) {
+        console.error(`home payload: floor for ${l.workspaceId} failed:`, e);
+        return null;
+      }
+    }),
+  );
+  return {
+    at: new Date().toISOString(),
+    seasons,
+    listings: listings.map((l, i) => ({ ...l, floor: floors[i] })),
+  };
+}
+
+/**
+ * The home payload, memoized in-process for 15 seconds.
+ *
+ * The floor payload is deliberately not cached per workspace (see the note
+ * above buildFloorPayload: permission-gated sections mutate through too many
+ * write paths). This cache is different in kind: it is the ANONYMOUS view
+ * only, it carries nothing a caller's identity would change, and 15 seconds
+ * of staleness on a landing page is the price of a first paint with data.
+ * Concurrent callers share one in-flight build; a failed build is not
+ * cached, so the next caller rebuilds.
+ */
+const HOME_PAYLOAD_TTL_MS = 15_000;
+let homeCache: { payload: HomePayload; builtAt: number } | null = null;
+let homeInFlight: Promise<HomePayload> | null = null;
+
+export async function getHomePayload(): Promise<HomePayload> {
+  if (homeCache && Date.now() - homeCache.builtAt < HOME_PAYLOAD_TTL_MS) return homeCache.payload;
+  if (homeInFlight) return homeInFlight;
+  homeInFlight = buildHomePayload()
+    .then(payload => {
+      homeCache = { payload, builtAt: Date.now() };
+      return payload;
+    })
+    .finally(() => {
+      homeInFlight = null;
+    });
+  return homeInFlight;
+}
+
+/** Tests only: forget the memoized home payload. */
+export function resetHomePayloadCache(): void {
+  homeCache = null;
+  homeInFlight = null;
+}
 
 async function buildFloorPayload(ws: PublicWs) {
   const workspaceId = ws.id;

@@ -11,6 +11,11 @@
 
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+// The shell wears the site's one top bar; its account controls need a
+// session, which is not what this spec is about.
+vi.mock('../../components/PageTopBar', () => ({ PageTopBar: () => <nav className="pubws-topbar" /> }));
+
 import { lazyPage } from '../lazy-page';
 
 const reload = vi.fn();
@@ -29,6 +34,19 @@ function Page({ label = 'loaded' }: { label?: string }) {
 }
 
 describe('lazyPage', () => {
+  test('while the chunk downloads it draws the page shell, never nothing', () => {
+    // A lazily loaded page used to render null until its code arrived, so
+    // /about was a blank document for the length of the download. The rule
+    // (docs/ui-conventions.md, "While a page loads"): the top bar over a
+    // ghost column, with the mark in the same place the page will put it.
+    const Lazy = lazyPage<'Page', object>(() => new Promise(() => {}), 'Page');
+    const { container } = render(<Lazy />);
+    expect(container.querySelector('.pubws-topbar')).toBeTruthy();
+    expect(container.querySelector('.pubws-ghost')).toBeTruthy();
+    expect(container.querySelector('[role="status"]')).toHaveAttribute('aria-label', 'Loading');
+    expect(container.querySelector('.pubws-loading-dot')).toBeNull();
+  });
+
   test('renders the named export once the chunk arrives, props forwarded', async () => {
     const Lazy = lazyPage(async () => ({ Page }), 'Page');
     render(<Lazy label="hello from the chunk" />);

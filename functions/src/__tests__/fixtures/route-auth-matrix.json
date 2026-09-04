@@ -709,6 +709,11 @@
     "agent": 404,
     "master": 404
   },
+  "GET /api/marketplace/home": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
   "GET /api/marketplace/featured": {
     "anon": 200,
     "agent": 200,
