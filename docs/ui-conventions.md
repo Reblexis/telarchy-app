@@ -273,9 +273,12 @@ The sub-line is the holding and where the market stands: "N higher ·
 <workspace> · market at <consensus>, P% higher". The right column is the
 position's profit (worth minus spent, coloured), and under it "worth N ·
 spent N". Worth is the shares marked at the current payout factor, the
-same mark the board uses (docs/seasons.md F1), so the position profits sum
-to the open profit in the strip. Every row links to the market on its
-floor.
+same mark the board uses (docs/seasons.md F1). Spent is what was paid for
+the shares in that direction; a sale takes shares off the position but
+not credits off this figure, so a partly sold position shows its whole
+cost. The strip's open profit is the board's number, which nets sold
+proceeds out, so the position profits need not add up to it. Every row
+links to the market on its floor.
 
 **Trades** are rows, newest first, and each one says what was done in
 plain words: "Bought 21,192 higher on Active traders · Sep 2026", "Sold
