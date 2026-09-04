@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('../../lib/api', () => ({
   api: {
+    getHome: vi.fn(),
     getPublicWorkspaces: vi.fn(),
     getMarketplaceWorkspace: vi.fn(),
     getSeasons: vi.fn(),
@@ -14,9 +15,11 @@ vi.mock('../../lib/api', () => ({
 }));
 let signedIn = false;
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: signedIn ? { id: 'u' } : null, loading: false }) }));
-// The top bar drags in the whole floor page; the marketplace grid is what
-// this spec is about.
-vi.mock('../TradePage', () => ({ TopBar: () => null }));
+// The top bar drags in the whole floor page; the marketplace board is what
+// this spec is about. The stand-in keeps the one prop this page drives.
+vi.mock('../TradePage', () => ({
+  TopBar: ({ busy }: { busy?: boolean }) => <nav data-testid="topbar" data-busy={String(!!busy)} />,
+}));
 
 // Labels and the card's hero come from lib/floor-horizons, the same model the
 // floor page uses, so this spec asserts the real strings: a card and the floor
@@ -70,10 +73,27 @@ function LocationProbe() {
 
 beforeEach(() => {
   signedIn = false;
+  document.head.innerHTML = '';
+  vi.clearAllMocks();
   vi.mocked(api.listWorkspaces).mockResolvedValue([] as never);
   vi.mocked(api.getPublicWorkspaces).mockResolvedValue([listing] as never);
   vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(payload as never);
   vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [season] } as never);
+  // The page makes ONE request (docs/ui-conventions.md, "While a page
+  // loads"): the home payload carries the seasons and every public listing
+  // with its floor payload. The stand-in composes it from the three older
+  // mocks so each case below keeps varying the one thing it is about.
+  vi.mocked(api.getHome).mockImplementation(async () => {
+    const list = (await api.getPublicWorkspaces()) as Array<typeof listing>;
+    const listings = await Promise.all(
+      list.map(async w => ({
+        ...w,
+        floor: await (api.getMarketplaceWorkspace(w.slug || w.workspaceId) as Promise<unknown>).catch(() => null),
+      })),
+    );
+    const { seasons } = await api.getSeasons();
+    return { at: new Date().toISOString(), seasons, listings } as never;
+  });
 });
 
 /** A draft season, the state the home page has to sell hardest. */
@@ -98,11 +118,21 @@ describe('marketplace', () => {
     // betting, being right pays, and BOTH sides addressed, the trader and
     // the person with numbers to put up. Dual scope stays first-class: "your
     // own goal" sits beside the company's revenue (AGENTS.md).
+    // Rewritten again 2026-09-04 (Viktor picked hero B on the design
+    // canvas, notes/decisions/ui-conventions.md): the headline says what the
+    // cells under it are and what you do here in two verbs; the lead names
+    // the metrics and addresses both sides, human or AI.
     renderPage();
-    expect(screen.getByText(/priced by the people betting on where they land/i)).toBeInTheDocument();
-    expect(screen.getByText(/your own goal/i)).toBeInTheDocument();
-    expect(screen.getByText(/get paid to be right/i)).toBeInTheDocument();
-    expect(screen.getByText(/put your own numbers up/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: "Real companies' numbers. Bet where they land, get paid if you're right.",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/updated by the people running them/i)).toBeInTheDocument();
+    expect(screen.getByText(/human or AI/)).toBeInTheDocument();
+    expect(screen.getByText(/list your own number and see the forecast before you decide/i)).toBeInTheDocument();
+    expect(screen.queryByText(/one number/i)).toBeNull();
   });
 
   test('the season has a door here, because this is where recruiting lands', async () => {
@@ -111,7 +141,9 @@ describe('marketplace', () => {
     // action were owner-facing and a trader had nowhere to go.
     renderPage();
     expect(await screen.findByText('Season 0')).toBeInTheDocument();
-    expect(screen.getByText(/\$1,000 in real money/)).toBeInTheDocument();
+    // The prize sentence keeps its operative words (the contest rules need
+    // them on the page) in one line on hairlines.
+    expect(screen.getByText(/\$1,000 in real money/)).toHaveTextContent(/Free to enter, no purchase, no stake\./);
     const cta = screen.getByRole('link', { name: 'Enter the season' });
     expect(cta).toHaveAttribute('href', '/season');
   });
@@ -158,11 +190,13 @@ describe('marketplace', () => {
 
   test('listing your own number is a cell of the grid, not a footnote', async () => {
     const { container } = renderPage();
-    const tile = await screen.findByText('List your own number');
-    const card = tile.closest('.mkt-card');
-    expect(card).toHaveClass('mkt-card--new');
-    expect(card?.parentElement).toHaveClass('mkt-grid');
-    expect(container.querySelector('.mkt-new-mark')).toBeTruthy();
+    const tile = await screen.findByText('Put your own number up here.');
+    const cell = tile.closest('.mkt-cell');
+    expect(cell).toHaveClass('mkt-cell--new');
+    expect(cell?.parentElement).toHaveClass('mkt-board');
+    // The last sentence answers the doubt a visitor actually has.
+    expect(cell).toHaveTextContent('Forecasts start with the first trade.');
+    expect(container.querySelector('.mkt-card')).toBeNull();
   });
 
   test('"Create your own" signed in opens the create dialog and lands on the new floor', async () => {
@@ -176,7 +210,7 @@ describe('marketplace', () => {
       slug: 'meridian',
     } as never);
     renderPage();
-    await screen.findByText('List your own number');
+    await screen.findByText('Put your own number up here.');
     fireEvent.click(screen.getByRole('button', { name: 'Create your own' }));
     fireEvent.change(screen.getByLabelText('Floor name'), { target: { value: 'Meridian' } });
     fireEvent.click(screen.getByText('Open my market'));
@@ -198,7 +232,7 @@ describe('marketplace', () => {
     const name = await screen.findByText('Meridian');
     const card = name.closest('a');
     expect(card?.getAttribute('href')).toBe('/marketplace/ws-mine');
-    expect(card?.className).toContain('mkt-card');
+    expect(card?.className).toContain('mkt-cell');
     expect(screen.getByText('Yours · not public yet')).toBeTruthy();
     // First among the others: the badge card precedes the public one.
     const grid = card?.parentElement;
@@ -211,7 +245,7 @@ describe('marketplace', () => {
     signedIn = false;
     vi.mocked(api.createWorkspace).mockClear();
     renderPage();
-    await screen.findByText('List your own number');
+    await screen.findByText('Put your own number up here.');
     const cta = screen.getByText('Create your own');
     expect(cta.closest('a')?.getAttribute('href')).toBe('/signup');
     expect(api.createWorkspace).not.toHaveBeenCalled();
@@ -219,7 +253,7 @@ describe('marketplace', () => {
 
   test('the tile never names the setup conversation while it is not the door', async () => {
     renderPage();
-    const card = (await screen.findByText('List your own number')).closest('.mkt-card--new');
+    const card = (await screen.findByText('Put your own number up here.')).closest('.mkt-cell--new');
     expect(card?.textContent).not.toMatch(/otto/i);
   });
 
@@ -228,13 +262,13 @@ describe('marketplace', () => {
     // decides which side of the market they are on, and a personal goal is as
     // welcome as a company.
     renderPage();
-    expect(await screen.findByText(/something you are running yourself/i)).toBeInTheDocument();
+    expect(await screen.findByText(/something you run yourself/i)).toBeInTheDocument();
   });
 
   test('the grid still renders its listing tile when nothing is listed yet', async () => {
     vi.mocked(api.getPublicWorkspaces).mockResolvedValue([] as never);
     renderPage();
-    expect(await screen.findByText('List your own number')).toBeInTheDocument();
+    expect(await screen.findByText('Put your own number up here.')).toBeInTheDocument();
   });
 });
 
@@ -283,36 +317,122 @@ describe('the market spark', () => {
 });
 
 describe('loading', () => {
-  test('the grid holds the market page motif until the listings land', async () => {
+  test('the board is drawn at once as ghost cells in the real geometry, never a dot', async () => {
     let release: (v: unknown) => void = () => {};
-    vi.mocked(api.getPublicWorkspaces).mockReturnValue(
+    vi.mocked(api.getHome).mockReturnValue(
       new Promise(r => {
         release = r;
       }) as never,
     );
     const { container } = renderPage();
-    // Same element and class as a market page's loading screen, never a
-    // blank page and never a spinner.
-    expect(container.querySelector('.mkt-loading .pubws-loading-dot')).toBeTruthy();
-    expect(container.querySelector('.mkt-grid')).toBeNull();
-    release([listing]);
+    // Grey bars in the shape of what is coming (docs/ui-conventions.md,
+    // "While a page loads"); the old rippling dot is gone from every page.
+    const ghosts = container.querySelectorAll('.mkt-board .mkt-ghost');
+    expect(ghosts.length).toBeGreaterThanOrEqual(3);
+    expect(container.querySelector('[role="status"][aria-label="Loading"]')).toBeTruthy();
+    expect(container.querySelector('.pubws-loading-dot')).toBeNull();
+    expect(container.querySelector('.mkt-cell')).toBeNull();
+    // The top bar runs its progress hairline while anything is pending.
+    expect(screen.getByTestId('topbar')).toHaveAttribute('data-busy', 'true');
+    release({ at: new Date().toISOString(), seasons: [season], listings: [{ ...listing, floor: payload }] });
     await screen.findByText('LookPilot');
-    expect(container.querySelector('.mkt-loading')).toBeNull();
+    expect(container.querySelector('.mkt-ghost')).toBeNull();
+    expect(screen.getByTestId('topbar')).toHaveAttribute('data-busy', 'false');
   });
 
-  test('a card whose number is still in flight ripples in the chart slot', async () => {
+  test('one request for the whole page, never one per listing', async () => {
+    // A direct payload here, not the composing stand-in, so the three older
+    // endpoints can be shown untouched.
+    vi.mocked(api.getHome).mockResolvedValue({
+      at: new Date().toISOString(),
+      seasons: [season],
+      listings: [{ ...listing, floor: payload }],
+    } as never);
+    renderPage();
+    await screen.findByText('LookPilot');
+    await screen.findByText('$77,316');
+    expect(api.getHome).toHaveBeenCalledTimes(1);
+    expect(api.getMarketplaceWorkspace).not.toHaveBeenCalled();
+    expect(api.getSeasons).not.toHaveBeenCalled();
+    expect(api.getPublicWorkspaces).not.toHaveBeenCalled();
+  });
+
+  test('cells rise in, in order, once the payload lands', async () => {
+    vi.mocked(api.getPublicWorkspaces).mockResolvedValue([
+      { ...listing, workspaceId: 'a', slug: 'a', name: 'Alpha' },
+      { ...listing, workspaceId: 'b', slug: 'b', name: 'Beta' },
+    ] as never);
+    renderPage();
+    const alpha = (await screen.findByText('Alpha')).closest('.mkt-cell') as HTMLElement;
+    const beta = (await screen.findByText('Beta')).closest('.mkt-cell') as HTMLElement;
+    expect(alpha).toHaveClass('pubws-rise');
+    expect(beta).toHaveClass('pubws-rise');
+    expect(alpha.style.animationDelay).toBe('0ms');
+    expect(beta.style.animationDelay).toBe('60ms');
+  });
+
+  test('a listing whose floor payload failed on the server keeps its name and a ghost in the chart slot', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockRejectedValue(new Error('boom'));
+    const { container } = renderPage();
+    await screen.findByText('LookPilot');
+    expect(container.querySelector('.mkt-cell .mkt-spark-ghost')).toBeTruthy();
+    expect(container.querySelector('.pubws-loading-dot')).toBeNull();
+    // Only the proposal count is known from the listing itself.
+    const row = screen.getByLabelText('Market facts');
+    expect(row.querySelectorAll('svg').length).toBe(1);
+  });
+
+  test('an own not-yet-public floor fetches on its own and shows a ghost spark until it lands', async () => {
+    signedIn = true;
+    vi.mocked(api.listWorkspaces).mockResolvedValue([{ id: 'ws-mine', name: 'Mine', visibility: 'unlisted' }] as never);
     let release: (v: unknown) => void = () => {};
     vi.mocked(api.getMarketplaceWorkspace).mockReturnValue(
       new Promise(r => {
         release = r;
       }) as never,
     );
-    const { container } = renderPage();
-    await screen.findByText('LookPilot');
-    expect(container.querySelector('.mkt-card-loading .pubws-loading-dot')).toBeTruthy();
+    renderPage();
+    const mine = (await screen.findByText('Mine')).closest('.mkt-cell') as HTMLElement;
+    expect(mine.querySelector('.mkt-spark-ghost')).toBeTruthy();
     release(payload);
-    await waitFor(() => expect(container.querySelector('.mkt-spark')).toBeTruthy());
-    expect(container.querySelector('.mkt-card-loading')).toBeNull();
+    await waitFor(() => expect(mine.querySelector('.mkt-spark')).toBeTruthy());
+    expect(mine.querySelector('.mkt-spark-ghost')).toBeNull();
+  });
+});
+
+describe('the payload in the HTML', () => {
+  // Inserted as markup, the way the server plants it: jsdom would try to
+  // RUN a script element created through the DOM, JSON or not.
+  function plant(body: unknown) {
+    const json = JSON.stringify(body).replace(/<\//g, '<\\/');
+    document.head.insertAdjacentHTML(
+      'beforeend',
+      `<script id="telarchy-home" type="application/json">${json}</script>`,
+    );
+  }
+
+  test('a full document load paints the board from the inlined payload without a request', async () => {
+    plant({ at: new Date().toISOString(), seasons: [season], listings: [{ ...listing, floor: payload }] });
+    const { container } = renderPage();
+    // Synchronously, on the first render: no ghosts, no request.
+    expect(screen.getByText('LookPilot')).toBeInTheDocument();
+    expect(screen.getByText('$77,316')).toBeInTheDocument();
+    expect(screen.getByText('Season 0')).toBeInTheDocument();
+    expect(container.querySelector('.mkt-ghost')).toBeNull();
+    expect(api.getHome).not.toHaveBeenCalled();
+  });
+
+  test('the inlined payload is read once: the element is gone after mount', async () => {
+    plant({ at: new Date().toISOString(), seasons: [], listings: [{ ...listing, floor: payload }] });
+    renderPage();
+    await waitFor(() => expect(document.getElementById('telarchy-home')).toBeNull());
+  });
+
+  test('a stale inlined payload (a restored tab) is ignored and the page fetches', async () => {
+    plant({ at: new Date(Date.now() - 10 * 60_000).toISOString(), seasons: [], listings: [] });
+    renderPage();
+    await screen.findByText('LookPilot');
+    expect(api.getHome).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -328,22 +448,15 @@ describe('the facts row', () => {
     expect(row.textContent).not.toMatch(/participants|trades|proposals|liquidity/);
   });
 
-  test('shows only the facts that have landed while counts are still loading', async () => {
-    let release: (v: unknown) => void = () => {};
-    vi.mocked(api.getMarketplaceWorkspace).mockReturnValue(
-      new Promise(r => {
-        release = r;
-      }) as never,
-    );
+  test('shows only the facts that exist when the floor payload is missing', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockRejectedValue(new Error('down'));
     renderPage();
     await screen.findByText('LookPilot');
-    // Only the proposal count is known from the listing payload; the
-    // participant, pool and trade counts are still in flight.
+    // Only the proposal count is known from the listing itself; the
+    // participant, pool and trade counts live in the floor payload.
     const row = screen.getByLabelText('Market facts');
     expect(row.querySelectorAll('svg').length).toBe(1);
     expect(row).toHaveTextContent(/^2$/);
-    release(payload);
-    await waitFor(() => expect(row.querySelectorAll('svg').length).toBe(4));
   });
 
   test('no proposals means no proposals cell rather than a zero', async () => {
@@ -363,7 +476,7 @@ describe('the facts row', () => {
  * been showing the soonest, so LookPilot advertised the few hundred dollars
  * this week had earned so far instead of the net 2026 it is judged on.
  */
-describe('liquidity on the card', () => {
+describe('liquidity on the cell', () => {
   test('the drop counts the credits in the pools, never the LMSR parameter', async () => {
     // Two open markets: 1,000 and 3,200 credits in their pools. `liquidity`
     // beside `pool` is b = pool / ln 2 and must never reach the screen
@@ -417,7 +530,7 @@ describe('liquidity on the card', () => {
     await screen.findByTitle(/9,000 credits in the pools/);
     await screen.findByTitle(/^50 credits in the pools/);
     await screen.findByTitle(/700 credits in the pools/);
-    const names = Array.from(document.querySelectorAll('.mkt-card-name')).map(n => n.textContent);
+    const names = Array.from(document.querySelectorAll('.mkt-cell-name')).map(n => n.textContent);
     expect(names).toEqual(['Deep', 'Mid', 'Shallow']);
   });
 
@@ -431,19 +544,19 @@ describe('liquidity on the card', () => {
     renderPage();
     await screen.findByTitle(/5,000 credits in the pools/);
     await screen.findByTitle(/^10 credits in the pools/);
-    const names = Array.from(document.querySelectorAll('.mkt-card-name')).map(n => n.textContent);
+    const names = Array.from(document.querySelectorAll('.mkt-cell-name')).map(n => n.textContent);
     expect(names).toEqual(['LookPilot', 'Mine']);
   });
 
-  test('cards whose liquidity has not landed keep their arrival order', async () => {
+  test('cells without a liquidity figure keep their arrival order', async () => {
     vi.mocked(api.getPublicWorkspaces).mockResolvedValue([
       { ...listing, workspaceId: 'a', slug: 'a', name: 'Alpha' },
       { ...listing, workspaceId: 'b', slug: 'b', name: 'Beta' },
     ] as never);
-    vi.mocked(api.getMarketplaceWorkspace).mockReturnValue(new Promise(() => {}) as never);
+    vi.mocked(api.getMarketplaceWorkspace).mockRejectedValue(new Error('down'));
     renderPage();
     await screen.findByText('Alpha');
-    const names = Array.from(document.querySelectorAll('.mkt-card-name')).map(n => n.textContent);
+    const names = Array.from(document.querySelectorAll('.mkt-cell-name')).map(n => n.textContent);
     expect(names).toEqual(['Alpha', 'Beta']);
   });
 });
@@ -459,14 +572,14 @@ describe('which number a card shows', () => {
     } as never);
     const { container } = renderPage();
 
-    await waitFor(() => expect(container.querySelector('.mkt-card-price')?.textContent).toBeTruthy());
-    expect(container.querySelector('.mkt-card-price')!.textContent).toBe('$78,571');
-    expect(container.querySelector('.mkt-card-metric')!.textContent).toBe('LookPilot net 2026');
+    await waitFor(() => expect(container.querySelector('.mkt-cell-price')?.textContent).toBeTruthy());
+    expect(container.querySelector('.mkt-cell-price')!.textContent).toBe('$78,571');
+    expect(container.querySelector('.mkt-cell-metric')!.textContent).toBe('LookPilot net 2026');
   });
 
   test('a single-market workspace still shows its one number', async () => {
     const { container } = renderPage();
-    await waitFor(() => expect(container.querySelector('.mkt-card-price')?.textContent).toBeTruthy());
-    expect(container.querySelector('.mkt-card-price')!.textContent).toBe('$77,316');
+    await waitFor(() => expect(container.querySelector('.mkt-cell-price')?.textContent).toBeTruthy());
+    expect(container.querySelector('.mkt-cell-price')!.textContent).toBe('$77,316');
   });
 });

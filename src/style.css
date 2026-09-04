@@ -6258,31 +6258,58 @@ textarea.jobform-line--desc {
 
 .pubws-status { text-align: center; }
 
-/* Loading screen: the market's own motif, the amber call dot, rippling
-   where the market will appear. */
-.pubws-loading {
-  display: flex;
-  justify-content: center;
-}
-.pubws-loading-dot {
+/* While a page loads (docs/ui-conventions.md, "While a page loads"): grey
+   bars in the exact shape of what is coming, one slow sweep of light across
+   them, a hairline of progress under the top bar, and a staggered rise when
+   the content lands. Never a dot, never a spinner, never a blank. */
+.pubws-ghost {
+  display: block;
   position: relative;
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  background: var(--accent);
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
 }
-.pubws-loading-dot::after {
+.pubws-ghost::after {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 50%;
+  background: linear-gradient(90deg, transparent 0%, rgba(242, 236, 220, 0.05) 50%, transparent 100%);
+  background-size: 240% 100%;
+  animation: pubws-sweep 1.6s linear infinite;
+}
+[data-theme="light"] .pubws-ghost::after { background-image: linear-gradient(90deg, transparent 0%, rgba(23, 23, 28, 0.04) 50%, transparent 100%); }
+@keyframes pubws-sweep {
+  0% { background-position: 140% 0; }
+  100% { background-position: -140% 0; }
+}
+.pubws-ghost-rows { display: flex; flex-direction: column; }
+.pubws-ghost-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.7rem 0; }
+.pubws-ghost-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* The progress hairline: 2px of accent along the bottom edge of the top
+   bar while anything is pending. It runs to 70% on its own and the page
+   finishes it by removing it. */
+.pubws-progress {
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  height: 2px;
+  width: 0;
   background: var(--accent);
-  animation: pubws-ripple 1.5s ease-out infinite;
+  animation: pubws-progress 0.9s cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
 }
-@keyframes pubws-ripple {
-  0% { transform: scale(1); opacity: 0.4; }
-  100% { transform: scale(3.6); opacity: 0; }
+@keyframes pubws-progress {
+  from { width: 0; }
+  to { width: 70%; }
 }
+
+/* Landed content rises in: opacity and 10px of travel, staggered 60ms per
+   sibling by the page (animation-delay inline). One pass; nothing loops. */
+.pubws-rise {
+  opacity: 0;
+  animation: pubws-rise 0.55s cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
+}
+
 
 /* Entrance: label, then price, then the chart draws itself. One pass on
    load; nothing loops except the call dot's soft pulse. */
@@ -6307,278 +6334,304 @@ textarea.jobform-line--desc {
 @keyframes pubws-fadein { to { opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .pubws-loading-dot::after { animation: none; opacity: 0; }
   .pubws-enter { animation: none; opacity: 1; }
   .pubws-fade { animation: none; opacity: 1; }
 }
 
 /* ------------------------------------------------------------------ */
-/* The marketplace (owner direction 2026-08-14): a card grid that reads the
-   same with two listings or twenty, each card showing the market itself.
-   Not a row of fixed buttons. */
+/* The home page (owner direction 2026-08-14, redrawn 2026-09-04 as "the
+   board", notes/decisions/ui-conventions.md): the claim, the season on one
+   line, and every public market as a cell of one hairline-ruled board that
+   reads the same with two listings or twenty. */
 .mkt {
-  max-width: 1080px;
+  position: relative;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: clamp(2.5rem, 8vh, 5rem) 1.25rem 5rem;
+  padding: clamp(2.5rem, 8vh, 5rem) 1.25rem 4rem;
+}
+
+/* A faint accent glow behind the headline, for depth. The only gradient on
+   the page. */
+.mkt-glow {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: min(900px, 100%);
+  height: 420px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 9%, transparent) 0%, transparent 62%);
+  pointer-events: none;
 }
 
 /* The home page opens on the claim, not on a label. The sentence carries the
    weight a title used to, so it takes the display face and a measure narrow
    enough to break into two or three lines rather than one long ruler. */
 .mkt-thesis {
+  position: relative;
   margin: 0 auto;
-  max-width: 20ch;
+  max-width: 22ch;
   font-family: 'Fraunces', serif;
   font-optical-sizing: auto;
   font-weight: 600;
-  font-size: clamp(1.9rem, 5.2vw, 3rem);
-  line-height: 1.12;
-  letter-spacing: -0.025em;
+  font-size: clamp(1.9rem, 5.2vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.028em;
   text-align: center;
   text-wrap: balance;
 }
 
 /* The one place the whole mechanism is stated in plain words. */
 .mkt-lead {
-  margin: 1rem auto clamp(2rem, 5vh, 3rem);
-  max-width: 34rem;
+  position: relative;
+  margin: 1.1rem auto 0;
+  max-width: 36rem;
   text-align: center;
-  font-size: 1.02rem;
+  font-size: 1.03rem;
   line-height: 1.55;
   color: var(--text-secondary);
   text-wrap: pretty;
 }
 
-/* The grid's own loading state: the market page's call-dot motif, held in
-   the space the cards will occupy. */
-.mkt-loading { padding: clamp(3rem, 12vh, 6rem) 0; }
-
-/* An unfunded market says so where its bet buttons would be: no price
-   exists, so there is nothing to trade against (owner report 2026-08-15). */
-.pubws-unfunded {
-  margin: 0;
-  padding: 0.9rem 1rem;
-  border: 1px dashed var(--border-color);
-  border-radius: 10px;
-  font-size: 0.85rem;
-  line-height: 1.55;
-  color: var(--text-tertiary);
-  text-align: center;
-}
-
-/* The same motif at card scale, in the chart slot, while that one market's
-   payload is still in flight. */
-.mkt-card-loading {
-  width: 100%;
+/* The season on the front door (owner direction 2026-08-21), as ONE line on
+   hairlines: name, clock, the prize sentence with its operative words, and
+   the door as a pill on the right. */
+.mkt-season {
+  position: relative;
+  display: flex;
   align-items: center;
-  opacity: 0.7;
+  gap: 1.1rem;
+  margin: clamp(2.2rem, 5vh, 3.25rem) 0 0;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
 }
-.mkt-card-loading .pubws-loading-dot { width: 9px; height: 9px; }
+.mkt-season-clock {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1.1rem;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.mkt-season-name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.mkt-season-line { margin: 0; flex: 1; line-height: 1.5; }
+.mkt-season-cta {
+  margin-left: auto;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.mkt-season-cta:hover { opacity: 0.9; }
+.mkt-season-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.mkt-season--ghost { gap: 1.1rem; }
+@media (max-width: 760px) {
+  .mkt-season { flex-wrap: wrap; gap: 0.5rem 1rem; }
+  .mkt-season-line { flex-basis: 100%; }
+}
 
-.mkt-grid {
+/* The board: cells separated by 1px rules (a 1px gap over the border colour,
+   closed by a rule underneath), each on the page background, so the page
+   reads as one instrument rather than five panels. */
+.mkt-board {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
-  gap: 1.1rem;
-  align-items: stretch;
+  gap: 1px;
+  margin-top: 0;
+  background: var(--border-color);
+  border-bottom: 1px solid var(--border-color);
 }
-
-.mkt-card {
+.mkt-cell,
+.mkt-ghost {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding: 1.15rem 1.2rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  background: var(--bg-secondary);
+  gap: 0.4rem;
+  padding: 1.6rem 1.75rem 1.4rem;
+  min-height: 15.6rem;
+  background: var(--bg-primary);
   text-decoration: none;
   color: inherit;
-  transition: border-color 140ms ease, transform 140ms ease;
+  transition: background 140ms ease;
 }
-.mkt-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.mkt-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-.mkt-card-head {
+.mkt-cell:hover { background: var(--bg-secondary); }
+.mkt-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.mkt-cell-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.75rem;
 }
-
-.mkt-card-name {
+.mkt-cell-name {
   font-family: 'Fraunces', serif;
   font-optical-sizing: auto;
   font-weight: 600;
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   letter-spacing: -0.01em;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.mkt-card-price {
+/* What the number IS and when it settles, as one small-caps caption. */
+.mkt-cell-caption {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--accent);
-  white-space: nowrap;
-}
-
-/* What the number IS. It was 0.68rem in tertiary, which on a dark card put
-   the most load-bearing line on the card below the description in contrast:
-   the reader could see "$8,370" and not read what it measured (owner report
-   2026-08-20). Secondary, a size up, and a touch of weight. */
-.mkt-card-metric {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-/* Three lines of the owner's own words, then a fade: enough to know what
-   this market is without turning the card into a page. */
-.mkt-card-desc {
-  margin-top: 0.15rem;
+/* The number is the largest thing in the cell. */
+.mkt-cell-price {
+  margin-top: 0.6rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 2.1rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  white-space: nowrap;
+}
+/* Two lines of the owner's own words, then a fade. */
+.mkt-cell-desc {
+  margin-top: 0.5rem;
   font-size: 0.85rem;
   line-height: 1.5;
   color: var(--text-secondary);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 /* The chart keeps its height whether or not the market has a price yet, so
-   cards in a row stay aligned. */
-.mkt-card-chart {
+   cells in a row stay aligned. */
+.mkt-cell-chart {
   margin-top: auto;
   padding-top: 0.8rem;
-  min-height: 72px;
+  min-height: 60px;
   display: flex;
   align-items: flex-end;
 }
-.mkt-spark { width: 100%; height: 72px; display: block; }
+.mkt-spark { width: 100%; height: 60px; display: block; }
+.mkt-spark-ghost { width: 100%; height: 44px; border-radius: 6px; }
 .mkt-spark-line {
   fill: none;
-  stroke: var(--accent);
-  stroke-width: 1.5;
+  stroke: var(--text-primary);
+  stroke-width: 1.4;
   stroke-linejoin: round;
   stroke-linecap: round;
-  opacity: 0.85;
+  opacity: 0.9;
   vector-effect: non-scaling-stroke;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: mkt-draw 0.9s ease-out 0.2s forwards;
 }
-.mkt-spark-area { fill: var(--accent); opacity: 0.07; stroke: none; }
+@keyframes mkt-draw { to { stroke-dashoffset: 0; } }
+.mkt-spark-area { fill: var(--accent); opacity: 0.06; stroke: none; }
 .mkt-spark-dot { fill: var(--accent); }
 
-.mkt-card-facts {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+/* The market page's facts row, on the cell: icons and bare numbers. */
+.mkt-cell-facts {
+  margin-top: 0.7rem;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.66rem;
   color: var(--text-tertiary);
-  border-top: 1px solid var(--border-color);
-  padding-top: 0.55rem;
 }
-.mkt-card-settles { color: var(--text-secondary); }
-/* The market page's facts row, on the card: icons and bare numbers, left
-   aligned under the settlement line, at the footer's own size and color. */
-.mkt-card-activity.pubws-facts {
-  margin: 0.15rem 0 0;
+.mkt-cell-activity.pubws-facts {
+  margin: 0;
   justify-content: flex-start;
   gap: 0.2rem 0.9rem;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--text-tertiary);
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
 }
-.mkt-card-activity.pubws-facts span { display: inline-flex; align-items: center; gap: 0.3rem; cursor: help; }
+.mkt-cell-activity.pubws-facts span { display: inline-flex; align-items: center; gap: 0.3rem; cursor: help; }
 
-/* The listing tile: same cell as a market, and the only interactive one.
-   Solid surface with a faint accent wash (dashed emptiness read as
-   unfinished), a plus set inside a disc so it reads as an affordance
-   rather than a stray glyph, and its own CTA that opens the email field
-   in place. */
-.mkt-card--new {
-  align-items: center;
+/* Ghost cells: the same geometry, grey bars where the words go. */
+.mkt-ghost { gap: 0.55rem; }
+.mkt-ghost-head { display: flex; justify-content: space-between; }
+
+/* The listing cell: the last cell of the board and the only interactive
+   one. It spans two columns where the row has room. */
+.mkt-cell--new {
   justify-content: center;
-  text-align: center;
-  gap: 0.35rem;
-  min-height: 15rem;
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-color));
-  background: color-mix(in srgb, var(--accent) 4%, var(--bg-secondary));
-}
-.mkt-card--new:hover { transform: none; }
-/* The email field, once "Get set up" opens it: the floor door's own row,
-   stacked to the tile's width. */
-.mkt-new-form {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   gap: 0.5rem;
-  width: 100%;
-  margin-top: 0.7rem;
 }
-.mkt-new-form .pubws-setup-row { width: min(20rem, 100%); }
-
-.mkt-new-mark {
-  width: 4.75rem;
-  height: 4.75rem;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  margin-bottom: 0.4rem;
-  transition: background 140ms ease;
+@media (min-width: 640px) {
+  .mkt-cell--new { grid-column: span 2; }
 }
-.mkt-new-mark svg { width: 62%; height: 62%; display: block; }
-.mkt-new-mark line, .mkt-new-mark polyline {
-  stroke: var(--accent);
-  stroke-width: 8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  fill: none;
-}
-.mkt-card--new:hover .mkt-new-mark {
-  background: color-mix(in srgb, var(--accent) 20%, transparent);
-}
-
 .mkt-new-title {
   font-family: 'Fraunces', serif;
   font-optical-sizing: auto;
   font-weight: 600;
-  font-size: 1.15rem;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+  max-width: 22ch;
 }
 .mkt-new-sub {
-  max-width: 15rem;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   line-height: 1.5;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
+  max-width: 40ch;
 }
-
 .mkt-new-cta {
-  display: inline-block;
-  margin-top: 0.7rem;
-  padding: 0.5rem 1.1rem;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--accent);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease;
+  text-decoration: none;
 }
-.mkt-new-cta:hover { background: var(--accent); color: var(--bg-primary); }
+.mkt-new-cta:hover { color: var(--accent-hover); }
+.mkt-new-cta svg { width: 14px; height: 14px; }
 
+.mkt-cell-mine {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  white-space: nowrap;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .mkt-card { transition: border-color 140ms ease; }
-  .mkt-card:hover { transform: none; }
+  .pubws-ghost::after { animation: none; }
+  .pubws-progress { animation: none; width: 70%; }
+  .pubws-rise { animation: none; opacity: 1; }
+  .mkt-spark-line { animation: none; stroke-dashoffset: 0; }
 }
 
 /* The rail's way out to the whole field (owner direction 2026-08-17,
@@ -8228,57 +8281,6 @@ textarea.jobform-line--desc {
 }
 
 
-/* The season on the front door (owner direction 2026-08-21). Hairlines, not a
-   banner: the home page is a list of markets and this is the one action a
-   trader can take, so it sits between the claim and the evidence without
-   competing with either. */
-.mkt-season {
-  margin: 0 auto clamp(2rem, 5vh, 3rem);
-  padding: 1.15rem 0 1.25rem;
-  max-width: 40rem;
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  text-align: center;
-}
-.mkt-season-clock {
-  margin: 0;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1.05rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
-/* The name reads as a label on the clock, not as a second heading. */
-.mkt-season-name {
-  display: block;
-  margin-bottom: 0.3rem;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-.mkt-season-line {
-  margin: 0.5rem auto 0.9rem;
-  max-width: 32rem;
-  font-size: 0.9rem;
-  line-height: 1.55;
-  color: var(--text-secondary);
-}
-.mkt-season-cta {
-  display: inline-block;
-  padding: 0.6rem 1.4rem;
-  border-radius: 999px;
-  background: var(--button-bg);
-  color: var(--button-text);
-  font-size: 0.92rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-.mkt-season-cta:hover { opacity: 0.9; }
-.mkt-season-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-
 /* The operator door's hero. The house pitch is set to a 24ch poster measure,
    which is right for the six words on a share landing and turns a sentence
    into five ragged lines here. This page is a document with a title, so the
@@ -8821,19 +8823,6 @@ textarea.jobform-line--desc {
 
 /* The caller's own not-yet-public floor, in the grid with everyone else's
    (docs/owner-on-the-floor.md). The badge is the only difference. */
-.mkt-card-mine {
-  padding: 0.15rem 0.5rem;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--accent-text);
-  background: var(--accent-soft);
-  white-space: nowrap;
-}
-
 /* The publish band: the owner's one visible step between a floor only they
    can see and one on the front list. A card, not a whisper (owner ask
    2026-08-28), and honest about its precondition when no metric exists. */
@@ -9537,3 +9526,8 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .mu-text { display: block; width: 100%; min-height: 22rem; resize: vertical; font-family: var(--font-mono, monospace); font-size: 0.85rem; line-height: 1.45; }
 .mu-actions { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.6rem; }
 .mu-done { font-size: 0.85rem; color: var(--text-tertiary); }
+
+/* The floor's ghost (docs/ui-conventions.md, "While a page loads"): the
+   same three columns as the loaded floor, so nothing moves when it lands. */
+.pubws-main--ghost .pubws-center { text-align: center; }
+.pubws-ghost-instrument { margin-top: 0.4rem; }

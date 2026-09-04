@@ -293,6 +293,23 @@ import('./app')
             });
           })().catch(e => console.error('visit log failed:', e));
         const indexPath = path.join(publicDir, 'index.html');
+        // The home page ships with its data inline (lib/inline-data.ts): the
+        // same object GET /api/marketplace/home returns, so the first render
+        // paints with numbers instead of after three waterfall fetches. Only
+        // the exact path `/`; a failure serves the plain shell, never a 500.
+        if (req.path === '/') {
+          try {
+            const { getHomePayload } = await import('./routes/marketplace');
+            const { injectHomeData } = await import('./lib/inline-data');
+            const payload = await getHomePayload();
+            const html = fs.readFileSync(indexPath, 'utf8');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.type('html').send(injectHomeData(html, payload));
+            return;
+          } catch (e) {
+            console.error('home data injection failed:', e);
+          }
+        }
         // Workspace share links get their own unfurl card: link scrapers do not
         // run JavaScript, so the workspace name/description must be in the HTML
         // the server sends. Any failure falls back to the plain SPA shell.
@@ -368,16 +385,22 @@ import('./app')
             const ws = await resolvePublicWorkspace(decodeURIComponent(shareMatch[1]));
             if (ws && !restrictedToMembers(ws.visibility)) {
               const { injectWorkspaceMeta } = await import('./lib/share-meta');
+              // The floor hint (id, slug, name, description) lets the floor
+              // page paint its header before the floor payload arrives.
+              const { injectFloorHint } = await import('./lib/inline-data');
               const html = fs.readFileSync(indexPath, 'utf8');
               res.setHeader('Cache-Control', 'no-cache');
               res
                 .type('html')
                 .send(
-                  injectWorkspaceMeta(
-                    html,
+                  injectFloorHint(
+                    injectWorkspaceMeta(
+                      html,
+                      ws,
+                      `${publicOrigin()}${req.path}`,
+                      `${publicOrigin()}/api/marketplace/${encodeURIComponent(shareMatch[1])}/card.png`,
+                    ),
                     ws,
-                    `${publicOrigin()}${req.path}`,
-                    `${publicOrigin()}/api/marketplace/${encodeURIComponent(shareMatch[1])}/card.png`,
                   ),
                 );
               return;

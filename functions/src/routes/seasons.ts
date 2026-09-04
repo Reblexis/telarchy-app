@@ -7,6 +7,7 @@ import { loadSeasonSettled } from '../lib/board';
 import { AppError } from '../lib/errors';
 import { payoutHandlesById, platformOperatedIds, publicWorkspaceOperatorIds } from '../lib/participants';
 import { isPlatformAuthorized } from '../lib/platform-admin';
+import { listPublicSeasons, publicSeason } from '../lib/public-seasons';
 import {
   claimDeadline,
   isOpenForEntry,
@@ -110,23 +111,6 @@ async function enterableSeason() {
   return drafts[0] ?? null;
 }
 
-function publicSeason(s: typeof prizeSeasons.$inferSelect) {
-  return {
-    id: s.id,
-    name: s.name,
-    status: s.status as SeasonStatus,
-    startsAt: s.startsAt,
-    endsAt: s.endsAt,
-    settledAt: s.settledAt,
-    poolUsd: s.poolUsd,
-    payoutMode: (s.payoutMode ?? 'ladder') as SeasonPayoutMode,
-    minPayoutUsd: s.minPayoutUsd ?? 0,
-    strictEligibility: s.strictEligibility ?? false,
-    ladder: (s.ladder ?? []) as LadderRung[],
-    rulesUrl: s.rulesUrl,
-  };
-}
-
 function asPayoutMode(raw: unknown): SeasonPayoutMode {
   if (raw !== 'ladder' && raw !== 'proportional') {
     throw new AppError("payoutMode must be 'ladder' or 'proportional'", 400);
@@ -149,9 +133,7 @@ function asMinPayout(raw: unknown, pool: number): number {
 seasonsRouter.get(
   '/',
   wrap(async (_req, res) => {
-    const rows = await db.select().from(prizeSeasons);
-    rows.sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
-    res.json({ seasons: rows.map(publicSeason) });
+    res.json({ seasons: await listPublicSeasons() });
   }),
 );
 

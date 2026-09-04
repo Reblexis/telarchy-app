@@ -486,6 +486,24 @@ export interface ProposalStats {
  * counts, not contents: metric names and market consensus are public, but
  * logged metric values, proposal text, and chat still require membership.
  */
+export interface HomeListing {
+  workspaceId: string;
+  name: string;
+  visibility: string;
+  slug?: string | null;
+  description?: string | null;
+  openMarketCount?: number;
+  proposalStats?: { pending?: number };
+  /** The floor payload, or null when the server could not build it. */
+  floor: PublicWorkspace | null;
+}
+
+export interface HomePayload {
+  at: string;
+  seasons: PrizeSeason[];
+  listings: HomeListing[];
+}
+
 export interface PublicWorkspace {
   workspaceId: string;
   name: string;
@@ -2124,6 +2142,16 @@ export const api = {
   getMarketplaceWorkspace: async (workspaceId: string): Promise<PublicWorkspace> => {
     const res = await fetchGetWithRetry(`${API_BASE}/api/marketplace/${encodeURIComponent(workspaceId)}`);
     if (!res.ok) throw new Error(`Marketplace workspace request failed: ${res.status}`);
+    return res.json();
+  },
+  /**
+   * The home page in one call (docs/ui-conventions.md, "While a page loads"):
+   * the seasons and every public listing with its floor payload, the same
+   * body the server inlines into the served HTML as #telarchy-home.
+   */
+  getHome: async (): Promise<HomePayload> => {
+    const res = await fetchGetWithRetry(`${API_BASE}/api/marketplace/home`);
+    if (!res.ok) throw new Error(`Home request failed: ${res.status}`);
     return res.json();
   },
   getPublicWorkspaces: async (): Promise<

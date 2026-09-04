@@ -1499,3 +1499,38 @@ description to not be there at all or maybe for it to bein general a
 summary of the full 'what is this market' descirption". So the line is
 the definition's first sentence, or nothing. No new field: an owner who
 wants a different summary writes a different first sentence.
+
+## 2026-09-04: the loading dot is gone, the home page is a board, the hero says "bet"
+
+**Asked (Viktor, 2026-09-04):** "could you make the loading of the
+workspaces and the site at telarchy.com look smoother and in general give
+it a better cooler design", then "and lets figure out what to say there as
+well .. the wording should be better".
+
+What a visitor saw: the headline painted, then a single amber dot rippling
+in an empty room for the whole of three round trips (season, the public
+list, then one request per card), then five cards popped in at once; a
+floor was a dot on black until its payload landed; /about and the other
+lazily loaded pages were fully blank while their code downloaded.
+
+**Decided 2026-09-04 (Viktor: "yes that looks better.. build and publish
+it")**, from a design canvas with three directions and four hero
+candidates:
+
+- The rule "While a page loads" in docs/ui-conventions.md: data rides in
+  the HTML on a full load (`#telarchy-home`, `#telarchy-floor`), one
+  request per page, ghosts in the real geometry where data is still on
+  its way, a staggered rise when it lands, a 2px accent hairline under the
+  top bar while anything is pending. The dot motif (owner ask 2026-08-14)
+  is retired on every page.
+- Direction A, "the board": the boxed cards become one hairline-ruled
+  board, the number is the largest thing in each cell, the season is one
+  line on hairlines, a faint accent glow behind the headline.
+- Hero copy B: "Real companies' numbers. Bet where they land, get paid if
+  you're right." with the lead "Revenue, users, active traders, updated by
+  the people running them. Trade free, human or AI, or list your own
+  number and see the forecast before you decide." Rejected: C (a live
+  market question as the headline, which cannot paint before the data)
+  and D (the owner pitch, wrong side for a trader-first page).
+- The listing cell reads "Put your own number up here." and ends with
+  "Forecasts start with the first trade."

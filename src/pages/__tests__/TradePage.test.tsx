@@ -1411,3 +1411,67 @@ describe('the floor quotes both sides before the first click', () => {
     expect(container.textContent).not.toContain('50c');
   });
 });
+
+/**
+ * While the floor loads (docs/ui-conventions.md, "While a page loads"): the
+ * three columns are drawn as ghosts in the real geometry, the name from the
+ * share hint the server planted paints at once in the headline slot, the
+ * top bar runs its progress hairline, and the old rippling dot is gone.
+ */
+describe('while the floor loads', () => {
+  // Inserted as markup, the way the server plants it: jsdom would try to
+  // RUN a script element created through the DOM, JSON or not.
+  function plantHint(body: unknown) {
+    const json = JSON.stringify(body).replace(/<\//g, '<\\/');
+    document.head.insertAdjacentHTML(
+      'beforeend',
+      `<script id="telarchy-floor" type="application/json">${json}</script>`,
+    );
+  }
+  afterEach(() => {
+    document.head.innerHTML = '';
+  });
+
+  test('ghost columns and the progress hairline, never a dot', async () => {
+    const { api } = await import('../../lib/api');
+    let release: (v: unknown) => void = () => {};
+    vi.mocked(api.getMarketplaceWorkspace as unknown as () => Promise<unknown>).mockReturnValue(
+      new Promise(r => {
+        release = r;
+      }),
+    );
+    const { container } = renderFloor();
+    expect(container.querySelector('.pubws-main--floor')).toBeTruthy();
+    expect(container.querySelectorAll('.pubws-ghost').length).toBeGreaterThanOrEqual(6);
+    expect(container.querySelector('[role="status"][aria-label="Loading"]')).toBeTruthy();
+    expect(container.querySelector('.pubws-topbar .pubws-progress')).toBeTruthy();
+    expect(container.querySelector('.pubws-loading-dot')).toBeNull();
+    release(h.workspace());
+    await screen.findByRole('heading', { level: 1, name: 'LookPilot' });
+    expect(container.querySelector('.pubws-ghost')).toBeNull();
+    expect(container.querySelector('.pubws-progress')).toBeNull();
+  });
+
+  test('the name from the share hint paints before the payload lands', async () => {
+    const { api } = await import('../../lib/api');
+    plantHint({ id: 'ws-1', slug: 'lookpilot', name: 'LookPilot', description: 'Webcam head tracker for sims.' });
+    vi.mocked(api.getMarketplaceWorkspace as unknown as () => Promise<unknown>).mockReturnValue(new Promise(() => {}));
+    renderFloor(['/lookpilot']);
+    expect(screen.getByRole('heading', { level: 1, name: 'LookPilot' })).toBeInTheDocument();
+    expect(screen.getByText('Webcam head tracker for sims.')).toBeInTheDocument();
+  });
+
+  test('a hint for another floor is ignored', async () => {
+    const { api } = await import('../../lib/api');
+    plantHint({ id: 'ws-9', slug: 'other', name: 'Other Co', description: null });
+    vi.mocked(api.getMarketplaceWorkspace as unknown as () => Promise<unknown>).mockReturnValue(new Promise(() => {}));
+    renderFloor(['/lookpilot']);
+    expect(screen.queryByText('Other Co')).toBeNull();
+  });
+
+  test('the hint is read once: the element is gone after mount', async () => {
+    plantHint({ id: 'ws-1', slug: 'lookpilot', name: 'LookPilot', description: null });
+    renderFloor(['/lookpilot']);
+    await waitFor(() => expect(document.getElementById('telarchy-floor')).toBeNull());
+  });
+});
