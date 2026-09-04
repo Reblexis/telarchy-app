@@ -321,9 +321,11 @@ describe('the page ends on a three-cell board', () => {
     const { container } = renderFloor();
     const end = await screen.findByLabelText('Next steps');
     expect(end.className).toContain('pubws-end');
-    // Full width of the floor grid: a child of the floor's main, after the
-    // three columns.
-    expect(end.parentElement?.className).toContain('pubws-main--floor');
+    // Outside the floor grid (a sticky rail is constrained by the grid
+    // container, so a board inside it had the rails sliding over it), in
+    // its own full-width wrapper right after the floor's main.
+    expect(end.parentElement?.className).toContain('pubws-end-wrap');
+    expect(end.parentElement?.previousElementSibling?.className).toContain('pubws-main--floor');
     const cells = [...end.querySelectorAll('.pubws-end-cell')];
     expect(cells.length).toBe(3);
     expect(cells.map(c => c.querySelector('.pubws-end-label')?.textContent)).toEqual([
