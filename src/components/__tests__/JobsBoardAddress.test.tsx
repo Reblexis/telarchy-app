@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 /**
- * A proposal has a number and an address, and the proposer sees their own
+ * A proposal has a number, and the proposer sees their own
  * proposal (docs/ui-conventions.md, the two paragraphs of those names).
  *
  * The visitor this is for (Otto conversation, 2026-09-04): wanted to ask
@@ -65,7 +65,6 @@ const base = {
   signedIn: true,
   onRequireSignup: () => {},
   workspaceName: 'Telarchy',
-  workspaceSlug: 'telarchy',
 };
 
 const board = (props: Partial<React.ComponentProps<typeof JobsBoard>>) =>
@@ -100,18 +99,10 @@ describe('a proposal has a number', () => {
   });
 });
 
-describe('a proposal has an address', () => {
-  test('the link control copies telarchy.com/<slug>#proposal=<id> and does not select the row', async () => {
-    const writeText = vi.fn(async () => {});
-    Object.assign(navigator, { clipboard: { writeText } });
-    const onSelect = vi.fn();
-    board({ onSelect });
-    const link = screen.getByRole('button', { name: 'Copy link to #7' });
-    fireEvent.click(link);
-    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/telarchy#proposal=p-7`);
-    expect(onSelect).not.toHaveBeenCalled();
-    // The control says it did it, briefly.
-    expect(await screen.findByText('Copied')).toBeTruthy();
+describe('a proposal has an address but no link control', () => {
+  test('the row carries no copy-link control: the number is enough (owner decision 2026-09-04)', () => {
+    board({});
+    expect(screen.queryByRole('button', { name: /copy link/i })).toBeNull();
   });
 });
 
