@@ -261,12 +261,19 @@ describe('the caption is two chips on one line', () => {
     expect(dateChip(container).getAttribute('aria-expanded')).toBe('false');
   });
 
-  test('the cycle words in the question sentence are untouched', async () => {
+  test('the menu words in the question sentence pick, and the chips follow', async () => {
     const { container } = renderFloor();
     await waitFor(() => expect(ask(container)).toBe("What will be LookPilot's net revenue this month?"));
+    // Menu words (2026-09-04): the word opens a list, the pick selects.
     fireEvent.click(screen.getByRole('button', { name: /^Metric: / }));
+    fireEvent.click(
+      within(await screen.findByRole('listbox', { name: 'Metric' })).getByRole('option', { name: 'Steam reviews' }),
+    );
     await waitFor(() => expect(ask(container)).toBe("What will be LookPilot's Steam reviews this month?"));
     fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
+    fireEvent.click(
+      within(await screen.findByRole('listbox', { name: 'Date' })).getByRole('option', { name: 'this week' }),
+    );
     await waitFor(() => expect(ask(container)).toBe("What will be LookPilot's Steam reviews this week?"));
     // The chips follow the words.
     expect(metricChip(container).textContent).toBe('Steam reviews');
@@ -294,7 +301,7 @@ describe('the stat row is two cells on hairlines', () => {
     const callWhat = call.querySelector('.pubws-stat-what') as HTMLElement;
     const callPrice = call.querySelector('.pubws-price') as HTMLElement;
     expect(callWhat.compareDocumentPosition(callPrice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(callWhat.textContent).toMatch(/^market's call · for 30 Sep · settles in \S+$/);
+    expect(callWhat.textContent).toMatch(/^the market expects · for 30 Sep · settles in \S+$/);
     expect((call.querySelector('.pubws-settle-in') as HTMLElement).title).toMatch(/^settles /);
     expect(callPrice.textContent).toBe('$6,850');
     // The call is the amber cell: the class the stylesheet colours.

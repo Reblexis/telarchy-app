@@ -1567,3 +1567,19 @@ remove that", it was only absent from the mockup), the ticket, the rails'
 contents. Two preview defects fixed before publishing: an open chip menu
 painted under the question line, and the end board sat inside the floor
 grid where sticky rails slid over it.
+
+**revised 2026-09-04 (Viktor, "do it in beta")**: the proposal view is one
+sentence, one number, one action. The summary line and the branch toggle
+leave the proposal view, the impact becomes the headline number with now /
+if approved / if declined as cells under it, the details go left-aligned
+between hairlines, the decision row is one row, and a visitor reads "the
+market expects" and "change by <date> if approved" instead of "market's
+call" and "impact by". The sentence's metric and date words open a list
+of every option instead of stepping to the next one ("ok try 1": a word
+that cycles hides how many options there are). The caption chips STAY in
+proposal view beside the words ("what about doing both"): a first cut hid
+them and Viktor asked where the metric and date could be changed. Grounds:
+the YC Design Review reading in `telarchy/notes/yc-proposal-page-design.md`
+(one action per screen, the one number up front, plain words). Canvas:
+https://claude.ai/code/artifact/c788fb0a-3699-4fb2-b118-11c7ab64b16b,
+direction C and the "Selector options" page.

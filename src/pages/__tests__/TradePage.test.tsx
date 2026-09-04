@@ -1006,7 +1006,7 @@ describe('a proposal keeps the clock line', () => {
     return ws;
   }
 
-  test('the metric picker survives opening a proposal', async () => {
+  test('the caption chips survive opening a proposal', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
@@ -1083,23 +1083,62 @@ describe('a proposal keeps the clock line', () => {
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-week-approved'));
   });
 
-  test('the date word cycles and LOOPS back to where it started', async () => {
+  test('the date word opens a list of every date, the current one marked, and picks directly', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     const { container } = renderFloor();
-
     const ask = () => container.querySelector('.pubws-instrument-ask')!.textContent ?? '';
     await waitFor(() => expect(ask()).toContain('monthly net revenue'));
     // The whole sentence, so the scaffold and both words are pinned once.
     expect(ask()).toBe("What will be LookPilot's monthly net revenue on 30 Sep?");
+    expect(screen.queryByRole('listbox', { name: 'Date' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
+    // The word names itself and says it opens a list (revised 2026-09-04:
+    // menu words, not cycle words).
+    const word = screen.getByRole('button', { name: /^Date: / });
+    expect(word.getAttribute('aria-haspopup')).toBe('listbox');
+    expect(word.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(word);
+    const list = await screen.findByRole('listbox', { name: 'Date' });
+    const options = within(list).getAllByRole('option');
+    expect(options.map(o => o.textContent)).toEqual(['23 Aug', '30 Sep']);
+    expect(options[1].getAttribute('aria-selected')).toBe('true');
+    expect(options[0].getAttribute('aria-selected')).toBe('false');
+    expect(word.getAttribute('aria-expanded')).toBe('true');
+
+    // Picking selects that date directly and closes the list.
+    fireEvent.click(options[0]);
     await waitFor(() => expect(ask()).toContain('23 Aug'));
+    expect(screen.queryByRole('listbox', { name: 'Date' })).toBeNull();
+  });
 
-    // Two options, so the next step is the start again (the 2026-08-20
-    // arrow rule: a control that always moves).
-    fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
+  test('Escape and a click outside close the list with nothing changed', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    const { container } = renderFloor();
+    const ask = () => container.querySelector('.pubws-instrument-ask')!.textContent ?? '';
     await waitFor(() => expect(ask()).toContain('30 Sep'));
+
+    fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
+    await screen.findByRole('listbox', { name: 'Date' });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('listbox', { name: 'Date' })).toBeNull());
+    expect(ask()).toContain('30 Sep');
+
+    fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
+    await screen.findByRole('listbox', { name: 'Date' });
+    fireEvent.mouseDown(document.body);
+    await waitFor(() => expect(screen.queryByRole('listbox', { name: 'Date' })).toBeNull());
+    expect(ask()).toContain('30 Sep');
+  });
+
+  test('a word with one option is plain text, not a control', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    renderFloor();
+    await screen.findByRole('button', { name: /^Date: / });
+    // One metric on two dates: the metric word has nothing to offer.
+    expect(screen.queryByRole('button', { name: /^Metric: / })).toBeNull();
   });
 });
 
@@ -1180,7 +1219,7 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     expect(now.querySelector('.pubws-updated')?.textContent).toMatch(/^read .+ ago$|^read just now$/);
     expect(call.querySelector('.pubws-price')?.textContent).toBe('$78,571');
     expect(call.querySelector('.pubws-stat-what')?.textContent).toMatch(
-      /^market's call · for 30 Dec · settles in \S+$/,
+      /^the market expects · for 30 Dec · settles in \S+$/,
     );
     // The day being forecast is the day before the settle instant, as the
     // picker names it, then THE COUNTDOWN, AND ONLY THE COUNTDOWN (owner,
@@ -1223,7 +1262,7 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     await waitFor(() => expect(container.querySelector('.pubws-numchart .nchart-legend')).toBeTruthy());
     const legend = container.querySelector('.pubws-numchart .nchart-legend') as HTMLElement;
     expect(legend.textContent).toContain('actual');
-    expect(legend.textContent).toContain("market's call for 30 Dec");
+    expect(legend.textContent).toContain('the market expects for 30 Dec');
     // One open market of this metric: no grey dots, so no words for them.
     expect(legend.textContent).not.toContain('other open dates');
   });
