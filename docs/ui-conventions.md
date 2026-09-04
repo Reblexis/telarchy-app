@@ -404,35 +404,41 @@ javascript: vector in an img src.
 
 The floor prices a SET of metrics, and every one of them is one number read
 on several dates. The horizon list is therefore a grid, metrics x dates.
-The caption carries two independent pickers, both segmented rows, and
-under them the selected cell stated as the market's own question, one
-sentence in the display face (owner ask 2026-08-28: both stay; the rows
-are where every option is visible, the sentence is what the selection
-means, so a newcomer is not left assembling the question from an
-uppercase caption and a row of tabs):
+The caption carries two independent pickers on ONE line, and under them
+the selected cell stated as the market's own question, one sentence in the
+display face. The pickers are the board's caption vocabulary (docs
+"The marketplace"): two mono small-caps chips separated by a middle dot,
+each a dropdown (revised 2026-09-04 on the floor canvas, replacing the two
+segmented rows of 2026-08-28: the rows cost two lines and a pair of owner
+buttons before the question, and the board under the home page's headline
+had already taught the caption's shape):
 
 ```
-        [ NET REVENUE ]  [ ACTIVE TRADERS ]  [ IMPLIED VALUATION ]   <- picks the METRIC
-        [ today · 26 Aug ]  [ this week · 30 Aug ]  [ 30 Sep ]           <- picks the DATE
-        What will be LookPilot's net revenue this week?
-                        6,912
+        [ NET REVENUE v ]  ·  [ THIS MONTH · SETTLES 30 SEP v ]     <- two chips, each a menu
+        What will be LookPilot's net revenue this month?
+              NOW · READ 35M AGO   |   MARKET'S CALL · FOR 30 SEP
+              $7,674               |   $6,850
                   [ HIGHER ]  [ LOWER ]
 ```
 
-- **The caption row is a segmented control over the floor's metrics**
-  (`.pubws-seg`, primary metric first, the selected segment in ink on a
-  bone tab). It renders as a control only when the floor prices more than
-  one metric; with one metric the caption is plain text.
-- **The date row is directly under the caption**, the same control over
-  the metric's dates, soonest first: `today · 25 Aug`, `this week · 30
-  Aug`, `30 Sep` (`dateSegmentOf`: the clock's name and its settle day,
-  both COMPUTED from the market, never stored on the metric; a stored
-  date would be correct until Monday, when `+0w` opens next week's market
-  on the same metric and the name still names last Sunday). With one open
-  date the row is the settle day alone, so the settle day never leaves
-  the page. Every option is on screen and the selected segment cannot
-  move when the words change; the rows wrap on a phone rather than
-  shrinking their labels.
+- **The metric chip** (`.pubws-chip`, `.pubws-chip--metric`) names the
+  selected metric; pressing it opens a menu (`.pubws-chip-menu`) listing
+  the floor's metrics, primary first, the selected one marked, and for
+  the owner a last entry "Manage metrics" that opens the metrics dialog
+  (the former "Metrics" button). With one metric the chip is plain text
+  with no chevron and no menu.
+- **The date chip** (`.pubws-chip--date`) reads the selected clock and its
+  settle day ("THIS MONTH · SETTLES 30 SEP"; `dateSegmentOf` computes both
+  from the market, never stored on the metric); its menu lists the
+  metric's open dates soonest first, and for the owner a last entry
+  "Manage dates" that opens the dates dialog (the former "Dates" button).
+  With one open date the chip is plain text, so the settle day never
+  leaves the page.
+- Menus close on a pick, on Escape, and on a click outside; the chip is a
+  `button` with `aria-expanded`, the menu a `listbox` of `option`s, so a
+  keyboard reader gets the same control. The chips wrap onto two lines on
+  a phone rather than shrinking their labels.
+
 - **The sentence is "What will be {company}'s {metric} {date}?"** The
   scaffold words sit a register quieter (`.pubws-instrument-ask`); the
   metric and the date are the sentence's ink. The company is named
@@ -461,8 +467,8 @@ uppercase caption and a row of tabs):
   role enum exists, and no surface reads meaning out of a position. There
   is no flat walk across the grid: a flat walk across a grid reads as
   confusing once there are more than two cells.
-- **The caption and the question are each an `h2` that is a block child
-  of `.pubws-center`.** Controls on those lines go INSIDE the heading,
+- **The caption line and the question are each an `h2` that is a block
+  child of `.pubws-center`.** Controls on those lines go INSIDE the heading,
   never in a wrapper around it: a flex row between `.pubws-center` and a
   heading drops it into a narrow column beside the price, four words tall
   and over the leaderboard rail, because the heading's placement comes
@@ -687,11 +693,15 @@ prints no line. The full definition stays where it was, under "What is
 this market?"; an owner who wants a different summary writes a different
 first sentence.
 
-**The stat row** (`.pubws-stats`) is two named numbers in ONE row, the
-reading on the left and the market's call on the right, each a block
-(`.pubws-stat-block`) of the value at the price size (`.pubws-price`,
-mono, tabular) over two quiet lines: what the number is
-(`.pubws-stat-what`), then its date.
+**The stat row** (`.pubws-stats`) is two named numbers in ONE row, two
+cells on hairlines the way the home board draws its cells (revised
+2026-09-04): a 1px `var(--border-color)` rule above and below the row and
+one between the cells, each cell (`.pubws-stat-block`) a mono small-caps
+caption line first ("NOW · READ 35M AGO", "MARKET'S CALL · FOR 30 SEP",
+`.pubws-stat-what`) and the value under it at the price size
+(`.pubws-price`, mono, tabular, 2.1rem), the reading left-aligned in its
+cell and the call left-aligned in its own, so the two numbers start on
+the same vertical rhythm.
 
 - The reading (`.pubws-stat--now`, ink): the value in force, "now", then
   "read 25m ago" (`.pubws-updated`, `timeAgoOf` from the latest reading's
@@ -1566,9 +1576,12 @@ answer to "which one?") and the scroll stops gliding.
 The board is signed-in only; the anonymous poster stays clean. On
 viewports >=1120px the page becomes the trading floor proper: a
 three-column grid with the leaders rail on the left and the proposals
-board on the right. Both rails render for both tiers, hide entirely when
-empty, sit sticky beside the poster, and the chart stops breaking out
-(100% of the center column). Below 1120px the rails stack under the
+board on the right, each separated from the poster by a vertical 1px
+`var(--border-color)` hairline (revised 2026-09-04: the rails sat in
+open space; the rule makes the three columns read as one instrument, the
+way the home board's cells do). Both rails render for both tiers, hide
+entirely when empty, sit sticky beside the poster, and the chart stops
+breaking out (100% of the center column). Below 1120px the rails stack under the
 poster, and the proposals come BEFORE the standings: the action before the
 proof. The floor column keeps a small gap under the top bar on narrow
 viewports.
@@ -1760,22 +1773,27 @@ introduce themselves: a stranger decides in five to ten seconds at the TOP
 of a page, and repeating yourself further down is not extra clarity, see
 `notes/yc-landing-explainer-2026-09-01.md`).
 
-What survives is two sentences, because they are the two things the working
-market cannot show. One says what the mechanism is for and links to the page
-that explains it properly. The other says a stranger may offer to do the
-work and be paid real money for it, which nobody guesses from watching a
-market trade; it stays a call to action that SCROLLS to the proposal rail
-rather than a card of equal weight to Trade, whose control is already on
-screen. Two equal-weight cards were the paradox of choice: the reader picks
-neither.
+What survives is three cells on one hairline-ruled board (`.pubws-end`,
+revised 2026-09-04; before it, two sentences and a separate email row),
+full width under the three columns, each cell a mono small-caps label, one
+sentence in the display face, and one control:
 
-Both links are the end of their own sentence rather than a button beside it,
-because the one control this page still wants pressed is above them. Then
-the door: an inline email field with a "Get set up" button, one row on the
-column's own hairline, the question on the spine everything else is set to.
-Never call it a waitlist; entering an email is a request answered within
-days, and the confirmation says "Got it. We will get back to you within a
-few days", not queue language.
+1. "NEW HERE?": "Telarchy prices what a decision does to a number before
+   anyone commits." and the link "How it works" to the guide, because
+   that is the one thing the working market cannot show.
+2. "DO THE WORK": "Offer to do it and name your price. The owner pays in
+   real money if the market says it clears." and the link "Offer a
+   proposal", which SCROLLS to the proposal rail rather than duplicating
+   its control.
+3. "YOUR OWN NUMBERS": the company-facing slogan, "See what a decision
+   does to your numbers before you say yes.", over the email field and
+   its "Get set up" button (the same request as before: answered within
+   days, never a waitlist; the confirmation reads "Got it. We will get
+   back to you within a few days."). This cell is where the owner
+   sentence lives on every floor.
+
+The links are quiet accent text with an arrow, never buttons: the one
+control this page wants pressed is above them.
 
 The ballot, charter, decided list, pitch and footer are deliberately not
 rendered; the API still ships them, so each returns as a render change.
@@ -1852,14 +1870,16 @@ that tie, keep their arrival order, so the grid does not jump as payloads
 come in except to move a card up to its place.
 
 The last cell of the board is always the listing cell, and it is the only
-interactive one: it spans two columns where the row has room, and reads
-"Put your own number up here." over "A company, a project, or something you
-run yourself. Name it, add the number, share the link. Forecasts start with
-the first trade." and an accent "Create your own" link with an arrow. "Put
-up" is what a trader says; "list" is what a marketplace says. The last
-sentence answers the doubt a visitor actually has: what happens after they
-press it. Signed in it opens the create dialog; signed out it is the door
-to signing up. Listing is part of the marketplace, never a quiet line
+interactive one: it spans two columns where the row has room, and it is
+where the company-facing sentence lives on the home page (owner pick
+2026-09-04, cell B on the floor canvas): a mono small-caps label "YOUR OWN
+NUMBERS", then "See what a decision does to your numbers before you say
+yes." in the display face, then "List the metrics you care about.
+Traders, human or AI, price every proposal against them; you approve on a
+calibrated number.", then an accent "Create your own" link with an arrow.
+The headline above the board stays trader-first; this cell is the owner's
+door. Signed in the link opens the create dialog; signed out it is the
+door to signing up. Listing is part of the marketplace, never a quiet line
 underneath it.
 
 **Card copy says only what is unique.** The per-card line is the

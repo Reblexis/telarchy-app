@@ -64,6 +64,20 @@ from (`notes/yc-landing-explainer-2026-09-01.md`). `/for-agents` and
 stays under 400 words, and a test fails when one grows past that or stops
 drawing.
 
+`/owners` is laid out as a board rather than a document (owner ask
+2026-09-04, from the floor canvas), in the language of the home page
+(docs/ui-conventions.md, "The marketplace"): the H1 centred as the hero
+with the lead under it and ONE pill action; the three `###` sections that
+carry a `VIZ:` as three cells of one hairline-ruled row, each cell the
+section heading as a mono small-caps label, the bold lead as one sentence
+in the display face, the drawing, then the rest of the paragraph; "Setting
+up" and the FAQ side by side as two hairline lists (the numbered steps
+with their numbers in accent mono, the questions in the display face
+beside their answers); and the `CTA:` line as one closing row on hairlines,
+the first link a pill and the rest quiet accent links. The copy is the
+copy below, unchanged; only the shape differs. The other pages keep the
+document column.
+
 The comparison pages are the exception and keep their prose: a side-by-side
 table IS the picture a comparison wants, and they were already the shortest
 pages on the site. On `/for-agents` the picture is partly a fenced block,
