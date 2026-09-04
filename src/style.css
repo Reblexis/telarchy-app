@@ -6543,11 +6543,12 @@ textarea.jobform-line--desc {
   stroke-linecap: round;
   opacity: 0.9;
   vector-effect: non-scaling-stroke;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: mkt-draw 0.9s ease-out 0.2s forwards;
+  /* A fade, not a dash-drawn line: a dash the length of the path does not
+     survive the non-scaling stroke under a stretched viewBox, and the line
+     stopped short of its own dot (owner report 2026-09-04). */
+  animation: mkt-spark-in 0.6s ease-out both;
 }
-@keyframes mkt-draw { to { stroke-dashoffset: 0; } }
+@keyframes mkt-spark-in { from { opacity: 0; } to { opacity: 0.9; } }
 .mkt-spark-area { fill: var(--accent); opacity: 0.06; stroke: none; }
 .mkt-spark-dot { fill: var(--accent); }
 
@@ -6631,7 +6632,7 @@ textarea.jobform-line--desc {
   .pubws-ghost::after { animation: none; }
   .pubws-progress { animation: none; width: 70%; }
   .pubws-rise { animation: none; opacity: 1; }
-  .mkt-spark-line { animation: none; stroke-dashoffset: 0; }
+  .mkt-spark-line { animation: none; }
 }
 
 /* The rail's way out to the whole field (owner direction 2026-08-17,

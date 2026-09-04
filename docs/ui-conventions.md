@@ -82,7 +82,7 @@ empty room. Three rules, in order of effect:
    `null`).
 3. **Content rises in, in order.** Landed content gets `.pubws-rise`
    (opacity and 10px of travel, 0.55s), staggered 60 ms per sibling from
-   the top, and a chart draws itself once; nothing loops. While anything
+   the top, and a chart fades in once; nothing loops. While anything
    is still pending a 2px accent hairline runs under the top bar
    (`.pubws-progress`, to 70% in 0.9s, then to 100% and fading when the
    page is whole).
@@ -1730,8 +1730,8 @@ visitor who arrives at telarchy.com sees the numbers in the first paint and
 the ghosts only on a client-side return to the page. The home page makes
 ONE request, never one per card; the season strip is part of the same
 payload. When the payload lands the cells rise in 60 ms steps, top to
-bottom (`.mkt-rise`), and each spark draws itself once. Never a dot, never
-a spinner, never a blank.
+bottom (`.mkt-rise`), and each spark fades in once. Never a dot, never a
+spinner, never a blank.
 
 Above the board, the headline and the lead are the one place the whole
 mechanism is stated in plain words. The headline is "Real companies'

@@ -4011,7 +4011,7 @@ over an empty column (<code>lazy-page.tsx</code> renders <code>PageShell</code>,
 <code>null</code>).</li>
 <li><strong>Content rises in, in order.</strong> Landed content gets <code>.pubws-rise</code>
 (opacity and 10px of travel, 0.55s), staggered 60 ms per sibling from
-the top, and a chart draws itself once; nothing loops. While anything
+the top, and a chart fades in once; nothing loops. While anything
 is still pending a 2px accent hairline runs under the top bar
 (<code>.pubws-progress</code>, to 70% in 0.9s, then to 100% and fading when the
 page is whole).</li>
@@ -5518,8 +5518,8 @@ visitor who arrives at telarchy.com sees the numbers in the first paint and
 the ghosts only on a client-side return to the page. The home page makes
 ONE request, never one per card; the season strip is part of the same
 payload. When the payload lands the cells rise in 60 ms steps, top to
-bottom (<code>.mkt-rise</code>), and each spark draws itself once. Never a dot, never
-a spinner, never a blank.</p>
+bottom (<code>.mkt-rise</code>), and each spark fades in once. Never a dot, never a
+spinner, never a blank.</p>
 <p>Above the board, the headline and the lead are the one place the whole
 mechanism is stated in plain words. The headline is &quot;Real companies'
 numbers. Bet where they land, get paid if you're right.&quot; and the lead is
