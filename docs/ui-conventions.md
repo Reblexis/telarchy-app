@@ -1678,7 +1678,8 @@ rule underneath), each cell on the page background, so the page reads as a
 single instrument that grows with the list rather than as five panels. A
 cell carries, in this order: the workspace name (Fraunces), one mono
 caption line in small caps naming the metric and when it settles ("NET
-REVENUE · SETTLES 30 SEP"), the live number as the largest thing in the
+REVENUE · SETTLES 30 SEP", the day in short form with the full date as the
+hover title), the live number as the largest thing in the
 cell (accent mono, 2.1rem), the owner's own one-line description (two
 lines, then clipped), THE MARKET ITSELF as a full-width step-line spark of
 the hero market's real trade history ending on the live-call dot (same

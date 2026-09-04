@@ -77,6 +77,12 @@ function byLiquidity(a: Listing, b: Listing): number {
   return (b.liquidity ?? -1) - (a.liquidity ?? -1);
 }
 
+/** "31 December 2026" -> "31 Dec", the caption's short form; the full day is
+ *  the hover title. */
+function shortDay(day: string): string {
+  return day.replace(/^(\d+) ([A-Za-z]{3})[A-Za-z]* \d{4}$/, '$1 $2');
+}
+
 function fmtHero(v: number, unit: string): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
   return unit + v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -469,7 +475,9 @@ export function FloorsPage() {
                       {r.hero.settles && (
                         <>
                           {' · '}
-                          <span className="mkt-cell-settles">settles {r.hero.settles}</span>
+                          <span className="mkt-cell-settles" title={`settles ${r.hero.settles}`}>
+                            settles {shortDay(r.hero.settles)}
+                          </span>
                         </>
                       )}
                     </span>
