@@ -1545,3 +1545,25 @@ right." with "Forecast free" in the lead. Also that day: the spark fades in
 instead of drawing on (the dash-drawn line stopped short of its dot), and
 the season strip says the pool is split in proportion to profit, the rule
 since 2026-08-28.
+
+## 2026-09-04: the floor, /owners and the listing cell in the language of the board
+
+**Asked (Viktor):** "can you redesign those too", both the owner surfaces
+and the floor page; then "ok do it in beta i want to see this"; then, after
+the preview, "ok publish".
+
+From the floor canvas: the floor's two segmented picker rows and the
+Metrics and Dates buttons became one caption line of two dropdown chips
+(reversing the 2026-08-28 ask that both rows stay visible, tried on the
+preview and kept), the reading and the market's call became two cells on
+hairlines, the rails got vertical hairlines, and the page ends on a
+three-cell board whose third cell carries the company-facing sentence
+("See what a decision does to your numbers before you say yes.") over the
+email field. /owners is a board: hero, three cells with their drawings,
+setup and FAQ side by side, one closing row. The home board's listing
+cell is cell B, the owner sentence. Kept as is: the hero chart, "How the
+call moved" (Viktor: "what about the market visualization.. why did you
+remove that", it was only absent from the mockup), the ticket, the rails'
+contents. Two preview defects fixed before publishing: an open chip menu
+painted under the question line, and the end board sat inside the floor
+grid where sticky rails slid over it.
