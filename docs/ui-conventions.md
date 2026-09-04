@@ -432,7 +432,8 @@ had already taught the caption's shape):
   settle day ("THIS MONTH · SETTLES 30 SEP"; `dateSegmentOf` computes both
   from the market, never stored on the metric); its menu lists the
   metric's open dates soonest first, and for the owner a last entry
-  "Manage dates" that opens the dates dialog (the former "Dates" button).
+  "Manage dates" that opens the metric's sheet, where the dates are rows
+  (docs/owner-on-the-floor.md, dialog 2; the former "Dates" button).
   With one open date and nothing to manage the chip is plain text, so the
   settle day never leaves the page.
 - Menus close on a pick, on Escape, and on a click outside; the chip is a

@@ -139,7 +139,7 @@ describe("the owner's entries in the caption menus", () => {
     expect(container.querySelector('.pubws-chip-menu')).toBeNull();
   });
 
-  test('the owner sees "Manage dates" last in the date menu, opening the dates dialog', async () => {
+  test('the owner sees "Manage dates" last in the date menu, opening the metric sheet with its date rows', async () => {
     const { container } = renderFloor();
     // One date on this floor, so the chip is a menu only once the page
     // knows the viewer can manage (the profile read lands after the floor).
@@ -150,7 +150,10 @@ describe("the owner's entries in the caption menus", () => {
     const options = within(menu).getAllByRole('option');
     expect(options.map(o => o.textContent)).toEqual(['31 Dec', 'Manage dates']);
     fireEvent.click(options[1]);
-    await waitFor(() => expect(screen.getByRole('dialog', { name: /dates/i })).toBeTruthy());
+    // The dates are rows on the metric's sheet, not a dialog of their own
+    // (docs/owner-on-the-floor.md, dialog 2; owner decision 2026-09-04).
+    // The sheet itself, rows included, is TradePageDatesSheet.test.tsx.
+    await waitFor(() => expect(screen.getByRole('dialog', { name: /metric/i })).toBeTruthy());
     expect(container.querySelector('.pubws-chip-menu')).toBeNull();
   });
 

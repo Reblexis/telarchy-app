@@ -2990,8 +2990,8 @@ entry of <code>timePreference.customHorizons</code> and says what the metric is
 priced on (&quot;Every day&quot;, &quot;Every week&quot;, &quot;31 December 2026, once&quot;), what
 that row's open market holds (next date, pool, traders), and a Stop. Each
 row says what it IS rather than when it next lands, because a repeat and
-a one-off look identical on the floor. The <code>dates</code> chip on the floor's
-date row opens the sheet of the metric on screen.</p>
+a one-off look identical on the floor. &quot;Manage dates&quot;, the last entry of
+the date chip's menu, opens the sheet of the metric on screen.</p>
 <p><strong>Two numbers on every row, in credits: &quot;Book opens with&quot; and &quot;Proposal
 opens with&quot;.</strong> The book is the metric's own market on that date; a
 proposal gets a branch of that book, one pair per row, and the pair is
@@ -4384,7 +4384,8 @@ because &quot;Manage metrics&quot; is their way into the dialog.</p>
 settle day (&quot;THIS MONTH · SETTLES 30 SEP&quot;; <code>dateSegmentOf</code> computes both
 from the market, never stored on the metric); its menu lists the
 metric's open dates soonest first, and for the owner a last entry
-&quot;Manage dates&quot; that opens the dates dialog (the former &quot;Dates&quot; button).
+&quot;Manage dates&quot; that opens the metric's sheet, where the dates are rows
+(docs/owner-on-the-floor.md, dialog 2; the former &quot;Dates&quot; button).
 With one open date and nothing to manage the chip is plain text, so the
 settle day never leaves the page.</p>
 </li>

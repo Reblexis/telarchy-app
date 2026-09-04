@@ -91,8 +91,8 @@ entry of `timePreference.customHorizons` and says what the metric is
 priced on ("Every day", "Every week", "31 December 2026, once"), what
 that row's open market holds (next date, pool, traders), and a Stop. Each
 row says what it IS rather than when it next lands, because a repeat and
-a one-off look identical on the floor. The `dates` chip on the floor's
-date row opens the sheet of the metric on screen.
+a one-off look identical on the floor. "Manage dates", the last entry of
+the date chip's menu, opens the sheet of the metric on screen.
 
 **Two numbers on every row, in credits: "Book opens with" and "Proposal
 opens with".** The book is the metric's own market on that date; a
