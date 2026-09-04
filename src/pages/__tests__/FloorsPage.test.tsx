@@ -143,7 +143,12 @@ describe('marketplace', () => {
     expect(await screen.findByText('Season 0')).toBeInTheDocument();
     // The prize sentence keeps its operative words (the contest rules need
     // them on the page) in one line on hairlines.
-    expect(screen.getByText(/\$1,000 in real money/)).toHaveTextContent(/Free to enter, no purchase, no stake\./);
+    // The pool is split in proportion to profit (docs/seasons.md, amended
+    // 2026-08-28); "whose profit grows the most" described the old ladder
+    // (owner report 2026-09-04).
+    expect(screen.getByText(/\$1,000 in real money/)).toHaveTextContent(
+      'in real money, split among the traders in proportion to their profit. Free to enter, no purchase, no stake.',
+    );
     const cta = screen.getByRole('link', { name: 'Enter the season' });
     expect(cta).toHaveAttribute('href', '/season');
   });

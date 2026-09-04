@@ -262,8 +262,8 @@ function SeasonDoor({ season }: { season: PrizeSeason | null }) {
         {clock.headline}
       </p>
       <p className="mkt-season-line">
-        ${season.poolUsd.toLocaleString()} in real money to the traders whose profit grows the most. Free to enter, no
-        purchase, no stake.
+        ${season.poolUsd.toLocaleString()} in real money, split among the traders in proportion to their profit. Free to
+        enter, no purchase, no stake.
       </p>
       <Link className="mkt-season-cta" to="/season">
         {clock.entryOpen ? 'Enter the season' : 'See the season'}

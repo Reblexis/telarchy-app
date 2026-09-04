@@ -1745,8 +1745,10 @@ person with a number to put up. Never "one number": the pitch is the set a
 company cares about (owner rule 2026-08-27). The paid-proposal mechanism
 belongs to each market's own page, not the front door. The season sits
 between them as ONE line on hairlines (`.mkt-season`): the season name in
-accent small caps, the clock in mono, the prize sentence with its operative
-words ("Free to enter, no purchase, no stake"), and the door as a pill on
+accent small caps, the clock in mono, the prize sentence ("$1,000 in real
+money, split among the traders in proportion to their profit", the rule in
+docs/seasons.md) with its operative words ("Free to enter, no purchase, no
+stake"), and the door as a pill on
 the right. A faint radial accent glow (`.mkt-glow`, 9% accent at the
 centre, gone by 62%) sits behind the headline for depth; it is the only
 gradient on the page.
