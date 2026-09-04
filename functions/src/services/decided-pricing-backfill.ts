@@ -12,8 +12,18 @@
  * notes/reanchor-2026-09-02-before.json) and it is used in place of the
  * live shares for any market that has never traded.
  *
- * Idempotent: a proposal that already carries a record is left alone.
+ * Only the pairs that were OPEN at the decision are recorded: a market whose
+ * resolvedAt (settlement or void) is earlier than the decision was not what
+ * the owner ruled on. The branch voided BY the decision carries a resolvedAt
+ * a few hundred milliseconds before the proposal's, so "earlier" allows a
+ * one-minute grace.
+ *
+ * Idempotent: a proposal that already carries a record is left alone, unless
+ * `recompute` is set, which rewrites every decided proposal (used once on
+ * 2026-09-04 after the first backfill recorded retired horizons).
  */
+const DECISION_GRACE_MS = 60_000;
+
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '../db/client';
 import { type DecidedPair, markets, proposals } from '../db/schema';
@@ -59,11 +69,13 @@ export async function priceAt(
 export async function backfillDecidedPricing(opts: {
   overrides?: Map<string, BookOverride>;
   apply: boolean;
+  recompute?: boolean;
 }): Promise<BackfillResult[]> {
+  const decided = inArray(proposals.status, ['approved', 'declined']);
   const rows = await db
     .select()
     .from(proposals)
-    .where(and(inArray(proposals.status, ['approved', 'declined']), isNull(proposals.decidedPricing)));
+    .where(opts.recompute ? decided : and(decided, isNull(proposals.decidedPricing)));
   const out: BackfillResult[] = [];
   for (const p of rows) {
     if (!p.resolvedAt) continue;
@@ -74,6 +86,7 @@ export async function backfillDecidedPricing(opts: {
     const byKey = new Map<string, DecidedPair>();
     for (const m of books) {
       if (!m.branch) continue;
+      if (m.resolvedAt && m.resolvedAt.getTime() < p.resolvedAt.getTime() - DECISION_GRACE_MS) continue;
       const key = `${m.metricId}|${m.targetDate}`;
       const pair = byKey.get(key) ?? {
         metricId: m.metricId,

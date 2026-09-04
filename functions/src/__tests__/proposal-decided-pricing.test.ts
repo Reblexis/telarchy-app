@@ -195,4 +195,55 @@ describe('a decision records the pair prices it was made on', () => {
     expect(pair.approved!.consensus).toBe(priced.approved);
     expect(pair.delta).toBe(priced.approved! - priced.declined!);
   });
+
+  test('a pair that had already settled or been retired before the decision is not in the record', async () => {
+    await seed();
+    // A 2026-08 horizon on the same metric that settled a week ago, whose
+    // books read a clamp-era 1 vs 25 that nobody ever traded (the shape that
+    // read -24 on the Telarchy rail on 2026-09-04). Settled, not voided:
+    // a settled market is just as much not open.
+    await db.insert(markets).values([
+      {
+        id: 'mkt-old-appr',
+        workspaceId: WS,
+        metricId: METRIC,
+        metricName: 'Active traders',
+        targetDate: '2026-08',
+        rangeMin: 0,
+        rangeMax: 50,
+        shares: [248.7, 0],
+        liquidity: 63.9,
+        pool: initialPool(63.9),
+        active: true,
+        resolved: true,
+        voided: false,
+        actualValue: 3,
+        resolvedAt: new Date(Date.now() - 7 * 86400_000),
+        proposalId: 'p1',
+        branch: 'approved',
+      },
+      {
+        id: 'mkt-old-decl',
+        workspaceId: WS,
+        metricId: METRIC,
+        metricName: 'Active traders',
+        targetDate: '2026-08',
+        rangeMin: 0,
+        rangeMax: 50,
+        shares: [0, 0],
+        liquidity: 360,
+        pool: initialPool(360),
+        active: true,
+        resolved: true,
+        voided: false,
+        actualValue: 3,
+        resolvedAt: new Date(Date.now() - 7 * 86400_000),
+        proposalId: 'p1',
+        branch: 'declined',
+      },
+    ]);
+    await approveProposal('p1', WS, OWNER);
+    const recorded = await decidedPricing();
+    expect(recorded!.map(d => d.targetDate)).toEqual([TARGET]);
+  });
 });
