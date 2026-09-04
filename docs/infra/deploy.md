@@ -867,7 +867,9 @@ payouts. Records: `notes/bug-hunt-2026-08-31.md`, P0-3.
   `dailyresolve` / `dailymarketrefresh` Cloud Run services, whose images
   dated from March and April and answered 500 on every run (one could not
   reach Cloud SQL at all, the other queried a `markets.task_id` column that
-  no longer exists). Nothing rolled or resolved on a schedule for months;
+  no longer exists). Both services were deleted on 2026-09-04 (they had
+  billed about $10 of instance time in August for nothing); the only cron
+  targets are the `api` service's `/api/cron/*` routes. Nothing rolled or resolved on a schedule for months;
   markets only kept moving because the agent fleet calls
   `POST /api/predictions/markets/refresh` as it works. Repoint with
   `gcloud scheduler jobs update http <job> --uri=... --update-headers=...`

@@ -10826,7 +10826,9 @@ schedule</strong>: until 2026-08-30 both still pointed at the retired
 <code>dailyresolve</code> / <code>dailymarketrefresh</code> Cloud Run services, whose images
 dated from March and April and answered 500 on every run (one could not
 reach Cloud SQL at all, the other queried a <code>markets.task_id</code> column that
-no longer exists). Nothing rolled or resolved on a schedule for months;
+no longer exists). Both services were deleted on 2026-09-04 (they had
+billed about $10 of instance time in August for nothing); the only cron
+targets are the <code>api</code> service's <code>/api/cron/*</code> routes. Nothing rolled or resolved on a schedule for months;
 markets only kept moving because the agent fleet calls
 <code>POST /api/predictions/markets/refresh</code> as it works. Repoint with
 <code>gcloud scheduler jobs update http &lt;job&gt; --uri=... --update-headers=...</code>
