@@ -52,6 +52,18 @@ wordmark never floats aligned to nothing.
 Horizontal padding belongs to the column (`.pubws-main`, `.pubws-doc`),
 never to the blocks inside it, so left edges align down the page.
 
+**Blocks of text are left-aligned.** A headline, a price, a caption, a
+link row, a button, or any other line that stays one line may sit centred
+under a centred title. Anything that wraps (a lead sentence under a
+headline, a description, an empty-state explanation, a note under a
+control, form help) is set `text-align: left`, whatever its container
+does: a ragged left edge is harder to read than a ragged right one, and a
+centred paragraph under a centred title is the poster look the site does
+not use. The block may still be a narrow column centred by its margins
+(`max-width` + `margin: auto`); it is the text inside that is left-aligned.
+`src/__tests__/left-aligned-text.test.ts` names the prose classes and
+checks each declares it (owner rule 2026-09-04, notes/decisions/ui-conventions.md).
+
 On every page, a build published while the page stayed open shows as one
 small pill in the bottom right, `.pubws-update`, reading "new version ·
 reload"; pressing it reloads. It is the only fixed element the app draws over
@@ -1743,7 +1755,7 @@ last line is the row that opens Otto (see "Otto").
 
 `AnnouncementsPage` (`/:slug/announcements`) is a poster head over a
 document body: the workspace name as a tiny uppercase back-link, the
-Fraunces headline "Announcements", and one centred sentence naming the
+Fraunces headline "Announcements", and one left-aligned sentence naming the
 guarantee, over a left aligned `.pubws-doc` column of hairline-separated
 entries. Each entry's publication instant is set in `var(--font-mono)`,
 which is the page's one structural device: in an append-only record the

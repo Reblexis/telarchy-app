@@ -2380,6 +2380,7 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
   font-size: clamp(1.15rem, 3.4vw, 1.45rem);
   line-height: 1.35;
   color: var(--text-primary);
+  text-align: left;
 }
 
 .pubws-pitch a { color: var(--text-primary); }
@@ -2617,7 +2618,7 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   font-size: 0.7rem;
   letter-spacing: 0.04em;
   color: var(--text-tertiary);
-  text-align: center;
+  text-align: left;
 }
 
 /* The gap to the price, directly under the number and above the bet. One
@@ -2629,7 +2630,7 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   font-size: 0.9rem;
   line-height: 1.55;
   color: var(--text-secondary);
-  text-align: center;
+  text-align: left;
 }
 
 .pubws-gap b { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-primary); }
@@ -2721,7 +2722,7 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   font-size: 0.84rem;
   line-height: 1.5;
   color: var(--text-secondary);
-  text-align: center;
+  text-align: left;
 }
 
 /* Each chart's title, centred in its control row: the same tiny uppercase
@@ -4603,7 +4604,7 @@ textarea.jobform-line--desc {
   margin: 0;
   font-size: 0.75rem;
   color: var(--text-tertiary);
-  text-align: center;
+  text-align: left;
 }
 
 /* Stale-tab guard: one quiet pill offering the reload after a deploy
@@ -4634,7 +4635,7 @@ textarea.jobform-line--desc {
   font-size: 0.72rem;
   color: var(--text-tertiary);
   max-width: 52ch;
-  text-align: center;
+  text-align: left;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -6237,6 +6238,7 @@ textarea.jobform-line--desc {
   font-size: 0.95rem;
   line-height: 1.45;
   color: var(--text-secondary);
+  text-align: left;
 }
 
 /* The manager's in-place definition editor. */
@@ -6617,7 +6619,7 @@ textarea.jobform-line--desc {
   position: relative;
   margin: 1.1rem auto 0;
   max-width: 36rem;
-  text-align: center;
+  text-align: left;
   font-size: 1.03rem;
   line-height: 1.55;
   color: var(--text-secondary);
@@ -6923,7 +6925,7 @@ textarea.jobform-line--desc {
 .lbp-lead {
   margin: 0.8rem auto clamp(2rem, 5vh, 3rem);
   max-width: 32rem;
-  text-align: center;
+  text-align: left;
   font-size: 0.95rem;
   line-height: 1.55;
   color: var(--text-secondary);
@@ -7487,7 +7489,7 @@ textarea.jobform-line--desc {
   font-size: 0.9rem;
   line-height: 1.55;
   color: var(--text-secondary);
-  text-align: center;
+  text-align: left;
 }
 .seasonp-enter {
   margin: 1.5rem 0 2rem;
@@ -7594,7 +7596,7 @@ textarea.jobform-line--desc {
   font-size: 0.8rem;
   line-height: 1.55;
   color: var(--text-tertiary);
-  text-align: center;
+  text-align: left;
 }
 /* The rule-change block collapses to its newest line (owner ask 2026-08-28:
    "the rule changes are way too many"): the summary IS the current
@@ -7702,7 +7704,7 @@ textarea.jobform-line--desc {
 .adm-lead {
   margin: 0.8rem auto clamp(2rem, 5vh, 3rem);
   max-width: 32rem;
-  text-align: center;
+  text-align: left;
   font-size: 0.95rem;
   line-height: 1.55;
   color: var(--text-secondary);
@@ -8041,7 +8043,7 @@ textarea.jobform-line--desc {
 .annp-lead {
   margin: 0.8rem auto clamp(2rem, 5vh, 3rem);
   max-width: 34rem;
-  text-align: center;
+  text-align: left;
   font-size: 0.95rem;
   line-height: 1.55;
   color: var(--text-secondary);
@@ -8107,6 +8109,7 @@ textarea.jobform-line--desc {
   font-size: 0.95rem;
   line-height: 1.55;
   color: var(--text-secondary);
+  text-align: left;
 }
 
 /* When the words were written, when the figures were read, and the route
@@ -8576,6 +8579,7 @@ textarea.jobform-line--desc {
   font-size: 0.92rem;
   line-height: 1.55;
   color: var(--text-secondary);
+  text-align: left;
 }
 
 .setup-log {
@@ -9087,6 +9091,7 @@ textarea.jobform-line--desc {
   font-size: 0.85rem;
   line-height: 1.55;
   color: var(--text-secondary);
+  text-align: left;
 }
 .pubws-publish-go {
   margin-top: 0.9rem;

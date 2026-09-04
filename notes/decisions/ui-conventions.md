@@ -1567,3 +1567,16 @@ remove that", it was only absent from the mockup), the ticket, the rails'
 contents. Two preview defects fixed before publishing: an open chip menu
 painted under the question line, and the end board sat inside the floor
 grid where sticky rails slid over it.
+
+## 2026-09-04: blocks of text are left-aligned
+
+**Asked (Viktor):** "please stop usingcenter aligned blocks of text
+anywher ein telarchy .. i dont mind single liners or titles but blocks of
+text shouldnt be cetner algigned".
+
+Every multi-line paragraph the site centred (the lead sentences under the
+home, leaderboard, season, admin, announcements and data-room headlines,
+the floor's gap sentence and horizon summary, the N/A caveat, the proposal
+cost note, the publish band, the door leads, the workspace tagline) is now
+left-aligned inside its centred column. Headlines, prices, captions, link
+rows and buttons stay centred. A scan test names the prose classes.
