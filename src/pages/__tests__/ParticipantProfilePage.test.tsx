@@ -233,7 +233,7 @@ describe('the stats strip', () => {
     const tr = await screen.findByTestId('prof-stat-trades');
     expect(tr.textContent).toContain('5');
     expect(tr.textContent).toContain('11,244 cr traded');
-    expect(tr.textContent).toContain('last 2h ago');
+    expect(tr.textContent).toContain('2h ago');
   });
 
   test('a loss reads red', async () => {

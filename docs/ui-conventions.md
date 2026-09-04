@@ -255,7 +255,7 @@ disagrees with another page:
 - **Balance**: the participant's tradeable credits right now, platform-wide
   (the live point of the balance history), with "N cr in positions"
   beneath: what their open positions are worth at the current call, summed.
-- **Trades**: how many, with "N cr traded · last <ago>" beneath. The
+- **Trades**: how many, with "N cr traded · <ago>" beneath. The
   traded figure is credits moved by their buys and sells on public floors;
   redemptions are not trades and do not count.
 

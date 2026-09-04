@@ -390,7 +390,7 @@ export function ParticipantProfilePage() {
                 <span className="prof-stat-val">{profile.stats.totalTrades.toLocaleString('en-US')}</span>
                 <span className="prof-stat-sub">
                   {profile.stats.totalTrades > 0
-                    ? `${fmtNum(profile.stats.tradedVolume ?? 0)} cr traded · last ${timeAgo(profile.stats.lastTradeAt)}`
+                    ? `${fmtNum(profile.stats.tradedVolume ?? 0)} cr traded · ${timeAgo(profile.stats.lastTradeAt)}`
                     : 'none yet'}
                 </span>
               </div>
