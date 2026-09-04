@@ -2086,9 +2086,6 @@ button.notif-row-link {
   font-variant-numeric: tabular-nums;
   font-size: 0.72rem;
   color: var(--text-tertiary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 @media (max-width: 480px) {
   .prof-stat { padding: 0.75rem 0.5rem; }
