@@ -3953,6 +3953,10 @@ textarea.jobform-line--desc {
 .floor-modal-shell {
   position: relative;
   width: min(30rem, 100%);
+  /* A grid item's min-width is its content's min-content, so a sheet with
+     a wide table pushed the whole modal to 480px on a 390px phone
+     (2026-09-04). It must shrink to the overlay. */
+  min-width: 0;
   max-height: min(88vh, 44rem);
   display: flex;
 }
@@ -9417,6 +9421,10 @@ textarea.jobform-line--desc {
   border-collapse: collapse;
   font-size: 0.86rem;
   color: var(--text-primary);
+  /* A table on this site inherits nowrap; these cells must wrap or the
+     four columns measure 469px in a 299px sheet on a phone. Only the
+     number-and-unit pair keeps its nowrap (.metrics-dates-cell). */
+  white-space: normal;
 }
 .metrics-dates-table th {
   padding: 0 0.3rem 0.4rem 0;
