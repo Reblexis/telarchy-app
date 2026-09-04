@@ -2087,10 +2087,16 @@ button.notif-row-link {
   font-size: 0.72rem;
   color: var(--text-tertiary);
 }
+/* A phone's three cells are 110px wide: the unit goes, the sub-lines
+   wrap, and a six-figure balance still fits on its line. */
 @media (max-width: 480px) {
   .prof-stat { padding: 0.75rem 0.5rem; }
-  .prof-stat-val { font-size: 1.05rem; }
+  .prof-stat:first-child { padding-left: 0; }
+  .prof-stat:last-child { padding-right: 0; }
+  .prof-stat-val { font-size: 1rem; }
+  .prof-stat-unit { display: none; }
   .prof-stat-sub { font-size: 0.66rem; }
+  .prof-row-right .prof-row-sub { white-space: normal; text-align: right; max-width: 7.5rem; }
 }
 
 .prof-chart { margin-top: 1.25rem; }
