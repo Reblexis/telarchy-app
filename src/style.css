@@ -2096,7 +2096,6 @@ button.notif-row-link {
   .prof-stat-val { font-size: 1rem; }
   .prof-stat-unit { display: none; }
   .prof-stat-sub { font-size: 0.66rem; }
-  .prof-row-right .prof-row-sub { white-space: normal; text-align: right; max-width: 7.5rem; }
 }
 
 .prof-chart { margin-top: 1.25rem; }
@@ -2155,6 +2154,11 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
 .prof-row-profit { font-weight: 600; }
 .prof-row-profit.is-up { color: var(--higher); }
 .prof-row-profit.is-down { color: var(--lower); }
+/* After the row rules, so it wins on a phone: the worth and spent line
+   wraps under the profit instead of running past the column. */
+@media (max-width: 480px) {
+  .prof-row-right .prof-row-sub { white-space: normal; text-align: right; max-width: 7.5rem; }
+}
 
 /* Import Manifold (owner ask 2026-08-11): a Manifold glyph beside the
    Discord one, same quiet grow-a-label treatment; the import was too
