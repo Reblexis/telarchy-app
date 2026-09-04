@@ -1502,8 +1502,12 @@ export const api = {
   // The Manifold update (docs/manifold-update.md): the standings comment the
   // owner posts on the recruiting market, written server-side so it agrees
   // with the season page to the cent. Platform admin only.
-  manifoldUpdate: (): Promise<{ text: string; linked: number; seasonId: string | null; generatedAt: string }> =>
-    request('/api/admin/manifold-update'),
+  manifoldUpdate: (): Promise<{
+    text: string;
+    linked: number;
+    seasonId: string | null;
+    generatedAt: string;
+  }> => request('/api/admin/manifold-update'),
 
   // The X workbench (docs/x-workbench.md). Platform admin only; every call
   // goes through this module, like every other call the UI makes.
@@ -1531,6 +1535,13 @@ export const api = {
     request('/api/admin/x/compose', {
       method: 'POST',
       body: JSON.stringify(input),
+    }),
+  /** A question about what to post, answered from his record and the playbook
+   *  (docs/x-workbench.md, "Asking it what to post"). */
+  xAsk: (messages: { role: 'user' | 'assistant'; content: string }[]): Promise<{ answer: string }> =>
+    request('/api/admin/x/ask', {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
     }),
   xRecordReply: (input: {
     kind?: 'reply' | 'post';

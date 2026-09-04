@@ -24,7 +24,9 @@ function answerOf(turn: Turn): string {
  * stays on screen, both sides of it, instead of each draft replacing the last.
  */
 export function XWorkbench() {
-  const [mode, setMode] = useState<'reply' | 'post'>('reply');
+  const [mode, setMode] = useState<'reply' | 'post' | 'ask'>('reply');
+  const [askTurns, setAskTurns] = useState<Turn[]>([]);
+  const [question, setQuestion] = useState('');
   const [idea, setIdea] = useState('');
   const [input, setInput] = useState('');
   const [post, setPost] = useState<XPost | null>(null);
@@ -121,7 +123,25 @@ export function XWorkbench() {
       .finally(() => setBusy(''));
   };
 
-  const switchMode = (m: 'reply' | 'post') => {
+  /** A question, answered from his record and the playbook; the turns are
+   *  kept so a follow-up means what it meant. */
+  const askIt = () => {
+    const q = question.trim();
+    if (!q) return;
+    setErr('');
+    setBusy('ask');
+    const next = [...askTurns, { role: 'user' as const, content: q }];
+    api
+      .xAsk(next)
+      .then(r => {
+        setAskTurns([...next, { role: 'assistant', content: r.answer }]);
+        setQuestion('');
+      })
+      .catch(e => setErr((e as Error).message))
+      .finally(() => setBusy(''));
+  };
+
+  const switchMode = (m: 'reply' | 'post' | 'ask') => {
     if (m === mode) return;
     setMode(m);
     setDraft(null);
@@ -205,7 +225,7 @@ export function XWorkbench() {
   const intent = edited.trim()
     ? `https://x.com/intent/post?text=${encodeURIComponent(edited)}${mode === 'reply' && post ? `&in_reply_to=${post.id}` : ''}`
     : '';
-  const ready = mode === 'post' ? idea.trim() : text.trim();
+  const ready = mode === 'ask' ? '' : mode === 'post' ? idea.trim() : text.trim();
 
   return (
     <section className="adm-block">
@@ -351,9 +371,50 @@ export function XWorkbench() {
         <button className="adm-paygo" aria-pressed={mode === 'post'} onClick={() => switchMode('post')}>
           Write a post
         </button>
+        <button className="adm-paygo" aria-pressed={mode === 'ask'} onClick={() => switchMode('ask')}>
+          Ask
+        </button>
       </div>
 
-      {mode === 'reply' ? (
+      {mode === 'ask' ? (
+        <div className="xw-draft">
+          {/* The conversation, oldest first; the answer is the thing, so it
+              is not tucked under a draft here. */}
+          {askTurns.length ? (
+            <ul className="adm-list xw-turns">
+              {askTurns.map((t, i) => (
+                <li key={i} className={t.role === 'user' ? 'adm-sub' : 'adm-sub xw-answer'}>
+                  {t.role === 'user' ? `you: ${t.content}` : t.content}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="adm-sub">
+              It answers from what you have sent here and what it earned, then from what is measured to travel on X for
+              founders in this space (the ranking code, benchmarks, a sample, comparable founders, YC), and says which.
+            </p>
+          )}
+          <form
+            className="adm-payform"
+            onSubmit={e => {
+              e.preventDefault();
+              askIt();
+            }}
+          >
+            <input
+              className="adm-payq"
+              placeholder="Ask it: what kind of posts should I do, is this idea worth a post, why did that reply earn nothing?"
+              value={question}
+              onChange={e => setQuestion(e.target.value)}
+            />
+            <button className="adm-paygo" type="submit" disabled={busy === 'ask' || !question.trim() || !configured}>
+              {busy === 'ask' ? 'Thinking' : 'Send'}
+            </button>
+          </form>
+        </div>
+      ) : null}
+
+      {mode === 'ask' ? null : mode === 'reply' ? (
         <form
           className="adm-payform"
           onSubmit={e => {
@@ -383,7 +444,7 @@ export function XWorkbench() {
 
       {err ? <p className="adm-err">{err}</p> : null}
 
-      {mode === 'post' ? null : post ? (
+      {mode !== 'reply' ? null : post ? (
         <div className="xw-post">
           <div className="adm-report-head">
             <strong>@{post.author}</strong>

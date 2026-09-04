@@ -12,6 +12,7 @@ vi.mock('../../lib/api', () => ({
     xLookupPost: vi.fn(),
     xDraftReply: vi.fn(),
     xDraftPost: vi.fn(),
+    xAsk: vi.fn(),
     xRecordReply: vi.fn(),
     xAttachReplyId: vi.fn(),
     xSuggestSearch: vi.fn(),
@@ -409,5 +410,37 @@ describe('the X workbench', () => {
     expect(second[1]).toHaveLength(2);
     expect(second[1][0].role).toBe('assistant');
     expect(second[1][1]).toEqual({ role: 'user', content: 'narrower' });
+  });
+
+  test('Ask: a question gets an answer on screen, and the follow-up carries the conversation', async () => {
+    const ask = api.xAsk as ReturnType<typeof vi.fn>;
+    ask.mockResolvedValueOnce({
+      answer: 'Phase 1 is replies. Your record has no post yet.',
+    });
+    ask.mockResolvedValueOnce({
+      answer: 'Because a one-follower account is retrieved for nobody.',
+    });
+    render(<XWorkbench />);
+    fireEvent.click(screen.getByRole('button', { name: /^ask$/i }));
+    fireEvent.change(screen.getByPlaceholderText(/what kind of posts/i), {
+      target: { value: 'what should i post this week?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^send$/i }));
+    await screen.findByText(/Phase 1 is replies/);
+    expect(ask.mock.calls[0][0]).toEqual([{ role: 'user', content: 'what should i post this week?' }]);
+
+    fireEvent.change(screen.getByPlaceholderText(/what kind of posts/i), {
+      target: { value: 'why replies?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^send$/i }));
+    await screen.findByText(/retrieved for nobody/);
+    // Both questions and both answers stay on screen, in order.
+    expect(screen.getByText(/you: what should i post this week\?/)).toBeTruthy();
+    expect(screen.getByText(/you: why replies\?/)).toBeTruthy();
+    expect(ask.mock.calls[1][0]).toHaveLength(3);
+    expect(ask.mock.calls[1][0][2]).toEqual({
+      role: 'user',
+      content: 'why replies?',
+    });
   });
 });

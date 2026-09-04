@@ -8,6 +8,7 @@
  */
 import { randomUUID } from 'crypto';
 import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { X_PLAYBOOK } from '../content/x-playbook';
 import { db } from '../db/client';
 import { xReplies, xSearches, xVoiceProfile } from '../db/schema';
 import { AppError } from '../lib/errors';
@@ -762,4 +763,91 @@ export async function harvestSearch(searchId: string, ids: string[]) {
     })
     .where(eq(xSearches.id, searchId));
   return { posts, failed };
+}
+
+// --- asking it what to post --------------------------------------------------
+
+const ASK_RULES = `You are the owner's adviser on X (Twitter), inside his workbench. He asks what to post, whether an idea is worth a post, why something earned nothing, what to try next. You are one half of a conversation: answer what he asked, in plain words, and push back when he is wrong.
+
+What you answer from, in this order of trust, and you say which one an answer rests on:
+1. HIS RECORD below: every search, reply and post recorded here, with what each earned. His own base rate beats anyone else's.
+2. The PLAYBOOK below: what is measured to travel on X for founders in his space (the ranking code X published, large-sample benchmarks, a sample read from X, comparable founders' posts, YC's launch and writing advice).
+3. His voice profile, when there is one: who he is and what he can truthfully say.
+
+Rules:
+- A number you quote comes from the record or the playbook, verbatim. Never invent a statistic, a study, a founder's result, or a rule the playbook does not carry. When neither says, say so plainly and say what would answer it.
+- Concrete beats general: when the answer is "post this kind of thing", give him two or three actual post ideas built from facts in the record or the profile, and say that "Write a post" is where a draft happens.
+- Short: two to six sentences most of the time, more only when he asked for a plan. No bullet lists unless he asked for several things. No headings, no markdown. No em-dashes or en-dashes.
+- Avoid the words bet, odds and alignment; "market" is fine.
+
+Hand the answer back through the answer tool.`;
+
+const ANSWER_TOOL = {
+  name: 'answer',
+  description: 'Your answer to him.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      answer: { type: 'string', description: 'The answer, in plain words.' },
+    },
+    required: ['answer'],
+  },
+};
+
+/** Everything recorded here, as the model reads it: searches with their
+ *  yield, then every reply and post with what it earned. */
+async function recordDigest(): Promise<string> {
+  const [searches, rows] = await Promise.all([
+    searchYield(),
+    db.select().from(xReplies).orderBy(desc(xReplies.createdAt)).limit(100),
+  ]);
+  const when = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : '?');
+  const metrics = (r: (typeof rows)[number]) =>
+    r.replyId ? `${r.likes ?? '?'} likes, ${r.replies ?? '?'} replies` : 'no id pasted back, not tracked';
+  const lines = [
+    searches.length
+      ? 'SEARCHES TRIED:\n' +
+        searches
+          .map(
+            s =>
+              `${when(s.createdAt)} "${s.query}": ${s.harvested} posts read, ${s.replies} replies sent, ${s.likes} likes earned`,
+          )
+          .join('\n')
+      : 'SEARCHES TRIED: none yet.',
+    rows.length
+      ? 'REPLIES AND POSTS HE SENT:\n' +
+        rows
+          .map(r =>
+            r.kind === 'post'
+              ? `${when(r.createdAt)} post (${metrics(r)}): ${r.text}`
+              : `${when(r.createdAt)} reply to @${r.sourceAuthor ?? 'unknown'} (${metrics(r)}): ${r.text}`,
+          )
+          .join('\n')
+      : 'REPLIES AND POSTS HE SENT: none recorded yet.',
+  ];
+  return lines.join('\n\n');
+}
+
+/**
+ * A question about what to post, answered from his record and the playbook
+ * (docs/x-workbench.md, "Asking it what to post"). The turns are his, kept
+ * by the caller; the last twenty go back so a follow-up means what it meant.
+ */
+export async function askWorkbench(turns: DraftTurn[]): Promise<{ answer: string }> {
+  const kept = turns.slice(-20);
+  if (!kept.some(t => t.role === 'user' && t.content.trim())) {
+    throw new AppError('Ask something first.', 400);
+  }
+  requireDraftKey();
+  const [profile, record] = await Promise.all([getVoiceProfile(), recordDigest()]);
+  const system =
+    ASK_RULES +
+    `\n\n${X_PLAYBOOK}` +
+    `\n\nHIS RECORD:\n${record}` +
+    (profile ? `\n\nHIS VOICE PROFILE AND THE FACTS HE MAY STATE:\n${profile}` : '\n\nNo voice profile is set.');
+  const body = (await callProposal(system, kept, ANSWER_TOOL, 'Asking')) as ProposalBody;
+  const input = toolInput(body);
+  const answer = clean(input?.answer) || proseOf(body).trim();
+  if (!answer) throw new AppError('Asking: it came back with nothing.', 502);
+  return { answer };
 }

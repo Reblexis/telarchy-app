@@ -7,7 +7,15 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { xReplies } from '../db/schema';
-import { draftingConfigured, draftPost, draftReply, recordReply, suggestSearch } from '../services/x-workbench';
+import {
+  askWorkbench,
+  draftingConfigured,
+  draftPost,
+  draftReply,
+  recordReply,
+  saveSearch,
+  suggestSearch,
+} from '../services/x-workbench';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 beforeAll(async () => {
@@ -366,5 +374,69 @@ describe('recording a post of his own', () => {
     const row = await recordReply({ sourcePostId: '42', text: 'A reply.' });
     expect(row.kind).toBe('reply');
     expect(row.sourcePostId).toBe('42');
+  });
+});
+
+describe('asking it what to post (docs/x-workbench.md, "Asking it what to post")', () => {
+  const env = { ...process.env };
+  afterEach(() => {
+    process.env = { ...env };
+  });
+
+  test('the answer rests on the playbook and his own record, and the question is the last turn', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    await saveSearch('forecasting -filter:replies', 'why');
+    await recordReply({
+      sourcePostId: '42',
+      sourceAuthor: 'someone',
+      text: 'HP beat its forecasts in 6 of 8.',
+    });
+    await recordReply({
+      kind: 'post',
+      text: '244 markets, 233 agents, 4 humans.',
+    });
+    const calls = mockAnthropic({ answer: 'Phase 1 is replies; your one reply has no metrics yet.' }, 'answer');
+    const r = await askWorkbench([{ role: 'user', content: 'what should i post this week?' }]);
+    expect(r.answer).toBe('Phase 1 is replies; your one reply has no metrics yet.');
+    const body = calls[0].body;
+    expect(body.system).toMatch(/PLAYBOOK/);
+    expect(body.system).toMatch(/link[^\n]*first reply/i);
+    expect(body.system).toContain('forecasting -filter:replies');
+    expect(body.system).toContain('HP beat its forecasts in 6 of 8.');
+    expect(body.system).toContain('244 markets, 233 agents, 4 humans.');
+    expect(body.messages[body.messages.length - 1]).toEqual({
+      role: 'user',
+      content: 'what should i post this week?',
+    });
+    expect(body.tools[0].name).toBe('answer');
+  });
+
+  test('prose instead of the tool is still the answer', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    mockFetch(() => ({ content: [{ type: 'text', text: 'Just prose.' }] }));
+    const r = await askWorkbench([{ role: 'user', content: 'q' }]);
+    expect(r.answer).toBe('Just prose.');
+  });
+
+  test('the conversation is bounded to the last twenty turns', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    const calls = mockAnthropic({ answer: 'A' }, 'answer');
+    const turns = Array.from({ length: 30 }, (_, i) => ({
+      role: (i % 2 ? 'assistant' : 'user') as 'user' | 'assistant',
+      content: `turn ${i}`,
+    }));
+    await askWorkbench(turns);
+    expect(calls[0].body.messages).toHaveLength(20);
+    expect(calls[0].body.messages[19].content).toBe('turn 29');
+  });
+
+  test('without a question there is nothing to answer', async () => {
+    process.env.ANTHROPIC_API_KEY = 'anth';
+    await expect(askWorkbench([])).rejects.toMatchObject({ status: 400 });
+  });
+
+  test('without a key it says so with 503', async () => {
+    delete process.env.ANTHROPIC_API_KEY;
+    await expect(askWorkbench([{ role: 'user', content: 'q' }])).rejects.toMatchObject({ status: 503 });
   });
 });

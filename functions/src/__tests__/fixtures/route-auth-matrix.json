@@ -114,6 +114,11 @@
     "agent": 403,
     "master": 200
   },
+  "POST /api/admin/x/ask": {
+    "anon": 401,
+    "agent": 403,
+    "master": 400
+  },
   "POST /api/admin/x/compose": {
     "anon": 401,
     "agent": 403,

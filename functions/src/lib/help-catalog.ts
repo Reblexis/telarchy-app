@@ -1141,6 +1141,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'POST',
+      path: '/api/admin/x/ask',
+      auth: 'admin',
+      description:
+        "Ask what to post on X (platform admin). Body: { messages: [{ role: 'user'|'assistant', content }] }, the conversation so far, last turn the question. Returns { answer }. Answers from the owner's own record (every search, reply and post recorded here with what it earned), then the bundled playbook of what is measured to travel on X for founders in this space (docs/x-workbench.md, 'Asking it what to post'), then the voice profile; says which, and says when none of them answers. Same model settings as /api/admin/x/draft. 503 when the drafting key is not set.",
+    },
+    {
+      method: 'POST',
       path: '/api/admin/x/compose',
       auth: 'admin',
       description:

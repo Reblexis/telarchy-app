@@ -13,6 +13,7 @@ import { AppError } from '../lib/errors';
 import { isPlatformAuthorized } from '../lib/platform-admin';
 import { wrap } from '../lib/wrap';
 import {
+  askWorkbench,
   type DraftTurn,
   draftingConfigured,
   draftPost,
@@ -92,6 +93,20 @@ xWorkbenchRouter.post(
         )
       : [];
     res.json({ draft: await draftPost(idea, messages) });
+  }),
+);
+
+/** A question about what to post, answered from his record and the playbook. */
+xWorkbenchRouter.post(
+  '/ask',
+  wrap(async (req, res) => {
+    await requireOwner(req);
+    const messages = Array.isArray(req.body?.messages)
+      ? (req.body.messages as DraftTurn[]).filter(
+          m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim(),
+        )
+      : [];
+    res.json(await askWorkbench(messages));
   }),
 );
 
