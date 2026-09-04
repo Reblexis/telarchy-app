@@ -139,7 +139,7 @@ export function LeaderboardRail({
           <span className="pubws-lb-avatar">{e.image ? <img src={e.image} alt="" /> : <span>{initial}</span>}</span>
           <span className="pubws-lb-name">{name}</span>
           {e.manifoldUsername && (
-            <span className="pubws-lb-manifold" title={`Imported from Manifold: @${e.manifoldUsername}`}>
+            <span className="pubws-lb-manifold" title={`Linked Manifold account: @${e.manifoldUsername}`}>
               <ManifoldLogo size={13} strokeWidth={1.6} />
             </span>
           )}
