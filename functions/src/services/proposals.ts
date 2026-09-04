@@ -1037,7 +1037,32 @@ export async function getProposalMarketSummariesForProposal(proposalId: string, 
     .select()
     .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId)));
-  return buildProposalMarketSummariesFromRows(rows, workspaceId);
+  const summaries = await buildProposalMarketSummariesFromRows(rows, workspaceId);
+  // A decided proposal is priced on the pair as recorded when the owner
+  // ruled (proposals.decidedPricing), never on its books afterwards (owner
+  // ruling 2026-09-04, docs/ui-conventions.md "Top contractors"). One
+  // substitution here serves the proposal detail, the brief, and every
+  // other reader of the summary. The rest of the branch (liquidity, trade
+  // count, resolution) stays what the books say.
+  const [p] = await db
+    .select({ status: proposals.status, decidedPricing: proposals.decidedPricing })
+    .from(proposals)
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  if (!p || p.status === 'pending' || !p.decidedPricing) return summaries;
+  const recorded = new Map(p.decidedPricing.map(d => [`${d.metricId}:${d.targetDate}`, d]));
+  return summaries.map(pair => {
+    const d = recorded.get(`${pair.metricId}:${pair.targetDate}`);
+    if (!d) return pair;
+    const approved = pair.approved ? { ...pair.approved, consensus: d.approvedConsensus } : null;
+    const declined = pair.declined ? { ...pair.declined, consensus: d.declinedConsensus } : null;
+    return {
+      ...pair,
+      approved,
+      declined,
+      delta:
+        approved?.consensus != null && declined?.consensus != null ? approved.consensus - declined.consensus : null,
+    };
+  });
 }
 
 /**
