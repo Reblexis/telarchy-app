@@ -1,9 +1,9 @@
 /**
  * Backfill proposals.decidedPricing for proposals decided before the record
  * existed (see services/decided-pricing-backfill.ts). Dry run by default;
- * --apply writes.
+ * --apply writes; --recompute rewrites every decided proposal, record or not.
  *
- *   DATABASE_URL=... npx tsx scripts/backfill-decided-pricing.ts [--apply]
+ *   DATABASE_URL=... npx tsx scripts/backfill-decided-pricing.ts [--apply] [--recompute]
  *
  * The untraded books re-anchored by hand on 2026-09-02 are priced from
  * ../notes/reanchor-2026-09-02-before.json, their state before the
@@ -14,6 +14,7 @@ import { resolve } from 'node:path';
 import { type BookOverride, backfillDecidedPricing } from '../src/services/decided-pricing-backfill';
 
 const apply = process.argv.includes('--apply');
+const recompute = process.argv.includes('--recompute');
 const beforePath = resolve(__dirname, '../../notes/reanchor-2026-09-02-before.json');
 const before = JSON.parse(readFileSync(beforePath, 'utf8')) as Array<{
   id: string;
@@ -22,7 +23,7 @@ const before = JSON.parse(readFileSync(beforePath, 'utf8')) as Array<{
 }>;
 const overrides = new Map<string, BookOverride>(before.map(b => [b.id, { shares: b.shares, liquidity: b.liquidity }]));
 
-backfillDecidedPricing({ overrides, apply })
+backfillDecidedPricing({ overrides, apply, recompute })
   .then(rows => {
     for (const r of rows) {
       const pairs = r.pricing.map(p => `${p.targetDate}: ${p.approvedConsensus} vs ${p.declinedConsensus}`).join('; ');

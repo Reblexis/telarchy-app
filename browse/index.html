@@ -5388,8 +5388,10 @@ trade is required, because an opening price is the market's price until
 someone moves it. A pending proposal is valued live, at the pair's
 current prices, so a proposal posted minutes ago scores the moment its
 books are funded. A decided proposal is valued at the moment the owner
-ruled: the pair's prices are recorded on approval or decline and never
-re-read afterwards, because whatever happens to either book later (the
+ruled: the prices of the pairs still open at that moment are recorded on
+approval or decline and never re-read afterwards (a horizon that had
+already settled or been retired before the decision is not something the
+owner ruled on, so it is not in the record), because whatever happens to either book later (the
 losing branch is voided, the winning one keeps trading, an untraded book
 is re-anchored) is not what the decision was priced on. Approved
 proposals score that recorded impact; declined, withdrawn, and removed

@@ -491,7 +491,10 @@ export async function voidProposalMarkets(proposalId: string, workspaceId: strin
  * The pair prices a decision is made on, read from the books at this instant
  * and recorded on the proposal (proposals.decidedPricing). Called by approve
  * and decline BEFORE either branch is voided, so the record is exactly what
- * the owner saw. A branch with no liquidity records null, not a number.
+ * the owner saw. Only pairs still OPEN count: a horizon that had settled or
+ * been retired before the decision is not something the owner ruled on (a
+ * retired clamp-era 2026-12 pair reading 1 vs 25 put -24 on two contractors
+ * on 2026-09-04). A branch with no liquidity records null, not a number.
  * The contractor rail values a decided job on this record and never on the
  * books afterwards (docs/ui-conventions.md, "Top contractors").
  */
@@ -499,7 +502,7 @@ export async function pairPricesNow(proposalId: string, workspaceId: string): Pr
   const rows = await db
     .select()
     .from(markets)
-    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.voided, false)));
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
   const byKey = new Map<string, DecidedPair>();
   for (const m of rows) {
     if (!m.branch) continue;

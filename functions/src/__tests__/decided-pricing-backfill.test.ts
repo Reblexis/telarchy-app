@@ -162,4 +162,32 @@ describe('backfillDecidedPricing', () => {
       .where(and(eq(markets.id, 'appr'), eq(markets.workspaceId, WS)));
     expect(m).toBeDefined();
   });
+
+  test('a pair settled or retired before the decision is not in the record; the branch voided BY the decision is', async () => {
+    await seed();
+    const weekBefore = new Date(DECIDED_AT.getTime() - 7 * 86400_000);
+    const atDecision = new Date(DECIDED_AT.getTime() - 200); // the void runs just before the status flips
+    await db
+      .insert(markets)
+      .values([
+        { ...book('appr', 'approved', [0, 30]) },
+        { ...book('decl', 'declined', [10, 0], true), resolvedAt: atDecision },
+        { ...book('old-appr', 'approved', [248.7, 0], true), targetDate: '2026-08', resolvedAt: weekBefore },
+        { ...book('old-decl', 'declined', [0, 0], true), targetDate: '2026-08', resolvedAt: weekBefore },
+      ]);
+    const [r] = await backfillDecidedPricing({ apply: false });
+    expect(r.pricing.map(p => p.targetDate)).toEqual(['2026-09']);
+    expect(r.pricing[0].declinedConsensus).toBe(consensus([10, 0], 100, 0, 100));
+  });
+
+  test('recompute rewrites every decided proposal, including ones that already carry a record', async () => {
+    await seed();
+    await db.insert(markets).values([book('appr', 'approved', [0, 30]), book('decl', 'declined', [0, 0], true)]);
+    const stale = [{ metricId: 'metric-bf', targetDate: '2026-12', approvedConsensus: 1, declinedConsensus: 25 }];
+    await db.update(proposals).set({ decidedPricing: stale }).where(eq(proposals.id, 'p-old'));
+    const rows = await backfillDecidedPricing({ apply: true, recompute: true });
+    expect(rows).toHaveLength(1);
+    const [p] = await db.select({ d: proposals.decidedPricing }).from(proposals).where(eq(proposals.id, 'p-old'));
+    expect(p.d![0].targetDate).toBe('2026-09');
+  });
 });

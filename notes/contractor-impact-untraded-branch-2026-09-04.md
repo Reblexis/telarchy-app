@@ -114,3 +114,21 @@ jobs, which the rail already did; per job it still takes the
 largest-magnitude horizon on the hero metric rather than summing horizons
 (docs/ui-conventions.md). If Viktor meant summing horizons, that is a
 one-sentence doc change and a test.
+
+## Second finding, same day: retired horizons in the record
+
+After publishing, Viktor36 read -14.7 and telarchy-agents -18.2. Both came
+from one pair: Active traders 2026-12, a horizon spawned on 2026-08-15 in
+the clamp-bug era (approved branch at 1, declined at 25, never traded) and
+voided on 15 to 19 August, weeks before those jobs were decided. The first
+backfill recorded every pair the job ever had; the recorder (`pairPricesNow`)
+skipped voided pairs but not settled ones.
+
+Rule tightened in `docs/ui-conventions.md`: only the pairs still OPEN at
+the decision are recorded. The recorder now takes `resolved = false`; the
+backfill drops any market whose `resolvedAt` is more than a minute before
+the decision (the branch voided by the decision itself is a few hundred
+milliseconds before). Records were recomputed once on production and the
+beta store with `--recompute`. Live rail afterwards: the-big-boss +22.69,
+Viktor36 +10.33, vire +9.91, jmendoza +7.78, telarchy-agents +6.28,
+tetraspace +5.27, Odoacre +3.24.
