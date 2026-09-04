@@ -97,3 +97,20 @@ up to the decision; for the untraded books that were re-anchored by hand
 on 2026-09-02 the replay would return the re-anchored price, so the script
 takes those books' state from `notes/reanchor-2026-09-02-before.json`
 instead.
+
+## Outcome (2026-09-04)
+
+Shipped as PR 201 (merged to main, commits 1916ba45 and b090e6c6).
+Migration 0106 ran with the main deploy. The backfill was run once with
+`--apply` against production (23 decided proposals, 0 left without a
+record) and once against the beta store so the candidate could be checked
+against real data. On the candidate the Telarchy floor's rail reads
+the-big-boss +22.69, jmendoza +7.78, tetraspace +5.27 (1 proposal, $20),
+Viktor36 +1.12, telarchy-agents -21.65; production still reads
+tetraspace -5.31 until the candidate is published.
+
+Not done: the "sum the differences" clause was read as summing a poster's
+jobs, which the rail already did; per job it still takes the
+largest-magnitude horizon on the hero metric rather than summing horizons
+(docs/ui-conventions.md). If Viktor meant summing horizons, that is a
+one-sentence doc change and a test.
