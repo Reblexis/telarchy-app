@@ -473,6 +473,9 @@ export interface PublicParticipantProfile {
   /** Daily balance snapshots (credits) plus a live "now" point. Snapshots are
    *  written by the hourly resolve cron, one per UTC day. */
   balanceHistory: Array<{ at: string; balance: number }>;
+  /** The board's marked profit as the daily snapshot recorded it, plus a
+   *  live point equal to stats.totalEarnings. Absent on an older payload. */
+  profitHistory?: Array<{ at: string; profit: number }>;
   /** Cumulative realized PnL over time: per resolved market, net trade cash +
    *  resolution payout at resolvedAt. Viewer-scoped like openPositions. */
   pnlHistory: Array<{ at: string; cumulative: number }>;

@@ -259,12 +259,26 @@ disagrees with another page:
   traded figure is credits moved by their buys and sells on public floors;
   redemptions are not trades and do not count.
 
-**The balance chart** draws the daily balance snapshots the API returns,
-ending on the live point, with three range chips (1W, 1M, All; 1M is the
-default). It is the balance, not profit: the snapshots are of the balance
-and the line is labelled so. One ink line on a hairline baseline, first and
-last values as mono labels; nothing is drawn when there are fewer than two
-points.
+Profit and Balance are pressable, the way a Manifold account's balance,
+invested and profit tiles are: the pressed cell (its label in ink, a 2px
+ink rule under it) is the series the chart below draws, and Balance is
+pressed on arrival. Trades is a number, not a series, and is not
+pressable.
+
+**The chart** is the floor's market chart (`MarketChart`, "The price and
+the chart") drawing the pressed cell's series, ending on the live point:
+the same step line, gradient, labeled end dot, crosshair and tooltip, and
+the same range words (`1W 1M ALL`, a range longer than the history
+dimmed), so a reader who has hovered a floor already knows how to read
+this one. It is drawn in ink rather than amber, because amber is the
+market's call and this is not one, and its tooltip names the series
+("balance" or "profit"), never "market". Balance is the daily balance
+snapshots; profit is the profit the board scored, as the daily snapshot
+recorded it (below), so the line is the leaderboard's number day by day
+and its live point is the strip's. A series with fewer than two points
+draws nothing; in its place one quiet line says "Recorded once a day; the
+first point lands tomorrow."
+
 
 **Positions** are rows, one per market and direction the participant holds,
 heaviest first. The title is the metric and its date ("Active traders ·
@@ -320,6 +334,12 @@ written by the trade transaction itself so a display never has to replay
 the book to know what a trade did. Rows written before the columns
 existed are null there, and every reader treats null as "not recorded",
 never as zero. Redemption rows move no price and record nothing.
+
+The daily balance snapshot (one row per participant per UTC day, written
+by the hourly cron) records, beside the balance, the participant's
+trading profit marked to market over public floors at that moment
+(`profit`), the same number the leaderboard ranks on. Rows from before the
+column carry null and are not profit history.
 
 ## Trading floor (root slug page)
 

@@ -320,6 +320,14 @@ export const agentBalanceSnapshots = pgTable(
     /** UTC day, YYYY-MM-DD. */
     day: text('day').notNull(),
     balance: bigint('balance', { mode: 'number' }).notNull(),
+    /**
+     * Trading profit marked to market over public floors at snapshot time,
+     * in credits: the leaderboard's number that day, so the profile's profit
+     * chart is the board day by day (docs/ui-conventions.md, "The
+     * participant profile"). Null on rows from before the column, which are
+     * not profit history.
+     */
+    profit: doublePrecision('profit'),
   },
   t => [primaryKey({ columns: [t.agentId, t.day] })],
 );

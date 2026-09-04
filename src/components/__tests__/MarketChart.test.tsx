@@ -210,3 +210,38 @@ describe('axis number tiers', () => {
     expect(labelQuantum(1_200_000_000)).toBe(1e8);
   });
 });
+
+describe('another series in the same chart (the profile balance)', () => {
+  // docs/ui-conventions.md, "The participant profile": the balance chart is
+  // this chart in ink, its tooltip saying "balance" rather than "market".
+  const series = [
+    { at: iso(5 * 86400e3), consensus: 110256 },
+    { at: iso(3 * 86400e3), consensus: 105581 },
+    { at: iso(0), consensus: 99306 },
+  ];
+
+  it('takes a tone and a label', async () => {
+    vi.useRealTimers();
+    const { container } = render(
+      <MarketChart series={series} consensus={99306} tone="ink" label="balance" ranges={['1W', '1M']} />,
+    );
+    expect(container.querySelector('.mchart')!.className).toContain('mchart--ink');
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('aria-label')).toBe('The balance over time, currently 99,306');
+    svg.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: W, height: 260, right: W, bottom: 260, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    svg.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: RIGHT_EDGE, clientY: 100 }));
+    await vi.waitFor(() => expect(container.querySelector('.mchart-tip')).not.toBeNull());
+    const tip = container.querySelector('.mchart-tip')?.textContent ?? '';
+    expect(tip).toContain('balance 99,306');
+    expect(tip).not.toContain('market');
+  });
+
+  it('keeps the market wording by default', () => {
+    const { container } = render(<MarketChart series={series} consensus={99306} />);
+    expect(container.querySelector('.mchart')!.className).not.toContain('mchart--ink');
+    expect(container.querySelector('svg')!.getAttribute('aria-label')).toBe(
+      "The market's call over time, currently 99,306",
+    );
+  });
+});
