@@ -687,8 +687,7 @@ function MetricSheet({
               <table className="metrics-dates-table">
                 <thead>
                   <tr>
-                    <th>Priced</th>
-                    <th>Open now</th>
+                    <th>Priced · open now</th>
                     <th className="num">Book opens with</th>
                     <th className="num">Proposal opens with</th>
                     <th aria-label="Stop" />
@@ -704,20 +703,22 @@ function MetricSheet({
                     return (
                       <tr key={e.entry}>
                         <td>
+                          {/* One cell for what it is and what is open on it: the
+                              sheet is 440px wide inside its modal, and five
+                              columns pushed Proposal and Stop behind a
+                              scrollbar (owner report 2026-09-04). */}
                           <span className="metrics-dates-what">
                             <span className="dates-what">{words.label}</span>{' '}
-                            <span className="dates-sub">{words.sub}</span>
-                          </span>
-                        </td>
-                        <td>
-                          <span className="metrics-dates-open">
-                            {facts
-                              ? `${facts.targetDate} · ${fmtCr(facts.pool)} cr · ${
-                                  traded(facts)
-                                    ? `${facts.traders} ${facts.traders === 1 ? 'trader' : 'traders'}`
-                                    : 'nobody yet'
-                                }`
-                              : 'no market open on it'}
+                            <span className="dates-sub">{words.sub}</span>{' '}
+                            <span className="dates-sub metrics-dates-open">
+                              {facts
+                                ? `${facts.targetDate} · ${fmtCr(facts.pool)} cr · ${
+                                    traded(facts)
+                                      ? `${facts.traders} ${facts.traders === 1 ? 'trader' : 'traders'}`
+                                      : 'nobody yet'
+                                  }`
+                                : 'no market open on it'}
+                            </span>
                           </span>
                         </td>
                         <td className="num">
