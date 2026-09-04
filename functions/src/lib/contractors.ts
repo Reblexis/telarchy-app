@@ -28,7 +28,12 @@ export interface ContractorJob {
   /** proposals.status verbatim. Only 'pending' and 'approved' score. */
   status: string;
   askUsd: number | null;
+  /** The pair as its books read now. What a PENDING job is valued on. */
   pairs: ContractorJobPair[];
+  /** The pair as it read at the moment the owner ruled
+   *  (proposals.decidedPricing). What a DECIDED job is valued on; null on a
+   *  pending job and on one decided before the record existed. */
+  decidedPairs: ContractorJobPair[] | null;
 }
 
 export interface ContractorEntry {
@@ -57,18 +62,26 @@ const LIVE_STATUSES = new Set(['pending', 'approved']);
 
 /**
  * One job's priced impact: approved-branch consensus minus declined-branch
- * consensus, i.e. the causal effect of saying yes, as the market currently
- * prices it.
+ * consensus, i.e. the causal effect of saying yes.
  *
- * Only pairs on the hero metric count, so the sum stays in one unit. A job
- * priced on several horizons of that metric contributes its
- * largest-magnitude horizon (never the sum, which would count the same job
- * once per target date). Returns null when nothing on the hero metric is
- * priced on both sides yet.
+ * A pending job is valued on its books as they read now. A decided job is
+ * valued on the pair as recorded at the moment the owner ruled and never on
+ * its books afterwards (owner ruling 2026-09-04, docs/ui-conventions.md "Top
+ * contractors"): the losing branch is voided, the winning one keeps trading,
+ * an untraded book can be re-anchored, and none of that is what the decision
+ * was priced on. A decided job with no record is unpriced.
+ *
+ * A pair is priced as soon as both branches hold liquidity (both consensus
+ * values present); no trade is required. Only pairs on the hero metric
+ * count, so the sum stays in one unit. A job priced on several horizons of
+ * that metric contributes its largest-magnitude horizon (never the sum,
+ * which would count the same job once per target date). Returns null when
+ * nothing on the hero metric is priced on both sides.
  */
 export function jobImpact(job: ContractorJob, heroMetricId: string): number | null {
+  const pairs = job.status === 'pending' ? job.pairs : (job.decidedPairs ?? []);
   let best: number | null = null;
-  for (const pair of job.pairs) {
+  for (const pair of pairs) {
     if (pair.metricId !== heroMetricId) continue;
     if (pair.approvedConsensus === null || pair.declinedConsensus === null) continue;
     const delta = pair.approvedConsensus - pair.declinedConsensus;

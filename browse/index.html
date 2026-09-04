@@ -5298,21 +5298,29 @@ back the net cash you still had in it, floored at zero (see
 exactly zero, while a realised gain you took out before the cancel
 stands. Trades on markets whose rows are gone entirely cannot be valued
 and count nothing. The row shows the signed profit in credits.</li>
-<li><strong>Top contractors</strong> rank by the market's current valuation of the
-proposals they posted, NOT by dollars collected. A proposal's value is
-its priced impact: the approved branch's consensus minus the declined
-branch's, on the workspace's hero metric (the soonest-resolving baseline
-market's metric), taking the largest-magnitude horizon when a proposal
-is priced on several. Pending and approved proposals both count, so a
-proposal posted minutes ago scores as soon as anyone prices it;
-declined, withdrawn, and removed proposals count zero, because the work
-never happens. A proposal the market has not priced yet contributes
-zero rather than dropping its poster from the board. The score is signed
-and carried in the hero metric's own unit (a proposal the market thinks
-hurts the number reads negative); dollars earned on approved proposals
-drop to the row's second line, alongside the proposal count. House
-accounts are NOT excluded here: a contractor's score is priced by other
-people, so it cannot be self-granted.</li>
+<li><strong>Top contractors</strong> rank by the market's valuation of the proposals
+they posted, NOT by dollars collected. A proposal's value is its priced
+impact: the approved branch's consensus minus the declined branch's, on
+the workspace's hero metric (the soonest-resolving baseline market's
+metric), taking the largest-magnitude horizon when a proposal is priced
+on several. A pair is priced as soon as both branches hold liquidity; no
+trade is required, because an opening price is the market's price until
+someone moves it. A pending proposal is valued live, at the pair's
+current prices, so a proposal posted minutes ago scores the moment its
+books are funded. A decided proposal is valued at the moment the owner
+ruled: the pair's prices are recorded on approval or decline and never
+re-read afterwards, because whatever happens to either book later (the
+losing branch is voided, the winning one keeps trading, an untraded book
+is re-anchored) is not what the decision was priced on. Approved
+proposals score that recorded impact; declined, withdrawn, and removed
+proposals count zero, because the work never happens. A proposal whose
+pair is not priced yet contributes zero rather than dropping its poster
+from the board. The score is signed and carried in the hero metric's
+own unit (a proposal the market thinks hurts the number reads
+negative); dollars earned on approved proposals drop to the row's second
+line, alongside the proposal count. House accounts are NOT excluded
+here: a contractor's score is priced by other people, so it cannot be
+self-granted.</li>
 </ul>
 <p><strong>The board is at most five seconds behind the trades, and a reader's own
 trade shows up on their next read.</strong> The server-side board cache TTL is

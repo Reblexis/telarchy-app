@@ -8,6 +8,7 @@ const job = (overrides: Partial<ContractorJob>): ContractorJob => ({
   status: 'pending',
   askUsd: null,
   pairs: [],
+  decidedPairs: null,
   ...overrides,
 });
 
@@ -43,6 +44,38 @@ describe('jobImpact', () => {
     expect(jobImpact(j, HERO)).toBe(20);
   });
 
+  // Owner ruling 2026-09-04 (docs/ui-conventions.md, "Top contractors"): a
+  // decided job is valued at the prices recorded when the owner ruled and
+  // nothing that happens to its books afterwards moves it. tetraspace's $20
+  // job on the Telarchy floor read -5.3 because its untraded approved branch
+  // had been re-anchored to 12.83 two weeks after the approval, while the
+  // pair read 23.41 vs 18.14 at the decision.
+  test('a decided job is valued at the prices recorded when the owner ruled, not at its books now', () => {
+    const j = job({
+      status: 'approved',
+      pairs: [pair(12.83, 18.14, HERO, '2026-09')],
+      decidedPairs: [pair(23.41, 18.14, HERO, '2026-09')],
+    });
+    expect(jobImpact(j, HERO)).toBeCloseTo(5.27, 2);
+  });
+
+  test('a pending job is valued live, whatever else is recorded', () => {
+    const j = job({ status: 'pending', pairs: [pair(80, 60)], decidedPairs: [pair(1, 99)] });
+    expect(jobImpact(j, HERO)).toBe(20);
+  });
+
+  test('an approved job with no recorded decision pricing is unpriced, never scored off its live books', () => {
+    const j = job({ status: 'approved', pairs: [pair(12.83, 18.14)], decidedPairs: null });
+    expect(jobImpact(j, HERO)).toBeNull();
+  });
+
+  test('a pair is priced as soon as both branches hold liquidity; no trade is required', () => {
+    // An opening price is the market's price until someone moves it: the
+    // pair carries both consensus values, and that is all jobImpact asks.
+    const j = job({ status: 'pending', pairs: [pair(23.41, 23.41)] });
+    expect(jobImpact(j, HERO)).toBe(0);
+  });
+
   test('takes the largest-magnitude horizon rather than summing them', () => {
     const j = job({ pairs: [pair(80, 60, HERO, '2026-09-30'), pair(120, 60, HERO, '2026-12-31')] });
     expect(jobImpact(j, HERO)).toBe(60);
@@ -76,7 +109,14 @@ describe('computeContractors', () => {
     const rows = computeContractors(
       [
         job({ proposalId: 'p1', proposedBy: 'ana', status: 'pending', pairs: [pair(1900, 1000)] }),
-        job({ proposalId: 'p2', proposedBy: 'bo', status: 'approved', askUsd: 5000, pairs: [pair(1010, 1000)] }),
+        job({
+          proposalId: 'p2',
+          proposedBy: 'bo',
+          status: 'approved',
+          askUsd: 5000,
+          pairs: [pair(1010, 1000)],
+          decidedPairs: [pair(1010, 1000)],
+        }),
       ],
       HERO,
       names,

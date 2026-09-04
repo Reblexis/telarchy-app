@@ -136,6 +136,129 @@ async function seed(publicCaps: string[]) {
 }
 
 /**
+ * A decided job is valued at the prices recorded when the owner ruled
+ * (docs/ui-conventions.md, "Top contractors"; owner ruling 2026-09-04).
+ * The books move on after a decision: the losing branch is voided, the
+ * winning one keeps trading, an untraded book can be re-anchored. None of
+ * that is what the decision was priced on, so both the contractor rail and
+ * the proposal's own row read proposals.decidedPricing, never the books.
+ */
+describe('a decided job is valued at the prices recorded when the owner ruled', () => {
+  const APPROVER = 'agent-approved-poster';
+  // Live books that would price the job at -5.31 (12.83 vs 18.14, the
+  // tetraspace shape); the record says +5.27 (23.41 vs 18.14).
+  const seedApprovedJob = async (decidedPricing: unknown) => {
+    await db.insert(agents).values({ id: APPROVER, apiKeyHash: 'h-approver', balance: 0, nickname: 'tetraspace' });
+    await db.insert(proposals).values({
+      id: 'prop-approved',
+      workspaceId: WS,
+      proposedBy: APPROVER,
+      title: 'Write 500 words',
+      description: '',
+      status: 'approved',
+      askUsd: 20,
+      resolvedAt: new Date('2026-08-21T15:45:26Z'),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      decidedPricing: decidedPricing as any,
+    });
+    await db.insert(markets).values([
+      // The hero metric's baseline, so there is a unit to score in.
+      {
+        id: 'mkt-base-decided',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2028',
+        rangeMin: 0,
+        rangeMax: 100,
+        shares: [0, 0],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: null,
+        branch: null,
+      },
+      {
+        id: 'mkt-approved-appr',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2028',
+        rangeMin: 0,
+        rangeMax: 100,
+        shares: [40, 0],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: 'prop-approved',
+        branch: 'approved',
+      },
+      {
+        id: 'mkt-approved-decl',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2028',
+        rangeMin: 0,
+        rangeMax: 100,
+        shares: [0, 0],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: true,
+        voided: true,
+        proposalId: 'prop-approved',
+        branch: 'declined',
+      },
+    ]);
+  };
+  const RECORD = [
+    { metricId: 'metric-ballot', targetDate: '2028', approvedConsensus: 23.41, declinedConsensus: 18.14 },
+  ];
+
+  test('the contractor rail scores the recorded pair, not the books as they are now', async () => {
+    await seed(['read', 'trade']);
+    await seedApprovedJob(RECORD);
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    expect(res.status).toBe(200);
+    const row = (res.body.topContractors as Array<{ id: string; impact: number | null; pricedJobs: number }>).find(
+      c => c.id === APPROVER,
+    );
+    expect(row).toBeDefined();
+    expect(row!.pricedJobs).toBe(1);
+    expect(row!.impact).toBeCloseTo(5.27, 2);
+  });
+
+  test("the decided proposal's own row on the ballot prints the recorded delta", async () => {
+    await seed(['read', 'trade']);
+    await seedApprovedJob(RECORD);
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    const p = (res.body.proposals as Array<{ id: string; markets: Array<Record<string, unknown>> }>).find(
+      x => x.id === 'prop-approved',
+    );
+    expect(p).toBeDefined();
+    expect(p!.markets[0]).toMatchObject({ approvedConsensus: 23.41, declinedConsensus: 18.14 });
+    expect(p!.markets[0].delta as number).toBeCloseTo(5.27, 2);
+  });
+
+  test('an approved job with no recorded pricing is unpriced rather than scored off its books', async () => {
+    await seed(['read', 'trade']);
+    await seedApprovedJob(null);
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    const row = (res.body.topContractors as Array<{ id: string; impact: number | null; pricedJobs: number }>).find(
+      c => c.id === APPROVER,
+    );
+    expect(row).toBeDefined();
+    expect(row!.pricedJobs).toBe(0);
+    expect(row!.impact).toBe(0);
+  });
+});
+
+/**
  * A horizon's chart draws its metric's history as recorded.
  *
  * 2026-08-16: this briefly asserted the opposite, that each horizon filters
