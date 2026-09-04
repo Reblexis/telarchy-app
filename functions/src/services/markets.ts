@@ -13,6 +13,7 @@ import {
 } from '../db/schema';
 import { AMM_DEFAULTS, initialPool } from '../lib/amm';
 import { settlementInstantFor } from '../lib/date-utils';
+import { bookCreditsFor } from '../lib/horizon-credits';
 import { emitPricesChanged } from '../lib/market-events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { desiredMarketDates, generatesMarkets, getLeafDescendantNames } from '../lib/time-preference';
@@ -333,7 +334,7 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
   // the list in order spending that one purse.
   const spendableUnits = ag ? liquiditySpendableUnits(ag) : 0;
   const perMetric = await metricCreditsMap(workspaceId, credits);
-  const funded = planAffordable(pending, p => perMetric.get(p.metricId) ?? credits, spendableUnits);
+  const funded = planAffordable(pending, p => perMetric(p.metricId, p.targetDate), spendableUnits);
   if (funded.length === 0) {
     console.error('insertPendingMarkets: insufficient balance for auto-fund', { workspaceId, needed: credits });
     return insertWithDefaults();
@@ -396,12 +397,23 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
  * owner set one on the metrics page, the workspace default otherwise
  * (docs/owner-on-the-floor.md).
  */
-async function metricCreditsMap(workspaceId: string, fallback: number): Promise<Map<string, number>> {
+async function metricCreditsMap(
+  workspaceId: string,
+  fallback: number,
+): Promise<(metricId: string, targetDate: string) => number> {
   const rows = await db
-    .select({ id: metricsTable.id, credits: metricsTable.liquidityCredits })
+    .select({ id: metricsTable.id, credits: metricsTable.liquidityCredits, tp: metricsTable.timePreference })
     .from(metricsTable)
     .where(eq(metricsTable.workspaceId, workspaceId));
-  return new Map(rows.map(r => [r.id, r.credits == null ? fallback : (r.credits as number)]));
+  const byId = new Map(rows.map(r => [r.id, r]));
+  const now = new Date();
+  // The date's own number first (lib/horizon-credits.ts), then the metric's
+  // standing number, then the workspace default.
+  return (metricId, targetDate) => {
+    const row = byId.get(metricId);
+    if (!row) return fallback;
+    return bookCreditsFor({ liquidityCredits: row.credits, timePreference: row.tp }, targetDate, fallback, now);
+  };
 }
 
 /**
@@ -653,13 +665,16 @@ export async function refreshRelativeDateMarkets(
         const [ag] = await db.select().from(agents).where(eq(agents.id, ownerAgentId));
         const perMetric = await metricCreditsMap(workspaceId, credits);
         const rows = await db
-          .select({ id: markets.id, metricId: markets.metricId })
+          .select({ id: markets.id, metricId: markets.metricId, targetDate: markets.targetDate })
           .from(markets)
           .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.id, toFund)));
-        const byId = new Map(rows.map(r => [r.id, r.metricId]));
+        const byId = new Map(rows.map(r => [r.id, r]));
         const funded = planAffordable(
           toFund,
-          marketId => perMetric.get(byId.get(marketId) ?? '') ?? credits,
+          marketId => {
+            const row = byId.get(marketId);
+            return row ? perMetric(row.metricId, row.targetDate) : credits;
+          },
           // The bought liquidity wallet counts here too: same purse, same
           // spend order as the injection (lib/validation, two currencies).
           ag ? liquiditySpendableUnits(ag) : 0,

@@ -6,6 +6,18 @@ export interface TimePreference {
    *  re-resolved against today on every refresh) or an absolute "YYYY",
    *  "YYYY-MM", "YYYY-Www", "YYYY-MM-DD" (one-shot, dropped once past). */
   customHorizons?: string[];
+  /** What each entry of customHorizons opens with, in credits, paid by the
+   *  workspace owner as the market opens and again every time a rolling
+   *  entry comes round: `book` for the metric's own market (null or absent
+   *  falls back to the metric's liquidityCredits, then the workspace default)
+   *  and `proposal` for a proposal's branch on that date (absent is 0: the
+   *  proposer funds their own; docs/guides/proposals.md). */
+  horizonCredits?: Record<string, HorizonCredits>;
+}
+
+export interface HorizonCredits {
+  book?: number | null;
+  proposal?: number;
 }
 
 export interface Metric {

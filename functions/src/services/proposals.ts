@@ -17,6 +17,7 @@ import { anchoredMarketState, consensus } from '../lib/amm';
 import { askUsdOf, branchAnchorP } from '../lib/branch-anchor';
 import { resolutionInstant } from '../lib/date-utils';
 import { AppError } from '../lib/errors';
+import { proposalCreditsFor } from '../lib/horizon-credits';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { emitPricesChanged } from '../lib/market-events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
@@ -255,22 +256,37 @@ export async function createConditionalMarkets(
 
     const newMarkets = toSpawn;
 
-    // Resolved BEFORE the transaction opens. The auto-fund fallback below
-    // needs the workspace's settings and its owner agent, and reading them
+    // Resolved BEFORE the transaction opens. The owner fallback below needs
+    // each metric's date numbers and the owner agent, and reading them
     // through `db` while a `db.transaction` is open issues a query outside
     // that transaction: harmless on a pool, a deadlock on a single
     // connection, and untestable either way (it hung the harness).
-    const [wsRow] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
-    const autoFundCredits = wsRow?.autoFundNewMarkets ? (wsRow.newMarketLiquidityCredits ?? 0) : 0;
-    const autoFundOwnerId =
-      autoFundCredits >= MIN_LIQUIDITY_CONTRIBUTION ? await resolveWorkspaceOwnerAgentId(workspaceId) : null;
+    //
+    // What the owner pays when nobody listed can: each branch's own date
+    // number, `timePreference.horizonCredits[entry].proposal`, and 0 where
+    // the owner never set one (owner decision 2026-09-04: a proposal is the
+    // proposer's to fund; the workspace auto-fund covers the metric's own
+    // books and never a proposal). Two dates are two bills.
+    const spawnBase = new Date();
+    const metricById = new Map(metricRows.map(r => [r.id, r]));
+    const ownerAsk = new Map<string, number>();
+    for (const m of newMarkets) {
+      const metric = metricById.get(m.metricId);
+      const credits = metric ? proposalCreditsFor(metric, m.targetDate, spawnBase) : 0;
+      ownerAsk.set(m.id as string, credits >= MIN_LIQUIDITY_CONTRIBUTION ? credits : 0);
+    }
+    const ownerAskTotal = Array.from(ownerAsk.values()).reduce((sum, c) => sum + c, 0);
+    const autoFundOwnerId = ownerAskTotal > 0 ? await resolveWorkspaceOwnerAgentId(workspaceId) : null;
 
     const skipped: Array<{ contributorId: string; needed: number; had: number }> = [];
     await db.transaction(async tx => {
       // Which contributors can fund this generation? Lock each contributor
       // row, then either abort (strict, creation path) or skip with a log
-      // (rollover re-spawn) when one cannot cover its share.
-      const funded: Array<[string, number]> = [];
+      // (rollover re-spawn) when one cannot cover its share. A contribution
+      // is per market: a listed contributor pays the same on every branch,
+      // the owner pays each branch its date's number.
+      const funded: Array<[string, Map<string, number>]> = [];
+      const uniform = (perMarket: number) => new Map(newMarkets.map(m => [m.id as string, perMarket]));
       for (const [contributorId, perMarket] of contributions) {
         const cost = Math.round(perMarket * newMarkets.length * 1e6) / 1e6;
         const [agentRow] = await tx.select().from(agents).where(eq(agents.id, contributorId)).for('update');
@@ -295,74 +311,72 @@ export async function createConditionalMarkets(
           skipped.push({ contributorId, needed: cost, had: spendable });
           continue;
         }
-        funded.push([contributorId, perMarket]);
+        funded.push([contributorId, uniform(perMarket)]);
       }
 
       // A branch market with liquidity 0 has no price at all: consensus is
       // undefined, the public page has nothing to chart, and the pair reads
       // as broken rather than merely thin. When no listed contributor could
       // fund this generation (a proposer with an empty balance, typically),
-      // fall back to the workspace auto-fund owner, exactly as baseline
-      // markets do in insertPendingMarkets. Only if that fails too do the
-      // markets spawn unfunded, which then needs an admin liquidity
-      // injection, same as an unfunded baseline market.
+      // the owner pays what they chose per date, and only that. Where the
+      // owner cannot cover the whole bill, every branch gets the same share
+      // of its number (docs/guides/proposals.md), down to the minimum
+      // contribution, rather than some branches everything and others
+      // nothing. Only if that fails too do the markets spawn unfunded, and
+      // the floor then says so in place of the bet buttons.
       if (funded.length === 0 && autoFundOwnerId) {
-        const credits = autoFundCredits;
-        const cost = Math.round(credits * newMarkets.length * 1e6) / 1e6;
         const [ownerRow] = await tx.select().from(agents).where(eq(agents.id, autoFundOwnerId)).for('update');
         const ownerSpendable = ownerRow ? fromUnits(liquiditySpendableUnits(ownerRow)) : 0;
-        if (ownerRow && ownerSpendable >= cost) {
-          funded.push([autoFundOwnerId, credits]);
+        if (!ownerRow) {
           console.error(
-            `createConditionalMarkets: no subsidy contributor could fund proposal ${proposalId}; auto-funded ${credits}/market from workspace owner ${autoFundOwnerId}`,
+            `createConditionalMarkets: owner fallback for proposal ${proposalId} failed (no agent row for owner ${autoFundOwnerId}); markets spawn with zero liquidity`,
           );
-        } else if (ownerRow) {
-          // Fund what the owner CAN cover rather than giving up. A thin
-          // market is a market: it has a price, it charts, and it can be
-          // traded, while a market at zero liquidity is born dead and meets
-          // every visitor with a refusal (owner report 2026-08-15: every job
-          // on the Telarchy floor was untradeable because the owner held 87
-          // credits against a 500-credit ask). Same payer, same setting,
-          // just not all-or-nothing.
-          const affordable = Math.floor((ownerSpendable / newMarkets.length) * 1e6) / 1e6;
-          if (affordable >= MIN_LIQUIDITY_CONTRIBUTION) {
-            funded.push([autoFundOwnerId, affordable]);
-            console.error(
-              `createConditionalMarkets: workspace owner ${autoFundOwnerId} cannot cover ${cost} for proposal ${proposalId}; auto-funded what they have, ${affordable}/market instead of ${credits}`,
-            );
+        } else {
+          const share = ownerSpendable >= ownerAskTotal ? 1 : ownerSpendable / ownerAskTotal;
+          const amounts = new Map<string, number>();
+          for (const [marketId, ask] of ownerAsk) {
+            const credits = Math.floor(ask * share * 1e6) / 1e6;
+            amounts.set(marketId, credits >= MIN_LIQUIDITY_CONTRIBUTION ? credits : 0);
+          }
+          const total = Array.from(amounts.values()).reduce((sum, c) => sum + c, 0);
+          if (total > 0) {
+            funded.push([autoFundOwnerId, amounts]);
+            if (share < 1) {
+              console.error(
+                `createConditionalMarkets: workspace owner ${autoFundOwnerId} holds ${ownerSpendable} against ${ownerAskTotal} asked for proposal ${proposalId}; every branch gets ${Math.round(share * 1000) / 10}% of its date number`,
+              );
+            }
           } else {
             console.error(
-              `createConditionalMarkets: auto-fund fallback for proposal ${proposalId} failed too (owner ${autoFundOwnerId} holds ${ownerSpendable}, not enough for even one market); markets spawn with zero liquidity`,
+              `createConditionalMarkets: owner fallback for proposal ${proposalId} failed (owner ${autoFundOwnerId} holds ${ownerSpendable}, not enough for one branch); markets spawn with zero liquidity`,
             );
           }
-        } else {
-          console.error(
-            `createConditionalMarkets: auto-fund fallback for proposal ${proposalId} failed too (no agent row for owner ${autoFundOwnerId}); markets spawn with zero liquidity`,
-          );
         }
       }
 
-      const effectiveSubsidy = funded.reduce((sum, [, perMarket]) => sum + perMarket, 0);
+      const subsidyOf = (marketId: string) =>
+        funded.reduce((sum, [, amounts]) => sum + (amounts.get(marketId) ?? 0), 0);
       // Each branch opens at its anchor with b sized so the subsidy still
       // covers the worst case exactly (anchoredMarketState); an anchored
       // open buys its starting price with a slightly thinner book, never
       // with credits nobody paid in. No anchor (unpriced baseline) means
       // the classic center open at b = subsidy / ln 2.
       for (const m of newMarkets) {
+        const subsidy = subsidyOf(m.id as string);
         const state =
           m.anchorP === null
-            ? { liquidity: effectiveSubsidy > 0 ? effectiveSubsidy / Math.LN2 : 0, shares: [0, 0] as [number, number] }
-            : anchoredMarketState(effectiveSubsidy, m.anchorP);
+            ? { liquidity: subsidy > 0 ? subsidy / Math.LN2 : 0, shares: [0, 0] as [number, number] }
+            : anchoredMarketState(subsidy, m.anchorP);
         m.liquidity = state.liquidity;
         m.shares = state.shares;
-        m.pool = effectiveSubsidy;
+        m.pool = subsidy;
       }
 
       // Which purse each contributor actually paid from, so the liquidity
       // rows below record it and leftovers return where they came from.
       const paidFrom = new Map<string, Array<{ from: 'liquidity' | 'balance'; credits: number }>>();
-      for (const [contributorId, perMarket] of funded) {
-        const cost = Math.round(perMarket * newMarkets.length * 1e6) / 1e6;
+      for (const [contributorId, amounts] of funded) {
+        const cost = Math.round(Array.from(amounts.values()).reduce((sum, c) => sum + c, 0) * 1e6) / 1e6;
         // The wallet spends FIRST and the tradeable balance only finishes
         // what it could not cover, exactly as an injection does
         // (services/marketLiquidity.ts, docs/liquidity-purchases.md). Until
@@ -407,10 +421,13 @@ export async function createConditionalMarkets(
         // One row per purse the stake came out of, so a leftover returns to
         // the purse that paid it (services/markets.ts, distributeLPLeftover)
         // and granted or bought liquidity never leaks into a tradeable
-        // balance. `perMarket` is split in the same proportion the whole
-        // stake was.
+        // balance. Each market's amount is split in the same proportion the
+        // whole stake was. A market this contributor put nothing behind
+        // (a date whose number is 0) gets no row at all.
         const liqRows = newMarkets.flatMap(m =>
-          funded.flatMap(([contributorId, perMarket]) => {
+          funded.flatMap(([contributorId, amounts]) => {
+            const perMarket = amounts.get(m.id as string) ?? 0;
+            if (perMarket <= 0) return [];
             const parts = paidFrom.get(contributorId) ?? [];
             const total = parts.reduce((sum, part) => sum + part.credits, 0);
             const shares =
@@ -431,7 +448,7 @@ export async function createConditionalMarkets(
             }));
           }),
         );
-        await tx.insert(liquidityEvents).values(liqRows);
+        if (liqRows.length > 0) await tx.insert(liquidityEvents).values(liqRows);
         for (const r of liqRows) emitPricesChanged(workspaceId, r.marketId);
       }
     });

@@ -272,14 +272,14 @@ describe('listing-stake atomicity', () => {
 });
 
 /**
- * A branch market at zero liquidity is born dead: it has no price, charts as
- * nothing, and refuses every trade with "this market has no liquidity". The
- * owner hit exactly that on the public Telarchy floor (2026-08-15), where the
- * workspace auto-funds 250/market but the owner account held 87 credits, so
- * the all-or-nothing fallback funded nothing at all.
+ * A proposal is the proposer's to fund (owner decision 2026-09-04, telarchy
+ * umbrella notes/proposal-liquidity-per-metric-2026-09-04.md). The owner pays
+ * for a branch only on a date where they chose a number, and the workspace
+ * auto-fund covers the metric's own books, never a proposal. The per-date
+ * arithmetic is pinned in horizon-credits.test.ts; this is the HTTP path.
  */
-describe('a branch market is never born dead when anyone can pay', () => {
-  const fundedWorkspace = async (ownerBalance: number, credits = 250) => {
+describe('a proposal is the proposer to fund unless the owner chose a number for the date', () => {
+  const fundedWorkspace = async (ownerBalance: number, proposalCredits: number | null = 250) => {
     await seed();
     await db
       .update(agents)
@@ -287,8 +287,19 @@ describe('a branch market is never born dead when anyone can pay', () => {
       .where(eq(agents.id, OWNER));
     await db
       .update(workspaces)
-      .set({ autoFundNewMarkets: true, newMarketLiquidityCredits: credits })
+      .set({ autoFundNewMarkets: true, newMarketLiquidityCredits: 250 })
       .where(eq(workspaces.id, WS));
+    await db
+      .update(metrics)
+      .set({
+        timePreference: {
+          enabled: false,
+          halfLife: 1,
+          customHorizons: ['2026-12'],
+          ...(proposalCredits === null ? {} : { horizonCredits: { '2026-12': { proposal: proposalCredits } } }),
+        },
+      })
+      .where(eq(metrics.id, 'metric-sa'));
   };
 
   const branchMarkets = async () => {
@@ -296,17 +307,30 @@ describe('a branch market is never born dead when anyone can pay', () => {
     return rows.filter(m => m.proposalId);
   };
 
-  test('the workspace auto-fund covers a proposal that names no subsidy', async () => {
-    await fundedWorkspace(1000);
+  test('the workspace auto-fund never covers a proposal: no number on the date, no price', async () => {
+    await fundedWorkspace(1000, null);
     const res = await submit(RICH, { title: 'unsubsidised', askUsd: 10, payoutHandle: 'pay@example.com' });
     expect(res.status).toBe(201);
     const branches = await branchMarkets();
     expect(branches).toHaveLength(2);
+    for (const m of branches) expect(m.liquidity).toBe(0);
+    const [owner] = await db.select().from(agents).where(eq(agents.id, OWNER));
+    expect(fromUnits(owner.balance as number)).toBe(1000);
+  });
+
+  test("the date's proposal number covers a proposal that names no subsidy", async () => {
+    await fundedWorkspace(1000);
+    const res = await submit(RICH, { title: 'owner wants the price', askUsd: 10, payoutHandle: 'pay@example.com' });
+    expect(res.status).toBe(201);
+    const branches = await branchMarkets();
+    expect(branches).toHaveLength(2);
     for (const m of branches) expect(m.liquidity).toBeGreaterThan(0);
+    const [owner] = await db.select().from(agents).where(eq(agents.id, OWNER));
+    expect(fromUnits(owner.balance as number)).toBe(500);
   });
 
   test('an owner who cannot cover the full amount funds what they can', async () => {
-    // 87 credits against a 250/market ask over two markets: the old rule
+    // 87 credits against a 250/market number over two markets: the old rule
     // funded nothing, so both branches shipped unpriced and untradeable.
     await fundedWorkspace(87);
     const res = await submit(RICH, { title: 'thin but alive', askUsd: 10, payoutHandle: 'pay@example.com' });
@@ -333,7 +357,7 @@ describe('a branch market is never born dead when anyone can pay', () => {
     expect(fromUnits(owner.balance as number)).toBe(0);
   });
 
-  test('a named subsidy still wins over the auto-fund fallback', async () => {
+  test('a named subsidy still wins over the date number', async () => {
     await fundedWorkspace(1000);
     const res = await submit(RICH, {
       title: 'self-funded',

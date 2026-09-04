@@ -184,20 +184,42 @@ describe('decisions that a default must never be mistaken for', () => {
     expect(itemOf(await buildChecklist(WS), 'participation').status).toBe('done');
   });
 
-  test('auto-funding off with no funded proposal is not a proposal policy', async () => {
+  test('no number on any date and no funded proposal is not a proposal policy', async () => {
+    const c = await buildChecklist(WS);
+    expect(itemOf(c, 'contracts').status).toBe('open');
+    expect(itemOf(c, 'contracts').note).toMatch(/what its proposer puts behind it/);
+  });
+
+  test('the workspace auto-fund is not a proposal policy: it never covers a proposal', async () => {
+    await db.update(workspaces).set({ autoFundNewMarkets: true, newMarketLiquidityCredits: 25 });
     expect(itemOf(await buildChecklist(WS), 'contracts').status).toBe('open');
   });
 
-  test('auto-funding a real amount is', async () => {
-    await db.update(workspaces).set({ autoFundNewMarkets: true, newMarketLiquidityCredits: 25 });
+  test('a date that opens each proposal with a real amount is', async () => {
+    await seedNumber();
+    await db.update(metrics).set({
+      timePreference: {
+        enabled: false,
+        halfLife: 1,
+        customHorizons: ['+0m'],
+        horizonCredits: { '+0m': { proposal: 25 } },
+      },
+    });
     const c = await buildChecklist(WS);
     expect(itemOf(c, 'contracts').status).toBe('done');
     expect(itemOf(c, 'contracts').note).toMatch(/25 credits/);
   });
 
-  test('auto-funding the workspace default is not a proposal policy either', async () => {
-    // 0.5 per market is what workspace creation sets, and it prices nothing.
-    await db.update(workspaces).set({ autoFundNewMarkets: true, newMarketLiquidityCredits: 0.5 });
+  test('a date that opens each proposal with a decoration is not', async () => {
+    await seedNumber();
+    await db.update(metrics).set({
+      timePreference: {
+        enabled: false,
+        halfLife: 1,
+        customHorizons: ['+0m'],
+        horizonCredits: { '+0m': { proposal: 0.5 } },
+      },
+    });
     const c = await buildChecklist(WS);
     expect(itemOf(c, 'contracts').status).toBe('open');
     expect(itemOf(c, 'contracts').note).toMatch(/too thin to price anything/);

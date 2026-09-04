@@ -14,6 +14,7 @@ import {
 } from '../db/schema';
 import { consensus, sharesForBudget } from '../lib/amm';
 import { type DecisionId, SETUP_SPEC } from '../lib/setup-spec';
+import type { TimePreference } from '../types';
 
 /**
  * What is actually decided on a floor, read from the database
@@ -232,22 +233,38 @@ export async function buildChecklist(workspaceId: string): Promise<Checklist> {
                 : 'No market to fund yet.',
             },
 
-    contracts:
-      ws.autoFundNewMarkets && (ws.newMarketLiquidityCredits ?? 0) >= SHOVE_CREDITS
-        ? { status: 'done', note: `Auto-funding every new market with ${ws.newMarketLiquidityCredits} credits.` }
-        : contractMarkets.some(m => (m.liquidity ?? 0) > 0)
-          ? { status: 'done', note: 'Proposal markets are funded by hand or by an agent.' }
-          : ws.autoFundNewMarkets && (ws.newMarketLiquidityCredits ?? 0) > 0
-            ? {
-                status: 'open',
-                note: `Auto-funding ${ws.newMarketLiquidityCredits} credits per market, which is too thin to price anything. Raise it or fund proposals deliberately.`,
-              }
-            : {
-                status: 'open',
-                note: proposalCount?.n
-                  ? `${proposalCount?.n} proposal(s) posted and their markets hold nothing.`
-                  : 'No rule yet for funding a proposal market when one arrives.',
-              },
+    contracts: (() => {
+      // A proposal is the proposer's to fund; the owner pays only on a date
+      // where they chose a "Proposal opens with" number (docs/guides/
+      // proposals.md, "Or decide it once, per date"). The workspace-wide
+      // auto-fund never covers a proposal, so it is not a policy here.
+      const datesWithNumber = metricRows.flatMap(m => {
+        const table = (m.timePreference as TimePreference | null)?.horizonCredits ?? {};
+        return Object.values(table).filter(row => typeof row?.proposal === 'number' && row.proposal > 0);
+      });
+      const deep = datesWithNumber.filter(row => (row.proposal ?? 0) >= SHOVE_CREDITS);
+      if (deep.length > 0) {
+        return {
+          status: 'done' as const,
+          note: `${deep.length} ${deep.length === 1 ? 'date opens' : 'dates open'} each proposal with ${Math.max(...deep.map(r => r.proposal ?? 0))} credits from you.`,
+        };
+      }
+      if (contractMarkets.some(m => (m.liquidity ?? 0) > 0)) {
+        return { status: 'done' as const, note: 'Proposal markets are funded by hand or by an agent.' };
+      }
+      if (datesWithNumber.length > 0) {
+        return {
+          status: 'open' as const,
+          note: `A proposal opens with ${Math.max(...datesWithNumber.map(r => r.proposal ?? 0))} credits from you, which is too thin to price anything. Raise it on the metric sheet, or leave proposals to their proposers.`,
+        };
+      }
+      return {
+        status: 'open' as const,
+        note: proposalCount?.n
+          ? `${proposalCount?.n} proposal(s) posted and their markets hold nothing: a proposal opens with what its proposer puts behind it, unless a date on the metric sheet names a number.`
+          : 'A proposal opens with what its proposer puts behind it. Name a number on a date of the metric sheet if you want the price before they pay.',
+      };
+    })(),
 
     participation: publicCaps.includes('trade')
       ? { status: 'done', note: `Open: anyone can join and trade (${ws.visibility}).` }
