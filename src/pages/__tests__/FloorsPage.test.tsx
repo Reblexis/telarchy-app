@@ -183,7 +183,8 @@ describe('marketplace', () => {
 
   test('the footer leads with settlement, then the activity behind it', async () => {
     renderPage();
-    await screen.findByText('settles 31 August 2026');
+    // The caption's short form; the full day is the hover title.
+    expect(await screen.findByText('settles 31 Aug')).toHaveAttribute('title', 'settles 31 August 2026');
     const row = await screen.findByLabelText('Market facts');
     expect(row).toHaveTextContent(/^14\s*1,000\s*108\s*2$/);
   });
