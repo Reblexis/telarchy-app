@@ -39,6 +39,7 @@ import {
   buildHorizonViews,
   captionLabel,
   cellOf,
+  dateChipOf,
   dateQuestionOf,
   dateSegmentOf,
   datesOf,
@@ -1280,103 +1281,64 @@ export function TradePage() {
                 to be on before they clicked in. Rendered once here, never
                 copied into the branch below, because a second copy is how the
                 two drift. */}
-              {/* Two pickers (owner ask 2026-08-25; both segmented rows, owner
-               choice 2026-08-26, KEPT beside the question line, owner ask
-               2026-08-28): the caption row picks the METRIC, the row under it
-               picks the DATE of that metric. Every option is visible and the
-               selected segment never moves. A (metric, date) pair is a
-               market, so selection is still one market id. The caption stays
-               an h2 that is a block child of .pubws-center (layout rule,
-               2026-08-20). */}
+              {/* Two pickers on ONE line (docs/ui-conventions.md, "The question
+               line", revised 2026-09-04): the board's caption vocabulary, a
+               metric chip and a date chip separated by a middle dot, each a
+               menu. The former segmented rows cost two lines and a pair of
+               owner buttons before the question; the owner's way into the
+               metrics and the dates is now the last entry of each menu. A
+               (metric, date) pair is a market, so selection is still one
+               market id. The caption stays an h2 that is a block child of
+               .pubws-center (layout rule, 2026-08-20); the chips live INSIDE
+               it, never in a wrapper around it. */}
               <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
-                {metricHeads.length > 1 ? (
-                  <span className="pubws-seg" role="group" aria-label="Metric">
-                    {metricHeads.map(m => (
-                      <button
-                        key={m.metricId}
-                        className={`pubws-seg-btn${hero?.metricId === m.metricId ? ' is-active' : ''}`}
-                        aria-pressed={hero?.metricId === m.metricId}
-                        aria-label={`Show ${m.metricLabel}`}
-                        onClick={() => {
-                          const cell = cellOf(horizons, m.metricId, hero?.targetDate);
-                          if (cell) setHorizonId(cell.marketId);
-                        }}
-                      >
-                        {captionLabel(m.metricLabel, ws.name)}
-                      </button>
-                    ))}
-                    {/* The way into the metrics, the twin of the `dates` chip on
-                     the row under it (docs/owner-on-the-floor.md, dialog 1). It
-                     used to be a `+ metric` that only added; the range and the
-                     words of a metric already on the floor had no way in. */}
-                    {canManage && (
-                      <button
-                        type="button"
-                        className="pubws-date-add"
-                        aria-label="Metrics"
-                        onClick={() => setOwnerDialog({ kind: 'metrics' })}
-                      >
-                        metrics
-                      </button>
-                    )}
-                  </span>
-                ) : (
+                <CaptionChip
+                  kind="metric"
+                  label={captionLabel(metricLabel, ws.name)}
+                  menuLabel="Metric"
+                  options={metricHeads.map(m => ({
+                    id: m.metricId,
+                    label: captionLabel(m.metricLabel, ws.name),
+                    selected: hero?.metricId === m.metricId,
+                  }))}
+                  onPick={id => {
+                    const cell = cellOf(horizons, id, hero?.targetDate);
+                    if (cell) setHorizonId(cell.marketId);
+                  }}
+                  manage={
+                    canManage ? { label: 'Manage metrics', open: () => setOwnerDialog({ kind: 'metrics' }) } : null
+                  }
+                />
+                {hero && (
                   <>
-                    {captionLabel(metricLabel, ws.name)}
-                    {canManage && (
-                      <button
-                        type="button"
-                        className="pubws-date-add"
-                        aria-label="Metrics"
-                        onClick={() => setOwnerDialog({ kind: 'metrics' })}
-                      >
-                        metrics
-                      </button>
-                    )}
+                    <span className="pubws-chip-dot" aria-hidden="true">
+                      ·
+                    </span>
+                    <CaptionChip
+                      kind="date"
+                      label={dateChipOf(hero)}
+                      title={hero.resolvesOn ? `settles ${settleInstant(hero.resolvesOn)}` : undefined}
+                      menuLabel="Date"
+                      options={heroDates.map(d => ({
+                        id: d.marketId,
+                        label: dateSegmentOf(d),
+                        selected: d.marketId === hero.marketId,
+                        title: d.resolvesOn ? `settles ${settleInstant(d.resolvesOn)}` : undefined,
+                      }))}
+                      onPick={id => setHorizonId(id)}
+                      manage={
+                        canManage && hero.metricId
+                          ? {
+                              label: 'Manage dates',
+                              open: () =>
+                                setOwnerDialog({ kind: 'dates', metricId: hero.metricId, metricName: metricLabel }),
+                            }
+                          : null
+                      }
+                    />
                   </>
                 )}
               </h2>
-              {hero && (
-                <div className="pubws-instrument-date pubws-enter pubws-enter--1">
-                  {heroDates.length > 1 ? (
-                    <span className="pubws-seg" role="group" aria-label="Date">
-                      {heroDates.map(d => (
-                        <button
-                          key={d.marketId}
-                          className={`pubws-seg-btn${d.marketId === hero.marketId ? ' is-active' : ''}`}
-                          aria-pressed={d.marketId === hero.marketId}
-                          aria-label={`Show ${d.metricLabel}, ${d.label}`}
-                          title={d.resolvesOn ? `settles ${new Date(d.resolvesOn).toUTCString()}` : undefined}
-                          onClick={() => setHorizonId(d.marketId)}
-                        >
-                          {dateSegmentOf(d)}
-                        </button>
-                      ))}
-                    </span>
-                  ) : (
-                    <span
-                      className="pubws-instrument-at"
-                      title={hero.resolvesOn ? `settles ${new Date(hero.resolvesOn).toUTCString()}` : undefined}
-                    >
-                      {dateSegmentOf(hero)}
-                    </span>
-                  )}
-                  {/* The owner opens a market where the dates are, not on a
-                    settings page (docs/owner-on-the-floor.md). */}
-                  {canManage && hero?.metricId && (
-                    <button
-                      type="button"
-                      className="pubws-date-add"
-                      aria-label="The dates this metric is priced on"
-                      onClick={() =>
-                        setOwnerDialog({ kind: 'dates', metricId: hero.metricId, metricName: metricLabel })
-                      }
-                    >
-                      dates
-                    </button>
-                  )}
-                </div>
-              )}
               {/* The question line (owner ask 2026-08-28): under the pickers,
                the selected cell stated as the market's own sentence, "What
                will be {company}'s {metric} {date}?", so a newcomer is not
@@ -1740,15 +1702,23 @@ export function TradePage() {
                     {/* The reading, ink: the value in force with its age,
                       because a reading is only trustworthy with its age on it. */}
                     <div className="pubws-stat-block pubws-stat--now">
+                      {/* The caption line FIRST (revised 2026-09-04, the home
+                        board's cell shape): what the number is and its age,
+                        then the value under it. */}
+                      <span className="pubws-stat-what">
+                        now
+                        {lastReading?.at && (
+                          <>
+                            {' · '}
+                            <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
+                              read {timeAgoOf(lastReading.at, now) ?? ''}
+                            </span>
+                          </>
+                        )}
+                      </span>
                       <span className="pubws-price">
                         {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
                       </span>
-                      <span className="pubws-stat-what">now</span>
-                      {lastReading?.at && (
-                        <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
-                          read {timeAgoOf(lastReading.at, now) ?? ''}
-                        </span>
-                      )}
                     </div>
                     {/* The market's call, amber: the consensus, its name, the
                       day it is for and the countdown. A proposal's impact chip
@@ -1756,6 +1726,11 @@ export function TradePage() {
                       number, and silence read as a broken page. Bare arrow +
                       delta (owner ask 2026-08-28). */}
                     <div className="pubws-stat-block pubws-stat--call">
+                      <span className="pubws-stat-what">
+                        market's call
+                        {settleNote && <>{' · '}</>}
+                        {settleNote}
+                      </span>
                       <span className="pubws-stat-value">
                         <span className="pubws-price">
                           <AnimatedNumber value={consensus} render={v => `${unit}${formatValue(v)}`} />
@@ -1774,8 +1749,6 @@ export function TradePage() {
                             </span>
                           ))}
                       </span>
-                      <span className="pubws-stat-what">market's call</span>
-                      {settleNote}
                     </div>
                   </div>
                   {/* The number chart, the hero: titled by the metric itself
@@ -2297,48 +2270,43 @@ export function TradePage() {
         ) : (
           <aside className="pubws-rail pubws-rail--right" aria-hidden="true" />
         )}
+
+        {/* The page ends on a three-cell board (docs/ui-conventions.md, "The
+            page ends", revised 2026-09-04), full width under the three
+            columns. The floor stops explaining itself (2026-09-01): the
+            market above SHOWS what this is, and these cells say only the
+            three things it cannot: what the mechanism is for (a link to the
+            guide), that a stranger may offer to do the work for real money
+            (a scroll to the proposal rail, never a second control), and the
+            owner's door: the company-facing sentence over the email field.
+            The door is an email box, not a "waitlist" (owner direction
+            2026-08-10): anyone who wants their own numbers run this way gets
+            set up within days, so the copy promises contact, not a queue. */}
+        <section className="pubws-end" aria-label="Next steps">
+          <div className="pubws-end-cell">
+            <h2 className="pubws-h2 pubws-end-label">New here?</h2>
+            <p className="pubws-end-line">Telarchy prices what a decision does to a number before anyone commits.</p>
+            <Link className="pubws-end-go" to="/forecast">
+              How it works {endArrow}
+            </Link>
+          </div>
+          <div className="pubws-end-cell">
+            <h2 className="pubws-h2 pubws-end-label">Do the work</h2>
+            <p className="pubws-end-line">
+              Offer to do it and name your price. The owner pays in real money if the market says it clears.
+            </p>
+            <button type="button" className="pubws-end-go" onClick={() => scrollToAction('contract')}>
+              Offer a proposal {endArrow}
+            </button>
+          </div>
+          <div className="pubws-end-cell">
+            <h2 className="pubws-h2 pubws-end-label">Your own numbers</h2>
+            <p className="pubws-end-line">See what a decision does to your numbers before you say yes.</p>
+            <SetupForm source={ws.slug || idOrSlug || 'floor'} />
+          </div>
+        </section>
       </main>
 
-      {/* The floor stops explaining itself (2026-09-01). It answered "what
-          is this" three times over: the market's own definition, three
-          numbered beats with drawings, and two cards. The explanation is the
-          page above them, which SHOWS rather than tells (a real company's
-          number, its chart, and two priced sides), and what YC's own reviews
-          ask of a page is that a stranger get it in five to ten seconds at
-          the top, not that the bottom repeat it
-          (`notes/yc-landing-explainer-2026-09-01.md`).
-
-          Two lines survive, because they are the two things the working
-          market cannot show. One: what the mechanism is for, pointing at the
-          page that explains it properly. Two: that a stranger may offer to do
-          the work and be paid real money for it, which nobody guesses from
-          watching a market trade, and which stays a call to action rather
-          than a card of equal weight to Trade, whose control is already on
-          screen. */}
-      <section className="pubws-close" aria-label="New here?">
-        <p className="pubws-close-line">
-          New here? Telarchy prices what a decision does to a number before anyone commits.{' '}
-          <Link className="pubws-close-go" to="/forecast">
-            How it works &rarr;
-          </Link>
-        </p>
-        <p className="pubws-close-line">
-          You can also offer to do the work and name your price. The owner pays in real money if the market says it
-          clears.{' '}
-          <button type="button" className="pubws-close-go" onClick={() => scrollToAction('contract')}>
-            Offer a proposal &rarr;
-          </button>
-        </p>
-      </section>
-
-      {/* The door is an email box, not a "waitlist" (owner direction
-          2026-08-10): anyone who wants their own numbers run this way gets
-          set up within days, so the copy promises contact, not a queue. One
-          field, zero friction. It closes the page because the two calls to
-          action escalate: trade, offer a proposal, run your own number. */}
-      <section className="pubws-door" aria-label="Get set up">
-        <SetupForm source={ws.slug || idOrSlug || 'floor'} />
-      </section>
       {/* The floor is designed to stay open, so every deploy would strand
           this tab on old code forever (owner report 2026-08-13: a fixed
           bug kept "happening" in a pre-fix tab). Offer the reload, never
@@ -2629,6 +2597,142 @@ function WorldWord({
   );
 }
 
+/** The quiet arrow after a page-end link, the home board's own. */
+const endArrow = (
+  <svg
+    className="pubws-end-arrow"
+    viewBox="0 0 14 14"
+    width="14"
+    height="14"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M2 7h10M8 3l4 4-4 4" />
+  </svg>
+);
+
+type ChipOption = { id: string; label: string; selected: boolean; title?: string };
+
+/**
+ * One caption chip (docs/ui-conventions.md, "The question line"): a mono
+ * small-caps label that, with something to pick, is a `button` opening a
+ * listbox of the options, with the owner's "Manage ..." entry last. With
+ * one option and nothing to manage it is plain text: no chevron, no menu.
+ * The menu closes on a pick, on Escape, and on a click outside.
+ */
+function CaptionChip({
+  kind,
+  label,
+  title,
+  menuLabel,
+  options,
+  onPick,
+  manage,
+}: {
+  kind: 'metric' | 'date';
+  label: string;
+  title?: string;
+  menuLabel: string;
+  options: ChipOption[];
+  onPick: (id: string) => void;
+  manage: { label: string; open: () => void } | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  if (options.length <= 1 && !manage) {
+    return (
+      <span className={`pubws-chip pubws-chip--${kind} pubws-chip--plain`} title={title}>
+        {label}
+      </span>
+    );
+  }
+  return (
+    <span className="pubws-chip-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className={`pubws-chip pubws-chip--${kind}`}
+        title={title}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+      >
+        {label}
+        <svg
+          className="pubws-chip-chev"
+          viewBox="0 0 10 10"
+          width="10"
+          height="10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M2.5 3.75L5 6.25l2.5-2.5" />
+        </svg>
+      </button>
+      {open && (
+        <ul className="pubws-chip-menu" role="listbox" aria-label={menuLabel}>
+          {options.map(o => (
+            <li key={o.id} role="none">
+              <button
+                type="button"
+                role="option"
+                aria-selected={o.selected}
+                className={`pubws-chip-opt${o.selected ? ' is-selected' : ''}`}
+                title={o.title}
+                onClick={() => {
+                  onPick(o.id);
+                  setOpen(false);
+                }}
+              >
+                {o.label}
+              </button>
+            </li>
+          ))}
+          {manage && (
+            <li role="none">
+              <button
+                type="button"
+                role="option"
+                aria-selected={false}
+                className="pubws-chip-opt pubws-chip-opt--manage"
+                onClick={() => {
+                  manage.open();
+                  setOpen(false);
+                }}
+              >
+                {manage.label}
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+    </span>
+  );
+}
+
 /** One email in, one promise out: we set you up, no queue language.
  *  `source` names which door this was, so /admin can tell a signup from
  *  this market apart from one off the marketplace tile. */
@@ -2660,7 +2764,6 @@ function SetupForm({ source }: { source: string }) {
   }
   return (
     <form className="pubws-setup" onSubmit={e => void submit(e)}>
-      <p className="pubws-setup-lead">Want this for your own numbers, a company or a personal goal?</p>
       <div className="pubws-setup-row">
         <input
           type="email"

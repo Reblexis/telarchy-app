@@ -122,11 +122,15 @@ function renderFloor() {
 /** Which market is on screen, read from the caption (never the animated price). */
 const caption = (container: HTMLElement) => container.querySelector('.pubws-instrument-label')?.textContent ?? '';
 
-/** Step to the other metric on the picker row. */
-const stepMetric = (container: HTMLElement) =>
+/** Step to the other metric: open the metric chip's menu and pick it. */
+const stepMetric = (container: HTMLElement) => {
+  fireEvent.click(container.querySelector('.pubws-chip--metric') as HTMLElement);
   fireEvent.click(
-    [...container.querySelectorAll('.pubws-seg-btn')].find(b => b.textContent?.includes('Signups this week'))!,
+    [...container.querySelectorAll('.pubws-chip-menu [role="option"]')].find(b =>
+      b.textContent?.includes('Signups this week'),
+    )!,
   );
+};
 
 /** The "What is this market?" section, so queries never leak into the
  *  workspace-about section, which has its own Edit button and prose. */

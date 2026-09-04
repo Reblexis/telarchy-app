@@ -351,10 +351,10 @@ describe('an unfunded market does not offer a bet it cannot take', () => {
  * are on screen, while "a stranger can propose paid work here" is the part
  * nobody guesses.
  */
-describe('the floor closes in two lines', () => {
+describe('the floor closes on a three-cell board', () => {
   test('THE PAGE STOPS EXPLAINING ITSELF FOUR TIMES', async () => {
     const { container } = renderFloor();
-    await screen.findByLabelText('New here?');
+    await screen.findByLabelText('Next steps');
     // A floor answered "what is this" in its market definition, in three
     // numbered beats and in two cards, one under the other. The market above
     // is the explanation; what is left is the part it cannot show.
@@ -365,16 +365,16 @@ describe('the floor closes in two lines', () => {
 
   test('the half nobody guesses survives: paid work, in real money', async () => {
     renderFloor();
-    const close = await screen.findByLabelText('New here?');
+    const close = await screen.findByLabelText('Next steps');
     // Watching a market trade never tells a stranger they may offer to do
     // the work and be paid for it, so that line cannot go with the cards.
-    expect(within(close).getByText(/offer to do the work and name your price/i)).toBeTruthy();
+    expect(within(close).getByText(/offer to do it and name your price/i)).toBeTruthy();
     expect(within(close).getByText(/real money/i)).toBeTruthy();
   });
 
   test('the full explanation is a link, not a section', async () => {
     renderFloor();
-    const close = await screen.findByLabelText('New here?');
+    const close = await screen.findByLabelText('Next steps');
     const how = within(close).getByRole('link', { name: /how it works/i });
     expect(how.getAttribute('href')).toBe('/forecast');
   });
@@ -388,7 +388,7 @@ describe('the floor closes in two lines', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
 
     const { container } = renderFloor();
-    const close = await screen.findByLabelText('New here?');
+    const close = await screen.findByLabelText('Next steps');
     fireEvent.click(within(close).getByText(/offer a proposal/i));
     expect(into).toHaveBeenCalled();
     expect(container.querySelector('.pubws-rail--right')).toBeTruthy();
@@ -396,27 +396,21 @@ describe('the floor closes in two lines', () => {
 
   test('the floor calls them proposals, never jobs', async () => {
     const { container } = renderFloor();
-    await screen.findByLabelText('New here?');
+    await screen.findByLabelText('Next steps');
     expect(container.textContent).not.toMatch(/\bjobs?\b/i);
   });
 });
 
 test('the page explains, then asks, then offers the owner door', async () => {
   const { container } = renderFloor();
-  await screen.findByLabelText('New here?');
-  const order = [...container.querySelectorAll('.pubws-know-head, .pubws-close-line, .pubws-setup-lead')].map(n =>
+  await screen.findByLabelText('Next steps');
+  const order = [...container.querySelectorAll('.pubws-know-head, .pubws-end-label')].map(n =>
     (n.textContent ?? '').slice(0, 16),
   );
   // Two "know" blocks already: the market's own definition, then the
-  // company's. Those are the explanation; the closing lines say only what
-  // they cannot.
-  expect(order).toEqual([
-    'What is this mar',
-    'What is LookPilo',
-    'New here? Telarc',
-    'You can also off',
-    'Want this for yo',
-  ]);
+  // company's. Those are the explanation; the closing board says only what
+  // they cannot, then offers the owner door.
+  expect(order).toEqual(['What is this mar', 'What is LookPilo', 'New here?', 'Do the work', 'Your own numbers']);
 });
 
 /**
@@ -644,8 +638,8 @@ test('the workspace name heads the page', async () => {
   // The caption is what the number measures, with the name it already
   // carries overhead stripped off, and the day it settles is the line under
   // it (owner ask 2026-08-25, two steppers).
-  expect(container.querySelector('.pubws-instrument-label')!.textContent).toBe('revenue');
-  expect(container.querySelector('.pubws-instrument-date')!.textContent).toBe('31 Dec');
+  expect(container.querySelector('.pubws-chip--metric')!.textContent).toBe('revenue');
+  expect(container.querySelector('.pubws-chip--date')!.textContent).toBe('settles 31 Dec');
   // And under the pickers, the same cell stated as the market's own
   // question (owner ask 2026-08-28, both stay). One metric and one date on
   // this floor, so neither word of the sentence is a control.
@@ -1017,9 +1011,11 @@ describe('a proposal keeps the clock line', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
 
-    // One metric on two dates: both date segments are on the picker, and
-    // the sentence's date word is a cycle button.
-    expect((await screen.findAllByRole('button', { name: /^Show / })).length).toBe(2);
+    // One metric on two dates: the date chip is a menu (a button that
+    // says whether it is open), and the sentence's date word is a cycle
+    // button.
+    await waitFor(() => expect(document.querySelector('.pubws-chip--date')?.tagName).toBe('BUTTON'));
+    expect(document.querySelector('.pubws-chip--date')?.getAttribute('aria-expanded')).toBe('false');
     expect(screen.getByRole('button', { name: /^Date: / })).toBeTruthy();
 
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
@@ -1027,7 +1023,7 @@ describe('a proposal keeps the clock line', () => {
 
     // The regression: this used to be 0, because the caption and its
     // controls lived in the branch that a selected proposal replaced.
-    expect(screen.getAllByRole('button', { name: /^Show / }).length).toBe(2);
+    expect(document.querySelector('.pubws-chip--date')?.tagName).toBe('BUTTON');
     expect(screen.getByRole('button', { name: /^Date: / })).toBeTruthy();
   });
 
@@ -1044,7 +1040,7 @@ describe('a proposal keeps the clock line', () => {
     // cell as a sentence.
     const caption = document.querySelector('.pubws-instrument-label');
     expect(caption?.textContent).toContain('monthly net revenue');
-    expect(document.querySelector('.pubws-instrument-date')?.textContent).toMatch(/\d/);
+    expect(document.querySelector('.pubws-chip--date')?.textContent).toMatch(/\d/);
     const ask = document.querySelector('.pubws-instrument-ask');
     expect(ask?.textContent).toContain('monthly net revenue');
     expect(ask?.textContent).toMatch(/ on \d/);
@@ -1077,9 +1073,10 @@ describe('a proposal keeps the clock line', () => {
     // Opens on the furthest-resolving horizon, so the month's approved branch.
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-month-approved'));
 
-    // The fixture's two markets share one metric, so this is the DATE row;
-    // the week's segment is the one not on screen.
-    fireEvent.click(screen.getByRole('button', { name: /^Show .*(this week|week to)/ }));
+    // The fixture's two markets share one metric, so this is the DATE chip;
+    // the week (already past, so a bare day) is the option not on screen.
+    fireEvent.click(document.querySelector('.pubws-chip--date') as HTMLElement);
+    fireEvent.click(screen.getByRole('option', { name: /23 Aug/ }));
 
     // pair resolves by (metric, date), so the week's pair is now the one on
     // screen.
@@ -1132,7 +1129,7 @@ describe('a market with no price yet', () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-instrument-label')).toBeTruthy());
     expect(container.querySelector('.pubws-price')?.textContent).toBe('no price yet');
-    expect(container.querySelector('.pubws-instrument-date')).toBeTruthy();
+    expect(container.querySelector('.pubws-chip--date')).toBeTruthy();
     expect(container.querySelector('.pubws-instrument-ask')?.textContent).toContain(' on ');
     expect(container.querySelector('.mchart')).toBeNull();
   });
@@ -1178,10 +1175,13 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     const now = container.querySelector('.pubws-stats .pubws-stat--now') as HTMLElement;
     const call = container.querySelector('.pubws-stats .pubws-stat--call') as HTMLElement;
     expect(now.querySelector('.pubws-price')?.textContent).toBe('$45,339');
-    expect(now.querySelector('.pubws-stat-what')?.textContent).toBe('now');
+    // The caption line carries the age ("NOW · READ 25M AGO", 2026-09-04).
+    expect(now.querySelector('.pubws-stat-what')?.textContent).toMatch(/^now · read (.+ ago|just now)$/);
     expect(now.querySelector('.pubws-updated')?.textContent).toMatch(/^read .+ ago$|^read just now$/);
     expect(call.querySelector('.pubws-price')?.textContent).toBe('$78,571');
-    expect(call.querySelector('.pubws-stat-what')?.textContent).toBe("market's call");
+    expect(call.querySelector('.pubws-stat-what')?.textContent).toMatch(
+      /^market's call · for 30 Dec · settles in \S+$/,
+    );
     // The day being forecast is the day before the settle instant, as the
     // picker names it, then THE COUNTDOWN, AND ONLY THE COUNTDOWN (owner,
     // 2026-09-01): the exact instant is the hover.
