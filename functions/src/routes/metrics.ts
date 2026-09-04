@@ -19,7 +19,7 @@ import { requireCapability } from '../middleware/roles';
 import { emitEvent } from '../services/events';
 import { voidMarketsById, voidOpenMarketsForMetrics } from '../services/markets';
 import * as svc from '../services/metrics';
-import type { TimePreference } from '../types';
+import type { HorizonCredits, TimePreference } from '../types';
 
 export const metricsRouter = Router();
 
@@ -919,9 +919,45 @@ export function parseTimePreference(raw: unknown): TimePreference | null | undef
     }
     if (cleaned.length > 0) customHorizons = cleaned;
   }
+  // What each date opens with, keyed by the entry it belongs to
+  // (docs/guides/time-preference.md, "What each date opens with"). A key
+  // that names no entry is dropped rather than refused: the sheet writes the
+  // whole object and a stopped date should not make the next save fail.
+  let horizonCredits: Record<string, HorizonCredits> | undefined;
+  if (obj.horizonCredits !== undefined && obj.horizonCredits !== null) {
+    if (typeof obj.horizonCredits !== 'object' || Array.isArray(obj.horizonCredits)) {
+      return new Error('timePreference.horizonCredits must be an object keyed by customHorizons entries');
+    }
+    const kept = new Set(customHorizons ?? []);
+    const out: Record<string, HorizonCredits> = {};
+    for (const [rawKey, rawVal] of Object.entries(obj.horizonCredits as Record<string, unknown>)) {
+      const key = rawKey.trim();
+      if (!kept.has(key)) continue;
+      if (typeof rawVal !== 'object' || rawVal === null || Array.isArray(rawVal)) {
+        return new Error(`timePreference.horizonCredits["${key}"] must be { book?, proposal? }`);
+      }
+      const v = rawVal as Record<string, unknown>;
+      const entry: HorizonCredits = {};
+      if (v.book !== undefined) {
+        if (v.book !== null && (typeof v.book !== 'number' || !Number.isFinite(v.book) || v.book < 0)) {
+          return new Error(`timePreference.horizonCredits["${key}"].book must be a non-negative number or null`);
+        }
+        entry.book = v.book as number | null;
+      }
+      if (v.proposal !== undefined && v.proposal !== null) {
+        if (typeof v.proposal !== 'number' || !Number.isFinite(v.proposal) || v.proposal < 0) {
+          return new Error(`timePreference.horizonCredits["${key}"].proposal must be a non-negative number`);
+        }
+        entry.proposal = v.proposal;
+      }
+      out[key] = entry;
+    }
+    if (Object.keys(out).length > 0) horizonCredits = out;
+  }
   const tp: TimePreference = { enabled: obj.enabled, halfLife: (obj.halfLife as number) ?? 1 };
   if (density !== undefined) tp.density = density;
   if (customHorizons !== undefined) tp.customHorizons = customHorizons;
+  if (horizonCredits !== undefined) tp.horizonCredits = horizonCredits;
   return tp;
 }
 
