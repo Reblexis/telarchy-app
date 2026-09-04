@@ -13,7 +13,12 @@ import { and, eq } from 'drizzle-orm';
 import { agents, type DecidedPair, markets, metrics as metricsTable, proposals, workspaces } from '../db/schema';
 import { consensus, initialPool } from '../lib/amm';
 import { toUnits } from '../lib/validation';
-import { approveProposal, createConditionalMarkets, declineProposal } from '../services/proposals';
+import {
+  approveProposal,
+  createConditionalMarkets,
+  declineProposal,
+  getProposalMarketSummariesForProposal,
+} from '../services/proposals';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 beforeAll(async () => {
@@ -162,5 +167,32 @@ describe('a decision records the pair prices it was made on', () => {
     const after = await branchPrices();
     expect(after.approved).not.toBe(priced.approved);
     expect((await decidedPricing())![0].approvedConsensus).toBe(priced.approved);
+  });
+
+  test("a decided proposal's pair summary (proposal detail, brief) reads the record, not the books", async () => {
+    await seed();
+    const priced = await branchPrices();
+    await approveProposal('p1', WS, OWNER);
+    const { rows } = await branchPrices();
+    const approved = rows.find(r => r.branch === 'approved')!;
+    await db
+      .update(markets)
+      .set({ shares: [60, 0] })
+      .where(and(eq(markets.id, approved.id), eq(markets.workspaceId, WS)));
+    const after = await branchPrices();
+    expect(after.approved).not.toBe(priced.approved);
+
+    const [pair] = await getProposalMarketSummariesForProposal('p1', WS);
+    expect(pair.approved!.consensus).toBe(priced.approved);
+    expect(pair.declined!.consensus).toBe(priced.declined);
+    expect(pair.delta).toBeCloseTo(priced.approved! - priced.declined!, 6);
+  });
+
+  test("a pending proposal's pair summary reads the books", async () => {
+    await seed();
+    const priced = await branchPrices();
+    const [pair] = await getProposalMarketSummariesForProposal('p1', WS);
+    expect(pair.approved!.consensus).toBe(priced.approved);
+    expect(pair.delta).toBe(priced.approved! - priced.declined!);
   });
 });
