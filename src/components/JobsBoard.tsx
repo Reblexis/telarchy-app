@@ -194,8 +194,10 @@ export function JobsBoard({
   // "there are too many proposals visible"). A decided proposal cannot be
   // traded on or influenced, and decided proposals carry the largest
   // impacts, so ranking them in with the pending ones put the whole archive
-  // above the fold. Both groups keep the impact ranking the owner acts on.
-  // docs/ui-conventions.md, "The board opens on the live ballot".
+  // above the fold. The pending ones keep the ranking the owner acts on;
+  // the decided ones are a record and read newest decision first (owner
+  // ask 2026-09-04). docs/ui-conventions.md, "The board opens on the live
+  // ballot".
   const isPending = (p: PublicProposal) => !p.status || p.status === 'pending';
   const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
   // Money decides the order (owner decision 2026-09-02: "proposals are
@@ -204,7 +206,16 @@ export function JobsBoard({
   // the top by accident of its own unpriced delta. Impact breaks a tie.
   const byPool = (a: PublicProposal, b: PublicProposal) => poolOf(b) - poolOf(a) || byImpact(a, b);
   const pending = proposals.filter(isPending).sort(byPool);
-  const decided = proposals.filter(p => !isPending(p)).sort(byImpact);
+  // Newest decision first; a proposal with no decision time sorts last and
+  // impact breaks a tie.
+  const decidedAt = (p: PublicProposal) => (p.resolvedAt ? Date.parse(p.resolvedAt) : Number.NEGATIVE_INFINITY);
+  const byDecision = (a: PublicProposal, b: PublicProposal) => {
+    const ta = decidedAt(a);
+    const tb = decidedAt(b);
+    if (ta !== tb) return ta > tb ? -1 : 1;
+    return byImpact(a, b);
+  };
+  const decided = proposals.filter(p => !isPending(p)).sort(byDecision);
 
   // A board with nothing pending has no ballot to bury, so the decided ones
   // ARE the list and there is no fold; a board with nothing decided has

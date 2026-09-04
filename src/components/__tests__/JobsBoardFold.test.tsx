@@ -22,7 +22,7 @@ import { JobsBoard } from '../JobsBoard';
 const HORIZON = '2026-09';
 
 /** One proposal with one priced pair on the horizon the board is reading. */
-const proposal = (id: string, title: string, delta: number, status: string) =>
+const proposal = (id: string, title: string, delta: number, status: string, resolvedAt: string | null = null) =>
   ({
     id,
     title,
@@ -31,6 +31,7 @@ const proposal = (id: string, title: string, delta: number, status: string) =>
     proposedByName: 'Jason',
     createdAt: '2026-08-25T10:00:00Z',
     status,
+    resolvedAt,
     marketPairCount: 1,
     markets: [
       {
@@ -59,10 +60,13 @@ const PENDING = [
   proposal('p1', 'Publish a LessWrong post', 2.5, 'pending'),
   proposal('p2', 'Add Manifold workspace', 1.5, 'pending'),
 ];
+// Decided in the order d2, d1, d3 (oldest to newest), which is neither the
+// impact order nor the array order, so a list that reads newest first has
+// to have looked at the decision time.
 const DECIDED = [
-  proposal('d1', 'Trade 100 credits every week', 18.9, 'approved'),
-  proposal('d2', 'Ten minutes of best advice', 9.9, 'approved'),
-  proposal('d3', 'A market on Manifold', 7.8, 'declined'),
+  proposal('d1', 'Trade 100 credits every week', 18.9, 'approved', '2026-08-28T10:00:00Z'),
+  proposal('d2', 'Ten minutes of best advice', 9.9, 'approved', '2026-08-27T10:00:00Z'),
+  proposal('d3', 'A market on Manifold', 7.8, 'declined', '2026-08-30T10:00:00Z'),
 ];
 
 const base = {
@@ -103,7 +107,7 @@ describe('the board opens on the live ballot', () => {
     expect(screen.getByText('Show')).toBeTruthy();
   });
 
-  test('pressing it reveals them, still ranked by impact, and it says Hide', () => {
+  test('pressing it reveals them, newest decision first, and it says Hide', () => {
     board();
     fireEvent.click(screen.getByText('Show'));
     expect(screen.getByText('Trade 100 credits every week')).toBeTruthy();
@@ -112,9 +116,41 @@ describe('the board opens on the live ballot', () => {
     const shown = titles().filter(
       t => t.includes('credits') || t.includes('advice') || t.includes('Manifold on') || t.includes('A market'),
     );
-    expect(shown[shown.length - 3]).toContain('Trade 100 credits');
-    expect(shown[shown.length - 2]).toContain('Ten minutes');
-    expect(shown[shown.length - 1]).toContain('A market on Manifold');
+    // d3 (08-30), then d1 (08-28), then d2 (08-27): the order they were
+    // decided in, reversed, not the impact order 18.9 > 9.9 > 7.8.
+    expect(shown[shown.length - 3]).toContain('A market on Manifold');
+    expect(shown[shown.length - 2]).toContain('Trade 100 credits');
+    expect(shown[shown.length - 1]).toContain('Ten minutes');
+  });
+
+  test('a decided proposal without a decision time sorts last, and impact breaks a tie', () => {
+    board({
+      proposals: [
+        ...PENDING,
+        proposal('x1', 'Undated small', 1.0, 'approved', null),
+        proposal('x2', 'Undated large', 5.0, 'declined', null),
+        proposal('x3', 'Same minute small', 2.0, 'approved', '2026-08-29T10:00:00Z'),
+        proposal('x4', 'Same minute large', 4.0, 'approved', '2026-08-29T10:00:00Z'),
+        proposal('x5', 'Older', 9.0, 'approved', '2026-08-20T10:00:00Z'),
+      ],
+    });
+    fireEvent.click(screen.getByText('Show'));
+    const shown = titles().filter(t => /Undated|Same minute|Older/.test(t));
+    expect(shown.map(t => t.replace(/by Jason.*$/, '').trim())).toEqual([
+      'Same minute large',
+      'Same minute small',
+      'Older',
+      'Undated large',
+      'Undated small',
+    ]);
+  });
+
+  test('a board with nothing pending lists the decided ones newest decision first', () => {
+    board({ proposals: DECIDED });
+    const shown = titles().filter(t => /credits|advice|A market/.test(t));
+    expect(shown[0]).toContain('A market on Manifold');
+    expect(shown[1]).toContain('Trade 100 credits');
+    expect(shown[2]).toContain('Ten minutes');
   });
 
   test('pressing it again folds them back away', () => {

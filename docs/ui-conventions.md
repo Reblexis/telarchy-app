@@ -1201,8 +1201,12 @@ still act on under the archive of ones they could not. The list therefore
 shows the pending proposals, and ONE hairline row at the foot of it stands
 for the rest: the count on the left ("7 decided"), SHOW or HIDE in the
 accent on the right, and a chevron that turns. Expanded, the decided
-proposals appear beneath that row as the same rows they always were, still
-ranked by impact. The row is only there when there is something on both
+proposals appear beneath that row as the same rows they always were,
+newest decision first: the decided list is a record of what the owner
+did, and a record reads in the order it happened, so the proposal decided
+most recently is at the top and impact, which ordered them while they
+were live, no longer orders them. A proposal whose decision time is
+missing sorts last, and impact breaks a tie. The row is only there when there is something on both
 sides of it to separate: a board with nothing decided has no fold, and a
 board with nothing pending has no ballot to bury, so it shows the decided
 proposals as the list and no fold either. Two rules protect the
