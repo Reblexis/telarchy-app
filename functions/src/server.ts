@@ -250,6 +250,11 @@ import('./app')
       // for a year.
       app.use(
         express.static(publicDir, {
+          // No directory index: `/` must reach the SPA fallback below, which
+          // serves index.html WITH the home payload inlined. With the
+          // default, static answered `/` itself and the first publish of
+          // the inline data (2026-09-04) shipped a home page without it.
+          index: false,
           setHeaders: (res, filePath) => {
             if (filePath.endsWith('.html')) {
               res.setHeader('Cache-Control', 'no-cache');
