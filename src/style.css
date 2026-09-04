@@ -6786,13 +6786,22 @@ textarea.jobform-line--desc {
 .mkt-ghost-head { display: flex; justify-content: space-between; }
 
 /* The listing cell: the last cell of the board and the only interactive
-   one. It spans two columns where the row has room. */
+   one. It spans two columns where the row has room. Cell B (owner pick
+   2026-09-04): a mono small-caps label in the caption register, the owner's
+   sentence in the display face, the mechanism in one line, then the door. */
 .mkt-cell--new {
   justify-content: center;
   gap: 0.5rem;
 }
 @media (min-width: 640px) {
   .mkt-cell--new { grid-column: span 2; }
+}
+.mkt-new-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
 }
 .mkt-new-title {
   font-family: 'Fraunces', serif;
@@ -9739,3 +9748,175 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
    same three columns as the loaded floor, so nothing moves when it lands. */
 .pubws-main--ghost .pubws-center { text-align: center; }
 .pubws-ghost-instrument { margin-top: 0.4rem; }
+
+/* ------------------------------------------------------------------ */
+/* /owners as a board (docs/audience-pages.md, "/owners is laid out as a
+   board"; owner ask 2026-09-04, from the floor canvas). The same copy as
+   the document pages, in the language of the home board: the H1 as the
+   hero over the glow, ONE pill, three hairline-ruled cells with their
+   drawings, "Setting up" beside the FAQ as two hairline lists, and the
+   actions as one closing row on hairlines. Widths and rules are the home
+   page's (.mkt, .mkt-board); the register of every label is the cell
+   caption's. */
+.pubws-main.own {
+  position: relative;
+  max-width: 1180px;
+  padding: clamp(2.5rem, 8vh, 5rem) 1.25rem 4rem;
+}
+.own-hero {
+  position: relative;
+  text-align: center;
+}
+.own-h1 { max-width: 20ch; }
+.own-hero-cta {
+  position: relative;
+  margin: 1.6rem 0 0;
+  display: flex;
+  justify-content: center;
+}
+.own-pill { margin-left: 0; }
+
+/* Three cells of one hairline-ruled row: the cell geometry of .mkt-board,
+   closed by a rule above and below. */
+.own-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  gap: 1px;
+  margin-top: clamp(2.2rem, 5vh, 3.25rem);
+  background: var(--border-color);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.own-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.6rem 1.75rem 1.4rem;
+  background: var(--bg-primary);
+  min-width: 0;
+}
+.own-cell-label,
+.own-label {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.own-cell-title {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: 1.25rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+}
+.own-cell .viz {
+  margin: 0.6rem 0 0.2rem;
+  width: 100%;
+  height: auto;
+}
+.own-cell-rest {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* "Setting up" beside the FAQ: two columns with a 60px gap, one column
+   under 900px, each a hairline list under a label. */
+.own-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  margin-top: clamp(2.2rem, 5vh, 3.25rem);
+}
+@media (max-width: 900px) {
+  .own-two { grid-template-columns: 1fr; gap: 2.2rem; }
+}
+.own-col { min-width: 0; }
+.own-col .own-label { margin-bottom: 0.6rem; }
+.own-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.own-step {
+  display: flex;
+  align-items: baseline;
+  gap: 1.25rem;
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--border-color);
+}
+.own-step:last-child { border-bottom: 1px solid var(--border-color); }
+.own-step-n {
+  flex-shrink: 0;
+  width: 1.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--accent);
+}
+.own-step p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.own-faq { margin: 0; }
+.own-qa {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--border-color);
+}
+.own-qa:last-child { border-bottom: 1px solid var(--border-color); }
+.own-q {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+.own-a {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+@media (max-width: 560px) {
+  .own-qa { grid-template-columns: 1fr; gap: 0.3rem; }
+}
+
+/* The closing row: the first link a pill, the rest quiet accent links with
+   an arrow, on hairlines. */
+.own-close {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.9rem 1.6rem;
+  margin: clamp(2.2rem, 5vh, 3.25rem) 0 0;
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.own-quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.own-quiet:hover { color: var(--accent-hover); }
+.own-quiet svg { width: 14px; height: 14px; }
+.own + .pubws-aud-nav,
+.own .pubws-aud-nav { margin-top: 2.4rem; }

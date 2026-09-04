@@ -187,6 +187,11 @@ function ActivityFacts({ r }: { r: Listing }) {
 
 /**
  * The listing tile: the last cell of the grid, and the only interactive one.
+ * Cell B of the floor canvas (owner pick 2026-09-04, docs/ui-conventions.md,
+ * "The marketplace"): the mono label "Your own numbers", the owner's
+ * sentence in the display face, the mechanism in one line, then the door.
+ * The headline above the board stays trader-first; this cell is where the
+ * company-facing sentence lives.
  *
  * "Create your own" opens the create-floor dialog and lands the owner on
  * their empty floor, where the first metric is one more dialog away (owner
@@ -219,10 +224,11 @@ function ListYourNumberCell() {
 
   return (
     <div className="mkt-cell mkt-cell--new">
-      <span className="mkt-new-title">Put your own number up here.</span>
+      <span className="mkt-new-label">Your own numbers</span>
+      <span className="mkt-new-title">See what a decision does to your numbers before you say yes.</span>
       <span className="mkt-new-sub">
-        A company, a project, or something you run yourself. Name it, add the number, share the link. Forecasts start
-        with the first trade.
+        List the metrics you care about. Traders, human or AI, price every proposal against them; you approve on a
+        calibrated number.
       </span>
       {user || loading ? (
         <button type="button" className="mkt-new-cta" disabled={loading} onClick={() => setCreating(true)}>
