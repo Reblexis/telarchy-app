@@ -2102,6 +2102,12 @@ button.notif-row-link {
   border-radius: 5px;
   color: var(--text-primary);
 }
+.mfimport-fine {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
 .mfimport-done {
   margin: 0;
   font-size: 0.95rem;
@@ -3608,6 +3614,12 @@ textarea.jobform-line--desc {
 .acctdlg-crop-actions .acctdlg-ghost { align-self: auto; padding: 0.6rem 1rem; }
 
 /* The per-section confirm: the ticket's own, a size down. */
+.acctdlg-fine {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
 .acctdlg-save { padding: 0.6rem 1rem; font-size: 0.88rem; }
 
 .acctdlg-ghost {

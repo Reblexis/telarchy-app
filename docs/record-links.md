@@ -71,6 +71,24 @@ Ownership is proved the way a third party can prove it: the provider has
 no OAuth for us, so a value only the account holder can publish is the
 proof. Nothing is transferred and no credential is ever asked for.
 
+## Independent of the provider, and it says so
+
+Telarchy is not affiliated with, endorsed by or partnered with any of the
+providers it links. The link flow says that in one sentence, on the first
+step, before the participant types a handle, and the same sentence names
+what the link reads: the account's public profile, once, to check the
+code and the account's age. Nothing else from the provider is stored;
+id and handle are what the link keeps. The words the flow uses are
+"link" and "account", never "import", "bring" or "balance": nothing is
+imported, and a verb that suggests a transfer reads as an official
+integration that does not exist.
+
+The same independence line belongs on any floor that prices a
+provider's own numbers, as part of the workspace description, which is
+the one sentence a visitor reads under the name. What each provider
+has permitted is a record, not a rule of this doc: the Manifold terms
+are in the telarchy umbrella's `notes/manifold-genzy-reply-2026-09-03.md`.
+
 ## What every provider must supply
 
 A provider is defined by five things. Adding one is adding this object,
