@@ -1000,6 +1000,9 @@ async function buildFloorPayload(ws: PublicWs) {
       pairs.sort((a, b) => Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0));
       return {
         id: p.id,
+        // The short ordinal a person names it by (docs/ui-conventions.md,
+        // "A proposal has a number and an address").
+        number: p.number ?? null,
         title: p.title,
         description: p.description,
         askUsd: p.askUsd ?? null,
@@ -1041,6 +1044,7 @@ async function buildFloorPayload(ws: PublicWs) {
         proposedBy: proposals.proposedBy,
         status: proposals.status,
         askUsd: proposals.askUsd,
+        number: proposals.number,
         decidedPricing: proposals.decidedPricing,
       })
       .from(proposals)
@@ -1099,6 +1103,8 @@ async function buildFloorPayload(ws: PublicWs) {
     topContractors = computeContractors(
       liveJobs.map(j => ({
         proposalId: j.id,
+        // The short ordinal a person names it by ("#7").
+        number: j.number ?? null,
         proposedBy: j.proposedBy,
         status: j.status,
         askUsd: j.askUsd ?? null,

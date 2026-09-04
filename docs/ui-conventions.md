@@ -1282,6 +1282,26 @@ what moves one up, because the person about to post one is exactly who needs
 to know. Decided proposals stay ranked by impact: nothing can be funded into
 them any more.
 
+**A proposal has a number and an address.** Every proposal carries a
+short number, `#7`, assigned in order of posting within its floor, never
+reused and never renumbered when another proposal is removed, so a person
+can name one in conversation ("what does #7 mean?") without reading a UUID
+out of the API; the payload ships it as `number` beside `id`. The row
+prints the number in mono before the title, and a quiet link control on the
+row copies the proposal's address, `telarchy.com/<slug>#proposal=<id>`,
+the same anchor a notification uses. That anchor also accepts the number
+(`#proposal=7`) and lands on the same proposal. A visitor who wanted to
+ask about a proposal and could not say which one (Otto conversation,
+2026-09-04) is who this is for.
+
+**The proposer sees their own proposal.** Posting selects the new proposal,
+so the page's one market view points at it the moment the dialog closes
+and the row is on screen wherever the ranking put it, which for an unfunded
+proposal is the bottom of the ballot. A pending proposal posted by the
+signed-in participant prints "yours" among its facts, so their own rows read
+as theirs from then on. Before this, a stranger's first $0 proposal landed
+last, unmarked, and its author reloaded the floor and could not find it.
+
 **The board opens on the live ballot; decided proposals are folded away.**
 An approved or declined proposal is history: nothing about it can be traded
 on or influenced any more, and decided proposals carry the largest impacts,

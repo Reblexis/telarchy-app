@@ -50,6 +50,10 @@ interface Props {
       metric's delta under the other's caption). Absent on a payload that
       predates metricId on pairs, where date alone still has to do. */
   horizonMetricId?: string | null;
+  /** The floor's slug, for the address a row's link control copies. */
+  workspaceSlug?: string | null;
+  /** The signed-in participant's id: their own pending rows print "yours". */
+  viewerId?: string | null;
   /** Workspace name, for the "do something useful for X?" propose prompt. */
   workspaceName: string;
   /** The workspace's proposalReward, in credits. Defaults to 0, so the board
@@ -146,8 +150,30 @@ export function JobsBoard({
   metricNames = [],
   horizonDate,
   horizonMetricId,
+  workspaceSlug,
+  viewerId = null,
 }: Props) {
   const navigate = useNavigate();
+  // The link control's "Copied" moment, by proposal id, briefly.
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyLink = (p: PublicProposal) => {
+    // The proposal's address, the same anchor a notification uses (docs/
+    // ui-conventions.md, "A proposal has a number and an address").
+    const base = workspaceSlug ? `/${encodeURIComponent(workspaceSlug)}` : window.location.pathname;
+    const href = `${window.location.origin}${base}#proposal=${encodeURIComponent(p.id)}`;
+    const clip = typeof navigator !== 'undefined' ? navigator.clipboard : undefined;
+    void (clip?.writeText ? clip.writeText(href) : Promise.resolve()).catch(() => {});
+    setCopiedId(p.id);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopiedId(null), 1400);
+  };
+  useEffect(
+    () => () => {
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+    },
+    [],
+  );
   // The number the charter funds on, falling back to the largest priced delta
   // before the floor's horizon is known.
   // With a horizon on screen the board prints THAT pair's delta or "open";
@@ -290,8 +316,19 @@ export function JobsBoard({
           onClick={() => onSelect(p.id)}
         >
           <span className="pubws-ballot-main">
-            <span className="pubws-ballot-title">{titleRest}</span>
+            <span className="pubws-ballot-title">
+              {/* The number leads: it is how a person names the proposal
+                  ("what does #7 mean?"), so it reads before the words. */}
+              {p.number ? <span className="pubws-ballot-num">#{p.number}</span> : null}
+              {titleRest}
+            </span>
             <span className="pubws-ballot-facts">
+              {/* A pending proposal by the person reading is theirs, and says
+                  so: an unfunded one sits last on the ballot, and its author
+                  otherwise reloads the floor and cannot find it. */}
+              {viewerId && isPending(p) && p.proposedByHandle === viewerId && (
+                <span className="pubws-ballot-yours">yours</span>
+              )}
               {/* A link cannot nest inside the row button, so the name is
                   a span that navigates; stopPropagation keeps the row from
                   also selecting. */}
@@ -324,6 +361,41 @@ export function JobsBoard({
               {p.status && p.status !== 'pending' && (
                 <span className={`pubws-ballot-status is-${p.status}`}>{p.status}</span>
               )}
+              {/* The address: copies telarchy.com/<slug>#proposal=<id>. A
+                  control cannot nest inside the row button, so it is a span
+                  in the name link's anatomy; stopPropagation keeps the row
+                  from also selecting. */}
+              <span
+                className={`pubws-ballot-link${copiedId === p.id ? ' is-copied' : ''}`}
+                role="button"
+                tabIndex={0}
+                aria-label={p.number ? `Copy link to #${p.number}` : 'Copy link'}
+                title="Copy link"
+                onClick={ev => {
+                  ev.stopPropagation();
+                  copyLink(p);
+                }}
+                onKeyDown={ev => {
+                  if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    copyLink(p);
+                  }
+                }}
+              >
+                {copiedId === p.id ? (
+                  'Copied'
+                ) : (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                )}
+              </span>
             </span>
           </span>
           <span className="pubws-ballot-impact">

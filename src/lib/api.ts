@@ -665,6 +665,10 @@ export interface PublicProposalMarketPair {
 
 export interface PublicProposal {
   id: string;
+  /** The short per-floor ordinal a person names it by, "#7" (docs/
+   *  ui-conventions.md, "A proposal has a number and an address"). Absent
+   *  only on a payload from before the field. */
+  number?: number | null;
   title: string;
   description: string;
   /** The job's price in whole USD, stored rather than parsed from the title

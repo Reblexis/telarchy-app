@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, proposalMessages, proposals, workspaces } from '../db/schema';
@@ -24,6 +24,17 @@ import {
   removeProposal,
   withdrawProposal,
 } from '../services/proposals';
+
+/** Postgres 23505, wherever the driver hid it. */
+function isUniqueViolation(e: unknown): boolean {
+  for (let cur: unknown = e, depth = 0; cur && depth < 5; depth++) {
+    const err = cur as { code?: string; message?: string; cause?: unknown };
+    if (err.code === '23505') return true;
+    if (typeof err.message === 'string' && /duplicate key value|unique constraint/i.test(err.message)) return true;
+    cur = err.cause;
+  }
+  return false;
+}
 
 export const proposalsRouter = Router();
 
@@ -155,20 +166,42 @@ proposalsRouter.post(
 
     const id = randomUUID();
 
-    await db.insert(proposals).values({
-      id,
-      workspaceId,
-      proposedBy,
-      title,
-      description: description || '',
-      payoutHandle: payout,
-      askUsd: ask,
-      status: 'pending',
-      conditionalMarketIds: [],
-      liquiditySubsidy: subsidy,
-      subsidyContributions: subsidy > 0 ? { [proposedBy]: subsidy } : {},
-      createdAt: new Date(),
-    });
+    // The proposal's number is the next ordinal on this floor (docs/
+    // ui-conventions.md, "A proposal has a number and an address"). Two
+    // posts landing at once can read the same max; the unique index
+    // refuses the second, which reads again. Removed and deleted proposals
+    // keep their number taken, because max() sees what remains only when a
+    // row is gone, so a deletion of the newest row would let its number be
+    // reused: the count is taken over every row and never rewound below
+    // it, which is what "never reused" costs.
+    let number = 0;
+    for (let attempt = 0; ; attempt++) {
+      const [row] = await db
+        .select({ max: sql<number | null>`max(${proposals.number})` })
+        .from(proposals)
+        .where(eq(proposals.workspaceId, workspaceId));
+      number = (row?.max ?? 0) + 1;
+      try {
+        await db.insert(proposals).values({
+          id,
+          workspaceId,
+          proposedBy,
+          title,
+          description: description || '',
+          payoutHandle: payout,
+          askUsd: ask,
+          status: 'pending',
+          number,
+          conditionalMarketIds: [],
+          liquiditySubsidy: subsidy,
+          subsidyContributions: subsidy > 0 ? { [proposedBy]: subsidy } : {},
+          createdAt: new Date(),
+        });
+        break;
+      } catch (e) {
+        if (!isUniqueViolation(e) || attempt >= 20) throw e;
+      }
+    }
 
     // Spawn conditional markets inline so the proposer (and anyone reading
     // /proposals) sees a forecast immediately. With subsidy > 0, the
@@ -226,7 +259,7 @@ proposalsRouter.post(
       `${proposedBy} put a job on the ballot:\n\n${title}\n\n${description || '(no pitch)'}\n\nReview: ${publicOrigin()}/floors`,
     );
 
-    res.status(201).json({ id, conditionalMarketIds, liquiditySubsidy: subsidy });
+    res.status(201).json({ id, number, conditionalMarketIds, liquiditySubsidy: subsidy });
   }),
 );
 
@@ -256,6 +289,8 @@ proposalsRouter.get(
     res.json(
       rows.map(t => ({
         id: t.id,
+        // The short ordinal a person names it by ("#7").
+        number: t.number ?? null,
         title: t.title,
         ...(canSeePayout ? { payoutHandle: t.payoutHandle ?? null } : {}),
         description:
