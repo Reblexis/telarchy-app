@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -178,6 +178,10 @@ const base = {
     { at: '2026-09-01T00:00:00Z', balance: 105581 },
     { at: '2026-09-04T12:00:58Z', balance: 99306 },
   ],
+  profitHistory: [
+    { at: '2026-09-01T00:00:00Z', profit: 1204 },
+    { at: '2026-09-04T12:00:58Z', profit: 6336.66 },
+  ],
   pnlHistory: [],
 };
 
@@ -249,15 +253,43 @@ describe('the stats strip', () => {
 });
 
 describe('the balance chart', () => {
-  test('draws the snapshots with the first and last value and the range chips', async () => {
+  // The floor's market chart, in ink (docs/ui-conventions.md, "The
+  // participant profile"): the same crosshair, tooltip and range words.
+  test('is the floor chart with the balance as its series, in ink', async () => {
     renderPage();
     const chart = await screen.findByRole('img', { name: /balance/i });
     expect(chart.tagName.toLowerCase()).toBe('svg');
-    expect(chart.textContent).toContain('110,256');
-    expect(chart.textContent).toContain('99,306');
+    expect(chart.closest('.mchart')!.className).toContain('mchart--ink');
+    expect(chart.getAttribute('aria-label')).toContain('99,306');
     expect(screen.getByRole('button', { name: '1W' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '1M' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '1M' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'ALL' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('hovering names the balance at that moment, never the market', async () => {
+    renderPage();
+    const chart = await screen.findByRole('img', { name: /balance/i });
+    chart.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 720,
+      height: 260,
+      right: 720,
+      bottom: 260,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    fireEvent(chart, new MouseEvent('pointermove', { bubbles: true, clientX: 700, clientY: 100 }));
+    await new Promise(r => requestAnimationFrame(() => r(null)));
+    const tip = await waitFor(() => {
+      const el = document.querySelector('.mchart-tip');
+      if (!el) throw new Error('no tip yet');
+      return el;
+    });
+    expect(tip.textContent).toContain('balance');
+    expect(tip.textContent).not.toContain('market');
+    expect(tip.textContent).toContain('99,306');
   });
 
   test('a single point draws nothing', async () => {
@@ -265,6 +297,46 @@ describe('the balance chart', () => {
     renderPage();
     await screen.findByText(/Trading since/);
     expect(screen.queryByRole('img', { name: /balance/i })).toBeNull();
+  });
+});
+
+describe('the pressable strip', () => {
+  // Manifold's balance / invested / profit tiles: the pressed cell is the
+  // series the chart draws (docs/ui-conventions.md, "The participant
+  // profile"). Balance on arrival; Trades is a number, not a series.
+  test('Balance is pressed on arrival and Trades is not a button', async () => {
+    renderPage();
+    const balance = await screen.findByRole('button', { name: /^balance/i });
+    expect(balance).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /^profit/i })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('button', { name: /^trades/i })).toBeNull();
+  });
+
+  test('pressing Profit draws the profit instead', async () => {
+    renderPage();
+    const profit = await screen.findByRole('button', { name: /^profit/i });
+    fireEvent.click(profit);
+    expect(profit).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /^balance/i })).toHaveAttribute('aria-pressed', 'false');
+    const chart = screen.getByRole('img', { name: /^the profit over time/i });
+    expect(chart.getAttribute('aria-label')).toContain('6,337');
+    expect(screen.queryByRole('img', { name: /^the balance over time/i })).toBeNull();
+  });
+
+  test('a profit history with under two points says when it starts', async () => {
+    getPublicProfile.mockResolvedValue({ ...base, profitHistory: [{ at: '2026-09-04T12:00:58Z', profit: 6336.66 }] });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /^profit/i }));
+    expect(screen.queryByRole('img', { name: /over time/i })).toBeNull();
+    expect(screen.getByText('Recorded once a day; the first point lands tomorrow.')).toBeInTheDocument();
+  });
+
+  test('an older payload without profitHistory still renders', async () => {
+    const { profitHistory: _omit, ...older } = base;
+    getPublicProfile.mockResolvedValue(older);
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /^profit/i }));
+    expect(screen.getByText('Recorded once a day; the first point lands tomorrow.')).toBeInTheDocument();
   });
 });
 

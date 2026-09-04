@@ -4198,12 +4198,24 @@ beneath: what their open positions are worth at the current call, summed.</li>
 traded figure is credits moved by their buys and sells on public floors;
 redemptions are not trades and do not count.</li>
 </ul>
-<p><strong>The balance chart</strong> draws the daily balance snapshots the API returns,
-ending on the live point, with three range chips (1W, 1M, All; 1M is the
-default). It is the balance, not profit: the snapshots are of the balance
-and the line is labelled so. One ink line on a hairline baseline, first and
-last values as mono labels; nothing is drawn when there are fewer than two
-points.</p>
+<p>Profit and Balance are pressable, the way a Manifold account's balance,
+invested and profit tiles are: the pressed cell (its label in ink, a 2px
+ink rule under it) is the series the chart below draws, and Balance is
+pressed on arrival. Trades is a number, not a series, and is not
+pressable.</p>
+<p><strong>The chart</strong> is the floor's market chart (<code>MarketChart</code>, &quot;The price and
+the chart&quot;) drawing the pressed cell's series, ending on the live point:
+the same step line, gradient, labeled end dot, crosshair and tooltip, and
+the same range words (<code>1W 1M ALL</code>, a range longer than the history
+dimmed), so a reader who has hovered a floor already knows how to read
+this one. It is drawn in ink rather than amber, because amber is the
+market's call and this is not one, and its tooltip names the series
+(&quot;balance&quot; or &quot;profit&quot;), never &quot;market&quot;. Balance is the daily balance
+snapshots; profit is the profit the board scored, as the daily snapshot
+recorded it (below), so the line is the leaderboard's number day by day
+and its live point is the strip's. A series with fewer than two points
+draws nothing; in its place one quiet line says &quot;Recorded once a day; the
+first point lands tomorrow.&quot;</p>
 <p><strong>Positions</strong> are rows, one per market and direction the participant holds,
 heaviest first. The title is the metric and its date (&quot;Active traders ·
 Sep 2026&quot;); a conditional position carries &quot;if <proposal title>&quot; after it.
@@ -4251,6 +4263,11 @@ written by the trade transaction itself so a display never has to replay
 the book to know what a trade did. Rows written before the columns
 existed are null there, and every reader treats null as &quot;not recorded&quot;,
 never as zero. Redemption rows move no price and record nothing.</p>
+<p>The daily balance snapshot (one row per participant per UTC day, written
+by the hourly cron) records, beside the balance, the participant's
+trading profit marked to market over public floors at that moment
+(<code>profit</code>), the same number the leaderboard ranks on. Rows from before the
+column carry null and are not profit history.</p>
 <h2 id="docs-ui-conventions-md--h16">Trading floor (root slug page)</h2>
 <p><code>telarchy.com/&lt;slug&gt;</code> (<code>TradePage</code>, <code>.pubws-*</code> styles; <code>/marketplace/:idOrSlug</code>
 canonicalizes here) renders <strong>standalone</strong> (as every page does) and renders

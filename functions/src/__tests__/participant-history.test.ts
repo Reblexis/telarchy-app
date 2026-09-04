@@ -171,3 +171,46 @@ describe('public profile history', () => {
     expect(res.body.pnlHistory).toHaveLength(0);
   });
 });
+
+describe('the daily snapshot records profit (docs/ui-conventions.md, "What the platform records at trade time")', () => {
+  test('profit is the board number that day: settled payout minus cost', async () => {
+    await seedResolvedMarket();
+    await snapshotAgentBalances();
+    const [row] = await db.select().from(agentBalanceSnapshots).where(eq(agentBalanceSnapshots.agentId, AGENT));
+    // 10 higher shares paid 0.8 each = 8, minus 30 paid = -22.
+    expect(row.profit).toBeCloseTo(-22, 6);
+  });
+
+  test('a participant with no trades records a profit of zero, not null', async () => {
+    await snapshotAgentBalances();
+    const [row] = await db.select().from(agentBalanceSnapshots).where(eq(agentBalanceSnapshots.agentId, AGENT));
+    expect(row.profit).toBe(0);
+  });
+
+  test('the second run of a day changes nothing, profit included', async () => {
+    await seedResolvedMarket();
+    await snapshotAgentBalances();
+    await db.update(markets).set({ actualValue: 100 }).where(eq(markets.id, MARKET));
+    await snapshotAgentBalances();
+    const [row] = await db.select().from(agentBalanceSnapshots).where(eq(agentBalanceSnapshots.agentId, AGENT));
+    expect(row.profit).toBeCloseTo(-22, 6);
+  });
+});
+
+describe('public profile profitHistory', () => {
+  test('snapshot profits plus the live board number; rows from before the column are not history', async () => {
+    await seedResolvedMarket();
+    // An older row written before profit was recorded.
+    await db.insert(agentBalanceSnapshots).values({ agentId: AGENT, day: '2026-04-01', balance: toUnits(900) });
+    await snapshotAgentBalances();
+    const res = await request(makeApp()).get(`/api/agents/${AGENT}/public`);
+    expect(res.status).toBe(200);
+    expect(res.body.profitHistory).toHaveLength(2);
+    expect(res.body.profitHistory[0].at.slice(0, 10)).toBe(new Date().toISOString().slice(0, 10));
+    expect(res.body.profitHistory[0].profit).toBeCloseTo(-22, 6);
+    expect(res.body.profitHistory[1].profit).toBeCloseTo(res.body.stats.totalEarnings, 6);
+    expect(Date.parse(res.body.profitHistory[1].at)).toBeGreaterThan(Date.parse(res.body.profitHistory[0].at));
+    // The balance history still carries the old row.
+    expect(res.body.balanceHistory.length).toBeGreaterThanOrEqual(3);
+  });
+});

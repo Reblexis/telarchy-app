@@ -49,6 +49,11 @@ interface Props {
     tone: 'higher' | 'lower';
   } | null;
   height?: number;
+  /** Ink instead of amber: for a series that is not a market's call (the
+   *  profile's balance, docs/ui-conventions.md "The participant profile"). */
+  tone?: 'market' | 'ink';
+  /** The word the tooltip and the aria-label use for the series. */
+  label?: string;
 }
 
 // Two geometries for one chart: the wide 720-unit canvas reads well from
@@ -119,7 +124,11 @@ export function MarketChart({
   ranges,
   corner,
   center,
+  tone = 'market',
+  label = 'market',
 }: Props) {
+  const ink = tone === 'ink';
+  const seriesName = label === 'market' ? "The market's call" : `The ${label}`;
   // The range words a caller allows (docs/ui-conventions.md: the market view
   // offers 1D 1W ALL); undefined keeps the full set for older callers.
   const rangeSet = ranges ? RANGES.filter(r => ranges.includes(r.key)) : RANGES;
@@ -402,7 +411,7 @@ export function MarketChart({
   const tipRight = cursor !== null && tipX > W * 0.6;
 
   return (
-    <div className="mchart">
+    <div className={`mchart${ink ? ' mchart--ink' : ''}`}>
       <div className="mchart-ranges" role="group" aria-label="Time range">
         <span className="mchart-left">
           {corner && <span className="mchart-corner">{corner}</span>}
@@ -437,14 +446,14 @@ export function MarketChart({
         onPointerMove={onMove}
         onPointerLeave={onLeave}
         role="img"
-        aria-label={`The market's call over time, currently ${fNum(consensus)}`}
+        aria-label={`${seriesName} over time, currently ${fNum(consensus)}`}
       >
         <defs>
           <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
             {/* currentColor inside <defs> resolves against the svg root, not
                 the referencing group, so name the accent explicitly. */}
-            <stop offset="0%" style={{ stopColor: 'var(--accent)' }} stopOpacity="0.14" />
-            <stop offset="100%" style={{ stopColor: 'var(--accent)' }} stopOpacity="0" />
+            <stop offset="0%" style={{ stopColor: ink ? 'var(--text-primary)' : 'var(--accent)' }} stopOpacity="0.14" />
+            <stop offset="100%" style={{ stopColor: ink ? 'var(--text-primary)' : 'var(--accent)' }} stopOpacity="0" />
           </linearGradient>
           {/* The y domain is robust (see the model), so a saturated tick can
               exceed it. Clip the drawn series to the plot rectangle: the line
@@ -554,7 +563,7 @@ export function MarketChart({
         <div className={`mchart-tip${tipRight ? ' is-right' : ''}`} style={{ left: `${(tipX / W) * 100}%` }}>
           <div className="mchart-tip-date">{fmt(cursor)}</div>
           <div>
-            market <span className="mchart-tip-v mchart-tip-v--mkt">{fNum(valueAt(cursor))}</span>
+            {label} <span className="mchart-tip-v mchart-tip-v--mkt">{fNum(valueAt(cursor))}</span>
           </div>
         </div>
       )}

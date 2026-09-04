@@ -2069,6 +2069,23 @@ button.notif-row-link {
 }
 .prof-stat:first-child { border-left: none; padding-left: 0.1rem; }
 .prof-stat:last-child { padding-right: 0.1rem; }
+/* A pressable cell is a button with the cell's own look; the pressed one
+   carries its label in ink and a 2px ink rule, the series the chart draws. */
+.prof-stat--press {
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  align-items: flex-start;
+}
+.prof-stat--press:hover .prof-h2 { color: var(--text-primary); }
+.prof-stat--press[aria-pressed='true'] { box-shadow: inset 0 -2px 0 var(--text-primary); }
+.prof-stat--press[aria-pressed='true'] .prof-h2 { color: var(--text-primary); }
+.prof-stat--press:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .prof-stat .prof-h2 { margin: 0; }
 .prof-stat-val {
   font-family: 'JetBrains Mono', monospace;
@@ -2098,44 +2115,15 @@ button.notif-row-link {
   .prof-stat-sub { font-size: 0.66rem; }
 }
 
-.prof-chart { margin-top: 1.25rem; }
-.prof-chart-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-.prof-chips { display: flex; gap: 0.25rem; }
-.prof-chip {
-  padding: 0.1rem 0.5rem;
-  border: none;
-  background: none;
-  border-radius: var(--radius-sm);
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: var(--text-tertiary);
-  cursor: pointer;
-}
-.prof-chip:hover { color: var(--text-primary); }
-.prof-chip.is-active { color: var(--text-primary); background: var(--bg-secondary); }
-.prof-chart-svg { display: block; width: 100%; height: 120px; overflow: visible; }
-.prof-chart-base { stroke: var(--border-color); }
-.prof-chart-line { fill: none; stroke: var(--text-primary); stroke-width: 1.5; stroke-linejoin: round; }
-.prof-chart-dot { fill: var(--text-primary); }
-.prof-chart-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  fill: var(--text-tertiary);
-}
-.prof-chart-axis {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 0.2rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
-}
+.prof-chart { margin-top: 1.25rem; position: relative; }
+/* The floor's chart in ink: amber is the market's call, and this is not
+   one (docs/ui-conventions.md, "The participant profile"). */
+.mchart--ink .mchart-market,
+.mchart--ink .mchart-tip-v--mkt { color: var(--text-primary); }
+.mchart--ink .mchart-mline { stroke: var(--text-primary); }
+.mchart--ink .mchart-calldot,
+.mchart--ink .mchart-calllabel,
+.mchart--ink .mchart-cross-mkt { fill: var(--text-primary); }
 
 /* A row that is a door: same ink, the title underlines on hover, nothing
    else changes. The hairline sits on the row inside the item. */

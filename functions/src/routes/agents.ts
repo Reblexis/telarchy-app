@@ -564,6 +564,13 @@ agentsRouter.get(
       ...snapRows.map(r => ({ at: `${r.day}T00:00:00Z`, balance: fromUnits(r.balance) })),
       { at: new Date().toISOString(), balance: fromUnits(agent.balance as number) },
     ];
+    // The board's number day by day (docs/ui-conventions.md, "The participant
+    // profile"): rows that recorded a profit, then the live number once the
+    // stats below have computed it. A row from before the column is not
+    // history.
+    const profitPoints = snapRows
+      .filter(r => r.profit !== null && r.profit !== undefined)
+      .map(r => ({ at: `${r.day}T00:00:00Z`, profit: r.profit as number }));
 
     // Profile picture: the participant's own account image (owner ask
     // 2026-08-11: profiles should look like profiles).
@@ -1038,6 +1045,7 @@ agentsRouter.get(
       recentTrades,
       proposedJobs,
       balanceHistory,
+      profitHistory: [...profitPoints, { at: new Date().toISOString(), profit: (entry ?? emptyStats).totalEarnings }],
       pnlHistory,
     });
   }),

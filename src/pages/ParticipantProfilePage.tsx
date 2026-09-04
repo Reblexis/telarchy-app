@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ManifoldLogo } from '../components/ManifoldLogo';
+import { MarketChart } from '../components/MarketChart';
 import { PageTopBar } from '../components/PageTopBar';
 import {
   api,
@@ -214,76 +215,32 @@ function Section({ title, empty, children }: { title: string; empty: boolean; ch
   );
 }
 
-type Range = '1W' | '1M' | 'All';
-const RANGE_DAYS: Record<Range, number | null> = { '1W': 7, '1M': 30, All: null };
-const RANGE_LABEL: Record<Range, string> = { '1W': 'the last week', '1M': 'the last month', All: 'all time' };
+type Series = 'balance' | 'profit';
 
 /**
- * The balance over time: one ink line on a hairline baseline, first and
- * last values as labels. It is the balance, not profit; the snapshots are of
- * the balance. Nothing is drawn with fewer than two points.
+ * The pressed cell's series over time: the floor's market chart in ink
+ * (docs/ui-conventions.md, "The participant profile"), so the crosshair,
+ * tooltip and range words are the ones a reader already knows from a
+ * floor. A series with fewer than two points draws nothing and says so.
  */
-function BalanceChart({ history }: { history: Array<{ at: string; balance: number }> }) {
-  const [range, setRange] = useState<Range>('1M');
-  const sorted = history.slice().sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
-  if (sorted.length < 2) return null;
-  const end = new Date(sorted[sorted.length - 1].at).getTime();
-  const days = RANGE_DAYS[range];
-  let points = days === null ? sorted : sorted.filter(p => new Date(p.at).getTime() >= end - days * 86400_000);
-  // A range with one point in it still draws the line up to that point.
-  if (points.length < 2) points = sorted.slice(-2);
-  const W = 600;
-  const H = 120;
-  const PAD = 16;
-  const t0 = new Date(points[0].at).getTime();
-  const span = Math.max(1, end - t0);
-  const lo = Math.min(...points.map(p => p.balance));
-  const hi = Math.max(...points.map(p => p.balance));
-  const y = (v: number) => (hi === lo ? H / 2 : PAD + ((hi - v) / (hi - lo)) * (H - 2 * PAD));
-  const x = (at: string) => ((new Date(at).getTime() - t0) / span) * W;
-  const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.at).toFixed(1)} ${y(p.balance).toFixed(1)}`).join(' ');
-  const last = points[points.length - 1];
-  const first = points[0];
-  const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+function HistoryChart({ series, points }: { series: Series; points: Array<{ at: string; value: number }> }) {
+  const sorted = points.slice().sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
   return (
     <section className="prof-section prof-chart">
-      <div className="prof-chart-head">
-        <h2 className="prof-h2">Balance</h2>
-        <div className="prof-chips" role="group" aria-label="Range">
-          {(['1W', '1M', 'All'] as Range[]).map(r => (
-            <button
-              key={r}
-              type="button"
-              className={`prof-chip${r === range ? ' is-active' : ''}`}
-              aria-pressed={r === range}
-              onClick={() => setRange(r)}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-      </div>
-      <svg
-        className="prof-chart-svg"
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        role="img"
-        aria-label={`Balance over ${RANGE_LABEL[range]}`}
-      >
-        <line className="prof-chart-base" x1="0" y1={H - 0.5} x2={W} y2={H - 0.5} />
-        <path className="prof-chart-line" d={d} vectorEffect="non-scaling-stroke" />
-        <circle className="prof-chart-dot" cx={x(last.at)} cy={y(last.balance)} r="3" />
-        <text className="prof-chart-label" x="0" y={y(first.balance) < H / 2 ? H - 6 : 12}>
-          {Math.round(first.balance).toLocaleString('en-US')}
-        </text>
-        <text className="prof-chart-label" x={W} y={y(last.balance) < H / 2 ? H - 6 : 12} textAnchor="end">
-          {Math.round(last.balance).toLocaleString('en-US')}
-        </text>
-      </svg>
-      <div className="prof-chart-axis">
-        <span>{fmtDay(first.at)}</span>
-        <span>{fmtDay(last.at)}</span>
-      </div>
+      <h2 className="prof-h2">{series === 'balance' ? 'Balance' : 'Profit'}</h2>
+      {sorted.length < 2 ? (
+        <p className="prof-empty">Recorded once a day; the first point lands tomorrow.</p>
+      ) : (
+        <MarketChart
+          key={series}
+          series={sorted.map(p => ({ at: p.at, consensus: p.value }))}
+          consensus={sorted[sorted.length - 1].value}
+          ranges={['1W', '1M']}
+          tone="ink"
+          label={series}
+          height={200}
+        />
+      )}
     </section>
   );
 }
@@ -293,6 +250,8 @@ export function ParticipantProfilePage() {
   const [profile, setProfile] = useState<PublicParticipantProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Which strip cell is pressed, and so which series the chart draws.
+  const [series, setSeries] = useState<Series>('balance');
 
   useEffect(() => {
     if (!id) return;
@@ -363,7 +322,13 @@ export function ParticipantProfilePage() {
             {/* The strip: the board's profit, the live balance, the trades.
                 Every number here is one another page already prints. */}
             <section className="prof-strip" aria-label="Standing">
-              <div className="prof-stat" data-testid="prof-stat-profit">
+              <button
+                type="button"
+                className="prof-stat prof-stat--press"
+                data-testid="prof-stat-profit"
+                aria-pressed={series === 'profit'}
+                onClick={() => setSeries('profit')}
+              >
                 <span className="prof-h2">Profit</span>
                 <span className={`prof-stat-val ${profile.stats.totalEarnings >= 0 ? 'is-up' : 'is-down'}`}>
                   {fmtCr(profile.stats.totalEarnings)}
@@ -375,8 +340,14 @@ export function ParticipantProfilePage() {
                 >
                   {fmtCr(profile.stats.settledEarnings)} settled · {fmtCr(profile.stats.openEarnings)} open
                 </span>
-              </div>
-              <div className="prof-stat" data-testid="prof-stat-balance">
+              </button>
+              <button
+                type="button"
+                className="prof-stat prof-stat--press"
+                data-testid="prof-stat-balance"
+                aria-pressed={series === 'balance'}
+                onClick={() => setSeries('balance')}
+              >
                 <span className="prof-h2">Balance</span>
                 <span className="prof-stat-val">
                   {fmtNum(balance)}
@@ -388,7 +359,7 @@ export function ParticipantProfilePage() {
                 >
                   {fmtNum(inPositions)} cr in positions
                 </span>
-              </div>
+              </button>
               <div className="prof-stat" data-testid="prof-stat-trades">
                 <span className="prof-h2">Trades</span>
                 <span className="prof-stat-val">{profile.stats.totalTrades.toLocaleString('en-US')}</span>
@@ -400,7 +371,14 @@ export function ParticipantProfilePage() {
               </div>
             </section>
 
-            <BalanceChart history={profile.balanceHistory ?? []} />
+            <HistoryChart
+              series={series}
+              points={
+                series === 'balance'
+                  ? (profile.balanceHistory ?? []).map(p => ({ at: p.at, value: p.balance }))
+                  : (profile.profitHistory ?? []).map(p => ({ at: p.at, value: p.profit }))
+              }
+            />
 
             <Section title="Positions" empty={profile.openPositions.length === 0}>
               {profile.openPositions.map(p => (
