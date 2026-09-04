@@ -74,3 +74,26 @@ for the interval before any refresh. Not doing it here.
 
 Not a fix: re-anchoring the approved branch by hand again (asked not to,
 2026-09-02).
+
+## Owner ruling (Viktor, 2026-09-04)
+
+Verbatim: "both branches dont have to be traded its enough if both are
+liuqiditated.. and they were so it shouldve been positive imapct it should
+sum the differences of the prices when the market was decided it shouldnt
+look at anything later after it has been decdied.."
+
+So the "both traded" rule above is dropped. The rule that ships
+(`docs/ui-conventions.md`, Top contractors): a pair is priced as soon as
+both branches hold liquidity, a pending job is valued live, and a decided
+job is valued at the prices recorded at the moment of the decision, never
+re-read afterwards. For tetraspace's job that is 23.41 - 18.14 = +5.27 at
+15:45 UTC on 2026-08-21, when it was approved.
+
+Storage: `proposals.decided_pricing` (migration 0106), written by approve
+and decline before either branch is voided. Approved jobs decided before
+this shipped are backfilled once by
+`scripts/backfill-decided-pricing.mjs`, which replays each branch's trades
+up to the decision; for the untraded books that were re-anchored by hand
+on 2026-09-02 the replay would return the re-anchored price, so the script
+takes those books' state from `notes/reanchor-2026-09-02-before.json`
+instead.

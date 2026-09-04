@@ -793,6 +793,15 @@ export const limitOrders = pgTable('limit_orders', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+/** One priced pair of a decided proposal; a side is null when that branch
+ *  held no liquidity at the decision. */
+export interface DecidedPair {
+  metricId: string;
+  targetDate: string;
+  approvedConsensus: number | null;
+  declinedConsensus: number | null;
+}
+
 export const proposals = pgTable(
   'proposals',
   {
@@ -843,6 +852,18 @@ export const proposals = pgTable(
      * field on. See workspaces.charter.
      */
     declineReason: text('decline_reason'),
+    /**
+     * The pair prices at the moment the owner ruled, one entry per
+     * (metric, targetDate): what the contractor rail scores an approved job
+     * on (docs/ui-conventions.md, "Top contractors"; owner ruling
+     * 2026-09-04). Written by approve and decline before either branch is
+     * voided and never re-read from the books afterwards: the losing branch
+     * is voided, the winning one keeps trading, and an untraded book can be
+     * re-anchored, none of which is what the decision was priced on. Null on
+     * a pending proposal and on proposals decided before this existed until
+     * the one-off backfill (scripts/backfill-decided-pricing.mjs) fills it.
+     */
+    decidedPricing: jsonb('decided_pricing').$type<DecidedPair[]>(),
     /**
      * The job's price in whole USD (paid-jobs charter, 2026-08-09). Stored
      * rather than parsed back out of the title, because burn (the summed cost

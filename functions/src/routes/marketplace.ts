@@ -946,31 +946,50 @@ async function buildFloorPayload(ws: PublicWs) {
     }
 
     openProposals = pending.map(p => {
-      const pairs = [...(byProposal.get(p.id)?.values() ?? [])].map(g => ({
-        // With several metrics on one date, the floor picks a proposal's
-        // pair by (metric, date), never by date alone.
-        metricId: g.metricId,
-        metricName: g.metricName,
-        targetDate: g.targetDate,
-        resolvesOn: resolutionInstant(g.targetDate),
-        approvedConsensus: g.approved,
-        declinedConsensus: g.declined,
-        delta: g.approved != null && g.declined != null ? g.approved - g.declined : null,
-        approvedMarketId: g.approvedMarketId,
-        declinedMarketId: g.declinedMarketId,
-        approvedProbability: g.approvedProbability,
-        approvedLiquidity: g.approvedLiquidity,
-        declinedProbability: g.declinedProbability,
-        declinedLiquidity: g.declinedLiquidity,
-        approvedPool: g.approvedPool,
-        declinedPool: g.declinedPool,
-        approvedTraders: g.approvedTraders,
-        declinedTraders: g.declinedTraders,
-        approvedVolume: g.approvedVolume,
-        declinedVolume: g.declinedVolume,
-        rangeMin: g.rangeMin,
-        rangeMax: g.rangeMax,
-      }));
+      // A decided proposal prints the pair as recorded when the owner ruled
+      // (proposals.decidedPricing), never its books as they read now: the
+      // losing branch is voided, the winner keeps trading, an untraded book
+      // can be re-anchored, and none of that is what the decision was priced
+      // on (owner ruling 2026-09-04, docs/ui-conventions.md "Top
+      // contractors"). The branch ids and shapes still ship so the chart can
+      // draw the surviving branch's history.
+      const recorded = new Map(
+        (p.status === 'pending' ? [] : (p.decidedPricing ?? [])).map(d => [`${d.metricId}|${d.targetDate}`, d]),
+      );
+      const pairs = [...(byProposal.get(p.id)?.values() ?? [])]
+        .map(g => {
+          const d = recorded.get(`${g.metricId}|${g.targetDate}`);
+          if (d) {
+            g.approved = d.approvedConsensus;
+            g.declined = d.declinedConsensus;
+          }
+          return g;
+        })
+        .map(g => ({
+          // With several metrics on one date, the floor picks a proposal's
+          // pair by (metric, date), never by date alone.
+          metricId: g.metricId,
+          metricName: g.metricName,
+          targetDate: g.targetDate,
+          resolvesOn: resolutionInstant(g.targetDate),
+          approvedConsensus: g.approved,
+          declinedConsensus: g.declined,
+          delta: g.approved != null && g.declined != null ? g.approved - g.declined : null,
+          approvedMarketId: g.approvedMarketId,
+          declinedMarketId: g.declinedMarketId,
+          approvedProbability: g.approvedProbability,
+          approvedLiquidity: g.approvedLiquidity,
+          declinedProbability: g.declinedProbability,
+          declinedLiquidity: g.declinedLiquidity,
+          approvedPool: g.approvedPool,
+          declinedPool: g.declinedPool,
+          approvedTraders: g.approvedTraders,
+          declinedTraders: g.declinedTraders,
+          approvedVolume: g.approvedVolume,
+          declinedVolume: g.declinedVolume,
+          rangeMin: g.rangeMin,
+          rangeMax: g.rangeMax,
+        }));
       // Every pair, largest impact first. This used to ship the three largest
       // of the matrix, which was all of them on a one-metric floor and half of
       // them once a floor priced two metrics on three dates, so the pair of
@@ -1022,6 +1041,7 @@ async function buildFloorPayload(ws: PublicWs) {
         proposedBy: proposals.proposedBy,
         status: proposals.status,
         askUsd: proposals.askUsd,
+        decidedPricing: proposals.decidedPricing,
       })
       .from(proposals)
       .where(and(eq(proposals.workspaceId, workspaceId), inArray(proposals.status, ['pending', 'approved'])));
@@ -1029,9 +1049,9 @@ async function buildFloorPayload(ws: PublicWs) {
     // Voided branch markets are kept for a DECIDED proposal and dropped for a
     // pending one, the same rule the ballot follows.
     //
-    // Approving a proposal voids its declined branch, and that branch's last
-    // price is exactly what the impact was measured against, so a decided
-    // proposal's score has to read it. A PENDING proposal's voided pairs are
+    // A decided proposal is scored on proposals.decidedPricing, not on these
+    // books; its markets are still read so the row can count them. A PENDING
+    // proposal's voided pairs are
     // something else: a retired horizon, or a generation spawned during a
     // bug. Counting those made the contractor rail read -48 and -108.21 on
     // the Telarchy floor (owner report 2026-08-15) long after the live pairs
@@ -1083,6 +1103,9 @@ async function buildFloorPayload(ws: PublicWs) {
         status: j.status,
         askUsd: j.askUsd ?? null,
         pairs: [...(pairsByJob.get(j.id)?.values() ?? [])],
+        // What an approved job is valued on: the pair as recorded when the
+        // owner ruled, never the books afterwards (owner ruling 2026-09-04).
+        decidedPairs: j.decidedPricing ?? null,
       })),
       heroMetricId,
       contractorNames,

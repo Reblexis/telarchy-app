@@ -3,6 +3,7 @@ import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   agents,
+  type DecidedPair,
   liquidityEvents,
   markets,
   metrics as metricsTable,
@@ -486,6 +487,37 @@ export async function voidProposalMarkets(proposalId: string, workspaceId: strin
  * Refunds positions at cost via voidMarket, so the unrealized branch behaves
  * like a futarchy refund-on-non-realization.
  */
+/**
+ * The pair prices a decision is made on, read from the books at this instant
+ * and recorded on the proposal (proposals.decidedPricing). Called by approve
+ * and decline BEFORE either branch is voided, so the record is exactly what
+ * the owner saw. A branch with no liquidity records null, not a number.
+ * The contractor rail values a decided job on this record and never on the
+ * books afterwards (docs/ui-conventions.md, "Top contractors").
+ */
+export async function pairPricesNow(proposalId: string, workspaceId: string): Promise<DecidedPair[]> {
+  const rows = await db
+    .select()
+    .from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.voided, false)));
+  const byKey = new Map<string, DecidedPair>();
+  for (const m of rows) {
+    if (!m.branch) continue;
+    const key = `${m.metricId}|${m.targetDate}`;
+    const pair = byKey.get(key) ?? {
+      metricId: m.metricId,
+      targetDate: m.targetDate,
+      approvedConsensus: null,
+      declinedConsensus: null,
+    };
+    const c = consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax) ?? null;
+    if (m.branch === 'approved') pair.approvedConsensus = c;
+    else if (m.branch === 'declined') pair.declinedConsensus = c;
+    byKey.set(key, pair);
+  }
+  return [...byKey.values()];
+}
+
 export async function voidProposalBranch(
   proposalId: string,
   workspaceId: string,
@@ -550,6 +582,9 @@ export async function approveProposal(
     }
   }
 
+  // What the decision is priced on, taken before anything is voided.
+  const decidedPricing = await pairPricesNow(proposalId, workspaceId);
+
   // The declined-branch counterfactual never materialises once approved, so
   // void it and refund any positions. The approved branch stays live and
   // resolves against the actual KPI at target date.
@@ -575,6 +610,7 @@ export async function approveProposal(
       .update(proposals)
       .set({
         status: 'approved',
+        decidedPricing,
         resolvedAt: new Date(),
         resolvedBy: resolvedBy ?? null,
       })
@@ -591,6 +627,7 @@ export async function approveProposal(
       .update(proposals)
       .set({
         status: 'approved',
+        decidedPricing,
         resolvedAt: new Date(),
         resolvedBy: resolvedBy ?? ownerAgentId,
       })
@@ -627,6 +664,7 @@ export async function approveProposal(
       .update(proposals)
       .set({
         status: 'approved',
+        decidedPricing,
         rewardPaid: reward,
         resolvedAt: new Date(),
         resolvedBy: resolvedBy ?? ownerAgentId,
@@ -675,6 +713,7 @@ export async function declineProposal(
     }
   }
 
+  const decidedPricing = await pairPricesNow(proposalId, workspaceId);
   if (refundStake) {
     // Decline with refund (owner ask 2026-08-12): a genuine proposal the owner
     // just is not taking. Void BOTH branches so the proposer's whole staked
@@ -693,6 +732,7 @@ export async function declineProposal(
     .update(proposals)
     .set({
       status: 'declined',
+      decidedPricing,
       resolvedAt: new Date(),
       resolvedBy: resolvedBy ?? null,
       declineReason: trimmed || null,
