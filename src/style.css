@@ -7290,6 +7290,7 @@ textarea.jobform-line--desc {
   line-height: 1.5;
   color: var(--text-tertiary);
   max-width: 34rem;
+  text-align: left;
 }
 .season-entry-in {
   margin: 0;
@@ -9308,6 +9309,7 @@ textarea.jobform-line--desc {
   font-size: 0.76rem;
   line-height: 1.55;
   color: var(--text-tertiary);
+  text-align: left;
 }
 
 /* In the Otto panel the stack is a footer under the composer, so it loses its
