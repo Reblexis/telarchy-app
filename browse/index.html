@@ -5120,10 +5120,15 @@ short number, <code>#7</code>, assigned in order of posting within its floor, ne
 reused and never renumbered when another proposal is removed, so a person
 can name one in conversation (&quot;what does #7 mean?&quot;) without reading a UUID
 out of the API; the payload ships it as <code>number</code> beside <code>id</code>. The row
-prints the number in mono before the title, and a quiet link control on the
-row copies the proposal's address, <code>telarchy.com/&lt;slug&gt;#proposal=&lt;id&gt;</code>,
-the same anchor a notification uses. That anchor also accepts the number
-(<code>#proposal=7</code>) and lands on the same proposal. A visitor who wanted to
+prints the number in mono before the title, and nothing else: no link
+control, because <strong>selecting a proposal changes the page's address</strong> (owner
+decision 2026-09-04): the address bar reads <code>telarchy.com/&lt;slug&gt;#proposal=7</code>
+while proposal #7 is open, so copying the address bar is copying the
+proposal, and deselecting restores the floor's own address. The address is
+replaced, never pushed, so the back button still leaves the floor rather
+than stepping through every proposal the visitor looked at. The same
+anchor is what a notification links to, by id (<code>#proposal=&lt;id&gt;</code>), and both
+forms open the same proposal. A visitor who wanted to
 ask about a proposal and could not say which one (Otto conversation,
 2026-09-04) is who this is for.</p>
 <p><strong>The proposer sees their own proposal.</strong> Posting selects the new proposal,

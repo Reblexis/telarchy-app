@@ -1568,3 +1568,26 @@ describe('a proposal address accepts the number', () => {
     expect(screen.getByTitle('rewrite the store page').getAttribute('aria-pressed')).toBe('true');
   });
 });
+
+/**
+ * Selecting a proposal changes the page's address (docs/ui-conventions.md,
+ * "A proposal has a number and an address"): the address bar is the link.
+ */
+describe('selecting a proposal changes the address', () => {
+  test('a click writes #proposal=<number>; a second click clears it; history is not grown', async () => {
+    renderFloor();
+    const row = await screen.findByTitle('rewrite the store page');
+    const depth = window.history.length;
+    fireEvent.click(row);
+    await waitFor(() => expect(window.location.hash).toBe('#proposal=1'));
+    expect(window.history.length).toBe(depth);
+    fireEvent.click(row);
+    await waitFor(() => expect(window.location.hash).toBe(''));
+  });
+
+  test('a pasted #proposal=1 stays in the address bar once the proposal is open', async () => {
+    renderFloor(['/lookpilot#proposal=1']);
+    await screen.findByRole('button', { name: 'if declined' });
+    await waitFor(() => expect(window.location.hash).toBe('#proposal=1'));
+  });
+});

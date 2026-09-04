@@ -197,6 +197,25 @@ export function TradePage() {
     // tidying the address bar, not a place in the history.
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
   }, [location.hash]);
+  // Selecting a proposal changes the page's address (docs/ui-conventions.md,
+  // "A proposal has a number and an address"): the address bar reads
+  // #proposal=<number> while one is open, so copying the address bar is
+  // copying the proposal. Replaced, never pushed, so the back button still
+  // leaves the floor. A number still waiting for its proposal (the effect
+  // below) is left alone; so is any hash that is not a proposal's.
+  useEffect(() => {
+    if (!ws) return;
+    const path = window.location.pathname + window.location.search;
+    if (selectedJobId) {
+      if (/^\d+$/.test(selectedJobId)) return;
+      const p = ws.proposals?.find(x => x.id === selectedJobId);
+      const name = p?.number ? String(p.number) : selectedJobId;
+      const want = `#proposal=${encodeURIComponent(name)}`;
+      if (window.location.hash !== want) window.history.replaceState(null, '', path + want);
+    } else if (parseFloorHash(window.location.hash)?.proposal) {
+      window.history.replaceState(null, '', path);
+    }
+  }, [ws, selectedJobId]);
   // A proposal address accepts the number too: #proposal=7 names proposal
   // #7 (docs/ui-conventions.md, "A proposal has a number and an address").
   // The hash lands before the payload does, so the number waits here as the
@@ -2245,7 +2264,6 @@ export function TradePage() {
               horizonMetricId={hero.metricId}
               selectedId={selectedJobId}
               onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
-              workspaceSlug={ws.slug}
               viewerId={user?.id ?? null}
               signedIn={!!user}
               onRequireSignup={() => navigate(authPath('signup', location))}
