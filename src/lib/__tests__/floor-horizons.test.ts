@@ -6,6 +6,7 @@ import {
   cellOf,
   compactValueOf,
   currencyOf,
+  dateChipOf,
   dateQuestionOf,
   dateSegmentOf,
   datesOf,
@@ -468,6 +469,18 @@ describe('a floor that prices several metrics', () => {
     expect(dateSegmentOf(horizonById(grid, 'rev-month'))).toBe('this month · 31 Aug');
     expect(dateSegmentOf(horizonById(grid, 'rev-sep'))).toBe('30 Sep');
     expect(dateSegmentOf(null)).toBe('');
+  });
+
+  test('the date chip reads the clock and its settle day; a bare date reads "settles" alone', () => {
+    // The caption chip (docs "The question line", 2026-09-04): the segment
+    // label with "settles <day>" appended when the clock has a name, and
+    // "settles <day>" alone for a bare date, so the settle day never leaves
+    // the page even when the chip has no menu.
+    expect(dateChipOf(horizonById(grid, 'rev-day'))).toBe('today · settles 25 Aug');
+    expect(dateChipOf(horizonById(grid, 'rev-week'))).toBe('this week · settles 30 Aug');
+    expect(dateChipOf(horizonById(grid, 'rev-month'))).toBe('this month · settles 31 Aug');
+    expect(dateChipOf(horizonById(grid, 'rev-sep'))).toBe('settles 30 Sep');
+    expect(dateChipOf(null)).toBe('');
   });
 
   test('the date word reads as the clock, or as "on" its settle day', () => {

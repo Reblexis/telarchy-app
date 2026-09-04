@@ -1,13 +1,16 @@
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
- * The owner's way into the metrics is a `metrics` chip at the end of the
- * metric picker row, the twin of the `dates` chip under it
- * (docs/owner-on-the-floor.md, dialog 1). The old `+ metric` button, which
- * only added, is gone: a control that vanished without a trace read as a
- * control that never existed (owner report 2026-09-03).
+ * The owner's way into the metrics and the dates is the last entry of each
+ * caption chip's menu, "Manage metrics" and "Manage dates"
+ * (docs/ui-conventions.md "The question line", revised 2026-09-04; the
+ * dialogs themselves are docs/owner-on-the-floor.md). The old `metrics` and
+ * `dates` chips beside the segmented rows are gone with the rows, and the
+ * older `+ metric` button stays gone: a control that vanished without a
+ * trace read as a control that never existed (owner report 2026-09-03).
+ * A visitor never sees either entry (TradePageBoardFloor.test.tsx).
  */
 
 const h = vi.hoisted(() => {
@@ -119,22 +122,44 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('the metrics chip', () => {
-  test('with two metrics, the picker row ends in "metrics", and "+ metric" is gone', async () => {
+describe("the owner's entries in the caption menus", () => {
+  test('the owner sees "Manage metrics" last in the metric menu, opening the metrics dialog', async () => {
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('[aria-label="Metrics"]')).toBeTruthy());
-    const chip = container.querySelector('[aria-label="Metrics"]') as HTMLButtonElement;
-    expect(chip.textContent).toBe('metrics');
-    expect(chip.className).toContain('pubws-date-add');
+    await waitFor(() => expect(container.querySelector('.pubws-chip--metric')).toBeTruthy());
+    // The old chips are gone with the segmented rows.
+    expect(container.querySelector('[aria-label="Metrics"]')).toBeNull();
     expect(container.querySelector('[aria-label="Add a metric"]')).toBeNull();
     expect(container.textContent).not.toContain('+ metric');
+    fireEvent.click(container.querySelector('.pubws-chip--metric') as HTMLElement);
+    const menu = container.querySelector('.pubws-chip-menu') as HTMLElement;
+    const options = within(menu).getAllByRole('option');
+    expect(options.map(o => o.textContent)).toEqual(['Signups', 'Revenue', 'Manage metrics']);
+    fireEvent.click(options[2]);
+    await waitFor(() => expect(screen.getByRole('dialog', { name: /metrics/i })).toBeTruthy());
+    expect(container.querySelector('.pubws-chip-menu')).toBeNull();
   });
 
-  test('with one metric, the caption still carries the chip', async () => {
+  test('the owner sees "Manage dates" last in the date menu, opening the dates dialog', async () => {
+    const { container } = renderFloor();
+    // One date on this floor, so the chip is a menu only once the page
+    // knows the viewer can manage (the profile read lands after the floor).
+    await waitFor(() => expect(container.querySelector('.pubws-chip--date')?.tagName).toBe('BUTTON'));
+    expect(container.querySelector('[aria-label="The dates this metric is priced on"]')).toBeNull();
+    fireEvent.click(container.querySelector('.pubws-chip--date') as HTMLElement);
+    const menu = container.querySelector('.pubws-chip-menu') as HTMLElement;
+    const options = within(menu).getAllByRole('option');
+    expect(options.map(o => o.textContent)).toEqual(['31 Dec', 'Manage dates']);
+    fireEvent.click(options[1]);
+    await waitFor(() => expect(screen.getByRole('dialog', { name: /dates/i })).toBeTruthy());
+    expect(container.querySelector('.pubws-chip-menu')).toBeNull();
+  });
+
+  test('with one metric the owner still has the menu, because it is the way into the metrics', async () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.workspace(1) as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('[aria-label="Metrics"]')).toBeTruthy());
-    expect(container.querySelector('[aria-label="Add a metric"]')).toBeNull();
-    expect(container.textContent).not.toContain('+ metric');
+    await waitFor(() => expect(container.querySelector('.pubws-chip--metric')?.tagName).toBe('BUTTON'));
+    fireEvent.click(container.querySelector('.pubws-chip--metric') as HTMLElement);
+    const options = within(container.querySelector('.pubws-chip-menu') as HTMLElement).getAllByRole('option');
+    expect(options.map(o => o.textContent)).toEqual(['Signups', 'Manage metrics']);
   });
 });

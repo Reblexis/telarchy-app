@@ -397,6 +397,20 @@ export function dateSegmentOf(v: HorizonView | null): string {
 }
 
 /**
+ * A date's label on the caption chip (docs/ui-conventions.md, "The question
+ * line"): the clock's name with its settle day spelled out, "this month ·
+ * settles 30 Sep"; a bare date reads "settles 30 Sep" alone, so the settle
+ * day never leaves the page even when the chip has no menu. Same inputs as
+ * dateSegmentOf, which labels the menu's entries.
+ */
+export function dateChipOf(v: HorizonView | null): string {
+  if (!v) return '';
+  const named = /^(today|this week|this month)$/.test(v.label) ? v.label : '';
+  const day = v.settleShort || v.targetDate;
+  return named ? `${named} · settles ${day}` : `settles ${day}`;
+}
+
+/**
  * A date as it reads inside the question line ("What will be LookPilot's
  * net revenue this week?"): a named clock is its own adverb ("today",
  * "this week", "this month") and takes no preposition; any other date
