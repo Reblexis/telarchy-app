@@ -669,28 +669,29 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><details><summary><a class="file" href="#file--docs-infra-deploy-md">docs/infra/deploy.md</a></summary>
 <ul>
 <li><a href="#docs-infra-deploy-md--h1">Backend deploy (Cloud Run, via GitHub Actions)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h2">Runners</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h3">One-time setup</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h4">Option A: Workload Identity Federation</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h5">Option B: Service-account JSON key (fallback)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h6">Nothing reaches the public until you press Publish</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h7">Reaching it</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h8">Branch previews</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h9">Publishing without the button</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h10">Rolling back</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h11">Logging in on the beta</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h12">The beta is admin only</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h13">The permission behind the button</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h14">A tab that is already open picks the new build up</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h15">What the workflow does</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h16">Other workflows</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h17">The container</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h18">Runtime identity</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h19">Keyless deploys</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h20">Master key rotation</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h21">Cron schedule (Cloud Scheduler)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h22">Owner notifications (Resend)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h23">Memory</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h2">CPU allocation</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h3">Runners</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h4">One-time setup</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h5">Option A: Workload Identity Federation</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h6">Option B: Service-account JSON key (fallback)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h7">Nothing reaches the public until you press Publish</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h8">Reaching it</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h9">Branch previews</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h10">Publishing without the button</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h11">Rolling back</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h12">Logging in on the beta</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h13">The beta is admin only</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h14">The permission behind the button</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h15">A tab that is already open picks the new build up</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h16">What the workflow does</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h17">Other workflows</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h18">The container</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h19">Runtime identity</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h20">Keyless deploys</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h21">Master key rotation</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h22">Cron schedule (Cloud Scheduler)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h23">Owner notifications (Resend)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h24">Memory</a></li>
 </ul></details>
 </li>
 </ul></li>
@@ -9869,7 +9870,7 @@ candidate revision for smoke testing; production traffic moves only when a
 human publishes that candidate (see &quot;Nothing reaches the public until you
 press Publish&quot; below). The workflow and the hand deploy (<code>npm run deploy</code>,
 which runs <code>scripts/deploy-managed.sh</code>) share the same
-<code>gcloud run deploy api --source . --region us-central1 --allow-unauthenticated --memory 512Mi --cpu 1 --max-instances 4 --set-cloudsql-instances ... --clear-base-image</code> command, and both regenerate the data room's change log
+<code>gcloud run deploy api --source . --region us-central1 --allow-unauthenticated --memory 512Mi --cpu 1 --max-instances 4 --no-cpu-throttling --set-cloudsql-instances ... --clear-base-image</code> command, and both regenerate the data room's change log
 (<code>scripts/build-changelog.mjs</code>) first. They differ in three ways:</p>
 <ul>
 <li>The workflow lands the revision with <code>--no-traffic --tag candidate</code> and
@@ -9892,7 +9893,25 @@ GCP_PROJECT=telarchy-e0043 CLOUDSQL_INSTANCE=telarchy-e0043:us-central1:telarchy
 <p><code>GCP_PROJECT</code> and <code>CLOUDSQL_INSTANCE</code> (<code>project:region:instance</code>) are
 required by the script; <code>CLOUD_RUN_REGION</code> defaults to <code>us-central1</code>.</p>
 <p>History: notes/decisions/infra-deploy.md.</p>
-<h2 id="docs-infra-deploy-md--h2">Runners</h2>
+<h2 id="docs-infra-deploy-md--h2">CPU allocation</h2>
+<p>The <code>api</code> service runs with CPU always allocated (<code>--no-cpu-throttling</code>,
+&quot;instance-based billing&quot;). Its one warm instance is active most of the
+month anyway: the scheduler hits it every 10 minutes (<code>/api/cron/resolve</code>,
+<code>/api/cron/seasons</code>) plus hourly and 6-hourly jobs, on top of steady
+traffic. Cloud Run bills an always-allocated vCPU at roughly a quarter of
+the per-request rate, so for an instance that is rarely idle this is the
+cheaper model: about $14 a month for 1 vCPU / 512Mi, against about $55 that
+the same instance cost in August 2026 on request-based billing (2.29M
+billable vCPU-seconds, found on the 1 September 2026 card charge). It also
+lets background work (timers, catch-up loops) run between requests instead
+of only while one is in flight.</p>
+<p>A branch preview keeps request-based billing (<code>--cpu-throttling</code>): it idles
+almost all the time and an idle request-billed instance costs nothing.</p>
+<p>Both flags are stated explicitly in every deploy block because a deploy
+inherits the previous revision's allocation; scale-invariant.test.ts pins
+this. A revision's allocation applies once traffic reaches it, so the
+saving starts with the first Publish after this landed.</p>
+<h2 id="docs-infra-deploy-md--h3">Runners</h2>
 <p>Every job in every workflow under <code>.github/workflows/</code> declares
 <code>runs-on: ubuntu-latest</code>, GitHub's hosted runners. The repository also has
 self-hosted runners registered; a job runs on one of them only when it
@@ -9938,7 +9957,7 @@ for a token, then <code>./config.sh --unattended --url ... --token ... --labels 
 in the runner directory (<code>~/actions-runners/telarchy-app*</code> on the laptop,
 <code>~/actions-runner-telarchy-app</code> on the box) and restart its service.</li>
 </ul>
-<h2 id="docs-infra-deploy-md--h3">One-time setup</h2>
+<h2 id="docs-infra-deploy-md--h4">One-time setup</h2>
 <p>The workflow supports two auth paths between GitHub and GCP and detects
 which one is configured (presence of the <code>GCP_WORKLOAD_IDENTITY_PROVIDER</code>
 variable). Workload Identity Federation is the path the managed instance
@@ -9950,7 +9969,7 @@ removing the secret.</p>
 deployment-branch rule is <code>main</code> only. The workflow reads four repository
 variables: <code>GCP_PROJECT</code>, <code>CLOUDSQL_INSTANCE</code>, and the two WIF variables
 below.</p>
-<h3 id="docs-infra-deploy-md--h4">Option A: Workload Identity Federation</h3>
+<h3 id="docs-infra-deploy-md--h5">Option A: Workload Identity Federation</h3>
 <p>One-time GCP setup (replace <code>&lt;...&gt;</code>):</p>
 <pre><code class="language-bash">PROJECT_ID=telarchy-e0043
 POOL_ID=github
@@ -10022,7 +10041,7 @@ gcloud iam service-accounts add-iam-policy-binding $SA_EMAIL \
 </table></div>
 <p>The workflow picks up these variables and auths via OIDC. No JSON key
 ever leaves GCP.</p>
-<h3 id="docs-infra-deploy-md--h5">Option B: Service-account JSON key (fallback)</h3>
+<h3 id="docs-infra-deploy-md--h6">Option B: Service-account JSON key (fallback)</h3>
 <pre><code class="language-bash">PROJECT_ID=telarchy-e0043
 gcloud iam service-accounts create cloudrun-deployer \
   --display-name=&quot;GitHub Actions Cloud Run deployer&quot; \
@@ -10057,7 +10076,7 @@ gcloud iam service-accounts keys create key.json \
 </table></div>
 <p>Delete <code>key.json</code> from the laptop after pasting. Rotate it every ~90
 days. <code>scripts/setup-deploy-auth.sh</code> automates this option end to end.</p>
-<h2 id="docs-infra-deploy-md--h6">Nothing reaches the public until you press Publish</h2>
+<h2 id="docs-infra-deploy-md--h7">Nothing reaches the public until you press Publish</h2>
 <p>A push to <code>main</code> does not change what a visitor sees. The pipeline lands the
 build and stops; telarchy.com keeps serving the previous revision until a
 human presses a button.</p>
@@ -10169,7 +10188,7 @@ never on a read path.</li>
 lands another build while you are reading, that one waits its turn. The button
 is on the stripe at the top of every beta page (<code>BetaBanner</code>), backed by
 <code>POST /api/admin/publish</code>, platform-admin only.</p>
-<h3 id="docs-infra-deploy-md--h7">Reaching it</h3>
+<h3 id="docs-infra-deploy-md--h8">Reaching it</h3>
 <p><strong><code>telarchy.com/beta</code> IS the beta.</strong> It is not a redirect. The revision serving
 telarchy.com forwards <code>/beta/*</code> to whichever revision carries the <code>candidate</code>
 tag, cookies and all, so:</p>
@@ -10222,7 +10241,7 @@ hands a visitor an unpublished build in place of a market.</p>
 <p>The candidate's direct run.app URL still works (it serves its own beta bundle
 when it has nothing to forward to) and is printed in the GitHub job summary and
 in <code>GET /api/admin/release</code>.</p>
-<h3 id="docs-infra-deploy-md--h8">Branch previews</h3>
+<h3 id="docs-infra-deploy-md--h9">Branch previews</h3>
 <p>Every push to a branch other than <code>main</code> lands, after the same test gate, as a
 revision of the same service carrying no traffic and a URL tag named after the
 branch, and <code>telarchy.com/beta</code> can show it. That is how a change is looked at
@@ -10333,15 +10352,15 @@ overwriting the other's tag, and <code>deploy-autorecover.yml</code> re-runs the
 job. A preview's direct tag URL exists but sign-in does not work there
 (<code>TRUSTED_ORIGINS</code> names the candidate's origin only); use it through
 <code>/beta?branch=</code>.</p>
-<h3 id="docs-infra-deploy-md--h9">Publishing without the button</h3>
+<h3 id="docs-infra-deploy-md--h10">Publishing without the button</h3>
 <pre><code class="language-bash">gcloud run services update-traffic api --region us-central1 --to-latest
 </code></pre>
-<h3 id="docs-infra-deploy-md--h10">Rolling back</h3>
+<h3 id="docs-infra-deploy-md--h11">Rolling back</h3>
 <p>Same command, naming the revision:</p>
 <pre><code class="language-bash">gcloud run services update-traffic api --region us-central1 \
   --to-revisions &lt;PREVIOUS_REVISION&gt;=100
 </code></pre>
-<h3 id="docs-infra-deploy-md--h11">Logging in on the beta</h3>
+<h3 id="docs-infra-deploy-md--h12">Logging in on the beta</h3>
 <p>On <code>telarchy.com/beta</code> you are already logged in: same origin, same cookie jar.
 That is the main reason the beta lives there.</p>
 <p>On the candidate's direct run.app URL it is a different origin with its own
@@ -10358,7 +10377,7 @@ carrying credentials, so verify this in a browser or not at all.
 names the published site, and <code>publicOrigins()</code> uses it to decide which hosts
 get <code>X-Robots-Tag: noindex</code>. The beta is trusted enough to log in to and never
 indexable.</p>
-<h3 id="docs-infra-deploy-md--h12">The beta is admin only</h3>
+<h3 id="docs-infra-deploy-md--h13">The beta is admin only</h3>
 <p>Every beta surface is gated to a platform admin (or the master key); everyone
 else gets a 404 that says nothing, and a signed-out visitor asking for a page
 is sent to <code>/login?next=&lt;where they were going&gt;</code> and comes back through the
@@ -10384,7 +10403,7 @@ legacy services), so cron is unaffected. Both gates check the same session
 against the production user table, so a forwarded request passes the
 candidate's gate with the same cookie that passed the published revision's.
 <code>beta-gate.test.ts</code> pins every branch of this.</p>
-<h3 id="docs-infra-deploy-md--h13">The permission behind the button</h3>
+<h3 id="docs-infra-deploy-md--h14">The permission behind the button</h3>
 <p>The runtime service account (<code>telarchy-api@telarchy-e0043.iam.gserviceaccount.com</code>,
 see &quot;Runtime identity&quot;) holds two grants that Publish depends on, both scoped
 to the one resource they concern rather than the project:</p>
@@ -10466,7 +10485,7 @@ store on every <code>/beta/api</code> call, found nothing, and the caller comes 
 anonymous while the page says signed in. <code>auth-store-binding.test.ts</code> fails if
 that is tidied back. Everything else stays per-store, so a beta workspace is
 real beta data keyed by the real account id.</p>
-<h2 id="docs-infra-deploy-md--h14">A tab that is already open picks the new build up</h2>
+<h2 id="docs-infra-deploy-md--h15">A tab that is already open picks the new build up</h2>
 <p>Publishing swaps the revision, but a browser that already has the app open
 keeps running the bundle it downloaded; nothing on the wire tells it to stop.
 The HTTP layer is not the problem and needs no change: <code>index.html</code> is served
@@ -10497,7 +10516,7 @@ inconsistent index cannot put a tab in a reload loop.</li>
 fails to load, and the boundary reloads once. That one only fires when the
 visitor navigates to a page they had not opened yet; this one fires while they
 sit still.</p>
-<h2 id="docs-infra-deploy-md--h15">What the workflow does</h2>
+<h2 id="docs-infra-deploy-md--h16">What the workflow does</h2>
 <p>On <code>push</code> to any branch (or <code>workflow_dispatch</code>); pushes touching only
 <code>**/*.md</code> or <code>docs/**</code> do not trigger it. A branch <code>delete</code> event triggers
 only the <code>retire</code> job.</p>
@@ -10537,7 +10556,7 @@ run that ends in <code>failure</code> (a runner dying mid-test, not a red suite)
 genuinely red suite is still left red for a human after four retries. A run
 that loses the concurrency race ends as <code>cancelled</code>, not <code>failure</code>, so it never
 triggers this.</p>
-<h2 id="docs-infra-deploy-md--h16">Other workflows</h2>
+<h2 id="docs-infra-deploy-md--h17">Other workflows</h2>
 <ul>
 <li><code>docker-publish.yml</code> runs in parallel on every push to <code>main</code> and pushes the
 image to <code>ghcr.io/reblexis/telarchy-app</code> (tags <code>latest</code> and <code>sha-&lt;short&gt;</code>;
@@ -10551,7 +10570,7 @@ use. Leave it.</li>
 backend (the Dockerfile copies the built bundle into <code>lib/public</code>); there is
 no separately hosted frontend.</li>
 </ul>
-<h2 id="docs-infra-deploy-md--h17">The container</h2>
+<h2 id="docs-infra-deploy-md--h18">The container</h2>
 <p><code>Dockerfile</code> builds the backend (<code>functions/</code>), the frontend at <code>/</code>, and the
 frontend a second time at <code>/beta/</code> (<code>npm run build:beta</code>, see &quot;Reaching it&quot;).
 The second bundle is built by default (<code>ARG BUILD_BETA=true</code>) because the
@@ -10566,7 +10585,7 @@ database migrations (<code>node lib/migrate.js</code>) before starting the serve
 unset and migrates in the deploy workflow instead, before the revision lands.
 Required env: <code>DATABASE_URL</code>, <code>API_KEY</code>, <code>BETTER_AUTH_SECRET</code>; everything
 else is documented in <code>.env.example</code>.</p>
-<h2 id="docs-infra-deploy-md--h18">Runtime identity</h2>
+<h2 id="docs-infra-deploy-md--h19">Runtime identity</h2>
 <p>The API runs as <code>telarchy-api@telarchy-e0043.iam.gserviceaccount.com</code>, not the
 default compute service account (which holds project Editor and still exists for
 Cloud Build). Its grants are the smallest set the app uses: project roles
@@ -10590,7 +10609,7 @@ no-traffic revision under the new account, smoke-tested through its own tag
 URL (DB, secrets, master key, release describe, <code>/beta</code>), then
 <code>update-traffic</code>. The default compute account keeps project Editor because
 Cloud Build (<code>deploy --source</code>) uses it; removing it is a separate step.</p>
-<h2 id="docs-infra-deploy-md--h19">Keyless deploys</h2>
+<h2 id="docs-infra-deploy-md--h20">Keyless deploys</h2>
 <p>The deploy workflow authenticates with Workload Identity Federation: pool
 <code>github</code>, OIDC provider <code>github</code> (issuer token.actions.githubusercontent.com,
 attribute condition <code>repository_owner == 'Reblexis'</code>), and
@@ -10602,7 +10621,7 @@ path in <code>deploy-cloudrun.yml</code>. No <code>GCP_SA_KEY</code> secret exis
 and <code>cloudrun-deployer</code> carries no user-managed key; the JSON-key path is only
 a bootstrap fallback, deleted from the repository and from the service account
 once a WIF deploy succeeds.</p>
-<h2 id="docs-infra-deploy-md--h20">Master key rotation</h2>
+<h2 id="docs-infra-deploy-md--h21">Master key rotation</h2>
 <p>The master key (<code>API_KEY</code>) is read by exactly one function, <code>isMasterKey</code> in
 <code>functions/src/lib/master-key.ts</code>, which also accepts <code>API_KEY_PREVIOUS</code> when it
 is set. That is the grace window: rotation is not a simultaneous cutover of every
@@ -10620,7 +10639,7 @@ The fleet instance has its own key and is unaffected.</li>
 <li>After 24 hours (and never mid-cycle: cut over between weekly market pairs during a
 season), unset <code>API_KEY_PREVIOUS</code>. The old key then returns 401 everywhere.</li>
 </ol>
-<h2 id="docs-infra-deploy-md--h21">Cron schedule (Cloud Scheduler)</h2>
+<h2 id="docs-infra-deploy-md--h22">Cron schedule (Cloud Scheduler)</h2>
 <p>The market lifecycle is driven by two endpoints, <code>POST /api/cron/resolve</code> and
 <code>POST /api/cron/refresh</code>, called with the master key. Both take the same
 advisory lock the in-process timers hold, so a scheduler pass and a container's
@@ -10716,7 +10735,7 @@ market against the wrong hour's reading.</p>
 gcloud scheduler jobs update http firebase-schedule-dailyMarketRefresh-us-central1 \
   --location=us-central1 --project=telarchy-e0043 --schedule=&quot;10 0 * * *&quot;
 </code></pre>
-<h2 id="docs-infra-deploy-md--h22">Owner notifications (Resend)</h2>
+<h2 id="docs-infra-deploy-md--h23">Owner notifications (Resend)</h2>
 <p>The <code>api</code> service sends mail through Resend (<code>functions/src/lib/notify.ts</code>):
 owner notifications (new waitlist signup, new proposal) and participant
 notifications (a comment under your proposal, a reply in your thread, and
@@ -10769,7 +10788,7 @@ agent-economy umbrella does for agents; this is one more key on that team.</p>
 <p>Participant mail also needs <code>BETTER_AUTH_URL</code> (or it falls back to
 <code>https://telarchy.com</code>), because every one of those emails carries a link
 back to the floor and a link to the account settings that switch it off.</p>
-<h2 id="docs-infra-deploy-md--h23">Memory</h2>
+<h2 id="docs-infra-deploy-md--h24">Memory</h2>
 <p><strong>512Mi.</strong> At 256Mi the container is OOM-killed on almost no traffic, and
 Cloud Run answers a killed instance's in-flight requests with 503; the
 endpoint that takes it most often is <code>GET /api/marketplace/:slug</code>, i.e. the

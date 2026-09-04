@@ -10,5 +10,5 @@ set -eu
 REGION="${CLOUD_RUN_REGION:-us-central1}"
 node scripts/build-changelog.mjs
 gcloud run deploy api --project "$GCP_PROJECT" --source . --region "$REGION" \
-  --allow-unauthenticated --memory 512Mi --cpu 1 --min-instances 0 --max-instances 4 \
+  --allow-unauthenticated --memory 512Mi --cpu 1 --min-instances 0 --max-instances 4 --no-cpu-throttling \
   --set-cloudsql-instances "$CLOUDSQL_INSTANCE" --clear-base-image

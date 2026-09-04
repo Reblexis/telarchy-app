@@ -111,6 +111,29 @@ describe('the deploy blocks state their scale explicitly', () => {
     expect(deployDoc).toMatch(/keeps the 3 newest `br-\*`\s+tags/);
   });
 
+  // Billing (docs/infra/deploy.md, "CPU allocation"): the prod revision serves
+  // cron every 10 minutes plus steady traffic, so it is active most of the
+  // month; instance-based billing (CPU always allocated) is ~4x cheaper per
+  // vCPU-hour than request-based for an instance that is rarely idle. A
+  // preview idles, so it stays request-based. Both must be stated, because
+  // the deploy inherits the previous revision's allocation otherwise.
+  it('main: CPU always allocated (instance-based billing)', () => {
+    expect(main).toMatch(/--no-cpu-throttling/);
+    expect(main).not.toMatch(/\s--cpu-throttling/);
+  });
+
+  it('preview: CPU only during requests (request-based billing)', () => {
+    expect(preview).toMatch(/\s--cpu-throttling/);
+    expect(preview).not.toMatch(/--no-cpu-throttling/);
+  });
+
+  it('the hand deploy and the doc state the same allocation as the workflow', () => {
+    const script = readFileSync(join(ROOT, 'scripts/deploy-managed.sh'), 'utf8');
+    expect(script).toMatch(/--no-cpu-throttling/);
+    expect(deployDoc).toMatch(/--no-cpu-throttling/);
+    expect(deployDoc).toMatch(/## CPU allocation/);
+  });
+
   it('a preview never migrates production', () => {
     const job = workflow.slice(workflow.indexOf('  preview:'), workflow.indexOf('  retire:'));
     expect(job).toContain('5435/telarchy_beta');

@@ -8,8 +8,8 @@ human publishes that candidate (see "Nothing reaches the public until you
 press Publish" below). The workflow and the hand deploy (`npm run deploy`,
 which runs `scripts/deploy-managed.sh`) share the same
 `gcloud run deploy api --source . --region us-central1 --allow-unauthenticated
---memory 512Mi --cpu 1 --max-instances 4 --set-cloudsql-instances ...
---clear-base-image` command, and both regenerate the data room's change log
+--memory 512Mi --cpu 1 --max-instances 4 --no-cpu-throttling
+--set-cloudsql-instances ... --clear-base-image` command, and both regenerate the data room's change log
 (`scripts/build-changelog.mjs`) first. They differ in three ways:
 
 - The workflow lands the revision with `--no-traffic --tag candidate` and
@@ -39,6 +39,28 @@ GCP_PROJECT=telarchy-e0043 CLOUDSQL_INSTANCE=telarchy-e0043:us-central1:telarchy
 required by the script; `CLOUD_RUN_REGION` defaults to `us-central1`.
 
 History: notes/decisions/infra-deploy.md.
+
+## CPU allocation
+
+The `api` service runs with CPU always allocated (`--no-cpu-throttling`,
+"instance-based billing"). Its one warm instance is active most of the
+month anyway: the scheduler hits it every 10 minutes (`/api/cron/resolve`,
+`/api/cron/seasons`) plus hourly and 6-hourly jobs, on top of steady
+traffic. Cloud Run bills an always-allocated vCPU at roughly a quarter of
+the per-request rate, so for an instance that is rarely idle this is the
+cheaper model: about $14 a month for 1 vCPU / 512Mi, against about $55 that
+the same instance cost in August 2026 on request-based billing (2.29M
+billable vCPU-seconds, found on the 1 September 2026 card charge). It also
+lets background work (timers, catch-up loops) run between requests instead
+of only while one is in flight.
+
+A branch preview keeps request-based billing (`--cpu-throttling`): it idles
+almost all the time and an idle request-billed instance costs nothing.
+
+Both flags are stated explicitly in every deploy block because a deploy
+inherits the previous revision's allocation; scale-invariant.test.ts pins
+this. A revision's allocation applies once traffic reaches it, so the
+saving starts with the first Publish after this landed.
 
 ## Runners
 

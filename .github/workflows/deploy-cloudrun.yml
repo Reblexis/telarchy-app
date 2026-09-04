@@ -232,12 +232,14 @@ jobs:
       # so the config is reproducible in code, not only set imperatively on the
       # service (they are merged, so other secrets/env are untouched).
       #
-      # DB_POOL_MAX=4, --min-instances 1 and --max-instances 4 are stated on
-      # every run even though they are the defaults, because `gcloud run
-      # deploy` starts from the previous revision's template: after a branch
-      # preview (one instance, a 1-connection pool) the candidate would
+      # DB_POOL_MAX=4, --min-instances 1, --max-instances 4 and
+      # --no-cpu-throttling are stated on every run even though they are the
+      # defaults, because `gcloud run deploy` starts from the previous
+      # revision's template: after a branch preview (one instance, a
+      # 1-connection pool, request-based billing) the candidate would
       # otherwise inherit the preview's values. scale-invariant.test.ts reads
-      # them from this block.
+      # them from this block. --no-cpu-throttling is the billing model, see
+      # docs/infra/deploy.md "CPU allocation".
       #
       # TRUSTED_ORIGINS is the beta's own origin. Without it BetterAuth answers
       # every sign-in there with 403 INVALID_ORIGIN, so nobody can log in on
@@ -270,6 +272,7 @@ jobs:
             --cpu 1 \
             --min-instances 1 \
             --max-instances 4 \
+            --no-cpu-throttling \
             --set-cloudsql-instances ${{ vars.CLOUDSQL_INSTANCE }} \
             --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app,DB_POOL_MAX=4,SELF_SYNC_WORKSPACE_ID=2015d2e5-999c-4f94-aa19-e3733451732f \
             --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest,GITHUB_ACTIONS_TOKEN=GITHUB_ACTIONS_TOKEN:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest \
@@ -426,6 +429,7 @@ jobs:
 
       # One instance, a 1-connection production pool: the budget in
       # docs/infra/deploy.md counts 2 connections per preview, 3 previews.
+      # --cpu-throttling: a preview idles, so it is billed per request.
       - name: Deploy the preview (no traffic)
         if: steps.auth_check.outputs.skip != 'true'
         run: |
@@ -438,6 +442,7 @@ jobs:
             --cpu 1 \
             --min-instances 0 \
             --max-instances 1 \
+            --cpu-throttling \
             --set-cloudsql-instances ${{ vars.CLOUDSQL_INSTANCE }} \
             --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app,DB_POOL_MAX=1 \
             --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest,GITHUB_ACTIONS_TOKEN=GITHUB_ACTIONS_TOKEN:latest \
