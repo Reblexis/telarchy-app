@@ -18,6 +18,11 @@ const h = vi.hoisted(() => {
     { at: '2026-08-12T10:00:00.000Z', consensus: marketId === 'm-declined' ? 70_000 : 80_000 },
     { at: '2026-08-12T12:00:00.000Z', consensus: marketId === 'm-declined' ? 71_000 : 82_000 },
   ];
+  // Proposals a test posts during its run; the next fetch carries them, the
+  // way the real floor does after a reload.
+  const extraProposals: unknown[] = [];
+  // Signed out unless a test signs in.
+  const auth: { user: { id: string } | null } = { user: null };
   // A fresh object per call, exactly like a real fetch: the bug was a
   // dependency on that identity, so a shared frozen fixture would hide it.
   const workspace = () => ({
@@ -56,8 +61,10 @@ const h = vi.hoisted(() => {
     // never has to guess which chart it fits.
     marketHistoryMarketId: 'm-hero',
     proposals: [
+      ...extraProposals,
       {
         id: 'job-1',
+        number: 1,
         title: '$80: rewrite the store page',
         description: 'A better store page.',
         askUsd: 80,
@@ -86,10 +93,16 @@ const h = vi.hoisted(() => {
       },
     ],
   });
-  return { historyFor, workspace, chartRenders: [] as Array<{ marketId: string; seriesLen: number }> };
+  return {
+    historyFor,
+    workspace,
+    extraProposals,
+    auth,
+    chartRenders: [] as Array<{ marketId: string; seriesLen: number }>,
+  };
 });
 
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: false }) }));
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: h.auth.user, loading: false }) }));
 
 // The chart itself is covered elsewhere; here it is a probe that records what
 // the page handed it on every render.
@@ -174,6 +187,8 @@ const { settleDayOf } = await import('../../lib/floor-horizons');
 
 beforeEach(() => {
   h.chartRenders.length = 0;
+  h.extraProposals.length = 0;
+  h.auth.user = null;
   globalThis.IntersectionObserver = class {
     observe() {}
     unobserve() {}
@@ -1428,8 +1443,14 @@ describe('while the floor loads', () => {
       `<script id="telarchy-floor" type="application/json">${json}</script>`,
     );
   }
-  afterEach(() => {
+  afterEach(async () => {
     document.head.innerHTML = '';
+    // The loading test parks the fetch on a promise it releases by hand;
+    // mockReturnValue is sticky, so every test after it would wait forever.
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace as unknown as () => Promise<unknown>).mockImplementation(async () =>
+      h.workspace(),
+    );
   });
 
   test('ghost columns and the progress hairline, never a dot', async () => {
@@ -1473,5 +1494,77 @@ describe('while the floor loads', () => {
     plantHint({ id: 'ws-1', slug: 'lookpilot', name: 'LookPilot', description: null });
     renderFloor(['/lookpilot']);
     await waitFor(() => expect(document.getElementById('telarchy-floor')).toBeNull());
+  });
+});
+
+/**
+ * A proposal has a number and an address; the proposer sees their own
+ * proposal (docs/ui-conventions.md). On 2026-09-04 a visitor posted a $0
+ * proposal, reloaded the floor and could not find it: unfunded, it sat last
+ * on the ballot with nothing pointing at it.
+ */
+describe('a posted proposal is selected the moment it lands', () => {
+  test('posting selects the new proposal, wherever the ranking put it', async () => {
+    h.auth.user = { id: 'odoacre' };
+    const { api } = await import('../../lib/api');
+    (api.createProposal as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (body: { title: string }) => {
+      // The server answers with the id; the next fetch carries the row, at
+      // the bottom of the ballot because nothing funds it.
+      h.extraProposals.push({
+        id: 'job-new',
+        number: 2,
+        title: body.title,
+        description: '',
+        askUsd: 0,
+        status: 'pending',
+        proposedByName: 'Odoacre',
+        proposedByHandle: 'odoacre',
+        createdAt: '2026-09-04T12:00:00.000Z',
+        marketPairCount: 1,
+        markets: [
+          {
+            metricName: 'LookPilot revenue (monthly, USD)',
+            targetDate: '2026-12',
+            resolvesOn: '2026-12-31',
+            approvedConsensus: null,
+            declinedConsensus: null,
+            delta: null,
+            approvedMarketId: 'm-new-a',
+            declinedMarketId: 'm-new-d',
+            approvedProbability: null,
+            approvedLiquidity: 0,
+            declinedProbability: null,
+            declinedLiquidity: 0,
+            approvedPool: 0,
+            declinedPool: 0,
+            rangeMin: 0,
+            rangeMax: 500_000,
+          },
+        ],
+      });
+      return { id: 'job-new', number: 2, conditionalMarketIds: ['m-new-a', 'm-new-d'], liquiditySubsidy: 0 };
+    });
+    renderFloor();
+    await screen.findByTitle('rewrite the store page');
+
+    fireEvent.click(screen.getByText('+ Propose'));
+    fireEvent.change(await screen.findByLabelText('Proposal title'), { target: { value: 'Replace the slogan' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Propose/ }));
+
+    // The new row is on screen, selected, and marked as the poster's own.
+    const row = await screen.findByTitle('Replace the slogan');
+    await waitFor(() => expect(row.getAttribute('aria-pressed')).toBe('true'));
+    expect(row.textContent).toMatch(/#2/);
+    expect(row.textContent).toMatch(/yours/);
+    // And the one that was selected before (none) stays unselected.
+    expect(screen.getByTitle('rewrite the store page').getAttribute('aria-pressed')).toBe('false');
+  });
+});
+
+describe('a proposal address accepts the number', () => {
+  test('#proposal=1 opens proposal number 1', async () => {
+    renderFloor(['/lookpilot#proposal=1']);
+    expect(await screen.findByRole('button', { name: 'if declined' })).toBeTruthy();
+    expect(screen.getByTitle('rewrite the store page').getAttribute('aria-pressed')).toBe('true');
   });
 });

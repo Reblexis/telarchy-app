@@ -197,6 +197,16 @@ export function TradePage() {
     // tidying the address bar, not a place in the history.
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
   }, [location.hash]);
+  // A proposal address accepts the number too: #proposal=7 names proposal
+  // #7 (docs/ui-conventions.md, "A proposal has a number and an address").
+  // The hash lands before the payload does, so the number waits here as the
+  // selection until the proposals arrive and one of them answers to it.
+  useEffect(() => {
+    if (!ws || !selectedJobId || !/^\d+$/.test(selectedJobId)) return;
+    const wanted = Number(selectedJobId);
+    const hit = ws.proposals?.find(p => p.number === wanted);
+    if (hit) setSelectedJobId(hit.id);
+  }, [ws, selectedJobId]);
   // Which world the one view is showing (owner decision 2026-08-10: both
   // branches are on the page; the toggle picks which one the ticket trades,
   // and the chart draws the other as a quiet second line).
@@ -2235,6 +2245,8 @@ export function TradePage() {
               horizonMetricId={hero.metricId}
               selectedId={selectedJobId}
               onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
+              workspaceSlug={ws.slug}
+              viewerId={user?.id ?? null}
               signedIn={!!user}
               onRequireSignup={() => navigate(authPath('signup', location))}
               workspaceName={ws.name}
@@ -2254,8 +2266,13 @@ export function TradePage() {
                 // side of the marketplace half a newcomer's starting balance
                 // to make an offer is spam defence aimed the wrong way; add
                 // it back if someone actually spams.
-                await api.createProposal({ title, description, askUsd });
+                const created = (await api.createProposal({ title, description, askUsd })) as { id?: string };
                 reload();
+                // The new proposal is selected the moment it lands (docs/
+                // ui-conventions.md, "The proposer sees their own
+                // proposal"): unfunded, it sits last on the ballot, and
+                // its author otherwise reloads the floor and cannot find it.
+                if (created?.id) setSelectedJobId(created.id);
               }}
             />
           </aside>

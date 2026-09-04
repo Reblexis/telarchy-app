@@ -3176,6 +3176,38 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
   color: var(--text-tertiary);
 }
 
+/* The proposal's number, mono, before the words: how a person names it. */
+.pubws-ballot-num {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.78em;
+  color: var(--text-tertiary);
+  margin-right: 0.45em;
+}
+
+/* The poster's own pending proposal says so, in the facts row's voice. */
+.pubws-ballot-yours {
+  color: var(--accent);
+}
+
+/* The address control: a small link glyph among the facts, the name
+   link's anatomy; "Copied" for a moment after a click. */
+.pubws-ballot-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: 3px;
+}
+.pubws-ballot-link:hover,
+.pubws-ballot-link:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+.pubws-ballot-link.is-copied {
+  color: var(--accent);
+}
+
 .pubws-ballot-impact {
   display: flex;
   flex-direction: column;

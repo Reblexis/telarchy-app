@@ -882,9 +882,21 @@ export const proposals = pgTable(
      * Null for proposals that predate the field or that carry no ask.
      */
     askUsd: integer('ask_usd'),
+    /**
+     * The short per-floor ordinal a person names the proposal by ("#7"):
+     * assigned in posting order, never reused when a proposal is removed
+     * and never renumbered (docs/ui-conventions.md, "A proposal has a
+     * number and an address"). Unique per floor; the create route retries
+     * on a collision. Null only on rows that predate migration 0108 and
+     * were not backfilled, which the backfill leaves none of.
+     */
+    number: integer('number'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
-  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+  t => [
+    primaryKey({ columns: [t.id, t.workspaceId] }),
+    uniqueIndex('proposals_workspace_number_idx').on(t.workspaceId, t.number),
+  ],
 );
 
 /** One row per document load the server serves on the public floor
