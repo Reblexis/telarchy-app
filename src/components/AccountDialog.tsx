@@ -280,7 +280,7 @@ export function AccountDialog({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
 
-  // The Manifold import, moved here from the corner menu.
+  // The Manifold link, moved here from the corner menu.
   const [manifold, setManifold] = useState<null | 'ask' | { code: string; username: string }>(null);
   const [manifoldName, setManifoldName] = useState('');
   const [manifoldMsg, setManifoldMsg] = useState('');
@@ -516,7 +516,7 @@ export function AccountDialog({
       const d = await api.claimRecordLink('manifold');
       setManifoldMsg(
         d.granted > 0
-          ? `Imported @${d.handle}: +${d.granted.toLocaleString('en-US')} cr`
+          ? `Linked @${d.handle}: +${d.granted.toLocaleString('en-US')} cr`
           : `Linked @${d.handle}. It earns nothing: ${d.why ?? 'this record does not qualify for the grant.'}`,
       );
       setManifold(null);
@@ -765,7 +765,7 @@ export function AccountDialog({
                   )}
                   {errors.bio && <p className="ticket-err">{errors.bio}</p>}
 
-                  {/* Bring a Manifold record: proven calibration converts once. */}
+                  {/* Link a Manifold account (docs/record-links.md): the badge, and the grant once. */}
                   <div className="jobform-field">
                     <span className="ticket-label">Manifold</span>
                     {manifold === null && !manifoldMsg && (
@@ -776,7 +776,7 @@ export function AccountDialog({
                           clearErr('manifold');
                         }}
                       >
-                        Import Manifold balance
+                        Link your Manifold account
                       </button>
                     )}
                     {manifold === 'ask' && (
@@ -802,6 +802,10 @@ export function AccountDialog({
                         <p className="acctdlg-hint">
                           Add <code>{manifold.code}</code> to @{manifold.username}&rsquo;s bio on manifold.markets, then
                           verify. You can remove it right after.
+                        </p>
+                        <p className="acctdlg-fine">
+                          Not affiliated with or endorsed by Manifold. We read your public Manifold profile once;
+                          nothing else is stored.
                         </p>
                         <button
                           className="acctdlg-ghost"

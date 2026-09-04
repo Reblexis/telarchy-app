@@ -123,27 +123,27 @@ export function ManifoldButton({
           onClick={() => (signedIn ? setOpen(true) : onRequireSignup())}
         >
           {provider.logo?.(14)}
-          Import
+          Link
         </button>
       ) : (
         <button
           className="pubws-manifold"
-          aria-label={`Bring your ${provider.label} record`}
+          aria-label={`Link your ${provider.label} account`}
           onClick={() => (signedIn ? setOpen(true) : onRequireSignup())}
         >
           <span className="pubws-manifold-icon">
             <ManifoldLogo size={18} color="currentColor" />
           </span>
-          <span className="pubws-manifold-label">Bring your {provider.label} record</span>
+          <span className="pubws-manifold-label">Link your {provider.label} account</span>
         </button>
       )}
 
       {open && (
-        <FloorModal onClose={close} label={`Bring your ${provider.label} record`}>
+        <FloorModal onClose={close} label={`Link your ${provider.label} account`}>
           <div className="mfimport">
             <div className="ticket-head mfimport-head">
               <h3 className="mfimport-title">
-                {provider.logo?.(22)} Bring your {provider.label} record
+                {provider.logo?.(22)} Link your {provider.label} account
               </h3>
               <button className="ticket-close" aria-label="Close" onClick={close}>
                 ×
@@ -173,6 +173,13 @@ export function ManifoldButton({
                   Link any account you can prove is yours. To also earn credits it has to be 90 days old, not a bot, and
                   either traded in the last 60 days or have markets other people traded.{' '}
                   <Link to="/earn">What it pays</Link>.
+                </p>
+                {/* Independence, said before a handle is typed (docs/record-links.md,
+                    "Independent of the provider, and it says so"). */}
+                <p className="mfimport-fine">
+                  Telarchy is not affiliated with or endorsed by {provider.label}. Linking reads your public{' '}
+                  {provider.label} profile once, to check the code and the account&rsquo;s age; nothing else from{' '}
+                  {provider.label} is stored.
                 </p>
                 <label className="jobform-field">
                   <span className="ticket-label">Your {provider.label} username</span>
@@ -218,7 +225,7 @@ export function ManifoldButton({
                   </button>
                 </div>
                 <button className="ticket-go" disabled={busy} onClick={() => void claim()}>
-                  {busy ? 'Verifying…' : 'Verify and import'}
+                  {busy ? 'Verifying…' : 'Verify'}
                 </button>
               </>
             )}

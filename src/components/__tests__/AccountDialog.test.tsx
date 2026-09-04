@@ -52,6 +52,8 @@ vi.mock('../../lib/api', () => ({
     ],
     transferCredits: async () => ({ id: 't1' }),
     createAgent: async () => ({ agentId: 'x', apiKey: 'k', initialCredits: 0 }),
+    startRecordLink: async () => ({ code: 'telarchy-abc123', handle: 'Tumbles', proofField: 'bio' }),
+    claimRecordLink: async () => ({ handle: 'Tumbles', granted: 0 }),
   },
 }));
 vi.mock('../../hooks/useAuth', () => ({
@@ -318,5 +320,37 @@ describe('the agent prompt', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Your AI' }));
     expect(await screen.findByText('my-trader')).toBeInTheDocument();
     expect(screen.getByText(/\+4 cr earned/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * The profile tab's provider row (docs/record-links.md, "Independent of the
+ * provider, and it says so"): the button is "Link your Manifold account",
+ * never "Import Manifold balance" (nothing was ever imported, and the old
+ * label read as an official integration), and the code step carries the
+ * not-affiliated line.
+ */
+describe('THE ACCOUNT DIALOG LINKS A MANIFOLD ACCOUNT, IT DOES NOT IMPORT A BALANCE', () => {
+  const renderProfile = () =>
+    render(
+      <MemoryRouter>
+        <AccountDialog onClose={() => {}} initialTab="profile" />
+      </MemoryRouter>,
+    );
+
+  test('the button says link, and nothing on the row says import', async () => {
+    renderProfile();
+    await waitFor(() => expect(screen.getByText('Link your Manifold account')).toBeInTheDocument());
+    expect(screen.queryByText(/import/i)).toBeNull();
+  });
+
+  test('the code step says Telarchy is not affiliated with Manifold and what it reads', async () => {
+    renderProfile();
+    await waitFor(() => screen.getByText('Link your Manifold account'));
+    fireEvent.click(screen.getByText('Link your Manifold account'));
+    fireEvent.change(screen.getByLabelText('Manifold username'), { target: { value: 'Tumbles' } });
+    fireEvent.click(screen.getByText('Next'));
+    await screen.findByText(/Not affiliated with or endorsed by Manifold/);
+    expect(screen.getByText(/public Manifold profile once/)).toBeInTheDocument();
   });
 });

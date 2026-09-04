@@ -31,7 +31,7 @@ const renderIt = (provider?: LinkProvider) =>
 /** Open the dialog and get as far as the code step. */
 const toCodeStep = async (provider?: LinkProvider) => {
   renderIt(provider);
-  fireEvent.click(screen.getByText('Import'));
+  fireEvent.click(screen.getByText('Link'));
   fireEvent.change(screen.getByLabelText(`${provider?.label ?? 'Manifold'} username`), {
     target: { value: 'Tumbles' },
   });
@@ -45,7 +45,10 @@ beforeEach(() => {
     handle: 'Tumbles',
     proofField: 'bio',
   } as never);
-  vi.mocked(api.claimRecordLink).mockResolvedValue({ handle: 'Tumbles', granted: 5000 } as never);
+  vi.mocked(api.claimRecordLink).mockResolvedValue({
+    handle: 'Tumbles',
+    granted: 5000,
+  } as never);
 });
 
 describe('the Manifold link flow', () => {
@@ -65,7 +68,7 @@ describe('the Manifold link flow', () => {
 
   test('it is said once the import succeeds, which is when it is true', async () => {
     await toCodeStep();
-    fireEvent.click(screen.getByText('Verify and import'));
+    fireEvent.click(screen.getByText('Verify'));
     await waitFor(() => expect(screen.getByText(/Linked @Tumbles/)).toBeInTheDocument());
     expect(screen.getByText('You can take the code out of your Manifold bio now.')).toBeInTheDocument();
   });
@@ -76,7 +79,7 @@ describe('the Manifold link flow', () => {
     await toCodeStep(POLYMARKET);
     expect(api.startRecordLink).toHaveBeenCalledWith('polymarket', 'Tumbles');
     expect(screen.getByText('Polymarket')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Verify and import'));
+    fireEvent.click(screen.getByText('Verify'));
     await waitFor(() => expect(screen.getByText(/Linked @Tumbles/)).toBeInTheDocument());
     expect(api.claimRecordLink).toHaveBeenCalledWith('polymarket');
     expect(screen.getByText('You can take the code out of your Polymarket bio now.')).toBeInTheDocument();
@@ -88,7 +91,7 @@ describe('the Manifold link flow', () => {
     // that states them as entry requirements turns people away from a
     // badge they are entitled to.
     renderIt();
-    fireEvent.click(screen.getByText('Import'));
+    fireEvent.click(screen.getByText('Link'));
     expect(screen.getByText(/Link any account you can prove is yours/)).toBeInTheDocument();
     expect(screen.getByText(/To also earn credits/)).toBeInTheDocument();
     // The price is a link, not a paragraph: the earn page owns that number.
@@ -102,8 +105,38 @@ describe('the Manifold link flow', () => {
       why: 'That Manifold account is 4 days old; the import needs 90.',
     });
     await toCodeStep();
-    fireEvent.click(screen.getByText('Verify and import'));
+    fireEvent.click(screen.getByText('Verify'));
     await waitFor(() => expect(screen.getByText(/Linked @Tumbles/)).toBeInTheDocument());
     expect(screen.getByText(/4 days old/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * Independence (docs/record-links.md, "Independent of the provider, and it
+ * says so"; Manifold's ask of 2026-09-03): the flow says Telarchy is not
+ * affiliated with the provider before a handle is typed, says what it
+ * reads and keeps, and never uses a verb that suggests a transfer.
+ */
+describe('THE LINK FLOW SAYS TELARCHY IS NOT AFFILIATED WITH THE PROVIDER', () => {
+  test('the first step carries the line, naming the provider, before any handle is typed', () => {
+    renderIt();
+    fireEvent.click(screen.getByText('Link'));
+    expect(screen.getByText(/not affiliated with or endorsed by Manifold/)).toBeInTheDocument();
+    expect(screen.getByText(/reads your public Manifold profile once/)).toBeInTheDocument();
+    expect(screen.getByText(/nothing else from Manifold is stored/)).toBeInTheDocument();
+  });
+
+  test('the line names another provider when the dialog serves it', () => {
+    renderIt(POLYMARKET);
+    fireEvent.click(screen.getByText('Link'));
+    expect(screen.getByText(/not affiliated with or endorsed by Polymarket/)).toBeInTheDocument();
+  });
+
+  test('THE VERB IS LINK, NEVER IMPORT OR BRING: the door, the title and the verify button', async () => {
+    await toCodeStep();
+    expect(screen.getAllByText('Link your Manifold account').length).toBeGreaterThan(0);
+    expect(screen.getByText('Verify')).toBeInTheDocument();
+    expect(screen.queryByText(/import/i)).toBeNull();
+    expect(screen.queryByText(/bring your/i)).toBeNull();
   });
 });
