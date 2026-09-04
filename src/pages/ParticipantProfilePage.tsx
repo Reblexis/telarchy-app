@@ -366,7 +366,8 @@ export function ParticipantProfilePage() {
               <div className="prof-stat" data-testid="prof-stat-profit">
                 <span className="prof-h2">Profit</span>
                 <span className={`prof-stat-val ${profile.stats.totalEarnings >= 0 ? 'is-up' : 'is-down'}`}>
-                  {fmtCr(profile.stats.totalEarnings)} cr
+                  {fmtCr(profile.stats.totalEarnings)}
+                  <span className="prof-stat-unit"> cr</span>
                 </span>
                 <span
                   className="prof-stat-sub"
@@ -377,7 +378,10 @@ export function ParticipantProfilePage() {
               </div>
               <div className="prof-stat" data-testid="prof-stat-balance">
                 <span className="prof-h2">Balance</span>
-                <span className="prof-stat-val">{fmtNum(balance)} cr</span>
+                <span className="prof-stat-val">
+                  {fmtNum(balance)}
+                  <span className="prof-stat-unit"> cr</span>
+                </span>
                 <span
                   className="prof-stat-sub"
                   title="What their open positions are worth at the current call, summed."
