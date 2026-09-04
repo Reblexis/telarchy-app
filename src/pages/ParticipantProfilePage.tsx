@@ -180,7 +180,7 @@ export function ParticipantProfilePage() {
                       href={`https://manifold.markets/${encodeURIComponent(profile.manifoldUsername)}`}
                       target="_blank"
                       rel="noreferrer noopener"
-                      title={`Imported from Manifold: @${profile.manifoldUsername}`}
+                      title={`Linked Manifold account: @${profile.manifoldUsername}`}
                     >
                       <ManifoldLogo size={14} /> @{profile.manifoldUsername}
                     </a>

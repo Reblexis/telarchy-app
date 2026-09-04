@@ -92,7 +92,7 @@ function TraderCell({
         <span className="lbt-name">
           <span className="lbt-nametext">{name}</span>
           {manifoldUsername && (
-            <span className="lbp-manifold" title={`Imported from Manifold: @${manifoldUsername}`}>
+            <span className="lbp-manifold" title={`Linked Manifold account: @${manifoldUsername}`}>
               <ManifoldLogo size={12} strokeWidth={1.6} />
             </span>
           )}
