@@ -171,8 +171,9 @@ describe('GET /api/agents/:idOrNickname/public detail', () => {
     // Rounded to cents, like every credit figure the API prints.
     expect(p.worth).toBeCloseTo(5 * factor, 2);
     expect(p.profit).toBeCloseTo(5 * factor - 2, 2);
-    // ...and the sum of position profits is the open profit on the strip.
-    expect(res.body.stats.openEarnings).toBeCloseTo(p.profit, 2);
+    // Not the strip's open profit: that one nets the sold proceeds out of
+    // the cost, while a position's spent figure keeps them.
+    expect(res.body.stats.openEarnings).not.toBeCloseTo(p.profit, 2);
   });
 
   test('every position and trade names the workspace slug it links through', async () => {
