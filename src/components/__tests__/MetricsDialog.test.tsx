@@ -292,11 +292,23 @@ describe('the date rows', () => {
     const table = await openSheet();
     const monthly = rowOf(table, 'Every month')!;
     expect(monthly).toBeTruthy();
-    expect(text(monthly.querySelector('.metrics-dates-what'))).toBe('Every month from this month');
+    expect(text(monthly.querySelector('.metrics-dates-what'))).toBe(
+      'Every month from this month 2026-09 · 360 cr · 5 traders',
+    );
     expect(text(monthly.querySelector('.metrics-dates-open'))).toBe('2026-09 · 360 cr · 5 traders');
     const once = rowOf(table, '2026')!;
-    expect(text(once.querySelector('.metrics-dates-what'))).toBe('2026 once');
+    expect(text(once.querySelector('.metrics-dates-what'))).toBe('2026 once 2026 · 1,447 cr · nobody yet');
     expect(text(once.querySelector('.metrics-dates-open'))).toBe('2026 · 1,447 cr · nobody yet');
+  });
+
+  test('the rows fit the sheet: what is open shares the first cell, four columns, no fifth to scroll to', async () => {
+    // Five columns pushed Proposal and Stop behind a horizontal scrollbar
+    // in a 440px sheet (owner report 2026-09-04).
+    const table = await openSheet();
+    const heads = Array.from(table.querySelectorAll('thead th')).map(th => text(th));
+    expect(heads).toEqual(['Priced · open now', 'Book opens with', 'Proposal opens with', '']);
+    expect(rowOf(table, 'Every month')!.querySelectorAll('td')).toHaveLength(4);
+    expect(table.style.tableLayout || getComputedStyle(table).tableLayout).toBeDefined();
   });
 
   test('a row with no market open on it says so, and a once entry names its hour', async () => {
@@ -306,10 +318,12 @@ describe('the date rows', () => {
     });
     const table = await openSheet();
     const daily = rowOf(table, 'Every day')!;
-    expect(text(daily.querySelector('.metrics-dates-what'))).toBe('Every day from tomorrow');
+    expect(text(daily.querySelector('.metrics-dates-what'))).toBe('Every day from tomorrow no market open on it');
     expect(text(daily.querySelector('.metrics-dates-open'))).toBe('no market open on it');
     const once = rowOf(table, '31 December 2026')!;
-    expect(text(once.querySelector('.metrics-dates-what'))).toBe('31 December 2026 once, 14:00 UTC');
+    expect(text(once.querySelector('.metrics-dates-what'))).toBe(
+      '31 December 2026 once, 14:00 UTC no market open on it',
+    );
   });
 
   test('both numbers are on the row: the stored ones where chosen', async () => {

@@ -9408,32 +9408,41 @@ textarea.jobform-line--desc {
    never does. */
 .metrics-dates { gap: 0.6rem; }
 .metrics-dates-scroll { overflow-x: auto; }
+/* Four columns that FIT the sheet's 440px: the words wrap, the headers
+   wrap, and only the numbers refuse to. A fifth column pushed Proposal and
+   Stop behind a horizontal scrollbar (owner report 2026-09-04). */
 .metrics-dates-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.86rem;
   color: var(--text-primary);
 }
 .metrics-dates-table th {
-  padding: 0 0 0.4rem;
+  padding: 0 0.3rem 0.4rem 0;
   font-size: 0.74rem;
   font-weight: 500;
   letter-spacing: 0.04em;
+  line-height: 1.3;
   color: var(--text-tertiary);
   text-align: left;
-  white-space: nowrap;
+  vertical-align: bottom;
 }
+.metrics-dates-table th:nth-child(2),
+.metrics-dates-table th:nth-child(3) { width: 5.6rem; }
+.metrics-dates-table th:nth-child(4) { width: 3rem; }
 .metrics-dates-table th.num,
 .metrics-dates-table td.num { text-align: right; }
 .metrics-dates-table td {
-  padding: 0.5rem 0.4rem 0.5rem 0;
+  padding: 0.5rem 0.3rem 0.5rem 0;
   border-top: 1px solid var(--border-color);
   vertical-align: middle;
 }
-.metrics-dates-table td:last-child { padding-right: 0; }
-.metrics-dates-what { display: block; white-space: nowrap; }
-.metrics-dates-what .dates-sub { white-space: nowrap; }
-.metrics-dates-open { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; }
+.metrics-dates-table td:last-child,
+.metrics-dates-table th:last-child { padding-right: 0; }
+.metrics-dates-what { display: block; min-width: 0; }
+.metrics-dates-what .dates-sub { display: block; }
+.metrics-dates-open { color: var(--text-secondary); }
 .metrics-dates-cell { display: inline-flex; align-items: baseline; gap: 0.3rem; white-space: nowrap; }
 .metrics-dates-input {
   width: 5.5ch;
