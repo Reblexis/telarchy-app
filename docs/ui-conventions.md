@@ -425,15 +425,16 @@ had already taught the caption's shape):
   selected metric; pressing it opens a menu (`.pubws-chip-menu`) listing
   the floor's metrics, primary first, the selected one marked, and for
   the owner a last entry "Manage metrics" that opens the metrics dialog
-  (the former "Metrics" button). With one metric the chip is plain text
-  with no chevron and no menu.
+  (the former "Metrics" button). With one metric and nothing to manage the
+  chip is plain text with no chevron and no menu; the owner keeps the menu,
+  because "Manage metrics" is their way into the dialog.
 - **The date chip** (`.pubws-chip--date`) reads the selected clock and its
   settle day ("THIS MONTH · SETTLES 30 SEP"; `dateSegmentOf` computes both
   from the market, never stored on the metric); its menu lists the
   metric's open dates soonest first, and for the owner a last entry
   "Manage dates" that opens the dates dialog (the former "Dates" button).
-  With one open date the chip is plain text, so the settle day never
-  leaves the page.
+  With one open date and nothing to manage the chip is plain text, so the
+  settle day never leaves the page.
 - Menus close on a pick, on Escape, and on a click outside; the chip is a
   `button` with `aria-expanded`, the menu a `listbox` of `option`s, so a
   keyboard reader gets the same control. The chips wrap onto two lines on
