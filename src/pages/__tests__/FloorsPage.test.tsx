@@ -200,12 +200,27 @@ describe('marketplace', () => {
 
   test('listing your own number is a cell of the grid, not a footnote', async () => {
     const { container } = renderPage();
-    const tile = await screen.findByText('Put your own number up here.');
+    const tile = await screen.findByText('See what a decision does to your numbers before you say yes.');
     const cell = tile.closest('.mkt-cell');
     expect(cell).toHaveClass('mkt-cell--new');
     expect(cell?.parentElement).toHaveClass('mkt-board');
-    // The last sentence answers the doubt a visitor actually has.
-    expect(cell).toHaveTextContent('Forecasts start with the first trade.');
+    // Cell B (docs/ui-conventions.md, "The marketplace"): a mono label, the
+    // owner's sentence, the mechanism in one line, then the door.
+    const label = cell?.querySelector('.mkt-new-label');
+    expect(label).toHaveTextContent('Your own numbers');
+    expect(cell?.querySelector('.mkt-new-title')).toHaveTextContent(
+      'See what a decision does to your numbers before you say yes.',
+    );
+    expect(cell?.querySelector('.mkt-new-sub')).toHaveTextContent(
+      'List the metrics you care about. Traders, human or AI, price every proposal against them; you approve on a calibrated number.',
+    );
+    // Label, sentence, line, door: in that order.
+    const kids = [...(cell?.children ?? [])];
+    const order = ['.mkt-new-label', '.mkt-new-title', '.mkt-new-sub', '.mkt-new-cta'].map(sel =>
+      kids.findIndex(k => k.matches(sel)),
+    );
+    expect(order.every(n => n >= 0)).toBe(true);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(container.querySelector('.mkt-card')).toBeNull();
   });
 
@@ -220,7 +235,7 @@ describe('marketplace', () => {
       slug: 'meridian',
     } as never);
     renderPage();
-    await screen.findByText('Put your own number up here.');
+    await screen.findByText('See what a decision does to your numbers before you say yes.');
     fireEvent.click(screen.getByRole('button', { name: 'Create your own' }));
     fireEvent.change(screen.getByLabelText('Floor name'), { target: { value: 'Meridian' } });
     fireEvent.click(screen.getByText('Open my market'));
@@ -255,7 +270,7 @@ describe('marketplace', () => {
     signedIn = false;
     vi.mocked(api.createWorkspace).mockClear();
     renderPage();
-    await screen.findByText('Put your own number up here.');
+    await screen.findByText('See what a decision does to your numbers before you say yes.');
     const cta = screen.getByText('Create your own');
     expect(cta.closest('a')?.getAttribute('href')).toBe('/signup');
     expect(api.createWorkspace).not.toHaveBeenCalled();
@@ -263,22 +278,41 @@ describe('marketplace', () => {
 
   test('the tile never names the setup conversation while it is not the door', async () => {
     renderPage();
-    const card = (await screen.findByText('Put your own number up here.')).closest('.mkt-cell--new');
+    const card = (await screen.findByText('See what a decision does to your numbers before you say yes.')).closest(
+      '.mkt-cell--new',
+    );
     expect(card?.textContent).not.toMatch(/otto/i);
   });
 
   test('it says a floor is not only for companies', async () => {
     // Dual scope is load-bearing (AGENTS.md): this tile is where a visitor
     // decides which side of the market they are on, and a personal goal is as
-    // welcome as a company.
+    // welcome as a company. The label says whose numbers ("Your own"), the
+    // sentence speaks to a person deciding, and neither names a company.
     renderPage();
-    expect(await screen.findByText(/something you run yourself/i)).toBeInTheDocument();
+    const card = (await screen.findByText('See what a decision does to your numbers before you say yes.')).closest(
+      '.mkt-cell--new',
+    );
+    expect(card?.querySelector('.mkt-new-label')).toHaveTextContent(/your own numbers/i);
+    expect(card?.textContent).not.toMatch(/compan/i);
+  });
+
+  test('the listing cell carries the owner sentence and label: calibrated number, human or AI', async () => {
+    // The approval wedge never appears without the calibrated-number clause,
+    // and the wedge covers humans and AI in the same breath (AGENTS.md).
+    renderPage();
+    const card = (await screen.findByText('See what a decision does to your numbers before you say yes.')).closest(
+      '.mkt-cell--new',
+    );
+    expect(card?.textContent).toMatch(/calibrated number/);
+    expect(card?.textContent).toMatch(/human or AI/);
+    expect(card?.querySelector('.mkt-new-label')).toHaveTextContent('Your own numbers');
   });
 
   test('the grid still renders its listing tile when nothing is listed yet', async () => {
     vi.mocked(api.getPublicWorkspaces).mockResolvedValue([] as never);
     renderPage();
-    expect(await screen.findByText('Put your own number up here.')).toBeInTheDocument();
+    expect(await screen.findByText('See what a decision does to your numbers before you say yes.')).toBeInTheDocument();
   });
 });
 
