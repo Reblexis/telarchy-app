@@ -1534,3 +1534,14 @@ candidates:
   and D (the owner pitch, wrong side for a trader-first page).
 - The listing cell reads "Put your own number up here." and ends with
   "Forecasts start with the first trade."
+
+**Revised the same day (Viktor: "okay do F").** A proposal on the Telarchy
+floor by Odoacre, "Replace the company slogan with plainer, less
+metaphorical language" (2026-09-04 12:00), argued that "real numbers" is
+vague, "priced" is market jargon, and "betting" reads as gambling to a
+cautious owner; Viktor approved it. Hero B kept two of the three words, so
+the headline became F: "Forecast a company's metrics. Get paid when you're
+right." with "Forecast free" in the lead. Also that day: the spark fades in
+instead of drawing on (the dash-drawn line stopped short of its dot), and
+the season strip says the pool is split in proportion to profit, the rule
+since 2026-08-28.

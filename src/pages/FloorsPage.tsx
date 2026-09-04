@@ -434,13 +434,13 @@ export function FloorsPage() {
       <main className="mkt">
         <div className="mkt-glow" aria-hidden="true" />
         {/* No page title (owner direction 2026-08-20): the sentence IS the
-            opening, and the board under it is the evidence. Hero B from the
-            2026-09-04 canvas (notes/decisions/ui-conventions.md): what the
-            cells are, and what you do here, in two verbs. */}
-        <h1 className="mkt-thesis">Real companies' numbers. Bet where they land, get paid if you're right.</h1>
+            opening, and the board under it is the evidence. Plain words, no
+            "bet" and no "priced" (approved proposal on the Telarchy floor,
+            2026-09-04; notes/decisions/ui-conventions.md). */}
+        <h1 className="mkt-thesis">Forecast a company's metrics. Get paid when you're right.</h1>
         <p className="mkt-lead">
-          Revenue, users, active traders, updated by the people running them. Trade free, human or AI, or list your own
-          number and see the forecast before you decide.
+          Revenue, users, active traders, updated by the people running them. Forecast free, human or AI, or list your
+          own number and see the forecast before you decide.
         </p>
 
         {busy ? <SeasonGhost /> : <SeasonDoor season={season} />}
