@@ -7012,7 +7012,7 @@ textarea.jobform-line--desc {
    price list a reader is checking, not a game board. */
 .earn-tally {
   display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
-  padding: 0.9rem 1rem; margin: 0 0 1.4rem;
+  padding: 0.9rem 1rem; margin: 1.5rem 0 1.4rem;
   border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-secondary);
 }
 .earn-tally-n { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
