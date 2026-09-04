@@ -35,6 +35,7 @@ const PROSE = [
   'pubws-propose-cost',
   'pubws-provenance',
   'pubws-publish-sub',
+  'doors-note',
   // the home board, /owners, /forecast, /for-agents
   'mkt-lead',
   'setup-sub',
@@ -42,6 +43,7 @@ const PROSE = [
   'lbp-lead',
   'seasonp-pool-sub',
   'seasonp-experimental',
+  'season-entry-note',
   'adm-lead',
   'annp-lead',
   'dr-lead',
