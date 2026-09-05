@@ -338,7 +338,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h31">The account dialog</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h32">Otto</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h33">The bell</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h34">The rails</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h34">The rails, and the standings under the verbs</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h35">The know block: definition, announcements, subject</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h36">The announcements page</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h37">The page ends: two lines and the door</a></li>
@@ -4055,7 +4055,7 @@ instead. A page asks for its data in ONE request, never a waterfall.</li>
 what is coming.</strong> The ghost (<code>.pubws-ghost</code>, <code>bg-tertiary</code>, 4px radius,
 one slow sweep of 5% light across it) is drawn at the real element's
 height and width in the real layout, so nothing moves when the content
-lands. A floor draws its three columns as ghosts with the name from the
+lands. A floor draws its two columns as ghosts with the name from the
 share hint painted at once in the headline slot; the home page draws
 the board; a page whose code is still downloading draws the top bar
 over an empty column (<code>lazy-page.tsx</code> renders <code>PageShell</code>, never
@@ -4203,7 +4203,7 @@ reason. &quot;Proposal&quot; covers both, and it is the word the API, the skill 
 the guides already use, so a visitor now reads one word everywhere. The
 board is &quot;Proposals&quot;, the action is &quot;Propose&quot;, and a participant &quot;offers&quot; or
 &quot;proposes&quot; one. The people who get paid are still <strong>contractors</strong> (&quot;Top
-contractors&quot; in the rail): a contractor is someone whose proposal carried a
+contractors&quot; in the standings footer): a contractor is someone whose proposal carried a
 price and was approved, and the noun for the person survives the rename of
 the thing.</p>
 <p>The API keeps its identifiers: <code>proposal</code> where it already had it
@@ -5273,9 +5273,7 @@ pair, rather than growing a smaller market underneath. Both branches are
 on the page (every proposal branches into two worlds and both are visible):
 an &quot;if approved&quot; / &quot;if declined&quot; pill toggle under the headline picks
 which branch the view shows and the ticket trades (approved by default,
-green for approved, red for declined, matching the chart). Both rails
-carry the same top margin on desktop so the &quot;Top traders&quot; and &quot;Proposals&quot;
-headings sit at the same height.</p>
+green for approved, red for declined, matching the chart).</p>
 <p><strong>&quot;+ Propose&quot;</strong> opens a dialog that is the ticket's STRUCTURE,
 not just its underlines: the USD ask is the hero numeric at the top
 exactly where the ticket puts its bet amount ($ unit, mono, auto-width
@@ -5455,31 +5453,52 @@ same way. It is deliberately not a selected state, because a highlight
 that stays turns into something to dismiss and the reader already knows
 what they clicked. Under reduced motion the wash still happens (it is the
 answer to &quot;which one?&quot;) and the scroll stops gliding.</p>
-<h3 id="docs-ui-conventions-md--h34">The rails</h3>
+<h3 id="docs-ui-conventions-md--h34">The rails, and the standings under the verbs</h3>
 <p>The board is signed-in only; the anonymous poster stays clean. On
-viewports &gt;=1120px the page becomes the trading floor proper: a
-three-column grid with the leaders rail on the left and the proposals
-board on the right, each separated from the poster by a vertical 1px
-<code>var(--border-color)</code> hairline (revised 2026-09-04: the rails sat in
-open space; the rule makes the three columns read as one instrument, the
-way the home board's cells do). Both rails render for both tiers, hide
-entirely when empty, sit sticky beside the poster, and the chart stops
-breaking out (100% of the center column). Below 1120px the rails stack under the
-poster, and the proposals come BEFORE the standings: the action before the
+viewports &gt;=1120px the page is a TWO-column floor (revised 2026-09-05,
+Viktor, design record in the telarchy umbrella,
+<code>notes/floor-boards-yc-and-venues-2026-09-04.md</code>): the market in the
+wider column and the proposals board as the right rail, separated by a
+vertical 1px <code>var(--border-color)</code> hairline so the two read as one
+instrument. There is no left rail. The first screen is the question, the
+number and the bet verbs, because every venue that works puts title,
+number, chart and trade control first and nothing about other people
+above the fold, and a board of the same dozen names at 25 visitors a day
+reads as &quot;no one is really using this&quot; rather than as proof.</p>
+<p><strong>Social proof is real use, not a ranking.</strong> Under the bet verbs the market
+keeps its facts row (traders, pool, volume, Inject) and, under that, ONE
+count strip the floor can stand behind (<code>.pubws-count</code>): the traders and
+volume on this market, and the season line (&quot;Season 0 · 26 days left ·
+$1,000 in prizes&quot;) with its &quot;Enter the season&quot; / &quot;See the season&quot; control,
+which is where entering the season lives now that the left rail is gone.</p>
+<p><strong>The standings are footers, not rails.</strong> Under the count strip, two
+compact blocks side by side on desktop and stacked on a phone
+(<code>.pubws-standings</code>): &quot;Top traders&quot; and &quot;Top contractors&quot;, THREE rows each
+(the rail showed five), the same <code>.pubws-lb-head</code> anatomy (tiny uppercase
+label, right-aligned mono meta, hairline, rows), and one &quot;Show full
+leaderboard&quot; link to <code>/leaderboard</code> under the pair. They keep every
+ranking rule below and the fifteen-second poll. <strong>With a proposal
+selected, the traders footer becomes &quot;Traders on this proposal&quot;</strong>: the
+same rows, restricted to accounts with a position on either branch of the
+selected pair, ranked by that position's marked profit, with the meta &quot;this
+proposal&quot;; when nobody holds one it says &quot;nobody yet&quot; in one row rather
+than hiding. The contractors footer does not change, since the contractor
+score is workspace-wide by construction. Below 1120px the proposals board
+stacks under the market column before the know block, and the standings
+footers stay where they are, under the count strip: the action before the
 proof. The floor column keeps a small gap under the top bar on narrow
-viewports.</p>
-<p><strong>Both rails are scoped to THIS workspace.</strong> The trader rail passes the
+viewports. The loading ghosts draw the same two columns.</p>
+<p><strong>Both standings are scoped to THIS workspace.</strong> The traders footer passes the
 workspace to <code>/api/leaderboard</code> (<code>?workspaceId=&lt;id or slug&gt;</code>), so a
 trader's number on a floor is the profit they made ON that floor; the
 contractor board is per workspace by construction. The cross-workspace
 board lives at <code>/leaderboard</code>, where the question genuinely is
 platform-wide.</p>
 <p><strong>&quot;Show full leaderboard&quot; is a link to <code>/leaderboard</code>, never a board opened
-in place.</strong> The link sits directly under the boards it extends, before the
-season strip, and is the rail's only full-width control besides the
-season's own &quot;Enter the season&quot;. The rail's three blocks (traders,
-contractors, season) share one gap (<code>1.7rem</code>).</p>
-<p><strong>The rail's blocks share one anatomy.</strong> Every block on either rail opens
+in place.</strong> The link sits directly under the two footers it extends and is
+their only full-width control; the season's own control lives in the
+count strip above them.</p>
+<p><strong>The blocks share one anatomy.</strong> Every block, footer or rail, opens
 with a header row (<code>.pubws-lb-head</code>): the tiny uppercase label on the
 left, a right-aligned mono meta on the right, a hairline underneath, rows
 following directly. The meta says what the numbers are: &quot;this market&quot; over
@@ -5488,9 +5507,9 @@ proposals, and the season's countdown over the season block (the one meta
 in primary colour and bold, because it is the number that says whether to
 act today). The proposals board's column label is that header's meta.</p>
 <p><strong>Both leaderboards rank on what the market says right now, not on what
-has settled.</strong> The rail stacks two blocks, traders then contractors, five
-rows each; both update on the floor's fifteen-second poll, so a single
-trade reorders them without a reload.</p>
+has settled.</strong> The footers show three rows each; both update on the
+floor's fifteen-second poll, so a single trade reorders them without a
+reload.</p>
 <ul>
 <li><strong>Top traders</strong> rank by trading profit marked to market: payouts
 collected on resolved markets, plus the current worth of every open
@@ -5552,7 +5571,7 @@ polls; only the viewer's own season-entry state re-fetches when the
 session resolves, because re-fetching everything on auth settle repaints
 the whole board a second after it appeared.</p>
 <p><strong>A season entrant's row always carries a prize figure, on <code>/leaderboard</code>
-AND on the floor rail's Top traders.</strong> While the season is a draft there
+AND on the floor's Top traders footer.</strong> While the season is a draft there
 is no projection to make (no baselines exist), so the chip shows the
 ladder's top rung, plainly: &quot;$500&quot;, never &quot;up to $500&quot;. Once the season
 runs, the chip shows the projected payout at the current standing, from
@@ -5642,7 +5661,7 @@ of a page, and repeating yourself further down is not extra clarity, see
 <code>notes/yc-landing-explainer-2026-09-01.md</code>).</p>
 <p>What survives is three cells on one hairline-ruled board (<code>.pubws-end</code>,
 revised 2026-09-04; before it, two sentences and a separate email row),
-full width under the three columns, each cell a mono small-caps label, one
+full width under the two columns, each cell a mono small-caps label, one
 sentence in the display face, and one control:</p>
 <ol>
 <li>&quot;NEW HERE?&quot;: &quot;Telarchy prices what a decision does to a number before
