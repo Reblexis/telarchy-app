@@ -5027,50 +5027,130 @@ textarea.jobform-line--desc {
    shared class (0,2,0) outranks both, which painted BOTH lockups on every
    page the moment the mark landed in the top bars. */
 
-/* The trading floor: rails beside the poster on wide screens (top traders
-   left, action log right), stacked under it on narrow ones. The center
-   column caps the chart instead of letting it break out over the rails. */
+/* The trading floor (docs/ui-conventions.md, "The rails, and the standings
+   under the verbs", revised 2026-09-05): TWO columns on a wide screen, the
+   market and the proposals rail, separated by a vertical hairline so the
+   two read as one instrument. No left rail: the standings are footers
+   under the verbs, inside the market column. The know block is its own
+   grid item under the market column, so that on a phone the DOM order
+   (market, proposals, know) is the stacking order: the action before the
+   explanation. The center column caps the chart instead of letting it
+   break out over the rail. */
 .pubws-main--floor { max-width: 1340px; }
 
 @media (min-width: 1120px) {
   .pubws--center .pubws-main.pubws-main--floor {
     display: grid;
-    grid-template-columns: 230px minmax(0, 720px) 260px;
-    gap: clamp(1.6rem, 3vw, 3.2rem);
+    grid-template-columns: minmax(0, 720px) 320px;
+    grid-template-rows: auto auto;
+    gap: 0 clamp(1.6rem, 3vw, 3.2rem);
     justify-content: center;
     align-content: center;
     align-items: start;
   }
-  .pubws-main--floor .pubws-center { min-width: 0; }
+  .pubws-main--floor .pubws-center { min-width: 0; grid-column: 1; grid-row: 1; }
+  .pubws-main--floor .pubws-know-col { min-width: 0; grid-column: 1; grid-row: 2; }
   .pubws-main--floor .mchart {
     width: 100%;
     margin-left: 0;
     transform: none;
   }
-  .pubws-rail { position: sticky; top: 1.4rem; }
-  /* Both rails start below the top bar line: the left one clears the
-     wordmark, and the right one matches it so the two rail headings sit
-     at the same height (owner direction 2026-08-11: symmetry). Each is
-     separated from the poster by a vertical hairline (revised 2026-09-04:
-     the three columns read as one instrument, the way the home board's
-     cells do). */
-  .pubws-rail--left, .pubws-rail--right { margin-top: 2.2rem; }
-  .pubws-rail--left { border-right: 1px solid var(--border-color); padding-right: clamp(1rem, 2vw, 1.6rem); }
-  .pubws-rail--right { border-left: 1px solid var(--border-color); padding-left: clamp(1rem, 2vw, 1.6rem); }
-  /* The page end spans the three columns. */
+  /* The rail spans both rows of the market column and starts below the
+     top bar line, so its heading sits level with the market's. */
+  .pubws-rail {
+    position: sticky;
+    top: 1.4rem;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    margin-top: 2.2rem;
+    border-left: 1px solid var(--border-color);
+    padding-left: clamp(1rem, 2vw, 1.6rem);
+  }
+  /* Two footers side by side on a wide screen. */
+  .pubws-standings-pair { grid-template-columns: 1fr 1fr; column-gap: 2rem; }
+  .pubws-ghost-standings { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 1119.98px) {
-  /* The action before the proof: contracts, then standings (owner decision
-     2026-08-24). The headline used to touch the top bar here. */
-  .pubws-main--floor .pubws-center { order: 1; padding-top: clamp(1.2rem, 3vh, 2rem); }
-  .pubws-rail--right { order: 2; }
-  .pubws-rail--left { order: 3; }
+  /* The headline used to touch the top bar here. */
+  .pubws-main--floor .pubws-center { padding-top: clamp(1.2rem, 3vh, 2rem); }
   .pubws-rail {
     width: 100%;
     max-width: 660px;
     margin: 2.4rem auto 0;
   }
+  .pubws-know-col { width: 100%; max-width: 660px; margin: 0 auto; }
+  /* Stacked on a phone. */
+  .pubws-standings-pair { grid-template-columns: 1fr; row-gap: 1.7rem; }
+  .pubws-ghost-standings { grid-template-columns: 1fr; }
+}
+
+/* The count strip: the traders and volume on this market, and the season
+   line with its control (docs/ui-conventions.md, "Social proof is real
+   use, not a ranking"). The sentence wraps on a phone, so it is set left. */
+.pubws-count {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  text-align: left;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.pubws-count-line { margin: 0; text-wrap: pretty; }
+.pubws-count-line b {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.pubws-count-go {
+  flex: none;
+  white-space: nowrap;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.pubws-count-go:hover { color: var(--accent); border-color: var(--accent); }
+.pubws-count-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 480px) {
+  .pubws-count { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+}
+
+/* The standings footers (docs/ui-conventions.md, "The standings are
+   footers, not rails"): a hairline over the pair, the two blocks in a grid
+   (side by side wide, stacked narrow, see the media rules above), and the
+   one "Show full leaderboard" link under both. */
+.pubws-standings {
+  margin-top: 2.2rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border-color);
+  text-align: left;
+}
+.pubws-standings-pair { display: grid; }
+.pubws-standings .pubws-lb-block + .pubws-lb-block { margin-top: 0; }
+.pubws-standings .pubws-lb-more { margin-top: 1rem; }
+/* "nobody yet": one quiet row, so the footer never reads as broken. */
+.pubws-lb-row--empty { color: var(--text-tertiary); }
+/* The standings' ghost: two three-row blocks in the same grid. */
+.pubws-ghost-standings {
+  display: grid;
+  column-gap: 2rem;
+  row-gap: 1.2rem;
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-color);
 }
 
 .pubws-lb, .pubws-log {
@@ -5079,17 +5159,12 @@ textarea.jobform-line--desc {
   padding: 0;
 }
 
-/* Two leaderboards stacked in the left rail (traders, then contractors). The
-   season strip is a third block and keeps the same gap: without it the
-   contractors' empty line ran straight into "SEASON 0" (owner report
-   2026-08-24, "this looks weird"). */
-.pubws-lb-block + .pubws-lb-block,
-.pubws-lb-section { margin-top: 1.7rem; }
+/* Two standings blocks stacked (traders, then contractors) keep this gap. */
+.pubws-lb-block + .pubws-lb-block { margin-top: 1.7rem; }
 
-/* Every rail block opens the same way (owner decision 2026-08-24): the label
+/* Every block opens the same way (owner decision 2026-08-24): the label
    left, a mono meta right saying what the numbers are, a hairline under
-   both, rows directly beneath. The season block is the bare variant: no
-   hairline, its meta is the countdown in primary colour. */
+   both, rows directly beneath. */
 .pubws-lb-head {
   display: flex;
   align-items: baseline;
@@ -5099,21 +5174,14 @@ textarea.jobform-line--desc {
   border-bottom: 1px solid var(--border-color);
 }
 .pubws-lb-head .pubws-h2 { margin: 0; white-space: nowrap; }
-.pubws-lb-head--bare { border-bottom: none; padding-bottom: 0.25rem; }
 .pubws-lb-meta {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.69rem;
   color: var(--text-tertiary);
   white-space: nowrap;
 }
-.pubws-lb-meta--clock {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
 .pubws-lb-head + .pubws-lb,
 .pubws-lb-head + .pubws-ballot { margin-top: 0; }
-.pubws-lb-section .pubws-lb-more { margin-top: 0.75rem; }
 
 /* Per-job status pill in the ballot (approved / declined; pending is the
    default live state and needs no pill). */

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -392,5 +395,164 @@ describe('the page ends on a three-cell board', () => {
     await screen.findByText('That address bounced');
     expect(end.querySelector('.pubws-setup-err')).toBeTruthy();
     expect(end.querySelector('.pubws-setup-row input')).toBeTruthy();
+  });
+});
+
+/**
+ * Two columns, and the standings under the verbs (docs/ui-conventions.md,
+ * "The rails, and the standings under the verbs", revised 2026-09-05): the
+ * market column and the proposals rail, no left rail; under the verbs and
+ * the facts row, ONE count strip and two three-row footers; below 1120px
+ * the proposals stack under the market column before the know block.
+ */
+describe('two columns, and the standings under the verbs', () => {
+  const traders = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `p${i + 1}`,
+      nickname: `trader${i + 1}`,
+      rank: i + 1,
+      totalEarnings: 500 - i,
+      totalTrades: 3,
+      resolvedMarkets: 0,
+      accuracy: null,
+      calibration: null,
+      lastTradeAt: null,
+    }));
+  const contractors = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `c${i + 1}`,
+      name: `contractor${i + 1}`,
+      impact: 50 - i,
+      jobs: 1,
+      pendingJobs: 1,
+      pricedJobs: 1,
+      earnedUsd: 0,
+    }));
+  /** A trader floor with a season running, counts on the hero, and boards. */
+  const floor = () => {
+    const ws = h.grid() as ReturnType<typeof h.grid> & { topContractors?: unknown[] };
+    ws.joinAs = 'trader';
+    for (const m of ws.markets) Object.assign(m, { traderCount: 8, tradedVolume: 2_778 });
+    ws.topContractors = contractors(5);
+    return ws;
+  };
+  const season = {
+    id: 's0',
+    name: 'Season 0',
+    status: 'running',
+    startsAt: '2026-08-22T00:00:00.000Z',
+    endsAt: '2026-10-01T00:00:00.000Z',
+    settledAt: null,
+    poolUsd: 1000,
+    payoutMode: 'ladder',
+    minPayoutUsd: 0,
+    strictEligibility: false,
+    ladder: [{ place: 1, prizeUsd: 500 }],
+    rulesUrl: '/legal/season-0',
+  };
+  const CSS = readFileSync(join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'), 'utf8');
+
+  beforeEach(() => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(floor() as never);
+    vi.mocked(api.getLeaderboard).mockResolvedValue({ participants: traders(5) } as never);
+    vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [season] } as never);
+  });
+
+  test('no left rail: the market column and the proposals rail are the floor', async () => {
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-standings')).toBeTruthy());
+    expect(container.querySelector('.pubws-rail--left')).toBeNull();
+    const rails = container.querySelectorAll('.pubws-main--floor .pubws-rail');
+    expect(rails).toHaveLength(1);
+    expect(rails[0].getAttribute('aria-label')).toBe('Proposals');
+    expect(rails[0].className).toContain('pubws-rail--right');
+    expect(container.querySelector('[aria-label="Leaders"]')).toBeNull();
+  });
+
+  test('the count strip and the standings sit under the verbs, inside the market column', async () => {
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-standings')).toBeTruthy());
+    const bet = container.querySelector('.pubws-bet') as HTMLElement;
+    const facts = container.querySelector('.pubws-facts') as HTMLElement;
+    const count = container.querySelector('.pubws-count') as HTMLElement;
+    const standings = container.querySelector('.pubws-standings') as HTMLElement;
+    expect(bet).toBeTruthy();
+    expect(facts).toBeTruthy();
+    const follows = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(bet, facts)).toBe(true);
+    expect(follows(facts, count)).toBe(true);
+    expect(follows(count, standings)).toBe(true);
+    expect(count.closest('.pubws-center')).toBeTruthy();
+    expect(standings.closest('.pubws-center')).toBeTruthy();
+    expect(standings.closest('.pubws-rail')).toBeNull();
+    // Three rows each.
+    const blocks = [...standings.querySelectorAll('.pubws-lb-block')];
+    expect(blocks.map(b => b.querySelector('.pubws-h2')?.textContent)).toEqual(['Top traders', 'Top contractors']);
+    expect(blocks[0].querySelectorAll('.pubws-lb-row')).toHaveLength(3);
+    expect(blocks[1].querySelectorAll('.pubws-lb-row')).toHaveLength(3);
+    expect(blocks[0].querySelector('.pubws-lb-meta')?.textContent).toBe('this market');
+    // One full-width link under the pair.
+    const more = standings.querySelectorAll('.pubws-lb-more');
+    expect(more).toHaveLength(1);
+    expect(more[0].getAttribute('href')).toBe('/leaderboard');
+    expect(more[0].textContent).toBe('Show full leaderboard');
+  });
+
+  test('the count strip carries the traders, the volume and the season control', async () => {
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-count')).toBeTruthy());
+    const count = container.querySelector('.pubws-count') as HTMLElement;
+    expect(count.textContent).toMatch(/8 traders and 2,778 cr traded on this market/);
+    await waitFor(() => expect(count.textContent).toMatch(/Season 0/));
+    expect(count.textContent).toMatch(/\$1,000 in prizes/);
+    const go = within(count).getByRole('link', { name: 'Enter the season' });
+    expect(go.getAttribute('href')).toBe('/season');
+    // The control lives here and nowhere else on the floor.
+    expect(container.querySelectorAll('a[href="/season"]')).toHaveLength(1);
+  });
+
+  test('the phone order: standings under the count strip, proposals before the know block', async () => {
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-standings')).toBeTruthy());
+    const standings = container.querySelector('.pubws-standings') as HTMLElement;
+    const rail = container.querySelector('.pubws-rail--right') as HTMLElement;
+    const know = container.querySelector('.pubws-know') as HTMLElement;
+    const follows = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(standings, rail)).toBe(true);
+    expect(follows(rail, know)).toBe(true);
+    // The know block is its own grid item under the market column, so the
+    // DOM order IS the phone order; the grid places it on desktop.
+    expect(know.closest('.pubws-know-col')).toBeTruthy();
+    expect(know.closest('.pubws-center')).toBeNull();
+    expect(rail.parentElement).toBe(container.querySelector('.pubws-main--floor'));
+  });
+
+  test('the loading ghosts draw the same two columns', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockReturnValue(new Promise(() => {}) as never);
+    const { container } = renderFloor();
+    const ghost = await waitFor(() => container.querySelector('.pubws-main--ghost') as HTMLElement);
+    expect(ghost.querySelector('.pubws-rail--left')).toBeNull();
+    const asides = ghost.querySelectorAll('aside');
+    expect(asides).toHaveLength(1);
+    expect(asides[0].className).toContain('pubws-rail--right');
+    expect(ghost.querySelector('.pubws-center')).toBeTruthy();
+    // The standings' ghost sits in the market column, under the verbs.
+    expect(ghost.querySelector('.pubws-center .pubws-ghost-standings')).toBeTruthy();
+  });
+
+  test('the stylesheet lays the floor out as two columns and has no left rail left', () => {
+    expect(CSS).not.toMatch(/pubws-rail--left/);
+    const wide = CSS.match(/@media \(min-width: 1120px\) \{([\s\S]*?)\n\}/);
+    expect(wide).toBeTruthy();
+    const grid = wide![1].match(/\.pubws-main\.pubws-main--floor \{([^}]*)\}/);
+    expect(grid).toBeTruthy();
+    // Two tracks: the market column and the rail, nothing before the market.
+    expect(grid![1]).toMatch(/grid-template-columns:\s*minmax\(0, \d+px\) \d+px;/);
+    // The standings: side by side on desktop, stacked on a phone.
+    expect(wide![1]).toMatch(/\.pubws-standings-pair \{[^}]*grid-template-columns:\s*1fr 1fr/);
+    const narrow = CSS.match(/@media \(max-width: 1119\.98px\) \{([\s\S]*?)\n\}/);
+    expect(narrow![1]).toMatch(/\.pubws-standings-pair \{[^}]*grid-template-columns:\s*1fr;/);
+    // The count strip wraps to two lines on a phone, so it is set left.
+    expect(CSS).toMatch(/\.pubws-count \{[^}]*text-align:\s*left/);
   });
 });
