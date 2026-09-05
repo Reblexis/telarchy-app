@@ -69,8 +69,31 @@ function fmtVal(v: number, unit: string): string {
   return unit + v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-function fmtDelta(d: number, unit: string): string {
+/** A signed impact figure as the ballot prints it: "+12.0", "-3.0", "+120". */
+export function fmtDelta(d: number, unit: string): string {
   return `${d > 0 ? '+' : d < 0 ? '-' : ''}${fmtVal(Math.abs(d), unit).replace(/^([+-])?/, '')}`;
+}
+
+/** On the ballot: not yet decided by the owner. */
+export function isPending(p: PublicProposal): boolean {
+  return !p.status || p.status === 'pending';
+}
+
+/**
+ * The ballot in the floor's order. Money decides it (owner decision
+ * 2026-09-02: "proposals are ordered by total liquidity available"), so a
+ * proposal somebody funded is read first and one nobody has backed sits at
+ * the bottom rather than at the top by accident of its own unpriced delta;
+ * impact breaks a tie. One function, so a panel that shows the floor
+ * elsewhere (the /owners product moment) can never disagree with the floor.
+ */
+export function pendingBallot(
+  proposals: PublicProposal[],
+  impactOf: (p: PublicProposal) => number | null,
+): PublicProposal[] {
+  const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
+  const byPool = (a: PublicProposal, b: PublicProposal) => poolOf(b) - poolOf(a) || byImpact(a, b);
+  return proposals.filter(isPending).sort(byPool);
 }
 
 /**
@@ -201,14 +224,9 @@ export function JobsBoard({
   // the decided ones are a record and read newest decision first (owner
   // ask 2026-09-04). docs/ui-conventions.md, "The board opens on the live
   // ballot".
-  const isPending = (p: PublicProposal) => !p.status || p.status === 'pending';
   const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
-  // Money decides the order (owner decision 2026-09-02: "proposals are
-  // ordered by total liquidity available"), so a proposal somebody funded is
-  // read first and one nobody has backed sits at the bottom rather than at
-  // the top by accident of its own unpriced delta. Impact breaks a tie.
-  const byPool = (a: PublicProposal, b: PublicProposal) => poolOf(b) - poolOf(a) || byImpact(a, b);
-  const pending = proposals.filter(isPending).sort(byPool);
+  // Money decides the order (see `pendingBallot`).
+  const pending = pendingBallot(proposals, impactOf);
   // Newest decision first; a proposal with no decision time sorts last and
   // impact breaks a tie.
   const decidedAt = (p: PublicProposal) => (p.resolvedAt ? Date.parse(p.resolvedAt) : Number.NEGATIVE_INFINITY);

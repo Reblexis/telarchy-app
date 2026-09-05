@@ -122,6 +122,9 @@ describe('pictures', () => {
       let n = words(p.h1);
       for (const b of p.blocks) {
         if (b.kind === 'p') n += words(b.lead ?? '') + words(b.text ?? '');
+        // The catch line is copy a visitor reads; a LIVE or SHOW block is a
+        // picture the page draws from live data, and spends no words.
+        if (b.kind === 'catch') n += words(b.text);
         if (b.kind === 'h2') n += words(b.text);
         if (b.kind === 'ol' || b.kind === 'ul') n += b.items.reduce((a, i) => a + words(i), 0);
         if (b.kind === 'faq') n += b.items.reduce((a, i) => a + words(i.q) + words(i.a), 0);
@@ -130,6 +133,20 @@ describe('pictures', () => {
       expect(n, `${p.route} is ${n} words`).toBeLessThan(400);
       expect(p.blocks.filter(b => b.kind === 'viz').length, `${p.route} draws nothing`).toBeGreaterThanOrEqual(2);
     }
+  });
+
+  test('/owners draws from live data instead of arguing: a live strip, a product moment, one drawing at full width, and a catch line', () => {
+    const owners = AUDIENCE_PAGES.find(p => p.route === '/owners');
+    if (!owners) throw new Error('/owners is not a generated page');
+    const kinds = owners.blocks.map(b => b.kind);
+    expect(kinds).toContain('catch');
+    expect(kinds).toContain('live');
+    expect(kinds).toContain('show');
+    expect(kinds.filter(k => k === 'viz')).toHaveLength(1);
+    expect(owners.blocks).toContainEqual({ kind: 'live', name: 'marketplace-stats' });
+    expect(owners.blocks).toContainEqual({ kind: 'show', name: 'proposals' });
+    // The catch line is the objection answered beside the button.
+    expect((owners.blocks.find(b => b.kind === 'catch') as { text: string }).text).toMatch(/^Free today/);
   });
 
   test('a comparison page keeps its table, which is the picture it already had', () => {
@@ -154,6 +171,7 @@ describe('pictures', () => {
     let n = words(forecast?.h1 ?? '');
     for (const b of forecast?.blocks ?? []) {
       if (b.kind === 'p') n += words(b.lead ?? '') + words(b.text ?? '');
+      if (b.kind === 'catch') n += words(b.text);
       if (b.kind === 'h2') n += words(b.text);
       if (b.kind === 'ol' || b.kind === 'ul') n += b.items.reduce((a, i) => a + words(i), 0);
       if (b.kind === 'faq') n += b.items.reduce((a, i) => a + words(i.q) + words(i.a), 0);

@@ -1,8 +1,13 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AudienceViz } from '../components/AudienceViz';
+import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
+import { deltaAt, fmtDelta, pendingBallot, poolOf, splitAsk } from '../components/JobsBoard';
 import { PageTopBar } from '../components/PageTopBar';
 import { AUDIENCE_PAGES, type AudienceBlock, type AudiencePage as PageData } from '../content/audiencePages.generated';
+import { api, type PublicProposal, type PublicWorkspace } from '../lib/api';
 import { withBase } from '../lib/base-path';
+import { buildHorizonViews, primaryHorizonOf } from '../lib/floor-horizons';
 
 /**
  * The audience pages: /forecast, /for-agents, /owners and the four
@@ -83,6 +88,14 @@ function Block({ block }: { block: AudienceBlock }) {
       );
     case 'viz':
       return <AudienceViz name={block.name} />;
+    // The board directives are placed by the board layout; a document page
+    // carrying one shows the catch line as a paragraph and nothing for the
+    // live blocks, which only a board draws.
+    case 'catch':
+      return <p className="pubws-aud-p">{block.text}</p>;
+    case 'live':
+    case 'show':
+      return null;
     case 'code':
       return (
         <pre className="pubws-aud-code">
@@ -174,7 +187,7 @@ function Foot({ route }: { route: string }) {
  */
 const BOARD_ROUTES = new Set(['/owners']);
 
-/** The page's blocks, cut at every H2: what the board lays out cell by cell. */
+/** The page's blocks, cut at every H2: what the board lays out row by row. */
 interface Section {
   heading: string;
   blocks: AudienceBlock[];
@@ -190,33 +203,191 @@ function sections(blocks: AudienceBlock[]): { lead: AudienceBlock[]; sections: S
   return { lead, sections: out };
 }
 
+type Para = { kind: 'p'; lead?: string; text: string };
+const firstPara = (s: Section | undefined) => s?.blocks.find(b => b.kind === 'p') as Para | undefined;
+
+const Arrow = () => (
+  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+    <path d="M2 7h10M8 3l4 4-4 4" />
+  </svg>
+);
+
+/** A quiet accent link with an arrow, routed the way the base-path rules require. */
+function QuietLink({ action }: { action: { label: string; href: string } }) {
+  return isApiLink(action.href) ? (
+    <a href={withBase(action.href)} className="own-quiet">
+      {action.label} <Arrow />
+    </a>
+  ) : (
+    <Link to={action.href} className="own-quiet">
+      {action.label} <Arrow />
+    </Link>
+  );
+}
+
+/**
+ * One hairline strip of three live figures from GET /api/marketplace/stats:
+ * open markets, forecasters, forecasts this week. Ghosts while they load
+ * (docs/ui-conventions.md, "While a page loads"); nothing at all if the
+ * request fails, because a strip of dashes argues against the page.
+ */
+function LiveStrip() {
+  const [stats, setStats] = useState<{ marketsActive: number; agentsActive: number; tradesThisWeek: number } | null>(
+    null,
+  );
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let live = true;
+    api
+      .getStats()
+      .then(s => {
+        if (live) setStats(s);
+      })
+      .catch(() => {
+        if (live) setFailed(true);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (failed) return null;
+  const figures: [string, number | null][] = [
+    ['open markets', stats?.marketsActive ?? null],
+    ['forecasters, human or AI', stats?.agentsActive ?? null],
+    ['forecasts this week', stats?.tradesThisWeek ?? null],
+  ];
+  return (
+    <section className="own-live" aria-label="Telarchy right now">
+      {figures.map(([label, n]) => (
+        <div key={label} className="own-live-fig">
+          {n === null ? (
+            <Ghost w="3.2rem" h="1.6rem" />
+          ) : (
+            <span className="own-live-n">{n.toLocaleString('en-US')}</span>
+          )}
+          <span className="own-live-label own-caption">{label}</span>
+        </div>
+      ))}
+      {stats === null ? <LoadingStatus /> : null}
+    </section>
+  );
+}
+
+/** The floor the product moment shows: Telarchy's own. */
+const SHOW_FLOOR = 'telarchy';
+const SHOW_ROWS = 6;
+
+/**
+ * The product, zoomed on one moment: the proposals column of Telarchy's own
+ * floor, live. The pending proposals in the floor's order (`pendingBallot`,
+ * the same function the floor sorts with), at most six, each the title, the
+ * impact figure in the direction colour (the primary horizon's delta, the
+ * one the floor opens on, formatted as the floor formats it), the credits
+ * behind it, the proposer. The bottom fades to the page so it reads as a
+ * crop, and the whole panel is one link to the floor. Ghosts while loading;
+ * nothing rendered if the request fails or the floor has no ballot.
+ */
+function ProposalsShot() {
+  const [ws, setWs] = useState<PublicWorkspace | null | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    api
+      .getMarketplaceWorkspace(SHOW_FLOOR)
+      .then(w => {
+        if (live) setWs(w);
+      })
+      .catch(() => {
+        if (live) setWs(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  const label = "Proposals on Telarchy's own floor, live";
+  if (ws === undefined) {
+    return (
+      <Link to={`/${SHOW_FLOOR}`} className="own-shot" aria-label={label}>
+        <span className="own-shot-head own-caption">Proposals</span>
+        <GhostRows n={SHOW_ROWS} />
+        <span className="own-shot-fade" aria-hidden="true" />
+        <LoadingStatus />
+      </Link>
+    );
+  }
+  if (ws === null || !ws.proposals) return null;
+  const hero = primaryHorizonOf(buildHorizonViews(ws));
+  const unit = hero?.unit ?? '';
+  const impactOf = (p: PublicProposal) => (hero ? deltaAt(p, hero.targetDate, hero.metricId) : null);
+  const rows = pendingBallot(ws.proposals, impactOf).slice(0, SHOW_ROWS);
+  return (
+    <Link to={`/${SHOW_FLOOR}`} className="own-shot" aria-label={label}>
+      <span className="own-shot-head own-caption">
+        <span>Proposals</span>
+        <span>{hero ? `impact by ${hero.label}` : 'impact'}</span>
+      </span>
+      <span className="own-shot-rows">
+        {rows.map(p => {
+          const delta = impactOf(p);
+          const { rest } = splitAsk(p.title);
+          return (
+            <span key={p.id} className="own-shot-row">
+              <span className="own-shot-main">
+                {/* The number leads, as on the floor: it is how a person names a proposal. */}
+                {p.number ? <span className="own-shot-num">#{p.number}</span> : null}
+                <span className="own-shot-title">{rest}</span>
+                {p.proposedByName ? <span className="own-shot-by">by {p.proposedByName}</span> : null}
+              </span>
+              <span className="own-shot-impact">
+                {delta === null ? (
+                  <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
+                ) : delta === 0 ? (
+                  <span className="pubws-ballot-delta pubws-ballot-delta--open">±{unit}0</span>
+                ) : (
+                  <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>
+                    {fmtDelta(delta, unit)}
+                  </span>
+                )}
+                <span className="own-shot-pool">{Math.round(poolOf(p)).toLocaleString()}</span>
+              </span>
+            </span>
+          );
+        })}
+      </span>
+      <span className="own-shot-fade" aria-hidden="true" />
+    </Link>
+  );
+}
+
 /**
  * /owners as a board (docs/audience-pages.md, "/owners is laid out as a
- * board"; owner ask 2026-09-04, from the floor canvas). The H1 is the hero
- * with the lead and ONE pill under it; the sections that carry a drawing
- * are three cells of one hairline-ruled row; "Setting up" and the FAQ sit
- * side by side as two hairline lists; the CTA line is one closing row. The
- * words are the doc's words, unchanged; only the shape differs.
+ * board"; owner ask 2026-09-04, redrawn 2026-09-05: the picture a visitor
+ * looks at is the product, zoomed on one moment). The hero with its catch
+ * line; the live strip; the product moment beside the section that explains
+ * it; the meeting-and-floor pair as two cells of one row; one drawing at
+ * full width; "What you keep" beside the FAQ; one closing row. The words
+ * are the doc's words, unchanged; only the shape differs.
  */
 function BoardPage({ page, route }: { page: PageData; route: string }) {
   const { lead, sections: all } = sections(page.blocks);
-  const leadText = lead.find(b => b.kind === 'p') as { text: string } | undefined;
-  const cells = all.filter(s => s.blocks.some(b => b.kind === 'viz'));
-  const steps = all.find(s => s.blocks.some(b => b.kind === 'ol'));
+  const leadText = lead.find(b => b.kind === 'p') as Para | undefined;
+  const catchLine = page.blocks.find(b => b.kind === 'catch') as { text: string } | undefined;
+  const live = lead.find(b => b.kind === 'live') as { name: string } | undefined;
+  const show = all.find(s => s.blocks.some(b => b.kind === 'show'));
+  const pair = all.find(s => s.blocks.some(b => b.kind === 'table'));
+  const viz = all.find(s => s.blocks.some(b => b.kind === 'viz'));
+  const keep = all.find(s => s.blocks.some(b => b.kind === 'ul'));
   const faq = all.find(s => s.blocks.some(b => b.kind === 'faq'));
-  const primary = page.cta[0];
-  const arrow = (
-    <svg
-      viewBox="0 0 14 14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M2 7h10M8 3l4 4-4 4" />
-    </svg>
-  );
+  const [primary, ...secondary] = page.cta;
+  const table = pair?.blocks.find(b => b.kind === 'table') as
+    | { head: string[]; rows: string[][]; leads?: (string | null)[][] }
+    | undefined;
+  const ul = keep?.blocks.find(b => b.kind === 'ul') as { items: string[]; leads?: (string | null)[] } | undefined;
+  const ol = show?.blocks.find(b => b.kind === 'ol') as { items: string[] } | undefined;
+  const showP = firstPara(show);
+  const vizP = firstPara(viz);
+  const vizName = (viz?.blocks.find(b => b.kind === 'viz') as { name: string } | undefined)?.name;
+  const restOf = (cell: string, leadOf: string | null | undefined) =>
+    leadOf && cell.startsWith(leadOf) ? cell.slice(leadOf.length).trim() : cell;
   return (
     <div className="pubws">
       <PageTopBar />
@@ -228,43 +399,81 @@ function BoardPage({ page, route }: { page: PageData; route: string }) {
           {primary ? (
             <p className="own-hero-cta">
               <ActionLink action={primary} className="mkt-season-cta own-pill" />
+              {secondary.map(c => (
+                <QuietLink key={c.href} action={c} />
+              ))}
             </p>
           ) : null}
+          {catchLine ? <p className="own-catch own-caption">{catchLine.text}</p> : null}
         </header>
 
-        <section className="own-board">
-          {cells.map(cell => {
-            const p = cell.blocks.find(b => b.kind === 'p') as { lead?: string; text: string } | undefined;
-            const viz = cell.blocks.find(b => b.kind === 'viz') as { name: string };
-            const rest = cell.blocks.filter(b => b.kind === 'p' && b !== p) as { lead?: string; text: string }[];
-            return (
-              <article key={cell.heading} className="own-cell">
-                <h2 className="own-cell-label">{cell.heading}</h2>
-                {p?.lead ? <p className="own-cell-title">{p.lead}</p> : null}
-                <AudienceViz name={viz.name} />
-                {p ? (
-                  <p className="own-cell-rest">
-                    {p.text}
-                    {rest.map(r => ` ${r.lead ? `${r.lead} ` : ''}${r.text}`)}
-                  </p>
-                ) : null}
-              </article>
-            );
-          })}
-        </section>
+        {live?.name === 'marketplace-stats' ? <LiveStrip /> : null}
+
+        {show ? (
+          <section className="own-show">
+            <div className="own-show-copy">
+              <h2 className="own-label">{show.heading}</h2>
+              {showP?.lead ? <p className="own-cell-title">{showP.lead}</p> : null}
+              {showP ? <p className="own-cell-rest">{showP.text}</p> : null}
+              {ol ? (
+                <ol className="own-steps">
+                  {ol.items.map((item, i) => (
+                    <li key={item} className="own-step">
+                      <span className="own-step-n">{i + 1}</span>
+                      <p>{item}</p>
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
+            </div>
+            <ProposalsShot />
+          </section>
+        ) : null}
+
+        {pair && table ? (
+          <section className="own-pair-section">
+            <h2 className="own-label">{pair.heading}</h2>
+            <div className="own-pair">
+              {table.head.map((h, i) => {
+                const cell = table.rows[0]?.[i] ?? '';
+                const cellLead = table.leads?.[0]?.[i] ?? null;
+                return (
+                  <article key={h} className="own-pair-cell">
+                    <h3 className="own-label">{h}</h3>
+                    {cellLead ? <p className="own-cell-title">{cellLead}</p> : null}
+                    <p className="own-cell-rest">{restOf(cell, cellLead)}</p>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
+        {viz && vizName ? (
+          <section className="own-viz">
+            <h2 className="own-label">{viz.heading}</h2>
+            {vizP?.lead ? <p className="own-cell-title">{vizP.lead}</p> : null}
+            {vizP?.text ? <p className="own-cell-rest">{vizP.text}</p> : null}
+            <AudienceViz name={vizName} />
+          </section>
+        ) : null}
 
         <section className="own-two">
-          {steps ? (
+          {keep && ul ? (
             <div className="own-col">
-              <h2 className="own-label">{steps.heading}</h2>
-              <ol className="own-steps">
-                {(steps.blocks.find(b => b.kind === 'ol') as { items: string[] }).items.map((item, i) => (
-                  <li key={item} className="own-step">
-                    <span className="own-step-n">{i + 1}</span>
-                    <p>{item}</p>
-                  </li>
-                ))}
-              </ol>
+              <h2 className="own-label">{keep.heading}</h2>
+              <ul className="own-keeps">
+                {ul.items.map((item, i) => {
+                  const itemLead = ul.leads?.[i] ?? null;
+                  return (
+                    <li key={item} className="own-keep">
+                      {itemLead ? <span className="own-keep-lead">{itemLead}</span> : null}
+                      {itemLead ? ' ' : null}
+                      <span className="own-keep-text">{restOf(item, itemLead)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           ) : null}
           {faq ? (
@@ -285,21 +494,18 @@ function BoardPage({ page, route }: { page: PageData; route: string }) {
         </section>
 
         {page.cta.length > 0 ? (
-          <p className="own-close">
-            {page.cta.map((c, i) =>
-              i === 0 ? (
-                <ActionLink key={c.href} action={c} className="mkt-season-cta own-pill" />
-              ) : isApiLink(c.href) ? (
-                <a key={c.href} href={withBase(c.href)} className="own-quiet">
-                  {c.label} {arrow}
-                </a>
-              ) : (
-                <Link key={c.href} to={c.href} className="own-quiet">
-                  {c.label} {arrow}
-                </Link>
-              ),
-            )}
-          </p>
+          <div className="own-close">
+            <p className="own-close-row">
+              {page.cta.map((c, i) =>
+                i === 0 ? (
+                  <ActionLink key={c.href} action={c} className="mkt-season-cta own-pill" />
+                ) : (
+                  <QuietLink key={c.href} action={c} />
+                ),
+              )}
+            </p>
+            {catchLine ? <p className="own-catch own-caption">{catchLine.text}</p> : null}
+          </div>
         ) : null}
         <Foot route={route} />
       </main>

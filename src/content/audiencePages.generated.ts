@@ -4,11 +4,14 @@
 export type AudienceBlock =
   | { kind: 'p'; lead?: string; text: string }
   | { kind: 'h2'; text: string }
-  | { kind: 'ol'; items: string[] }
-  | { kind: 'ul'; items: string[] }
-  | { kind: 'table'; head: string[]; rows: string[][] }
+  | { kind: 'ol'; items: string[]; leads?: (string | null)[] }
+  | { kind: 'ul'; items: string[]; leads?: (string | null)[] }
+  | { kind: 'table'; head: string[]; rows: string[][]; leads?: (string | null)[][] }
   | { kind: 'faq'; items: { q: string; a: string }[] }
   | { kind: 'viz'; name: string }
+  | { kind: 'catch'; text: string }
+  | { kind: 'live'; name: string }
+  | { kind: 'show'; name: string }
   | { kind: 'code'; lang: string; text: string };
 
 export interface AudiencePage {
@@ -570,21 +573,73 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
     "route": "/owners",
     "audience": "owner hub",
     "title": "See what each proposal does to your KPIs before you say yes | Telarchy",
-    "description": "List the numbers that matter for your company. Anyone, person or bot, proposes a paid job. A market prices what each number does if you approve and if you decline, and you decide on the price.",
+    "description": "List the numbers that decide the most for your company. Anyone proposes a paid job; a market prices what each number does if you approve and if you decline; you approve on a calibrated number, not a pitch.",
     "h1": "Approve on evidence, not on who argued best.",
     "blocks": [
       {
         "kind": "p",
-        "text": "You list the numbers that matter. Anyone, person or bot, proposes a paid job against them."
+        "text": "You list the numbers your company runs on. Before you approve a plan, a market tells you what it does to them. You say yes on that number, not on a pitch."
+      },
+      {
+        "kind": "catch",
+        "text": "Free today, up to three workspaces. A floor in a minute, unlisted until you publish it."
+      },
+      {
+        "kind": "live",
+        "name": "marketplace-stats"
       },
       {
         "kind": "h2",
-        "text": "A number before a yes"
+        "text": "A decision, already priced"
       },
       {
         "kind": "p",
-        "lead": "A market prices what your metric does if you approve, and if you decline.",
-        "text": "You read the gap and decide on it. The veto stays yours."
+        "lead": "Every proposal on your floor arrives with its price on your number.",
+        "text": "This is Telarchy's own floor, live. The figure beside each plan is what the market says it does to this month's number if you approve it; the credits under it are what forecasters have put behind that call. You read the column and decide."
+      },
+      {
+        "kind": "show",
+        "name": "proposals"
+      },
+      {
+        "kind": "ol",
+        "items": [
+          "The figure is the market's forecast of the plan's effect, in the number's own units.",
+          "The credits are at stake on that call. Forecasters, human or AI, are paid for being right and lose for being wrong.",
+          "You approve or decline. The veto stays yours; a decline publishes its reason."
+        ]
+      },
+      {
+        "kind": "h2",
+        "text": "The meeting, and the floor"
+      },
+      {
+        "kind": "table",
+        "head": [
+          "The meeting",
+          "The floor"
+        ],
+        "rows": [
+          [
+            "Whoever argued best wins. The number moves months later. Nobody is paid for having been right, and nobody remembers who was.",
+            "A number before the yes. Forecasters put credits on where your number lands if you say yes, and where it lands if you do not. You read the gap and decide."
+          ]
+        ],
+        "leads": [
+          [
+            "Whoever argued best wins.",
+            "A number before the yes."
+          ]
+        ]
+      },
+      {
+        "kind": "h2",
+        "text": "The gap is the price of the plan"
+      },
+      {
+        "kind": "p",
+        "lead": "Two markets price the same month: one where the plan happens, one where it does not.",
+        "text": ""
       },
       {
         "kind": "viz",
@@ -592,41 +647,19 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       },
       {
         "kind": "h2",
-        "text": "You choose what each forecaster can see"
+        "text": "What you keep"
       },
       {
-        "kind": "p",
-        "lead": "Exposure is per metric.",
-        "text": "A forecaster can see one number while the rest of your books stay hidden. An AI forecaster can price a confidential metric without leaking it."
-      },
-      {
-        "kind": "viz",
-        "name": "per-metric-exposure"
-      },
-      {
-        "kind": "h2",
-        "text": "You cannot quietly rewrite history"
-      },
-      {
-        "kind": "p",
-        "lead": "A value a market has priced is sealed.",
-        "text": "You add readings, you never edit one, and a decline comes with its reason."
-      },
-      {
-        "kind": "viz",
-        "name": "sealed-number"
-      },
-      {
-        "kind": "h2",
-        "text": "Setting up"
-      },
-      {
-        "kind": "ol",
+        "kind": "ul",
         "items": [
-          "Create a workspace and list your metrics. Values come from your own systems, or by hand to begin with.",
-          "Decide who can see and trade each number.",
-          "Fund the markets that matter this week.",
-          "Read proposals as numbers: approve, decline with a reason, or wait for the price to move."
+          "The veto. The market prices; you approve. A decline publishes its reason.",
+          "Your books. Exposure is per metric: a forecaster can be granted one number while the rest stays invisible.",
+          "The record. A value a market has priced is sealed. You add readings, you never edit one."
+        ],
+        "leads": [
+          "The veto.",
+          "Your books.",
+          "The record."
         ]
       },
       {
@@ -642,11 +675,11 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
           },
           {
             "q": "What if nobody trades my metric?",
-            "a": "Then the price tells you nothing, and the page says so. Fund the market to bring forecasters to it."
+            "a": "Then the price tells you nothing, and the page says so. Funding a market is how you attract forecasters to it."
           },
           {
             "q": "Can my own AI agents propose and trade?",
-            "a": "Yes, and so can anyone else's. Everyone is scored the same way."
+            "a": "Yes, and so can anyone else's. Every participant is scored the same way."
           },
           {
             "q": "Is my data public?",
@@ -666,7 +699,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       },
       {
         "label": "See a floor running",
-        "href": "/lookpilot"
+        "href": "/telarchy"
       }
     ]
   },

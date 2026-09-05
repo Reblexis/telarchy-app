@@ -44,8 +44,22 @@ function parseTable(lines) {
       .map(c => plain(c)),
   );
   const head = rows[0];
-  const body = rows.slice(1).filter(r => !r.every(c => /^:?-+:?$/.test(c)));
-  return { kind: 'table', head, rows: body };
+  const bodyRaw = lines.slice(1).map(l => l.replace(/^\|/, '').replace(/\|$/, '').split('|'));
+  const kept = bodyRaw.filter(r => !r.every(c => /^\s*:?-+:?\s*$/.test(c)));
+  const body = kept.map(r => r.map(c => plain(c)));
+  // A cell that opens in bold keeps that lead beside the plain text, so a
+  // board can set it in the display face over the rest; a table without one
+  // carries no `leads` and reads as before.
+  const leads = kept.map(r => r.map(c => leadOf(c)));
+  const out = { kind: 'table', head, rows: body };
+  if (leads.some(r => r.some(Boolean))) out.leads = leads;
+  return out;
+}
+
+/** The bold opening of a cell or a list item, plain, or null when it has none. */
+function leadOf(raw) {
+  const m = /^\s*\*\*([^*]+)\*\*/.exec(raw);
+  return m ? plain(m[1]) : null;
 }
 
 /**
@@ -63,6 +77,16 @@ const VIZ = new Set([
   'per-metric-exposure',
   'sealed-number',
 ]);
+
+/**
+ * The live figures and the product moments a page may name, the same way it
+ * names a drawing: a line in the markdown, code in the renderer, and the two
+ * have to agree or the build fails. Add one here and in
+ * src/pages/AudiencePage.tsx together (docs/audience-pages.md, "/owners is
+ * laid out as a board").
+ */
+const LIVE = new Set(['marketplace-stats']);
+const SHOW = new Set(['proposals']);
 
 function parseCta(line) {
   return line
@@ -150,6 +174,34 @@ export function parsePage(header, body) {
       i++;
       continue;
     }
+    if (line.startsWith('CATCH: ')) {
+      // The objection answered beside the button: what it costs, what
+      // happens next. Copy, in the caption register.
+      flushFaq();
+      page.blocks.push({ kind: 'catch', text: plain(line.slice(7)) });
+      i++;
+      continue;
+    }
+    if (line.startsWith('LIVE: ')) {
+      flushFaq();
+      const name = line.slice(6).trim();
+      if (!LIVE.has(name)) {
+        throw new Error(`${route}: unknown LIVE "${name}" (known: ${[...LIVE].join(', ')})`);
+      }
+      page.blocks.push({ kind: 'live', name });
+      i++;
+      continue;
+    }
+    if (line.startsWith('SHOW: ')) {
+      flushFaq();
+      const name = line.slice(6).trim();
+      if (!SHOW.has(name)) {
+        throw new Error(`${route}: unknown SHOW "${name}" (known: ${[...SHOW].join(', ')})`);
+      }
+      page.blocks.push({ kind: 'show', name });
+      i++;
+      continue;
+    }
     if (line.startsWith('CTA:')) {
       flushFaq();
       page.cta = parseCta(line);
@@ -175,16 +227,25 @@ export function parsePage(header, body) {
     if (/^\d+\. /.test(line) || line.startsWith('- ')) {
       const ordered = /^\d+\. /.test(line);
       const items = [];
+      const leads = [];
       while (i < lines.length && (ordered ? /^\d+\. /.test(lines[i]) : lines[i].startsWith('- '))) {
-        items.push(plain(lines[i].replace(/^(\d+\.|-) /, '')));
+        const raw = lines[i].replace(/^(\d+\.|-) /, '');
+        items.push(plain(raw));
+        leads.push(leadOf(raw));
         i++;
       }
-      page.blocks.push({ kind: ordered ? 'ol' : 'ul', items });
+      const block = { kind: ordered ? 'ol' : 'ul', items };
+      if (leads.some(Boolean)) block.leads = leads;
+      page.blocks.push(block);
       continue;
     }
     // Paragraph: consecutive non-empty lines; a bold opening becomes the lead.
     const para = [];
-    while (i < lines.length && lines[i].trim() && !/^(#|\||Q: |CTA:|VIZ: |\d+\. |- )/.test(lines[i]))
+    while (
+      i < lines.length &&
+      lines[i].trim() &&
+      !/^(#|\||Q: |CTA:|VIZ: |CATCH: |LIVE: |SHOW: |\d+\. |- )/.test(lines[i])
+    )
       para.push(lines[i++]);
     const text = para.join(' ');
     const lm = /^\*\*([^*]+)\*\*\s*(.*)$/s.exec(text);
@@ -245,11 +306,14 @@ export function renderPagesModule(pages) {
 export type AudienceBlock =
   | { kind: 'p'; lead?: string; text: string }
   | { kind: 'h2'; text: string }
-  | { kind: 'ol'; items: string[] }
-  | { kind: 'ul'; items: string[] }
-  | { kind: 'table'; head: string[]; rows: string[][] }
+  | { kind: 'ol'; items: string[]; leads?: (string | null)[] }
+  | { kind: 'ul'; items: string[]; leads?: (string | null)[] }
+  | { kind: 'table'; head: string[]; rows: string[][]; leads?: (string | null)[][] }
   | { kind: 'faq'; items: { q: string; a: string }[] }
   | { kind: 'viz'; name: string }
+  | { kind: 'catch'; text: string }
+  | { kind: 'live'; name: string }
+  | { kind: 'show'; name: string }
   | { kind: 'code'; lang: string; text: string };
 
 export interface AudiencePage {
