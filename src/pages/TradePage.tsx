@@ -12,7 +12,7 @@ import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorChat } from '../components/FloorChat';
 import { FloorChecklist } from '../components/FloorChecklist';
 import { FloorComments } from '../components/FloorComments';
-import { LeaderboardRail } from '../components/FloorRails';
+import { CountStrip, FloorStandings, type ProposalTraderRow, useCurrentSeason } from '../components/FloorRails';
 import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { Logo } from '../components/Logo';
@@ -107,6 +107,49 @@ function formatDelta(delta: number, unit = ''): string {
 // Labels, ordering and per-horizon facts live in lib/floor-horizons: one
 // home, so no surface can decide what a horizon is from its index.
 
+/**
+ * The rows of "Traders on this proposal": one per account holding a
+ * position on either branch of the selected pair, scored by the marked
+ * profit of what they hold (worth at the current price minus what they
+ * paid, both branches added), best first. An unpriced position counts zero
+ * rather than as a loss of its cost. The workspace board lends the row its
+ * picture, Manifold badge and season chip, so a holder reads the same
+ * here as in the standings.
+ */
+export function holdersOf(
+  positions: Array<{
+    id: string;
+    handle: string;
+    direction: 'higher' | 'lower';
+    cost: number;
+    worth: number | null;
+    branch: 'approved' | 'declined';
+  }>,
+  board: LeaderboardEntry[],
+): ProposalTraderRow[] {
+  const byId = new Map<string, { handle: string; profit: number; lines: string[] }>();
+  for (const p of positions) {
+    const row = byId.get(p.id) ?? { handle: p.handle, profit: 0, lines: [] };
+    row.profit += (p.worth ?? p.cost) - p.cost;
+    row.lines.push(`bet ${p.direction} if ${p.branch}`);
+    byId.set(p.id, row);
+  }
+  return [...byId.entries()]
+    .map(([id, r]) => {
+      const known = board.find(e => e.id === id);
+      return {
+        ...(known ?? { calibration: null, accuracy: null, resolvedMarkets: 0, lastTradeAt: null }),
+        id,
+        nickname: r.handle,
+        rank: null,
+        totalEarnings: r.profit,
+        totalTrades: r.lines.length,
+        positionLine: r.lines.length === 1 ? r.lines[0] : `${r.lines.length} positions`,
+      } as ProposalTraderRow;
+    })
+    .sort((a, b) => b.totalEarnings - a.totalEarnings);
+}
+
 export function TradePage() {
   const params = useParams();
   const idOrSlug = params.slug ?? params.workspaceId;
@@ -141,6 +184,12 @@ export function TradePage() {
   const [liquidityWallet, setLiquidityWallet] = useState(0);
   const [ticketPreview, setTicketPreview] = useState<{ direction: 'higher' | 'lower'; newProb: number } | null>(null);
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
+  // The prize season, once per page: the count strip prints it and an
+  // entrant's row in the standings carries its chip.
+  const season = useCurrentSeason();
+  // The traders on the selected proposal; null while they load.
+  const [pairHolders, setPairHolders] = useState<ProposalTraderRow[] | null>(null);
+  const pairHoldersReq = useRef(0);
   // Selecting a job switches the ONE market view to that job's conditional
   // market (owner decision 2026-08-09: no second market underneath). null
   // means the baseline market is showing.
@@ -769,6 +818,46 @@ export function TradePage() {
     condHistoryRef.current();
   }, [pair?.approvedMarketId, pair?.declinedMarketId, wsKey]);
 
+  // The traders on the selected proposal (docs/ui-conventions.md, "The
+  // rails, and the standings under the verbs"): every account holding a
+  // position on either branch of the pair, scored by that position's marked
+  // profit, read off the same public activity endpoint the Positions tab
+  // uses. A branch whose read fails contributes nothing rather than sinking
+  // the other's rows; only the newest pull may write, so a slow answer for
+  // the previous proposal never paints the wrong holders.
+  const pairHoldersRef = useRef<() => void>(() => {});
+  pairHoldersRef.current = () => {
+    const branches = [
+      { marketId: pair?.approvedMarketId, branch: 'approved' as const },
+      { marketId: pair?.declinedMarketId, branch: 'declined' as const },
+    ].filter((b): b is { marketId: string; branch: 'approved' | 'declined' } => !!b.marketId);
+    const token = ++pairHoldersReq.current;
+    if (!idOrSlug || branches.length === 0) {
+      // A proposal with no books yet has nobody on it.
+      setPairHolders(selectedJob ? [] : null);
+      return;
+    }
+    Promise.all(
+      branches.map(b =>
+        api
+          .getMarketActivity(idOrSlug, b.marketId)
+          .then(a => (a.positions ?? []).map(p => ({ ...p, branch: b.branch })))
+          .catch(e => {
+            console.error('pair positions fetch failed:', e);
+            return [];
+          }),
+      ),
+    ).then(parts => {
+      if (token !== pairHoldersReq.current) return;
+      setPairHolders(holdersOf(parts.flat(), leaders));
+    });
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setPairHolders(null);
+    pairHoldersRef.current();
+  }, [pair?.approvedMarketId, pair?.declinedMarketId, selectedJobId, wsKey]);
+
   const refreshMoney = () => {
     if (activeMarketId && ws) {
       api
@@ -816,6 +905,7 @@ export function TradePage() {
     loadLeaders();
     condHistoryRef.current();
     horizonPricesRef.current();
+    pairHoldersRef.current();
     if (joined) refreshMoney();
   };
   useEffect(() => {
@@ -1066,16 +1156,12 @@ export function TradePage() {
 
   if (!ws) {
     // While the floor loads (docs/ui-conventions.md, "While a page loads"):
-    // the three columns as ghosts in the real geometry, the name from the
+    // the two columns as ghosts in the real geometry, the name from the
     // share hint painted at once in the headline slot, never a dot.
     return (
       <div className="pubws pubws--center">
         <TopBar user={!!user} ready={!authLoading} busy />
         <main className="pubws-main pubws-main--floor pubws-main--ghost">
-          <aside className="pubws-rail pubws-rail--left" aria-hidden="true">
-            <Ghost w={90} h={9} style={{ marginBottom: 8 }} />
-            <GhostRows n={7} />
-          </aside>
           <div className="pubws-center">
             <header className="pubws-ident">
               {hint ? (
@@ -1103,6 +1189,19 @@ export function TradePage() {
               <div style={{ display: 'flex', gap: 14, marginTop: 22 }}>
                 <Ghost w="50%" h={58} r={10} />
                 <Ghost w="50%" h={58} r={10} />
+              </div>
+              {/* The count strip and the two standings footers under the
+                  verbs, in the market column where they land. */}
+              <Ghost w="100%" h={44} r={10} style={{ marginTop: 22 }} />
+              <div className="pubws-ghost-standings" aria-hidden="true">
+                <div>
+                  <Ghost w={90} h={9} style={{ marginBottom: 8 }} />
+                  <GhostRows n={3} />
+                </div>
+                <div>
+                  <Ghost w={110} h={9} style={{ marginBottom: 8 }} />
+                  <GhostRows n={3} />
+                </div>
               </div>
             </div>
             <LoadingStatus />
@@ -1158,13 +1257,6 @@ export function TradePage() {
         />
       )}
       <main className="pubws-main pubws-main--floor">
-        <LeaderboardRail
-          entries={leaders}
-          contractors={ws?.topContractors}
-          unit={unit}
-          signedIn={!!user}
-          meId={myParticipantId}
-        />
         <div className="pubws-center">
           {/* The company IS the page (owner direction 2026-08-18): a cold
             visitor arrives from a link about this business, not about
@@ -2080,6 +2172,25 @@ export function TradePage() {
             </section>
           ) : null}
 
+          {/* Under the verbs and the facts row (docs/ui-conventions.md,
+            "The rails, and the standings under the verbs", revised
+            2026-09-05): ONE count strip the floor can stand behind, then
+            the two standings footers. Footers, not rails: nothing about
+            other people sits above the fold. */}
+          {hero && active && (
+            <>
+              <CountStrip traders={active.traders} volume={active.volume} season={season} signedIn={!!user} />
+              <FloorStandings
+                entries={leaders}
+                contractors={ws.topContractors}
+                unit={unit}
+                meId={myParticipantId}
+                season={season}
+                proposalTraders={selectedJob ? pairHolders : undefined}
+              />
+            </>
+          )}
+
           {/* Placement C (owner pick, 2026-08-31): a manager's two doors sit
             under the market and its verbs, which is where "someone should
             keep this true" is thought. A trader's pair stays further down,
@@ -2096,7 +2207,59 @@ export function TradePage() {
               className="doors--instrument"
             />
           )}
-
+        </div>
+        {/* The jobs board IS the right rail (owner direction 2026-08-10:
+            jobs where the activity log was). The log's information lives
+            on in the chart and the board itself; the rail slot goes to the
+            thing a visitor can act on. */}
+        {ws.proposals !== undefined && hero ? (
+          <aside className="pubws-rail pubws-rail--right" aria-label="Proposals">
+            <JobsBoard
+              proposals={ws.proposals}
+              unit={unit}
+              horizonDate={hero.targetDate}
+              horizonMetricId={hero.metricId}
+              selectedId={selectedJobId}
+              onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
+              viewerId={user?.id ?? null}
+              signedIn={!!user}
+              onRequireSignup={() => navigate(authPath('signup', location))}
+              workspaceName={ws.name}
+              proposalReward={ws.proposalReward}
+              metricNames={metricNames}
+              onPropose={async (title, description, askUsd) => {
+                // Anonymous proposers go through the signup door; the board
+                // itself is public information (Open workspace ballot).
+                // Payment details come from the account (owner decision
+                // 2026-08-10): the server reads and snapshots them.
+                if (!user) {
+                  navigate(authPath('signup', location));
+                  return;
+                }
+                // No proposer stake (owner call 2026-08-14): the workspace
+                // auto-funds the branch markets instead. Charging the empty
+                // side of the marketplace half a newcomer's starting balance
+                // to make an offer is spam defence aimed the wrong way; add
+                // it back if someone actually spams.
+                const created = (await api.createProposal({ title, description, askUsd })) as { id?: string };
+                reload();
+                // The new proposal is selected the moment it lands (docs/
+                // ui-conventions.md, "The proposer sees their own
+                // proposal"): unfunded, it sits last on the ballot, and
+                // its author otherwise reloads the floor and cannot find it.
+                if (created?.id) setSelectedJobId(created.id);
+              }}
+            />
+          </aside>
+        ) : (
+          <aside className="pubws-rail pubws-rail--right" aria-hidden="true" />
+        )}
+        {/* The know block is its own grid item under the market column
+            (docs/ui-conventions.md, "The rails, and the standings under the
+            verbs"): on a phone the proposals board stacks under the market
+            column BEFORE the know block, the action before the explanation,
+            and the grid puts it back under the market on a wide screen. */}
+        <div className="pubws-know-col">
           {/* Two questions, two sections (owner direction 2026-08-10):
             "What is this market?" is the metric's stored definition,
             verbatim, because it is the settlement text. "What is
@@ -2228,55 +2391,9 @@ export function TradePage() {
             }
           />
         </div>
-        {/* The jobs board IS the right rail (owner direction 2026-08-10:
-            jobs where the activity log was). The log's information lives
-            on in the chart and the board itself; the rail slot goes to the
-            thing a visitor can act on. */}
-        {ws.proposals !== undefined && hero ? (
-          <aside className="pubws-rail pubws-rail--right" aria-label="Proposals">
-            <JobsBoard
-              proposals={ws.proposals}
-              unit={unit}
-              horizonDate={hero.targetDate}
-              horizonMetricId={hero.metricId}
-              selectedId={selectedJobId}
-              onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
-              viewerId={user?.id ?? null}
-              signedIn={!!user}
-              onRequireSignup={() => navigate(authPath('signup', location))}
-              workspaceName={ws.name}
-              proposalReward={ws.proposalReward}
-              metricNames={metricNames}
-              onPropose={async (title, description, askUsd) => {
-                // Anonymous proposers go through the signup door; the board
-                // itself is public information (Open workspace ballot).
-                // Payment details come from the account (owner decision
-                // 2026-08-10): the server reads and snapshots them.
-                if (!user) {
-                  navigate(authPath('signup', location));
-                  return;
-                }
-                // No proposer stake (owner call 2026-08-14): the workspace
-                // auto-funds the branch markets instead. Charging the empty
-                // side of the marketplace half a newcomer's starting balance
-                // to make an offer is spam defence aimed the wrong way; add
-                // it back if someone actually spams.
-                const created = (await api.createProposal({ title, description, askUsd })) as { id?: string };
-                reload();
-                // The new proposal is selected the moment it lands (docs/
-                // ui-conventions.md, "The proposer sees their own
-                // proposal"): unfunded, it sits last on the ballot, and
-                // its author otherwise reloads the floor and cannot find it.
-                if (created?.id) setSelectedJobId(created.id);
-              }}
-            />
-          </aside>
-        ) : (
-          <aside className="pubws-rail pubws-rail--right" aria-hidden="true" />
-        )}
 
         {/* The page ends on a three-cell board (docs/ui-conventions.md, "The
-            page ends", revised 2026-09-04), full width under the three
+            page ends", revised 2026-09-04), full width under the two
             columns. The floor stops explaining itself (2026-09-01): the
             market above SHOWS what this is, and these cells say only the
             three things it cannot: what the mechanism is for (a link to the

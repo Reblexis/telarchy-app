@@ -29,6 +29,7 @@ const PROSE = [
   'pubws-pitch',
   // the floor
   'pubws-ws-tagline',
+  'pubws-count',
   'pubws-instrument-sum',
   'pubws-na-note',
   'pubws-gap',

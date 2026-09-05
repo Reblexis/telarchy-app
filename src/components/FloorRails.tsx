@@ -7,89 +7,29 @@ import { useSeasonClock } from '../lib/useSeasonClock';
 import { ManifoldLogo } from './ManifoldLogo';
 
 /**
- * The trading floor's side rails (owner decision 2026-08-09): top traders
- * on the left, the log of past actions on the right. Both are social
- * proof, so they render for both tiers, and both hide themselves entirely
- * when empty (an empty leaderboard or silent log is anti-proof). On
- * narrow viewports they stack below the poster instead.
+ * The standings under the verbs (docs/ui-conventions.md, "The rails, and
+ * the standings under the verbs"): the count strip the floor can stand
+ * behind (traders and volume on this market, the season line with its
+ * control) and, under it, two compact three-row footers, "Top traders" and
+ * "Top contractors", with one "Show full leaderboard" link under the pair.
+ * Footers, not rails: the first screen is the question, the number and the
+ * bet verbs, and nothing about other people above the fold. With a
+ * proposal selected the traders footer becomes "Traders on this proposal".
  */
 
-export interface ActivityItem {
-  at: number;
-  kind: 'proposal' | 'approved' | 'declined' | 'trade';
-  text: string;
+/** A row in the traders footer while a proposal is selected: an account
+ *  holding a position on either branch of the pair, scored by that
+ *  position's marked profit. Same shape as a leaderboard row so the two
+ *  states render through the same row component, plus the one line that
+ *  says what the position is. */
+export interface ProposalTraderRow extends LeaderboardEntry {
+  positionLine?: string;
 }
 
-function _timeAgo(t: number): string {
-  const mins = Math.max(0, Math.round((Date.now() - t) / 60_000));
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.round(mins / 60);
-  if (hours < 48) return `${hours}h`;
-  return `${Math.round(hours / 24)}d`;
-}
-
-/** The contractor score, in the hero metric's own unit. Same shape as the
- *  job impact chip on the poster, so the rail and the job agree. */
-function formatImpact(value: number, unit: string): string {
-  const abs = Math.abs(value);
-  const decimals = abs >= 100 ? 0 : abs >= 1 ? 1 : 2;
-  const num = abs.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  return `${value > 0 ? '+' : value < 0 ? '-' : ''}${unit}${num}`;
-}
-
-/** The row's second line: how many jobs are behind the score and what the
- *  owner has actually paid for them. Dollars stopped being the ranking key
- *  on 2026-08-14, so they live here instead of in the score slot. */
-function contractorSubline(c: PublicContractor): string {
-  const parts = [`${c.jobs} ${c.jobs === 1 ? 'proposal' : 'proposals'}`];
-  if (c.pendingJobs > 0) parts.push(`${c.pendingJobs} live`);
-  if (c.earnedUsd > 0) parts.push(`$${Math.round(c.earnedUsd).toLocaleString('en-US')} earned`);
-  return parts.join(' · ');
-}
-
-export function LeaderboardRail({
-  entries: all,
-  contractors,
-  unit = '',
-  signedIn = false,
-  meId = null,
-}: {
-  /** THIS workspace's own board (owner decision 2026-08-22: the rail is local
-   *  by default; the season and global boards live on /leaderboard, behind
-   *  "Show full leaderboard"). */
-  entries: LeaderboardEntry[];
-  contractors?: PublicContractor[];
-  /** The hero metric's currency prefix ('$' or ''), so a contractor's priced
-   *  impact reads in the same unit as the market above it. */
-  unit?: string;
-  /** Whether the visitor has an identity, so the season strip can say whether
-   *  they are already in rather than asking them to enter again. */
-  signedIn?: boolean;
-  /** This visitor's participant id, so their own row can be marked and, when
-   *  they are outside the ten shown, pinned underneath. */
-  meId?: string | null;
-}) {
-  // A row for someone who has never traded is a name and a zero: noise.
-  // Ten, not five (owner direction 2026-08-17): five made the board look
-  // like a podium rather than a field worth joining.
-  const traded = all.filter(e => e.totalTrades > 0);
-  const entries = traded.slice(0, 10);
-  // Pinned underneath when the visitor is outside the ten. A board that shows
-  // the top ten and nothing else answers "who is winning" but not "where am
-  // I", which is the question the person reading it actually has.
-  const mine = meId ? (traded.find(e => e.id === meId) ?? null) : null;
-  const minePinned = mine && !entries.some(e => e.id === meId) ? mine : null;
-  const hasTraders = entries.length > 0;
-
-  // The prize season, fetched once for the whole rail: the strip at the
-  // bottom renders it, and an entrant's row carries a prize chip (owner ask
-  // 2026-08-21: "it should be on this leaderboard too", then "just say $500
-  // thats it.. and make it a little more prominent"), same states as
-  // /leaderboard: the ladder's top rung while the season is a draft, the
-  // projected payout from the GLOBAL season standing once it runs (the chip
-  // is a season fact, not a workspace one, so a scoped rail and /leaderboard
-  // name the same dollars), "in" for a running entrant outside the rungs.
-  // One fetch, so the chip and the strip cannot disagree.
+/** The current prize season, fetched once per page: the count strip prints
+ *  it and an entrant's row carries its prize chip, so one fetch keeps the
+ *  two from disagreeing. */
+export function useCurrentSeason(): PrizeSeason | null {
   const [season, setSeason] = useState<PrizeSeason | null>(null);
   useEffect(() => {
     api
@@ -97,190 +37,282 @@ export function LeaderboardRail({
       .then(r => setSeason(pickCurrentSeason(r.seasons)))
       .catch(e => console.error('seasons fetch failed:', e));
   }, []);
-  // An entrant outside the paying places reads "in": the chip marks an
-  // entrant among non-entrants on this local board.
-  const prizeChip = (e: LeaderboardEntry) => {
-    if (!e.seasonEntered) return null;
-    if (e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined) {
-      return (
-        <span
-          className="pubws-lb-prize pubws-lb-prize--in"
-          title={`Entered ${season?.name ?? 'the season'}; prizes are set once it starts`}
-        >
-          entered
-        </span>
-      );
-    }
-    if (e.seasonPrizeUsd > 0) {
-      return (
-        <span className="pubws-lb-prize" title="What this season would pay at the current standing">
-          ${e.seasonPrizeUsd.toLocaleString()}
-        </span>
-      );
-    }
+  return season;
+}
+
+/** The contractor score, in the hero metric's own unit. Same shape as the
+ *  proposal impact chip on the poster, so the footer and the board agree. */
+function formatImpact(value: number, unit: string): string {
+  const abs = Math.abs(value);
+  const decimals = abs >= 100 ? 0 : abs >= 1 ? 1 : 2;
+  const num = abs.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return `${value > 0 ? '+' : value < 0 ? '-' : ''}${unit}${num}`;
+}
+
+/** The row's second line: how many proposals are behind the score and what
+ *  the owner has actually paid for them. Dollars stopped being the ranking
+ *  key on 2026-08-14, so they live here instead of in the score slot. */
+function contractorSubline(c: PublicContractor): string {
+  const parts = [`${c.jobs} ${c.jobs === 1 ? 'proposal' : 'proposals'}`];
+  if (c.pendingJobs > 0) parts.push(`${c.pendingJobs} live`);
+  if (c.earnedUsd > 0) parts.push(`$${Math.round(c.earnedUsd).toLocaleString('en-US')} earned`);
+  return parts.join(' · ');
+}
+
+/** Rows shown per footer. The rail showed five, then ten; a footer under
+ *  the verbs is compact by design. */
+const ROWS = 3;
+
+function initialOf(name: string): string {
+  return name.replace(/^@/, '')[0]?.toUpperCase() ?? '?';
+}
+
+/** An entrant's prize chip, same states as /leaderboard: the ladder's top
+ *  rung while the season is a draft, the projected payout from the GLOBAL
+ *  season standing once it runs (the chip is a season fact, not a workspace
+ *  one), "in" for a running entrant outside the rungs. */
+function PrizeChip({ e, season }: { e: LeaderboardEntry; season: PrizeSeason | null }) {
+  if (!e.seasonEntered) return null;
+  if (e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined) {
     return (
-      <span className="pubws-lb-prize pubws-lb-prize--in" title="Entered the season, currently outside the prizes">
-        in
+      <span
+        className="pubws-lb-prize pubws-lb-prize--in"
+        title={`Entered ${season?.name ?? 'the season'}; prizes are set once it starts`}
+      >
+        entered
       </span>
     );
-  };
-
-  const renderRow = (e: LeaderboardEntry, i: number) => {
-    const name = e.nickname || 'anonymous';
-    const initial = name.replace(/^@/, '')[0]?.toUpperCase() ?? '?';
-    // Round BEFORE signing: a loss of a hundredth of a credit printed "-0 cr",
-    // which reads as a bug rather than as a rounding. Colour follows the
-    // printed number, not the raw one.
-    const cr = Math.round(e.totalEarnings);
+  }
+  if (e.seasonPrizeUsd > 0) {
     return (
-      <li key={e.id} className={`pubws-lb-row${e.id === meId ? ' is-me' : ''}`}>
-        <span className="pubws-lb-rank">{e.rank ?? i + 1}</span>
-        <Link className="pubws-lb-who pubws-name-link" to={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
-          <span className="pubws-lb-avatar">{e.image ? <img src={e.image} alt="" /> : <span>{initial}</span>}</span>
-          <span className="pubws-lb-name">{name}</span>
-          {e.manifoldUsername && (
-            <span className="pubws-lb-manifold" title={`Linked Manifold account: @${e.manifoldUsername}`}>
-              <ManifoldLogo size={13} strokeWidth={1.6} />
-            </span>
-          )}
-        </Link>
-        {prizeChip(e)}
-        <span className={`pubws-lb-score${cr > 0 ? ' is-up' : cr < 0 ? ' is-down' : ''}`}>
-          {cr > 0 ? '+' : ''}
-          {cr === 0 ? 0 : cr.toLocaleString('en-US')} cr
-        </span>
-      </li>
+      <span className="pubws-lb-prize" title="What this season would pay at the current standing">
+        ${e.seasonPrizeUsd.toLocaleString()}
+      </span>
     );
-  };
+  }
+  return (
+    <span className="pubws-lb-prize pubws-lb-prize--in" title="Entered the season, currently outside the prizes">
+      in
+    </span>
+  );
+}
+
+/** Round BEFORE signing: a loss of a hundredth of a credit printed "-0 cr",
+ *  which reads as a bug rather than as a rounding. Colour follows the
+ *  printed number, not the raw one. */
+function Credits({ value }: { value: number }) {
+  const cr = Math.round(value);
+  return (
+    <span className={`pubws-lb-score${cr > 0 ? ' is-up' : cr < 0 ? ' is-down' : ''}`}>
+      {cr > 0 ? '+' : ''}
+      {cr === 0 ? 0 : cr.toLocaleString('en-US')} cr
+    </span>
+  );
+}
+
+function TraderRow({
+  e,
+  rank,
+  meId,
+  season,
+  pinned = false,
+}: {
+  e: ProposalTraderRow;
+  rank: number | string;
+  meId: string | null;
+  season: PrizeSeason | null;
+  pinned?: boolean;
+}) {
+  const name = e.nickname || (pinned ? 'you' : 'anonymous');
+  return (
+    <li className={`pubws-lb-row${e.id === meId ? ' is-me' : ''}${pinned ? ' is-pinned' : ''}`}>
+      <span className="pubws-lb-rank">{rank}</span>
+      <Link className="pubws-lb-who pubws-name-link" to={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
+        <span className="pubws-lb-avatar">
+          {e.image ? <img src={e.image} alt="" /> : <span>{initialOf(e.nickname || 'anonymous')}</span>}
+        </span>
+        {e.positionLine ? (
+          <span className="pubws-lb-stack">
+            <span className="pubws-lb-name">{name}</span>
+            <span className="pubws-lb-sub">{e.positionLine}</span>
+          </span>
+        ) : (
+          <span className="pubws-lb-name">{name}</span>
+        )}
+        {e.manifoldUsername && (
+          <span className="pubws-lb-manifold" title={`Linked Manifold account: @${e.manifoldUsername}`}>
+            <ManifoldLogo size={13} strokeWidth={1.6} />
+          </span>
+        )}
+      </Link>
+      <PrizeChip e={e} season={season} />
+      <Credits value={e.totalEarnings} />
+    </li>
+  );
+}
+
+export function FloorStandings({
+  entries: all,
+  contractors,
+  unit = '',
+  meId = null,
+  season = null,
+  proposalTraders,
+}: {
+  /** THIS workspace's own board (owner decision 2026-08-22: local by
+   *  default; the season and global boards live on /leaderboard, behind
+   *  "Show full leaderboard"). */
+  entries: LeaderboardEntry[];
+  contractors?: PublicContractor[];
+  /** The hero metric's currency prefix ('$' or ''), so a contractor's priced
+   *  impact reads in the same unit as the market above it. */
+  unit?: string;
+  /** This visitor's participant id, so their own row can be marked and, when
+   *  they are outside the rows shown, pinned underneath. */
+  meId?: string | null;
+  /** The current season, for the prize chip on an entrant's row. */
+  season?: PrizeSeason | null;
+  /** With a proposal selected: the accounts holding a position on either
+   *  branch of its pair, ranked by marked profit (an empty list means nobody
+   *  yet; null means still loading). Undefined when no proposal is
+   *  selected, which is the workspace board. */
+  proposalTraders?: ProposalTraderRow[] | null;
+}) {
+  const onProposal = proposalTraders !== undefined;
+  // A row for someone who has never traded is a name and a zero: noise.
+  const traded = all.filter(e => e.totalTrades > 0);
+  const entries = traded.slice(0, ROWS);
+  // Pinned underneath when the visitor is outside the rows shown. A board
+  // that shows the top and nothing else answers "who is winning" but not
+  // "where am I", which is the question the person reading it has. Not on
+  // a proposal: there the list is everyone who holds one, complete.
+  const mine = meId && !onProposal ? (traded.find(e => e.id === meId) ?? null) : null;
+  const minePinned = mine && !entries.some(e => e.id === meId) ? mine : null;
+  const hasTraders = onProposal || entries.length > 0;
   // The contractors block shows whenever the workspace exposes it (Open
   // floor), even with nobody paid yet, so the two-sided economy is visible.
   const showContractors = contractors !== undefined;
   if (!hasTraders && !showContractors) return null;
   return (
-    <aside className="pubws-rail pubws-rail--left" aria-label="Leaders">
-      {hasTraders && (
-        <section className="pubws-lb-block">
-          {/* The workspace's own board: this floor's traders, ranked on their
-              profit here (owner decision 2026-08-22). The season and global
-              boards are on /leaderboard, linked below. */}
-          <div className="pubws-lb-head">
-            <h2 className="pubws-h2">Top traders</h2>
-            <span className="pubws-lb-meta">this market</span>
-          </div>
-          <ol className="pubws-lb">
-            {entries.map((e, i) => renderRow(e, i))}
-            {minePinned && (
-              <li className="pubws-lb-row is-me is-pinned">
-                <span className="pubws-lb-rank">{minePinned.rank ?? '—'}</span>
-                <Link
-                  className="pubws-lb-who pubws-name-link"
-                  to={`/participants/${encodeURIComponent(minePinned.nickname ?? minePinned.id)}`}
-                >
-                  <span className="pubws-lb-avatar">
-                    {minePinned.image ? (
-                      <img src={minePinned.image} alt="" />
-                    ) : (
-                      <span>{(minePinned.nickname || 'anonymous').replace(/^@/, '')[0]?.toUpperCase() ?? '?'}</span>
-                    )}
-                  </span>
-                  <span className="pubws-lb-name">{minePinned.nickname || 'you'}</span>
-                </Link>
-                {prizeChip(minePinned)}
-                {(() => {
-                  const cr = Math.round(minePinned.totalEarnings);
-                  return (
-                    <span className={`pubws-lb-score${cr > 0 ? ' is-up' : cr < 0 ? ' is-down' : ''}`}>
-                      {cr > 0 ? '+' : ''}
-                      {cr === 0 ? 0 : cr.toLocaleString('en-US')} cr
-                    </span>
-                  );
-                })()}
-              </li>
-            )}
-          </ol>
-        </section>
-      )}
-      {showContractors && (
-        <section className="pubws-lb-block">
-          <div className="pubws-lb-head">
-            <h2 className="pubws-h2">Top contractors</h2>
-            <span className="pubws-lb-meta">impact</span>
-          </div>
-          {contractors!.length > 0 ? (
+    <div className="pubws-standings" aria-label="Standings">
+      <div className="pubws-standings-pair">
+        {hasTraders && (
+          <section className="pubws-lb-block">
+            <div className="pubws-lb-head">
+              <h2 className="pubws-h2">{onProposal ? 'Traders on this proposal' : 'Top traders'}</h2>
+              <span className="pubws-lb-meta">{onProposal ? 'this proposal' : 'this market'}</span>
+            </div>
             <ol className="pubws-lb">
-              {contractors!.map((c, i) => {
-                const name = c.name || 'anonymous';
-                const initial = name.replace(/^@/, '')[0]?.toUpperCase() ?? '?';
-                // The score is what the market currently says this poster's
-                // jobs are worth. Unpriced jobs say so rather than printing a
-                // confident zero; a workspace with no hero market to price
-                // against falls back to dollars.
-                const scored = c.impact !== null && c.pricedJobs > 0;
-                return (
-                  <li key={c.id} className="pubws-lb-row">
-                    <span className="pubws-lb-rank">{i + 1}</span>
-                    <Link className="pubws-lb-who pubws-name-link" to={`/participants/${encodeURIComponent(c.id)}`}>
-                      <span className="pubws-lb-avatar">
-                        <span>{initial}</span>
-                      </span>
-                      <span className="pubws-lb-stack">
-                        <span className="pubws-lb-name">{name}</span>
-                        <span className="pubws-lb-sub">{contractorSubline(c)}</span>
-                      </span>
-                    </Link>
-                    {scored ? (
-                      <span
-                        className={`pubws-lb-score${c.impact! > 0 ? ' is-up' : c.impact! < 0 ? ' is-down' : ''}`}
-                        /* No arrow at exactly zero: the market has priced
-                           these jobs and called them a wash, which an up
-                           arrow would misreport as a gain. */
-                        title="What the market says this contractor's proposals are worth: approved minus declined, summed over the live ones."
-                      >
-                        {c.impact! > 0 ? '▲ ' : c.impact! < 0 ? '▼ ' : ''}
-                        {formatImpact(c.impact!, unit)}
-                      </span>
-                    ) : c.impact === null ? (
-                      <span className="pubws-lb-score is-up">${Math.round(c.earnedUsd).toLocaleString('en-US')}</span>
-                    ) : (
-                      <span className="pubws-lb-score pubws-lb-score--muted">not priced yet</span>
-                    )}
-                  </li>
-                );
-              })}
+              {onProposal ? (
+                proposalTraders === null ? null : proposalTraders.length === 0 ? (
+                  /* Said, not hidden: an empty footer under a proposal would
+                     read as the block having broken. */
+                  <li className="pubws-lb-row pubws-lb-row--empty">nobody yet</li>
+                ) : (
+                  /* Ranked by the position's marked profit, best first: the
+                     rule lives where the rows are drawn, whatever order the
+                     reads arrived in. */
+                  [...proposalTraders]
+                    .sort((a, b) => b.totalEarnings - a.totalEarnings)
+                    .slice(0, ROWS)
+                    .map((e, i) => <TraderRow key={e.id} e={e} rank={i + 1} meId={meId} season={season} />)
+                )
+              ) : (
+                <>
+                  {entries.map((e, i) => (
+                    <TraderRow key={e.id} e={e} rank={e.rank ?? i + 1} meId={meId} season={season} />
+                  ))}
+                  {minePinned && (
+                    <TraderRow e={minePinned} rank={minePinned.rank ?? '-'} meId={meId} season={season} pinned />
+                  )}
+                </>
+              )}
             </ol>
-          ) : (
-            <p className="pubws-lb-empty">
-              No proposals on the board yet. Post one and the market prices what it is worth.
-            </p>
-          )}
-        </section>
-      )}
-      {/* The way out of a workspace's own top ten is a page, not an expander
-          (owner direction 2026-08-24: "show full leaderboard should lead to
-          a new page"). It sits under the boards it extends; the season strip
-          is its own block below. */}
+          </section>
+        )}
+        {showContractors && (
+          <section className="pubws-lb-block">
+            <div className="pubws-lb-head">
+              <h2 className="pubws-h2">Top contractors</h2>
+              <span className="pubws-lb-meta">impact</span>
+            </div>
+            {contractors!.length > 0 ? (
+              <ol className="pubws-lb">
+                {contractors!.slice(0, ROWS).map((c, i) => {
+                  const name = c.name || 'anonymous';
+                  // The score is what the market currently says this poster's
+                  // proposals are worth. Unpriced ones say so rather than
+                  // printing a confident zero; a workspace with no hero
+                  // market to price against falls back to dollars.
+                  const scored = c.impact !== null && c.pricedJobs > 0;
+                  return (
+                    <li key={c.id} className="pubws-lb-row">
+                      <span className="pubws-lb-rank">{i + 1}</span>
+                      <Link className="pubws-lb-who pubws-name-link" to={`/participants/${encodeURIComponent(c.id)}`}>
+                        <span className="pubws-lb-avatar">
+                          <span>{initialOf(name)}</span>
+                        </span>
+                        <span className="pubws-lb-stack">
+                          <span className="pubws-lb-name">{name}</span>
+                          <span className="pubws-lb-sub">{contractorSubline(c)}</span>
+                        </span>
+                      </Link>
+                      {scored ? (
+                        <span
+                          className={`pubws-lb-score${c.impact! > 0 ? ' is-up' : c.impact! < 0 ? ' is-down' : ''}`}
+                          /* No arrow at exactly zero: the market has priced
+                             these proposals and called them a wash, which an
+                             up arrow would misreport as a gain. */
+                          title="What the market says this contractor's proposals are worth: approved minus declined, summed over the live ones."
+                        >
+                          {c.impact! > 0 ? '▲ ' : c.impact! < 0 ? '▼ ' : ''}
+                          {formatImpact(c.impact!, unit)}
+                        </span>
+                      ) : c.impact === null ? (
+                        <span className="pubws-lb-score is-up">${Math.round(c.earnedUsd).toLocaleString('en-US')}</span>
+                      ) : (
+                        <span className="pubws-lb-score pubws-lb-score--muted">not priced yet</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : (
+              <p className="pubws-lb-empty">
+                No proposals on the board yet. Post one and the market prices what it is worth.
+              </p>
+            )}
+          </section>
+        )}
+      </div>
+      {/* The way out is a page, not an expander (owner direction 2026-08-24:
+          "show full leaderboard should lead to a new page"). One link under
+          the pair it extends; the season's control is in the count strip. */}
       <Link className="pubws-lb-more" to="/leaderboard">
         Show full leaderboard
       </Link>
-      <SeasonStrip signedIn={signedIn} season={season} />
-    </aside>
+    </div>
   );
 }
 
 /**
- * The prize season, on a market page: one line and a link.
- *
- * This used to carry the pool, the pitch, the entry checkbox and the button.
- * All of that lives on /season now (owner direction 2026-08-19); a market page
- * is about the market, and the season was crowding it. What stays is the part
- * a visitor needs in order to know the competition exists and that a clock is
- * running.
- *
- * Renders nothing when there is no season, so the page is unchanged the rest
- * of the time.
+ * The count strip: the one line of social proof the floor can stand behind.
+ * The traders and volume on this market, and the season line with its
+ * "Enter the season" / "See the season" control, which is where entering
+ * the season lives now that the left rail is gone.
  */
-function SeasonStrip({ signedIn, season }: { signedIn: boolean; season: PrizeSeason | null }) {
-  // Whether THIS visitor is already in. Without it the strip kept saying
+export function CountStrip({
+  traders,
+  volume,
+  season,
+  signedIn,
+}: {
+  traders: number;
+  volume: number;
+  season: PrizeSeason | null;
+  signedIn: boolean;
+}) {
+  // Whether THIS visitor is already in. Without it the line kept saying
   // "Enter the season" to someone who had entered a minute earlier, which
   // reads as the entry not having worked (owner report 2026-08-19).
   const [entered, setEntered] = useState(false);
@@ -295,24 +327,29 @@ function SeasonStrip({ signedIn, season }: { signedIn: boolean; season: PrizeSea
       .catch(e => console.error('season entry fetch failed:', e));
   }, [signedIn]);
   const clock = useSeasonClock(season);
-  if (!season || !clock) return null;
-
+  const cr = Math.round(volume).toLocaleString('en-US');
   return (
-    <section className="pubws-lb-section">
-      {/* The countdown is the header's meta (owner decision 2026-08-24): the
-          one meta in primary colour, because it says whether to act today. */}
-      <div className="pubws-lb-head pubws-lb-head--bare">
-        <h2 className="pubws-h2">{season.name}</h2>
-        <span className="pubws-lb-meta pubws-lb-meta--clock">{clock.headline}</span>
-      </div>
-      <p className="pubws-lb-empty">
-        {entered
-          ? `You are in. $${season.poolUsd.toLocaleString()} in prizes.`
-          : `$${season.poolUsd.toLocaleString()} in prizes, free to enter.`}
+    <div className="pubws-count">
+      <p className="pubws-count-line">
+        <b>{traders}</b> {traders === 1 ? 'trader' : 'traders'} and <b>{cr} cr</b> traded on this market
+        {season && clock && (
+          <>
+            {' · '}
+            {season.name}: <b>${season.poolUsd.toLocaleString()}</b> in prizes
+            {clock.phase === 'during' || clock.phase === 'before' ? (
+              <>
+                , <b>{clock.remaining}</b> {clock.phase === 'during' ? 'left' : 'to the start'}
+              </>
+            ) : null}
+            {entered ? ', you are in' : clock.entryOpen ? ', free to enter' : ''}
+          </>
+        )}
       </p>
-      <Link className="pubws-lb-more" to="/season">
-        {entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season'}
-      </Link>
-    </section>
+      {season && clock && (
+        <Link className="pubws-count-go" to="/season">
+          {entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season'}
+        </Link>
+      )}
+    </div>
   );
 }

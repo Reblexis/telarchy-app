@@ -1591,3 +1591,103 @@ describe('selecting a proposal changes the address', () => {
     await waitFor(() => expect(window.location.hash).toBe('#proposal=1'));
   });
 });
+
+/**
+ * With a proposal selected, the traders footer becomes "Traders on this
+ * proposal" (docs/ui-conventions.md, "The rails, and the standings under
+ * the verbs"): the rows are the accounts holding a position on either
+ * branch of the selected pair, ranked by that position's marked profit,
+ * and "nobody yet" in one row when none. Deselecting restores the
+ * workspace board. The contractors footer never changes.
+ */
+describe('the traders footer under a selected proposal', () => {
+  const leaders = () => ({
+    participants: [
+      { id: 'a1', nickname: 'ada', rank: 1, totalEarnings: 900, totalTrades: 4 },
+      { id: 'a2', nickname: 'bob', rank: 2, totalEarnings: 300, totalTrades: 2 },
+      { id: 'a3', nickname: 'cyd', rank: 3, totalEarnings: 100, totalTrades: 1 },
+    ],
+  });
+  const activity = (marketId: string) => {
+    if (marketId === 'm-approved') {
+      return {
+        consensus: 82_000,
+        positions: [
+          { handle: 'bob', id: 'a2', direction: 'higher', shares: 10, cost: 50, worth: 10 },
+          { handle: 'zed', id: 'a9', direction: 'higher', shares: 20, cost: 100, worth: 400 },
+        ],
+        trades: [],
+      };
+    }
+    if (marketId === 'm-declined') {
+      return {
+        consensus: 71_000,
+        positions: [{ handle: 'zed', id: 'a9', direction: 'lower', shares: 5, cost: 10, worth: 20 }],
+        trades: [],
+      };
+    }
+    return { consensus: null, positions: [], trades: [] };
+  };
+  const tradersBlock = (container: HTMLElement) =>
+    [...container.querySelectorAll('.pubws-standings .pubws-lb-block')].find(
+      b => !b.querySelector('.pubws-h2')?.textContent?.includes('contractors'),
+    ) as HTMLElement;
+
+  test('selecting a proposal restricts the rows to the holders of its pair, ranked by marked profit', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.joinAs = 'trader';
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    vi.mocked(api.getLeaderboard).mockResolvedValue(leaders() as never);
+    vi.mocked(api.getMarketActivity).mockImplementation(async (_slug: string, id: string) => activity(id) as never);
+
+    const { container } = renderFloor();
+    await waitFor(() => expect(tradersBlock(container)).toBeTruthy());
+    expect(tradersBlock(container).querySelector('.pubws-h2')?.textContent).toBe('Top traders');
+    expect(tradersBlock(container).textContent).toContain('ada');
+
+    fireEvent.click(await screen.findByTitle('rewrite the store page'));
+    await waitFor(() =>
+      expect(tradersBlock(container).querySelector('.pubws-h2')?.textContent).toBe('Traders on this proposal'),
+    );
+    const block = tradersBlock(container);
+    expect(block.querySelector('.pubws-lb-meta')?.textContent).toBe('this proposal');
+    await waitFor(() => expect(block.querySelectorAll('.pubws-lb-row')).toHaveLength(2));
+    const rows = [...block.querySelectorAll('.pubws-lb-row')];
+    // zed: (400 - 100) + (20 - 10) = +310 across both branches; bob: 10 - 50 = -40.
+    expect(rows.map(r => r.querySelector('.pubws-lb-name')?.textContent)).toEqual(['zed', 'bob']);
+    expect(rows[0].querySelector('.pubws-lb-score')?.textContent).toBe('+310 cr');
+    expect(rows[1].querySelector('.pubws-lb-score')?.textContent).toBe('-40 cr');
+    // ada leads the workspace board but holds nothing on this pair.
+    expect(block.textContent).not.toContain('ada');
+    // Each row links to the holder's profile like any other row.
+    expect(rows[0].querySelector('a.pubws-lb-who')?.getAttribute('href')).toBe('/participants/zed');
+
+    // Back to the market: the workspace board again.
+    fireEvent.click(screen.getByRole('button', { name: /back to the market/i }));
+    await waitFor(() => expect(tradersBlock(container).querySelector('.pubws-h2')?.textContent).toBe('Top traders'));
+    expect(tradersBlock(container).textContent).toContain('ada');
+  });
+
+  test('nobody holding a position on the pair says "nobody yet" in one row', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.joinAs = 'trader';
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    vi.mocked(api.getLeaderboard).mockResolvedValue(leaders() as never);
+    vi.mocked(api.getMarketActivity).mockResolvedValue({ consensus: null, positions: [], trades: [] } as never);
+
+    const { container } = renderFloor();
+    fireEvent.click(await screen.findByTitle('rewrite the store page'));
+    await waitFor(() =>
+      expect(tradersBlock(container).querySelector('.pubws-h2')?.textContent).toBe('Traders on this proposal'),
+    );
+    await waitFor(() => {
+      const rows = tradersBlock(container).querySelectorAll('.pubws-lb-row');
+      expect(rows).toHaveLength(1);
+      expect(rows[0].textContent).toBe('nobody yet');
+    });
+    // The footer is still there, with its way out.
+    expect(container.querySelector('.pubws-standings .pubws-lb-more')?.getAttribute('href')).toBe('/leaderboard');
+  });
+});
