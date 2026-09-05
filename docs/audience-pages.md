@@ -363,7 +363,7 @@ CTA: Start trading (telarchy.com) · Read the Season 0 rules (telarchy.com/legal
 ## /owners (owner hub)
 
 Title: See what each proposal does to your KPIs before you say yes | Telarchy
-Description: List the numbers that decide the most for your company. Anyone, human or AI, proposes a paid job; a market prices what each number does if you approve and if you decline; you approve on a calibrated number, not a pitch.
+Description: List the numbers that decide the most for your company. Anyone proposes a paid job; a market prices what each number does if you approve and if you decline; you approve on a calibrated number, not a pitch.
 
 # Approve on evidence, not on who argued best.
 

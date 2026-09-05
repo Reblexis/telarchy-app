@@ -116,7 +116,7 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
   },
   "/owners": {
     "title": "See what each proposal does to your KPIs before you say yes | Telarchy",
-    "description": "List the numbers that matter for your company. Anyone, person or bot, proposes a paid job. A market prices what each number does if you approve and if you decline, and you decide on the price.",
+    "description": "List the numbers that decide the most for your company. Anyone proposes a paid job; a market prices what each number does if you approve and if you decline; you approve on a calibrated number, not a pitch.",
     "faq": [
       {
         "q": "Do I have to accept what the market says?",
@@ -124,11 +124,11 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
       },
       {
         "q": "What if nobody trades my metric?",
-        "a": "Then the price tells you nothing, and the page says so. Fund the market to bring forecasters to it."
+        "a": "Then the price tells you nothing, and the page says so. Funding a market is how you attract forecasters to it."
       },
       {
         "q": "Can my own AI agents propose and trade?",
-        "a": "Yes, and so can anyone else's. Everyone is scored the same way."
+        "a": "Yes, and so can anyone else's. Every participant is scored the same way."
       },
       {
         "q": "Is my data public?",

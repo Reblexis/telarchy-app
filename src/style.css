@@ -9857,13 +9857,19 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 
 /* ------------------------------------------------------------------ */
 /* /owners as a board (docs/audience-pages.md, "/owners is laid out as a
-   board"; owner ask 2026-09-04, from the floor canvas). The same copy as
-   the document pages, in the language of the home board: the H1 as the
-   hero over the glow, ONE pill, three hairline-ruled cells with their
-   drawings, "Setting up" beside the FAQ as two hairline lists, and the
-   actions as one closing row on hairlines. Widths and rules are the home
-   page's (.mkt, .mkt-board); the register of every label is the cell
-   caption's. */
+   board"; owner ask 2026-09-04, redrawn 2026-09-05: the picture a visitor
+   looks at is the product, zoomed on one moment). The same copy as the
+   document pages, in the language of the home board: the H1 as the hero
+   over the glow, ONE pill with the second action as quiet text and the
+   catch line under them; a hairline strip of three live figures; the
+   product moment (Telarchy's own proposals column, live) beside its
+   explanation; the meeting-and-floor pair as two cells of one row; one
+   drawing at full width; "What you keep" beside the FAQ as two hairline
+   lists; the actions as one closing row on hairlines. Widths and rules are
+   the home page's (.mkt, .mkt-board): 1px hairlines in var(--border-color),
+   cells on var(--bg-primary), mono small caps for labels, Fraunces 600 for
+   sentences. Both themes come from the tokens; under 900px everything
+   stacks to one column. */
 .pubws-main.own {
   position: relative;
   max-width: 1180px;
@@ -9878,31 +9884,17 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   position: relative;
   margin: 1.6rem 0 0;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
+  gap: 0.9rem 1.6rem;
 }
 .own-pill { margin-left: 0; }
 
-/* Three cells of one hairline-ruled row: the cell geometry of .mkt-board,
-   closed by a rule above and below. */
-.own-board {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
-  gap: 1px;
-  margin-top: clamp(2.2rem, 5vh, 3.25rem);
-  background: var(--border-color);
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-}
-.own-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 1.6rem 1.75rem 1.4rem;
-  background: var(--bg-primary);
-  min-width: 0;
-}
-.own-cell-label,
+/* The caption register the home cells use for what a number IS: mono small
+   caps, tertiary. The labels over every section, the strip's captions, the
+   catch line, the panel's column head. */
+.own-caption,
 .own-label {
   margin: 0;
   font-family: 'JetBrains Mono', monospace;
@@ -9912,6 +9904,18 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   text-transform: uppercase;
   color: var(--text-tertiary);
 }
+/* The objection answered beside the button: what it costs, what happens
+   next. Under the actions, never louder than them. */
+.own-catch {
+  position: relative;
+  margin: 0.9rem 0 0;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  text-wrap: pretty;
+}
+.own-hero .own-catch { text-align: center; }
+
+/* The sentence a section leads with, in the display face. */
 .own-cell-title {
   margin: 0;
   font-family: 'Fraunces', serif;
@@ -9922,11 +9926,6 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   letter-spacing: -0.01em;
   text-wrap: pretty;
 }
-.own-cell .viz {
-  margin: 0.6rem 0 0.2rem;
-  width: 100%;
-  height: auto;
-}
 .own-cell-rest {
   margin: 0;
   font-size: 0.85rem;
@@ -9934,19 +9933,195 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   color: var(--text-secondary);
 }
 
-/* "Setting up" beside the FAQ: two columns with a 60px gap, one column
-   under 900px, each a hairline list under a label. */
-.own-two {
+/* One hairline strip of three live figures: mono number over its caption,
+   the same cell geometry as the board. Ghosts hold the number's place. */
+.own-live {
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin-top: clamp(2.2rem, 5vh, 3.25rem);
+  background: var(--border-color);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.own-live-fig {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 1.1rem 1.75rem 1rem;
+  background: var(--bg-primary);
+  min-width: 0;
+}
+.own-live-n {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.6rem;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.own-live-fig .pubws-ghost { height: 1.6rem; }
+@media (max-width: 900px) {
+  .own-live { grid-template-columns: 1fr; }
+  .own-live-fig { padding: 0.9rem 1.25rem; }
+}
+
+/* The product moment: copy on the left, the panel on the right. Two
+   columns with the home page's 60px gap, one under 900px. */
+.own-show {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   gap: 60px;
+  align-items: start;
   margin-top: clamp(2.2rem, 5vh, 3.25rem);
 }
-@media (max-width: 900px) {
-  .own-two { grid-template-columns: 1fr; gap: 2.2rem; }
+.own-show-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
 }
-.own-col { min-width: 0; }
-.own-col .own-label { margin-bottom: 0.6rem; }
+.own-show-copy .own-steps { margin-top: 0.6rem; }
+@media (max-width: 900px) {
+  .own-show { grid-template-columns: 1fr; gap: 2rem; }
+}
+
+/* The panel: a framed crop of the floor's proposals column, live. A 1px
+   hairline, 12px radius, the page background; the rows are the floor's own
+   row (title, "by", impact in the direction colour, the credits behind it),
+   and the bottom fades to the page so it reads as a zoomed crop. The whole
+   panel is one link to the floor. */
+.own-shot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 1.1rem 1.4rem 0;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  max-height: 24rem;
+  transition: border-color 140ms ease;
+}
+.own-shot:hover { border-color: var(--text-tertiary); }
+.own-shot:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.own-shot-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.6rem;
+}
+.own-shot-rows,
+.own-shot .pubws-ghost-rows {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 2.5rem;
+}
+.own-shot-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--border-color);
+}
+.own-shot-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.own-shot-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  margin-right: 0.45em;
+}
+.own-shot-title {
+  font-size: 0.92rem;
+  font-weight: 500;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.own-shot-by {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+.own-shot-impact {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+.own-shot-pool {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+.own-shot-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5rem;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--bg-primary));
+}
+
+/* Two cells of one hairline-ruled row: the cell geometry of .mkt-board,
+   closed by a rule above and below. */
+.own-pair-section {
+  position: relative;
+  margin-top: clamp(2.2rem, 5vh, 3.25rem);
+}
+.own-pair-section > .own-label { margin-bottom: 0.8rem; }
+.own-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border-color);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.own-pair-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.6rem 1.75rem 1.4rem;
+  background: var(--bg-primary);
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .own-pair { grid-template-columns: 1fr; }
+}
+
+/* The drawing at the column's full width, under its label and sentence. */
+.own-viz {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: clamp(2.2rem, 5vh, 3.25rem);
+}
+.own-viz .viz {
+  margin: 0.8rem 0 0;
+  width: 100%;
+  height: auto;
+}
+
+/* Numbered hairline rows, the ballot's ordinal in the accent. */
 .own-steps {
   list-style: none;
   margin: 0;
@@ -9973,6 +10148,40 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   font-size: 0.875rem;
   line-height: 1.6;
   color: var(--text-secondary);
+}
+
+/* "What you keep" beside the FAQ: two columns with a 60px gap, one column
+   under 900px, each a hairline list under a label. */
+.own-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  margin-top: clamp(2.2rem, 5vh, 3.25rem);
+}
+@media (max-width: 900px) {
+  .own-two { grid-template-columns: 1fr; gap: 2.2rem; }
+}
+.own-col { min-width: 0; }
+.own-col .own-label { margin-bottom: 0.6rem; }
+.own-keeps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.own-keep {
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.own-keep:last-child { border-bottom: 1px solid var(--border-color); }
+.own-keep-lead {
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary);
 }
 .own-faq { margin: 0; }
 .own-qa {
@@ -10002,17 +10211,21 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 }
 
 /* The closing row: the first link a pill, the rest quiet accent links with
-   an arrow, on hairlines. */
+   an arrow, on hairlines, the catch line under. */
 .own-close {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.9rem 1.6rem;
   margin: clamp(2.2rem, 5vh, 3.25rem) 0 0;
   padding: 0.85rem 0;
   border-top: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
 }
+.own-close-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.9rem 1.6rem;
+  margin: 0;
+}
+.own-close .own-catch { margin-top: 0.7rem; }
 .own-quiet {
   display: inline-flex;
   align-items: center;
