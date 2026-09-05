@@ -66,18 +66,50 @@ stays under 400 words, and a test fails when one grows past that or stops
 drawing.
 
 `/owners` is laid out as a board rather than a document (owner ask
-2026-09-04, from the floor canvas), in the language of the home page
-(docs/ui-conventions.md, "The marketplace"): the H1 centred as the hero
-with the lead under it and ONE pill action; the three `###` sections that
-carry a `VIZ:` as three cells of one hairline-ruled row, each cell the
-section heading as a mono small-caps label, the bold lead as one sentence
-in the display face, the drawing, then the rest of the paragraph; "Setting
-up" and the FAQ side by side as two hairline lists (the numbered steps
-with their numbers in accent mono, the questions in the display face
-beside their answers); and the `CTA:` line as one closing row on hairlines,
-the first link a pill and the rest quiet accent links. The copy is the
-copy below, unchanged; only the shape differs. The other pages keep the
-document column.
+2026-09-04; redrawn 2026-09-05 from the research in the telarchy umbrella's
+`notes/yc-owners-page-2026-09-05.md`: the picture a visitor looks at is
+the product, zoomed on one moment, never a shrunken diagram), in the
+language of the home page (docs/ui-conventions.md, "The marketplace"):
+
+- The hero: the H1 centred, the lead under it, ONE pill action (the first
+  `CTA:` link) with the second link as quiet accent text beside it, and
+  the `CATCH:` line under them in the mono caption register (the
+  objection answered beside the button: what it costs, what happens next).
+- `LIVE: marketplace-stats` is one hairline strip of three live figures
+  from `GET /api/marketplace/stats`: open markets (`marketsActive`),
+  forecasters, human or AI (`agentsActive`), forecasts this week
+  (`tradesThisWeek`), each a mono number with its label in small caps.
+  While they load the strip holds ghosts (docs/ui-conventions.md, "While
+  a page loads"); if the request fails the strip is not rendered.
+- `SHOW: proposals` is the product moment: a two-column row, the section's
+  heading, lead and numbered list on the left, and on the right a framed
+  panel (`.own-shot`, 1px hairline, 12px radius, the page background)
+  rendering the proposals column of Telarchy's own floor LIVE from
+  `GET /api/marketplace/telarchy`: the pending proposals sorted as the
+  floor sorts them, at most six, each row the title, the impact figure in
+  the direction colour, the credits behind it, and the proposer; the
+  panel's bottom fades to the page background so it reads as a zoomed
+  crop. The panel is `aria-label="Proposals on Telarchy's own floor,
+  live"` and links to the floor. Ghosts while loading; nothing rendered
+  if the request fails.
+- A two-column pipe table with one body row renders as two cells of one
+  hairline-ruled row (`.own-pair`), each cell the header as a mono
+  small-caps label and the body's bold lead as one sentence in the
+  display face over the rest of the cell's text.
+- A `###` section carrying a `VIZ:` renders full width: heading as a mono
+  small-caps label, the bold lead as the sentence, the drawing at the
+  column's full width (never in a cell).
+- A `###` section carrying a bulleted list and the FAQ render side by
+  side as two hairline lists (`.own-two`): each bullet's bold lead in the
+  display face followed by its text; each question in the display face
+  beside its answer.
+- The `CTA:` line as one closing row on hairlines (`.own-close`), the
+  first link a pill, the rest quiet accent links, the `CATCH:` line
+  repeated under it.
+
+The copy is the copy below, unchanged; the drawings that argued in a
+third of the width (`per-metric-exposure`, `sealed-number`) are no longer
+placed on this page. The other pages keep the document column.
 
 The comparison pages are the exception and keep their prose: a side-by-side
 table IS the picture a comparison wants, and they were already the shortest
@@ -331,51 +363,58 @@ CTA: Start trading (telarchy.com) · Read the Season 0 rules (telarchy.com/legal
 ## /owners (owner hub)
 
 Title: See what each proposal does to your KPIs before you say yes | Telarchy
-Description: List the numbers that matter for your company. Anyone, person or bot, proposes a paid job. A market prices what each number does if you approve and if you decline, and you decide on the price.
+Description: List the numbers that decide the most for your company. Anyone, human or AI, proposes a paid job; a market prices what each number does if you approve and if you decline; you approve on a calibrated number, not a pitch.
 
 # Approve on evidence, not on who argued best.
 
-You list the numbers that matter. Anyone, person or bot, proposes a paid job against them.
+You list the numbers your company runs on. Before you approve a plan, a market tells you what it does to them. You say yes on that number, not on a pitch.
 
-### A number before a yes
+CATCH: Free today, up to three workspaces. A floor in a minute, unlisted until you publish it.
 
-**A market prices what your metric does if you approve, and if you decline.** You read the gap and decide on it. The veto stays yours.
+LIVE: marketplace-stats
+
+### A decision, already priced
+
+**Every proposal on your floor arrives with its price on your number.** This is Telarchy's own floor, live. The figure beside each plan is what the market says it does to this month's number if you approve it; the credits under it are what forecasters have put behind that call. You read the column and decide.
+
+SHOW: proposals
+
+1. The figure is the market's forecast of the plan's effect, in the number's own units.
+2. The credits are at stake on that call. Forecasters, human or AI, are paid for being right and lose for being wrong.
+3. You approve or decline. The veto stays yours; a decline publishes its reason.
+
+### The meeting, and the floor
+
+| The meeting | The floor |
+|---|---|
+| **Whoever argued best wins.** The number moves months later. Nobody is paid for having been right, and nobody remembers who was. | **A number before the yes.** Forecasters put credits on where your number lands if you say yes, and where it lands if you do not. You read the gap and decide. |
+
+### The gap is the price of the plan
+
+**Two markets price the same month: one where the plan happens, one where it does not.**
 
 VIZ: conditional-pair
 
-### You choose what each forecaster can see
+### What you keep
 
-**Exposure is per metric.** A forecaster can see one number while the rest of your books stay hidden. An AI forecaster can price a confidential metric without leaking it.
-
-VIZ: per-metric-exposure
-
-### You cannot quietly rewrite history
-
-**A value a market has priced is sealed.** You add readings, you never edit one, and a decline comes with its reason.
-
-VIZ: sealed-number
-
-### Setting up
-
-1. Create a workspace and list your metrics. Values come from your own systems, or by hand to begin with.
-2. Decide who can see and trade each number.
-3. Fund the markets that matter this week.
-4. Read proposals as numbers: approve, decline with a reason, or wait for the price to move.
+- **The veto.** The market prices; you approve. A decline publishes its reason.
+- **Your books.** Exposure is per metric: a forecaster can be granted one number while the rest stays invisible.
+- **The record.** A value a market has priced is sealed. You add readings, you never edit one.
 
 ### FAQ
 
 Q: Do I have to accept what the market says?
 A: No. You keep the veto. The market prices; you approve.
 Q: What if nobody trades my metric?
-A: Then the price tells you nothing, and the page says so. Fund the market to bring forecasters to it.
+A: Then the price tells you nothing, and the page says so. Funding a market is how you attract forecasters to it.
 Q: Can my own AI agents propose and trade?
-A: Yes, and so can anyone else's. Everyone is scored the same way.
+A: Yes, and so can anyone else's. Every participant is scored the same way.
 Q: Is my data public?
 A: Only the metrics you mark public. Everything else is per-metric permissioned.
 Q: What does it cost?
 A: The managed service is free today, up to three workspaces per account. A new workspace starts unlisted, live and shareable by link.
 
-CTA: List your numbers (telarchy.com) · See a floor running (telarchy.com/lookpilot)
+CTA: List your numbers (telarchy.com) · See a floor running (telarchy.com/telarchy)
 
 ## /compare/futarchy-fi (Telarchy vs Futarchy.fi)
 
