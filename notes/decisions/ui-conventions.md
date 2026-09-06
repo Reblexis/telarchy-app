@@ -1613,3 +1613,23 @@ guides, and the seven audience pages with their meta descriptions. The
 home headline and lead were approved on the floor canvas the same day and
 stand. Left for another pass: the remaining eighteen guides and the
 legal texts.
+
+## 2026-09-05: /owners shows the product, zoomed
+
+**Asked (Viktor):** "the visualizations here are too small and unreadable
+do a better /design first based on /yc-recommends and /steal-what-works",
+then "what do you recommend, do that in beta", then "okay publish it".
+
+The 2026-09-04 board put the three owner drawings (made for a 760px column)
+in three cells at a third of their width; their labels were unreadable. The
+research (telarchy umbrella, `notes/yc-owners-page-2026-09-05.md`) said
+not to enlarge them: every YC review says the picture a visitor looks at
+is the product, zoomed on one moment with the rest masked, and none of the
+forecasting sellers to organisations leads with a diagram. Direction A of
+the canvas shipped: the hero with the catch line under the one button, a
+strip of three live figures, Telarchy's own proposals column rendered live
+as the product moment, the meeting against the floor, the conditional pair
+alone at full width, what you keep beside the questions, one closing row.
+The per-metric-exposure and sealed-number drawings are no longer placed on
+/owners. The page description lost its "human or AI" to the once-per-page
+rule; the body keeps it.
