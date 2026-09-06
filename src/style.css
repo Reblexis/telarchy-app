@@ -5079,27 +5079,29 @@ textarea.jobform-line--desc {
 }
 
 @media (min-width: 1500px) {
-  /* Three tracks once there is room: the left column of this market's own
-     context, the market at up to 960px, the proposals rail. */
-  .pubws--center .pubws-main.pubws-main--floor {
+  /* Three tracks once there is room, and only in the plain market view
+     (the root carries pubws-main--context): the left column of this
+     market's own context, the market at up to 960px, the proposals rail.
+     A selected proposal keeps the two tracks, centred. */
+  .pubws--center .pubws-main.pubws-main--floor.pubws-main--context {
     grid-template-columns: 280px minmax(0, 960px) 320px;
     grid-template-rows: auto auto;
   }
-  .pubws-main--floor .pubws-center { grid-column: 2; grid-row: 1; }
-  .pubws-main--floor .pubws-know-col { grid-column: 2; grid-row: 2; }
+  .pubws-main--context .pubws-center { grid-column: 2; grid-row: 1; }
+  .pubws-main--context .pubws-know-col { grid-column: 2; grid-row: 2; }
   /* Both rails span both rows of the centre column and start below the
      top bar line, so their headings sit level with the market's. The left
      column is static: it carries the definition, which can run to
      paragraphs, and a sticky block taller than the viewport never scrolls
      its foot into view. */
-  .pubws-rail--left {
+  .pubws-main--context .pubws-rail--left {
     grid-column: 1;
     grid-row: 1 / span 2;
     margin-top: 2.2rem;
     border-right: 1px solid var(--border-color);
     padding-right: clamp(1rem, 2vw, 1.6rem);
   }
-  .pubws-rail--right { grid-column: 3; grid-row: 1 / span 2; }
+  .pubws-main--context .pubws-rail--right { grid-column: 3; grid-row: 1 / span 2; }
   /* The definition is on screen once, never twice: with the left column
      carrying "What is this market?" beside the market, the summary line
      under the question (the definition's first sentence) is hidden. It
