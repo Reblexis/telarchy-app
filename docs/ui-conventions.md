@@ -1619,13 +1619,16 @@ remains there is the checklist for a manager and the subject block.
 never a sentence** (owner rule 2026-09-03, and again 2026-09-06 when a
 prose count strip was cut). The market's facts row (traders, pool,
 volume, Inject) under the bet verbs is the only place the counts appear.
-The season keeps its own block anatomy, unchanged from the rail it came
-from: the small-caps "Season 0" label with the time left as its
-right-aligned mono meta, the prize line, and the "Enter the season" /
-"See the season" control, placed in the left column under the
-definition. No bordered box, no running text.
+The season is ADVERTISED, not narrated (Viktor, 2026-09-06: "season can
+be advertised better than with these weird words"): the block leads with
+the money as its hero line in the mono numeral style of the market's own
+numbers, "$1,000 in prizes", then one short line of the terms, "Season 0
+ends in 26 days. Free to enter.", then the "Enter the season" / "See the
+season" control. Three lines, nothing else: no trader or volume count in
+it, no "and", no running sentence. It sits in the left column under the
+definition.
 
-**The standings are footers, not rails.** Under the count strip, two
+**The standings are footers, not rails.** Under the facts row, two
 compact blocks side by side on desktop and stacked on a phone
 (`.pubws-standings`): "Top traders" and "Top contractors", THREE rows each
 (the rail showed five), the same `.pubws-lb-head` anatomy (tiny uppercase
@@ -1639,7 +1642,7 @@ proposal"; when nobody holds one it says "nobody yet" in one row rather
 than hiding. The contractors footer does not change, since the contractor
 score is workspace-wide by construction. Below 1120px the proposals board
 stacks under the market column before the know block, and the standings
-footers stay where they are, under the count strip: the action before the
+footers stay where they are, under the facts row: the action before the
 proof. The floor column keeps a small gap under the top bar on narrow
 viewports. The loading ghosts draw the same two columns.
 
@@ -1653,7 +1656,7 @@ platform-wide.
 **"Show full leaderboard" is a link to `/leaderboard`, never a board opened
 in place.** The link sits directly under the two footers it extends and is
 their only full-width control; the season's own control lives in the
-count strip above them.
+season block in the left column.
 
 **The blocks share one anatomy.** Every block, footer or rail, opens
 with a header row (`.pubws-lb-head`): the tiny uppercase label on the
