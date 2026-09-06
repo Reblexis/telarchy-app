@@ -20,6 +20,10 @@ export interface ContractorJobPair {
   targetDate: string;
   approvedConsensus: number | null;
   declinedConsensus: number | null;
+  /** The books of a difference pair (docs/guides/creating.md); when both are
+   *  present they are the impact, whatever level the branches read at. */
+  approvedImpact?: number | null;
+  declinedImpact?: number | null;
 }
 
 export interface ContractorJob {
@@ -83,8 +87,11 @@ export function jobImpact(job: ContractorJob, heroMetricId: string): number | nu
   let best: number | null = null;
   for (const pair of pairs) {
     if (pair.metricId !== heroMetricId) continue;
-    if (pair.approvedConsensus === null || pair.declinedConsensus === null) continue;
-    const delta = pair.approvedConsensus - pair.declinedConsensus;
+    let delta: number;
+    if (pair.approvedImpact != null && pair.declinedImpact != null) delta = pair.approvedImpact - pair.declinedImpact;
+    else if (pair.approvedConsensus !== null && pair.declinedConsensus !== null)
+      delta = pair.approvedConsensus - pair.declinedConsensus;
+    else continue;
     if (best === null || Math.abs(delta) > Math.abs(best)) best = delta;
   }
   return best;

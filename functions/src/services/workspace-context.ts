@@ -251,7 +251,9 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
             settled: horizonSettled(resolvesOn),
             approved,
             declined,
-            delta: approved !== null && declined !== null ? approved - declined : null,
+            // The books of a difference pair; the brief prints the delta the
+            // summary computed (impacts when it has them, levels otherwise).
+            delta: pair.delta,
             baseline: pair.baselineConsensus,
             approvedTrades: pair.approved?.tradeCount ?? null,
             declinedTrades: pair.declined?.tradeCount ?? null,

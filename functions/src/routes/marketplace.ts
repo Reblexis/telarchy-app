@@ -880,6 +880,26 @@ async function buildFloorPayload(ws: PublicWs) {
       declinedVolume: number | null;
       rangeMin: number;
       rangeMax: number;
+      // What the books price (docs/guides/creating.md, "A conditional pair
+      // prices the difference from the baseline"): on a difference pair
+      // approved/declined above are the LEVELS the branches read as
+      // (baseline plus impact) and these are the books; on a level pair the
+      // impacts are null. reference is the baseline recorded at the decision.
+      quotes: 'level' | 'difference';
+      approvedImpact: number | null;
+      declinedImpact: number | null;
+      baselineConsensus: number | null;
+      reference: number | null;
+    }
+    // The baseline's forecast per (metric, date), which a difference branch's
+    // level is read against.
+    const baselineByKey = new Map<string, number>();
+    for (const m of wsMarkets) {
+      if (m.proposalId || m.active === false || m.resolved) continue;
+      const key = `${m.metricId}|${m.targetDate}`;
+      if (baselineByKey.has(key)) continue;
+      const c = consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax);
+      if (c !== undefined) baselineByKey.set(key, c);
     }
     const byProposal = new Map<string, Map<string, PairGroup>>();
     // A voided pair is dead weight on a PENDING proposal: it was voided
@@ -918,7 +938,16 @@ async function buildFloorPayload(ws: PublicWs) {
         declinedVolume: null,
         rangeMin: m.rangeMin,
         rangeMax: m.rangeMax,
+        quotes: 'level',
+        approvedImpact: null,
+        declinedImpact: null,
+        baselineConsensus: baselineByKey.get(key) ?? null,
+        reference: null,
       };
+      if (m.quotes === 'difference') {
+        g.quotes = 'difference';
+        if (typeof m.referenceValue === 'number') g.reference = m.referenceValue;
+      }
       if (m.branch === 'approved') {
         g.approved = c;
         g.approvedMarketId = m.id;
@@ -958,10 +987,22 @@ async function buildFloorPayload(ws: PublicWs) {
       );
       const pairs = [...(byProposal.get(p.id)?.values() ?? [])]
         .map(g => {
+          if (g.quotes === 'difference') {
+            // The books are impacts; the level is the baseline plus the
+            // book, read against the recorded reference once decided.
+            const base = g.reference ?? g.baselineConsensus;
+            g.approvedImpact = g.approved;
+            g.declinedImpact = g.declined;
+            g.approved = g.approved !== null && base !== null ? base + g.approved : null;
+            g.declined = g.declined !== null && base !== null ? base + g.declined : null;
+          }
           const d = recorded.get(`${g.metricId}|${g.targetDate}`);
           if (d) {
             g.approved = d.approvedConsensus;
             g.declined = d.declinedConsensus;
+            if (d.approvedImpact !== undefined) g.approvedImpact = d.approvedImpact;
+            if (d.declinedImpact !== undefined) g.declinedImpact = d.declinedImpact;
+            if (typeof d.baselineConsensus === 'number' && g.reference === null) g.reference = d.baselineConsensus;
           }
           return g;
         })
@@ -974,7 +1015,12 @@ async function buildFloorPayload(ws: PublicWs) {
           resolvesOn: resolutionInstant(g.targetDate),
           approvedConsensus: g.approved,
           declinedConsensus: g.declined,
-          delta: g.approved != null && g.declined != null ? g.approved - g.declined : null,
+          delta:
+            g.approvedImpact != null && g.declinedImpact != null
+              ? g.approvedImpact - g.declinedImpact
+              : g.approved != null && g.declined != null
+                ? g.approved - g.declined
+                : null,
           approvedMarketId: g.approvedMarketId,
           declinedMarketId: g.declinedMarketId,
           approvedProbability: g.approvedProbability,
@@ -989,6 +1035,11 @@ async function buildFloorPayload(ws: PublicWs) {
           declinedVolume: g.declinedVolume,
           rangeMin: g.rangeMin,
           rangeMax: g.rangeMax,
+          quotes: g.quotes,
+          approvedImpact: g.approvedImpact,
+          declinedImpact: g.declinedImpact,
+          baselineConsensus: g.baselineConsensus,
+          reference: g.reference,
         }));
       // Every pair, largest impact first. This used to ship the three largest
       // of the matrix, which was all of them on a one-metric floor and half of
@@ -1073,6 +1124,7 @@ async function buildFloorPayload(ws: PublicWs) {
             rangeMin: markets.rangeMin,
             rangeMax: markets.rangeMax,
             voided: markets.voided,
+            quotes: markets.quotes,
           })
           .from(markets)
           .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.proposalId, liveJobIds)))
@@ -1091,7 +1143,11 @@ async function buildFloorPayload(ws: PublicWs) {
         approvedConsensus: null,
         declinedConsensus: null,
       };
-      if (m.branch === 'approved') pair.approvedConsensus = c;
+      // A difference book IS the impact; the level does not matter here.
+      if (m.quotes === 'difference') {
+        if (m.branch === 'approved') pair.approvedImpact = c;
+        else if (m.branch === 'declined') pair.declinedImpact = c;
+      } else if (m.branch === 'approved') pair.approvedConsensus = c;
       else if (m.branch === 'declined') pair.declinedConsensus = c;
       groups.set(key, pair);
       pairsByJob.set(m.proposalId, groups);

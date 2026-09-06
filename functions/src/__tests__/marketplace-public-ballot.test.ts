@@ -665,6 +665,111 @@ describe('public ballot disclosure gate', () => {
     expect(byId['prop-legacy']).toBeNull();
   });
 
+  /**
+   * A pair prices the difference from the baseline (docs/guides/creating.md,
+   * owner decision 2026-09-05): the payload ships the books as impacts, the
+   * level each branch reads as (baseline plus impact), the rule the books
+   * follow and the reference recorded at the decision.
+   */
+  describe('a difference pair on the floor', () => {
+    async function asDifferencePair() {
+      // A funded baseline at 50, and the pair rewritten as difference books:
+      // approved at +5 (b = 100 on [-50, 50], p = 0.55), declined at 0.
+      await db.insert(markets).values({
+        id: 'mkt-base',
+        workspaceId: WS,
+        metricId: 'metric-ballot',
+        metricName: 'Revenue',
+        targetDate: '2028',
+        rangeMin: 0,
+        rangeMax: 100,
+        shares: [0, 0],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: null,
+        branch: null,
+      });
+      await db
+        .update(markets)
+        .set({ quotes: 'difference', rangeMin: -50, rangeMax: 50, shares: [0, 100 * Math.log(0.55 / 0.45)] })
+        .where(eq(markets.id, 'mkt-appr'));
+      await db
+        .update(markets)
+        .set({ quotes: 'difference', rangeMin: -50, rangeMax: 50, shares: [0, 0] })
+        .where(eq(markets.id, 'mkt-decl'));
+    }
+
+    test('ships the impacts, the levels as baseline plus impact, the rule and the delta', async () => {
+      await seed(['read', 'trade']);
+      await asDifferencePair();
+      const res = await request(app).get(`/api/marketplace/${WS}`);
+      const pair = res.body.proposals[0].markets[0];
+      expect(pair.quotes).toBe('difference');
+      expect(pair.approvedImpact).toBeCloseTo(5, 6);
+      expect(pair.declinedImpact).toBeCloseTo(0, 6);
+      expect(pair.baselineConsensus).toBeCloseTo(50, 6);
+      expect(pair.approvedConsensus).toBeCloseTo(55, 6);
+      expect(pair.declinedConsensus).toBeCloseTo(50, 6);
+      expect(pair.delta).toBeCloseTo(5, 6);
+      expect(pair.reference).toBeNull();
+      expect(pair.rangeMin).toBe(-50);
+    });
+
+    test('a level pair says so and carries no impacts', async () => {
+      await seed(['read', 'trade']);
+      const res = await request(app).get(`/api/marketplace/${WS}`);
+      const pair = res.body.proposals[0].markets[0];
+      expect(pair.quotes).toBe('level');
+      expect(pair.approvedImpact).toBeNull();
+      expect(pair.declinedImpact).toBeNull();
+    });
+
+    test('the baseline moving moves the levels and not the impacts or the delta', async () => {
+      await seed(['read', 'trade']);
+      await asDifferencePair();
+      await db.update(markets).set({ shares: [0, 100 * Math.log(0.6 / 0.4)] }).where(eq(markets.id, 'mkt-base'));
+      const res = await request(app).get(`/api/marketplace/${WS}`);
+      const pair = res.body.proposals[0].markets[0];
+      expect(pair.approvedImpact).toBeCloseTo(5, 6);
+      expect(pair.approvedConsensus).toBeCloseTo(65, 6);
+      expect(pair.delta).toBeCloseTo(5, 6);
+    });
+
+    test('a decided difference pair reads its level against the recorded reference', async () => {
+      await seed(['read', 'trade']);
+      await asDifferencePair();
+      await db.update(markets).set({ referenceValue: 48 }).where(eq(markets.id, 'mkt-appr'));
+      await db.update(markets).set({ referenceValue: 48, voided: true, resolved: true, active: false }).where(eq(markets.id, 'mkt-decl'));
+      await db
+        .update(proposals)
+        .set({
+          status: 'approved',
+          decidedPricing: [
+            {
+              metricId: 'metric-ballot',
+              targetDate: '2028',
+              approvedConsensus: 53,
+              declinedConsensus: 48,
+              approvedImpact: 5,
+              declinedImpact: 0,
+              baselineConsensus: 48,
+            },
+          ],
+        })
+        .where(eq(proposals.id, 'prop-open'));
+      const res = await request(app).get(`/api/marketplace/${WS}`);
+      const row = res.body.proposals.find((p: { id: string }) => p.id === 'prop-open');
+      const pair = row.markets[0];
+      expect(pair.reference).toBe(48);
+      expect(pair.approvedConsensus).toBe(53);
+      expect(pair.approvedImpact).toBe(5);
+      expect(pair.delta).toBe(5);
+    });
+  });
+
   test('the pair carries the approved branch id and price shape', async () => {
     await seed(['read', 'trade']);
     const res = await request(app).get(`/api/marketplace/${WS}`);

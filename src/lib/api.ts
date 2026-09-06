@@ -664,6 +664,20 @@ export interface PublicProposalMarketPair {
   declinedVolume: number | null;
   rangeMin: number;
   rangeMax: number;
+  /** What the pair's books price (docs/guides/creating.md, "A conditional
+   *  pair prices the difference from the baseline"): "difference", where
+   *  approvedImpact/declinedImpact are the books, approvedConsensus and
+   *  declinedConsensus the levels they read as (baseline plus impact), and
+   *  rangeMin/rangeMax the difference range; or "level" on an older traded
+   *  pair, whose impacts are null. Absent on a payload from before the rule. */
+  quotes?: 'level' | 'difference';
+  approvedImpact?: number | null;
+  declinedImpact?: number | null;
+  /** The baseline's forecast the levels are read against. */
+  baselineConsensus?: number | null;
+  /** The baseline recorded at the decision, which a difference pair settles
+   *  against; null while pending. */
+  reference?: number | null;
 }
 
 export interface PublicProposal {

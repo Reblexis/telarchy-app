@@ -26,6 +26,18 @@ const names = new Map<string, string | null>([
 ]);
 
 describe('jobImpact', () => {
+  test('reads the impacts of a difference pair, so an unpriced baseline does not blank the score', () => {
+    const j = job({
+      pairs: [{ ...pair(null, null), approvedImpact: 5, declinedImpact: -1 }],
+    });
+    expect(jobImpact(j, HERO)).toBe(6);
+  });
+
+  test('a difference pair scores the same whichever level it reads at', () => {
+    const j = job({ pairs: [{ ...pair(65, 60), approvedImpact: 5, declinedImpact: 0 }] });
+    expect(jobImpact(j, HERO)).toBe(5);
+  });
+
   test('is the approved branch minus the declined branch', () => {
     expect(jobImpact(job({ pairs: [pair(80346.46, 77315.69)] }), HERO)).toBeCloseTo(3030.77, 2);
   });
