@@ -87,7 +87,7 @@ empty room. Three rules, in order of effect:
    what is coming.** The ghost (`.pubws-ghost`, `bg-tertiary`, 4px radius,
    one slow sweep of 5% light across it) is drawn at the real element's
    height and width in the real layout, so nothing moves when the content
-   lands. A floor draws its two columns as ghosts with the name from the
+   lands. A floor draws its three columns as ghosts with the name from the
    share hint painted at once in the headline slot; the home page draws
    the board; a page whose code is still downloading draws the top bar
    over an empty column (`lazy-page.tsx` renders `PageShell`, never
@@ -1834,7 +1834,7 @@ of a page, and repeating yourself further down is not extra clarity, see
 
 What survives is three cells on one hairline-ruled board (`.pubws-end`,
 revised 2026-09-04; before it, two sentences and a separate email row),
-full width under the two columns, each cell a mono small-caps label, one
+full width under the three columns, each cell a mono small-caps label, one
 sentence in the display face, and one control:
 
 1. "NEW HERE?": "Telarchy prices what a decision does to a number before
