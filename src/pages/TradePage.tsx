@@ -644,6 +644,16 @@ export function TradePage() {
   // A decided job is history: its markets are resolved, so trading is paused;
   // the page still shows the impact that was priced for it.
   const selectedJobDecided = !!selectedJob?.status && selectedJob.status !== 'pending';
+  // What the pair's books price (docs/guides/creating.md, "A conditional
+  // pair prices the difference from the baseline"): a difference pair's
+  // branch consensus is its impact and the level it reads as is the baseline
+  // plus that; an older level pair (docs/market-integrity.md I1c) is priced
+  // and read the way every pair used to be, and is marked as such.
+  const diffPair = !!selectedJob && !!pair && pair.quotes === 'difference';
+  const legacyLevelPair = !!selectedJob && !!pair && !selectedJobDecided && pair.quotes !== 'difference';
+  // The level a difference branch is read against: the reference once the
+  // owner has decided, else the baseline's forecast today.
+  const diffBase = pair ? (pair.reference ?? pair.baselineConsensus ?? hero?.consensus ?? null) : null;
   // The selected branch's market id/price shape, and the other branch's for
   // the chart's second line. A branch market can exist without any liquidity
   // (nobody funded the subsidy and the workspace owner could not cover the
@@ -661,10 +671,17 @@ export function TradePage() {
     const marketId = b === 'approved' ? pair.approvedMarketId : pair.declinedMarketId;
     if (!marketId) return null;
     const ownLiquidity = (b === 'approved' ? pair.approvedLiquidity : pair.declinedLiquidity) ?? 0;
+    const difference = pair.quotes === 'difference';
     return {
       marketId,
-      consensus: (b === 'approved' ? pair.approvedConsensus : pair.declinedConsensus) ?? hero?.consensus ?? null,
-      probability: (b === 'approved' ? pair.approvedProbability : pair.declinedProbability) ?? hero?.probability ?? 0.5,
+      // A difference book's number is its impact, and an unfunded one's
+      // honest prior is zero change, never the baseline's level.
+      consensus: difference
+        ? ((b === 'approved' ? pair.approvedImpact : pair.declinedImpact) ?? 0)
+        : ((b === 'approved' ? pair.approvedConsensus : pair.declinedConsensus) ?? hero?.consensus ?? null),
+      probability: difference
+        ? ((b === 'approved' ? pair.approvedProbability : pair.declinedProbability) ?? 0.5)
+        : ((b === 'approved' ? pair.approvedProbability : pair.declinedProbability) ?? hero?.probability ?? 0.5),
       liquidity: ownLiquidity > 0 ? ownLiquidity : (hero?.liquidity ?? 1),
       funded: ownLiquidity > 0,
       // The branch's own three facts, never borrowed from the baseline the way
@@ -898,12 +915,17 @@ export function TradePage() {
   // Impact is the delta on the floor's one horizon, which is also the only
   // market on screen, so `pair` already IS that pair. Kept as its own name
   // because the ballot passes the same target date and the two must agree.
-  const jobImpact =
-    pair && pair.approvedConsensus !== null && pair.declinedConsensus !== null
-      ? branch === 'declined'
-        ? pair.declinedConsensus - pair.approvedConsensus
-        : pair.approvedConsensus - pair.declinedConsensus
-      : null;
+  const jobImpact = (() => {
+    if (!pair) return null;
+    // A difference pair's delta is read from its books, whatever level they
+    // read at; a level pair's from the levels.
+    const [a, d] =
+      pair.quotes === 'difference' && pair.approvedImpact != null && pair.declinedImpact != null
+        ? [pair.approvedImpact, pair.declinedImpact]
+        : [pair.approvedConsensus, pair.declinedConsensus];
+    if (a === null || d === null || a === undefined || d === undefined) return null;
+    return branch === 'declined' ? d - a : a - d;
+  })();
   const impactUnit = unit;
   // The probability the position panel values a position at: the live one
   // when the socket has spoken for this market, else the payload's.
@@ -1358,7 +1380,8 @@ export function TradePage() {
               <h2
                 className={`pubws-instrument-ask${selectedJob ? ' pubws-instrument-ask--cond' : ''} pubws-enter pubws-enter--1${flashContract ? ' is-flashed' : ''}`}
               >
-                What will be {ws.name ? `${possessiveOf(ws.name)} ` : ''}
+                {diffPair ? 'How much will ' : 'What will be '}
+                {ws.name ? `${possessiveOf(ws.name)} ` : ''}
                 <CycleWord
                   what="Metric"
                   options={metricHeads.map(m => ({
@@ -1391,7 +1414,7 @@ export function TradePage() {
                 </span>
                 {selectedJob && (
                   <>
-                    {' if '}
+                    {diffPair ? ' change if ' : ' if '}
                     {selectedJob.proposedByName ?? 'someone'}{' '}
                     {/* The phrase IS the world: green "is paid" in the
                       approved branch, red "is not paid" in the declined one,
@@ -1573,6 +1596,12 @@ export function TradePage() {
                               >
                                 Decline
                               </button>
+                              {diffPair && diffBase !== null && (
+                                <p className="pubws-settle">
+                                  Deciding records the baseline's call right now, {unit}
+                                  {formatValue(diffBase)}, as the number this proposal's books settle against.
+                                </p>
+                              )}
                             </>
                           )}
                           {/* Take it off the board entirely: spam, a duplicate, a
@@ -1700,6 +1729,68 @@ export function TradePage() {
                     and how the call moved as a strip below. The N/A caveat is
                     the only settle note left under the stat row. */}
                   <div className="pubws-stats">
+                    {/* A difference pair (docs/ui-conventions.md, "A proposal
+                      keeps the clock line, and says which world it is"): the
+                      baseline the impact is read against, then the impact
+                      itself as the big number, with the level it reads as
+                      under it. */}
+                    {diffPair && pair ? (
+                      <>
+                        <div
+                          className="pubws-stat-block pubws-stat--now"
+                          aria-label={selectedJobDecided && pair.reference != null ? 'Baseline at the decision' : 'Baseline'}
+                        >
+                          <span className="pubws-stat-what">
+                            {selectedJobDecided && pair.reference != null
+                              ? 'baseline at the decision'
+                              : "baseline · the market's call today"}
+                          </span>
+                          <span className="pubws-price">
+                            {diffBase !== null ? `${unit}${formatValue(diffBase)}` : 'no baseline price'}
+                          </span>
+                          <span className="pubws-updated">
+                            {selectedJobDecided && pair.reference != null
+                              ? 'recorded when the owner ruled'
+                              : nowReading !== null
+                                ? `now reads ${unit}${formatValue(nowReading)}`
+                                : ''}
+                          </span>
+                        </div>
+                        <div className="pubws-stat-block pubws-stat--call" aria-label={`Impact if ${branch}`}>
+                          <span className="pubws-stat-what">
+                            impact if {branch}
+                            {settleNote && <>{' · '}</>}
+                            {settleNote}
+                          </span>
+                          <span className="pubws-stat-value">
+                            <span className="pubws-price">
+                              <AnimatedNumber value={consensus} render={v => formatDelta(v, unit)} />
+                            </span>
+                            {jobImpact === null ? (
+                              <span className="pubws-delta-chip">other world not yet priced</span>
+                            ) : (
+                              <span
+                                key={`imp-${Math.round(jobImpact)}`}
+                                className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}
+                              >
+                                {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)} vs if{' '}
+                                {branch === 'approved' ? 'declined' : 'approved'}
+                              </span>
+                            )}
+                          </span>
+                          <span className="pubws-updated">
+                            {diffBase !== null
+                              ? `reads ${unit}${formatValue(diffBase + consensus)} ${
+                                  selectedJobDecided && pair.reference != null
+                                    ? 'over the reference'
+                                    : "with today's baseline"
+                                }`
+                              : 'no baseline price to read a level against'}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
                     {/* The reading, ink: the value in force with its age,
                       because a reading is only trustworthy with its age on it. */}
                     <div className="pubws-stat-block pubws-stat--now">
@@ -1726,9 +1817,12 @@ export function TradePage() {
                       rides beside the value: the impact is the proposal's one
                       number, and silence read as a broken page. Bare arrow +
                       delta (owner ask 2026-08-28). */}
-                    <div className="pubws-stat-block pubws-stat--call">
+                    <div
+                      className="pubws-stat-block pubws-stat--call"
+                      aria-label={selectedJob ? `Market's call if ${branch}` : undefined}
+                    >
                       <span className="pubws-stat-what">
-                        market's call
+                        market's call{selectedJob ? ` if ${branch}` : ''}
                         {settleNote && <>{' · '}</>}
                         {settleNote}
                       </span>
@@ -1750,7 +1844,14 @@ export function TradePage() {
                             </span>
                           ))}
                       </span>
+                      {/* An older pair still priced as a level says so
+                        (docs/market-integrity.md I1c). */}
+                      {legacyLevelPair && (
+                        <span className="pubws-updated">priced as a level: it does not follow the baseline</span>
+                      )}
                     </div>
+                      </>
+                    )}
                   </div>
                   {/* The number chart, the hero: titled by the metric itself
                     (caption-shaped), its left cell empty because the stats
@@ -1803,7 +1904,11 @@ export function TradePage() {
                       unit={unit}
                       ranges={['1D', '1W']}
                       height={130}
-                      center={<span className="pubws-chart-cap">how the call moved</span>}
+                      center={
+                        <span className="pubws-chart-cap">
+                          {diffPair ? `impact if ${branch}, since it opened` : 'how the call moved'}
+                        </span>
+                      }
                       preview={chartPreview}
                       orders={chartOrders}
                       secondary={chartSecondary}
@@ -1972,6 +2077,8 @@ export function TradePage() {
                     consensus={consensus}
                     rangeMin={active.rangeMin}
                     rangeMax={active.rangeMax}
+                    difference={diffPair && pair ? { baseline: diffBase, reference: pair.reference ?? null } : null}
+                    legacyLevel={legacyLevelPair}
                     orders={trading && betModal === 'manage' ? orders : []}
                     onPlaceLimit={trading ? placeLimit : async () => {}}
                     onCancelLimit={trading ? cancelLimit : undefined}

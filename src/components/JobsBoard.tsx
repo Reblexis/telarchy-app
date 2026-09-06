@@ -353,6 +353,9 @@ export function JobsBoard({
                   <span>by {p.proposedByName}</span>
                 ))}
               {askUsd !== null && <span>${askUsd} to them</span>}
+              {/* An older pair still priced as a level (docs/market-integrity.md
+                  I1c) says so, so nobody reads it as following the baseline. */}
+              {isPending(p) && p.markets.some(m => m.quotes === 'level') && <span>priced as a level</span>}
               {p.status && p.status !== 'pending' && (
                 <span className={`pubws-ballot-status is-${p.status}`}>{p.status}</span>
               )}

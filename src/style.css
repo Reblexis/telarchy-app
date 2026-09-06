@@ -5495,6 +5495,22 @@ textarea.jobform-line--desc {
   justify-content: center;
   gap: 0.55rem;
 }
+.ticket-note {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+/* The level a difference bet reads as, beside the impact in the composer. */
+.compose-reads {
+  align-self: baseline;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
 .compose-fld {
   display: inline-flex;
   align-items: baseline;

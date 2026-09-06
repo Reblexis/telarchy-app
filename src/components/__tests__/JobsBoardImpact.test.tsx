@@ -118,3 +118,21 @@ describe('the impact a proposal prints', () => {
     expect(deltaAt(legacy as never, '2026-09', 'rev')).toBe(30);
   });
 });
+
+/** A pair from before difference pricing is marked on its row (docs/market-
+ *  integrity.md I1c), so nobody reads it as following the baseline. */
+describe('an older pair priced as a level', () => {
+  test('says so in the facts, and a difference pair does not', () => {
+    const levelJob = { ...job, id: 'job-2', title: '$250: Steam Deck build', markets: job.markets.map((m: object) => ({ ...m, quotes: 'level' })) };
+    const diffJob = { ...job, markets: job.markets.map((m: object) => ({ ...m, quotes: 'difference' })) };
+    render(
+      <MemoryRouter>
+        <JobsBoard {...base} proposals={[diffJob, levelJob] as never} horizonDate="2026-W35" horizonMetricId="rev" />
+      </MemoryRouter>,
+    );
+    expect(screen.getAllByText('priced as a level')).toHaveLength(1);
+    expect(screen.getByTitle('Steam Deck build').textContent).toContain('priced as a level');
+    expect(screen.getByTitle('rewrite the store page').textContent).not.toContain('priced as a level');
+  });
+});
+

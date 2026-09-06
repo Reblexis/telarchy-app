@@ -51,6 +51,50 @@ describe('progressive disclosure', () => {
   });
 });
 
+/**
+ * On a difference pair the ticket bets on the change from the baseline
+ * (docs/guides/creating.md): the facts say "New impact" with the level it
+ * reads as, the break-even is stated over the baseline, and one line says
+ * what the bet pays on.
+ */
+describe('a difference book', () => {
+  const difference = {
+    ...base,
+    consensus: 1_500,
+    rangeMin: -250_000,
+    rangeMax: 250_000,
+    difference: { baseline: 80_000, reference: null as number | null },
+  };
+
+  test('the facts bet on the change, and name the level it reads as', () => {
+    render(<TradeTicket {...difference} />);
+    fireEvent.click(screen.getByText('Higher'));
+    expect(screen.getByLabelText('New impact')).toBeTruthy();
+    expect(screen.queryByLabelText('New value')).toBeNull();
+    expect(screen.getByText(/reads \$/)).toBeTruthy();
+    expect(screen.getByText(/minus the baseline's call at the moment the owner decides/)).toBeTruthy();
+  });
+
+  test('the break-even is stated over the baseline', () => {
+    render(<TradeTicket {...difference} />);
+    fireEvent.click(screen.getByText('Higher'));
+    expect(screen.getByText(/over the baseline/)).toBeTruthy();
+  });
+
+  test('once decided, the note names the recorded reference', () => {
+    render(<TradeTicket {...difference} difference={{ baseline: 80_000, reference: 78_000 }} />);
+    fireEvent.click(screen.getByText('Higher'));
+    expect(screen.getByText(/minus \$78,000/)).toBeTruthy();
+  });
+
+  test('a level book keeps New value and says nothing about the baseline', () => {
+    render(<TradeTicket {...base} />);
+    fireEvent.click(screen.getByText('Higher'));
+    expect(screen.getByLabelText('New value')).toBeTruthy();
+    expect(screen.queryByText(/over the baseline/)).toBeNull();
+  });
+});
+
 describe('win facts', () => {
   test('a limit order breaks even exactly at its own price', () => {
     const { container } = render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);

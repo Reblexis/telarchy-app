@@ -77,6 +77,16 @@ interface Props {
   /** Managing an existing position (selling/cancelling), not opening a new
       bet: hide the Lower/Higher side pills, which are only for a new trade. */
   manageMode?: boolean;
+  /** Set when the book prices the difference from the baseline (a
+   *  proposal's branch, docs/guides/creating.md): consensus, rangeMin and
+   *  rangeMax are then in difference units, `baseline` is the level the
+   *  book is read against today and `reference` the baseline recorded at
+   *  the decision, once there is one. The facts bet on the change and name
+   *  the level it reads as. */
+  difference?: { baseline: number | null; reference: number | null } | null;
+  /** An older proposal branch that still prices the level itself
+   *  (docs/market-integrity.md I1c): the ticket says so. */
+  legacyLevel?: boolean;
 }
 
 /** A round metric-space step for the "each X beyond" line: ~1/50 of the
@@ -109,6 +119,11 @@ function fmtValue(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
+/** A difference, with its sign in front of the unit: +$1,500, -$500. */
+function fmtSigned(v: number, unit: string): string {
+  return `${v < 0 ? '-' : '+'}${unit}${fmtValue(Math.abs(v))}`;
+}
+
 export function TradeTicket({
   probability,
   liquidity,
@@ -129,6 +144,8 @@ export function TradeTicket({
   initialDir,
   onClose,
   manageMode = false,
+  difference = null,
+  legacyLevel = false,
 }: Props) {
   const [dir, setDir] = useState<'higher' | 'lower' | null>(initialDir ?? null);
   const [amount, setAmount] = useState('25');
@@ -660,10 +677,20 @@ export function TradeTicket({
                   <span className="compose-arrow" aria-hidden="true">
                     &rarr;
                   </span>
-                  <span className="compose-fld">
+                  <span className="compose-fld" aria-label={difference ? 'New impact' : 'New value'}>
+                    {difference && newValue !== null && newValue >= 0 ? '+' : ''}
                     {unit}
                     {targetInput}
                   </span>
+                  {/* On a difference book the number above is the change;
+                      the level it reads as with today's baseline sits
+                      beside it for anyone who thinks in the metric's unit. */}
+                  {difference && difference.baseline !== null && newValue !== null && (
+                    <span className="compose-reads">
+                      reads {unit}
+                      {fmtValue(difference.baseline + newValue)}
+                    </span>
+                  )}
                 </>
               )
             )}
@@ -719,11 +746,29 @@ export function TradeTicket({
             />
           )}
 
+          {/* What the bet pays on (docs/guides/creating.md, "A branch
+              settles at the actual value minus the reference"): a difference
+              book pays on the change, an older level book on the level. */}
+          {difference && (
+            <p className="ticket-note">
+              {winFacts ? `Wins above ${fmtSigned(winFacts.breakeven, unit)} over the baseline. ` : ''}
+              {difference.reference !== null
+                ? `Pays on the actual value minus ${unit}${fmtValue(difference.reference)}, the baseline's call when the owner decided.`
+                : "Pays on the actual value minus the baseline's call at the moment the owner decides. The baseline moving later does not touch this position."}
+            </p>
+          )}
+          {legacyLevel && (
+            <p className="ticket-note">
+              An older proposal: its books price the level itself and settle at the actual value. The baseline moving
+              does not move them.
+            </p>
+          )}
+
           {!hasPayoff && (
             <div className="ticket-facts">
               {!isLimit && newValue !== null && consensus !== null && span !== null && rangeMin !== undefined && (
                 <div className="ticket-fact">
-                  <span className="ticket-fact-k">New value</span>
+                  <span className="ticket-fact-k">{difference ? 'New impact' : 'New value'}</span>
                   <span className="ticket-fact-v">
                     {unit}
                     {targetInput}
