@@ -130,10 +130,16 @@ describe("the owner's entries in the caption menus", () => {
     expect(container.querySelector('[aria-label="Metrics"]')).toBeNull();
     expect(container.querySelector('[aria-label="Add a metric"]')).toBeNull();
     expect(container.textContent).not.toContain('+ metric');
+    // The manage entry appears once the profile read lands after the
+    // floor, so the menu is read again until it is there (a CI run read it
+    // one tick early, 2026-09-06).
     fireEvent.click(container.querySelector('.pubws-chip--metric') as HTMLElement);
-    const menu = container.querySelector('.pubws-chip-menu') as HTMLElement;
-    const options = within(menu).getAllByRole('option');
-    expect(options.map(o => o.textContent)).toEqual(['Signups', 'Revenue', 'Manage metrics']);
+    const options = await waitFor(() => {
+      const menu = container.querySelector('.pubws-chip-menu') as HTMLElement;
+      const opts = within(menu).getAllByRole('option');
+      expect(opts.map(o => o.textContent)).toEqual(['Signups', 'Revenue', 'Manage metrics']);
+      return opts;
+    });
     fireEvent.click(options[2]);
     await waitFor(() => expect(screen.getByRole('dialog', { name: /metrics/i })).toBeTruthy());
     expect(container.querySelector('.pubws-chip-menu')).toBeNull();
