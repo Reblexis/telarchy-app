@@ -716,13 +716,17 @@ describe('three columns, and the standings under the verbs', () => {
     // From 1500px: three tracks, the left column, the market at up to 960px, the rail at 320px.
     const wide = CSS.match(/@media \(min-width: 1500px\) \{([\s\S]*?)\n\}/);
     expect(wide).toBeTruthy();
-    const grid = wide![1].match(/\.pubws-main\.pubws-main--floor \{([^}]*)\}/);
+    // ... and ONLY in the plain market view (the root's context class): a
+    // selected proposal keeps the two tracks, centred, at every width, or the
+    // pair sits beside an empty 280px track (preview, 2026-09-06).
+    const grid = wide![1].match(/\.pubws-main--floor\.pubws-main--context \{([^}]*)\}/);
     expect(grid).toBeTruthy();
     expect(grid![1]).toMatch(/grid-template-columns:\s*\d+px minmax\(0, 960px\) 320px;/);
-    expect(wide![1]).toMatch(/\.pubws-rail--left \{[^}]*grid-column:\s*1/);
-    expect(wide![1]).toMatch(/\.pubws-main--floor \.pubws-center \{[^}]*grid-column:\s*2/);
-    expect(wide![1]).toMatch(/\.pubws-rail--right \{[^}]*grid-column:\s*3/);
-    expect(wide![1]).toMatch(/\.pubws-rail--left \{[^}]*border-right:\s*1px solid var\(--border-color\)/);
+    expect(wide![1]).not.toMatch(/\.pubws-main\.pubws-main--floor \{/);
+    expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-rail--left \{[^}]*grid-column:\s*1/);
+    expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-center \{[^}]*grid-column:\s*2/);
+    expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-rail--right \{[^}]*grid-column:\s*3/);
+    expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-rail--left \{[^}]*border-right:\s*1px solid var\(--border-color\)/);
     // From 1120px: two tracks, the market at up to 720px and the rail, the
     // left column's context stacked under the market (a 1280px laptop
     // squeezed the centre to 509px with three tracks, 2026-09-06).
