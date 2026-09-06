@@ -5028,41 +5028,55 @@ textarea.jobform-line--desc {
    page the moment the mark landed in the top bars. */
 
 /* The trading floor (docs/ui-conventions.md, "The rails, and the standings
-   under the verbs", revised 2026-09-05): TWO columns on a wide screen, the
-   market and the proposals rail, separated by a vertical hairline so the
-   two read as one instrument. No left rail: the standings are footers
-   under the verbs, inside the market column. The know block is its own
-   grid item under the market column, so that on a phone the DOM order
-   (market, proposals, know) is the stacking order: the action before the
-   explanation. The center column caps the chart instead of letting it
-   break out over the rail. */
-.pubws-main--floor { max-width: 1340px; }
+   under the verbs", revised 2026-09-06): THREE columns on a wide screen,
+   centred as a whole. A narrow left column about this market (the
+   definition, the season advert, the announcements), the market in a wide
+   centre column (up to 960px, so the chart and both numbers get the room),
+   and the proposals rail on the right, each rail separated from the
+   centre by a vertical hairline so the three read as one instrument. The
+   standings are footers under the facts row, inside the centre column.
+   The know block is its own grid item under the centre column, so that on
+   a phone the DOM order (market, left column, proposals, know) is the
+   stacking order: the action before the explanation. The centre column
+   caps the chart instead of letting it break out over a rail. */
+.pubws-main--floor { max-width: 1720px; }
 
 @media (min-width: 1120px) {
   .pubws--center .pubws-main.pubws-main--floor {
     display: grid;
-    grid-template-columns: minmax(0, 720px) 320px;
+    grid-template-columns: 280px minmax(0, 960px) 320px;
     grid-template-rows: auto auto;
-    gap: 0 clamp(1.6rem, 3vw, 3.2rem);
+    gap: 0 clamp(1.4rem, 2.6vw, 3rem);
     justify-content: center;
     align-content: center;
     align-items: start;
   }
-  .pubws-main--floor .pubws-center { min-width: 0; grid-column: 1; grid-row: 1; }
-  .pubws-main--floor .pubws-know-col { min-width: 0; grid-column: 1; grid-row: 2; }
+  .pubws-main--floor .pubws-center { min-width: 0; grid-column: 2; grid-row: 1; }
+  .pubws-main--floor .pubws-know-col { min-width: 0; grid-column: 2; grid-row: 2; }
   .pubws-main--floor .mchart {
     width: 100%;
     margin-left: 0;
     transform: none;
   }
-  /* The rail spans both rows of the market column and starts below the
-     top bar line, so its heading sits level with the market's. */
+  /* Both rails span both rows of the centre column and start below the
+     top bar line, so their headings sit level with the market's. */
   .pubws-rail {
-    position: sticky;
-    top: 1.4rem;
-    grid-column: 2;
+    min-width: 0;
     grid-row: 1 / span 2;
     margin-top: 2.2rem;
+  }
+  /* The left column is static: it carries the definition, which can run to
+     paragraphs, and a sticky block taller than the viewport never scrolls
+     its foot into view. */
+  .pubws-rail--left {
+    grid-column: 1;
+    border-right: 1px solid var(--border-color);
+    padding-right: clamp(1rem, 2vw, 1.6rem);
+  }
+  .pubws-rail--right {
+    position: sticky;
+    top: 1.4rem;
+    grid-column: 3;
     border-left: 1px solid var(--border-color);
     padding-left: clamp(1rem, 2vw, 1.6rem);
   }
@@ -5085,33 +5099,47 @@ textarea.jobform-line--desc {
   .pubws-ghost-standings { grid-template-columns: 1fr; }
 }
 
-/* The count strip: the traders and volume on this market, and the season
-   line with its control (docs/ui-conventions.md, "Social proof is real
-   use, not a ranking"). The sentence wraps on a phone, so it is set left. */
-.pubws-count {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 1.1rem;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  background: var(--bg-secondary);
+/* The left column's blocks: the definition's page-flow gap is not wanted
+   at the top of a column, and the column's own rhythm spaces the three
+   blocks. The definition reads a step smaller in a narrow column. */
+.pubws-rail--left { text-align: left; }
+.pubws-rail--left > * + * { margin-top: 1.9rem; }
+.pubws-rail--left > .pubws-know { margin-top: 1.9rem; }
+.pubws-rail--left > .pubws-know:first-child { margin-top: 0; }
+.pubws-rail--left .pubws-know-what { font-size: 0.88rem; line-height: 1.55; }
+
+/* The season advert (docs/ui-conventions.md, "The season is ADVERTISED,
+   not narrated"): three lines in the left column under the definition.
+   The money leads, in the mono numeral style of the market's own numbers
+   (.pubws-price); one short line of terms; the control. Set left: the
+   terms line wraps in a narrow column. */
+.pubws-season {
   text-align: left;
-  font-size: 0.8rem;
+}
+.pubws-season-hero {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.pubws-season-prize {
+  font-size: clamp(1.5rem, 2vw, 1.9rem);
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+.pubws-season-terms {
+  margin: 0.55rem 0 0;
+  font-size: 0.82rem;
   line-height: 1.5;
   color: var(--text-secondary);
 }
-.pubws-count-line { margin: 0; text-wrap: pretty; }
-.pubws-count-line b {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
-.pubws-count-go {
-  flex: none;
+.pubws-season-go {
+  display: inline-block;
+  margin-top: 0.85rem;
   white-space: nowrap;
   padding: 0.3rem 0.7rem;
   border: 1px solid var(--border-strong);
@@ -5122,11 +5150,8 @@ textarea.jobform-line--desc {
   text-decoration: none;
   transition: color 120ms ease, border-color 120ms ease;
 }
-.pubws-count-go:hover { color: var(--accent); border-color: var(--accent); }
-.pubws-count-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-@media (max-width: 480px) {
-  .pubws-count { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
-}
+.pubws-season-go:hover { color: var(--accent); border-color: var(--accent); }
+.pubws-season-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* The standings footers (docs/ui-conventions.md, "The standings are
    footers, not rails"): a hairline over the pair, the two blocks in a grid
@@ -9919,7 +9944,8 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .mu-done { font-size: 0.85rem; color: var(--text-tertiary); }
 
 /* The floor's ghost (docs/ui-conventions.md, "While a page loads"): the
-   same three columns as the loaded floor, so nothing moves when it lands. */
+   same three columns as the loaded floor, so nothing moves when it lands.
+   The left column's ghost is set left like the column it stands for. */
 .pubws-main--ghost .pubws-center { text-align: center; }
 .pubws-ghost-instrument { margin-top: 0.4rem; }
 

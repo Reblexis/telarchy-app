@@ -12,7 +12,7 @@ import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorChat } from '../components/FloorChat';
 import { FloorChecklist } from '../components/FloorChecklist';
 import { FloorComments } from '../components/FloorComments';
-import { CountStrip, FloorStandings, type ProposalTraderRow, useCurrentSeason } from '../components/FloorRails';
+import { FloorStandings, type ProposalTraderRow, SeasonAdvert, useCurrentSeason } from '../components/FloorRails';
 import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { Logo } from '../components/Logo';
@@ -184,7 +184,7 @@ export function TradePage() {
   const [liquidityWallet, setLiquidityWallet] = useState(0);
   const [ticketPreview, setTicketPreview] = useState<{ direction: 'higher' | 'lower'; newProb: number } | null>(null);
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
-  // The prize season, once per page: the count strip prints it and an
+  // The prize season, once per page: the season advert prints it and an
   // entrant's row in the standings carries its chip.
   const season = useCurrentSeason();
   // The traders on the selected proposal; null while they load.
@@ -1156,7 +1156,7 @@ export function TradePage() {
 
   if (!ws) {
     // While the floor loads (docs/ui-conventions.md, "While a page loads"):
-    // the two columns as ghosts in the real geometry, the name from the
+    // the three columns as ghosts in the real geometry, the name from the
     // share hint painted at once in the headline slot, never a dot.
     return (
       <div className="pubws pubws--center">
@@ -1190,9 +1190,8 @@ export function TradePage() {
                 <Ghost w="50%" h={58} r={10} />
                 <Ghost w="50%" h={58} r={10} />
               </div>
-              {/* The count strip and the two standings footers under the
-                  verbs, in the market column where they land. */}
-              <Ghost w="100%" h={44} r={10} style={{ marginTop: 22 }} />
+              {/* The two standings footers under the verbs, in the market
+                  column where they land. */}
               <div className="pubws-ghost-standings" aria-hidden="true">
                 <div>
                   <Ghost w={90} h={9} style={{ marginBottom: 8 }} />
@@ -1206,6 +1205,19 @@ export function TradePage() {
             </div>
             <LoadingStatus />
           </div>
+          {/* The left column: the definition, the season advert, the
+              announcements, in the geometry they land in. */}
+          <aside className="pubws-rail pubws-rail--left" aria-hidden="true">
+            <Ghost w={120} h={9} style={{ marginBottom: 12 }} />
+            <Ghost w="100%" h={12} style={{ marginBottom: 8 }} />
+            <Ghost w="92%" h={12} style={{ marginBottom: 8 }} />
+            <Ghost w="70%" h={12} style={{ marginBottom: 28 }} />
+            <Ghost w={150} h={26} style={{ marginBottom: 10 }} />
+            <Ghost w="80%" h={12} style={{ marginBottom: 10 }} />
+            <Ghost w={110} h={28} r={8} style={{ marginBottom: 28 }} />
+            <Ghost w={100} h={9} style={{ marginBottom: 12 }} />
+            <Ghost w="100%" h={12} />
+          </aside>
           <aside className="pubws-rail pubws-rail--right" aria-hidden="true">
             <Ghost w={90} h={9} style={{ marginBottom: 8 }} />
             <GhostRows n={7} />
@@ -2174,21 +2186,18 @@ export function TradePage() {
 
           {/* Under the verbs and the facts row (docs/ui-conventions.md,
             "The rails, and the standings under the verbs", revised
-            2026-09-05): ONE count strip the floor can stand behind, then
-            the two standings footers. Footers, not rails: nothing about
-            other people sits above the fold. */}
+            2026-09-06): the two standings footers. Footers, not rails:
+            nothing about other people sits above the fold, and the counts
+            appear in the facts row alone; there is no count strip. */}
           {hero && active && (
-            <>
-              <CountStrip traders={active.traders} volume={active.volume} season={season} signedIn={!!user} />
-              <FloorStandings
-                entries={leaders}
-                contractors={ws.topContractors}
-                unit={unit}
-                meId={myParticipantId}
-                season={season}
-                proposalTraders={selectedJob ? pairHolders : undefined}
-              />
-            </>
+            <FloorStandings
+              entries={leaders}
+              contractors={ws.topContractors}
+              unit={unit}
+              meId={myParticipantId}
+              season={season}
+              proposalTraders={selectedJob ? pairHolders : undefined}
+            />
           )}
 
           {/* Placement C (owner pick, 2026-08-31): a manager's two doors sit
@@ -2208,63 +2217,18 @@ export function TradePage() {
             />
           )}
         </div>
-        {/* The jobs board IS the right rail (owner direction 2026-08-10:
-            jobs where the activity log was). The log's information lives
-            on in the chart and the board itself; the rail slot goes to the
-            thing a visitor can act on. */}
-        {ws.proposals !== undefined && hero ? (
-          <aside className="pubws-rail pubws-rail--right" aria-label="Proposals">
-            <JobsBoard
-              proposals={ws.proposals}
-              unit={unit}
-              horizonDate={hero.targetDate}
-              horizonMetricId={hero.metricId}
-              selectedId={selectedJobId}
-              onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
-              viewerId={user?.id ?? null}
-              signedIn={!!user}
-              onRequireSignup={() => navigate(authPath('signup', location))}
-              workspaceName={ws.name}
-              proposalReward={ws.proposalReward}
-              metricNames={metricNames}
-              onPropose={async (title, description, askUsd) => {
-                // Anonymous proposers go through the signup door; the board
-                // itself is public information (Open workspace ballot).
-                // Payment details come from the account (owner decision
-                // 2026-08-10): the server reads and snapshots them.
-                if (!user) {
-                  navigate(authPath('signup', location));
-                  return;
-                }
-                // No proposer stake (owner call 2026-08-14): the workspace
-                // auto-funds the branch markets instead. Charging the empty
-                // side of the marketplace half a newcomer's starting balance
-                // to make an offer is spam defence aimed the wrong way; add
-                // it back if someone actually spams.
-                const created = (await api.createProposal({ title, description, askUsd })) as { id?: string };
-                reload();
-                // The new proposal is selected the moment it lands (docs/
-                // ui-conventions.md, "The proposer sees their own
-                // proposal"): unfunded, it sits last on the ballot, and
-                // its author otherwise reloads the floor and cannot find it.
-                if (created?.id) setSelectedJobId(created.id);
-              }}
-            />
-          </aside>
-        ) : (
-          <aside className="pubws-rail pubws-rail--right" aria-hidden="true" />
-        )}
-        {/* The know block is its own grid item under the market column
-            (docs/ui-conventions.md, "The rails, and the standings under the
-            verbs"): on a phone the proposals board stacks under the market
-            column BEFORE the know block, the action before the explanation,
-            and the grid puts it back under the market on a wide screen. */}
-        <div className="pubws-know-col">
-          {/* Two questions, two sections (owner direction 2026-08-10):
-            "What is this market?" is the metric's stored definition,
-            verbatim, because it is the settlement text. "What is
-            LookPilot?" is the product in its own words plus the primary
-            sources; know the company, trade it better.
+        {/* The left column (docs/ui-conventions.md, "The rails, and the
+            standings under the verbs", revised 2026-09-06): about THIS
+            market and never about other people. From the top: the
+            definition the market settles on, the season advert, the
+            announcements. Its own grid item, so that on a phone the DOM
+            order (market, this column, proposals, know) is the stacking
+            order. */}
+        <aside className="pubws-rail pubws-rail--left" aria-label="About this market">
+          {/* "What is this market?" is the metric's stored definition,
+            verbatim, because it is the settlement text (owner direction
+            2026-08-10). "What is LookPilot?", the product in its own words,
+            stays in the know block under the market.
 
             Editing the definition no longer voids the market (owner
             direction 2026-08-18, docs/market-integrity.md). Every edit is
@@ -2351,8 +2315,11 @@ export function TradePage() {
               metric's measured values, only the market. The history fields
               stay in the API. */}
           </section>
-          {/* The owner's disclosures, in the owner-prose zone between the
-            market's definition and the company blurb. A charter that promises
+          {/* The season, advertised rather than narrated: three lines, the
+            money first. */}
+          <SeasonAdvert season={season} signedIn={!!user} />
+          {/* The owner's disclosures, under the season advert in the column
+            about this market. A charter that promises
             to announce material news needs the announcements on the page the
             promise is read on, not in a thread under one market. Present only
             when the Public group grants read, the same disclosure rule as the
@@ -2365,6 +2332,61 @@ export function TradePage() {
               canManage={canManage}
             />
           )}
+        </aside>
+        {/* The jobs board IS the right rail (owner direction 2026-08-10:
+            jobs where the activity log was). The log's information lives
+            on in the chart and the board itself; the rail slot goes to the
+            thing a visitor can act on. */}
+        {ws.proposals !== undefined && hero ? (
+          <aside className="pubws-rail pubws-rail--right" aria-label="Proposals">
+            <JobsBoard
+              proposals={ws.proposals}
+              unit={unit}
+              horizonDate={hero.targetDate}
+              horizonMetricId={hero.metricId}
+              selectedId={selectedJobId}
+              onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
+              viewerId={user?.id ?? null}
+              signedIn={!!user}
+              onRequireSignup={() => navigate(authPath('signup', location))}
+              workspaceName={ws.name}
+              proposalReward={ws.proposalReward}
+              metricNames={metricNames}
+              onPropose={async (title, description, askUsd) => {
+                // Anonymous proposers go through the signup door; the board
+                // itself is public information (Open workspace ballot).
+                // Payment details come from the account (owner decision
+                // 2026-08-10): the server reads and snapshots them.
+                if (!user) {
+                  navigate(authPath('signup', location));
+                  return;
+                }
+                // No proposer stake (owner call 2026-08-14): the workspace
+                // auto-funds the branch markets instead. Charging the empty
+                // side of the marketplace half a newcomer's starting balance
+                // to make an offer is spam defence aimed the wrong way; add
+                // it back if someone actually spams.
+                const created = (await api.createProposal({ title, description, askUsd })) as { id?: string };
+                reload();
+                // The new proposal is selected the moment it lands (docs/
+                // ui-conventions.md, "The proposer sees their own
+                // proposal"): unfunded, it sits last on the ballot, and
+                // its author otherwise reloads the floor and cannot find it.
+                if (created?.id) setSelectedJobId(created.id);
+              }}
+            />
+          </aside>
+        ) : (
+          <aside className="pubws-rail pubws-rail--right" aria-hidden="true" />
+        )}
+        {/* What is left of the know block (docs/ui-conventions.md, "The
+            rails, and the standings under the verbs", revised 2026-09-06):
+            the checklist for a manager, then the subject block with the
+            doors. Its own grid item under the market column: on a phone the
+            left column and the proposals stack under the market BEFORE it,
+            the action before the explanation, and the grid puts it back
+            under the market on a wide screen. */}
+        <div className="pubws-know-col">
           {/* What the floor has not settled yet, for its owner and nobody
             else (docs/owner-on-the-floor.md). Below the market and the
             owner's own prose on purpose: the floor leads with its price, and
@@ -2393,7 +2415,7 @@ export function TradePage() {
         </div>
 
         {/* The page ends on a three-cell board (docs/ui-conventions.md, "The
-            page ends", revised 2026-09-04), full width under the two
+            page ends", revised 2026-09-04), full width under the three
             columns. The floor stops explaining itself (2026-09-01): the
             market above SHOWS what this is, and these cells say only the
             three things it cannot: what the mechanism is for (a link to the

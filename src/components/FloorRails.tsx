@@ -8,13 +8,13 @@ import { ManifoldLogo } from './ManifoldLogo';
 
 /**
  * The standings under the verbs (docs/ui-conventions.md, "The rails, and
- * the standings under the verbs"): the count strip the floor can stand
- * behind (traders and volume on this market, the season line with its
- * control) and, under it, two compact three-row footers, "Top traders" and
- * "Top contractors", with one "Show full leaderboard" link under the pair.
- * Footers, not rails: the first screen is the question, the number and the
- * bet verbs, and nothing about other people above the fold. With a
- * proposal selected the traders footer becomes "Traders on this proposal".
+ * the standings under the verbs"): two compact three-row footers under the
+ * facts row, "Top traders" and "Top contractors", with one "Show full
+ * leaderboard" link under the pair. Footers, not rails: the first screen is
+ * the question, the number and the bet verbs, and nothing about other
+ * people above the fold. With a proposal selected the traders footer
+ * becomes "Traders on this proposal". The season advert (below) lives in
+ * the left column, under the market's definition.
  */
 
 /** A row in the traders footer while a proposal is selected: an account
@@ -26,9 +26,9 @@ export interface ProposalTraderRow extends LeaderboardEntry {
   positionLine?: string;
 }
 
-/** The current prize season, fetched once per page: the count strip prints
- *  it and an entrant's row carries its prize chip, so one fetch keeps the
- *  two from disagreeing. */
+/** The current prize season, fetched once per page: the season advert
+ *  prints it and an entrant's row carries its prize chip, so one fetch
+ *  keeps the two from disagreeing. */
 export function useCurrentSeason(): PrizeSeason | null {
   const [season, setSeason] = useState<PrizeSeason | null>(null);
   useEffect(() => {
@@ -287,7 +287,8 @@ export function FloorStandings({
       </div>
       {/* The way out is a page, not an expander (owner direction 2026-08-24:
           "show full leaderboard should lead to a new page"). One link under
-          the pair it extends; the season's control is in the count strip. */}
+          the pair it extends; the season's control is in the season advert
+          in the left column. */}
       <Link className="pubws-lb-more" to="/leaderboard">
         Show full leaderboard
       </Link>
@@ -296,23 +297,16 @@ export function FloorStandings({
 }
 
 /**
- * The count strip: the one line of social proof the floor can stand behind.
- * The traders and volume on this market, and the season line with its
- * "Enter the season" / "See the season" control, which is where entering
- * the season lives now that the left rail is gone.
+ * The season advert (docs/ui-conventions.md, "The rails, and the standings
+ * under the verbs": "the season is ADVERTISED, not narrated"). Three lines
+ * in the left column, under the definition: the money as the hero, in the
+ * mono numeral style of the market's own numbers; one short line of the
+ * terms; then the "Enter the season" / "See the season" control. No trader
+ * or volume count in it, no "and", no running sentence: the facts row is
+ * the only place the counts appear.
  */
-export function CountStrip({
-  traders,
-  volume,
-  season,
-  signedIn,
-}: {
-  traders: number;
-  volume: number;
-  season: PrizeSeason | null;
-  signedIn: boolean;
-}) {
-  // Whether THIS visitor is already in. Without it the line kept saying
+export function SeasonAdvert({ season, signedIn }: { season: PrizeSeason | null; signedIn: boolean }) {
+  // Whether THIS visitor is already in. Without it the block kept saying
   // "Enter the season" to someone who had entered a minute earlier, which
   // reads as the entry not having worked (owner report 2026-08-19).
   const [entered, setEntered] = useState(false);
@@ -327,29 +321,31 @@ export function CountStrip({
       .catch(e => console.error('season entry fetch failed:', e));
   }, [signedIn]);
   const clock = useSeasonClock(season);
-  const cr = Math.round(volume).toLocaleString('en-US');
+  if (!season || !clock) return null;
+
+  // The terms, one line: the clock's whole days while there are any, its
+  // own two-unit phrase under a day (never "0 days"), and the phase's
+  // sentence once the countdown is over.
+  const span = clock.days >= 1 ? `${clock.days} ${clock.days === 1 ? 'day' : 'days'}` : clock.remaining;
+  const standing = entered ? 'You are in.' : clock.entryOpen ? 'Free to enter.' : '';
+  const terms =
+    clock.phase === 'during'
+      ? `${season.name} ends in ${span}. ${standing}`
+      : clock.phase === 'before'
+        ? `${season.name} starts in ${span}. ${standing}`
+        : clock.phase === 'ended'
+          ? `${season.name} has ended. Standings are being settled.`
+          : `${season.name} is over. Final standings.`;
+
   return (
-    <div className="pubws-count">
-      <p className="pubws-count-line">
-        <b>{traders}</b> {traders === 1 ? 'trader' : 'traders'} and <b>{cr} cr</b> traded on this market
-        {season && clock && (
-          <>
-            {' · '}
-            {season.name}: <b>${season.poolUsd.toLocaleString()}</b> in prizes
-            {clock.phase === 'during' || clock.phase === 'before' ? (
-              <>
-                , <b>{clock.remaining}</b> {clock.phase === 'during' ? 'left' : 'to the start'}
-              </>
-            ) : null}
-            {entered ? ', you are in' : clock.entryOpen ? ', free to enter' : ''}
-          </>
-        )}
+    <section className="pubws-season" aria-label="Season">
+      <p className="pubws-season-hero">
+        <span className="pubws-season-prize">${season.poolUsd.toLocaleString('en-US')}</span> in prizes
       </p>
-      {season && clock && (
-        <Link className="pubws-count-go" to="/season">
-          {entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season'}
-        </Link>
-      )}
-    </div>
+      <p className="pubws-season-terms">{terms.trim()}</p>
+      <Link className="pubws-season-go" to="/season">
+        {entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season'}
+      </Link>
+    </section>
   );
 }

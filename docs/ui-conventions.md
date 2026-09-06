@@ -1644,7 +1644,7 @@ score is workspace-wide by construction. Below 1120px the proposals board
 stacks under the market column before the know block, and the standings
 footers stay where they are, under the facts row: the action before the
 proof. The floor column keeps a small gap under the top bar on narrow
-viewports. The loading ghosts draw the same two columns.
+viewports. The loading ghosts draw the same three columns.
 
 **Both standings are scoped to THIS workspace.** The traders footer passes the
 workspace to `/api/leaderboard` (`?workspaceId=<id or slug>`), so a
