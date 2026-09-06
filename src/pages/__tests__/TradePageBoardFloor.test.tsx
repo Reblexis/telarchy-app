@@ -617,22 +617,29 @@ describe('three columns, and the standings under the verbs', () => {
     expect(ghost.querySelector('.pubws-ghost-count')).toBeNull();
   });
 
-  test('the stylesheet lays the floor out as three columns, centred, with no count strip left', () => {
+  test('the stylesheet lays the floor out as three columns only from 1500px, two from 1120px, with no count strip left', () => {
     expect(CSS).not.toMatch(/pubws-count/);
-    const wide = CSS.match(/@media \(min-width: 1120px\) \{([\s\S]*?)\n\}/);
+    // From 1500px: three tracks, the left column, the market at up to 960px, the rail at 320px.
+    const wide = CSS.match(/@media \(min-width: 1500px\) \{([\s\S]*?)\n\}/);
     expect(wide).toBeTruthy();
     const grid = wide![1].match(/\.pubws-main\.pubws-main--floor \{([^}]*)\}/);
     expect(grid).toBeTruthy();
-    // Three tracks: the left column, the market at up to 960px, the rail at 320px.
     expect(grid![1]).toMatch(/grid-template-columns:\s*\d+px minmax\(0, 960px\) 320px;/);
-    expect(grid![1]).toMatch(/justify-content:\s*center/);
-    // The left column is column 1, the centre column 2, the rail column 3.
     expect(wide![1]).toMatch(/\.pubws-rail--left \{[^}]*grid-column:\s*1/);
     expect(wide![1]).toMatch(/\.pubws-main--floor \.pubws-center \{[^}]*grid-column:\s*2/);
     expect(wide![1]).toMatch(/\.pubws-rail--right \{[^}]*grid-column:\s*3/);
-    // Hairlines between each rail and the centre.
     expect(wide![1]).toMatch(/\.pubws-rail--left \{[^}]*border-right:\s*1px solid var\(--border-color\)/);
-    expect(wide![1]).toMatch(/\.pubws-rail--right \{[^}]*border-left:\s*1px solid var\(--border-color\)/);
+    // From 1120px: two tracks, the market at up to 720px and the rail, the
+    // left column's context stacked under the market (a 1280px laptop
+    // squeezed the centre to 509px with three tracks, 2026-09-06).
+    const mid = CSS.match(/@media \(min-width: 1120px\) \{([\s\S]*?)\n\}/);
+    expect(mid).toBeTruthy();
+    const midGrid = mid![1].match(/\.pubws-main\.pubws-main--floor \{([^}]*)\}/);
+    expect(midGrid![1]).toMatch(/grid-template-columns:\s*minmax\(0, 720px\) 320px;/);
+    expect(midGrid![1]).toMatch(/justify-content:\s*center/);
+    expect(mid![1]).toMatch(/\.pubws-rail--left \{[^}]*grid-column:\s*1;\s*grid-row:\s*2/);
+    expect(mid![1]).toMatch(/\.pubws-main--floor \.pubws-know-col \{[^}]*grid-row:\s*3/);
+    expect(mid![1]).toMatch(/\.pubws-rail--right \{[^}]*border-left:\s*1px solid var\(--border-color\)/);
     // The standings: side by side on desktop, stacked on a phone.
     expect(wide![1]).toMatch(/\.pubws-standings-pair \{[^}]*grid-template-columns:\s*1fr 1fr/);
     const narrow = CSS.match(/@media \(max-width: 1119\.98px\) \{([\s\S]*?)\n\}/);

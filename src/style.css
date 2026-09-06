@@ -5042,47 +5042,64 @@ textarea.jobform-line--desc {
 .pubws-main--floor { max-width: 1720px; }
 
 @media (min-width: 1120px) {
+  /* Two tracks from a laptop up: the market at up to 720px and the
+     proposals rail. The left column's context (definition, season block,
+     announcements) stacks under the market here; three tracks squeezed the
+     centre to 509px on a 1280px screen (2026-09-06). */
   .pubws--center .pubws-main.pubws-main--floor {
     display: grid;
-    grid-template-columns: 280px minmax(0, 960px) 320px;
-    grid-template-rows: auto auto;
+    grid-template-columns: minmax(0, 720px) 320px;
+    grid-template-rows: auto auto auto;
     gap: 0 clamp(1.4rem, 2.6vw, 3rem);
     justify-content: center;
     align-content: center;
     align-items: start;
   }
-  .pubws-main--floor .pubws-center { min-width: 0; grid-column: 2; grid-row: 1; }
-  .pubws-main--floor .pubws-know-col { min-width: 0; grid-column: 2; grid-row: 2; }
+  .pubws-main--floor .pubws-center { min-width: 0; grid-column: 1; grid-row: 1; }
+  .pubws-rail--left { min-width: 0; grid-column: 1; grid-row: 2; margin-top: 2.4rem; }
+  .pubws-main--floor .pubws-know-col { min-width: 0; grid-column: 1; grid-row: 3; }
   .pubws-main--floor .mchart {
     width: 100%;
     margin-left: 0;
     transform: none;
   }
-  /* Both rails span both rows of the centre column and start below the
-     top bar line, so their headings sit level with the market's. */
-  .pubws-rail {
-    min-width: 0;
-    grid-row: 1 / span 2;
-    margin-top: 2.2rem;
-  }
-  /* The left column is static: it carries the definition, which can run to
-     paragraphs, and a sticky block taller than the viewport never scrolls
-     its foot into view. */
-  .pubws-rail--left {
-    grid-column: 1;
-    border-right: 1px solid var(--border-color);
-    padding-right: clamp(1rem, 2vw, 1.6rem);
-  }
   .pubws-rail--right {
     position: sticky;
     top: 1.4rem;
-    grid-column: 3;
+    min-width: 0;
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    margin-top: 2.2rem;
     border-left: 1px solid var(--border-color);
     padding-left: clamp(1rem, 2vw, 1.6rem);
   }
   /* Two footers side by side on a wide screen. */
   .pubws-standings-pair { grid-template-columns: 1fr 1fr; column-gap: 2rem; }
   .pubws-ghost-standings { grid-template-columns: 1fr 1fr; }
+}
+
+@media (min-width: 1500px) {
+  /* Three tracks once there is room: the left column of this market's own
+     context, the market at up to 960px, the proposals rail. */
+  .pubws--center .pubws-main.pubws-main--floor {
+    grid-template-columns: 280px minmax(0, 960px) 320px;
+    grid-template-rows: auto auto;
+  }
+  .pubws-main--floor .pubws-center { grid-column: 2; grid-row: 1; }
+  .pubws-main--floor .pubws-know-col { grid-column: 2; grid-row: 2; }
+  /* Both rails span both rows of the centre column and start below the
+     top bar line, so their headings sit level with the market's. The left
+     column is static: it carries the definition, which can run to
+     paragraphs, and a sticky block taller than the viewport never scrolls
+     its foot into view. */
+  .pubws-rail--left {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    margin-top: 2.2rem;
+    border-right: 1px solid var(--border-color);
+    padding-right: clamp(1rem, 2vw, 1.6rem);
+  }
+  .pubws-rail--right { grid-column: 3; grid-row: 1 / span 2; }
 }
 
 @media (max-width: 1119.98px) {

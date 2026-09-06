@@ -1596,7 +1596,7 @@ answer to "which one?") and the scroll stops gliding.
 ### The rails, and the standings under the verbs
 
 The board is signed-in only; the anonymous poster stays clean. On
-viewports >=1120px the page is a THREE-column floor (revised 2026-09-06,
+viewports >=1500px the page is a THREE-column floor (revised 2026-09-06,
 Viktor, after the two-column cut left a dead band on a wide screen; design
 record in the telarchy umbrella,
 `notes/floor-boards-yc-and-venues-2026-09-04.md`): a narrow left column of
@@ -1604,7 +1604,11 @@ this market's own context, the market in a wide centre column (up to
 960px, so the chart and both numbers get the room and the question line
 sits on one row), and the proposals board as the right rail, each rail
 separated from the centre by a vertical 1px `var(--border-color)`
-hairline so the three read as one instrument. **The left column is about
+hairline so the three read as one instrument. Between 1120px and 1500px
+there is no room for three: the floor is two columns, the market at up to
+720px beside the proposals rail, and the left column's context stacks
+under the market (a 1280px laptop squeezed the centre to 509px with three
+tracks). **The left column is about
 THIS market and never about other people**: from the top, "What is this
 market?" (the definition the market settles on, with its Edit for a
 manager), the season block, and the announcements. Nothing on the first
