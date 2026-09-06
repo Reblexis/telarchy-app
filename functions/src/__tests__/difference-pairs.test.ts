@@ -276,7 +276,10 @@ describe('a conditional pair prices the difference from the baseline', () => {
       .update(markets)
       .set({ shares: [0, before.approved.liquidity * Math.log(0.55 / 0.45)] })
       .where(eq(markets.id, before.approved.id));
-    await db.update(markets).set({ shares: [0, diffFor(0.7)] }).where(eq(markets.id, BASELINE));
+    await db
+      .update(markets)
+      .set({ shares: [0, diffFor(0.7)] })
+      .where(eq(markets.id, BASELINE));
     const after = await pairRows();
     expect(book(after.approved)).toBeCloseTo(5, 6);
     expect(book(after.declined)).toBeCloseTo(0, 6);

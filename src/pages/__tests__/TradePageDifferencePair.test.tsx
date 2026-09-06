@@ -152,8 +152,7 @@ async function withPayload(pairOverrides: Record<string, unknown>, proposalOverr
   vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.workspace(pairOverrides, proposalOverrides) as never);
 }
 
-const question = () =>
-  document.querySelector('.pubws-instrument-ask')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+const question = () => document.querySelector('.pubws-instrument-ask')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
 beforeEach(() => {
   globalThis.IntersectionObserver = class {
@@ -201,7 +200,7 @@ describe('a difference pair on the floor', () => {
     expect(cell.textContent).toContain('$80,000');
   });
 
-  test('switching worlds shows that world\'s impact', async () => {
+  test("switching worlds shows that world's impact", async () => {
     renderFloor();
     await selectContract();
     await screen.findByLabelText('Impact if approved');
@@ -229,7 +228,14 @@ describe('a difference pair on the floor', () => {
 
   test('a decided pair shows the recorded reference and its impact against it', async () => {
     await withPayload(
-      { reference: 78_000, approvedConsensus: 79_300, declinedConsensus: 78_000, approvedImpact: 1_300, declinedImpact: 0, delta: 1_300 },
+      {
+        reference: 78_000,
+        approvedConsensus: 79_300,
+        declinedConsensus: 78_000,
+        approvedImpact: 1_300,
+        declinedImpact: 0,
+        delta: 1_300,
+      },
       { status: 'approved', resolvedAt: '2026-09-06T14:02:00.000Z' },
     );
     renderFloor();

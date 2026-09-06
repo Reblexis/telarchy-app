@@ -2713,6 +2713,8 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 /* How the call moved: the market's price history as a strip under the
    number chart. */
 .pubws-callhist { margin-top: 1.4rem; }
+/* As the hero on a difference pair it sits where the number chart does. */
+.pubws-callhist--hero { margin-top: 0.6rem; }
 
 /* The summary line under the question: the definition's first sentence,
    in the register of the pitch, never louder than the question. */

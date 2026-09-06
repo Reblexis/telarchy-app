@@ -730,7 +730,10 @@ describe('public ballot disclosure gate', () => {
     test('the baseline moving moves the levels and not the impacts or the delta', async () => {
       await seed(['read', 'trade']);
       await asDifferencePair();
-      await db.update(markets).set({ shares: [0, 100 * Math.log(0.6 / 0.4)] }).where(eq(markets.id, 'mkt-base'));
+      await db
+        .update(markets)
+        .set({ shares: [0, 100 * Math.log(0.6 / 0.4)] })
+        .where(eq(markets.id, 'mkt-base'));
       const res = await request(app).get(`/api/marketplace/${WS}`);
       const pair = res.body.proposals[0].markets[0];
       expect(pair.approvedImpact).toBeCloseTo(5, 6);
@@ -742,7 +745,10 @@ describe('public ballot disclosure gate', () => {
       await seed(['read', 'trade']);
       await asDifferencePair();
       await db.update(markets).set({ referenceValue: 48 }).where(eq(markets.id, 'mkt-appr'));
-      await db.update(markets).set({ referenceValue: 48, voided: true, resolved: true, active: false }).where(eq(markets.id, 'mkt-decl'));
+      await db
+        .update(markets)
+        .set({ referenceValue: 48, voided: true, resolved: true, active: false })
+        .where(eq(markets.id, 'mkt-decl'));
       await db
         .update(proposals)
         .set({

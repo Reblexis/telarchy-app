@@ -1738,7 +1738,9 @@ export function TradePage() {
                       <>
                         <div
                           className="pubws-stat-block pubws-stat--now"
-                          aria-label={selectedJobDecided && pair.reference != null ? 'Baseline at the decision' : 'Baseline'}
+                          aria-label={
+                            selectedJobDecided && pair.reference != null ? 'Baseline at the decision' : 'Baseline'
+                          }
                         >
                           <span className="pubws-stat-what">
                             {selectedJobDecided && pair.reference != null
@@ -1791,68 +1793,94 @@ export function TradePage() {
                       </>
                     ) : (
                       <>
-                    {/* The reading, ink: the value in force with its age,
+                        {/* The reading, ink: the value in force with its age,
                       because a reading is only trustworthy with its age on it. */}
-                    <div className="pubws-stat-block pubws-stat--now">
-                      {/* The caption line FIRST (revised 2026-09-04, the home
+                        <div className="pubws-stat-block pubws-stat--now">
+                          {/* The caption line FIRST (revised 2026-09-04, the home
                         board's cell shape): what the number is and its age,
                         then the value under it. */}
-                      <span className="pubws-stat-what">
-                        now
-                        {lastReading?.at && (
-                          <>
-                            {' · '}
-                            <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
-                              read {timeAgoOf(lastReading.at, now) ?? ''}
-                            </span>
-                          </>
-                        )}
-                      </span>
-                      <span className="pubws-price">
-                        {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
-                      </span>
-                    </div>
-                    {/* The market's call, amber: the consensus, its name, the
+                          <span className="pubws-stat-what">
+                            now
+                            {lastReading?.at && (
+                              <>
+                                {' · '}
+                                <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
+                                  read {timeAgoOf(lastReading.at, now) ?? ''}
+                                </span>
+                              </>
+                            )}
+                          </span>
+                          <span className="pubws-price">
+                            {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
+                          </span>
+                        </div>
+                        {/* The market's call, amber: the consensus, its name, the
                       day it is for and the countdown. A proposal's impact chip
                       rides beside the value: the impact is the proposal's one
                       number, and silence read as a broken page. Bare arrow +
                       delta (owner ask 2026-08-28). */}
-                    <div
-                      className="pubws-stat-block pubws-stat--call"
-                      aria-label={selectedJob ? `Market's call if ${branch}` : undefined}
-                    >
-                      <span className="pubws-stat-what">
-                        market's call{selectedJob ? ` if ${branch}` : ''}
-                        {settleNote && <>{' · '}</>}
-                        {settleNote}
-                      </span>
-                      <span className="pubws-stat-value">
-                        <span className="pubws-price">
-                          <AnimatedNumber value={consensus} render={v => `${unit}${formatValue(v)}`} />
-                        </span>
-                        {selectedJob &&
-                          (jobImpact === null ? (
-                            <span className="pubws-delta-chip">not yet priced</span>
-                          ) : jobImpact === 0 ? (
-                            <span className="pubws-delta-chip">±{impactUnit}0</span>
-                          ) : (
-                            <span
-                              key={`imp-${Math.round(jobImpact)}`}
-                              className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}
-                            >
-                              {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)}
+                        <div
+                          className="pubws-stat-block pubws-stat--call"
+                          aria-label={selectedJob ? `Market's call if ${branch}` : undefined}
+                        >
+                          <span className="pubws-stat-what">
+                            market's call{selectedJob ? ` if ${branch}` : ''}
+                            {settleNote && <>{' · '}</>}
+                            {settleNote}
+                          </span>
+                          <span className="pubws-stat-value">
+                            <span className="pubws-price">
+                              <AnimatedNumber value={consensus} render={v => `${unit}${formatValue(v)}`} />
                             </span>
-                          ))}
-                      </span>
-                      {/* An older pair still priced as a level says so
+                            {selectedJob &&
+                              (jobImpact === null ? (
+                                <span className="pubws-delta-chip">not yet priced</span>
+                              ) : jobImpact === 0 ? (
+                                <span className="pubws-delta-chip">±{impactUnit}0</span>
+                              ) : (
+                                <span
+                                  key={`imp-${Math.round(jobImpact)}`}
+                                  className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}
+                                >
+                                  {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)}
+                                </span>
+                              ))}
+                          </span>
+                          {/* An older pair still priced as a level says so
                         (docs/market-integrity.md I1c). */}
-                      {legacyLevelPair && (
-                        <span className="pubws-updated">priced as a level: it does not follow the baseline</span>
-                      )}
-                    </div>
+                          {legacyLevelPair && (
+                            <span className="pubws-updated">priced as a level: it does not follow the baseline</span>
+                          )}
+                        </div>
                       </>
                     )}
                   </div>
+                  {/* On a difference pair the branch's own history IS the
+                    hero: the impact since it opened, centred on zero, with
+                    the other world as the quiet second line; the metric's
+                    chart with the pair's level dots drops to the strip
+                    (docs/ui-conventions.md, "A proposal keeps the clock
+                    line, and says which world it is"). */}
+                  {diffPair && (
+                    <div className="pubws-callhist pubws-callhist--hero">
+                      <MarketChart
+                        key={active.marketId}
+                        series={chartSeries}
+                        consensus={consensus}
+                        unit={unit}
+                        ranges={['1D', '1W']}
+                        height={diffPair ? 220 : 130}
+                        center={
+                          <span className="pubws-chart-cap">
+                            {diffPair ? `impact if ${branch}, since it opened` : 'how the call moved'}
+                          </span>
+                        }
+                        preview={chartPreview}
+                        orders={chartOrders}
+                        secondary={chartSecondary}
+                      />
+                    </div>
+                  )}
                   {/* The number chart, the hero: titled by the metric itself
                     (caption-shaped), its left cell empty because the stats
                     are above, a legend naming the marks below. */}
@@ -1896,24 +1924,26 @@ export function TradePage() {
                   {/* How the call moved: the market's own price history as a
                     strip at half height. The "how did we get here", not the
                     hero. The composed bet's ghost draws here too. */}
-                  <div className="pubws-callhist">
-                    <MarketChart
-                      key={active.marketId}
-                      series={chartSeries}
-                      consensus={consensus}
-                      unit={unit}
-                      ranges={['1D', '1W']}
-                      height={130}
-                      center={
-                        <span className="pubws-chart-cap">
-                          {diffPair ? `impact if ${branch}, since it opened` : 'how the call moved'}
-                        </span>
-                      }
-                      preview={chartPreview}
-                      orders={chartOrders}
-                      secondary={chartSecondary}
-                    />
-                  </div>
+                  {!diffPair && (
+                    <div className="pubws-callhist">
+                      <MarketChart
+                        key={active.marketId}
+                        series={chartSeries}
+                        consensus={consensus}
+                        unit={unit}
+                        ranges={['1D', '1W']}
+                        height={diffPair ? 220 : 130}
+                        center={
+                          <span className="pubws-chart-cap">
+                            {diffPair ? `impact if ${branch}, since it opened` : 'how the call moved'}
+                          </span>
+                        }
+                        preview={chartPreview}
+                        orders={chartOrders}
+                        secondary={chartSecondary}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
               {/* What is left to reach the price, in the reader's own arithmetic

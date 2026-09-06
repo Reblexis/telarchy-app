@@ -249,7 +249,9 @@ export async function createConditionalMarkets(
         const key = keyOf(src.metricId, src.targetDate, branch);
         if (existingByKey.has(key)) continue;
         const marketId = randomUUID();
-        const sibling = existingByKey.get(keyOf(src.metricId, src.targetDate, branch === 'approved' ? 'declined' : 'approved'));
+        const sibling = existingByKey.get(
+          keyOf(src.metricId, src.targetDate, branch === 'approved' ? 'declined' : 'approved'),
+        );
         const asLevel = sibling?.quotes === 'level';
         toSpawn.push({
           id: marketId,

@@ -92,8 +92,13 @@ async function branchPrices() {
 
 // The baseline's forecast: a difference branch's level is this plus its book.
 async function baselineNow(): Promise<number> {
-  const rows = await db.select().from(markets).where(and(eq(markets.workspaceId, WS), eq(markets.proposalId, null as unknown as string)));
-  const base = rows.find(r => r.metricId === METRIC && r.targetDate === TARGET) ?? (await db.select().from(markets).where(eq(markets.workspaceId, WS))).find(r => !r.proposalId)!;
+  const rows = await db
+    .select()
+    .from(markets)
+    .where(and(eq(markets.workspaceId, WS), eq(markets.proposalId, null as unknown as string)));
+  const base =
+    rows.find(r => r.metricId === METRIC && r.targetDate === TARGET) ??
+    (await db.select().from(markets).where(eq(markets.workspaceId, WS))).find(r => !r.proposalId)!;
   return consensus(base.shares as [number, number], base.liquidity, base.rangeMin, base.rangeMax)!;
 }
 
