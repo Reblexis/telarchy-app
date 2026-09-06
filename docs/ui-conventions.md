@@ -591,10 +591,11 @@ grows the condition, naming the world the number belongs to:
 ```
         [ WEEKLY ACTIVE TRADERS ]  ...
         [ this week · 30 Aug ]  [ 30 Sep ]
-        What will be LookPilot's weekly active traders this week
-                if Jason is paid $100 for making a market?
+        How much will LookPilot's weekly active traders this week
+                change if Jason is paid $100 for making a market?
 
-                    17.5
+          BASELINE 18.0          IMPACT IF APPROVED +1.1  ▲ +1.6 vs if declined
+                                 reads 19.1 with today's baseline
               [ HIGHER ]  [ LOWER ]
 ```
 
@@ -604,10 +605,18 @@ the horizon on screen. The world phrase is the branch toggle: `WorldWord`
 renders `is paid $100` / `is not paid $100` with both phrases in one grid
 cell so the sentence cannot reflow on a switch. One rule everywhere: **one
 clock at a time, with a way to the others**, on the headline and on a
-proposal alike; the big number stays the metric's own number in the
-metric's own unit, never an "impact" abstraction that exists nowhere else
-on the floor. A proposal's effect on both horizons at once is deliberately
-not shown (that is the cross-horizon conflict mark, which does not exist).
+proposal alike. The big number on a proposal is the impact, because that is
+what the branch's book prices (docs/guides/creating.md, "A conditional pair
+prices the difference from the baseline"): the question asks "how much will
+... change if ...", the stat row names the baseline's forecast and the
+branch's impact, and the level the branch reads as today (baseline plus
+impact) is the quiet line under the impact, never the headline. A pair that
+predates difference pricing and prices the level (`quotes: "level"`) keeps
+the old sentence and the old level headline, with "priced as a level" in its
+row's facts, under its price and in the ticket, so nobody reads it as
+following the baseline. A proposal's effect on both horizons at once is
+deliberately not shown (that is the cross-horizon conflict mark, which does
+not exist).
 
 - **The caption is rendered for both states**, not duplicated into two
   branches. A second copy is how the two drift.
@@ -621,7 +630,8 @@ not shown (that is the cross-horizon conflict mark, which does not exist).
 In proposal mode the headline is the question the market actually prices,
 naming who is paid and how much ("What is <metric> @ <date> if <proposer>
 is paid $<ask> to do: <task>", the task in ink and the rest a register
-quieter). In the conditional headline the paid phrase IS the world toggle
+quieter; on a difference pair the sentence starts "How much will ... change"
+and the task keeps its place). In the conditional headline the paid phrase IS the world toggle
 (`.pubws-world`): green "is paid $X" in the approved branch, red "is not
 paid $X" in the declined one, dotted underline as the click affordance, and
 clicking it flips the branch. Both phrases stack in one grid cell so the
@@ -630,9 +640,12 @@ the ask's width; the inactive phrase waits a step below at opacity 0 and
 rises in on a 240ms crossfade (reduced-motion snaps). The proposal's own
 description sits under the headline as the details; it is NOT repeated
 under the proposal row on the board. The price is the selected branch's
-call, the since-open chip becomes the impact (approved minus declined, the
-same number whichever branch is on screen), and the chart draws the
-branch's own history (fetched per market from
+impact (its level on an older level pair), the chip beside it is the delta
+(approved minus declined, the same number whichever branch is on screen),
+and the hero chart draws the branch's own history, which on a difference
+pair is the impact since it opened, centred on zero, with the other branch
+as the quiet second line; the metric's own chart with the pair's level dots
+on the date drops to the strip below it (fetched per market from
 `/api/marketplace/:id/markets/:marketId/history`, falling back to the
 market's current call as a single point when nobody has traded it yet, so
 a fresh proposal shows a chart rather than blank space). The ticket trades
@@ -1664,8 +1677,9 @@ trade reorders them without a reload.
   someone moves it. A pending proposal is valued live, at the pair's
   current prices, so a proposal posted minutes ago scores the moment its
   books are funded. A decided proposal is valued at the moment the owner
-  ruled: the prices of the pairs still open at that moment are recorded on
-  approval or decline and never re-read afterwards (a horizon that had
+  ruled: the prices of the pairs still open at that moment, and the
+  baseline's forecast that a difference pair settles against, are recorded
+  on approval or decline and never re-read afterwards (a horizon that had
   already settled or been retired before the decision is not something the
   owner ruled on, so it is not in the record), because whatever happens to either book later (the
   losing branch is voided, the winning one keeps trading, an untraded book

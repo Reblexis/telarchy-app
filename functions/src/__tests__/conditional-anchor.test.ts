@@ -1,10 +1,11 @@
 /**
- * Conditional markets open at the baseline's value, not the center
- * (owner decision 2026-08-11), and the approved branch opens at baseline
- * minus the job's ask (approval burns the ask into the resolving metric,
- * so "same as baseline" would already be a bullish claim). The other
- * property under test is solvency: an off-center open sizes b DOWN so
- * the subsidy still covers the worst case; it never mints.
+ * A conditional pair prices the difference from the baseline (owner
+ * decision 2026-09-05, docs/guides/creating.md): both branches open at
+ * zero, whatever the baseline says, and the approved branch of a paid job
+ * on a net-money metric opens at minus the ask (approval burns the ask into
+ * the resolving metric, so "no change" would already be a bullish claim).
+ * The other property under test is solvency: an off-center open sizes b
+ * DOWN so the subsidy still covers the worst case; it never mints.
  */
 
 jest.mock('../db/client', () => require('./harness/test-db'));
@@ -122,13 +123,16 @@ async function branchMarkets(proposalId: string) {
 }
 
 describe('anchored conditional opens', () => {
-  test('a free job opens both branches at the baseline value', async () => {
+  test('a free job opens both branches at zero difference from the baseline', async () => {
     await seed();
     const res = await propose({ title: 'free job', description: '', liquiditySubsidy: 20, askUsd: 0 });
     expect(res.status).toBe(201);
     const { approved, declined, val } = await branchMarkets(res.body.id);
-    expect(val(approved)).toBeCloseTo(60, 0);
-    expect(val(declined)).toBeCloseTo(60, 0);
+    expect(val(approved)).toBeCloseTo(0, 6);
+    expect(val(declined)).toBeCloseTo(0, 6);
+    expect(approved.quotes).toBe('difference');
+    expect(approved.rangeMin).toBe(-50);
+    expect(approved.rangeMax).toBe(50);
   });
 
   test('a headcount metric does not subtract the dollar ask (2026-08-15)', async () => {
@@ -148,11 +152,11 @@ describe('anchored conditional opens', () => {
     });
     expect(res.status).toBe(201);
     const { approved, declined, val } = await branchMarkets(res.body.id);
-    expect(val(approved)).toBeCloseTo(60, 0);
-    expect(val(declined)).toBeCloseTo(60, 0);
+    expect(val(approved)).toBeCloseTo(0, 6);
+    expect(val(declined)).toBeCloseTo(0, 6);
   });
 
-  test('a paid job opens the approved branch at baseline minus the ask', async () => {
+  test('a paid job opens the approved branch at minus the ask', async () => {
     await seed();
     const res = await propose({
       title: '$20: paid job',
@@ -163,15 +167,15 @@ describe('anchored conditional opens', () => {
     });
     expect(res.status).toBe(201);
     const { approved, declined, val } = await branchMarkets(res.body.id);
-    expect(val(approved)).toBeCloseTo(40, 0);
-    expect(val(declined)).toBeCloseTo(60, 0);
+    expect(val(approved)).toBeCloseTo(-20, 6);
+    expect(val(declined)).toBeCloseTo(0, 6);
     // The anchored book is thinner than a center open with the same
     // subsidy: that thinness is what pays for the anchor.
     expect(approved.liquidity).toBeLessThan(20 / Math.LN2);
     expect(approved.pool).toBeCloseTo(20, 5);
   });
 
-  test('an unpriced baseline still opens the pair at the center', async () => {
+  test('an unpriced baseline still opens the pair at zero, which is the center', async () => {
     await seed();
     await db
       .update(markets)
@@ -180,7 +184,7 @@ describe('anchored conditional opens', () => {
     const res = await propose({ title: 'free job', description: '', liquiditySubsidy: 20, askUsd: 0 });
     expect(res.status).toBe(201);
     const { approved, val } = await branchMarkets(res.body.id);
-    expect(val(approved)).toBeCloseTo(50, 0);
+    expect(val(approved)).toBeCloseTo(0, 6);
     expect(approved.liquidity).toBeCloseTo(20 / Math.LN2, 5);
   });
 });
@@ -232,7 +236,7 @@ describe('legacy title-priced proposals', () => {
     const { createConditionalMarkets } = require('../services/proposals');
     await createConditionalMarkets(res.body.id, WS, { contributions: { [PROPOSER]: 20 } });
     const { approved, declined, val } = await branchMarkets(res.body.id);
-    expect(val(approved)).toBeCloseTo(40, 0);
-    expect(val(declined)).toBeCloseTo(60, 0);
+    expect(val(approved)).toBeCloseTo(-20, 6);
+    expect(val(declined)).toBeCloseTo(0, 6);
   });
 });

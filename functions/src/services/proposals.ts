@@ -14,7 +14,7 @@ import {
   workspaces,
 } from '../db/schema';
 import { anchoredMarketState, consensus } from '../lib/amm';
-import { askUsdOf, branchAnchorP } from '../lib/branch-anchor';
+import { askUsdOf, branchAnchorP, differenceAnchorP, differenceRange } from '../lib/branch-anchor';
 import { resolutionInstant } from '../lib/date-utils';
 import { AppError } from '../lib/errors';
 import { proposalCreditsFor } from '../lib/horizon-credits';
@@ -176,7 +176,15 @@ export async function createConditionalMarkets(
     // The same formula answers for a branch that spawned unfunded and is
     // given its first money later (services/marketLiquidity.ts).
     const askUsd = askUsdOf(proposalRowForAsk);
+    // A fresh branch prices the DIFFERENCE from the baseline (docs/guides/
+    // creating.md, owner decision 2026-09-05): half the metric's range either
+    // side of zero, opening at zero, minus the ask where the ask burns.
     const anchorFor = (src: (typeof sourceMarkets)[number], branch: ConditionalBranch): number | null =>
+      differenceAnchorP({ ...differenceRange(src), metricName: src.metricName }, branch, askUsd);
+    // A branch spawned beside a kept LEVEL sibling (an older traded pair
+    // missing one branch) is a level book too, opened as the old rule had
+    // it: a pair reads across its two books, so it cannot be half and half.
+    const levelAnchorFor = (src: (typeof sourceMarkets)[number], branch: ConditionalBranch): number | null =>
       branchAnchorP(src, branch, askUsd);
     // Desired set is (metric, targetDate, branch) so both branches are tracked.
     const desiredKeys = new Set<string>();
@@ -194,8 +202,36 @@ export async function createConditionalMarkets(
       );
 
     const keyOf = (metricId: string, targetDate: string, branch: string) => `${metricId}:${targetDate}:${branch}`;
+    // A pair from before difference pricing that nobody has traded is
+    // reopened as a difference book here, free, because nobody holds anything
+    // in it; one anyone has traded stays a level book for good
+    // (docs/market-integrity.md I1c). "Traded" is per pair: one traded branch
+    // keeps both, because the delta is read across them.
+    const legacyPairKeys = new Set<string>();
+    for (const m of existingConditional) {
+      if (m.quotes === 'level' && m.active !== false) legacyPairKeys.add(`${m.metricId}:${m.targetDate}`);
+    }
+    const reopen = new Set<string>();
+    if (legacyPairKeys.size > 0) {
+      const legacyIds = existingConditional
+        .filter(m => legacyPairKeys.has(`${m.metricId}:${m.targetDate}`))
+        .map(m => m.id);
+      const tradedRows = await db
+        .select({ marketId: trades.marketId })
+        .from(trades)
+        .where(and(eq(trades.workspaceId, workspaceId), inArray(trades.marketId, legacyIds)))
+        .groupBy(trades.marketId);
+      const tradedIds = new Set(tradedRows.map(r => r.marketId));
+      for (const key of legacyPairKeys) {
+        const pairTraded = existingConditional.some(
+          m => `${m.metricId}:${m.targetDate}` === key && tradedIds.has(m.id),
+        );
+        if (!pairTraded) reopen.add(key);
+      }
+    }
     const existingByKey = new Map<string, (typeof existingConditional)[number]>();
     for (const m of existingConditional) {
+      if (reopen.has(`${m.metricId}:${m.targetDate}`)) continue;
       existingByKey.set(keyOf(m.metricId, m.targetDate, m.branch ?? 'approved'), m);
     }
 
@@ -213,6 +249,8 @@ export async function createConditionalMarkets(
         const key = keyOf(src.metricId, src.targetDate, branch);
         if (existingByKey.has(key)) continue;
         const marketId = randomUUID();
+        const sibling = existingByKey.get(keyOf(src.metricId, src.targetDate, branch === 'approved' ? 'declined' : 'approved'));
+        const asLevel = sibling?.quotes === 'level';
         toSpawn.push({
           id: marketId,
           workspaceId,
@@ -225,13 +263,13 @@ export async function createConditionalMarkets(
           active: true,
           proposalId,
           branch,
-          rangeMin: src.rangeMin,
-          rangeMax: src.rangeMax,
+          ...(asLevel ? { rangeMin: src.rangeMin, rangeMax: src.rangeMax } : differenceRange(src)),
+          quotes: asLevel ? 'level' : 'difference',
           shares: [0, 0] as [number, number],
           liquidity: 0,
           pool: 0,
           createdAt: new Date(),
-          anchorP: anchorFor(src, branch),
+          anchorP: asLevel ? levelAnchorFor(src, branch) : anchorFor(src, branch),
         });
       }
     }
@@ -242,7 +280,7 @@ export async function createConditionalMarkets(
     const desiredKeySet = new Set(desiredKeys);
     for (const m of existingConditional) {
       const key = keyOf(m.metricId, m.targetDate, m.branch ?? 'approved');
-      if (!desiredKeySet.has(key)) {
+      if (!desiredKeySet.has(key) || reopen.has(`${m.metricId}:${m.targetDate}`)) {
         await voidMarket(m, workspaceId);
       }
     }
@@ -250,7 +288,7 @@ export async function createConditionalMarkets(
     if (toSpawn.length === 0) {
       // Everything desired already exists; return existing ids.
       return existingConditional
-        .filter(m => desiredKeySet.has(keyOf(m.metricId, m.targetDate, m.branch ?? 'approved')))
+        .filter(m => existingByKey.get(keyOf(m.metricId, m.targetDate, m.branch ?? 'approved')) === m)
         .map(m => m.id);
     }
 
@@ -467,6 +505,7 @@ export async function createConditionalMarkets(
     // Return every market that belongs to the proposal's current desired set:
     // the newly spawned ones plus the existing ones we kept.
     const keptIds = existingConditional
+      .filter(m => existingByKey.get(keyOf(m.metricId, m.targetDate, m.branch ?? 'approved')) === m)
       .filter(m => desiredKeySet.has(keyOf(m.metricId, m.targetDate, m.branch ?? 'approved')))
       .map(m => m.id);
     return [...keptIds, ...newMarkets.map(m => m.id as string)];
@@ -520,6 +559,20 @@ export async function pairPricesNow(proposalId: string, workspaceId: string): Pr
     .select()
     .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
+  // A difference pair records the baseline it is read against (its level is
+  // baseline plus impact) and, since this is the decision, the reference it
+  // will settle against: the baseline's forecast now, or the metric's
+  // reading when the baseline has no price (docs/guides/creating.md, "A
+  // branch settles at the actual value minus the reference").
+  const baselineMap = await getBaselineConsensusMap(rows, workspaceId);
+  const metricValue = new Map<string, number>();
+  if (rows.some(m => m.quotes === 'difference')) {
+    const metricRows = await db
+      .select({ id: metricsTable.id, value: metricsTable.value })
+      .from(metricsTable)
+      .where(eq(metricsTable.workspaceId, workspaceId));
+    for (const r of metricRows) metricValue.set(r.id, r.value);
+  }
   const byKey = new Map<string, DecidedPair>();
   for (const m of rows) {
     if (!m.branch) continue;
@@ -529,13 +582,57 @@ export async function pairPricesNow(proposalId: string, workspaceId: string): Pr
       targetDate: m.targetDate,
       approvedConsensus: null,
       declinedConsensus: null,
+      approvedImpact: null,
+      declinedImpact: null,
+      baselineConsensus: null,
     };
     const c = consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax) ?? null;
-    if (m.branch === 'approved') pair.approvedConsensus = c;
+    if (m.quotes === 'difference') {
+      const baseline = baselineMap.get(`${m.metricId}:${m.targetDate}`) ?? metricValue.get(m.metricId) ?? null;
+      pair.baselineConsensus = baseline;
+      const level = c !== null && baseline !== null ? baseline + c : null;
+      if (m.branch === 'approved') {
+        pair.approvedImpact = c;
+        pair.approvedConsensus = level;
+      } else if (m.branch === 'declined') {
+        pair.declinedImpact = c;
+        pair.declinedConsensus = level;
+      }
+    } else if (m.branch === 'approved') pair.approvedConsensus = c;
     else if (m.branch === 'declined') pair.declinedConsensus = c;
     byKey.set(key, pair);
   }
   return [...byKey.values()];
+}
+
+/**
+ * Write the reference each difference branch settles against, taken from the
+ * decision record (pairPricesNow, read at the same instant). Called by
+ * approve and decline BEFORE either branch is voided, so the surviving
+ * branch carries its reference into settlement and the voided one keeps it
+ * as a record. Level books are left alone: they settle at the actual value.
+ */
+export async function recordDecisionReference(
+  proposalId: string,
+  workspaceId: string,
+  pairs: DecidedPair[],
+): Promise<void> {
+  for (const pair of pairs) {
+    if (pair.baselineConsensus == null) continue;
+    await db
+      .update(markets)
+      .set({ referenceValue: pair.baselineConsensus })
+      .where(
+        and(
+          eq(markets.workspaceId, workspaceId),
+          eq(markets.proposalId, proposalId),
+          eq(markets.metricId, pair.metricId),
+          eq(markets.targetDate, pair.targetDate),
+          eq(markets.quotes, 'difference'),
+          eq(markets.resolved, false),
+        ),
+      );
+  }
 }
 
 export async function voidProposalBranch(
@@ -602,8 +699,10 @@ export async function approveProposal(
     }
   }
 
-  // What the decision is priced on, taken before anything is voided.
+  // What the decision is priced on, taken before anything is voided, and the
+  // reference the surviving branch settles against.
   const decidedPricing = await pairPricesNow(proposalId, workspaceId);
+  await recordDecisionReference(proposalId, workspaceId, decidedPricing);
 
   // The declined-branch counterfactual never materialises once approved, so
   // void it and refund any positions. The approved branch stays live and
@@ -734,6 +833,7 @@ export async function declineProposal(
   }
 
   const decidedPricing = await pairPricesNow(proposalId, workspaceId);
+  await recordDecisionReference(proposalId, workspaceId, decidedPricing);
   if (refundStake) {
     // Decline with refund (owner ask 2026-08-12): a genuine proposal the owner
     // just is not taking. Void BOTH branches so the proposer's whole staked
@@ -1073,15 +1173,13 @@ export async function getProposalMarketSummariesForProposal(proposalId: string, 
   return summaries.map(pair => {
     const d = recorded.get(`${pair.metricId}:${pair.targetDate}`);
     if (!d) return pair;
-    const approved = pair.approved ? { ...pair.approved, consensus: d.approvedConsensus } : null;
-    const declined = pair.declined ? { ...pair.declined, consensus: d.declinedConsensus } : null;
-    return {
-      ...pair,
-      approved,
-      declined,
-      delta:
-        approved?.consensus != null && declined?.consensus != null ? approved.consensus - declined.consensus : null,
-    };
+    const approved = pair.approved
+      ? { ...pair.approved, consensus: d.approvedConsensus, impact: d.approvedImpact ?? pair.approved.impact }
+      : null;
+    const declined = pair.declined
+      ? { ...pair.declined, consensus: d.declinedConsensus, impact: d.declinedImpact ?? pair.declined.impact }
+      : null;
+    return { ...pair, approved, declined, delta: pairDelta(approved, declined) };
   });
 }
 
@@ -1091,7 +1189,11 @@ export async function getProposalMarketSummariesForProposal(proposalId: string, 
  */
 export interface BranchMarketSummary {
   marketId: string;
+  /** The level the branch reads as: baseline plus impact on a difference
+   *  book (null while the baseline has no price), the book on a level one. */
   consensus: number | null;
+  /** The book of a difference branch; null on a level book. */
+  impact: number | null;
   liquidity: number;
   tradeCount: number;
   resolved: boolean;
@@ -1115,6 +1217,11 @@ export interface PairedProposalMarketSummary {
   declined: BranchMarketSummary | null;
   delta: number | null;
   baselineConsensus: number | null;
+  /** What the pair's books price (docs/market-integrity.md I1c). */
+  quotes: 'level' | 'difference';
+  /** The baseline recorded at the decision that a difference pair settles
+   *  against; null while pending and on a level pair. */
+  reference: number | null;
 }
 
 async function buildProposalMarketSummariesFromRows(
@@ -1139,11 +1246,14 @@ async function buildProposalMarketSummariesFromRows(
     else groups.set(key, [m]);
   }
 
-  const toBranchSummary = (m: MarketRow): BranchMarketSummary => {
+  const toBranchSummary = (m: MarketRow, baseline: number | null): BranchMarketSummary => {
     const shares = (m.shares as [number, number]) || [0, 0];
+    const book = consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null;
+    const difference = m.quotes === 'difference';
     return {
       marketId: m.id,
-      consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
+      consensus: difference ? (book !== null && baseline !== null ? baseline + book : null) : book,
+      impact: difference ? book : null,
       liquidity: m.liquidity,
       tradeCount: tradeCountMap.get(m.id) ?? 0,
       resolved: m.resolved,
@@ -1157,10 +1267,14 @@ async function buildProposalMarketSummariesFromRows(
     const first = branchRows[0];
     const approvedRow = branchRows.find(r => (r.branch ?? 'approved') === 'approved') ?? null;
     const declinedRow = branchRows.find(r => r.branch === 'declined') ?? null;
-    const approved = approvedRow ? toBranchSummary(approvedRow) : null;
-    const declined = declinedRow ? toBranchSummary(declinedRow) : null;
-    const delta =
-      approved?.consensus != null && declined?.consensus != null ? approved.consensus - declined.consensus : null;
+    const quotes: 'level' | 'difference' = branchRows.some(r => r.quotes === 'difference') ? 'difference' : 'level';
+    // A decided difference pair reads its level against the recorded
+    // reference, because the baseline it was read against may be gone.
+    const reference = branchRows.map(r => r.referenceValue).find((v): v is number => typeof v === 'number') ?? null;
+    const baseline = reference ?? baselineConsensusMap.get(key) ?? null;
+    const approved = approvedRow ? toBranchSummary(approvedRow, baseline) : null;
+    const declined = declinedRow ? toBranchSummary(declinedRow, baseline) : null;
+    const delta = pairDelta(approved, declined);
     out.push({
       metricId: first.metricId,
       metricName: first.metricName,
@@ -1171,10 +1285,23 @@ async function buildProposalMarketSummariesFromRows(
       approved,
       declined,
       delta,
-      baselineConsensus: baselineConsensusMap.get(key) ?? null,
+      baselineConsensus: baseline,
+      quotes,
+      reference,
     });
   }
   return out;
+}
+
+/** The headline impact: approved minus declined, read from the books of a
+ *  difference pair and from the levels of a level pair. */
+export function pairDelta(
+  approved: { consensus: number | null; impact: number | null } | null,
+  declined: { consensus: number | null; impact: number | null } | null,
+): number | null {
+  if (approved?.impact != null && declined?.impact != null) return approved.impact - declined.impact;
+  if (approved?.consensus != null && declined?.consensus != null) return approved.consensus - declined.consensus;
+  return null;
 }
 
 /** Owner takes over the proposer's LP rows on the proposal's still-open

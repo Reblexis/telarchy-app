@@ -103,7 +103,22 @@ async function resolveMarketRow(
     return { positions: 0, totalPayout: 0, skipped: true };
   }
 
-  const actualValue = Math.min(rawValue, market.rangeMax);
+  // A difference book settles at the actual value minus the baseline
+  // recorded when the owner decided, clamped to its own range (docs/guides/
+  // creating.md, "A branch settles at the actual value minus the
+  // reference"). No reference means the decision never went through the
+  // platform's own path; refuse rather than invent one.
+  let settleValue = rawValue;
+  if (market.quotes === 'difference') {
+    if (typeof market.referenceValue !== 'number') {
+      console.error(
+        `Market ${market.id} (${market.metricName}): difference book with no recorded reference, refusing to settle`,
+      );
+      return { positions: 0, totalPayout: 0, skipped: true };
+    }
+    settleValue = Math.max(market.rangeMin, rawValue - market.referenceValue);
+  }
+  const actualValue = Math.min(settleValue, market.rangeMax);
   const [lowerPay, higherPay] = resolutionPayouts(actualValue, market.rangeMin, market.rangeMax);
   let pool = market.pool ?? 0;
 

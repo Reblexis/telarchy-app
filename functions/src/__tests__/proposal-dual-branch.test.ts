@@ -13,7 +13,7 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { and, eq } from 'drizzle-orm';
-import { agents, markets, metrics as metricsTable, proposals, workspaces } from '../db/schema';
+import { agents, markets, metrics as metricsTable, proposals, trades, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { toUnits } from '../lib/validation';
 import {
@@ -186,6 +186,21 @@ describe('createConditionalMarkets — dual spawn', () => {
       },
     ]);
 
+    // Traded, which is what keeps an older level book where it is
+    // (docs/market-integrity.md I1c); an untraded one is reopened as a
+    // difference book instead (difference-pairs.test.ts).
+    await db.insert(trades).values(
+      ['legacy-approved-a', 'legacy-approved-b'].map(marketId => ({
+        id: `trade-${marketId}`,
+        workspaceId: WS,
+        agentId: PROPOSER,
+        marketId,
+        direction: 'higher' as const,
+        shares: 5,
+        cost: 3,
+        createdAt: new Date(),
+      })),
+    );
     const ids = await createConditionalMarkets('p1', WS, {});
     // Existing approved-branch markets kept, two new declined-branch markets spawned.
     expect(ids).toHaveLength(4);

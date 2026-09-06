@@ -12,6 +12,37 @@ import { consensus } from './amm';
 import { metricSubtractsContractAsk } from './metric-unit';
 
 export type ConditionalBranchName = 'approved' | 'declined';
+export type BookQuotes = 'level' | 'difference';
+
+/**
+ * The range of a difference book: half the metric's range either side of
+ * zero (docs/guides/creating.md, "A conditional pair prices the difference
+ * from the baseline"). On a 0..100 metric the book runs -50..+50.
+ */
+export function differenceRange(baseline: { rangeMin: number; rangeMax: number }): {
+  rangeMin: number;
+  rangeMax: number;
+} {
+  const half = (baseline.rangeMax - baseline.rangeMin) / 2;
+  return { rangeMin: -half, rangeMax: half };
+}
+
+/**
+ * Where a difference branch opens: zero, or minus the ask on the approved
+ * branch of a metric the payment burns out of. The baseline's price plays no
+ * part, which is the point: the book holds the difference and the baseline
+ * moving is not news about it. Null only on a degenerate range.
+ */
+export function differenceAnchorP(
+  book: { rangeMin: number; rangeMax: number; metricName: string },
+  branch: ConditionalBranchName,
+  askUsd: number,
+): number | null {
+  const burn = metricSubtractsContractAsk(book.metricName) ? askUsd : 0;
+  const value = branch === 'approved' ? -burn : 0;
+  const span = book.rangeMax - book.rangeMin;
+  return span > 0 ? Math.min(1, Math.max(0, (value - book.rangeMin) / span)) : null;
+}
 
 /** The proposal's ask in dollars. Rows that predate the askUsd column carry
  *  the price only as the "$N: ..." title convention; parse it back so their

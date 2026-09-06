@@ -25,9 +25,16 @@ delta = approved consensus - declined consensus
 
 Not "the market went up after they posted". The baseline can already be pricing
 in that you will say yes, so a rise in the baseline tells you what the crowd
-expects you to do, and the delta tells you what it is worth. Both branches open
-at the same baseline price, so a spread only exists because someone paid to put
-it there.
+expects you to do, and the delta tells you what it is worth. Each branch prices
+its own difference from the baseline's forecast (`impact`), so its consensus is
+the baseline plus that difference, both branches open at zero, and a spread
+only exists because someone paid to put it there. The baseline moving between
+now and your decision moves neither branch.
+
+When you decide, the baseline's forecast at that instant is recorded on each
+pair as its `reference`, and the surviving branch settles at the actual value
+minus it. A pair from before difference pricing that anyone had traded still
+prices the level (`quotes: "level"`) and settles at the actual value.
 
 Three places give you the same numbers:
 
@@ -35,9 +42,13 @@ Three places give you the same numbers:
   headline horizon, and selecting one swaps the chart and the ticket onto the
   approved branch so you can trade it yourself.
 - **`GET /api/proposals/:id`.** `markets[]` carries one row per metric and date:
-  `approved` and `declined` (each with `consensus`, `liquidity`, `tradeCount`),
-  `delta`, and `baselineConsensus` for context. `delta` is `null` when either
-  side has no price. For a caller with `manage`, the row also carries the
+  `approved` and `declined` (each with `consensus`, `impact`, `liquidity`,
+  `tradeCount`), `delta`, `baselineConsensus`, `quotes` (`"difference"`, or
+  `"level"` on an older pair) and `reference` (the baseline recorded at the
+  decision, `null` while pending). `impact` is what the book holds and
+  `consensus` is `baselineConsensus + impact`; on a level pair `impact` is
+  `null` and `consensus` is the book. `delta` is `null` when either side has
+  no price. For a caller with `manage`, the row also carries the
   proposer's `payoutHandle`, which is where the money goes if you approve.
 - **`GET /api/marketplace/:workspaceId/context?format=md`.** The whole floor as
   one markdown brief, proposals and their priced impact included. This is the

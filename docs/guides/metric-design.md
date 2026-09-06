@@ -95,7 +95,8 @@ one rule reads it.
 money.** "Net revenue (USD)" is money. "Weekly active traders" is not. That flag
 puts a `$` on the public number, and it feeds one behaviour that changes what
 traders see: when a metric is money **and** its name contains the word "net", a
-proposal's approved branch opens at the baseline minus the ask, because
+proposal's approved branch opens at minus the ask (a difference of minus the
+ask from the baseline), because
 approving a $400 proposal takes $400 out of a number that is already net of what
 you pay out.
 

@@ -583,6 +583,24 @@ export const markets = pgTable(
      * declined). The headline impact is approved.consensus - declined.consensus.
      */
     branch: text('branch'),
+    /**
+     * What the book prices (docs/guides/creating.md, "A conditional pair
+     * prices the difference from the baseline"; docs/market-integrity.md
+     * I1c). 'level': the metric's value on the metric's range, which every
+     * baseline market is and which conditional pairs from before 2026-09-06
+     * that anyone had traded stay. 'difference': a conditional branch whose
+     * book is "actual minus the baseline's forecast", on a range half the
+     * metric's either side of zero, opening at zero and never moved by the
+     * baseline. The rule is fixed for the life of the book.
+     */
+    quotes: text('quotes').notNull().default('level'),
+    /**
+     * The baseline's forecast recorded when the owner decided, per branch of
+     * a difference pair: the number the surviving branch settles against
+     * (actual minus this, clamped to the range). Null while the proposal is
+     * pending and on every level book.
+     */
+    referenceValue: doublePrecision('reference_value'),
     /** Flagged for the public benchmark surface (/benchmark + /api/marketplace/featured). */
     featured: boolean('featured').notNull().default(false),
   },
@@ -816,8 +834,17 @@ export const limitOrders = pgTable('limit_orders', {
 export interface DecidedPair {
   metricId: string;
   targetDate: string;
+  /** The level each branch read as at the decision (baseline plus impact on
+   *  a difference pair; the book itself on a level pair). */
   approvedConsensus: number | null;
   declinedConsensus: number | null;
+  /** The books of a difference pair at the decision; null on a level pair.
+   *  Absent on records written before difference pricing. */
+  approvedImpact?: number | null;
+  declinedImpact?: number | null;
+  /** The baseline's forecast at the decision, the reference a difference
+   *  pair settles against. Absent on records written before it existed. */
+  baselineConsensus?: number | null;
 }
 
 export const proposals = pgTable(

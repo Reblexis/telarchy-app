@@ -90,6 +90,13 @@ async function branchPrices() {
   return { approved: price('approved'), declined: price('declined'), rows };
 }
 
+// The baseline's forecast: a difference branch's level is this plus its book.
+async function baselineNow(): Promise<number> {
+  const rows = await db.select().from(markets).where(and(eq(markets.workspaceId, WS), eq(markets.proposalId, null as unknown as string)));
+  const base = rows.find(r => r.metricId === METRIC && r.targetDate === TARGET) ?? (await db.select().from(markets).where(eq(markets.workspaceId, WS))).find(r => !r.proposalId)!;
+  return consensus(base.shares as [number, number], base.liquidity, base.rangeMin, base.rangeMax)!;
+}
+
 async function decidedPricing(): Promise<DecidedPair[] | null> {
   const [p] = await db.select({ d: proposals.decidedPricing }).from(proposals).where(eq(proposals.id, 'p1'));
   return p.d ?? null;
@@ -119,12 +126,16 @@ describe('a decision records the pair prices it was made on', () => {
     await approveProposal('p1', WS, OWNER);
 
     const recorded = await decidedPricing();
+    const baseline = await baselineNow();
     expect(recorded).toEqual([
       {
         metricId: METRIC,
         targetDate: TARGET,
-        approvedConsensus: priced.approved,
-        declinedConsensus: priced.declined,
+        approvedConsensus: baseline + priced.approved!,
+        declinedConsensus: baseline + priced.declined!,
+        approvedImpact: priced.approved,
+        declinedImpact: priced.declined,
+        baselineConsensus: baseline,
       },
     ]);
   });
@@ -133,8 +144,17 @@ describe('a decision records the pair prices it was made on', () => {
     await seed();
     const priced = await branchPrices();
     await declineProposal('p1', WS, OWNER, 'not now');
+    const baseline = await baselineNow();
     expect(await decidedPricing()).toEqual([
-      { metricId: METRIC, targetDate: TARGET, approvedConsensus: priced.approved, declinedConsensus: priced.declined },
+      {
+        metricId: METRIC,
+        targetDate: TARGET,
+        approvedConsensus: baseline + priced.approved!,
+        declinedConsensus: baseline + priced.declined!,
+        approvedImpact: priced.approved,
+        declinedImpact: priced.declined,
+        baselineConsensus: baseline,
+      },
     ]);
   });
 
@@ -166,7 +186,7 @@ describe('a decision records the pair prices it was made on', () => {
       .where(and(eq(markets.id, approved.id), eq(markets.workspaceId, WS)));
     const after = await branchPrices();
     expect(after.approved).not.toBe(priced.approved);
-    expect((await decidedPricing())![0].approvedConsensus).toBe(priced.approved);
+    expect((await decidedPricing())![0].approvedImpact).toBe(priced.approved);
   });
 
   test("a decided proposal's pair summary (proposal detail, brief) reads the record, not the books", async () => {
@@ -183,8 +203,8 @@ describe('a decision records the pair prices it was made on', () => {
     expect(after.approved).not.toBe(priced.approved);
 
     const [pair] = await getProposalMarketSummariesForProposal('p1', WS);
-    expect(pair.approved!.consensus).toBe(priced.approved);
-    expect(pair.declined!.consensus).toBe(priced.declined);
+    expect(pair.approved!.impact).toBe(priced.approved);
+    expect(pair.declined!.impact).toBe(priced.declined);
     expect(pair.delta).toBeCloseTo(priced.approved! - priced.declined!, 6);
   });
 
@@ -192,7 +212,8 @@ describe('a decision records the pair prices it was made on', () => {
     await seed();
     const priced = await branchPrices();
     const [pair] = await getProposalMarketSummariesForProposal('p1', WS);
-    expect(pair.approved!.consensus).toBe(priced.approved);
+    expect(pair.approved!.impact).toBe(priced.approved);
+    expect(pair.approved!.consensus).toBeCloseTo((await baselineNow()) + priced.approved!, 6);
     expect(pair.delta).toBe(priced.approved! - priced.declined!);
   });
 

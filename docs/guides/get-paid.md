@@ -42,13 +42,16 @@ prices badly.
 
 ## What happens next
 
-Posting spawns two markets for every open market on the floor: what this metric
-does **if this is approved**, and what it does **if this is declined**. The gap
-between those two prices is your argument, made by people with money on it.
+Posting spawns two markets for every open market on the floor: how much this
+metric moves from the baseline's forecast **if this is approved**, and how much
+**if this is declined**. The gap between those two numbers is your argument,
+made by people with money on it.
 
-Both branches open at the current baseline price. On a metric whose name marks
-it as net money, the approved branch opens lower by your ask, because your fee
-is a cost the owner is really paying.
+Both branches open at zero. On a metric whose name marks it as net money, the
+approved branch opens at minus your ask, because your fee is a cost the owner
+is really paying. The baseline moving after you post moves neither branch:
+each prices the difference, and the level it reads as is the baseline plus
+that difference.
 
 Here is the part worth planning for: with no subsidy those markets open with no
 liquidity, which means no price, which means nothing to read. `liquiditySubsidy`

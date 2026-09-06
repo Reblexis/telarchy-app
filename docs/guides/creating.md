@@ -175,15 +175,31 @@ denominated in credits, and those credits are the market's pool: `pool = b * ln
 - **Price impact scales as one over `b`.** Double the depth and, per credit
   traded, the price moves half as far. Thin markets swing on pocket change; deep
   ones need conviction.
-- **A conditional pair opens at the baseline price** rather than at the middle
-  of the range, which costs a slightly thinner book for the same money, because
-  an LMSR that starts off centre has a larger worst case to cover. It opens
-  there whenever its book is first given money: at spawn when the proposal
-  carries a subsidy, or at the first injection when it spawned unfunded and
-  someone deepens it later. The approved branch of a paid job opens lower by
-  its ask on a metric the payment burns out of (`net` money). Only a branch
-  whose baseline market has no price yet opens at the centre, and a branch
-  anyone has traded is never re-opened.
+- **A conditional pair prices the difference from the baseline**, not the
+  metric's level. Each branch asks "by how much will this metric, on this
+  date, differ from the baseline market's forecast if this branch happens?",
+  its range is half the metric's range either side of zero, and it opens at
+  zero: the middle of the book, the cheapest LMSR shape for the money. The
+  approved branch of a paid job on a metric the payment burns out of (`net`
+  money) opens at minus the ask. It opens there whenever its book is first
+  given money: at spawn when the proposal carries a subsidy, or at the first
+  injection when it spawned unfunded and someone deepens it later. The
+  baseline moving never moves a branch: the level a branch reads as is the
+  baseline's forecast plus the book's difference, recomputed on every read,
+  and a position is a bet on the difference alone. A branch anyone has traded
+  is never re-opened.
+- **A branch settles at the actual value minus the reference.** When the owner
+  decides, the baseline's forecast at that instant (the metric's reading, when
+  the baseline has no price) is recorded on the pair as its reference. The
+  surviving branch pays, at the target date, on the actual value minus that
+  reference, clamped to the book's range; the losing branch is voided and
+  refunded as before.
+- **Pairs from before difference pricing.** A pair anyone had traded when
+  difference pricing arrived keeps pricing the level and settles at the actual
+  value, because converting it would change what its holders own; `quotes`
+  says `"level"` on those rows and the floor marks them "priced as a level".
+  An untraded older pair was reopened as a difference book, free, because
+  nobody held anything in it.
 
 The default of 0.5 credits per market is deliberately small, and it is thin
 enough to matter: measured on the beta, one five-credit trade against a market

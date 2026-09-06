@@ -139,7 +139,8 @@ that prices it, so the split is the same one I1 draws for a metric:
   proposal, so someone already holding can see the goalposts move.
 - **The price edits like the words do.** While the pair is untraded, changing the ask **re-anchors** it
   (the branch markets are voided and respawned at the new number, which costs
-  nothing because nobody is in them). Once anyone has traded either branch,
+  nothing because nobody is in them; on a metric the ask does not burn out of,
+  the new number is the same zero). Once anyone has traded either branch,
   the ask still changes, but the markets, their pools and every position are
   left exactly where trading put them: no void, no respawn, no re-anchor,
   because taking the pair away from people who are in it is what I2 forbids.
@@ -157,6 +158,19 @@ that prices it, so the split is the same one I1 draws for a metric:
 
 Nothing here lets an editor change who gets paid: `payoutHandle` is snapshotted
 at creation and is not part of the edit.
+
+## I1c: a pair's pricing rule is fixed once anyone is in it
+
+A conditional pair prices the difference from the baseline (docs/guides/
+creating.md). Pairs that predate that rule and that anyone had traded when it
+arrived keep pricing the level until they settle: `quotes` on their market
+rows says `"level"`, they settle at the actual value, and no refresh, edit or
+migration converts them, because moving a book people are in to a different
+question changes what they own, which is what I2 forbids. An untraded older
+pair was voided and reopened as a difference book, which costs nobody
+anything. A traded level pair is marked as such on every surface that shows
+it (the row's facts, the price line, the ticket), so nobody trades it thinking
+it follows the baseline.
 
 ## I2: what an owner cannot destroy
 

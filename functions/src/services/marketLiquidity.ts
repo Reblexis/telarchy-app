@@ -3,7 +3,7 @@ import { and, eq, gt, isNull, ne, sql } from 'drizzle-orm';
 import type { db } from '../db/client';
 import { agents, liquidityEvents, markets, metrics, proposals } from '../db/schema';
 import { anchoredMarketState, consensus } from '../lib/amm';
-import { askUsdOf, branchAnchorP } from '../lib/branch-anchor';
+import { askUsdOf, branchAnchorP, differenceAnchorP } from '../lib/branch-anchor';
 import { AppError } from '../lib/errors';
 import { emitPricesChanged } from '../lib/market-events';
 import { openingAnchorP, siblingAnchorP } from '../lib/market-open';
@@ -210,7 +210,15 @@ export async function anchorUntradedMarketTx(
   const pool = market.pool ?? 0;
   if (!(market.liquidity > 0) || pool <= 0) return false;
   let anchorP: number | null;
-  if (market.proposalId) {
+  if (market.proposalId && market.quotes === 'difference') {
+    // A difference branch opens at zero (minus the ask where it burns)
+    // whatever the baseline says (lib/branch-anchor.ts).
+    const [proposal] = await tx
+      .select({ askUsd: proposals.askUsd, title: proposals.title })
+      .from(proposals)
+      .where(and(eq(proposals.id, market.proposalId), eq(proposals.workspaceId, params.workspaceId)));
+    anchorP = differenceAnchorP(market, market.branch === 'declined' ? 'declined' : 'approved', askUsdOf(proposal));
+  } else if (market.proposalId) {
     // A conditional branch opens at the BASELINE market's consensus for the
     // same metric and settle date, adjusted for the branch and the
     // proposal's ask (lib/branch-anchor.ts, the formula the spawn uses). The
