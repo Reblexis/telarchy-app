@@ -214,15 +214,16 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h3">Redemption is liability-neutral</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h4">I1: a definition edit splits in two</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h5">I1b: a proposal&#x27;s definition edits the same way</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h6">I2: what an owner cannot destroy</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h7">A market resolves on its reading, not on a clock</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h8">Stopping a date is not destroying a market</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">There is no reset endpoint</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h10">I3: the credit ledger</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h11">What the tests enforce</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h12">I5: where a participant&#x27;s money is allowed to come from</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h13">What the tests enforce</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h14">Reconstruction</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h6">I1c: a pair&#x27;s pricing rule is fixed once anyone is in it</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h7">I2: what an owner cannot destroy</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h8">A market resolves on its reading, not on a clock</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">Stopping a date is not destroying a market</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h10">There is no reset endpoint</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h11">I3: the credit ledger</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h12">What the tests enforce</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h13">I5: where a participant&#x27;s money is allowed to come from</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h14">What the tests enforce</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h15">Reconstruction</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-metrics-md">docs/metrics.md</a></summary>
@@ -2503,7 +2504,8 @@ append-only <code>proposal_revisions</code> row, rendered on the floor beside th
 proposal, so someone already holding can see the goalposts move.</li>
 <li><strong>The price edits like the words do.</strong> While the pair is untraded, changing the ask <strong>re-anchors</strong> it
 (the branch markets are voided and respawned at the new number, which costs
-nothing because nobody is in them). Once anyone has traded either branch,
+nothing because nobody is in them; on a metric the ask does not burn out of,
+the new number is the same zero). Once anyone has traded either branch,
 the ask still changes, but the markets, their pools and every position are
 left exactly where trading put them: no void, no respawn, no re-anchor,
 because taking the pair away from people who are in it is what I2 forbids.
@@ -2521,7 +2523,18 @@ to. Neither is editable; the endpoint answers 409.</li>
 </ul>
 <p>Nothing here lets an editor change who gets paid: <code>payoutHandle</code> is snapshotted
 at creation and is not part of the edit.</p>
-<h2 id="docs-market-integrity-md--h6">I2: what an owner cannot destroy</h2>
+<h2 id="docs-market-integrity-md--h6">I1c: a pair's pricing rule is fixed once anyone is in it</h2>
+<p>A conditional pair prices the difference from the baseline (docs/guides/
+creating.md). Pairs that predate that rule and that anyone had traded when it
+arrived keep pricing the level until they settle: <code>quotes</code> on their market
+rows says <code>&quot;level&quot;</code>, they settle at the actual value, and no refresh, edit or
+migration converts them, because moving a book people are in to a different
+question changes what they own, which is what I2 forbids. An untraded older
+pair was voided and reopened as a difference book, which costs nobody
+anything. A traded level pair is marked as such on every surface that shows
+it (the row's facts, the price line, the ticket), so nobody trades it thinking
+it follows the baseline.</p>
+<h2 id="docs-market-integrity-md--h7">I2: what an owner cannot destroy</h2>
 <p>Two rules, matched to what each path actually takes from people. Both live at
 the route layer, never inside <code>voidMarket</code>: six of that function's nine callers
 are the engine's own lifecycle (stale conditional cleanup, a proposal being
@@ -2567,7 +2580,7 @@ production, and then the destruction happens with no record at all. Holders are
 refunded their net cash at stake, as any void does (<code>vision.md</code>, void refund
 rule), so the escape costs them their position and their price discovery,
 never their money.</p>
-<h3 id="docs-market-integrity-md--h7">A market resolves on its reading, not on a clock</h3>
+<h3 id="docs-market-integrity-md--h8">A market resolves on its reading, not on a clock</h3>
 <p>A market settles on a reading dated inside its own period. <strong>It resolves the
 moment that reading arrives, and not before, whatever the clock says.</strong>
 Trading stays open until then, because until then nobody has the answer: the
@@ -2595,7 +2608,7 @@ Reputation carries the rest (owner decision 2026-09-01, who took that trade
 deliberately: &quot;the cost is fine its reputation based&quot;).</p>
 <p>Records: <code>notes/resolve-on-the-reading-2026-09-01.md</code>,
 <code>notes/bug-hunt-2026-08-31.md</code> P0-5.</p>
-<h3 id="docs-market-integrity-md--h8">Stopping a date is not destroying a market</h3>
+<h3 id="docs-market-integrity-md--h9">Stopping a date is not destroying a market</h3>
 <p>An owner drops an entry from <code>timePreference.customHorizons</code> when they no
 longer want that market to come back. What happens to the one already open
 depends on whether anybody is in it (owner decision 2026-08-31):</p>
@@ -2612,7 +2625,7 @@ book that will never be read.</li>
 <p>Before 2026-08-31 both cases were deactivated instead: the market vanished
 from the floor while still settling in the background, which is the worst of
 both, and the pool stayed in it either way.</p>
-<h3 id="docs-market-integrity-md--h9">There is no reset endpoint</h3>
+<h3 id="docs-market-integrity-md--h10">There is no reset endpoint</h3>
 <p><code>POST /api/system/reset-economy</code> does not exist and is not reintroduced, guarded
 or otherwise: it zeroed every balance in a workspace, deleted every trade under
 <code>allowLedgerAdmin</code>, and reset all market AMM state behind nothing but the
@@ -2620,7 +2633,7 @@ ordinary <code>manage</code> capability, and the append-only trigger could not s
 because it opted out of the trigger on purpose. A guard has to be remembered,
 and the endpoint has no legitimate use on a live product. Starting a workspace
 over is <code>DELETE /api/workspaces/:id</code> followed by creating a new one.</p>
-<h2 id="docs-market-integrity-md--h10">I3: the credit ledger</h2>
+<h2 id="docs-market-integrity-md--h11">I3: the credit ledger</h2>
 <p><code>trades</code> and <code>liquidity_events</code> are append-only under a trigger (migration
 0055), but they are two of the ways money moves; payouts at settlement, void
 refunds, proposal stakes, proposal rewards, spam penalties, proposal payments,
@@ -2655,7 +2668,7 @@ signup grants, transfers, deposits, withdrawals, admin adjustments.</li>
 </ul>
 <p><code>agent_balance_snapshots</code> is a cache rather than the only record; if it and
 the ledger ever disagree, the ledger is right.</p>
-<h3 id="docs-market-integrity-md--h11">What the tests enforce</h3>
+<h3 id="docs-market-integrity-md--h12">What the tests enforce</h3>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -2698,7 +2711,7 @@ the ledger ever disagree, the ledger is right.</p>
 unaggregated OOM-kills the process, and <code>credit_ledger</code> grows faster than
 <code>trades</code> does. The reconciliation query sums database-side; every ledger reader
 must too.</p>
-<h2 id="docs-market-integrity-md--h12">I5: where a participant's money is allowed to come from</h2>
+<h2 id="docs-market-integrity-md--h13">I5: where a participant's money is allowed to come from</h2>
 <p>Prize money is the reason this invariant exists. Credits become settled
 profit, settled profit becomes a season rank, and a season rank becomes real
 money, so any route that creates credits from nothing is a faucet pointed at
@@ -2747,7 +2760,7 @@ faucet, and it has a name on every row.</li>
 <p>Trading is not an exception to any of this: what a market pays out was staked
 by somebody, so a winning agent is holding money that was already in the
 system.</p>
-<h3 id="docs-market-integrity-md--h13">What the tests enforce</h3>
+<h3 id="docs-market-integrity-md--h14">What the tests enforce</h3>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -2766,7 +2779,7 @@ system.</p>
 </tr>
 </tbody>
 </table></div>
-<h2 id="docs-market-integrity-md--h14">Reconstruction</h2>
+<h2 id="docs-market-integrity-md--h15">Reconstruction</h2>
 <p>With all three invariants holding, a workspace's money state is derivable from
 five append-only tables: <code>trades</code> (who bought what at what price),
 <code>liquidity_events</code> (who funded which pool), <code>credit_ledger</code> (every balance
@@ -4598,10 +4611,11 @@ pickers, same one sentence, in the same positions; the sentence itself
 grows the condition, naming the world the number belongs to:</p>
 <pre><code>        [ WEEKLY ACTIVE TRADERS ]  ...
         [ this week · 30 Aug ]  [ 30 Sep ]
-        What will be LookPilot's weekly active traders this week
-                if Jason is paid $100 for making a market?
+        How much will LookPilot's weekly active traders this week
+                change if Jason is paid $100 for making a market?
 
-                    17.5
+          BASELINE 18.0          IMPACT IF APPROVED +1.1  ▲ +1.6 vs if declined
+                                 reads 19.1 with today's baseline
               [ HIGHER ]  [ LOWER ]
 </code></pre>
 <p>Everything the floor already does then works unchanged: the pickers change
@@ -4610,10 +4624,18 @@ the horizon on screen. The world phrase is the branch toggle: <code>WorldWord</c
 renders <code>is paid $100</code> / <code>is not paid $100</code> with both phrases in one grid
 cell so the sentence cannot reflow on a switch. One rule everywhere: <strong>one
 clock at a time, with a way to the others</strong>, on the headline and on a
-proposal alike; the big number stays the metric's own number in the
-metric's own unit, never an &quot;impact&quot; abstraction that exists nowhere else
-on the floor. A proposal's effect on both horizons at once is deliberately
-not shown (that is the cross-horizon conflict mark, which does not exist).</p>
+proposal alike. The big number on a proposal is the impact, because that is
+what the branch's book prices (docs/guides/creating.md, &quot;A conditional pair
+prices the difference from the baseline&quot;): the question asks &quot;how much will
+... change if ...&quot;, the stat row names the baseline's forecast and the
+branch's impact, and the level the branch reads as today (baseline plus
+impact) is the quiet line under the impact, never the headline. A pair that
+predates difference pricing and prices the level (<code>quotes: &quot;level&quot;</code>) keeps
+the old sentence and the old level headline, with &quot;priced as a level&quot; in its
+row's facts, under its price and in the ticket, so nobody reads it as
+following the baseline. A proposal's effect on both horizons at once is
+deliberately not shown (that is the cross-horizon conflict mark, which does
+not exist).</p>
 <ul>
 <li><strong>The caption is rendered for both states</strong>, not duplicated into two
 branches. A second copy is how the two drift.</li>
@@ -4627,7 +4649,8 @@ conditional on before the number means anything.</li>
 <p>In proposal mode the headline is the question the market actually prices,
 naming who is paid and how much (&quot;What is <metric> @ <date> if <proposer>
 is paid $<ask> to do: <task>&quot;, the task in ink and the rest a register
-quieter). In the conditional headline the paid phrase IS the world toggle
+quieter; on a difference pair the sentence starts &quot;How much will ... change&quot;
+and the task keeps its place). In the conditional headline the paid phrase IS the world toggle
 (<code>.pubws-world</code>): green &quot;is paid $X&quot; in the approved branch, red &quot;is not
 paid $X&quot; in the declined one, dotted underline as the click affordance, and
 clicking it flips the branch. Both phrases stack in one grid cell so the
@@ -4636,9 +4659,12 @@ the ask's width; the inactive phrase waits a step below at opacity 0 and
 rises in on a 240ms crossfade (reduced-motion snaps). The proposal's own
 description sits under the headline as the details; it is NOT repeated
 under the proposal row on the board. The price is the selected branch's
-call, the since-open chip becomes the impact (approved minus declined, the
-same number whichever branch is on screen), and the chart draws the
-branch's own history (fetched per market from
+impact (its level on an older level pair), the chip beside it is the delta
+(approved minus declined, the same number whichever branch is on screen),
+and the hero chart draws the branch's own history, which on a difference
+pair is the impact since it opened, centred on zero, with the other branch
+as the quiet second line; the metric's own chart with the pair's level dots
+on the date drops to the strip below it (fetched per market from
 <code>/api/marketplace/:id/markets/:marketId/history</code>, falling back to the
 market's current call as a single point when nobody has traded it yet, so
 a fresh proposal shows a chart rather than blank space). The ticket trades
@@ -5569,8 +5595,9 @@ trade is required, because an opening price is the market's price until
 someone moves it. A pending proposal is valued live, at the pair's
 current prices, so a proposal posted minutes ago scores the moment its
 books are funded. A decided proposal is valued at the moment the owner
-ruled: the prices of the pairs still open at that moment are recorded on
-approval or decline and never re-read afterwards (a horizon that had
+ruled: the prices of the pairs still open at that moment, and the
+baseline's forecast that a difference pair settles against, are recorded
+on approval or decline and never re-read afterwards (a horizon that had
 already settled or been retired before the decision is not something the
 owner ruled on, so it is not in the record), because whatever happens to either book later (the
 losing branch is voided, the winning one keeps trading, an untraded book
@@ -6425,7 +6452,7 @@ template.</p>
 <p><strong>How it works</strong>:</p>
 <ol>
 <li>A participant calls <code>POST /api/proposals</code> with <code>{ title, description }</code>.</li>
-<li>The system creates <strong>dual-branch conditional markets</strong>. The pair is spawned when the proposal is posted (a subsidy that cannot be covered fails the post with 400); a fetch with <code>?proposalId=</code> re-spawns it only for a pending proposal that has no live markets. Each branch opens at the baseline market's current price; the approved branch of a paid job opens lower by its ask on metrics that burn dollars. For every active leaf-metric market, two clones spawn under the proposal, one with <code>branch=&quot;approved&quot;</code> (priced under &quot;what will metric X be if this proposal is approved?&quot;) and one with <code>branch=&quot;declined&quot;</code> (priced under &quot;what will metric X be if this proposal is declined?&quot;).</li>
+<li>The system creates <strong>dual-branch conditional markets</strong>. The pair is spawned when the proposal is posted (a subsidy that cannot be covered fails the post with 400); a fetch with <code>?proposalId=</code> re-spawns it only for a pending proposal that has no live markets. Each branch prices the difference from the baseline market's forecast, on a range half the metric's either side of zero, and opens at zero; the approved branch of a paid job opens at minus its ask on metrics that burn dollars (docs/guides/creating.md, &quot;A conditional pair prices the difference from the baseline&quot;). For every active leaf-metric market, two books spawn under the proposal, one with <code>branch=&quot;approved&quot;</code> (priced under &quot;how much will metric X change if this proposal is approved?&quot;) and one with <code>branch=&quot;declined&quot;</code> (the same, if declined). The baseline moving moves neither; deciding records the baseline's forecast as the reference the surviving branch settles against. Pairs from before this rule that anyone had traded keep pricing the level (docs/market-integrity.md I1c).</li>
 <li>Participants forecast on both branches. The headline impact a human reads is <code>approved.consensus - declined.consensus</code> per metric, which isolates the causal effect of approving rather than the natural-trajectory baseline (which can itself price in expected approval, contaminating the comparison).</li>
 <li>The admin (workspace owner or a participant with <code>manage</code> capability) views the proposal detail, which shows each metric's decline-counterfactual and approve-counterfactual side by side with the signed delta.</li>
 <li><strong>Approve</strong> - the declined-branch markets are voided and stakes refunded (the counterfactual never materialised); the approved-branch markets stay live and resolve against the actual metric value at the target date. On approve the owner buys out the proposer's liquidity stake on the approved branch (skipped if the owner cannot cover it), and, if the workspace sets <code>proposalReward</code>, pays it to the proposer (409 when the owner cannot cover it; nothing when the proposer is the owner).</li>
@@ -8163,15 +8190,31 @@ denominated in credits, and those credits are the market's pool: <code>pool = b 
 <li><strong>Price impact scales as one over <code>b</code>.</strong> Double the depth and, per credit
 traded, the price moves half as far. Thin markets swing on pocket change; deep
 ones need conviction.</li>
-<li><strong>A conditional pair opens at the baseline price</strong> rather than at the middle
-of the range, which costs a slightly thinner book for the same money, because
-an LMSR that starts off centre has a larger worst case to cover. It opens
-there whenever its book is first given money: at spawn when the proposal
-carries a subsidy, or at the first injection when it spawned unfunded and
-someone deepens it later. The approved branch of a paid job opens lower by
-its ask on a metric the payment burns out of (<code>net</code> money). Only a branch
-whose baseline market has no price yet opens at the centre, and a branch
-anyone has traded is never re-opened.</li>
+<li><strong>A conditional pair prices the difference from the baseline</strong>, not the
+metric's level. Each branch asks &quot;by how much will this metric, on this
+date, differ from the baseline market's forecast if this branch happens?&quot;,
+its range is half the metric's range either side of zero, and it opens at
+zero: the middle of the book, the cheapest LMSR shape for the money. The
+approved branch of a paid job on a metric the payment burns out of (<code>net</code>
+money) opens at minus the ask. It opens there whenever its book is first
+given money: at spawn when the proposal carries a subsidy, or at the first
+injection when it spawned unfunded and someone deepens it later. The
+baseline moving never moves a branch: the level a branch reads as is the
+baseline's forecast plus the book's difference, recomputed on every read,
+and a position is a bet on the difference alone. A branch anyone has traded
+is never re-opened.</li>
+<li><strong>A branch settles at the actual value minus the reference.</strong> When the owner
+decides, the baseline's forecast at that instant (the metric's reading, when
+the baseline has no price) is recorded on the pair as its reference. The
+surviving branch pays, at the target date, on the actual value minus that
+reference, clamped to the book's range; the losing branch is voided and
+refunded as before.</li>
+<li><strong>Pairs from before difference pricing.</strong> A pair anyone had traded when
+difference pricing arrived keeps pricing the level and settles at the actual
+value, because converting it would change what its holders own; <code>quotes</code>
+says <code>&quot;level&quot;</code> on those rows and the floor marks them &quot;priced as a level&quot;.
+An untraded older pair was reopened as a difference book, free, because
+nobody held anything in it.</li>
 </ul>
 <p>The default of 0.5 credits per market is deliberately small, and it is thin
 enough to matter: measured on the beta, one five-credit trade against a market
@@ -8623,12 +8666,15 @@ question.</strong> What you will do, what changes when you are done, and how any
 can tell. Forecasters are pricing your claim with their own credits; vagueness
 prices badly.</p>
 <h2 id="docs-guides-get-paid-md--h3">What happens next</h2>
-<p>Posting spawns two markets for every open market on the floor: what this metric
-does <strong>if this is approved</strong>, and what it does <strong>if this is declined</strong>. The gap
-between those two prices is your argument, made by people with money on it.</p>
-<p>Both branches open at the current baseline price. On a metric whose name marks
-it as net money, the approved branch opens lower by your ask, because your fee
-is a cost the owner is really paying.</p>
+<p>Posting spawns two markets for every open market on the floor: how much this
+metric moves from the baseline's forecast <strong>if this is approved</strong>, and how much
+<strong>if this is declined</strong>. The gap between those two numbers is your argument,
+made by people with money on it.</p>
+<p>Both branches open at zero. On a metric whose name marks it as net money, the
+approved branch opens at minus your ask, because your fee is a cost the owner
+is really paying. The baseline moving after you post moves neither branch:
+each prices the difference, and the level it reads as is the baseline plus
+that difference.</p>
 <p>Here is the part worth planning for: with no subsidy those markets open with no
 liquidity, which means no price, which means nothing to read. <code>liquiditySubsidy</code>
 seeds them, and it is charged per market, so a floor pricing three metrics
@@ -8951,7 +8997,8 @@ one rule reads it.</p>
 money.</strong> &quot;Net revenue (USD)&quot; is money. &quot;Weekly active traders&quot; is not. That flag
 puts a <code>$</code> on the public number, and it feeds one behaviour that changes what
 traders see: when a metric is money <strong>and</strong> its name contains the word &quot;net&quot;, a
-proposal's approved branch opens at the baseline minus the ask, because
+proposal's approved branch opens at minus the ask (a difference of minus the
+ask from the baseline), because
 approving a $400 proposal takes $400 out of a number that is already net of what
 you pay out.</p>
 <p>Two consequences to plan for:</p>
@@ -9244,18 +9291,28 @@ and what it costs to post, is <a href="/guides/get-paid">get paid for work</a>.<
 </code></pre>
 <p>Not &quot;the market went up after they posted&quot;. The baseline can already be pricing
 in that you will say yes, so a rise in the baseline tells you what the crowd
-expects you to do, and the delta tells you what it is worth. Both branches open
-at the same baseline price, so a spread only exists because someone paid to put
-it there.</p>
+expects you to do, and the delta tells you what it is worth. Each branch prices
+its own difference from the baseline's forecast (<code>impact</code>), so its consensus is
+the baseline plus that difference, both branches open at zero, and a spread
+only exists because someone paid to put it there. The baseline moving between
+now and your decision moves neither branch.</p>
+<p>When you decide, the baseline's forecast at that instant is recorded on each
+pair as its <code>reference</code>, and the surviving branch settles at the actual value
+minus it. A pair from before difference pricing that anyone had traded still
+prices the level (<code>quotes: &quot;level&quot;</code>) and settles at the actual value.</p>
 <p>Three places give you the same numbers:</p>
 <ul>
 <li><strong>The floor.</strong> Each proposal in the right rail carries its impact on the
 headline horizon, and selecting one swaps the chart and the ticket onto the
 approved branch so you can trade it yourself.</li>
 <li><strong><code>GET /api/proposals/:id</code>.</strong> <code>markets[]</code> carries one row per metric and date:
-<code>approved</code> and <code>declined</code> (each with <code>consensus</code>, <code>liquidity</code>, <code>tradeCount</code>),
-<code>delta</code>, and <code>baselineConsensus</code> for context. <code>delta</code> is <code>null</code> when either
-side has no price. For a caller with <code>manage</code>, the row also carries the
+<code>approved</code> and <code>declined</code> (each with <code>consensus</code>, <code>impact</code>, <code>liquidity</code>,
+<code>tradeCount</code>), <code>delta</code>, <code>baselineConsensus</code>, <code>quotes</code> (<code>&quot;difference&quot;</code>, or
+<code>&quot;level&quot;</code> on an older pair) and <code>reference</code> (the baseline recorded at the
+decision, <code>null</code> while pending). <code>impact</code> is what the book holds and
+<code>consensus</code> is <code>baselineConsensus + impact</code>; on a level pair <code>impact</code> is
+<code>null</code> and <code>consensus</code> is the book. <code>delta</code> is <code>null</code> when either side has
+no price. For a caller with <code>manage</code>, the row also carries the
 proposer's <code>payoutHandle</code>, which is where the money goes if you approve.</li>
 <li><strong><code>GET /api/marketplace/:workspaceId/context?format=md</code>.</strong> The whole floor as
 one markdown brief, proposals and their priced impact included. This is the
