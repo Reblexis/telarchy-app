@@ -1608,8 +1608,17 @@ hairline so the three read as one instrument. Between 1120px and 1500px
 there is no room for three: the floor is two columns, the market at up to
 720px beside the proposals rail, and the left column's context stacks
 under the market (a 1280px laptop squeezed the centre to 509px with three
-tracks). **The left column is about
-THIS market and never about other people**: from the top, "What is this
+tracks). **The left column exists only
+in the plain market view**: with a proposal selected the floor is the
+two-column layout at every width, the pair beside the proposals, because
+a proposal's page is about the proposal and its two branches, not about
+the metric's definition (Viktor, 2026-09-06). **The definition is on
+screen once, never twice** (same day: "minimal text no repetition and
+maximum intuitiveness"): when the left column carries "What is this
+market?", the summary line under the question is not rendered; the
+summary line returns wherever the definition block is not above the fold
+(the two-column widths, the phone, a selected proposal). **The left
+column is about THIS market and never about other people**: from the top, "What is this
 market?" (the definition the market settles on, with its Edit for a
 manager), the season block, and the announcements. Nothing on the first
 screen ranks anyone, because every venue that works puts title, number,
