@@ -5100,6 +5100,13 @@ textarea.jobform-line--desc {
     padding-right: clamp(1rem, 2vw, 1.6rem);
   }
   .pubws-rail--right { grid-column: 3; grid-row: 1 / span 2; }
+  /* The definition is on screen once, never twice: with the left column
+     carrying "What is this market?" beside the market, the summary line
+     under the question (the definition's first sentence) is hidden. It
+     returns wherever the left column's content is not beside the market:
+     the two-column widths, the phone, a selected proposal (the root then
+     lacks the context class). */
+  .pubws-main--context .pubws-instrument-sum { display: none; }
 }
 
 @media (max-width: 1119.98px) {

@@ -125,9 +125,9 @@ vi.mock('../../lib/api', () => {
 const { TradePage } = await import('../TradePage');
 const { api } = await import('../../lib/api');
 
-function renderFloor() {
+function renderFloor(path = '/lookpilot') {
   return render(
-    <MemoryRouter initialEntries={['/lookpilot']}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/:slug" element={<TradePage />} />
       </Routes>
@@ -598,6 +598,100 @@ describe('three columns, and the standings under the verbs', () => {
     // What is left in the know block, in its order: the subject block (a
     // visitor sees no checklist).
     expect(know.querySelector('[aria-label="What is LookPilot"]')).toBeTruthy();
+  });
+
+  /** One pending proposal priced on the September revenue market, so the
+   *  floor can be opened at `#proposal=job-1`. */
+  const proposal = () => ({
+    id: 'job-1',
+    number: 1,
+    title: '$80: rewrite the store page',
+    description: 'A better store page.',
+    askUsd: 80,
+    status: 'pending' as const,
+    proposedByName: 'Ada',
+    createdAt: '2026-09-01T09:00:00.000Z',
+    marketPairCount: 1,
+    markets: [
+      {
+        metricName: 'LookPilot net revenue (USD)',
+        targetDate: '2026-09',
+        resolvesOn: '2026-10-01T00:00:00Z',
+        approvedConsensus: 8_000,
+        declinedConsensus: 6_850,
+        delta: 1_150,
+        approvedMarketId: 'm-approved',
+        declinedMarketId: 'm-declined',
+        approvedProbability: 0.5,
+        approvedLiquidity: 200,
+        declinedProbability: 0.5,
+        declinedLiquidity: 200,
+        rangeMin: 0,
+        rangeMax: 50_000,
+      },
+    ],
+  });
+  const floorWithProposal = () => {
+    const ws = floor() as ReturnType<typeof floor> & { proposals: unknown[] };
+    ws.proposals = [proposal()];
+    return ws;
+  };
+
+  /** The left column exists only in the plain market view (docs/ui-conventions.md,
+   *  "The rails, and the standings under the verbs", Viktor 2026-09-06): a
+   *  proposal's page is about the proposal and its two branches, not about
+   *  the metric's definition. */
+  test('with a proposal selected there is no left column: no definition, no season block, no announcements anywhere', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(floorWithProposal() as never);
+    const { container } = renderFloor('/lookpilot#proposal=job-1');
+    await waitFor(() => expect(container.querySelector('.pubws-pair-toggle, [aria-label="Proposals"]')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('.pubws-question-task')).toBeTruthy());
+    expect(container.querySelector('.pubws-rail--left')).toBeNull();
+    expect(container.querySelector('.pubws-season')).toBeNull();
+    expect(container.querySelector('a[href="/season"]')).toBeNull();
+    expect(container.querySelector('[aria-label="What is this market"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Announcements"]')).toBeNull();
+    expect(container.textContent).not.toMatch(/What is this market\?/);
+    expect(container.textContent).not.toMatch(/Refunds ran high this week/);
+    // The know block keeps only what it has now: the subject block.
+    expect(container.querySelector('.pubws-know-col [aria-label="What is LookPilot"]')).toBeTruthy();
+    // Two columns at every width: the floor root does not carry the context class.
+    const main = container.querySelector('.pubws-main--floor') as HTMLElement;
+    expect(main.classList.contains('pubws-main--context')).toBe(false);
+    // The summary line under the question shows as before.
+    expect(container.querySelector('.pubws-instrument-sum')?.textContent).toBe(
+      'Everything LookPilot earned in the last 30 days.',
+    );
+    // And the proposals rail is still there, beside the pair.
+    expect(container.querySelector('.pubws-rail--right')).toBeTruthy();
+  });
+
+  test('the plain view carries the context class and keeps the summary line in the DOM (CSS hides it at width)', async () => {
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-rail--left')).toBeTruthy());
+    const main = container.querySelector('.pubws-main--floor') as HTMLElement;
+    expect(main.classList.contains('pubws-main--context')).toBe(true);
+    expect(container.querySelector('.pubws-instrument-sum')?.textContent).toBe(
+      'Everything LookPilot earned in the last 30 days.',
+    );
+  });
+
+  test('the stylesheet hides the summary line under the context class from 1500px only', () => {
+    // The definition is on screen once, never twice: when the left column
+    // carries "What is this market?" (three columns, >=1500px) the summary
+    // line under the question is hidden.
+    const wide = CSS.match(/@media \(min-width: 1500px\) \{([\s\S]*?)\n\}/);
+    expect(wide).toBeTruthy();
+    expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-instrument-sum \{[^}]*display:\s*none/);
+    // At the two-column widths and on the phone the left column's content
+    // stacks under the market, so the summary line shows.
+    const mid = CSS.match(/@media \(min-width: 1120px\) \{([\s\S]*?)\n\}/);
+    expect(mid![1]).not.toMatch(/pubws-instrument-sum/);
+    const narrow = CSS.match(/@media \(max-width: 1119\.98px\) \{([\s\S]*?)\n\}/);
+    expect(narrow![1]).not.toMatch(/pubws-instrument-sum/);
+    // And nothing outside the 1500px block hides it either.
+    const outside = CSS.replace(wide![0], '');
+    expect(outside).not.toMatch(/\.pubws-instrument-sum[^{]*\{[^}]*display:\s*none/);
   });
 
   test('the loading ghosts draw three columns', async () => {
