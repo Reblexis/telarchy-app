@@ -5,11 +5,11 @@ import type { LeaderboardEntry, PrizeSeason, PublicContractor } from '../../lib/
 
 /**
  * The standings under the verbs (docs/ui-conventions.md, "The rails, and
- * the standings under the verbs", revised 2026-09-05): two three-row
+ * the standings under the verbs", revised 2026-09-06): two three-row
  * footers, "Top traders" and "Top contractors", one "Show full leaderboard"
- * link under the pair, and the count strip above them carrying the market's
- * traders and volume and the season line with its control. With a proposal
- * selected the traders footer becomes "Traders on this proposal".
+ * link under the pair. The season advert (three lines: the prize, the
+ * terms, the control) lives in the left column. With a proposal selected
+ * the traders footer becomes "Traders on this proposal".
  *
  * Where the reader stands (owner ask 2026-08-19) survives the move: their
  * own row is marked, and when they are outside the three it is pinned
@@ -34,7 +34,7 @@ vi.mock('../../lib/api', async () => {
   };
 });
 
-const { FloorStandings, CountStrip } = await import('../FloorRails');
+const { FloorStandings, SeasonAdvert } = await import('../FloorRails');
 
 function trader(n: number): LeaderboardEntry {
   return {
@@ -256,58 +256,101 @@ describe('with a proposal selected, the traders footer is the holders of its pai
   });
 });
 
-describe('the count strip', () => {
-  const strip = (props: Partial<Parameters<typeof CountStrip>[0]> = {}) =>
+describe('the season advert', () => {
+  const advert = (props: Partial<Parameters<typeof SeasonAdvert>[0]> = {}) =>
     render(
       <MemoryRouter>
-        <CountStrip traders={8} volume={2778} season={null} signedIn={false} {...props} />
+        <SeasonAdvert season={runningSeason} signedIn={false} {...props} />
       </MemoryRouter>,
     );
 
-  test('traders and volume on this market, no season line when there is no season', () => {
-    const { container, queryByText } = strip();
+  test('three lines: the prize as the hero, the terms, the control, and nothing else', () => {
+    const { container, getByText } = advert();
     const root = container.firstElementChild as HTMLElement;
-    expect(root.className).toContain('pubws-count');
-    expect(root.textContent).toMatch(/8 traders and 2,778 cr traded on this market/);
-    expect(root.textContent).not.toMatch(/season/i);
-    expect(queryByText(/Enter the season/)).toBeNull();
-    expect(queryByText(/See the season/)).toBeNull();
-  });
-
-  test('one trader reads singular', () => {
-    const { container } = strip({ traders: 1, volume: 0 });
-    expect(container.textContent).toMatch(/1 trader and 0 cr traded/);
-  });
-
-  test('the season line and "Enter the season" for a visitor', () => {
-    const { container, getByText } = strip({ season: runningSeason });
-    expect(container.textContent).toMatch(/Season 0/);
-    expect(container.textContent).toMatch(/\$1,000 in prizes/);
-    expect(container.textContent).toMatch(/left/);
-    expect(container.textContent).toMatch(/free to enter/);
+    expect(root.className).toContain('pubws-season');
+    expect(root.children).toHaveLength(3);
+    const hero = root.querySelector('.pubws-season-hero') as HTMLElement;
+    const terms = root.querySelector('.pubws-season-terms') as HTMLElement;
+    expect(hero.textContent).toBe('$1,000 in prizes');
+    // 2026-09-05 10:00Z to 2026-10-16 00:00Z: 40 days.
+    expect(terms.textContent).toBe('Season 0 ends in 40 days. Free to enter.');
     const go = getByText('Enter the season');
     expect(go.tagName).toBe('A');
     expect(go).toHaveAttribute('href', '/season');
+    expect(hero.compareDocumentPosition(terms) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(terms.compareDocumentPosition(go) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Advertised, not narrated: no counts, no "and", no running sentence.
+    expect(root.textContent).not.toMatch(/trader/i);
+    expect(root.textContent).not.toMatch(/traded/i);
+    expect(root.textContent).not.toMatch(/ and /);
+    expect(root.textContent).not.toMatch(/left/);
   });
 
-  test('an entrant reads "you are in" and "See the season"', async () => {
+  test('the prize is the real pool, formatted with its thousands separator', () => {
+    const { container } = advert({ season: { ...runningSeason, poolUsd: 12500 } as PrizeSeason });
+    expect(container.querySelector('.pubws-season-hero')?.textContent).toBe('$12,500 in prizes');
+  });
+
+  test('no season, nothing rendered', () => {
+    const { container } = advert({ season: null });
+    expect(container.firstElementChild).toBeNull();
+  });
+
+  test('an entrant reads "You are in." and "See the season"', async () => {
     getMySeason.mockResolvedValue({ season: null, optedIn: true, canEnter: false });
-    const { findByText, container } = strip({ season: runningSeason, signedIn: true });
+    const { findByText, container } = advert({ signedIn: true });
     const go = await findByText('See the season');
     expect(go).toHaveAttribute('href', '/season');
-    expect(container.textContent).toMatch(/you are in/i);
-    expect(container.textContent).not.toMatch(/free to enter/);
+    expect(container.querySelector('.pubws-season-terms')?.textContent).toBe('Season 0 ends in 40 days. You are in.');
+    expect(container.textContent).not.toMatch(/Free to enter/);
   });
 
   test('a signed-in visitor who has not entered is still asked to enter', async () => {
     getMySeason.mockResolvedValue({ season: null, optedIn: false, canEnter: true });
-    const { findByText } = strip({ season: runningSeason, signedIn: true });
+    const { findByText } = advert({ signedIn: true });
     expect(await findByText('Enter the season')).toHaveAttribute('href', '/season');
     expect(getMySeason).toHaveBeenCalled();
   });
 
-  test('a settled season offers "See the season", not entry', () => {
-    const { getByText } = strip({ season: { ...runningSeason, status: 'settled' } as PrizeSeason });
+  test('a signed-out visitor is never asked the server whether they entered', () => {
+    advert();
+    expect(getMySeason).not.toHaveBeenCalled();
+  });
+
+  test('a draft season counts down to its start and is free to enter', () => {
+    const { container, getByText } = advert({ season: { ...draftSeason, startsAt: '2026-09-12T00:00:00.000Z' } });
+    // 2026-09-05 10:00Z to 2026-09-12 00:00Z: 6 days and change.
+    expect(container.querySelector('.pubws-season-terms')?.textContent).toBe(
+      'Season 0 starts in 6 days. Free to enter.',
+    );
+    expect(getByText('Enter the season')).toHaveAttribute('href', '/season');
+  });
+
+  test('under a day, the terms say the hours rather than "0 days"', () => {
+    const { container } = advert({ season: { ...runningSeason, endsAt: '2026-09-05T16:30:00.000Z' } });
+    expect(container.querySelector('.pubws-season-terms')?.textContent).toBe(
+      'Season 0 ends in 6 hours 30 min. Free to enter.',
+    );
+  });
+
+  test('a season past its end offers "See the season", not entry, and says so', () => {
+    const { container, getByText, queryByText } = advert({
+      season: { ...runningSeason, endsAt: '2026-09-01T00:00:00.000Z' } as PrizeSeason,
+    });
     expect(getByText('See the season')).toHaveAttribute('href', '/season');
+    expect(queryByText('Enter the season')).toBeNull();
+    expect(container.querySelector('.pubws-season-terms')?.textContent).toBe(
+      'Season 0 has ended. Standings are being settled.',
+    );
+  });
+
+  test('a settled season offers "See the season", not entry', () => {
+    const { container, getByText, queryByText } = advert({
+      season: { ...runningSeason, status: 'settled' } as PrizeSeason,
+    });
+    expect(getByText('See the season')).toHaveAttribute('href', '/season');
+    expect(queryByText('Enter the season')).toBeNull();
+    expect(container.querySelector('.pubws-season-terms')?.textContent).toBe('Season 0 is over. Final standings.');
+    expect(container.querySelector('.pubws-season-hero')?.textContent).toBe('$1,000 in prizes');
   });
 });
