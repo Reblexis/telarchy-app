@@ -1596,23 +1596,34 @@ answer to "which one?") and the scroll stops gliding.
 ### The rails, and the standings under the verbs
 
 The board is signed-in only; the anonymous poster stays clean. On
-viewports >=1120px the page is a TWO-column floor (revised 2026-09-05,
-Viktor, design record in the telarchy umbrella,
-`notes/floor-boards-yc-and-venues-2026-09-04.md`): the market in the
-wider column and the proposals board as the right rail, separated by a
-vertical 1px `var(--border-color)` hairline so the two read as one
-instrument. There is no left rail. The first screen is the question, the
-number and the bet verbs, because every venue that works puts title,
-number, chart and trade control first and nothing about other people
-above the fold, and a board of the same dozen names at 25 visitors a day
-reads as "no one is really using this" rather than as proof.
+viewports >=1120px the page is a THREE-column floor (revised 2026-09-06,
+Viktor, after the two-column cut left a dead band on a wide screen; design
+record in the telarchy umbrella,
+`notes/floor-boards-yc-and-venues-2026-09-04.md`): a narrow left column of
+this market's own context, the market in a wide centre column (up to
+960px, so the chart and both numbers get the room and the question line
+sits on one row), and the proposals board as the right rail, each rail
+separated from the centre by a vertical 1px `var(--border-color)`
+hairline so the three read as one instrument. **The left column is about
+THIS market and never about other people**: from the top, "What is this
+market?" (the definition the market settles on, with its Edit for a
+manager), the season block, and the announcements. Nothing on the first
+screen ranks anyone, because every venue that works puts title, number,
+chart and trade control first and nothing about other people above the
+fold, and a board of the same dozen names at 25 visitors a day reads as
+"no one is really using this" rather than as proof. The definition and
+announcements therefore leave the know block under the market; what
+remains there is the checklist for a manager and the subject block.
 
-**Social proof is real use, not a ranking.** Under the bet verbs the market
-keeps its facts row (traders, pool, volume, Inject) and, under that, ONE
-count strip the floor can stand behind (`.pubws-count`): the traders and
-volume on this market, and the season line ("Season 0 · 26 days left ·
-$1,000 in prizes") with its "Enter the season" / "See the season" control,
-which is where entering the season lives now that the left rail is gone.
+**Social proof is real use, not a ranking, and facts are the icon row,
+never a sentence** (owner rule 2026-09-03, and again 2026-09-06 when a
+prose count strip was cut). The market's facts row (traders, pool,
+volume, Inject) under the bet verbs is the only place the counts appear.
+The season keeps its own block anatomy, unchanged from the rail it came
+from: the small-caps "Season 0" label with the time left as its
+right-aligned mono meta, the prize line, and the "Enter the season" /
+"See the season" control, placed in the left column under the
+definition. No bordered box, no running text.
 
 **The standings are footers, not rails.** Under the count strip, two
 compact blocks side by side on desktop and stacked on a phone
