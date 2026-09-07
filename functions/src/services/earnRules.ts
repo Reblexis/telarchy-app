@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agents, earnClaims, earnRuleHistory, earnRules, trades } from '../db/schema';
 import { AppError } from '../lib/errors';
@@ -36,16 +36,19 @@ export type EarnKey =
   | 'link_oauth'
   | 'daily_trade'
   | 'trade_profit'
-  | 'polymarket_link';
+  | 'polymarket_link'
+  | 'referral';
 
 /**
  * How a row pays. `flat` is a fixed one-time grant, `cap` an "up to" that
- * a check decides, `daily` recurs once a UTC day, and `open` has no
- * number at all (trading profit, which is the only earn with no ceiling).
- * A row that is not `flat` or `cap` counts toward no tally, because
- * "still available to you" has to mean a number somebody can finish.
+ * a check decides, `daily` recurs once a UTC day, `open` has no number at
+ * all (trading profit, which is the only earn with no ceiling), and
+ * `share` pays a PERCENTAGE of somebody else's grant (the referral row,
+ * whose `credits` is that percentage). A row that is not `flat` or `cap`
+ * counts toward no tally, because "still available to you" has to mean a
+ * number somebody can finish.
  */
-export type EarnKind = 'flat' | 'cap' | 'daily' | 'open';
+export type EarnKind = 'flat' | 'cap' | 'daily' | 'open' | 'share';
 
 export interface EarnRule {
   key: string;
@@ -62,7 +65,7 @@ export interface EarnRule {
   updatedAt: Date;
 }
 
-const KINDS: ReadonlySet<string> = new Set<EarnKind>(['flat', 'cap', 'daily', 'open']);
+const KINDS: ReadonlySet<string> = new Set<EarnKind>(['flat', 'cap', 'daily', 'open', 'share']);
 const asKind = (k: string): EarnKind => (KINDS.has(k) ? (k as EarnKind) : 'flat');
 
 /** Rows that count toward "earned so far" and "still available". */
@@ -83,6 +86,7 @@ const FALLBACK: Record<EarnKey, number> = {
   daily_trade: 0,
   trade_profit: 0,
   polymarket_link: 5_000,
+  referral: 0,
 };
 
 /**
@@ -281,8 +285,9 @@ export async function claimEarn(params: {
   // (notes/matched-liquidity-grants-2026-09-01.md). Read before the
   // transaction, like the price, because it is the same cached table.
   const liquidity = await earnLiquidityCredits(params.key);
+  let claimed: { granted: number } | null;
   try {
-    return await db.transaction(async tx => {
+    claimed = await db.transaction(async tx => {
       await tx.insert(earnClaims).values({
         id: randomUUID(),
         agentId: params.agentId,
@@ -319,6 +324,160 @@ export async function claimEarn(params: {
     if (isUniqueViolation(e)) return null;
     throw e;
   }
+  // The referrer's share rides AFTER the grant it is a share of, in its own
+  // transaction: a share that failed must never undo a paid grant, and the
+  // claim row above is what makes a retry of this call pay nothing twice.
+  if (claimed && credits > 0) {
+    await payReferralShare({
+      refereeId: params.agentId,
+      key: params.key,
+      period: params.period ?? '',
+      credits,
+    }).catch(e => console.error('referral share failed:', e));
+  }
+  return claimed;
+}
+
+/**
+ * Bringing a friend (proposal 31 on the Telarchy floor, priced as a share
+ * by the owner on 2026-09-07; telarchy umbrella,
+ * notes/referral-earn-2026-09-07.md; governing text docs/guides/credits.md,
+ * "Bringing a friend").
+ *
+ * A share rather than a bounty on purpose: a bounty pays the same for a
+ * referee who links an aged Manifold account as for one who only signs up,
+ * so it has to carry an activity gate of its own. A share inherits every
+ * gate the table already has, and pays the referrer in proportion to what
+ * the platform judged the newcomer worth. Ten fake email accounts running a
+ * perfect week of streaks earn their farmer less than one honest Manifold
+ * link pays outright.
+ */
+export const REFERRAL_WINDOW_DAYS = 7;
+/** How many referees can ever pay one referrer: the first ten who earn
+ *  them anything. Later referees are attributed and pay nothing. */
+export const REFERRAL_MAX_REFEREES = 10;
+const REFERRAL_KEY: EarnKey = 'referral';
+const REFERRAL_SLUG = /^[a-z0-9-]{1,32}$/;
+
+/**
+ * The invite link a nickname makes, or null when the nickname cannot be a
+ * `?ref=` slug (lib/attribution.ts owns the grammar). Lowercased, because
+ * the slug is and the nickname match is case-insensitive.
+ */
+export function referralLinkFor(nickname: string | null | undefined): string | null {
+  const slug = (nickname ?? '').toLowerCase();
+  return REFERRAL_SLUG.test(slug) ? `https://telarchy.com/?ref=${slug}` : null;
+}
+
+/**
+ * Decide, once, whom a new browser account was brought by. The slug is a
+ * referral only when it is the nickname of a BROWSER account other than the
+ * newcomer: a bot's nickname refers nobody (a bot has no person to pay and
+ * spawning them is free), and nothing refers itself. Called at creation
+ * and never again; a row that already has a referrer keeps it.
+ */
+export async function attributeReferral(newAgentId: string, slug: string | null | undefined): Promise<string | null> {
+  if (!slug || !REFERRAL_SLUG.test(slug)) return null;
+  const [referrer] = await db
+    .select({ id: agents.id })
+    .from(agents)
+    .where(and(sql`lower(${agents.nickname}) = ${slug}`, isNotNull(agents.authUserId)))
+    .limit(1);
+  if (!referrer || referrer.id === newAgentId) return null;
+  await db
+    .update(agents)
+    .set({ referredBy: referrer.id, referredAt: new Date() })
+    .where(and(eq(agents.id, newAgentId), sql`${agents.referredBy} is null`));
+  return referrer.id;
+}
+
+/** One share claim per referee grant: the period names the grant. */
+const sharePeriod = (refereeId: string, key: string, period: string) => `${refereeId}|${key}|${period}`;
+const refereeOf = (sharePeriod: string) => sharePeriod.split('|')[0];
+
+/**
+ * Pay the referrer their share of one grant the referee just took. Safe to
+ * call for any grant: it answers nothing for an unreferred participant, a
+ * grant outside the window, a disabled row, or an eleventh referee, and the
+ * `earn_claims` unique index makes each referee grant pay once (the period
+ * names the grant, the refId names the referee). Best-effort by contract:
+ * the caller has already paid the grant and must not roll it back.
+ */
+export async function payReferralShare(params: {
+  refereeId: string;
+  key: string;
+  period: string;
+  credits: number;
+  now?: Date;
+}): Promise<{ referrerId: string; credits: number } | null> {
+  if (params.key === REFERRAL_KEY || params.credits <= 0) return null;
+  const [referee] = await db
+    .select({ referredBy: agents.referredBy, referredAt: agents.referredAt, createdAt: agents.createdAt })
+    .from(agents)
+    .where(eq(agents.id, params.refereeId))
+    .limit(1);
+  if (!referee?.referredBy) return null;
+  const now = params.now ?? new Date();
+  const since = new Date(referee.referredAt ?? referee.createdAt);
+  if (now.getTime() - since.getTime() > REFERRAL_WINDOW_DAYS * 24 * 3600 * 1000) return null;
+
+  const rule = (await load()).get(REFERRAL_KEY);
+  if (!rule || !rule.enabled || rule.credits <= 0) return null;
+  // Paid at the percentage on THIS day, like every grant: a re-priced row
+  // changes the next share and no earlier one.
+  const share = (params.credits * rule.credits) / 100;
+  if (share <= 0) return null;
+
+  const referrerId = referee.referredBy;
+  try {
+    await db.transaction(async tx => {
+      // The cap: at most REFERRAL_MAX_REFEREES distinct referees pay one
+      // referrer. Counted inside the transaction so two first grants racing
+      // for the last slot cannot both take it.
+      const paying = await tx
+        .select({ period: earnClaims.period })
+        .from(earnClaims)
+        .where(and(eq(earnClaims.agentId, referrerId), eq(earnClaims.key, REFERRAL_KEY)));
+      const referees = new Set(paying.map(r => refereeOf(r.period)));
+      if (!referees.has(params.refereeId) && referees.size >= REFERRAL_MAX_REFEREES) return;
+      // The referee rides in the period, not in refId: (key, ref_id) is
+      // unique across the platform, which is right for an external account
+      // proved once and wrong for a referee who earns several shares.
+      await tx.insert(earnClaims).values({
+        id: randomUUID(),
+        agentId: referrerId,
+        key: REFERRAL_KEY,
+        refId: null,
+        period: sharePeriod(params.refereeId, params.key, params.period),
+        credits: share,
+      });
+      await applyCredits(tx, {
+        agentId: referrerId,
+        workspaceId: PLATFORM_SCOPE,
+        deltaUnits: toUnits(share),
+        reason: 'signup_grant',
+        refId: `earn:${REFERRAL_KEY}`,
+      });
+    });
+  } catch (e) {
+    if (isUniqueViolation(e)) return null;
+    throw e;
+  }
+  return { referrerId, credits: share };
+}
+
+/** What the /earn page shows a referrer: their link, how many they brought,
+ *  and what those people have paid them so far. */
+export async function referralSummary(
+  agentId: string,
+): Promise<{ link: string | null; referees: number; credits: number }> {
+  const [me] = await db.select({ nickname: agents.nickname }).from(agents).where(eq(agents.id, agentId)).limit(1);
+  const [count] = await db.select({ n: sql<number>`count(*)::int` }).from(agents).where(eq(agents.referredBy, agentId));
+  const [paid] = await db
+    .select({ sum: sql<number>`coalesce(sum(${earnClaims.credits}), 0)::float` })
+    .from(earnClaims)
+    .where(and(eq(earnClaims.agentId, agentId), eq(earnClaims.key, REFERRAL_KEY)));
+  return { link: referralLinkFor(me?.nickname), referees: count?.n ?? 0, credits: paid?.sum ?? 0 };
 }
 
 /**

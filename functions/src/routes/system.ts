@@ -14,6 +14,7 @@ import {
   isCountable,
   listEarnRules,
   refAlreadyClaimed,
+  referralSummary,
   settleDailyStreak,
 } from '../services/earnRules';
 import { getAllMetricLogsGrouped, getAllMetrics, getStatus } from '../services/metrics';
@@ -180,11 +181,18 @@ systemRouter.get(
     // Settling the streak here as well as at trade time is deliberate: a
     // trade that landed while the grant failed is picked up the next time
     // anyone looks, and the claim's unique index makes the repeat free.
-    const [rules, claimed, streak] = await Promise.all([
+    const [rules, claimed, streak, referral] = await Promise.all([
       listEarnRules(),
       claimedKeys(agentId),
       settleDailyStreak(agentId).catch(e => {
         console.error('daily streak settle failed:', e);
+        return null;
+      }),
+      // The invite link and what it has brought (docs/guides/credits.md,
+      // "Bringing a friend"). Not a tally row: a share has no number to
+      // finish.
+      referralSummary(agentId).catch(e => {
+        console.error('referral summary failed:', e);
         return null;
       }),
     ]);
@@ -194,6 +202,7 @@ systemRouter.get(
       earned: countable.filter(r => claimed.has(r.key)).reduce((sum, r) => sum + r.credits, 0),
       available: countable.filter(r => !claimed.has(r.key)).reduce((sum, r) => sum + r.credits, 0),
       streak,
+      referral,
       rules: visible.map(r => ({
         key: r.key,
         label: r.label,

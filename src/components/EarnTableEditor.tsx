@@ -104,6 +104,11 @@ export function EarnTableEditor() {
                       cap
                     </span>
                   )}
+                  {r.kind === 'share' && (
+                    <span className="adm-earnkind" title="Credits is a percentage of the referee's grants">
+                      % share
+                    </span>
+                  )}
                 </div>
                 {r.note && <p className="adm-earnnote">{r.note}</p>}
                 <div className="adm-earnedit">
