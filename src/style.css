@@ -5133,6 +5133,16 @@ textarea.jobform-line--desc {
 .pubws-rail--left > .pubws-know { margin-top: 1.9rem; }
 .pubws-rail--left > .pubws-know:first-child { margin-top: 0; }
 .pubws-rail--left .pubws-know-what { font-size: 0.88rem; line-height: 1.55; }
+/* The head is one row in the narrow column: the label left, the Edit
+   control right, never wrapped under it (owner screenshot 2026-09-07). */
+.pubws-rail--left .pubws-know-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 0.6rem;
+}
+.pubws-rail--left .pubws-know-head .pubws-decide { margin-left: 0; flex: none; }
 
 /* The season advert (docs/ui-conventions.md, "The season is ADVERTISED,
    not narrated"): three lines in the left column under the definition.
