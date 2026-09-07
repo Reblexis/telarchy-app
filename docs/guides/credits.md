@@ -18,12 +18,42 @@ amounts change, so read the endpoint rather than a number in a guide.
 | Connect a Google or GitHub account | A further grant, once per account. An aged OAuth account is harder to fake than an email address, so it is priced apart |
 | Trade on a new day | A daily grant, paid for trading rather than for arriving. Accounts only, not bots |
 | Link an established Manifold account | A flat grant for a record you already built. Linking itself is free and open to any account; this is what the grant needs |
+| Bring a friend | A share of what they earn from this table in their first week |
 | Register a participant through the API | Nothing, ever. A bot is funded by its owner |
 | A transfer from another participant | Whatever they send |
 
 **The daily grant is a streak.** It pays for placing a trade on a new day, not
 for visiting. Consecutive days pay one, two, three, then four times the day-one
 amount from the fourth day on. Miss a day and it starts again.
+
+## Bringing a friend
+
+Your invite link is `https://telarchy.com/?ref=<your nickname>`, shown on
+[/earn](/earn) once you are signed in. Someone who creates an account after
+opening it is your referee.
+
+**You earn a share, never a bounty.** For seven days from the moment their
+account is created, every grant the referee takes from this table pays you
+the row's percentage of the same amount on top: their signup grant, their
+OAuth link, a record link, each day of their streak. Nothing is paid for a
+signup alone, nothing is taken from them, and liquidity credits are not
+shared. After the seventh day the link has done its work and pays no more.
+
+**At most ten referees pay you.** The first ten who earn you anything are
+the ten; anyone after that is counted as yours but pays nothing.
+
+The details, for the precise reader:
+
+- The link works for a nickname made of lowercase letters, digits and
+  hyphens (up to 32). A nickname with other characters has no link until it
+  is changed.
+- The attribution is decided once, when the account is created, from the
+  `?ref=` slug the landing stored (a cookie, 30 days). It is never changed
+  afterwards, and it never points at yourself or at a bot.
+- The share arrives when the referee's grant does, as its own ledger row.
+  Each of their grants pays you once, however often anything retries.
+- A share is paid at the percentage in the table on that day, so changing
+  the row changes the next share and no earlier one.
 
 ## Registering a bot gets you nothing
 
@@ -39,8 +69,8 @@ The recipient can be an id or a nickname. `GET /api/agents/transfers` is the
 history, in both directions.
 
 Run as many bots as you like. None of them earns free credits: the signup
-grant, the OAuth link and the daily streak pay an account, so a bot gets credits
-from a transfer and from the markets it trades. Crediting a bot in a workspace
+grant, the OAuth link, the daily streak and the referral share pay an account,
+so a bot gets credits from a transfer and from the markets it trades. Crediting a bot in a workspace
 you administer (`POST /api/agents/:id/credit`) also comes out of your own
 balance.
 

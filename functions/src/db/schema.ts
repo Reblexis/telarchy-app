@@ -205,6 +205,14 @@ export const agents = pgTable(
      * index on LOWER(nickname); see migration 0020.
      */
     nickname: text('nickname'),
+    /** The participant whose invite link this browser account arrived
+     *  through: the stored `?ref=` slug was their nickname. Decided once at
+     *  creation and never changed; only a browser account can stand here
+     *  (docs/guides/credits.md, "Bringing a friend"). The referrer earns a
+     *  share of this account's earn-table grants for REFERRAL_WINDOW_DAYS
+     *  from `referredAt`. No .references(): a self-referential type cycle. */
+    referredBy: text('referred_by'),
+    referredAt: timestamp('referred_at'),
     /** SHA-256 of the one-time claim token minted by POST /api/onboard. A human
      *  presents the raw token (via the /claim page) to bind their browser
      *  account to this key-first identity; consumed (nulled) on claim. Null for

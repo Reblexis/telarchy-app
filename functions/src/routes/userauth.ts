@@ -27,7 +27,13 @@ import { wrap } from '../lib/wrap';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships, hashKey } from '../middleware/auth';
 import { requireIdentity, requireScope, requireUser } from '../middleware/roles';
 import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
-import { claimEarn, earnCredits, earnLiquidityCredits } from '../services/earnRules';
+import {
+  attributeReferral,
+  claimEarn,
+  earnCredits,
+  earnLiquidityCredits,
+  payReferralShare,
+} from '../services/earnRules';
 import { CURRENT_CONSENT_VERSION } from './legal';
 
 export const userauthRouter = Router();
@@ -103,6 +109,21 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
       credits: grant,
     });
   });
+  // Whom this person was brought by, decided once from the `?ref=` slug the
+  // auth layer stored on the user (lib/attribution.ts), BEFORE any grant is
+  // shared: the signup grant above is the first thing the referrer earns a
+  // share of, and the link earn below pays its share through claimEarn.
+  // Best-effort like the link earn: a referral that fails must not fail a
+  // signup (docs/guides/credits.md, "Bringing a friend").
+  try {
+    const [srcRow] = await db.select({ source: authUser.source }).from(authUser).where(eq(authUser.id, uid));
+    const referrer = await attributeReferral(participantId, srcRow?.source);
+    if (referrer && grant > 0) {
+      await payReferralShare({ refereeId: participantId, key: 'signup_user', period: '', credits: grant });
+    }
+  } catch (e) {
+    console.error('referral attribution failed:', e);
+  }
   // Either provider earns the same single link row, once (owner decision
   // 2026-08-30): a second attached account is the same person proving
   // they hold another free account.

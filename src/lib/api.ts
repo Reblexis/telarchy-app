@@ -238,9 +238,11 @@ export interface EarnRule {
    *  has not migrated. */
   liquidityCredits?: number;
   /** `flat` a one-time grant, `cap` an "up to", `daily` the streak, `open`
-   *  an earn with no ceiling (trading profit). Only flat and cap carry a
-   *  number the reader can finish, so only they count toward the tally. */
-  kind: 'flat' | 'cap' | 'daily' | 'open';
+   *  an earn with no ceiling (trading profit), `share` a percentage of
+   *  somebody else's grant (the referral row; `credits` is the percent).
+   *  Only flat and cap carry a number the reader can finish, so only they
+   *  count toward the tally. */
+  kind: 'flat' | 'cap' | 'daily' | 'open' | 'share';
   enabled?: boolean;
   note: string;
   updatedAt?: string;
@@ -252,6 +254,14 @@ export interface DailyStreak {
   earnedToday: boolean;
   todayCredits: number;
   nextCredits: number;
+}
+
+/** The viewer's invite link and what it has brought (the credits guide,
+ *  "Bringing a friend"). `link` is null while the nickname cannot be a slug. */
+export interface ReferralSummary {
+  link: string | null;
+  referees: number;
+  credits: number;
 }
 
 /** An earn rule with the viewer's own state on it. */
@@ -1278,6 +1288,7 @@ export const api = {
     earned: number;
     available: number;
     streak: DailyStreak | null;
+    referral: ReferralSummary | null;
     rules: MyEarnRule[];
   }> => request('/api/earn/me'),
   /** Pay for any attached provider account not yet paid for. Safe to

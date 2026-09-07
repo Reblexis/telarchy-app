@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ManifoldButton, POLYMARKET } from '../components/ManifoldButton';
 import { useAuth } from '../hooks/useAuth';
-import { api, type DailyStreak, type EarnRule, type MyEarnRule } from '../lib/api';
+import { api, type DailyStreak, type EarnRule, type MyEarnRule, type ReferralSummary } from '../lib/api';
 import { authClient } from '../lib/auth-client';
 import { TopBar } from './TradePage';
 
@@ -36,9 +36,15 @@ export function EarnPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [rules, setRules] = useState<Array<EarnRule | MyEarnRule> | null>(null);
-  const [mine, setMine] = useState<{ earned: number; available: number; streak: DailyStreak | null } | null>(null);
+  const [mine, setMine] = useState<{
+    earned: number;
+    available: number;
+    streak: DailyStreak | null;
+    referral: ReferralSummary | null;
+  } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) {
@@ -67,7 +73,7 @@ export function EarnPage() {
     });
     if (r) {
       setRules(r.rules);
-      setMine({ earned: r.earned, available: r.available, streak: r.streak });
+      setMine({ earned: r.earned, available: r.available, streak: r.streak, referral: r.referral ?? null });
     }
   }, [user]);
 
@@ -88,6 +94,15 @@ export function EarnPage() {
       setNote(error.message || `Could not connect ${provider}`);
       setBusy(null);
     }
+  };
+
+  const referral = mine?.referral ?? null;
+  const copyLink = () => {
+    if (!referral?.link) return;
+    void navigator.clipboard?.writeText(referral.link).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    });
   };
 
   const ordered = (rules ?? []).slice().sort((a, b) => {
@@ -146,6 +161,10 @@ export function EarnPage() {
                     <td className="lbt-num">
                       {r.kind === 'open' ? (
                         <span className="earn-open">no limit</span>
+                      ) : r.kind === 'share' ? (
+                        // A percentage of the referee's grants, not an
+                        // amount: the row's number is the percent.
+                        `${n(r.credits)}%`
                       ) : r.kind === 'daily' ? (
                         // The row's price is day one; the streak multiplies
                         // it up to four times, so the range is the honest
@@ -180,6 +199,22 @@ export function EarnPage() {
                           </Link>
                         ) : r.kind === 'daily' ? (
                           <span className="earn-done">✓ +{n(streak?.todayCredits ?? 0)} today</span>
+                        ) : r.kind === 'share' ? (
+                          // The invite link, and what it has brought so far.
+                          referral?.link ? (
+                            <span className="earn-pair">
+                              <button type="button" className="earn-btn" onClick={copyLink}>
+                                {copied ? 'Copied' : 'Copy link'}
+                              </button>
+                              {referral.referees > 0 && (
+                                <span className="earn-done">
+                                  {referral.referees} joined, +{n(referral.credits)}
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="earn-muted">set a nickname first</span>
+                          )
                         ) : claimed ? (
                           <span className="earn-done">✓ earned</span>
                         ) : r.key === LINK_KEY ? (
