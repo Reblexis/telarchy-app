@@ -736,7 +736,9 @@ describe('three columns, and the standings under the verbs', () => {
     expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-rail--left \{[^}]*grid-column:\s*1/);
     expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-center \{[^}]*grid-column:\s*2/);
     expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-rail--right \{[^}]*grid-column:\s*3/);
-    expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-rail--left \{[^}]*border-right:\s*1px solid var\(--border-color\)/);
+    expect(wide![1]).toMatch(
+      /\.pubws-main--context \.pubws-rail--left \{[^}]*border-right:\s*1px solid var\(--border-color\)/,
+    );
     // From 1120px: two tracks, the market at up to 720px and the rail, the
     // left column's context stacked under the market (a 1280px laptop
     // squeezed the centre to 509px with three tracks, 2026-09-06).
