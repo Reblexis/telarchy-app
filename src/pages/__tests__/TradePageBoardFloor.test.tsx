@@ -711,6 +711,16 @@ describe('three columns, and the standings under the verbs', () => {
     expect(ghost.querySelector('.pubws-ghost-count')).toBeNull();
   });
 
+  test('the stylesheet keeps the definition head and its Edit on one row in the left column', () => {
+    // The Edit pill wrapped under the label in the narrow column (owner
+    // screenshot 2026-09-07): the head is a row, label left, control right.
+    const rule = CSS.match(/\.pubws-rail--left \.pubws-know-head \{([^}]*)\}/);
+    expect(rule).toBeTruthy();
+    expect(rule![1]).toMatch(/display:\s*flex/);
+    expect(rule![1]).toMatch(/justify-content:\s*space-between/);
+    expect(rule![1]).toMatch(/flex-wrap:\s*nowrap/);
+  });
+
   test('the stylesheet lays the floor out as three columns only from 1500px, two from 1120px, with no count strip left', () => {
     expect(CSS).not.toMatch(/pubws-count/);
     // From 1500px: three tracks, the left column, the market at up to 960px, the rail at 320px.
