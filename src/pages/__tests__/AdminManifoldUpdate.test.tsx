@@ -20,6 +20,7 @@ vi.mock('../../lib/api', () => ({
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'u1' }, loading: false }) }));
 vi.mock('../TradePage', () => ({ TopBar: () => null }));
 vi.mock('../../components/XWorkbench', () => ({ XWorkbench: () => null }));
+vi.mock('../../components/OutreachWorkbench', () => ({ OutreachWorkbench: () => null }));
 vi.mock('../../components/EarnTableEditor', () => ({ EarnTableEditor: () => null }));
 vi.mock('../../components/ManifoldUpdate', () => ({ ManifoldUpdate: () => <div>manifold update card</div> }));
 
