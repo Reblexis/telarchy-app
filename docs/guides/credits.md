@@ -26,6 +26,17 @@ amounts change, so read the endpoint rather than a number in a guide.
 for visiting. Consecutive days pay one, two, three, then four times the day-one
 amount from the fourth day on. Miss a day and it starts again.
 
+## A price cut applies to what was already granted
+
+Grant prices fall as well as rise. When one falls, the balances granted under
+the old price are trimmed to the new one, so two people who did the same thing
+hold the same credits whichever week they did it. A trim only ever takes
+credits away, it never touches the liquidity wallet, and it leaves everything
+you won by trading. Trading profit itself has no ceiling and is never trimmed.
+
+Every trim shows in your ledger as an adjustment naming the price change that
+caused it.
+
 ## Bringing a friend
 
 Your invite link is `https://telarchy.com/?ref=<your nickname>`, shown on
