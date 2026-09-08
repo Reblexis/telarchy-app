@@ -7,6 +7,7 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
+import { eq } from 'drizzle-orm';
 import { agents, proposals, workspaces } from '../db/schema';
 import { outsideOwnersDeciding7d } from '../services/platform-stats';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
@@ -32,18 +33,27 @@ async function floor(owner: { id: string; house?: 'admin' | 'operated' }) {
   return wsId;
 }
 
-async function decided(wsId: string, by: string, status: 'approved' | 'declined', when: Date) {
+async function decided(
+  wsId: string,
+  by: string,
+  status: 'approved' | 'declined',
+  when: Date,
+  over: { proposedBy?: string; createdAt?: Date } = {},
+) {
   n += 1;
   await db.insert(proposals).values({
     id: `p-${n}`,
     workspaceId: wsId,
     title: `P${n}`,
     description: '',
-    proposedBy: 'someone',
+    proposedBy: over.proposedBy ?? 'someone',
     status,
     resolvedBy: by,
     resolvedAt: when,
     conditionalMarketIds: [],
+    // A proposal written later than the workspace, unless the test says
+    // otherwise: the starter is the one born with it.
+    createdAt: over.createdAt ?? ago(4),
   });
 }
 
@@ -102,6 +112,20 @@ describe('outsideOwnersDeciding7d', () => {
     const ws = await floor({ id: 'd' });
     await decided(ws, 'not-the-owner', 'approved', ago(1));
     expect(await outsideOwnersDeciding7d()).toBe(0);
+  });
+
+  test('approving the starter proposal the template seeded is trying the button, not deciding', async () => {
+    const ws = await floor({ id: 'patrik' });
+    const [row] = await db.select({ createdAt: workspaces.createdAt }).from(workspaces).where(eq(workspaces.id, ws));
+    await decided(ws, 'patrik', 'approved', ago(1), {
+      proposedBy: 'patrik',
+      createdAt: new Date(row.createdAt.getTime() + 500),
+    });
+    expect(await outsideOwnersDeciding7d()).toBe(0);
+    // The owner's own proposal written later does count: the test is the
+    // birth instant, not who proposed.
+    await decided(ws, 'patrik', 'approved', ago(1), { proposedBy: 'patrik', createdAt: ago(3) });
+    expect(await outsideOwnersDeciding7d()).toBe(1);
   });
 
   test('two outside owners are two', async () => {
