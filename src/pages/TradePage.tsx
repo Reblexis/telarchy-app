@@ -97,6 +97,12 @@ function formatValue(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
+/** "30 Sep", the way the floor names a date; "" for nothing. */
+function dayOf(iso: string | null | undefined): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
 function formatDelta(delta: number, unit = ''): string {
   const abs = Math.abs(delta);
   const decimals = abs >= 100 ? 0 : abs >= 1 ? 1 : 2;
@@ -693,6 +699,13 @@ export function TradePage() {
   // A decided job is history: its markets are resolved, so trading is paused;
   // the page still shows the impact that was priced for it.
   const selectedJobDecided = !!selectedJob?.status && selectedJob.status !== 'pending';
+  // Trading on both branches closes at the decision or the deadline
+  // (docs/guides/proposals.md, "The deadline, and the close"): no verbs, no
+  // ticket, no Sell; the position card says when it settles.
+  const selectedJobClosed = selectedJobDecided || !!selectedJob?.closedAt;
+  const [extendOpen, setExtendOpen] = useState(false);
+  const [extendDate, setExtendDate] = useState('');
+  const [extendBusy, setExtendBusy] = useState(false);
   // The selected branch's market id/price shape, and the other branch's for
   // the chart's second line. A branch market can exist without any liquidity
   // (nobody funded the subsidy and the workspace owner could not cover the
@@ -1449,6 +1462,44 @@ export function TradePage() {
                     />
                   </>
                 )}
+                {/* The deadline is one amber chip (docs/ui-conventions.md): the
+                  only mention of it on the page. */}
+                {selectedJob && (
+                  <>
+                    <span className="pubws-chip-dot" aria-hidden="true">
+                      ·
+                    </span>
+                    <span
+                      className="pubws-chip pubws-chip--plain pubws-chip--deadline"
+                      aria-label="Decision deadline"
+                      title={
+                        selectedJobClosed
+                          ? 'Decided; trading on this proposal is closed'
+                          : selectedJob.decideBy
+                            ? `The owner decides by ${new Date(selectedJob.decideBy).toUTCString()}`
+                            : undefined
+                      }
+                    >
+                      <svg
+                        width="10"
+                        height="10"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        aria-hidden="true"
+                      >
+                        <circle cx="8" cy="8" r="6.2" />
+                        <path d="M8 4.5V8l2.4 1.6" />
+                      </svg>
+                      {selectedJobClosed
+                        ? `decided ${dayOf(selectedJob.resolvedAt ?? selectedJob.closedAt ?? null)}`
+                        : selectedJob.decideBy
+                          ? `decides ${dayOf(selectedJob.decideBy)}`
+                          : 'no deadline'}
+                    </span>
+                  </>
+                )}
               </h2>
               {/* The question line (owner ask 2026-08-28): under the pickers,
                the selected cell stated as the market's own sentence, "What
@@ -1683,6 +1734,63 @@ export function TradePage() {
                               >
                                 Decline
                               </button>
+                              {/* What happens if the owner does nothing, and the
+                                one way to buy time (docs/ui-conventions.md, "The
+                                deadline is one amber chip"): later only. */}
+                              {selectedJob.decideBy && !extendOpen && (
+                                <span className="pubws-ownerbar-note">
+                                  lapses {dayOf(selectedJob.decideBy)} ·{' '}
+                                  <button
+                                    type="button"
+                                    className="pubws-ownerbar-link"
+                                    onClick={() => {
+                                      setExtendDate(new Date(selectedJob.decideBy!).toISOString().slice(0, 10));
+                                      setExtendOpen(true);
+                                    }}
+                                  >
+                                    extend
+                                  </button>
+                                </span>
+                              )}
+                              {extendOpen && (
+                                <span className="pubws-ownerbar-note">
+                                  <input
+                                    className="jobform-line jobform-line--date"
+                                    type="date"
+                                    value={extendDate}
+                                    min={
+                                      selectedJob.decideBy
+                                        ? new Date(selectedJob.decideBy).toISOString().slice(0, 10)
+                                        : undefined
+                                    }
+                                    onChange={e => setExtendDate(e.target.value)}
+                                    aria-label="New deadline"
+                                  />
+                                  <button
+                                    type="button"
+                                    className="pubws-decide"
+                                    disabled={extendBusy || !extendDate}
+                                    onClick={() => {
+                                      setExtendBusy(true);
+                                      api
+                                        .editProposal(selectedJob.id, {
+                                          decideBy: new Date(`${extendDate}T23:59:59.000Z`).toISOString(),
+                                        })
+                                        .then(() => {
+                                          setExtendOpen(false);
+                                          reload();
+                                        })
+                                        .catch(e => setDecideErr((e as Error).message || 'Could not extend'))
+                                        .finally(() => setExtendBusy(false));
+                                    }}
+                                  >
+                                    Save deadline
+                                  </button>
+                                  <button type="button" className="pubws-decide" onClick={() => setExtendOpen(false)}>
+                                    Cancel
+                                  </button>
+                                </span>
+                              )}
                             </>
                           )}
                           {/* Take it off the board entirely: spam, a duplicate, a
@@ -1836,9 +1944,14 @@ export function TradePage() {
                       rides beside the value: the impact is the proposal's one
                       number, and silence read as a broken page. Bare arrow +
                       delta (owner ask 2026-08-28). */}
-                    <div className="pubws-stat-block pubws-stat--call">
+                    <div
+                      className="pubws-stat-block pubws-stat--call"
+                      aria-label={selectedJob ? `Market's call if ${branch}` : undefined}
+                    >
                       <span className="pubws-stat-what">
                         market's call
+                        {selectedJob ? ` if ${branch}` : ''}
+                        {selectedJobClosed ? ' at the decision' : ''}
                         {settleNote && <>{' · '}</>}
                         {settleNote}
                       </span>
@@ -2018,7 +2131,7 @@ export function TradePage() {
                 "Market has no liquidity" at submit (owner report
                 2026-08-15). The number above is the baseline's prior, drawn
                 so the chart is not blank; it is not a price anyone made. */}
-              {!selectedJobDecided &&
+              {!selectedJobClosed &&
                 (active.funded ? (
                   /* Each verb carries the price of a share of its side, and
                      one line under the pair says what a share pays
@@ -2060,7 +2173,7 @@ export function TradePage() {
                 where the call would move is visible on the market chart
                 above. Keyed by the side, so pressing the other verb
                 re-seeds the ticket instead of being a dead click. */}
-              {betModal && active && !selectedJobDecided && (
+              {betModal && active && !selectedJobClosed && (
                 <div className="pubws-ticket-inline" key={betModal}>
                   <TradeTicket
                     probability={shownProbability}
@@ -2098,13 +2211,14 @@ export function TradePage() {
               {/* The held position stays visible on the floor; managing it
                 (selling, cancelling orders) happens in the same inline
                 ticket. */}
-              {!selectedJobDecided && (positions.length > 0 || orders.length > 0) && active && (
+              {(positions.length > 0 || (!selectedJobClosed && orders.length > 0)) && active && (
                 <PositionSummary
                   positions={positions}
                   orders={orders.length}
                   probability={shownProbability}
                   liquidity={active.liquidity}
                   onManage={() => setBetModal('manage')}
+                  closed={selectedJobClosed ? { settlesOn: hero?.resolvesOn ?? null } : null}
                 />
               )}
               {/* The conversation under whatever the one view shows: the
@@ -2364,7 +2478,8 @@ export function TradePage() {
               workspaceName={ws.name}
               proposalReward={ws.proposalReward}
               metricNames={metricNames}
-              onPropose={async (title, description, askUsd) => {
+              decisionDays={ws.decisionDays ?? 7}
+              onPropose={async (title, description, askUsd, decideBy) => {
                 // Anonymous proposers go through the signup door; the board
                 // itself is public information (Open workspace ballot).
                 // Payment details come from the account (owner decision
@@ -2378,7 +2493,7 @@ export function TradePage() {
                 // side of the marketplace half a newcomer's starting balance
                 // to make an offer is spam defence aimed the wrong way; add
                 // it back if someone actually spams.
-                const created = (await api.createProposal({ title, description, askUsd })) as { id?: string };
+                const created = (await api.createProposal({ title, description, askUsd, decideBy })) as { id?: string };
                 reload();
                 // The new proposal is selected the moment it lands (docs/
                 // ui-conventions.md, "The proposer sees their own

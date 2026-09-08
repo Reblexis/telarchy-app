@@ -34,7 +34,10 @@ interface Props {
   /** The job whose conditional market the page is currently showing. */
   selectedId: string | null;
   onSelect: (id: string) => void;
-  onPropose: (title: string, description: string, askUsd: number) => Promise<void>;
+  onPropose: (title: string, description: string, askUsd: number, decideBy: string) => Promise<void>;
+  /** The floor's default deadline in days, prefilled on the form
+   *  (docs/guides/proposals.md, "The deadline, and the close"). */
+  decisionDays?: number;
   /** Whether a participant is signed in. When false, the propose button
       becomes a signup door rather than opening a form the submit would
       bounce anyway. */
@@ -104,6 +107,38 @@ export function pendingBallot(
  * nobody has funded (zero).
  */
 /** The pool's mark, the same drop the market facts use. */
+/** The deadline's mark: a clock in the drop's register. */
+const Clock = () => (
+  <svg
+    width="10"
+    height="10"
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    aria-hidden="true"
+  >
+    <circle cx="8" cy="8" r="6.2" />
+    <path d="M8 4.5V8l2.4 1.6" />
+  </svg>
+);
+
+/** "6d", "5h", "<1h": how long until the owner has to decide. */
+export function countdownTo(iso: string, now = Date.now()): { label: string; urgent: boolean } {
+  const ms = new Date(iso).getTime() - now;
+  if (ms <= 0) return { label: 'now', urgent: true };
+  // Rounded up: with six days to go it says 6d until the sixth day is over.
+  const hours = ms / 3_600_000;
+  if (hours >= 24) return { label: `${Math.ceil(hours / 24)}d`, urgent: false };
+  if (hours >= 1) return { label: `${Math.ceil(hours)}h`, urgent: true };
+  return { label: '<1h', urgent: true };
+}
+
+/** yyyy-mm-dd, `days` from now, for the form's date field. */
+function dateInDays(days: number): string {
+  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+}
+
 const PoolDrop = () => (
   <svg width="9" height="11" viewBox="0 0 12 15" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
     <path d="M6 1.5C6 1.5 1.5 6.5 1.5 9.3a4.5 4.5 0 0 0 9 0C10.5 6.5 6 1.5 6 1.5Z" />
@@ -172,6 +207,7 @@ export function JobsBoard({
   horizonDate,
   horizonMetricId,
   viewerId = null,
+  decisionDays = 7,
 }: Props) {
   const navigate = useNavigate();
   // The number the charter funds on, falling back to the largest priced delta
@@ -186,6 +222,7 @@ export function JobsBoard({
   const [foldOpen, setFoldOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
+  const [decideBy, setDecideBy] = useState(() => dateInDays(decisionDays));
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [formBusy, setFormBusy] = useState(false);
@@ -276,11 +313,13 @@ export function JobsBoard({
     setFormErr('');
     setFormBusy(true);
     try {
-      await onPropose(fullTitle, desc.trim(), askNum);
+      // The deadline is the end of the chosen day, UTC.
+      await onPropose(fullTitle, desc.trim(), askNum, new Date(`${decideBy}T23:59:59.000Z`).toISOString());
       // The green moment: the one place the form earns its color.
       setPlaced(true);
       closeTimer.current = setTimeout(() => {
         setAsk('');
+        setDecideBy(dateInDays(decisionDays));
         setTitle('');
         setDesc('');
         setPlaced(false);
@@ -354,7 +393,9 @@ export function JobsBoard({
                 ))}
               {askUsd !== null && <span>${askUsd} to them</span>}
               {p.status && p.status !== 'pending' && (
-                <span className={`pubws-ballot-status is-${p.status}`}>{p.status}</span>
+                <span className={`pubws-ballot-status is-${p.lapsedAt ? 'declined' : p.status}`}>
+                  {p.lapsedAt ? 'lapsed' : p.status}
+                </span>
               )}
             </span>
           </span>
@@ -380,6 +421,23 @@ export function JobsBoard({
               <PoolDrop />
               {Math.round(poolOf(p)).toLocaleString()}
             </span>
+            {/* The deadline, as a countdown beside the pool (docs/ui-conventions.md,
+                "The deadline is one amber chip"): red inside the last day. */}
+            {isPending(p) &&
+              p.decideBy &&
+              (() => {
+                const c = countdownTo(p.decideBy);
+                return (
+                  <span
+                    className={`pubws-ballot-clock${c.urgent ? ' is-urgent' : ''}`}
+                    aria-label="Decision in"
+                    title={`The owner decides by ${new Date(p.decideBy).toUTCString()}`}
+                  >
+                    <Clock />
+                    {c.label}
+                  </span>
+                );
+              })()}
           </span>
         </button>
       </li>
@@ -518,6 +576,23 @@ export function JobsBoard({
 
             {/* A paid job cannot go up without somewhere for the money to
                 go; the warning names the fix and the confirm stays off. */}
+            {/* The deadline, prefilled with the floor's default; no hint
+                paragraph (docs/ui-conventions.md). */}
+            <label className="jobform-field">
+              <span className="ticket-label">Decision by</span>
+              <span className="jobform-deadline">
+                <input
+                  className="jobform-line jobform-line--date"
+                  type="date"
+                  value={decideBy}
+                  min={dateInDays(1)}
+                  onChange={e => setDecideBy(e.target.value)}
+                  aria-label="Decision by"
+                />
+                <span className="jobform-count">default {decisionDays}d</span>
+              </span>
+            </label>
+
             {needsPayout && (
               <p className="ticket-err">A paid proposal needs payment details first: add them in your account menu.</p>
             )}

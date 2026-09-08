@@ -13,6 +13,11 @@ export interface HeldPosition {
   totalCost: number;
 }
 
+/** "30 Sep", the way the floor names a date. */
+function dayOf(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
 function fmt(v: number): string {
   return v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1);
 }
@@ -23,12 +28,17 @@ export function PositionSummary({
   probability,
   liquidity,
   onManage,
+  closed = null,
 }: {
   positions: HeldPosition[];
   orders: number;
   probability: number;
   liquidity: number;
   onManage: () => void;
+  /** Set once the proposal this position sits on is closed (docs/guides/
+   *  proposals.md, "The deadline, and the close"): nothing sells, so the
+   *  card says when it settles instead of offering to. */
+  closed?: { settlesOn: string | null } | null;
 }) {
   return (
     <div className="pubws-poscard" aria-label="Your position">
@@ -76,16 +86,22 @@ export function PositionSummary({
           </div>
         );
       })}
-      <div className="pubws-poscard-side">
-        {orders > 0 && (
-          <span className="pubws-poscard-orders">
-            {orders} resting order{orders > 1 ? 's' : ''}
-          </span>
-        )}
-        <button className="pubws-poscard-btn" onClick={onManage}>
-          {positions.length > 0 ? 'Sell' : 'Manage'}
-        </button>
-      </div>
+      {closed ? (
+        <span className="pubws-poscard-settles">
+          settles{closed.settlesOn ? ` ${dayOf(closed.settlesOn)}` : ' at the date'}
+        </span>
+      ) : (
+        <div className="pubws-poscard-side">
+          {orders > 0 && (
+            <span className="pubws-poscard-orders">
+              {orders} resting order{orders > 1 ? 's' : ''}
+            </span>
+          )}
+          <button className="pubws-poscard-btn" onClick={onManage}>
+            {positions.length > 0 ? 'Sell' : 'Manage'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
