@@ -716,7 +716,8 @@ prints no line. **The definition is on screen once at every width**: from
 1500px the left column carries it and the summary line is hidden (the
 rails section); below 1500px the summary line carries a "more" that
 expands the full definition in place (`.pubws-instrument-more`, the same
-words, left-aligned, with the owner's Edit control for a manager), and
+words, left-aligned); for a manager the Edit control sits beside "more"
+so it is reachable without expanding, and
 the "What is this market?" block is not rendered there. An owner who
 wants a different summary writes a different first sentence.
 
@@ -728,7 +729,11 @@ caption line first ("NOW · READ 35M AGO", "MARKET'S CALL · FOR 30 SEP",
 `.pubws-stat-what`) and the value under it at the price size
 (`.pubws-price`, mono, tabular, 2.1rem), the reading left-aligned in its
 cell and the call left-aligned in its own, so the two numbers start on
-the same vertical rhythm.
+the same vertical rhythm. On a phone the caption keeps the date and the
+countdown and wraps to a second line rather than truncating ("MARKET'S
+CALL · FOR 30 SEP" then "SETTLES IN 22D"; the provenance line goes to a
+second line too), and the separator dot between the two chips is not
+drawn when the chips wrap (critics' round 2).
 
 - The reading (`.pubws-stat--now`, ink): the value in force, "now", then
   "read 25m ago" (`.pubws-updated`, `timeAgoOf` from the latest reading's
@@ -738,8 +743,11 @@ the same vertical rhythm.
   reading cell is also the reporting cell** (critics' round 2026-09-08:
   "Yours: 9.00 [Report]" sat under the second chart where the owner's one
   weekly job was buried): the Report control sits in the cell beside the
-  age, and a metric the platform syncs says so there ("synced hourly")
-  instead of offering Report. A count of people or things prints as a
+  age, and a metric the platform syncs says so there instead of offering
+  Report. Its age line never contradicts itself (critics' round 2: "read
+  2d 20h ago" beside "synced hourly" read as a broken feed): a synced
+  metric prints "unchanged since 5 Sep · synced hourly" when the value has
+  not moved, and "synced 20m ago · hourly" when it has. A count of people or things prints as a
   whole number ("9", never "9.00"); decimals are for forecasts and money.
 - The market's call (`.pubws-stat--call`, amber): the consensus, "market's
   call", then "for 30 Sep · settles in 27d" (`.pubws-settle-in`: the day
@@ -918,13 +926,22 @@ sell preview, the delta hidden while it is still zero) and the trader's
 resting limit orders. The wallet balance lives in the account menu, not
 under the ticket.
 
+**On a proposal the bet verbs say which book they trade.** One line
+directly above the pair (`.pubws-bet-book`): "Trading the if-approved
+book · switch", the switch flipping the branch exactly as the pills under
+the decision bar do, because a trader who has just read "trade either" and
+reaches the buttons 500px later must not have to guess (critics' round 2).
+
 **Each bet verb says what a stake pays.** Under "Bet Higher" and "Bet
 Lower" the sub-line is a concrete example at the ticket's default stake
 (`DEFAULT_STAKE`, 25 cr), "25 cr pays 47 cr at 20" (the payout if the market settles at the top
 of the range for Higher, at the floor for Lower, from the same AMM
 preview the ticket uses), not the liquidity cap; the cap moves into the
-ticket. The line under the pair, "A share pays 1 cr at 50, nothing at
-0", stays as the rule the example follows (critics' round 2026-09-08: a
+ticket. The line under the pair names the range the example points at, once:
+"Settles between 0 and 50. A share pays 1 cr at 50, nothing at 0."
+(critics' round 2: the chart is zoomed to 20, so "at 50" pointed at a
+number the page never showed). That line stays as the rule the example
+follows (critics' round 2026-09-08: a
 Polymarket regular expects "put 100, get X").
 
 **An unfunded market never shows bet buttons.** A branch market can exist
@@ -1307,8 +1324,16 @@ two chart labels and the rail). Under the proposal's headline, one row on
 hairlines in the stat row's anatomy (`.pubws-decision`): "if approved" and
 its call, "if declined" and its call, "difference" (approved minus
 declined, signed), and "costs" with the ask, four cells, the numbers in
-the price register, the branch on screen marked. Everyone sees the row; it
-is the proposal's one number made legible. The since-open impact chip
+the price register, the branch on screen marked, the difference cell
+captioned with the metric's unit ("difference · active traders"). **The
+row has to add up at a glance** (critics' round 2 of 2026-09-08: "17.0,
+17.0, difference +0.04" reads as wrong): the two calls print with enough
+decimals to reconcile the difference (two when the difference needs them:
+17.02, 16.98, +0.04), and the chart's branch labels use the same rule.
+When the pair sits away from the unconditional call, one grey line under
+the row says why in the trader's terms: "Both books trade thin (295 cr in
+each); the market's own call is 19.8." Everyone sees the row; it is the
+proposal's one number made legible. The since-open impact chip
 beside the call and the rail's impact print the SAME difference at the
 SAME precision (`formatImpact`: two decimals under 1, one decimal under
 100, whole above; never "+0.0" for a number that is not zero).
@@ -1664,6 +1689,12 @@ fold, and a board of the same dozen names at 25 visitors a day reads as
 announcements therefore leave the know block under the market; what
 remains there is the checklist for a manager and the subject block.
 
+The left column ends with one quiet door for the reader who is not a
+trader but an owner in waiting: "Your own numbers? Run a floor" linking
+to the setup door, because the only route to a floor of one's own sat at
+the foot of a five-screen page (critics' round 2, both critics' top
+owner finding).
+
 **Social proof is real use, not a ranking, and facts are the icon row,
 never a sentence** (owner rule 2026-09-03, and again 2026-09-06 when a
 prose count strip was cut). The market's facts row (traders, pool,
@@ -1677,7 +1708,12 @@ season" control. For a manager one more line under the terms says who
 pays ("Prizes paid by Telarchy. Your floor costs you nothing."), because
 an owner reads "free to enter" as their own bill (critics' round
 2026-09-08). Otherwise three lines, nothing else: no trader or volume
-count in it, no "and", no running sentence. It sits in the left column under the
+count in it, no "and", no running sentence. **Below 1500px the advert is
+one line**, directly under the facts row in the centre column
+(`.pubws-season--line`): "$1,000 in prizes · Season 0 ends in 23 days ·
+Enter the season", the prize in the price register, so a laptop and a
+phone see the money on the first scroll rather than after the standings
+(critics' round 2). It sits in the left column under the
 definition.
 
 **The standings are footers, not rails.** Under the facts row, two
@@ -1686,16 +1722,22 @@ compact blocks side by side on desktop and stacked on a phone
 (the rail showed five), the same `.pubws-lb-head` anatomy (tiny uppercase
 label, right-aligned mono meta, hairline, rows), and one "Show full
 leaderboard" link to `/leaderboard` under the pair. They keep every
-ranking rule below and the fifteen-second poll. **With a proposal
+ranking rule below and the fifteen-second poll. Every mark on a row has a
+hover title ("IN" is in the season; the amber dollar figure is real prize
+money claimed; the leaf is a linked forecasting record), and one footnote
+line under the pair spells the two that carry money: "IN = in the season
+· $ = prizes claimed" (critics' round 2). **With a proposal
 selected, the traders footer becomes "Traders on this proposal"**: the
 same rows, restricted to accounts with a position on either branch of the
 selected pair, ranked by that position's marked profit, with the meta "this
 proposal"; when nobody holds one it says "nobody yet" in one row rather
 than hiding. The contractors footer does not change, since the contractor
-score is workspace-wide by construction. Below 1120px the proposals board
-stacks under the market column before the know block, and the standings
-footers stay where they are, under the facts row: the action before the
-proof. The floor column keeps a small gap under the top bar on narrow
+score is workspace-wide by construction. Below 1120px the columns stack in reading
+order: the market (verbs, facts row, the season line), then the proposals
+board, then the standings, then the left column's context (definition,
+announcements), then what is left of the know block; the proposals before
+the standings because a proposal is the next thing to trade and the
+standings are proof (critics' round 2). The floor column keeps a small gap under the top bar on narrow
 viewports. The loading ghosts draw the same three columns.
 
 **Both standings are scoped to THIS workspace.** The traders footer passes the

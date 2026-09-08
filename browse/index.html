@@ -4888,7 +4888,8 @@ prints no line. <strong>The definition is on screen once at every width</strong>
 1500px the left column carries it and the summary line is hidden (the
 rails section); below 1500px the summary line carries a &quot;more&quot; that
 expands the full definition in place (<code>.pubws-instrument-more</code>, the same
-words, left-aligned, with the owner's Edit control for a manager), and
+words, left-aligned); for a manager the Edit control sits beside &quot;more&quot;
+so it is reachable without expanding, and
 the &quot;What is this market?&quot; block is not rendered there. An owner who
 wants a different summary writes a different first sentence.</p>
 <p><strong>The stat row</strong> (<code>.pubws-stats</code>) is two named numbers in ONE row, two
@@ -4899,7 +4900,11 @@ caption line first (&quot;NOW · READ 35M AGO&quot;, &quot;MARKET'S CALL · FOR 
 <code>.pubws-stat-what</code>) and the value under it at the price size
 (<code>.pubws-price</code>, mono, tabular, 2.1rem), the reading left-aligned in its
 cell and the call left-aligned in its own, so the two numbers start on
-the same vertical rhythm.</p>
+the same vertical rhythm. On a phone the caption keeps the date and the
+countdown and wraps to a second line rather than truncating (&quot;MARKET'S
+CALL · FOR 30 SEP&quot; then &quot;SETTLES IN 22D&quot;; the provenance line goes to a
+second line too), and the separator dot between the two chips is not
+drawn when the chips wrap (critics' round 2).</p>
 <ul>
 <li>The reading (<code>.pubws-stat--now</code>, ink): the value in force, &quot;now&quot;, then
 &quot;read 25m ago&quot; (<code>.pubws-updated</code>, <code>timeAgoOf</code> from the latest reading's
@@ -4909,8 +4914,11 @@ only trustworthy with its age on it. A metric with no reading yet prints
 reading cell is also the reporting cell</strong> (critics' round 2026-09-08:
 &quot;Yours: 9.00 [Report]&quot; sat under the second chart where the owner's one
 weekly job was buried): the Report control sits in the cell beside the
-age, and a metric the platform syncs says so there (&quot;synced hourly&quot;)
-instead of offering Report. A count of people or things prints as a
+age, and a metric the platform syncs says so there instead of offering
+Report. Its age line never contradicts itself (critics' round 2: &quot;read
+2d 20h ago&quot; beside &quot;synced hourly&quot; read as a broken feed): a synced
+metric prints &quot;unchanged since 5 Sep · synced hourly&quot; when the value has
+not moved, and &quot;synced 20m ago · hourly&quot; when it has. A count of people or things prints as a
 whole number (&quot;9&quot;, never &quot;9.00&quot;); decimals are for forecasts and money.</li>
 <li>The market's call (<code>.pubws-stat--call</code>, amber): the consensus, &quot;market's
 call&quot;, then &quot;for 30 Sep · settles in 27d&quot; (<code>.pubws-settle-in</code>: the day
@@ -5078,13 +5086,21 @@ worth on each held row (&quot;worth 31.2 cr +6.2&quot;, green/red delta from the
 sell preview, the delta hidden while it is still zero) and the trader's
 resting limit orders. The wallet balance lives in the account menu, not
 under the ticket.</p>
+<p><strong>On a proposal the bet verbs say which book they trade.</strong> One line
+directly above the pair (<code>.pubws-bet-book</code>): &quot;Trading the if-approved
+book · switch&quot;, the switch flipping the branch exactly as the pills under
+the decision bar do, because a trader who has just read &quot;trade either&quot; and
+reaches the buttons 500px later must not have to guess (critics' round 2).</p>
 <p><strong>Each bet verb says what a stake pays.</strong> Under &quot;Bet Higher&quot; and &quot;Bet
 Lower&quot; the sub-line is a concrete example at the ticket's default stake
 (<code>DEFAULT_STAKE</code>, 25 cr), &quot;25 cr pays 47 cr at 20&quot; (the payout if the market settles at the top
 of the range for Higher, at the floor for Lower, from the same AMM
 preview the ticket uses), not the liquidity cap; the cap moves into the
-ticket. The line under the pair, &quot;A share pays 1 cr at 50, nothing at
-0&quot;, stays as the rule the example follows (critics' round 2026-09-08: a
+ticket. The line under the pair names the range the example points at, once:
+&quot;Settles between 0 and 50. A share pays 1 cr at 50, nothing at 0.&quot;
+(critics' round 2: the chart is zoomed to 20, so &quot;at 50&quot; pointed at a
+number the page never showed). That line stays as the rule the example
+follows (critics' round 2026-09-08: a
 Polymarket regular expects &quot;put 100, get X&quot;).</p>
 <p><strong>An unfunded market never shows bet buttons.</strong> A branch market can exist
 with no liquidity, in which case it has no price and the server refuses
@@ -5425,8 +5441,16 @@ two chart labels and the rail). Under the proposal's headline, one row on
 hairlines in the stat row's anatomy (<code>.pubws-decision</code>): &quot;if approved&quot; and
 its call, &quot;if declined&quot; and its call, &quot;difference&quot; (approved minus
 declined, signed), and &quot;costs&quot; with the ask, four cells, the numbers in
-the price register, the branch on screen marked. Everyone sees the row; it
-is the proposal's one number made legible. The since-open impact chip
+the price register, the branch on screen marked, the difference cell
+captioned with the metric's unit (&quot;difference · active traders&quot;). <strong>The
+row has to add up at a glance</strong> (critics' round 2 of 2026-09-08: &quot;17.0,
+17.0, difference +0.04&quot; reads as wrong): the two calls print with enough
+decimals to reconcile the difference (two when the difference needs them:
+17.02, 16.98, +0.04), and the chart's branch labels use the same rule.
+When the pair sits away from the unconditional call, one grey line under
+the row says why in the trader's terms: &quot;Both books trade thin (295 cr in
+each); the market's own call is 19.8.&quot; Everyone sees the row; it is the
+proposal's one number made legible. The since-open impact chip
 beside the call and the rail's impact print the SAME difference at the
 SAME precision (<code>formatImpact</code>: two decimals under 1, one decimal under
 100, whole above; never &quot;+0.0&quot; for a number that is not zero).</p>
@@ -5746,6 +5770,11 @@ fold, and a board of the same dozen names at 25 visitors a day reads as
 &quot;no one is really using this&quot; rather than as proof. The definition and
 announcements therefore leave the know block under the market; what
 remains there is the checklist for a manager and the subject block.</p>
+<p>The left column ends with one quiet door for the reader who is not a
+trader but an owner in waiting: &quot;Your own numbers? Run a floor&quot; linking
+to the setup door, because the only route to a floor of one's own sat at
+the foot of a five-screen page (critics' round 2, both critics' top
+owner finding).</p>
 <p><strong>Social proof is real use, not a ranking, and facts are the icon row,
 never a sentence</strong> (owner rule 2026-09-03, and again 2026-09-06 when a
 prose count strip was cut). The market's facts row (traders, pool,
@@ -5759,7 +5788,12 @@ season&quot; control. For a manager one more line under the terms says who
 pays (&quot;Prizes paid by Telarchy. Your floor costs you nothing.&quot;), because
 an owner reads &quot;free to enter&quot; as their own bill (critics' round
 2026-09-08). Otherwise three lines, nothing else: no trader or volume
-count in it, no &quot;and&quot;, no running sentence. It sits in the left column under the
+count in it, no &quot;and&quot;, no running sentence. <strong>Below 1500px the advert is
+one line</strong>, directly under the facts row in the centre column
+(<code>.pubws-season--line</code>): &quot;$1,000 in prizes · Season 0 ends in 23 days ·
+Enter the season&quot;, the prize in the price register, so a laptop and a
+phone see the money on the first scroll rather than after the standings
+(critics' round 2). It sits in the left column under the
 definition.</p>
 <p><strong>The standings are footers, not rails.</strong> Under the facts row, two
 compact blocks side by side on desktop and stacked on a phone
@@ -5767,16 +5801,22 @@ compact blocks side by side on desktop and stacked on a phone
 (the rail showed five), the same <code>.pubws-lb-head</code> anatomy (tiny uppercase
 label, right-aligned mono meta, hairline, rows), and one &quot;Show full
 leaderboard&quot; link to <code>/leaderboard</code> under the pair. They keep every
-ranking rule below and the fifteen-second poll. <strong>With a proposal
+ranking rule below and the fifteen-second poll. Every mark on a row has a
+hover title (&quot;IN&quot; is in the season; the amber dollar figure is real prize
+money claimed; the leaf is a linked forecasting record), and one footnote
+line under the pair spells the two that carry money: &quot;IN = in the season
+· $ = prizes claimed&quot; (critics' round 2). <strong>With a proposal
 selected, the traders footer becomes &quot;Traders on this proposal&quot;</strong>: the
 same rows, restricted to accounts with a position on either branch of the
 selected pair, ranked by that position's marked profit, with the meta &quot;this
 proposal&quot;; when nobody holds one it says &quot;nobody yet&quot; in one row rather
 than hiding. The contractors footer does not change, since the contractor
-score is workspace-wide by construction. Below 1120px the proposals board
-stacks under the market column before the know block, and the standings
-footers stay where they are, under the facts row: the action before the
-proof. The floor column keeps a small gap under the top bar on narrow
+score is workspace-wide by construction. Below 1120px the columns stack in reading
+order: the market (verbs, facts row, the season line), then the proposals
+board, then the standings, then the left column's context (definition,
+announcements), then what is left of the know block; the proposals before
+the standings because a proposal is the next thing to trade and the
+standings are proof (critics' round 2). The floor column keeps a small gap under the top bar on narrow
 viewports. The loading ghosts draw the same three columns.</p>
 <p><strong>Both standings are scoped to THIS workspace.</strong> The traders footer passes the
 workspace to <code>/api/leaderboard</code> (<code>?workspaceId=&lt;id or slug&gt;</code>), so a
