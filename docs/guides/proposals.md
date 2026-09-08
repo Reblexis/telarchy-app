@@ -75,19 +75,40 @@ metric's own books and never a proposal.
 
 | | Endpoint | What happens to the pair | Money |
 |---|---|---|---|
-| Approve | `POST /api/proposals/:id/approve` | declined branch voided and refunded, approved branch stays live | the ask is owed; stake bought out; `proposalReward` paid |
-| Decline | `POST /api/proposals/:id/decline` | approved branch voided and refunded, declined branch stays live | nothing moves |
+| Approve | `POST /api/proposals/:id/approve` | declined branch voided and refunded, approved branch closes and settles on the actual value | the ask is owed; stake bought out; `proposalReward` paid |
+| Decline | `POST /api/proposals/:id/decline` | approved branch voided and refunded, declined branch closes and settles on the actual value | nothing moves |
 | Decline as spam | `POST /api/proposals/:id/decline-spam` | both branches voided and refunded | up to `spamPenalty` taken from the proposer, credited to you |
 | Remove | `DELETE /api/proposals/:id` | both branches voided and refunded | nothing moves |
 
 All four need the `manage` capability. The proposer has a fifth, `POST
 /api/proposals/:id/withdraw`, which voids both branches and moves no money.
 
-Nothing expires. There is no deadline on a pending proposal and no sweep that
-decides for you: it stays pending until a person acts. The one automatic thing
-is that a branch market reaching its own resolution date while the proposal is
-still pending gets voided and refunded, because a conditional market on an
-undecided condition has nothing to settle against.
+## The deadline, and the close
+
+Every proposal carries a deadline, `decideBy`: the instant by which you
+decide. It defaults to `decisionDays` after posting (a workspace setting, 7
+by default); the proposer may ask for a later one when posting; you, or the
+proposer, may move it later while the proposal is pending (`PATCH
+/api/proposals/:id { decideBy }`, later only, written to the revision log
+like an ask change). You may decide at any moment before it.
+
+**Trading on both branches closes at the decision, or at the deadline,
+whichever comes first.** No buys and no sells after that; open limit orders
+are released and their credits returned. The surviving branch's positions
+settle on the actual value at the date; the losing branch is refunded at
+once. The prices immediately before the close are the decision record. So
+the number you decide on is the last one anybody could trade, and nothing
+is spent on a book after it can no longer change the decision.
+
+**Undecided at the deadline, a proposal lapses as declined.** The approved
+branch is refunded, the declined branch settles on the actual value, the
+record is the prices at the deadline, and the floor marks it "lapsed"
+(`lapsedAt`). The proposer can post it again.
+
+A proposal only spawns pairs on dates that settle after its deadline: a
+"this week" cell that would settle before you decide is not spawned, and a
+pending proposal's pair whose date passes anyway is voided and refunded, as
+before.
 
 If you want a ceiling on how many can pile up, `maxPendingProposalsPerParticipant`
 caps pending proposals per participant (0, off, by default) and returns 429 with

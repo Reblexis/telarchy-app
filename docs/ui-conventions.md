@@ -618,6 +618,21 @@ not shown (that is the cross-horizon conflict mark, which does not exist).
   conditional on before the number means anything.
 - **With one open horizon nothing changes**: same caption, same world line.
 
+**The deadline is one amber chip.** Beside the date chips of the caption
+row a third chip reads "decides 14 Sep" (a clock glyph, the date), in the
+accent; after the ruling it reads "decided 12 Sep". It is the only mention
+of the deadline on the page: nothing under the pitch, nothing in the ticket,
+nothing on the chart. The owner's bar carries three mono words after its
+buttons, "lapses 14 Sep · extend", where extend opens a date field and
+accepts a later date only. On the board a pending row carries a clock and a
+countdown ("6d") beside its pool, in the same mono register, red inside the
+last day; a row nobody ruled on by its deadline wears a "lapsed" pill in
+the decided fold. Once the proposal is closed (decided or lapsed) the ticket
+and the verbs are gone, the call cell's caption reads "market's call at the
+decision", and the position card says when it settles ("settles 30 Sep")
+where the Sell button was. The proposal form carries one prefilled field,
+"Decision by", with "default 7d" beside it and no hint paragraph.
+
 In proposal mode the headline is the question the market actually prices,
 naming who is paid and how much ("What is <metric> @ <date> if <proposer>
 is paid $<ask> to do: <task>", the task in ink and the rest a register
