@@ -712,9 +712,13 @@ prints under the question line in the quiet register
 number is before they see it: "Everything LookPilot earned in the last 30
 days from Steam and direct sales, net of Valve's cut and refunds." A
 definition with no sentence end prints whole; a metric with no definition
-prints no line. The full definition stays where it was, under "What is
-this market?"; an owner who wants a different summary writes a different
-first sentence.
+prints no line. **The definition is on screen once at every width**: from
+1500px the left column carries it and the summary line is hidden (the
+rails section); below 1500px the summary line carries a "more" that
+expands the full definition in place (`.pubws-instrument-more`, the same
+words, left-aligned, with the owner's Edit control for a manager), and
+the "What is this market?" block is not rendered there. An owner who
+wants a different summary writes a different first sentence.
 
 **The stat row** (`.pubws-stats`) is two named numbers in ONE row, two
 cells on hairlines the way the home board draws its cells (revised
@@ -730,7 +734,13 @@ the same vertical rhythm.
   "read 25m ago" (`.pubws-updated`, `timeAgoOf` from the latest reading's
   instant, the exact UTC instant as its hover title), because a reading is
   only trustworthy with its age on it. A metric with no reading yet prints
-  "no reading yet" in the value's place and no age.
+  "no reading yet" in the value's place and no age. **For the owner the
+  reading cell is also the reporting cell** (critics' round 2026-09-08:
+  "Yours: 9.00 [Report]" sat under the second chart where the owner's one
+  weekly job was buried): the Report control sits in the cell beside the
+  age, and a metric the platform syncs says so there ("synced hourly")
+  instead of offering Report. A count of people or things prints as a
+  whole number ("9", never "9.00"); decimals are for forecasts and money.
 - The market's call (`.pubws-stat--call`, amber): the consensus, "market's
   call", then "for 30 Sep · settles in 27d" (`.pubws-settle-in`: the day
   being forecast, which is the day before the settle instant, exactly as
@@ -907,6 +917,15 @@ worth on each held row ("worth 31.2 cr +6.2", green/red delta from the AMM
 sell preview, the delta hidden while it is still zero) and the trader's
 resting limit orders. The wallet balance lives in the account menu, not
 under the ticket.
+
+**Each bet verb says what a stake pays.** Under "Bet Higher" and "Bet
+Lower" the sub-line is a concrete example at the ticket's default stake,
+"100 cr pays 187 cr at 20" (the payout if the market settles at the top
+of the range for Higher, at the floor for Lower, from the same AMM
+preview the ticket uses), not the liquidity cap; the cap moves into the
+ticket. The line under the pair, "A share pays 1 cr at 50, nothing at
+0", stays as the rule the example follows (critics' round 2026-09-08: a
+Polymarket regular expects "put 100, get X").
 
 **An unfunded market never shows bet buttons.** A branch market can exist
 with no liquidity, in which case it has no price and the server refuses
@@ -1279,11 +1298,24 @@ lost. The panel fetches both branches, sums the counts, merges the rows
 reader happens to be looking at. The baseline market has one world and
 carries no label.
 
-### The decision bar
+### The decision row, then the decision bar
 
-A manage-capable session (the owner) gets a decision bar on a selected
-contract: "Approve, pay $N" as the one money-colored pill, and Decline,
-which opens the published-reason field in place (the charter promises the
+**A decision is laid out as a decision before it is asked** (critics'
+round of 2026-09-08, both critics: the owner was asked to sign before the
+page showed what they were signing, with the pair scattered over a chip,
+two chart labels and the rail). Under the proposal's headline, one row on
+hairlines in the stat row's anatomy (`.pubws-decision`): "if approved" and
+its call, "if declined" and its call, "difference" (approved minus
+declined, signed), and "costs" with the ask, four cells, the numbers in
+the price register, the branch on screen marked. Everyone sees the row; it
+is the proposal's one number made legible. The since-open impact chip
+beside the call and the rail's impact print the SAME difference at the
+SAME precision (`formatImpact`: two decimals under 1, one decimal under
+100, whole above; never "+0.0" for a number that is not zero).
+
+Under the row, a manage-capable session (the owner) gets the decision
+bar: "Approve, pay $N" as the one money-colored pill, and Decline, which
+opens the published-reason field in place (the charter promises the
 reason lands on the proposal, so the confirm stays off until a reason is
 typed). Nobody else ever renders the bar; the backend enforces manage
 regardless.
@@ -1312,7 +1344,11 @@ check is inert.
 
 ### The proposals board (right rail)
 
-The proposals board IS the right rail, under a bare "Proposals" label; it
+The proposals board IS the right rail, under a bare "Proposals" label
+and one quiet line that says what a row is to a trader ("Each one is a
+pair of books: the number if approved, the number if declined. Trade
+either.", `.pubws-ballot-why`; critics' round 2026-09-08: nothing on the
+rail said why a trader would touch it); it
 renders for everyone, with proposing routed to /signup when anonymous.
 **One number per proposal** (as few numbers as possible): the impact, which
 is if-done minus if-not-done, green/red, "open" while unpriced, under a
@@ -1637,8 +1673,11 @@ be advertised better than with these weird words"): the block leads with
 the money as its hero line in the mono numeral style of the market's own
 numbers, "$1,000 in prizes", then one short line of the terms, "Season 0
 ends in 26 days. Free to enter.", then the "Enter the season" / "See the
-season" control. Three lines, nothing else: no trader or volume count in
-it, no "and", no running sentence. It sits in the left column under the
+season" control. For a manager one more line under the terms says who
+pays ("Prizes paid by Telarchy. Your floor costs you nothing."), because
+an owner reads "free to enter" as their own bill (critics' round
+2026-09-08). Otherwise three lines, nothing else: no trader or volume
+count in it, no "and", no running sentence. It sits in the left column under the
 definition.
 
 **The standings are footers, not rails.** Under the facts row, two
