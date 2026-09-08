@@ -52,31 +52,10 @@ describe('MarketChart axis on young markets (2026-08-13)', () => {
     expect(parseFloat(dot.getAttribute('cx')!)).toBeCloseTo(RIGHT_EDGE, 0);
   });
 
-  it('ends both branches of a conditional pair at the same right edge', () => {
-    const { container } = render(
-      <MarketChart
-        series={[{ at: iso(0), consensus: 77316 }]}
-        consensus={77316}
-        unit="$"
-        secondary={{
-          series: [
-            { at: iso(40_000), consensus: 80000 },
-            { at: iso(2_000), consensus: 82390 },
-          ],
-          consensus: 82390,
-          label: 'if approved',
-          tone: 'higher',
-        }}
-      />,
-    );
-    const primaryDot = container.querySelector('.mchart-calldot')!;
-    const branchDot = container.querySelector('.mchart-branch-dot')!;
-    expect(parseFloat(primaryDot.getAttribute('cx')!)).toBeCloseTo(RIGHT_EDGE, 0);
-    expect(parseFloat(branchDot.getAttribute('cx')!)).toBeCloseTo(RIGHT_EDGE, 0);
-    // The untraded primary still draws a line (the held call), not a bare dot.
-    const xs = pathXs(container.querySelector('.mchart-mline')!.getAttribute('d')!);
-    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(100);
-  });
+  /* Removed 2026-09-08 with the second chart: the conditional pair's two
+     lines were the floor's "how the call moved" strip, and the pair is now
+     drawn on the one chart (NumberChartOneChart.test.tsx). This component
+     draws one series, for the participant profile's balance. */
 
   it('labels ticks with seconds when the span is under ten minutes, and none are in the future', () => {
     const { container } = render(
@@ -243,39 +222,6 @@ describe('another series in the same chart (the profile balance)', () => {
     expect(container.querySelector('svg')!.getAttribute('aria-label')).toBe(
       "The market's call over time, currently 99,306",
     );
-  });
-});
-
-/**
- * On a proposal the strip names the book being traded (critics' round 3):
- * the primary line's end label carries the branch word the caller hands
- * it, the way the secondary line already carried "if declined".
- */
-describe('the call label names the book being traded', () => {
-  it("appends the caller's label after the number", () => {
-    const { container } = render(
-      <MarketChart
-        series={[{ at: iso(3600e3), consensus: 82000 }]}
-        consensus={82000}
-        unit="$"
-        callLabel="if approved"
-        secondary={{
-          series: [{ at: iso(3600e3), consensus: 71000 }],
-          consensus: 71000,
-          label: 'if declined',
-          tone: 'lower',
-        }}
-      />,
-    );
-    expect(container.querySelector('.mchart-calllabel')?.textContent).toBe('$82,000 if approved');
-    expect(container.querySelector('.mchart-branch-label')?.textContent).toBe('$71,000 if declined');
-  });
-
-  it('without a label the number stands alone', () => {
-    const { container } = render(
-      <MarketChart series={[{ at: iso(3600e3), consensus: 82000 }]} consensus={82000} unit="$" />,
-    );
-    expect(container.querySelector('.mchart-calllabel')?.textContent).toBe('$82,000');
   });
 });
 

@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { labelQuantum, yDomain } from '../lib/chart-domain';
 
@@ -25,41 +24,12 @@ interface Props {
   unit?: string;
   /** Which range words to offer, by key ('1D', '1W', ...); all when absent. */
   ranges?: string[];
-  /** The view toggle words, rendered at the left of the range row. */
-  corner?: ReactNode;
-  /** The centre of the range row: the time left until the market settles. */
-  center?: ReactNode;
-  /** Top-left corner note ("resolves 31 December 2026"): the one market
-      fact that belongs on the visualization itself. */
-  note?: string;
-  /** A composed-but-unplaced bet's impact: where the call would move. Drawn
-      as a dashed ghost off the live dot, tinted by direction. */
-  preview?: { value: number; direction: 'higher' | 'lower' } | null;
-  /** The viewer's own resting limit orders, drawn as faint rules at their
-      limits. Seeing your order sitting in the price is what makes the
-      abstraction concrete, and it costs one line each. */
-  orders?: Array<{ id: string; direction: 'higher' | 'lower'; limitValue: number }>;
-  /** The other branch of a conditional pair, drawn as a second, quieter
-      line (owner decision 2026-08-10: both branches on the page, the gap
-      between them IS the priced impact). `tone` colours it; the primary
-      series stays the loud one. */
-  secondary?: {
-    series: Array<{ at: string; consensus: number | null }>;
-    consensus: number;
-    label: string;
-    tone: 'higher' | 'lower';
-  } | null;
   height?: number;
   /** Ink instead of amber: for a series that is not a market's call (the
    *  profile's balance, docs/ui-conventions.md "The participant profile"). */
   tone?: 'market' | 'ink';
   /** The word the tooltip and the aria-label use for the series. */
   label?: string;
-  /** Appended to the call's end label ("$82,000 if approved"): on a
-   *  proposal the strip names the book being traded, the way the secondary
-   *  line names the other one (docs/ui-conventions.md, "The decision row,
-   *  then the decision bar"). */
-  callLabel?: string;
 }
 
 // Two geometries for one chart: the wide 720-unit canvas reads well from
@@ -111,17 +81,10 @@ export function MarketChart({
   series,
   consensus,
   unit = '',
-  note,
-  preview = null,
-  orders = [],
-  secondary = null,
   height,
   ranges,
-  corner,
-  center,
   tone = 'market',
   label = 'market',
-  callLabel,
 }: Props) {
   const ink = tone === 'ink';
   const seriesName = label === 'market' ? "The market's call" : `The ${label}`;
@@ -173,20 +136,6 @@ export function MarketChart({
       pts = carried ? [{ t: cutoff, v: carried.v }, ...inside] : inside;
       if (pts.length === 0) pts = [{ t: now, v: consensus }];
     }
-    // The secondary branch shares the domain: two lines are only comparable
-    // when they share axes, and the gap between them is the point.
-    let secPts = (secondary?.series ?? [])
-      .filter(p => p.consensus !== null)
-      .map(p => ({ t: new Date(p.at).getTime(), v: p.consensus as number }))
-      .filter(p => Number.isFinite(p.t))
-      .sort((a, b) => a.t - b.t);
-    if (range !== null && secPts.length > 0) {
-      const cutoff = now - range;
-      const carried = [...secPts].reverse().find(p => p.t <= cutoff);
-      const inside = secPts.filter(p => p.t > cutoff);
-      secPts = carried ? [{ t: cutoff, v: carried.v }, ...inside] : inside;
-    }
-
     // A selected window pins the axis to [now - range, now] regardless of
     // where the data starts; ALL spans the data. The right edge is always
     // max(now, newest point), NEVER the future: the 60-second minimum span
@@ -196,14 +145,13 @@ export function MarketChart({
     // yet, and stranded the primary line mid-chart while the secondary drew
     // to the domain edge (owner report 2026-08-13).
     const t1 = Math.max(now, pts[pts.length - 1].t);
-    const t0 = range !== null ? now - range : Math.min(pts[0].t, secPts[0]?.t ?? pts[0].t, t1 - 60_000);
+    const t0 = range !== null ? now - range : Math.min(pts[0].t, t1 - 60_000);
     const span = t1 - t0;
 
     // In ALL mode the step line enters the window at the call in force at
-    // its left edge (t0 precedes the first point when the other branch is
-    // older, or when the minimum span extended the window left), so an
-    // untraded branch (one fallback point at now) draws as a flat held-call
-    // line instead of a floating dot. Zoom windows keep their deliberate
+    // its left edge (t0 precedes the first point when the minimum span
+    // extended the window left), so a market with one point draws as a flat
+    // held-call line instead of a floating dot. Zoom windows keep their deliberate
     // mid-window start (2026-08-10: the window defines the axis, not the
     // data). The call also holds since the last trade: extend to the edge.
     const lead = range === null && pts[0].t > t0 ? [{ t: t0, v: pts[0].v }] : [];
@@ -217,14 +165,9 @@ export function MarketChart({
     // ROBUST band (5th..95th percentile); brief excursions still draw, they
     // are simply clipped to the plot instead of rescaling everything.
     const seriesValues = extended.map(p => p.v);
-    if (secondary) for (const p of secPts) seriesValues.push(p.v);
-    // MUST-SHOW values are single facts the reader needs on the canvas: the
-    // live call, a composed bet's ghost, resting orders, the other branch.
-    // These always widen the domain, never get clipped.
+    // The live call is a single fact the reader needs on the canvas: it
+    // always widens the domain, never gets clipped.
     const mustShow: number[] = [consensus];
-    if (preview) mustShow.push(preview.value);
-    for (const o of orders) mustShow.push(o.limitValue);
-    if (secondary) mustShow.push(secondary.consensus);
 
     // The domain itself is lib/chart-domain's, shared with the floor's stake
     // example so the verbs quote the axis the reader sees.
@@ -241,27 +184,6 @@ export function MarketChart({
     }
     const end = extended[extended.length - 1];
     const areaPath = `${d} L${x(end.t).toFixed(1)},${(H - PAD_B).toFixed(1)} L${x(extended[0].t).toFixed(1)},${(H - PAD_B).toFixed(1)} Z`;
-
-    let secD: string | null = null;
-    let secEnd: { t: number; v: number } | null = null;
-    if (secondary) {
-      // Same entry rule as the primary: in ALL mode the quiet line starts
-      // at the window's left edge holding its first value.
-      const secLead = range === null && secPts.length > 0 && secPts[0].t > t0 ? [{ t: t0, v: secPts[0].v }] : [];
-      const sec =
-        secPts.length > 0
-          ? [...secLead, ...secPts, { t: t1, v: secondary.consensus }]
-          : [
-              { t: t0, v: secondary.consensus },
-              { t: t1, v: secondary.consensus },
-            ];
-      secD = `M${x(sec[0].t).toFixed(1)},${y(sec[0].v).toFixed(1)}`;
-      for (let i = 1; i < sec.length; i++) {
-        secD += ` L${x(sec[i].t).toFixed(1)},${y(sec[i - 1].v).toFixed(1)}`;
-        secD += ` L${x(sec[i].t).toFixed(1)},${y(sec[i].v).toFixed(1)}`;
-      }
-      secEnd = sec[sec.length - 1];
-    }
 
     // Round-number gridlines.
     const rawStep = (vMax - vMin) / 4;
@@ -297,8 +219,6 @@ export function MarketChart({
       d,
       areaPath,
       end,
-      secD,
-      secEnd,
       t0,
       t1,
       span,
@@ -310,7 +230,7 @@ export function MarketChart({
       fmt,
       open: extended[0],
     };
-  }, [series, consensus, preview, orders, secondary, range, H, W, PAD_L, PAD_R]);
+  }, [series, consensus, range, H, W, PAD_L, PAD_R]);
 
   // A window wider than the market's whole life falls back to ALL. This used
   // to run during render, which is a state update mid-render and forces React
@@ -334,7 +254,7 @@ export function MarketChart({
   );
 
   if (!model) return null;
-  const { extended, d, areaPath, end, secD, secEnd, x, y, gridVals, ticks, fmt } = model;
+  const { extended, d, areaPath, end, x, y, gridVals, ticks, fmt } = model;
   const cNum = (v: number) => `${unit}${compactNum(v)}`;
   const fNum = (v: number) => `${unit}${fullNum(v)}`;
   // The call and ghost labels live at the right edge; when a label is too
@@ -386,11 +306,8 @@ export function MarketChart({
   return (
     <div className={`mchart${ink ? ' mchart--ink' : ''}`}>
       <div className="mchart-ranges" role="group" aria-label="Time range">
-        <span className="mchart-left">
-          {corner && <span className="mchart-corner">{corner}</span>}
-          {note && <span className="mchart-note">{note}</span>}
-        </span>
-        <span className="mchart-center">{center}</span>
+        <span className="mchart-left" />
+        <span className="mchart-center" />
         <span className="mchart-right">
           {rangeSet.map(r => (
             <button
@@ -456,27 +373,6 @@ export function MarketChart({
           </text>
         ))}
 
-        {secondary &&
-          secD &&
-          secEnd &&
-          (() => {
-            // Keep the two end labels apart when the branches sit close.
-            const py = y(secEnd.v);
-            const cy0 = y(end.v);
-            const labelY = Math.abs(py - cy0) < 15 ? py + (py >= cy0 ? 15 : -15) : py;
-            const text = `${fNum(secondary.consensus)} ${secondary.label}`;
-            const lb = edgeLabel(x(secEnd.t), text);
-            return (
-              <g className={`mchart-branch mchart-branch--${secondary.tone}`}>
-                <path d={secD} className="mchart-branch-line" clipPath={`url(#${clipId})`} />
-                <circle cx={x(secEnd.t)} cy={py} r="3.5" className="mchart-branch-dot" />
-                <text className="mchart-branch-label" x={lb.x} y={labelY + 4} textAnchor={lb.anchor}>
-                  {text}
-                </text>
-              </g>
-            );
-          })()}
-
         <g className="mchart-market">
           <g clipPath={`url(#${clipId})`}>
             <path d={areaPath} className="mchart-fill-area" fill={`url(#${fillId})`} stroke="none" />
@@ -487,7 +383,7 @@ export function MarketChart({
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-callhalo" />
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-calldot" />
           {(() => {
-            const text = callLabel ? `${fNum(consensus)} ${callLabel}` : fNum(consensus);
+            const text = fNum(consensus);
             const lb = edgeLabel(x(end.t), text);
             return (
               <text className="mchart-calllabel" x={lb.x} y={y(end.v) + 4} textAnchor={lb.anchor}>
@@ -496,34 +392,6 @@ export function MarketChart({
             );
           })()}
         </g>
-
-        {orders.map(o => (
-          <g key={o.id} className={`mchart-order mchart-order--${o.direction}`}>
-            <line className="mchart-order-line" x1={PAD_L} x2={W - PAD_R} y1={y(o.limitValue)} y2={y(o.limitValue)} />
-            <text className="mchart-order-label" x={PAD_L + 4} y={y(o.limitValue) - 4}>
-              {o.direction === 'higher' ? '▲' : '▼'} your order {cNum(o.limitValue)}
-            </text>
-          </g>
-        ))}
-
-        {preview &&
-          (() => {
-            const py = y(preview.value);
-            const cy0 = y(end.v);
-            // Keep the ghost label clear of the live call label on tiny moves.
-            const labelY = Math.abs(py - cy0) < 15 ? cy0 + (preview.direction === 'higher' ? -15 : 15) : py;
-            const text = `${preview.direction === 'higher' ? '▲' : '▼'} ${fNum(preview.value)}`;
-            const lb = edgeLabel(x(end.t), text);
-            return (
-              <g className={`mchart-ghost mchart-ghost--${preview.direction}`}>
-                <line className="mchart-ghost-line" x1={x(end.t)} x2={x(end.t)} y1={cy0} y2={py} />
-                <circle className="mchart-ghost-dot" cx={x(end.t)} cy={py} r="4.5" />
-                <text className="mchart-ghost-label" x={lb.x} y={labelY + 4} textAnchor={lb.anchor}>
-                  {text}
-                </text>
-              </g>
-            );
-          })()}
 
         {cursor !== null && (
           <g className="mchart-cross">

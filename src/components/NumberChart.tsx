@@ -5,19 +5,27 @@ import { formatImpact, formatPairValue, pairNeedsDecimals } from '../lib/formatI
 import { GEOM } from './MarketChart';
 
 /**
- * The number view of the floor's chart slot (docs/ui-conventions.md, "The
- * price and the chart"): the metric's own readings as an ink step line up to
- * a "now" rule, and on the future side every open market of this metric as a
- * marker at its settle instant carrying its current call. The view is about
- * the market on screen: its marker is amber and labeled, the others grey, and
- * one beyond the window is a chevron at the edge. The window follows the
- * selected horizon, the range words override it, and a change of window
- * tweens rather than snaps.
+ * ONE chart, the number's own, with the market's call drawn on it
+ * (docs/ui-conventions.md, "The chart"): the metric's readings as an ink
+ * line up to a "now" rule, the selected market's call since it opened as a
+ * thin amber step, a dotted connector from that line's end at now to the
+ * settle marker, and, with a proposal open, the pair's two branch calls as
+ * green and red steps with connectors of their own.
+ *
+ * There is no second chart. "How the call moved" was a half-height strip
+ * under this one, and two charts stacked with a stat each read to a trader
+ * as two different numbers (removed 2026-09-08).
  */
 
 export interface NumberPoint {
   at: string;
   value: number;
+}
+
+/** One point of a market's own call over time, as the history endpoint sends it. */
+export interface CallPoint {
+  at: string;
+  consensus: number | null;
 }
 
 export interface NumberMarker {
@@ -33,32 +41,28 @@ export interface NumberMarker {
 
 interface Props {
   points: NumberPoint[];
+  /** The selected market's call since it opened. The series STARTS at the
+   *  price the market opened at, stamped with its creation time (the server
+   *  anchors it), so a pair traded once draws as a move and not a cliff. */
+  call?: CallPoint[];
+  /** With a proposal open, the pair's own two histories. Their presence is
+   *  what makes this the proposal's chart: the legend gains its toggles. */
+  branches?: { approved: CallPoint[]; declined: CallPoint[] } | null;
   markers: NumberMarker[];
+  /** The settlement range, for the two rails and the axis label. */
+  rangeMin?: number | null;
+  rangeMax?: number | null;
   /** Settle instant of the market on screen, ISO; the window ends here. */
   selectedResolvesOn: string;
   /** 'day' | 'week' | 'month' | 'other', from the selected market's target date. */
   granularity: Granularity;
   unit?: string;
-  /** The view toggle words, at the left of the control row. */
-  corner?: ReactNode;
-  /** The centre of the control row: the time left until the market settles. */
+  /** The left of the control row: the metric's own name. */
   center?: ReactNode;
-  /** Which world the impact label is stated from: '+7.8' on the approved
-   *  branch becomes '-7.8' on the declined one (owner ask 2026-08-26). */
-  impactFrom?: 'approved' | 'declined';
-  /** The legend under the chart when a proposal is open, in its own words:
-   *  "if Jason is paid $80" / "if not" / "the market now". */
-  legend?: { approved: string; declined: string } | null;
-  /** The legend that names the marks when no proposal is open (docs/
-   *  ui-conventions.md, "The price and the chart"): the ink line "actual",
-   *  the amber dot "market's call for <day>", the grey dots "other open
-   *  dates" only when there are any. A proposal's legend replaces it. */
-  marksLegend?: boolean;
   now?: Date;
   height?: number;
   /** The composed bet's ghost (owner ask 2026-08-28): where the SELECTED
-   *  market's call would move, drawn on its marker in the market chart's
-   *  own ghost vocabulary. */
+   *  market's call would move, drawn on its marker. */
   preview?: { value: number; direction: 'higher' | 'lower' } | null;
 }
 
@@ -115,6 +119,18 @@ export function windowFor(
   const start = span === null ? Math.min(first, now.getTime() - DAY) : now.getTime() - span;
   const pad = (end - start) * 0.03;
   return [start, end + pad];
+}
+
+/**
+ * How wide a settle label draws, in the svg's own units.
+ *
+ * The labels sit INSIDE the plot to the left of their marker, so the plot
+ * has to keep a right margin at least this wide or "19.8 · settles" is
+ * clipped by the column edge (docs/ui-conventions.md, "The chart"). Mono at
+ * 10px advances about 6 units a character; the tail is the gap to the dot.
+ */
+export function labelWidth(text: string): number {
+  return text.length * 6 + 10;
 }
 
 /**
@@ -197,8 +213,8 @@ export function fmt(v: number, unit: string): string {
 }
 
 /** A branch label's value: the usual label precision, unless the pair needs
- *  reconciling decimals (docs/ui-conventions.md, "The decision row, then the
- *  decision bar": the chart's branch labels use the row's rule). */
+ *  reconciling decimals (docs/ui-conventions.md, "The pair band": the
+ *  chart's branch labels use the band's rule). */
 function fmtBranch(v: number, other: number | null, unit: string): string {
   if (other !== null && Math.abs(v) < 1000 && pairNeedsDecimals(v, other, x => fmt(x, unit))) {
     return formatPairValue(v, unit);
@@ -210,17 +226,50 @@ function dayLabel(t: number): string {
   return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
+const round = (v: number) => Number(v.toFixed(3));
+
+/** A call series as a staircase: hold the level, then step to the next one,
+ *  then hold to `endX`. A market nobody has traded is one point, and draws
+ *  flat at the price it opened at. */
+function stepPath(
+  series: Array<{ t: number; v: number }>,
+  x: (t: number) => number,
+  y: (v: number) => number,
+  endX: number,
+): string {
+  if (series.length === 0) return '';
+  const parts = [`M${round(x(series[0].t))} ${round(y(series[0].v))}`];
+  for (let i = 1; i < series.length; i++) {
+    parts.push(`L${round(x(series[i].t))} ${round(y(series[i - 1].v))}`);
+    parts.push(`L${round(x(series[i].t))} ${round(y(series[i].v))}`);
+  }
+  parts.push(`L${round(endX)} ${round(y(series[series.length - 1].v))}`);
+  return parts.join(' ');
+}
+
+/** A call series clipped to the window, with the level in force at the
+ *  window's start kept as its first point so the line never starts mid-air. */
+function clipCall(series: CallPoint[] | undefined, x0: number, x1: number): Array<{ t: number; v: number }> {
+  const all = (series ?? [])
+    .filter((p): p is { at: string; consensus: number } => typeof p.consensus === 'number')
+    .map(p => ({ t: new Date(p.at).getTime(), v: p.consensus }))
+    .sort((a, b) => a.t - b.t);
+  const inside = all.filter(p => p.t >= x0 && p.t <= x1);
+  const before = all.filter(p => p.t < x0).pop();
+  return before ? [{ t: x0, v: before.v }, ...inside] : inside;
+}
+
 export function NumberChart({
   points,
+  call,
+  branches = null,
   markers,
+  rangeMin = null,
+  rangeMax = null,
   selectedResolvesOn,
   granularity,
   unit = '',
-  corner,
   center,
-  legend = null,
-  marksLegend = false,
-  impactFrom = 'approved',
   now: nowProp,
   height,
   preview = null,
@@ -231,9 +280,6 @@ export function NumberChart({
   // fresh array per frame). Callers that pass `now` are unaffected.
   const [mountNow] = useState(() => new Date());
   const now = nowProp ?? mountNow;
-  // Same geometry and breakpoint as the market view (GEOM is theirs), so the
-  // two views of the chart slot have one width, one plot area and one
-  // pointer mapping.
   const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 519px)');
@@ -241,22 +287,39 @@ export function NumberChart({
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, []);
-  const { W, PAD_L, PAD_R, H: geomH } = GEOM[compact ? 'compact' : 'wide'];
+  const { W, PAD_L, PAD_R: basePadR, H: geomH } = GEOM[compact ? 'compact' : 'wide'];
   const H = height ?? geomH;
   const words = RANGE_WORDS[granularity];
   const [rangeKey, setRangeKey] = useState<string | null>(null);
-  // Hover: the reading in force at the cursor on the past side, the nearest
-  // market's call on the future side (owner ask: "when i hover over it i
-  // should see the value").
+  // Which lines the legend has switched off, so four lines on a phone can be
+  // read one at a time.
+  const [hidden, setHidden] = useState<Record<string, boolean>>({});
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [cursor, setCursor] = useState<number | null>(null);
-  // The automatic window is the first range word of the granularity; the
-  // key resets when the selected market changes so a new date opens on its
-  // own default window.
   useEffect(() => setRangeKey(null), [selectedResolvesOn]);
   const span = (rangeKey ? words.find(w => w.key === rangeKey) : words[0])?.ms ?? null;
   const target = windowFor(selectedResolvesOn, span, points, now);
   const [x0, x1] = useTweenedDomain(target);
+
+  const selected = markers.find(m => m.selected) ?? null;
+  const pair = selected?.pair ?? null;
+  const hasPair = !!branches && pair !== null && pair.approved !== null && pair.declined !== null;
+  const ap = hasPair ? (pair?.approved as number) : null;
+  const dc = hasPair ? (pair?.declined as number) : null;
+
+  // The labels the plot has to leave room for, computed before the geometry:
+  // the right margin is the width of the widest of them.
+  const settleText = selected?.consensus !== null && selected ? `${fmt(selected.consensus, unit)} · settles` : null;
+  const branchTexts =
+    hasPair && ap !== null && dc !== null
+      ? [
+          `if approved ${fmtBranch(ap, dc, unit)}`,
+          `if declined ${fmtBranch(dc, ap, unit)}`,
+          formatImpact(ap - dc, unit),
+        ]
+      : [];
+  const labelTexts = [...(settleText ? [settleText] : []), ...branchTexts];
+  const PAD_R = Math.max(basePadR, ...labelTexts.map(labelWidth));
   const x = (t: number) => PAD_L + ((t - x0) / (x1 - x0)) * (W - PAD_L - PAD_R);
 
   const visible = points.filter(p => {
@@ -271,8 +334,14 @@ export function NumberChart({
     const t = new Date(m.resolvesOn).getTime();
     return t >= x0 && t <= x1;
   });
+  const callLine = clipCall(call, x0, x1);
+  const approvedLine = clipCall(branches?.approved, x0, x1);
+  const declinedLine = clipCall(branches?.declined, x0, x1);
   const ys = [
     ...drawn.map(p => p.value),
+    ...callLine.map(p => p.v),
+    ...approvedLine.map(p => p.v),
+    ...declinedLine.map(p => p.v),
     ...inWindow.flatMap(m => (m.consensus === null ? [] : [m.consensus])),
     ...inWindow.flatMap(m => [m.pair?.approved, m.pair?.declined].filter((v): v is number => typeof v === 'number')),
     ...(preview ? [preview.value] : []),
@@ -288,10 +357,21 @@ export function NumberChart({
   const widen = Math.max(0, minSpan - (rawHi - rawLo)) / 2;
   const lo = rawLo - widen;
   const hi = rawHi + widen;
-  const span_y = hi - lo;
-  const y0 = lo - span_y * 0.25;
-  const y1 = hi + span_y * 0.25;
+  const dataSpan = hi - lo;
+  // The axis is the data with a tenth of padding, never the whole settlement
+  // range: a 0-to-50 axis under a number that moves between 9 and 20 is a
+  // flat line. A range rail joins it only when it falls inside twice the data
+  // span, so the payout words have a picture whenever the picture is legible.
+  const railTop = rangeMax !== null && rangeMax <= hi + dataSpan;
+  const railBottom = rangeMin !== null && rangeMin >= lo - dataSpan;
+  const y0 = Math.min(lo - dataSpan * 0.1, railBottom ? (rangeMin as number) : Number.POSITIVE_INFINITY);
+  const y1 = Math.max(hi + dataSpan * 0.1, railTop ? (rangeMax as number) : Number.NEGATIVE_INFINITY);
   const y = (v: number) => PAD_T + (1 - (v - y0) / (y1 - y0)) * (H - PAD_T - PAD_B);
+  const railsShown = railTop && railBottom;
+  const rangeLabel =
+    !railsShown && rangeMin !== null && rangeMax !== null
+      ? `range ${fmt(rangeMin, unit)} to ${fmt(rangeMax, unit)}`
+      : null;
   // Three-ish ticks on round numbers, so the axis reads 5 / 10 / 15 and
   // never 2.5 / 7.5 / 12.4.
   const rawStep = (y1 - y0) / 3;
@@ -305,16 +385,35 @@ export function NumberChart({
   // dashed hold from the last reading to now: the value in force. A step
   // line read as a staircase of a daily-synced level, which nobody meant.
   const pts = drawn.map(p => [x(new Date(p.at).getTime()), y(p.value)] as const);
-  const d = pts.map(([px, py], i) => (i === 0 ? `M${px} ${py}` : `L${px} ${py}`)).join(' ');
+  const d = pts.map(([px, py], i) => (i === 0 ? `M${round(px)} ${round(py)}` : `L${round(px)} ${round(py)}`)).join(' ');
   const last = drawn[drawn.length - 1];
   const lastX = last ? x(new Date(last.at).getTime()) : 0;
   const holdX = Math.min(x(nowT), W - PAD_R);
+  const selectedX = selected ? x(new Date(selected.resolvesOn).getTime()) : null;
+  /** One branch's step line, its connector and the marker value it lands on. */
+  const branchDraw = (which: 'approved' | 'declined') => {
+    const series = which === 'approved' ? approvedLine : declinedLine;
+    const at = which === 'approved' ? ap : dc;
+    if (hidden[which] || series.length === 0) return null;
+    return {
+      which,
+      d: stepPath(series, x, y, holdX),
+      endY: y(series[series.length - 1].v),
+      to: at === null ? null : y(at),
+      level: series[series.length - 1].v,
+    };
+  };
+  // Whichever branch the markets price higher sits on top.
+  const branchDraws = [branchDraw('approved'), branchDraw('declined')]
+    .filter((b): b is NonNullable<ReturnType<typeof branchDraw>> => b !== null)
+    .sort((a, b) => a.level - b.level);
+
   const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect || rect.width === 0) return;
     // The svg scales uniformly with its width (height auto), so the
     // viewBox-to-pixel ratio is rect.width / W; then map through the plot
-    // area, not the whole svg, exactly as the market view does.
+    // area, not the whole svg.
     const mouseX = ((e.clientX - rect.left) / rect.width) * W;
     const frac = (mouseX - PAD_L) / (W - PAD_L - PAD_R);
     setCursor(x0 + Math.max(0, Math.min(1, frac)) * (x1 - x0));
@@ -333,8 +432,6 @@ export function NumberChart({
     if (cursor <= nowT) {
       // Snap to the nearest reading: the line is drawn through the readings,
       // so the only honest places for the dot are the readings themselves.
-      // A "value in force" dot between two readings floated off the line
-      // (owner report: "why is the dot not on the actual graph line").
       const nearest = visible
         .map(p => ({ p, dt: Math.abs(new Date(p.at).getTime() - cursor) }))
         .sort((a, b) => a.dt - b.dt)[0]?.p;
@@ -395,11 +492,25 @@ export function NumberChart({
     }
   }
 
+  const toggle = (key: string) => setHidden(h => ({ ...h, [key]: !h[key] }));
+  const legendToggle = (key: string, label: string, mark: string) => (
+    <button
+      key={key}
+      type="button"
+      className={`nchart-legend-go${hidden[key] ? ' is-off' : ''}`}
+      aria-pressed={!hidden[key]}
+      onClick={() => toggle(key)}
+    >
+      <i className={mark} />
+      {label}
+    </button>
+  );
+
   return (
     <div className="mchart nchart">
       <div className="mchart-ranges" role="group" aria-label="Time range">
-        <span className="mchart-left">{corner && <span className="mchart-corner">{corner}</span>}</span>
-        <span className="mchart-center">{center}</span>
+        <span className="mchart-left">{center}</span>
+        <span className="mchart-center" />
         <span className="mchart-right">
           {words.map((w, i) => {
             const active = rangeKey ? rangeKey === w.key : i === 0;
@@ -433,6 +544,23 @@ export function NumberChart({
             </text>
           </g>
         ))}
+        {/* The range rails: the payout words on the verbs have a picture
+            whenever the picture is legible. */}
+        {([railTop ? (rangeMax as number) : null, railBottom ? (rangeMin as number) : null] as const)
+          .filter((v): v is number => v !== null)
+          .map(v => (
+            <g key={`rail-${v}`}>
+              <line className="nchart-rail" x1={PAD_L} x2={W - PAD_R} y1={y(v)} y2={y(v)} />
+              <text className="nchart-rail-label" x={PAD_L - 6} y={y(v) + 3}>
+                {fmt(v, unit)}
+              </text>
+            </g>
+          ))}
+        {rangeLabel && (
+          <text className="nchart-range-label" x={PAD_L + 6} y={PAD_T + 4}>
+            {rangeLabel}
+          </text>
+        )}
         {nowT >= x0 && nowT <= x1 && (
           <>
             <rect
@@ -448,48 +576,58 @@ export function NumberChart({
             </text>
           </>
         )}
-        {d && <path key={`line-${selectedResolvesOn}`} className="nchart-line" d={d} pathLength={1} />}
-        {last && nowT > new Date(last.at).getTime() && holdX > lastX && (
+        {d && !hidden.reading && (
+          <path key={`line-${selectedResolvesOn}`} className="nchart-line" d={d} pathLength={1} />
+        )}
+        {!hidden.reading && last && nowT > new Date(last.at).getTime() && holdX > lastX && (
           <line className="nchart-hold" x1={lastX} x2={holdX} y1={y(last.value)} y2={y(last.value)} />
         )}
-        {visible.map(p => (
-          <circle key={p.at} className="nchart-dot" cx={x(new Date(p.at).getTime())} cy={y(p.value)} r={3} />
+        {!hidden.reading &&
+          visible.map(p => (
+            <circle key={p.at} className="nchart-dot" cx={x(new Date(p.at).getTime())} cy={y(p.value)} r={3} />
+          ))}
+        {/* The market's call over time, and the dotted connector from its end
+            at now to the settle marker. Dotted so it never reads as a
+            forecast path. */}
+        {!hidden.call && callLine.length > 0 && (
+          <path className="nchart-call" d={stepPath(callLine, x, y, holdX)} pathLength={1} />
+        )}
+        {!hidden.call && callLine.length > 0 && selectedX !== null && selected?.consensus !== null && selected && (
+          <line
+            className="nchart-connector"
+            x1={holdX}
+            x2={selectedX}
+            y1={y(callLine[callLine.length - 1].v)}
+            y2={y(selected.consensus)}
+          />
+        )}
+        {branchDraws.map(b => (
+          <path key={b.which} className={`nchart-branch nchart-branch--${b.which}`} d={b.d} pathLength={1} />
         ))}
+        {branchDraws.map(b =>
+          b.to === null || selectedX === null ? null : (
+            <line
+              key={b.which}
+              className={`nchart-connector--${b.which}`}
+              x1={holdX}
+              x2={selectedX}
+              y1={b.endY}
+              y2={b.to}
+            />
+          ),
+        )}
         {inWindow.map(m => {
           const mx = x(new Date(m.resolvesOn).getTime());
           const my = m.consensus === null ? null : y(m.consensus);
-          const ap = m.pair?.approved ?? null;
-          const dc = m.pair?.declined ?? null;
-          const hasPair = ap !== null && dc !== null;
-          const ay = ap === null ? null : y(ap);
-          const dy = dc === null ? null : y(dc);
+          const mAp = m.selected && hasPair ? ap : null;
+          const mDc = m.selected && hasPair ? dc : null;
+          const ay = mAp === null ? null : y(mAp);
+          const dy = mDc === null ? null : y(mDc);
           return (
             <g key={m.marketId} className={m.selected ? 'nchart-marker is-selected' : 'nchart-marker'}>
-              <line x1={mx} x2={mx} y1={PAD_T - 6} y2={H - PAD_B + 6} />
-              {/* The proposal's pair: green if approved, red if declined, a
-                bar between them whose length is the priced impact. */}
-              {hasPair && ay !== null && dy !== null && (
-                <g className="nchart-pair">
-                  <line className="nchart-pair-bar" x1={mx} x2={mx} y1={Math.min(ay, dy)} y2={Math.max(ay, dy)} />
-                  <circle className="nchart-pair-approved" cx={mx} cy={ay} r={m.selected ? 4.5 : 3} />
-                  <circle className="nchart-pair-declined" cx={mx} cy={dy} r={m.selected ? 4.5 : 3} />
-                  {m.selected && (
-                    <text
-                      className="nchart-pair-delta"
-                      x={mx + 40 <= W ? mx + 8 : mx - 8}
-                      y={(ay + dy) / 2 + 4}
-                      textAnchor={mx + 40 <= W ? 'start' : 'end'}
-                    >
-                      {/* The row's precision (lib/formatImpact): a
-                          difference that is not zero never prints as
-                          "+0.0" beside "if approved 17.04" (critics'
-                          round 3). */}
-                      {formatImpact(impactFrom === 'declined' ? dc - ap : ap - dc, unit)}
-                    </text>
-                  )}
-                </g>
-              )}
-              {my !== null && <circle cx={mx} cy={my} r={m.selected ? 4.5 : 3.5} />}
+              {ay !== null && !hidden.approved && <circle className="nchart-pair-approved" cx={mx} cy={ay} r={4.5} />}
+              {dy !== null && !hidden.declined && <circle className="nchart-pair-declined" cx={mx} cy={dy} r={4.5} />}
+              {my !== null && !hidden.call && <circle cx={mx} cy={my} r={m.selected ? 4.5 : 3.5} />}
               {m.selected && preview && (
                 <g className={`mchart-ghost mchart-ghost--${preview.direction}`}>
                   {my !== null && <line className="mchart-ghost-line" x1={mx} x2={mx} y1={my} y2={y(preview.value)} />}
@@ -509,33 +647,36 @@ export function NumberChart({
                           },
                         ]
                       : []),
-                    ...(hasPair && ay !== null && ap !== null
+                    ...(ay !== null && mAp !== null && mDc !== null && !hidden.approved
                       ? [
                           {
                             key: 'approved',
                             at: ay,
-                            text: `if approved ${fmtBranch(ap, dc, unit)}`,
+                            text: `if approved ${fmtBranch(mAp, mDc, unit)}`,
                             cls: 'nchart-pair-label nchart-pair-label--approved',
                           },
                         ]
                       : []),
-                    ...(my !== null && m.consensus !== null
-                      ? [
-                          {
-                            key: 'now',
-                            at: my,
-                            text: hasPair ? `${fmt(m.consensus, unit)} now` : fmt(m.consensus, unit),
-                            cls: 'nchart-now-label',
-                          },
-                        ]
+                    ...(my !== null && m.consensus !== null && settleText && !hidden.call
+                      ? [{ key: 'now', at: my, text: settleText, cls: 'nchart-now-label' }]
                       : []),
-                    ...(hasPair && dy !== null && dc !== null
+                    ...(dy !== null && mDc !== null && mAp !== null && !hidden.declined
                       ? [
                           {
                             key: 'declined',
                             at: dy,
-                            text: `if declined ${fmtBranch(dc, ap, unit)}`,
+                            text: `if declined ${fmtBranch(mDc, mAp, unit)}`,
                             cls: 'nchart-pair-label nchart-pair-label--declined',
+                          },
+                        ]
+                      : []),
+                    ...(mAp !== null && mDc !== null && ay !== null && dy !== null
+                      ? [
+                          {
+                            key: 'delta',
+                            at: (ay + dy) / 2,
+                            text: formatImpact(mAp - mDc, unit),
+                            cls: 'nchart-pair-delta',
                           },
                         ]
                       : []),
@@ -575,40 +716,42 @@ export function NumberChart({
           {dayLabel(x0)}
         </text>
       </svg>
-      {!legend && marksLegend && (
-        <div className="nchart-legend" aria-label="Legend">
-          <span>
-            <i className="nchart-legend-line" />
-            actual
-          </span>
-          <span>
-            <i className="nchart-legend-dot nchart-legend-dot--now" />
-            market's call for {forecastDayOf(selectedResolvesOn)}
-          </span>
-          {markers.some(m => !m.selected) && (
+      {/* The legend names the marks in a few words each. With a proposal open
+          it is four toggles, so four lines on a phone can be read one at a
+          time. */}
+      <div className="nchart-legend" aria-label="Legend">
+        {branches ? (
+          <>
+            {legendToggle('reading', 'reading', 'nchart-legend-line')}
+            {legendToggle('call', 'market now', 'nchart-legend-rule nchart-legend-rule--now')}
+            {legendToggle('approved', 'if approved', 'nchart-legend-rule nchart-legend-rule--approved')}
+            {legendToggle('declined', 'if declined', 'nchart-legend-rule nchart-legend-rule--declined')}
+          </>
+        ) : (
+          <>
             <span>
-              <i className="nchart-legend-dot nchart-legend-dot--other" />
-              other open dates
+              <i className="nchart-legend-line" />
+              reading
             </span>
-          )}
-        </div>
-      )}
-      {legend && (
-        <div className="nchart-legend" aria-label="Legend">
-          <span>
-            <i className="nchart-legend-dot nchart-legend-dot--approved" />
-            {legend.approved}
-          </span>
-          <span>
-            <i className="nchart-legend-dot nchart-legend-dot--declined" />
-            {legend.declined}
-          </span>
-          <span>
-            <i className="nchart-legend-dot nchart-legend-dot--now" />
-            the market now
-          </span>
-        </div>
-      )}
+            <span>
+              <i className="nchart-legend-rule nchart-legend-rule--now" />
+              market's call
+            </span>
+            {selected && (
+              <span>
+                <i className="nchart-legend-dot nchart-legend-dot--now" />
+                settles {forecastDayOf(selectedResolvesOn)}
+              </span>
+            )}
+            {markers.some(m => !m.selected) && (
+              <span>
+                <i className="nchart-legend-dot nchart-legend-dot--other" />
+                other open dates
+              </span>
+            )}
+          </>
+        )}
+      </div>
       {tip && (
         <div className={`mchart-tip${tip.x > W * 0.6 ? ' is-right' : ''}`} style={{ left: `${(tip.x / W) * 100}%` }}>
           <div className="mchart-tip-date">{tip.date}</div>

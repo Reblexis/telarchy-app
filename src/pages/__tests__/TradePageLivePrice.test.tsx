@@ -38,17 +38,26 @@ describe('the optimistic price expires', () => {
   });
 });
 
-describe('one probability prices the market', () => {
-  test('the probability is derived once and passed, not re-derived per surface', () => {
+describe('one probability prices a book', () => {
+  /* A proposal puts TWO books on screen at once (docs/ui-conventions.md,
+     "The proposal view", P6), so the fold is per book rather than per page:
+     one function folds the optimistic price into the book it was quoted
+     for, and every surface that prices a book calls it. The old shape,
+     one page-level `shownProbability` with a `mine ? ... : book.probability`
+     at each branch column, is the same bug at a smaller scale: the surface
+     derives its own. */
+  test('the probability is derived once per book and passed, not re-derived per surface', () => {
     // Exactly one place folds the optimistic price into the shown one.
-    expect(SRC.match(/livePriceProb \?\? active\.probability/g)?.length).toBe(1);
-    // And EVERY surface that prices the market takes that one value: the
-    // verbs panel (which quotes both payout previews and the sign-up
-    // door's echo), the ticket, and the position row. A surface that
-    // derived its own would print a second price for one position.
+    expect(SRC.match(/const probabilityOf = /g)?.length).toBe(1);
+    expect(SRC.match(/livePrice\.marketId === book\.marketId/g)?.length).toBe(1);
+    // And EVERY surface that prices a book takes that one value: the verbs
+    // panel (which quotes both payout previews and the sign-up door's
+    // echo), the ticket, and the position row. A surface that derived its
+    // own would print a second price for one position.
     const passed = SRC.match(/probability=\{[^}]*\}/g) ?? [];
     expect(passed.length).toBeGreaterThanOrEqual(3);
-    for (const prop of passed) expect(prop).toBe('probability={shownProbability}');
+    for (const prop of passed)
+      expect(['probability={shownProbability}', 'probability={probabilityOf(book)}']).toContain(prop);
   });
 
   test("the verbs' payout previews read it too", () => {

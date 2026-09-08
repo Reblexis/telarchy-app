@@ -685,6 +685,26 @@ export function firstSentenceOf(description: string | null | undefined): string 
   return (m ? m[0] : text).trim();
 }
 
+/**
+ * The first `count` sentences of a body, for the clamped opening of a
+ * proposal's scope (docs/ui-conventions.md, "The proposal view", P3: the
+ * first two sentences, then "full scope"). Returns the whole text when it
+ * is shorter than that, and null for nothing.
+ */
+export function firstSentencesOf(text: string | null | undefined, count: number): string | null {
+  const body = (text ?? '').trim();
+  if (!body) return null;
+  let out = '';
+  let rest = body;
+  for (let i = 0; i < count && rest.length > 0; i++) {
+    const one = firstSentenceOf(rest);
+    if (!one) break;
+    out = out ? `${out} ${one}` : one;
+    rest = rest.slice(rest.indexOf(one) + one.length).trim();
+  }
+  return out || body;
+}
+
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**

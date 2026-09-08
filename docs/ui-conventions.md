@@ -815,11 +815,11 @@ the thing traded, and the reading is its evidence.
 The price carries the metric's currency symbol when the trimmed
 parenthetical tail names one (e.g. "USD" -> "$"; the same prefix runs
 through every numeral on the chart). A market with no price yet (no
-liquidity) keeps the question, prints "no price yet" in the call's cell
-with "Inject liquidity" beside it for anyone signed in, keeps the reading,
-and renders the verbs panel in its unfunded state (see "The verbs and the
-inline ticket"); the books list is how a reader leaves it for a market that
-has one.
+liquidity) keeps the question, prints "no price yet" in the call's cell,
+keeps the reading, and renders the verbs panel in its unfunded state, which
+is where the offer to fund it lives (see "The verbs and the inline
+ticket"); the books list is how a reader leaves it for a market that has
+one.
 
 **The settlement line** (`.pubws-instrument-sum`) is one line in the
 tertiary register under the band: "Settles on:" then the metric's
@@ -927,6 +927,14 @@ separately from it, and an unfunded market replaces the two verbs with one
 line saying nobody has funded a book for this market yet and, for anyone
 signed in, "Inject liquidity". Composing a bet and meeting "this market has
 no liquidity" at submit is the bug this rule exists to prevent.
+
+**The offer to fund a book appears ONCE per book on screen**, in the panel
+where that book is traded: this one on the plain view, and the branch's own
+column on a proposal (P6). The numbers band and the pair band print "no
+price yet" and stop there, and the activity tab row's "Inject liquidity"
+(which is deepening, not funding) is not drawn while the book on screen is
+unfunded. An unfunded floor used to carry three of the same button on one
+screen (reconciled 2026-09-08).
 
 **The desk adds nothing around the verbs.** The wallet balance lives in the
 credits pill and the account menu, not under the ticket; a held position is
@@ -1426,8 +1434,12 @@ and the floor's charts are instruments.
 
 Under the chart sits the conversation and the tape (`.pubws-activity`):
 three underline tabs, "Discussion (0)", "Positions (21)", "Activity (54)",
-and right-aligned on the tab row the book's pool ("38k cr pool") and
-"Inject liquidity" (anyone signed in). **Activity is open by default**,
+and right-aligned on the tab row the book's pool ("38k cr pool") and, on a
+funded book, "Inject liquidity" (anyone signed in; an unfunded book is
+funded from its own panel, once, see "The verbs and the inline ticket").
+With a proposal on screen the row reads both pools ("295 cr · 329 cr") and
+carries no control, because each branch is deepened from its own column.
+**Activity is open by default**,
 the newest eight rows, each: who, bought or sold N Higher or Lower at what
 price, "moved the call 19.6 → 19.8", and when; then "Show all 54", which
 expands the rest in place. A redemption is not a row here (see "The
@@ -1470,6 +1482,10 @@ keeps the floor head, the owner or run-a-floor row, both rails and the
 footer, and turns the centre column into the pair, in this order at every
 width. The selected row in the rail carries the ink rule.
 
+The pair band replaces the numbers band and the settlement line: the
+numbers that matter here are the two branches' own, and the books row
+belongs to the plain view.
+
 - **P1, back and label**: "← Back to the market" on the left (deselects,
   restores the floor's address) and, right, "PROPOSAL #3 · PENDING ·
   EDITED 20 AUG" in the tiny uppercase register (the status word is
@@ -1489,8 +1505,9 @@ width. The selected row in the rail carries the ink rule.
   might differ.
 - **P4, the pair band** (`.pubws-pair`): three cells on hairlines in the
   numbers band's anatomy. "IF APPROVED" and its call in green mono at the
-  price size, under it in the drop register "295 cr pool · 4 positions ·
-  last trade 3 days ago"; "IF DECLINED" and its call in red, its own line
+  price size, under it that book's own facts as the floor's icon row
+  (`MarketFacts`: traders, pool, last trade), because facts on the floor are
+  an icon row and never a sentence; "IF DECLINED" and its call in red, its own line
   under it; "DIFFERENCE IN MARKET CALLS · ACTIVE TRADERS" (the metric's
   unit in the caption) and the difference, approved minus declined,
   signed, in INK, so green never reads as a verdict, with one tertiary
@@ -1503,8 +1520,8 @@ width. The selected row in the rail carries the ink rule.
   impact use the same rule (`formatImpact`: two decimals under 1, one
   decimal under 100, whole above; never "+0.0" for a number that is not
   zero). A pair with no liquidity prints "no price yet" in both call cells
-  and "nothing to read yet" in the difference cell, with "Inject
-  liquidity" for anyone signed in. On a phone the three cells stay side
+  and "nothing to read yet" in the difference cell; the offer to fund a
+  branch is in that branch's own column (P6), once. On a phone the three cells stay side
   by side at 22px numbers.
 - **P5, the decision band** (`.pubws-decide`, `--bg-secondary`), owner
   only, and it PRECEDES the tickets in DOM order at every width, because a
@@ -1545,8 +1562,11 @@ width. The selected row in the rail carries the ink rule.
   the owner approves, this book is voided and your stake returns."; and
   under both, once: "The book left standing pays at the real number on 30
   Sep." A position on a branch sits under that branch's ticket (see "Your
-  position"). An unfunded branch renders the unfunded state in its
-  column. There is no "switch" link and no pill toggle: both books are on
+  position"). An unfunded branch renders the unfunded state in its column,
+  which is where that book is funded; a funded branch carries "Inject
+  liquidity" at the end of its heading instead, so the column offers the
+  control exactly once either way and the pair's activity row offers it not
+  at all. There is no "switch" link and no pill toggle: both books are on
   screen with their own tickets (removed 2026-09-08).
 - **P7, the chart**, with the pair drawn as "The chart" says.
 - **P8, activity for the pair**, as "Activity" says.
@@ -1556,8 +1576,8 @@ width. The selected row in the rail carries the ink rule.
 ### The floor's live poll
 
 **The floor's live poll (every fifteen seconds) refreshes DATA, never the
-view.** The selected proposal, the branch toggle, an expanded description
-and the drawn chart are the viewer's state, and a tick may only overwrite
+view.** The selected proposal, an open ticket, an expanded description and
+the drawn chart are the viewer's state, and a tick may only overwrite
 prices and histories in place. Two specific rules follow: view state resets
 on a proposal change and nowhere else, and a history refresh never blanks
 first, or the chart collapses to its single-point fallback for a frame and

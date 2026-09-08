@@ -2697,13 +2697,12 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 .pubws-stat--call { padding-left: 1.25rem; }
 .pubws-stat--call .pubws-price { color: var(--accent); }
 
-/* The decision row (docs/ui-conventions.md, "The decision row, then the
-   decision bar"): four cells on hairlines in the stat row's anatomy, the
-   numbers in the price register a size down, the branch on screen marked
-   by its caption turning to ink. */
-.pubws-decision {
+/* The pair band (docs/ui-conventions.md, "The proposal view", P4): three
+   cells on hairlines in the numbers band's anatomy, the two calls in their
+   colours and the difference in INK, so green never reads as a verdict. */
+.pubws-pair {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.4fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1px;
   width: 100%;
   margin-top: 1rem;
@@ -2712,7 +2711,7 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   border-bottom: 1px solid var(--border-color);
   text-align: left;
 }
-.pubws-decision-cell {
+.pubws-pair-cell {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -2721,35 +2720,25 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   padding: 0.7rem 0.9rem 0.7rem 0;
   background: var(--bg-primary);
 }
-.pubws-decision-cell + .pubws-decision-cell { padding-left: 0.9rem; }
-/* A cell's caption never truncates ("DIFFERENCE · ACTIV…" at 1700px, round
-   2): it wraps, the unit on its own line if the cell is too narrow. */
-.pubws-decision-cell .pubws-stat-what {
+.pubws-pair-cell + .pubws-pair-cell { padding-left: 0.9rem; }
+/* A cell's caption never truncates ("DIFFERENCE · ACTIV…" at 1700px): it
+   wraps, the unit on its own line if the cell is too narrow. */
+.pubws-pair-cell .pubws-stat-what {
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
   max-width: none;
 }
-.pubws-decision-unit { display: inline-block; }
-.pubws-decision-cell.is-active .pubws-stat-what { color: var(--text-primary); }
+.pubws-pair-unit { display: inline-block; }
+.pubws-pair-cell .pubws-facts { font-size: 0.72rem; }
 .pubws-price--sm { font-size: clamp(1.05rem, 2.4vw, 1.3rem); }
 .pubws-price.is-up { color: var(--higher); }
 .pubws-price.is-down { color: var(--lower); }
-/* One grey line under the row when the pair sits away from the market's
-   own call by more than the difference: the pools and the baseline call, in
-   the trader's terms. */
-.pubws-decision-why {
-  margin: 0.5rem 0 0;
-  font-size: 0.78rem;
-  line-height: 1.5;
-  color: var(--text-tertiary);
-  text-align: left;
-  text-wrap: pretty;
-}
-/* The grey line under the owner's bar: what Decline and Remove do to the
-   books, the row's why-line register, left-aligned like every wrapped block. */
-.pubws-decide-why {
-  margin: 0.5rem 0 0;
+/* One grey line under the difference when the pair sits away from the
+   market's own call by more than the difference: the pools and the baseline
+   call, in the trader's terms. */
+.pubws-pair-why {
+  margin: 0.2rem 0 0;
   font-size: 0.78rem;
   line-height: 1.5;
   color: var(--text-tertiary);
@@ -2759,10 +2748,13 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 /* The separator dot in a stat caption is an element, so a phone can drop it
    when the caption wraps (see the 480px block below). */
 .pubws-stat-dot { display: inline; }
+/* On a phone the three cells stay side by side at 22px numbers: the band
+   has to add up at a glance, and a wrapped cell reads as another row. */
 @media (max-width: 519px) {
-  .pubws-decision { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pubws-decision-cell:nth-child(odd) { padding-left: 0; }
-  .pubws-decision-cell:nth-child(even) { padding-left: 0.9rem; }
+  .pubws-pair-cell { padding-right: 0.5rem; }
+  .pubws-pair-cell + .pubws-pair-cell { padding-left: 0.5rem; }
+  .pubws-pair .pubws-price--sm { font-size: 22px; }
+  .pubws-pair-cell .pubws-facts { flex-wrap: wrap; font-size: 0.68rem; }
 }
 
 /* The reading cell's caption row: the caption, then for the owner the
@@ -4426,25 +4418,6 @@ textarea.jobform-line--desc {
 
 /* The one line under the verbs: what a share pays. It leaves when the
    ticket opens. */
-/* On a proposal, the book the verbs trade, one line above the pair; the
-   switch flips the branch like the pills under the decision bar. */
-.pubws-bet-book {
-  margin: 0 0 0.55rem;
-  font-size: 0.78rem;
-  line-height: 1.45;
-  color: var(--text-secondary);
-}
-.pubws-bet-book-switch {
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-  color: var(--text-primary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-.pubws-bet-book-switch:hover { color: var(--accent); }
 .pubws-bet-note {
   margin: 0.55rem 0 0;
   text-align: center;
@@ -4872,15 +4845,6 @@ textarea.jobform-line--desc {
   .mchart-center { order: 3; flex: 1 0 100%; text-align: center; }
 }
 
-/* The settle date, top-left of the plot: the one market fact that lives
-   on the visualization itself. */
-.mchart-note {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
-  white-space: nowrap;
-}
-
 .mchart-range {
   padding: 0.18rem 0.5rem;
   border: none;
@@ -4897,40 +4861,6 @@ textarea.jobform-line--desc {
 .mchart-range.is-active { background: var(--bg-tertiary); color: var(--text-primary); }
 .mchart-range:disabled { opacity: 0.35; cursor: default; }
 .mchart-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-/* The chart's corner controls (docs/ui-conventions.md, "One chart slot,
-   two views"): the view switch at the top, the range at the bottom of the
-   number view. */
-.mchart-corner {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.66rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  line-height: 1;
-}
-.mchart-corner--bottom { justify-content: flex-end; width: 100%; }
-/* The view switch: MARKET and NUMBER as chips in the range chips' own
-   language, because as bare words the pair read as the row's caption and
-   nobody pressed them (trader feedback 2026-08-27). */
-.mchart-views { display: inline-flex; gap: 0.2rem; }
-.mchart-view {
-  padding: 0.18rem 0.5rem;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
-}
-.mchart-view:hover:not(.is-active) { color: var(--text-primary); }
-.mchart-view.is-active { background: var(--bg-tertiary); color: var(--text-primary); font-weight: 600; }
-.mchart-view:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* The number view. Ink for what happened, amber for the market on screen,
    grey for the other open markets. */
@@ -4955,18 +4885,31 @@ textarea.jobform-line--desc {
 }
 .nchart-dot { fill: var(--text-primary); }
 .nchart-hold { stroke: var(--text-primary); stroke-width: 2; stroke-dasharray: 3 4; opacity: 0.7; }
-.nchart-marker line { stroke: var(--text-tertiary); stroke-width: 1; stroke-dasharray: 2 4; opacity: 0.6; }
 .nchart-marker circle { fill: var(--text-tertiary); opacity: 0.7; }
-.nchart-marker.is-selected line { stroke: var(--accent); opacity: 1; }
 .nchart-marker.is-selected circle { fill: var(--accent); stroke: var(--bg-primary); stroke-width: 2; opacity: 1; }
 .nchart-marker text { fill: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
 
-/* A contract's pair at a settle marker: green if approved, red if declined,
-   the bar between them is the priced impact; grey on the dates not on
-   screen, in the contract's colours on the selected one. */
-.nchart-pair-bar { stroke: var(--text-tertiary); stroke-width: 1; opacity: 0.5; }
-.nchart-pair-approved, .nchart-pair-declined { fill: var(--text-tertiary); opacity: 0.7; }
-.nchart-marker.is-selected .nchart-pair-bar { stroke: var(--text-primary); stroke-width: 2; opacity: 0.9; }
+/* The market's own call over time, the dotted connector from its end at now
+   to the settle marker, and the two range rails. The connector is dotted so
+   it never reads as a forecast path. */
+.nchart-call { fill: none; stroke: var(--accent); stroke-width: 1.5; opacity: 0.9; }
+.nchart-connector { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 1 4; stroke-linecap: round; opacity: 0.8; }
+.nchart-connector--approved { stroke: var(--higher); stroke-width: 1.5; stroke-dasharray: 1 4; stroke-linecap: round; opacity: 0.8; }
+.nchart-connector--declined { stroke: var(--lower); stroke-width: 1.5; stroke-dasharray: 1 4; stroke-linecap: round; opacity: 0.8; }
+.nchart-branch { fill: none; stroke-width: 1.5; opacity: 0.9; }
+.nchart-branch--approved { stroke: var(--higher); }
+.nchart-branch--declined { stroke: var(--lower); }
+.nchart-rail { stroke: var(--border-color); stroke-width: 1; }
+.nchart-rail-label,
+.nchart-range-label {
+  fill: var(--text-tertiary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+}
+.nchart-rail-label { text-anchor: end; }
+
+/* A proposal's pair at the selected settle marker: green if approved, red
+   if declined, each label at the pair band's precision. */
 .nchart-marker.is-selected .nchart-pair-approved { fill: var(--higher); opacity: 1; stroke: var(--bg-primary); stroke-width: 2; }
 .nchart-marker.is-selected .nchart-pair-declined { fill: var(--lower); opacity: 1; stroke: var(--bg-primary); stroke-width: 2; }
 .nchart-marker text.nchart-pair-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
@@ -4994,55 +4937,37 @@ textarea.jobform-line--desc {
 .nchart-legend-dot--now { background: var(--accent); }
 .nchart-legend-dot--other { background: var(--text-tertiary); opacity: 0.7; }
 .nchart-legend-line { display: inline-block; width: 14px; height: 2px; background: var(--text-primary); margin-right: 6px; vertical-align: middle; }
+.nchart-legend-rule { display: inline-block; width: 14px; height: 0; border-top: 1.5px solid var(--text-tertiary); margin-right: 6px; vertical-align: middle; }
+.nchart-legend-rule--now { border-top-color: var(--accent); }
+.nchart-legend-rule--approved { border-top-color: var(--higher); }
+.nchart-legend-rule--declined { border-top-color: var(--lower); }
+.nchart-legend-go {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.nchart-legend-go:hover { color: var(--text-primary); }
+.nchart-legend-go.is-off { opacity: 0.4; text-decoration: line-through; }
+.nchart-legend-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .nchart-tip-approved { color: var(--higher); }
 .nchart-tip-declined { color: var(--lower); }
-
-/* A resting order, drawn where it sits in the price. Faint enough to stay
-   behind the market line, legible enough to prove the order is real. */
-.mchart-order-line {
-  stroke: currentColor;
-  stroke-width: 1;
-  stroke-dasharray: 2 4;
-  opacity: 0.55;
-}
-.mchart-order-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  fill: currentColor;
-  opacity: 0.75;
-}
-.mchart-order--higher { color: var(--higher); }
-.mchart-order--lower { color: var(--lower); }
-
-/* The other branch of a conditional pair: a quiet second line in the
-   direction's colour. The primary line stays the loud one; the vertical
-   gap between them is the priced impact of approving. */
-.mchart-branch-line {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5;
-  opacity: 0.5;
-}
-.mchart-branch-dot { fill: currentColor; opacity: 0.6; }
-.mchart-branch-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  fill: currentColor;
-  opacity: 0.9;
-}
 
 /* Every end label gets a bone halo (paint-order draws the stroke UNDER the
    glyphs), so a label that lands on a line stays legible instead of being
    struck through by it. */
-.mchart-calllabel, .mchart-ghost-label, .mchart-branch-label, .mchart-order-label {
+.mchart-calllabel, .mchart-ghost-label {
   paint-order: stroke;
   stroke: var(--bg-primary);
   stroke-width: 3.5px;
   stroke-linejoin: round;
 }
-.mchart-branch--higher { color: var(--higher); }
-.mchart-branch--lower { color: var(--lower); }
-
 .mchart-grid {
   stroke: var(--border-color);
   stroke-width: 1;
@@ -11286,3 +11211,234 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .own-quiet svg { width: 14px; height: 14px; }
 .own + .pubws-aud-nav,
 .own .pubws-aud-nav { margin-top: 2.4rem; }
+
+
+/* ---- The proposal view (docs/ui-conventions.md, "The proposal view") ---- */
+
+/* P1: the way back on the left, what this is on the right. */
+.pubws-back-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.pubws-proposal-label {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  color: var(--text-tertiary);
+  text-align: right;
+}
+
+/* P2: the headline, in the display face. The question line under it carries
+   the condition, so the headline says only what the work is. */
+.pubws-proposal-title {
+  margin: 0 0 0.5rem;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  text-align: left;
+  text-wrap: pretty;
+}
+
+/* P3: the work. The owner reads what is promised before any button. */
+.pubws-work { margin: 1rem 0 0; }
+.pubws-work-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  margin: 0 0 0.35rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  color: var(--text-tertiary);
+}
+.pubws-work-edit {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.pubws-work-edit:hover { color: var(--text-primary); }
+.pubws-work-text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  text-align: left;
+  text-wrap: pretty;
+  white-space: pre-wrap;
+}
+.pubws-work-more {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.pubws-work-more:hover { color: var(--text-primary); }
+/* Facts are an icon row, never a sentence (owner rule 2026-09-03). */
+.pubws-work-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 1rem;
+  margin-top: 0.6rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+}
+.pubws-work-facts > span { display: inline-flex; align-items: center; gap: 0.3rem; }
+
+/* P5: the decision band. One sentence, then the three controls. */
+.pubws-decide {
+  margin: 1rem 0 0;
+  padding: 0.9rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  text-align: left;
+}
+.pubws-decide--note,
+.pubws-decide--done {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.pubws-decide-line {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  text-align: left;
+  text-wrap: pretty;
+}
+.pubws-decide-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+.pubws-decide-go {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--button-bg);
+  border-radius: 10px;
+  background: var(--button-bg);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--button-text);
+  cursor: pointer;
+}
+.pubws-decide-go:disabled { opacity: 0.55; cursor: default; }
+.pubws-decide-no {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.pubws-decide-no:hover:not(:disabled) { color: var(--lower); border-color: var(--lower); }
+.pubws-decide-no:disabled { opacity: 0.55; cursor: default; }
+.pubws-decide-remove,
+.pubws-decide-cancel {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.pubws-decide-remove:hover,
+.pubws-decide-cancel:hover { color: var(--text-primary); }
+.pubws-review { margin-top: 0.8rem; }
+.pubws-review-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 0.3rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border-color);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.pubws-review-row--total { color: var(--text-primary); font-weight: 600; }
+.pubws-review-note,
+.pubws-decide-confirm {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  text-align: left;
+  text-wrap: pretty;
+}
+
+/* P6: the two tickets. Side by side while the centre column has room for
+   them; stacked, approved first, the moment it does not. */
+.pubws-tickets-wrap {
+  container-type: inline-size;
+  margin-top: 1rem;
+}
+.pubws-tickets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+@container (max-width: 899px) {
+  .pubws-tickets { grid-template-columns: 1fr; }
+}
+.pubws-ticket-col { min-width: 0; }
+.pubws-ticket-col .pubws-verbs { margin-top: 0.35rem; }
+.pubws-ticket-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+/* Deepening this branch's own book sits at the end of its head, in the
+   tertiary link register: it is an offer about the column, never a second
+   verb (docs/ui-conventions.md, "The proposal view", P6). */
+.pubws-ticket-head .pubws-facts-act { color: var(--text-tertiary); letter-spacing: 0; font-weight: 400; }
+.pubws-ticket-col--approved .pubws-ticket-head { color: var(--higher); }
+.pubws-ticket-col--declined .pubws-ticket-head { color: var(--lower); }
+.pubws-ticket-col--approved .pubws-verbs { background: color-mix(in srgb, var(--higher) 6%, var(--bg-secondary)); }
+.pubws-ticket-col--declined .pubws-verbs { background: color-mix(in srgb, var(--lower) 6%, var(--bg-secondary)); }
+.pubws-branch-rule,
+.pubws-pair-rule {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  text-align: left;
+  text-wrap: pretty;
+}
+.pubws-pair-rule { margin-top: 0.8rem; }

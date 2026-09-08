@@ -65,8 +65,6 @@ export function NumbersBand({
   readingIsStale,
   canReport,
   onReport,
-  canInject,
-  onInject,
 }: {
   hero: HorizonView;
   /** The call on the market ON SCREEN (a branch's, on a proposal). */
@@ -81,8 +79,6 @@ export function NumbersBand({
   readingIsStale: boolean;
   canReport: boolean;
   onReport: () => void;
-  canInject: boolean;
-  onInject: () => void;
 }) {
   const forecastDay = forecastDayOf(hero.resolvesOn);
   const countdown = countdownOf(hero, now);
@@ -119,12 +115,11 @@ export function NumbersBand({
         </span>
         {consensus === null ? (
           <span className="pubws-stat-value">
+            {/* The band says what is true; the offer to fund the book lives
+                ONCE, in the verbs panel under it (docs/ui-conventions.md,
+                "The verbs and the inline ticket"). Three "Inject liquidity"
+                buttons on one unfunded screen was the state this reconciles. */}
             <span className="pubws-price">no price yet</span>
-            {canInject && (
-              <button type="button" className="pubws-stat-report" onClick={onInject}>
-                Inject liquidity
-              </button>
-            )}
           </span>
         ) : (
           <span className="pubws-stat-value">

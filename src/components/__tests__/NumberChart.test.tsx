@@ -228,40 +228,13 @@ describe('a proposal open', () => {
     },
   ];
 
-  test('every marker in the window carries the pair; only the selected one is labeled with the impact', () => {
-    const { container } = render(
-      <NumberChart
-        points={points}
-        markers={withPairs}
-        selectedResolvesOn="2026-10-01T00:00:00Z"
-        granularity="month"
-        now={NOW}
-        legend={{ approved: 'if Jason is paid $80', declined: 'if not' }}
-      />,
-    );
-    expect(container.querySelectorAll('.nchart-pair').length).toBe(2);
-    expect(container.querySelectorAll('.nchart-pair-label').length).toBe(2);
-    const sel = container.querySelector('.nchart-marker.is-selected')!;
-    expect(sel.textContent).toContain('if approved 21');
-    expect(sel.textContent).toContain('if declined 19.5');
-    expect(sel.textContent).toContain('+1.5');
-    expect(sel.textContent).toContain('19.8 now');
-    expect(container.querySelector('.nchart-legend')?.textContent).toContain('if Jason is paid $80');
-  });
-
-  test('the impact is stated from the world on screen: declined flips the sign', () => {
-    const { container } = render(
-      <NumberChart
-        points={points}
-        markers={withPairs}
-        selectedResolvesOn="2026-10-01T00:00:00Z"
-        granularity="month"
-        now={NOW}
-        impactFrom="declined"
-      />,
-    );
-    expect(container.querySelector('.nchart-pair-delta')?.textContent).toBe('-1.5');
-  });
+  /* Replaced 2026-09-08: the pair is drawn on the SELECTED date alone
+     (docs/ui-conventions.md, "The chart"), and the difference is stated
+     approved minus declined, because both branches now have their own
+     ticket and there is no "world on screen" to state it from. The old
+     tests for a pair on every marker and for `impactFrom` flipping the
+     sign are gone with the mechanic they pinned; the branch lines,
+     connectors and labels are pinned in NumberChartOneChart.test.tsx. */
 
   /** The marker prints the difference with the decision row's precision
    *  (critics' round 3: "+0.0" beside "if approved 17.04"). */
@@ -282,12 +255,13 @@ describe('a proposal open', () => {
         granularity="month"
         unit="$"
         now={NOW}
+        branches={{ approved: [], declined: [] }}
       />,
     );
     expect(container.querySelector('.nchart-pair-delta')?.textContent).toBe('+$0.04');
   });
 
-  test('no proposal, no pair and no legend', () => {
+  test('no proposal, no pair', () => {
     const { container } = render(
       <NumberChart
         points={points}
@@ -297,8 +271,8 @@ describe('a proposal open', () => {
         now={NOW}
       />,
     );
-    expect(container.querySelectorAll('.nchart-pair').length).toBe(0);
-    expect(container.querySelector('.nchart-legend')).toBeNull();
+    expect(container.querySelector('.nchart-pair-approved')).toBeNull();
+    expect(container.querySelector('.nchart-branch')).toBeNull();
   });
 });
 
@@ -342,6 +316,7 @@ describe('labels never collide', () => {
         selectedResolvesOn="2026-10-01T00:00:00Z"
         granularity="month"
         now={NOW}
+        branches={{ approved: [], declined: [] }}
       />,
     );
     const ys = [...container.querySelectorAll('.nchart-marker.is-selected text')]
@@ -436,70 +411,6 @@ describe('the vertical axis never magnifies a wobble into a cliff', () => {
   });
 });
 
-describe('the legend names the marks (docs/ui-conventions.md, "The price and the chart")', () => {
-  const markers = [
-    { marketId: 'sep', resolvesOn: '2026-10-01T00:00:00Z', consensus: 19.8, selected: true },
-    { marketId: 'week', resolvesOn: '2026-08-31T00:00:00Z', consensus: 6.5, selected: false },
-  ];
-
-  test('actual, the call for the day before the selected settle instant, and the other open dates', () => {
-    const { container } = render(
-      <NumberChart
-        points={points}
-        markers={markers}
-        selectedResolvesOn="2026-10-01T00:00:00Z"
-        granularity="month"
-        now={NOW}
-        marksLegend
-      />,
-    );
-    const legend = container.querySelector('.nchart-legend') as HTMLElement;
-    expect(legend.textContent).toContain('actual');
-    expect(legend.textContent).toContain("market's call for 30 Sep");
-    expect(legend.textContent).toContain('other open dates');
-  });
-
-  test('no other open dates, no words for them', () => {
-    const { container } = render(
-      <NumberChart
-        points={points}
-        markers={[markers[0]]}
-        selectedResolvesOn="2026-10-01T00:00:00Z"
-        granularity="month"
-        now={NOW}
-        marksLegend
-      />,
-    );
-    expect(container.querySelector('.nchart-legend')?.textContent).not.toContain('other open dates');
-  });
-
-  test('a proposal legend replaces it', () => {
-    const { container } = render(
-      <NumberChart
-        points={points}
-        markers={markers}
-        selectedResolvesOn="2026-10-01T00:00:00Z"
-        granularity="month"
-        now={NOW}
-        marksLegend
-        legend={{ approved: 'if Ada is paid $80', declined: 'if not' }}
-      />,
-    );
-    expect(container.querySelectorAll('.nchart-legend').length).toBe(1);
-    expect(container.querySelector('.nchart-legend')?.textContent).toContain('if Ada is paid $80');
-    expect(container.querySelector('.nchart-legend')?.textContent).not.toContain('actual');
-  });
-
-  test('without the flag there is no legend, as before', () => {
-    const { container } = render(
-      <NumberChart
-        points={points}
-        markers={markers}
-        selectedResolvesOn="2026-10-01T00:00:00Z"
-        granularity="month"
-        now={NOW}
-      />,
-    );
-    expect(container.querySelector('.nchart-legend')).toBeNull();
-  });
-});
+/* The legend's words moved with the redesign ("reading", "market's call",
+   "settles 30 Sep", and the four toggles a proposal gets); they are pinned
+   in NumberChartOneChart.test.tsx, so the old describe here is gone. */

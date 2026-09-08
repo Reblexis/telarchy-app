@@ -158,11 +158,6 @@ async function facts(): Promise<string> {
     .join(' ');
 }
 
-/** Put the proposal on screen, the way a reader does: click its row. */
-async function selectContract() {
-  fireEvent.click(await screen.findByTitle('rewrite the store page'));
-}
-
 beforeEach(() => {
   globalThis.IntersectionObserver = class {
     observe() {}
@@ -184,6 +179,26 @@ afterEach(async () => {
   vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async () => h.workspace() as never);
 });
 
+/**
+ * A conditional market says the same three things about itself as any other
+ * market (docs/ui-conventions.md, "What a market says about itself"). On a
+ * proposal that row is per BRANCH and lives in the pair band's cells and in
+ * each branch column, which "The proposal view" (P4, P6) governs and
+ * FloorProposalView.test.tsx pins. What survives here is the plain view.
+ *
+ * Deleted 2026-09-08 with the design they pinned: the branch pill toggle
+ * ("if approved" / "if declined"), the four-cell decision row
+ * (`.pubws-decision`) and its `.pubws-decision-why` line, the
+ * "Trading the if-approved book · switch" line above the verbs, the
+ * `.pubws-decide-why` line under the owner's bar, and the chart marker's
+ * sign flipping with the branch on screen. Both books are on screen now with
+ * their own tickets, so there is no branch on screen to switch, mark or flip.
+ * Every rule they carried that the spec kept was ported to
+ * FloorProposalView.test.tsx first: the reconciling precision, the difference
+ * in ink shared with the rail, the caption from the chart's label helper, the
+ * thin-books line and its "in each" case, the unpriced pair, and the branch's
+ * own facts never borrowed from the baseline.
+ */
 describe('a conditional market says the same things about itself as any other', () => {
   test('the baseline still says its own three', async () => {
     renderFloor();
@@ -192,336 +207,6 @@ describe('a conditional market says the same things about itself as any other', 
     // book's life gave way to its last trade (2026-09-08), which is what a
     // trader deciding whether the price is stale actually asks.
     expect(await facts()).toBe('9 139 no trades yet');
-  });
-
-  test('a proposal on screen shows the row, not nothing', async () => {
-    renderFloor();
-    await selectContract();
-    // The bug: the row was hidden whenever a proposal was selected, so a
-    // funded branch read as a market with no pool at all.
-    expect(await screen.findByLabelText('This book')).toBeTruthy();
-  });
-
-  test("the row reads the approved branch's own numbers", async () => {
-    renderFloor();
-    await selectContract();
-    await waitFor(async () => expect(await facts()).toBe('2 77 no trades yet'));
-  });
-
-  test('switching to the declined world switches all three', async () => {
-    renderFloor();
-    await selectContract();
-    await waitFor(async () => expect(await facts()).toBe('2 77 no trades yet'));
-
-    fireEvent.click(await screen.findByRole('button', { name: 'if declined' }));
-    await waitFor(async () => expect(await facts()).toBe('1 41 no trades yet'));
-
-    fireEvent.click(await screen.findByRole('button', { name: 'if approved' }));
-    await waitFor(async () => expect(await facts()).toBe('2 77 no trades yet'));
-  });
-
-  test("a proposal never borrows the baseline's numbers", async () => {
-    renderFloor();
-    await selectContract();
-    await waitFor(async () => expect(await facts()).toBe('2 77 no trades yet'));
-    const row = await facts();
-    expect(row).not.toContain('139');
-    expect(row.startsWith('9 ')).toBe(false);
-  });
-
-  test('a branch with an empty book reads zero, and still shows the row', async () => {
-    const { api } = await import('../../lib/api');
-    const ws = h.workspace();
-    Object.assign(ws.proposals[0].markets[0], {
-      approvedPool: 0,
-      approvedTraders: 0,
-      approvedVolume: 0,
-    });
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-    renderFloor();
-    await selectContract();
-    await waitFor(async () => expect(await facts()).toBe('0 0 no trades yet'));
-  });
-
-  test("the owner's Inject targets the branch on screen, not the baseline", async () => {
-    renderFloor();
-    await selectContract();
-    await waitFor(async () => expect(await facts()).toBe('2 77 no trades yet'));
-
-    fireEvent.click(await screen.findByRole('button', { name: 'if declined' }));
-    await waitFor(async () => expect(await facts()).toBe('1 41 no trades yet'));
-    // Deepening the book lives on the activity tab row now, beside what the
-    // book holds (docs/ui-conventions.md, "Activity").
-    fireEvent.click(await screen.findByRole('button', { name: 'Inject liquidity' }));
-
-    // The dialog names the market it is about to change. Injecting into the
-    // baseline while the reader is looking at a branch would put the credits
-    // in a book nobody asked about.
-    const dialog = await screen.findByRole('dialog');
-    expect(dialog.textContent).toContain('if declined');
-    expect(dialog.textContent).not.toContain('if approved');
-    // It reports the branch's pool, not the baseline's 139.
-    expect(dialog.textContent).toContain('41');
-
-    // And the credits actually land on the declined branch's book.
-    const { api } = await import('../../lib/api');
-    fireEvent.click(dialog.querySelector('.ticket-go') as HTMLElement);
-    await waitFor(() =>
-      expect(vi.mocked(api.injectLiquidity)).toHaveBeenCalledWith('m-declined', 1000, expect.anything()),
-    );
-  });
-});
-
-/**
- * The decision row, then the decision bar (docs/ui-conventions.md, critics'
- * round 2026-09-08): a decision is laid out as a decision before it is
- * asked. Under the proposal's headline, four cells on hairlines: if approved
- * and its call, if declined and its call, the difference, the cost. The
- * owner's bar sits directly under it. Everyone sees the row.
- */
-describe('the decision row, then the decision bar', () => {
-  const cells = (container: HTMLElement) =>
-    [...container.querySelectorAll('.pubws-decision .pubws-decision-cell')].map(c => ({
-      what: c.querySelector('.pubws-stat-what')?.textContent?.trim() ?? '',
-      value: c.querySelector('.pubws-price')?.textContent?.trim() ?? '',
-      active: c.classList.contains('is-active'),
-    }));
-
-  test('four cells from the pair: if approved, if declined, difference, costs', async () => {
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
-    expect(cells(container)).toEqual([
-      { what: 'if approved', value: '$82,000', active: true },
-      { what: 'if declined', value: '$71,000', active: false },
-      { what: 'difference · revenue', value: '+$11,000', active: false },
-      { what: 'costs', value: '$80', active: false },
-    ]);
-    // The numbers are in the price register, a size down from the headline.
-    for (const cell of container.querySelectorAll('.pubws-decision .pubws-price')) {
-      expect(cell.className).toContain('pubws-price--sm');
-    }
-  });
-
-  /** The difference caption never truncates (round 2: "DIFFERENCE · ACTIV…"
-   *  at 1700px): the caption wraps, and the difference cell is the widest of
-   *  the four. */
-  test('the stylesheet lets the difference caption wrap in a wider cell', () => {
-    const CSS = readFileSync(join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'), 'utf8');
-    const row = CSS.match(/\.pubws-decision \{([^}]*)\}/);
-    expect(row).toBeTruthy();
-    expect(row![1]).toMatch(/grid-template-columns:\s*1fr 1fr 1\.4fr 1fr/);
-    expect(CSS).toMatch(/\.pubws-decision-cell \{[^}]*min-width:\s*0/);
-    const cap = CSS.match(/\.pubws-decision-cell \.pubws-stat-what \{([^}]*)\}/);
-    expect(cap).toBeTruthy();
-    expect(cap![1]).toMatch(/white-space:\s*normal/);
-    expect(cap![1]).toMatch(/overflow:\s*visible/);
-    expect(cap![1]).toMatch(/text-overflow:\s*clip/);
-  });
-
-  test('the difference caption carries its unit in a span the stylesheet can break onto its own line', async () => {
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
-    const diff = container.querySelectorAll('.pubws-decision .pubws-decision-cell')[2] as HTMLElement;
-    const unit = diff.querySelector('.pubws-stat-what .pubws-decision-unit') as HTMLElement;
-    expect(unit).toBeTruthy();
-    expect(unit.textContent).toBe('revenue');
-  });
-
-  test('the branch on screen is the marked cell', async () => {
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
-    fireEvent.click(await screen.findByRole('button', { name: 'if declined' }));
-    await waitFor(() => expect(cells(container)[1].active).toBe(true));
-    expect(cells(container)[0].active).toBe(false);
-    // The difference is approved minus declined whichever world is on screen.
-    expect(cells(container)[2].value).toBe('+$11,000');
-  });
-
-  test('the row sits under the headline, and the owner bar directly under the row', async () => {
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
-    const row = container.querySelector('.pubws-decision') as HTMLElement;
-    const ask = container.querySelector('.pubws-instrument-ask') as HTMLElement;
-    expect(ask.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const approve = await screen.findByRole('button', { name: 'Approve, pay $80' });
-    const bar = approve.closest('.pubws-ownerbar') as HTMLElement;
-    expect(bar.previousElementSibling).toBe(row);
-    // And before the tickets: a decision is laid out as a decision before
-    // it is asked (docs/ui-conventions.md, "The proposal view", P5).
-    const verbs = container.querySelector('.pubws-verbs') as HTMLElement;
-    expect(row.compareDocumentPosition(verbs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  test('the row and the rail print the same difference', async () => {
-    const { formatImpact } = await import('../../lib/formatImpact');
-    const { api } = await import('../../lib/api');
-    const ws = h.workspace();
-    // A difference under 1: the precision rule is where the three used to drift.
-    ws.proposals[0].markets[0].approvedConsensus = 80_000.45;
-    ws.proposals[0].markets[0].declinedConsensus = 80_000;
-    ws.proposals[0].markets[0].delta = 0.45;
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
-    const expected = formatImpact(0.45, '$');
-    expect(expected).toBe('+$0.45');
-    expect(cells(container)[2].value).toBe(expected);
-    // The impact chip beside the call is not drawn any more (2026-09-08):
-    // the numbers band shows the metric's own numbers, and the difference
-    // is stated in the decision row and on the rail, in one precision.
-    expect(container.querySelector('.pubws-stat--call .pubws-delta-chip')).toBeNull();
-    const rail = container.querySelector('.pubws-rail--right .pubws-ballot-delta') as HTMLElement;
-    expect(rail.textContent).toBe(expected);
-  });
-
-  /** The row has to add up at a glance (critics' round 2 of 2026-09-08:
-   *  "17.0, 17.0, difference +0.04" reads as wrong): the two calls print
-   *  with enough decimals to reconcile the difference. */
-  test('a difference under a tenth prints the two calls with two decimals', async () => {
-    const { api } = await import('../../lib/api');
-    const ws = h.workspace();
-    ws.markets[0].consensus = 17;
-    ws.markets[0].rangeMax = 50;
-    Object.assign(ws.proposals[0].markets[0], {
-      approvedConsensus: 17.02,
-      declinedConsensus: 16.98,
-      delta: 0.04,
-      rangeMax: 50,
-    });
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
-    const c = cells(container);
-    expect(c[0].value).toBe('$17.02');
-    expect(c[1].value).toBe('$16.98');
-    expect(c[2].value).toBe('+$0.04');
-    // The chart's branch labels use the same rule.
-    await waitFor(() => expect(container.querySelector('.nchart-pair-label--approved')).toBeTruthy());
-    expect(container.querySelector('.nchart-pair-label--approved')?.textContent).toBe('if approved $17.02');
-    expect(container.querySelector('.nchart-pair-label--declined')?.textContent).toBe('if declined $16.98');
-  });
-
-  test('two calls that would print equal at their usual precision grow decimals until they differ', async () => {
-    const { api } = await import('../../lib/api');
-    const ws = h.workspace();
-    ws.markets[0].consensus = 150;
-    ws.markets[0].rangeMax = 500;
-    // Whole numbers from 100 up: "150" and "150" beside "+0.4" is the bug.
-    Object.assign(ws.proposals[0].markets[0], {
-      approvedConsensus: 150.4,
-      declinedConsensus: 150,
-      delta: 0.4,
-      rangeMax: 500,
-    });
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
-    const c = cells(container);
-    expect(c[0].value).toBe('$150.40');
-    expect(c[1].value).toBe('$150.00');
-    expect(c[2].value).toBe('+$0.40');
-  });
-
-  test('a wide difference keeps the usual precision: no decimals invented', async () => {
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
-    const c = cells(container);
-    expect(c[0].value).toBe('$82,000');
-    expect(c[1].value).toBe('$71,000');
-    expect(container.querySelector('.pubws-decision-why')).toBeNull();
-  });
-
-  test('the difference cell is captioned with the metric, from the same label helper as the chart caption', async () => {
-    const { captionLabel, metricLabelOf } = await import('../../lib/floor-horizons');
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
-    const expected = `difference · ${captionLabel(metricLabelOf('LookPilot revenue (monthly, USD)'), 'LookPilot')}`;
-    expect(expected).toBe('difference · revenue');
-    expect(cells(container)[2].what).toBe(expected);
-  });
-
-  /** When the pair sits away from the unconditional call by more than the
-   *  difference, one grey line under the row says why in the trader's
-   *  terms: the pools, and the market's own call. */
-  test("a pair far from the market's own call gets one grey line under the row naming the pools and the call", async () => {
-    const { api } = await import('../../lib/api');
-    const ws = h.workspace();
-    // Both branches 9,000 and 10,000 above the baseline's 80,000, 1,000 apart.
-    Object.assign(ws.proposals[0].markets[0], {
-      approvedConsensus: 90_000,
-      declinedConsensus: 89_000,
-      delta: 1_000,
-    });
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision-why')).toBeTruthy());
-    const why = container.querySelector('.pubws-decision-why') as HTMLElement;
-    expect(why.textContent).toBe("Both books trade thin (77 cr and 41 cr); the market's own call is $80,000.");
-    // Directly under the row, before the owner's bar.
-    const row = container.querySelector('.pubws-decision') as HTMLElement;
-    expect(row.nextElementSibling).toBe(why);
-    const approve = await screen.findByRole('button', { name: 'Approve, pay $80' });
-    expect((approve.closest('.pubws-ownerbar') as HTMLElement).previousElementSibling).toBe(why);
-  });
-
-  test('equal pools read "in each"', async () => {
-    const { api } = await import('../../lib/api');
-    const ws = h.workspace();
-    Object.assign(ws.proposals[0].markets[0], {
-      approvedConsensus: 90_000,
-      declinedConsensus: 89_000,
-      delta: 1_000,
-      approvedPool: 295,
-      declinedPool: 295,
-    });
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision-why')).toBeTruthy());
-    expect(container.querySelector('.pubws-decision-why')?.textContent).toBe(
-      "Both books trade thin (295 cr in each); the market's own call is $80,000.",
-    );
-  });
-
-  test("a pair that straddles or hugs the market's call gets no line", async () => {
-    const { api } = await import('../../lib/api');
-    const ws = h.workspace();
-    // 82,000 is 2,000 from the call; the difference is 11,000: the row explains itself.
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
-    expect(container.querySelector('.pubws-decision-why')).toBeNull();
-  });
-
-  test('an unpriced pair says so in the cells rather than printing zeros', async () => {
-    const { api } = await import('../../lib/api');
-    const ws = h.workspace();
-    Object.assign(ws.proposals[0].markets[0], {
-      approvedConsensus: null,
-      declinedConsensus: null,
-      approvedLiquidity: 0,
-      declinedLiquidity: 0,
-    });
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
-    const c = cells(container);
-    expect(c[0].value).toBe('no price yet');
-    expect(c[1].value).toBe('no price yet');
-    expect(c[2].value).toBe('open');
-    expect(c[3].value).toBe('$80');
   });
 });
 
@@ -630,41 +315,18 @@ describe('the season block for a manager', () => {
 });
 
 /**
- * On a proposal the bet verbs say which book they trade (docs/
- * ui-conventions.md, critics' round 2): one line directly above the pair,
- * "Trading the if-approved book · switch", the switch flipping the branch
- * exactly as the pills under the decision bar do.
+ * The plain view has one book, so nothing above the verbs names it. On a
+ * proposal both books are on screen with their own tickets and each is named
+ * by its column's heading (docs/ui-conventions.md, "The proposal view", P6);
+ * the "Trading the if-approved book · switch" line went with the branch
+ * toggle on 2026-09-08.
  */
-describe('on a proposal the bet verbs say which book they trade', () => {
-  test('one line directly above the verbs names the book, and its switch flips the branch', async () => {
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-bet-book')).toBeTruthy());
-    const line = container.querySelector('.pubws-bet-book') as HTMLElement;
-    expect(line.textContent?.replace(/\s+/g, ' ').trim()).toBe('Trading the if-approved book · switch');
-    expect(line.nextElementSibling).toBe(container.querySelector('.pubws-verbs'));
-    fireEvent.click(within(line).getByRole('button', { name: 'switch' }));
-    await waitFor(() =>
-      expect(line.textContent?.replace(/\s+/g, ' ').trim()).toBe('Trading the if-declined book · switch'),
-    );
-    // The same flip the pills make: the facts row now reads the declined book.
-    await waitFor(async () => expect(await facts()).toBe('1 41 no trades yet'));
-    // And the pills agree.
-    expect(cells(container)[1].active).toBe(true);
-  });
-
-  test('the plain market has one book and no line', async () => {
+describe('the plain market has one book and no line', () => {
+  test('nothing above the verbs names a book', async () => {
     const { container } = renderFloor();
     await screen.findByRole('button', { name: /Bet Higher/ });
     expect(container.querySelector('.pubws-bet-book')).toBeNull();
   });
-
-  /** The pair's own switch: the pills under the decision row. */
-
-  const cells = (container: HTMLElement) =>
-    [...container.querySelectorAll('.pubws-decision .pubws-decision-cell')].map(c => ({
-      active: c.classList.contains('is-active'),
-    }));
 });
 
 /**
@@ -744,85 +406,4 @@ describe('Edit beside "more" for a manager', () => {
     // One Edit for the definition on the page: the summary line's.
     await waitFor(() => expect(within(sum).getByRole('button', { name: 'Edit' })).toBeTruthy());
   });
-});
-
-/**
- * The owner's decision bar says what its two quiet buttons do to the books
- * (docs/ui-conventions.md, "The decision row, then the decision bar",
- * critics' round 3): one grey line under the bar. The wording follows the
- * server (functions/src/services/proposals.ts): a plain decline voids the
- * if-approved book (refunded at cost) and keeps if-declined live to settle
- * on the real number; remove voids both books and refunds everyone.
- */
-describe('one grey line under the decision bar says what Decline and Remove do', () => {
-  test('the line sits directly under the bar, for the owner, and names both outcomes', async () => {
-    const { container } = renderFloor();
-    await selectContract();
-    const approve = await screen.findByRole('button', { name: 'Approve, pay $80' });
-    const bar = approve.closest('.pubws-ownerbar') as HTMLElement;
-    const why = bar.nextElementSibling as HTMLElement;
-    expect(why?.classList.contains('pubws-decide-why')).toBe(true);
-    expect(why.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'Decline settles the pair on if-declined: those positions pay out at the real number, if-approved is refunded. Remove voids both books and refunds everyone.',
-    );
-    expect(container.querySelectorAll('.pubws-decide-why')).toHaveLength(1);
-  });
-
-  test('a decided proposal has no bar and no line', async () => {
-    const { api } = await import('../../lib/api');
-    const ws = h.workspace();
-    Object.assign(ws.proposals[0], { status: 'approved' });
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
-    expect(screen.queryByRole('button', { name: 'Decline' })).toBeNull();
-    expect(container.querySelector('.pubws-decide-why')).toBeNull();
-  });
-});
-
-/**
- * The chart follows the row's precision (critics' round 3): the marker
- * beside the traded branch printed "+0.0" next to "if approved 17.04", and
- * "how the call moved" named only the declined line, never the book being
- * traded.
- */
-describe('the charts follow the decision row', () => {
-  const tightPair = async () => {
-    const { api } = await import('../../lib/api');
-    const ws = h.workspace();
-    ws.markets[0].consensus = 17;
-    ws.markets[0].rangeMax = 50;
-    Object.assign(ws.proposals[0].markets[0], {
-      approvedConsensus: 17.04,
-      declinedConsensus: 17,
-      delta: 0.04,
-      rangeMax: 50,
-    });
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-  };
-
-  test("the marker beside the traded branch prints the difference with the row's precision", async () => {
-    await tightPair();
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() => expect(container.querySelector('.nchart-pair-delta')).toBeTruthy());
-    expect(container.querySelector('.nchart-pair-delta')?.textContent).toBe('+$0.04');
-    // The same string as the row's difference cell.
-    const diff = container.querySelectorAll('.pubws-decision .pubws-decision-cell')[2];
-    expect(diff.querySelector('.pubws-price')?.textContent?.trim()).toBe('+$0.04');
-  });
-
-  test('from the declined world the marker flips its sign at the same precision', async () => {
-    await tightPair();
-    const { container } = renderFloor();
-    await selectContract();
-    fireEvent.click(await screen.findByRole('button', { name: 'if declined' }));
-    await waitFor(() => expect(container.querySelector('.nchart-pair-delta')?.textContent).toBe('-$0.04'));
-  });
-
-  // "How the call moved" (MarketChart as a half-height strip under the
-  // number chart) is not rendered any more (2026-09-08), so there is no
-  // second chart to label with the book being traded; the branch on screen
-  // is named by the decision row's pills and by the line above the verbs.
 });

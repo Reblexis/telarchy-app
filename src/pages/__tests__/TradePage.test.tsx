@@ -249,35 +249,46 @@ describe('the poll cadence is 15 seconds', () => {
 });
 
 describe('the live poll leaves the view alone', () => {
-  test('the declined branch stays open across a poll', async () => {
+  /* The branch toggle is gone (2026-09-08): both books are on screen with
+     their own tickets, so the viewer's state on a proposal is the selected
+     proposal, an open ticket, an expanded description and the drawn chart
+     (docs/ui-conventions.md, "The floor's live poll"). */
+  test('an open ticket in a branch column stays open across a poll', async () => {
+    h.auth.user = { id: 'u-trader' };
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.joinAs = 'trader';
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     renderFloor();
     const row = await screen.findByTitle('rewrite the store page');
     fireEvent.click(row);
-    const declined = await screen.findByRole('button', { name: 'if declined' });
-    fireEvent.click(declined);
-    expect(declined.getAttribute('aria-pressed')).toBe('true');
+    const declined = await waitFor(() => document.querySelector('.pubws-ticket-col--declined') as HTMLElement);
+    fireEvent.click(within(declined).getByRole('button', { name: /Bet Higher/ }));
+    await waitFor(() => expect(declined.querySelector('.pubws-ticket-inline')).toBeTruthy());
 
     await poll();
     await poll();
 
-    expect(screen.getByRole('button', { name: 'if declined' }).getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByRole('button', { name: 'if approved' }).getAttribute('aria-pressed')).toBe('false');
+    const still = document.querySelector('.pubws-ticket-col--declined') as HTMLElement;
+    expect(still.querySelector('.pubws-ticket-inline')).toBeTruthy();
+    expect(document.querySelector('.pubws-ticket-col--approved .pubws-ticket-inline')).toBeNull();
   });
 
-  test('the call on screen never blanks across a poll while a job is selected', async () => {
+  test("the pair's calls never blank across a poll while a proposal is selected", async () => {
     renderFloor();
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
-    // The approved branch's own call, once the headline has finished
-    // rolling to it.
-    const price = () => document.querySelector('.pubws-stat--call .pubws-price')?.textContent;
-    await waitFor(() => expect(price()).toBe('$82,000'));
+    // Both branches' own calls, in the pair band that replaced the numbers
+    // band on a proposal.
+    const calls = () =>
+      [...document.querySelectorAll('.pubws-pair-cell .pubws-price')].map(e => e.textContent).slice(0, 2);
+    await waitFor(() => expect(calls()).toEqual(['$82,000', '$71,000']));
 
     await poll();
     await poll();
 
-    // A blank would show up as "no price yet" for a frame: the branch's
+    // A blank would show up as "no price yet" for a frame: each branch's
     // number is overwritten in place, never cleared first.
-    expect(price()).toBe('$82,000');
+    expect(calls()).toEqual(['$82,000', '$71,000']);
   });
 });
 
@@ -327,7 +338,9 @@ describe('an unfunded market does not offer a bet it cannot take', () => {
     const row = await screen.findByTitle('rewrite the store page');
     fireEvent.click(row);
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /Bet Higher/ })).toBeTruthy());
+    // One per branch column: both books are on screen with their own
+    // tickets (docs/ui-conventions.md, "The proposal view", P6).
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /Bet Higher/ }).length).toBe(2));
     expect(document.querySelector('.pubws-unfunded')).toBeNull();
   });
 
@@ -1184,8 +1197,12 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-numchart .nchart-legend')).toBeTruthy());
     const legend = container.querySelector('.pubws-numchart .nchart-legend') as HTMLElement;
-    expect(legend.textContent).toContain('actual');
-    expect(legend.textContent).toContain("market's call for 30 Dec");
+    // The legend's words moved with the redesign (docs/ui-conventions.md,
+    // "The chart"): the ink line is the READING, the amber one is the
+    // market's call over time, and the amber dot is when it settles.
+    expect(legend.textContent).toContain('reading');
+    expect(legend.textContent).toContain("market's call");
+    expect(legend.textContent).toContain('settles 30 Dec');
     // One open market of this metric: no grey dots, so no words for them.
     expect(legend.textContent).not.toContain('other open dates');
   });

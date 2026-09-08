@@ -9,6 +9,14 @@ import { FloorChat } from '../components/FloorChat';
 import { FloorComments } from '../components/FloorComments';
 import { FloorHead, OwnerRow, RunFloorRow } from '../components/FloorHead';
 import { NumbersBand, SettlementLine } from '../components/FloorNumbers';
+import {
+  BranchTicket,
+  DecisionBand,
+  DecisionNote,
+  PairBand,
+  ProposalLabel,
+  WorkBlock,
+} from '../components/FloorProposal';
 import { FloorStandings, type ProposalTraderRow, SeasonAdvert, useCurrentSeason } from '../components/FloorRails';
 import {
   BET_INTENT_KEY,
@@ -39,6 +47,7 @@ import {
   captionLabel,
   dateSegmentOf,
   datesOf,
+  dayOf,
   type HorizonView,
   horizonById,
   metricLabelOf,
@@ -49,7 +58,7 @@ import {
   settleNoteOf,
   timeLeftOf,
 } from '../lib/floor-horizons';
-import { formatImpact, formatPairValue, pairNeedsDecimals } from '../lib/formatImpact';
+import { formatPairValue, pairNeedsDecimals } from '../lib/formatImpact';
 import { dropInline, readInline } from '../lib/inline-data';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
@@ -149,7 +158,10 @@ export function TradePage() {
   }, []);
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
-  const [positions, setPositions] = useState<TicketPosition[]>([]);
+  /** Held positions BY MARKET: with a proposal open both branches are on
+   *  screen, and each column's row is its own book's (docs/ui-conventions.md,
+   *  "Your position"). */
+  const [posByMarket, setPosByMarket] = useState<Record<string, TicketPosition[]>>({});
   const [orders, setOrders] = useState<LimitOrder[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
   // The walled liquidity wallet beside it: what a market can be funded with,
@@ -341,12 +353,15 @@ export function TradePage() {
   const [jobDesc, setJobDesc] = useState('');
   const [jobSaving, setJobSaving] = useState(false);
   const [jobErr, setJobErr] = useState('');
-  const [declineReason, setDeclineReason] = useState<string | null>(null); // null = decline not open
+  const [declineReason, setDeclineReason] = useState('');
   const [decideBusy, setDecideBusy] = useState(false);
   const [decideErr, setDecideErr] = useState('');
   // Removing a job is not a decision and has no undo in the UI, so it arms
   // first and takes a second click to fire.
-  const [removeArmed, setRemoveArmed] = useState(false);
+  /** Which of the decision band's reviews is open (docs/ui-conventions.md,
+   *  "The proposal view", P5): the payment review, the decline review with
+   *  its published-reason field, or the remove confirm. */
+  const [decideMode, setDecideMode] = useState<null | 'approve' | 'decline' | 'remove'>(null);
 
   const reload = () => {
     if (!idOrSlug) return;
@@ -470,7 +485,8 @@ export function TradePage() {
       } else {
         await api.declineProposal(selectedJobId, (declineReason ?? '').trim(), refund);
       }
-      setDeclineReason(null);
+      setDeclineReason('');
+      setDecideMode(null);
       setSelectedJobId(null);
       reload();
     } catch (e) {
@@ -486,7 +502,7 @@ export function TradePage() {
     setDecideBusy(true);
     try {
       await api.removeProposal(selectedJobId);
-      setRemoveArmed(false);
+      setDecideMode(null);
       setSelectedJobId(null);
       reload();
     } catch (e) {
@@ -504,8 +520,8 @@ export function TradePage() {
   // decline branch the page yanked them back to approved and the chart
   // remounted (owner report 2026-08-13).
   useEffect(() => {
-    setRemoveArmed(false);
-    setDeclineReason(null);
+    setDecideMode(null);
+    setDeclineReason('');
     setDecideErr('');
     setBranch('approved');
     setDescExpanded(false);
@@ -854,12 +870,22 @@ export function TradePage() {
 
   const refreshMoney = () => {
     if (activeMarketId && ws) {
-      api
-        .getPositions(activeMarketId, undefined, ws.workspaceId)
-        .then((rows: Array<{ direction: 'higher' | 'lower'; shares: number; totalCost: number }>) =>
-          setPositions((rows ?? []).filter(r => r.shares > 1e-9)),
-        )
-        .catch(e => console.error('positions fetch failed:', e));
+      // The market on screen, and, with a proposal open, the other branch
+      // too: a position on the book the reader is not composing in still
+      // belongs under its own ticket.
+      const wanted = new Set<string>([activeMarketId]);
+      if (selectedJob && pair) {
+        if (pair.approvedMarketId) wanted.add(pair.approvedMarketId);
+        if (pair.declinedMarketId) wanted.add(pair.declinedMarketId);
+      }
+      for (const marketId of wanted) {
+        api
+          .getPositions(marketId, undefined, ws.workspaceId)
+          .then((rows: Array<{ direction: 'higher' | 'lower'; shares: number; totalCost: number }>) =>
+            setPosByMarket(prev => ({ ...prev, [marketId]: (rows ?? []).filter(r => r.shares > 1e-9) })),
+          )
+          .catch(e => console.error('positions fetch failed:', e));
+      }
       api
         .getLimitOrders(activeMarketId, ws.workspaceId)
         .then(rows => setOrders(rows ?? []))
@@ -878,7 +904,8 @@ export function TradePage() {
   // Positions belong to the market on screen, so they refetch on a switch.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    setPositions([]);
+    // Positions are keyed by market, so nothing has to be blanked: a stale
+    // key can never paint under another book's ticket.
     setOrders([]);
     if (joined) refreshMoney();
   }, [joined, activeMarketId]);
@@ -974,10 +1001,10 @@ export function TradePage() {
     refreshMoney();
   };
 
-  // The row has to add up at a glance (docs/ui-conventions.md, "The decision
-  // row, then the decision bar"): the two calls print with two decimals when
-  // the difference needs them, and the chart's branch labels use the same
-  // rule (NumberChart asks the same helper).
+  // The pair band has to add up at a glance (docs/ui-conventions.md, "The
+  // proposal view", P4): the two calls print with two decimals when the
+  // difference needs them, and the chart's branch labels use the same rule
+  // (NumberChart asks the same helper).
   const pairDecimals =
     !!pair &&
     pair.approvedConsensus !== null &&
@@ -1002,21 +1029,22 @@ export function TradePage() {
         : `${ap.toLocaleString('en-US')} cr and ${dp.toLocaleString('en-US')} cr`;
     return `Both books trade thin (${pools}); the market's own call is ${unit}${formatValue(base)}.`;
   })();
-  // The probability the position panel values a position at: the live one
-  // when the socket has spoken for this market, else the payload's.
-  const livePriceProb =
-    livePrice && livePrice.marketId === activeMarketId && active && active.rangeMax > active.rangeMin
-      ? Math.max(0, Math.min(1, (livePrice.value - active.rangeMin) / (active.rangeMax - active.rangeMin)))
-      : null;
+  // ONE probability per BOOK, folded in ONE place: the live one when the
+  // socket has spoken for that book, else the payload's. A proposal puts two
+  // books on screen at once (docs/ui-conventions.md, "The proposal view",
+  // P6), so the fold cannot be per page: the ticket, the verbs and the
+  // position card all used to derive it separately, and the ticket could say
+  // a position was worth one thing and the card directly under it another
+  // (AGENTS.md: two surfaces that show the same fact derive it from the same
+  // place).
+  const probabilityOf = (book: { marketId: string; probability: number; rangeMin: number; rangeMax: number }) =>
+    livePrice && livePrice.marketId === book.marketId && book.rangeMax > book.rangeMin
+      ? Math.max(0, Math.min(1, (livePrice.value - book.rangeMin) / (book.rangeMax - book.rangeMin)))
+      : book.probability;
   /* What each side has on the table: the verbs quote it in the same words
      as the ticket's pills, from the same function, so the two untouched
      states of a market cannot drift apart. */
-  // ONE probability for every surface that prices this market: the ticket,
-  // the ceilings and the position card all used to derive it separately, so
-  // the ticket could say a position was worth one thing and the card
-  // directly under it another (AGENTS.md: two surfaces that show the same
-  // fact must derive it from the same place).
-  const shownProbability = active ? (livePriceProb ?? active.probability) : 0;
+  const shownProbability = active ? probabilityOf(active) : 0;
   const consensus =
     (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null) ?? active?.consensus ?? null;
 
@@ -1070,26 +1098,41 @@ export function TradePage() {
   const awaitingDecision = pendingProposals
     .filter(p => (p.askUsd ?? splitAsk(p.title).ask ?? 0) > 0 && p.proposedByHandle !== myAgentId)
     .sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
-  /* When the book on screen last traded, for the facts row beside the
-     stake: a price point IS a trade. */
-  const lastTradeAt = (() => {
-    const points = (active?.history ?? []).filter(p => p.consensus !== null);
+  /* When a book last traded, for its facts row: a price point IS a trade. */
+  const lastTradeOf = (history: PriceSeries | undefined | null) => {
+    const points = (history ?? []).filter(p => p.consensus !== null);
     return points.length > 0 ? points[points.length - 1].at : null;
-  })();
+  };
+  const lastTradeAt = lastTradeOf(active?.history);
   /* A trader holds ONE net side, so the position row is never two rows. */
+  const positions = (activeMarketId ? posByMarket[activeMarketId] : undefined) ?? [];
   const heldPosition = positions.find(p => p.shares > 1e-9) ?? null;
-  /* Deepening the book on screen, from the call cell or the unfunded
-     verbs panel. Naming the branch matters: the credits go into one of the
-     two worlds, and injecting into the wrong one is invisible until
-     somebody trades it. */
-  const openInject = () => {
-    if (!active || !hero) return;
+  const heldOn = (marketId: string | null | undefined) =>
+    (marketId ? (posByMarket[marketId] ?? []) : []).find(p => p.shares > 1e-9) ?? null;
+  /* What this proposal asks, in whole USD: the stored field, or the price
+     the title carries on a proposal that predates it. */
+  const selectedJobAsk = selectedJob ? (selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0) : 0;
+  /* The day the surviving book pays at, as the pair's one rule says it. */
+  const settleWords = hero?.settleShort ?? null;
+  /* Funding or deepening a book, from the panel where that book is traded:
+     the plain view's verbs panel and activity row, or the branch's own
+     column on a proposal (docs/ui-conventions.md, "The verbs and the inline
+     ticket"). Naming the branch matters: the credits go into one of the two
+     worlds, and injecting into the wrong one is invisible until somebody
+     trades it. */
+  const openInject = (which?: 'approved' | 'declined') => {
+    if (!hero) return;
+    // On a proposal the caller names the book, because both are on screen
+    // and injecting into the wrong world is invisible until somebody
+    // trades it.
+    const book = selectedJob && which ? branchShape(which) : active;
+    if (!book) return;
     setOwnerDialog({
       kind: 'inject',
-      marketId: active.marketId,
-      marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}${selectedJob ? ` · if ${branch}` : ''}`,
-      pool: active.pool,
-      traders: active.traders,
+      marketId: book.marketId,
+      marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}${selectedJob && which ? ` · if ${which}` : ''}`,
+      pool: book.pool,
+      traders: book.traders,
       metricId: selectedJob ? undefined : hero.metricId,
       metricName: selectedJob ? undefined : metricLabel,
       targetDate: selectedJob ? undefined : hero.targetDate,
@@ -1260,6 +1303,139 @@ export function TradePage() {
   const canTrade = ws.joinAs === 'trader';
   const trading = !!user && joined && canTrade;
 
+  /** The inline ticket, inside whichever verbs panel opened it: the ticket's
+   *  own card is the one card (docs/ui-conventions.md, "The verbs and the
+   *  inline ticket"). The book it trades is always the one on `active`,
+   *  because pressing a verb selects that branch in the same event. */
+  const inlineTicket = (book: NonNullable<typeof active>, title: string) => (
+    <div className="pubws-ticket-inline" key={betModal}>
+      <TradeTicket
+        probability={probabilityOf(book)}
+        liquidity={book.liquidity}
+        positions={trading ? positions : []}
+        onTrade={placeTrade}
+        onTradeTarget={placeTargetTrade}
+        onSell={sellPosition}
+        balance={balance}
+        onPreview={setTicketPreview}
+        unit={unit}
+        consensus={consensus}
+        rangeMin={book.rangeMin}
+        rangeMax={book.rangeMax}
+        orders={trading && betModal === 'manage' ? orders : []}
+        onPlaceLimit={trading ? placeLimit : async () => {}}
+        onCancelLimit={trading ? cancelLimit : undefined}
+        initialDir={betModal === 'manage' ? undefined : (betModal ?? undefined)}
+        initialStake={stakeNum}
+        manageMode={betModal === 'manage'}
+        title={betModal === 'manage' ? undefined : `Bet ${betModal === 'higher' ? 'Higher' : 'Lower'} · ${title}`}
+        onCancel={() => {
+          setBetModal(null);
+          setTicketPreview(null);
+        }}
+        onClose={() => {
+          setBetModal(null);
+          setTicketPreview(null);
+        }}
+      />
+    </div>
+  );
+  /** The sign-up door, in the ticket's place, keeping the composed bet. */
+  const signupDoor = (book: NonNullable<typeof active>) =>
+    betDoor && (
+      <SignupDoor
+        direction={betDoor}
+        unit={unit}
+        rangeMin={book.rangeMin}
+        rangeMax={book.rangeMax}
+        probability={probabilityOf(book)}
+        liquidity={book.liquidity}
+        stake={stakeNum}
+        onContinue={email => {
+          try {
+            sessionStorage.setItem(
+              BET_INTENT_KEY,
+              JSON.stringify({
+                floor: idOrSlug ?? ws.workspaceId,
+                marketId: book.marketId,
+                direction: betDoor,
+                stake: stakeNum,
+              }),
+            );
+            if (email.trim()) sessionStorage.setItem('signup-email', email.trim());
+          } catch {
+            /* private mode: the door still opens */
+          }
+          navigate(authPath('signup', location));
+        }}
+      />
+    );
+  /** One branch's column (docs/ui-conventions.md, "The proposal view", P6):
+   *  its word and its call as the heading, its OWN verbs quoted from its own
+   *  book, its position under them, and its branch rule at the foot. */
+  const branchColumn = (which: 'approved' | 'declined') => {
+    const book = branchShape(which);
+    if (!book) return null;
+    const held = heldOn(book.marketId);
+    const mine = branch === which;
+    return (
+      <BranchTicket
+        key={which}
+        branch={which}
+        call={book.consensus === null ? null : pairCall(book.consensus)}
+        /* Deepening this branch's own book. An unfunded branch is funded from
+           the verbs panel's unfunded state below, so the column offers the
+           control exactly once either way. */
+        onInject={user && book.funded ? () => openInject(which) : null}
+      >
+        {canTrade && !selectedJobDecided && (
+          <FloorVerbs
+            unit={unit}
+            rangeMin={book.rangeMin}
+            rangeMax={book.rangeMax}
+            probability={probabilityOf(book)}
+            liquidity={book.liquidity}
+            funded={book.funded}
+            traders={book.traders}
+            pool={book.pool}
+            lastTradeAt={lastTradeOf(book.history)}
+            now={now}
+            stake={stakeNum}
+            stakeText={stakeText}
+            onStake={setStake}
+            signedIn={!!user}
+            onVerb={direction => {
+              setBranch(which);
+              if (user) {
+                setBetModal(direction);
+                setBetDoor(null);
+              } else {
+                setBetDoor(direction);
+              }
+            }}
+            onInject={user ? () => openInject(which) : null}
+          >
+            {user && mine && betModal && inlineTicket(book, `if ${which}`)}
+            {!user && mine && betDoor && book.funded && signupDoor(book)}
+          </FloorVerbs>
+        )}
+        {trading && !selectedJobDecided && held && (
+          <PositionRow
+            direction={held.direction}
+            shares={held.shares}
+            totalCost={held.totalCost}
+            probability={probabilityOf(book)}
+            liquidity={book.liquidity}
+            onSell={() => {
+              setBranch(which);
+              setBetModal('manage');
+            }}
+          />
+        )}
+      </BranchTicket>
+    );
+  };
+
   return (
     <div className="pubws pubws--center">
       <TopBar
@@ -1403,11 +1579,24 @@ export function TradePage() {
               )}
             </section>
           )}
+          {/* P1 (docs/ui-conventions.md, "The proposal view"): the way back
+            on the left, and what this is on the right. */}
           {selectedJob && (
-            <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
-              ← Back to the market
-            </button>
+            <div className="pubws-back-row">
+              <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
+                ← Back to the market
+              </button>
+              <ProposalLabel
+                number={selectedJob.number ?? null}
+                status={selectedJob.status ?? 'pending'}
+                editedAt={selectedJob.editedAt ?? null}
+              />
+            </div>
           )}
+          {/* P2: the headline, then the question in the question's own
+            voice. The condition lives in the question, never in a second
+            copy of it. */}
+          {selectedJob && <h1 className="pubws-proposal-title">{splitAsk(selectedJob.title).rest}</h1>}
           {/* The question is one sentence whose metric and date words ARE
             the pickers (docs/ui-conventions.md, "The question line"). It is
             an h2 that is a block child of .pubws-center: the controls go
@@ -1430,8 +1619,9 @@ export function TradePage() {
             />
           )}
           {/* Every open book of the floor, once, under the question below
-            1400px; the left rail carries the same list above it. */}
-          {hero && (
+            1400px; the left rail carries the same list above it. Not in the
+            proposal view, whose column is the pair. */}
+          {hero && !selectedJob && (
             <BooksRow
               horizons={books}
               workspaceName={ws.name}
@@ -1447,337 +1637,218 @@ export function TradePage() {
           )}
           {hero && active && (
             <>
-              <NumbersBand
-                hero={hero}
-                consensus={consensus}
-                unit={unit}
-                workspaceName={ws.name}
-                now={now}
-                priceSeries={active.history}
-                nowReading={nowReading}
-                lastReadingAt={lastReading?.at ?? null}
-                readingIsStale={readingIsStale}
-                canReport={canManage && !!hero.metricId}
-                onReport={() => setOwnerDialog({ kind: 'report', metricId: hero.metricId, metricName: metricLabel })}
-                canInject={!!user}
-                onInject={() => openInject()}
-              />
-              {/* A market on a number that does not exist yet says so, once,
-                between the band and the settlement line. */}
-              {hero.settlesNaForNow && <p className="pubws-na-note">{settleNoteOf(hero)}</p>}
-              <SettlementLine
-                hero={hero}
-                unit={unit}
-                description={horizonDescription}
-                now={now}
-                lastReadingAt={lastReading?.at ?? null}
-                expanded={defExpanded}
-                onToggle={() => setDefExpanded(v => !v)}
-                canManage={canManage}
-                onEdit={() => setOwnerDialog({ kind: 'metrics' })}
-              />
-              {selectedJob && (
+              {/* The plain market view's band and settlement line. With a
+                proposal on screen the pair band replaces them: the numbers
+                that matter there are the two branches' own. */}
+              {!selectedJob && (
                 <>
-                  {editingJob ? (
-                    <div className="pubws-know-edit pubws-enter pubws-enter--1">
-                      <label className="jobform-field">
-                        <span className="ticket-label">Price (USD)</span>
-                        <input
-                          className="jobform-line"
-                          inputMode="numeric"
-                          value={jobAsk}
-                          onChange={e => setJobAsk(e.target.value.replace(/[^0-9]/g, ''))}
-                          placeholder="0"
-                          aria-label="Price in USD"
-                        />
-                      </label>
-                      <label className="jobform-field">
-                        <span className="ticket-label">What you will do</span>
-                        <input
-                          className="jobform-line"
-                          value={jobTitle}
-                          maxLength={80}
-                          onChange={e => setJobTitle(e.target.value)}
-                          aria-label="Proposal title"
-                        />
-                      </label>
-                      <label className="jobform-field">
-                        <span className="ticket-label">Details</span>
-                        <textarea
-                          className="pubws-know-edit-text"
-                          rows={4}
-                          value={jobDesc}
-                          onChange={e => setJobDesc(e.target.value)}
-                          aria-label="Proposal details"
-                        />
-                      </label>
-                      <p className="pubws-settle">
-                        Editing the words keeps the market and every position, and publishes that it changed. The price
-                        can only move while nobody has traded this proposal yet.
-                      </p>
-                      <div>
-                        <button
-                          className="pubws-decide"
-                          disabled={jobSaving}
-                          onClick={() => {
-                            void saveJobEdit();
-                          }}
-                        >
-                          {jobSaving ? 'Saving…' : 'Save'}
-                        </button>
-                        <button
-                          className="pubws-decide"
-                          style={{ marginLeft: '0.5rem' }}
-                          disabled={jobSaving}
-                          onClick={() => {
-                            setEditingJob(false);
-                            setJobErr('');
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                      {jobErr && <p className="ticket-err">{jobErr}</p>}
-                    </div>
-                  ) : (
-                    selectedJob.description && (
-                      <>
-                        <p className={`pubws-details pubws-enter pubws-enter--1${descExpanded ? '' : ' is-clamped'}`}>
-                          {selectedJob.description}
-                        </p>
-                        {selectedJob.description.length > 220 && (
-                          <button className="pubws-details-more" onClick={() => setDescExpanded(v => !v)}>
-                            {descExpanded ? 'less' : 'more'}
-                          </button>
-                        )}
-                      </>
-                    )
-                  )}
-                  {/* Edited, and when: a trader who priced this proposal before
-                    the wording moved is entitled to know that it moved. */}
-                  {!editingJob && selectedJob.editedAt && (
-                    <p className="pubws-proposal-meta">
-                      edited{' '}
-                      {new Date(selectedJob.editedAt).toLocaleDateString('en-GB', {
-                        day: 'numeric',
-                        month: 'short',
-                        timeZone: 'UTC',
-                      })}
-                    </p>
-                  )}
-                  {canEditJob && !editingJob && (
-                    <div className="pubws-ownerbar pubws-enter pubws-enter--1">
-                      <button
-                        className="pubws-decide"
-                        onClick={() => {
-                          const split = splitAsk(selectedJob.title);
-                          setJobAsk(split.ask !== null ? String(split.ask) : '');
-                          setJobTitle(split.rest);
-                          setJobDesc(selectedJob.description ?? '');
-                          setJobErr('');
-                          setEditingJob(true);
-                        }}
-                      >
-                        Edit proposal
-                      </button>
-                    </div>
-                  )}
-                  {/* The decision row: a decision is laid out as a decision
-                    before it is asked. Four cells on hairlines, the branch on
-                    screen marked, for everyone. */}
-                  {pair && (
-                    <div className="pubws-decision pubws-enter pubws-enter--1" role="group" aria-label="The decision">
-                      {(
-                        [
-                          ['if approved', pair.approvedConsensus, branch === 'approved'],
-                          ['if declined', pair.declinedConsensus, branch === 'declined'],
-                        ] as const
-                      ).map(([what, value, on]) => (
-                        <div key={what} className={`pubws-decision-cell${on ? ' is-active' : ''}`}>
-                          <span className="pubws-stat-what">{what}</span>
-                          <span className="pubws-price pubws-price--sm">
-                            {value !== null ? pairCall(value) : 'no price yet'}
-                          </span>
-                        </div>
-                      ))}
-                      <div className="pubws-decision-cell">
-                        <span className="pubws-stat-what">
-                          difference · <span className="pubws-decision-unit">{captionLabel(metricLabel, ws.name)}</span>
-                        </span>
-                        {pair.approvedConsensus !== null && pair.declinedConsensus !== null ? (
-                          <span
-                            className={`pubws-price pubws-price--sm${
-                              pair.approvedConsensus - pair.declinedConsensus > 0
-                                ? ' is-up'
-                                : pair.approvedConsensus - pair.declinedConsensus < 0
-                                  ? ' is-down'
-                                  : ''
-                            }`}
-                          >
-                            {formatImpact(pair.approvedConsensus - pair.declinedConsensus, unit)}
-                          </span>
-                        ) : (
-                          <span className="pubws-price pubws-price--sm">open</span>
-                        )}
-                      </div>
-                      <div className="pubws-decision-cell">
-                        <span className="pubws-stat-what">costs</span>
-                        <span className="pubws-price pubws-price--sm">
-                          {(selectedJob.askUsd ?? splitAsk(selectedJob.title).ask) !== null
-                            ? `$${(selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0).toLocaleString('en-US')}`
-                            : 'nothing'}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  {decisionWhy && <p className="pubws-decision-why pubws-enter pubws-enter--1">{decisionWhy}</p>}
-                  {canManage && (
-                    <div className="pubws-ownerbar pubws-enter pubws-enter--1">
-                      {declineReason === null ? (
-                        <>
-                          {!selectedJobDecided && (
-                            <>
-                              <button
-                                className="pubws-decide pubws-decide--approve"
-                                disabled={decideBusy}
-                                onClick={() => void decide('approve')}
-                              >
-                                {decideBusy
-                                  ? 'Deciding…'
-                                  : splitAsk(selectedJob.title).ask !== null
-                                    ? `Approve, pay $${splitAsk(selectedJob.title).ask}`
-                                    : 'Approve'}
-                              </button>
-                              <button
-                                className="pubws-decide pubws-decide--decline"
-                                disabled={decideBusy}
-                                onClick={() => setDeclineReason('')}
-                              >
-                                Decline
-                              </button>
-                            </>
-                          )}
-                          {removeArmed ? (
-                            <>
-                              <button
-                                className="pubws-decide pubws-decide--decline"
-                                disabled={decideBusy}
-                                onClick={() => void removeJob()}
-                              >
-                                {decideBusy ? 'Removing…' : 'Confirm remove'}
-                              </button>
-                              <button
-                                className="pubws-decide"
-                                onClick={() => {
-                                  setRemoveArmed(false);
-                                  setDecideErr('');
-                                }}
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              className="pubws-decide"
-                              disabled={decideBusy}
-                              onClick={() => {
-                                setRemoveArmed(true);
-                                setDecideErr('');
-                              }}
-                              title="Take this proposal off the board. Stakes are refunded."
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <input
-                            className="pubws-decide-reason"
-                            value={declineReason}
-                            onChange={e => setDeclineReason(e.target.value)}
-                            placeholder="Why not, published on the proposal"
-                            aria-label="Decline reason"
-                            autoFocus
-                          />
-                          <button
-                            className="pubws-decide pubws-decide--decline"
-                            disabled={decideBusy || declineReason.trim().length === 0}
-                            onClick={() => void decide('decline')}
-                          >
-                            {decideBusy ? 'Deciding…' : 'Confirm decline'}
-                          </button>
-                          <button
-                            className="pubws-decide"
-                            disabled={decideBusy || declineReason.trim().length === 0}
-                            onClick={() => void decide('decline', true)}
-                            title="Decline but refund the proposer's stake in full"
-                          >
-                            Decline + refund
-                          </button>
-                          <button
-                            className="pubws-decide"
-                            onClick={() => {
-                              setDeclineReason(null);
-                              setDecideErr('');
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      )}
-                      {decideErr && <p className="ticket-err">{decideErr}</p>}
-                    </div>
-                  )}
-                  {canManage && !selectedJobDecided && (
-                    <p className="pubws-decide-why pubws-enter pubws-enter--1">
-                      Decline settles the pair on if-declined: those positions pay out at the real number, if-approved
-                      is refunded. Remove voids both books and refunds everyone.
-                    </p>
-                  )}
-                  {/* Both branches are on the page: the toggle picks which one
-                    the ticket trades. */}
-                  {pair?.declinedMarketId && (
-                    <div className="pubws-branch pubws-enter pubws-enter--2" role="group" aria-label="Branch">
-                      <button
-                        className={`pubws-branch-opt pubws-branch-opt--approved${branch === 'approved' ? ' is-active' : ''}`}
-                        aria-pressed={branch === 'approved'}
-                        onClick={() => setBranch('approved')}
-                      >
-                        if approved
-                      </button>
-                      <button
-                        className={`pubws-branch-opt pubws-branch-opt--declined${branch === 'declined' ? ' is-active' : ''}`}
-                        aria-pressed={branch === 'declined'}
-                        onClick={() => setBranch('declined')}
-                      >
-                        if declined
-                      </button>
-                    </div>
-                  )}
+                  <NumbersBand
+                    hero={hero}
+                    consensus={consensus}
+                    unit={unit}
+                    workspaceName={ws.name}
+                    now={now}
+                    priceSeries={active.history}
+                    nowReading={nowReading}
+                    lastReadingAt={lastReading?.at ?? null}
+                    readingIsStale={readingIsStale}
+                    canReport={canManage && !!hero.metricId}
+                    onReport={() =>
+                      setOwnerDialog({ kind: 'report', metricId: hero.metricId, metricName: metricLabel })
+                    }
+                  />
+                  {/* A market on a number that does not exist yet says so,
+                    once, between the band and the settlement line. */}
+                  {hero.settlesNaForNow && <p className="pubws-na-note">{settleNoteOf(hero)}</p>}
+                  <SettlementLine
+                    hero={hero}
+                    unit={unit}
+                    description={horizonDescription}
+                    now={now}
+                    lastReadingAt={lastReading?.at ?? null}
+                    expanded={defExpanded}
+                    onToggle={() => setDefExpanded(v => !v)}
+                    canManage={canManage}
+                    onEdit={() => setOwnerDialog({ kind: 'metrics' })}
+                  />
                 </>
               )}
-              {/* On a proposal the verbs say WHICH book they trade
-                (docs/ui-conventions.md): the switch flips the branch
-                exactly as the pills under the decision row do. */}
-              {selectedJob && pair?.declinedMarketId && active.funded && canTrade && !selectedJobDecided && (
-                <p className="pubws-bet-book">
-                  Trading the if-{branch} book ·{' '}
-                  <button
-                    type="button"
-                    className="pubws-bet-book-switch"
-                    onClick={() => setBranch(b => (b === 'approved' ? 'declined' : 'approved'))}
-                  >
-                    switch
-                  </button>
-                </p>
+              {/* P3, the work: what is promised, before any button. The
+                manager edits it in place, same three fields as posting. */}
+              {selectedJob &&
+                (editingJob ? (
+                  <div className="pubws-know-edit pubws-enter pubws-enter--1">
+                    <label className="jobform-field">
+                      <span className="ticket-label">Price (USD)</span>
+                      <input
+                        className="jobform-line"
+                        inputMode="numeric"
+                        value={jobAsk}
+                        onChange={e => setJobAsk(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="0"
+                        aria-label="Price in USD"
+                      />
+                    </label>
+                    <label className="jobform-field">
+                      <span className="ticket-label">What you will do</span>
+                      <input
+                        className="jobform-line"
+                        value={jobTitle}
+                        maxLength={80}
+                        onChange={e => setJobTitle(e.target.value)}
+                        aria-label="Proposal title"
+                      />
+                    </label>
+                    <label className="jobform-field">
+                      <span className="ticket-label">Details</span>
+                      <textarea
+                        className="pubws-know-edit-text"
+                        rows={4}
+                        value={jobDesc}
+                        onChange={e => setJobDesc(e.target.value)}
+                        aria-label="Proposal details"
+                      />
+                    </label>
+                    <p className="pubws-settle">
+                      Editing the words keeps the market and every position, and publishes that it changed. The price
+                      can only move while nobody has traded this proposal yet.
+                    </p>
+                    <div>
+                      <button
+                        className="pubws-decide"
+                        disabled={jobSaving}
+                        onClick={() => {
+                          void saveJobEdit();
+                        }}
+                      >
+                        {jobSaving ? 'Saving…' : 'Save'}
+                      </button>
+                      <button
+                        className="pubws-decide"
+                        style={{ marginLeft: '0.5rem' }}
+                        disabled={jobSaving}
+                        onClick={() => {
+                          setEditingJob(false);
+                          setJobErr('');
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    {jobErr && <p className="ticket-err">{jobErr}</p>}
+                  </div>
+                ) : (
+                  <WorkBlock
+                    description={selectedJob.description ?? null}
+                    ask={selectedJobAsk}
+                    payee={selectedJob.proposedByName ?? 'the proposer'}
+                    expanded={descExpanded}
+                    onToggle={() => setDescExpanded(v => !v)}
+                    canEdit={canEditJob}
+                    onEdit={() => {
+                      const split = splitAsk(selectedJob.title);
+                      setJobAsk(split.ask !== null ? String(split.ask) : '');
+                      setJobTitle(split.rest);
+                      setJobDesc(selectedJob.description ?? '');
+                      setJobErr('');
+                      setEditingJob(true);
+                    }}
+                  />
+                ))}
+              {/* P4, the pair band: both calls with their own books, and the
+                difference between them in ink. */}
+              {selectedJob && pair && (
+                <PairBand
+                  approved={pair.approvedConsensus}
+                  declined={pair.declinedConsensus}
+                  print={pairCall}
+                  unit={unit}
+                  metricLabel={captionLabel(metricLabel, ws.name)}
+                  facts={{
+                    approved: {
+                      pool: pair.approvedPool ?? 0,
+                      traders: pair.approvedTraders ?? 0,
+                      lastTradeAt: lastTradeOf(condHistory?.approved),
+                    },
+                    declined: {
+                      pool: pair.declinedPool ?? 0,
+                      traders: pair.declinedTraders ?? 0,
+                      lastTradeAt: lastTradeOf(condHistory?.declined),
+                    },
+                  }}
+                  why={decisionWhy}
+                  now={now}
+                />
               )}
-              {/* The verbs panel: the stake and this book's facts, the two
-                verbs with a payout already quoted for that stake, and the
-                range line that is the rule the two previews follow. Pressing
-                a verb opens the ticket INLINE inside the panel; signed out,
-                the sign-up door takes the ticket's place. */}
-              {canTrade && !selectedJobDecided && (
+              {/* P5, the decision band: the owner's, and it precedes the
+                tickets at every width. */}
+              {selectedJob &&
+                (canManage ? (
+                  <DecisionBand
+                    payee={selectedJob.proposedByName ?? 'the proposer'}
+                    ask={selectedJobAsk}
+                    decided={
+                      selectedJobDecided
+                        ? {
+                            word: selectedJob.status === 'approved' ? 'Approved' : 'Declined',
+                            day: dayOf(selectedJob.resolvedAt ?? null),
+                          }
+                        : null
+                    }
+                    busy={decideBusy}
+                    error={decideErr}
+                    mode={decideMode}
+                    onMode={next => {
+                      setDecideMode(next);
+                      setDecideErr('');
+                      if (next !== 'decline') setDeclineReason('');
+                    }}
+                    onApprove={() => void decide('approve')}
+                    onDecline={() => void decide('decline')}
+                    onRemove={() => void removeJob()}
+                    reason={declineReason ?? ''}
+                    onReason={setDeclineReason}
+                  />
+                ) : selectedJobDecided ? (
+                  <DecisionBand
+                    payee={selectedJob.proposedByName ?? 'the proposer'}
+                    ask={selectedJobAsk}
+                    decided={{
+                      word: selectedJob.status === 'approved' ? 'Approved' : 'Declined',
+                      day: dayOf(selectedJob.resolvedAt ?? null),
+                    }}
+                    busy={false}
+                    error=""
+                    mode={null}
+                    onMode={() => {}}
+                    onApprove={() => {}}
+                    onDecline={() => {}}
+                    onRemove={() => {}}
+                    reason=""
+                    onReason={() => {}}
+                  />
+                ) : (
+                  <DecisionNote />
+                ))}
+              {/* P6, the two tickets: both books on screen, each quoting
+                from its own price and stating its own rule. There is no
+                switch and no pill toggle. */}
+              {selectedJob && pair && (
+                <div className="pubws-tickets-wrap">
+                  <div className="pubws-tickets">
+                    {branchColumn('approved')}
+                    {branchColumn('declined')}
+                  </div>
+                  <p className="pubws-pair-rule">
+                    The book left standing pays at the real number{settleWords ? ` on ${settleWords}` : ''}.
+                  </p>
+                </div>
+              )}
+              {/* The verbs panel of the plain market view: the stake and
+                this book's facts, the two verbs with a payout already
+                quoted for that stake, and the range line that is the rule
+                the two previews follow. */}
+              {!selectedJob && canTrade && (
                 <FloorVerbs
                   unit={unit}
                   rangeMin={active.rangeMin}
@@ -1803,79 +1874,13 @@ export function TradePage() {
                   }}
                   onInject={user ? () => openInject() : null}
                 >
-                  {user && betModal && (
-                    <div className="pubws-ticket-inline" key={betModal}>
-                      <TradeTicket
-                        probability={shownProbability}
-                        liquidity={active.liquidity}
-                        positions={trading ? positions : []}
-                        onTrade={placeTrade}
-                        onTradeTarget={placeTargetTrade}
-                        onSell={sellPosition}
-                        balance={balance}
-                        onPreview={setTicketPreview}
-                        unit={unit}
-                        consensus={consensus}
-                        rangeMin={active.rangeMin}
-                        rangeMax={active.rangeMax}
-                        orders={trading && betModal === 'manage' ? orders : []}
-                        onPlaceLimit={trading ? placeLimit : async () => {}}
-                        onCancelLimit={trading ? cancelLimit : undefined}
-                        initialDir={betModal === 'manage' ? undefined : betModal}
-                        initialStake={stakeNum}
-                        manageMode={betModal === 'manage'}
-                        title={
-                          betModal === 'manage'
-                            ? undefined
-                            : `Bet ${betModal === 'higher' ? 'Higher' : 'Lower'} · ${captionLabel(
-                                metricLabel,
-                                ws.name,
-                              )} · ${hero.label}`
-                        }
-                        onCancel={() => {
-                          setBetModal(null);
-                          setTicketPreview(null);
-                        }}
-                        onClose={() => {
-                          setBetModal(null);
-                          setTicketPreview(null);
-                        }}
-                      />
-                    </div>
-                  )}
-                  {!user && betDoor && active.funded && (
-                    <SignupDoor
-                      direction={betDoor}
-                      unit={unit}
-                      rangeMin={active.rangeMin}
-                      rangeMax={active.rangeMax}
-                      probability={shownProbability}
-                      liquidity={active.liquidity}
-                      stake={stakeNum}
-                      onContinue={email => {
-                        try {
-                          sessionStorage.setItem(
-                            BET_INTENT_KEY,
-                            JSON.stringify({
-                              floor: idOrSlug ?? ws.workspaceId,
-                              marketId: active.marketId,
-                              direction: betDoor,
-                              stake: stakeNum,
-                            }),
-                          );
-                          if (email.trim()) sessionStorage.setItem('signup-email', email.trim());
-                        } catch {
-                          /* private mode: the door still opens */
-                        }
-                        navigate(authPath('signup', location));
-                      }}
-                    />
-                  )}
+                  {user && betModal && inlineTicket(active, `${captionLabel(metricLabel, ws.name)} · ${hero.label}`)}
+                  {!user && betDoor && active.funded && signupDoor(active)}
                 </FloorVerbs>
               )}
               {/* Your position: one ruled icon row under the verbs, never
                 two rows, because a trader holds one net side. */}
-              {trading && !selectedJobDecided && heldPosition && (
+              {!selectedJob && trading && heldPosition && (
                 <PositionRow
                   direction={heldPosition.direction}
                   shares={heldPosition.shares}
@@ -1907,16 +1912,17 @@ export function TradePage() {
                         },
                       ];
                     })}
-                    impactFrom={branch}
-                    marksLegend
-                    legend={
-                      selectedJob
-                        ? {
-                            approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
-                            declined: 'if not',
-                          }
+                    /* The amber line is the BASELINE market's own call, on
+                       a proposal too: the pair's two lines are drawn beside
+                       it, never in its place. */
+                    call={priceSeriesOf(hero.marketId, ws, horizonPrices)}
+                    branches={
+                      selectedJob && pair
+                        ? { approved: condHistory?.approved ?? [], declined: condHistory?.declined ?? [] }
                         : null
                     }
+                    rangeMin={hero.rangeMin}
+                    rangeMax={hero.rangeMax}
                     selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
                     granularity={granularityOf(hero.targetDate)}
                     unit={unit}
@@ -1970,14 +1976,22 @@ export function TradePage() {
                     idOrSlug={idOrSlug}
                     /* Right-aligned on the tab row: what the book on screen
                        holds, and the way to deepen it for anyone signed in
-                       (docs/ui-conventions.md, "Activity"). Naming the
-                       branch matters, because the credits go into one of
-                       the two worlds. */
+                       (docs/ui-conventions.md, "Activity"). On a proposal
+                       the panel covers both branches, so the row reads both
+                       pools. An unfunded book is not deepened from here: its
+                       own panel above is already offering it, once. */
                     trailing={
                       <span className="pubws-pool-inject">
-                        <span className="pubws-pool-inject-n">{short(active.pool)} cr pool</span>
-                        {selectedJob && <span className="pubws-pool-inject-book">if {branch}</span>}
-                        {user && (
+                        <span className="pubws-pool-inject-n">
+                          {selectedJob && pair
+                            ? `${short(pair.approvedPool ?? 0)} cr · ${short(pair.declinedPool ?? 0)} cr`
+                            : `${short(active.pool)} cr pool`}
+                        </span>
+                        {/* On a proposal the row covers the pair, so one
+                            control here could not name which of the two books
+                            it deepens: each branch is deepened from its own
+                            column (P6). */}
+                        {user && active.funded && !selectedJob && (
                           <button type="button" className="pubws-facts-act" onClick={() => openInject()}>
                             Inject liquidity
                           </button>

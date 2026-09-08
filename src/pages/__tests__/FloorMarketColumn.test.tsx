@@ -198,7 +198,12 @@ describe('the numbers band: the call first, then the reading', () => {
     expect(now.querySelector('.pubws-price')?.textContent).toBe('no reading yet');
   });
 
-  test('a market with no price yet prints "no price yet" with Inject liquidity for anyone signed in', async () => {
+  /** The offer to fund a book appears ONCE per book on screen, in the panel
+   *  where that book is traded (docs/ui-conventions.md, "The verbs and the
+   *  inline ticket", reconciled 2026-09-08). An unfunded floor used to carry
+   *  three of the same button: the call cell's, the verbs panel's and the
+   *  activity tab row's. */
+  test('a market with no price yet prints "no price yet" and stops there, and the offer to fund it appears once', async () => {
     signIn(state(), 'trader');
     const ws = state().ws();
     state().overrides = {
@@ -209,12 +214,18 @@ describe('the numbers band: the call first, then the reading', () => {
     await floor();
     const call = document.querySelector('.pubws-stat--call') as HTMLElement;
     expect(call.querySelector('.pubws-price')?.textContent).toBe('no price yet');
-    expect(within(call).getByRole('button', { name: 'Inject liquidity' })).toBeTruthy();
-    // The verbs panel is in its unfunded state.
+    // The band says what is true and stops.
+    expect(within(call).queryByRole('button', { name: 'Inject liquidity' })).toBeNull();
+    // The verbs panel is in its unfunded state, and that is where the offer
+    // to fund the book lives.
     const verbs = document.querySelector('.pubws-verbs') as HTMLElement;
     expect(within(verbs).queryByRole('button', { name: /Bet Higher/ })).toBeNull();
     expect(verbs.textContent).toMatch(/nobody has funded a book for this market yet/i);
     expect(within(verbs).getByRole('button', { name: 'Inject liquidity' })).toBeTruthy();
+    // Once on the whole screen: the activity tab row's "Inject liquidity" is
+    // deepening, not funding, and is not drawn while the book is unfunded.
+    expect(screen.getAllByRole('button', { name: 'Inject liquidity' }).length).toBe(1);
+    expect(document.querySelector('.pubws-pool-inject button')).toBeNull();
   });
 
   test('the N/A line sits under the band for a flagged metric with no reading, and not once one exists', async () => {

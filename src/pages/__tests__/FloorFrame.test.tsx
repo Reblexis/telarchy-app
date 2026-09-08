@@ -240,7 +240,12 @@ describe("the owner row: the owner's three jobs, each a direct route", () => {
     const go = within(row).getByRole('button', { name: '1 proposal needs your decision' });
     fireEvent.click(go);
     expect(await screen.findByText('← Back to the market')).toBeTruthy();
-    expect(screen.getByText('Ship an open-source reference trading agent with a tutorial')).toBeTruthy();
+    // The title is on screen twice by design: the rail's selected row and the
+    // proposal's own headline (docs/ui-conventions.md, "The proposal view",
+    // P2), so the headline is named rather than searched for.
+    expect((document.querySelector('.pubws-proposal-title') as HTMLElement).textContent).toBe(
+      'Ship an open-source reference trading agent with a tutorial',
+    );
   });
 
   test('with none it reads "No proposal needs your decision" in the tertiary register, not a control', async () => {
