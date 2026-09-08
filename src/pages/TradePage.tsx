@@ -1182,10 +1182,14 @@ export function TradePage() {
   // The owner's Edit control and the definition body (editor or markdown),
   // ONE element each, drawn wherever the definition is on screen: the know
   // block in the left column and the "more" expander under the question.
-  const definitionEdit =
+  // Beside "more" it is a link in the summary's text flow, in the same small
+  // register as "more" (never the decision pill, which overlapped the line);
+  // in the know block's head it stays the pill.
+  const definitionEditAs = (className: string) =>
     canManage && hero?.metricId && !editingDef ? (
       <button
-        className="pubws-decide"
+        type="button"
+        className={className}
         onClick={() => {
           setDefDraft(horizonDescription ?? '');
           setDefErr('');
@@ -1198,6 +1202,8 @@ export function TradePage() {
         Edit
       </button>
     ) : null;
+  const definitionEdit = definitionEditAs('pubws-decide');
+  const definitionEditInline = definitionEditAs('pubws-instrument-edit');
   const definitionBody = editingDef ? (
     <div className="pubws-know-edit">
       <textarea
@@ -1655,7 +1661,7 @@ export function TradePage() {
                   {/* For a manager the Edit control sits beside "more" (docs/
                       ui-conventions.md, "The price and the chart"), reachable
                       without expanding. */}
-                  {definitionEdit}
+                  {definitionEditInline}
                 </p>
               )}
               {summary && defExpanded && (hasMoreDefinition || editingDef) && (
@@ -1798,7 +1804,9 @@ export function TradePage() {
                         </div>
                       ))}
                       <div className="pubws-decision-cell">
-                        <span className="pubws-stat-what">difference · {captionLabel(metricLabel, ws.name)}</span>
+                        <span className="pubws-stat-what">
+                          difference · <span className="pubws-decision-unit">{captionLabel(metricLabel, ws.name)}</span>
+                        </span>
                         {pair.approvedConsensus !== null && pair.declinedConsensus !== null ? (
                           <span
                             className={`pubws-price pubws-price--sm${

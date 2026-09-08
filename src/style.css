@@ -2703,7 +2703,7 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
    by its caption turning to ink. */
 .pubws-decision {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: 1fr 1fr 1.4fr 1fr;
   gap: 1px;
   width: 100%;
   margin-top: 1rem;
@@ -2722,6 +2722,15 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   background: var(--bg-primary);
 }
 .pubws-decision-cell + .pubws-decision-cell { padding-left: 0.9rem; }
+/* A cell's caption never truncates ("DIFFERENCE · ACTIV…" at 1700px, round
+   2): it wraps, the unit on its own line if the cell is too narrow. */
+.pubws-decision-cell .pubws-stat-what {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: none;
+}
+.pubws-decision-unit { display: inline-block; }
 .pubws-decision-cell.is-active .pubws-stat-what { color: var(--text-primary); }
 .pubws-price--sm { font-size: clamp(1.05rem, 2.4vw, 1.3rem); }
 .pubws-price.is-up { color: var(--higher); }
@@ -2821,6 +2830,24 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   cursor: pointer;
 }
 .pubws-instrument-more-go:hover { color: var(--text-primary); }
+/* The manager's Edit beside "more": a link in the same small register, in
+   the text flow, underlined like .dates-link. Never the decision pill, which
+   overlapped the summary's last line (critics' round 2). */
+.pubws-instrument-edit {
+  display: inline;
+  margin-left: 0.6rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.pubws-instrument-edit:hover { color: var(--text-primary); }
 /* The full definition, expanded in place under the summary line (below
    1500px, where no left column carries it): the same words, set left,
    with the owner's Edit control for a manager. */
@@ -5276,6 +5303,9 @@ textarea.jobform-line--desc {
      (critics' round 2): the countdown and the provenance on their own line,
      and the separator dots are not drawn. */
   .pubws-stat-what { white-space: normal; overflow: visible; text-overflow: clip; }
+  /* Every piece wraps: the countdown and the provenance spans are nowrap at
+     every other width, and a nowrap child clipped at the cell edge. */
+  .pubws-stat-what > span { white-space: normal; overflow: visible; }
   .pubws-stat-what .pubws-settle-in { display: block; }
   .pubws-stat-what .pubws-updated { display: block; }
   .pubws-stat-dot { display: none; }

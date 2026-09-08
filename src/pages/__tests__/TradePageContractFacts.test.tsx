@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -291,6 +294,32 @@ describe('the decision row, then the decision bar', () => {
     for (const cell of container.querySelectorAll('.pubws-decision .pubws-price')) {
       expect(cell.className).toContain('pubws-price--sm');
     }
+  });
+
+  /** The difference caption never truncates (round 2: "DIFFERENCE · ACTIV…"
+   *  at 1700px): the caption wraps, and the difference cell is the widest of
+   *  the four. */
+  test('the stylesheet lets the difference caption wrap in a wider cell', () => {
+    const CSS = readFileSync(join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'), 'utf8');
+    const row = CSS.match(/\.pubws-decision \{([^}]*)\}/);
+    expect(row).toBeTruthy();
+    expect(row![1]).toMatch(/grid-template-columns:\s*1fr 1fr 1\.4fr 1fr/);
+    expect(CSS).toMatch(/\.pubws-decision-cell \{[^}]*min-width:\s*0/);
+    const cap = CSS.match(/\.pubws-decision-cell \.pubws-stat-what \{([^}]*)\}/);
+    expect(cap).toBeTruthy();
+    expect(cap![1]).toMatch(/white-space:\s*normal/);
+    expect(cap![1]).toMatch(/overflow:\s*visible/);
+    expect(cap![1]).toMatch(/text-overflow:\s*clip/);
+  });
+
+  test('the difference caption carries its unit in a span the stylesheet can break onto its own line', async () => {
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
+    const diff = container.querySelectorAll('.pubws-decision .pubws-decision-cell')[2] as HTMLElement;
+    const unit = diff.querySelector('.pubws-stat-what .pubws-decision-unit') as HTMLElement;
+    expect(unit).toBeTruthy();
+    expect(unit.textContent).toBe('revenue');
   });
 
   test('the branch on screen is the marked cell', async () => {
@@ -656,12 +685,32 @@ describe('Edit beside "more" for a manager', () => {
     const more = within(sum).getByRole('button', { name: 'more' });
     const edit = within(sum).getByRole('button', { name: 'Edit' });
     expect(more.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The same small link register as "more", in the text flow: never the
+    // decision pill, which overlapped the summary's last line (round 2).
+    expect(edit.className).toBe('pubws-instrument-edit');
+    expect(edit.className).not.toContain('pubws-decide');
+    expect(more.nextElementSibling).toBe(edit);
     // Not expanded yet: the control is reachable without "more".
     expect(container.querySelector('.pubws-instrument-more')).toBeNull();
     fireEvent.click(edit);
     await waitFor(() => expect(container.querySelector('.pubws-instrument-more textarea')).toBeTruthy());
     const area = container.querySelector('.pubws-instrument-more textarea') as HTMLTextAreaElement;
     expect(area.value).toBe('Everything LookPilot earned in the month. Net of refunds.');
+  });
+
+  test('the stylesheet sets Edit beside "more" as an underlined inline link, tertiary, never a pill', () => {
+    const CSS = readFileSync(join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'), 'utf8');
+    const rule = CSS.match(/\.pubws-instrument-edit \{([^}]*)\}/);
+    expect(rule).toBeTruthy();
+    const body = rule![1];
+    expect(body).toMatch(/display:\s*inline/);
+    expect(body).toMatch(/border:\s*none/);
+    expect(body).toMatch(/background:\s*none/);
+    expect(body).toMatch(/text-decoration:\s*underline/);
+    expect(body).toMatch(/text-underline-offset:\s*2px/);
+    expect(body).toMatch(/color:\s*var\(--text-tertiary\)/);
+    expect(body).not.toMatch(/border-radius/);
+    expect(body).not.toMatch(/padding:\s*0\.\d+rem\s+\d/);
   });
 
   test('the expander itself no longer carries a second Edit', async () => {

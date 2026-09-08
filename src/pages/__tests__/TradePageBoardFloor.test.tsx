@@ -643,6 +643,11 @@ describe('three columns, and the standings under the verbs', () => {
     expect(phone![1]).toMatch(/\.pubws-updated[^{]*\{[^}]*display:\s*block/);
     expect(phone![1]).toMatch(/\.pubws-chip-dot \{[^}]*display:\s*none/);
     expect(phone![1]).toMatch(/\.pubws-stat-dot \{[^}]*display:\s*none/);
+    // Every piece of the caption wraps: the countdown and the provenance
+    // spans are nowrap at every other width, and a nowrap child clips at
+    // the cell edge ("SETTLES IN…", "UNCHANGED SINCE 5 SEP" cut, round 2).
+    expect(phone![1]).toMatch(/\.pubws-stat-what > span \{[^}]*white-space:\s*normal/);
+    expect(phone![1]).toMatch(/\.pubws-stat-what > span \{[^}]*overflow:\s*visible/);
   });
 
   test('the separator dots in the stat captions are elements the stylesheet can hide', async () => {
