@@ -343,6 +343,7 @@ const ROUTER_MOUNTS: Record<string, string> = {
   'data-room.ts': '/api/data-room',
   'cron.ts': '/api/cron',
   'x-workbench.ts': '/api/admin/x',
+  'outreach.ts': '/api/admin/outreach',
   'manifold-update.ts': '/api/admin/manifold-update',
   'waitlist.ts': '/api/waitlist',
   'recordLinks.ts': '/api/import',

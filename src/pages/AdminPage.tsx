@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EarnTableEditor } from '../components/EarnTableEditor';
 import { ManifoldUpdate } from '../components/ManifoldUpdate';
+import { OutreachWorkbench } from '../components/OutreachWorkbench';
 import { XWorkbench } from '../components/XWorkbench';
 import { useAuth } from '../hooks/useAuth';
 import { api, type FeedbackItem, type Journey, type JourneyFeed } from '../lib/api';
@@ -345,6 +346,8 @@ export function AdminPage() {
             that prints everybody's payout handle the moment it opens is a page
             you cannot screen-share. */}
         <XWorkbench />
+
+        <OutreachWorkbench />
 
         <ManifoldUpdate />
 

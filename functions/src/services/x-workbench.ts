@@ -212,7 +212,7 @@ export type ProposalBody = {
 const clean = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 
 /** The tool call's input, from whichever shape the reply has, or null. */
-function toolInput(body: ProposalBody): Record<string, unknown> | null {
+export function toolInput(body: ProposalBody): Record<string, unknown> | null {
   const block = (body.content ?? []).find(b => b.type === 'tool_use' && b.input && typeof b.input === 'object');
   if (block) return block.input as Record<string, unknown>;
   const args = body.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
@@ -227,7 +227,7 @@ function toolInput(body: ProposalBody): Record<string, unknown> | null {
 }
 
 /** Whatever prose the reply carried, from whichever shape. */
-function proseOf(body: ProposalBody): string {
+export function proseOf(body: ProposalBody): string {
   const blocks = (body.content ?? []).map(b => b.text ?? '').join('');
   return blocks || (body.choices?.[0]?.message?.content ?? '');
 }
@@ -346,7 +346,7 @@ export function withoutDashes(text: string): string {
 }
 
 /** The shape a proposal is asked for, in the vocabulary each transport uses. */
-interface ProposalTool {
+export interface ProposalTool {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
@@ -427,7 +427,12 @@ async function proposeWith(
  * refusal from both is an error he sees, never an empty draft
  * (docs/x-workbench.md, "Drafting").
  */
-async function callProposal(system: string, messages: DraftTurn[], tool: ProposalTool, what: string): Promise<unknown> {
+export async function callProposal(
+  system: string,
+  messages: DraftTurn[],
+  tool: ProposalTool,
+  what: string,
+): Promise<unknown> {
   requireDraftKey();
   const primary = draftModel();
   const fallback = draftFallback();

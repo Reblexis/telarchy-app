@@ -1667,3 +1667,62 @@ export const xSearches = pgTable(
   },
   t => [index('x_searches_created_idx').on(t.createdAt)],
 );
+
+// ---------------------------------------------------------------------------
+// The outreach workbench (docs/outreach-workbench.md)
+// ---------------------------------------------------------------------------
+
+/** The turns of the argument about a prospect's message, kept on the row so
+ *  "shorter" means shorter than the last draft of THIS message. */
+export type OutreachTurn = { role: 'user' | 'assistant'; content: string };
+
+/**
+ * One person the owner has decided to write to himself
+ * (docs/outreach-workbench.md, "The prospect"). The evidence is everything a
+ * draft may say about them; the message is the current draft; `sent_text`
+ * and `sent_at` are set once, when the status first becomes 'sent', and never
+ * changed, because the record has to be what actually went out. Personal
+ * data (names, handles, what strangers wrote back) lives here and not in the
+ * repository.
+ */
+export const outreachProspects = pgTable(
+  'outreach_prospects',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    company: text('company'),
+    /** A short label the owner chooses: A, B, C, E, F, door. */
+    segment: text('segment'),
+    /** x | email | linkedin | bluesky | hn | discord | other */
+    channel: text('channel').notNull().default('other'),
+    /** The handle, address or URL on that channel. */
+    handle: text('handle'),
+    /** The verified facts, in their words, with sources. A draft quotes
+     *  only this. */
+    evidence: text('evidence'),
+    /** The current draft, editable by hand. */
+    message: text('message'),
+    conversation: jsonb('conversation').notNull().$type<OutreachTurn[]>().default([]),
+    /** draft | ready | sent | replied | call | workspace | activated | no */
+    status: text('status').notNull().default('draft'),
+    /** Planned send day, free text (D1, 2026-09-08). */
+    day: text('day'),
+    /** What came back, in their words, or "no answer". */
+    outcome: text('outcome'),
+    sentText: text('sent_text'),
+    sentAt: timestamp('sent_at'),
+    /** Order on the surface; lower first. */
+    position: integer('position').notNull().default(0),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  t => [index('outreach_prospects_status_idx').on(t.status), index('outreach_prospects_position_idx').on(t.position)],
+);
+
+/** What the owner has learned sending these, in his words. One row, id
+ *  'default', like the voice profile. */
+export const outreachLessons = pgTable('outreach_lessons', {
+  id: text('id').primaryKey(),
+  lessons: text('lessons').notNull(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});

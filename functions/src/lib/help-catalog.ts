@@ -1223,6 +1223,67 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       description: 'Replace the voice profile (platform admin). Body: { profile }.',
     },
     {
+      method: 'GET',
+      path: '/api/admin/outreach/prospects',
+      auth: 'admin',
+      description:
+        'Every person the owner has decided to write to himself, in position order, with the current message, the argument about it, the status and what came back (platform admin; docs/outreach-workbench.md). Each row carries { link } (where the person reads: an X, Bluesky, LinkedIn or HN profile, a mailto with the message prefilled) and { logLine }, the one-line record shape promised on the contract. Also { summary } (sent, answered; below ten sent an honest note, from ten a reply rate by segment and channel and for each of three features: under 75 words, names a number, names their decision) and { draftingConfigured }. Nothing here sends anything.',
+    },
+    {
+      method: 'POST',
+      path: '/api/admin/outreach/prospects',
+      auth: 'admin',
+      description:
+        "Add one prospect (platform admin). Body: { name (required), company?, segment?, channel? ('x'|'email'|'linkedin'|'bluesky'|'hn'|'discord'|'other', default other), handle?, evidence? (the verified facts a draft may quote; nothing else is a fact), message?, status?, day?, position? }. Returns { prospect }.",
+    },
+    {
+      method: 'POST',
+      path: '/api/admin/outreach/prospects/import',
+      auth: 'admin',
+      description:
+        'Add many prospects at once (platform admin). Body: { prospects: [the same shape as POST /api/admin/outreach/prospects] }. All or none: a bad row fails the import. Returns { imported }.',
+    },
+    {
+      method: 'PATCH',
+      path: '/api/admin/outreach/prospects/:id',
+      auth: 'admin',
+      description:
+        "Edit any field of a prospect (platform admin). The first move to status 'sent' (or any later status) freezes sentText and sentAt to what went out and never changes them again; it needs a message to freeze. Statuses: draft, ready, sent, replied, call, workspace, activated, no. Returns { prospect }.",
+    },
+    {
+      method: 'DELETE',
+      path: '/api/admin/outreach/prospects/:id',
+      auth: 'admin',
+      description: 'Remove a prospect (platform admin).',
+    },
+    {
+      method: 'POST',
+      path: '/api/admin/outreach/prospects/:id/draft',
+      auth: 'admin',
+      description:
+        "Draft the message to one prospect from the evidence, or argue about the draft (platform admin). Body: { messages: [{ role: 'user'|'assistant', content }] }, the conversation so far. Returns { draft: { message, answer } }; the draft is under 75 words, one ask, in the owner's voice, quotes only the evidence, and is kept on the row with the turns. The system prompt carries the voice profile, the owner's lessons and a digest of every message sent with what came back (docs/outreach-workbench.md, 'Drafting'). Same model settings as /api/admin/x/draft; 503 when the drafting key is not set.",
+    },
+    {
+      method: 'POST',
+      path: '/api/admin/outreach/ask',
+      auth: 'admin',
+      description:
+        'Ask about the outreach (platform admin): which segment or channel to push, why a message got nothing, what to try. Body: { messages: [{ role, content }] }. Returns { answer }, from the record and the lessons, saying which; says when neither answers.',
+    },
+    {
+      method: 'GET',
+      path: '/api/admin/outreach/lessons',
+      auth: 'admin',
+      description:
+        'What the owner has learned sending these, in his words (platform admin). Reaches every draft. Returns { lessons, draftingConfigured }.',
+    },
+    {
+      method: 'PUT',
+      path: '/api/admin/outreach/lessons',
+      auth: 'admin',
+      description: 'Replace the lessons text (platform admin). Body: { lessons }.',
+    },
+    {
       method: 'POST',
       path: '/api/cron/x-metrics',
       auth: 'platform admin',
