@@ -77,6 +77,11 @@ export interface HorizonView {
   resetsEvery: string | null;
   /** The owner's definition of this horizon's number. */
   description: string | null;
+  /** The owner's one-line settlement summary, the metric sheet's "summary
+   *  line" (docs/ui-conventions.md, "The settlement line"); null when the
+   *  owner wrote none, and the floor falls back to the definition's first
+   *  sentence. Optional on the payload until every build ships it. */
+  settlementSummary: string | null;
   /** True when the platform writes this metric's readings itself (Telarchy's
    *  own floor): the owner does not report it, the reading cell says
    *  "synced hourly" instead of offering Report. */
@@ -245,6 +250,7 @@ export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: D
         .flatMap(p => (p.at && Number.isFinite(p.value) ? [{ at: p.at, value: p.value }] : []))
         .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()),
       description: row?.description ?? null,
+      settlementSummary: (row as { settlementSummary?: string | null } | undefined)?.settlementSummary ?? null,
       platformSynced: row?.platformSynced === true,
       resetsEvery: row?.resetsEvery ?? null,
       settlesNaForNow: !!row?.resolvesNaUntilMeasured && !row?.measured,
@@ -345,7 +351,88 @@ export function datesOf(views: HorizonView[], metricId: string): HorizonView[] {
  */
 export function settleNoteOf(v: HorizonView | null): string | undefined {
   if (!v?.settleDay) return undefined;
-  return v.settlesNaForNow ? 'N/A, all bets refunded, if there is still no reading by then' : `resolves ${v.settleDay}`;
+  return v.settlesNaForNow
+    ? `Settles ${v.settleDay}, or N/A (all bets refunded) if there is still no reading`
+    : `resolves ${v.settleDay}`;
+}
+
+/**
+ * The countdown in the call's caption, "in 22 days" (docs/ui-conventions.md,
+ * "The numbers band"): whole days from two days out, "1 day" inside that,
+ * hours and minutes inside a day, minutes inside an hour, and "settling"
+ * once the instant has passed. The distance alone: the exact instant is
+ * the hover title. Null with no settle instant.
+ */
+export function countdownOf(v: HorizonView | null, now: Date = new Date()): string | null {
+  if (!v?.resolvesOn) return null;
+  const ms = new Date(v.resolvesOn).getTime() - now.getTime();
+  if (!Number.isFinite(ms)) return null;
+  if (ms <= 0) return 'settling';
+  const m = Math.floor(ms / 60_000);
+  const h = Math.floor(m / 60);
+  const d = Math.floor(h / 24);
+  if (d >= 2) return `in ${d} days`;
+  if (d >= 1) return 'in 1 day';
+  if (h >= 1) return `in ${h}h ${m % 60}m`;
+  return `in ${Math.max(1, m)} min`;
+}
+
+/**
+ * An age in its largest unit alone, "2h ago", "3d ago", "just now": the
+ * facts row's "last trade 2h ago" (docs/ui-conventions.md, "The verbs and
+ * the inline ticket"), where two units read as a timestamp.
+ */
+export function shortAgoOf(at: string | null | undefined, now: Date = new Date()): string | null {
+  if (!at) return null;
+  const ms = now.getTime() - new Date(at).getTime();
+  if (!Number.isFinite(ms)) return null;
+  if (ms < 60_000) return 'just now';
+  const m = Math.floor(ms / 60_000);
+  const h = Math.floor(m / 60);
+  const d = Math.floor(h / 24);
+  if (d >= 1) return `${d}d ago`;
+  if (h >= 1) return `${h}h ago`;
+  return `${m}m ago`;
+}
+
+/**
+ * How far the call moved today (docs/ui-conventions.md, "The numbers
+ * band": "▲ +0.3 today"): the consensus now minus the call in force at the
+ * start of today, UTC. The call in force at midnight is the last point of
+ * the series before it; a series that starts today opened at its first
+ * point. Null when there is nothing to compare, or the move rounds to
+ * nothing at the price's own precision.
+ */
+export function todayDeltaOf(
+  series: Array<{ at: string; consensus: number | null }> | null | undefined,
+  consensus: number | null,
+  now: Date = new Date(),
+): number | null {
+  if (consensus === null || !series || series.length === 0) return null;
+  const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const points = series
+    .filter(p => p.consensus !== null)
+    .map(p => ({ t: new Date(p.at).getTime(), v: p.consensus as number }));
+  if (points.length === 0) return null;
+  const before = points.filter(p => p.t < midnight).pop();
+  const opened = before ?? points.find(p => p.t >= midnight) ?? null;
+  if (!opened) return null;
+  const d = consensus - opened.v;
+  const abs = Math.abs(consensus);
+  const decimals = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
+  if (Math.abs(d) < 0.5 * 10 ** -decimals) return null;
+  return d;
+}
+
+/**
+ * The words after the call's value ("19.8 active traders"): a metric
+ * counted in a currency prints its symbol before the number and no word
+ * after it; any other metric prints its own name, lowercased, with the
+ * company's name stripped the way the caption strips it.
+ */
+export function unitWordsOf(metricLabel: string, unit: string, workspaceName: string | null | undefined): string {
+  if (unit) return '';
+  return captionLabel(metricLabel, workspaceName).toLowerCase();
 }
 
 /**

@@ -199,22 +199,20 @@ export function AgentDoors({
           )}
         </button>
 
-        {open && !grant && (
-          <>
-            {CHOICES.map(c => (
-              <button
-                key={c.id}
-                type="button"
-                className="doors-opt"
-                disabled={busy !== null}
-                onClick={() => void take(c.id)}
-              >
-                <span className="doors-opt-name">{busy === c.id ? 'Minting…' : c.label}</span>
-                <span className={`doors-opt-note${c.accent ? ' is-accent' : ''}`}>{c.note}</span>
-              </button>
-            ))}
-          </>
-        )}
+        {open &&
+          !grant &&
+          CHOICES.map(c => (
+            <button
+              key={c.id}
+              type="button"
+              className="doors-opt"
+              disabled={busy !== null}
+              onClick={() => void take(c.id)}
+            >
+              <span className="doors-opt-name">{busy === c.id ? 'Minting…' : c.label}</span>
+              <span className={`doors-opt-note${c.accent ? ' is-accent' : ''}`}>{c.note}</span>
+            </button>
+          ))}
 
         {open && grant && (
           <>

@@ -49,7 +49,7 @@ export function FloorAnnouncements({
   const href = `/${encodeURIComponent(idOrSlug)}/announcements`;
 
   return (
-    <section className="pubws-know pubws-enter pubws-enter--3" aria-label="Announcements">
+    <section className="pubws-announcements pubws-enter pubws-enter--3" aria-label="Announcements">
       <div className="pubws-know-headrow">
         <h2 className="pubws-know-head">Announcements</h2>
         {/* The count is the offer, so it sits where a count belongs and not in

@@ -264,19 +264,20 @@ describe('the live poll leaves the view alone', () => {
     expect(screen.getByRole('button', { name: 'if approved' }).getAttribute('aria-pressed')).toBe('false');
   });
 
-  test('the chart is never handed a blanked series while a job is selected', async () => {
+  test('the call on screen never blanks across a poll while a job is selected', async () => {
     renderFloor();
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
-    await waitFor(() => expect(screen.getByTestId('chart').getAttribute('data-series-len')).toBe('2'));
+    // The approved branch's own call, once the headline has finished
+    // rolling to it.
+    const price = () => document.querySelector('.pubws-stat--call .pubws-price')?.textContent;
+    await waitFor(() => expect(price()).toBe('$82,000'));
 
-    h.chartRenders.length = 0;
     await poll();
     await poll();
 
-    // A blank would show up as the one-point fallback the page substitutes
-    // for an empty history: that single point IS the flash.
-    expect(h.chartRenders.length).toBeGreaterThan(0);
-    expect(h.chartRenders.every(r => r.seriesLen === 2)).toBe(true);
+    // A blank would show up as "no price yet" for a frame: the branch's
+    // number is overwritten in place, never cleared first.
+    expect(price()).toBe('$82,000');
   });
 });
 
@@ -308,7 +309,10 @@ describe('an unfunded market does not offer a bet it cannot take', () => {
     const row = await screen.findByTitle('rewrite the store page');
     fireEvent.click(row);
 
-    await waitFor(() => expect(screen.getByText(/no market yet/i)).toBeTruthy());
+    await waitFor(() => expect(document.querySelector('.pubws-unfunded')).not.toBeNull());
+    expect(document.querySelector('.pubws-unfunded')?.textContent).toMatch(
+      /nobody has funded a book for this market yet/i,
+    );
     expect(screen.queryByRole('button', { name: /Bet Higher/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Bet Lower/ })).toBeNull();
   });
@@ -324,12 +328,13 @@ describe('an unfunded market does not offer a bet it cannot take', () => {
     fireEvent.click(row);
 
     await waitFor(() => expect(screen.getByRole('button', { name: /Bet Higher/ })).toBeTruthy());
-    expect(screen.queryByText(/no market yet/i)).toBeNull();
+    expect(document.querySelector('.pubws-unfunded')).toBeNull();
   });
 
   test('a bet verb opens the ticket inline, not in a modal', async () => {
-    // Owner ask 2026-08-28: composing the bet must not cover the charts,
-    // because the composed bet's ghost draws on the market chart above.
+    // Owner ask 2026-08-28: composing the bet must not cover the chart,
+    // because the composed bet's ghost draws on the chart above.
+    h.auth.user = { id: 'u-trader' };
     const { api } = await import('../../lib/api');
     const ws = h.workspace();
     ws.joinAs = 'trader';
@@ -339,8 +344,8 @@ describe('an unfunded market does not offer a bet it cannot take', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Bet Higher/ }));
     await waitFor(() => expect(container.querySelector('.pubws-ticket-inline')).toBeTruthy());
     expect(document.querySelector('.floor-modal-overlay')).toBeNull();
-    // The ticket sits inside the floor's action section, under the verbs.
-    expect(container.querySelector('.pubws-act .pubws-ticket-inline')).toBeTruthy();
+    // The ticket sits INSIDE the verbs panel, under the verbs themselves.
+    expect(container.querySelector('.pubws-verbs .pubws-ticket-inline')).toBeTruthy();
   });
 });
 
@@ -360,7 +365,11 @@ describe('the floor closes on a three-cell board', () => {
     // is the explanation; what is left is the part it cannot show.
     expect(container.querySelector('.pubws-about')).toBeNull();
     expect(container.querySelector('.pubws-do')).toBeNull();
-    expect(container.querySelector('.pubws-know')).toBeTruthy();
+    // And the know block went with them (2026-09-08): the definition is
+    // behind "Full definition" under the numbers band, the announcements
+    // are in the left rail, and the rest is the run-a-floor row's job.
+    expect(container.querySelector('.pubws-know')).toBeNull();
+    expect(container.querySelector('.pubws-know-col')).toBeNull();
   });
 
   test('the half nobody guesses survives: paid work, in real money', async () => {
@@ -401,16 +410,16 @@ describe('the floor closes on a three-cell board', () => {
   });
 });
 
-test('the page explains, then asks, then offers the owner door', async () => {
+test('the page asks, then offers the owner door, and explains nowhere else', async () => {
   const { container } = renderFloor();
   await screen.findByLabelText('Next steps');
   const order = [...container.querySelectorAll('.pubws-know-head, .pubws-end-label')].map(n =>
     (n.textContent ?? '').slice(0, 16),
   );
-  // Two "know" blocks already: the market's own definition, then the
-  // company's. Those are the explanation; the closing board says only what
-  // they cannot, then offers the owner door.
-  expect(order).toEqual(['What is this mar', 'What is LookPilo', 'New here?', 'Do the work', 'Your own numbers']);
+  // The know blocks are not rendered any more (2026-09-08): the market
+  // above SHOWS what this is, and the closing board says only the three
+  // things it cannot.
+  expect(order).toEqual(['New here?', 'Do the work', 'Your own numbers']);
 });
 
 /**
@@ -567,82 +576,23 @@ describe('the one horizon', () => {
   });
 });
 
-test('the know section draws no metric chart', async () => {
-  const { api } = await import('../../lib/api');
-  const ws = h.workspace();
-  ws.markets = [
-    {
-      marketId: 'm-week',
-      metricId: 'metric-w',
-      metricName: 'LookPilot revenue this week (USD)',
-      targetDate: '2026-W34',
-      resolvesOn: '2026-08-24T00:00:00Z',
-      consensus: 213,
-      probability: 0.5,
-      liquidity: 200,
-      rangeMin: 0,
-      rangeMax: 8000,
-    },
-    {
-      marketId: 'm-hero',
-      metricId: 'metric-1',
-      metricName: 'LookPilot net 2026 (USD)',
-      targetDate: '2026-12',
-      resolvesOn: '2026-12-31T00:00:00Z',
-      consensus: 78_571,
-      probability: 0.5,
-      liquidity: 200,
-      rangeMin: 0,
-      rangeMax: 150_000,
-    },
-  ];
-  ws.horizonHistories = [
-    {
-      marketId: 'm-week',
-      metricName: 'LookPilot revenue this week (USD)',
-      targetDate: '2026-W34',
-      description: 'This week only.',
-      points: [{ at: '2026-08-18T09:00:00Z', value: 120 }],
-    },
-    {
-      marketId: 'm-hero',
-      metricName: 'LookPilot net 2026 (USD)',
-      targetDate: '2026-12',
-      description: 'The year.',
-      points: [{ at: '2026-08-15T09:00:00Z', value: 45_339 }],
-    },
-  ];
-  vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
-
-  const { container } = renderFloor();
-  // The metric-trajectory charts were removed from the floor entirely (owner
-  // direction 2026-08-18): the section shows the definition and nothing else,
-  // however many markets are open. The history fields stay in the API.
-  await waitFor(() => expect(container.querySelector('.pubws-know')).toBeTruthy());
-  expect(container.querySelectorAll('.pubws-know .pubws-settle').length).toBe(0);
-  expect(container.querySelector('.pubws-know .mchart-calllabel')).toBeNull();
-});
-
 test('the workspace name heads the page', async () => {
   const { api } = await import('../../lib/api');
   vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.workspace() as never);
   const { container } = renderFloor();
   // Owner direction 2026-08-18: with the settle date gone from the headline,
   // the name at the top is what says whose floor this is.
-  await waitFor(() => expect(container.querySelector('.pubws-ws-name')).toBeTruthy());
-  expect(container.querySelector('.pubws-ws-name')!.textContent).toBe(h.workspace().name);
+  await waitFor(() => expect(container.querySelector('.pubws-head-name')).toBeTruthy());
+  expect(container.querySelector('.pubws-head-name')!.textContent).toBe(h.workspace().name);
   // The company is the page, so its name is the page's h1 and the metric
-  // name is only the caption over the number (owner direction 2026-08-18).
-  expect(container.querySelector('.pubws-ws-name')!.tagName).toBe('H1');
+  // name lives inside the question sentence.
+  expect(container.querySelector('.pubws-head-name')!.tagName).toBe('H1');
   expect(container.querySelectorAll('h1').length).toBe(1);
-  // The caption is what the number measures, with the name it already
-  // carries overhead stripped off, and the day it settles is the line under
-  // it (owner ask 2026-08-25, two steppers).
-  expect(container.querySelector('.pubws-chip--metric')!.textContent).toBe('revenue');
-  expect(container.querySelector('.pubws-chip--date')!.textContent).toBe('settles 31 Dec');
-  // And under the pickers, the same cell stated as the market's own
-  // question (owner ask 2026-08-28, both stay). One metric and one date on
-  // this floor, so neither word of the sentence is a control.
+  // The chips above the question are not rendered any more (2026-09-08):
+  // the pickers ARE the sentence's metric and date words. One metric and
+  // one date on this floor, so neither word is a control.
+  expect(container.querySelector('.pubws-chip--metric')).toBeNull();
+  expect(container.querySelector('.pubws-chip--date')).toBeNull();
   expect(container.querySelector('.pubws-instrument-ask')!.textContent).toBe(
     "What will be LookPilot's revenue on 31 Dec?",
   );
@@ -658,15 +608,15 @@ test('the workspace description is the company tagline, and is optional', async 
     description: 'Webcam head tracker for sims.',
   } as never);
   const first = renderFloor();
-  await waitFor(() => expect(first.container.querySelector('.pubws-ws-tagline')).toBeTruthy());
-  expect(first.container.querySelector('.pubws-ws-tagline')!.textContent).toBe('Webcam head tracker for sims.');
+  await waitFor(() => expect(first.container.querySelector('.pubws-head-line')).toBeTruthy());
+  expect(first.container.querySelector('.pubws-head-line')!.textContent).toBe('Webcam head tracker for sims.');
   first.unmount();
 
   // A workspace that never wrote one gets no empty line under its name.
   vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.workspace() as never);
   const second = renderFloor();
-  await waitFor(() => expect(second.container.querySelector('.pubws-ws-name')).toBeTruthy());
-  expect(second.container.querySelector('.pubws-ws-tagline')).toBeNull();
+  await waitFor(() => expect(second.container.querySelector('.pubws-head-name')).toBeTruthy());
+  expect(second.container.querySelector('.pubws-head-line')).toBeNull();
 });
 
 /**
@@ -717,27 +667,27 @@ describe('the price series belongs to the market on screen', () => {
     return ws;
   };
 
-  const series = (c: HTMLElement) => c.querySelector('[data-testid="chart"]')!.getAttribute('data-series');
-
-  test('the inline series is drawn, with no extra request', async () => {
+  test('the inline series is used, with no extra request for the market on screen', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(payload() as never);
     vi.mocked(api.getPublicMarketHistory).mockClear();
     const { container } = renderFloor();
-    await waitFor(() => expect(series(container)).toBe('73600,78571'));
+    await waitFor(() => expect(container.querySelector('.pubws-stat--call .pubws-price')?.textContent).toBe('$78,571'));
+    // The payload names its inline replay, so the primary market's series
+    // costs no second request.
     expect(vi.mocked(api.getPublicMarketHistory)).not.toHaveBeenCalledWith('lookpilot', 'm-hero');
   });
 
   test("never the other market's numbers", async () => {
     // The cliff this guards: the page once drew the year's 73,600 -> 78,571
     // line and then dropped to the week's 213 call (owner report 2026-08-17).
-    // The since-open chip that once restated it is gone (owner ask
-    // 2026-08-28); the price and the series still pin the one-market rule.
+    // A price series is only ever fetched BY MARKET ID, and the call on
+    // screen is the market on screen's.
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(payload() as never);
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-stat--call .pubws-price')?.textContent).toBe('$78,571'));
-    expect(series(container)).not.toContain('213');
+    expect(container.querySelector('.pubws-numbers')?.textContent).not.toContain('213');
   });
 });
 
@@ -917,19 +867,24 @@ describe('a notification link lands on what it names', () => {
  * wrote, and only the page can tell you which one you have.
  */
 describe('the floor carries Otto', () => {
-  test('two doors lead to him: the corner dock and the end of the prose', async () => {
-    renderFloor();
-    // Same name on both, because they are the same invitation to the same
-    // conversation (owner direction 2026-08-21: make him obvious). The panel
-    // is one, and the floor owns whether it is open.
-    const doors = await screen.findAllByRole('button', { name: /ask otto about lookpilot/i });
-    expect(doors.length).toBe(2);
-    expect(doors.some(d => d.className.includes('ottodock'))).toBe(true);
-    // The second door is the first row of the pair at the end of the prose
-    // (AgentDoors). Signed out it still says "ask", because signed out he can
-    // only answer; the row beside it offers the same market to their own AI.
-    expect(doors.some(d => d.className.includes('doors-row'))).toBe(true);
-    expect(screen.getByText('Or read it from your own AI')).toBeTruthy();
+  test('the corner dock is gone: the Otto row is the door, and it opens the one panel', async () => {
+    const { container } = renderFloor();
+    // The dock covered the proposal rows at the foot of the page, so it is
+    // not drawn any more (docs/ui-conventions.md, "The Otto row",
+    // 2026-09-08). Two doors remain: the top bar's "Otto" link, for
+    // somebody signed in, and this row, for everyone.
+    const row = (await waitFor(() => {
+      const el = container.querySelector('.pubws-otto-row');
+      expect(el).not.toBeNull();
+      return el;
+    })) as HTMLElement;
+    expect(document.querySelector('.ottodock')).toBeNull();
+    expect(document.querySelector('section.otto')).toBeNull();
+    const go = within(row).getByRole('button', { name: /Otto runs this market with you/ });
+    // Signed out the second line says reading is all he can do.
+    expect(row.querySelector('.pubws-otto-row-line')?.textContent).toMatch(/until you sign up/i);
+    fireEvent.click(go);
+    expect(document.querySelector('section.otto')).not.toBeNull();
   });
 });
 
@@ -1011,23 +966,23 @@ describe('a proposal keeps the clock line', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
 
-    // One metric on two dates: the date chip is a menu (a button that
-    // says whether it is open), and the sentence's date word is a cycle
-    // button.
-    await waitFor(() => expect(document.querySelector('.pubws-chip--date')?.tagName).toBe('BUTTON'));
-    expect(document.querySelector('.pubws-chip--date')?.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.getByRole('button', { name: /^Date: / })).toBeTruthy();
+    // One metric on two dates: the sentence's date word IS the picker, a
+    // button that says whether its menu is open.
+    const dateWord = () => screen.getByRole('button', { name: /^Date: / });
+    await waitFor(() => expect(dateWord()).toBeTruthy());
+    expect(dateWord().getAttribute('aria-expanded')).toBe('false');
+    expect(dateWord().closest('h2.pubws-instrument-ask')).not.toBeNull();
 
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
     await screen.findByRole('button', { name: 'if approved' });
 
     // The regression: this used to be 0, because the caption and its
     // controls lived in the branch that a selected proposal replaced.
-    expect(document.querySelector('.pubws-chip--date')?.tagName).toBe('BUTTON');
-    expect(screen.getByRole('button', { name: /^Date: / })).toBeTruthy();
+    expect(dateWord()).toBeTruthy();
+    expect(dateWord().closest('h2.pubws-instrument-ask')).not.toBeNull();
   });
 
-  test('the clock line still names the metric and its settle day on a proposal', async () => {
+  test('the question still names the metric and its date on a proposal', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
@@ -1035,15 +990,14 @@ describe('a proposal keeps the clock line', () => {
     await screen.findByRole('button', { name: 'if approved' });
 
     // The floor opens on the furthest-resolving market, so the month is on
-    // screen; the caption strips the leading workspace name, the date row
-    // still carries the settle day, and the question line says the same
-    // cell as a sentence.
-    const caption = document.querySelector('.pubws-instrument-label');
-    expect(caption?.textContent).toContain('monthly net revenue');
-    expect(document.querySelector('.pubws-chip--date')?.textContent).toMatch(/\d/);
-    const ask = document.querySelector('.pubws-instrument-ask');
+    // screen; the metric word strips the leading workspace name and the
+    // date word carries the settle day. The chips above the question are
+    // not rendered any more (2026-09-08).
+    expect(document.querySelector('.pubws-instrument-label')).toBeNull();
+    const ask = document.querySelector('h2.pubws-instrument-ask');
     expect(ask?.textContent).toContain('monthly net revenue');
     expect(ask?.textContent).toMatch(/ on \d/);
+    expect(screen.getByRole('button', { name: /^Date: / }).title).toMatch(/settles/);
   });
 
   test('the proposal folds its condition into the one question sentence', async () => {
@@ -1052,14 +1006,16 @@ describe('a proposal keeps the clock line', () => {
     renderFloor();
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
 
-    const question = await screen.findByRole('heading', { name: /is paid \$80/ });
-    // One sentence carries the market AND the condition (owner ask
-    // 2026-08-28: modify the question, do not add a line under it): "What
-    // will be ... if Ada is paid $80 to do: rewrite the store page?".
+    const question = await screen.findByRole('heading', { name: /is paid \$80 to do this/ });
+    // One sentence carries the market AND the condition, in the question's
+    // own voice (docs/ui-conventions.md, "A proposal keeps the question"):
+    // "If Ada is paid $80 to do this, what will ... be?". The task itself
+    // is the headline above, never folded into the sentence.
     expect(question.className).toContain('pubws-instrument-ask');
-    expect(question.textContent?.startsWith('What will be')).toBe(true);
+    expect(question.textContent?.startsWith('If Ada is paid $80 to do this, what will ')).toBe(true);
     expect(question.textContent).toMatch(/net revenue/i);
-    expect(question.textContent?.trim().endsWith('?')).toBe(true);
+    expect(question.textContent?.trim().endsWith('be?')).toBe(true);
+    expect(question.textContent).not.toContain('rewrite the store page');
     // And no second question heading under it.
     expect(document.querySelector('.pubws-question')).toBeNull();
   });
@@ -1073,9 +1029,9 @@ describe('a proposal keeps the clock line', () => {
     // Opens on the furthest-resolving horizon, so the month's approved branch.
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-month-approved'));
 
-    // The fixture's two markets share one metric, so this is the DATE chip;
+    // The fixture's two markets share one metric, so this is the DATE word;
     // the week (already past, so a bare day) is the option not on screen.
-    fireEvent.click(document.querySelector('.pubws-chip--date') as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
     fireEvent.click(screen.getByRole('option', { name: /23 Aug/ }));
 
     // pair resolves by (metric, date), so the week's pair is now the one on
@@ -1083,23 +1039,25 @@ describe('a proposal keeps the clock line', () => {
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-week-approved'));
   });
 
-  test('the date word cycles and LOOPS back to where it started', async () => {
+  test('the date word opens a menu of the dates, and a pick changes the sentence', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     const { container } = renderFloor();
 
-    const ask = () => container.querySelector('.pubws-instrument-ask')!.textContent ?? '';
+    const ask = () => container.querySelector('h2.pubws-instrument-ask')!.textContent ?? '';
     await waitFor(() => expect(ask()).toContain('monthly net revenue'));
     // The whole sentence, so the scaffold and both words are pinned once.
     expect(ask()).toBe("What will be LookPilot's monthly net revenue on 30 Sep?");
 
+    // A menu, not a cycle (2026-09-08): a word that steps to "the next"
+    // book reads as random once there are more than two.
     fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
-    await waitFor(() => expect(ask()).toContain('23 Aug'));
+    fireEvent.click(screen.getByRole('option', { name: /23 Aug/ }));
+    await waitFor(() => expect(ask()).toBe("What will be LookPilot's monthly net revenue on 23 Aug?"));
 
-    // Two options, so the next step is the start again (the 2026-08-20
-    // arrow rule: a control that always moves).
     fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
-    await waitFor(() => expect(ask()).toContain('30 Sep'));
+    fireEvent.click(screen.getByRole('option', { name: /30 Sep/ }));
+    await waitFor(() => expect(ask()).toBe("What will be LookPilot's monthly net revenue on 30 Sep?"));
   });
 });
 
@@ -1127,9 +1085,8 @@ describe('a market with no price yet', () => {
     ws.markets = ws.markets.map(m => ({ ...m, consensus: null, liquidity: 0 }));
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-instrument-label')).toBeTruthy());
-    expect(container.querySelector('.pubws-price')?.textContent).toBe('no price yet');
-    expect(container.querySelector('.pubws-chip--date')).toBeTruthy();
+    await waitFor(() => expect(container.querySelector('h2.pubws-instrument-ask')).toBeTruthy());
+    expect(container.querySelector('.pubws-stat--call .pubws-price')?.textContent).toBe('no price yet');
     expect(container.querySelector('.pubws-instrument-ask')?.textContent).toContain(' on ');
     expect(container.querySelector('.mchart')).toBeNull();
   });
@@ -1171,45 +1128,50 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     // Two named numbers in ONE row: the reading, ink, on the left; the
     // market's call, amber, on the right. A Manifold trader read the old
     // unnamed stack as a lifetime total of a brand-new company (2026-09-03).
-    await waitFor(() => expect(container.querySelector('.pubws-stats')).toBeTruthy());
-    const now = container.querySelector('.pubws-stats .pubws-stat--now') as HTMLElement;
-    const call = container.querySelector('.pubws-stats .pubws-stat--call') as HTMLElement;
+    await waitFor(() => expect(container.querySelector('.pubws-numbers')).toBeTruthy());
+    const band = container.querySelector('.pubws-numbers') as HTMLElement;
+    const cells = band.querySelectorAll(':scope > div');
+    // The CALL comes first: it is the thing traded, and the reading is its
+    // evidence (docs/ui-conventions.md, "The numbers band", 2026-09-08).
+    expect(cells[0].classList.contains('pubws-stat--call')).toBe(true);
+    expect(cells[1].classList.contains('pubws-stat--now')).toBe(true);
+    const now = cells[1] as HTMLElement;
+    const call = cells[0] as HTMLElement;
     expect(now.querySelector('.pubws-price')?.textContent).toBe('$45,339');
     // The caption line carries the age ("NOW · READ 25M AGO", 2026-09-04).
     expect(now.querySelector('.pubws-stat-what')?.textContent).toMatch(/^now · read (.+ ago|just now)$/);
     expect(now.querySelector('.pubws-updated')?.textContent).toMatch(/^read .+ ago$|^read just now$/);
     expect(call.querySelector('.pubws-price')?.textContent).toBe('$78,571');
-    expect(call.querySelector('.pubws-stat-what')?.textContent).toMatch(
-      /^market's call · for 30 Dec · settles in \S+$/,
-    );
+    expect(call.querySelector('.pubws-stat-what')?.textContent).toMatch(/^market's call · for 30 Dec · in \S+/);
     // The day being forecast is the day before the settle instant, as the
     // picker names it, then THE COUNTDOWN, AND ONLY THE COUNTDOWN (owner,
     // 2026-09-01): the exact instant is the hover.
     const settle = call.querySelector('.pubws-settle-in') as HTMLElement;
-    expect(settle.textContent).toMatch(/^for 30 Dec · settles in \S+$/);
+    expect(settle.textContent).toMatch(/^for 30 Dec · in \S+/);
     expect(settle.textContent).not.toMatch(/UTC|\d{4}/);
     expect(settle.title).toMatch(/^settles \d+ \w+ \d{4}, \d{2}:\d{2} UTC$/);
     expect(container.querySelector('.pubws-settle-at')).toBeNull();
-    // The stats live above the chart, not inside either chart's control row.
+    // The band lives above the chart, not inside its control row, and the
+    // second chart is not rendered any more.
     expect(container.querySelector('.pubws-numchart .pubws-price')).toBeNull();
-    expect(container.querySelector('.pubws-callhist .pubws-price')).toBeNull();
+    expect(container.querySelector('.pubws-callhist')).toBeNull();
     expect(container.textContent).not.toContain('expected');
   });
 
-  test('the number chart is the hero and the market history is a captioned strip below it', async () => {
+  test("ONE chart, the number's own, and no second chart under it", async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(oneMarket() as never);
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-numchart .nchart')).toBeTruthy());
     const num = container.querySelector('.pubws-numchart') as HTMLElement;
-    const hist = container.querySelector('.pubws-callhist') as HTMLElement;
-    expect(hist).toBeTruthy();
-    // Document order IS reading order: the number first, how the call moved after.
-    expect(num.compareDocumentPosition(hist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // Each names itself in the centre of its row: the metric, caption-shaped
-    // (the leading company name stripped), and the strip's own words.
+    // "How the call moved" is not rendered any more (2026-09-08): the
+    // call's history is the thin amber line on this one, and two charts
+    // stacked with a stat each read as two different numbers.
+    expect(container.querySelector('.pubws-callhist')).toBeNull();
+    expect(screen.queryByText('how the call moved')).toBeNull();
+    // It names itself in the centre of its row: the metric, caption-shaped
+    // (the leading company name stripped).
     expect(num.querySelector('.pubws-chart-cap')?.textContent).toBe('net 2026');
-    expect(hist.querySelector('.pubws-chart-cap')?.textContent).toBe('how the call moved');
     expect(screen.queryByText('market')).toBeNull();
     // There is still no MARKET/NUMBER switch.
     expect(screen.queryByRole('button', { name: 'market' })).toBeNull();
@@ -1249,21 +1211,22 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     expect(container.querySelector('.pubws-numchart .nchart-legend')?.textContent).toContain('other open dates');
   });
 
-  test("the definition's first sentence sits under the question", async () => {
+  test("the definition's first sentence is the settlement line, under the band", async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(oneMarket() as never);
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).toBeTruthy());
-    // The sentence, then the "more" control that expands the rest of the definition.
-    expect(container.querySelector('.pubws-instrument-sum')?.childNodes[0].textContent).toBe(
-      'The year, net of refunds.',
+    // "Settles on:" then the summary, with "Full definition" outside the
+    // clamped text.
+    expect(container.querySelector('.pubws-instrument-sum-text')?.textContent).toBe(
+      'Settles on: The year, net of refunds.',
     );
-    // Right under the question, before the numbers.
-    const ask = container.querySelector('.pubws-instrument-ask') as HTMLElement;
+    // Under the numbers band, which is under the question.
+    const ask = container.querySelector('h2.pubws-instrument-ask') as HTMLElement;
+    const band = container.querySelector('.pubws-numbers') as HTMLElement;
     const sum = container.querySelector('.pubws-instrument-sum') as HTMLElement;
-    const stats = container.querySelector('.pubws-stats') as HTMLElement;
-    expect(ask.compareDocumentPosition(sum) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(sum.compareDocumentPosition(stats) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ask.compareDocumentPosition(band) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(band.compareDocumentPosition(sum) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   test('no definition, no line', async () => {
@@ -1272,7 +1235,7 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     ws.horizonHistories[0].description = null as unknown as string;
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-stats')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('.pubws-numbers')).toBeTruthy());
     expect(container.querySelector('.pubws-instrument-sum')).toBeNull();
   });
 
@@ -1285,7 +1248,7 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     // No reading: the number chart stays, in its own "no reading yet"
     // state (hiding it read as the graph collapsing, owner report
     // 2026-08-28), and the reading's block says so with no age on it.
-    await screen.findByText(/settles in/);
+    await waitFor(() => expect(container.querySelector('.pubws-numbers')).toBeTruthy());
     expect(container.querySelector('.pubws-stat--now .pubws-price')?.textContent).toBe('no reading yet');
     expect(container.querySelector('.pubws-stat--now .pubws-updated')).toBeNull();
     expect(container.querySelector('.pubws-numchart .nchart-empty')?.textContent).toBe('no reading yet');
@@ -1427,22 +1390,29 @@ describe('the floor quotes both sides before the first click', () => {
     return ws;
   };
 
-  test('each verb says what the default stake pays, and the cap lives in the ticket', async () => {
+  test('each verb says what the stake in the field pays, and the cap lives in the ticket', async () => {
+    h.auth.user = { id: 'u-trader' };
     const { api } = await import('../../lib/api');
     const { previewTrade } = await import('../../lib/amm');
     const { DEFAULT_STAKE } = await import('../../components/TradeTicket');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(tradable(0.14) as never);
     const { container } = renderFloor();
 
-    // The example at the ticket's default stake, from the ticket's own AMM
+    // The preview at the stake in the field, from the ticket's own AMM
     // preview (critics' round 2026-09-08: a Polymarket regular expects
-    // "put 100, get X"), not the liquidity cap.
+    // "put 100, get X"), not the liquidity cap, and with the profit beside
+    // it (docs/ui-conventions.md, "The verbs and the inline ticket", row 2).
     const higher = await screen.findByRole('button', { name: /Bet Higher/ });
     const lower = screen.getByRole('button', { name: /Bet Lower/ });
-    const up = Math.round(previewTrade(0.14, 200, 'higher', DEFAULT_STAKE).shares);
-    const down = Math.round(previewTrade(0.14, 200, 'lower', DEFAULT_STAKE).shares);
-    expect(higher.textContent).toContain(`${DEFAULT_STAKE} cr pays ${up} cr at $500,000`);
-    expect(lower.textContent).toContain(`${DEFAULT_STAKE} cr pays ${down} cr at $0`);
+    const cr = (n: number) => Math.round(n).toLocaleString('en-US');
+    const up = previewTrade(0.14, 200, 'higher', DEFAULT_STAKE).shares;
+    const down = previewTrade(0.14, 200, 'lower', DEFAULT_STAKE).shares;
+    expect(higher.querySelector('.pubws-verb-preview')?.textContent).toBe(
+      `${DEFAULT_STAKE} cr pays ${cr(up)} cr at $500,000 · +${cr(up - DEFAULT_STAKE)}`,
+    );
+    expect(lower.querySelector('.pubws-verb-preview')?.textContent).toBe(
+      `${DEFAULT_STAKE} cr pays ${cr(down)} cr at $0 · +${cr(down - DEFAULT_STAKE)}`,
+    );
     expect(higher.textContent).not.toContain('up to');
     expect(lower.textContent).not.toContain('up to');
 
@@ -1464,28 +1434,34 @@ describe('the floor quotes both sides before the first click', () => {
     expect(container.textContent).not.toContain('86c');
   });
 
-  test('one line under the verbs names the range the example points at, then what a share pays', async () => {
+  test('one line under the verbs states BOTH directions, and the range once', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(tradable(0.5) as never);
     const { container } = renderFloor();
 
     await screen.findByRole('button', { name: /Bet Higher/ });
     // Critics' round 2: the chart is zoomed, so "at $500,000" pointed at a
-    // number the page never showed. The range is named once, first.
-    expect(container.querySelector('.pubws-bet-note')?.textContent).toBe(
-      'Settles between $0 and $500,000. A share pays 1 cr at $500,000, nothing at $0.',
+    // number the page never showed. The range is named once, first, and the
+    // line is the rule the two previews above it follow.
+    expect(container.querySelector('.pubws-range-line')?.textContent).toBe(
+      'Range $0 to $500,000 · Higher shares pay 1 cr at $500,000, Lower shares pay 1 cr at $0; in between, in proportion · you can sell any time',
     );
-    expect(container.querySelector('.pubws-bet')?.nextElementSibling).toBe(container.querySelector('.pubws-bet-note'));
+    expect(container.querySelector('.pubws-verbs-row')?.nextElementSibling).toBe(
+      container.querySelector('.pubws-range-line'),
+    );
   });
 
-  test('the line goes once the ticket is open, which says the same thing about the bet', async () => {
+  test('the line STAYS once the ticket is open: it is the rule, not a caption', async () => {
+    h.auth.user = { id: 'u-trader' };
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(tradable(0.5) as never);
     const { container } = renderFloor();
 
     fireEvent.click(await screen.findByRole('button', { name: /Bet Higher/ }));
     await waitFor(() => expect(container.querySelector('.pubws-ticket-inline')).toBeTruthy());
-    expect(container.textContent).not.toContain('A share pays 1 cr at');
+    // Row 3 of the panel is the same at every moment (docs/ui-conventions.md,
+    // "The verbs and the inline ticket"): the ticket opens UNDER it.
+    expect(container.querySelector('.pubws-range-line')).not.toBeNull();
   });
 
   test('a market with no liquidity quotes nothing: there is no book to price', async () => {
@@ -1496,8 +1472,9 @@ describe('the floor quotes both sides before the first click', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
 
-    await waitFor(() => expect(screen.getByText(/no liquidity yet/i)).toBeTruthy());
-    expect(container.textContent).not.toContain('A share pays 1 cr at');
+    await waitFor(() => expect(container.querySelector('.pubws-unfunded')).not.toBeNull());
+    expect(container.querySelector('.pubws-range-line')).toBeNull();
+    expect(container.textContent).not.toContain('cr pays');
     expect(container.textContent).not.toContain('50c');
   });
 });
@@ -1819,10 +1796,13 @@ describe("the owner's own floor", () => {
     const { container } = renderFloor();
     await screen.findByTitle('rewrite the store page');
     await waitFor(() => expect(container.querySelector('.pubws-topbar')?.textContent).toContain('Earn credits'));
-    const door = container.querySelector('.pubws-rail-door') as HTMLAnchorElement;
-    expect(door?.tagName).toBe('A');
-    expect(door.getAttribute('href')).toBe('/waitlist');
-    expect(door.textContent).toBe('Your own numbers? Run a floor');
+    // The quiet rail door became the run-a-floor row under the identity
+    // (docs/ui-conventions.md, 2026-09-08): one line, at every width, for
+    // everyone who does not own the floor.
+    expect(container.querySelector('.pubws-rail-door')).toBeNull();
+    const row = container.querySelector('.pubws-run-row') as HTMLElement;
+    expect(row).not.toBeNull();
+    expect(within(row).getByRole('button', { name: /Run a floor for your company/ })).toBeTruthy();
   });
 
   test('the rail says "yours" without repeating the reader\'s own name', async () => {
@@ -1839,10 +1819,11 @@ describe("the owner's own floor", () => {
     await signIn(true);
     const { container } = renderFloor();
     await screen.findByTitle('rewrite the store page');
-    // canManage lands after the profile fetch: wait for a manager-only block.
-    await waitFor(() => expect(container.querySelector('.doors--instrument')).toBeTruthy());
+    // canManage lands after the profile fetch: wait for the owner's row.
+    await waitFor(() => expect(container.querySelector('.pubws-owner-row')).toBeTruthy());
     expect(container.querySelector('.pubws-topbar')?.textContent).not.toContain('Earn credits');
-    expect(container.querySelector('.pubws-rail-door')).toBeNull();
+    // The owner of the floor is not offered a floor of their own.
+    expect(container.querySelector('.pubws-run-row')).toBeNull();
     const facts = container.querySelector('.pubws-rail--right .pubws-ballot-facts') as HTMLElement;
     expect(facts.querySelector('.pubws-ballot-yours')?.textContent).toBe('yours');
     expect(facts.textContent).not.toContain('by Viktor');
@@ -1856,7 +1837,7 @@ describe("the owner's own floor", () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
     await screen.findByTitle('rewrite the store page');
-    await waitFor(() => expect(container.querySelector('.doors--instrument')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('.pubws-owner-row')).toBeTruthy());
     const facts = container.querySelector('.pubws-rail--right .pubws-ballot-facts') as HTMLElement;
     expect(facts.querySelector('.pubws-ballot-yours')).toBeNull();
     expect(facts.textContent).toContain('by Ada');

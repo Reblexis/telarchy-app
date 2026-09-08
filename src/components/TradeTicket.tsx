@@ -4,7 +4,7 @@ import { useEarnAvailable } from '../hooks/useEarnAvailable';
 import { previewSell, previewTargetBet, previewTrade } from '../lib/amm';
 import type { LimitOrder } from '../lib/api';
 import { amountToSlider, SLIDER_STEPS, sliderToAmount } from '../lib/bet-slider';
-import { maxWinLabel } from '../lib/market-quote';
+import { edgeLabel, maxWinLabel } from '../lib/market-quote';
 import { PayoffLine } from './PayoffLine';
 
 /**
@@ -77,6 +77,17 @@ interface Props {
   /** Managing an existing position (selling/cancelling), not opening a new
       bet: hide the Lower/Higher side pills, which are only for a new trade. */
   manageMode?: boolean;
+  /** The line the ticket is titled by, "Bet Higher · Active traders · this
+   *  month" (docs/ui-conventions.md, "The verbs and the inline ticket"):
+   *  the verb, the book and its clock, so a bet composed under the verbs
+   *  still names the book it lands on. */
+  title?: string;
+  /** The stake the ticket opens at, which is the stake in the verbs
+   *  panel's field rather than a fixed default. */
+  initialStake?: number;
+  /** The floor's Cancel, beside the confirm: collapses the inline ticket
+   *  and drops the chart's ghost. */
+  onCancel?: () => void;
 }
 
 /** A round metric-space step for the "each X beyond" line: ~1/50 of the
@@ -134,9 +145,14 @@ export function TradeTicket({
   initialDir,
   onClose,
   manageMode = false,
+  title,
+  initialStake,
+  onCancel,
 }: Props) {
   const [dir, setDir] = useState<'higher' | 'lower' | null>(initialDir ?? null);
-  const [amount, setAmount] = useState(String(DEFAULT_STAKE));
+  const [amount, setAmount] = useState(
+    String(initialStake && initialStake > 0 ? Math.round(initialStake) : DEFAULT_STAKE),
+  );
   const [mode, setMode] = useState<'quick' | 'limit'>('quick');
   const [limit, setLimit] = useState('');
   // Betting towards a value (owner direction 2026-08-11) without a new
@@ -339,6 +355,32 @@ export function TradeTicket({
   const higherCeiling = maxWinLabel(probability, liquidity);
   const lowerCeiling = maxWinLabel(1 - probability, liquidity);
   const sideWord = dir === 'higher' ? 'Higher' : 'Lower';
+  /* The rows under the composer, drawn only for the floor's inline ticket
+     (which is the one the title marks) and only for a plain budget buy:
+     a resting order lands at its own limit, not at the range's edge, and
+     the limit rows above already say so. */
+  const quoteRows: Array<{ k: string; v: string }> | null =
+    title && dir && !isLimit && !manageMode && composed && amountNum > 0 && span !== null && rangeMin !== undefined
+      ? (() => {
+          const edge = dir === 'higher' ? rangeMin + span : rangeMin;
+          const pays = composed.shares;
+          const profit = pays - amountNum;
+          const breakeven =
+            dir === 'higher' ? rangeMin + (amountNum / pays) * span : rangeMin + (1 - amountNum / pays) * span;
+          const landing = rangeMin + composed.newProb * span;
+          return [
+            { k: 'Stake', v: `${amountNum} cr` },
+            { k: 'Shares', v: fmtShares(pays) },
+            { k: `Pays at ${edgeLabel(unit, edge)}`, v: `${Math.round(pays).toLocaleString('en-US')} cr` },
+            {
+              k: `Profit at ${edgeLabel(unit, edge)}`,
+              v: `${profit < 0 ? '-' : '+'}${Math.round(Math.abs(profit)).toLocaleString('en-US')} cr`,
+            },
+            { k: 'Break-even', v: `${unit}${fmtValue(breakeven)}` },
+            { k: 'Call after your bet', v: `${unit}${fmtValue(landing)}` },
+          ];
+        })()
+      : null;
   const confirmLabel = () => {
     if (busy === 'place') return isLimit ? 'Placing order…' : 'Placing…';
     if (placed) return isLimit ? '✓ Order resting' : '✓ Placed';
@@ -353,6 +395,11 @@ export function TradeTicket({
       // budget is a ceiling rather than the spend, so say it that way.
       return `Bet to ${unit}${fmtValue(target)}, up to ${amountNum} cr`;
     }
+    // Under the verbs the ticket is titled by the verb already, so the
+    // confirm repeats the verb rather than restating the stake the row
+    // above it prints (docs/ui-conventions.md, "The verbs and the inline
+    // ticket": "Confirm Bet Higher").
+    if (title) return `Confirm Bet ${sideWord}`;
     return `Bet ${amountNum} cr on ${sideWord}`;
   };
 
@@ -409,6 +456,7 @@ export function TradeTicket({
 
   return (
     <div className={`ticket${dir ? ' is-open' : ''}`} aria-label="Place a trade">
+      {title && <p className="ticket-title">{title}</p>}
       {/* The held-position rows (with their Sell affordance) belong to
         manage mode only (owner ask 2026-08-28: selling is the panel below
         the ticket, not the bet ticket). The positions PROP still arrives in
@@ -814,13 +862,38 @@ export function TradeTicket({
             </p>
           )}
 
-          <button
-            className={`ticket-go${placed ? ' is-placed' : ''} ticket-go--${dir}`}
-            disabled={amountNum <= 0 || busy !== null || (isLimit && !limitReady && !onRequireSignup)}
-            onClick={() => void place()}
-          >
-            {confirmLabel()}
-          </button>
+          {/* The quote the ticket is about to place, in mono rows
+              (docs/ui-conventions.md, "The verbs and the inline ticket"):
+              stake, shares, what they pay at the side's edge of the range
+              and the profit that is, the settled value at which the bet
+              returns exactly its stake, and where the book lands once the
+              bet is placed. Every row comes off the ONE preview above, so
+              they cannot disagree with each other or with the ghost. */}
+          {quoteRows && (
+            <div className="ticket-quote">
+              {quoteRows.map(r => (
+                <div key={r.k} className="ticket-quote-row">
+                  <span className="ticket-quote-k">{r.k}</span>
+                  <span className="ticket-quote-v">{r.v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="ticket-act">
+            <button
+              className={`ticket-go${placed ? ' is-placed' : ''} ticket-go--${dir}`}
+              disabled={amountNum <= 0 || busy !== null || (isLimit && !limitReady && !onRequireSignup)}
+              onClick={() => void place()}
+            >
+              {confirmLabel()}
+            </button>
+            {onCancel && (
+              <button type="button" className="ticket-cancel" onClick={onCancel}>
+                Cancel
+              </button>
+            )}
+          </div>
         </>
       )}
       {error && <p className="ticket-err">{error}</p>}

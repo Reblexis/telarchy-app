@@ -148,10 +148,11 @@ function renderFloor() {
   );
 }
 
-/** The three numbers on the row, in order: traders, pool, traded. The
- *  owner's Inject and Buy sit on the same row and are not facts. */
+/** The three facts on the book's row, in order: traders, pool, last trade
+ *  (docs/ui-conventions.md, "The verbs and the inline ticket", row 1). The
+ *  row is facts only: deepening the book lives on the activity tab row. */
 async function facts(): Promise<string> {
-  const row = await screen.findByLabelText('Market facts');
+  const row = await screen.findByLabelText('This book');
   return [...row.querySelectorAll(':scope > span')]
     .map(s => (s.textContent ?? '').replace(/\s+/g, ' ').trim())
     .join(' ');
@@ -187,7 +188,10 @@ describe('a conditional market says the same things about itself as any other', 
   test('the baseline still says its own three', async () => {
     renderFloor();
     await waitFor(async () => expect(await facts()).toContain('9'));
-    expect(await facts()).toBe('9 139 4,242');
+    // Traders, pool, and when it last traded: the credits traded over the
+    // book's life gave way to its last trade (2026-09-08), which is what a
+    // trader deciding whether the price is stale actually asks.
+    expect(await facts()).toBe('9 139 no trades yet');
   });
 
   test('a proposal on screen shows the row, not nothing', async () => {
@@ -195,34 +199,33 @@ describe('a conditional market says the same things about itself as any other', 
     await selectContract();
     // The bug: the row was hidden whenever a proposal was selected, so a
     // funded branch read as a market with no pool at all.
-    expect(await screen.findByLabelText('Market facts')).toBeTruthy();
+    expect(await screen.findByLabelText('This book')).toBeTruthy();
   });
 
   test("the row reads the approved branch's own numbers", async () => {
     renderFloor();
     await selectContract();
-    await waitFor(async () => expect(await facts()).toBe('2 77 250'));
+    await waitFor(async () => expect(await facts()).toBe('2 77 no trades yet'));
   });
 
   test('switching to the declined world switches all three', async () => {
     renderFloor();
     await selectContract();
-    await waitFor(async () => expect(await facts()).toBe('2 77 250'));
+    await waitFor(async () => expect(await facts()).toBe('2 77 no trades yet'));
 
     fireEvent.click(await screen.findByRole('button', { name: 'if declined' }));
-    await waitFor(async () => expect(await facts()).toBe('1 41 90'));
+    await waitFor(async () => expect(await facts()).toBe('1 41 no trades yet'));
 
     fireEvent.click(await screen.findByRole('button', { name: 'if approved' }));
-    await waitFor(async () => expect(await facts()).toBe('2 77 250'));
+    await waitFor(async () => expect(await facts()).toBe('2 77 no trades yet'));
   });
 
   test("a proposal never borrows the baseline's numbers", async () => {
     renderFloor();
     await selectContract();
-    await waitFor(async () => expect(await facts()).toBe('2 77 250'));
+    await waitFor(async () => expect(await facts()).toBe('2 77 no trades yet'));
     const row = await facts();
     expect(row).not.toContain('139');
-    expect(row).not.toContain('4,242');
     expect(row.startsWith('9 ')).toBe(false);
   });
 
@@ -237,17 +240,19 @@ describe('a conditional market says the same things about itself as any other', 
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     renderFloor();
     await selectContract();
-    await waitFor(async () => expect(await facts()).toBe('0 0 0'));
+    await waitFor(async () => expect(await facts()).toBe('0 0 no trades yet'));
   });
 
   test("the owner's Inject targets the branch on screen, not the baseline", async () => {
     renderFloor();
     await selectContract();
-    await waitFor(async () => expect(await facts()).toBe('2 77 250'));
+    await waitFor(async () => expect(await facts()).toBe('2 77 no trades yet'));
 
     fireEvent.click(await screen.findByRole('button', { name: 'if declined' }));
-    await waitFor(async () => expect(await facts()).toBe('1 41 90'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Inject' }));
+    await waitFor(async () => expect(await facts()).toBe('1 41 no trades yet'));
+    // Deepening the book lives on the activity tab row now, beside what the
+    // book holds (docs/ui-conventions.md, "Activity").
+    fireEvent.click(await screen.findByRole('button', { name: 'Inject liquidity' }));
 
     // The dialog names the market it is about to change. Injecting into the
     // baseline while the reader is looking at a branch would put the credits
@@ -345,12 +350,13 @@ describe('the decision row, then the decision bar', () => {
     const approve = await screen.findByRole('button', { name: 'Approve, pay $80' });
     const bar = approve.closest('.pubws-ownerbar') as HTMLElement;
     expect(bar.previousElementSibling).toBe(row);
-    // Before the stat row and the charts: the decision is read before the market's own numbers.
-    const stats = container.querySelector('.pubws-stats') as HTMLElement;
-    expect(row.compareDocumentPosition(stats) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // And before the tickets: a decision is laid out as a decision before
+    // it is asked (docs/ui-conventions.md, "The proposal view", P5).
+    const verbs = container.querySelector('.pubws-verbs') as HTMLElement;
+    expect(row.compareDocumentPosition(verbs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  test('the since-open chip, the row and the rail print the same difference', async () => {
+  test('the row and the rail print the same difference', async () => {
     const { formatImpact } = await import('../../lib/formatImpact');
     const { api } = await import('../../lib/api');
     const ws = h.workspace();
@@ -365,8 +371,10 @@ describe('the decision row, then the decision bar', () => {
     const expected = formatImpact(0.45, '$');
     expect(expected).toBe('+$0.45');
     expect(cells(container)[2].value).toBe(expected);
-    const chip = container.querySelector('.pubws-stat--call .pubws-delta-chip') as HTMLElement;
-    expect(chip.textContent?.replace(/^[▲▼]\s*/, '')).toBe(expected);
+    // The impact chip beside the call is not drawn any more (2026-09-08):
+    // the numbers band shows the metric's own numbers, and the difference
+    // is stated in the decision row and on the rail, in one precision.
+    expect(container.querySelector('.pubws-stat--call .pubws-delta-chip')).toBeNull();
     const rail = container.querySelector('.pubws-rail--right .pubws-ballot-delta') as HTMLElement;
     expect(rail.textContent).toBe(expected);
   });
@@ -634,13 +642,13 @@ describe('on a proposal the bet verbs say which book they trade', () => {
     await waitFor(() => expect(container.querySelector('.pubws-bet-book')).toBeTruthy());
     const line = container.querySelector('.pubws-bet-book') as HTMLElement;
     expect(line.textContent?.replace(/\s+/g, ' ').trim()).toBe('Trading the if-approved book · switch');
-    expect(line.nextElementSibling).toBe(container.querySelector('.pubws-bet'));
+    expect(line.nextElementSibling).toBe(container.querySelector('.pubws-verbs'));
     fireEvent.click(within(line).getByRole('button', { name: 'switch' }));
     await waitFor(() =>
       expect(line.textContent?.replace(/\s+/g, ' ').trim()).toBe('Trading the if-declined book · switch'),
     );
     // The same flip the pills make: the facts row now reads the declined book.
-    await waitFor(async () => expect(await facts()).toBe('1 41 90'));
+    await waitFor(async () => expect(await facts()).toBe('1 41 no trades yet'));
     // And the pills agree.
     expect(cells(container)[1].active).toBe(true);
   });
@@ -650,6 +658,8 @@ describe('on a proposal the bet verbs say which book they trade', () => {
     await screen.findByRole('button', { name: /Bet Higher/ });
     expect(container.querySelector('.pubws-bet-book')).toBeNull();
   });
+
+  /** The pair's own switch: the pills under the decision row. */
 
   const cells = (container: HTMLElement) =>
     [...container.querySelectorAll('.pubws-decision .pubws-decision-cell')].map(c => ({
@@ -677,27 +687,32 @@ describe('Edit beside "more" for a manager', () => {
     return ws;
   };
 
-  test('Edit sits in the summary line beside "more", and opens the definition editor in place', async () => {
+  test('Edit sits beside "Full definition", outside the clamp, and opens the metric sheet', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(withDefinition() as never);
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).toBeTruthy());
     const sum = container.querySelector('.pubws-instrument-sum') as HTMLElement;
     await waitFor(() => expect(within(sum).getByRole('button', { name: 'Edit' })).toBeTruthy());
-    const more = within(sum).getByRole('button', { name: 'more' });
+    const more = within(sum).getByRole('button', { name: 'Full definition' });
     const edit = within(sum).getByRole('button', { name: 'Edit' });
     expect(more.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // The same small link register as "more", in the text flow: never the
-    // decision pill, which overlapped the summary's last line (round 2).
+    // Both sit OUTSIDE the clamped summary, so the clamp can never swallow
+    // them (docs/ui-conventions.md, "The settlement line").
+    expect(more.closest('.pubws-instrument-sum-text')).toBeNull();
+    expect(edit.closest('.pubws-instrument-sum-text')).toBeNull();
+    // The same small link register as "Full definition", never the decision
+    // pill, which overlapped the summary's last line (round 2).
     expect(edit.className).toBe('pubws-instrument-edit');
     expect(edit.className).not.toContain('pubws-decide');
     expect(more.nextElementSibling).toBe(edit);
-    // Not expanded yet: the control is reachable without "more".
+    // Not expanded yet: the control is reachable without expanding.
     expect(container.querySelector('.pubws-instrument-more')).toBeNull();
     fireEvent.click(edit);
-    await waitFor(() => expect(container.querySelector('.pubws-instrument-more textarea')).toBeTruthy());
-    const area = container.querySelector('.pubws-instrument-more textarea') as HTMLTextAreaElement;
-    expect(area.value).toBe('Everything LookPilot earned in the month. Net of refunds.');
+    // The definition is edited on the metric sheet now (2026-09-08), where
+    // its summary line, range and dates live beside it.
+    expect(document.querySelector('[role="dialog"][aria-label="Metrics"]')).not.toBeNull();
+    expect(container.querySelector('.pubws-instrument-more textarea')).toBeNull();
   });
 
   test('the stylesheet sets Edit beside "more" as an underlined inline link, tertiary, never a pill', () => {
@@ -721,7 +736,7 @@ describe('Edit beside "more" for a manager', () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).toBeTruthy());
     const sum = container.querySelector('.pubws-instrument-sum') as HTMLElement;
-    fireEvent.click(within(sum).getByRole('button', { name: 'more' }));
+    fireEvent.click(within(sum).getByRole('button', { name: 'Full definition' }));
     await waitFor(() => expect(container.querySelector('.pubws-instrument-more')).toBeTruthy());
     const full = container.querySelector('.pubws-instrument-more') as HTMLElement;
     expect(within(full).queryByRole('button', { name: 'Edit' })).toBeNull();
@@ -806,21 +821,8 @@ describe('the charts follow the decision row', () => {
     await waitFor(() => expect(container.querySelector('.nchart-pair-delta')?.textContent).toBe('-$0.04'));
   });
 
-  test('"how the call moved" names the book being traded, and follows the toggle', async () => {
-    const { container } = renderFloor();
-    await selectContract();
-    await waitFor(() =>
-      expect(container.querySelector('[data-testid="chart"]')?.getAttribute('data-call-label')).toBe('if approved'),
-    );
-    fireEvent.click(await screen.findByRole('button', { name: 'if declined' }));
-    await waitFor(() =>
-      expect(container.querySelector('[data-testid="chart"]')?.getAttribute('data-call-label')).toBe('if declined'),
-    );
-  });
-
-  test('the plain market has one book, so its call carries no book label', async () => {
-    const { container } = renderFloor();
-    await screen.findByRole('button', { name: /Bet Higher/ });
-    expect(container.querySelector('[data-testid="chart"]')?.getAttribute('data-call-label')).toBe('');
-  });
+  // "How the call moved" (MarketChart as a half-height strip under the
+  // number chart) is not rendered any more (2026-09-08), so there is no
+  // second chart to label with the book being traded; the branch on screen
+  // is named by the decision row's pills and by the line above the verbs.
 });

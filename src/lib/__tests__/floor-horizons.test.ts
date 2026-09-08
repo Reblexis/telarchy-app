@@ -542,7 +542,7 @@ describe('a market on a number that does not exist yet', () => {
   test('unmeasured: the note says N/A and refunds', () => {
     const v = flagged(false);
     expect(v.settlesNaForNow).toBe(true);
-    expect(settleNoteOf(v)).toBe('N/A, all bets refunded, if there is still no reading by then');
+    expect(settleNoteOf(v)).toBe('Settles 31 December 2026, or N/A (all bets refunded) if there is still no reading');
   });
 
   test('measured once: a plain settle note, whatever the points array holds', () => {

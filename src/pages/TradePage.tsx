@@ -1,67 +1,56 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import remarkBreaks from 'remark-breaks';
-import remarkGfm from 'remark-gfm';
 import { AccountMenu } from '../components/AccountMenu';
 import { AgentDoors } from '../components/AgentDoors';
-import { AnimatedNumber } from '../components/AnimatedNumber';
-import { DiscordButton } from '../components/DiscordButton';
 import { EarnDoor } from '../components/EarnDoor';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
+import { BooksList, BooksRow } from '../components/FloorBooks';
 import { FloorChat } from '../components/FloorChat';
-import { FloorChecklist } from '../components/FloorChecklist';
 import { FloorComments } from '../components/FloorComments';
+import { FloorHead, OwnerRow, RunFloorRow } from '../components/FloorHead';
+import { NumbersBand, SettlementLine } from '../components/FloorNumbers';
 import { FloorStandings, type ProposalTraderRow, SeasonAdvert, useCurrentSeason } from '../components/FloorRails';
+import {
+  BET_INTENT_KEY,
+  type BetIntent,
+  FloorVerbs,
+  PositionRow,
+  SignupDoor,
+  STAKE_KEY,
+} from '../components/FloorVerbs';
 import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { Logo } from '../components/Logo';
-import { ManifoldButton } from '../components/ManifoldButton';
-import { MarketChart } from '../components/MarketChart';
-import { MarketFacts } from '../components/MarketFacts';
+import { short } from '../components/MarketFacts';
 import { MetricsDialog } from '../components/MetricsDialog';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart } from '../components/NumberChart';
 import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog, ReportValueDialog } from '../components/OwnerDialogs';
-import { PositionSummary } from '../components/PositionSummary';
-import { ReportButton } from '../components/ReportButton';
-import { SubjectAbout } from '../components/SubjectAbout';
-import { ThemeToggle } from '../components/ThemeToggle';
+import { QuestionLine } from '../components/QuestionLine';
 import { DEFAULT_STAKE, type TicketPosition, TradeTicket } from '../components/TradeTicket';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import type { FloorRef } from '../lib/agent-prompt';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
 import { api, type PublicWorkspace, setActiveWorkspace } from '../lib/api';
-import { yDomain } from '../lib/chart-domain';
 import { parseFloorHash } from '../lib/floor-hash';
 import {
   buildHorizonViews,
   captionLabel,
-  cellOf,
-  dateChipOf,
-  dateQuestionOf,
   dateSegmentOf,
   datesOf,
-  firstSentenceOf,
-  forecastDayOf,
   type HorizonView,
   horizonById,
   metricLabelOf,
   metricsOf,
   type PriceSeries,
-  possessiveOf,
   priceSeriesIsInline,
   priceSeriesOf,
-  settleInstant,
   settleNoteOf,
-  syncedAgeLine,
-  timeAgoOf,
   timeLeftOf,
 } from '../lib/floor-horizons';
 import { formatImpact, formatPairValue, pairNeedsDecimals } from '../lib/formatImpact';
 import { dropInline, readInline } from '../lib/inline-data';
-import { payoutLine, stakeExampleLine } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
 
@@ -83,30 +72,10 @@ import { periodGapOf } from '../lib/period-gap';
  * bookkeeping, not a decision.
  */
 
-// Hoisted so ReactMarkdown's props keep their identity across renders;
-// inline literals re-ran the whole unified parse pipeline per page render.
-const MARKDOWN_PLUGINS = [remarkGfm, remarkBreaks];
-const MARKDOWN_COMPONENTS = {
-  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-    <a href={href} target="_blank" rel="noreferrer">
-      {children}
-    </a>
-  ),
-};
-
 function formatValue(v: number): string {
   const abs = Math.abs(v);
   const decimals = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-}
-
-/** The reading in force, as the reading cell prints it: a count of people
- *  or things (no currency, a whole reading) prints whole, "9" never "9.00";
- *  decimals are for forecasts and money (docs/ui-conventions.md, "The stat
- *  row"). */
-function formatReading(v: number, unit: string): string {
-  if (unit === '' && Number.isInteger(v)) return v.toLocaleString('en-US');
-  return `${unit}${formatValue(v)}`;
 }
 
 // Labels, ordering and per-horizon facts live in lib/floor-horizons: one
@@ -304,6 +273,29 @@ export function TradePage() {
   // with the charts still on screen. null = closed,
   // 'manage' = opened from the position summary with no side preset.
   const [betModal, setBetModal] = useState<'higher' | 'lower' | 'manage' | null>(null);
+  /* The sign-up door a stranger's verb press opens, inside the verbs panel
+     and in the ticket's place (docs/ui-conventions.md, "Signed out, rows 1
+     to 3 are identical"). There is no demo ticket for a stranger: the verbs
+     already quote the stake, which is what the demo ticket existed to show. */
+  const [betDoor, setBetDoor] = useState<'higher' | 'lower' | null>(null);
+  /* The stake the verbs quote and the ticket opens at, remembered per
+     session, so a trader who bets 100 once is quoted at 100 from then on. */
+  const [stakeText, setStakeText] = useState(() => {
+    try {
+      return sessionStorage.getItem(STAKE_KEY) ?? String(DEFAULT_STAKE);
+    } catch {
+      return String(DEFAULT_STAKE);
+    }
+  });
+  const stakeNum = Math.max(0, Math.floor(parseFloat(stakeText) || 0));
+  const setStake = (next: string) => {
+    setStakeText(next);
+    try {
+      sessionStorage.setItem(STAKE_KEY, next);
+    } catch {
+      /* private mode: the stake still applies for this page */
+    }
+  };
   const [descExpanded, setDescExpanded] = useState(false);
   const joinTried = useRef(false);
   // The owner's decision controls (owner ask 2026-08-11: approve from the
@@ -530,13 +522,6 @@ export function TradePage() {
   const horizons: HorizonView[] = useMemo(() => buildHorizonViews(ws), [ws]);
   const [horizonId, setHorizonId] = useState<string | null>(null);
   const hero = horizonById(horizons, horizonId);
-  // Two cycle words in one question line (owner ask 2026-08-28): the metric
-  // word steps the METRIC, the date word steps the DATE of that metric. The
-  // selected cell is a market id. See docs/ui-conventions.md "The question
-  // line".
-  const metricHeads = metricsOf(horizons);
-  // Soonest first in the cycle: today, this week, this month, then anything absolute.
-  const heroDates = hero ? [...datesOf(horizons, hero.metricId)].reverse() : [];
   // One clock for the page, so the countdown and every settle tooltip agree.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -584,19 +569,6 @@ export function TradePage() {
   // nothing to hold a dashed rule to.
   const lastReading = hero && hero.metricHistory.length > 0 ? hero.metricHistory[hero.metricHistory.length - 1] : null;
   const nowReading = lastReading?.value ?? null;
-  // Beside the price, where the since-open chip used to be (owner ask
-  // 2026-08-28, "the settles should be above the market graph next to the
-  // market number"). The countdown and nothing else: the exact instant is
-  // the hover (owner, 2026-09-01, on the second line of type this carried
-  // for a day: "there should not be the date here? maybe upon hover but
-  // thats it"). Said in the floor's own settle-instant words rather than a
-  // raw UTC string, since a reader who reaches for it is reading it.
-  const settleNote = hero ? (
-    <span className="pubws-settle-in" title={hero.resolvesOn ? `settles ${settleInstant(hero.resolvesOn)}` : undefined}>
-      {forecastDayOf(hero.resolvesOn) ? `for ${forecastDayOf(hero.resolvesOn)} · ` : ''}
-      {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
-    </span>
-  ) : null;
   // The number chart renders even with no readings: it draws its own
   // "no reading yet" state with the market's marker (owner report
   // 2026-08-28, implied valuation: hiding it read as the graph
@@ -742,8 +714,36 @@ export function TradePage() {
           history: priceSeriesOf(hero.marketId, ws, horizonPrices),
         }
       : null);
-  const otherBranch = pair ? branchShape(branch === 'approved' ? 'declined' : 'approved') : null;
   const activeMarketId = active?.marketId ?? null;
+
+  /* The bet a stranger composed before the sign-up door: after sign-up the
+     page returns to this floor and opens the ticket with that verb, that
+     stake and a FRESH quote (docs/ui-conventions.md, "Signed out, rows 1 to
+     3 are identical"). Consumed on arrival, so a second visit is not a
+     second ticket. */
+  useEffect(() => {
+    if (!user || !activeMarketId || !idOrSlug) return;
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem(BET_INTENT_KEY);
+    } catch {
+      return;
+    }
+    if (!raw) return;
+    try {
+      const intent = JSON.parse(raw) as BetIntent;
+      if (intent.floor !== idOrSlug || intent.marketId !== activeMarketId) return;
+      if (intent.stake > 0) setStakeText(String(intent.stake));
+      setBetModal(intent.direction);
+    } catch {
+      /* a garbled intent is not a bet */
+    }
+    try {
+      sessionStorage.removeItem(BET_INTENT_KEY);
+    } catch {
+      /* nothing to clear */
+    }
+  }, [user, activeMarketId, idOrSlug]);
 
   // Both branches' own histories, so the main chart keeps meaning something
   // after a branch switch. Overwrites in place (never blanks first), so a
@@ -974,21 +974,6 @@ export function TradePage() {
     refreshMoney();
   };
 
-  // The prediction's own movement: for the baseline, the call vs the call
-  // after its first trade. For a job, the chip shows the impact itself,
-  // stated from the world on screen (owner ask 2026-08-26): approved minus
-  // declined on the approved branch, declined minus approved on the
-  // declined one, so "if declined" reads -7.8 where "if approved" read +7.8.
-  // Impact is the delta on the floor's one horizon, which is also the only
-  // market on screen, so `pair` already IS that pair. Kept as its own name
-  // because the ballot passes the same target date and the two must agree.
-  const jobImpact =
-    pair && pair.approvedConsensus !== null && pair.declinedConsensus !== null
-      ? branch === 'declined'
-        ? pair.declinedConsensus - pair.approvedConsensus
-        : pair.approvedConsensus - pair.declinedConsensus
-      : null;
-  const impactUnit = unit;
   // The row has to add up at a glance (docs/ui-conventions.md, "The decision
   // row, then the decision bar"): the two calls print with two decimals when
   // the difference needs them, and the chart's branch labels use the same
@@ -1032,24 +1017,84 @@ export function TradePage() {
   // directly under it another (AGENTS.md: two surfaces that show the same
   // fact must derive it from the same place).
   const shownProbability = active ? (livePriceProb ?? active.probability) : 0;
-  /* What the ticket's default stake pays on each side, from the ticket's own
-     AMM preview (docs/ui-conventions.md, "Each bet verb says what a stake
-     pays"). The liquidity cap lives on the ticket's pills. */
-  const stakeExample = (direction: 'higher' | 'lower') =>
-    active && active.rangeMin !== undefined && active.rangeMax !== undefined
-      ? stakeExampleLine(
-          unit,
-          active.rangeMin,
-          active.rangeMax,
-          shownProbability,
-          active.liquidity,
-          direction,
-          DEFAULT_STAKE,
-          visibleAxis,
-        )
-      : null;
   const consensus =
     (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null) ?? active?.consensus ?? null;
+
+  /* The floor's own facts, never one book's (docs/ui-conventions.md, "The
+     floor head"): distinct accounts that have traded on any of its books,
+     the credits in every open book, the number of open baseline books. */
+  const floorFacts = {
+    traders: (ws as { traderCount?: number } | null)?.traderCount ?? 0,
+    poolCredits: horizons.reduce((sum, h) => sum + (h.pool ?? 0), 0),
+    books: horizons.length,
+  };
+  /* Every open book of the floor, listed once: metric order first, then
+     soonest date within a metric (docs/ui-conventions.md, "Books on this
+     floor"). One order, so the rail and the row under the question cannot
+     disagree about which book is which. */
+  const books = useMemo(
+    () =>
+      [...horizons].sort(
+        (a, b) =>
+          (a.metricOrder ?? 0) - (b.metricOrder ?? 0) ||
+          new Date(a.resolvesOn ?? 0).getTime() - new Date(b.resolvesOn ?? 0).getTime() ||
+          a.metricLabel.localeCompare(b.metricLabel),
+      ),
+    [horizons],
+  );
+  /* Whether anything on this floor is the owner's to report. On a floor
+     whose every metric the platform syncs there is nothing to report, and
+     the owner row says so instead of offering a control. */
+  const floorHasReportedMetric = horizons.some(h => !h.platformSynced);
+  const pendingProposals = (ws?.proposals ?? []).filter(p => (p.status ?? 'pending') === 'pending');
+  /* The largest absolute impact among the pending proposals, on the
+     horizon on screen, signed as the board prints it. */
+  const largestPendingImpact = (() => {
+    let best: number | null = null;
+    for (const p of pendingProposals) {
+      const pr = hero
+        ? p.markets.find(
+            m => m.targetDate === hero.targetDate && (m.metricId === undefined || m.metricId === hero.metricId),
+          )
+        : null;
+      if (!pr || pr.approvedConsensus === null || pr.declinedConsensus === null) continue;
+      const d = pr.approvedConsensus - pr.declinedConsensus;
+      if (best === null || Math.abs(d) > Math.abs(best)) best = d;
+    }
+    return best;
+  })();
+  /* What counts as needing the owner's decision (docs/ui-conventions.md,
+     "The proposals board"): pending, a non-zero ask, and proposed by
+     somebody other than the owner. Oldest first, because that is the one
+     the owner row selects. */
+  const awaitingDecision = pendingProposals
+    .filter(p => (p.askUsd ?? splitAsk(p.title).ask ?? 0) > 0 && p.proposedByHandle !== myAgentId)
+    .sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
+  /* When the book on screen last traded, for the facts row beside the
+     stake: a price point IS a trade. */
+  const lastTradeAt = (() => {
+    const points = (active?.history ?? []).filter(p => p.consensus !== null);
+    return points.length > 0 ? points[points.length - 1].at : null;
+  })();
+  /* A trader holds ONE net side, so the position row is never two rows. */
+  const heldPosition = positions.find(p => p.shares > 1e-9) ?? null;
+  /* Deepening the book on screen, from the call cell or the unfunded
+     verbs panel. Naming the branch matters: the credits go into one of the
+     two worlds, and injecting into the wrong one is invisible until
+     somebody trades it. */
+  const openInject = () => {
+    if (!active || !hero) return;
+    setOwnerDialog({
+      kind: 'inject',
+      marketId: active.marketId,
+      marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}${selectedJob ? ` · if ${branch}` : ''}`,
+      pool: active.pool,
+      traders: active.traders,
+      metricId: selectedJob ? undefined : hero.metricId,
+      metricName: selectedJob ? undefined : metricLabel,
+      targetDate: selectedJob ? undefined : hero.targetDate,
+    });
+  };
   // The headline number rolls to its new value (trade, branch switch, job
   // select) instead of teleporting, via the AnimatedNumber leaf at the
   // headline itself: the tween's per-frame state lives there, not here, so
@@ -1100,55 +1145,6 @@ export function TradePage() {
         }
       : null;
 
-  // Chart inputs memoized for identity: fresh literals here defeated
-  // MarketChart's memo, so every page render re-sorted the series and
-  // rebuilt the SVG paths even when nothing about the chart changed.
-  const chartSeries = useMemo(
-    () => (active && active.history.length > 0 ? active.history : [{ at: now.toISOString(), consensus }]),
-    [active, consensus, now],
-  );
-  const chartOrders = useMemo(
-    () => orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue })),
-    [orders],
-  );
-  /* Only ever the other BRANCH: same metric, same window, two worlds, so
-     the gap is the priced impact. The other horizon measures a different
-     window and shares no scale with this one (2026-08-15), so it gets its
-     own chart below rather than a line on this axis. */
-  const chartSecondary = useMemo(
-    () =>
-      selectedJob && otherBranch && otherBranch.consensus !== null
-        ? {
-            series: otherBranch.history,
-            consensus: otherBranch.consensus,
-            label: branch === 'approved' ? 'if declined' : 'if approved',
-            tone: branch === 'approved' ? ('lower' as const) : ('higher' as const),
-          }
-        : null,
-    [selectedJob, otherBranch, branch],
-  );
-
-  /* The axis "how the call moved" draws, from the chart's own domain helper
-     on the same inputs (its default, whole-life window): the stake example
-     under each verb quotes a second point at its top or floor when the axis
-     is zoomed inside the range (docs/ui-conventions.md, "Each bet verb says
-     what a stake pays", critics' round 3). */
-  const visibleAxis = useMemo(() => {
-    if (consensus === null) return null;
-    const seriesValues = [
-      ...chartSeries.flatMap(p => (p.consensus === null ? [] : [p.consensus])),
-      consensus,
-      ...(chartSecondary?.series ?? []).flatMap(p => (p.consensus === null ? [] : [p.consensus])),
-    ];
-    const mustShow = [
-      consensus,
-      ...(chartPreview ? [chartPreview.value] : []),
-      ...chartOrders.map(o => o.limitValue),
-      ...(chartSecondary ? [chartSecondary.consensus] : []),
-    ];
-    return yDomain(seriesValues, mustShow);
-  }, [chartSeries, consensus, chartSecondary, chartPreview, chartOrders]);
-
   // Year chart: the hero metric's REAL value over the calendar year (solid),
   // continued to where the market sees it settling (dashed, to the resolve
   // date). The x-axis is the year, not the trading timeline, so this is its
@@ -1162,118 +1158,16 @@ export function TradePage() {
 
   // The chart model for the one horizon the floor shows, from ITS metric's
   // logged history against ITS settle date.
-  // The definition editor (owner ask 2026-08-18). Saving is destructive to
-  // the open market by design (definition-change invariant server-side), so
-  // the UI states that and the button says "reopen".
-  const [editingDef, setEditingDef] = useState(false);
-  const [defDraft, setDefDraft] = useState('');
-  const [defSaving, setDefSaving] = useState(false);
-  const [defErr, setDefErr] = useState('');
-  const saveDefinition = async () => {
-    // The edit targets the metric of the market ON SCREEN, never the
-    // workspace's hero metric: with two clocks up, saving through
-    // ws.heroMetricId rewrote the other market's settlement text
-    // (owner report 2026-08-21).
-    if (!hero?.metricId || !ws) return;
-    setDefSaving(true);
-    setDefErr('');
-    try {
-      await api.updateMetricDescription(hero.metricId, defDraft, ws.workspaceId);
-      setEditingDef(false);
-      reload();
-    } catch (e) {
-      setDefErr((e as Error).message);
-    } finally {
-      setDefSaving(false);
-    }
-  };
-
   // The definition belongs to the market on screen. The workspace-level
   // heroMetricDescription is only a fallback when the on-screen market IS the
   // hero metric; borrowed under any other clock it would caption one market
   // with another's settlement text.
   const horizonDescription =
     hero?.description ?? (hero && hero.metricId === ws?.heroMetricId ? (ws?.heroMetricDescription ?? null) : null);
-  // Below 1500px the summary line carries a "more" that expands the full
-  // definition in place (docs/ui-conventions.md, "The price and the chart":
-  // the definition is on screen once at every width). React state, so the
-  // expander is a real toggle; the stylesheet hides it, with the summary,
-  // wherever the left column carries the definition instead.
+  /* Whether the definition under the settlement line is expanded. The line
+     itself is one line with "Full definition" pinned outside the clamp
+     (docs/ui-conventions.md, "The settlement line"). */
   const [defExpanded, setDefExpanded] = useState(false);
-  const summary = firstSentenceOf(horizonDescription);
-  const hasMoreDefinition = !!horizonDescription && !!summary && horizonDescription.trim() !== summary.trim();
-  // The owner's Edit control and the definition body (editor or markdown),
-  // ONE element each, drawn wherever the definition is on screen: the know
-  // block in the left column and the "more" expander under the question.
-  // Beside "more" it is a link in the summary's text flow, in the same small
-  // register as "more" (never the decision pill, which overlapped the line);
-  // in the know block's head it stays the pill.
-  const definitionEditAs = (className: string) =>
-    canManage && hero?.metricId && !editingDef ? (
-      <button
-        type="button"
-        className={className}
-        onClick={() => {
-          setDefDraft(horizonDescription ?? '');
-          setDefErr('');
-          setEditingDef(true);
-          // Below 1500px the editor lives in the expander under the summary
-          // line, so pressing Edit beside "more" opens it there.
-          setDefExpanded(true);
-        }}
-      >
-        Edit
-      </button>
-    ) : null;
-  const definitionEdit = definitionEditAs('pubws-decide');
-  const definitionEditInline = definitionEditAs('pubws-instrument-edit');
-  const definitionBody = editingDef ? (
-    <div className="pubws-know-edit">
-      <textarea
-        className="pubws-know-edit-text"
-        value={defDraft}
-        rows={14}
-        onChange={e => setDefDraft(e.target.value)}
-      />
-      <p className="pubws-settle">
-        This text is what the market settles on. Saving keeps every position and publishes the change below, old wording
-        and new.
-      </p>
-      <div>
-        <button
-          className="pubws-decide"
-          disabled={defSaving}
-          onClick={() => {
-            void saveDefinition();
-          }}
-        >
-          {defSaving ? 'Saving…' : 'Save'}
-        </button>
-        <button
-          className="pubws-decide"
-          style={{ marginLeft: '0.5rem' }}
-          disabled={defSaving}
-          onClick={() => setEditingDef(false)}
-        >
-          Cancel
-        </button>
-      </div>
-      {defErr && <p className="ticket-err">{defErr}</p>}
-    </div>
-  ) : (
-    horizonDescription && (
-      /* The settlement text renders as markdown (owner ask 2026-08-21), same
-         stack as the announcements body, plus remark-breaks so a plain
-         newline is a line break: owners write this text over the API and a
-         collapsed paragraph misquotes what the market settles on. */
-      <div className="pubws-know-what">
-        <ReactMarkdown remarkPlugins={MARKDOWN_PLUGINS} components={MARKDOWN_COMPONENTS}>
-          {horizonDescription}
-        </ReactMarkdown>
-      </div>
-    )
-  );
-
   if (error) {
     return (
       <div className="pubws pubws--center">
@@ -1374,23 +1268,19 @@ export function TradePage() {
         floor={idOrSlug ? { idOrSlug, name: ws.name } : null}
         canFund={canManage}
         canManage={canManage}
+        onOtto={user ? () => setAskingOtto(true) : undefined}
       />
-      {/* Otto, in the corner rather than in the column (owner direction
-          2026-08-20): a reader needs him at whatever point of the page their
-          question arrives, and the page's job is the market. */}
+      {/* Otto is ONE panel with two doors, the bar's link and the Otto row
+          under the activity block (docs/ui-conventions.md, "The Otto row").
+          The corner dock is not drawn any more: it covered the proposal
+          rows at the foot of the page. */}
       {idOrSlug && (
         <FloorChat
           idOrSlug={idOrSlug}
           workspaceName={ws.name}
           metricLabel={selectedJob ? null : metricLabel}
           signedIn={!!user}
-          dockLabel={
-            !user
-              ? `Ask Otto about ${ws.name}`
-              : canManage
-                ? `Have Otto run ${ws.name} with you`
-                : `Have Otto trade ${ws.name} with you`
-          }
+          dock={false}
           handoff={
             <AgentDoors
               floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
@@ -1405,28 +1295,45 @@ export function TradePage() {
           onOpenChange={setAskingOtto}
         />
       )}
-      {/* `pubws-main--context` marks the plain view, where the left column
-          carries "What is this market?": the stylesheet uses it to hide the
-          summary line under the question once the three-column layout puts
-          the definition beside the market (docs/ui-conventions.md, "The
-          rails, and the standings under the verbs": the definition is on
-          screen once, never twice). */}
+      {/* `pubws-main--context` marks the plain market view, which is the
+          only view with a left rail: with a proposal selected the floor is
+          two columns at every width, the pair beside the proposals
+          (docs/ui-conventions.md, "The rails"). */}
       <main className={`pubws-main pubws-main--floor${selectedJob ? '' : ' pubws-main--context'}`}>
         <div className="pubws-center">
-          {/* The company IS the page (owner direction 2026-08-18): a cold
-            visitor arrives from a link about this business, not about
-            Telarchy, and cannot parse "What is LookPilot net 2026" as a
-            first impression. So the identity block leads (name, then the
-            workspace description as the one line of what it sells) and the
-            market below it reads as a number about something named. The
-            name was already here as a grey eyebrow, which read as a
-            breadcrumb rather than as a real business. Fixed across job
-            selection: only the instrument below it swaps. */}
+          {/* The floor identity leads (docs/ui-conventions.md, "The floor
+            head, the owner row and the run-a-floor row"): the FLOOR label
+            with the floor's own facts, the name, the one-liner. Fixed
+            across proposal selection: only the column below it swaps. */}
           {ws.name && (
-            <header className="pubws-ident pubws-enter">
-              <h1 className="pubws-ws-name">{ws.name}</h1>
-              {ws.description && <p className="pubws-ws-tagline">{ws.description}</p>}
-            </header>
+            <FloorHead
+              workspaceId={ws.workspaceId}
+              name={ws.name}
+              description={ws.description ?? null}
+              facts={floorFacts}
+              canManage={canManage}
+              onSaved={reload}
+            />
+          )}
+          {/* Directly under the identity at every width: the owner's three
+            jobs, or, for everyone else, the one door to running a floor of
+            their own. Never both. */}
+          {canManage ? (
+            <OwnerRow
+              report={
+                floorHasReportedMetric && hero?.metricId
+                  ? () => setOwnerDialog({ kind: 'report', metricId: hero.metricId, metricName: metricLabel })
+                  : null
+              }
+              decisions={awaitingDecision.length}
+              onDecide={() => {
+                const oldest = awaitingDecision[0];
+                if (oldest) setSelectedJobId(oldest.id);
+              }}
+              onManage={() => setOwnerDialog({ kind: 'metrics' })}
+            />
+          ) : (
+            <RunFloorRow signedIn={!!user} />
           )}
           {/* The publish band (owner asks 2026-08-28: a real, visible
             button, and nothing publishes without a metric). Only the owner
@@ -1480,11 +1387,6 @@ export function TradePage() {
                       Add your first metric
                     </button>
                   </div>
-                  {/* The other way to do the same work: hand it to the agent
-                    they already talk to (docs/owner-on-the-floor.md,
-                    "Handing it to your own agent"). Under the button rather
-                    than beside it, because clicking it yourself is still the
-                    shorter path for one metric. */}
                   <AgentDoors
                     floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
                     workspaceId={ws.workspaceId}
@@ -1501,206 +1403,82 @@ export function TradePage() {
               )}
             </section>
           )}
+          {selectedJob && (
+            <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
+              ← Back to the market
+            </button>
+          )}
+          {/* The question is one sentence whose metric and date words ARE
+            the pickers (docs/ui-conventions.md, "The question line"). It is
+            an h2 that is a block child of .pubws-center: the controls go
+            INSIDE the heading, never in a wrapper around it. */}
+          {hero && (
+            <QuestionLine
+              horizons={horizons}
+              hero={hero}
+              workspaceName={ws.name}
+              onSelect={setHorizonId}
+              condition={
+                selectedJob
+                  ? {
+                      who: selectedJob.proposedByName ?? 'someone',
+                      ask: selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0,
+                    }
+                  : null
+              }
+              flashed={flashContract}
+            />
+          )}
+          {/* Every open book of the floor, once, under the question below
+            1400px; the left rail carries the same list above it. */}
+          {hero && (
+            <BooksRow
+              horizons={books}
+              workspaceName={ws.name}
+              selectedId={hero.marketId}
+              onPick={setHorizonId}
+              onManage={canManage ? () => setOwnerDialog({ kind: 'metrics' }) : null}
+              proposals={
+                ws.proposals !== undefined ? { count: pendingProposals.length, largest: largestPendingImpact } : null
+              }
+              onJumpToProposals={() => scrollToAction('contract')}
+              unit={unit}
+            />
+          )}
           {hero && active && (
-            <section className="pubws-instrument" aria-label="The market">
-              {/* Selecting a job re-points this one view at its conditional
-                market; the condition is stated above the same headline so
-                the page never grows a second market. */}
-              {/* The whole title: what is being predicted, as of when. The
-                metric's parenthetical unit tail is trimmed for display only
-                (the full name stays in the API); renaming the metric itself
-                would void the live market by the definition-change invariant.
-                With a job selected the title becomes the actual question the
-                conditional market prices, naming who gets paid and how much,
-                because that is the whole bet. */}
-              {/* Above the clock line, not between it and the world line:
-                the caption and the condition under it are one statement, and
-                a control wedged between them splits it. Says where it goes
-                rather than repeating the metric the caption already names. */}
-              {selectedJob && (
-                <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
-                  ← Back to the market
-                </button>
-              )}
-              {/* The clock line renders in BOTH states (owner design
-                2026-08-20). Opening a proposal used to replace it, which took
-                the arrows away and pinned the page to markets[0], so a
-                proposal's number depended on the horizon the reader happened
-                to be on before they clicked in. Rendered once here, never
-                copied into the branch below, because a second copy is how the
-                two drift. */}
-              {/* Two pickers on ONE line (docs/ui-conventions.md, "The question
-               line", revised 2026-09-04): the board's caption vocabulary, a
-               metric chip and a date chip separated by a middle dot, each a
-               menu. The former segmented rows cost two lines and a pair of
-               owner buttons before the question; the owner's way into the
-               metrics and the dates is now the last entry of each menu. A
-               (metric, date) pair is a market, so selection is still one
-               market id. The caption stays an h2 that is a block child of
-               .pubws-center (layout rule, 2026-08-20); the chips live INSIDE
-               it, never in a wrapper around it. */}
-              <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
-                <CaptionChip
-                  kind="metric"
-                  label={captionLabel(metricLabel, ws.name)}
-                  menuLabel="Metric"
-                  options={metricHeads.map(m => ({
-                    id: m.metricId,
-                    label: captionLabel(m.metricLabel, ws.name),
-                    selected: hero?.metricId === m.metricId,
-                  }))}
-                  onPick={id => {
-                    const cell = cellOf(horizons, id, hero?.targetDate);
-                    if (cell) setHorizonId(cell.marketId);
-                  }}
-                  manage={
-                    canManage ? { label: 'Manage metrics', open: () => setOwnerDialog({ kind: 'metrics' }) } : null
-                  }
-                />
-                {hero && (
-                  <>
-                    <span className="pubws-chip-dot" aria-hidden="true">
-                      ·
-                    </span>
-                    <CaptionChip
-                      kind="date"
-                      label={dateChipOf(hero)}
-                      title={hero.resolvesOn ? `settles ${settleInstant(hero.resolvesOn)}` : undefined}
-                      menuLabel="Date"
-                      options={heroDates.map(d => ({
-                        id: d.marketId,
-                        label: dateSegmentOf(d),
-                        selected: d.marketId === hero.marketId,
-                        title: d.resolvesOn ? `settles ${settleInstant(d.resolvesOn)}` : undefined,
-                      }))}
-                      onPick={id => setHorizonId(id)}
-                      manage={
-                        canManage && hero.metricId
-                          ? {
-                              label: 'Manage dates',
-                              open: () =>
-                                setOwnerDialog({ kind: 'dates', metricId: hero.metricId, metricName: metricLabel }),
-                            }
-                          : null
-                      }
-                    />
-                  </>
-                )}
-              </h2>
-              {/* The question line (owner ask 2026-08-28): under the pickers,
-               the selected cell stated as the market's own sentence, "What
-               will be {company}'s {metric} {date}?", so a newcomer is not
-               left assembling the question from an uppercase caption and a
-               row of tabs. The pickers STAY above it (owner ask 2026-08-28,
-               "they both should be there"): the rows are where every option
-               is visible, the sentence is what the selection means. Its
-               metric and date are cycle words too: clicking one steps to the
-               next option and LOOPS (the 2026-08-20 arrow rule); with one
-               option the word is plain text. With a proposal selected the
-               SAME sentence carries the condition ("...if Ada is paid $80
-               to do: rewrite the store page?", owner ask 2026-08-28: modify
-               the question, do not add a second line under it), which is
-               why the "?" moves to the true end. Doc: docs/ui-conventions.md,
-               "The question line". */}
-              <h2
-                className={`pubws-instrument-ask${selectedJob ? ' pubws-instrument-ask--cond' : ''} pubws-enter pubws-enter--1${flashContract ? ' is-flashed' : ''}`}
-              >
-                What will be {ws.name ? `${possessiveOf(ws.name)} ` : ''}
-                <CycleWord
-                  what="Metric"
-                  options={metricHeads.map(m => ({
-                    key: m.metricId,
-                    label: captionLabel(m.metricLabel, ws.name),
-                  }))}
-                  activeKey={hero.metricId}
-                  onStep={metricId => {
-                    const cell = cellOf(horizons, metricId, hero?.targetDate);
-                    if (cell) setHorizonId(cell.marketId);
-                  }}
-                />
-                {/* The tail never breaks inside: "on 30 Sep?" wrapping after
-                 the preposition read broken on the desktop column, and an
-                 inline-block child ignores a no-break space before it, so
-                 the group is held together by nowrap instead. */}{' '}
-                <span className="pubws-ask-tail">
-                  {dateQuestionOf(hero).on ? 'on ' : ''}
-                  <CycleWord
-                    what="Date"
-                    options={heroDates.map(d => ({
-                      key: d.marketId,
-                      label: dateQuestionOf(d).word,
-                      title: d.resolvesOn ? `settles ${new Date(d.resolvesOn).toUTCString()}` : undefined,
-                    }))}
-                    activeKey={hero.marketId}
-                    onStep={marketId => setHorizonId(marketId)}
-                  />
-                  {selectedJob ? null : '?'}
-                </span>
-                {selectedJob && (
-                  <>
-                    {' if '}
-                    {selectedJob.proposedByName ?? 'someone'}{' '}
-                    {/* The phrase IS the world: green "is paid" in the
-                      approved branch, red "is not paid" in the declined one,
-                      and clicking it flips to the other world (owner
-                      direction 2026-08-10). Both phrases share one grid
-                      cell, so the sentence sizes to the longer one and
-                      never reflows on a switch, whatever the ask's width. */}
-                    <WorldWord
-                      branch={branch}
-                      approvedText={
-                        splitAsk(selectedJob.title).ask !== null
-                          ? `is paid $${splitAsk(selectedJob.title).ask}`
-                          : 'does'
-                      }
-                      declinedText={
-                        splitAsk(selectedJob.title).ask !== null
-                          ? `is not paid $${splitAsk(selectedJob.title).ask}`
-                          : 'does not do'
-                      }
-                      onToggle={
-                        pair?.declinedMarketId
-                          ? () => setBranch(b => (b === 'approved' ? 'declined' : 'approved'))
-                          : null
-                      }
-                    />
-                    {splitAsk(selectedJob.title).ask !== null ? ' to do: ' : ': '}
-                    <span className="pubws-question-task">{splitAsk(selectedJob.title).rest}</span>?
-                  </>
-                )}
-              </h2>
-              {/* The summary line (docs/ui-conventions.md, "The price and the
-                chart"): the definition's first sentence, so a reader knows
-                what the number is before the numbers. A Manifold trader read
-                a rolling 30-day total as the lifetime revenue of a company
-                "that just started right out of the gates" (2026-09-03). */}
-              {summary && (
-                <p className="pubws-instrument-sum pubws-enter pubws-enter--1">
-                  {summary}
-                  {hasMoreDefinition && (
-                    <button type="button" className="pubws-instrument-more-go" onClick={() => setDefExpanded(v => !v)}>
-                      {defExpanded ? 'less' : 'more'}
-                    </button>
-                  )}
-                  {/* For a manager the Edit control sits beside "more" (docs/
-                      ui-conventions.md, "The price and the chart"), reachable
-                      without expanding. */}
-                  {definitionEditInline}
-                </p>
-              )}
-              {summary && defExpanded && (hasMoreDefinition || editingDef) && (
-                <div className="pubws-instrument-more" aria-label="What is this market">
-                  {definitionBody}
-                </div>
-              )}
+            <>
+              <NumbersBand
+                hero={hero}
+                consensus={consensus}
+                unit={unit}
+                workspaceName={ws.name}
+                now={now}
+                priceSeries={active.history}
+                nowReading={nowReading}
+                lastReadingAt={lastReading?.at ?? null}
+                readingIsStale={readingIsStale}
+                canReport={canManage && !!hero.metricId}
+                onReport={() => setOwnerDialog({ kind: 'report', metricId: hero.metricId, metricName: metricLabel })}
+                canInject={!!user}
+                onInject={() => openInject()}
+              />
+              {/* A market on a number that does not exist yet says so, once,
+                between the band and the settlement line. */}
+              {hero.settlesNaForNow && <p className="pubws-na-note">{settleNoteOf(hero)}</p>}
+              <SettlementLine
+                hero={hero}
+                unit={unit}
+                description={horizonDescription}
+                now={now}
+                lastReadingAt={lastReading?.at ?? null}
+                expanded={defExpanded}
+                onToggle={() => setDefExpanded(v => !v)}
+                canManage={canManage}
+                onEdit={() => setOwnerDialog({ kind: 'metrics' })}
+              />
               {selectedJob && (
                 <>
                   {editingJob ? (
-                    /* Editing a proposal in place (owner ask 2026-08-20). The
-                     words save without touching the market; the price only
-                     moves while nobody has traded the pair, and the server
-                     says so plainly when it will not (docs/market-integrity.md
-                     I1b). Same three fields as posting one, same order. */
                     <div className="pubws-know-edit pubws-enter pubws-enter--1">
                       <label className="jobform-field">
                         <span className="ticket-label">Price (USD)</span>
@@ -1787,9 +1565,6 @@ export function TradePage() {
                       })}
                     </p>
                   )}
-                  {/* The proposer's own controls. A proposal is a listing its
-                    author should be able to correct: a typo, a clearer
-                    description, a price they got wrong before anyone traded. */}
                   {canEditJob && !editingJob && (
                     <div className="pubws-ownerbar pubws-enter pubws-enter--1">
                       <button
@@ -1807,11 +1582,9 @@ export function TradePage() {
                       </button>
                     </div>
                   )}
-                  {/* The decision row (docs/ui-conventions.md, "The decision
-                    row, then the decision bar"; critics' round 2026-09-08): a
-                    decision is laid out as a decision before it is asked.
-                    Four cells on hairlines in the stat row's anatomy, the
-                    branch on screen marked, for everyone. */}
+                  {/* The decision row: a decision is laid out as a decision
+                    before it is asked. Four cells on hairlines, the branch on
+                    screen marked, for everyone. */}
                   {pair && (
                     <div className="pubws-decision pubws-enter pubws-enter--1" role="group" aria-label="The decision">
                       {(
@@ -1858,16 +1631,10 @@ export function TradePage() {
                     </div>
                   )}
                   {decisionWhy && <p className="pubws-decision-why pubws-enter pubws-enter--1">{decisionWhy}</p>}
-                  {/* The owner's press, on the floor itself (owner ask
-                    2026-08-11), directly under the row. Approve is the money
-                    verb, green; decline asks for the reason the charter
-                    promises to publish. */}
                   {canManage && (
                     <div className="pubws-ownerbar pubws-enter pubws-enter--1">
                       {declineReason === null ? (
                         <>
-                          {/* Approve and decline are decisions, so they only
-                            apply while the job is still on the ballot. */}
                           {!selectedJobDecided && (
                             <>
                               <button
@@ -1890,10 +1657,6 @@ export function TradePage() {
                               </button>
                             </>
                           )}
-                          {/* Take it off the board entirely: spam, a duplicate, a
-                            test row. Two-step, because it is not a decision and
-                            cannot be undone from the UI. Every stake is
-                            refunded server-side first. */}
                           {removeArmed ? (
                             <>
                               <button
@@ -1944,8 +1707,6 @@ export function TradePage() {
                           >
                             {decideBusy ? 'Deciding…' : 'Confirm decline'}
                           </button>
-                          {/* Genuine idea, just not taking it: decline but refund
-                            the proposer's whole stake (owner ask 2026-08-12). */}
                           <button
                             className="pubws-decide"
                             disabled={decideBusy || declineReason.trim().length === 0}
@@ -1968,235 +1729,206 @@ export function TradePage() {
                       {decideErr && <p className="ticket-err">{decideErr}</p>}
                     </div>
                   )}
-                  {/* What the two quiet buttons do to the books, in one grey
-                    line (critics' round 3: an owner deciding a paid proposal
-                    for the first time hesitated on the wrong button). The
-                    wording follows the server (services/proposals.ts): a
-                    plain decline voids the if-approved book and keeps
-                    if-declined live to settle on the real number; remove
-                    voids both. */}
                   {canManage && !selectedJobDecided && (
                     <p className="pubws-decide-why pubws-enter pubws-enter--1">
                       Decline settles the pair on if-declined: those positions pay out at the real number, if-approved
                       is refunded. Remove voids both books and refunds everyone.
                     </p>
                   )}
+                  {/* Both branches are on the page: the toggle picks which one
+                    the ticket trades. */}
+                  {pair?.declinedMarketId && (
+                    <div className="pubws-branch pubws-enter pubws-enter--2" role="group" aria-label="Branch">
+                      <button
+                        className={`pubws-branch-opt pubws-branch-opt--approved${branch === 'approved' ? ' is-active' : ''}`}
+                        aria-pressed={branch === 'approved'}
+                        onClick={() => setBranch('approved')}
+                      >
+                        if approved
+                      </button>
+                      <button
+                        className={`pubws-branch-opt pubws-branch-opt--declined${branch === 'declined' ? ' is-active' : ''}`}
+                        aria-pressed={branch === 'declined'}
+                        onClick={() => setBranch('declined')}
+                      >
+                        if declined
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
-              {/* The live price rides the market chart's control row (owner
-                ask 2026-08-28, Manifold scale); only a market with no price
-                yet keeps the centred line, where the charts would be. */}
-              {consensus === null && (
-                <div className="pubws-headline pubws-enter pubws-enter--2">
-                  <span className="pubws-price">no price yet</span>
-                </div>
-              )}
-              {/* A market nobody has traded yet has no replayed history, which
-                used to mean no chart at all: selecting a fresh job showed a
-                price and blank space. A market always has a call, so fall
-                back to that single point and let the chart hold it. */}
-              {/* Every proposal branches into two worlds and both are on the
-                page (owner decision 2026-08-10): the toggle picks which one
-                the ticket trades, the chart draws the other as a quiet
-                second line, and the gap between the lines is the impact. */}
-              {selectedJob && pair?.declinedMarketId && (
-                <div className="pubws-branch pubws-enter pubws-enter--2" role="group" aria-label="Branch">
+              {/* On a proposal the verbs say WHICH book they trade
+                (docs/ui-conventions.md): the switch flips the branch
+                exactly as the pills under the decision row do. */}
+              {selectedJob && pair?.declinedMarketId && active.funded && canTrade && !selectedJobDecided && (
+                <p className="pubws-bet-book">
+                  Trading the if-{branch} book ·{' '}
                   <button
-                    className={`pubws-branch-opt pubws-branch-opt--approved${branch === 'approved' ? ' is-active' : ''}`}
-                    aria-pressed={branch === 'approved'}
-                    onClick={() => setBranch('approved')}
+                    type="button"
+                    className="pubws-bet-book-switch"
+                    onClick={() => setBranch(b => (b === 'approved' ? 'declined' : 'approved'))}
                   >
-                    if approved
+                    switch
                   </button>
-                  <button
-                    className={`pubws-branch-opt pubws-branch-opt--declined${branch === 'declined' ? ' is-active' : ''}`}
-                    aria-pressed={branch === 'declined'}
-                    onClick={() => setBranch('declined')}
-                  >
-                    if declined
-                  </button>
+                </p>
+              )}
+              {/* The verbs panel: the stake and this book's facts, the two
+                verbs with a payout already quoted for that stake, and the
+                range line that is the rule the two previews follow. Pressing
+                a verb opens the ticket INLINE inside the panel; signed out,
+                the sign-up door takes the ticket's place. */}
+              {canTrade && !selectedJobDecided && (
+                <FloorVerbs
+                  unit={unit}
+                  rangeMin={active.rangeMin}
+                  rangeMax={active.rangeMax}
+                  probability={shownProbability}
+                  liquidity={active.liquidity}
+                  funded={active.funded}
+                  traders={active.traders}
+                  pool={active.pool}
+                  lastTradeAt={lastTradeAt}
+                  now={now}
+                  stake={stakeNum}
+                  stakeText={stakeText}
+                  onStake={setStake}
+                  signedIn={!!user}
+                  onVerb={direction => {
+                    if (user) {
+                      setBetModal(direction);
+                      setBetDoor(null);
+                    } else {
+                      setBetDoor(direction);
+                    }
+                  }}
+                  onInject={user ? () => openInject() : null}
+                >
+                  {user && betModal && (
+                    <div className="pubws-ticket-inline" key={betModal}>
+                      <TradeTicket
+                        probability={shownProbability}
+                        liquidity={active.liquidity}
+                        positions={trading ? positions : []}
+                        onTrade={placeTrade}
+                        onTradeTarget={placeTargetTrade}
+                        onSell={sellPosition}
+                        balance={balance}
+                        onPreview={setTicketPreview}
+                        unit={unit}
+                        consensus={consensus}
+                        rangeMin={active.rangeMin}
+                        rangeMax={active.rangeMax}
+                        orders={trading && betModal === 'manage' ? orders : []}
+                        onPlaceLimit={trading ? placeLimit : async () => {}}
+                        onCancelLimit={trading ? cancelLimit : undefined}
+                        initialDir={betModal === 'manage' ? undefined : betModal}
+                        initialStake={stakeNum}
+                        manageMode={betModal === 'manage'}
+                        title={
+                          betModal === 'manage'
+                            ? undefined
+                            : `Bet ${betModal === 'higher' ? 'Higher' : 'Lower'} · ${captionLabel(
+                                metricLabel,
+                                ws.name,
+                              )} · ${hero.label}`
+                        }
+                        onCancel={() => {
+                          setBetModal(null);
+                          setTicketPreview(null);
+                        }}
+                        onClose={() => {
+                          setBetModal(null);
+                          setTicketPreview(null);
+                        }}
+                      />
+                    </div>
+                  )}
+                  {!user && betDoor && active.funded && (
+                    <SignupDoor
+                      direction={betDoor}
+                      unit={unit}
+                      rangeMin={active.rangeMin}
+                      rangeMax={active.rangeMax}
+                      probability={shownProbability}
+                      liquidity={active.liquidity}
+                      stake={stakeNum}
+                      onContinue={email => {
+                        try {
+                          sessionStorage.setItem(
+                            BET_INTENT_KEY,
+                            JSON.stringify({
+                              floor: idOrSlug ?? ws.workspaceId,
+                              marketId: active.marketId,
+                              direction: betDoor,
+                              stake: stakeNum,
+                            }),
+                          );
+                          if (email.trim()) sessionStorage.setItem('signup-email', email.trim());
+                        } catch {
+                          /* private mode: the door still opens */
+                        }
+                        navigate(authPath('signup', location));
+                      }}
+                    />
+                  )}
+                </FloorVerbs>
+              )}
+              {/* Your position: one ruled icon row under the verbs, never
+                two rows, because a trader holds one net side. */}
+              {trading && !selectedJobDecided && heldPosition && (
+                <PositionRow
+                  direction={heldPosition.direction}
+                  shares={heldPosition.shares}
+                  totalCost={heldPosition.totalCost}
+                  probability={shownProbability}
+                  liquidity={active.liquidity}
+                  onSell={() => setBetModal('manage')}
+                />
+              )}
+              {/* ONE chart, the number's own, with the market's call drawn
+                on it (docs/ui-conventions.md, "The chart"). The second
+                chart, "how the call moved", is not rendered any more. */}
+              {consensus !== null && (
+                <div className="pubws-numchart">
+                  <NumberChart
+                    points={hero.metricHistory}
+                    markers={datesOf(horizons, hero.metricId).flatMap(d => {
+                      if (!d.resolvesOn) return [];
+                      const pr = selectedJob?.markets.find(
+                        m => m.targetDate === d.targetDate && (m.metricId === undefined || m.metricId === d.metricId),
+                      );
+                      return [
+                        {
+                          marketId: d.marketId,
+                          resolvesOn: d.resolvesOn,
+                          consensus: d.consensus,
+                          selected: d.marketId === hero.marketId,
+                          pair: pr ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus } : null,
+                        },
+                      ];
+                    })}
+                    impactFrom={branch}
+                    marksLegend
+                    legend={
+                      selectedJob
+                        ? {
+                            approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
+                            declined: 'if not',
+                          }
+                        : null
+                    }
+                    selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
+                    granularity={granularityOf(hero.targetDate)}
+                    unit={unit}
+                    now={now}
+                    preview={chartPreview}
+                    center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
+                  />
                 </div>
               )}
-              {hero?.settlesNaForNow && (
-                <p className="pubws-na-note pubws-enter pubws-enter--2">{settleNoteOf(hero)}</p>
-              )}
-              {consensus !== null && hero && (
-                <div className="pubws-enter pubws-enter--3">
-                  {/* One chart is the hero (docs/ui-conventions.md, "The price
-                    and the chart", 2026-09-03): the two numbers named side by
-                    side, the number's own chart with the market's call on it,
-                    and how the call moved as a strip below. The N/A caveat is
-                    the only settle note left under the stat row. */}
-                  <div className="pubws-stats">
-                    {/* The reading, ink: the value in force with its age,
-                      because a reading is only trustworthy with its age on it. */}
-                    <div className="pubws-stat-block pubws-stat--now">
-                      {/* The caption line FIRST (revised 2026-09-04, the home
-                        board's cell shape): what the number is and its age,
-                        then the value under it. */}
-                      {/* For the owner the reading cell is also the reporting
-                        cell (docs/ui-conventions.md, "The stat row", critics'
-                        round 2026-09-08): Report sits beside the age, and a
-                        metric the platform syncs says so instead. */}
-                      <span className="pubws-stat-cap">
-                        <span className="pubws-stat-what">
-                          now
-                          {lastReading?.at && (
-                            <>
-                              <span className="pubws-stat-dot" aria-hidden="true">
-                                {' · '}
-                              </span>
-                              {/* A synced metric's age line never contradicts
-                                  itself (critics' round 2): "unchanged since
-                                  5 Sep · synced hourly" or "synced 20m ago ·
-                                  hourly", never "read 2d ago" beside "synced". */}
-                              <span
-                                className={`pubws-updated${readingIsStale ? ' is-stale' : ''}`}
-                                title={`${new Date(lastReading.at).toUTCString()}${
-                                  readingIsStale ? ' (taken before the period this market settles for)' : ''
-                                }`}
-                              >
-                                {hero.platformSynced
-                                  ? syncedAgeLine(lastReading.at, now)
-                                  : `read ${timeAgoOf(lastReading.at, now) ?? ''}`}
-                              </span>
-                            </>
-                          )}
-                        </span>
-                        {hero.platformSynced
-                          ? !lastReading?.at && <span className="pubws-stat-sync">synced hourly</span>
-                          : canManage &&
-                            hero.metricId && (
-                              <button
-                                type="button"
-                                className="pubws-stat-report"
-                                onClick={() =>
-                                  setOwnerDialog({
-                                    kind: 'report',
-                                    metricId: hero.metricId,
-                                    metricName: metricLabel,
-                                  })
-                                }
-                              >
-                                Report
-                              </button>
-                            )}
-                      </span>
-                      <span className="pubws-price">
-                        {nowReading !== null ? formatReading(nowReading, unit) : 'no reading yet'}
-                      </span>
-                    </div>
-                    {/* The market's call, amber: the consensus, its name, the
-                      day it is for and the countdown. A proposal's impact chip
-                      rides beside the value: the impact is the proposal's one
-                      number, and silence read as a broken page. Bare arrow +
-                      delta (owner ask 2026-08-28). */}
-                    <div className="pubws-stat-block pubws-stat--call">
-                      <span className="pubws-stat-what">
-                        market's call
-                        {settleNote && (
-                          <span className="pubws-stat-dot" aria-hidden="true">
-                            {' · '}
-                          </span>
-                        )}
-                        {settleNote}
-                      </span>
-                      <span className="pubws-stat-value">
-                        <span className="pubws-price">
-                          <AnimatedNumber value={consensus} render={v => `${unit}${formatValue(v)}`} />
-                        </span>
-                        {selectedJob &&
-                          (jobImpact === null ? (
-                            <span className="pubws-delta-chip">not yet priced</span>
-                          ) : jobImpact === 0 ? (
-                            <span className="pubws-delta-chip">±{impactUnit}0</span>
-                          ) : (
-                            <span
-                              key={`imp-${Math.round(jobImpact)}`}
-                              className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}
-                            >
-                              {jobImpact >= 0 ? '▲' : '▼'} {formatImpact(jobImpact, impactUnit)}
-                            </span>
-                          ))}
-                      </span>
-                    </div>
-                  </div>
-                  {/* The season as one line directly under the stat row,
-                    before the chart (docs/ui-conventions.md, "Below 1500px
-                    the advert is one line"): a laptop and a phone see the
-                    money on the first scroll. From 1500px the stylesheet
-                    hides this and shows the block in the left column
-                    instead. Plain view only, like the block. */}
-                  {!selectedJob && <SeasonAdvert season={season} signedIn={!!user} canManage={canManage} line />}
-                  {/* The number chart, the hero: titled by the metric itself
-                    (caption-shaped), its left cell empty because the stats
-                    are above, a legend naming the marks below. */}
-                  <div className="pubws-numchart">
-                    <NumberChart
-                      points={hero.metricHistory}
-                      markers={datesOf(horizons, hero.metricId).flatMap(d => {
-                        if (!d.resolvesOn) return [];
-                        // The open proposal's pair on this date, by (metric, date).
-                        const pr = selectedJob?.markets.find(
-                          m => m.targetDate === d.targetDate && (m.metricId === undefined || m.metricId === d.metricId),
-                        );
-                        return [
-                          {
-                            marketId: d.marketId,
-                            resolvesOn: d.resolvesOn,
-                            consensus: d.consensus,
-                            selected: d.marketId === hero.marketId,
-                            pair: pr ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus } : null,
-                          },
-                        ];
-                      })}
-                      impactFrom={branch}
-                      marksLegend
-                      legend={
-                        selectedJob
-                          ? {
-                              approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
-                              declined: 'if not',
-                            }
-                          : null
-                      }
-                      selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
-                      granularity={granularityOf(hero.targetDate)}
-                      unit={unit}
-                      now={now}
-                      preview={chartPreview}
-                      center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
-                    />
-                  </div>
-                  {/* How the call moved: the market's own price history as a
-                    strip at half height. The "how did we get here", not the
-                    hero. The composed bet's ghost draws here too. */}
-                  <div className="pubws-callhist">
-                    <MarketChart
-                      key={active.marketId}
-                      series={chartSeries}
-                      consensus={consensus}
-                      unit={unit}
-                      ranges={['1D', '1W']}
-                      height={130}
-                      center={<span className="pubws-chart-cap">how the call moved</span>}
-                      preview={chartPreview}
-                      orders={chartOrders}
-                      secondary={chartSecondary}
-                      /* The book being traded, named at the line's end the
-                         way the other branch already is (critics' round 3). */
-                      callLabel={chartSecondary ? `if ${branch}` : undefined}
-                    />
-                  </div>
-                </div>
-              )}
-              {/* What is left to reach the price, in the reader's own arithmetic
-                (codex, 2026-08-20). A base rate stated as a multiplier asks
-                someone to compute a ratio before they are allowed to have a
-                feeling; "about $173 a day for four days" asks nothing, and
-                whether that sounds greedy IS the trade. Hidden while a job is
-                selected, because then the number on screen is that job's
-                impact and not the market's level. */}
+              {/* What is left to reach the price, in the reader's own
+                arithmetic. Hidden while a proposal is selected, because then
+                the number on screen is that proposal's impact. */}
               {!selectedJob && gap && (
                 <p className="pubws-gap pubws-enter pubws-enter--2">
                   {gap.alreadyThere ? (
@@ -2230,242 +1962,82 @@ export function TradePage() {
                   )}
                 </p>
               )}
-            </section>
-          )}
-
-          {/* A decision pauses trading, not the conversation (owner ask
-            2026-08-20, docs/vision.md "the conversation outlives the
-            decision"): a decided proposal drops the bet verbs and keeps
-            its thread, readable and open to new comments. */}
-          {active && (trading || (canTrade && !user && !authLoading)) ? (
-            <section
-              className="pubws-act pubws-enter pubws-enter--3"
-              aria-label={selectedJobDecided ? 'Conversation' : 'Place a trade'}
-            >
-              {/* Prominent, Manifold-style (owner direction 2026-08-10):
-                the two filled verbs ARE the floor's call to action, green
-                up first like the reference. The inline ticket they open
-                keeps its own side pills for switching.
-
-                Unless the market has no liquidity, in which case there is
-                nothing to trade against and the server refuses the bet. Say
-                so here rather than letting someone compose a bet and meet
-                "Market has no liquidity" at submit (owner report
-                2026-08-15). The number above is the baseline's prior, drawn
-                so the chart is not blank; it is not a price anyone made. */}
-              {!selectedJobDecided &&
-                (active.funded ? (
-                  /* Each verb carries the price of a share of its side, and
-                     one line under the pair says what a share pays
-                     (docs/ui-conventions.md, "An untouched ticket still
-                     quotes both sides"). On this page the untouched state is
-                     the verbs, not the ticket: the ticket only exists once a
-                     verb has been pressed, and it opens with a side already
-                     chosen, so quoting only inside it would still make a
-                     visitor commit to a direction to learn a price. The line
-                     leaves when the ticket opens, because from there the
-                     fact rows say the same thing about the actual bet. */
-                  <>
-                    {/* On a proposal the verbs say which book they trade
-                        (docs/ui-conventions.md, "On a proposal the bet verbs
-                        say which book they trade"): the switch flips the
-                        branch exactly as the pills under the decision bar do. */}
-                    {selectedJob && pair?.declinedMarketId && (
-                      <p className="pubws-bet-book">
-                        Trading the if-{branch} book ·{' '}
-                        <button
-                          type="button"
-                          className="pubws-bet-book-switch"
-                          onClick={() => setBranch(b => (b === 'approved' ? 'declined' : 'approved'))}
-                        >
-                          switch
-                        </button>
-                      </p>
-                    )}
-                    <div className="pubws-bet" role="group" aria-label="Bet">
-                      <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>
-                        Bet Higher ↑
-                        {stakeExample('higher') !== null && (
-                          <span className="pubws-bet-eg">{stakeExample('higher')}</span>
+              {/* Discussion, Positions, Activity: the conversation and the
+                tape under the chart, following the one view. */}
+              {idOrSlug && (
+                <div className="pubws-activity">
+                  <FloorComments
+                    idOrSlug={idOrSlug}
+                    /* Right-aligned on the tab row: what the book on screen
+                       holds, and the way to deepen it for anyone signed in
+                       (docs/ui-conventions.md, "Activity"). Naming the
+                       branch matters, because the credits go into one of
+                       the two worlds. */
+                    trailing={
+                      <span className="pubws-pool-inject">
+                        <span className="pubws-pool-inject-n">{short(active.pool)} cr pool</span>
+                        {selectedJob && <span className="pubws-pool-inject-book">if {branch}</span>}
+                        {user && (
+                          <button type="button" className="pubws-facts-act" onClick={() => openInject()}>
+                            Inject liquidity
+                          </button>
                         )}
-                      </button>
-                      <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>
-                        Bet Lower ↓
-                        {stakeExample('lower') !== null && (
-                          <span className="pubws-bet-eg">{stakeExample('lower')}</span>
-                        )}
-                      </button>
-                    </div>
-                    {!betModal && active.rangeMin !== undefined && active.rangeMax !== undefined && (
-                      <p className="pubws-bet-note">{payoutLine(unit, active.rangeMin, active.rangeMax)}</p>
-                    )}
-                  </>
-                ) : (
-                  <p className="pubws-unfunded" role="status">
-                    {selectedJob
-                      ? canManage
-                        ? 'This proposal has no price yet. Nobody has put credits behind it: the proposer can, or you can, with Inject.'
-                        : 'This proposal has no market yet. The owner funds one, or the proposer can back it themselves.'
-                      : 'This market has no liquidity yet, so there is nothing to trade against.'}
-                  </p>
-                ))}
-              {/* The ticket opens INLINE under the verbs (owner ask
-                2026-08-28, replacing the modal of 2026-08-10): the charts
-                stay on screen while the bet is composed, so the ghost of
-                where the call would move is visible on the market chart
-                above. Keyed by the side, so pressing the other verb
-                re-seeds the ticket instead of being a dead click. */}
-              {betModal && active && !selectedJobDecided && (
-                <div className="pubws-ticket-inline" key={betModal}>
-                  <TradeTicket
-                    probability={shownProbability}
-                    liquidity={active.liquidity}
-                    /* The ticket ALWAYS gets the held position, in both
-                     modes: it is what the "New value" preview nets against
-                     (buying the opposite side closes it on the server
-                     first, so the buy prices against the post-close book).
-                     Withholding it to hide the sell rows made the preview
-                     quote a landing the trade never reached (owner report
-                     2026-08-30). Hiding the rows is manageMode's job. */
-                    positions={trading ? positions : []}
-                    onTrade={placeTrade}
-                    onTradeTarget={placeTargetTrade}
-                    onSell={sellPosition}
-                    balance={balance}
-                    onPreview={setTicketPreview}
-                    unit={unit}
-                    consensus={consensus}
-                    rangeMin={active.rangeMin}
-                    rangeMax={active.rangeMax}
-                    orders={trading && betModal === 'manage' ? orders : []}
-                    onPlaceLimit={trading ? placeLimit : async () => {}}
-                    onCancelLimit={trading ? cancelLimit : undefined}
-                    onRequireSignup={trading ? undefined : () => navigate(authPath('signup', location))}
-                    initialDir={betModal === 'manage' ? undefined : betModal}
-                    manageMode={betModal === 'manage'}
-                    onClose={() => {
-                      setBetModal(null);
-                      setTicketPreview(null);
+                      </span>
+                    }
+                    focusCommentId={focusCommentId}
+                    focusTradeId={focusTradeId}
+                    onFocusHandled={() => {
+                      setFocusCommentId(null);
+                      setFocusTradeId(null);
                     }}
+                    subject={
+                      selectedJob
+                        ? {
+                            proposalId: selectedJob.id,
+                            markets: [
+                              ...(pair?.approvedMarketId
+                                ? [{ marketId: pair.approvedMarketId, branch: 'approved' as const }]
+                                : []),
+                              ...(pair?.declinedMarketId
+                                ? [{ marketId: pair.declinedMarketId, branch: 'declined' as const }]
+                                : []),
+                            ],
+                          }
+                        : { marketId: hero.marketId }
+                    }
+                    canPost={!!user && joined}
+                    onRequireSignup={() => navigate(authPath('signup', location))}
                   />
                 </div>
               )}
-              {/* The held position stays visible on the floor; managing it
-                (selling, cancelling orders) happens in the same inline
-                ticket. */}
-              {!selectedJobDecided && (positions.length > 0 || orders.length > 0) && active && (
-                <PositionSummary
-                  positions={positions}
-                  orders={orders.length}
-                  probability={shownProbability}
-                  liquidity={active.liquidity}
-                  onManage={() => setBetModal('manage')}
-                />
-              )}
-              {/* The conversation under whatever the one view shows: the
-                baseline market's thread, or the selected job's (owner ask
-                2026-08-11). */}
-              {idOrSlug && (
-                <FloorComments
-                  idOrSlug={idOrSlug}
-                  trailing={
-                    hero && active ? (
-                      /* The market ON SCREEN says what it holds, proposal
-                         branches included (owner report 2026-08-31: "the
-                         conditional markets should be just the same as any
-                         other"). This used to be gated on `!selectedJob`, so
-                         a funded branch showed no pool at all and the owner's
-                         Inject vanished exactly where a thin book needed it. */
-                      <MarketFacts
-                        traders={active.traders}
-                        pool={active.pool}
-                        volume={active.volume}
-                        canManage={canManage}
-                        canTrade={trading}
-                        fundingHref={`/${idOrSlug ?? ''}/funding`}
-                        onInject={() =>
-                          setOwnerDialog({
-                            kind: 'inject',
-                            marketId: active.marketId,
-                            /* Naming the branch matters here: the credits go
-                               into one of the two worlds, and injecting into
-                               the wrong one is invisible until someone trades
-                               it. */
-                            marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}${
-                              selectedJob ? ` · if ${branch}` : ''
-                            }`,
-                            pool: active.pool,
-                            traders: active.traders,
-                            /* A branch never respawns, so only a baseline
-                               market carries the metric the second number
-                               (what new markets open with) belongs to. */
-                            metricId: selectedJob ? undefined : hero.metricId,
-                            metricName: selectedJob ? undefined : metricLabel,
-                            targetDate: selectedJob ? undefined : hero.targetDate,
-                          })
-                        }
-                      />
-                    ) : null
-                  }
-                  /* A proposal passes its proposal AND both branch markets
-                   (owner reports 2026-08-15 "if there is a trade why don't I
-                   see it down here", 2026-08-21 "why dont i see any trades
-                   made on the conditional markets"). The conversation
-                   belongs to the PROPOSAL and survives switching branch;
-                   positions and trades cover BOTH branches, labeled, because
-                   scoping them to the branch on screen made a proposal whose
-                   trades sat on the other branch answer "Trades (0)". */
-                  focusCommentId={focusCommentId}
-                  focusTradeId={focusTradeId}
-                  onFocusHandled={() => {
-                    setFocusCommentId(null);
-                    setFocusTradeId(null);
-                  }}
-                  subject={
-                    selectedJob
-                      ? {
-                          proposalId: selectedJob.id,
-                          markets: [
-                            ...(pair?.approvedMarketId
-                              ? [{ marketId: pair.approvedMarketId, branch: 'approved' as const }]
-                              : []),
-                            ...(pair?.declinedMarketId
-                              ? [{ marketId: pair.declinedMarketId, branch: 'declined' as const }]
-                              : []),
-                          ],
-                        }
-                      : hero
-                        ? { marketId: hero.marketId }
-                        : {}
-                  }
-                  canPost={!!user && joined}
-                  onRequireSignup={() => navigate(authPath('signup', location))}
-                />
-              )}
-            </section>
-          ) : null}
-
-          {/* Placement C (owner pick, 2026-08-31): a manager's two doors sit
-            under the market and its verbs, which is where "someone should
-            keep this true" is thought. A trader's pair stays further down,
-            at the end of the market's own words, where researching the
-            company is the job. Never both: one reader, one stack. */}
-          {hero && canManage && ws && (
-            <AgentDoors
-              floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
-              workspaceId={ws.workspaceId}
-              state={ownerState}
-              canManage={canManage}
-              signedIn={!!user}
-              onAskOtto={() => setAskingOtto(true)}
-              className="doors--instrument"
-            />
+              {/* The Otto row (docs/ui-conventions.md, "The Otto row"): one
+                ruled row under the activity block, the second of his two
+                doors, and the way to connecting an AI of one's own. */}
+              <div className="pubws-otto-row">
+                <span className="pubws-otto-row-mark" aria-hidden="true">
+                  O
+                </span>
+                <button type="button" className="pubws-otto-row-go" onClick={() => setAskingOtto(true)}>
+                  {canManage ? 'Otto runs this floor with you →' : 'Otto runs this market with you →'}
+                </button>
+                <Link className="pubws-otto-row-own" to="#account">
+                  connect your own AI
+                </Link>
+                <p className="pubws-otto-row-line">
+                  {!user
+                    ? 'Reading the book is all he can do until you sign up; signed in he trades, funds and reports as you.'
+                    : canManage
+                      ? 'Reports numbers, funds books, decides proposals, all by chat.'
+                      : 'Trades, funds and reports as you.'}
+                </p>
+              </div>
+            </>
           )}
         </div>
-        {/* The jobs board IS the right rail (owner direction 2026-08-10:
-            jobs where the activity log was). The log's information lives
-            on in the chart and the board itself; the rail slot goes to the
-            thing a visitor can act on. */}
+        {/* The proposals board IS the right rail, in view on the fold. It
+            comes before the left rail in the DOM so that on a phone the
+            stack is market, proposals, season and announcements, standings:
+            the next thing to trade before the context. */}
         {ws.proposals !== undefined && hero ? (
           <aside className="pubws-rail pubws-rail--right" aria-label="Proposals">
             <JobsBoard
@@ -2482,25 +2054,12 @@ export function TradePage() {
               proposalReward={ws.proposalReward}
               metricNames={metricNames}
               onPropose={async (title, description, askUsd) => {
-                // Anonymous proposers go through the signup door; the board
-                // itself is public information (Open workspace ballot).
-                // Payment details come from the account (owner decision
-                // 2026-08-10): the server reads and snapshots them.
                 if (!user) {
                   navigate(authPath('signup', location));
                   return;
                 }
-                // No proposer stake (owner call 2026-08-14): the workspace
-                // auto-funds the branch markets instead. Charging the empty
-                // side of the marketplace half a newcomer's starting balance
-                // to make an offer is spam defence aimed the wrong way; add
-                // it back if someone actually spams.
                 const created = (await api.createProposal({ title, description, askUsd })) as { id?: string };
                 reload();
-                // The new proposal is selected the moment it lands (docs/
-                // ui-conventions.md, "The proposer sees their own
-                // proposal"): unfunded, it sits last on the ballot, and
-                // its author otherwise reloads the floor and cannot find it.
                 if (created?.id) setSelectedJobId(created.id);
               }}
             />
@@ -2508,16 +2067,33 @@ export function TradePage() {
         ) : (
           <aside className="pubws-rail pubws-rail--right" aria-hidden="true" />
         )}
-        {/* Under the facts row (docs/ui-conventions.md, "The rails, and the
-            standings under the verbs"): the two standings footers, their own
-            grid item under the market column. Footers, not rails: nothing
-            about other people sits above the fold, and the counts appear in
-            the facts row alone. After the proposals in the DOM, so that
-            below 1120px the stacking order is market, proposals, standings,
-            context (critics' round 2: the proposals before the standings
-            because a proposal is the next thing to trade and the standings
-            are proof); the grid puts the standings back under the market
-            from 1120px. */}
+        {/* The left rail is about THIS floor and never about other people
+            (docs/ui-conventions.md, "The rails"): from the top, the books
+            list, the season, the announcements. Only in the plain market
+            view: a proposal's page is about the proposal and its two
+            branches. */}
+        {!selectedJob && hero && (
+          <aside className="pubws-rail pubws-rail--left" aria-label="This floor">
+            <BooksList
+              horizons={books}
+              workspaceName={ws.name}
+              selectedId={hero.marketId}
+              onPick={setHorizonId}
+              onManage={canManage ? () => setOwnerDialog({ kind: 'metrics' }) : null}
+            />
+            <SeasonAdvert season={season} signedIn={!!user} canManage={canManage} />
+            {ws.announcementCount !== undefined && (
+              <FloorAnnouncements
+                idOrSlug={idOrSlug ?? ws.workspaceId}
+                latest={ws.latestAnnouncement}
+                total={ws.announcementCount}
+                canManage={canManage}
+              />
+            )}
+          </aside>
+        )}
+        {/* The standings sit under the Otto row: nothing about other people
+            above the fold. */}
         {hero && active && (
           <FloorStandings
             entries={leaders}
@@ -2528,128 +2104,6 @@ export function TradePage() {
             proposalTraders={selectedJob ? pairHolders : undefined}
           />
         )}
-        {/* The left column (docs/ui-conventions.md, "The rails, and the
-            standings under the verbs", revised 2026-09-06): about THIS
-            market and never about other people. From the top: the
-            definition the market settles on, the season advert, the
-            announcements. Its own grid item, after the proposals and the
-            standings in the DOM, so that below 1120px the stacking order is
-            market, proposals, standings, this column, know (critics' round
-            2); the grid puts it back under the market from 1120px and
-            beside it from 1500px. Only in the plain market view: with a proposal selected
-            the floor is two columns at every width and none of this is on
-            the page, because a proposal's page is about the proposal and
-            its two branches, not about the metric's definition (Viktor,
-            2026-09-06). */}
-        {!selectedJob && (
-          <aside className="pubws-rail pubws-rail--left" aria-label="About this market">
-            {/* "What is this market?" is the metric's stored definition,
-            verbatim, because it is the settlement text (owner direction
-            2026-08-10). "What is LookPilot?", the product in its own words,
-            stays in the know block under the market.
-
-            Editing the definition no longer voids the market (owner
-            direction 2026-08-18, docs/market-integrity.md). Every edit is
-            logged instead, and the log is rendered below the definition so
-            a trader can see whether the wording moved after they took
-            their position. */}
-            <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this market">
-              <h2 className="pubws-know-head">
-                What is this market?
-                {/* Managers edit the definition in place (owner ask 2026-08-18).
-                Saving keeps the market: the price, the pool and every
-                position survive. What it does instead is publish the change
-                here, which is the honest trade when no code can tell a
-                clarification from a redefinition. */}
-                {definitionEdit}
-              </h2>
-              {/* The metric's stored definition, verbatim: it is the settlement
-              text (see the section comment above). This paragraph was
-              hardcoded LookPilot prose from the one-workspace era; a second
-              floor (telarchy, 2026-08-14) made that a lie on every other
-              workspace. No fallback: a workspace whose owner wrote no
-              definition shows no definition rather than someone else's. */}
-              {definitionBody}
-              {/* The actual-trajectory chart that used to sit here was removed
-              on owner direction 2026-08-18: the floor no longer plots the
-              metric's measured values, only the market. The history fields
-              stay in the API. */}
-            </section>
-            {/* The season, advertised rather than narrated: three lines, the
-            money first. */}
-            <SeasonAdvert season={season} signedIn={!!user} canManage={canManage} />
-            {/* The owner's disclosures, under the season advert in the column
-            about this market. A charter that promises
-            to announce material news needs the announcements on the page the
-            promise is read on, not in a thread under one market. Present only
-            when the Public group grants read, the same disclosure rule as the
-            ballot: `announcementCount` is absent on a counts-only floor. */}
-            {ws.announcementCount !== undefined && (
-              <FloorAnnouncements
-                idOrSlug={idOrSlug ?? ws.workspaceId}
-                latest={ws.latestAnnouncement}
-                total={ws.announcementCount}
-                canManage={canManage}
-              />
-            )}
-            {/* One quiet door for the owner in waiting (docs/ui-conventions.md,
-              "The left column ends with one quiet door"): the only route to
-              a floor of one's own sat at the foot of a five-screen page. The
-              same setup door the page's foot posts to. Not for a manager of
-              this floor, who already runs one (critics' round 3). */}
-            {!canManage && (
-              <Link className="pubws-rail-door" to="/waitlist">
-                Your own numbers? Run a floor
-              </Link>
-            )}
-          </aside>
-        )}
-        {/* What is left of the know block (docs/ui-conventions.md, "The
-            rails, and the standings under the verbs", revised 2026-09-06):
-            the checklist for a manager, then the subject block with the
-            doors. Its own grid item under the market column: on a phone the
-            left column and the proposals stack under the market BEFORE it,
-            the action before the explanation, and the grid puts it back
-            under the market on a wide screen. */}
-        <div className="pubws-know-col">
-          {/* What the floor has not settled yet, for its owner and nobody
-            else (docs/owner-on-the-floor.md). Below the market and the
-            owner's own prose on purpose: the floor leads with its price, and
-            the checklist is what the owner reads after seeing it. */}
-          <FloorChecklist workspaceId={ws.workspaceId} canManage={canManage} />
-          <SubjectAbout
-            workspaceId={ws.workspaceId}
-            name={ws.name}
-            value={ws.subjectAbout}
-            defaultText=""
-            canManage={canManage}
-            onSaved={reload}
-            doors={
-              canManage ? null : (
-                <AgentDoors
-                  floor={{ idOrSlug: idOrSlug ?? ws.workspaceId, name: ws.name }}
-                  workspaceId={ws.workspaceId}
-                  state={null}
-                  canManage={false}
-                  signedIn={!!user}
-                  onAskOtto={() => setAskingOtto(true)}
-                />
-              )
-            }
-          />
-        </div>
-
-        {/* The page ends on a three-cell board (docs/ui-conventions.md, "The
-            page ends", revised 2026-09-04), full width under the three
-            columns. The floor stops explaining itself (2026-09-01): the
-            market above SHOWS what this is, and these cells say only the
-            three things it cannot: what the mechanism is for (a link to the
-            guide), that a stranger may offer to do the work for real money
-            (a scroll to the proposal rail, never a second control), and the
-            owner's door: the company-facing sentence over the email field.
-            The door is an email box, not a "waitlist" (owner direction
-            2026-08-10): anyone who wants their own numbers run this way gets
-            set up within days, so the copy promises contact, not a queue. */}
       </main>
       {/* Outside the floor grid on purpose: a sticky rail is constrained by
           the grid CONTAINER, not its own row, so a board inside the grid
@@ -2792,6 +2246,7 @@ export function TopBar({
   canFund = false,
   canManage = false,
   busy = false,
+  onOtto,
 }: {
   user: boolean;
   ready: boolean;
@@ -2808,8 +2263,11 @@ export function TopBar({
   /** Whether they manage the floor under the bar: the owner of their own
    *  floor is not offered "Earn credits" on it (critics' round 3). */
   canManage?: boolean;
+  /** Opens Otto's panel. The link is drawn only where there is a panel to
+   *  open (the floor), and only for someone signed in: the dock in the
+   *  corner is gone (docs/ui-conventions.md, "The Otto row"). */
+  onOtto?: () => void;
 }) {
-  const navigate = useNavigate();
   // The ROUTER's location, not window's: under a basename (the beta serves at
   // /beta) window.location.pathname already carries the prefix, and navigate()
   // adds it again, so a return path built from it lands at /beta/beta/...
@@ -2830,130 +2288,46 @@ export function TopBar({
           <Logo variant="mark" height="2rem" alt="" />
         </span>
       </Link>
+      {/* Rendered only after the session check settles: while it is
+          pending, user is still null, and a signed-in visitor would see
+          "Log in" flash and vanish. Anonymous visitors get it fading in. */}
       <div className="pubws-topbar-right">
-        {/* One door to the money, not two (owner ask 2026-08-30). The
-            standalone Manifold button became one row of the earn table, and
-            two doors to the same credits is how a top bar fills up; the
-            Manifold import lives on /earn with its price beside everything
-            else. Signed-out visitors still get the Manifold pitch, which is
-            the recruiting line that brought them. */}
-        {user ? (
-          !canManage && <EarnDoor />
-        ) : (
-          <ManifoldButton signedIn={user} onRequireSignup={() => navigate(authPath('signup', location))} />
-        )}
-        <DiscordButton />
-        <ReportButton />
-        <ThemeToggle />
-        {/* Rendered only after the session check settles: while it is
-            pending, user is still null, and a signed-in visitor would see
-            "Log in" flash and vanish. Anonymous visitors get it fading in. */}
-        {ready && user && (
-          <div className="pubws-fade">
-            <NotificationsBell />
-          </div>
-        )}
         {ready &&
           (user ? (
-            <div className="pubws-fade">
-              <AccountMenu floor={floor} canFund={canFund} />
-            </div>
+            <>
+              {/* One door to the money, not two (owner ask 2026-08-30), and
+                  none at all for the owner of the floor under the bar, who
+                  reads "Earn credits" as their own bill. */}
+              {!canManage && <EarnDoor />}
+              <div className="pubws-fade">
+                <NotificationsBell />
+              </div>
+              {onOtto && (
+                <button type="button" className="pubws-otto-link" onClick={onOtto}>
+                  Otto
+                </button>
+              )}
+              <div className="pubws-fade">
+                <AccountMenu floor={floor} canFund={canFund} />
+              </div>
+            </>
           ) : (
-            <Link to={authPath('login', location)} className="pubws-login pubws-fade">
-              Log in
-            </Link>
+            <>
+              {/* Signed out the right side is the two doors and nothing else
+                  (docs/ui-conventions.md, "The top bar and the account
+                  menu"): the verbs panel's "free credits to start" line
+                  carries the earn offer where the stake is, and the bug,
+                  Discord and theme icons moved into the account menu. */}
+              <Link to={authPath('login', location)} className="pubws-login pubws-fade">
+                Log in
+              </Link>
+              <Link to={authPath('signup', location)} className="pubws-cta pubws-cta--small pubws-signup pubws-fade">
+                Sign up
+              </Link>
+            </>
           ))}
       </div>
     </nav>
-  );
-}
-
-/**
- * The paid / not-paid phrase in the conditional headline, as the world
- * toggle itself. Both phrases occupy the same grid cell (the button sizes
- * to the longer one, so any text length is layout-stable); the active one
- * stands, the other waits below it, and a click crossfades them and
- * re-points the whole view at the other branch.
- */
-/** A word of the question line that steps through its options. One option
- *  renders as a plain word; more get a button that advances to the next
- *  and LOOPS (the 2026-08-20 arrow rule), wearing the world word's dotted
- *  underline so a clickable word looks the same everywhere on the floor.
- *  The inner span re-mounts (keyed) and slides in, so a changed word is
- *  seen changing. */
-function CycleWord({
-  what,
-  options,
-  activeKey,
-  onStep,
-}: {
-  what: string;
-  options: Array<{ key: string; label: string; title?: string }>;
-  activeKey: string;
-  onStep: (key: string) => void;
-}) {
-  const idx = Math.max(
-    0,
-    options.findIndex(o => o.key === activeKey),
-  );
-  const active = options[idx];
-  if (!active) return null;
-  if (options.length < 2) {
-    return (
-      <span className="pubws-ask-word" title={active.title}>
-        {active.label}
-      </span>
-    );
-  }
-  const next = options[(idx + 1) % options.length];
-  return (
-    <button
-      type="button"
-      className="pubws-ask-word pubws-ask-word--live"
-      title={active.title}
-      onClick={() => onStep(next.key)}
-      aria-label={`${what}: ${active.label}. Show ${next.label}`}
-    >
-      <span key={active.key} className="pubws-ask-word-inner">
-        {active.label}
-      </span>
-    </button>
-  );
-}
-
-function WorldWord({
-  branch,
-  approvedText,
-  declinedText,
-  onToggle,
-}: {
-  branch: 'approved' | 'declined';
-  approvedText: string;
-  declinedText: string;
-  onToggle: (() => void) | null;
-}) {
-  const inner = (
-    <>
-      <span className="pubws-world-opt pubws-world-opt--approved" aria-hidden={branch !== 'approved'}>
-        {approvedText}
-      </span>
-      <span className="pubws-world-opt pubws-world-opt--declined" aria-hidden={branch !== 'declined'}>
-        {declinedText}
-      </span>
-    </>
-  );
-  if (!onToggle) {
-    return <span className={`pubws-world pubws-world--${branch}`}>{inner}</span>;
-  }
-  return (
-    <button
-      type="button"
-      className={`pubws-world pubws-world--${branch} pubws-world--live`}
-      onClick={onToggle}
-      aria-label={`Switch to the world where this job is ${branch === 'approved' ? 'declined' : 'approved'}`}
-    >
-      {inner}
-    </button>
   );
 }
 
@@ -2974,124 +2348,6 @@ const endArrow = (
     <path d="M2 7h10M8 3l4 4-4 4" />
   </svg>
 );
-
-type ChipOption = { id: string; label: string; selected: boolean; title?: string };
-
-/**
- * One caption chip (docs/ui-conventions.md, "The question line"): a mono
- * small-caps label that, with something to pick, is a `button` opening a
- * listbox of the options, with the owner's "Manage ..." entry last. With
- * one option and nothing to manage it is plain text: no chevron, no menu.
- * The menu closes on a pick, on Escape, and on a click outside.
- */
-function CaptionChip({
-  kind,
-  label,
-  title,
-  menuLabel,
-  options,
-  onPick,
-  manage,
-}: {
-  kind: 'metric' | 'date';
-  label: string;
-  title?: string;
-  menuLabel: string;
-  options: ChipOption[];
-  onPick: (id: string) => void;
-  manage: { label: string; open: () => void } | null;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLSpanElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  if (options.length <= 1 && !manage) {
-    return (
-      <span className={`pubws-chip pubws-chip--${kind} pubws-chip--plain`} title={title}>
-        {label}
-      </span>
-    );
-  }
-  return (
-    <span className="pubws-chip-wrap" ref={wrapRef}>
-      <button
-        type="button"
-        className={`pubws-chip pubws-chip--${kind}`}
-        title={title}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen(o => !o)}
-      >
-        {label}
-        <svg
-          className="pubws-chip-chev"
-          viewBox="0 0 10 10"
-          width="10"
-          height="10"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M2.5 3.75L5 6.25l2.5-2.5" />
-        </svg>
-      </button>
-      {open && (
-        <ul className="pubws-chip-menu" role="listbox" aria-label={menuLabel}>
-          {options.map(o => (
-            <li key={o.id} role="none">
-              <button
-                type="button"
-                role="option"
-                aria-selected={o.selected}
-                className={`pubws-chip-opt${o.selected ? ' is-selected' : ''}`}
-                title={o.title}
-                onClick={() => {
-                  onPick(o.id);
-                  setOpen(false);
-                }}
-              >
-                {o.label}
-              </button>
-            </li>
-          ))}
-          {manage && (
-            <li role="none">
-              <button
-                type="button"
-                role="option"
-                aria-selected={false}
-                className="pubws-chip-opt pubws-chip-opt--manage"
-                onClick={() => {
-                  manage.open();
-                  setOpen(false);
-                }}
-              >
-                {manage.label}
-              </button>
-            </li>
-          )}
-        </ul>
-      )}
-    </span>
-  );
-}
 
 /** One email in, one promise out: we set you up, no queue language.
  *  `source` names which door this was, so /admin can tell a signup from

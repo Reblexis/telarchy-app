@@ -1,53 +1,57 @@
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import { MarketFacts } from '../MarketFacts';
 
-/** Three icons, bare numbers, meanings on hover (docs/ui-conventions.md). */
+/**
+ * What ONE book says about itself, at the right end of the verbs panel's
+ * stake row (docs/ui-conventions.md, "The verbs and the inline ticket",
+ * row 1): its traders, its pool and its last trade, each behind its glyph
+ * with the meaning as a hover title. Facts are an icon row, never a
+ * sentence, and never a control: injecting liquidity is the metric sheet's
+ * job now.
+ */
 describe('MarketFacts', () => {
-  test('prints traders, pool and volume as numbers with their meanings as titles', () => {
-    const { container } = render(<MarketFacts traders={12} pool={2000} volume={5310} />);
+  const NOW = new Date('2026-09-08T10:00:00.000Z');
+
+  test('traders, pool and the last trade, with their meanings as titles', () => {
+    const { container } = render(
+      <MarketFacts traders={12} pool={2000} lastTradeAt="2026-09-08T08:00:00.000Z" now={NOW} />,
+    );
     const spans = [...container.querySelectorAll('.pubws-facts > span')];
-    expect(spans.map(s => s.textContent?.trim())).toEqual(['12', '2,000', '5,310']);
+    expect(spans.map(s => s.textContent?.trim())).toEqual(['12', '2,000', 'last trade 2h ago']);
     expect(spans[0].getAttribute('title')).toContain('12 distinct participants');
-    expect(spans[1].getAttribute('title')).toContain('in the pool');
-    expect(spans[2].getAttribute('title')).toContain('traded on this market');
+    expect(spans[1].getAttribute('title')).toContain("in this book's pool");
+    expect(spans[2].getAttribute('title')).toContain('Last trade on this book');
+  });
+
+  test('three glyphs, one per fact, and no sentence', () => {
+    const { container } = render(<MarketFacts traders={12} pool={2000} lastTradeAt={null} now={NOW} />);
+    const row = container.querySelector('.pubws-facts') as HTMLElement;
+    expect(row.querySelectorAll('svg').length).toBe(3);
+    expect(row.querySelectorAll(':scope > span[title]').length).toBe(3);
   });
 
   test('large numbers shorten the way a header does', () => {
-    const { container } = render(<MarketFacts traders={2000} pool={11_000} volume={1_800_000} />);
+    const { container } = render(
+      <MarketFacts traders={2000} pool={11_000} lastTradeAt="2026-09-05T10:00:00.000Z" now={NOW} />,
+    );
     expect([...container.querySelectorAll('.pubws-facts > span')].map(s => s.textContent?.trim())).toEqual([
       '2,000',
       '11k',
-      '1.8m',
+      'last trade 3d ago',
     ]);
   });
 
-  /**
-   * Anyone who can trade a market can deepen it (owner ask 2026-09-02:
-   * "make it actually possible for anyone to inject liquidity into any
-   * market"). The API has always allowed it, `requireCapability('trade')`;
-   * only the button was owner-only, so in a browser the depth of every
-   * market was the owner's problem alone.
-   */
-  test('a trader is offered Inject, not only the owner', () => {
-    render(<MarketFacts traders={1} pool={100} volume={0} canTrade onInject={() => {}} />);
-    expect(screen.getByRole('button', { name: 'Inject' })).toBeInTheDocument();
+  test('a book nobody has traded says so instead of quoting an age', () => {
+    const { container } = render(<MarketFacts traders={0} pool={1000} lastTradeAt={null} now={NOW} />);
+    const spans = [...container.querySelectorAll('.pubws-facts > span')];
+    expect(spans[2].textContent?.trim()).toBe('no trades yet');
+    expect(spans[2].getAttribute('title')).toBe('No trade on this book yet');
   });
 
-  test('someone who cannot trade the market is offered nothing to click', () => {
-    render(<MarketFacts traders={1} pool={100} volume={0} onInject={() => {}} fundingHref="/f/funding" />);
-    expect(screen.queryByRole('button', { name: 'Inject' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Buy' })).toBeNull();
-  });
-
-  // Buying credits is the owner's page: it funds THIS floor's pools out of
-  // the owner's own money, so it stays where it was.
-  test('Buy stays with the owner', () => {
-    const { rerender } = render(
-      <MarketFacts traders={1} pool={100} volume={0} canTrade onInject={() => {}} fundingHref="/f/funding" />,
-    );
-    expect(screen.queryByRole('link', { name: 'Buy' })).toBeNull();
-    rerender(<MarketFacts traders={1} pool={100} volume={0} canManage onInject={() => {}} fundingHref="/f/funding" />);
-    expect(screen.getByRole('link', { name: 'Buy' })).toBeInTheDocument();
+  test('the row carries no control: the pool is deepened from the metric sheet', () => {
+    const { container } = render(<MarketFacts traders={3} pool={1200} lastTradeAt={null} now={NOW} />);
+    expect(container.querySelectorAll('button').length).toBe(0);
+    expect(container.querySelectorAll('a').length).toBe(0);
   });
 });

@@ -1538,10 +1538,6 @@ code, pre, kbd, samp {
    same ruled language as everything else here, and on a phone he takes the
    sheet, because a 22rem panel on a 390px screen is a joke.
 --------------------------------------------------------------------------- */
-/* The corner is his, so nothing sits under it: the room the proposals rail,
-   the market column and (on a phone) the page's last block keep at their
-   foot, the dock's own size plus its offset from the foot, plus 1rem. */
-:root { --ottodock-clearance: calc(0.5rem * 2 + 1.7rem + 2px + 1.6rem); }
 .ottodock {
   position: fixed;
   right: clamp(0.9rem, 2vw, 1.6rem);
@@ -2816,10 +2812,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   text-overflow: ellipsis;
   max-width: 100%;
 }
-
-/* How the call moved: the market's price history as a strip under the
-   number chart. */
-.pubws-callhist { margin-top: 1.4rem; }
 
 /* The summary line under the question: the definition's first sentence,
    in the register of the pitch, never louder than the question. */
@@ -5195,41 +5187,696 @@ textarea.jobform-line--desc {
    shared class (0,2,0) outranks both, which painted BOTH lockups on every
    page the moment the mark landed in the top bars. */
 
-/* The trading floor (docs/ui-conventions.md, "The rails, and the standings
-   under the verbs", revised 2026-09-06): THREE columns on a wide screen,
-   centred as a whole. A narrow left column about this market (the
-   definition, the season advert, the announcements), the market in a wide
-   centre column (up to 960px, so the chart and both numbers get the room),
-   and the proposals rail on the right, each rail separated from the
+/* ---------------------------------------------------------------------------
+   The floor's own furniture, 2026-09-08 (docs/ui-conventions.md, "Trading
+   floor"). The head and its two rows, the books list in its two places, the
+   numbers band, the settlement line, the verbs panel and its ticket, the
+   position row and the Otto row.
+   --------------------------------------------------------------------------- */
+
+/* The floor head: the tiny label with the floor's facts on line 1, the name
+   in the display face on line 2, the one-liner under it. */
+.pubws-head {
+  margin: 0 0 1.1rem;
+  text-align: left;
+}
+.pubws-head-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.45rem;
+}
+.pubws-head-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+/* Facts are an icon row, never a sentence (owner rule 2026-09-03). */
+.pubws-head-facts,
+.pubws-run-facts,
+.pubws-facts {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.pubws-head-facts > span,
+.pubws-run-facts > span,
+.pubws-facts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.pubws-glyph { flex: none; opacity: 0.75; }
+.pubws-head-name {
+  margin: 0;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.pubws-head-line {
+  margin: 0.3rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-align: left;
+}
+.pubws-head-edit,
+.pubws-books-manage,
+.pubws-otto-row-own {
+  margin-left: 0.5rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.pubws-head-edit:hover,
+.pubws-books-manage:hover,
+.pubws-otto-row-own:hover { color: var(--text-primary); }
+
+/* The owner's three jobs and the run-a-floor door share one ruled row
+   directly under the identity, at every width. */
+.pubws-owner-row,
+.pubws-run-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 1.3rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.84rem;
+  text-align: left;
+}
+.pubws-run-row { justify-content: space-between; }
+.pubws-owner-row-go,
+.pubws-run-go {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.pubws-owner-row-go:hover,
+.pubws-run-go:hover { color: var(--accent); }
+.pubws-owner-row-quiet,
+.pubws-run-terms {
+  color: var(--text-tertiary);
+}
+.pubws-owner-row-dot { color: var(--text-tertiary); }
+
+/* The run-a-floor panel: three underline fields and, beside them, a live
+   rendering of the floor head they describe. */
+.pubws-run-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.6rem;
+  margin: -0.6rem 0 1.4rem;
+  padding: 1.1rem 0 1.3rem;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+@media (max-width: 719.98px) {
+  .pubws-run-panel { grid-template-columns: minmax(0, 1fr); }
+}
+.pubws-run-field { display: block; margin-bottom: 0.9rem; }
+.pubws-run-field-k {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pubws-run-field input {
+  width: 100%;
+  padding: 0.25rem 0;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  background: none;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+.pubws-run-field input:focus { outline: none; border-bottom-color: var(--accent); }
+.pubws-run-facts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  margin: 1rem 0;
+  white-space: normal;
+}
+.pubws-run-act { display: flex; align-items: center; gap: 1rem; }
+.pubws-run-guide {
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pubws-run-preview {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+.pubws-run-preview .pubws-head-name { font-size: 22px; margin-top: 0.35rem; }
+.pubws-run-preview-q {
+  margin: 0.5rem 0 0.8rem;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.35;
+  color: var(--text-primary);
+  text-align: left;
+}
+.pubws-numbers--mini { margin-top: 0; }
+.pubws-numbers--mini .pubws-price { font-size: 1.3rem; }
+.pubws-stat-note {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+
+/* Books on this floor: the rail's list, and the same rows in the row under
+   the question below 1400px. */
+.pubws-books { text-align: left; }
+.pubws-books-list {
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.pubws-books-group {
+  display: block;
+  margin: 0.7rem 0 0.2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pubws-book {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.5rem 0.4rem 0.5rem 0.6rem;
+  border: none;
+  border-left: 2px solid transparent;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pubws-book:hover { background: var(--bg-secondary); }
+.pubws-book.is-selected { border-left-color: var(--text-primary); }
+.pubws-book-text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.pubws-book-name { font-size: 0.84rem; color: var(--text-primary); }
+.pubws-book-clock {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+.pubws-book-num { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; }
+.pubws-book-call {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.pubws-book-pool {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  color: var(--text-tertiary);
+}
+
+.pubws-books-row {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin: 0 0 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+.pubws-books-row-go {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+/* No `display` here: the width rule that hides this item from 1120px is
+   the later one, and a display declaration at equal specificity would
+   outrank it. */
+.pubws-books-row-go,
+.pubws-books-row-props {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.pubws-books-row-word { font-weight: 600; }
+.pubws-books-row-meta,
+.pubws-books-row-props {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+.pubws-books-row-go:hover,
+.pubws-books-row-props:hover { color: var(--accent); }
+.pubws-books-pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 40;
+  width: min(28rem, 100%);
+  padding: 0.4rem 0.6rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-primary);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+}
+
+/* The numbers band: two cells on hairlines, the call first. */
+.pubws-numbers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  width: 100%;
+  margin-top: 1.1rem;
+  background: var(--border-color);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.pubws-numbers .pubws-stat--now { padding-left: 1.25rem; }
+.pubws-numbers .pubws-stat--call { padding-left: 0; }
+.pubws-stat-unit {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.pubws-stat-delta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+.pubws-stat-delta.is-up { color: var(--higher); }
+.pubws-stat-delta.is-down { color: var(--lower); }
+
+/* The settlement line: one clamped line with its controls pinned outside
+   the clamp, so the clamp can never swallow them. */
+.pubws-instrument-sum {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  max-width: none;
+  margin: 0.7rem 0 0;
+}
+.pubws-instrument-sum-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow: hidden;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.pubws-instrument-sum-acts {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  white-space: nowrap;
+}
+.pubws-instrument-facts {
+  margin: 0.7rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+
+/* The verbs panel: three rows, one panel, the same signed in or out. */
+.pubws-verbs {
+  margin: 1.1rem 0 0;
+  padding: 0.9rem 1rem 1rem;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  text-align: left;
+}
+.pubws-verbs-stake {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.8rem;
+}
+.pubws-stake { display: inline-flex; align-items: baseline; gap: 0.4rem; }
+.pubws-stake-k {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pubws-stake-fld {
+  width: 4.5ch;
+  padding: 0.1rem 0;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.pubws-stake-fld:focus { outline: none; border-bottom-color: var(--accent); }
+.pubws-stake-u { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text-tertiary); }
+.pubws-stake-chips { display: inline-flex; gap: 0.3rem; }
+.pubws-stake-chip {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.pubws-stake-chip:hover { border-color: var(--accent); color: var(--text-primary); }
+.pubws-verbs-stake .pubws-facts { margin-left: auto; }
+
+.pubws-verbs-row { display: flex; gap: 0.8rem; width: 100%; }
+.pubws-verb {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.7rem 0.8rem;
+  border: none;
+  border-radius: 10px;
+  font: inherit;
+  color: var(--on-signal);
+  text-align: center;
+  cursor: pointer;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+.pubws-verb--higher { background: var(--higher); }
+.pubws-verb--lower { background: var(--lower); }
+.pubws-verb:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.pubws-verb:active { transform: none; }
+.pubws-verb:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+/* One line each, never more: a verb that wraps reads as two buttons. */
+.pubws-verb-word,
+.pubws-verb-preview {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pubws-verb-word { font-size: 0.95rem; font-weight: 600; }
+.pubws-verb-preview {
+  margin-top: 0.15rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+.pubws-range-line,
+.pubws-verbs-signup {
+  margin: 0.7rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+.pubws-verbs-signup { color: var(--text-secondary); }
+.pubws-unfunded-go,
+.pubws-facts-act {
+  margin-left: 0.6rem;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.pubws-unfunded-go:hover,
+.pubws-facts-act:hover { border-color: var(--accent); color: var(--text-primary); }
+
+/* The sign-up door, in the ticket's place inside the panel. */
+.pubws-signup-door {
+  max-width: 22rem;
+  margin: 1rem 0 0;
+  text-align: left;
+}
+.pubws-signup-door-title {
+  margin: 0 0 0.25rem;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+.pubws-signup-door-echo {
+  margin: 0 0 0.8rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+}
+.pubws-signup-door-or {
+  margin: 0.6rem 0;
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+}
+.pubws-signup-door-form { display: flex; gap: 0.5rem; }
+.pubws-signup-door-email {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+.pubws-signup-door-back {
+  margin: 0.7rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+/* Your position: one ruled icon row under the verbs panel. */
+.pubws-position {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.9rem;
+  margin: 0.8rem 0 0;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  text-align: left;
+}
+.pubws-position-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pubws-position-cell--higher { color: var(--higher); }
+.pubws-position-cell--lower { color: var(--lower); }
+.pubws-position-cell.is-up { color: var(--higher); }
+.pubws-position-cell.is-down { color: var(--lower); }
+.pubws-position-sell {
+  margin-left: auto;
+  padding: 0.15rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.pubws-position-sell:hover { border-color: var(--accent); color: var(--text-primary); }
+
+/* The activity block, and what the book holds on its tab row. */
+.pubws-activity { margin-top: 1.4rem; }
+.pubws-pool-inject {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+/* The Otto row: one ruled row under the activity block. */
+.pubws-otto-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 1.4rem 0 0;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+.pubws-otto-row-mark {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.05rem;
+  color: var(--accent);
+}
+.pubws-otto-row-go {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.pubws-otto-row-go:hover { color: var(--accent); }
+.pubws-otto-row-own { margin-left: auto; }
+.pubws-otto-row-line {
+  flex: 1 0 100%;
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+
+/* The top bar's Otto link and the sign-up door beside "Log in". */
+.pubws-otto-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.pubws-otto-link:hover { color: var(--text-primary); }
+.pubws-topbar .pubws-signup { white-space: nowrap; }
+
+/* The account popover's tools row: Discord, report a bug, the theme
+   toggle, all three off the bar (2026-09-08). */
+.acctmenu-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.2rem;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* The announcements block in the left rail (it wore the know block's
+   classes until 2026-09-08). */
+.pubws-announcements { text-align: left; }
+
+/* The inline ticket's title and quote rows. */
+.ticket-title {
+  margin: 0 0 0.6rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.ticket-quote { margin-top: 0.8rem; }
+.ticket-quote-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.22rem 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+}
+.ticket-quote-k { color: var(--text-tertiary); }
+.ticket-quote-v { color: var(--text-primary); font-weight: 600; }
+.ticket-act { display: flex; align-items: center; gap: 0.8rem; margin-top: 0.8rem; }
+.ticket-act .ticket-go { flex: 1 1 auto; }
+.ticket-cancel {
+  flex: none;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.ticket-cancel:hover { border-color: var(--accent); color: var(--text-primary); }
+
+@media (max-width: 639.98px) {
+  /* On a phone the book's facts drop under row 3 rather than crowding the
+     stake, and the verbs keep their two columns. */
+  .pubws-verbs-stake .pubws-facts { order: 3; flex-basis: 100%; margin-left: 0; }
+  .pubws-run-preview { display: none; }
+}
+
+/* The trading floor (docs/ui-conventions.md, "Trading floor", revised
+   2026-09-08). Three width tiers and one DOM order.
+
+   From 1400px: THREE columns, 220 / 700 / 300 with 40px gutters, the page
+   at most 1440 wide with 48px side padding, each rail separated from the
    centre by a vertical hairline so the three read as one instrument. The
-   standings are footers under the facts row, inside the centre column.
-   The know block is its own grid item under the centre column, so that on
-   a phone the DOM order (market, left column, proposals, know) is the
-   stacking order: the action before the explanation. The centre column
-   caps the chart instead of letting it break out over a rail. */
-.pubws-main--floor { max-width: 1720px; }
+   left rail is about THIS floor (the books list, the season, the
+   announcements); the right rail is the proposals board.
+
+   1120px to 1399px: TWO columns, the centre at 680 beside the 300
+   proposals rail. There is no room for three, so the books list becomes
+   the row under the question and the season and announcements move under
+   the standings in the centre column.
+
+   Under 1120px: ONE column, and the DOM order IS the stacking order:
+   market, proposals, season and announcements, standings. */
+.pubws-main--floor { max-width: 1440px; }
 
 @media (min-width: 1120px) {
-  /* Two tracks from a laptop up: the market at up to 720px and the
-     proposals rail. The left column's context (definition, season block,
-     announcements) stacks under the market here; three tracks squeezed the
-     centre to 509px on a 1280px screen (2026-09-06). */
   .pubws--center .pubws-main.pubws-main--floor {
     display: grid;
-    grid-template-columns: minmax(0, 720px) 320px;
+    grid-template-columns: minmax(0, 680px) 300px;
     grid-template-rows: auto auto auto;
-    gap: 0 clamp(1.4rem, 2.6vw, 3rem);
+    gap: 0 clamp(1.4rem, 2.6vw, 2.5rem);
     justify-content: center;
-    align-content: center;
+    align-content: start;
     align-items: start;
   }
-  .pubws-main--floor .pubws-center { min-width: 0; grid-column: 1; grid-row: 1; padding-bottom: calc(var(--ottodock-clearance) + 1rem); }
-  /* The standings are their own grid item (critics' round 2: on a phone the
-     proposals stack between the market and them), put back under the
-     market here. */
+  .pubws-main--floor .pubws-center { min-width: 0; grid-column: 1; grid-row: 1; padding-bottom: 2.6rem; }
+  /* The standings are their own grid item (on a phone the proposals stack
+     between the market and them), put back under the market here. */
   .pubws-main--floor > .pubws-standings { min-width: 0; grid-column: 1; grid-row: 2; }
   .pubws-rail--left { min-width: 0; grid-column: 1; grid-row: 3; margin-top: 2.4rem; }
-  .pubws-main--floor .pubws-know-col { min-width: 0; grid-column: 1; grid-row: 4; }
   .pubws-main--floor .mchart {
     width: 100%;
     margin-left: 0;
@@ -5240,35 +5887,37 @@ textarea.jobform-line--desc {
     top: 1.4rem;
     min-width: 0;
     grid-column: 2;
-    grid-row: 1 / span 4;
+    grid-row: 1 / span 3;
     margin-top: 2.2rem;
     border-left: 1px solid var(--border-color);
     padding-left: clamp(1rem, 2vw, 1.6rem);
-    /* The last proposal row clear of the Otto dock at the foot. */
-    padding-bottom: calc(var(--ottodock-clearance) + 1rem);
+    padding-bottom: 2.6rem;
   }
   /* Two footers side by side on a wide screen. */
   .pubws-standings-pair { grid-template-columns: 1fr 1fr; column-gap: 2rem; }
   .pubws-ghost-standings { grid-template-columns: 1fr 1fr; }
+  /* Under 1120px the books row carries the proposals count too, because
+     the board is a column below the fold there. Here the rail shows it. */
+  .pubws-books-row-props { display: none; }
 }
 
-@media (min-width: 1500px) {
+@media (min-width: 1400px) {
   /* Three tracks once there is room, and only in the plain market view
-     (the root carries pubws-main--context): the left column of this
-     market's own context, the market at up to 960px, the proposals rail.
-     A selected proposal keeps the two tracks, centred. */
+     (the root carries pubws-main--context): a proposal keeps the two
+     tracks, the pair beside the proposals. */
   .pubws--center .pubws-main.pubws-main--floor.pubws-main--context {
-    grid-template-columns: 280px minmax(0, 960px) 320px;
+    grid-template-columns: 220px 700px 300px;
     grid-template-rows: auto auto auto;
+    gap: 0 40px;
+    max-width: 1440px;
+    padding-left: 48px;
+    padding-right: 48px;
   }
   .pubws-main--context .pubws-center { grid-column: 2; grid-row: 1; }
   .pubws-main--context > .pubws-standings { grid-column: 2; grid-row: 2; }
-  .pubws-main--context .pubws-know-col { grid-column: 2; grid-row: 3; }
-  /* Both rails span both rows of the centre column and start below the
-     top bar line, so their headings sit level with the market's. The left
-     column is static: it carries the definition, which can run to
-     paragraphs, and a sticky block taller than the viewport never scrolls
-     its foot into view. */
+  /* Both rails span the centre's rows and start below the top bar line, so
+     their headings sit level with the market's. The left rail is static:
+     a sticky block taller than the viewport never scrolls its foot in. */
   .pubws-main--context .pubws-rail--left {
     grid-column: 1;
     grid-row: 1 / span 3;
@@ -5277,26 +5926,14 @@ textarea.jobform-line--desc {
     padding-right: clamp(1rem, 2vw, 1.6rem);
   }
   .pubws-main--context .pubws-rail--right { grid-column: 3; grid-row: 1 / span 3; }
-  /* The definition is on screen once, never twice: with the left column
-     carrying "What is this market?" beside the market, the summary line
-     under the question (the definition's first sentence) is hidden. It
-     returns wherever the left column's content is not beside the market:
-     the two-column widths, the phone, a selected proposal (the root then
-     lacks the context class). */
-  .pubws-main--context .pubws-instrument-sum { display: none; }
-  .pubws-main--context .pubws-instrument-more { display: none; }
-  /* The season is advertised once: the block in the left column from here,
-     the one-line form under the facts row below. */
-  .pubws-season--line { display: none; }
+  /* The books are listed once: the rail here, the row under the question
+     below this width, never both. */
+  .pubws-books-row { display: none; }
 }
 
-@media (max-width: 1499.98px) {
-  /* The definition is on screen once at every width: below 1500px the
-     summary line under the question carries it (with "more"), so the
-     left column's "What is this market?" block is not shown. */
-  .pubws-rail--left .pubws-know { display: none; }
-  /* The season block yields to its one-line form under the facts row. */
-  .pubws-rail--left .pubws-season { display: none; }
+@media (max-width: 1399.98px) {
+  /* The rail's list yields to the row under the question. */
+  .pubws-books { display: none; }
 }
 
 @media (max-width: 1119.98px) {
@@ -5307,30 +5944,26 @@ textarea.jobform-line--desc {
     max-width: 660px;
     margin: 2.4rem auto 0;
   }
-  .pubws-know-col { width: 100%; max-width: 660px; margin: 0 auto; }
   .pubws-main--floor > .pubws-standings { width: 100%; max-width: 660px; margin-left: auto; margin-right: auto; }
-  /* The page's last block keeps the same room under it as the columns do
-     wide: the dock never sits on the end board's field. */
-  .pubws-end-wrap { padding-bottom: calc(var(--ottodock-clearance) + 1rem); }
+  .pubws-end-wrap { padding-bottom: 2.6rem; }
   /* Stacked on a phone. */
   .pubws-standings-pair { grid-template-columns: 1fr; row-gap: 1.7rem; }
   .pubws-ghost-standings { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 479.98px) {
-  /* The stat captions wrap to a second line instead of truncating
-     (critics' round 2): the countdown and the provenance on their own line,
-     and the separator dots are not drawn. */
+  /* The same column at 16px padding. */
+  .pubws-main--floor { padding-left: 16px; padding-right: 16px; }
+  /* The stat captions wrap to a second line instead of truncating: the
+     countdown and the provenance on their own line, and the separator dots
+     are not drawn. */
   .pubws-stat-what { white-space: normal; overflow: visible; text-overflow: clip; }
-  /* Every piece wraps: the countdown and the provenance spans are nowrap at
-     every other width, and a nowrap child clipped at the cell edge. */
   .pubws-stat-what > span { white-space: normal; overflow: visible; }
   .pubws-stat-what .pubws-settle-in { display: block; }
   .pubws-stat-what .pubws-updated { display: block; }
   .pubws-stat-dot { display: none; }
-  .pubws-chip-dot { display: none; }
-  /* Two lines on a phone: left-aligned like every wrapped block. */
-  .pubws-bet-note { text-align: left; }
+  /* Two lines of summary, where one holds too few words to check. */
+  .pubws-instrument-sum-text { -webkit-line-clamp: 2; line-clamp: 2; }
 }
 
 /* The left column's blocks: the definition's page-flow gap is not wanted
@@ -5403,35 +6036,6 @@ textarea.jobform-line--desc {
 }
 .pubws-season-go:hover { color: var(--accent); border-color: var(--accent); }
 .pubws-season-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-/* The one-line form under the facts row (below 1500px): the prize in the
-   price register, the countdown, the control as a plain link. */
-.pubws-season--line {
-  margin: 1.1rem 0 0;
-  font-size: 0.8rem;
-  line-height: 1.6;
-  color: var(--text-secondary);
-  text-align: left;
-}
-.pubws-season--line .pubws-season-prize {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  font-size: 0.95rem;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
-.pubws-season--line .pubws-season-go {
-  display: inline;
-  margin: 0;
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  font-size: inherit;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.pubws-season--line .pubws-season-go:hover { color: var(--accent); }
 
 /* The left column ends with one quiet door for the owner in waiting. */
 .pubws-rail-door {

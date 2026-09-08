@@ -23,50 +23,53 @@ export function formatMetricValue(v: number): string {
 
 const fmtValue = formatMetricValue;
 
-/** A range end as a person would say it: "$0", not "$0.00". */
+/** A range end as a person would say it: "$0", not "$0.00". Exported
+ *  because the ticket's "Pays at 50" row names the same edge the verb's
+ *  preview above it does, and two formatters would eventually disagree. */
+export function edgeLabel(unit: string, v: number): string {
+  return `${unit}${fmtValue(v).replace(/\.0+$/, '')}`;
+}
+
+/**
+ * A market's call as a person would say it, "9.4" and "41", not "9.40" and
+ * "41.0": the books list stacks four calls in one narrow rail, and a
+ * trailing zero there reads as precision the market has not got. The
+ * numbers band keeps the fixed decimals, because a headline that changes
+ * width as it ticks is worse than a trailing zero.
+ */
+export function callLabel(unit: string, v: number): string {
+  const text = fmtValue(v);
+  return `${unit}${text.includes('.') ? text.replace(/0+$/, '').replace(/\.$/, '') : text}`;
+}
+
 function fmtEdge(v: number): string {
   return fmtValue(v).replace(/\.0+$/, '');
 }
 
 /**
- * The one line that turns a price into a payout. A cents price on a binary
- * proposal states its own payout; ours is linear in the settled value, so
- * the price alone would be a true number under a false assumption.
- *
- * Eight words, and it stays that way (owner, 2026-08-31, on the eighteen-word
- * version: "this seems like too much text"): it sits under a two-character
- * price, and a sentence of explanation there reads as a warning rather than
- * as the price's unit. What happens between the two ends is the ticket's job,
- * which says it about the actual bet ("Wins above", "Each X beyond").
+ * The range line under the verbs (docs/ui-conventions.md, "The verbs and
+ * the inline ticket", row 3): one line that states BOTH directions, the
+ * rule the two previews above it follow. "Range 0 to 50 · Higher shares
+ * pay 1 cr at 50, Lower shares pay 1 cr at 0; in between, in proportion ·
+ * you can sell any time".
  */
-export function payoutLine(unit: string, rangeMin: number, rangeMax: number): string {
-  // The range is named once, first (docs/ui-conventions.md, "Each bet verb
-  // says what a stake pays"; critics' round 2 of 2026-09-08: the chart is
-  // zoomed, so "at 50" pointed at a number the page never showed).
+export function rangeLine(unit: string, rangeMin: number, rangeMax: number): string {
   const lo = `${unit}${fmtEdge(rangeMin)}`;
   const hi = `${unit}${fmtEdge(rangeMax)}`;
-  return `Settles between ${lo} and ${hi}. A share pays 1 cr at ${hi}, nothing at ${lo}.`;
+  return `Range ${lo} to ${hi} · Higher shares pay 1 cr at ${hi}, Lower shares pay 1 cr at ${lo}; in between, in proportion · you can sell any time`;
 }
 
 /**
- * What a stake pays at the range's edge, as the verb under it says it:
- * "25 cr pays 47 cr at $50,000" (docs/ui-conventions.md, "Each bet verb says
- * what a stake pays"). Higher pays at the top of the range, Lower at its
- * floor, one credit per share, from the SAME AMM preview the ticket runs on
- * the same stake, so the verb and the ticket cannot disagree about the bet.
- *
- * With the chart's visible axis given, and that axis zoomed inside the
- * range, a second point a trader can picture (critics' round 3): "63 cr at
- * 50, 41 cr at 20", the second at the top of the visible axis for Higher
- * and at its floor for Lower. A share pays linearly between the range's
- * ends, so the second payout is the first scaled by where the axis edge
- * sits in the range. When the axis already reaches the range's edge on
- * that side, one point only; an axis edge outside the range is never
- * quoted either.
+ * What a stake pays at the range's edge, quoted by the same LMSR preview
+ * the ticket runs (docs/ui-conventions.md, "The verbs and the inline
+ * ticket", row 2): "25 cr pays 63 cr at 50 · +38" under Higher (the top of
+ * the range) and "25 cr pays 41 cr at 0 · +16" under Lower (its floor). One
+ * credit per share at that edge, so the payout IS the shares; the profit
+ * is the payout minus the stake. Never the stake divided by the call.
  *
  * Null where there is nothing to quote: an unfunded book has no price.
  */
-export function stakeExampleLine(
+export function stakePreview(
   unit: string,
   rangeMin: number,
   rangeMax: number,
@@ -74,25 +77,23 @@ export function stakeExampleLine(
   liquidity: number,
   direction: 'higher' | 'lower',
   stake: number,
-  visible: { lo: number; hi: number } | null = null,
-): string | null {
-  if (!Number.isFinite(liquidity) || liquidity <= 0 || stake <= 0) return null;
+): { shares: number; pays: number; profit: number; edge: string; line: string; echo: string } | null {
+  if (!Number.isFinite(liquidity) || liquidity <= 0 || !(stake > 0)) return null;
   const p = Math.min(0.999, Math.max(0.001, probability));
   const { shares } = previewTrade(p, liquidity, direction, stake);
   if (!Number.isFinite(shares) || shares <= 0) return null;
-  const edge = direction === 'higher' ? rangeMax : rangeMin;
+  const edge = `${unit}${fmtEdge(direction === 'higher' ? rangeMax : rangeMin)}`;
   const cr = (n: number) => Math.round(n).toLocaleString('en-US');
-  let line = `${stake} cr pays ${cr(shares)} cr at ${unit}${fmtEdge(edge)}`;
-  const span = rangeMax - rangeMin;
-  if (visible && span > 0) {
-    const at = direction === 'higher' ? visible.hi : visible.lo;
-    const inside = direction === 'higher' ? at < rangeMax && at > rangeMin : at > rangeMin && at < rangeMax;
-    if (inside) {
-      const frac = direction === 'higher' ? (at - rangeMin) / span : (rangeMax - at) / span;
-      line += `, ${cr(shares * frac)} cr at ${unit}${fmtEdge(at)}`;
-    }
-  }
-  return line;
+  const profit = shares - stake;
+  const signed = `${profit < 0 ? '-' : '+'}${cr(Math.abs(profit))}`;
+  return {
+    shares,
+    pays: shares,
+    profit,
+    edge,
+    line: `${stake} cr pays ${cr(shares)} cr at ${edge} · ${signed}`,
+    echo: `${stake} cr · pays ${cr(shares)} cr at ${edge}`,
+  };
 }
 
 /**

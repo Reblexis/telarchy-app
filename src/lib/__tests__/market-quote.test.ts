@@ -1,33 +1,39 @@
 import { describe, expect, test } from 'vitest';
 import { previewTrade } from '../amm';
-import { maxWinLabel, payoutLine, stakeExampleLine } from '../market-quote';
+import { maxWinLabel, rangeLine, stakePreview } from '../market-quote';
 
 /**
  * The quote a market shows before anyone trades (docs/ui-conventions.md,
- * "An untouched ticket still quotes both sides"). One implementation, because
- * two surfaces say it: the floor's bet verbs and the ticket's side pills.
+ * "The verbs and the inline ticket"). One implementation, because two
+ * surfaces say it: the floor's bet verbs and the ticket's rows.
  */
-describe('payoutLine', () => {
-  test('names the range once, then the top, the bottom, and the credit a share pays', () => {
-    // Critics' round 2 of 2026-09-08: the chart is zoomed, so "at 50" pointed
-    // at a number the page never showed. The range is named first.
-    expect(payoutLine('$', 0, 500_000)).toBe(
-      'Settles between $0 and $500,000. A share pays 1 cr at $500,000, nothing at $0.',
+describe('rangeLine', () => {
+  test('states BOTH directions, the rule the two previews follow', () => {
+    expect(rangeLine('', 0, 50)).toBe(
+      'Range 0 to 50 · Higher shares pay 1 cr at 50, Lower shares pay 1 cr at 0; in between, in proportion · you can sell any time',
     );
   });
 
-  test('it stays short: two sentences, the second the rule the example follows', () => {
+  test("the range is named first, in the metric's own unit", () => {
+    expect(rangeLine('$', 0, 500_000)).toBe(
+      'Range $0 to $500,000 · Higher shares pay 1 cr at $500,000, Lower shares pay 1 cr at $0; in between, in proportion · you can sell any time',
+    );
+  });
+
+  test('it stays ONE line: no sentence of explanation under a number', () => {
     // Owner, 2026-08-31, on the eighteen-word version: "this seems like too
-    // much text". The range sentence is the one addition since.
-    expect(payoutLine('', 0, 50).split(' ').length).toBeLessThanOrEqual(16);
+    // much text". Three clauses on middle dots, never a paragraph.
+    const line = rangeLine('', 0, 50);
+    expect(line).not.toContain('\n');
+    expect(line.split('·').length).toBe(3);
   });
 
   test('range ends read as numbers a person would say, without trailing zeros', () => {
-    expect(payoutLine('', 0, 50)).toBe('Settles between 0 and 50. A share pays 1 cr at 50, nothing at 0.');
+    expect(rangeLine('', 0, 50)).toContain('Range 0 to 50 ·');
   });
 
   test('a fractional end keeps the digits that matter', () => {
-    expect(payoutLine('', 0, 2.5)).toContain('at 2.50,');
+    expect(rangeLine('', 0, 2.5)).toContain('Range 0 to 2.50 ·');
   });
 });
 
@@ -81,64 +87,65 @@ describe('maxWinLabel', () => {
 });
 
 /**
- * The stake example under each verb (docs/ui-conventions.md, "Each bet verb
- * says what a stake pays"): the payout at the range's edge, and, when the
- * chart's axis is zoomed inside the range, a second point at the visible
- * axis (critics' round 3): "25 cr pays 63 cr at 50, 41 cr at 20".
+ * The payout preview under each verb (docs/ui-conventions.md, "The verbs
+ * and the inline ticket", row 2): what the stake in the field pays at the
+ * range's edge, and the profit beside it, quoted by the same LMSR preview
+ * the ticket runs.
  */
-describe('stakeExampleLine', () => {
+describe('stakePreview', () => {
   const shares = (dir: 'higher' | 'lower') => previewTrade(0.5, 200, dir, 25).shares;
+  const cr = (n: number) => Math.round(n).toLocaleString('en-US');
 
-  test('one point at the range edge when no axis is given', () => {
-    expect(stakeExampleLine('', 0, 50, 0.5, 200, 'higher', 25)).toBe(
-      `25 cr pays ${Math.round(shares('higher'))} cr at 50`,
+  test('the payout at the range edge, then the profit', () => {
+    const up = shares('higher');
+    expect(stakePreview('', 0, 50, 0.5, 200, 'higher', 25)?.line).toBe(
+      `25 cr pays ${cr(up)} cr at 50 · +${cr(up - 25)}`,
     );
-    expect(stakeExampleLine('', 0, 50, 0.5, 200, 'lower', 25)).toBe(
-      `25 cr pays ${Math.round(shares('lower'))} cr at 0`,
-    );
-  });
-
-  test('Higher adds the payout at the top of a zoomed axis', () => {
-    const s = shares('higher');
-    expect(stakeExampleLine('', 0, 50, 0.5, 200, 'higher', 25, { lo: 15, hi: 20 })).toBe(
-      `25 cr pays ${Math.round(s)} cr at 50, ${Math.round((s * 20) / 50)} cr at 20`,
+    const down = shares('lower');
+    expect(stakePreview('', 0, 50, 0.5, 200, 'lower', 25)?.line).toBe(
+      `25 cr pays ${cr(down)} cr at 0 · +${cr(down - 25)}`,
     );
   });
 
-  test('Lower adds the payout at the floor of a zoomed axis, mirrored', () => {
-    const s = shares('lower');
-    expect(stakeExampleLine('', 0, 50, 0.5, 200, 'lower', 25, { lo: 15, hi: 20 })).toBe(
-      `25 cr pays ${Math.round(s)} cr at 0, ${Math.round((s * (50 - 15)) / 50)} cr at 15`,
-    );
+  test('the payout IS the shares: one credit per share at that edge', () => {
+    const q = stakePreview('', 0, 50, 0.5, 200, 'higher', 25)!;
+    expect(q.pays).toBe(q.shares);
+    expect(q.profit).toBeCloseTo(q.shares - 25, 9);
   });
 
-  test('the second point is in metric space, with the unit and the usual digits', () => {
-    const s = shares('higher');
-    expect(stakeExampleLine('$', 0, 500_000, 0.5, 200, 'higher', 25, { lo: 70_000, hi: 82_500 })).toBe(
-      `25 cr pays ${Math.round(s)} cr at $500,000, ${Math.round((s * 82_500) / 500_000)} cr at $82,500`,
-    );
+  test('never the stake divided by the displayed call', () => {
+    // 25 cr at a call of 25 on a 0-50 range would be 50 cr under the wrong
+    // arithmetic; the AMM preview says otherwise.
+    const q = stakePreview('', 0, 50, 0.5, 200, 'higher', 25)!;
+    expect(Math.round(q.pays)).not.toBe(50);
   });
 
-  test('an axis that already reaches the range top gives one point for Higher', () => {
-    const s = Math.round(shares('higher'));
-    expect(stakeExampleLine('', 0, 50, 0.5, 200, 'higher', 25, { lo: 10, hi: 50 })).toBe(`25 cr pays ${s} cr at 50`);
-    expect(stakeExampleLine('', 0, 50, 0.5, 200, 'higher', 25, { lo: 10, hi: 60 })).toBe(`25 cr pays ${s} cr at 50`);
+  test("the edge carries the metric's unit and the usual digits", () => {
+    expect(stakePreview('$', 0, 500_000, 0.5, 200, 'higher', 25)?.edge).toBe('$500,000');
+    expect(stakePreview('$', 0, 500_000, 0.5, 200, 'lower', 25)?.edge).toBe('$0');
   });
 
-  test('an axis floor at or under the range floor gives one point for Lower', () => {
-    const s = Math.round(shares('lower'));
-    expect(stakeExampleLine('', 0, 50, 0.5, 200, 'lower', 25, { lo: 0, hi: 20 })).toBe(`25 cr pays ${s} cr at 0`);
-    expect(stakeExampleLine('', 10, 50, 0.5, 200, 'lower', 25, { lo: 5, hi: 20 })).toBe(`25 cr pays ${s} cr at 10`);
+  test('the echo the sign-up door prints drops the profit', () => {
+    const up = shares('higher');
+    expect(stakePreview('', 0, 50, 0.5, 200, 'higher', 25)?.echo).toBe(`25 cr · pays ${cr(up)} cr at 50`);
   });
 
-  test('a second point outside the range is never quoted', () => {
-    const up = Math.round(shares('higher'));
-    const down = Math.round(shares('lower'));
-    expect(stakeExampleLine('', 10, 50, 0.5, 200, 'higher', 25, { lo: 2, hi: 8 })).toBe(`25 cr pays ${up} cr at 50`);
-    expect(stakeExampleLine('', 0, 50, 0.5, 200, 'lower', 25, { lo: 55, hi: 60 })).toBe(`25 cr pays ${down} cr at 0`);
+  test('a nearly certain side pays back barely more than the stake', () => {
+    // The edge payout can never be less than the stake on an LMSR buy, so
+    // the sign is what has to stay honest: the profit is quoted, not assumed.
+    const q = stakePreview('', 0, 50, 0.999, 1_000_000, 'higher', 25)!;
+    expect(q.profit).toBeGreaterThanOrEqual(0);
+    expect(q.line).toContain(' · +');
+    expect(q.pays).toBeGreaterThanOrEqual(25);
   });
 
-  test('an unfunded book still has no example', () => {
-    expect(stakeExampleLine('', 0, 50, 0.5, 0, 'higher', 25, { lo: 15, hi: 20 })).toBeNull();
+  test('an unfunded book still has no preview', () => {
+    expect(stakePreview('', 0, 50, 0.5, 0, 'higher', 25)).toBeNull();
+    expect(stakePreview('', 0, 50, 0.5, Number.NaN, 'higher', 25)).toBeNull();
+  });
+
+  test('a stake of nothing has nothing to quote', () => {
+    expect(stakePreview('', 0, 50, 0.5, 200, 'higher', 0)).toBeNull();
+    expect(stakePreview('', 0, 50, 0.5, 200, 'higher', Number.NaN)).toBeNull();
   });
 });

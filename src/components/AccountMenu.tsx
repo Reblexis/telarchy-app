@@ -5,6 +5,9 @@ import { useEarnAvailable } from '../hooks/useEarnAvailable';
 import type { FloorRef } from '../lib/agent-prompt';
 import { api } from '../lib/api';
 import { AccountDialog } from './AccountDialog';
+import { DiscordButton } from './DiscordButton';
+import { ReportButton } from './ReportButton';
+import { ThemeToggle } from './ThemeToggle';
 
 /**
  * The signed-in corner of the trading floor: an avatar that opens a small
@@ -248,6 +251,17 @@ export function AccountMenu({
                 <span className="acctmenu-stat">{fmtCr(wallet)}</span> cr for liquidity
               </span>
             )}
+          </div>
+
+          {/* Discord, report a bug and the theme toggle live here now
+              (docs/ui-conventions.md, "The top bar and the account menu",
+              2026-09-08): the bar carries the balance, the earn door, the
+              bell and Otto, and everything about the account is in this
+              menu. */}
+          <div className="acctmenu-tools">
+            <DiscordButton />
+            <ReportButton />
+            <ThemeToggle />
           </div>
 
           {/* Management lives in the dialog: picture, username, payment

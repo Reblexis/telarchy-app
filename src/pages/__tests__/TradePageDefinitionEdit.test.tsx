@@ -3,16 +3,19 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
- * The definition editor writes the metric of the market ON SCREEN.
+ * The settlement line belongs to the market ON SCREEN.
  *
  * The regression this pins (owner report 2026-08-21, "when i edit description
  * of telarchy market it edits the wrong market (the monthly one) instead of
- * the current one selected"): saveDefinition targeted ws.heroMetricId, the
- * workspace's hero metric, so with two clocks up an edit made under the
- * nearer market rewrote the OTHER market's settlement text.
+ * the current one selected"): the floor read the workspace's hero metric, so
+ * with two clocks up the nearer market was captioned with the OTHER market's
+ * settlement text. The definition is on screen ONCE, behind "Full
+ * definition" under the numbers band (docs/ui-conventions.md, "The
+ * settlement line"); the in-place editor of 2026-08-18 is not rendered any
+ * more, and the owner's "Edit" beside it opens the metric sheet.
  *
  * This file mocks its own signed-in admin (the sibling TradePage.test.tsx is
- * anonymous), because the editor only exists for a manager.
+ * anonymous), because "Edit" only exists for a manager.
  */
 
 const h = vi.hoisted(() => {
@@ -119,12 +122,12 @@ function renderFloor() {
   );
 }
 
-/** Which market is on screen, read from the caption (never the animated price). */
-const caption = (container: HTMLElement) => container.querySelector('.pubws-instrument-label')?.textContent ?? '';
+/** Which market is on screen, read from the question (never the animated price). */
+const caption = (container: HTMLElement) => container.querySelector('h2.pubws-instrument-ask')?.textContent ?? '';
 
-/** Step to the other metric: open the metric chip's menu and pick it. */
+/** Step to the other metric: open the metric word's menu and pick it. */
 const stepMetric = (container: HTMLElement) => {
-  fireEvent.click(container.querySelector('.pubws-chip--metric') as HTMLElement);
+  fireEvent.click(container.querySelector('.pubws-ask-word--live') as HTMLElement);
   fireEvent.click(
     [...container.querySelectorAll('.pubws-chip-menu [role="option"]')].find(b =>
       b.textContent?.includes('Signups this week'),
@@ -132,10 +135,12 @@ const stepMetric = (container: HTMLElement) => {
   );
 };
 
-/** The "What is this market?" section, so queries never leak into the
- *  workspace-about section, which has its own Edit button and prose. */
-const defSection = (container: HTMLElement) =>
-  within(container.querySelector('[aria-label="What is this market"]') as HTMLElement);
+/** Open the definition under the band and hand back its block. */
+const openDefinition = (container: HTMLElement) => {
+  const go = within(container).queryByRole('button', { name: 'Full definition' });
+  if (go) fireEvent.click(go);
+  return container.querySelector('.pubws-instrument-more');
+};
 
 beforeEach(() => {
   globalThis.IntersectionObserver = class {
@@ -154,51 +159,38 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('the definition editor edits the market on screen', () => {
-  test('saving under the nearer clock writes ITS metric, not the hero metric', async () => {
+describe('the settlement line follows the market on screen', () => {
+  test('the owner\'s Edit sits beside "Full definition" and opens the metric sheet', async () => {
     const { container } = renderFloor();
-    // The headline is the furthest-resolving market (the year).
     await waitFor(() => expect(caption(container)).toContain('Net 2026'));
-    // The manager's Edit button appears once the profile answers admin.
-    await waitFor(() => expect(defSection(container).getByRole('button', { name: 'Edit' })).toBeTruthy());
-
-    // Step to the week market and confirm it is the one on screen.
-    stepMetric(container);
-    await waitFor(() => expect(caption(container)).toContain('Signups this week'));
-
-    fireEvent.click(defSection(container).getByRole('button', { name: 'Edit' }));
-    const box = container.querySelector('.pubws-know-edit-text') as HTMLTextAreaElement;
-    // The draft opens on the on-screen market's own definition, not the
-    // hero metric's.
-    expect(box.value).toBe('The week definition.');
-    fireEvent.change(box, { target: { value: 'Signups counted Mon-Sun.' } });
-    fireEvent.click(defSection(container).getByRole('button', { name: 'Save' }));
-
-    await waitFor(() =>
-      expect(vi.mocked(api.updateMetricDescription)).toHaveBeenCalledWith(
-        'metric-week',
-        'Signups counted Mon-Sun.',
-        'ws-1',
-      ),
-    );
-    expect(vi.mocked(api.updateMetricDescription)).not.toHaveBeenCalledWith(
-      'metric-year',
-      expect.anything(),
-      expect.anything(),
-    );
+    const line = (await waitFor(() => {
+      const el = container.querySelector('.pubws-instrument-sum');
+      expect(el).not.toBeNull();
+      return el;
+    })) as HTMLElement;
+    const edit = await within(line).findByRole('button', { name: 'Edit' });
+    // Outside the clamped text, so the clamp can never swallow it.
+    expect(edit.closest('.pubws-instrument-sum-text')).toBeNull();
+    fireEvent.click(edit);
+    expect(document.querySelector('[role="dialog"][aria-label="Metrics"]')).not.toBeNull();
+    // And nothing edits the settlement text in place any more.
+    expect(container.querySelector('.pubws-know-edit-text')).toBeNull();
+    expect(vi.mocked(api.updateMetricDescription)).not.toHaveBeenCalled();
   });
 
   test('the definition renders markdown, and a plain newline is a line break', async () => {
     const ws = h.workspace();
     // Written the way an owner writes it over the API: emphasis, a single
-    // newline (no trailing spaces), and a list. The old <p> printed this as
+    // newline (no trailing spaces), and a list. A <p> would print this as
     // one run-on line with the asterisks showing.
     ws.horizonHistories[1].description = 'Counts **net** revenue.\nRefunds subtract.\n- Steam\n- direct';
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
     await waitFor(() => expect(caption(container)).toContain('Net 2026'));
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).not.toBeNull());
+    openDefinition(container);
 
-    const what = container.querySelector('.pubws-know-what')!;
+    const what = container.querySelector('.pubws-instrument-more .pubws-know-what')!;
     expect(what.querySelector('strong')?.textContent).toBe('net');
     expect(what.textContent).not.toContain('**');
     // remark-breaks: the single newline became a real break.
@@ -214,10 +206,13 @@ describe('the definition editor edits the market on screen', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
     await waitFor(() => expect(caption(container)).toContain('Net 2026'));
-    expect(defSection(container).getByText('The year definition.')).toBeTruthy();
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).not.toBeNull());
+    expect(container.querySelector('.pubws-instrument-sum-text')?.textContent).toContain('The year definition.');
 
     stepMetric(container);
     await waitFor(() => expect(caption(container)).toContain('Signups this week'));
-    expect(defSection(container).queryByText('The year definition.')).toBeNull();
+    // No summary, no definition: no line at all, rather than another
+    // market's settlement text.
+    expect(container.querySelector('.pubws-instrument-sum')).toBeNull();
   });
 });

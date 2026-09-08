@@ -53,6 +53,11 @@ interface Props {
    *  his own state and the dock is the only way in. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Whether the closed state draws the corner dock. The floor passes false
+   *  (docs/ui-conventions.md, "The Otto row", 2026-09-08): the dock covered
+   *  the proposal rows at the foot of the page, so the two doors are the top
+   *  bar's "Otto" link and the Otto row, and neither wants a third. */
+  dock?: boolean;
 }
 
 interface Turn {
@@ -69,6 +74,7 @@ export function FloorChat({
   handoff,
   open: openProp,
   onOpenChange,
+  dock = true,
 }: Props) {
   const [ownOpen, setOwnOpen] = useState(false);
   const open = openProp ?? ownOpen;
@@ -127,6 +133,7 @@ export function FloorChat({
   };
 
   if (!open) {
+    if (!dock) return null;
     return (
       <button type="button" className="ottodock" onClick={() => setOpen(true)}>
         <span className="ottodock-mark" aria-hidden="true">

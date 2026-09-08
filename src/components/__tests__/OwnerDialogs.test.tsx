@@ -37,7 +37,6 @@ vi.mock('../../lib/api', () => ({
 
 // Raw source, for the invariant that is about the route itself.
 import appSrc from '../../App.tsx?raw';
-import { MarketFacts } from '../MarketFacts';
 import {
   AddDateDialog,
   CreateWorkspaceDialog,
@@ -627,15 +626,6 @@ describe('dialog 3: three numbers for a manager on a baseline market with a date
     render(owner({ metricId: undefined }));
     expect(screen.queryByLabelText('Credits the book on this date opens with')).toBeNull();
     expect(screen.queryByLabelText('Credits behind each proposal on this date')).toBeNull();
-  });
-});
-
-describe('the facts row', () => {
-  test('a visitor sees the numbers and no way to change them; the owner gets Inject', () => {
-    const { rerender } = render(<MarketFacts traders={3} pool={1200} volume={800} />);
-    expect(screen.queryByText('Inject')).toBeNull();
-    rerender(<MarketFacts traders={3} pool={1200} volume={800} canManage onInject={() => {}} />);
-    expect(screen.getByText('Inject')).toBeTruthy();
   });
 });
 

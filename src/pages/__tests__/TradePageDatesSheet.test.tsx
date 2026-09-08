@@ -5,9 +5,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 /**
  * The dates are rows on the metric's sheet, not a dialog of their own
  * (docs/owner-on-the-floor.md, dialog 2; owner decision 2026-09-04). The
- * floor's `dates` chip therefore opens the metrics dialog straight onto the
- * sheet of the metric on screen. And a proposal that spawned with nothing
- * behind it tells a manager who can fund it, with Inject beside the words.
+ * owner's way in is "Manage books" on the owner row and "Manage metrics and
+ * dates" under the books list (docs/ui-conventions.md, 2026-09-08: the
+ * "Manage dates" entry inside the date menu is not rendered any more, the
+ * menus are for picking). And a book with nothing behind it never shows bet
+ * buttons: it says so, and offers Inject to anyone signed in.
  */
 
 const h = vi.hoisted(() => {
@@ -161,18 +163,19 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('"Manage dates" in the date chip menu', () => {
-  test('opens the metrics dialog straight onto the sheet of the metric on screen', async () => {
-    const { container } = renderFloor();
-    // The way in is the last entry of the date chip's menu (docs/ui-conventions.md,
-    // "The question line"); the chip is a button once the page knows the
-    // viewer can manage.
-    await waitFor(() => expect(container.querySelector('.pubws-chip--date')?.tagName).toBe('BUTTON'));
-    fireEvent.click(container.querySelector('.pubws-chip--date') as HTMLElement);
-    const options = within(container.querySelector('.pubws-chip-menu') as HTMLElement).getAllByRole('option');
-    fireEvent.click(options[options.length - 1]);
-    // The sheet, not the list: the head names the metric and the rows table
-    // is on it, with the metric's one date as a row.
+describe('the owner row is the way into the metric sheet', () => {
+  test('"Manage books" opens the metrics dialog, and a metric opens onto its date rows', async () => {
+    renderFloor();
+    const row = (await waitFor(() => {
+      const el = document.querySelector('.pubws-owner-row');
+      expect(el).not.toBeNull();
+      return el;
+    })) as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Manage books' }));
+    // The list first, then the sheet: the head names the metric and the
+    // rows table is on it, with the metric's one date as a row.
+    const open = await screen.findByRole('button', { name: 'Open' });
+    fireEvent.click(open);
     await waitFor(() =>
       expect(
         (document.querySelector('.floor-modal-overlay .ticket-label')?.textContent ?? '').replace(/\s+/g, ' '),
@@ -182,22 +185,31 @@ describe('"Manage dates" in the date chip menu', () => {
     expect(screen.getByLabelText('Book opens with, December 2026')).toBeTruthy();
     expect(screen.getByLabelText('Proposal opens with, December 2026')).toBeTruthy();
   });
+
+  test('the date menu is for picking: no "Manage" entry in it', async () => {
+    renderFloor();
+    await screen.findByText('What will be', { exact: false });
+    // One date on this floor, so the word is plain text and there is no
+    // menu at all; with several there is a menu and it lists dates only.
+    expect(document.querySelector('.pubws-chip--date')).toBeNull();
+    expect(screen.queryByText('Manage dates')).toBeNull();
+  });
 });
 
-describe('a proposal with nothing behind it', () => {
-  test('tells a manager who can put credits behind it, with Inject', async () => {
+describe('a book with nothing behind it', () => {
+  test('never shows bet buttons: it says so, and offers Inject', async () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.workspace({ unfunded: true }) as never);
     renderFloor();
     const row = await screen.findByTitle('Replace the company slogan');
     fireEvent.click(row);
-    await waitFor(() =>
-      expect(
-        screen.getByText(
-          'This proposal has no price yet. Nobody has put credits behind it: the proposer can, or you can, with Inject.',
-        ),
-      ).toBeTruthy(),
+    await waitFor(() => expect(document.querySelector('.pubws-unfunded')).not.toBeNull());
+    expect(document.querySelector('.pubws-unfunded')?.textContent).toMatch(
+      /nobody has funded a book for this market yet/i,
     );
     expect(screen.queryByRole('button', { name: /Bet Higher/ })).toBeNull();
-    expect(screen.getByText('Inject')).toBeTruthy();
+    // In the panel itself, where the verbs would have been. The activity
+    // row carries its own, beside what the book holds.
+    const verbs = document.querySelector('.pubws-verbs') as HTMLElement;
+    expect(within(verbs).getByRole('button', { name: 'Inject liquidity' })).toBeTruthy();
   });
 });

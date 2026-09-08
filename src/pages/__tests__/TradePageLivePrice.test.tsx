@@ -42,15 +42,25 @@ describe('one probability prices the market', () => {
   test('the probability is derived once and passed, not re-derived per surface', () => {
     // Exactly one place folds the optimistic price into the shown one.
     expect(SRC.match(/livePriceProb \?\? active\.probability/g)?.length).toBe(1);
-    // And both surfaces that price a position take that one value.
-    expect(SRC.match(/probability=\{shownProbability\}/g)?.length).toBe(2);
+    // And EVERY surface that prices the market takes that one value: the
+    // verbs panel (which quotes both payout previews and the sign-up
+    // door's echo), the ticket, and the position row. A surface that
+    // derived its own would print a second price for one position.
+    const passed = SRC.match(/probability=\{[^}]*\}/g) ?? [];
+    expect(passed.length).toBeGreaterThanOrEqual(3);
+    for (const prop of passed) expect(prop).toBe('probability={shownProbability}');
   });
 
-  test("the verbs' stake examples read it too", () => {
-    const start = SRC.indexOf('const stakeExample =');
-    const example = SRC.slice(start, SRC.indexOf('const consensus =', start));
-    expect(example).toContain('stakeExampleLine(');
-    expect(example).toContain('shownProbability');
+  test("the verbs' payout previews read it too", () => {
+    // The verbs are quoted by the same LMSR preview the ticket runs, on the
+    // stake in the field, so a verb and the ticket it opens cannot disagree
+    // about the bet (docs/ui-conventions.md, "The verbs and the inline
+    // ticket", row 2).
+    const verbs = readFileSync(join(__dirname, '..', '..', 'components', 'FloorVerbs.tsx'), 'utf8');
+    expect(verbs).toContain('stakePreview(');
+    expect(verbs).toContain('probability');
+    // Never the stake divided by the displayed call.
+    expect(verbs).not.toContain('consensus');
     expect(SRC).not.toContain('maxWinLabel(');
   });
 });
