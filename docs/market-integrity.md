@@ -76,7 +76,7 @@ safely perform.
 The four fields are not the same kind of thing, so they do not get the same
 rule:
 
-|  | `name`, `description` | `formula`, `marketRangeMax` |
+|  | `name`, `description`, `settlementSummary` | `formula`, `marketRangeMax` |
 |---|---|---|
 | what it is | words a reader is told | machinery the market prices inside |
 | computed from? | nothing | the LMSR consensus, and settlement |

@@ -785,6 +785,13 @@
       "when": 1788868199914,
       "tag": "0111_outreach_workbench",
       "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1788887117411,
+      "tag": "0112_settlement_summary",
+      "breakpoints": true
     }
   ]
 }

@@ -491,6 +491,16 @@ export const metrics = pgTable(
     workspaceId: text('workspace_id').notNull(),
     name: text('name').notNull(),
     description: text('description').notNull().default(''),
+    /**
+     * The settlement line's text (docs/ui-conventions.md, "The numbers band
+     * and the settlement line"): one owner-written line, at most 200
+     * characters, printed after "Settles on:" under the floor's numbers band.
+     * Null means the floor falls back to the definition's first sentence, so
+     * nothing here is ever invented. Settlement words like the description:
+     * editing it never voids a market and every change is logged
+     * (docs/market-integrity.md, I1).
+     */
+    settlementSummary: text('settlement_summary'),
     value: doublePrecision('value').notNull().default(0),
     formula: text('formula').notNull().default('0'),
     /**
@@ -760,7 +770,7 @@ export const metricDefinitionRevisions = pgTable(
     id: text('id').notNull(),
     workspaceId: text('workspace_id').notNull(),
     metricId: text('metric_id').notNull(),
-    /** 'name' | 'description' | 'formula' | 'marketRangeMax' */
+    /** 'name' | 'description' | 'settlementSummary' | 'formula' | 'marketRangeMax' */
     field: text('field').notNull(),
     oldValue: text('old_value'),
     newValue: text('new_value'),

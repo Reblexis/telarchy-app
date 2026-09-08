@@ -306,8 +306,29 @@ metricsRouter.put(
       timePreference: rawTP,
       resetsEvery: rawResets,
       resolvesNaUntilMeasured: rawNa,
+      settlementSummary: rawSummary,
       ...fields
     } = req.body;
+
+    // The floor's "Settles on:" line (docs/ui-conventions.md, "The numbers
+    // band and the settlement line"): one owner-written line, at most 200
+    // characters. null, or nothing but whitespace, clears it, and the floor
+    // falls back to the definition's first sentence. Absent means untouched.
+    let settlementSummary: string | null | undefined;
+    if (rawSummary !== undefined) {
+      if (rawSummary === null) settlementSummary = null;
+      else if (typeof rawSummary !== 'string') {
+        res.status(400).json({ error: 'settlementSummary must be a string of at most 200 characters, or null' });
+        return;
+      } else {
+        const trimmed = rawSummary.trim();
+        if (trimmed.length > 200) {
+          res.status(400).json({ error: 'settlementSummary must be at most 200 characters' });
+          return;
+        }
+        settlementSummary = trimmed.length > 0 ? trimmed : null;
+      }
+    }
 
     // The moment the reading DESCRIBES, when it is not now: a September total
     // typed on 3 October belongs to September (owner ask 2026-08-31). It is
@@ -423,6 +444,7 @@ metricsRouter.put(
       if (fields[key] !== undefined) update[key] = fields[key];
     }
     if (hasCredits) update.liquidityCredits = fields.liquidityCredits;
+    if (settlementSummary !== undefined) update.settlementSummary = settlementSummary;
     if (Object.keys(update).length === 0 && rawTP === undefined && newResets === undefined && newNa === undefined) {
       res.status(400).json({ error: 'No fields to update' });
       return;
@@ -478,6 +500,7 @@ metricsRouter.put(
     const dbUpdate: Partial<typeof metrics.$inferInsert> = {};
     if (update.name !== undefined) dbUpdate.name = update.name as string;
     if (update.description !== undefined) dbUpdate.description = update.description as string;
+    if (settlementSummary !== undefined) dbUpdate.settlementSummary = settlementSummary;
     if (update.value !== undefined) dbUpdate.value = update.value as number;
     if (update.formula !== undefined) dbUpdate.formula = update.formula as string;
     if (settlementLagMinutes !== undefined) dbUpdate.settlementLagMinutes = settlementLagMinutes;
@@ -970,13 +993,15 @@ function storableTP(tp: TimePreference | null | undefined): TimePreference | nul
 /**
  * The words half of the definition: safe to change while a market is open.
  *
- * Nothing computes from a name or a description. They are what a reader is
+ * Nothing computes from a name, a description or a settlement summary. They are what a reader is
  * told the market means, which is why every change to them is logged rather
  * than blocked (docs/market-integrity.md).
  */
 function isTextDefinitionChange(oldRow: typeof metrics.$inferSelect, update: Record<string, unknown>): boolean {
   if (update.name !== undefined && update.name !== oldRow.name) return true;
   if (update.description !== undefined && update.description !== oldRow.description) return true;
+  if (update.settlementSummary !== undefined && update.settlementSummary !== (oldRow.settlementSummary ?? null))
+    return true;
   return false;
 }
 
@@ -1024,7 +1049,7 @@ async function recordDefinitionRevisions(
   changedBy: string | null,
 ): Promise<void> {
   const rows: Array<typeof metricDefinitionRevisions.$inferInsert> = [];
-  const consider = (field: 'name' | 'description', oldValue: string | null) => {
+  const consider = (field: 'name' | 'description' | 'settlementSummary', oldValue: string | null) => {
     if (update[field] === undefined || update[field] === oldValue) return;
     rows.push({
       id: randomUUID(),
@@ -1038,6 +1063,9 @@ async function recordDefinitionRevisions(
   };
   consider('name', oldRow.name);
   consider('description', oldRow.description ?? null);
+  // The settlement line is settlement text too (docs/market-integrity.md,
+  // I1): what a trader reads under the numbers band before pricing.
+  consider('settlementSummary', oldRow.settlementSummary ?? null);
   if (rows.length > 0) await db.insert(metricDefinitionRevisions).values(rows);
 }
 

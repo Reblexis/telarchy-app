@@ -24,6 +24,8 @@ export interface Metric {
   id: string;
   name: string;
   description: string;
+  /** The floor's "Settles on:" line, max 200 chars; null falls back to the definition's first sentence. */
+  settlementSummary?: string | null;
   value: number;
   total: number | null;
   /** The metric's value evaluated at "now" (formula result with no time-

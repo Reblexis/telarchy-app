@@ -94,6 +94,7 @@ Needs the `manage` capability. Every field and its default:
 |---|---|---|
 | `name` | required | The metric's identity. Formulas reference it by exact name, and a trailing `(USD)` marks it as money. See [metric design](/guides/metric-design). |
 | `description` | `""` | The settlement text. Write it as the resolution source, because this is what a trader reads before pricing you. |
+| `settlementSummary` | `null` | One line, at most 200 characters, printed as "Settles on:" under the floor's numbers. Set it with `PUT /api/metrics/:id`; null falls back to the description's first sentence. |
 | `value` | `0` | The current reading. Ignored on a metric with a formula. |
 | `formula` | `"0"` | Empty or `0` means a leaf. Anything else makes it computed. See [formulas](/guides/formulas). |
 | `marketRangeMax` | `1000` | Upper bound of every market on this metric. Leaf metrics only; must be positive. |
@@ -118,7 +119,7 @@ on, which is the next section: a traded book keeps the range it opened with.
 Since 2026-08-18, editing a definition does not void markets. That rule splits
 the fields in two.
 
-**Words apply in place.** `name` and `description` change at any time, with the
+**Words apply in place.** `name`, `description` and `settlementSummary` change at any time, with the
 market untouched: same price, same pool, same trades, same positions. A rename
 also syncs the name markets display. Each change writes an append-only row to
 `metric_definition_revisions` recording the field, the old value, the new value

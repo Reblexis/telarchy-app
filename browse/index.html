@@ -2445,7 +2445,7 @@ rule:</p>
 <thead>
 <tr>
 <th></th>
-<th><code>name</code>, <code>description</code></th>
+<th><code>name</code>, <code>description</code>, <code>settlementSummary</code></th>
 <th><code>formula</code>, <code>marketRangeMax</code></th>
 </tr>
 </thead>
@@ -8520,6 +8520,11 @@ you expect to rename.</p>
 <td>The settlement text. Write it as the resolution source, because this is what a trader reads before pricing you.</td>
 </tr>
 <tr>
+<td><code>settlementSummary</code></td>
+<td><code>null</code></td>
+<td>One line, at most 200 characters, printed as &quot;Settles on:&quot; under the floor's numbers. Set it with <code>PUT /api/metrics/:id</code>; null falls back to the description's first sentence.</td>
+</tr>
+<tr>
 <td><code>value</code></td>
 <td><code>0</code></td>
 <td>The current reading. Ignored on a metric with a formula.</td>
@@ -8568,7 +8573,7 @@ on, which is the next section: a traded book keeps the range it opened with.</p>
 <h2 id="docs-guides-creating-md--h5">Editing, and the two edits that are refused</h2>
 <p>Since 2026-08-18, editing a definition does not void markets. That rule splits
 the fields in two.</p>
-<p><strong>Words apply in place.</strong> <code>name</code> and <code>description</code> change at any time, with the
+<p><strong>Words apply in place.</strong> <code>name</code>, <code>description</code> and <code>settlementSummary</code> change at any time, with the
 market untouched: same price, same pool, same trades, same positions. A rename
 also syncs the name markets display. Each change writes an append-only row to
 <code>metric_definition_revisions</code> recording the field, the old value, the new value

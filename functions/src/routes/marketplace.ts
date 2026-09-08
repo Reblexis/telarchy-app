@@ -504,6 +504,7 @@ async function buildFloorPayload(ws: PublicWs) {
       id: metrics.id,
       order: metrics.order,
       description: metrics.description,
+      settlementSummary: metrics.settlementSummary,
       resetsEvery: metrics.resetsEvery,
       resolvesNaUntilMeasured: metrics.resolvesNaUntilMeasured,
     })
@@ -631,11 +632,17 @@ async function buildFloorPayload(ws: PublicWs) {
         resolvesNaUntilMeasured: boolean;
         measured: boolean;
         description: string | null;
+        /** The floor's "Settles on:" line; null falls back to the definition's first sentence. */
+        settlementSummary: string | null;
         platformSynced: boolean;
         points: Array<{ at: Date | null; value: number }>;
       }>
     | undefined;
   let heroMetricDescription: string | null | undefined;
+  // The hero's settlement line, beside its definition (docs/ui-conventions.md,
+  // "The numbers band and the settlement line"); null when the owner has not
+  // written one, and the floor then prints the definition's first sentence.
+  let heroMetricSettlementSummary: string | null | undefined;
   // Shipped so a manager on the floor can edit the definition in place
   // (PUT /api/metrics/:id needs the id; owner ask 2026-08-18).
   let heroMetricIdOut: string | null | undefined;
@@ -700,10 +707,11 @@ async function buildFloorPayload(ws: PublicWs) {
     heroMetricIdOut = heroMetricId ?? null;
     if (heroMetricId) {
       const [metricRow] = await db
-        .select({ description: metrics.description })
+        .select({ description: metrics.description, settlementSummary: metrics.settlementSummary })
         .from(metrics)
         .where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, heroMetricId)));
       heroMetricDescription = metricRow?.description ?? null;
+      heroMetricSettlementSummary = metricRow?.settlementSummary ?? null;
       // Up to a year of the hero metric's real values, so the floor's
       // year chart can show the actual trajectory (not just the last few
       // days). Cadence is at most a few pushes a day, so 500 covers it.
@@ -790,6 +798,7 @@ async function buildFloorPayload(ws: PublicWs) {
         resolvesNaUntilMeasured: metricRow?.resolvesNaUntilMeasured ?? false,
         measured: rows.length > 0,
         description: metricRow?.description ?? null,
+        settlementSummary: metricRow?.settlementSummary ?? null,
         // The platform writes this metric's readings itself (the hourly
         // self-sync): the floor's reading cell says so instead of offering
         // the owner a Report control for a number they never type.
@@ -1171,6 +1180,7 @@ async function buildFloorPayload(ws: PublicWs) {
           heroHistory,
           horizonHistories,
           heroMetricDescription,
+          heroMetricSettlementSummary,
           heroMetricId: heroMetricIdOut,
           tradesThisWeek,
           marketHistory,

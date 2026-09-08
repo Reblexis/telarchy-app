@@ -200,6 +200,7 @@ export async function getAllMetrics(workspaceId: string): Promise<Metric[]> {
       id: row.id,
       name: row.name,
       description: row.description || '',
+      settlementSummary: row.settlementSummary ?? null,
       value: row.value,
       total: row.value,
       formula: row.formula || '0',
