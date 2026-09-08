@@ -123,6 +123,10 @@ export const workspaces = pgTable('workspaces', {
   spamPenalty: doublePrecision('spam_penalty').notNull().default(0),
   /** Per-participant cap on simultaneously pending proposals in this workspace. 0 disables the cap. Never applies to a caller holding manage (owner, admins, platform admins). */
   maxPendingProposalsPerParticipant: integer('max_pending_proposals').notNull().default(0),
+  /** How many days a new proposal has before it lapses as declined unless
+   *  decided (docs/guides/proposals.md, "The deadline, and the close").
+   *  Whole days, 1..90. A proposer may ask for longer per proposal. */
+  decisionDays: integer('decision_days').notNull().default(7),
 });
 
 /**
@@ -878,6 +882,21 @@ export const proposals = pgTable(
      * field on. See workspaces.charter.
      */
     declineReason: text('decline_reason'),
+    /**
+     * The decision deadline (docs/guides/proposals.md, "The deadline, and
+     * the close"): the instant by which the owner decides, defaulting to
+     * the workspace's decisionDays after posting; may only move later. Null
+     * only on rows from before deadlines existed, which never lapse.
+     */
+    decideBy: timestamp('decide_by'),
+    /** When trading on both branches closed: the decision, or the deadline,
+     *  whichever came first. Null while the proposal is pending. The trade
+     *  path refuses buys and sells alike once set (code proposal_closed). */
+    closedAt: timestamp('closed_at'),
+    /** Set when the proposal lapsed as declined at its deadline with no
+     *  decision. Status is 'declined'; this is what the floor's "lapsed"
+     *  pill reads. */
+    lapsedAt: timestamp('lapsed_at'),
     /**
      * The pair prices at the moment the owner ruled, one entry per
      * (metric, targetDate): what the contractor rail scores an approved job

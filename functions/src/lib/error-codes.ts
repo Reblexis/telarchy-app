@@ -37,6 +37,9 @@ export const ERROR_CODES = [
   /** Deactivated by the time preference: sells only. Retryable as a sell. */
   'market_closed',
   'market_settling',
+  /** The proposal was decided or its deadline passed: both branches are
+   *  closed, buys and sells alike, and positions settle at the date. */
+  'proposal_closed',
   'workspace_not_public',
   /** An Idempotency-Key already used for a DIFFERENT request body. */
   'idempotency_key_reuse',

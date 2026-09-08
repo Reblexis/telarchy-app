@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { agents, limitOrders, markets, positions, trades, workspaces } from '../db/schema';
+import { agents, limitOrders, markets, positions, proposals, trades, workspaces } from '../db/schema';
 import { betTowardsValue, consensus, directionSellProceeds, pHigher, sharesForBudget } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { emitPricesChanged } from '../lib/market-events';
@@ -131,6 +131,25 @@ export async function executeTradeInTx(
   if (!market) throw new AppError('Market not found', 404, undefined, 'market_not_found');
   if (market.resolved) throw new AppError('Market is resolved', 400, undefined, 'market_resolved');
   if (market.voided) throw new AppError('Market is voided; positions were refunded', 400, undefined, 'market_voided');
+  // Trading on both branches of a proposal closes at the decision or its
+  // deadline (docs/guides/proposals.md, "The deadline, and the close"):
+  // buys and sells alike, so the record the owner ruled on is the last
+  // price anybody could trade, and nothing is spent on a book after it can
+  // no longer change the decision. Positions settle at the date.
+  if (market.proposalId) {
+    const [owner] = await tx
+      .select({ closedAt: proposals.closedAt })
+      .from(proposals)
+      .where(and(eq(proposals.id, market.proposalId), eq(proposals.workspaceId, workspaceId)));
+    if (owner?.closedAt) {
+      throw new AppError(
+        'Trading on this proposal closed with the decision; positions settle at the date',
+        400,
+        undefined,
+        'proposal_closed',
+      );
+    }
+  }
   // Trading happens on a PUBLIC floor and nowhere else. A floor that is not
   // public is still being built: metrics, dates, books, invitations. The
   // reason is the prize season, which scores every workspace public AT

@@ -1009,6 +1009,10 @@ async function buildFloorPayload(ws: PublicWs) {
         status: p.status,
         resolvedAt: p.resolvedAt,
         declineReason: p.declineReason,
+        // The deadline and the close (docs/guides/proposals.md).
+        decideBy: p.decideBy ?? null,
+        closedAt: p.closedAt ?? null,
+        lapsedAt: p.lapsedAt ?? null,
         proposedByName: names.get(p.proposedBy) ?? null,
         // The linkable handle for the public profile page: prefer the
         // unique nickname, fall back to the raw participant id, which the
