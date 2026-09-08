@@ -10,10 +10,10 @@ import { platformStats } from './platform-stats';
 /**
  * Telarchy's own reading of the numbers it computes about itself.
  *
- * The platform computes `weeklyActiveVerifiedTraders` and `revenue30dUsd`
- * (services/platform-stats.ts) and its public floor prices both on three
- * horizons, so both need a reading at least as often as the shortest horizon
- * moves. Until 2026-08-30 the push was a GitHub Actions cron that read the
+ * The platform computes `weeklyActiveVerifiedTraders`, `revenue30dUsd` and
+ * `outsideOwnersDeciding` (services/platform-stats.ts) and its public floor
+ * prices them on short horizons, so each needs a reading at least as often
+ * as the shortest horizon moves. Until 2026-08-30 the push was a GitHub Actions cron that read the
  * numbers back over the public HTTP route and wrote them with an agent key.
  * GitHub's scheduler delivered that job roughly once a day and hours late
  * (a `40 23 * * *` cron fired at 01:36, 04:17, 04:59 and 07:03 UTC on four
@@ -57,13 +57,16 @@ const TRADER_METRIC_NAMES = [
  */
 const REVENUE_METRIC_NAMES = ['Telarchy revenue'];
 
+/** docs/metrics.md, "Outside owners deciding". */
+const OWNERS_METRIC_NAMES = ['Outside owners deciding'];
+
 export interface SelfSyncReading {
   metricId: string;
   metricName: string;
   value: number;
   /** False when the number came back the same; the reading is still recorded. */
   changed: boolean;
-  source: 'weeklyActiveVerifiedTraders' | 'revenue30dUsd';
+  source: 'weeklyActiveVerifiedTraders' | 'revenue30dUsd' | 'outsideOwnersDeciding';
 }
 
 export interface SelfSyncResult {
@@ -157,6 +160,11 @@ export async function syncSelfMetrics(): Promise<SelfSyncResult> {
       metric,
       value: stats.revenue30dUsd,
       source: 'revenue30dUsd' as const,
+    })),
+    ...matchMetrics(allMetrics, OWNERS_METRIC_NAMES).map(metric => ({
+      metric,
+      value: stats.outsideOwnersDeciding,
+      source: 'outsideOwnersDeciding' as const,
     })),
   ];
 

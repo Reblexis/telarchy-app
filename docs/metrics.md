@@ -1,8 +1,10 @@
 # Telarchy metrics
 
-Primary metrics, organized by what they measure: product engagement and network quality. This doc is the canonical definition. The platform computes none of the engagement or network-quality metrics below; the two it computes and the hourly self-sync records are `weeklyActiveVerifiedTraders` (under Engagement) and `revenue30dUsd` (under Money). Both are published by `GET /api/marketplace/stats`, because a number a market settles on has to be readable by the people asked to trust it, and `POST /api/cron/self-sync` records each verbatim on the hour.
+Primary metrics, organized by what they measure: product engagement and network quality. This doc is the canonical definition. The platform computes none of the engagement or network-quality metrics below; the three it computes and the hourly self-sync records are `weeklyActiveVerifiedTraders` and `outsideOwnersDeciding` (under Engagement) and `revenue30dUsd` (under Money). Both are published by `GET /api/marketplace/stats`, because a number a market settles on has to be readable by the people asked to trust it, and `POST /api/cron/self-sync` records each verbatim on the hour.
 
 A reading is recorded on every run, changed or not: `metric_logs` is the "actual so far" line the floor draws and the series settlement fixes on, so a number genuinely re-measured on the hour is a measurement even when it comes back the same. Only a number that actually moved writes an updates-feed entry and a `metric:updated` event, which are notifications rather than measurements. A metric the platform does not compute is never written by the sync at all, so `Implied valuation (USD)` keeps its `resolvesNaUntilMeasured` state until a real investment closes.
+
+Three of the metrics below are priced on the public floor: weekly active verified traders, outside owners deciding, and revenue. Implied valuation is an evidence series with no market until an investment closes.
 
 Telarchy's own platform-internal workspace at telarchy.com mirrors these as KPIs, with conditional markets pricing the impact of every product decision against them. The product dogfoods itself.
 
@@ -28,6 +30,14 @@ The hero metric of the Telarchy floor, and the one metric the platform computes 
 
 - **Why this metric:** credits are free, so a costless gesture must not count, and a resolution source has to be readable by the people asked to trust it; both the verification and the number are public.
 - **How to compute:** `functions/src/services/platform-stats.ts`: sum `abs(cost)` of `trades` per `agentId` over the trailing 7 days, keep those at or above 100, count the ones we PAID for a Manifold record, which is an `earn_claims` row with `key = 'manifold_link'`. Cached for one minute. **Verified means paid for, never merely linked.** Since 2026-09-02 anyone who can prove they hold an account may link it, qualified or not (`docs/record-links.md`), so the `record_links` badge is identity rather than evidence and a fresh account could enter any count that read it. `paidManifoldLinkCount` and `paidManifoldLinkAgents` are the one definition; this count and the data room's verified-participants count both call them, so the two numbers cannot disagree with each other or with this one. The linked-accounts count below is a different question and deliberately does not.
+
+### Outside owners deciding (`outsideOwnersDeciding`)
+
+Distinct workspaces whose owner is not a house account and who approved or declined a proposal on their own floor in the trailing 7 days. One workspace counts once however many proposals it decided; a decline is a decision; a pending proposal is not; a decision made on a floor by someone other than its owner is not the owner deciding. House means the platform admin and the platform-operated participants, so Telarchy's own floors never count.
+
+- **Why this metric:** it is the launch number. A product whose owner is the only owner has users but no customers; the first outside owner who decides something through the market is the first person to understand, and every product decision from then on is priced against how many of them there are. It replaced implied valuation as a priced metric because valuation cannot be moved by any proposal until a round closes, while this can be moved by every one.
+- **How to compute:** `outsideOwnersDeciding7d` in `functions/src/services/platform-stats.ts`: `proposals` with status approved or declined and `resolvedAt` inside the trailing 7 days, joined to their workspace's `createdBy`, kept when `resolvedBy` is that owner and the owner's `agents` row is neither `platformAdmin` nor `platformOperated`; count the distinct workspaces. `GET /api/marketplace/stats` publishes it and the hourly self-sync records it verbatim.
+- **Markets:** this week and next month, like the trader count. Range 0 to 20.
 
 ### Manifold accounts linked (`manifoldImportCount`)
 
@@ -78,8 +88,8 @@ Money Telarchy itself was paid in the trailing 30 days: managed-tier subscriptio
 The post-money valuation implied by the most recent closed investment in Telarchy: a priced round at its post-money; a SAFE or convertible note at its valuation cap; a secondary sale at the price it implies. USD.
 
 - **Why this metric:** it is the market's answer to "what is this worth", asked on a date, and a forecaster can only be paid for it when the world answers too.
-- **How to compute:** nothing to sync. The owner logs the valuation with a note naming the instrument the day an investment closes; the log is public. Until then the metric has no reading and is declared `resolvesNaUntilMeasured`, so every market on it voids (N/A, all bets refunded) at its instant instead of settling on a number that does not exist (docs/ui-conventions.md, "A market on a number that does not exist yet").
-- **Markets:** today, this week, next month, like every floor metric. Range 0 to 20,000,000.
+- **How to compute:** nothing to sync. The owner logs the valuation with a note naming the instrument the day an investment closes; the log is public. Until then the metric has no reading and is declared `resolvesNaUntilMeasured`.
+- **Markets:** none. It is an evidence series: no horizons, so no book opens on it and no proposal pair prices it. A metric no proposal can move should not carry a pair on every proposal, and a book that can only void at its date protects nobody. When an investment closes and the number exists, the owner gives it horizons again and it prices like the others. The one September book that was traded before this rule settles N/A at its date, every position refunded (docs/ui-conventions.md, "A market on a number that does not exist yet").
 
 ## Notes
 

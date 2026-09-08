@@ -1,6 +1,15 @@
 import { and, count, eq, gt, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { agents, earnClaims, liquidityPurchases, markets, recordLinks, trades, workspaces } from '../db/schema';
+import {
+  agents,
+  earnClaims,
+  liquidityPurchases,
+  markets,
+  proposals,
+  recordLinks,
+  trades,
+  workspaces,
+} from '../db/schema';
 import { ttlCache } from '../lib/ttl-cache';
 
 /**
@@ -64,11 +73,47 @@ export async function linkedManifoldCount(): Promise<number> {
   return Number(row?.n ?? 0);
 }
 
+/**
+ * "Outside owners deciding" (docs/metrics.md): distinct workspaces whose
+ * owner is not a house account and who approved or declined a proposal on
+ * their own floor in the trailing 7 days. A decline is a decision; a pending
+ * proposal is not; a decision made on the floor by someone other than its
+ * owner is not the owner deciding. House means the platform admin and the
+ * platform-operated participants, so Telarchy's own floors never count. It
+ * is the number the founder's outreach exists to move, and like the trader
+ * count it is public because a market settles on it.
+ */
+export async function outsideOwnersDeciding7d(): Promise<number> {
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const rows = await db
+    .select({
+      workspaceId: proposals.workspaceId,
+      resolvedBy: proposals.resolvedBy,
+      owner: workspaces.createdBy,
+      admin: agents.platformAdmin,
+      operated: agents.platformOperated,
+    })
+    .from(proposals)
+    .innerJoin(workspaces, eq(workspaces.id, proposals.workspaceId))
+    .leftJoin(agents, eq(agents.id, workspaces.createdBy))
+    .where(and(inArray(proposals.status, ['approved', 'declined']), gt(proposals.resolvedAt, weekAgo)));
+  const deciding = new Set<string>();
+  for (const r of rows) {
+    if (r.admin === true || r.operated === true) continue;
+    if (r.resolvedBy !== r.owner) continue;
+    deciding.add(r.workspaceId);
+  }
+  return deciding.size;
+}
+
 export interface PlatformStats {
   marketsActive: number;
   agentsActive: number;
   tradesThisWeek: number;
   weeklyActiveVerifiedTraders: number;
+  /** docs/metrics.md, "Outside owners deciding": outside workspaces whose
+   *  owner decided a proposal in the trailing 7 days. */
+  outsideOwnersDeciding: number;
   manifoldImportCount: number;
   /**
    * Money Telarchy itself was paid in the trailing 30 days, USD
@@ -119,6 +164,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
     .groupBy(trades.agentId);
   const qualifying = spendByAgent.filter(r => Number(r.spend) >= 100).map(r => r.id);
   const weeklyActiveVerifiedTraders = (await paidManifoldLinkAgents(qualifying)).size;
+  const outsideOwnersDeciding = await outsideOwnersDeciding7d();
 
   let marketsActive = 0;
   let tradesThisWeek = 0;
@@ -176,6 +222,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
     agentsActive: Number(agentCount.count),
     tradesThisWeek,
     weeklyActiveVerifiedTraders,
+    outsideOwnersDeciding,
     manifoldImportCount,
     revenue30dUsd,
   };

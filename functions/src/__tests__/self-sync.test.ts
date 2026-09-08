@@ -16,6 +16,7 @@ const stats = {
   agentsActive: 0,
   tradesThisWeek: 0,
   weeklyActiveVerifiedTraders: 4,
+  outsideOwnersDeciding: 1,
   manifoldImportCount: 0,
   revenue30dUsd: 0,
 };
@@ -34,6 +35,7 @@ const OWNER = 'agent-self-sync';
 const TRADERS = 'metric-traders';
 const REVENUE = 'metric-revenue';
 const VALUATION = 'metric-valuation';
+const OWNERS = 'metric-owners';
 
 const logsFor = (metricId: string) =>
   db
@@ -50,6 +52,7 @@ beforeEach(async () => {
   process.env.SELF_SYNC_WORKSPACE_ID = WS;
   stats.weeklyActiveVerifiedTraders = 4;
   stats.revenue30dUsd = 0;
+  stats.outsideOwnersDeciding = 1;
   await db.insert(agents).values({ id: OWNER, apiKeyHash: 'h-ss', balance: 0 });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
@@ -71,7 +74,22 @@ beforeEach(async () => {
       marketRangeMax: 20_000_000,
       resolvesNaUntilMeasured: true,
     },
+    { id: OWNERS, workspaceId: WS, name: 'Outside owners deciding', value: 1, formula: '0', marketRangeMax: 20 },
   ]);
+});
+
+test('outside owners deciding is recorded every run like the other two platform numbers', async () => {
+  await syncSelfMetrics();
+  await syncSelfMetrics();
+  expect(await logsFor(OWNERS)).toHaveLength(2);
+  stats.outsideOwnersDeciding = 3;
+  const result = await syncSelfMetrics();
+  expect(result.readings.find(r => r.source === 'outsideOwnersDeciding')?.changed).toBe(true);
+  const [row] = await db
+    .select()
+    .from(metrics)
+    .where(and(eq(metrics.id, OWNERS), eq(metrics.workspaceId, WS)));
+  expect(row.value).toBe(3);
 });
 
 afterEach(() => {
@@ -101,7 +119,7 @@ test('a changed number moves the metric and announces it once', async () => {
   stats.revenue30dUsd = 25;
   const result = await syncSelfMetrics();
 
-  expect(result.readings.map(r => r.changed)).toEqual([true, true]);
+  expect(result.readings.map(r => r.changed)).toEqual([true, true, false]);
   const [traders] = await db
     .select()
     .from(metrics)
