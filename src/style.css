@@ -2475,11 +2475,16 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
 }
 .pubws-ballot-clock.is-urgent { color: var(--lower); }
 
-/* The owner's three words after the buttons, and the extend field. */
+/* The owner's three words under the buttons, and the extend field: last in
+   the bar and on their own line, whatever order the buttons come in. */
 .pubws-ownerbar-note {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
+  order: 10;
+  flex-basis: 100%;
+  margin-top: 0.2rem;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.68rem;
   letter-spacing: 0.06em;
