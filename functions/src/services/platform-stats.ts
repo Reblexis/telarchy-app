@@ -10,6 +10,7 @@ import {
   trades,
   workspaces,
 } from '../db/schema';
+import { loadSeasonMarked } from '../lib/board';
 import { ttlCache } from '../lib/ttl-cache';
 
 /**
@@ -73,12 +74,34 @@ export async function linkedManifoldCount(): Promise<number> {
   return Number(row?.n ?? 0);
 }
 
+/** How soon after its workspace a proposal has to appear to be the template's
+ *  own starter rather than something the owner wrote. */
+export const STARTER_PROPOSAL_WINDOW_MS = 10 * 60 * 1000;
+
+/**
+ * The starter proposal every new workspace is seeded with
+ * (services/workspace-create.ts) is proposed in the owner's name within the
+ * same second the workspace is created. Approving it is trying the button,
+ * not deciding an action, so it never counts as an outside owner deciding
+ * (owner report 2026-09-08: "why does it say 1 .. i think its 0").
+ */
+export function isStarterProposal(p: {
+  proposedBy: string;
+  owner: string;
+  proposalCreatedAt: Date;
+  workspaceCreatedAt: Date;
+}): boolean {
+  const sinceBirth = p.proposalCreatedAt.getTime() - p.workspaceCreatedAt.getTime();
+  return p.proposedBy === p.owner && sinceBirth >= 0 && sinceBirth < STARTER_PROPOSAL_WINDOW_MS;
+}
+
 /**
  * "Outside owners deciding" (docs/metrics.md): distinct workspaces whose
  * owner is not a house account and who approved or declined a proposal on
  * their own floor in the trailing 7 days. A decline is a decision; a pending
  * proposal is not; a decision made on the floor by someone other than its
- * owner is not the owner deciding. House means the platform admin and the
+ * owner is not the owner deciding; approving the template's starter proposal
+ * is not deciding an action. House means the platform admin and the
  * platform-operated participants, so Telarchy's own floors never count. It
  * is the number the founder's outreach exists to move, and like the trader
  * count it is public because a market settles on it.
@@ -89,6 +112,9 @@ export async function outsideOwnersDeciding7d(): Promise<number> {
     .select({
       workspaceId: proposals.workspaceId,
       resolvedBy: proposals.resolvedBy,
+      proposedBy: proposals.proposedBy,
+      proposalCreatedAt: proposals.createdAt,
+      workspaceCreatedAt: workspaces.createdAt,
       owner: workspaces.createdBy,
       admin: agents.platformAdmin,
       operated: agents.platformOperated,
@@ -101,9 +127,52 @@ export async function outsideOwnersDeciding7d(): Promise<number> {
   for (const r of rows) {
     if (r.admin === true || r.operated === true) continue;
     if (r.resolvedBy !== r.owner) continue;
+    if (isStarterProposal(r)) continue;
     deciding.add(r.workspaceId);
   }
   return deciding.size;
+}
+
+/** Credits of profit a participant needs to count as a profitable forecaster. */
+export const PROFITABLE_FORECASTER_MIN_CREDITS = 100;
+
+/**
+ * "Profitable forecasters" (docs/metrics.md): participants whose trading
+ * profit, marked to market, is at least 100 credits over the markets that
+ * resolved in the trailing 30 days plus every market still open, house
+ * excluded. Unsettled profit counts: an open position is valued at what the
+ * market currently calls (owner decision 2026-09-08, "it could be unsettled
+ * profit .. that counts too"). Bots count exactly like humans; nobody has to
+ * link anything, because a market is close to zero-sum and a farm of accounts
+ * cannot all be profitable. The arithmetic is the board's (lib/board.ts), so
+ * this number and the leaderboard can never disagree about a trader; only the
+ * window and the threshold are decided here.
+ */
+export async function profitableForecasters30d(now = new Date()): Promise<number> {
+  const windowStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  // Far enough ahead that every open market's settlement falls inside it, so
+  // the open half marks every held position rather than only the ones
+  // settling soon.
+  const windowEnd = new Date(now.getTime() + 366 * 24 * 60 * 60 * 1000);
+  const [allWs, house] = await Promise.all([
+    db.select({ id: workspaces.id }).from(workspaces),
+    db
+      .select({ id: agents.id })
+      .from(agents)
+      .where(sql`${agents.platformAdmin} = true or ${agents.platformOperated} = true`),
+  ]);
+  const houseIds = new Set(house.map(h => h.id));
+  const profit = await loadSeasonMarked(
+    allWs.map(w => w.id),
+    windowStart,
+    windowEnd,
+  );
+  let n = 0;
+  for (const [agentId, p] of profit) {
+    if (houseIds.has(agentId)) continue;
+    if (p >= PROFITABLE_FORECASTER_MIN_CREDITS) n += 1;
+  }
+  return n;
 }
 
 export interface PlatformStats {
@@ -114,6 +183,10 @@ export interface PlatformStats {
   /** docs/metrics.md, "Outside owners deciding": outside workspaces whose
    *  owner decided a proposal in the trailing 7 days. */
   outsideOwnersDeciding: number;
+  /** docs/metrics.md, "Profitable forecasters": participants at or above 100
+   *  credits of marked-to-market profit over the trailing 30 days' resolutions
+   *  and every open market, house excluded. */
+  profitableForecasters: number;
   manifoldImportCount: number;
   /**
    * Money Telarchy itself was paid in the trailing 30 days, USD
@@ -165,6 +238,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
   const qualifying = spendByAgent.filter(r => Number(r.spend) >= 100).map(r => r.id);
   const weeklyActiveVerifiedTraders = (await paidManifoldLinkAgents(qualifying)).size;
   const outsideOwnersDeciding = await outsideOwnersDeciding7d();
+  const profitableForecasters = await profitableForecasters30d();
 
   let marketsActive = 0;
   let tradesThisWeek = 0;
@@ -223,6 +297,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
     tradesThisWeek,
     weeklyActiveVerifiedTraders,
     outsideOwnersDeciding,
+    profitableForecasters,
     manifoldImportCount,
     revenue30dUsd,
   };

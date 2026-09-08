@@ -17,6 +17,7 @@ const stats = {
   tradesThisWeek: 0,
   weeklyActiveVerifiedTraders: 4,
   outsideOwnersDeciding: 1,
+  profitableForecasters: 2,
   manifoldImportCount: 0,
   revenue30dUsd: 0,
 };
@@ -36,6 +37,7 @@ const TRADERS = 'metric-traders';
 const REVENUE = 'metric-revenue';
 const VALUATION = 'metric-valuation';
 const OWNERS = 'metric-owners';
+const FORECASTERS = 'metric-forecasters';
 
 const logsFor = (metricId: string) =>
   db
@@ -53,6 +55,7 @@ beforeEach(async () => {
   stats.weeklyActiveVerifiedTraders = 4;
   stats.revenue30dUsd = 0;
   stats.outsideOwnersDeciding = 1;
+  stats.profitableForecasters = 2;
   await db.insert(agents).values({ id: OWNER, apiKeyHash: 'h-ss', balance: 0 });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await provisionWorkspace(db as any, {
@@ -75,7 +78,21 @@ beforeEach(async () => {
       resolvesNaUntilMeasured: true,
     },
     { id: OWNERS, workspaceId: WS, name: 'Outside owners deciding', value: 1, formula: '0', marketRangeMax: 20 },
+    { id: FORECASTERS, workspaceId: WS, name: 'Profitable forecasters', value: 2, formula: '0', marketRangeMax: 100 },
   ]);
+});
+
+test('profitable forecasters is recorded every run and follows the platform number', async () => {
+  await syncSelfMetrics();
+  expect(await logsFor(FORECASTERS)).toHaveLength(1);
+  stats.profitableForecasters = 5;
+  const result = await syncSelfMetrics();
+  expect(result.readings.find(r => r.source === 'profitableForecasters')?.changed).toBe(true);
+  const [row] = await db
+    .select()
+    .from(metrics)
+    .where(and(eq(metrics.id, FORECASTERS), eq(metrics.workspaceId, WS)));
+  expect(row.value).toBe(5);
 });
 
 test('outside owners deciding is recorded every run like the other two platform numbers', async () => {
@@ -119,7 +136,7 @@ test('a changed number moves the metric and announces it once', async () => {
   stats.revenue30dUsd = 25;
   const result = await syncSelfMetrics();
 
-  expect(result.readings.map(r => r.changed)).toEqual([true, true, false]);
+  expect(result.readings.map(r => r.changed)).toEqual([true, true, false, false]);
   const [traders] = await db
     .select()
     .from(metrics)
