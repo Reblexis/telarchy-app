@@ -245,3 +245,62 @@ describe('another series in the same chart (the profile balance)', () => {
     );
   });
 });
+
+/**
+ * On a proposal the strip names the book being traded (critics' round 3):
+ * the primary line's end label carries the branch word the caller hands
+ * it, the way the secondary line already carried "if declined".
+ */
+describe('the call label names the book being traded', () => {
+  it("appends the caller's label after the number", () => {
+    const { container } = render(
+      <MarketChart
+        series={[{ at: iso(3600e3), consensus: 82000 }]}
+        consensus={82000}
+        unit="$"
+        callLabel="if approved"
+        secondary={{
+          series: [{ at: iso(3600e3), consensus: 71000 }],
+          consensus: 71000,
+          label: 'if declined',
+          tone: 'lower',
+        }}
+      />,
+    );
+    expect(container.querySelector('.mchart-calllabel')?.textContent).toBe('$82,000 if approved');
+    expect(container.querySelector('.mchart-branch-label')?.textContent).toBe('$71,000 if declined');
+  });
+
+  it('without a label the number stands alone', () => {
+    const { container } = render(
+      <MarketChart series={[{ at: iso(3600e3), consensus: 82000 }]} consensus={82000} unit="$" />,
+    );
+    expect(container.querySelector('.mchart-calllabel')?.textContent).toBe('$82,000');
+  });
+});
+
+/**
+ * The y domain the chart draws is one exported helper (lib/chart-domain),
+ * so the floor's stake example can quote the top of the visible axis from
+ * the same arithmetic.
+ */
+describe('the chart draws the domain the helper computes', () => {
+  it("the axis labels sit inside the helper's domain and the top label is near its top", async () => {
+    const { yDomain } = await import('../../lib/chart-domain');
+    const series = [
+      { at: iso(3 * 3600e3), consensus: 17 },
+      { at: iso(2 * 3600e3), consensus: 17.5 },
+    ];
+    const { container } = render(<MarketChart series={series} consensus={17.5} />);
+    const { lo, hi } = yDomain([17, 17.5, 17.5], [17.5]);
+    const labels = [...container.querySelectorAll('.mchart-ylabel')].map(n =>
+      parseFloat((n.textContent ?? '').replace(/,/g, '')),
+    );
+    expect(labels.length).toBeGreaterThan(1);
+    for (const v of labels) {
+      expect(v).toBeGreaterThanOrEqual(lo);
+      expect(v).toBeLessThanOrEqual(hi);
+    }
+    expect(hi - lo).toBeCloseTo(4, 5);
+  });
+});

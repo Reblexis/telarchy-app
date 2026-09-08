@@ -1538,6 +1538,10 @@ code, pre, kbd, samp {
    same ruled language as everything else here, and on a phone he takes the
    sheet, because a 22rem panel on a 390px screen is a joke.
 --------------------------------------------------------------------------- */
+/* The corner is his, so nothing sits under it: the room the proposals rail,
+   the market column and (on a phone) the page's last block keep at their
+   foot, the dock's own size plus its offset from the foot, plus 1rem. */
+:root { --ottodock-clearance: calc(0.5rem * 2 + 1.7rem + 2px + 1.6rem); }
 .ottodock {
   position: fixed;
   right: clamp(0.9rem, 2vw, 1.6rem);
@@ -2739,6 +2743,16 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
    own call by more than the difference: the pools and the baseline call, in
    the trader's terms. */
 .pubws-decision-why {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  text-align: left;
+  text-wrap: pretty;
+}
+/* The grey line under the owner's bar: what Decline and Remove do to the
+   books, the row's why-line register, left-aligned like every wrapped block. */
+.pubws-decide-why {
   margin: 0.5rem 0 0;
   font-size: 0.78rem;
   line-height: 1.5;
@@ -5209,7 +5223,7 @@ textarea.jobform-line--desc {
     align-content: center;
     align-items: start;
   }
-  .pubws-main--floor .pubws-center { min-width: 0; grid-column: 1; grid-row: 1; }
+  .pubws-main--floor .pubws-center { min-width: 0; grid-column: 1; grid-row: 1; padding-bottom: calc(var(--ottodock-clearance) + 1rem); }
   /* The standings are their own grid item (critics' round 2: on a phone the
      proposals stack between the market and them), put back under the
      market here. */
@@ -5230,6 +5244,8 @@ textarea.jobform-line--desc {
     margin-top: 2.2rem;
     border-left: 1px solid var(--border-color);
     padding-left: clamp(1rem, 2vw, 1.6rem);
+    /* The last proposal row clear of the Otto dock at the foot. */
+    padding-bottom: calc(var(--ottodock-clearance) + 1rem);
   }
   /* Two footers side by side on a wide screen. */
   .pubws-standings-pair { grid-template-columns: 1fr 1fr; column-gap: 2rem; }
@@ -5293,6 +5309,9 @@ textarea.jobform-line--desc {
   }
   .pubws-know-col { width: 100%; max-width: 660px; margin: 0 auto; }
   .pubws-main--floor > .pubws-standings { width: 100%; max-width: 660px; margin-left: auto; margin-right: auto; }
+  /* The page's last block keeps the same room under it as the columns do
+     wide: the dock never sits on the end board's field. */
+  .pubws-end-wrap { padding-bottom: calc(var(--ottodock-clearance) + 1rem); }
   /* Stacked on a phone. */
   .pubws-standings-pair { grid-template-columns: 1fr; row-gap: 1.7rem; }
   .pubws-ghost-standings { grid-template-columns: 1fr; }

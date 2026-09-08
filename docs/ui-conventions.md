@@ -1346,9 +1346,12 @@ opens the published-reason field in place (the charter promises the
 reason lands on the proposal, so the confirm stays off until a reason is
 typed), and Remove. One grey line under the bar says what the two quiet
 buttons do to the books (`.pubws-decide-why`): "Decline settles the pair
-on if-declined and positions pay out. Remove voids both books and refunds
-everyone." (critics' round 3: an owner deciding a paid proposal for the
-first time hesitated on the wrong button). Nobody else ever renders the
+on if-declined: those positions pay out at the real number, if-approved is
+refunded. Remove voids both books and refunds everyone." (critics' round 3:
+an owner deciding a paid proposal for the first time hesitated on the wrong
+button; the sentence follows what the server does, a plain decline voids
+the if-approved book and keeps if-declined live to its target date). The
+line is there while the proposal is still on the ballot. Nobody else ever renders the
 bar; the backend enforces manage regardless. The chart's marker beside
 the traded branch prints the difference with the row's precision, and
 "how the call moved" on a proposal names the book being traded.

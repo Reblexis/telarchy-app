@@ -54,6 +54,16 @@ export function payoutLine(unit: string, rangeMin: number, rangeMax: number): st
  * what a stake pays"). Higher pays at the top of the range, Lower at its
  * floor, one credit per share, from the SAME AMM preview the ticket runs on
  * the same stake, so the verb and the ticket cannot disagree about the bet.
+ *
+ * With the chart's visible axis given, and that axis zoomed inside the
+ * range, a second point a trader can picture (critics' round 3): "63 cr at
+ * 50, 41 cr at 20", the second at the top of the visible axis for Higher
+ * and at its floor for Lower. A share pays linearly between the range's
+ * ends, so the second payout is the first scaled by where the axis edge
+ * sits in the range. When the axis already reaches the range's edge on
+ * that side, one point only; an axis edge outside the range is never
+ * quoted either.
+ *
  * Null where there is nothing to quote: an unfunded book has no price.
  */
 export function stakeExampleLine(
@@ -64,13 +74,25 @@ export function stakeExampleLine(
   liquidity: number,
   direction: 'higher' | 'lower',
   stake: number,
+  visible: { lo: number; hi: number } | null = null,
 ): string | null {
   if (!Number.isFinite(liquidity) || liquidity <= 0 || stake <= 0) return null;
   const p = Math.min(0.999, Math.max(0.001, probability));
   const { shares } = previewTrade(p, liquidity, direction, stake);
   if (!Number.isFinite(shares) || shares <= 0) return null;
   const edge = direction === 'higher' ? rangeMax : rangeMin;
-  return `${stake} cr pays ${Math.round(shares).toLocaleString('en-US')} cr at ${unit}${fmtEdge(edge)}`;
+  const cr = (n: number) => Math.round(n).toLocaleString('en-US');
+  let line = `${stake} cr pays ${cr(shares)} cr at ${unit}${fmtEdge(edge)}`;
+  const span = rangeMax - rangeMin;
+  if (visible && span > 0) {
+    const at = direction === 'higher' ? visible.hi : visible.lo;
+    const inside = direction === 'higher' ? at < rangeMax && at > rangeMin : at > rangeMin && at < rangeMax;
+    if (inside) {
+      const frac = direction === 'higher' ? (at - rangeMin) / span : (rangeMax - at) / span;
+      line += `, ${cr(shares * frac)} cr at ${unit}${fmtEdge(at)}`;
+    }
+  }
+  return line;
 }
 
 /**

@@ -1,7 +1,7 @@
 import type { ReactNode, PointerEvent as ReactPointerEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { forecastDayOf } from '../lib/floor-horizons';
-import { formatPairValue, pairNeedsDecimals } from '../lib/formatImpact';
+import { formatImpact, formatPairValue, pairNeedsDecimals } from '../lib/formatImpact';
 import { GEOM } from './MarketChart';
 
 /**
@@ -480,8 +480,11 @@ export function NumberChart({
                       y={(ay + dy) / 2 + 4}
                       textAnchor={mx + 40 <= W ? 'start' : 'end'}
                     >
-                      {(impactFrom === 'declined' ? dc - ap : ap - dc) >= 0 ? '+' : '-'}
-                      {fmt(Math.abs(ap - dc), unit)}
+                      {/* The row's precision (lib/formatImpact): a
+                          difference that is not zero never prints as
+                          "+0.0" beside "if approved 17.04" (critics'
+                          round 3). */}
+                      {formatImpact(impactFrom === 'declined' ? dc - ap : ap - dc, unit)}
                     </text>
                   )}
                 </g>

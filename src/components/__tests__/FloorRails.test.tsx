@@ -217,6 +217,16 @@ describe('the season prize beside an entrant', () => {
     expect(leaf.getAttribute('title')).toMatch(/forecasting record/i);
     expect(leaf.getAttribute('title')).toContain('@ada');
   });
+
+  /** The leaf says "linked forecasting record" on hover (critics' round 3),
+   *  in those words first, then the handle it links. */
+  test('the leaf beside a trader\'s name says "linked forecasting record"', () => {
+    const leafed = { ...trader(3), manifoldUsername: 'ada' } as unknown as LeaderboardEntry;
+    const { container } = standings({ entries: [trader(1), leafed], season: null });
+    const leaf = container.querySelector('.pubws-lb-manifold') as HTMLElement;
+    expect(leaf.getAttribute('title')).toMatch(/^linked forecasting record/i);
+    expect(leaf.getAttribute('title')).toContain('@ada');
+  });
 });
 
 describe('the footnote under the standings pair', () => {

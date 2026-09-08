@@ -33,6 +33,7 @@ import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import type { FloorRef } from '../lib/agent-prompt';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
 import { api, type PublicWorkspace, setActiveWorkspace } from '../lib/api';
+import { yDomain } from '../lib/chart-domain';
 import { parseFloorHash } from '../lib/floor-hash';
 import {
   buildHorizonViews,
@@ -1044,6 +1045,7 @@ export function TradePage() {
           active.liquidity,
           direction,
           DEFAULT_STAKE,
+          visibleAxis,
         )
       : null;
   const consensus =
@@ -1125,6 +1127,27 @@ export function TradePage() {
         : null,
     [selectedJob, otherBranch, branch],
   );
+
+  /* The axis "how the call moved" draws, from the chart's own domain helper
+     on the same inputs (its default, whole-life window): the stake example
+     under each verb quotes a second point at its top or floor when the axis
+     is zoomed inside the range (docs/ui-conventions.md, "Each bet verb says
+     what a stake pays", critics' round 3). */
+  const visibleAxis = useMemo(() => {
+    if (consensus === null) return null;
+    const seriesValues = [
+      ...chartSeries.flatMap(p => (p.consensus === null ? [] : [p.consensus])),
+      consensus,
+      ...(chartSecondary?.series ?? []).flatMap(p => (p.consensus === null ? [] : [p.consensus])),
+    ];
+    const mustShow = [
+      consensus,
+      ...(chartPreview ? [chartPreview.value] : []),
+      ...chartOrders.map(o => o.limitValue),
+      ...(chartSecondary ? [chartSecondary.consensus] : []),
+    ];
+    return yDomain(seriesValues, mustShow);
+  }, [chartSeries, consensus, chartSecondary, chartPreview, chartOrders]);
 
   // Year chart: the hero metric's REAL value over the calendar year (solid),
   // continued to where the market sees it settling (dashed, to the resolve
@@ -1350,6 +1373,7 @@ export function TradePage() {
         ready={!authLoading}
         floor={idOrSlug ? { idOrSlug, name: ws.name } : null}
         canFund={canManage}
+        canManage={canManage}
       />
       {/* Otto, in the corner rather than in the column (owner direction
           2026-08-20): a reader needs him at whatever point of the page their
@@ -1944,6 +1968,19 @@ export function TradePage() {
                       {decideErr && <p className="ticket-err">{decideErr}</p>}
                     </div>
                   )}
+                  {/* What the two quiet buttons do to the books, in one grey
+                    line (critics' round 3: an owner deciding a paid proposal
+                    for the first time hesitated on the wrong button). The
+                    wording follows the server (services/proposals.ts): a
+                    plain decline voids the if-approved book and keeps
+                    if-declined live to settle on the real number; remove
+                    voids both. */}
+                  {canManage && !selectedJobDecided && (
+                    <p className="pubws-decide-why pubws-enter pubws-enter--1">
+                      Decline settles the pair on if-declined: those positions pay out at the real number, if-approved
+                      is refunded. Remove voids both books and refunds everyone.
+                    </p>
+                  )}
                 </>
               )}
               {/* The live price rides the market chart's control row (owner
@@ -2084,6 +2121,13 @@ export function TradePage() {
                       </span>
                     </div>
                   </div>
+                  {/* The season as one line directly under the stat row,
+                    before the chart (docs/ui-conventions.md, "Below 1500px
+                    the advert is one line"): a laptop and a phone see the
+                    money on the first scroll. From 1500px the stylesheet
+                    hides this and shows the block in the left column
+                    instead. Plain view only, like the block. */}
+                  {!selectedJob && <SeasonAdvert season={season} signedIn={!!user} canManage={canManage} line />}
                   {/* The number chart, the hero: titled by the metric itself
                     (caption-shaped), its left cell empty because the stats
                     are above, a legend naming the marks below. */}
@@ -2139,6 +2183,9 @@ export function TradePage() {
                       preview={chartPreview}
                       orders={chartOrders}
                       secondary={chartSecondary}
+                      /* The book being traded, named at the line's end the
+                         way the other branch already is (critics' round 3). */
+                      callLabel={chartSecondary ? `if ${branch}` : undefined}
                     />
                   </div>
                 </div>
@@ -2398,15 +2445,6 @@ export function TradePage() {
             </section>
           ) : null}
 
-          {/* The season as one line under the facts row (docs/ui-conventions.md,
-            "Below 1500px the advert is one line"): a laptop and a phone see
-            the money on the first scroll. From 1500px the stylesheet hides
-            this and shows the block in the left column instead. Plain view
-            only, like the block. */}
-          {hero && active && !selectedJob && (
-            <SeasonAdvert season={season} signedIn={!!user} canManage={canManage} line />
-          )}
-
           {/* Placement C (owner pick, 2026-08-31): a manager's two doors sit
             under the market and its verbs, which is where "someone should
             keep this true" is thought. A trader's pair stays further down,
@@ -2557,10 +2595,13 @@ export function TradePage() {
             {/* One quiet door for the owner in waiting (docs/ui-conventions.md,
               "The left column ends with one quiet door"): the only route to
               a floor of one's own sat at the foot of a five-screen page. The
-              same setup door the page's foot posts to. */}
-            <Link className="pubws-rail-door" to="/waitlist">
-              Your own numbers? Run a floor
-            </Link>
+              same setup door the page's foot posts to. Not for a manager of
+              this floor, who already runs one (critics' round 3). */}
+            {!canManage && (
+              <Link className="pubws-rail-door" to="/waitlist">
+                Your own numbers? Run a floor
+              </Link>
+            )}
           </aside>
         )}
         {/* What is left of the know block (docs/ui-conventions.md, "The
@@ -2749,6 +2790,7 @@ export function TopBar({
   ready,
   floor = null,
   canFund = false,
+  canManage = false,
   busy = false,
 }: {
   user: boolean;
@@ -2763,6 +2805,9 @@ export function TopBar({
   /** Whether they can put liquidity behind this market, which decides whether
    *  the wallet chip offers its plus to someone holding nothing yet. */
   canFund?: boolean;
+  /** Whether they manage the floor under the bar: the owner of their own
+   *  floor is not offered "Earn credits" on it (critics' round 3). */
+  canManage?: boolean;
 }) {
   const navigate = useNavigate();
   // The ROUTER's location, not window's: under a basename (the beta serves at
@@ -2793,7 +2838,7 @@ export function TopBar({
             else. Signed-out visitors still get the Manifold pitch, which is
             the recruiting line that brought them. */}
         {user ? (
-          <EarnDoor />
+          !canManage && <EarnDoor />
         ) : (
           <ManifoldButton signedIn={user} onRequireSignup={() => navigate(authPath('signup', location))} />
         )}

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { labelQuantum, yDomain } from '../lib/chart-domain';
 
 /**
  * The prediction, visualized: the market's call over the market's lifetime,
@@ -54,6 +55,11 @@ interface Props {
   tone?: 'market' | 'ink';
   /** The word the tooltip and the aria-label use for the series. */
   label?: string;
+  /** Appended to the call's end label ("$82,000 if approved"): on a
+   *  proposal the strip names the book being traded, the way the secondary
+   *  line names the other one (docs/ui-conventions.md, "The decision row,
+   *  then the decision bar"). */
+  callLabel?: string;
 }
 
 // Two geometries for one chart: the wide 720-unit canvas reads well from
@@ -80,20 +86,9 @@ export function compactNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-/**
- * The smallest difference two y-axis labels can express at this magnitude,
- * given compactNum's formatting. Used as the floor on the axis span: an axis
- * narrower than a few of these prints the same number twice and turns noise
- * into a cliff.
- */
-export function labelQuantum(v: number): number {
-  const abs = Math.abs(v);
-  if (abs >= 1e9) return 1e8; // "1.2B": one tenth of a billion
-  if (abs >= 1e6) return 1e5; // "10.1M": one tenth of a million
-  if (abs >= 1000) return 100; // "77.4k": one tenth of a thousand
-  if (abs >= 1) return 1; // "25": whole units
-  return 0.01; // sub-unit values, where the guard must not flatten a real move
-}
+/** The y-axis label quantum lives with the domain helper (lib/chart-domain);
+ *  re-exported here for the callers that always found it on the chart. */
+export { labelQuantum };
 
 function fullNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -126,6 +121,7 @@ export function MarketChart({
   center,
   tone = 'market',
   label = 'market',
+  callLabel,
 }: Props) {
   const ink = tone === 'ink';
   const seriesName = label === 'market' ? "The market's call" : `The ${label}`;
@@ -230,32 +226,9 @@ export function MarketChart({
     for (const o of orders) mustShow.push(o.limitValue);
     if (secondary) mustShow.push(secondary.consensus);
 
-    const sorted = [...seriesValues].sort((a, b) => a - b);
-    const quantile = (p: number) =>
-      sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)))];
-    const vMin0 = Math.min(quantile(0.05), ...mustShow);
-    const vMax0 = Math.max(quantile(0.95), ...mustShow);
-    const vPad = (vMax0 - vMin0 || vMax0 * 0.08 || 1) * 0.25;
-    let vMin = Math.max(0, vMin0 - vPad);
-    let vMax = vMax0 + vPad;
-
-    // The axis must be wide enough that its own labels can tell its top from
-    // its bottom. Without this, a market that moved 25 -> 25.07 -> 25 drew a
-    // full-height cliff between two ticks both reading "25" (owner report
-    // 2026-08-15: "it goes from 25 to 25 and yet it goes down?"), because
-    // scaling to the data alone amplifies a 0.3% move to the whole canvas.
-    // The floor is four label quanta: enough for the axis to print at least
-    // two distinct ticks. It sits far below any real move (LookPilot's 5k
-    // swing labels in hundreds, so its floor is 400), so this only ever
-    // catches noise.
-    const minSpan = labelQuantum(Math.max(Math.abs(vMin0), Math.abs(vMax0))) * 4;
-    if (vMax - vMin < minSpan) {
-      const mid = (vMin0 + vMax0) / 2;
-      vMin = Math.max(0, mid - minSpan / 2);
-      // Re-derive the top from the clamped bottom, so clamping at zero
-      // narrows the window instead of preserving it.
-      vMax = vMin + minSpan;
-    }
+    // The domain itself is lib/chart-domain's, shared with the floor's stake
+    // example so the verbs quote the axis the reader sees.
+    const { lo: vMin, hi: vMax } = yDomain(seriesValues, mustShow);
 
     const x = (t: number) => PAD_L + ((t - t0) / span) * (W - PAD_L - PAD_R);
     const y = (v: number) => PAD_T + (1 - (v - vMin) / (vMax - vMin)) * (H - PAD_T - PAD_B);
@@ -514,10 +487,11 @@ export function MarketChart({
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-callhalo" />
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-calldot" />
           {(() => {
-            const lb = edgeLabel(x(end.t), fNum(consensus));
+            const text = callLabel ? `${fNum(consensus)} ${callLabel}` : fNum(consensus);
+            const lb = edgeLabel(x(end.t), text);
             return (
               <text className="mchart-calllabel" x={lb.x} y={y(end.v) + 4} textAnchor={lb.anchor}>
-                {fNum(consensus)}
+                {text}
               </text>
             );
           })()}

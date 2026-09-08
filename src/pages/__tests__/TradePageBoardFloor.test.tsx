@@ -598,14 +598,21 @@ describe('three columns, and the standings under the verbs', () => {
    *  the centre column (critics' round 2), so a laptop and a phone see the
    *  money on the first scroll. From 1500px the block stays in the left
    *  column; the stylesheet shows one or the other, never both. */
-  test('the season line sits under the facts row in the centre column', async () => {
+  test('the season line sits directly under the stat row, before the chart, in the centre column', async () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-season--line')).toBeTruthy());
     const line = container.querySelector('.pubws-season--line') as HTMLElement;
     expect(line.closest('.pubws-center')).toBeTruthy();
     expect(line.closest('.pubws-rail')).toBeNull();
+    // Critics' round 3: under the stat row and before the chart, so the
+    // money is on the first scroll of a laptop and a phone; it used to sit
+    // under the facts row, after the standings' worth of page.
+    const stats = container.querySelector('.pubws-stats') as HTMLElement;
+    expect(line.previousElementSibling).toBe(stats);
+    const chart = container.querySelector('.pubws-numchart') as HTMLElement;
+    expect(line.nextElementSibling).toBe(chart);
     const facts = container.querySelector('.pubws-facts') as HTMLElement;
-    expect(follows(facts, line)).toBe(true);
+    expect(follows(line, facts)).toBe(true);
     const standings = container.querySelector('.pubws-standings') as HTMLElement;
     expect(follows(line, standings)).toBe(true);
     // 2026-09-04 10:35Z to 2026-10-01 00:00Z: 26 days.
@@ -951,11 +958,45 @@ describe('each bet verb says what a stake pays', () => {
     const lower = screen.getByRole('button', { name: /Bet Lower/ });
     const up = Math.round(previewTrade(0.5, 200, 'higher', DEFAULT_STAKE).shares);
     const down = Math.round(previewTrade(0.5, 200, 'lower', DEFAULT_STAKE).shares);
-    expect(higher.querySelector('.pubws-bet-eg')?.textContent).toBe(`${DEFAULT_STAKE} cr pays ${up} cr at $50,000`);
-    expect(lower.querySelector('.pubws-bet-eg')?.textContent).toBe(`${DEFAULT_STAKE} cr pays ${down} cr at $0`);
+    // A second point at the visible axis (critics' round 3): the chart is
+    // zoomed inside the 0..50,000 range, so the example also quotes the
+    // payout at the top of the axis for Higher and at its floor for Lower,
+    // from the chart's own y-domain helper on the same inputs the chart gets
+    // (one held call at 6,850, nothing else drawn).
+    const { yDomain } = await import('../../lib/chart-domain');
+    const { lo, hi } = yDomain([6_850, 6_850], [6_850]);
+    expect(hi).toBeLessThan(50_000);
+    expect(lo).toBeGreaterThan(0);
+    const upAtTop = Math.round((previewTrade(0.5, 200, 'higher', DEFAULT_STAKE).shares * hi) / 50_000);
+    const downAtFloor = Math.round((previewTrade(0.5, 200, 'lower', DEFAULT_STAKE).shares * (50_000 - lo)) / 50_000);
+    const fmt = (v: number) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+    expect(higher.querySelector('.pubws-bet-eg')?.textContent).toBe(
+      `${DEFAULT_STAKE} cr pays ${up} cr at $50,000, ${upAtTop} cr at ${fmt(hi)}`,
+    );
+    expect(lower.querySelector('.pubws-bet-eg')?.textContent).toBe(
+      `${DEFAULT_STAKE} cr pays ${down} cr at $0, ${downAtFloor} cr at ${fmt(lo)}`,
+    );
     // The cap is no longer on the verbs.
     expect(higher.textContent).not.toContain('up to');
     expect(lower.textContent).not.toContain('up to');
+  });
+
+  test('when the axis already reaches the range top, one point only', async () => {
+    const { previewTrade } = await import('../../lib/amm');
+    const { DEFAULT_STAKE } = await import('../../components/TradeTicket');
+    const ws = h.grid();
+    ws.joinAs = 'trader';
+    // A tight range the axis cannot zoom inside: 0..4 around a call of 2,
+    // where the chart's four-quanta floor spans the whole range.
+    for (const m of ws.markets) Object.assign(m, { consensus: 2, rangeMin: 0, rangeMax: 4 });
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    renderFloor();
+    const higher = await screen.findByRole('button', { name: /Bet Higher/ });
+    const lower = screen.getByRole('button', { name: /Bet Lower/ });
+    const up = Math.round(previewTrade(0.5, 200, 'higher', DEFAULT_STAKE).shares);
+    const down = Math.round(previewTrade(0.5, 200, 'lower', DEFAULT_STAKE).shares);
+    expect(higher.querySelector('.pubws-bet-eg')?.textContent).toBe(`${DEFAULT_STAKE} cr pays ${up} cr at $4`);
+    expect(lower.querySelector('.pubws-bet-eg')?.textContent).toBe(`${DEFAULT_STAKE} cr pays ${down} cr at $0`);
   });
 
   test('the cap is in the ticket', async () => {
@@ -967,5 +1008,34 @@ describe('each bet verb says what a stake pays', () => {
     await waitFor(() => expect(container.querySelector('.pubws-ticket-inline')).toBeTruthy());
     const ticket = container.querySelector('.pubws-ticket-inline') as HTMLElement;
     expect(ticket.textContent).toMatch(/up to \S+ cr/);
+  });
+});
+
+/**
+ * The Otto dock never sits on a row (docs/ui-conventions.md, "Otto",
+ * critics' round 3): the proposals rail and the market column end with the
+ * dock's height plus a gap of bottom room, and on a phone so does the
+ * page's last block.
+ */
+describe('the Otto dock never covers content', () => {
+  const CSS = readFileSync(join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'), 'utf8');
+
+  test("the stylesheet names the clearance once, from the dock's own size", () => {
+    // The dock: 0.5rem padding twice round a 1.7rem mark, a 1px border
+    // twice, up to 1.6rem off the foot. The clearance is that, then 1rem.
+    expect(CSS).toMatch(/--ottodock-clearance:\s*calc\(0\.5rem \* 2 \+ 1\.7rem \+ 2px \+ 1\.6rem\)/);
+  });
+
+  test('the proposals rail and the market column end with the clearance plus 1rem', () => {
+    expect(CSS).toMatch(/\.pubws-rail--right \{[^}]*padding-bottom:\s*calc\(var\(--ottodock-clearance\) \+ 1rem\)/);
+    expect(CSS).toMatch(
+      /\.pubws-main--floor \.pubws-center \{[^}]*padding-bottom:\s*calc\(var\(--ottodock-clearance\) \+ 1rem\)/,
+    );
+  });
+
+  test("on a phone the page's last block gets the same room", () => {
+    const phone = CSS.match(/@media \(max-width: 1119\.98px\) \{([\s\S]*?)\n\}/);
+    expect(phone).toBeTruthy();
+    expect(phone![1]).toMatch(/\.pubws-end-wrap \{[^}]*padding-bottom:\s*calc\(var\(--ottodock-clearance\) \+ 1rem\)/);
   });
 });

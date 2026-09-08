@@ -111,7 +111,9 @@ vi.mock('../../components/MarketChart', () => ({
     wide: { W: 720, PAD_L: 46, PAD_R: 58, H: 260 },
     compact: { W: 400, PAD_L: 40, PAD_R: 50, H: 300 },
   },
-  MarketChart: () => <div data-testid="chart" />,
+  // The probe records the label the page hands the call's end marker, so
+  // the "how the call moved" strip can be checked for naming the book traded.
+  MarketChart: (props: { callLabel?: string }) => <div data-testid="chart" data-call-label={props.callLabel ?? ''} />,
 }));
 
 vi.mock('../../lib/api', () => {
@@ -726,5 +728,99 @@ describe('Edit beside "more" for a manager', () => {
     expect(full.querySelector('.pubws-instrument-more-edit')).toBeNull();
     // One Edit for the definition on the page: the summary line's.
     await waitFor(() => expect(within(sum).getByRole('button', { name: 'Edit' })).toBeTruthy());
+  });
+});
+
+/**
+ * The owner's decision bar says what its two quiet buttons do to the books
+ * (docs/ui-conventions.md, "The decision row, then the decision bar",
+ * critics' round 3): one grey line under the bar. The wording follows the
+ * server (functions/src/services/proposals.ts): a plain decline voids the
+ * if-approved book (refunded at cost) and keeps if-declined live to settle
+ * on the real number; remove voids both books and refunds everyone.
+ */
+describe('one grey line under the decision bar says what Decline and Remove do', () => {
+  test('the line sits directly under the bar, for the owner, and names both outcomes', async () => {
+    const { container } = renderFloor();
+    await selectContract();
+    const approve = await screen.findByRole('button', { name: 'Approve, pay $80' });
+    const bar = approve.closest('.pubws-ownerbar') as HTMLElement;
+    const why = bar.nextElementSibling as HTMLElement;
+    expect(why?.classList.contains('pubws-decide-why')).toBe(true);
+    expect(why.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'Decline settles the pair on if-declined: those positions pay out at the real number, if-approved is refunded. Remove voids both books and refunds everyone.',
+    );
+    expect(container.querySelectorAll('.pubws-decide-why')).toHaveLength(1);
+  });
+
+  test('a decided proposal has no bar and no line', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    Object.assign(ws.proposals[0], { status: 'approved' });
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
+    expect(screen.queryByRole('button', { name: 'Decline' })).toBeNull();
+    expect(container.querySelector('.pubws-decide-why')).toBeNull();
+  });
+});
+
+/**
+ * The chart follows the row's precision (critics' round 3): the marker
+ * beside the traded branch printed "+0.0" next to "if approved 17.04", and
+ * "how the call moved" named only the declined line, never the book being
+ * traded.
+ */
+describe('the charts follow the decision row', () => {
+  const tightPair = async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.markets[0].consensus = 17;
+    ws.markets[0].rangeMax = 50;
+    Object.assign(ws.proposals[0].markets[0], {
+      approvedConsensus: 17.04,
+      declinedConsensus: 17,
+      delta: 0.04,
+      rangeMax: 50,
+    });
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+  };
+
+  test("the marker beside the traded branch prints the difference with the row's precision", async () => {
+    await tightPair();
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.nchart-pair-delta')).toBeTruthy());
+    expect(container.querySelector('.nchart-pair-delta')?.textContent).toBe('+$0.04');
+    // The same string as the row's difference cell.
+    const diff = container.querySelectorAll('.pubws-decision .pubws-decision-cell')[2];
+    expect(diff.querySelector('.pubws-price')?.textContent?.trim()).toBe('+$0.04');
+  });
+
+  test('from the declined world the marker flips its sign at the same precision', async () => {
+    await tightPair();
+    const { container } = renderFloor();
+    await selectContract();
+    fireEvent.click(await screen.findByRole('button', { name: 'if declined' }));
+    await waitFor(() => expect(container.querySelector('.nchart-pair-delta')?.textContent).toBe('-$0.04'));
+  });
+
+  test('"how the call moved" names the book being traded, and follows the toggle', async () => {
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() =>
+      expect(container.querySelector('[data-testid="chart"]')?.getAttribute('data-call-label')).toBe('if approved'),
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'if declined' }));
+    await waitFor(() =>
+      expect(container.querySelector('[data-testid="chart"]')?.getAttribute('data-call-label')).toBe('if declined'),
+    );
+  });
+
+  test('the plain market has one book, so its call carries no book label', async () => {
+    const { container } = renderFloor();
+    await screen.findByRole('button', { name: /Bet Higher/ });
+    expect(container.querySelector('[data-testid="chart"]')?.getAttribute('data-call-label')).toBe('');
   });
 });

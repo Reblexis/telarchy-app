@@ -324,8 +324,11 @@ export function JobsBoard({
               )}
               {/* A link cannot nest inside the row button, so the name is
                   a span that navigates; stopPropagation keeps the row from
-                  also selecting. */}
+                  also selecting. A row marked "yours" does not repeat the
+                  reader's own name (critics' round 3: the owner's rail read
+                  "yours · by Viktor"). */}
               {p.proposedByName &&
+                !(viewerId && isPending(p) && p.proposedByHandle === viewerId) &&
                 (p.proposedByHandle ? (
                   <span>
                     by{' '}
@@ -350,7 +353,7 @@ export function JobsBoard({
                 ) : (
                   <span>by {p.proposedByName}</span>
                 ))}
-              {askUsd !== null && <span>${askUsd} to them</span>}
+              {askUsd !== null && <span title="paid to the proposer on approval">${askUsd} to them</span>}
               {p.status && p.status !== 'pending' && (
                 <span className={`pubws-ballot-status is-${p.status}`}>{p.status}</span>
               )}
@@ -371,10 +374,7 @@ export function JobsBoard({
                 rows wear. Quiet and mono under the delta: it is what the
                 number above it is worth trusting, and it is what the list is
                 ordered by. */}
-            <span
-              className="pubws-ballot-pool"
-              title={`${Math.round(poolOf(p)).toLocaleString()} credits behind this proposal`}
-            >
+            <span className="pubws-ballot-pool" title="credits behind the pair">
               <PoolDrop />
               {Math.round(poolOf(p)).toLocaleString()}
             </span>

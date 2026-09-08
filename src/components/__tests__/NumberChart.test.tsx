@@ -263,6 +263,30 @@ describe('a proposal open', () => {
     expect(container.querySelector('.nchart-pair-delta')?.textContent).toBe('-1.5');
   });
 
+  /** The marker prints the difference with the decision row's precision
+   *  (critics' round 3: "+0.0" beside "if approved 17.04"). */
+  test('a small difference never prints as "+0.0": the marker uses the impact precision', () => {
+    const { container } = render(
+      <NumberChart
+        points={points}
+        markers={[
+          {
+            marketId: 'sep',
+            resolvesOn: '2026-10-01T00:00:00Z',
+            consensus: 17,
+            selected: true,
+            pair: { approved: 17.04, declined: 17 },
+          },
+        ]}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        unit="$"
+        now={NOW}
+      />,
+    );
+    expect(container.querySelector('.nchart-pair-delta')?.textContent).toBe('+$0.04');
+  });
+
   test('no proposal, no pair and no legend', () => {
     const { container } = render(
       <NumberChart
