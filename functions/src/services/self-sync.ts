@@ -78,9 +78,28 @@ export function selfSyncWorkspaceId(): string | null {
   return process.env.SELF_SYNC_WORKSPACE_ID?.trim() || null;
 }
 
+/** Whether `name` is one of `names`, or one of them plus a "(...)" tail. */
+function matchesName(name: string, names: string[]): boolean {
+  return names.includes(name) || names.some(base => name.startsWith(`${base} (`));
+}
+
 /** Metrics whose name is one of `names`, or one of them plus a "(...)" tail. */
 function matchMetrics<T extends { name: string }>(list: T[], names: string[]): T[] {
-  return list.filter(m => names.includes(m.name) || names.some(base => m.name.startsWith(`${base} (`)));
+  return list.filter(m => matchesName(m.name, names));
+}
+
+/**
+ * Whether the platform writes this metric's readings itself: the self-sync
+ * workspace and one of the names the sync pushes. The floor payload carries
+ * it so the reading cell can say "synced hourly" instead of asking the
+ * owner to report a number they never type (docs/ui-conventions.md, "The
+ * stat row"). The same rule as the sync's own matching, so the two cannot
+ * disagree about which metrics those are.
+ */
+export function isSelfSyncedMetric(workspaceId: string, metricName: string): boolean {
+  const self = selfSyncWorkspaceId();
+  if (!self || self !== workspaceId) return false;
+  return matchesName(metricName, TRADER_METRIC_NAMES) || matchesName(metricName, REVENUE_METRIC_NAMES);
 }
 
 /**

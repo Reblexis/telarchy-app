@@ -256,6 +256,23 @@ describe('with a proposal selected, the traders footer is the holders of its pai
   });
 });
 
+describe("the contractors' impact is the shared impact precision", () => {
+  test('a tiny impact never prints as "+0.0"', async () => {
+    const { formatImpact } = await import('../../lib/formatImpact');
+    const { container } = standings({
+      contractors: [
+        { ...contractor(1), impact: 0.004 },
+        { ...contractor(2), impact: 0.45 },
+      ],
+      unit: '$',
+    });
+    const rows = blockOf(container, 'Top contractors').querySelectorAll('.pubws-lb-row');
+    expect(rows[0].querySelector('.pubws-lb-score')?.textContent).toBe(`▲ ${formatImpact(0.004, '$')}`);
+    expect(rows[0].textContent).not.toMatch(/\+\$0\.00(?!\d)/);
+    expect(rows[1].querySelector('.pubws-lb-score')?.textContent).toBe('▲ +$0.45');
+  });
+});
+
 describe('the season advert', () => {
   const advert = (props: Partial<Parameters<typeof SeasonAdvert>[0]> = {}) =>
     render(
@@ -352,5 +369,23 @@ describe('the season advert', () => {
     expect(queryByText('Enter the season')).toBeNull();
     expect(container.querySelector('.pubws-season-terms')?.textContent).toBe('Season 0 is over. Final standings.');
     expect(container.querySelector('.pubws-season-hero')?.textContent).toBe('$1,000 in prizes');
+  });
+  test('for a manager one more line says who pays the prizes', () => {
+    const { container } = advert({ canManage: true });
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.children).toHaveLength(4);
+    const who = root.querySelector('.pubws-season-who') as HTMLElement;
+    expect(who.textContent).toBe('Prizes paid by Telarchy. Your floor costs you nothing.');
+    // Under the terms, above the control.
+    const terms = root.querySelector('.pubws-season-terms') as HTMLElement;
+    const go = root.querySelector('.pubws-season-go') as HTMLElement;
+    expect(terms.compareDocumentPosition(who) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(who.compareDocumentPosition(go) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('a visitor never reads who pays: three lines', () => {
+    const { container } = advert({ canManage: false });
+    expect(container.querySelector('.pubws-season-who')).toBeNull();
+    expect((container.firstElementChild as HTMLElement).children).toHaveLength(3);
   });
 });

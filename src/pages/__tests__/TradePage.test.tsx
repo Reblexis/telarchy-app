@@ -1254,7 +1254,10 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(oneMarket() as never);
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).toBeTruthy());
-    expect(container.querySelector('.pubws-instrument-sum')?.textContent).toBe('The year, net of refunds.');
+    // The sentence, then the "more" control that expands the rest of the definition.
+    expect(container.querySelector('.pubws-instrument-sum')?.childNodes[0].textContent).toBe(
+      'The year, net of refunds.',
+    );
     // Right under the question, before the numbers.
     const ask = container.querySelector('.pubws-instrument-ask') as HTMLElement;
     const sum = container.querySelector('.pubws-instrument-sum') as HTMLElement;
@@ -1370,18 +1373,31 @@ describe('the floor quotes both sides before the first click', () => {
     return ws;
   };
 
-  test('each verb says how much is on the table for that side', async () => {
+  test('each verb says what the default stake pays, and the cap lives in the ticket', async () => {
     const { api } = await import('../../lib/api');
+    const { previewTrade } = await import('../../lib/amm');
+    const { DEFAULT_STAKE } = await import('../../components/TradeTicket');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(tradable(0.14) as never);
-    renderFloor();
+    const { container } = renderFloor();
 
-    // b = 200: 393 credits behind the 14c side, 30 behind the 86c one. The
-    // verbs and the ticket's pills quote it in the same words, from the same
-    // function, so the two untouched states cannot drift apart.
+    // The example at the ticket's default stake, from the ticket's own AMM
+    // preview (critics' round 2026-09-08: a Polymarket regular expects
+    // "put 100, get X"), not the liquidity cap.
     const higher = await screen.findByRole('button', { name: /Bet Higher/ });
     const lower = screen.getByRole('button', { name: /Bet Lower/ });
-    expect(higher.textContent).toContain('up to 393 cr');
-    expect(lower.textContent).toContain('up to 30 cr');
+    const up = Math.round(previewTrade(0.14, 200, 'higher', DEFAULT_STAKE).shares);
+    const down = Math.round(previewTrade(0.14, 200, 'lower', DEFAULT_STAKE).shares);
+    expect(higher.textContent).toContain(`${DEFAULT_STAKE} cr pays ${up} cr at $500,000`);
+    expect(lower.textContent).toContain(`${DEFAULT_STAKE} cr pays ${down} cr at $0`);
+    expect(higher.textContent).not.toContain('up to');
+    expect(lower.textContent).not.toContain('up to');
+
+    // b = 200: 393 credits behind the 14c side, 30 behind the 86c one, said
+    // on the ticket's pills once a verb is pressed.
+    fireEvent.click(higher);
+    await waitFor(() => expect(container.querySelector('.pubws-ticket-inline')).toBeTruthy());
+    expect(container.querySelector('.pubws-ticket-inline')?.textContent).toContain('up to 393 cr');
+    expect(container.querySelector('.pubws-ticket-inline')?.textContent).toContain('up to 30 cr');
   });
 
   test('and never the price in cents, which is the thing it replaced', async () => {

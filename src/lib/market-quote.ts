@@ -7,6 +7,8 @@
  * untouched ticket still quotes both sides").
  */
 
+import { previewTrade } from './amm';
+
 /**
  * Metric-space values, formatted the way the headline formats them. Exported
  * because every surface that quotes a market has to say a value the same way:
@@ -39,6 +41,31 @@ function fmtEdge(v: number): string {
  */
 export function payoutLine(unit: string, rangeMin: number, rangeMax: number): string {
   return `A share pays 1 cr at ${unit}${fmtEdge(rangeMax)}, nothing at ${unit}${fmtEdge(rangeMin)}.`;
+}
+
+/**
+ * What a stake pays at the range's edge, as the verb under it says it:
+ * "25 cr pays 47 cr at $50,000" (docs/ui-conventions.md, "Each bet verb says
+ * what a stake pays"). Higher pays at the top of the range, Lower at its
+ * floor, one credit per share, from the SAME AMM preview the ticket runs on
+ * the same stake, so the verb and the ticket cannot disagree about the bet.
+ * Null where there is nothing to quote: an unfunded book has no price.
+ */
+export function stakeExampleLine(
+  unit: string,
+  rangeMin: number,
+  rangeMax: number,
+  probability: number,
+  liquidity: number,
+  direction: 'higher' | 'lower',
+  stake: number,
+): string | null {
+  if (!Number.isFinite(liquidity) || liquidity <= 0 || stake <= 0) return null;
+  const p = Math.min(0.999, Math.max(0.001, probability));
+  const { shares } = previewTrade(p, liquidity, direction, stake);
+  if (!Number.isFinite(shares) || shares <= 0) return null;
+  const edge = direction === 'higher' ? rangeMax : rangeMin;
+  return `${stake} cr pays ${Math.round(shares).toLocaleString('en-US')} cr at ${unit}${fmtEdge(edge)}`;
 }
 
 /**

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { PublicProposal } from '../lib/api';
 import { api } from '../lib/api';
 import { horizonLabel } from '../lib/floor-horizons';
+import { formatImpact } from '../lib/formatImpact';
 import { FloorModal } from './FloorModal';
 
 /**
@@ -64,14 +65,11 @@ interface Props {
   metricNames?: string[];
 }
 
-function fmtVal(v: number, unit: string): string {
-  const decimals = Math.abs(v) >= 100 ? 0 : 1;
-  return unit + v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-}
-
-/** A signed impact figure as the ballot prints it: "+12.0", "-3.0", "+120". */
+/** A signed impact figure as the ballot prints it: the one impact precision
+ *  every surface shares (lib/formatImpact), so the rail, the decision row and
+ *  the chip beside the call print the same string. */
 export function fmtDelta(d: number, unit: string): string {
-  return `${d > 0 ? '+' : d < 0 ? '-' : ''}${fmtVal(Math.abs(d), unit).replace(/^([+-])?/, '')}`;
+  return formatImpact(d, unit);
 }
 
 /** On the ballot: not yet decided by the owner. */
@@ -398,6 +396,12 @@ export function JobsBoard({
           </span>
         )}
       </div>
+      {/* What a row is to a trader (docs/ui-conventions.md, "The proposals
+          board"; critics' round 2026-09-08: nothing on the rail said why a
+          trader would touch it). */}
+      <p className="pubws-ballot-why">
+        Each one is a pair of books: the number if approved, the number if declined. Trade either.
+      </p>
 
       {proposals.length === 0 ? (
         <p className="pubws-lb-empty">Nothing on the ballot yet. Yours could be first.</p>

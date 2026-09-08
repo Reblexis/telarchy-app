@@ -81,6 +81,11 @@ interface Props {
 
 /** A round metric-space step for the "each X beyond" line: ~1/50 of the
     range snapped to 1/2/5, so a $0..500k market speaks in $10k steps. */
+/** The stake a fresh ticket opens with. Exported because the floor's bet
+ *  verbs quote what THIS stake pays (docs/ui-conventions.md, "Each bet verb
+ *  says what a stake pays"), and the example must be the ticket's own. */
+export const DEFAULT_STAKE = 25;
+
 function niceStep(span: number): number {
   const raw = span / 50;
   const mag = 10 ** Math.floor(Math.log10(raw || 1));
@@ -131,7 +136,7 @@ export function TradeTicket({
   manageMode = false,
 }: Props) {
   const [dir, setDir] = useState<'higher' | 'lower' | null>(initialDir ?? null);
-  const [amount, setAmount] = useState('25');
+  const [amount, setAmount] = useState(String(DEFAULT_STAKE));
   const [mode, setMode] = useState<'quick' | 'limit'>('quick');
   const [limit, setLimit] = useState('');
   // Betting towards a value (owner direction 2026-08-11) without a new

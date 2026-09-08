@@ -46,8 +46,11 @@ describe('one probability prices the market', () => {
     expect(SRC.match(/probability=\{shownProbability\}/g)?.length).toBe(2);
   });
 
-  test('the ceilings read it too', () => {
-    expect(SRC).toContain('maxWinLabel(shownProbability');
-    expect(SRC).toContain('maxWinLabel(1 - shownProbability');
+  test("the verbs' stake examples read it too", () => {
+    const start = SRC.indexOf('const stakeExample =');
+    const example = SRC.slice(start, SRC.indexOf('const consensus =', start));
+    expect(example).toContain('stakeExampleLine(');
+    expect(example).toContain('shownProbability');
+    expect(SRC).not.toContain('maxWinLabel(');
   });
 });

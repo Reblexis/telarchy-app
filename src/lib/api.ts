@@ -611,6 +611,9 @@ export interface PublicWorkspace {
     resolvesNaUntilMeasured?: boolean;
     /** Whether any reading exists; never inferred from `points`. */
     measured?: boolean;
+    /** The platform writes this metric's readings itself (the hourly
+     *  self-sync of Telarchy's own numbers); the owner never reports it. */
+    platformSynced?: boolean;
     description: string | null;
     points: Array<{ at: string | null; value: number }>;
   }>;

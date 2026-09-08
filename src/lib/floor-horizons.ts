@@ -77,6 +77,10 @@ export interface HorizonView {
   resetsEvery: string | null;
   /** The owner's definition of this horizon's number. */
   description: string | null;
+  /** True when the platform writes this metric's readings itself (Telarchy's
+   *  own floor): the owner does not report it, the reading cell says
+   *  "synced hourly" instead of offering Report. */
+  platformSynced: boolean;
   /**
    * True while this market would settle N/A: its metric is declared
    * `resolvesNaUntilMeasured` and has no reading yet (owner ask 2026-08-25,
@@ -241,6 +245,7 @@ export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: D
         .flatMap(p => (p.at && Number.isFinite(p.value) ? [{ at: p.at, value: p.value }] : []))
         .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()),
       description: row?.description ?? null,
+      platformSynced: row?.platformSynced === true,
       resetsEvery: row?.resetsEvery ?? null,
       settlesNaForNow: !!row?.resolvesNaUntilMeasured && !row?.measured,
     };

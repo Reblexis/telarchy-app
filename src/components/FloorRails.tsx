@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { LeaderboardEntry, PublicContractor } from '../lib/api';
 import { api, type PrizeSeason } from '../lib/api';
+import { formatImpact } from '../lib/formatImpact';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
 import { ManifoldLogo } from './ManifoldLogo';
@@ -38,15 +39,6 @@ export function useCurrentSeason(): PrizeSeason | null {
       .catch(e => console.error('seasons fetch failed:', e));
   }, []);
   return season;
-}
-
-/** The contractor score, in the hero metric's own unit. Same shape as the
- *  proposal impact chip on the poster, so the footer and the board agree. */
-function formatImpact(value: number, unit: string): string {
-  const abs = Math.abs(value);
-  const decimals = abs >= 100 ? 0 : abs >= 1 ? 1 : 2;
-  const num = abs.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  return `${value > 0 ? '+' : value < 0 ? '-' : ''}${unit}${num}`;
 }
 
 /** The row's second line: how many proposals are behind the score and what
@@ -305,7 +297,17 @@ export function FloorStandings({
  * or volume count in it, no "and", no running sentence: the facts row is
  * the only place the counts appear.
  */
-export function SeasonAdvert({ season, signedIn }: { season: PrizeSeason | null; signedIn: boolean }) {
+export function SeasonAdvert({
+  season,
+  signedIn,
+  canManage = false,
+}: {
+  season: PrizeSeason | null;
+  signedIn: boolean;
+  /** A manager reads one more line, who pays: an owner reads "free to
+   *  enter" as their own bill (critics' round 2026-09-08). */
+  canManage?: boolean;
+}) {
   // Whether THIS visitor is already in. Without it the block kept saying
   // "Enter the season" to someone who had entered a minute earlier, which
   // reads as the entry not having worked (owner report 2026-08-19).
@@ -343,6 +345,7 @@ export function SeasonAdvert({ season, signedIn }: { season: PrizeSeason | null;
         <span className="pubws-season-prize">${season.poolUsd.toLocaleString('en-US')}</span> in prizes
       </p>
       <p className="pubws-season-terms">{terms.trim()}</p>
+      {canManage && <p className="pubws-season-who">Prizes paid by Telarchy. Your floor costs you nothing.</p>}
       <Link className="pubws-season-go" to="/season">
         {entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season'}
       </Link>

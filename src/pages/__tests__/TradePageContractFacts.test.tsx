@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -259,5 +259,236 @@ describe('a conditional market says the same things about itself as any other', 
     await waitFor(() =>
       expect(vi.mocked(api.injectLiquidity)).toHaveBeenCalledWith('m-declined', 1000, expect.anything()),
     );
+  });
+});
+
+/**
+ * The decision row, then the decision bar (docs/ui-conventions.md, critics'
+ * round 2026-09-08): a decision is laid out as a decision before it is
+ * asked. Under the proposal's headline, four cells on hairlines: if approved
+ * and its call, if declined and its call, the difference, the cost. The
+ * owner's bar sits directly under it. Everyone sees the row.
+ */
+describe('the decision row, then the decision bar', () => {
+  const cells = (container: HTMLElement) =>
+    [...container.querySelectorAll('.pubws-decision .pubws-decision-cell')].map(c => ({
+      what: c.querySelector('.pubws-stat-what')?.textContent?.trim() ?? '',
+      value: c.querySelector('.pubws-price')?.textContent?.trim() ?? '',
+      active: c.classList.contains('is-active'),
+    }));
+
+  test('four cells from the pair: if approved, if declined, difference, costs', async () => {
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
+    expect(cells(container)).toEqual([
+      { what: 'if approved', value: '$82,000', active: true },
+      { what: 'if declined', value: '$71,000', active: false },
+      { what: 'difference', value: '+$11,000', active: false },
+      { what: 'costs', value: '$80', active: false },
+    ]);
+    // The numbers are in the price register, a size down from the headline.
+    for (const cell of container.querySelectorAll('.pubws-decision .pubws-price')) {
+      expect(cell.className).toContain('pubws-price--sm');
+    }
+  });
+
+  test('the branch on screen is the marked cell', async () => {
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
+    fireEvent.click(await screen.findByRole('button', { name: 'if declined' }));
+    await waitFor(() => expect(cells(container)[1].active).toBe(true));
+    expect(cells(container)[0].active).toBe(false);
+    // The difference is approved minus declined whichever world is on screen.
+    expect(cells(container)[2].value).toBe('+$11,000');
+  });
+
+  test('the row sits under the headline, and the owner bar directly under the row', async () => {
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
+    const row = container.querySelector('.pubws-decision') as HTMLElement;
+    const ask = container.querySelector('.pubws-instrument-ask') as HTMLElement;
+    expect(ask.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const approve = await screen.findByRole('button', { name: 'Approve, pay $80' });
+    const bar = approve.closest('.pubws-ownerbar') as HTMLElement;
+    expect(bar.previousElementSibling).toBe(row);
+    // Before the stat row and the charts: the decision is read before the market's own numbers.
+    const stats = container.querySelector('.pubws-stats') as HTMLElement;
+    expect(row.compareDocumentPosition(stats) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('the since-open chip, the row and the rail print the same difference', async () => {
+    const { formatImpact } = await import('../../lib/formatImpact');
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    // A difference under 1: the precision rule is where the three used to drift.
+    ws.proposals[0].markets[0].approvedConsensus = 80_000.45;
+    ws.proposals[0].markets[0].declinedConsensus = 80_000;
+    ws.proposals[0].markets[0].delta = 0.45;
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
+    const expected = formatImpact(0.45, '$');
+    expect(expected).toBe('+$0.45');
+    expect(cells(container)[2].value).toBe(expected);
+    const chip = container.querySelector('.pubws-stat--call .pubws-delta-chip') as HTMLElement;
+    expect(chip.textContent?.replace(/^[▲▼]\s*/, '')).toBe(expected);
+    const rail = container.querySelector('.pubws-rail--right .pubws-ballot-delta') as HTMLElement;
+    expect(rail.textContent).toBe(expected);
+  });
+
+  test('an unpriced pair says so in the cells rather than printing zeros', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    Object.assign(ws.proposals[0].markets[0], {
+      approvedConsensus: null,
+      declinedConsensus: null,
+      approvedLiquidity: 0,
+      declinedLiquidity: 0,
+    });
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
+    const c = cells(container);
+    expect(c[0].value).toBe('no price yet');
+    expect(c[1].value).toBe('no price yet');
+    expect(c[2].value).toBe('open');
+    expect(c[3].value).toBe('$80');
+  });
+});
+
+/**
+ * For the owner the reading cell is also the reporting cell (docs/
+ * ui-conventions.md, "The stat row"): the Report control sits beside the
+ * age, a platform-synced metric says "synced hourly" there instead, and a
+ * count prints whole.
+ */
+describe('the reading cell for a manager', () => {
+  const withReading = (extra: Record<string, unknown> = {}) => {
+    const ws = h.workspace() as ReturnType<typeof h.workspace> & { horizonHistories?: unknown[] };
+    ws.horizonHistories = [
+      {
+        marketId: 'm-hero',
+        metricName: 'LookPilot revenue (monthly, USD)',
+        targetDate: '2026-12',
+        description: 'Everything LookPilot earned in the month. Net of refunds.',
+        points: [{ at: '2026-08-15T09:00:00Z', value: 45_339 }],
+        ...extra,
+      },
+    ];
+    return ws;
+  };
+
+  test('Report sits in the reading cell beside the age, and the old line under the charts is gone', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(withReading() as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-stat--now')).toBeTruthy());
+    const now = container.querySelector('.pubws-stat--now') as HTMLElement;
+    await waitFor(() => expect(within(now).getByRole('button', { name: 'Report' })).toBeTruthy());
+    const report = within(now).getByRole('button', { name: 'Report' });
+    expect(now.querySelector('.pubws-updated')).toBeTruthy();
+    expect(now.querySelector('.pubws-price')?.textContent).toBe('$45,339');
+    expect(container.querySelector('.pubws-yours')).toBeNull();
+    expect(container.textContent).not.toMatch(/Yours:/);
+    // The control keeps its dialog.
+    fireEvent.click(report);
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('revenue');
+  });
+
+  test('a platform-synced metric says "synced hourly" instead of offering Report', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(withReading({ platformSynced: true }) as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-stat--now')).toBeTruthy());
+    const now = container.querySelector('.pubws-stat--now') as HTMLElement;
+    await waitFor(() => expect(now.textContent).toContain('synced hourly'));
+    expect(within(now).queryByRole('button', { name: 'Report' })).toBeNull();
+  });
+
+  test('a count prints whole: "9", never "9.00"', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = withReading({
+      metricName: 'Steam reviews (count)',
+      points: [{ at: '2026-08-15T09:00:00Z', value: 9 }],
+    });
+    ws.markets[0].metricName = 'Steam reviews (count)';
+    ws.markets[0].consensus = 9.5;
+    ws.markets[0].rangeMax = 100;
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-stat--now .pubws-price')).toBeTruthy());
+    expect(container.querySelector('.pubws-stat--now .pubws-price')?.textContent).toBe('9');
+  });
+
+  test('money keeps its decimals', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(
+      withReading({ points: [{ at: '2026-08-15T09:00:00Z', value: 9 }] }) as never,
+    );
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-stat--now .pubws-price')).toBeTruthy());
+    expect(container.querySelector('.pubws-stat--now .pubws-price')?.textContent).toBe('$9.00');
+  });
+});
+
+describe('the season block for a manager', () => {
+  test('says who pays the prizes', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getSeasons).mockResolvedValue({
+      seasons: [
+        {
+          id: 's0',
+          name: 'Season 0',
+          status: 'running',
+          startsAt: '2026-08-22T00:00:00.000Z',
+          endsAt: '2027-10-01T00:00:00.000Z',
+          settledAt: null,
+          poolUsd: 1000,
+          payoutMode: 'ladder',
+          minPayoutUsd: 0,
+          strictEligibility: false,
+          ladder: [{ place: 1, prizeUsd: 500 }],
+          rulesUrl: '/legal/season-0',
+        },
+      ],
+    } as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-season .pubws-season-who')).toBeTruthy());
+    const who = container.querySelector('.pubws-season .pubws-season-who') as HTMLElement;
+    expect(who.textContent).toBe('Prizes paid by Telarchy. Your floor costs you nothing.');
+  });
+});
+
+describe('the "more" expander for a manager', () => {
+  test('carries the Edit control, which opens the definition editor in place', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace() as ReturnType<typeof h.workspace> & { horizonHistories?: unknown[] };
+    ws.horizonHistories = [
+      {
+        marketId: 'm-hero',
+        metricName: 'LookPilot revenue (monthly, USD)',
+        targetDate: '2026-12',
+        description: 'Everything LookPilot earned in the month. Net of refunds.',
+        points: [],
+      },
+    ];
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).toBeTruthy());
+    const sum = container.querySelector('.pubws-instrument-sum') as HTMLElement;
+    fireEvent.click(within(sum).getByRole('button', { name: 'more' }));
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-more')).toBeTruthy());
+    const full = container.querySelector('.pubws-instrument-more') as HTMLElement;
+    await waitFor(() => expect(within(full).getByRole('button', { name: 'Edit' })).toBeTruthy());
+    fireEvent.click(within(full).getByRole('button', { name: 'Edit' }));
+    await waitFor(() => expect(full.querySelector('textarea')).toBeTruthy());
+    const area = full.querySelector('textarea') as HTMLTextAreaElement;
+    expect(area.value).toBe('Everything LookPilot earned in the month. Net of refunds.');
   });
 });

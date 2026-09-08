@@ -658,8 +658,9 @@ describe('three columns, and the standings under the verbs', () => {
     // Two columns at every width: the floor root does not carry the context class.
     const main = container.querySelector('.pubws-main--floor') as HTMLElement;
     expect(main.classList.contains('pubws-main--context')).toBe(false);
-    // The summary line under the question shows as before.
-    expect(container.querySelector('.pubws-instrument-sum')?.textContent).toBe(
+    // The summary line under the question shows as before (its text node; the
+    // "more" control follows it).
+    expect(container.querySelector('.pubws-instrument-sum')?.childNodes[0].textContent).toBe(
       'Everything LookPilot earned in the last 30 days.',
     );
     // And the proposals rail is still there, beside the pair.
@@ -671,7 +672,7 @@ describe('three columns, and the standings under the verbs', () => {
     await waitFor(() => expect(container.querySelector('.pubws-rail--left')).toBeTruthy());
     const main = container.querySelector('.pubws-main--floor') as HTMLElement;
     expect(main.classList.contains('pubws-main--context')).toBe(true);
-    expect(container.querySelector('.pubws-instrument-sum')?.textContent).toBe(
+    expect(container.querySelector('.pubws-instrument-sum')?.childNodes[0].textContent).toBe(
       'Everything LookPilot earned in the last 30 days.',
     );
   });
@@ -757,5 +758,105 @@ describe('three columns, and the standings under the verbs', () => {
     // The season advert is set left, in the mono numeral style.
     expect(CSS).toMatch(/\.pubws-season \{[^}]*text-align:\s*left/);
     expect(CSS).toMatch(/\.pubws-season-hero \{[^}]*JetBrains Mono/);
+  });
+});
+
+/**
+ * The definition is on screen once at every width (docs/ui-conventions.md,
+ * "The price and the chart", critics' round 2026-09-08): below 1500px the
+ * summary line carries a "more" that expands the full definition in place,
+ * and the "What is this market?" block is not shown there. From 1500px the
+ * left column carries it and the summary line is hidden, as before.
+ */
+describe('the definition once at every width', () => {
+  const CSS = readFileSync(join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'), 'utf8');
+
+  test('"more" under the summary expands the full definition in place, left-aligned, and "less" folds it', async () => {
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).toBeTruthy());
+    expect(container.querySelector('.pubws-instrument-more')).toBeNull();
+    const sum = container.querySelector('.pubws-instrument-sum') as HTMLElement;
+    const more = within(sum).getByRole('button', { name: 'more' });
+    fireEvent.click(more);
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-more')).toBeTruthy());
+    const full = container.querySelector('.pubws-instrument-more') as HTMLElement;
+    // The same words as the definition, the whole of it.
+    expect(full.textContent).toContain('Everything LookPilot earned in the last 30 days. Net of refunds.');
+    // Directly under the summary line, before the numbers.
+    expect(sum.nextElementSibling).toBe(full);
+    // A visitor gets no Edit control in it.
+    expect(within(full).queryByRole('button', { name: 'Edit' })).toBeNull();
+    fireEvent.click(within(sum).getByRole('button', { name: 'less' }));
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-more')).toBeNull());
+  });
+
+  test('a one-sentence definition offers no "more": there is nothing more to show', async () => {
+    const ws = h.grid();
+    for (const hh of ws.horizonHistories) hh.description = 'Everything LookPilot earned in the last 30 days.';
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).toBeTruthy());
+    expect(screen.queryByRole('button', { name: 'more' })).toBeNull();
+  });
+
+  test('the stylesheet: the know block is hidden below 1500px, the expander hidden from 1500px in the plain view', () => {
+    const narrow = CSS.match(/@media \(max-width: 1499\.98px\) \{([\s\S]*?)\n\}/);
+    expect(narrow).toBeTruthy();
+    expect(narrow![1]).toMatch(/\.pubws-rail--left \.pubws-know \{[^}]*display:\s*none/);
+    const wide = CSS.match(/@media \(min-width: 1500px\) \{([\s\S]*?)\n\}/);
+    expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-instrument-more \{[^}]*display:\s*none/);
+    // The expander is a left-aligned block.
+    expect(CSS).toMatch(/\.pubws-instrument-more \{[^}]*text-align:\s*left/);
+  });
+});
+
+describe('the proposals board says what a row is', () => {
+  test('one quiet line under the label', async () => {
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-rail--right [aria-label="Proposals"]')).toBeTruthy());
+    const rail = container.querySelector('.pubws-rail--right') as HTMLElement;
+    const why = rail.querySelector('.pubws-ballot-why') as HTMLElement;
+    expect(why.textContent).toBe(
+      'Each one is a pair of books: the number if approved, the number if declined. Trade either.',
+    );
+    const label = within(rail).getByRole('heading', { name: 'Proposals' });
+    expect(label.compareDocumentPosition(why) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+/**
+ * Each bet verb says what a stake pays (docs/ui-conventions.md, "Each bet
+ * verb says what a stake pays"): the example at the ticket's default stake,
+ * from the same AMM preview the ticket uses; the liquidity cap lives in the
+ * ticket.
+ */
+describe('each bet verb says what a stake pays', () => {
+  test("the example under each verb, from the ticket's own preview at its default stake", async () => {
+    const { previewTrade } = await import('../../lib/amm');
+    const { DEFAULT_STAKE } = await import('../../components/TradeTicket');
+    const ws = h.grid();
+    ws.joinAs = 'trader';
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    renderFloor();
+    const higher = await screen.findByRole('button', { name: /Bet Higher/ });
+    const lower = screen.getByRole('button', { name: /Bet Lower/ });
+    const up = Math.round(previewTrade(0.5, 200, 'higher', DEFAULT_STAKE).shares);
+    const down = Math.round(previewTrade(0.5, 200, 'lower', DEFAULT_STAKE).shares);
+    expect(higher.querySelector('.pubws-bet-eg')?.textContent).toBe(`${DEFAULT_STAKE} cr pays ${up} cr at $50,000`);
+    expect(lower.querySelector('.pubws-bet-eg')?.textContent).toBe(`${DEFAULT_STAKE} cr pays ${down} cr at $0`);
+    // The cap is no longer on the verbs.
+    expect(higher.textContent).not.toContain('up to');
+    expect(lower.textContent).not.toContain('up to');
+  });
+
+  test('the cap is in the ticket', async () => {
+    const ws = h.grid();
+    ws.joinAs = 'trader';
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    fireEvent.click(await screen.findByRole('button', { name: /Bet Higher/ }));
+    await waitFor(() => expect(container.querySelector('.pubws-ticket-inline')).toBeTruthy());
+    const ticket = container.querySelector('.pubws-ticket-inline') as HTMLElement;
+    expect(ticket.textContent).toMatch(/up to \S+ cr/);
   });
 });

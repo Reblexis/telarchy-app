@@ -35,6 +35,7 @@ import { dataRoomTool } from '../services/data-room';
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
 import { linkedManifoldCount, platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
+import { isSelfSyncedMetric } from '../services/self-sync';
 import { webSearchTool } from '../services/web-search';
 import { buildWorkspaceContext, renderContextIndex, renderContextMarkdown } from '../services/workspace-context';
 import { ensureSystemGroups } from './groups';
@@ -630,6 +631,7 @@ async function buildFloorPayload(ws: PublicWs) {
         resolvesNaUntilMeasured: boolean;
         measured: boolean;
         description: string | null;
+        platformSynced: boolean;
         points: Array<{ at: Date | null; value: number }>;
       }>
     | undefined;
@@ -788,6 +790,10 @@ async function buildFloorPayload(ws: PublicWs) {
         resolvesNaUntilMeasured: metricRow?.resolvesNaUntilMeasured ?? false,
         measured: rows.length > 0,
         description: metricRow?.description ?? null,
+        // The platform writes this metric's readings itself (the hourly
+        // self-sync): the floor's reading cell says so instead of offering
+        // the owner a Report control for a number they never type.
+        platformSynced: isSelfSyncedMetric(workspaceId, m.metricName as string),
         points: rows.filter(r => inPeriod(r.at)),
       });
     }

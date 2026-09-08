@@ -281,7 +281,7 @@ describe('/owners as a board: the product moment', () => {
     // the one the floor opens on), formatted as the floor formats it and
     // coloured by direction; the credits are the pool behind the proposal.
     const impacts = rows.map(r => r.querySelector('.pubws-ballot-delta'));
-    expect(impacts.map(d => d?.textContent)).toEqual(['+12.0', '-3.0', '+120', '+7.0', '+0.4', '+2.5']);
+    expect(impacts.map(d => d?.textContent)).toEqual(['+12.0', '-3.0', '+120', '+7.0', '+0.40', '+2.5']);
     expect(impacts[0]).toHaveClass('is-up');
     expect(impacts[1]).toHaveClass('is-down');
     // Both branches of EVERY pair, added up, as the floor's pool figure is.

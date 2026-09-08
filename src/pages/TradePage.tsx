@@ -27,7 +27,7 @@ import { PositionSummary } from '../components/PositionSummary';
 import { ReportButton } from '../components/ReportButton';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { type TicketPosition, TradeTicket } from '../components/TradeTicket';
+import { DEFAULT_STAKE, type TicketPosition, TradeTicket } from '../components/TradeTicket';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import type { FloorRef } from '../lib/agent-prompt';
@@ -57,8 +57,9 @@ import {
   timeAgoOf,
   timeLeftOf,
 } from '../lib/floor-horizons';
+import { formatImpact } from '../lib/formatImpact';
 import { dropInline, readInline } from '../lib/inline-data';
-import { maxWinLabel, payoutLine } from '../lib/market-quote';
+import { payoutLine, stakeExampleLine } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
 
@@ -97,11 +98,13 @@ function formatValue(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-function formatDelta(delta: number, unit = ''): string {
-  const abs = Math.abs(delta);
-  const decimals = abs >= 100 ? 0 : abs >= 1 ? 1 : 2;
-  const num = abs.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  return `${delta > 0 ? '+' : delta < 0 ? '-' : ''}${unit}${num}`;
+/** The reading in force, as the reading cell prints it: a count of people
+ *  or things (no currency, a whole reading) prints whole, "9" never "9.00";
+ *  decimals are for forecasts and money (docs/ui-conventions.md, "The stat
+ *  row"). */
+function formatReading(v: number, unit: string): string {
+  if (unit === '' && Number.isInteger(v)) return v.toLocaleString('en-US');
+  return `${unit}${formatValue(v)}`;
 }
 
 // Labels, ordering and per-horizon facts live in lib/floor-horizons: one
@@ -602,17 +605,6 @@ export function TradePage() {
   const unit = hero?.unit ?? '';
   const metricLabel = hero?.metricLabel ?? '';
 
-  // The age of the reading in force, from the same `lastReading` the centre
-  // already shows. A market settles on the last reading before its instant,
-  // so the age IS the nudge to report again (docs/owner-on-the-floor.md);
-  // three days is where it starts reading as stale rather than as fact.
-  const readingAge = (() => {
-    if (!lastReading?.at) return null;
-    const days = Math.floor((now.getTime() - new Date(lastReading.at).getTime()) / 86400000);
-    if (days <= 0) return 'reported today';
-    if (days === 1) return 'reported yesterday';
-    return `${days} days old`;
-  })();
   // Stale means "taken before the period this market settles for", not "more
   // than three days old" (owner decision 2026-08-31). Three days was
   // meaningless twice over: an hourly market is stale within the hour, and a
@@ -1010,8 +1002,21 @@ export function TradePage() {
   // directly under it another (AGENTS.md: two surfaces that show the same
   // fact must derive it from the same place).
   const shownProbability = active ? (livePriceProb ?? active.probability) : 0;
-  const higherCeiling = active ? maxWinLabel(shownProbability, active.liquidity) : null;
-  const lowerCeiling = active ? maxWinLabel(1 - shownProbability, active.liquidity) : null;
+  /* What the ticket's default stake pays on each side, from the ticket's own
+     AMM preview (docs/ui-conventions.md, "Each bet verb says what a stake
+     pays"). The liquidity cap lives on the ticket's pills. */
+  const stakeExample = (direction: 'higher' | 'lower') =>
+    active && active.rangeMin !== undefined && active.rangeMax !== undefined
+      ? stakeExampleLine(
+          unit,
+          active.rangeMin,
+          active.rangeMax,
+          shownProbability,
+          active.liquidity,
+          direction,
+          DEFAULT_STAKE,
+        )
+      : null;
   const consensus =
     (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null) ?? active?.consensus ?? null;
   // The headline number rolls to its new value (trade, branch switch, job
@@ -1137,6 +1142,76 @@ export function TradePage() {
   // with another's settlement text.
   const horizonDescription =
     hero?.description ?? (hero && hero.metricId === ws?.heroMetricId ? (ws?.heroMetricDescription ?? null) : null);
+  // Below 1500px the summary line carries a "more" that expands the full
+  // definition in place (docs/ui-conventions.md, "The price and the chart":
+  // the definition is on screen once at every width). React state, so the
+  // expander is a real toggle; the stylesheet hides it, with the summary,
+  // wherever the left column carries the definition instead.
+  const [defExpanded, setDefExpanded] = useState(false);
+  const summary = firstSentenceOf(horizonDescription);
+  const hasMoreDefinition = !!horizonDescription && !!summary && horizonDescription.trim() !== summary.trim();
+  // The owner's Edit control and the definition body (editor or markdown),
+  // ONE element each, drawn wherever the definition is on screen: the know
+  // block in the left column and the "more" expander under the question.
+  const definitionEdit =
+    canManage && hero?.metricId && !editingDef ? (
+      <button
+        className="pubws-decide"
+        onClick={() => {
+          setDefDraft(horizonDescription ?? '');
+          setDefErr('');
+          setEditingDef(true);
+        }}
+      >
+        Edit
+      </button>
+    ) : null;
+  const definitionBody = editingDef ? (
+    <div className="pubws-know-edit">
+      <textarea
+        className="pubws-know-edit-text"
+        value={defDraft}
+        rows={14}
+        onChange={e => setDefDraft(e.target.value)}
+      />
+      <p className="pubws-settle">
+        This text is what the market settles on. Saving keeps every position and publishes the change below, old wording
+        and new.
+      </p>
+      <div>
+        <button
+          className="pubws-decide"
+          disabled={defSaving}
+          onClick={() => {
+            void saveDefinition();
+          }}
+        >
+          {defSaving ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          className="pubws-decide"
+          style={{ marginLeft: '0.5rem' }}
+          disabled={defSaving}
+          onClick={() => setEditingDef(false)}
+        >
+          Cancel
+        </button>
+      </div>
+      {defErr && <p className="ticket-err">{defErr}</p>}
+    </div>
+  ) : (
+    horizonDescription && (
+      /* The settlement text renders as markdown (owner ask 2026-08-21), same
+         stack as the announcements body, plus remark-breaks so a plain
+         newline is a line break: owners write this text over the API and a
+         collapsed paragraph misquotes what the market settles on. */
+      <div className="pubws-know-what">
+        <ReactMarkdown remarkPlugins={MARKDOWN_PLUGINS} components={MARKDOWN_COMPONENTS}>
+          {horizonDescription}
+        </ReactMarkdown>
+      </div>
+    )
+  );
 
   if (error) {
     return (
@@ -1537,8 +1612,21 @@ export function TradePage() {
                 what the number is before the numbers. A Manifold trader read
                 a rolling 30-day total as the lifetime revenue of a company
                 "that just started right out of the gates" (2026-09-03). */}
-              {firstSentenceOf(horizonDescription) && (
-                <p className="pubws-instrument-sum pubws-enter pubws-enter--1">{firstSentenceOf(horizonDescription)}</p>
+              {summary && (
+                <p className="pubws-instrument-sum pubws-enter pubws-enter--1">
+                  {summary}
+                  {hasMoreDefinition && (
+                    <button type="button" className="pubws-instrument-more-go" onClick={() => setDefExpanded(v => !v)}>
+                      {defExpanded ? 'less' : 'more'}
+                    </button>
+                  )}
+                </p>
+              )}
+              {summary && hasMoreDefinition && defExpanded && (
+                <div className="pubws-instrument-more" aria-label="What is this market">
+                  {definitionEdit && <div className="pubws-instrument-more-edit">{definitionEdit}</div>}
+                  {definitionBody}
+                </div>
               )}
               {selectedJob && (
                 <>
@@ -1654,9 +1742,58 @@ export function TradePage() {
                       </button>
                     </div>
                   )}
+                  {/* The decision row (docs/ui-conventions.md, "The decision
+                    row, then the decision bar"; critics' round 2026-09-08): a
+                    decision is laid out as a decision before it is asked.
+                    Four cells on hairlines in the stat row's anatomy, the
+                    branch on screen marked, for everyone. */}
+                  {pair && (
+                    <div className="pubws-decision pubws-enter pubws-enter--1" role="group" aria-label="The decision">
+                      {(
+                        [
+                          ['if approved', pair.approvedConsensus, branch === 'approved'],
+                          ['if declined', pair.declinedConsensus, branch === 'declined'],
+                        ] as const
+                      ).map(([what, value, on]) => (
+                        <div key={what} className={`pubws-decision-cell${on ? ' is-active' : ''}`}>
+                          <span className="pubws-stat-what">{what}</span>
+                          <span className="pubws-price pubws-price--sm">
+                            {value !== null ? `${unit}${formatValue(value)}` : 'no price yet'}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="pubws-decision-cell">
+                        <span className="pubws-stat-what">difference</span>
+                        {pair.approvedConsensus !== null && pair.declinedConsensus !== null ? (
+                          <span
+                            className={`pubws-price pubws-price--sm${
+                              pair.approvedConsensus - pair.declinedConsensus > 0
+                                ? ' is-up'
+                                : pair.approvedConsensus - pair.declinedConsensus < 0
+                                  ? ' is-down'
+                                  : ''
+                            }`}
+                          >
+                            {formatImpact(pair.approvedConsensus - pair.declinedConsensus, unit)}
+                          </span>
+                        ) : (
+                          <span className="pubws-price pubws-price--sm">open</span>
+                        )}
+                      </div>
+                      <div className="pubws-decision-cell">
+                        <span className="pubws-stat-what">costs</span>
+                        <span className="pubws-price pubws-price--sm">
+                          {(selectedJob.askUsd ?? splitAsk(selectedJob.title).ask) !== null
+                            ? `$${(selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0).toLocaleString('en-US')}`
+                            : 'nothing'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   {/* The owner's press, on the floor itself (owner ask
-                    2026-08-11). Approve is the money verb, green; decline
-                    asks for the reason the charter promises to publish. */}
+                    2026-08-11), directly under the row. Approve is the money
+                    verb, green; decline asks for the reason the charter
+                    promises to publish. */}
                   {canManage && (
                     <div className="pubws-ownerbar pubws-enter pubws-enter--1">
                       {declineReason === null ? (
@@ -1816,19 +1953,50 @@ export function TradePage() {
                       {/* The caption line FIRST (revised 2026-09-04, the home
                         board's cell shape): what the number is and its age,
                         then the value under it. */}
-                      <span className="pubws-stat-what">
-                        now
-                        {lastReading?.at && (
-                          <>
-                            {' · '}
-                            <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
-                              read {timeAgoOf(lastReading.at, now) ?? ''}
-                            </span>
-                          </>
+                      {/* For the owner the reading cell is also the reporting
+                        cell (docs/ui-conventions.md, "The stat row", critics'
+                        round 2026-09-08): Report sits beside the age, and a
+                        metric the platform syncs says so instead. */}
+                      <span className="pubws-stat-cap">
+                        <span className="pubws-stat-what">
+                          now
+                          {lastReading?.at && (
+                            <>
+                              {' · '}
+                              <span
+                                className={`pubws-updated${readingIsStale ? ' is-stale' : ''}`}
+                                title={`${new Date(lastReading.at).toUTCString()}${
+                                  readingIsStale ? ' (taken before the period this market settles for)' : ''
+                                }`}
+                              >
+                                read {timeAgoOf(lastReading.at, now) ?? ''}
+                              </span>
+                            </>
+                          )}
+                        </span>
+                        {hero.platformSynced ? (
+                          <span className="pubws-stat-sync">synced hourly</span>
+                        ) : (
+                          canManage &&
+                          hero.metricId && (
+                            <button
+                              type="button"
+                              className="pubws-stat-report"
+                              onClick={() =>
+                                setOwnerDialog({
+                                  kind: 'report',
+                                  metricId: hero.metricId,
+                                  metricName: metricLabel,
+                                })
+                              }
+                            >
+                              Report
+                            </button>
+                          )
                         )}
                       </span>
                       <span className="pubws-price">
-                        {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
+                        {nowReading !== null ? formatReading(nowReading, unit) : 'no reading yet'}
                       </span>
                     </div>
                     {/* The market's call, amber: the consensus, its name, the
@@ -1856,7 +2024,7 @@ export function TradePage() {
                               key={`imp-${Math.round(jobImpact)}`}
                               className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}
                             >
-                              {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)}
+                              {jobImpact >= 0 ? '▲' : '▼'} {formatImpact(jobImpact, impactUnit)}
                             </span>
                           ))}
                       </span>
@@ -1961,40 +2129,6 @@ export function TradePage() {
                   )}
                 </p>
               )}
-
-              {/* The owner's own reading, under the market's number, as its
-                counterpart: two numbers about the same thing, one from the
-                crowd and one from the house (docs/owner-on-the-floor.md).
-                Markets settle on this one, so its AGE is the whole nudge and
-                it is only ever true text: no badge, no blink, no email. */}
-              {canManage && !selectedJob && hero?.metricId && (
-                <p className="pubws-yours pubws-enter pubws-enter--2">
-                  Yours:{' '}
-                  <span className="pubws-yours-val">
-                    {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'not reported yet'}
-                  </span>
-                  <button
-                    type="button"
-                    className="pubws-yours-go"
-                    onClick={() =>
-                      setOwnerDialog({
-                        kind: 'report',
-                        metricId: hero.metricId,
-                        metricName: metricLabel,
-                      })
-                    }
-                  >
-                    Report
-                  </button>
-                  <span className={`pubws-yours-age${readingIsStale ? ' is-stale' : ''}`}>
-                    {readingAge
-                      ? `${readingAge}${
-                          readingIsStale ? ', taken before the period this market settles for' : ''
-                        }${settleLeft ? ` · settles on it in ${settleLeft}` : ''}`
-                      : 'this market settles on whatever you report before it closes'}
-                  </span>
-                </p>
-              )}
             </section>
           )}
 
@@ -2034,11 +2168,15 @@ export function TradePage() {
                     <div className="pubws-bet" role="group" aria-label="Bet">
                       <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>
                         Bet Higher ↑
-                        {higherCeiling !== null && <span className="pubws-bet-max">up to {higherCeiling}</span>}
+                        {stakeExample('higher') !== null && (
+                          <span className="pubws-bet-eg">{stakeExample('higher')}</span>
+                        )}
                       </button>
                       <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>
                         Bet Lower ↓
-                        {lowerCeiling !== null && <span className="pubws-bet-max">up to {lowerCeiling}</span>}
+                        {stakeExample('lower') !== null && (
+                          <span className="pubws-bet-eg">{stakeExample('lower')}</span>
+                        )}
                       </button>
                     </div>
                     {!betModal && active.rangeMin !== undefined && active.rangeMax !== undefined && (
@@ -2254,19 +2392,7 @@ export function TradePage() {
                 position survive. What it does instead is publish the change
                 here, which is the honest trade when no code can tell a
                 clarification from a redefinition. */}
-                {canManage && hero?.metricId && !editingDef && (
-                  <button
-                    className="pubws-decide"
-                    style={{ marginLeft: '0.6rem' }}
-                    onClick={() => {
-                      setDefDraft(horizonDescription ?? '');
-                      setDefErr('');
-                      setEditingDef(true);
-                    }}
-                  >
-                    Edit
-                  </button>
-                )}
+                {definitionEdit}
               </h2>
               {/* The metric's stored definition, verbatim: it is the settlement
               text (see the section comment above). This paragraph was
@@ -2274,53 +2400,7 @@ export function TradePage() {
               floor (telarchy, 2026-08-14) made that a lie on every other
               workspace. No fallback: a workspace whose owner wrote no
               definition shows no definition rather than someone else's. */}
-              {editingDef ? (
-                <div className="pubws-know-edit">
-                  <textarea
-                    className="pubws-know-edit-text"
-                    value={defDraft}
-                    rows={14}
-                    onChange={e => setDefDraft(e.target.value)}
-                  />
-                  <p className="pubws-settle">
-                    This text is what the market settles on. Saving keeps every position and publishes the change below,
-                    old wording and new.
-                  </p>
-                  <div>
-                    <button
-                      className="pubws-decide"
-                      disabled={defSaving}
-                      onClick={() => {
-                        void saveDefinition();
-                      }}
-                    >
-                      {defSaving ? 'Saving…' : 'Save'}
-                    </button>
-                    <button
-                      className="pubws-decide"
-                      style={{ marginLeft: '0.5rem' }}
-                      disabled={defSaving}
-                      onClick={() => setEditingDef(false)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  {defErr && <p className="ticket-err">{defErr}</p>}
-                </div>
-              ) : (
-                horizonDescription && (
-                  /* The settlement text renders as markdown (owner ask
-                 2026-08-21), same stack as the announcements body, plus
-                 remark-breaks so a plain newline is a line break: owners
-                 write this text over the API and a collapsed paragraph
-                 misquotes what the market settles on. */
-                  <div className="pubws-know-what">
-                    <ReactMarkdown remarkPlugins={MARKDOWN_PLUGINS} components={MARKDOWN_COMPONENTS}>
-                      {horizonDescription}
-                    </ReactMarkdown>
-                  </div>
-                )
-              )}
+              {definitionBody}
               {/* The actual-trajectory chart that used to sit here was removed
               on owner direction 2026-08-18: the floor no longer plots the
               metric's measured values, only the market. The history fields
@@ -2328,7 +2408,7 @@ export function TradePage() {
             </section>
             {/* The season, advertised rather than narrated: three lines, the
             money first. */}
-            <SeasonAdvert season={season} signedIn={!!user} />
+            <SeasonAdvert season={season} signedIn={!!user} canManage={canManage} />
             {/* The owner's disclosures, under the season advert in the column
             about this market. A charter that promises
             to announce material news needs the announcements on the page the

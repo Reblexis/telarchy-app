@@ -919,8 +919,8 @@ resting limit orders. The wallet balance lives in the account menu, not
 under the ticket.
 
 **Each bet verb says what a stake pays.** Under "Bet Higher" and "Bet
-Lower" the sub-line is a concrete example at the ticket's default stake,
-"100 cr pays 187 cr at 20" (the payout if the market settles at the top
+Lower" the sub-line is a concrete example at the ticket's default stake
+(`DEFAULT_STAKE`, 25 cr), "25 cr pays 47 cr at 20" (the payout if the market settles at the top
 of the range for Higher, at the floor for Lower, from the same AMM
 preview the ticket uses), not the liquidity cap; the cap moves into the
 ticket. The line under the pair, "A share pays 1 cr at 50, nothing at
