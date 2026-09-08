@@ -391,13 +391,15 @@ workspacesRouter.put(
     const hasProposalRewardKey = Object.prototype.hasOwnProperty.call(req.body, 'proposalReward');
     const hasSpamPenaltyKey = Object.prototype.hasOwnProperty.call(req.body, 'spamPenalty');
     const hasMaxPendingKey = Object.prototype.hasOwnProperty.call(req.body, 'maxPendingProposalsPerParticipant');
+    const hasDecisionDaysKey = Object.prototype.hasOwnProperty.call(req.body, 'decisionDays');
     const touchesLifecycleFields =
       hasAutoFundKey ||
       hasCreditsKey ||
       hasVisibilityKey ||
       hasProposalRewardKey ||
       hasSpamPenaltyKey ||
-      hasMaxPendingKey;
+      hasMaxPendingKey ||
+      hasDecisionDaysKey;
 
     // Lifecycle-shaped fields (visibility, auto-fund, liquidity defaults) are
     // gated by the granular `manage_workspace` capability, which the Admin group
@@ -524,6 +526,15 @@ workspacesRouter.put(
         return;
       }
       update.proposalReward = proposalReward;
+    }
+
+    if (hasDecisionDaysKey) {
+      const d = req.body.decisionDays;
+      if (typeof d !== 'number' || !Number.isInteger(d) || d < 1 || d > 90) {
+        res.status(400).json({ error: 'decisionDays must be a whole number of days between 1 and 90' });
+        return;
+      }
+      update.decisionDays = d;
     }
 
     if (hasSpamPenaltyKey) {

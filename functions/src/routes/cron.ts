@@ -107,10 +107,14 @@ cronRouter.post(
     let balanceSnapshots = 0;
     const ran = await withSingletonLock('resolve', async () => {
       const wsIds = req.body?.workspaceId ? [req.body.workspaceId as string] : await allWorkspaceIds();
+      const { lapseOverdueProposals } = await import('../services/proposals');
       for (const wsId of wsIds) {
+        // Undecided at the deadline, a proposal lapses as declined
+        // (docs/guides/proposals.md), before the books are looked at.
+        const lapsed = await lapseOverdueProposals(wsId);
         const resolved = await resolvePredictions(req.body?.targetDate as string | undefined, wsId);
         const cleaned = await cleanupOldEvents(wsId);
-        results.push({ workspaceId: wsId, ...resolved, eventsCleaned: cleaned });
+        results.push({ workspaceId: wsId, ...resolved, eventsCleaned: cleaned, proposalsLapsed: lapsed });
       }
 
       // Platform-wide (not per-workspace): one balance snapshot per

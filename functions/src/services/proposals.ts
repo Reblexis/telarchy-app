@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   agents,
@@ -15,7 +15,7 @@ import {
 } from '../db/schema';
 import { anchoredMarketState, consensus } from '../lib/amm';
 import { askUsdOf, branchAnchorP } from '../lib/branch-anchor';
-import { resolutionInstant } from '../lib/date-utils';
+import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { AppError } from '../lib/errors';
 import { proposalCreditsFor } from '../lib/horizon-credits';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
@@ -31,6 +31,7 @@ import {
 import { applyCredits } from './credits';
 import { emitEvent } from './events';
 import { voidMarket } from './markets';
+import { releaseLimitOrdersForMarket } from './trading';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -158,7 +159,7 @@ export async function createConditionalMarkets(
       .from(markets)
       .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
-    const sourceMarkets = openMarkets.filter(m => m.active !== false && !m.proposalId && leafMetricIds.has(m.metricId));
+    let sourceMarkets = openMarkets.filter(m => m.active !== false && !m.proposalId && leafMetricIds.has(m.metricId));
 
     // The anchor (owner decision 2026-08-11): a fresh conditional pair
     // opens at the BASELINE market's current value, not the range
@@ -170,9 +171,15 @@ export async function createConditionalMarkets(
     // honest zero point. An unfunded baseline has no price; those pairs
     // still open at the center.
     const [proposalRowForAsk] = await db
-      .select({ askUsd: proposals.askUsd, title: proposals.title })
+      .select({ askUsd: proposals.askUsd, title: proposals.title, decideBy: proposals.decideBy })
       .from(proposals)
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    // Only cells whose date settles after the deadline get a pair
+    // (docs/guides/proposals.md): a book that would settle before the owner
+    // decides has nothing to be conditional on.
+    const deadline = proposalRowForAsk?.decideBy ?? null;
+    if (deadline)
+      sourceMarkets = sourceMarkets.filter(m => periodEndInstant(m.targetDate).getTime() > deadline.getTime());
     // The same formula answers for a branch that spawned unfunded and is
     // given its first money later (services/marketLiquidity.ts).
     const askUsd = askUsdOf(proposalRowForAsk);
@@ -538,6 +545,72 @@ export async function pairPricesNow(proposalId: string, workspaceId: string): Pr
   return [...byKey.values()];
 }
 
+/**
+ * Trading on both branches closes at the decision (docs/guides/proposals.md,
+ * "The deadline, and the close"): stamp closedAt once, and release the open
+ * limit orders on every market of the proposal that is still live (a voided
+ * market released its own). The trade path refuses buys and sells on a
+ * closed proposal with code proposal_closed.
+ */
+export async function closeProposalTrading(proposalId: string, workspaceId: string): Promise<void> {
+  const [row] = await db
+    .select({ closedAt: proposals.closedAt })
+    .from(proposals)
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  if (!row) return;
+  if (!row.closedAt) {
+    await db
+      .update(proposals)
+      .set({ closedAt: new Date() })
+      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  }
+  const live = await db
+    .select({ id: markets.id })
+    .from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
+  for (const m of live) {
+    await db.transaction(async tx => {
+      await releaseLimitOrdersForMarket(tx, m.id, 'cancelled');
+    });
+  }
+}
+
+/** Reason recorded on a proposal that lapsed at its deadline. */
+export const LAPSE_REASON = 'Lapsed: not decided by the deadline.';
+
+/**
+ * Undecided at the deadline, a proposal lapses as declined (docs/guides/
+ * proposals.md): the same decline as the owner's, then lapsedAt so the floor
+ * can say so. Run from the resolve cron. Returns how many lapsed.
+ */
+export async function lapseOverdueProposals(workspaceId: string): Promise<number> {
+  const due = await db
+    .select({ id: proposals.id })
+    .from(proposals)
+    .where(
+      and(
+        eq(proposals.workspaceId, workspaceId),
+        eq(proposals.status, 'pending'),
+        isNotNull(proposals.decideBy),
+        lt(proposals.decideBy, new Date()),
+      ),
+    );
+  let lapsed = 0;
+  for (const { id } of due) {
+    try {
+      await declineProposal(id, workspaceId, null, LAPSE_REASON);
+      await db
+        .update(proposals)
+        .set({ lapsedAt: new Date() })
+        .where(and(eq(proposals.id, id), eq(proposals.workspaceId, workspaceId)));
+      lapsed++;
+    } catch (e) {
+      console.error(`lapseOverdueProposals: proposal ${id} in ${workspaceId} failed to lapse:`, e);
+    }
+  }
+  return lapsed;
+}
+
 export async function voidProposalBranch(
   proposalId: string,
   workspaceId: string,
@@ -635,6 +708,7 @@ export async function approveProposal(
         resolvedBy: resolvedBy ?? null,
       })
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    await closeProposalTrading(proposalId, workspaceId);
     return { rewardPaid: 0 };
   }
 
@@ -652,6 +726,7 @@ export async function approveProposal(
         resolvedBy: resolvedBy ?? ownerAgentId,
       })
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    await closeProposalTrading(proposalId, workspaceId);
     return { rewardPaid: 0 };
   }
 
@@ -691,6 +766,7 @@ export async function approveProposal(
       })
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   });
+  await closeProposalTrading(proposalId, workspaceId);
   return { rewardPaid: reward };
 }
 
@@ -758,6 +834,7 @@ export async function declineProposal(
       declineReason: trimmed || null,
     })
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  await closeProposalTrading(proposalId, workspaceId);
 }
 
 export async function declineProposalAsSpam(
@@ -815,6 +892,7 @@ export async function declineProposalAsSpam(
     .update(proposals)
     .set({
       status: 'declined_spam',
+      closedAt: new Date(),
       penaltyCharged: actualCharged,
       resolvedAt: new Date(),
       resolvedBy: resolvedBy ?? ownerAgentId ?? null,
@@ -855,6 +933,7 @@ export async function removeProposal(
     .update(proposals)
     .set({
       status: 'removed',
+      closedAt: new Date(),
       resolvedAt: new Date(),
       resolvedBy: byAgentId ?? null,
     })
@@ -867,6 +946,8 @@ export interface ContractEdit {
   title?: string;
   description?: string;
   askUsd?: number | null;
+  /** The deadline, later only (docs/market-integrity.md I1b). */
+  decideBy?: Date;
 }
 
 /** A paid proposal's title carries its price by convention ("$200: ..."). */
@@ -934,6 +1015,18 @@ export async function editProposalDefinition(
   if (nextTitle !== proposal.title) changed.push('title');
   if (nextDescription !== proposal.description) changed.push('description');
   if (nextAsk !== currentAsk) changed.push('askUsd');
+  // The deadline moves later, never earlier (docs/market-integrity.md I1b):
+  // whoever funded or traded the pair did so for the announced window.
+  let nextDeadline: Date | null = null;
+  if (edit.decideBy !== undefined) {
+    const current = proposal.decideBy ? proposal.decideBy.getTime() : 0;
+    if (edit.decideBy.getTime() <= current) {
+      throw new AppError('decideBy may only move later than the current deadline', 400);
+    }
+    if (edit.decideBy.getTime() <= Date.now()) throw new AppError('decideBy must be in the future', 400);
+    nextDeadline = edit.decideBy;
+    changed.push('decideBy');
+  }
   if (changed.length === 0) return { changed, reanchored: false };
 
   // The ask is burned into the approved branch's opening anchor. Re-anchoring
@@ -968,12 +1061,27 @@ export async function editProposalDefinition(
 
   await db
     .update(proposals)
-    .set({ title: nextTitle, description: nextDescription, askUsd: nextAsk > 0 ? nextAsk : null })
+    .set({
+      title: nextTitle,
+      description: nextDescription,
+      askUsd: nextAsk > 0 ? nextAsk : null,
+      ...(nextDeadline ? { decideBy: nextDeadline } : {}),
+    })
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
 
   const stamp = new Date();
-  const was = { title: proposal.title, description: proposal.description, askUsd: String(currentAsk) };
-  const now = { title: nextTitle, description: nextDescription, askUsd: String(nextAsk) };
+  const was = {
+    title: proposal.title,
+    description: proposal.description,
+    askUsd: String(currentAsk),
+    decideBy: proposal.decideBy ? proposal.decideBy.toISOString() : '',
+  };
+  const now = {
+    title: nextTitle,
+    description: nextDescription,
+    askUsd: String(nextAsk),
+    decideBy: nextDeadline ? nextDeadline.toISOString() : was.decideBy,
+  };
   await db.insert(proposalRevisions).values(
     changed.map((field, i) => ({
       id: randomUUID(),
@@ -1030,6 +1138,7 @@ export async function withdrawProposal(proposalId: string, workspaceId: string, 
       status: 'withdrawn',
       resolvedAt: new Date(),
       resolvedBy: byAgentId,
+      closedAt: new Date(),
     })
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
 }

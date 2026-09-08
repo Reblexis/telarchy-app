@@ -43,7 +43,7 @@ proposalsRouter.post(
   requireCapability('trade'),
   wrap(async (req, res) => {
     const { workspaceId } = req.auth!;
-    const { title, description, liquiditySubsidy, askUsd, payoutHandle } = req.body;
+    const { title, description, liquiditySubsidy, askUsd, payoutHandle, decideBy } = req.body;
     if (!title || typeof title !== 'string') {
       res.status(400).json({ error: 'title is required' });
       return;
@@ -131,10 +131,28 @@ proposalsRouter.post(
     // LookPilot floors were created by the admin account, and the owner posts
     // there as a platform admin.
     const [wsForCap] = await db
-      .select({ maxPending: workspaces.maxPendingProposalsPerParticipant })
+      .select({ maxPending: workspaces.maxPendingProposalsPerParticipant, decisionDays: workspaces.decisionDays })
       .from(workspaces)
       .where(eq(workspaces.id, workspaceId));
     const cap = wsForCap?.maxPending ?? 0;
+    // The deadline (docs/guides/proposals.md, "The deadline, and the close"):
+    // the proposer's own, if in the future, else the floor's decisionDays
+    // from now.
+    let deadline: Date;
+    if (decideBy !== undefined && decideBy !== null) {
+      const parsed = typeof decideBy === 'string' ? new Date(decideBy) : null;
+      if (!parsed || Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: 'decideBy must be an ISO instant' });
+        return;
+      }
+      if (parsed.getTime() <= Date.now()) {
+        res.status(400).json({ error: 'decideBy must be in the future' });
+        return;
+      }
+      deadline = parsed;
+    } else {
+      deadline = new Date(Date.now() + (wsForCap?.decisionDays ?? 7) * 24 * 60 * 60 * 1000);
+    }
     const canReview = req.auth!.capabilities.has('manage');
     if (cap > 0 && !canReview) {
       const pending = await countPendingProposalsByProposer(workspaceId, proposedBy);
@@ -195,6 +213,7 @@ proposalsRouter.post(
           conditionalMarketIds: [],
           liquiditySubsidy: subsidy,
           subsidyContributions: subsidy > 0 ? { [proposedBy]: subsidy } : {},
+          decideBy: deadline,
           createdAt: new Date(),
         });
         break;
@@ -492,11 +511,20 @@ proposalsRouter.patch(
   wrap(async (req, res) => {
     const { workspaceId, agentId } = req.auth!;
     const proposalId = req.params.proposalId as string;
-    const { title, description, askUsd } = req.body ?? {};
+    const { title, description, askUsd, decideBy } = req.body ?? {};
 
-    if (title === undefined && description === undefined && askUsd === undefined) {
-      res.status(400).json({ error: 'Pass at least one of title, description, askUsd' });
+    if (title === undefined && description === undefined && askUsd === undefined && decideBy === undefined) {
+      res.status(400).json({ error: 'Pass at least one of title, description, askUsd, decideBy' });
       return;
+    }
+    let nextDeadline: Date | undefined;
+    if (decideBy !== undefined) {
+      const parsed = typeof decideBy === 'string' ? new Date(decideBy) : null;
+      if (!parsed || Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: 'decideBy must be an ISO instant' });
+        return;
+      }
+      nextDeadline = parsed;
     }
     if (title !== undefined) {
       if (typeof title !== 'string') {
@@ -536,7 +564,7 @@ proposalsRouter.patch(
     const result = await editProposalDefinition(
       proposalId,
       workspaceId,
-      { title, description, askUsd },
+      { title, description, askUsd, decideBy: nextDeadline },
       { agentId, canManage: req.auth!.capabilities.has('manage') },
     );
     res.json({ ok: true, ...result });
