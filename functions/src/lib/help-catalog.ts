@@ -1227,7 +1227,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/admin/outreach/prospects',
       auth: 'admin',
       description:
-        'Every person the owner has decided to write to himself, in position order, with the current message, the argument about it, the status and what came back (platform admin; docs/outreach-workbench.md). Each row carries { link } (where the person reads: an X, Bluesky, LinkedIn or HN profile, a mailto with the message prefilled) and { logLine }, the one-line record shape promised on the contract. Also { summary } (sent, answered; below ten sent an honest note, from ten a reply rate by segment and channel and for each of three features: under 75 words, names a number, names their decision) and { draftingConfigured }. Nothing here sends anything.',
+        'Every person the owner has decided to write to himself, in position order, with the current message, the argument about it, the status and what came back (platform admin; docs/outreach-workbench.md). Each row carries { link } (where the person reads: an X, Bluesky, LinkedIn or HN profile, a mailto with the message prefilled) and { logLine }, the one-line record shape promised on the proposal it was announced on. Also { summary } (sent, answered; below ten sent an honest note, from ten a reply rate by segment and channel and for each of three features: under 75 words, names a number, names their decision) and { draftingConfigured }. Nothing here sends anything.',
     },
     {
       method: 'POST',

@@ -62,7 +62,7 @@ import of the same shape (that is how a researched list becomes rows).
    evidence, whatever it says.
 7. Reads the log: who was written to, on what channel, what came back, and
    what the pattern across them says.
-8. Copies a log line for the contract that this outreach was promised on:
+8. Copies a log line for the proposal this outreach was promised on:
    `NN. NAME (SEG), sent DATE via CHANNEL. Answer: ... Floor: ...`, one line
    per person, so the traders who priced the promise can count.
 
