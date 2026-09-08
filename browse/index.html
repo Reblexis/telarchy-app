@@ -5095,8 +5095,10 @@ reaches the buttons 500px later must not have to guess (critics' round 2).</p>
 Lower&quot; the sub-line is a concrete example at the ticket's default stake
 (<code>DEFAULT_STAKE</code>, 25 cr), &quot;25 cr pays 47 cr at 20&quot; (the payout if the market settles at the top
 of the range for Higher, at the floor for Lower, from the same AMM
-preview the ticket uses), not the liquidity cap; the cap moves into the
-ticket. The line under the pair names the range the example points at, once:
+preview the ticket uses), and a second point a trader can picture when
+the chart is zoomed inside the range: &quot;63 cr at 50, 41 cr at 20&quot;, the
+second at the top of the visible axis (critics' round 3); not the
+liquidity cap, which moves into the ticket. The line under the pair names the range the example points at, once:
 &quot;Settles between 0 and 50. A share pays 1 cr at 50, nothing at 0.&quot;
 (critics' round 2: the chart is zoomed to 20, so &quot;at 50&quot; pointed at a
 number the page never showed). That line stays as the rule the example
@@ -5458,8 +5460,14 @@ SAME precision (<code>formatImpact</code>: two decimals under 1, one decimal und
 bar: &quot;Approve, pay $N&quot; as the one money-colored pill, and Decline, which
 opens the published-reason field in place (the charter promises the
 reason lands on the proposal, so the confirm stays off until a reason is
-typed). Nobody else ever renders the bar; the backend enforces manage
-regardless.</p>
+typed), and Remove. One grey line under the bar says what the two quiet
+buttons do to the books (<code>.pubws-decide-why</code>): &quot;Decline settles the pair
+on if-declined and positions pay out. Remove voids both books and refunds
+everyone.&quot; (critics' round 3: an owner deciding a paid proposal for the
+first time hesitated on the wrong button). Nobody else ever renders the
+bar; the backend enforces manage regardless. The chart's marker beside
+the traded branch prints the difference with the row's precision, and
+&quot;how the call moved&quot; on a proposal names the book being traded.</p>
 <h3 id="docs-ui-conventions-md--h29">The floor's live poll</h3>
 <p><strong>The floor's live poll (every fifteen seconds) refreshes DATA, never the
 view.</strong> The selected proposal, the branch toggle, an expanded description
@@ -5712,7 +5720,11 @@ one thing you can press, and it does not compete with the bet buttons
 because they are the page's colour and he is its ink.</p>
 <p>He lives in the corner rather than in the column because a reader needs
 him at whatever point of the page their question arrives, and because the
-page's job is the market. There is no corner bubble and no separate &quot;ask&quot;
+page's job is the market. The corner belongs to him, so nothing else is
+placed under it: the proposals rail and the market column end with enough
+bottom room (the dock's height plus a gap) that the dock never sits on a
+proposal row or the chart's forecast corner when the page is scrolled to
+its foot (critics' round 3). There is no corner bubble and no separate &quot;ask&quot;
 bar in the column. The prompt for pointing your own AI at the same brief
 is a SETTING (account dialog, &quot;Your AI&quot;), not another door on the page.</p>
 <h3 id="docs-ui-conventions-md--h33">The bell</h3>
@@ -5789,7 +5801,8 @@ pays (&quot;Prizes paid by Telarchy. Your floor costs you nothing.&quot;), becau
 an owner reads &quot;free to enter&quot; as their own bill (critics' round
 2026-09-08). Otherwise three lines, nothing else: no trader or volume
 count in it, no &quot;and&quot;, no running sentence. <strong>Below 1500px the advert is
-one line</strong>, directly under the facts row in the centre column
+one line</strong>, directly under the stat row in the centre column, before the
+chart, so the money is on the first scroll of a laptop and a phone
 (<code>.pubws-season--line</code>): &quot;$1,000 in prizes · Season 0 ends in 23 days ·
 Enter the season&quot;, the prize in the price register, so a laptop and a
 phone see the money on the first scroll rather than after the standings
@@ -5805,7 +5818,14 @@ ranking rule below and the fifteen-second poll. Every mark on a row has a
 hover title (&quot;IN&quot; is in the season; the amber dollar figure is real prize
 money claimed; the leaf is a linked forecasting record), and one footnote
 line under the pair spells the two that carry money: &quot;IN = in the season
-· $ = prizes claimed&quot; (critics' round 2). <strong>With a proposal
+· $ = prizes claimed&quot; (critics' round 2). The proposals board has the same
+courtesy: a hover title on the droplet (&quot;credits behind the pair&quot;) and on
+&quot;$N to them&quot; (&quot;paid to the proposer on approval&quot;), and the leaf beside a
+trader's name says &quot;linked forecasting record&quot; on hover (critics' round
+3). The workspace owner does not see &quot;Earn credits&quot; in the top bar of
+their own floor, the rail says &quot;yours&quot; without repeating their name, and
+the left column's door to a floor of one's own is a real link that the
+owner does not see. <strong>With a proposal
 selected, the traders footer becomes &quot;Traders on this proposal&quot;</strong>: the
 same rows, restricted to accounts with a position on either branch of the
 selected pair, ranked by that position's marked profit, with the meta &quot;this
