@@ -562,6 +562,9 @@ export interface PublicWorkspace {
   visibility: string;
   proposalReward: number;
   spamPenalty: number;
+  /** Days a new proposal has before it lapses as declined unless decided
+   *  (docs/guides/proposals.md, "The deadline, and the close"). */
+  decisionDays?: number;
   /** What pressing join actually grants, per the Public group's capabilities. */
   joinAs: 'trader' | 'viewer';
   /** The platform signup grant, so the page can say what you start with. */
@@ -692,6 +695,13 @@ export interface PublicProposal {
   status?: 'pending' | 'approved' | 'declined';
   resolvedAt?: string | null;
   declineReason?: string | null;
+  /** The decision deadline, and the close (docs/guides/proposals.md):
+   *  decideBy is when the owner decides by; closedAt is when trading on both
+   *  branches stopped (the decision or the deadline), null while open;
+   *  lapsedAt is set when it lapsed as declined at the deadline. */
+  decideBy?: string | null;
+  closedAt?: string | null;
+  lapsedAt?: string | null;
   proposedByName: string | null;
   /** Resolvable segment for /participants/:id (participant id; the page
    *  also resolves nicknames). */
@@ -1572,6 +1582,9 @@ export const api = {
     liquiditySubsidy?: number;
     askUsd?: number;
     payoutHandle?: string;
+    /** The decision deadline, an ISO instant in the future; the floor's
+     *  decisionDays from now when omitted. */
+    decideBy?: string;
   }) => request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
   /** Edit a proposal's definition: words and price both, published as
    *  revisions; a traded pair keeps its markets and positions untouched
@@ -1746,7 +1759,10 @@ export const api = {
     request('/api/admin/outreach/lessons'),
   outreachSetLessons: (lessons: string): Promise<{ ok: true }> =>
     request('/api/admin/outreach/lessons', { method: 'PUT', body: JSON.stringify({ lessons }) }),
-  editProposal: (id: string, body: { title?: string; description?: string; askUsd?: number | null }) =>
+  editProposal: (
+    id: string,
+    body: { title?: string; description?: string; askUsd?: number | null; decideBy?: string },
+  ) =>
     request(`/api/proposals/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(body),

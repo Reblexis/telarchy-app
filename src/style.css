@@ -2457,6 +2457,54 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 .pubws-chip--plain { cursor: default; }
+/* The deadline chip (docs/ui-conventions.md, "The deadline is one amber
+   chip"): the caption row's one mention of it, in the accent. */
+.pubws-chip--deadline { border-color: var(--accent); color: var(--accent); gap: 0.35rem; }
+
+/* The deadline on a board row: a clock and a countdown beside the pool, in
+   the pool's own mono register; red inside the last day. */
+.pubws-ballot-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+.pubws-ballot-clock.is-urgent { color: var(--lower); }
+
+/* The owner's three words after the buttons, and the extend field. */
+.pubws-ownerbar-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+.pubws-ownerbar-link {
+  padding: 0;
+  border: none;
+  border-bottom: 2px dotted currentColor;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
+.pubws-ownerbar-link:hover { color: var(--accent-hover); }
+.jobform-deadline { display: flex; align-items: baseline; gap: 0.75rem; }
+.jobform-line--date { width: auto; font-family: 'JetBrains Mono', monospace; }
+/* A closed proposal's position card says when it settles where Sell was. */
+.pubws-poscard-settles {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
 button.pubws-chip:hover,
 button.pubws-chip[aria-expanded='true'] { border-color: var(--border-strong); background: var(--bg-secondary); }
 button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

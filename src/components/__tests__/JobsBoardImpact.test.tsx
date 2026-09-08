@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test, vi } from 'vitest';
 
@@ -116,5 +116,64 @@ describe('the impact a proposal prints', () => {
   test('a payload without metricId on its pairs still matches by date', () => {
     const legacy = { ...job, markets: job.markets.map((m: { metricId?: string }) => ({ ...m, metricId: undefined })) };
     expect(deltaAt(legacy as never, '2026-09', 'rev')).toBe(30);
+  });
+});
+
+/** The deadline on the row: a clock and a countdown beside the pool, red inside
+ *  the last day; a proposal nobody ruled on by its deadline wears "lapsed"
+ *  (docs/ui-conventions.md, "The deadline is one amber chip"). */
+describe('the deadline on the row', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  test('a pending row shows the countdown', () => {
+    const j = { ...job, decideBy: new Date(Date.now() + 6 * DAY).toISOString() };
+    render(
+      <MemoryRouter>
+        <JobsBoard {...base} proposals={[j] as never} horizonDate="2026-W35" horizonMetricId="rev" />
+      </MemoryRouter>,
+    );
+    const clock = screen.getByLabelText('Decision in');
+    expect(clock.textContent).toContain('6d');
+    expect(clock.className).not.toContain('is-urgent');
+  });
+
+  test('inside the last day it is urgent', () => {
+    const j = { ...job, decideBy: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString() };
+    render(
+      <MemoryRouter>
+        <JobsBoard {...base} proposals={[j] as never} horizonDate="2026-W35" horizonMetricId="rev" />
+      </MemoryRouter>,
+    );
+    const clock = screen.getByLabelText('Decision in');
+    expect(clock.textContent).toContain('5h');
+    expect(clock.className).toContain('is-urgent');
+  });
+
+  test('a lapsed proposal wears the lapsed pill', () => {
+    const j = {
+      ...job,
+      status: 'declined',
+      resolvedAt: '2026-09-08T00:00:00.000Z',
+      lapsedAt: '2026-09-08T00:00:00.000Z',
+      decideBy: '2026-09-08T00:00:00.000Z',
+    };
+    render(
+      <MemoryRouter>
+        <JobsBoard {...base} proposals={[j] as never} horizonDate="2026-W35" horizonMetricId="rev" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('lapsed')).toBeTruthy();
+    expect(screen.queryByText('declined')).toBeNull();
+  });
+
+  test('the form carries a prefilled Decision by field with the default', async () => {
+    render(
+      <MemoryRouter>
+        <JobsBoard {...base} proposals={[job]} horizonDate="2026-W35" horizonMetricId="rev" decisionDays={7} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByText('+ Propose'));
+    const field = (await screen.findByLabelText('Decision by')) as HTMLInputElement;
+    expect(field.value).toBe(new Date(Date.now() + 7 * DAY).toISOString().slice(0, 10));
+    expect(screen.getByText('default 7d')).toBeTruthy();
   });
 });
