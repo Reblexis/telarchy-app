@@ -1294,6 +1294,60 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
   });
 });
 
+/**
+ * A synced metric's age line never contradicts itself (docs/ui-conventions.md,
+ * "The stat row", critics' round 2: "read 2d 20h ago" beside "synced hourly"
+ * read as a broken feed). The clock is pinned at 2026-08-31T12:00Z.
+ */
+describe("a synced metric's age line", () => {
+  const synced = (at: string) => {
+    const ws = h.workspace();
+    ws.horizonHistories = [
+      {
+        marketId: 'm-hero',
+        metricName: 'LookPilot revenue (monthly, USD)',
+        targetDate: '2026-12',
+        platformSynced: true,
+        description: 'Everything LookPilot earned in the month.',
+        points: [{ at, value: 45_339 }],
+      },
+    ];
+    return ws;
+  };
+  const cap = (container: HTMLElement) =>
+    (container.querySelector('.pubws-stat--now .pubws-stat-cap') as HTMLElement).textContent
+      ?.replace(/\s+/g, ' ')
+      .trim();
+
+  test('a reading older than an hour reads "unchanged since <day> · synced hourly"', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(synced('2026-08-29T09:00:00Z') as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-stat--now .pubws-stat-cap')).toBeTruthy());
+    expect(cap(container)).toBe('now · unchanged since 29 Aug · synced hourly');
+    expect(cap(container)).not.toMatch(/read /);
+  });
+
+  test('a reading under an hour old reads "synced <age> · hourly"', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(synced('2026-08-31T11:40:00Z') as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-stat--now .pubws-stat-cap')).toBeTruthy());
+    expect(cap(container)).toBe('now · synced 20m ago · hourly');
+    expect(cap(container)).not.toMatch(/unchanged/);
+  });
+
+  test('a hand-reported metric keeps "read <age>"', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = synced('2026-08-29T09:00:00Z');
+    (ws.horizonHistories[0] as { platformSynced?: boolean }).platformSynced = false;
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-stat--now .pubws-stat-cap')).toBeTruthy());
+    expect(cap(container)).toBe('now · read 2d 3h ago');
+  });
+});
+
 describe("the owner's own reading, under the market's", () => {
   test('a visitor never sees it', async () => {
     const { api } = await import('../../lib/api');
@@ -1410,13 +1464,18 @@ describe('the floor quotes both sides before the first click', () => {
     expect(container.textContent).not.toContain('86c');
   });
 
-  test('one line under the verbs says what a share pays, naming both ends', async () => {
+  test('one line under the verbs names the range the example points at, then what a share pays', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(tradable(0.5) as never);
     const { container } = renderFloor();
 
     await screen.findByRole('button', { name: /Bet Higher/ });
-    expect(container.textContent).toContain('A share pays 1 cr at $500,000, nothing at $0.');
+    // Critics' round 2: the chart is zoomed, so "at $500,000" pointed at a
+    // number the page never showed. The range is named once, first.
+    expect(container.querySelector('.pubws-bet-note')?.textContent).toBe(
+      'Settles between $0 and $500,000. A share pays 1 cr at $500,000, nothing at $0.',
+    );
+    expect(container.querySelector('.pubws-bet')?.nextElementSibling).toBe(container.querySelector('.pubws-bet-note'));
   });
 
   test('the line goes once the ticket is open, which says the same thing about the bet', async () => {

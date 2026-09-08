@@ -284,7 +284,7 @@ describe('the decision row, then the decision bar', () => {
     expect(cells(container)).toEqual([
       { what: 'if approved', value: '$82,000', active: true },
       { what: 'if declined', value: '$71,000', active: false },
-      { what: 'difference', value: '+$11,000', active: false },
+      { what: 'difference · revenue', value: '+$11,000', active: false },
       { what: 'costs', value: '$80', active: false },
     ]);
     // The numbers are in the price register, a size down from the headline.
@@ -338,6 +338,131 @@ describe('the decision row, then the decision bar', () => {
     expect(chip.textContent?.replace(/^[▲▼]\s*/, '')).toBe(expected);
     const rail = container.querySelector('.pubws-rail--right .pubws-ballot-delta') as HTMLElement;
     expect(rail.textContent).toBe(expected);
+  });
+
+  /** The row has to add up at a glance (critics' round 2 of 2026-09-08:
+   *  "17.0, 17.0, difference +0.04" reads as wrong): the two calls print
+   *  with enough decimals to reconcile the difference. */
+  test('a difference under a tenth prints the two calls with two decimals', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.markets[0].consensus = 17;
+    ws.markets[0].rangeMax = 50;
+    Object.assign(ws.proposals[0].markets[0], {
+      approvedConsensus: 17.02,
+      declinedConsensus: 16.98,
+      delta: 0.04,
+      rangeMax: 50,
+    });
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
+    const c = cells(container);
+    expect(c[0].value).toBe('$17.02');
+    expect(c[1].value).toBe('$16.98');
+    expect(c[2].value).toBe('+$0.04');
+    // The chart's branch labels use the same rule.
+    await waitFor(() => expect(container.querySelector('.nchart-pair-label--approved')).toBeTruthy());
+    expect(container.querySelector('.nchart-pair-label--approved')?.textContent).toBe('if approved $17.02');
+    expect(container.querySelector('.nchart-pair-label--declined')?.textContent).toBe('if declined $16.98');
+  });
+
+  test('two calls that would print equal at their usual precision grow decimals until they differ', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.markets[0].consensus = 150;
+    ws.markets[0].rangeMax = 500;
+    // Whole numbers from 100 up: "150" and "150" beside "+0.4" is the bug.
+    Object.assign(ws.proposals[0].markets[0], {
+      approvedConsensus: 150.4,
+      declinedConsensus: 150,
+      delta: 0.4,
+      rangeMax: 500,
+    });
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
+    const c = cells(container);
+    expect(c[0].value).toBe('$150.40');
+    expect(c[1].value).toBe('$150.00');
+    expect(c[2].value).toBe('+$0.40');
+  });
+
+  test('a wide difference keeps the usual precision: no decimals invented', async () => {
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
+    const c = cells(container);
+    expect(c[0].value).toBe('$82,000');
+    expect(c[1].value).toBe('$71,000');
+    expect(container.querySelector('.pubws-decision-why')).toBeNull();
+  });
+
+  test('the difference cell is captioned with the metric, from the same label helper as the chart caption', async () => {
+    const { captionLabel, metricLabelOf } = await import('../../lib/floor-horizons');
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
+    const expected = `difference · ${captionLabel(metricLabelOf('LookPilot revenue (monthly, USD)'), 'LookPilot')}`;
+    expect(expected).toBe('difference · revenue');
+    expect(cells(container)[2].what).toBe(expected);
+  });
+
+  /** When the pair sits away from the unconditional call by more than the
+   *  difference, one grey line under the row says why in the trader's
+   *  terms: the pools, and the market's own call. */
+  test("a pair far from the market's own call gets one grey line under the row naming the pools and the call", async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    // Both branches 9,000 and 10,000 above the baseline's 80,000, 1,000 apart.
+    Object.assign(ws.proposals[0].markets[0], {
+      approvedConsensus: 90_000,
+      declinedConsensus: 89_000,
+      delta: 1_000,
+    });
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision-why')).toBeTruthy());
+    const why = container.querySelector('.pubws-decision-why') as HTMLElement;
+    expect(why.textContent).toBe("Both books trade thin (77 cr and 41 cr); the market's own call is $80,000.");
+    // Directly under the row, before the owner's bar.
+    const row = container.querySelector('.pubws-decision') as HTMLElement;
+    expect(row.nextElementSibling).toBe(why);
+    const approve = await screen.findByRole('button', { name: 'Approve, pay $80' });
+    expect((approve.closest('.pubws-ownerbar') as HTMLElement).previousElementSibling).toBe(why);
+  });
+
+  test('equal pools read "in each"', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    Object.assign(ws.proposals[0].markets[0], {
+      approvedConsensus: 90_000,
+      declinedConsensus: 89_000,
+      delta: 1_000,
+      approvedPool: 295,
+      declinedPool: 295,
+    });
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision-why')).toBeTruthy());
+    expect(container.querySelector('.pubws-decision-why')?.textContent).toBe(
+      "Both books trade thin (295 cr in each); the market's own call is $80,000.",
+    );
+  });
+
+  test("a pair that straddles or hugs the market's call gets no line", async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    // 82,000 is 2,000 from the call; the difference is 11,000: the row explains itself.
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-decision')).toBeTruthy());
+    expect(container.querySelector('.pubws-decision-why')).toBeNull();
   });
 
   test('an unpriced pair says so in the cells rather than printing zeros', async () => {
@@ -465,9 +590,49 @@ describe('the season block for a manager', () => {
   });
 });
 
-describe('the "more" expander for a manager', () => {
-  test('carries the Edit control, which opens the definition editor in place', async () => {
-    const { api } = await import('../../lib/api');
+/**
+ * On a proposal the bet verbs say which book they trade (docs/
+ * ui-conventions.md, critics' round 2): one line directly above the pair,
+ * "Trading the if-approved book · switch", the switch flipping the branch
+ * exactly as the pills under the decision bar do.
+ */
+describe('on a proposal the bet verbs say which book they trade', () => {
+  test('one line directly above the verbs names the book, and its switch flips the branch', async () => {
+    const { container } = renderFloor();
+    await selectContract();
+    await waitFor(() => expect(container.querySelector('.pubws-bet-book')).toBeTruthy());
+    const line = container.querySelector('.pubws-bet-book') as HTMLElement;
+    expect(line.textContent?.replace(/\s+/g, ' ').trim()).toBe('Trading the if-approved book · switch');
+    expect(line.nextElementSibling).toBe(container.querySelector('.pubws-bet'));
+    fireEvent.click(within(line).getByRole('button', { name: 'switch' }));
+    await waitFor(() =>
+      expect(line.textContent?.replace(/\s+/g, ' ').trim()).toBe('Trading the if-declined book · switch'),
+    );
+    // The same flip the pills make: the facts row now reads the declined book.
+    await waitFor(async () => expect(await facts()).toBe('1 41 90'));
+    // And the pills agree.
+    expect(cells(container)[1].active).toBe(true);
+  });
+
+  test('the plain market has one book and no line', async () => {
+    const { container } = renderFloor();
+    await screen.findByRole('button', { name: /Bet Higher/ });
+    expect(container.querySelector('.pubws-bet-book')).toBeNull();
+  });
+
+  const cells = (container: HTMLElement) =>
+    [...container.querySelectorAll('.pubws-decision .pubws-decision-cell')].map(c => ({
+      active: c.classList.contains('is-active'),
+    }));
+});
+
+/**
+ * For a manager the Edit control sits beside "more" in the summary line
+ * (docs/ui-conventions.md, "The price and the chart", critics' round 2), so
+ * it is reachable without expanding; pressing it opens the editor in place.
+ */
+describe('Edit beside "more" for a manager', () => {
+  const withDefinition = () => {
     const ws = h.workspace() as ReturnType<typeof h.workspace> & { horizonHistories?: unknown[] };
     ws.horizonHistories = [
       {
@@ -478,17 +643,39 @@ describe('the "more" expander for a manager', () => {
         points: [],
       },
     ];
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    return ws;
+  };
+
+  test('Edit sits in the summary line beside "more", and opens the definition editor in place', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(withDefinition() as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).toBeTruthy());
+    const sum = container.querySelector('.pubws-instrument-sum') as HTMLElement;
+    await waitFor(() => expect(within(sum).getByRole('button', { name: 'Edit' })).toBeTruthy());
+    const more = within(sum).getByRole('button', { name: 'more' });
+    const edit = within(sum).getByRole('button', { name: 'Edit' });
+    expect(more.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Not expanded yet: the control is reachable without "more".
+    expect(container.querySelector('.pubws-instrument-more')).toBeNull();
+    fireEvent.click(edit);
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-more textarea')).toBeTruthy());
+    const area = container.querySelector('.pubws-instrument-more textarea') as HTMLTextAreaElement;
+    expect(area.value).toBe('Everything LookPilot earned in the month. Net of refunds.');
+  });
+
+  test('the expander itself no longer carries a second Edit', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(withDefinition() as never);
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).toBeTruthy());
     const sum = container.querySelector('.pubws-instrument-sum') as HTMLElement;
     fireEvent.click(within(sum).getByRole('button', { name: 'more' }));
     await waitFor(() => expect(container.querySelector('.pubws-instrument-more')).toBeTruthy());
     const full = container.querySelector('.pubws-instrument-more') as HTMLElement;
-    await waitFor(() => expect(within(full).getByRole('button', { name: 'Edit' })).toBeTruthy());
-    fireEvent.click(within(full).getByRole('button', { name: 'Edit' }));
-    await waitFor(() => expect(full.querySelector('textarea')).toBeTruthy());
-    const area = full.querySelector('textarea') as HTMLTextAreaElement;
-    expect(area.value).toBe('Everything LookPilot earned in the month. Net of refunds.');
+    expect(within(full).queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(full.querySelector('.pubws-instrument-more-edit')).toBeNull();
+    // One Edit for the definition on the page: the summary line's.
+    await waitFor(() => expect(within(sum).getByRole('button', { name: 'Edit' })).toBeTruthy());
   });
 });

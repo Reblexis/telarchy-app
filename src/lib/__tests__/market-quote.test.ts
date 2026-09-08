@@ -8,19 +8,22 @@ import { maxWinLabel, payoutLine } from '../market-quote';
  * two surfaces say it: the floor's bet verbs and the ticket's side pills.
  */
 describe('payoutLine', () => {
-  test('names the top of the range, the bottom, and the credit a share pays', () => {
-    expect(payoutLine('$', 0, 500_000)).toBe('A share pays 1 cr at $500,000, nothing at $0.');
+  test('names the range once, then the top, the bottom, and the credit a share pays', () => {
+    // Critics' round 2 of 2026-09-08: the chart is zoomed, so "at 50" pointed
+    // at a number the page never showed. The range is named first.
+    expect(payoutLine('$', 0, 500_000)).toBe(
+      'Settles between $0 and $500,000. A share pays 1 cr at $500,000, nothing at $0.',
+    );
   });
 
-  test('it stays short: the price it explains is two characters wide', () => {
+  test('it stays short: two sentences, the second the rule the example follows', () => {
     // Owner, 2026-08-31, on the eighteen-word version: "this seems like too
-    // much text". Eight words is the ceiling; anything longer reads as a
-    // warning under the price rather than as its unit.
-    expect(payoutLine('', 0, 50).split(' ').length).toBeLessThanOrEqual(10);
+    // much text". The range sentence is the one addition since.
+    expect(payoutLine('', 0, 50).split(' ').length).toBeLessThanOrEqual(16);
   });
 
   test('range ends read as numbers a person would say, without trailing zeros', () => {
-    expect(payoutLine('', 0, 50)).toBe('A share pays 1 cr at 50, nothing at 0.');
+    expect(payoutLine('', 0, 50)).toBe('Settles between 0 and 50. A share pays 1 cr at 50, nothing at 0.');
   });
 
   test('a fractional end keeps the digits that matter', () => {

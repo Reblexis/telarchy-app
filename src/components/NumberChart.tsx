@@ -1,6 +1,7 @@
 import type { ReactNode, PointerEvent as ReactPointerEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { forecastDayOf } from '../lib/floor-horizons';
+import { formatPairValue, pairNeedsDecimals } from '../lib/formatImpact';
 import { GEOM } from './MarketChart';
 
 /**
@@ -193,6 +194,16 @@ export function fmt(v: number, unit: string): string {
             ? Number(v.toFixed(6)).toFixed(0)
             : v.toFixed(1);
   return unit + s;
+}
+
+/** A branch label's value: the usual label precision, unless the pair needs
+ *  reconciling decimals (docs/ui-conventions.md, "The decision row, then the
+ *  decision bar": the chart's branch labels use the row's rule). */
+function fmtBranch(v: number, other: number | null, unit: string): string {
+  if (other !== null && Math.abs(v) < 1000 && pairNeedsDecimals(v, other, x => fmt(x, unit))) {
+    return formatPairValue(v, unit);
+  }
+  return fmt(v, unit);
 }
 
 function dayLabel(t: number): string {
@@ -500,7 +511,7 @@ export function NumberChart({
                           {
                             key: 'approved',
                             at: ay,
-                            text: `if approved ${fmt(ap, unit)}`,
+                            text: `if approved ${fmtBranch(ap, dc, unit)}`,
                             cls: 'nchart-pair-label nchart-pair-label--approved',
                           },
                         ]
@@ -520,7 +531,7 @@ export function NumberChart({
                           {
                             key: 'declined',
                             at: dy,
-                            text: `if declined ${fmt(dc, unit)}`,
+                            text: `if declined ${fmtBranch(dc, ap, unit)}`,
                             cls: 'nchart-pair-label nchart-pair-label--declined',
                           },
                         ]

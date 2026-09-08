@@ -2726,6 +2726,20 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 .pubws-price--sm { font-size: clamp(1.05rem, 2.4vw, 1.3rem); }
 .pubws-price.is-up { color: var(--higher); }
 .pubws-price.is-down { color: var(--lower); }
+/* One grey line under the row when the pair sits away from the market's
+   own call by more than the difference: the pools and the baseline call, in
+   the trader's terms. */
+.pubws-decision-why {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  text-align: left;
+  text-wrap: pretty;
+}
+/* The separator dot in a stat caption is an element, so a phone can drop it
+   when the caption wraps (see the 480px block below). */
+.pubws-stat-dot { display: inline; }
 @media (max-width: 519px) {
   .pubws-decision { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pubws-decision-cell:nth-child(odd) { padding-left: 0; }
@@ -4379,6 +4393,25 @@ textarea.jobform-line--desc {
 
 /* The one line under the verbs: what a share pays. It leaves when the
    ticket opens. */
+/* On a proposal, the book the verbs trade, one line above the pair; the
+   switch flips the branch like the pills under the decision bar. */
+.pubws-bet-book {
+  margin: 0 0 0.55rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.pubws-bet-book-switch {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.pubws-bet-book-switch:hover { color: var(--accent); }
 .pubws-bet-note {
   margin: 0.55rem 0 0;
   text-align: center;
@@ -5150,8 +5183,12 @@ textarea.jobform-line--desc {
     align-items: start;
   }
   .pubws-main--floor .pubws-center { min-width: 0; grid-column: 1; grid-row: 1; }
-  .pubws-rail--left { min-width: 0; grid-column: 1; grid-row: 2; margin-top: 2.4rem; }
-  .pubws-main--floor .pubws-know-col { min-width: 0; grid-column: 1; grid-row: 3; }
+  /* The standings are their own grid item (critics' round 2: on a phone the
+     proposals stack between the market and them), put back under the
+     market here. */
+  .pubws-main--floor > .pubws-standings { min-width: 0; grid-column: 1; grid-row: 2; }
+  .pubws-rail--left { min-width: 0; grid-column: 1; grid-row: 3; margin-top: 2.4rem; }
+  .pubws-main--floor .pubws-know-col { min-width: 0; grid-column: 1; grid-row: 4; }
   .pubws-main--floor .mchart {
     width: 100%;
     margin-left: 0;
@@ -5162,7 +5199,7 @@ textarea.jobform-line--desc {
     top: 1.4rem;
     min-width: 0;
     grid-column: 2;
-    grid-row: 1 / span 3;
+    grid-row: 1 / span 4;
     margin-top: 2.2rem;
     border-left: 1px solid var(--border-color);
     padding-left: clamp(1rem, 2vw, 1.6rem);
@@ -5179,10 +5216,11 @@ textarea.jobform-line--desc {
      A selected proposal keeps the two tracks, centred. */
   .pubws--center .pubws-main.pubws-main--floor.pubws-main--context {
     grid-template-columns: 280px minmax(0, 960px) 320px;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
   }
   .pubws-main--context .pubws-center { grid-column: 2; grid-row: 1; }
-  .pubws-main--context .pubws-know-col { grid-column: 2; grid-row: 2; }
+  .pubws-main--context > .pubws-standings { grid-column: 2; grid-row: 2; }
+  .pubws-main--context .pubws-know-col { grid-column: 2; grid-row: 3; }
   /* Both rails span both rows of the centre column and start below the
      top bar line, so their headings sit level with the market's. The left
      column is static: it carries the definition, which can run to
@@ -5190,12 +5228,12 @@ textarea.jobform-line--desc {
      its foot into view. */
   .pubws-main--context .pubws-rail--left {
     grid-column: 1;
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
     margin-top: 2.2rem;
     border-right: 1px solid var(--border-color);
     padding-right: clamp(1rem, 2vw, 1.6rem);
   }
-  .pubws-main--context .pubws-rail--right { grid-column: 3; grid-row: 1 / span 2; }
+  .pubws-main--context .pubws-rail--right { grid-column: 3; grid-row: 1 / span 3; }
   /* The definition is on screen once, never twice: with the left column
      carrying "What is this market?" beside the market, the summary line
      under the question (the definition's first sentence) is hidden. It
@@ -5204,6 +5242,9 @@ textarea.jobform-line--desc {
      lacks the context class). */
   .pubws-main--context .pubws-instrument-sum { display: none; }
   .pubws-main--context .pubws-instrument-more { display: none; }
+  /* The season is advertised once: the block in the left column from here,
+     the one-line form under the facts row below. */
+  .pubws-season--line { display: none; }
 }
 
 @media (max-width: 1499.98px) {
@@ -5211,6 +5252,8 @@ textarea.jobform-line--desc {
      summary line under the question carries it (with "more"), so the
      left column's "What is this market?" block is not shown. */
   .pubws-rail--left .pubws-know { display: none; }
+  /* The season block yields to its one-line form under the facts row. */
+  .pubws-rail--left .pubws-season { display: none; }
 }
 
 @media (max-width: 1119.98px) {
@@ -5222,9 +5265,23 @@ textarea.jobform-line--desc {
     margin: 2.4rem auto 0;
   }
   .pubws-know-col { width: 100%; max-width: 660px; margin: 0 auto; }
+  .pubws-main--floor > .pubws-standings { width: 100%; max-width: 660px; margin-left: auto; margin-right: auto; }
   /* Stacked on a phone. */
   .pubws-standings-pair { grid-template-columns: 1fr; row-gap: 1.7rem; }
   .pubws-ghost-standings { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 479.98px) {
+  /* The stat captions wrap to a second line instead of truncating
+     (critics' round 2): the countdown and the provenance on their own line,
+     and the separator dots are not drawn. */
+  .pubws-stat-what { white-space: normal; overflow: visible; text-overflow: clip; }
+  .pubws-stat-what .pubws-settle-in { display: block; }
+  .pubws-stat-what .pubws-updated { display: block; }
+  .pubws-stat-dot { display: none; }
+  .pubws-chip-dot { display: none; }
+  /* Two lines on a phone: left-aligned like every wrapped block. */
+  .pubws-bet-note { text-align: left; }
 }
 
 /* The left column's blocks: the definition's page-flow gap is not wanted
@@ -5297,6 +5354,47 @@ textarea.jobform-line--desc {
 }
 .pubws-season-go:hover { color: var(--accent); border-color: var(--accent); }
 .pubws-season-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+/* The one-line form under the facts row (below 1500px): the prize in the
+   price register, the countdown, the control as a plain link. */
+.pubws-season--line {
+  margin: 1.1rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  text-align: left;
+}
+.pubws-season--line .pubws-season-prize {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.pubws-season--line .pubws-season-go {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  font-size: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pubws-season--line .pubws-season-go:hover { color: var(--accent); }
+
+/* The left column ends with one quiet door for the owner in waiting. */
+.pubws-rail-door {
+  display: block;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-decoration: none;
+  text-align: left;
+}
+.pubws-rail-door:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.pubws-rail-door:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* The standings footers (docs/ui-conventions.md, "The standings are
    footers, not rails"): a hairline over the pair, the two blocks in a grid
@@ -5311,6 +5409,15 @@ textarea.jobform-line--desc {
 .pubws-standings-pair { display: grid; }
 .pubws-standings .pubws-lb-block + .pubws-lb-block { margin-top: 0; }
 .pubws-standings .pubws-lb-more { margin-top: 1rem; }
+/* The footnote under the pair: the two marks that carry money. */
+.pubws-standings-key {
+  margin: 0.9rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  text-align: left;
+}
 /* "nobody yet": one quiet row, so the footer never reads as broken. */
 .pubws-lb-row--empty { color: var(--text-tertiary); }
 /* The standings' ghost: two three-row blocks in the same grid. */

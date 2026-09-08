@@ -201,6 +201,37 @@ describe('the season prize beside an entrant', () => {
     const { container } = standings({ entries: [trader(1)], season: draftSeason });
     expect(container.querySelector('.pubws-lb-prize')).toBeNull();
   });
+
+  /** Every mark on a row has a hover title (critics' round 2): "IN" is in the
+   *  season, the amber dollar figure is prize money, the leaf is a linked
+   *  forecasting record. */
+  test('the IN mark, the dollar figure and the leaf each carry a hover title', () => {
+    const leafed = { ...trader(3), manifoldUsername: 'ada' } as unknown as LeaderboardEntry;
+    const { container, getByText } = standings({
+      entries: [entrant(250), { ...entrant(0), id: 'p7', nickname: 'trader7' } as LeaderboardEntry, leafed],
+      season: runningSeason,
+    });
+    expect(getByText('$250').getAttribute('title')).toMatch(/prize/i);
+    expect(getByText('in').getAttribute('title')).toMatch(/in the season/i);
+    const leaf = container.querySelector('.pubws-lb-manifold') as HTMLElement;
+    expect(leaf.getAttribute('title')).toMatch(/forecasting record/i);
+    expect(leaf.getAttribute('title')).toContain('@ada');
+  });
+});
+
+describe('the footnote under the standings pair', () => {
+  test('one line spells the two marks that carry money, under the pair and above the link', () => {
+    const { container } = standings({ season: runningSeason });
+    const key = container.querySelector('.pubws-standings-key') as HTMLElement;
+    expect(key).toBeTruthy();
+    expect(key.textContent).toBe('IN = in the season · $ = prizes claimed');
+    expect(key.closest('.pubws-lb-block')).toBeNull();
+    const pair = container.querySelector('.pubws-standings-pair') as HTMLElement;
+    const more = container.querySelector('.pubws-lb-more') as HTMLElement;
+    expect(pair.compareDocumentPosition(key) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(key.compareDocumentPosition(more) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelectorAll('.pubws-standings-key')).toHaveLength(1);
+  });
 });
 
 describe('with a proposal selected, the traders footer is the holders of its pair', () => {
@@ -387,5 +418,62 @@ describe('the season advert', () => {
     const { container } = advert({ canManage: false });
     expect(container.querySelector('.pubws-season-who')).toBeNull();
     expect((container.firstElementChild as HTMLElement).children).toHaveLength(3);
+  });
+});
+
+/**
+ * Below 1500px the advert is one line (docs/ui-conventions.md, critics'
+ * round 2): "$1,000 in prizes · Season 0 ends in 23 days · Enter the
+ * season", the prize in the price register, the last part the link.
+ */
+describe('the season advert as one line', () => {
+  const line = (props: Partial<Parameters<typeof SeasonAdvert>[0]> = {}) =>
+    render(
+      <MemoryRouter>
+        <SeasonAdvert season={runningSeason} signedIn={false} line {...props} />
+      </MemoryRouter>,
+    );
+
+  test('one line: the prize, the countdown, the control, dots between', () => {
+    const { container, getByText } = line();
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain('pubws-season--line');
+    expect(root.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      '$1,000 in prizes · Season 0 ends in 40 days · Enter the season',
+    );
+    expect(root.querySelector('.pubws-season-prize')?.textContent).toBe('$1,000');
+    const go = getByText('Enter the season');
+    expect(go.tagName).toBe('A');
+    expect(go).toHaveAttribute('href', '/season');
+    // One line, not the block's three.
+    expect(root.querySelector('.pubws-season-hero')).toBeNull();
+    expect(root.querySelector('.pubws-season-terms')).toBeNull();
+  });
+
+  test('an entrant reads "See the season" and no "You are in."', async () => {
+    getMySeason.mockResolvedValue({ season: null, optedIn: true, canEnter: false });
+    const { findByText, container } = line({ signedIn: true });
+    await findByText('See the season');
+    expect(container.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      '$1,000 in prizes · Season 0 ends in 40 days · See the season',
+    );
+  });
+
+  test('a manager reads no "who pays" line in the one-liner', () => {
+    const { container } = line({ canManage: true });
+    expect(container.querySelector('.pubws-season-who')).toBeNull();
+    expect(container.textContent).not.toMatch(/paid by/);
+  });
+
+  test('an ended season says so in the same shape', () => {
+    const { container } = line({ season: { ...runningSeason, endsAt: '2026-09-01T00:00:00.000Z' } as PrizeSeason });
+    expect(container.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      '$1,000 in prizes · Season 0 has ended · See the season',
+    );
+  });
+
+  test('no season, nothing rendered', () => {
+    const { container } = line({ season: null });
+    expect(container.firstElementChild).toBeNull();
   });
 });

@@ -605,6 +605,32 @@ const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
  * before the settle instant ("2026-10-01T00:00:00Z" is September's market,
  * so "30 Sep"), UTC, short. Null for an instant that does not parse.
  */
+/** An instant's calendar day in the floor's own short form, "5 Sep" (UTC,
+ *  like every other day the floor prints). Null for nothing or garbage. */
+export function dayOf(at: string | null | undefined): string | null {
+  if (!at) return null;
+  const t = new Date(at).getTime();
+  if (!Number.isFinite(t)) return null;
+  const d = new Date(t);
+  return `${d.getUTCDate()} ${SHORT_MONTHS[d.getUTCMonth()]}`;
+}
+
+/**
+ * A synced metric's age line, which never contradicts itself
+ * (docs/ui-conventions.md, "The stat row"; critics' round 2 of 2026-09-08:
+ * "read 2d 20h ago" beside "synced hourly" read as a broken feed). The sync
+ * writes a reading when the value moves, so a reading under an hour old is
+ * "synced 20m ago · hourly", and an older one is "unchanged since 5 Sep ·
+ * synced hourly". Null with no reading.
+ */
+export function syncedAgeLine(at: string | null | undefined, now: Date = new Date()): string | null {
+  if (!at) return null;
+  const ms = now.getTime() - new Date(at).getTime();
+  if (!Number.isFinite(ms)) return null;
+  if (ms < 3_600_000) return `synced ${timeAgoOf(at, now)} · hourly`;
+  return `unchanged since ${dayOf(at)} · synced hourly`;
+}
+
 export function forecastDayOf(resolvesOn: string | null | undefined): string | null {
   if (!resolvesOn) return null;
   const t = new Date(resolvesOn).getTime();

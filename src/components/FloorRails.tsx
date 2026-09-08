@@ -77,13 +77,16 @@ function PrizeChip({ e, season }: { e: LeaderboardEntry; season: PrizeSeason | n
   }
   if (e.seasonPrizeUsd > 0) {
     return (
-      <span className="pubws-lb-prize" title="What this season would pay at the current standing">
+      <span
+        className="pubws-lb-prize"
+        title="Prizes claimed: real prize money this season pays at the current standing"
+      >
         ${e.seasonPrizeUsd.toLocaleString()}
       </span>
     );
   }
   return (
-    <span className="pubws-lb-prize pubws-lb-prize--in" title="Entered the season, currently outside the prizes">
+    <span className="pubws-lb-prize pubws-lb-prize--in" title="In the season, currently outside the prizes">
       in
     </span>
   );
@@ -132,7 +135,7 @@ function TraderRow({
           <span className="pubws-lb-name">{name}</span>
         )}
         {e.manifoldUsername && (
-          <span className="pubws-lb-manifold" title={`Linked Manifold account: @${e.manifoldUsername}`}>
+          <span className="pubws-lb-manifold" title={`Linked forecasting record on Manifold: @${e.manifoldUsername}`}>
             <ManifoldLogo size={13} strokeWidth={1.6} />
           </span>
         )}
@@ -277,6 +280,9 @@ export function FloorStandings({
           </section>
         )}
       </div>
+      {/* The footnote (critics' round 2): the two marks that carry money,
+          spelled once under the pair. Every mark also has a hover title. */}
+      <p className="pubws-standings-key">IN = in the season · $ = prizes claimed</p>
       {/* The way out is a page, not an expander (owner direction 2026-08-24:
           "show full leaderboard should lead to a new page"). One link under
           the pair it extends; the season's control is in the season advert
@@ -301,12 +307,17 @@ export function SeasonAdvert({
   season,
   signedIn,
   canManage = false,
+  line = false,
 }: {
   season: PrizeSeason | null;
   signedIn: boolean;
   /** A manager reads one more line, who pays: an owner reads "free to
    *  enter" as their own bill (critics' round 2026-09-08). */
   canManage?: boolean;
+  /** The one-line form under the facts row, for the widths below 1500px
+   *  (critics' round 2): "$1,000 in prizes · Season 0 ends in 23 days ·
+   *  Enter the season". The stylesheet shows this or the block, never both. */
+  line?: boolean;
 }) {
   // Whether THIS visitor is already in. Without it the block kept saying
   // "Enter the season" to someone who had entered a minute earlier, which
@@ -339,6 +350,28 @@ export function SeasonAdvert({
           ? `${season.name} has ended. Standings are being settled.`
           : `${season.name} is over. Final standings.`;
 
+  const control = entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season';
+  if (line) {
+    // The countdown alone, no standing and no full stop: the dots do the
+    // joining.
+    const when =
+      clock.phase === 'during'
+        ? `${season.name} ends in ${span}`
+        : clock.phase === 'before'
+          ? `${season.name} starts in ${span}`
+          : clock.phase === 'ended'
+            ? `${season.name} has ended`
+            : `${season.name} is over`;
+    return (
+      <p className="pubws-season pubws-season--line" aria-label="Season">
+        <span className="pubws-season-prize">${season.poolUsd.toLocaleString('en-US')}</span> in prizes · {when} ·{' '}
+        <Link className="pubws-season-go" to="/season">
+          {control}
+        </Link>
+      </p>
+    );
+  }
+
   return (
     <section className="pubws-season" aria-label="Season">
       <p className="pubws-season-hero">
@@ -347,7 +380,7 @@ export function SeasonAdvert({
       <p className="pubws-season-terms">{terms.trim()}</p>
       {canManage && <p className="pubws-season-who">Prizes paid by Telarchy. Your floor costs you nothing.</p>}
       <Link className="pubws-season-go" to="/season">
-        {entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season'}
+        {control}
       </Link>
     </section>
   );

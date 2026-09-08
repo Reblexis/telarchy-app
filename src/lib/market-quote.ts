@@ -40,7 +40,12 @@ function fmtEdge(v: number): string {
  * which says it about the actual bet ("Wins above", "Each X beyond").
  */
 export function payoutLine(unit: string, rangeMin: number, rangeMax: number): string {
-  return `A share pays 1 cr at ${unit}${fmtEdge(rangeMax)}, nothing at ${unit}${fmtEdge(rangeMin)}.`;
+  // The range is named once, first (docs/ui-conventions.md, "Each bet verb
+  // says what a stake pays"; critics' round 2 of 2026-09-08: the chart is
+  // zoomed, so "at 50" pointed at a number the page never showed).
+  const lo = `${unit}${fmtEdge(rangeMin)}`;
+  const hi = `${unit}${fmtEdge(rangeMax)}`;
+  return `Settles between ${lo} and ${hi}. A share pays 1 cr at ${hi}, nothing at ${lo}.`;
 }
 
 /**
