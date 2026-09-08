@@ -252,6 +252,18 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-otto-md--h5">Or your own agent</a></li>
 </ul></details>
 </li>
+<li><details><summary><a class="file" href="#file--docs-outreach-workbench-md">docs/outreach-workbench.md</a></summary>
+<ul>
+<li><a href="#docs-outreach-workbench-md--h1">The outreach workbench</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h2">The prospect</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h3">What the owner does</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h4">Drafting</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h5">What it learns</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h6">Endpoints</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h7">Storage</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h8">What it is not</a></li>
+</ul></details>
+</li>
 <li><details><summary><a class="file" href="#file--docs-owner-on-the-floor-md">docs/owner-on-the-floor.md</a></summary>
 <ul>
 <li><a href="#docs-owner-on-the-floor-md--h1">The owner works on the floor</a></li>
@@ -2962,6 +2974,164 @@ beside the conversation (<code>services/setup-handoff.ts</code>, owner direction
 <p>The point is that Otto is never a dead end. Someone who would rather type at
 their own agent leaves with everything this conversation established, and
 nobody has to start again in another window.</p>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-outreach-workbench-md">
+<p class="filelabel">docs/outreach-workbench.md</p>
+<h1 id="docs-outreach-workbench-md--h1">The outreach workbench</h1>
+<p>A surface on <code>/admin</code> where the owner keeps the people he has decided to
+write to personally, gets each message drafted in his voice from what is
+known about that person, argues with the draft until it is right, sends it
+himself through the channel the person actually reads, records what came
+back, and gets later drafts shaped by what worked. It is the X workbench's
+sibling (<code>docs/x-workbench.md</code>) for direct messages instead of public posts,
+and it shares the voice profile, the drafting model and the rule that
+nothing here sends anything.</p>
+<p>It exists because the first customers come from the founder writing to
+people one at a time (the record behind that is in the umbrella's notes,
+<code>notes/yc-first-customers-outreach-2026-09-07.md</code>), and a list kept in a
+markdown file cannot learn: it does not know which message got a reply,
+which channel was dead, or that &quot;under 75 words&quot; was true of every reply
+that came back.</p>
+<h2 id="docs-outreach-workbench-md--h2">The prospect</h2>
+<p>One row per person. What the workbench knows about them is what the draft
+is allowed to say:</p>
+<ul>
+<li><strong>Who</strong>: name, the company or product, the segment they belong to (a short
+label the owner chooses; today A agent operator, B public MRR, C
+decision-market believer, E approval bottleneck, F Steam developer, door
+for people already on Telarchy).</li>
+<li><strong>Where they read</strong>: the channel kind (<code>x</code>, <code>email</code>, <code>linkedin</code>, <code>bluesky</code>,
+<code>hn</code>, <code>discord</code>, <code>other</code>) and the handle, address or URL.</li>
+<li><strong>The evidence</strong>: free text, the facts the research verified about them in
+their own words: what they run, the number they are judged on, the
+decision they have open, the source and its date. A draft may quote only
+what is here; a fact not in the evidence is not a fact.</li>
+<li><strong>The message</strong>: the current draft, editable by hand at any time.</li>
+<li><strong>The conversation</strong>: the turns of the argument about the draft, kept so
+&quot;shorter&quot; means shorter than the last one.</li>
+<li><strong>Status and outcome</strong>: <code>draft</code>, <code>ready</code>, <code>sent</code>, <code>replied</code>, <code>call</code>,
+<code>workspace</code>, <code>activated</code>, <code>no</code>; the planned send day; when it was sent and
+the exact text that went out (frozen at that moment); a note on what came
+back (their words, or &quot;no answer&quot;).</li>
+</ul>
+<p>Prospects arrive one at a time through the form, or many at once through an
+import of the same shape (that is how a researched list becomes rows).</p>
+<h2 id="docs-outreach-workbench-md--h3">What the owner does</h2>
+<ol>
+<li>Picks a prospect. Sees the evidence and the message side by side.</li>
+<li>Gets a draft, or a fresh one. The draft is in his voice, hooks on the
+decision the evidence says they have open, quotes only the evidence, is
+under 75 words, asks one thing, carries his name and the one link
+(<code>telarchy.com/lookpilot</code>, his own number run the same way).</li>
+<li>Argues with it (&quot;shorter&quot;, &quot;don't mention the sale&quot;, &quot;why lead with the
+API cost?&quot;). Every turn comes back as the revised message and what it
+says to him; both stay on screen.</li>
+<li>Edits the text by hand if he wants; the textarea is the message.</li>
+<li>Sends it himself: the channel link opens where the person reads (their X
+profile for a DM, a mailto with the message prefilled, the LinkedIn or
+Bluesky profile, the HN user page), and &quot;Copy&quot; puts the text on the
+clipboard. &quot;I sent this&quot; freezes the text, stamps the time and moves the
+row to <code>sent</code>.</li>
+<li>Records what came back: a status and a note in their words. A reply is
+evidence, whatever it says.</li>
+<li>Reads the log: who was written to, on what channel, what came back, and
+what the pattern across them says.</li>
+<li>Copies a log line for the contract that this outreach was promised on:
+<code>NN. NAME (SEG), sent DATE via CHANNEL. Answer: ... Floor: ...</code>, one line
+per person, so the traders who priced the promise can count.</li>
+</ol>
+<p>Nothing here sends. The workbench drafts, links and remembers; the owner
+sends. Copy under his name is the one thing he must approve, and a DM
+tool that sends is the fastest way to lose an account.</p>
+<h2 id="docs-outreach-workbench-md--h4">Drafting</h2>
+<p>Same model, same effort, same fallback and the same no-dashes rule as the X
+workbench (<code>X_DRAFT_MODEL</code>, <code>X_DRAFT_EFFORT</code>, <code>X_DRAFT_FALLBACK</code>; docs/x-workbench.md,
+&quot;Drafting&quot;). The system prompt carries, in this order:</p>
+<ul>
+<li><strong>The rules for a first message to a stranger.</strong> Answer first, under 75
+words, one ask, his name in the first line, the hook is the decision they
+have open, quote only the evidence, never flatter, never explain the
+mechanism (the link does that), say it is free and why, no em-dashes.</li>
+<li><strong>The voice profile</strong> (shared with the X workbench; one row, his samples
+and the facts he may state).</li>
+<li><strong>The lessons.</strong> A text the owner keeps, in his words, of what he has
+learned sending these: which openings got replies, which channels are
+dead, what to stop doing. Editable on the surface. Empty until he writes
+it.</li>
+<li><strong>The record.</strong> A compact digest of every message sent so far with what
+came back: the channel, the segment, the length, whether it named a
+number, whether it named a decision, and the outcome. The model is told to
+notice the pattern, not to copy a message that worked; the same person
+written to twice with the same words is spam.</li>
+</ul>
+<p>The user turn is the prospect: name, segment, channel, the evidence, and the
+current message if there is one; then the argument so far.</p>
+<h2 id="docs-outreach-workbench-md--h5">What it learns</h2>
+<p>The log shows each prospect with its channel, segment, sent date and
+outcome, plus a summary: how many sent, how many answered, the reply rate by
+segment and by channel, and which of three tracked features (under 75
+words, names a number, names their decision) is associated with a reply.
+With fewer than ten sent it says so instead of pretending to a pattern.</p>
+<p>&quot;Ask&quot; answers a question about the outreach (which segment to push, why a
+message got nothing, what to try next) from the record and the lessons,
+says which it rests on, and says when neither answers.</p>
+<h2 id="docs-outreach-workbench-md--h6">Endpoints</h2>
+<p>All platform admin. Documented in <code>/api/help</code> like every other route.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /api/admin/outreach/prospects</code></td>
+<td>every prospect, the summary, whether drafting is configured</td>
+</tr>
+<tr>
+<td><code>POST /api/admin/outreach/prospects</code></td>
+<td>create one <code>{ name, company?, segment?, channel, handle?, evidence?, message?, day? }</code></td>
+</tr>
+<tr>
+<td><code>POST /api/admin/outreach/prospects/import</code></td>
+<td><code>{ prospects: [...] }</code>, the same shape, many at once; returns the count</td>
+</tr>
+<tr>
+<td><code>PATCH /api/admin/outreach/prospects/:id</code></td>
+<td>edit any field; <code>{ status: 'sent' }</code> freezes <code>sentText</code> and stamps <code>sentAt</code></td>
+</tr>
+<tr>
+<td><code>DELETE /api/admin/outreach/prospects/:id</code></td>
+<td>remove one</td>
+</tr>
+<tr>
+<td><code>POST /api/admin/outreach/prospects/:id/draft</code></td>
+<td><code>{ messages[] }</code> -&gt; <code>{ draft: { message, answer } }</code>, the conversation carried in <code>messages</code></td>
+</tr>
+<tr>
+<td><code>POST /api/admin/outreach/ask</code></td>
+<td><code>{ messages[] }</code> -&gt; <code>{ answer }</code></td>
+</tr>
+<tr>
+<td><code>GET/PUT /api/admin/outreach/lessons</code></td>
+<td>the lessons text</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="docs-outreach-workbench-md--h7">Storage</h2>
+<p><code>outreach_prospects</code>: one row per person with the fields above; the
+conversation as JSON; <code>sent_text</code> and <code>sent_at</code> set once when the status
+first becomes <code>sent</code> and never changed after. <code>outreach_lessons</code>: one row of
+text with an updated-at, like <code>x_voice_profile</code>. Evidence, messages and
+notes are personal (names, handles, what strangers wrote back) and live in
+the database, never in this repository.</p>
+<h2 id="docs-outreach-workbench-md--h8">What it is not</h2>
+<p>Not a sender, not a sequencer, not a CRM for a sales team. It holds the
+thirty to a few hundred people one founder writes to himself, and it makes
+each next message better than the last because the last one is on record.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>

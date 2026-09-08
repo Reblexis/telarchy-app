@@ -33,6 +33,7 @@ import { marketplaceRouter } from './routes/marketplace';
 import { metricsRouter } from './routes/metrics';
 import { notificationsRouter } from './routes/notifications';
 import { onboardRouter } from './routes/onboard';
+import { outreachRouter } from './routes/outreach';
 import { predictionsRouter } from './routes/predictions';
 import { proposalsRouter } from './routes/proposals';
 import { recordLinkRouter } from './routes/recordLinks';
@@ -464,6 +465,7 @@ app.use('/api/groups', groupsRouter);
 // Mounted BEFORE the admin router so /api/admin/x/* resolves here rather
 // than falling through to the admin router's own :param routes.
 app.use('/api/admin/x', xWorkbenchRouter);
+app.use('/api/admin/outreach', outreachRouter);
 app.use('/api/admin/manifold-update', manifoldUpdateRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/activity', activityRouter);

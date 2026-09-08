@@ -1138,6 +1138,56 @@ export type XSummary =
       features: { label: string; on: number; off: number }[];
     };
 
+/** The outreach workbench (docs/outreach-workbench.md). */
+export interface OutreachProspect {
+  id: string;
+  name: string;
+  company: string | null;
+  segment: string | null;
+  channel: string;
+  handle: string | null;
+  evidence: string | null;
+  message: string | null;
+  conversation: { role: 'user' | 'assistant'; content: string }[];
+  status: string;
+  day: string | null;
+  outcome: string | null;
+  sentText: string | null;
+  sentAt: string | null;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+  /** Where the person reads, or empty when nothing usable is on file. */
+  link: string;
+  /** The one-line record shape promised on the contract. */
+  logLine: string;
+}
+
+export interface OutreachProspectInput {
+  name?: string;
+  company?: string | null;
+  segment?: string | null;
+  channel?: string;
+  handle?: string | null;
+  evidence?: string | null;
+  message?: string | null;
+  status?: string;
+  day?: string | null;
+  outcome?: string | null;
+  position?: number;
+}
+
+export type OutreachSummary =
+  | { enough: false; sent: number; replied: number; note: string }
+  | {
+      enough: true;
+      sent: number;
+      replied: number;
+      bySegment: { key: string; sent: number; replied: number }[];
+      byChannel: { key: string; sent: number; replied: number }[];
+      features: { label: string; on: number; off: number }[];
+    };
+
 export const api = {
   getMetrics: () => request('/api/metrics'),
   /** Every metric on one floor, for the owner's metrics dialog
@@ -1663,6 +1713,39 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ profile }),
     }),
+  // The outreach workbench (docs/outreach-workbench.md). Platform admin only.
+  outreachProspects: (): Promise<{
+    prospects: OutreachProspect[];
+    summary: OutreachSummary;
+    draftingConfigured: boolean;
+  }> => request('/api/admin/outreach/prospects'),
+  outreachCreate: (input: OutreachProspectInput): Promise<{ prospect: OutreachProspect }> =>
+    request('/api/admin/outreach/prospects', { method: 'POST', body: JSON.stringify(input) }),
+  outreachImport: (prospects: OutreachProspectInput[]): Promise<{ imported: number }> =>
+    request('/api/admin/outreach/prospects/import', { method: 'POST', body: JSON.stringify({ prospects }) }),
+  outreachUpdate: (id: string, input: OutreachProspectInput): Promise<{ prospect: OutreachProspect }> =>
+    request(`/api/admin/outreach/prospects/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+  outreachDelete: (id: string): Promise<{ ok: true }> =>
+    request(`/api/admin/outreach/prospects/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  /** A message from the evidence, through the same argument as the X
+   *  workbench (docs/outreach-workbench.md, "Drafting"). */
+  outreachDraft: (
+    id: string,
+    messages: { role: 'user' | 'assistant'; content: string }[],
+  ): Promise<{ draft: { message: string; answer: string } }> =>
+    request(`/api/admin/outreach/prospects/${encodeURIComponent(id)}/draft`, {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
+    }),
+  outreachAsk: (messages: { role: 'user' | 'assistant'; content: string }[]): Promise<{ answer: string }> =>
+    request('/api/admin/outreach/ask', { method: 'POST', body: JSON.stringify({ messages }) }),
+  outreachGetLessons: (): Promise<{ lessons: string; draftingConfigured: boolean }> =>
+    request('/api/admin/outreach/lessons'),
+  outreachSetLessons: (lessons: string): Promise<{ ok: true }> =>
+    request('/api/admin/outreach/lessons', { method: 'PUT', body: JSON.stringify({ lessons }) }),
   editProposal: (id: string, body: { title?: string; description?: string; askUsd?: number | null }) =>
     request(`/api/proposals/${id}`, {
       method: 'PATCH',
