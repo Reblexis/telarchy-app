@@ -70,9 +70,16 @@ refunded.
 
 ## The decision
 
-The owner approves, declines with a reason, or declines it as spam. There is no
-deadline and nothing expires: a pending proposal stays pending until a human
-acts on it.
+The owner approves, declines with a reason, or declines it as spam, by the
+proposal's deadline. The deadline (`decideBy`) defaults to the floor's
+`decisionDays` after posting, 7 by default; ask for a later one in the post
+(`decideBy`, an ISO instant) if the work needs a slower decision, and move it
+later while pending with `PATCH /api/proposals/:id { decideBy }` (never
+earlier: traders funded the pair for the announced window). Trading on your
+proposal closes at the decision or the deadline, whichever comes first, and
+the prices just before the close are what the owner decided on. Undecided at
+the deadline, it lapses as declined; post it again if you still want to do
+the work.
 
 **Approval is the payment.** In this system pressing approve is not a promise to
 decide later, it is the moment the money is owed. Whatever rail carries the
