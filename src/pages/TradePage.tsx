@@ -2231,147 +2231,117 @@ export function TradePage() {
                       : 'This market has no liquidity yet, so there is nothing to trade against.'}
                   </p>
                 ))}
-              {/* The ticket opens INLINE under the verbs (owner ask
-                2026-08-28, replacing the modal of 2026-08-10): the charts
-                stay on screen while the bet is composed, so the ghost of
-                where the call would move is visible on the market chart
-                above. Keyed by the side, so pressing the other verb
-                re-seeds the ticket instead of being a dead click. */}
-              {betModal && active && !selectedJobClosed && (
-                <div className="pubws-ticket-inline" key={betModal}>
-                  <TradeTicket
-                    probability={shownProbability}
-                    liquidity={active.liquidity}
-                    /* The ticket ALWAYS gets the held position, in both
-                     modes: it is what the "New value" preview nets against
-                     (buying the opposite side closes it on the server
-                     first, so the buy prices against the post-close book).
-                     Withholding it to hide the sell rows made the preview
-                     quote a landing the trade never reached (owner report
-                     2026-08-30). Hiding the rows is manageMode's job. */
-                    positions={trading ? positions : []}
-                    onTrade={placeTrade}
-                    onTradeTarget={placeTargetTrade}
-                    onSell={sellPosition}
-                    balance={balance}
-                    onPreview={setTicketPreview}
-                    unit={unit}
-                    consensus={consensus}
-                    rangeMin={active.rangeMin}
-                    rangeMax={active.rangeMax}
-                    orders={trading && betModal === 'manage' ? orders : []}
-                    onPlaceLimit={trading ? placeLimit : async () => {}}
-                    onCancelLimit={trading ? cancelLimit : undefined}
-                    onRequireSignup={trading ? undefined : () => navigate(authPath('signup', location))}
-                    initialDir={betModal === 'manage' ? undefined : betModal}
-                    manageMode={betModal === 'manage'}
-                    onClose={() => {
-                      setBetModal(null);
-                      setTicketPreview(null);
-                    }}
-                  />
-                </div>
-              )}
-              {/* The held position stays visible on the floor; managing it
-                (selling, cancelling orders) happens in the same inline
-                ticket. */}
-              {(positions.length > 0 || (!selectedJobClosed && orders.length > 0)) && active && (
-                <PositionSummary
-                  positions={positions}
-                  orders={orders.length}
-                  probability={shownProbability}
-                  liquidity={active.liquidity}
-                  onManage={() => setBetModal('manage')}
-                  closed={selectedJobClosed ? { settlesOn: hero?.resolvesOn ?? null } : null}
-                />
-              )}
-              {/* The conversation under whatever the one view shows: the
-                baseline market's thread, or the selected job's (owner ask
-                2026-08-11). */}
-              {idOrSlug && (
-                <FloorComments
-                  idOrSlug={idOrSlug}
-                  trailing={
-                    hero && active ? (
-                      /* The market ON SCREEN says what it holds, proposal
-                         branches included (owner report 2026-08-31: "the
-                         conditional markets should be just the same as any
-                         other"). This used to be gated on `!selectedJob`, so
-                         a funded branch showed no pool at all and the owner's
-                         Inject vanished exactly where a thin book needed it. */
-                      <MarketFacts
-                        traders={active.traders}
-                        pool={active.pool}
-                        volume={active.volume}
-                        /* The counts live in the chart's footer since
-                           2026-09-09; what is left here is the owner's
-                           controls beside the number they change. */
-                        counts={false}
-                        canManage={canManage}
-                        canTrade={trading}
-                        fundingHref={`/${idOrSlug ?? ''}/funding`}
-                        onInject={() =>
-                          setOwnerDialog({
-                            kind: 'inject',
-                            marketId: active.marketId,
-                            /* Naming the branch matters here: the credits go
-                               into one of the two worlds, and injecting into
-                               the wrong one is invisible until someone trades
-                               it. */
-                            marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}${
-                              selectedJob ? ` · if ${branch}` : ''
-                            }`,
-                            pool: active.pool,
-                            traders: active.traders,
-                            /* A branch never respawns, so only a baseline
-                               market carries the metric the second number
-                               (what new markets open with) belongs to. */
-                            metricId: selectedJob ? undefined : hero.metricId,
-                            metricName: selectedJob ? undefined : metricLabel,
-                            targetDate: selectedJob ? undefined : hero.targetDate,
-                          })
-                        }
-                      />
-                    ) : null
-                  }
-                  /* A proposal passes its proposal AND both branch markets
-                   (owner reports 2026-08-15 "if there is a trade why don't I
-                   see it down here", 2026-08-21 "why dont i see any trades
-                   made on the conditional markets"). The conversation
-                   belongs to the PROPOSAL and survives switching branch;
-                   positions and trades cover BOTH branches, labeled, because
-                   scoping them to the branch on screen made a proposal whose
-                   trades sat on the other branch answer "Trades (0)". */
-                  focusCommentId={focusCommentId}
-                  focusTradeId={focusTradeId}
-                  onFocusHandled={() => {
-                    setFocusCommentId(null);
-                    setFocusTradeId(null);
-                  }}
-                  subject={
-                    selectedJob
-                      ? {
-                          proposalId: selectedJob.id,
-                          markets: [
-                            ...(pair?.approvedMarketId
-                              ? [{ marketId: pair.approvedMarketId, branch: 'approved' as const }]
-                              : []),
-                            ...(pair?.declinedMarketId
-                              ? [{ marketId: pair.declinedMarketId, branch: 'declined' as const }]
-                              : []),
-                          ],
-                        }
-                      : hero
-                        ? { marketId: hero.marketId }
-                        : {}
-                  }
-                  canPost={!!user && joined}
-                  onRequireSignup={() => navigate(authPath('signup', location))}
-                />
-              )}
             </section>
           ) : null}
-
+        </div>
+        {/* The right rail: the ticket, and nothing else. */}
+        <aside className="pubws-rail pubws-rail--right" aria-label="Your trade">
+          <div className="pubws-ticket-head">
+            <span className="pubws-h2">Your trade</span>
+            <span className="pubws-ticket-what">
+              {selectedJob ? selectedJob.title : `${captionLabel(metricLabel, ws.name)}, ${dateSegmentOf(hero)}`}
+            </span>
+          </div>
+          {/* The rail IS the ticket (docs/ui-conventions.md, "The rails,
+            and the standings under the verbs", revised 2026-09-09): what
+            a trader does is on screen from the moment the page opens
+            instead of waiting below the fold for a press, and the two
+            verbs above seed its side rather than summoning it. Below
+            1120px this same element stacks straight under the verbs, so
+            the reading order is unchanged. */}
+          {/* Keyed by the side so a verb re-seeds the ticket instead of being
+              a dead click, exactly as the inline ticket was. */}
+          {active && !selectedJobClosed && (
+            <div className="pubws-ticket-inline" key={betModal ?? 'open'}>
+              <TradeTicket
+                probability={shownProbability}
+                liquidity={active.liquidity}
+                /* The ticket ALWAYS gets the held position, in both
+                 modes: it is what the "New value" preview nets against
+                 (buying the opposite side closes it on the server
+                 first, so the buy prices against the post-close book).
+                 Withholding it to hide the sell rows made the preview
+                 quote a landing the trade never reached (owner report
+                 2026-08-30). Hiding the rows is manageMode's job. */
+                positions={trading ? positions : []}
+                onTrade={placeTrade}
+                onTradeTarget={placeTargetTrade}
+                onSell={sellPosition}
+                balance={balance}
+                onPreview={setTicketPreview}
+                unit={unit}
+                consensus={consensus}
+                rangeMin={active.rangeMin}
+                rangeMax={active.rangeMax}
+                orders={trading && betModal === 'manage' ? orders : []}
+                onPlaceLimit={trading ? placeLimit : async () => {}}
+                onCancelLimit={trading ? cancelLimit : undefined}
+                onRequireSignup={trading ? undefined : () => navigate(authPath('signup', location))}
+                initialDir={betModal === 'manage' || betModal === null ? undefined : betModal}
+                manageMode={betModal === 'manage'}
+                onClose={() => {
+                  setBetModal(null);
+                  setTicketPreview(null);
+                }}
+              />
+            </div>
+          )}
+        </aside>
+        {/* Everything under the trade, in one grid item so the DOM order
+            IS the phone order (docs/ui-conventions.md, "The order under
+            the trade is the same at every width", 2026-09-09): the
+            proposals, the propose band, how this settles, the market's
+            own activity, then the standings.
+         */}
+        <div className="pubws-tail">
+          {/* The proposals board sits UNDER the trade, at the column's full
+              width (docs/ui-conventions.md, "The proposals board", revised
+              2026-09-09, moving it out of the right rail, which the ticket
+              now holds). What it gives up is the always-on-screen slot; what
+              it buys is a row wide enough to be acted on. */}
+          {ws.proposals !== undefined && hero ? (
+            <div className="pubws-board" aria-label="Proposals">
+              <JobsBoard
+                proposals={ws.proposals}
+                unit={unit}
+                horizonDate={hero.targetDate}
+                horizonMetricId={hero.metricId}
+                selectedId={selectedJobId}
+                onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
+                viewerId={user?.id ?? null}
+                signedIn={!!user}
+                onRequireSignup={() => navigate(authPath('signup', location))}
+                workspaceName={ws.name}
+                proposalReward={ws.proposalReward}
+                metricNames={metricNames}
+                decisionDays={ws.decisionDays ?? 7}
+                onPropose={async (title, description, askUsd, decideBy) => {
+                  // Anonymous proposers go through the signup door; the board
+                  // itself is public information (Open workspace ballot).
+                  // Payment details come from the account (owner decision
+                  // 2026-08-10): the server reads and snapshots them.
+                  if (!user) {
+                    navigate(authPath('signup', location));
+                    return;
+                  }
+                  // No proposer stake (owner call 2026-08-14): the workspace
+                  // auto-funds the branch markets instead. Charging the empty
+                  // side of the marketplace half a newcomer's starting balance
+                  // to make an offer is spam defence aimed the wrong way; add
+                  // it back if someone actually spams.
+                  const created = (await api.createProposal({ title, description, askUsd, decideBy })) as {
+                    id?: string;
+                  };
+                  reload();
+                  // The new proposal is selected the moment it lands (docs/
+                  // ui-conventions.md, "The proposer sees their own
+                  // proposal"): unfunded, it sits last on the ballot, and
+                  // its author otherwise reloads the floor and cannot find it.
+                  if (created?.id) setSelectedJobId(created.id);
+                }}
+              />
+            </div>
+          ) : null}
           {/* "How this settles" is the metric's stored definition, verbatim,
           because it is the settlement text (owner direction 2026-08-10). It
           sits UNDER the trade since 2026-09-09 (docs/ui-conventions.md, "The
@@ -2465,7 +2435,108 @@ export function TradePage() {
             metric's measured values, only the market. The history fields
             stay in the API. */}
           </section>
-
+          {/* The market's own activity under the trade: what the reader
+              holds, and the conversation. */}
+          <section
+            className="pubws-act pubws-act--panels"
+            aria-label={selectedJobDecided ? 'Conversation' : 'Activity'}
+          >
+            {/* The held position stays visible on the floor; managing it
+              (selling, cancelling orders) happens in the same inline
+              ticket. */}
+            {(positions.length > 0 || (!selectedJobClosed && orders.length > 0)) && active && (
+              <PositionSummary
+                positions={positions}
+                orders={orders.length}
+                probability={shownProbability}
+                liquidity={active.liquidity}
+                onManage={() => setBetModal('manage')}
+                closed={selectedJobClosed ? { settlesOn: hero?.resolvesOn ?? null } : null}
+              />
+            )}
+            {/* The conversation under whatever the one view shows: the
+              baseline market's thread, or the selected job's (owner ask
+              2026-08-11). */}
+            {idOrSlug && (
+              <FloorComments
+                idOrSlug={idOrSlug}
+                trailing={
+                  hero && active ? (
+                    /* The market ON SCREEN says what it holds, proposal
+                       branches included (owner report 2026-08-31: "the
+                       conditional markets should be just the same as any
+                       other"). This used to be gated on `!selectedJob`, so
+                       a funded branch showed no pool at all and the owner's
+                       Inject vanished exactly where a thin book needed it. */
+                    <MarketFacts
+                      traders={active.traders}
+                      pool={active.pool}
+                      volume={active.volume}
+                      /* The counts live in the chart's footer since
+                         2026-09-09; what is left here is the owner's
+                         controls beside the number they change. */
+                      counts={false}
+                      canManage={canManage}
+                      canTrade={trading}
+                      fundingHref={`/${idOrSlug ?? ''}/funding`}
+                      onInject={() =>
+                        setOwnerDialog({
+                          kind: 'inject',
+                          marketId: active.marketId,
+                          /* Naming the branch matters here: the credits go
+                             into one of the two worlds, and injecting into
+                             the wrong one is invisible until someone trades
+                             it. */
+                          marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}${selectedJob ? ` · if ${branch}` : ''}`,
+                          pool: active.pool,
+                          traders: active.traders,
+                          /* A branch never respawns, so only a baseline
+                             market carries the metric the second number
+                             (what new markets open with) belongs to. */
+                          metricId: selectedJob ? undefined : hero.metricId,
+                          metricName: selectedJob ? undefined : metricLabel,
+                          targetDate: selectedJob ? undefined : hero.targetDate,
+                        })
+                      }
+                    />
+                  ) : null
+                }
+                /* A proposal passes its proposal AND both branch markets
+                 (owner reports 2026-08-15 "if there is a trade why don't I
+                 see it down here", 2026-08-21 "why dont i see any trades
+                 made on the conditional markets"). The conversation
+                 belongs to the PROPOSAL and survives switching branch;
+                 positions and trades cover BOTH branches, labeled, because
+                 scoping them to the branch on screen made a proposal whose
+                 trades sat on the other branch answer "Trades (0)". */
+                focusCommentId={focusCommentId}
+                focusTradeId={focusTradeId}
+                onFocusHandled={() => {
+                  setFocusCommentId(null);
+                  setFocusTradeId(null);
+                }}
+                subject={
+                  selectedJob
+                    ? {
+                        proposalId: selectedJob.id,
+                        markets: [
+                          ...(pair?.approvedMarketId
+                            ? [{ marketId: pair.approvedMarketId, branch: 'approved' as const }]
+                            : []),
+                          ...(pair?.declinedMarketId
+                            ? [{ marketId: pair.declinedMarketId, branch: 'declined' as const }]
+                            : []),
+                        ],
+                      }
+                    : hero
+                      ? { marketId: hero.marketId }
+                      : {}
+                }
+                canPost={!!user && joined}
+                onRequireSignup={() => navigate(authPath('signup', location))}
+              />
+            )}
+          </section>
           {/* Under the verbs and the facts row (docs/ui-conventions.md,
             "The rails, and the standings under the verbs", revised
             2026-09-06): the two standings footers. Footers, not rails:
@@ -2481,7 +2552,6 @@ export function TradePage() {
               proposalTraders={selectedJob ? pairHolders : undefined}
             />
           )}
-
           {/* Placement C (owner pick, 2026-08-31): a manager's two doors sit
             under the market and its verbs, which is where "someone should
             keep this true" is thought. A trader's pair stays further down,
@@ -2530,53 +2600,6 @@ export function TradePage() {
               />
             )}
           </aside>
-        )}
-        {/* The jobs board IS the right rail (owner direction 2026-08-10:
-            jobs where the activity log was). The log's information lives
-            on in the chart and the board itself; the rail slot goes to the
-            thing a visitor can act on. */}
-        {ws.proposals !== undefined && hero ? (
-          <aside className="pubws-rail pubws-rail--right" aria-label="Proposals">
-            <JobsBoard
-              proposals={ws.proposals}
-              unit={unit}
-              horizonDate={hero.targetDate}
-              horizonMetricId={hero.metricId}
-              selectedId={selectedJobId}
-              onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
-              viewerId={user?.id ?? null}
-              signedIn={!!user}
-              onRequireSignup={() => navigate(authPath('signup', location))}
-              workspaceName={ws.name}
-              proposalReward={ws.proposalReward}
-              metricNames={metricNames}
-              decisionDays={ws.decisionDays ?? 7}
-              onPropose={async (title, description, askUsd, decideBy) => {
-                // Anonymous proposers go through the signup door; the board
-                // itself is public information (Open workspace ballot).
-                // Payment details come from the account (owner decision
-                // 2026-08-10): the server reads and snapshots them.
-                if (!user) {
-                  navigate(authPath('signup', location));
-                  return;
-                }
-                // No proposer stake (owner call 2026-08-14): the workspace
-                // auto-funds the branch markets instead. Charging the empty
-                // side of the marketplace half a newcomer's starting balance
-                // to make an offer is spam defence aimed the wrong way; add
-                // it back if someone actually spams.
-                const created = (await api.createProposal({ title, description, askUsd, decideBy })) as { id?: string };
-                reload();
-                // The new proposal is selected the moment it lands (docs/
-                // ui-conventions.md, "The proposer sees their own
-                // proposal"): unfunded, it sits last on the ballot, and
-                // its author otherwise reloads the floor and cannot find it.
-                if (created?.id) setSelectedJobId(created.id);
-              }}
-            />
-          </aside>
-        ) : (
-          <aside className="pubws-rail pubws-rail--right" aria-hidden="true" />
         )}
         {/* What is left of the know block (docs/ui-conventions.md, "The
             rails, and the standings under the verbs", revised 2026-09-06):

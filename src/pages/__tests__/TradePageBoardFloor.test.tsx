@@ -406,10 +406,10 @@ describe('three columns, and the standings under the verbs', () => {
     expect(ann.textContent).toContain('Refunds ran high');
     expect(follows(advert, ann)).toBe(true);
     // The rule the market settles on left this column on 2026-09-09: it is
-    // one block under the trade, in the centre column, and nowhere else.
+    // one block under the trade, in the page column, and nowhere else.
     expect(left.querySelector('[aria-label="How this settles"]')).toBeNull();
     const settles = container.querySelector('[aria-label="How this settles"]') as HTMLElement;
-    expect(settles.closest('.pubws-center')).toBeTruthy();
+    expect(settles.closest('.pubws-tail')).toBeTruthy();
     expect(settles.querySelector('.pubws-know-what')?.textContent).toContain('Everything LookPilot earned');
     expect(container.querySelectorAll('[aria-label="How this settles"]')).toHaveLength(1);
     expect(container.querySelectorAll('[aria-label="Announcements"]')).toHaveLength(1);
@@ -419,12 +419,14 @@ describe('three columns, and the standings under the verbs', () => {
     expect(knowCol.querySelector('[aria-label="How this settles"]')).toBeNull();
     expect(knowCol.querySelector('[aria-label="Announcements"]')).toBeNull();
     expect(knowCol.querySelector('.pubws-season')).toBeNull();
-    // Two rails, left and right, and the leaders rail never came back.
+    // Two rails, and the right one is the ticket since 2026-09-09; the
+    // leaders rail never came back.
     const rails = container.querySelectorAll('.pubws-main--floor .pubws-rail');
     expect(rails).toHaveLength(2);
-    expect(rails[0].className).toContain('pubws-rail--left');
-    expect(rails[1].className).toContain('pubws-rail--right');
-    expect(rails[1].getAttribute('aria-label')).toBe('Proposals');
+    expect([...rails].some(r => r.className.includes('pubws-rail--left'))).toBe(true);
+    const right = container.querySelector('.pubws-rail--right') as HTMLElement;
+    expect(right.getAttribute('aria-label')).toBe('Your trade');
+    expect(right.querySelector('.pubws-ballot')).toBeNull();
     expect(container.querySelector('[aria-label="Leaders"]')).toBeNull();
   });
 
@@ -444,7 +446,7 @@ describe('three columns, and the standings under the verbs', () => {
     expect(container.querySelector('.pubws-facts')?.textContent ?? '').not.toMatch(/2,778|2\.8k/);
   });
 
-  test('the standings sit under the trade and the settles block, inside the centre column', async () => {
+  test('the standings sit under the trade and the settles block, in the tail', async () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-standings')).toBeTruthy());
     const bet = container.querySelector('.pubws-bet') as HTMLElement;
@@ -454,7 +456,7 @@ describe('three columns, and the standings under the verbs', () => {
     expect(settles).toBeTruthy();
     expect(follows(bet, settles)).toBe(true);
     expect(follows(settles, standings)).toBe(true);
-    expect(standings.closest('.pubws-center')).toBeTruthy();
+    expect(standings.closest('.pubws-tail')).toBeTruthy();
     expect(standings.closest('.pubws-rail')).toBeNull();
     const blocks = [...standings.querySelectorAll('.pubws-lb-block')];
     expect(blocks.map(b => b.querySelector('.pubws-h2')?.textContent)).toEqual(['Top traders', 'Top contractors']);
@@ -497,22 +499,25 @@ describe('three columns, and the standings under the verbs', () => {
     expect(container.querySelector('a[href="/season"]')).toBeNull();
   });
 
-  test('the phone order: centre, then the left column, then the proposals, then the know block', async () => {
+  test('the phone order: the market, the ticket, everything under the trade, the context, the know block', async () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-standings')).toBeTruthy());
     const center = container.querySelector('.pubws-center') as HTMLElement;
     const standings = container.querySelector('.pubws-standings') as HTMLElement;
+    const tail = container.querySelector('.pubws-tail') as HTMLElement;
     const left = container.querySelector('.pubws-rail--left') as HTMLElement;
     const rail = container.querySelector('.pubws-rail--right') as HTMLElement;
     const know = container.querySelector('.pubws-know-col') as HTMLElement;
-    expect(center.contains(standings)).toBe(true);
-    expect(follows(center, left)).toBe(true);
-    expect(follows(left, rail)).toBe(true);
-    expect(follows(rail, know)).toBe(true);
+    expect(tail.contains(standings)).toBe(true);
+    expect(follows(center, rail)).toBe(true);
+    expect(follows(rail, tail)).toBe(true);
+    expect(follows(tail, left)).toBe(true);
+    expect(follows(left, know)).toBe(true);
     // Each a grid item of the floor, so the DOM order IS the phone order and
     // the grid places them on desktop.
     const main = container.querySelector('.pubws-main--floor');
     expect(center.parentElement).toBe(main);
+    expect(tail.parentElement).toBe(main);
     expect(left.parentElement).toBe(main);
     expect(rail.parentElement).toBe(main);
     expect(know.parentElement).toBe(main);
@@ -652,8 +657,13 @@ describe('three columns, and the standings under the verbs', () => {
     const midGrid = mid![1].match(/\.pubws-main\.pubws-main--floor \{([^}]*)\}/);
     expect(midGrid![1]).toMatch(/grid-template-columns:\s*minmax\(0, 720px\) 320px;/);
     expect(midGrid![1]).toMatch(/justify-content:\s*center/);
-    expect(mid![1]).toMatch(/\.pubws-rail--left \{[^}]*grid-column:\s*1;\s*grid-row:\s*2/);
-    expect(mid![1]).toMatch(/\.pubws-main--floor \.pubws-know-col \{[^}]*grid-row:\s*3/);
+    // Four rows in the market column since 2026-09-09: the market, the tail
+    // (proposals, settles, activity, standings), the left column, the know
+    // block. The ticket rail spans them all.
+    expect(mid![1]).toMatch(/\.pubws-main--floor \.pubws-tail \{[^}]*grid-column:\s*1;\s*grid-row:\s*2/);
+    expect(mid![1]).toMatch(/\.pubws-rail--left \{[^}]*grid-column:\s*1;\s*grid-row:\s*3/);
+    expect(mid![1]).toMatch(/\.pubws-main--floor \.pubws-know-col \{[^}]*grid-row:\s*4/);
+    expect(mid![1]).toMatch(/\.pubws-rail--right \{[^}]*grid-row:\s*1 \/ span 4/);
     expect(mid![1]).toMatch(/\.pubws-rail--right \{[^}]*border-left:\s*1px solid var\(--border-color\)/);
     // The standings: side by side on desktop, stacked on a phone.
     expect(mid![1]).toMatch(/\.pubws-standings-pair \{[^}]*grid-template-columns:\s*1fr 1fr/);
