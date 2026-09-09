@@ -11209,6 +11209,18 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .pubws-impact-hero.is-down {
   color: var(--lower);
 }
+/* Now, if approved, if declined: three cells on hairlines in the stat row's
+   anatomy, and the two branch cells ARE the branch toggle. */
+.pubws-worlds {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  width: 100%;
+  margin-top: 1.2rem;
+  background: var(--border-color);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
 .pubws-world-cell {
   display: flex;
   flex-direction: column;
@@ -11223,9 +11235,22 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   cursor: pointer;
   transition: background var(--transition-fast);
 }
+.pubws-world-cell--now {
+  cursor: default;
+}
 .pubws-world-cell--approved,
+.pubws-world-cell--declined {
+  padding-left: 0.9rem;
+}
 .pubws-world-cell.is-active {
   background: var(--higher-soft);
+}
+.pubws-world-cell--declined.is-active {
+  background: var(--lower-soft);
+}
+.pubws-world-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .pubws-world-cell:disabled {
   cursor: default;
@@ -11233,6 +11258,9 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 }
 .pubws-world-cell .pubws-price {
   font-size: clamp(1.2rem, 3.4vw, 1.5rem);
+}
+.pubws-world-cell--approved.is-active .pubws-price {
+  color: var(--higher);
 }
 .pubws-world-cell--declined.is-active .pubws-price {
   color: var(--lower);
@@ -11314,4 +11342,16 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .pubws-dir--approve:hover:not(:disabled) {
   filter: brightness(1.08);
   background: var(--higher);
+}
+
+/* On a phone the three worlds stack rather than squeezing three numbers into
+   390px. */
+@media (max-width: 560px) {
+  .pubws-worlds {
+    grid-template-columns: 1fr;
+  }
+  .pubws-world-cell--approved,
+  .pubws-world-cell--declined {
+    padding-left: 0;
+  }
 }

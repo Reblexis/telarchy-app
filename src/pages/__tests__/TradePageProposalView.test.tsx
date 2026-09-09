@@ -293,6 +293,22 @@ describe('the impact is the number and the two worlds are the control', () => {
     expect(container.querySelector('.pubws-branch')).toBeNull();
   });
 
+  test('the three worlds are one row of cells, not a stack', async () => {
+    // The stylesheet is what makes them a row; a regex sweep of dead rules
+    // deleted .pubws-worlds once and the cells stacked on the preview
+    // (2026-09-09), which the DOM tests could not see.
+    const { readFileSync } = await import('node:fs');
+    const { dirname, join } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const css = readFileSync(
+      join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'),
+      'utf8',
+    );
+    const rule = css.match(/\.pubws-worlds \{([^}]*)\}/);
+    expect(rule).toBeTruthy();
+    expect(rule![1]).toMatch(/grid-template-columns:\s*repeat\(3,/);
+  });
+
   test('the world rides the verb', async () => {
     const { container } = renderFloor();
     await openProposal(container);
