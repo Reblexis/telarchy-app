@@ -8660,27 +8660,27 @@ textarea.jobform-line--desc {
   color: var(--text-tertiary);
 }
 
-.dr-dist { margin: 0.7rem 0 0; }
+.rchart { margin: 0.7rem 0 0; }
 
-.dr-dist-svg {
+.rchart-svg {
   display: block;
   width: 100%;
   height: 190px;
 }
 
-.dr-dist-bar { fill: var(--accent); }
+.rchart-bar { fill: var(--accent); }
 /* Green and red speak only as direction (docs/ui-conventions.md), which is
    what a profit column is; the spend column has no direction and stays amber. */
-.dr-dist--signed .dr-dist-bar.is-up { fill: var(--higher); }
-.dr-dist--signed .dr-dist-bar.is-down { fill: var(--lower); }
+.rchart--signed .rchart-bar.is-up { fill: var(--higher); }
+.rchart--signed .rchart-bar.is-down { fill: var(--lower); }
 
-.dr-dist-zero { stroke: var(--border-strong); stroke-width: 1; }
+.rchart-zero { stroke: var(--border-strong); stroke-width: 1; }
 
 /* The line that decides the count, in the accent, so a reader can see who is
    over it without being told how many are. */
-.dr-dist-threshold { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 3; }
+.rchart-threshold { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 3; }
 
-.dr-dist-cap {
+.rchart-cap {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
@@ -8689,11 +8689,11 @@ textarea.jobform-line--desc {
   color: var(--text-tertiary);
 }
 
-.dr-dist-line { font-family: 'JetBrains Mono', monospace; color: var(--accent); }
+.rchart-line { font-family: 'JetBrains Mono', monospace; color: var(--accent); }
 
 /* Every value taller than the axis, printed in full: a capped axis that
    swallowed the biggest trader would be the summary this block replaced. */
-.dr-dist-over {
+.rchart-over {
   margin: 0.5rem 0 0;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.72rem;
@@ -8702,95 +8702,25 @@ textarea.jobform-line--desc {
   text-align: left;
 }
 
-/* One dot per counted trader, over the seven days their own window empties
-   in. A day nobody lapses keeps its column. */
-.dr-lapse {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 1px;
-  margin-top: 0.8rem;
-  background: var(--border-color);
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-}
+/* The hovered bar in a rank chart: the same "the pointer answers" idiom the
+   time chart uses, so a reader who has hovered one has learned the other. */
+.rchart-bar.is-on { fill: var(--text-primary); }
+.rchart--signed .rchart-bar.is-on { fill: var(--text-primary); }
 
-.dr-lapse-day {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 0.4rem;
-  min-height: 4.6rem;
-  padding: 0.5rem 0.4rem;
-  background: var(--bg-primary);
-}
+/* The panel's slot is reserved whether or not the pointer is in the chart, so
+   hovering never pushes the page around under the cursor. */
+.tchart-tip-slot { min-height: 1.4rem; }
+.tchart-tip-over { color: var(--higher); }
 
-.dr-lapse-dots { display: flex; flex-wrap: wrap; gap: 4px; }
+/* The index, grouped by part (docs/data-room.md, "One page, three parts"). */
+.dr-index-group { display: inline-flex; align-items: baseline; gap: 0.25rem 1.1rem; flex-wrap: wrap; }
 
-.dr-lapse-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-.dr-lapse-label {
+.dr-index-part {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.66rem;
-  color: var(--text-tertiary);
-}
-
-/* Every weekly reading, one row per metric. The numbers are printed under the
-   line because the block replaced a summary of them. */
-.dr-rates { display: flex; flex-direction: column; gap: 1.6rem; margin-top: 1rem; }
-
-.dr-rate { display: flex; flex-direction: column; gap: 0.4rem; }
-
-.dr-rate-name {
-  margin: 0 0 0.2rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid var(--border-strong);
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.dr-rate-svg { display: block; width: 100%; height: 44px; }
-.dr-rate-line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
-
-.dr-rate-vals {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.4rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-}
-
-/* A week nobody measured, which is not a week the number did not move. */
-.dr-rate-vals .is-unread { color: var(--text-tertiary); }
-
-.dr-rate-cap {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
-}
-
-/* The outreach list: one square per person, shaded by how far they have got.
-   The squares are the count, so no count is printed beside them. */
-.dr-stages {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 0.8rem;
-  max-width: 30rem;
-}
-
-.dr-stage-cell {
-  width: 22px;
-  height: 22px;
-  border-radius: 3px;
-  background: var(--accent);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-primary);
 }
 
 /* A dated hairline list: the day, the row, and what state it is in. */
@@ -8824,7 +8754,6 @@ textarea.jobform-line--desc {
 
 @media (max-width: 560px) {
   .dr-when-day { width: 4.2rem; }
-  .dr-lapse-label { font-size: 0.6rem; }
 }
 
 /* The change log. A date column in mono so the days line up, and the

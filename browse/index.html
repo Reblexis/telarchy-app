@@ -158,18 +158,19 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <ul>
 <li><a href="#docs-data-room-md--h1">The data room</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h2">It is the platform&#x27;s own books, not a pitch</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h3">Prose is the source, and prose carries no numbers</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h4">The funnel is the chain that ends in the metric</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h5">The window is the rows behind the next reading</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h6">The base rates are every weekly reading</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h7">What is scheduled</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h8">How the page draws things</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h9">Every number comes from the database that serves the site</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h10">Traffic, and what is deliberately not published</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h11">Otto browses it; it is not in his context</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h12">The change log is the git history</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h13">Rules for changing this page</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h14">What moved it</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h3">One page, three parts</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h4">Prose is the source, and prose carries no numbers</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h5">The funnel is the chain that ends in the metric</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h6">The window is the rows behind the next reading</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h7">The base rates are every weekly reading</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h8">What is scheduled</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h9">How the page draws things</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h10">Every number comes from the database that serves the site</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h11">Traffic, and what is deliberately not published</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h12">Otto browses it; it is not in his context</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h13">The change log is the git history</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h14">Rules for changing this page</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h15">What moved it</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-formulas-md">docs/formulas.md</a></summary>
@@ -1809,7 +1810,31 @@ room that only publishes flattering figures makes the charter a lie.</p>
 see <code>docs/ui-conventions.md</code>): a sticky section index, tiny uppercase section
 labels, hairlines instead of cards, hand-rolled inline SVG for the charts. It is
 not an app shell and it has no sidebar.</p>
-<h2 id="docs-data-room-md--h3">Prose is the source, and prose carries no numbers</h2>
+<h2 id="docs-data-room-md--h3">One page, three parts</h2>
+<p><strong>It stays one URL.</strong> The page's whole claim is that a visitor can fetch the
+same thing it renders and check it, and that a forecaster gets the chain in
+one read. Five pages make that five requests, break every link into it, and
+give an owner five places to keep in step. So <code>telarchy.com/data-room</code> remains
+one document.</p>
+<p>What it gains instead is an ORDER, and the order is the reader's questions
+rather than the order the sections were written in:</p>
+<ol>
+<li><strong>The numbers</strong> - what is priced, what each one has done, what moved them,
+what is scheduled, and the rows behind the next reading. A forecaster
+arrives for this and should not have to scroll past the company's history
+to reach it.</li>
+<li><strong>The place</strong> - who is here, how busy it is, where they came from, what
+has been proposed and what has shipped. Evidence about whether the numbers
+above are going anywhere.</li>
+<li><strong>The plan</strong> - what is intended, what could go wrong, and how to check
+every figure on the page.</li>
+</ol>
+<p>A section names its part with a <code>part:</code> directive, the same way it names its
+figures with <code>block:</code>, so the shape is in the prose beside the prose. An
+unknown part name throws at load, exactly as an unknown block does. The
+sticky index groups the sections under their part, so the page navigates like
+three pages without becoming three.</p>
+<h2 id="docs-data-room-md--h4">Prose is the source, and prose carries no numbers</h2>
 <p>The document lives as markdown in <code>functions/src/content/data-room.ts</code> and ships
 verbatim. Each <code>## </code> heading becomes a section and an index entry, in source
 order, so adding a section is one edit to that string and nothing else.</p>
@@ -1822,7 +1847,7 @@ block name throws at module load rather than rendering a hole. Known blocks:
 <code>pulse</code>, <code>funnel</code>, <code>traction</code>, <code>contracts</code>, <code>traffic</code>, <code>shipping</code>. Because the
 prose never restates a figure a block already carries, the document and the data
 cannot disagree.</p>
-<h2 id="docs-data-room-md--h4">The funnel is the chain that ends in the metric</h2>
+<h2 id="docs-data-room-md--h5">The funnel is the chain that ends in the metric</h2>
 <p>The floor's metric is weekly active verified traders, and every one of them
 came through the same four steps: a page load, an account, a Manifold profile
 claimed, a hundred credits traded in seven days. <code>funnel</code> publishes all four
@@ -1836,7 +1861,7 @@ is the honest drawing.</p>
 which starts on the date the rollup started, while accounts predate it. The
 page says so where the number appears rather than implying that 36 accounts
 came out of exactly those loads.</p>
-<h2 id="docs-data-room-md--h5">The window is the rows behind the next reading</h2>
+<h2 id="docs-data-room-md--h6">The window is the rows behind the next reading</h2>
 <p>Every priced number counts a trailing window, so part of its next reading is
 already fixed by rows that exist today. <code>window</code> publishes those rows, one
 unit at a time, and never a count of them: a reader who wants the summary can
@@ -1865,7 +1890,7 @@ window, completed or not, with its amount, status and date.</li>
 numbers and a payment is an amount with a date. The only identity the block
 carries is a public workspace's own slug, which that workspace's floor already
 publishes.</p>
-<h2 id="docs-data-room-md--h6">The base rates are every weekly reading</h2>
+<h2 id="docs-data-room-md--h7">The base rates are every weekly reading</h2>
 <p>A forecaster's first question about a number is how far it usually moves in
 the time they are being asked to price, and the page answered it only as a
 shape on a chart. <code>rates</code> publishes the readings themselves: for every
@@ -1882,7 +1907,7 @@ rather than ours.</p>
 <p>Summaries of the eight (the biggest week, how many weeks were flat) are
 deliberately absent. They are arithmetic on numbers the block already
 publishes, and a reader who wants one can do it.</p>
-<h2 id="docs-data-room-md--h7">What is scheduled</h2>
+<h2 id="docs-data-room-md--h8">What is scheduled</h2>
 <p>The change log is retrospective and the metric is forward, so a forecaster
 pricing the end of the month was pricing the owner's calendar without being
 shown it. <code>calendar</code> publishes the dates the platform already holds: every
@@ -1900,7 +1925,7 @@ they have reached and nothing else. Who is being written to stays unpublished
 for the same reason referers are (above); how many people are at each stage
 is the chain that ends in &quot;outside owners deciding&quot;, and a stage names
 nobody.</p>
-<h2 id="docs-data-room-md--h8">How the page draws things</h2>
+<h2 id="docs-data-room-md--h9">How the page draws things</h2>
 <p><strong>A number that has a history is drawn over time.</strong> Every priced metric, the
 traffic, the signups, the trading and the change log are lines and areas on a
 date axis, not a single figure or a bar per category. A forecaster is pricing
@@ -1922,6 +1947,14 @@ verified participant has traded this week, and each participant's marked
 profit. Both answer &quot;who is near the line the count is drawn at&quot;, which no
 time series shows, and both sit under the window block that exists for exactly
 that question.</p>
+<p><strong>There are exactly two drawings on this page, and both answer the pointer.</strong>
+A series over dates is a <code>TimeChart</code>; a value per ranked unit is a
+<code>RankChart</code>. They share an axis style, a threshold rule, a crosshair and the
+same panel under the chart, so a reader who has hovered one has learned the
+other. Nothing on the page is a static picture: a drawing a reader cannot
+interrogate is a claim they have to take, and the page exists so they do not
+have to. Anything that is a series over days is drawn as one, including the
+seven days the counted traders lapse over.</p>
 <p><strong>Two numbers of different size get two charts.</strong> Thirty distinct visitors
 against six hundred loads, or ten people against a hundred trades, share an
 axis only by drawing the smaller one as a flat line on the floor, and the
@@ -1937,7 +1970,7 @@ stays printed, for the reason its own section gives.</p>
 not a straight segment across it, for the same reason a week with no reading
 publishes null: a day nobody measured and a day the number did not move are
 different facts.</p>
-<h2 id="docs-data-room-md--h9">Every number comes from the database that serves the site</h2>
+<h2 id="docs-data-room-md--h10">Every number comes from the database that serves the site</h2>
 <p><code>GET /api/data-room</code> is one public, uncredentialed read that returns the
 document and every number on it. The page renders that response and nothing
 else, so a visitor can fetch the same URL and check the page against it. Agents
@@ -1953,7 +1986,7 @@ a duplicate, a test row) is not a decision, and counting it would leave the
 approved, declined, pending and withdrawn rows summing to less than the total.</p>
 <p><strong>Refuse, do not guess.</strong> A term that cannot be computed is <code>null</code>, and the page
 renders <code>null</code> as &quot;not published&quot; rather than as zero.</p>
-<h2 id="docs-data-room-md--h10">Traffic, and what is deliberately not published</h2>
+<h2 id="docs-data-room-md--h11">Traffic, and what is deliberately not published</h2>
 <p>Visits are the platform's own server-side document-load log (<code>page_visits</code>); no
 third-party analytics exist on the site, as the privacy policy says. The
 human filter (drop bot user-agents and scanner probe paths) is the same one the
@@ -1975,7 +2008,7 @@ only.</li>
 <li><strong>Email addresses and the waitlist.</strong> Signup counts are published; who signed
 up is not.</li>
 </ul>
-<h2 id="docs-data-room-md--h11">Otto browses it; it is not in his context</h2>
+<h2 id="docs-data-room-md--h12">Otto browses it; it is not in his context</h2>
 <p>The floor's answer service (Otto, <code>functions/src/lib/ask.ts</code>) is handed the
 floor's brief as fixed context and one tool, <code>read_data_room</code>, which reads the
 index and then one section at a time from the same cached feed the page
@@ -1996,7 +2029,7 @@ entries, prose and figures together. The trade-off runs the other way there:
 an agent makes one request and then has to price the number, and one that has
 to scrape a page to learn what moves it prices worse than one that read it.
 Every other floor's brief carries only what that workspace itself published.</p>
-<h2 id="docs-data-room-md--h12">The change log is the git history</h2>
+<h2 id="docs-data-room-md--h13">The change log is the git history</h2>
 <p>The history starts at the public open-source release, which is a clean-root
 snapshot; the private archive keeps the earlier history and it is not stitched
 in.</p>
@@ -2012,7 +2045,7 @@ Use it rather than writing a vague subject: the log's value is that it is the
 real one.</p>
 <p>Two things are published: a bar per day (how fast this is being built, which is
 machine-derived and unarguable) and the subjects themselves, newest first.</p>
-<h2 id="docs-data-room-md--h13">Rules for changing this page</h2>
+<h2 id="docs-data-room-md--h14">Rules for changing this page</h2>
 <ol>
 <li>A number that changes over time is computed in <code>functions/src/services/ data-room.ts</code> from a live table, or it is labelled on the page with the date
 it was exported. There is no third category: a figure that quietly stops
@@ -2025,7 +2058,7 @@ the module refuses to load.</li>
 block the prose names is one the feed carries, and the traffic rollup counts
 what the cockpit counts.</li>
 </ol>
-<h2 id="docs-data-room-md--h14">What moved it</h2>
+<h2 id="docs-data-room-md--h15">What moved it</h2>
 <p>The data room shows the twelve most recent dated announcements and proposal
 decisions from Telarchy's configured self-sync workspace, ordered oldest first.
 Any already-recorded delivery is included. Each row names the day, event and

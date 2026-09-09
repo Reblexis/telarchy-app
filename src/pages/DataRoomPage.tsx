@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { RankChart } from '../components/RankChart';
 import { TimeChart } from '../components/TimeChart';
 import { useAuth } from '../hooks/useAuth';
 import { api, type DataRoomBlock, type DataRoomFeed } from '../lib/api';
@@ -18,6 +19,15 @@ import { TopBar } from './TradePage';
  * tiny uppercase section labels, hairlines instead of cards, and hand-rolled
  * SVG for the charts. See docs/ui-conventions.md.
  */
+
+/** The three parts the page is ordered into, in the order they run down it.
+ *  The server's own list is functions/src/content/data-room.ts; this is the
+ *  reader-facing name for each (docs/data-room.md, "One page, three parts"). */
+const PARTS = [
+  { id: 'numbers', title: 'The numbers' },
+  { id: 'place', title: 'The place' },
+  { id: 'plan', title: 'The plan' },
+];
 
 function n(v: number): string {
   return v.toLocaleString('en-US');
@@ -65,88 +75,6 @@ function Rows({ rows }: { rows: Array<{ key: string; left: React.ReactNode; valu
         </li>
       ))}
     </ul>
-  );
-}
-
-/**
- * A distribution: one bar per row, in the order the feed sorted them, with the
- * line that decides the count drawn across it.
- *
- * The block this belongs to exists because a count ("four are between 40 and
- * 99") throws away the shape, so the drawing has to keep every row: no
- * grouping, no top ten, and a zero keeps its slot. What a tall tail would
- * otherwise cost is the near-threshold detail, which is the part a forecaster
- * is actually pricing, so the axis is capped and every value past it is
- * printed underneath in full. Nothing is clipped in silence.
- */
-function Distribution({
-  id,
-  values,
-  threshold,
-  cap,
-  unit,
-  signed,
-  caption,
-  label,
-}: {
-  id: string;
-  values: number[];
-  threshold: number;
-  cap: number;
-  unit: string;
-  signed?: boolean;
-  caption: string;
-  label: string;
-}) {
-  if (!values.length) return <p className="dr-empty">Nothing recorded yet.</p>;
-  const W = 760;
-  const H = 190;
-  const PAD = 16;
-  const hasNeg = values.some(v => v < 0);
-  const top = Math.max(threshold * 1.25, Math.min(cap, Math.max(...values)));
-  const bottom = hasNeg ? Math.min(-threshold / 2, Math.max(-cap, Math.min(...values))) : 0;
-  const span = top - bottom || 1;
-  const plotH = H - PAD * 2;
-  const y = (v: number) => PAD + ((top - Math.max(bottom, Math.min(top, v))) / span) * plotH;
-  const zeroY = y(0);
-  const gap = values.length > 60 ? 1 : 3;
-  const w = Math.max(1, (W - gap * (values.length - 1)) / values.length);
-  const past = values.filter(v => Math.abs(v) > cap);
-  return (
-    <figure className={`dr-dist${signed ? ' dr-dist--signed' : ''}`} data-dist={id}>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label} className="dr-dist-svg">
-        <line x1={0} y1={zeroY} x2={W} y2={zeroY} className="dr-dist-zero" />
-        {values.map((v, i) => {
-          const x = i * (w + gap);
-          const yv = y(v);
-          const h = v === 0 ? 1.5 : Math.max(1.5, Math.abs(yv - zeroY));
-          const yTop = v < 0 ? zeroY : Math.min(yv, zeroY - 1.5);
-          return (
-            <rect
-              // Position is the identity here: the rows are anonymous numbers.
-              key={`${id}-${i}`}
-              x={x}
-              y={yTop}
-              width={w}
-              height={h}
-              className={`dr-dist-bar${v < 0 ? ' is-down' : ' is-up'}`}
-            >
-              <title>{`${n(Math.round(v))} ${unit}`}</title>
-            </rect>
-          );
-        })}
-        <line x1={0} y1={y(threshold)} x2={W} y2={y(threshold)} className="dr-dist-threshold" />
-      </svg>
-      <figcaption className="dr-dist-cap">
-        <span>{caption}</span>
-        <span className="dr-dist-line">{`${n(threshold)} ${unit} counts`}</span>
-      </figcaption>
-      {past.length > 0 && (
-        <p className="dr-dist-over">
-          Past the axis: {past.map(v => n(Math.round(v))).join(', ')} {unit}
-        </p>
-      )}
-    </figure>
   );
 }
 
@@ -219,31 +147,6 @@ function WeeklyRate({
         <span>{dayLabel(weeks[weeks.length - 1])}</span>
       </div>
     </section>
-  );
-}
-
-function LapseStrip({ from, lapses }: { from: string; lapses: string[] }) {
-  const start = new Date(`${from.slice(0, 10)}T00:00:00Z`);
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(start.getTime() + (i + 1) * 24 * 60 * 60 * 1000);
-    return d.toISOString().slice(0, 10);
-  });
-  return (
-    <div className="dr-lapse">
-      {days.map(day => {
-        const on = lapses.filter(l => l === day).length;
-        return (
-          <div key={day} className="dr-lapse-day">
-            <span className="dr-lapse-dots">
-              {Array.from({ length: on }, (_, i) => (
-                <span key={`${day}-${i}`} className="dr-lapse-dot" />
-              ))}
-            </span>
-            <span className="dr-lapse-label">{dayLabel(day)}</span>
-          </div>
-        );
-      })}
-    </div>
   );
 }
 
@@ -383,30 +286,51 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
 
   if (name === 'window') {
     const w = e.window;
+    // The seven days the counted traders lapse over are a series over days,
+    // so they are drawn as one, by the same component as every other series
+    // (docs/data-room.md, "How the page draws things").
+    const lapseDays = Array.from({ length: 7 }, (_, k) => {
+      const d = new Date(new Date(`${w.at.slice(0, 10)}T00:00:00Z`).getTime() + (k + 1) * 86400000);
+      return d.toISOString().slice(0, 10);
+    });
     return (
       <>
         <h3 className="dr-h3">Traded this week, one bar per verified participant</h3>
-        <Distribution
+        <RankChart
           id="traders"
           values={w.traders.spend}
           threshold={w.traders.threshold}
           cap={500}
           unit="cr"
-          caption={`${n(w.traders.spend.length)} verified participants, sorted`}
           label="Credits traded in the trailing seven days, one bar per verified participant"
+          caption={<span>{n(w.traders.spend.length)} verified participants, sorted</span>}
         />
-        <h3 className="dr-h3">When each counted week lapses, one dot per trader</h3>
-        <LapseStrip from={w.at} lapses={w.traders.lapses} />
+        <h3 className="dr-h3">When each counted week lapses</h3>
+        <div data-lapse="traders">
+          <TimeChart
+            series={[
+              {
+                key: 'lapses',
+                label: 'Traders lapsing',
+                points: lapseDays.map(day => ({ at: day, value: w.traders.lapses.filter(l => l === day).length })),
+                kind: 'bars',
+              },
+            ]}
+            label="When each counted trader falls out of their own week"
+            height={150}
+            caption={<span>Every counted trader lapses inside the seven days unless they trade again.</span>}
+          />
+        </div>
         <h3 className="dr-h3">Marked profit, one bar per participant</h3>
-        <Distribution
+        <RankChart
           id="forecasters"
           values={w.forecasters.profit}
           threshold={w.forecasters.threshold}
           cap={600}
           unit="cr"
           signed
-          caption="marked to market, house excluded"
           label="Marked profit per participant, sorted"
+          caption={<span>marked to market, house excluded</span>}
         />
         <h3 className="dr-h3">Undecided on an outside floor</h3>
         <WhenList
@@ -765,12 +689,36 @@ export function DataRoomPage() {
 
         {feed && (
           <>
+            {/* The index groups the sections under their part, so the page
+                navigates like three pages without becoming three
+                (docs/data-room.md, "One page, three parts"). A part with no
+                sections is not a heading over nothing. */}
             <nav className="dr-index" aria-label="Sections">
-              {sections.map(s => (
-                <a key={s.id} href={`#${s.id}`} className={`dr-index-link${active === s.id ? ' is-active' : ''}`}>
-                  {s.title}
-                </a>
-              ))}
+              {[
+                ...PARTS.map(part => ({
+                  ...part,
+                  members: sections.filter(s => s.part === part.id),
+                })),
+                // A section naming no part (an older payload, or one the
+                // prose has not placed yet) is still linkable: it goes in a
+                // trailing group with no heading rather than out of the index.
+                {
+                  id: 'unplaced',
+                  title: null as string | null,
+                  members: sections.filter(s => !PARTS.some(p => p.id === s.part)),
+                },
+              ]
+                .filter(part => part.members.length > 0)
+                .map(part => (
+                  <span key={part.id} className="dr-index-group">
+                    {part.title && <span className="dr-index-part">{part.title}</span>}
+                    {part.members.map(s => (
+                      <a key={s.id} href={`#${s.id}`} className={`dr-index-link${active === s.id ? ' is-active' : ''}`}>
+                        {s.title}
+                      </a>
+                    ))}
+                  </span>
+                ))}
             </nav>
 
             {sections.map(s => (

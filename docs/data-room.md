@@ -38,6 +38,33 @@ see `docs/ui-conventions.md`): a sticky section index, tiny uppercase section
 labels, hairlines instead of cards, hand-rolled inline SVG for the charts. It is
 not an app shell and it has no sidebar.
 
+## One page, three parts
+
+**It stays one URL.** The page's whole claim is that a visitor can fetch the
+same thing it renders and check it, and that a forecaster gets the chain in
+one read. Five pages make that five requests, break every link into it, and
+give an owner five places to keep in step. So `telarchy.com/data-room` remains
+one document.
+
+What it gains instead is an ORDER, and the order is the reader's questions
+rather than the order the sections were written in:
+
+1. **The numbers** - what is priced, what each one has done, what moved them,
+   what is scheduled, and the rows behind the next reading. A forecaster
+   arrives for this and should not have to scroll past the company's history
+   to reach it.
+2. **The place** - who is here, how busy it is, where they came from, what
+   has been proposed and what has shipped. Evidence about whether the numbers
+   above are going anywhere.
+3. **The plan** - what is intended, what could go wrong, and how to check
+   every figure on the page.
+
+A section names its part with a `part:` directive, the same way it names its
+figures with `block:`, so the shape is in the prose beside the prose. An
+unknown part name throws at load, exactly as an unknown block does. The
+sticky index groups the sections under their part, so the page navigates like
+three pages without becoming three.
+
 ## Prose is the source, and prose carries no numbers
 
 The document lives as markdown in `functions/src/content/data-room.ts` and ships
@@ -174,6 +201,15 @@ verified participant has traded this week, and each participant's marked
 profit. Both answer "who is near the line the count is drawn at", which no
 time series shows, and both sit under the window block that exists for exactly
 that question.
+
+**There are exactly two drawings on this page, and both answer the pointer.**
+A series over dates is a `TimeChart`; a value per ranked unit is a
+`RankChart`. They share an axis style, a threshold rule, a crosshair and the
+same panel under the chart, so a reader who has hovered one has learned the
+other. Nothing on the page is a static picture: a drawing a reader cannot
+interrogate is a claim they have to take, and the page exists so they do not
+have to. Anything that is a series over days is drawn as one, including the
+seven days the counted traders lapse over.
 
 **Two numbers of different size get two charts.** Thirty distinct visitors
 against six hundred loads, or ten people against a hundred trades, share an
