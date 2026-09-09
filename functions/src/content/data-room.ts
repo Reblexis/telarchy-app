@@ -24,6 +24,7 @@ export const KNOWN_BLOCKS = [
   'rates',
   'calendar',
   'events',
+  'trading',
   'traction',
   'contracts',
   'traffic',
@@ -148,6 +149,15 @@ with the day it must be decided by. Nothing here is a plan typed in for this
 page; each row is a date something in the database falls due on.
 
 block:calendar
+
+## Trading
+
+How busy the place actually is, day by day: the trades placed, the credits
+they moved, and how many people placed them. The trader count is a threshold
+on this; the shape underneath it is what says whether the count is about to
+move.
+
+block:trading
 
 ## Traction
 

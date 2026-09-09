@@ -22,7 +22,18 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 export interface BaseRates {
   /** The day each week ends, oldest first. */
   weeks: string[];
-  metrics: Array<{ name: string; readings: Array<number | null> }>;
+  metrics: Array<{
+    name: string;
+    /** The reading at the end of each of the eight weeks, oldest first. */
+    readings: Array<number | null>;
+    /**
+     * One point per day, the reading that stood at the end of it, oldest
+     * first: what the page draws (docs/data-room.md, "How the page draws
+     * things"). A day nobody measured is absent rather than filled in, so the
+     * line breaks there instead of asserting a measurement that was not made.
+     */
+    daily: Array<{ at: string; value: number }>;
+  }>;
 }
 
 export async function buildBaseRates(now = new Date()): Promise<BaseRates> {
@@ -68,7 +79,19 @@ export async function buildBaseRates(now = new Date()): Promise<BaseRates> {
       return inWeek.length ? Number(inWeek[inWeek.length - 1].value) : null;
     });
     if (readings.every(v => v === null)) continue;
-    rows.push({ name: m.name, readings });
+    // One point per day: the LAST reading of that day, which is the only
+    // point comparable across days, and no point at all where there is no
+    // reading.
+    const byDay = new Map<string, { at: Date; value: number }>();
+    for (const l of own) {
+      const day = l.at.toISOString().slice(0, 10);
+      const seen = byDay.get(day);
+      if (!seen || l.at > seen.at) byDay.set(day, { at: l.at, value: Number(l.value) });
+    }
+    const daily = [...byDay.entries()]
+      .map(([at, v]) => ({ at, value: v.value }))
+      .sort((a, b) => a.at.localeCompare(b.at));
+    rows.push({ name: m.name, readings, daily });
   }
   return { weeks, metrics: rows };
 }

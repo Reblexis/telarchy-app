@@ -67,12 +67,14 @@ describe('every weekly reading is on the page', () => {
     expect(cells.slice(0, 8)).toEqual(['0', '2', '3', '6', '—', '8', '11', '9']);
   });
 
-  test('a week with no reading is a hole in the line and a dash in the row', async () => {
+  test('a week with no reading is a dash, never a number the sync did not take', async () => {
     const container = await renderRates(RATES);
-    const first = container.querySelector('.dr-rate');
-    // A single polyline through the gap would say the number moved smoothly
-    // across a week nobody measured; the line breaks instead.
-    expect(first?.querySelectorAll('polyline').length).toBe(2);
+    const cells = [...(container.querySelector('.dr-rate')?.querySelectorAll('.dr-rate-vals span') ?? [])];
+    const unread = cells.filter(c => c.classList.contains('is-unread'));
+    expect(unread).toHaveLength(1);
+    expect(unread[0].textContent).toBe('—');
+    // The line itself is the DAILY readings now (docs/data-room.md, "How the
+    // page draws things"); TimeChart owns the rule that a gap breaks it.
   });
 
   test('the row is bookended by the weeks it covers', async () => {

@@ -10,6 +10,7 @@ import { buildCalendar } from './calendar';
 import { buildFloorEvents } from './floor-events';
 import { paidManifoldLinkCount, platformStats } from './platform-stats';
 import { buildTraderWindow } from './trader-window';
+import { buildTradingByDay } from './trading-by-day';
 
 /**
  * The data room: Telarchy's own books, prose and numbers in one payload.
@@ -286,7 +287,7 @@ export function buildDataRoomFeed(): Promise<DataRoomFeed> {
 }
 
 async function computeDataRoomFeed(): Promise<DataRoomFeed> {
-  const [stats, tract, contractRows, traf, windowRows, rates, calendar, events] = await Promise.all([
+  const [stats, tract, contractRows, traf, windowRows, rates, calendar, events, trading] = await Promise.all([
     platformStats(),
     traction(),
     contracts(),
@@ -295,6 +296,7 @@ async function computeDataRoomFeed(): Promise<DataRoomFeed> {
     buildBaseRates(),
     buildCalendar(),
     process.env.SELF_SYNC_WORKSPACE_ID ? buildFloorEvents(process.env.SELF_SYNC_WORKSPACE_ID) : Promise.resolve([]),
+    buildTradingByDay(),
   ]);
   const chain = funnel({
     loads: traf.totalVisits,
@@ -329,6 +331,9 @@ async function computeDataRoomFeed(): Promise<DataRoomFeed> {
       // calendar (docs/data-room.md, "What is scheduled").
       calendar,
       events,
+      // How busy the place is, day by day: the shape under the trader count
+      // (docs/data-room.md, "How the page draws things").
+      trading,
       traction: tract,
       contracts: contractRows,
       traffic: traf,
@@ -472,6 +477,15 @@ function renderBlock(name: string, feed: DataRoomFeed): string {
         stageCounts.size ? [...stageCounts.entries()].map(([st, n]) => `${st} ${n}`).join(', ') : 'nobody on it'
       }`,
     ].join('\n');
+  }
+
+  if (name === 'trading') {
+    if (!v.byDay.length) return 'trading: nothing traded yet';
+    const tail = v.byDay
+      .slice(-14)
+      .map((d: any) => `  ${d.day}: ${fmt(d.trades)} trades, ${fmt(d.credits)} credits, ${fmt(d.traders)} people`)
+      .join('\n');
+    return [`trading, day by day (last 14 of ${v.byDay.length} days with any):`, tail].join('\n');
   }
 
   if (name === 'traffic') {

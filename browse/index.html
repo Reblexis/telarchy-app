@@ -163,12 +163,13 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h5">The window is the rows behind the next reading</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h6">The base rates are every weekly reading</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h7">What is scheduled</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h8">Every number comes from the database that serves the site</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h9">Traffic, and what is deliberately not published</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h10">Otto browses it; it is not in his context</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h11">The change log is the git history</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h12">Rules for changing this page</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h13">What moved it</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h8">How the page draws things</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h9">Every number comes from the database that serves the site</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h10">Traffic, and what is deliberately not published</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h11">Otto browses it; it is not in his context</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h12">The change log is the git history</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h13">Rules for changing this page</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h14">What moved it</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-formulas-md">docs/formulas.md</a></summary>
@@ -1899,7 +1900,33 @@ they have reached and nothing else. Who is being written to stays unpublished
 for the same reason referers are (above); how many people are at each stage
 is the chain that ends in &quot;outside owners deciding&quot;, and a stage names
 nobody.</p>
-<h2 id="docs-data-room-md--h8">Every number comes from the database that serves the site</h2>
+<h2 id="docs-data-room-md--h8">How the page draws things</h2>
+<p><strong>A number that has a history is drawn over time.</strong> Every priced metric, the
+traffic, the signups, the trading and the change log are lines and areas on a
+date axis, not a single figure or a bar per category. A forecaster is pricing
+where a number goes next, and a shape over time is the only drawing that
+answers that; a point-in-time figure answers &quot;what is it now&quot;, which the page
+already says in words.</p>
+<p><strong>The line carries what happened to it.</strong> The dated things the owner did (the
+<code>events</code> block: announcements, decisions, deliveries) are drawn on the metric
+charts as marks on the day they happened, numbered against the list beneath.
+They are context, not proof of causation, and the page says so once rather
+than beside each mark.</p>
+<p><strong>Every chart answers the pointer.</strong> Hovering anywhere on a chart puts a
+crosshair on the nearest day and a panel naming the date, each series' value
+there, and any event on that day. A chart with two or more series carries a
+legend; a chart with one is named by its own caption. Nothing is encoded by
+colour alone.</p>
+<p><strong>Two things stay distributions</strong>, because they are not histories: what each
+verified participant has traded this week, and each participant's marked
+profit. Both answer &quot;who is near the line the count is drawn at&quot;, which no
+time series shows, and both sit under the window block that exists for exactly
+that question.</p>
+<p><strong>A chart never invents a point.</strong> A day with no reading is a gap in the line,
+not a straight segment across it, for the same reason a week with no reading
+publishes null: a day nobody measured and a day the number did not move are
+different facts.</p>
+<h2 id="docs-data-room-md--h9">Every number comes from the database that serves the site</h2>
 <p><code>GET /api/data-room</code> is one public, uncredentialed read that returns the
 document and every number on it. The page renders that response and nothing
 else, so a visitor can fetch the same URL and check the page against it. Agents
@@ -1915,7 +1942,7 @@ a duplicate, a test row) is not a decision, and counting it would leave the
 approved, declined, pending and withdrawn rows summing to less than the total.</p>
 <p><strong>Refuse, do not guess.</strong> A term that cannot be computed is <code>null</code>, and the page
 renders <code>null</code> as &quot;not published&quot; rather than as zero.</p>
-<h2 id="docs-data-room-md--h9">Traffic, and what is deliberately not published</h2>
+<h2 id="docs-data-room-md--h10">Traffic, and what is deliberately not published</h2>
 <p>Visits are the platform's own server-side document-load log (<code>page_visits</code>); no
 third-party analytics exist on the site, as the privacy policy says. The
 human filter (drop bot user-agents and scanner probe paths) is the same one the
@@ -1937,7 +1964,7 @@ only.</li>
 <li><strong>Email addresses and the waitlist.</strong> Signup counts are published; who signed
 up is not.</li>
 </ul>
-<h2 id="docs-data-room-md--h10">Otto browses it; it is not in his context</h2>
+<h2 id="docs-data-room-md--h11">Otto browses it; it is not in his context</h2>
 <p>The floor's answer service (Otto, <code>functions/src/lib/ask.ts</code>) is handed the
 floor's brief as fixed context and one tool, <code>read_data_room</code>, which reads the
 index and then one section at a time from the same cached feed the page
@@ -1958,7 +1985,7 @@ entries, prose and figures together. The trade-off runs the other way there:
 an agent makes one request and then has to price the number, and one that has
 to scrape a page to learn what moves it prices worse than one that read it.
 Every other floor's brief carries only what that workspace itself published.</p>
-<h2 id="docs-data-room-md--h11">The change log is the git history</h2>
+<h2 id="docs-data-room-md--h12">The change log is the git history</h2>
 <p>The history starts at the public open-source release, which is a clean-root
 snapshot; the private archive keeps the earlier history and it is not stitched
 in.</p>
@@ -1974,7 +2001,7 @@ Use it rather than writing a vague subject: the log's value is that it is the
 real one.</p>
 <p>Two things are published: a bar per day (how fast this is being built, which is
 machine-derived and unarguable) and the subjects themselves, newest first.</p>
-<h2 id="docs-data-room-md--h12">Rules for changing this page</h2>
+<h2 id="docs-data-room-md--h13">Rules for changing this page</h2>
 <ol>
 <li>A number that changes over time is computed in <code>functions/src/services/ data-room.ts</code> from a live table, or it is labelled on the page with the date
 it was exported. There is no third category: a figure that quietly stops
@@ -1987,7 +2014,7 @@ the module refuses to load.</li>
 block the prose names is one the feed carries, and the traffic rollup counts
 what the cockpit counts.</li>
 </ol>
-<h2 id="docs-data-room-md--h13">What moved it</h2>
+<h2 id="docs-data-room-md--h14">What moved it</h2>
 <p>The data room shows the twelve most recent dated announcements and proposal
 decisions from Telarchy's configured self-sync workspace, ordered oldest first.
 Any already-recorded delivery is included. Each row names the day, event and
@@ -4963,7 +4990,8 @@ The owner's bar carries three mono words under its buttons, &quot;declines itsel
 in 4h&quot;, and nothing to press: a deadline does not move. On the board a pending row carries a clock and a
 countdown (&quot;6d&quot;) beside its pool, in the same mono register, red inside the
 last day; a row nobody ruled on by its deadline wears a &quot;lapsed&quot; pill in
-the decided fold. Once the proposal is closed (decided or lapsed) the ticket
+the decided fold, in the quiet register rather than the decline's red: a
+lapse is not a verdict. Once the proposal is closed (decided or lapsed) the ticket
 and the verbs are gone, the call cell's caption reads &quot;market's call at the
 decision&quot;, and the position card says when it settles (&quot;settles 30 Sep&quot;)
 where the Sell button was. The proposal form asks for a DURATION, not a date, because a date picker
@@ -9120,8 +9148,9 @@ needs a slower decision, from a minute to ninety days. <strong>It cannot be
 changed afterwards</strong>, by you or by them, so pick it when you post. Trading
 on your proposal closes at the decision or the deadline, whichever comes
 first, and the prices just before the close are what the owner decided on.
-Undecided at the deadline, it lapses as declined; post it again if you still
-want to do the work.</p>
+Undecided at the deadline, it lapses: both books void, everyone including
+you is refunded, and it goes down as <code>lapsed</code> rather than declined, because
+nobody ruled on it. Post it again if you still want to do the work.</p>
 <p>A short window prices nothing. A market needs people to see it: a proposal
 due in ten minutes will be decided on whatever the opening prices say, which
 is to say on nothing. Use the short windows for work the owner is waiting
@@ -9823,10 +9852,12 @@ settle on the actual value at the date; the losing branch is refunded at
 once. The prices immediately before the close are the decision record. So
 the number you decide on is the last one anybody could trade, and nothing
 is spent on a book after it can no longer change the decision.</p>
-<p><strong>Undecided at the deadline, a proposal lapses as declined.</strong> The approved
-branch is refunded, the declined branch settles on the actual value, the
-record is the prices at the deadline, and the floor marks it &quot;lapsed&quot;
-(<code>lapsedAt</code>). The proposer can post it again.</p>
+<p><strong>Undecided at the deadline, a proposal lapses.</strong> Both branches are voided
+and everyone is refunded: nobody ruled, so neither world is the one we are
+in and there is nothing to settle against. Its status is <code>lapsed</code>, its own
+thing and not a decline, so it counts against nobody; the prices at the
+deadline are recorded as what it was worth when the clock ran out. The
+proposer can post it again.</p>
 <p>A proposal only spawns pairs on dates that settle after its deadline: a
 &quot;this week&quot; cell that would settle before you decide is not spawned, and a
 pending proposal's pair whose date passes anyway is voided and refunded, as
