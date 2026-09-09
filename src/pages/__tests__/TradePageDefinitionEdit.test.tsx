@@ -119,17 +119,14 @@ function renderFloor() {
   );
 }
 
-/** Which market is on screen, read from the caption (never the animated price). */
-const caption = (container: HTMLElement) => container.querySelector('.pubws-instrument-label')?.textContent ?? '';
+/** Which market is on screen, read from the question (never the animated price). */
+const caption = (container: HTMLElement) => container.querySelector('.pubws-instrument-ask')?.textContent ?? '';
 
-/** Step to the other metric: open the metric chip's menu and pick it. */
+/** Step to the other metric: press its tab on the metrics strip. */
 const stepMetric = (container: HTMLElement) => {
-  fireEvent.click(container.querySelector('.pubws-chip--metric') as HTMLElement);
-  fireEvent.click(
-    [...container.querySelectorAll('.pubws-chip-menu [role="option"]')].find(b =>
-      b.textContent?.includes('Signups this week'),
-    )!,
-  );
+  const strip = container.querySelector('[aria-label="Metrics"]') as HTMLElement;
+  const tab = [...strip.querySelectorAll('[role="tab"]')].find(b => b.textContent?.includes('Signups'));
+  fireEvent.click(tab as HTMLElement);
 };
 
 /** The "How this settles" section, so queries never leak into the

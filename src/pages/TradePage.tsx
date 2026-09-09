@@ -13,6 +13,7 @@ import { FloorChat } from '../components/FloorChat';
 import { FloorChecklist } from '../components/FloorChecklist';
 import { FloorComments } from '../components/FloorComments';
 import { FloorStandings, type ProposalTraderRow, SeasonAdvert, useCurrentSeason } from '../components/FloorRails';
+import { FloorStrip } from '../components/FloorStrip';
 import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { Logo } from '../components/Logo';
@@ -38,7 +39,6 @@ import {
   buildHorizonViews,
   captionLabel,
   cellOf,
-  dateChipOf,
   dateQuestionOf,
   dateSegmentOf,
   datesOf,
@@ -1422,102 +1422,93 @@ export function TradePage() {
                 to be on before they clicked in. Rendered once here, never
                 copied into the branch below, because a second copy is how the
                 two drift. */}
-              {/* Two pickers on ONE line (docs/ui-conventions.md, "The question
-               line", revised 2026-09-04): the board's caption vocabulary, a
-               metric chip and a date chip separated by a middle dot, each a
-               menu. The former segmented rows cost two lines and a pair of
-               owner buttons before the question; the owner's way into the
-               metrics and the dates is now the last entry of each menu. A
-               (metric, date) pair is a market, so selection is still one
-               market id. The caption stays an h2 that is a block child of
-               .pubws-center (layout rule, 2026-08-20); the chips live INSIDE
-               it, never in a wrapper around it. */}
-              <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
-                <CaptionChip
-                  kind="metric"
-                  label={captionLabel(metricLabel, ws.name)}
-                  menuLabel="Metric"
-                  options={metricHeads.map(m => ({
+              {/* Two strips, metrics then dates (docs/ui-conventions.md, "The
+               question line", revised 2026-09-09, replacing the two dropdown
+               chips of 2026-09-04): each tab is its name over that market's
+               current call, so a reader learns how many books this floor
+               prices and what every one of them says without pressing
+               anything. A (metric, date) pair is a market, so selection is
+               still one market id, and the owner's way into the metrics and
+               the dates is the last tab of its strip. */}
+              <FloorStrip
+                ariaLabel="Metrics"
+                kind="metric"
+                tabs={metricHeads.map(m => {
+                  const cell = cellOf(horizons, m.metricId, hero?.targetDate);
+                  return {
                     id: m.metricId,
                     label: captionLabel(m.metricLabel, ws.name),
+                    /* The call for the date on screen, so moving along the
+                       strip compares like with like. */
+                    value: cell && cell.consensus !== null ? `${cell.unit}${formatValue(cell.consensus)}` : null,
                     selected: hero?.metricId === m.metricId,
+                  };
+                })}
+                onPick={id => {
+                  const cell = cellOf(horizons, id, hero?.targetDate);
+                  if (cell) setHorizonId(cell.marketId);
+                }}
+                manage={canManage ? { label: 'Manage metrics', open: () => setOwnerDialog({ kind: 'metrics' }) } : null}
+              />
+              {hero && (
+                <FloorStrip
+                  ariaLabel="Dates"
+                  kind="date"
+                  tabs={heroDates.map(d => ({
+                    id: d.marketId,
+                    label: d.label,
+                    value: d.consensus !== null ? `${d.unit}${formatValue(d.consensus)}` : null,
+                    selected: d.marketId === hero.marketId,
+                    title: d.resolvesOn ? `settles ${settleInstant(d.resolvesOn)}` : undefined,
                   }))}
-                  onPick={id => {
-                    const cell = cellOf(horizons, id, hero?.targetDate);
-                    if (cell) setHorizonId(cell.marketId);
-                  }}
+                  onPick={id => setHorizonId(id)}
                   manage={
-                    canManage ? { label: 'Manage metrics', open: () => setOwnerDialog({ kind: 'metrics' }) } : null
+                    canManage && hero.metricId
+                      ? {
+                          label: 'Manage dates',
+                          open: () =>
+                            setOwnerDialog({ kind: 'dates', metricId: hero.metricId, metricName: metricLabel }),
+                        }
+                      : null
                   }
                 />
-                {hero && (
-                  <>
-                    <span className="pubws-chip-dot" aria-hidden="true">
-                      ·
-                    </span>
-                    <CaptionChip
-                      kind="date"
-                      label={dateChipOf(hero)}
-                      title={hero.resolvesOn ? `settles ${settleInstant(hero.resolvesOn)}` : undefined}
-                      menuLabel="Date"
-                      options={heroDates.map(d => ({
-                        id: d.marketId,
-                        label: dateSegmentOf(d),
-                        selected: d.marketId === hero.marketId,
-                        title: d.resolvesOn ? `settles ${settleInstant(d.resolvesOn)}` : undefined,
-                      }))}
-                      onPick={id => setHorizonId(id)}
-                      manage={
-                        canManage && hero.metricId
-                          ? {
-                              label: 'Manage dates',
-                              open: () =>
-                                setOwnerDialog({ kind: 'dates', metricId: hero.metricId, metricName: metricLabel }),
-                            }
-                          : null
-                      }
-                    />
-                  </>
-                )}
-                {/* The deadline is one amber chip (docs/ui-conventions.md): the
-                  only mention of it on the page. */}
-                {selectedJob && (
-                  <>
-                    <span className="pubws-chip-dot" aria-hidden="true">
-                      ·
-                    </span>
-                    <span
-                      className="pubws-chip pubws-chip--plain pubws-chip--deadline"
-                      aria-label="Decision deadline"
-                      title={
-                        selectedJobClosed
-                          ? 'Decided; trading on this proposal is closed'
-                          : selectedJob.decideBy
-                            ? `The owner decides by ${new Date(selectedJob.decideBy).toUTCString()}`
-                            : undefined
-                      }
-                    >
-                      <svg
-                        width="10"
-                        height="10"
-                        viewBox="0 0 16 16"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        aria-hidden="true"
-                      >
-                        <circle cx="8" cy="8" r="6.2" />
-                        <path d="M8 4.5V8l2.4 1.6" />
-                      </svg>
-                      {selectedJobClosed
-                        ? `decided ${dayOf(selectedJob.resolvedAt ?? selectedJob.closedAt ?? null)}`
+              )}
+              {/* The deadline is one amber chip (docs/ui-conventions.md): the
+                only mention of it on the page. It is the whole of this line
+                now that the pickers are strips above it. */}
+              {selectedJob && (
+                <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
+                  <span
+                    className="pubws-chip pubws-chip--plain pubws-chip--deadline"
+                    aria-label="Decision deadline"
+                    title={
+                      selectedJobClosed
+                        ? 'Decided; trading on this proposal is closed'
                         : selectedJob.decideBy
-                          ? `decides ${dayOf(selectedJob.decideBy)}`
-                          : 'no deadline'}
-                    </span>
-                  </>
-                )}
-              </h2>
+                          ? `The owner decides by ${new Date(selectedJob.decideBy).toUTCString()}`
+                          : undefined
+                    }
+                  >
+                    <svg
+                      width="10"
+                      height="10"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      aria-hidden="true"
+                    >
+                      <circle cx="8" cy="8" r="6.2" />
+                      <path d="M8 4.5V8l2.4 1.6" />
+                    </svg>
+                    {selectedJobClosed
+                      ? `decided ${dayOf(selectedJob.resolvedAt ?? selectedJob.closedAt ?? null)}`
+                      : selectedJob.decideBy
+                        ? `decides ${dayOf(selectedJob.decideBy)}`
+                        : 'no deadline'}
+                  </span>
+                </h2>
+              )}
               {/* The question line (owner ask 2026-08-28): under the pickers,
                the selected cell stated as the market's own sentence, "What
                will be {company}'s {metric} {date}?", so a newcomer is not
@@ -1888,6 +1879,11 @@ export function TradePage() {
               {consensus === null && (
                 <div className="pubws-headline pubws-enter pubws-enter--2">
                   <span className="pubws-price">no price yet</span>
+                  {/* The settle day is said once, and since 2026-09-09 that
+                    once is the stat row's caption. A market with no price
+                    prints no stat row, so it carries the day here instead:
+                    the day never leaves the page (owner rule 2026-08-25). */}
+                  {settleNote && <span className="pubws-stat-what">{settleNote}</span>}
                 </div>
               )}
               {/* A market nobody has traded yet has no replayed history, which
@@ -2905,124 +2901,6 @@ const endArrow = (
     <path d="M2 7h10M8 3l4 4-4 4" />
   </svg>
 );
-
-type ChipOption = { id: string; label: string; selected: boolean; title?: string };
-
-/**
- * One caption chip (docs/ui-conventions.md, "The question line"): a mono
- * small-caps label that, with something to pick, is a `button` opening a
- * listbox of the options, with the owner's "Manage ..." entry last. With
- * one option and nothing to manage it is plain text: no chevron, no menu.
- * The menu closes on a pick, on Escape, and on a click outside.
- */
-function CaptionChip({
-  kind,
-  label,
-  title,
-  menuLabel,
-  options,
-  onPick,
-  manage,
-}: {
-  kind: 'metric' | 'date';
-  label: string;
-  title?: string;
-  menuLabel: string;
-  options: ChipOption[];
-  onPick: (id: string) => void;
-  manage: { label: string; open: () => void } | null;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLSpanElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  if (options.length <= 1 && !manage) {
-    return (
-      <span className={`pubws-chip pubws-chip--${kind} pubws-chip--plain`} title={title}>
-        {label}
-      </span>
-    );
-  }
-  return (
-    <span className="pubws-chip-wrap" ref={wrapRef}>
-      <button
-        type="button"
-        className={`pubws-chip pubws-chip--${kind}`}
-        title={title}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen(o => !o)}
-      >
-        {label}
-        <svg
-          className="pubws-chip-chev"
-          viewBox="0 0 10 10"
-          width="10"
-          height="10"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M2.5 3.75L5 6.25l2.5-2.5" />
-        </svg>
-      </button>
-      {open && (
-        <ul className="pubws-chip-menu" role="listbox" aria-label={menuLabel}>
-          {options.map(o => (
-            <li key={o.id} role="none">
-              <button
-                type="button"
-                role="option"
-                aria-selected={o.selected}
-                className={`pubws-chip-opt${o.selected ? ' is-selected' : ''}`}
-                title={o.title}
-                onClick={() => {
-                  onPick(o.id);
-                  setOpen(false);
-                }}
-              >
-                {o.label}
-              </button>
-            </li>
-          ))}
-          {manage && (
-            <li role="none">
-              <button
-                type="button"
-                role="option"
-                aria-selected={false}
-                className="pubws-chip-opt pubws-chip-opt--manage"
-                onClick={() => {
-                  manage.open();
-                  setOpen(false);
-                }}
-              >
-                {manage.label}
-              </button>
-            </li>
-          )}
-        </ul>
-      )}
-    </span>
-  );
-}
 
 /** One email in, one promise out: we set you up, no queue language.
  *  `source` names which door this was, so /admin can tell a signup from
