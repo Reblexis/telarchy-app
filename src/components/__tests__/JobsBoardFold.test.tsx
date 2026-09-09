@@ -90,6 +90,9 @@ function board(props: Partial<React.ComponentProps<typeof JobsBoard>> = {}) {
 }
 
 const titles = () => screen.getAllByRole('button').map(b => b.textContent ?? '');
+/** Just the title cell of each row: the row also carries its calls, its ask
+ *  and its pool now (docs/ui-conventions.md, "The proposals board"). */
+const rowTitles = () => [...document.querySelectorAll('.pubws-ballot-title')].map(n => n.textContent ?? '');
 
 describe('the board opens on the live ballot', () => {
   test('the pending proposals are the list, and the decided ones are not on it', () => {
@@ -135,14 +138,8 @@ describe('the board opens on the live ballot', () => {
       ],
     });
     fireEvent.click(screen.getByText('Show'));
-    const shown = titles().filter(t => /Undated|Same minute|Older/.test(t));
-    expect(shown.map(t => t.replace(/by Jason.*$/, '').trim())).toEqual([
-      'Same minute large',
-      'Same minute small',
-      'Older',
-      'Undated large',
-      'Undated small',
-    ]);
+    const shown = rowTitles().filter(t => /Undated|Same minute|Older/.test(t));
+    expect(shown).toEqual(['Same minute large', 'Same minute small', 'Older', 'Undated large', 'Undated small']);
   });
 
   test('a board with nothing pending lists the decided ones newest decision first', () => {

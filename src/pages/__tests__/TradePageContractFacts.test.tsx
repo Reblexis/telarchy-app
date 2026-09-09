@@ -286,8 +286,8 @@ describe('the reading cell for a manager', () => {
   });
 });
 
-describe('the season block for a manager', () => {
-  test('says who pays the prizes', async () => {
+describe('the season block for the owner', () => {
+  test('says what the floor costs them', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getSeasons).mockResolvedValue({
       seasons: [
@@ -310,7 +310,9 @@ describe('the season block for a manager', () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-season .pubws-season-who')).toBeTruthy());
     const who = container.querySelector('.pubws-season .pubws-season-who') as HTMLElement;
-    expect(who.textContent).toBe('Prizes paid by Telarchy. Your floor costs you nothing.');
+    expect(who.textContent).toBe(
+      'This floor costs you nothing. You fund books in credits when you open them. Approved proposals cost their ask, in dollars.',
+    );
   });
 });
 

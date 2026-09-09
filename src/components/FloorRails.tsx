@@ -6,16 +6,17 @@ import { formatImpact } from '../lib/formatImpact';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
 import { ManifoldLogo } from './ManifoldLogo';
+import { Clock, Dollar } from './MarketFacts';
 
 /**
- * The standings under the verbs (docs/ui-conventions.md, "The rails, and
- * the standings under the verbs"): two compact three-row footers under the
- * facts row, "Top traders" and "Top contractors", with one "Show full
- * leaderboard" link under the pair. Footers, not rails: the first screen is
- * the question, the number and the bet verbs, and nothing about other
- * people above the fold. With a proposal selected the traders footer
- * becomes "Traders on this proposal". The season advert (below) lives in
- * the left column, under the market's definition.
+ * The standings (docs/ui-conventions.md, "The rails: books, season,
+ * announcements, standings"): two blocks under the Otto row, "Top traders"
+ * and "Top contractors", three rows each, with one foot under the pair
+ * naming the two marks that carry money and the way to the full board.
+ * Under the market, never above it: nothing about other people belongs on
+ * the first screen. With a proposal selected the traders block becomes
+ * "Traders on this proposal". The season block (below) lives in the left
+ * rail.
  */
 
 /** A row in the traders footer while a proposal is selected: an account
@@ -280,44 +281,41 @@ export function FloorStandings({
           </section>
         )}
       </div>
-      {/* The footnote (critics' round 2): the two marks that carry money,
-          spelled once under the pair. Every mark also has a hover title. */}
-      <p className="pubws-standings-key">IN = in the season · $ = prizes claimed</p>
-      {/* The way out is a page, not an expander (owner direction 2026-08-24:
-          "show full leaderboard should lead to a new page"). One link under
-          the pair it extends; the season's control is in the season advert
-          in the left column. */}
-      <Link className="pubws-lb-more" to="/leaderboard">
-        Show full leaderboard
-      </Link>
+      {/* One foot under the pair (docs/ui-conventions.md, "The rails"): the
+          two marks that carry money, spelled once, and the way out. The way
+          out is a page, not an expander (owner direction 2026-08-24: "show
+          full leaderboard should lead to a new page"); the season's control
+          is in the season block in the left rail. Every mark on a row also
+          carries its own hover title. */}
+      <p className="pubws-standings-key">
+        IN = in the season · $ = prizes claimed ·{' '}
+        <Link className="pubws-lb-more" to="/leaderboard">
+          Full leaderboard
+        </Link>
+      </p>
     </div>
   );
 }
 
 /**
- * The season advert (docs/ui-conventions.md, "The rails, and the standings
- * under the verbs": "the season is ADVERTISED, not narrated"). Three lines
- * in the left column, under the definition: the money as the hero, in the
- * mono numeral style of the market's own numbers; one short line of the
- * terms; then the "Enter the season" / "See the season" control. No trader
- * or volume count in it, no "and", no running sentence: the facts row is
- * the only place the counts appear.
+ * The season block (docs/ui-conventions.md, "The rails: books, season,
+ * announcements, standings"). The season is ADVERTISED, not narrated
+ * (Viktor, 2026-09-06): the label, one icon row in the floor's own glyph
+ * set, the button, and one line of terms. The prize is the hero figure, the
+ * terms are the icon row, nothing runs on.
+ *
+ * For the owner one more line says what the floor costs, because an owner
+ * reads "free to enter" as their own bill (critics' round 2026-09-08).
  */
-export function SeasonAdvert({
+export function SeasonBlock({
   season,
   signedIn,
   canManage = false,
-  line = false,
 }: {
   season: PrizeSeason | null;
   signedIn: boolean;
-  /** A manager reads one more line, who pays: an owner reads "free to
-   *  enter" as their own bill (critics' round 2026-09-08). */
+  /** A manager reads one more line, who pays. */
   canManage?: boolean;
-  /** The one-line form under the facts row, for the widths below 1500px
-   *  (critics' round 2): "$1,000 in prizes · Season 0 ends in 23 days ·
-   *  Enter the season". The stylesheet shows this or the block, never both. */
-  line?: boolean;
 }) {
   // Whether THIS visitor is already in. Without it the block kept saying
   // "Enter the season" to someone who had entered a minute earlier, which
@@ -336,52 +334,45 @@ export function SeasonAdvert({
   const clock = useSeasonClock(season);
   if (!season || !clock) return null;
 
-  // The terms, one line: the clock's whole days while there are any, its
-  // own two-unit phrase under a day (never "0 days"), and the phase's
-  // sentence once the countdown is over.
+  // The clock fact: whole days while there are any, the clock's own
+  // two-unit phrase under a day (never "0 days left"), and the phase's own
+  // word once the countdown is over.
   const span = clock.days >= 1 ? `${clock.days} ${clock.days === 1 ? 'day' : 'days'}` : clock.remaining;
-  const standing = entered ? 'You are in.' : clock.entryOpen ? 'Free to enter.' : '';
-  const terms =
+  const when =
     clock.phase === 'during'
-      ? `${season.name} ends in ${span}. ${standing}`
+      ? `${span} left`
       : clock.phase === 'before'
-        ? `${season.name} starts in ${span}. ${standing}`
+        ? `starts in ${span}`
         : clock.phase === 'ended'
-          ? `${season.name} has ended. Standings are being settled.`
-          : `${season.name} is over. Final standings.`;
-
-  const control = entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season';
-  if (line) {
-    // The countdown alone, no standing and no full stop: the dots do the
-    // joining.
-    const when =
-      clock.phase === 'during'
-        ? `${season.name} ends in ${span}`
-        : clock.phase === 'before'
-          ? `${season.name} starts in ${span}`
-          : clock.phase === 'ended'
-            ? `${season.name} has ended`
-            : `${season.name} is over`;
-    return (
-      <p className="pubws-season pubws-season--line" aria-label="Season">
-        <span className="pubws-season-prize">${season.poolUsd.toLocaleString('en-US')}</span> in prizes · {when} ·{' '}
-        <Link className="pubws-season-go" to="/season">
-          {control}
-        </Link>
-      </p>
-    );
-  }
+          ? 'settling'
+          : 'final standings';
+  const control = !clock.entryOpen ? 'See the season' : entered ? 'You are in' : 'Enter the season';
 
   return (
     <section className="pubws-season" aria-label="Season">
-      <p className="pubws-season-hero">
-        <span className="pubws-season-prize">${season.poolUsd.toLocaleString('en-US')}</span> in prizes
-      </p>
-      <p className="pubws-season-terms">{terms.trim()}</p>
-      {canManage && <p className="pubws-season-who">Prizes paid by Telarchy. Your floor costs you nothing.</p>}
+      <div className="pubws-lb-head">
+        <h2 className="pubws-h2">{season.name}</h2>
+      </div>
+      {/* Facts are an icon row, never a sentence (owner rule 2026-09-03),
+          in the same glyph set as the floor head and the book's own facts. */}
+      <span className="pubws-season-facts" aria-label="This season">
+        <span title="The prize pool this season pays out, in real money">
+          <Dollar /> ${season.poolUsd.toLocaleString('en-US')} prizes
+        </span>
+        <span title={clock.headline}>
+          <Clock /> {when}
+        </span>
+      </span>
       <Link className="pubws-season-go" to="/season">
         {control}
       </Link>
+      <p className="pubws-season-terms">Free to enter. Prizes paid by Telarchy.</p>
+      {canManage && (
+        <p className="pubws-season-who">
+          This floor costs you nothing. You fund books in credits when you open them. Approved proposals cost their ask,
+          in dollars.
+        </p>
+      )}
     </section>
   );
 }

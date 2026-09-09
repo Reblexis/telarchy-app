@@ -398,7 +398,7 @@ describe('the floor closes on a three-cell board', () => {
     renderFloor();
     const close = await screen.findByLabelText('Next steps');
     const how = within(close).getByRole('link', { name: /how it works/i });
-    expect(how.getAttribute('href')).toBe('/forecast');
+    expect(how.getAttribute('href')).toBe('/guides');
   });
 
   test('and the proposal line still scrolls to the control it names', async () => {
@@ -1620,11 +1620,12 @@ describe('a posted proposal is selected the moment it lands', () => {
     fireEvent.change(await screen.findByLabelText('Proposal title'), { target: { value: 'Replace the slogan' } });
     fireEvent.click(screen.getByRole('button', { name: /^Propose/ }));
 
-    // The new row is on screen, selected, and marked as the poster's own.
+    // The new row is on screen and selected. No row wears a "yours" tag
+    // (docs/ui-conventions.md, revised 2026-09-08).
     const row = await screen.findByTitle('Replace the slogan');
     await waitFor(() => expect(row.getAttribute('aria-pressed')).toBe('true'));
     expect(row.textContent).toMatch(/#2/);
-    expect(row.textContent).toMatch(/yours/);
+    expect(row.textContent).not.toMatch(/yours/);
     // And the one that was selected before (none) stays unselected.
     expect(screen.getByTitle('rewrite the store page').getAttribute('aria-pressed')).toBe('false');
   });
@@ -1762,27 +1763,26 @@ describe('the traders footer under a selected proposal', () => {
 });
 
 /**
- * The rail's marks carry hover titles (docs/ui-conventions.md, "The rails,
- * and the standings under the verbs", critics' round 3): the droplet says
- * what it counts, "$N to them" says when it is paid.
+ * Every mark on a row carries a hover title (docs/ui-conventions.md, "The
+ * proposals board"): the ask says when it is paid, the credits say what
+ * they are behind.
  */
 describe('hover titles on the proposals rail', () => {
-  test('the droplet and "$N to them" each carry a title', async () => {
+  test('the ask and the credits each carry a title', async () => {
     const { container } = renderFloor();
     await screen.findByTitle('rewrite the store page');
-    const drop = container.querySelector('.pubws-rail--right .pubws-ballot-pool') as HTMLElement;
-    expect(drop.getAttribute('title')).toBe('credits behind the pair');
-    const toThem = screen.getByText('$80 to them');
-    expect(toThem.getAttribute('title')).toBe('paid to the proposer on approval');
+    const facts = container.querySelector('.pubws-rail--right .pubws-ballot-facts') as HTMLElement;
+    expect(within(facts).getByTitle('credits behind the pair')).toBeTruthy();
+    expect(within(facts).getByTitle('paid to the proposer on approval').textContent).toContain('$80 ask');
   });
 });
 
 /**
  * The workspace owner's own floor carries no visitor noise (docs/
- * ui-conventions.md, "The rails, and the standings under the verbs",
- * critics' round 3): no "Earn credits" in the top bar, "yours" without their
- * own name on the rail, and no door to a floor of their own. A visitor keeps
- * all three, and the door is a real link to the setup route.
+ * ui-conventions.md, "The proposals board"): no "Earn credits" in the top
+ * bar, their own name never printed back at them on the rail, and no door to
+ * a floor of their own. A visitor keeps all three, and the door is a real
+ * link to the setup route.
  */
 describe("the owner's own floor", () => {
   const signIn = async (manage: boolean) => {
@@ -1794,12 +1794,12 @@ describe("the owner's own floor", () => {
     (api.getMyEarn as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ available: 50, streak: null });
     vi.mocked(api.getProfile).mockResolvedValue(
       (manage
-        ? { capabilities: ['read', 'trade', 'manage'] }
-        : { authRole: 'user', capabilities: ['read', 'trade'] }) as never,
+        ? { participantId: 'p-viktor', capabilities: ['read', 'trade', 'manage'] }
+        : { authRole: 'user', participantId: 'p-viktor', capabilities: ['read', 'trade'] }) as never,
     );
-    // The reader's own pending proposal: the rail marks it "yours".
+    // The reader's own pending proposal: the rail leaves the proposer off.
     const ws = h.workspace();
-    Object.assign(ws.proposals[0], { proposedByHandle: 'u-owner', proposedByName: 'Viktor' });
+    Object.assign(ws.proposals[0], { proposedByHandle: 'p-viktor', proposedByName: 'Viktor' });
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
   };
   afterEach(async () => {
@@ -1822,17 +1822,17 @@ describe("the owner's own floor", () => {
     expect(within(row).getByRole('button', { name: /Run a floor for your company/ })).toBeTruthy();
   });
 
-  test('the rail says "yours" without repeating the reader\'s own name', async () => {
+  test("the rail never prints the reader's own name back at them", async () => {
     await signIn(false);
     const { container } = renderFloor();
     await screen.findByTitle('rewrite the store page');
-    const facts = container.querySelector('.pubws-rail--right .pubws-ballot-facts') as HTMLElement;
-    expect(facts.querySelector('.pubws-ballot-yours')?.textContent).toBe('yours');
-    expect(facts.textContent).not.toContain('by Viktor');
-    expect(facts.textContent).toContain('$80 to them');
+    const facts = () => container.querySelector('.pubws-rail--right .pubws-ballot-facts') as HTMLElement;
+    await waitFor(() => expect(facts().textContent).not.toContain('by Viktor'));
+    expect(facts().querySelector('.pubws-ballot-yours')).toBeNull();
+    expect(facts().textContent).toContain('$80 ask');
   });
 
-  test('the manager sees no Earn credits, no door, and "yours" alone on their own proposal', async () => {
+  test('the manager sees no Earn credits, no door, and no name on their own proposal', async () => {
     await signIn(true);
     const { container } = renderFloor();
     await screen.findByTitle('rewrite the store page');
@@ -1841,9 +1841,9 @@ describe("the owner's own floor", () => {
     expect(container.querySelector('.pubws-topbar')?.textContent).not.toContain('Earn credits');
     // The owner of the floor is not offered a floor of their own.
     expect(container.querySelector('.pubws-run-row')).toBeNull();
-    const facts = container.querySelector('.pubws-rail--right .pubws-ballot-facts') as HTMLElement;
-    expect(facts.querySelector('.pubws-ballot-yours')?.textContent).toBe('yours');
-    expect(facts.textContent).not.toContain('by Viktor');
+    const facts = () => container.querySelector('.pubws-rail--right .pubws-ballot-facts') as HTMLElement;
+    await waitFor(() => expect(facts().textContent).not.toContain('by Viktor'));
+    expect(facts().querySelector('.pubws-ballot-yours')).toBeNull();
   });
 
   test("another person's proposal still says who it is by, for the manager too", async () => {

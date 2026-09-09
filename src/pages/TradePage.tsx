@@ -17,7 +17,7 @@ import {
   ProposalLabel,
   WorkBlock,
 } from '../components/FloorProposal';
-import { FloorStandings, type ProposalTraderRow, SeasonAdvert, useCurrentSeason } from '../components/FloorRails';
+import { FloorStandings, type ProposalTraderRow, SeasonBlock, useCurrentSeason } from '../components/FloorRails';
 import {
   BET_INTENT_KEY,
   type BetIntent,
@@ -27,7 +27,16 @@ import {
   STAKE_KEY,
 } from '../components/FloorVerbs';
 import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
-import { JobsBoard, splitAsk } from '../components/JobsBoard';
+import {
+  byImpactThenPool,
+  deltaAt,
+  JobsBoard,
+  pairAt,
+  pairIsPriced,
+  paymentRequests,
+  poolOfPair,
+  splitAsk,
+} from '../components/JobsBoard';
 import { Logo } from '../components/Logo';
 import { short } from '../components/MarketFacts';
 import { MetricsDialog } from '../components/MetricsDialog';
@@ -39,7 +48,7 @@ import { DEFAULT_STAKE, type TicketPosition, TradeTicket } from '../components/T
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import type { FloorRef } from '../lib/agent-prompt';
-import type { LeaderboardEntry, LimitOrder } from '../lib/api';
+import type { LeaderboardEntry, LimitOrder, PublicProposal } from '../lib/api';
 import { api, type PublicWorkspace, setActiveWorkspace } from '../lib/api';
 import { parseFloorHash } from '../lib/floor-hash';
 import {
@@ -1092,12 +1101,25 @@ export function TradePage() {
     return best;
   })();
   /* What counts as needing the owner's decision (docs/ui-conventions.md,
-     "The proposals board"): pending, a non-zero ask, and proposed by
-     somebody other than the owner. Oldest first, because that is the one
-     the owner row selects. */
-  const awaitingDecision = pendingProposals
-    .filter(p => (p.askUsd ?? splitAsk(p.title).ask ?? 0) > 0 && p.proposedByHandle !== myAgentId)
-    .sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
+     "The owner's rail is an inbox"): pending, a non-zero ask, and proposed
+     by somebody other than the owner. The board draws the same group in the
+     same order, so the owner row's count agrees with the board's count line
+     and its press lands on the row the board draws first. */
+  /* Who the reader is as a participant. The profile carries it for ANY
+     signed-in visitor; `myAgentId` only lands once they are a member, and a
+     visitor who has not joined still has proposals of their own. */
+  const viewerParticipantId = myParticipantId ?? myAgentId;
+  const boardPairOf = (p: PublicProposal) => pairAt(p, hero?.targetDate, hero?.metricId);
+  const boardImpactOf = (p: PublicProposal) => deltaAt(p, hero?.targetDate, hero?.metricId);
+  const awaitingDecision = paymentRequests(
+    pendingProposals,
+    viewerParticipantId,
+    byImpactThenPool(
+      boardImpactOf,
+      p => poolOfPair(boardPairOf(p)),
+      p => pairIsPriced(boardPairOf(p)),
+    ),
+  );
   /* When a book last traded, for its facts row: a price point IS a trade. */
   const lastTradeOf = (history: PriceSeries | undefined | null) => {
     const points = (history ?? []).filter(p => p.consensus !== null);
@@ -2061,7 +2083,16 @@ export function TradePage() {
               horizonMetricId={hero.metricId}
               selectedId={selectedJobId}
               onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
-              viewerId={user?.id ?? null}
+              /* The PARTICIPANT id, not the account id: a row names its
+                 proposer by participant handle, so the reader is only left
+                 unnamed on their own rows when the two are compared like
+                 with like. */
+              viewerId={viewerParticipantId}
+              canManage={canManage}
+              /* An unpriced pair is funded where its two books are: pressing
+                 Inject points the page at the pair, whose branches carry
+                 their own funding control. */
+              onInject={user ? id => setSelectedJobId(id) : null}
               signedIn={!!user}
               onRequireSignup={() => navigate(authPath('signup', location))}
               workspaceName={ws.name}
@@ -2095,7 +2126,7 @@ export function TradePage() {
               onPick={setHorizonId}
               onManage={canManage ? () => setOwnerDialog({ kind: 'metrics' }) : null}
             />
-            <SeasonAdvert season={season} signedIn={!!user} canManage={canManage} />
+            <SeasonBlock season={season} signedIn={!!user} canManage={canManage} />
             {ws.announcementCount !== undefined && (
               <FloorAnnouncements
                 idOrSlug={idOrSlug ?? ws.workspaceId}
@@ -2127,22 +2158,28 @@ export function TradePage() {
           <div className="pubws-end-cell">
             <h2 className="pubws-h2 pubws-end-label">New here?</h2>
             <p className="pubws-end-line">Telarchy prices what a decision does to a number before anyone commits.</p>
-            <Link className="pubws-end-go" to="/forecast">
+            {/* The one thing the working market above cannot show. */}
+            <Link className="pubws-end-go" to="/guides">
               How it works {endArrow}
             </Link>
           </div>
           <div className="pubws-end-cell">
             <h2 className="pubws-h2 pubws-end-label">Do the work</h2>
             <p className="pubws-end-line">
-              Offer to do it and name your price. The owner pays in real money if the market says it clears.
+              Offer to do it and name your price. The owner pays in real money if approved.
             </p>
+            {/* Scrolls to the board's own "+ Propose" rather than
+                duplicating its control. */}
             <button type="button" className="pubws-end-go" onClick={() => scrollToAction('contract')}>
               Offer a proposal {endArrow}
             </button>
           </div>
           <div className="pubws-end-cell">
             <h2 className="pubws-h2 pubws-end-label">Your own numbers</h2>
-            <p className="pubws-end-line">See what a decision does to your numbers before you say yes.</p>
+            <p className="pubws-end-line">List the numbers your company runs on and let people price them.</p>
+            {/* The owner sentence: this cell and the run-a-floor row are the
+                two places it lives on every floor. */}
+            <p className="pubws-end-sub">Free. You fund the books in credits; prizes come from Telarchy.</p>
             <SetupForm source={ws.slug || idOrSlug || 'floor'} />
           </div>
         </section>

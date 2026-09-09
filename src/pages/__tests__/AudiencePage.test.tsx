@@ -122,8 +122,9 @@ const PROPOSALS = [
   proposal('p8', 'A decided one, out of the ballot', 'Alan', 500, 5000, 'approved'),
   proposal('p9', 'Another decided one', 'Barbara', 400, 4000, 'declined'),
 ];
-// The floor's order: pool descending, impact breaking the tie, pending only.
-const FLOOR_ORDER = ['p2', 'p3', 'p4', 'p7', 'p6', 'p1', 'p5'];
+// The floor's order (revised 2026-09-08): absolute impact descending, pool
+// breaking the tie, pending only.
+const FLOOR_ORDER = ['p4', 'p2', 'p7', 'p3', 'p1', 'p6', 'p5'];
 const WORKSPACE = {
   workspaceId: 'ws-telarchy',
   name: 'Telarchy',
@@ -281,17 +282,17 @@ describe('/owners as a board: the product moment', () => {
     // the one the floor opens on), formatted as the floor formats it and
     // coloured by direction; the credits are the pool behind the proposal.
     const impacts = rows.map(r => r.querySelector('.pubws-ballot-delta'));
-    expect(impacts.map(d => d?.textContent)).toEqual(['+12.0', '-3.0', '+120', '+7.0', '+0.40', '+2.5']);
+    expect(impacts.map(d => d?.textContent)).toEqual(['+120', '+12.0', '+7.0', '-3.0', '+2.5', '+0.40']);
     expect(impacts[0]).toHaveClass('is-up');
-    expect(impacts[1]).toHaveClass('is-down');
+    expect(impacts[3]).toHaveClass('is-down');
     // Both branches of EVERY pair, added up, as the floor's pool figure is.
     expect(rows.map(r => r.querySelector('.own-shot-pool')?.textContent)).toEqual([
-      '1,080',
-      '1,080',
       '360',
+      '1,080',
       '300',
-      '72',
+      '1,080',
       '48',
+      '72',
     ]);
     expect(rows.map(r => r.querySelector('.own-shot-by')?.textContent)).toEqual(
       expected.map(p => `by ${p.proposedByName}`),

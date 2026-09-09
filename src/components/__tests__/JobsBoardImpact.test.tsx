@@ -96,7 +96,7 @@ describe('the impact a proposal prints', () => {
     expect(screen.getByText('+$60.0')).toBeTruthy();
   });
 
-  test('an unpriced pair on the metric on screen prints "open", never another pair\'s number', () => {
+  test('an unpriced pair on the metric on screen prints "no price yet", never another pair\'s number', () => {
     const unpriced = {
       ...job,
       markets: [
@@ -109,7 +109,7 @@ describe('the impact a proposal prints', () => {
         <JobsBoard {...base} proposals={[unpriced as never]} horizonDate="2026-09" horizonMetricId="rev" />
       </MemoryRouter>,
     );
-    expect(screen.getByText('open')).toBeTruthy();
+    expect(screen.getByText('no price yet')).toBeTruthy();
     expect(screen.queryByText('+$30.0')).toBeNull();
   });
 

@@ -43,3 +43,35 @@ export function pairNeedsDecimals(
 export function formatPairValue(value: number, unit: string): string {
   return `${unit}${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+
+/**
+ * A market's call at the floor's usual precision: whole from 100 up, one
+ * decimal from 10, two below. The floor and the proposals board both print
+ * calls, and a board that rounded differently from the band it links to read
+ * as two different markets.
+ */
+export function formatCall(value: number): string {
+  const abs = Math.abs(value);
+  const decimals = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
+  return value.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+/**
+ * The printer a pair's two calls share, at the precision that makes the row
+ * add up (`pairNeedsDecimals`): the proposal view's pair band and the
+ * proposals board's row both ask for it, so "17.04 / 17.00" never reads as
+ * "17.0 / 17.0, difference +0.04".
+ */
+export function pairCallPrinter(
+  approved: number | null | undefined,
+  declined: number | null | undefined,
+  unit: string,
+): (value: number) => string {
+  const needs =
+    approved !== null &&
+    approved !== undefined &&
+    declined !== null &&
+    declined !== undefined &&
+    pairNeedsDecimals(approved, declined, formatCall);
+  return needs ? v => formatPairValue(v, unit) : v => `${unit}${formatCall(v)}`;
+}

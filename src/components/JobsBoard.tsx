@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { PublicProposal } from '../lib/api';
+import type { PublicProposal, PublicProposalMarketPair } from '../lib/api';
 import { api } from '../lib/api';
-import { horizonLabel } from '../lib/floor-horizons';
-import { formatImpact } from '../lib/formatImpact';
+import { settleShortOf } from '../lib/floor-horizons';
+import { formatImpact, pairCallPrinter } from '../lib/formatImpact';
 import { FloorModal } from './FloorModal';
+import { Dollar, Drop, People } from './MarketFacts';
 
 /**
  * The jobs board: the proposal side of the trading floor, rendered for
@@ -51,8 +52,18 @@ interface Props {
       metric's delta under the other's caption). Absent on a payload that
       predates metricId on pairs, where date alone still has to do. */
   horizonMetricId?: string | null;
-  /** The signed-in participant's id: their own pending rows print "yours". */
+  /** The signed-in participant's id. A row never names the reader as its own
+      proposer (docs/ui-conventions.md, "The proposals board": "the proposer
+      named only when they are not the viewer"), and the owner's foot counts
+      how many of the open ones are theirs. */
   viewerId?: string | null;
+  /** Whether the reader owns this floor. The owner's board is an INBOX: the
+      payment requests come first under a count line that says what it
+      counts, then a thin rule, then the rest by impact. */
+  canManage?: boolean;
+  /** Funding a pair nobody has priced. Absent for a signed-out visitor, who
+      has nothing to inject with. */
+  onInject?: ((id: string) => void) | null;
   /** Workspace name, for the "do something useful for X?" propose prompt. */
   workspaceName: string;
   /** The workspace's proposalReward, in credits. Defaults to 0, so the board
@@ -78,20 +89,63 @@ export function isPending(p: PublicProposal): boolean {
 }
 
 /**
- * The ballot in the floor's order. Money decides it (owner decision
- * 2026-09-02: "proposals are ordered by total liquidity available"), so a
- * proposal somebody funded is read first and one nobody has backed sits at
- * the bottom rather than at the top by accident of its own unpriced delta;
- * impact breaks a tie. One function, so a panel that shows the floor
- * elsewhere (the /owners product moment) can never disagree with the floor.
+ * The ballot in the floor's order: by ABSOLUTE impact, largest first, ties
+ * by pool, and a pair with no liquidity last (docs/ui-conventions.md, "The
+ * proposals board"; revised 2026-09-08, superseding the pool-first order of
+ * 2026-09-02: the board is the ranking the owner acts on, and what a
+ * proposal does to the number is that ranking). One function, so a panel
+ * that shows the floor elsewhere (the /owners product moment) can never
+ * disagree with the floor.
  */
 export function pendingBallot(
   proposals: PublicProposal[],
   impactOf: (p: PublicProposal) => number | null,
+  poolFor: (p: PublicProposal) => number = poolOf,
+  pricedFor: (p: PublicProposal) => boolean = () => true,
 ): PublicProposal[] {
-  const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
-  const byPool = (a: PublicProposal, b: PublicProposal) => poolOf(b) - poolOf(a) || byImpact(a, b);
-  return proposals.filter(isPending).sort(byPool);
+  return proposals.filter(isPending).sort(byImpactThenPool(impactOf, poolFor, pricedFor));
+}
+
+/** The one comparator the ballot and the owner's inbox group share. */
+export function byImpactThenPool(
+  impactOf: (p: PublicProposal) => number | null,
+  poolFor: (p: PublicProposal) => number = poolOf,
+  pricedFor: (p: PublicProposal) => boolean = () => true,
+) {
+  return (a: PublicProposal, b: PublicProposal) => {
+    // An unpriced pair has no impact to rank on, so it goes to the bottom
+    // rather than to the top on a delta nobody has traded.
+    const pa = pricedFor(a);
+    const pb = pricedFor(b);
+    if (pa !== pb) return pa ? -1 : 1;
+    const ia = Math.abs(impactOf(a) ?? 0);
+    const ib = Math.abs(impactOf(b) ?? 0);
+    if (ia !== ib) return ib - ia;
+    return poolFor(b) - poolFor(a);
+  };
+}
+
+/** What this proposal asks in whole USD: the stored column, or the price the
+ *  title carries on a proposal that predates it. */
+export function askOf(p: PublicProposal): number {
+  return p.askUsd ?? splitAsk(p.title).ask ?? 0;
+}
+
+/**
+ * What the owner has to decide (docs/ui-conventions.md, "The owner's rail is
+ * an inbox"): PENDING, with a non-zero ask, and proposed by somebody other
+ * than the owner. A pending proposal with a zero ask, or one the owner
+ * posted, is still pending and is not counted. The floor head's owner row
+ * reads the same list, so its count and the board's agree and its press
+ * lands on the first row of the group.
+ */
+export function paymentRequests(
+  proposals: PublicProposal[],
+  ownerId: string | null | undefined,
+  order?: (a: PublicProposal, b: PublicProposal) => number,
+): PublicProposal[] {
+  const group = proposals.filter(p => isPending(p) && askOf(p) > 0 && p.proposedByHandle !== ownerId);
+  return order ? group.sort(order) : group;
 }
 
 /**
@@ -101,13 +155,6 @@ export function pendingBallot(
  * counts as nothing rather than as a hole, which is not the same as a market
  * nobody has funded (zero).
  */
-/** The pool's mark, the same drop the market facts use. */
-const PoolDrop = () => (
-  <svg width="9" height="11" viewBox="0 0 12 15" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
-    <path d="M6 1.5C6 1.5 1.5 6.5 1.5 9.3a4.5 4.5 0 0 0 9 0C10.5 6.5 6 1.5 6 1.5Z" />
-  </svg>
-);
-
 export function poolOf(p: PublicProposal): number {
   return (p.markets ?? []).reduce((sum, m) => sum + (m.approvedPool ?? 0) + (m.declinedPool ?? 0), 0);
 }
@@ -117,6 +164,19 @@ export function poolOf(p: PublicProposal): number {
 export function splitAsk(title: string): { ask: number | null; rest: string } {
   const m = title.match(/^\$(\d+):\s*(.*)$/s);
   return m ? { ask: parseInt(m[1], 10), rest: m[2] } : { ask: null, rest: title };
+}
+
+/**
+ * What posting costs and what approval pays, in one sentence. The board's
+ * foot and the propose dialog's confirm both print THIS string, so the two
+ * surfaces can never disagree (docs/ui-conventions.md, "The proposals
+ * board"). The credit bounty is the workspace's own `proposalReward` and is
+ * 0 unless the workspace sets it, so a floor never promises credits it does
+ * not pay.
+ */
+export function proposeTerms(proposalReward: number): string {
+  const bonus = proposalReward > 0 ? `, plus ${proposalReward.toLocaleString('en-US')} cr` : '';
+  return `Free to post. If approved you are paid the ask in real money${bonus}.`;
 }
 
 /**
@@ -149,11 +209,37 @@ export function deltaAt(
   targetDate: string | null | undefined,
   metricId?: string | null,
 ): number | null {
+  return pairAt(p, targetDate, metricId)?.delta ?? null;
+}
+
+/** This proposal's pair for the metric AND date on screen, or null. */
+export function pairAt(
+  p: PublicProposal,
+  targetDate: string | null | undefined,
+  metricId?: string | null,
+): PublicProposalMarketPair | null {
   if (!targetDate) return null;
-  const pair = p.markets.find(
-    m => m.targetDate === targetDate && (!metricId || m.metricId === undefined || m.metricId === metricId),
+  return (
+    p.markets.find(
+      m => m.targetDate === targetDate && (!metricId || m.metricId === undefined || m.metricId === metricId),
+    ) ?? null
   );
-  return pair?.delta ?? null;
+}
+
+/** The credits behind both branches of one pair, added up: what somebody put
+ *  behind this proposal's forecast on the horizon the board is reading. */
+export function poolOfPair(pair: PublicProposalMarketPair | null): number {
+  if (!pair) return 0;
+  return (pair.approvedPool ?? 0) + (pair.declinedPool ?? 0);
+}
+
+/** Whether a pair is priced: BOTH branches hold liquidity, which is the
+ *  platform's own rule for when a pair has a price (an opening price is the
+ *  market's price until somebody moves it). An unpriced pair prints "no
+ *  price yet" and sorts last. */
+export function pairIsPriced(pair: PublicProposalMarketPair | null): boolean {
+  if (!pair) return false;
+  return (pair.approvedLiquidity ?? 0) > 0 && (pair.declinedLiquidity ?? 0) > 0 && pair.delta !== null;
 }
 
 export function JobsBoard({
@@ -170,6 +256,8 @@ export function JobsBoard({
   horizonDate,
   horizonMetricId,
   viewerId = null,
+  canManage = false,
+  onInject = null,
 }: Props) {
   const navigate = useNavigate();
   // The number the charter funds on, falling back to the largest priced delta
@@ -180,7 +268,13 @@ export function JobsBoard({
   // used as a fallback for an unpriced pair, it printed the active-traders
   // delta under the valuation caption while the ticket said "not yet priced"
   // (owner report, docs/ui-conventions.md "the board reads the pair on screen").
+  const pairOf = (p: PublicProposal) => pairAt(p, horizonDate, horizonMetricId);
   const impactOf = (p: PublicProposal) => (horizonDate ? deltaAt(p, horizonDate, horizonMetricId) : headlineDelta(p));
+  /** What is behind the pair on screen, and whether it is priced at all:
+   *  both the ranking and the row's own credits fact read the pair the board
+   *  is reading, never another horizon's. */
+  const poolFor = (p: PublicProposal) => poolOfPair(pairOf(p));
+  const pricedFor = (p: PublicProposal) => pairIsPriced(pairOf(p));
   const [foldOpen, setFoldOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
@@ -223,8 +317,24 @@ export function JobsBoard({
   // ask 2026-09-04). docs/ui-conventions.md, "The board opens on the live
   // ballot".
   const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
-  // Money decides the order (see `pendingBallot`).
-  const pending = pendingBallot(proposals, impactOf);
+  // What a proposal does to the number is the ranking (see `pendingBallot`).
+  const order = byImpactThenPool(impactOf, poolFor, pricedFor);
+  const pending = pendingBallot(proposals, impactOf, poolFor, pricedFor);
+  /* The owner's inbox group, in the board's own order, so the owner row's
+     press lands on the row the board draws first. */
+  const inbox = canManage ? paymentRequests(pending, viewerId, order) : [];
+  const inboxIds = new Set(inbox.map(p => p.id));
+  const rest = pending.filter(p => !inboxIds.has(p.id));
+  /* How many of the open ones the owner posted: no row wears a "yours" tag,
+     so the count lives in the foot instead. */
+  const mine = viewerId ? pending.filter(p => p.proposedByHandle === viewerId).length : 0;
+  /* The count line under the caption, labelled by what it counts. */
+  const largest = pending.reduce<number | null>((best, p) => {
+    if (!pricedFor(p)) return best;
+    const d = impactOf(p);
+    if (d === null) return best;
+    return best === null || Math.abs(d) > Math.abs(best) ? d : best;
+  }, null);
   // Newest decision first; a proposal with no decision time sorts last and
   // impact breaks a tie.
   const decidedAt = (p: PublicProposal) => (p.resolvedAt ? Date.parse(p.resolvedAt) : Number.NEGATIVE_INFINITY);
@@ -291,15 +401,21 @@ export function JobsBoard({
     }
   };
 
-  /** One proposal's row. The same object in both groups: the fold changes
-      which proposals are listed, never how a proposal reads. */
-  const row = (p: PublicProposal) => {
+  /** One proposal's row (docs/ui-conventions.md, "The proposals board"):
+      the number and the title, under them the two calls of the pair on
+      screen and the icon row, and the impact right-aligned in ink. The same
+      object in both groups: the fold changes which proposals are listed,
+      never how a proposal reads. */
+  const row = (p: PublicProposal, decide = false) => {
+    const pair = pairOf(p);
     const delta = impactOf(p);
+    const priced = pricedFor(p);
     const selected = selectedId === p.id;
-    // Prefer the stored number; fall back to the title convention
-    // only for proposals created before the column existed.
-    const { ask: parsedAsk, rest: titleRest } = splitAsk(p.title);
-    const askUsd = p.askUsd ?? parsedAsk;
+    const { rest: titleRest } = splitAsk(p.title);
+    const askUsd = askOf(p);
+    // The two calls at the pair band's precision, so "17.04 / 17.00" never
+    // reads as "17.0 / 17.0" beside a difference of +0.04.
+    const call = pairCallPrinter(pair?.approvedConsensus, pair?.declinedConsensus, unit);
     return (
       <li key={p.id} className={selected ? 'is-open' : ''}>
         <button
@@ -315,23 +431,35 @@ export function JobsBoard({
               {p.number ? <span className="pubws-ballot-num">#{p.number}</span> : null}
               {titleRest}
             </span>
+            {/* Both calls of the pair on screen, in small mono: the row says
+                what the two worlds are worth, not only their difference. */}
+            {priced && pair?.approvedConsensus !== null && pair?.declinedConsensus !== null && pair && (
+              <span className="pubws-ballot-calls">
+                if approved {call(pair.approvedConsensus!)} · if declined {call(pair.declinedConsensus!)}
+              </span>
+            )}
+            {/* The floor head's glyph set, never a sentence and never a
+                caret: the ask, the credits behind the pair, the proposer. */}
             <span className="pubws-ballot-facts">
-              {/* A pending proposal by the person reading is theirs, and says
-                  so: an unfunded one sits last on the ballot, and its author
-                  otherwise reloads the floor and cannot find it. */}
-              {viewerId && isPending(p) && p.proposedByHandle === viewerId && (
-                <span className="pubws-ballot-yours">yours</span>
-              )}
+              <span title="paid to the proposer on approval">
+                <Dollar /> ${askUsd.toLocaleString('en-US')} ask
+              </span>
+              {/* The owner's inbox marks the rows that are waiting on them,
+                  beside the money they are being asked for. */}
+              {decide && <span className="pubws-ballot-decide">decide</span>}
+              <span title="credits behind the pair">
+                <Drop /> {Math.round(poolFor(p)).toLocaleString('en-US')} cr
+              </span>
               {/* A link cannot nest inside the row button, so the name is
                   a span that navigates; stopPropagation keeps the row from
-                  also selecting. A row marked "yours" does not repeat the
-                  reader's own name (critics' round 3: the owner's rail read
-                  "yours · by Viktor"). */}
+                  also selecting. The reader is never named to themselves:
+                  their own rows read as theirs because nobody else is on
+                  them. */}
               {p.proposedByName &&
-                !(viewerId && isPending(p) && p.proposedByHandle === viewerId) &&
+                p.proposedByHandle !== viewerId &&
                 (p.proposedByHandle ? (
                   <span>
-                    by{' '}
+                    <People /> by{' '}
                     <span
                       className="pubws-name-link"
                       role="link"
@@ -351,33 +479,48 @@ export function JobsBoard({
                     </span>
                   </span>
                 ) : (
-                  <span>by {p.proposedByName}</span>
+                  <span>
+                    <People /> by {p.proposedByName}
+                  </span>
                 ))}
-              {askUsd !== null && <span title="paid to the proposer on approval">${askUsd} to them</span>}
               {p.status && p.status !== 'pending' && (
                 <span className={`pubws-ballot-status is-${p.status}`}>{p.status}</span>
               )}
             </span>
           </span>
           <span className="pubws-ballot-impact">
-            {/* "open" = nobody has priced it yet; a hard 0 means the two
-                worlds are priced the same, which is a statement, not an
-                absence. */}
-            {delta === null ? (
-              <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
+            {/* The impact is INK, never green: the board ranks proposals, it
+                does not approve of them. "±0" says the two worlds are priced
+                the same, which is a statement; an unpriced pair says so and
+                offers the credits that would fix it. */}
+            {!priced ? (
+              <>
+                <span className="pubws-ballot-delta pubws-ballot-delta--open">no price yet</span>
+                {onInject && (
+                  <span
+                    className="pubws-ballot-inject"
+                    role="button"
+                    tabIndex={0}
+                    onClick={ev => {
+                      ev.stopPropagation();
+                      onInject(p.id);
+                    }}
+                    onKeyDown={ev => {
+                      if (ev.key === 'Enter' || ev.key === ' ') {
+                        ev.stopPropagation();
+                        onInject(p.id);
+                      }
+                    }}
+                  >
+                    Inject
+                  </span>
+                )}
+              </>
             ) : delta === 0 ? (
               <span className="pubws-ballot-delta pubws-ballot-delta--open">±{unit}0</span>
             ) : (
-              <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>
+              <span className="pubws-ballot-delta">{fmtDelta(delta ?? 0, unit)}</span>
             )}
-            {/* What is behind the forecast, in the drop the market's own pool
-                rows wear. Quiet and mono under the delta: it is what the
-                number above it is worth trusting, and it is what the list is
-                ordered by. */}
-            <span className="pubws-ballot-pool" title="credits behind the pair">
-              <PoolDrop />
-              {Math.round(poolOf(p)).toLocaleString()}
-            </span>
           </span>
         </button>
       </li>
@@ -392,7 +535,7 @@ export function JobsBoard({
             the header's meta, the same anatomy as the standings rail. */}
         {proposals.length > 0 && (
           <span className="pubws-lb-meta" aria-hidden="true">
-            {horizonDate ? `impact by ${horizonLabel(horizonDate)}` : 'impact if done'}
+            {horizonDate ? `impact on ${settleShortOf(horizonDate) ?? horizonDate}` : 'impact if done'}
           </span>
         )}
       </div>
@@ -400,64 +543,91 @@ export function JobsBoard({
           board"; critics' round 2026-09-08: nothing on the rail said why a
           trader would touch it). */}
       <p className="pubws-ballot-why">
-        Each one is a pair of books: the number if approved, the number if declined. Trade either.
+        Each is a pair of books: the number if approved, the number if declined. Trade either.
       </p>
+      {/* One more ruled line, labelled by what it counts. For the owner the
+          board is an INBOX and this line is the header of the group under
+          it; for everybody else it says how much is open and how big the
+          biggest call is (docs/ui-conventions.md, "The owner's rail is an
+          inbox"). */}
+      {proposals.length > 0 &&
+        (canManage ? (
+          inbox.length > 0 ? (
+            <p className="pubws-ballot-count pubws-ballot-count--inbox">
+              {inbox.length} payment request{inbox.length === 1 ? '' : 's'} ↓
+            </p>
+          ) : (
+            <p className="pubws-ballot-count pubws-ballot-count--none">No payment requests</p>
+          )
+        ) : (
+          <p className="pubws-ballot-count">
+            {pending.length} open
+            {largest !== null ? ` · largest impact ${fmtDelta(largest, unit)}` : ''}
+          </p>
+        ))}
 
       {proposals.length === 0 ? (
         <p className="pubws-lb-empty">Nothing on the ballot yet. Yours could be first.</p>
       ) : (
         <ul className="pubws-ballot">
-          {pending.map(row)}
-          {foldable && (
-            <li>
-              {/* One hairline row standing for the archive, in the rail
-                  head's anatomy: the count left, the action right. */}
-              <button
-                type="button"
-                className={`pubws-ballot-fold${showDecided ? ' is-open' : ''}`}
-                aria-expanded={showDecided}
-                onClick={toggleFold}
-              >
-                <span className="pubws-ballot-fold-count">{`${decided.length} decided`}</span>
-                <span className="pubws-ballot-fold-act">
-                  {showDecided ? 'Hide' : 'Show'}
-                  <svg
-                    className="pubws-ballot-fold-chev"
-                    width="11"
-                    height="11"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M4 6.5L8 10.5L12 6.5"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-              </button>
-            </li>
-          )}
-          {showDecided && decided.map(row)}
+          {/* The owner's payment requests come first, then a thin rule, then
+              every other pending row by absolute impact. */}
+          {inbox.map(p => row(p, true))}
+          {inbox.length > 0 && rest.length > 0 && <li className="pubws-ballot-rule" aria-hidden="true" />}
+          {rest.map(p => row(p))}
         </ul>
       )}
-      <div className="pubws-propose">
-        <p className="pubws-propose-lead">Do you think you could do something useful for {workspaceName}?</p>
+      {/* The foot (docs/ui-conventions.md, "The proposals board"): the
+          decided fold, the button, and one line naming what approval pays. */}
+      <div className="pubws-ballot-foot">
+        {/* One hairline row standing for the archive, in the rail head's
+            anatomy: the count left, the action right. */}
+        {foldable && (
+          <button
+            type="button"
+            className={`pubws-ballot-fold${showDecided ? ' is-open' : ''}`}
+            aria-expanded={showDecided}
+            onClick={toggleFold}
+          >
+            <span className="pubws-ballot-fold-count">{`${decided.length} decided`}</span>
+            <span className="pubws-ballot-fold-act">
+              {showDecided ? 'Hide' : 'Show'}
+              <svg
+                className="pubws-ballot-fold-chev"
+                width="11"
+                height="11"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4 6.5L8 10.5L12 6.5"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
+        )}
+        {showDecided && decided.length > 0 && <ul className="pubws-ballot">{decided.map(p => row(p))}</ul>}
         <button className="pubws-propose-cta" onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}>
           + Propose
         </button>
         {/* Surface the upside on the board itself, not only inside the form.
             The credit bounty is the workspace's own proposalReward and
             defaults to 0, so say it only where it is actually paid: a
-            hardcoded "plus 500 cr" was a promise most floors do not keep. */}
-        <p className="pubws-propose-cost">
-          Free to post. Approved means <strong>you are paid in real money</strong>
-          {proposalReward > 0 ? <>, plus {proposalReward.toLocaleString()}&nbsp;cr</> : null}. Put credits behind it and
-          it moves up.
-        </p>
+            hardcoded "plus 500 cr" was a promise most floors do not keep.
+            The propose dialog's confirm repeats this phrase verbatim, so the
+            two surfaces never disagree. */}
+        <p className="pubws-propose-cost">{proposeTerms(proposalReward)}</p>
+        {/* No row wears a "yours" tag; the owner reads the count here. */}
+        {canManage && mine > 0 && (
+          <p className="pubws-ballot-mine">
+            {mine} of {pending.length} are yours
+          </p>
+        )}
       </div>
 
       {/* The form is the ticket's structure, not just its underlines
@@ -542,15 +712,9 @@ export function JobsBoard({
                   : formValid && askNum > 0
                     ? `Offer this for $${askNum}`
                     : 'Propose'}
-              {!placed && (
-                <span className="ticket-go-sub">
-                  {/* The bounty is the workspace's own proposalReward, like
-                      the board above: a hardcoded 500 cr promised what most
-                      floors do not pay. */}
-                  Free to post. Approved means you are paid in real money
-                  {proposalReward > 0 ? <>, plus {proposalReward.toLocaleString()}&nbsp;cr</> : null}.
-                </span>
-              )}
+              {/* The board's foot prints the same string, so the two
+                  surfaces never disagree. */}
+              {!placed && <span className="ticket-go-sub">{proposeTerms(proposalReward)}</span>}
             </button>
           </div>
         </FloorModal>

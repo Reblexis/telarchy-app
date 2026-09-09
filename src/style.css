@@ -177,7 +177,6 @@
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
-
 /* ===== Global Reset ===== */
 * {
   margin: 0;
@@ -1393,29 +1392,13 @@ code, pre, kbd, samp {
 
 .market-join-status.err { color: var(--error-text); }
 
-
 /* The join CTA is the one place on the page with a real interactive surface. */
-
-
-
-
 
 /* The charter is prose the owner wrote and a forecaster is deciding whether to
    trust, so it gets reading measure rather than the compact meta type. */
 
-
-
-
-
-
-
-
-
 /* Neutral, not alarm-coloured: a thin market is a fact about depth, not an
    error, and per ui-conventions.md the product does not colour-code categories. */
-
-
-
 
 /* Decline reason on a proposal. Hairline-led, not a warning box: the reason is
    the owner keeping a promise, not an error state. */
@@ -1424,7 +1407,6 @@ code, pre, kbd, samp {
   padding-left: 0.9rem;
   border-left: 2px solid var(--border-color);
 }
-
 
 /* ---------------------------------------------------------------------------
    Share-link landing (/marketplace/:idOrSlug) — the `pubws` block.
@@ -1461,14 +1443,6 @@ code, pre, kbd, samp {
      depending on which page you were standing on. */
   width: 100%;
   padding: 1.3rem clamp(1.25rem, 3vw, 2.25rem) 0;
-}
-
-.pubws-wordmark {
-  font-family: 'Fraunces', serif;
-  font-weight: 700;
-  font-size: 1.05rem;
-  color: var(--text-primary);
-  text-decoration: none;
 }
 
 .pubws-login {
@@ -1526,7 +1500,6 @@ code, pre, kbd, samp {
 @media (max-width: 480px) {
   .pubws-topbar-right { gap: 0.4rem; }
 }
-
 
 /* ---------------------------------------------------------------------------
    Otto, the floor's market maker, in the corner (owner direction 2026-08-20).
@@ -2391,52 +2364,6 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
   text-align: center;
 }
 
-
-/* The headline is the page's only statement of what the market is, so it
-   gets the display face, not an eyebrow: instrument in ink, settle date a
-   register quieter. */
-.pubws-instrument-title {
-  margin: 0;
-  font-family: 'Fraunces', serif;
-  font-optical-sizing: auto;
-  font-weight: 600;
-  font-size: clamp(1.35rem, 4.5vw, 1.75rem);
-  letter-spacing: -0.015em;
-  line-height: 1.2;
-  color: var(--text-primary);
-}
-
-/* The caption over the number (docs/ui-conventions.md, "The question
-   line", revised 2026-09-04): two chips on ONE line, the metric and the
-   date, a middle dot between them, each a menu. It is a block child of
-   .pubws-center and must stay one: wrapping it in a flex row once dropped
-   it into a 59px column beside the price (2026-08-20). The chips wrap onto
-   two lines on a phone rather than shrinking their labels. */
-.pubws-instrument-label {
-  margin: 0;
-  /* Above the question line that follows it: that heading enters with a
-     transform, which starts a stacking context of its own, and an open
-     chip menu was painting UNDER it (preview 2026-09-04). */
-  position: relative;
-  z-index: 5;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 0.5rem 0.6rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.74rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  line-height: 1.3;
-  color: var(--text-secondary);
-}
-
-/* A caption chip: the board's caption vocabulary (mono small caps on a
-   hairline), a button when there is something to pick, plain text when
-   there is not. */
-.pubws-chip-wrap { position: relative; display: inline-flex; }
 .pubws-chip {
   display: inline-flex;
   align-items: center;
@@ -2456,12 +2383,10 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
   cursor: pointer;
   transition: border-color 0.12s ease, background 0.12s ease;
 }
-.pubws-chip--plain { cursor: default; }
+
 button.pubws-chip:hover,
 button.pubws-chip[aria-expanded='true'] { border-color: var(--border-strong); background: var(--bg-secondary); }
 button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.pubws-chip-chev { flex: none; color: var(--text-tertiary); }
-.pubws-chip-dot { color: var(--text-tertiary); font-weight: 500; }
 
 /* The chip's menu: a listbox under the chip, in the chip's own register,
    the selected entry in ink and the owner's "Manage ..." entry last. */
@@ -2506,12 +2431,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 .pubws-chip-opt:focus-visible { background: var(--bg-secondary); color: var(--text-primary); outline: none; }
 .pubws-chip-opt.is-selected { color: var(--text-primary); font-weight: 600; }
 .pubws-chip-opt.is-selected::after { content: '·'; color: var(--accent); }
-.pubws-chip-opt--manage {
-  margin-top: 4px;
-  border-top: 1px solid var(--border-color);
-  border-radius: 0 0 5px 5px;
-  color: var(--accent);
-}
 
 /* A segmented row, kept for the owner dialogs (dates, "how often"). Wraps
    on a narrow screen rather than shrinking the labels below reading size. */
@@ -2602,13 +2521,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
    to an inline-block neighbour. */
 .pubws-ask-tail { white-space: nowrap; }
 
-/* A stepped word re-mounts (keyed) and slides in, so a moved selection is
-   seen moving; same motion as the impact chip. */
-.pubws-ask-word-inner { display: inline-block; animation: chip-in 200ms ease-out; }
-@media (prefers-reduced-motion: reduce) {
-  .pubws-ask-word-inner { animation: none; }
-}
-
 /* The N/A caveat of a metric with no reading yet, under the price in both
    chart views: it changes what a bet is, so it is not chart furniture. */
 .pubws-na-note {
@@ -2634,7 +2546,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 }
 
 .pubws-gap b { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-primary); }
-
 
 /* Manifold scale (owner ask 2026-08-28): a compact stat in the market
    chart's own control row, not a poster number. The chart is the hero. */
@@ -2668,22 +2579,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
    quieter plot (its height comes from the component). */
 .pubws-numchart { margin-top: 0.6rem; }
 
-/* The stat row (docs/ui-conventions.md, "The price and the chart",
-   revised 2026-09-04): two named numbers as two cells on hairlines, the
-   way the home board draws its cells: a rule above and below, one between
-   (a 1px gap over the border colour), each cell the caption line first
-   and the value under it, both left-aligned so the two numbers start on
-   the same rhythm. The reading in ink, the market's call in amber. */
-.pubws-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1px;
-  width: 100%;
-  margin-top: 1.2rem;
-  background: var(--border-color);
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-}
 .pubws-stat-block {
   display: flex;
   flex-direction: column;
@@ -2854,7 +2749,7 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   max-width: 52ch;
   text-align: left;
 }
-.pubws-instrument-more-edit { margin-bottom: 0.5rem; }
+
 .pubws-instrument-more .pubws-know-what { font-size: 0.86rem; line-height: 1.55; }
 
 /* Each chart's title, centred in its control row: the same tiny uppercase
@@ -2878,10 +2773,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   color: var(--text-tertiary);
   white-space: nowrap;
 }
-
-
-
-
 
 /* One action. Black, wide, unmissable. */
 .pubws-act {
@@ -2936,18 +2827,14 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   color: var(--text-tertiary);
 }
 
-.pubws-h2-note { text-transform: none; letter-spacing: normal; font-weight: 500; }
-
 /* The ballot: hairline rows, mono deltas. Green/red only on the number. */
-.pubws-ballot,
-.pubws-decided {
+.pubws-ballot {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.pubws-ballot li,
-.pubws-decided li {
+.pubws-ballot li {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -2956,17 +2843,7 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   border-top: 1px solid var(--border-color);
 }
 
-.pubws-ballot li:last-child,
-.pubws-decided li:last-child { border-bottom: 1px solid var(--border-color); }
-
-.pubws-decided li { display: block; }
-
-.pubws-decided-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-}
+.pubws-ballot li:last-child { border-bottom: 1px solid var(--border-color); }
 
 .pubws-ballot-title {
   font-size: 0.92rem;
@@ -2980,84 +2857,14 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   font-weight: 600;
 }
 
-.pubws-ballot-delta.is-up { color: var(--higher); }
-.pubws-ballot-delta.is-down { color: var(--lower); }
+/* The impact is INK (docs/ui-conventions.md, "The proposals board"): green
+   on a rail of proposals reads as approval of them. "±0" and "no price yet"
+   sit in the tertiary register instead. /owners borrows the row's shape for
+   its crop of the board and keeps the direction colour there
+   (docs/audience-pages.md), so the colour is scoped to that page. */
 .pubws-ballot-delta--open { color: var(--text-tertiary); font-weight: 400; }
-
-.pubws-verdict {
-  flex-shrink: 0;
-  font-size: 0.68rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-}
-
-.pubws-verdict--approved { color: var(--higher); }
-
-.pubws-reason {
-  margin: 0.35rem 0 0;
-  padding-left: 0.8rem;
-  border-left: 2px solid var(--border-color);
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
-/* The whole mechanism, one breath. Amber arrows carry the sequence. */
-.pubws-mechanism {
-  margin: 1.1rem 0 0;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.pubws-arrow {
-  color: var(--accent);
-  font-weight: 600;
-  padding: 0 0.15rem;
-}
-
-/* The charter folds away until asked for. */
-.pubws-deal {
-  margin-top: clamp(2.6rem, 7vh, 3.8rem);
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.pubws-deal summary {
-  padding: 0.85rem 0;
-  font-size: 0.92rem;
-  font-weight: 600;
-  cursor: pointer;
-  list-style: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.pubws-deal summary::-webkit-details-marker { display: none; }
-
-.pubws-deal summary::after {
-  content: '+';
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1rem;
-  color: var(--text-tertiary);
-}
-
-.pubws-deal[open] summary::after { content: '−'; }
-
-.pubws-deal-body { padding: 0 0 1.1rem; }
-
-.pubws-deal-body p {
-  margin: 0 0 0.75rem;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: var(--text-secondary);
-  max-width: 60ch;
-}
-
-.pubws-deal-body p:last-child { margin-bottom: 0; }
+.own-shot-impact .pubws-ballot-delta.is-up { color: var(--higher); }
+.own-shot-impact .pubws-ballot-delta.is-down { color: var(--lower); }
 
 .pubws-foot {
   margin-top: 2.6rem;
@@ -3166,83 +2973,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   outline-offset: 1px;
 }
 
-/* Trading floor controls (TradePage, logged-in state). The direction pair is
-   the sanctioned green/red use: up/down is the load-bearing distinction. */
-.pubws-topbar-me {
-  display: flex;
-  align-items: baseline;
-  gap: 0.9rem;
-}
-
-.pubws-balance {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.pubws-tradebar {
-  display: flex;
-  justify-content: center;
-  align-items: stretch;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.pubws-amount {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0 0.9rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--bg-elevated);
-}
-
-.pubws-amount input {
-  width: 4.2rem;
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1rem;
-  font-weight: 600;
-  text-align: right;
-  padding: 0.8rem 0;
-}
-
-.pubws-amount input:focus { outline: none; }
-.pubws-amount:focus-within { border-color: var(--accent); }
-
-.pubws-amount span {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-}
-
-.pubws-dir {
-  padding: 0.8rem 1.5rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--bg-elevated);
-  font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
-}
-
-.pubws-dir--higher { color: var(--higher); }
-.pubws-dir--lower { color: var(--lower); }
-.pubws-dir--higher:hover:not(:disabled) { background: var(--higher-soft); border-color: var(--higher); }
-.pubws-dir--lower:hover:not(:disabled) { background: var(--lower-soft); border-color: var(--lower); }
-.pubws-dir:disabled { opacity: 0.5; cursor: default; }
-.pubws-dir:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-.pubws-dir--mini {
-  padding: 0.25rem 0.7rem;
-  font-size: 0.8rem;
-}
-
 .pubws-position {
   margin-top: 0.9rem;
   font-size: 0.82rem;
@@ -3251,19 +2981,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   flex-direction: column;
   gap: 0.25rem;
   align-items: center;
-}
-
-.pubws-sell {
-  border: none;
-  background: none;
-  padding: 0;
-  font: inherit;
-  font-weight: 600;
-  color: var(--accent);
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-color: var(--border-strong);
-  text-underline-offset: 0.15em;
 }
 
 .pubws-ballot-row {
@@ -3328,39 +3045,11 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 
 .pubws-ballot li { display: block; }
 
-.pubws-ballot-detail { padding: 0.5rem 0 0.3rem; }
-
-.pubws-branches {
-  margin-top: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
 .pubws-branch {
   display: flex;
   align-items: center;
   gap: 0.7rem;
   font-size: 0.85rem;
-}
-
-.pubws-branch-label {
-  min-width: 6.5rem;
-  color: var(--text-secondary);
-}
-
-.pubws-branch-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  min-width: 4.5rem;
-}
-
-.pubws-branch-btns { display: inline-flex; gap: 0.35rem; }
-
-.pubws-proposal-meta {
-  margin: 0.5rem 0 0;
-  font-size: 0.72rem;
-  color: var(--text-tertiary);
 }
 
 .pubws-propose {
@@ -3381,12 +3070,78 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   text-align: left;
 }
 
+/* The row's icon row (docs/ui-conventions.md, "The proposals board"): the
+   floor head's glyph set, wrapping, because a 300px rail is not the head's
+   width. The ask always prints, so the row never hides what it asks for. */
 .pubws-ballot-facts {
-  display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 0.9rem;
+  gap: 0.15rem 0.7rem;
+  white-space: normal;
+}
+
+/* Both calls of the pair on screen, under the title: the row says what the
+   two worlds are worth, not only their difference. At the pair band's
+   precision, so the row adds up at a glance. */
+.pubws-ballot-calls {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+/* The count line under the caption, labelled by what it counts. The owner's
+   inbox line is INK and heads the group under it; everyone else's is quiet. */
+.pubws-ballot-count {
+  margin: 0 0 0.7rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--border-color);
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+.pubws-ballot-count--inbox {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* The owner's mark beside the ask on a row that is waiting on them. Ink, not
+   a signal colour: the board ranks proposals, it does not approve of them. */
+.pubws-ballot-decide {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* The thin rule between the owner's payment requests and the rest. */
+.pubws-ballot-rule {
+  height: 0;
+  margin: 0.5rem 0;
+  border-top: 1px solid var(--border-strong);
+}
+
+/* An unpriced pair says so, and offers the credits that would fix it. */
+.pubws-ballot-inject {
+  font-size: 0.72rem;
+  color: var(--accent);
+  cursor: pointer;
+}
+.pubws-ballot-inject:hover,
+.pubws-ballot-inject:focus-visible { color: var(--accent-hover); outline: none; }
+
+/* The foot: the decided fold, the button, the terms, and for the owner how
+   many of the open ones are theirs. */
+.pubws-ballot-foot {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.pubws-ballot-mine {
+  margin: 0;
   font-size: 0.75rem;
   color: var(--text-tertiary);
+  text-align: left;
 }
 
 /* The proposal's number, mono, before the words: how a person names it. */
@@ -3397,12 +3152,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   margin-right: 0.45em;
 }
 
-/* The poster's own pending proposal says so, in the facts row's voice. */
-.pubws-ballot-yours {
-  color: var(--accent);
-}
-
-
 .pubws-ballot-impact {
   display: flex;
   flex-direction: column;
@@ -3410,20 +3159,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   gap: 0.15rem;
   flex: none;
 }
-
-/* What is behind the contract, under its impact: the drop the market's own
-   pool rows wear, quiet enough that the delta stays the headline
-   (docs/ui-conventions.md). It is also what the ballot is ordered by. */
-.pubws-ballot-pool {
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.72rem;
-  color: var(--text-tertiary);
-}
-
 
 /* The account corner: an avatar that opens what a trader needs here. */
 .acctmenu {
@@ -4291,19 +4026,6 @@ textarea.jobform-line--desc {
 }
 .pubws-comments-signup:hover { color: var(--text-primary); }
 
-/* The owner's decision bar on a selected job (owner ask 2026-08-11):
-   quiet pills, only approve carries the money color, and decline opens
-   the published-reason field in place. Only manage-capable sessions
-   ever render it. */
-.pubws-ownerbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 0.7rem;
-}
-
 .pubws-decide {
   padding: 0.45rem 1rem;
   border: 1px solid var(--border-strong);
@@ -4318,13 +4040,6 @@ textarea.jobform-line--desc {
 }
 .pubws-decide:hover:not(:disabled) { color: var(--text-primary); border-color: var(--border-hover); }
 .pubws-decide:disabled { opacity: 0.55; cursor: default; }
-.pubws-decide--approve {
-  background: var(--higher);
-  border-color: var(--higher);
-  color: var(--on-signal);
-}
-.pubws-decide--approve:hover:not(:disabled) { color: var(--on-signal); filter: brightness(1.08); }
-.pubws-decide--decline:hover:not(:disabled) { color: var(--lower); border-color: var(--lower); }
 
 .pubws-decide-reason {
   appearance: none;
@@ -4374,72 +4089,6 @@ textarea.jobform-line--desc {
 @media (prefers-reduced-motion: reduce) {
   .pubws-ticket-inline { animation: none; }
 }
-
-.pubws-bet-btn {
-  flex: 1;
-  padding: 0.85rem 1rem;
-  border: none;
-  border-radius: 10px;
-  font: inherit;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--on-signal);
-  cursor: pointer;
-  transition: filter 120ms ease, transform 120ms ease;
-}
-.pubws-bet-btn--higher { background: var(--higher); }
-.pubws-bet-btn--lower { background: var(--lower); }
-.pubws-bet-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
-.pubws-bet-btn:active { transform: none; }
-.pubws-bet-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-/* The price a verb carries (docs/ui-conventions.md, "An untouched ticket
-   still quotes both sides"): mono, a size down, and slightly held back on
-   the fill so the verb still leads. Its own line, always: inline, "Bet
-   Higher ↑ 57c" wraps at 390px while "Bet Lower ↓ 43c" does not, and the
-   pair came out one tall button beside one short one. */
-.pubws-bet-price {
-  display: block;
-  margin-top: 0.15rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.88em;
-  opacity: 0.85;
-}
-/* The verbs quote what the pills quote, in the same words, or the two
-   untouched states of the same market disagree. */
-.pubws-bet-eg {
-  display: block;
-  margin-top: 0.05rem;
-  font-family: var(--font-sans);
-  font-size: 0.72em;
-  font-weight: 500;
-  opacity: 0.8;
-}
-
-/* The one line under the verbs: what a share pays. It leaves when the
-   ticket opens. */
-.pubws-bet-note {
-  margin: 0.55rem 0 0;
-  text-align: center;
-  font-size: 0.76rem;
-  line-height: 1.45;
-  color: var(--text-tertiary);
-  text-wrap: pretty;
-}
-
-.pubws-pos-summary {
-  display: block;
-  margin: 0.7rem auto 0;
-  padding: 0;
-  border: none;
-  background: none;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.76rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: color 120ms ease;
-}
-.pubws-pos-summary:hover { color: var(--accent); }
 
 /* The market's facts at the right end of the tabs row: three icons, bare
    numbers, meanings on hover. */
@@ -4505,28 +4154,6 @@ textarea.jobform-line--desc {
 .pubws-poscard-btn:hover { border-color: var(--border-hover); }
 @media (max-width: 519px) { .pubws-poscard { flex-direction: column; align-items: stretch; } .pubws-poscard-side { justify-content: flex-end; } }
 
-
-/* A selected job's pitch clamps at four lines; the full text is one click
-   away. Long pitches must not push the chart below the fold. */
-.pubws-details.is-clamped {
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.pubws-details-more {
-  display: block;
-  margin: 0.25rem auto 0;
-  padding: 0;
-  border: none;
-  background: none;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  cursor: pointer;
-}
-.pubws-details-more:hover { color: var(--text-primary); }
-
 /* Conditional mode: the way back to the plain market, then the question
    itself as the headline. */
 .pubws-back {
@@ -4552,107 +4179,13 @@ textarea.jobform-line--desc {
   margin: 0.8rem 0 0.2rem;
 }
 
-.pubws-branch-opt {
-  padding: 0.3rem 0.9rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: none;
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
-}
-.pubws-branch-opt:hover:not(.is-active) { color: var(--text-primary); }
-.pubws-branch-opt--approved.is-active {
-  border-color: var(--higher);
-  color: var(--higher);
-  background: color-mix(in srgb, var(--higher) 10%, transparent);
-}
-.pubws-branch-opt--declined.is-active {
-  border-color: var(--lower);
-  color: var(--lower);
-  background: color-mix(in srgb, var(--lower) 10%, transparent);
-}
-.pubws-branch-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-/* A chip that changes value re-mounts (keyed) and slides in, so a moved
-   impact is seen moving. */
-.pubws-delta-chip { animation: chip-in 260ms ease-out; }
 @keyframes chip-in {
   from { opacity: 0; transform: translateY(3px); }
   to { opacity: 1; transform: none; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .pubws-delta-chip { animation: none; }
-}
-
-.pubws-question-task { color: var(--text-primary); }
-
-/* The paid / not-paid phrase as the world toggle. Both phrases stack in
-   one grid cell so the width is the longer phrase's and a switch never
-   reflows the headline; the inactive one waits a step below at opacity 0
-   and rises in on the crossfade. */
-.pubws-world {
-  display: inline-grid;
-  justify-items: center;
-  vertical-align: baseline;
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-}
-.pubws-world--live { cursor: pointer; }
-
-.pubws-world-opt {
-  grid-area: 1 / 1;
-  white-space: nowrap;
-  font-weight: 600;
-  transition: opacity 240ms ease, transform 240ms ease;
-}
-.pubws-world-opt--approved { color: var(--higher); }
-.pubws-world-opt--declined { color: var(--lower); }
-
-/* The clickable phrase says so: a dotted underline in its own colour. */
-.pubws-world--live .pubws-world-opt { border-bottom: 2px dotted currentColor; }
-.pubws-world--live:hover .pubws-world-opt { filter: brightness(1.15); }
-
-.pubws-world--approved .pubws-world-opt--declined,
-.pubws-world--declined .pubws-world-opt--approved {
-  opacity: 0;
-  transform: translateY(0.45em);
-  pointer-events: none;
-}
-
-.pubws-world--live:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-@media (prefers-reduced-motion: reduce) {
-  .pubws-world-opt { transition: none; }
-}
-
-/* The job's own words, where the question is: the row below stops
-   repeating them. */
-.pubws-details {
-  max-width: 52ch;
-  margin: 0.6rem auto 0;
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: var(--text-tertiary);
-  text-align: left;
-}
 
 /* A selected job row is the one driving the view above. */
 .pubws-ballot-row.is-selected .pubws-ballot-title { color: var(--accent); }
-
-/* The USD ask sits beside the title: narrow, mono, unmistakably money. */
-.pubws-propose-row input { flex: 1; }
-.pubws-propose-row input.pubws-propose-ask {
-  flex: none;
-  width: 5.5rem;
-  font-family: 'JetBrains Mono', monospace;
-  text-align: right;
-}
 
 .pubws-propose input,
 .pubws-propose textarea {
@@ -4670,12 +4203,6 @@ textarea.jobform-line--desc {
 .pubws-propose textarea:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
-}
-
-.pubws-propose-row {
-  display: flex;
-  gap: 0.8rem;
-  align-items: center;
 }
 
 .pubws-cta--small {
@@ -4696,8 +4223,6 @@ textarea.jobform-line--desc {
 
 .pubws-ghost:hover { color: var(--text-primary); }
 
-.pubws-propose-open { margin-top: 0.9rem; }
-
 /* Suggest-a-job is the one thing a visitor can add to the board, so give it
    a real CTA (owner ask 2026-08-12) instead of the quiet ghost link, and put
    the 500 cr stake right under it rather than hiding it in the form. */
@@ -4707,12 +4232,7 @@ textarea.jobform-line--desc {
   flex-direction: column;
   gap: 0.4rem;
 }
-.pubws-propose-lead {
-  margin: 0 0 0.15rem;
-  font-size: 0.9rem;
-  line-height: 1.45;
-  color: var(--text-secondary);
-}
+
 .pubws-propose-cta {
   display: block;
   width: 100%;
@@ -4759,25 +4279,6 @@ textarea.jobform-line--desc {
 }
 .pubws-update:hover { color: var(--text-primary); border-color: var(--text-tertiary); }
 
-/* The evidence line: real history under the instrument. Ink at low opacity so
-   it reads as context, not a second chart competing with the price. */
-
-
-.pubws-provenance {
-  margin: 0.4rem auto 0;
-  font-size: 0.72rem;
-  color: var(--text-tertiary);
-  max-width: 52ch;
-  text-align: left;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.pubws-provenance a { color: var(--text-secondary); }
-
-
 /* ---------------------------------------------------------------------------
    The market chart: the page's centerpiece. Reality is ink with a soft
    gradient; the market's call is amber; the future zone is a whisper of
@@ -4806,7 +4307,6 @@ textarea.jobform-line--desc {
      losing their tails. */
   overflow: visible;
 }
-
 
 /* The zoom row: quiet mono pills, right-aligned over the plot. Always
    clickable; a window wider than the market's life shows everything. */
@@ -4999,7 +4499,6 @@ textarea.jobform-line--desc {
   animation: mchart-draw 1s cubic-bezier(0.4, 0, 0.2, 1) 0.45s forwards;
 }
 
-
 .mchart-fill-area { animation: mchart-appear 0.9s ease-out 0.9s both; }
 
 .mchart-calldot {
@@ -5069,30 +4568,6 @@ textarea.jobform-line--desc {
 
 .mchart-tip-v--mkt { color: var(--accent); }
 
-
-
-
-/* Headline row: the price with its delta chip, stock-app style. */
-.pubws-headline {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-@media (max-width: 480px) {
-  .pubws-headline { flex-direction: column; align-items: center; gap: 0.4rem; }
-}
-
-.pubws-delta-chip {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.pubws-delta-chip.is-up { color: var(--higher); }
-.pubws-delta-chip.is-down { color: var(--lower); }
-
 /* The logo is never the thing that gives way. As a plain flex item it
    shrank with the bar and the mark rendered at 0 x 32 on a 360px screen:
    present in the DOM, invisible on the glass, and the wordmark squashed
@@ -5143,6 +4618,8 @@ textarea.jobform-line--desc {
 /* Facts are an icon row, never a sentence (owner rule 2026-09-03). */
 .pubws-head-facts,
 .pubws-run-facts,
+.pubws-season-facts,
+.pubws-ballot-facts,
 .pubws-facts {
   display: inline-flex;
   align-items: center;
@@ -5154,6 +4631,8 @@ textarea.jobform-line--desc {
 }
 .pubws-head-facts > span,
 .pubws-run-facts > span,
+.pubws-season-facts > span,
+.pubws-ballot-facts > span,
 .pubws-facts > span {
   display: inline-flex;
   align-items: center;
@@ -5725,6 +5204,10 @@ textarea.jobform-line--desc {
 /* The announcements block in the left rail (it wore the know block's
    classes until 2026-09-08). */
 .pubws-announcements { text-align: left; }
+/* The corner control, in the rail head's mono meta register. */
+.pubws-ann-all { text-decoration: none; }
+.pubws-ann-all:hover,
+.pubws-ann-all:focus-visible { color: var(--accent); outline: none; }
 
 /* The inline ticket's title and quote rows. */
 .ticket-title {
@@ -5918,26 +5401,19 @@ textarea.jobform-line--desc {
 .pubws-season {
   text-align: left;
 }
-.pubws-season-hero {
-  margin: 0;
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  font-size: 0.9rem;
-  line-height: 1;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-}
-.pubws-season-prize {
-  font-size: clamp(1.5rem, 2vw, 1.9rem);
-  letter-spacing: -0.03em;
-  color: var(--text-primary);
+/* The terms as one icon row, never a sentence (owner rule 2026-09-03): the
+   prize, then the clock. It wraps, because the rail is 220px wide. */
+.pubws-season-facts {
+  flex-wrap: wrap;
+  gap: 0.15rem 0.7rem;
+  white-space: normal;
 }
 .pubws-season-terms {
   margin: 0.55rem 0 0;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   line-height: 1.5;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
+  text-align: left;
 }
 .pubws-season-who {
   margin: 0.35rem 0 0;
@@ -5948,7 +5424,7 @@ textarea.jobform-line--desc {
 }
 .pubws-season-go {
   display: inline-block;
-  margin-top: 0.85rem;
+  margin-top: 0.75rem;
   white-space: nowrap;
   padding: 0.3rem 0.7rem;
   border: 1px solid var(--border-strong);
@@ -5961,18 +5437,6 @@ textarea.jobform-line--desc {
 }
 .pubws-season-go:hover { color: var(--accent); border-color: var(--accent); }
 .pubws-season-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-/* The left column ends with one quiet door for the owner in waiting. */
-.pubws-rail-door {
-  display: block;
-  font-size: 0.82rem;
-  line-height: 1.5;
-  color: var(--text-secondary);
-  text-decoration: none;
-  text-align: left;
-}
-.pubws-rail-door:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-.pubws-rail-door:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* The standings footers (docs/ui-conventions.md, "The standings are
    footers, not rails"): a hairline over the pair, the two blocks in a grid
@@ -6173,37 +5637,6 @@ textarea.jobform-line--desc {
   color: var(--text-tertiary);
 }
 
-.pubws-log-item {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  padding: 0.45rem 0;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.8rem;
-}
-.pubws-log-item:last-child { border-bottom: none; }
-
-.pubws-log-time {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
-  color: var(--text-tertiary);
-  min-width: 2rem;
-  text-align: right;
-}
-
-.pubws-log-text {
-  min-width: 0;
-  color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.pubws-log-item--approved .pubws-log-text { color: var(--higher); }
-.pubws-log-item--declined .pubws-log-text { color: var(--lower); }
-.pubws-log-item--proposal .pubws-log-text { color: var(--text-primary); }
-
 /* The trade ticket, in Manifold's layout (owner direction 2026-08-10): a
    card with the sides as pills top left, Quick / Limit top right, a boxed
    amount with steppers and a slider, answer rows, and one full-width
@@ -6344,11 +5777,7 @@ textarea.jobform-line--desc {
   align-items: center;
   gap: 0.1rem;
 }
-.ticket-side-line {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.5rem;
-}
+
 /* The most a credit on this side can come back as. Never a bare multiple:
    payout is linear, so the ceiling is reached only at the range's own edge
    and the number without its "up to" would read as the return itself
@@ -6360,15 +5789,6 @@ textarea.jobform-line--desc {
 }
 .ticket-side.is-active .ticket-side-max { color: var(--on-signal); opacity: 0.85; }
 .ticket-side-word { font-weight: 600; }
-.ticket-side-price {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  font-size: 0.95em;
-  font-variant-numeric: tabular-nums;
-}
-.ticket-side--higher .ticket-side-price { color: var(--higher); }
-.ticket-side--lower .ticket-side-price { color: var(--lower); }
-.ticket-side.is-active .ticket-side-price { color: var(--on-signal); }
 
 /* The payoff line (docs/ui-conventions.md, "The payoff line puts those
    numbers in an order"): the market's range as one track, carrying the
@@ -6554,7 +5974,6 @@ textarea.jobform-line--desc {
   background: var(--bg-secondary);
   opacity: 0.85;
 }
-
 
 /* Quick / Limit, Manifold's top-right toggle. */
 .ticket-mode {
@@ -6973,21 +6392,6 @@ textarea.jobform-line--desc {
   font-size: 0.85rem;
   color: var(--text-tertiary);
 }
-.pubws-ann-more {
-  margin-top: 0.6rem;
-  border: none;
-  background: none;
-  padding: 0;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.78rem;
-  color: var(--text-tertiary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.pubws-ann-more:hover:not(:disabled),
-.pubws-ann-more:focus-visible { color: var(--accent); outline: none; }
-.pubws-ann-more:disabled { cursor: default; opacity: 0.6; }
 
 /* One line of the record on the floor: the newest announcement, when it
    landed, and the way through to the rest (owner direction 2026-08-20). The
@@ -7050,7 +6454,6 @@ textarea.jobform-line--desc {
   .pubws-annline-go { grid-column: 2; }
 }
 
-
 /* Links inside the explainer read as normal underlined text, not buttons
    (owner ask 2026-08-12): the "prediction market" definition link and the
    data-room / Steam / SteamDB sources. */
@@ -7065,50 +6468,6 @@ textarea.jobform-line--desc {
 .pubws-know-what a:focus-visible {
   color: var(--accent);
   text-decoration-color: var(--accent);
-}
-/* Sources: reads as part of the description prose above it (owner ask
-   2026-08-12), same size and colour, not a separate quieter style. */
-.pubws-know-sources {
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: var(--text-primary);
-  max-width: none;
-}
-.pubws-know-sources ul {
-  margin: 0.2rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-.pubws-know-sources li {
-  margin: 0.25rem 0;
-  padding-left: 1rem;
-  text-indent: -1rem;
-  overflow-wrap: anywhere;
-}
-.pubws-know-sources li::before {
-  content: "- ";
-  color: var(--text-tertiary);
-}
-.pubws-know-sources a {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  text-decoration-color: var(--text-tertiary);
-  transition: color 120ms ease, text-decoration-color 120ms ease;
-}
-.pubws-know-sources a:hover,
-.pubws-know-sources a:focus-visible {
-  color: var(--accent);
-  text-decoration-color: var(--accent);
-}
-
-.pubws-metric-desc {
-  max-width: 56ch;
-  margin: 0 0 1.2rem;
-  font-size: 0.88rem;
-  line-height: 1.6;
-  text-align: left;
-  color: var(--text-secondary);
 }
 
 /* The settle day rides the title, a register quieter than the name. */
@@ -7132,7 +6491,7 @@ textarea.jobform-line--desc {
   overflow: hidden;
   overflow-wrap: anywhere;
 }
-.pubws-question-task { overflow-wrap: anywhere; }
+
 .pubws-rail .pubws-ballot-facts { font-size: 0.72rem; }
 
 .pubws-know {
@@ -7199,38 +6558,6 @@ textarea.jobform-line--desc {
   color: var(--text-tertiary);
 }
 
-.pubws-know-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem 2.8rem;
-}
-
-.pubws-know-grid a {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  text-decoration: none;
-}
-
-.pubws-know-name {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border-strong);
-  padding-bottom: 1px;
-  align-self: center;
-  transition: color 120ms ease, border-color 120ms ease;
-}
-.pubws-know-grid a:hover .pubws-know-name { color: var(--accent); border-color: var(--accent); }
-
-.pubws-know-desc {
-  font-size: 0.76rem;
-  color: var(--text-tertiary);
-  max-width: 20ch;
-}
-
 /* The about: three drawings in the chart's own vocabulary, three
    sentences, one door (owner direction 2026-08-10: below the floor,
 /* The page ends on a three-cell board (docs/ui-conventions.md, "The page
@@ -7276,6 +6603,15 @@ textarea.jobform-line--desc {
   letter-spacing: -0.01em;
   color: var(--text-primary);
   text-wrap: pretty;
+}
+/* The owner sentence's second half, in the secondary register: what it
+   costs, over the field that starts it. */
+.pubws-end-sub {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-align: left;
 }
 /* The link is quiet accent text with an arrow, never a button competing
    with the one control this page wants pressed, which is above. */
@@ -7369,8 +6705,6 @@ textarea.jobform-line--desc {
   font-size: 0.78rem;
   color: var(--text-secondary);
 }
-
-.pubws-facts-sep { color: var(--text-tertiary); }
 
 /* The ghost: where the composed bet would move the call. Dashed and
    hollow so it cannot be mistaken for the live line. */
@@ -7474,7 +6808,6 @@ textarea.jobform-line--desc {
   opacity: 0;
   animation: pubws-rise 0.55s cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
 }
-
 
 /* Entrance: label, then price, then the chart draws itself. One pass on
    load; nothing loops except the call dot's soft pulse. */
@@ -8137,7 +7470,6 @@ textarea.jobform-line--desc {
   .lbp-row { gap: 0.6rem; }
 }
 
-
 /* The prize season on the public leaderboard. The floor's "See the board" link
    lands here, so a season the floor advertises has to be visible one click in
    or the trail goes cold. Hairline block, not a card: the product is monochrome
@@ -8186,7 +7518,6 @@ textarea.jobform-line--desc {
   color: var(--text-tertiary);
   margin-left: 0.6rem;
 }
-
 
 /* Entering a prize season, on a public page. The season is announced on the
    floor and on the public leaderboard, so entry happens there rather than
@@ -8533,7 +7864,6 @@ textarea.jobform-line--desc {
    (the shared .lbp-score stays free-width on /leaderboard). */
 .seasonp .lbp-score { min-width: 5.2rem; text-align: right; }
 
-
 /* The experimental notice on /season, said before the entry button rather than
    under it: someone deciding whether to spend eight weeks on a contest should
    know the platform is still being launched before they decide. */
@@ -8585,7 +7915,6 @@ textarea.jobform-line--desc {
   opacity: 1;
   margin-left: 0.4rem;
 }
-
 
 /* "Where am I on this board" (owner ask 2026-08-19). A board that shows the
    leaders and nothing else answers who is winning but not where the reader
@@ -9330,7 +8659,6 @@ textarea.jobform-line--desc {
 
 .dr-more:hover { color: var(--accent-hover); }
 
-
 /* ------------------------------------------------------------------ */
 /* The beta stripe (owner ask 2026-08-20: "i think deploying to prod is too
    easy"). Shown on every copy of the app that is not telarchy.com, so the
@@ -9418,74 +8746,6 @@ textarea.jobform-line--desc {
 .betabar-err {
   width: 100%;
   font-weight: 600;
-}
-
-/* "Ask Otto", at the end of "What is <name>?" (owner direction 2026-08-21:
-   make him obvious, then: it did not fit). A full-width hairline row rather
-   than a pill in the heading: the prose has just run out of answers, this is
-   the next line to read, and a row in the page's own ruled language is both
-   larger and quieter than a chunk floating beside tracked capitals. */
-.pubws-know-ask {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  width: 100%;
-  margin-top: 1.6rem;
-  padding: 0.85rem 0.2rem;
-  border: none;
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  background: none;
-  font: inherit;
-  text-align: left;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.pubws-know-ask:hover { background: var(--bg-secondary); }
-.pubws-know-ask:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-.pubws-know-ask-label { flex: 1; font-size: 0.9rem; }
-
-/* The arrow leans out on hover, which is the whole animation. */
-.pubws-know-ask-go {
-  color: var(--text-tertiary);
-  font-size: 0.95rem;
-  transition: transform var(--transition-fast), color var(--transition-fast);
-}
-.pubws-know-ask:hover .pubws-know-ask-go { color: var(--text-primary); transform: translateX(3px); }
-@media (prefers-reduced-motion: reduce) {
-  .pubws-know-ask-go { transition: color var(--transition-fast); }
-  .pubws-know-ask:hover .pubws-know-ask-go { transform: none; }
-}
-
-/* The same mark he wears in the corner, so the two doors read as one person. */
-.pubws-know-ask-mark {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  background: var(--text-primary);
-  color: var(--bg-primary);
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  line-height: 1;
-}
-
-
-/* The operator door's hero. The house pitch is set to a 24ch poster measure,
-   which is right for the six words on a share landing and turns a sentence
-   into five ragged lines here. This page is a document with a title, so the
-   deck gets a document's measure and steps down from the h1 instead of
-   competing with it. */
-.pubws-hero--door .pubws-pitch {
-  max-width: 42ch;
-  font-size: clamp(1rem, 2.4vw, 1.12rem);
-  line-height: 1.5;
-  color: var(--text-secondary);
 }
 
 /* ---------------------------------------------------------------------------
@@ -9731,7 +8991,6 @@ textarea.jobform-line--desc {
   word-break: break-word;
 }
 
-
 /* What the floor actually says, under the prompt. The prompt carries intent
    and goes stale; this is read from the rows on every turn, so it is the half
    an operator (or their agent) can trust about state. */
@@ -9758,121 +9017,14 @@ textarea.jobform-line--desc {
 .setup-item.is-open .setup-item-label { color: var(--text-secondary); }
 .setup-item-note { grid-column: 2; color: var(--text-tertiary); }
 
-/* ---------------------------------------------------------------------------
-   The market drawing itself (design approved 2026-08-24).
-
-   The operator door's hero is the instrument every market page leads with,
-   ghosted: the needle drifts because nothing has been priced, the ceiling
-   reads "?" because they have not said, the figure sweeps because there is no
-   figure. Every answer sharpens it and the end of setup is the same object,
-   live. Setting up draws the thing you are getting, which is the only reason
-   a setup screen is ever worth watching.
-
-   Every value comes from the market row (GET /api/setup/checklist), so the
-   ghost is not decoration: a band with no needle means the market really does
-   hold nothing and cannot be traded.
-   ------------------------------------------------------------------------ */
-.instr { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.instr-read { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.instr-cap {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-  text-align: center;
-}
-.instr-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  font-size: clamp(2.8rem, 9vw, 4.6rem);
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
-.instr-sub { font-family: 'Fraunces', serif; font-size: 0.95rem; color: var(--text-tertiary); }
-
-/* One sweep across the unset figure: breathing, not a loading bar. */
-.instr-ghostnum {
-  background: linear-gradient(100deg, var(--border-strong) 0%, var(--border-strong) 38%, var(--text-primary) 50%, var(--border-strong) 62%, var(--border-strong) 100%);
-  background-size: 240% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: instr-sweep 6.5s ease-in-out infinite;
-}
 @keyframes instr-sweep { 0% { background-position: -140% 0; } 60%, 100% { background-position: 240% 0; } }
 
-.instr-band { position: relative; width: 100%; max-width: 34rem; height: 44px; margin: 14px 0 18px; }
-.instr-rail { position: absolute; left: 0; right: 0; top: 21px; height: 2px; background: var(--border-color); }
-.instr-rail.is-unset { background: none; border-top: 2px dashed var(--border-strong); }
-.instr-end {
-  position: absolute;
-  top: 26px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  color: var(--text-tertiary);
-}
-.instr-end--min { left: 0; }
-.instr-end--max { right: 0; }
-
-/* Unset, it looks for somewhere to sit. Set, it stops and only breathes, and
-   it TRANSITIONS to its new place, so a trade or a wider band is a move the
-   reader can follow rather than a jump. */
-.instr-needle {
-  position: absolute;
-  top: 0;
-  width: 2px;
-  height: 44px;
-  background: linear-gradient(180deg, transparent 0%, var(--accent) 35%, var(--accent) 65%, transparent 100%);
-  box-shadow: 0 0 18px 3px var(--accent-ring);
-  animation: instr-drift 9s cubic-bezier(.45,.05,.55,.95) infinite;
-}
-.instr-needle.is-set {
-  animation: instr-settle 3.6s ease-in-out infinite;
-  transition: left 900ms cubic-bezier(.22,.61,.36,1);
-}
 @keyframes instr-drift { 0%, 100% { left: 18%; } 50% { left: 78%; } }
 @keyframes instr-settle { 0%, 100% { transform: translateX(-1px); } 50% { transform: translateX(1px); } }
 
-/* The strip the conversation runs under. */
-.instr--strip {
-  flex-direction: row;
-  align-items: center;
-  gap: 20px;
-  width: 100%;
-  padding: 12px 18px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
-}
-.instr--strip .instr-read { align-items: flex-start; gap: 1px; flex-shrink: 0; }
-.instr--strip .instr-cap { text-align: left; font-size: 0.62rem; letter-spacing: 0.12em; max-width: 16rem; }
-.instr--strip .instr-value { font-size: 1.7rem; }
-.instr--strip .instr-band { flex-grow: 1; max-width: none; height: 30px; margin-top: 0; }
-.instr--strip .instr-rail { top: 14px; }
-.instr--strip .instr-needle { top: 2px; height: 26px; }
-.instr--strip .instr-end { top: 18px; font-size: 0.66rem; }
-.instr-settles { flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: 0.76rem; color: var(--text-tertiary); }
-
-/* Nine decisions, nine ticks; the one that just settled is the only accent. */
-.instr-ticks { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-.instr-tick { width: 7px; height: 7px; border-radius: 50%; background: var(--border-color); }
-.instr-tick.is-done { background: var(--text-primary); }
-.instr-tick.is-done + .instr-tick.is-open {
-  background: var(--accent);
-  animation: instr-tick 2.4s ease-out infinite;
-}
 @keyframes instr-tick {
   0% { box-shadow: 0 0 0 0 var(--accent-ring); }
   100% { box-shadow: 0 0 0 9px transparent; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .instr-ghostnum { animation: none; color: var(--border-strong); }
-  .instr-needle, .instr-needle.is-set, .instr-tick.is-done + .instr-tick.is-open { animation: none; }
-  .instr-needle { left: 50%; }
 }
 
 /* The head of the conversation: strip plus ticks on one line. */
@@ -9884,8 +9036,8 @@ textarea.jobform-line--desc {
 }
 @media (max-width: 720px) {
   .setup-head { flex-direction: column; align-items: stretch; gap: 10px; }
-  .instr--strip { flex-wrap: wrap; gap: 12px; }
-  .instr--strip .instr-band { order: 3; flex-basis: 100%; }
+  
+  
 }
 
 /* ---- Audience pages (/forecast, /for-agents, /owners, /compare/*) ----
@@ -9979,33 +9131,7 @@ textarea.jobform-line--desc {
 /* The delta in a fact row speaks as direction, the way the floor does. */
 .ticket-fact-v.is-up { color: var(--higher); }
 .ticket-fact-v.is-down { color: var(--lower); }
-/* The owner's reading beside the market's, under the price it feeds. */
-.pubws-yours { margin: 1.1rem 0 0; font-size: 0.88rem; color: var(--text-secondary); }
-.pubws-yours-val {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--text-primary);
-  border-bottom: 2px dotted var(--accent);
-  padding-bottom: 1px;
-}
-.pubws-yours-go {
-  margin-left: 0.55rem;
-  padding: 0.3rem 0.9rem;
-  border: none;
-  border-radius: 999px;
-  background: var(--button-bg);
-  color: var(--button-text);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-.pubws-yours-go:hover { background: var(--button-bg-hover); }
-.pubws-yours-age { display: block; margin-top: 0.35rem; font-size: 0.75rem; color: var(--text-tertiary); }
-.pubws-yours-age.is-stale { color: var(--accent); }
+
 .odlg-mono { font-family: var(--font-mono); font-size: 0.88rem; }
 /* Manifold's close-date shape: the picker sits under the chips, always
    visible, with a quiet "or" joining them. */
@@ -10119,7 +9245,6 @@ textarea.jobform-line--desc {
   line-height: 1.5;
 }
 .fundp-back.is-quiet { border-left-color: var(--border-strong); color: var(--text-tertiary); }
-
 
 /* ---------------------------------------------------------------------------
    The two doors: Otto and your own AI, one hairline stack
@@ -11211,7 +10336,6 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .own-quiet svg { width: 14px; height: 14px; }
 .own + .pubws-aud-nav,
 .own .pubws-aud-nav { margin-top: 2.4rem; }
-
 
 /* ---- The proposal view (docs/ui-conventions.md, "The proposal view") ---- */
 

@@ -30,6 +30,7 @@ function fmtDay(iso: string): string {
 export function FloorAnnouncements({
   idOrSlug,
   latest,
+  entries,
   total,
   canManage,
 }: {
@@ -38,40 +39,53 @@ export function FloorAnnouncements({
   idOrSlug: string;
   /** The newest announcement, shipped inline on the workspace payload. */
   latest: Announcement | null | undefined;
-  /** How many exist in total, so the line can say what is behind it. */
+  /** The entries to print, newest first, when the caller has more than the
+   *  one the payload ships inline. The block draws at most two
+   *  (docs/ui-conventions.md, "The rails"); `latest` is the fallback, and
+   *  is what the marketplace payload carries today. */
+  entries?: Announcement[];
+  /** How many exist in total, so the corner control can say what is behind
+   *  it. */
   total: number;
   canManage: boolean;
 }) {
+  const rows = (entries ?? (latest ? [latest] : [])).slice(0, 2);
   // Nothing published and nothing the visitor could do about it: render no
   // section at all rather than an empty heading on every floor.
-  if (!latest && !canManage) return null;
+  if (rows.length === 0 && !canManage) return null;
 
   const href = `/${encodeURIComponent(idOrSlug)}/announcements`;
 
   return (
     <section className="pubws-announcements pubws-enter pubws-enter--3" aria-label="Announcements">
-      <div className="pubws-know-headrow">
-        <h2 className="pubws-know-head">Announcements</h2>
+      {/* The block anatomy every rail shares (docs/ui-conventions.md, "The
+          blocks share one anatomy"): the tiny uppercase label on the left,
+          the corner control on the right, a hairline underneath. */}
+      <div className="pubws-lb-head">
+        <h2 className="pubws-h2">Announcements</h2>
         {/* The count is the offer, so it sits where a count belongs and not in
-            a second link underneath the line. */}
+            a second link underneath the line. A count that always reads
+            "All 1" is furniture. */}
         {total > 1 && (
-          <Link className="pubws-know-edit" to={href}>
+          <Link className="pubws-lb-meta pubws-ann-all" to={href}>
             All {total}
           </Link>
         )}
       </div>
 
-      {latest ? (
-        <Link className="pubws-annline" to={href}>
-          <span className="pubws-annline-head">{announcementHeadline(latest.body)}</span>
-          <time className="pubws-annline-when" dateTime={latest.publishedAt}>
-            {fmtDay(latest.publishedAt)}
-            {latest.publishedBy ? ` \u00b7 ${latest.publishedBy}` : ''}
-          </time>
-          <span className="pubws-annline-go" aria-hidden="true">
-            →
-          </span>
-        </Link>
+      {rows.length > 0 ? (
+        rows.map(a => (
+          <Link className="pubws-annline" key={a.id} to={href}>
+            <span className="pubws-annline-head">{announcementHeadline(a.body)}</span>
+            <time className="pubws-annline-when" dateTime={a.publishedAt}>
+              {fmtDay(a.publishedAt)}
+              {a.publishedBy ? ` \u00b7 ${a.publishedBy}` : ''}
+            </time>
+            <span className="pubws-annline-go" aria-hidden="true">
+              →
+            </span>
+          </Link>
+        ))
       ) : (
         <p className="pubws-ann-empty">
           Nothing announced yet.{' '}

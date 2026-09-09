@@ -173,15 +173,18 @@ describe('the page ends on a three-cell board', () => {
       'Telarchy prices what a decision does to a number before anyone commits.',
     );
     const how = within(cells[0] as HTMLElement).getByRole('link', { name: /how it works/i });
-    expect(how.getAttribute('href')).toBe('/forecast');
+    expect(how.getAttribute('href')).toBe('/guides');
     expect(how.querySelector('svg')).toBeTruthy();
     expect(cells[1].querySelector('.pubws-end-line')?.textContent).toBe(
-      'Offer to do it and name your price. The owner pays in real money if the market says it clears.',
+      'Offer to do it and name your price. The owner pays in real money if approved.',
     );
     expect(within(cells[1] as HTMLElement).getByRole('button', { name: /offer a proposal/i })).toBeTruthy();
     // The third cell carries the owner sentence and the email field.
     expect(cells[2].querySelector('.pubws-end-line')?.textContent).toBe(
-      'See what a decision does to your numbers before you say yes.',
+      'List the numbers your company runs on and let people price them.',
+    );
+    expect(cells[2].querySelector('.pubws-end-sub')?.textContent).toBe(
+      'Free. You fund the books in credits; prizes come from Telarchy.',
     );
     expect(cells[2].querySelector('.pubws-setup-row input[type="email"]')).toBeTruthy();
     expect(within(cells[2] as HTMLElement).getByRole('button', { name: 'Get set up' })).toBeTruthy();
@@ -242,7 +245,7 @@ describe('the proposals board says what a row is', () => {
     const rail = container.querySelector('.pubws-rail--right') as HTMLElement;
     const why = rail.querySelector('.pubws-ballot-why') as HTMLElement;
     expect(why.textContent).toBe(
-      'Each one is a pair of books: the number if approved, the number if declined. Trade either.',
+      'Each is a pair of books: the number if approved, the number if declined. Trade either.',
     );
     const label = within(rail).getByRole('heading', { name: 'Proposals' });
     expect(label.compareDocumentPosition(why) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -348,7 +351,7 @@ describe('the standings and the season advert', () => {
     expect(standings.parentElement).toBe(container.querySelector('.pubws-main--floor'));
     expect(standings.closest('.pubws-rail')).toBeNull();
     expect(standings.querySelector('.pubws-standings-key')?.textContent).toBe(
-      'IN = in the season · $ = prizes claimed',
+      'IN = in the season · $ = prizes claimed · Full leaderboard',
     );
     const blocks = [...standings.querySelectorAll('.pubws-lb-block')];
     expect(blocks.map(b => b.querySelector('.pubws-h2')?.textContent)).toEqual(['Top traders', 'Top contractors']);
@@ -358,26 +361,25 @@ describe('the standings and the season advert', () => {
     const more = standings.querySelectorAll('.pubws-lb-more');
     expect(more).toHaveLength(1);
     expect(more[0].getAttribute('href')).toBe('/leaderboard');
-    expect(more[0].textContent).toBe('Show full leaderboard');
+    expect(more[0].textContent).toBe('Full leaderboard');
   });
 
-  test('the season block is an advert: three lines, no counts, no running sentence, and ONE of it', async () => {
+  test('the season block is advertised, not narrated: label, icon row, button, one line', async () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-rail--left .pubws-season')).toBeTruthy());
     const advert = container.querySelector('.pubws-rail--left .pubws-season') as HTMLElement;
-    const hero = advert.querySelector('.pubws-season-hero') as HTMLElement;
-    const terms = advert.querySelector('.pubws-season-terms') as HTMLElement;
-    expect(hero.textContent).toBe('$1,000 in prizes');
+    expect(advert.querySelector('.pubws-h2')?.textContent).toBe('Season 0');
+    const facts = advert.querySelector('.pubws-season-facts') as HTMLElement;
     // 2026-09-04 10:35Z to 2026-10-01 00:00Z: 26 days.
-    expect(terms.textContent).toBe('Season 0 ends in 26 days. Free to enter.');
+    expect(facts.textContent?.replace(/\s+/g, ' ').trim()).toBe('$1,000 prizes 26 days left');
+    const terms = advert.querySelector('.pubws-season-terms') as HTMLElement;
+    expect(terms.textContent).toBe('Free to enter. Prizes paid by Telarchy.');
     const go = within(advert).getByRole('link', { name: 'Enter the season' });
     expect(go.getAttribute('href')).toBe('/season');
-    expect(follows(hero, terms)).toBe(true);
-    expect(follows(terms, go)).toBe(true);
-    expect(advert.children).toHaveLength(3);
+    expect(follows(facts, go)).toBe(true);
     expect(advert.textContent).not.toMatch(/traders/);
     expect(advert.textContent).not.toMatch(/traded/);
-    expect(advert.textContent).not.toMatch(/ and /);
+    expect(advert.textContent).not.toMatch(/ends in/);
     // The one-line form under the stat row is not rendered any more
     // (2026-09-08): the block in the left rail is the only advert.
     expect(container.querySelectorAll('a[href="/season"]')).toHaveLength(1);

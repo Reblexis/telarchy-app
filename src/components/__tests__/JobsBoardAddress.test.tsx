@@ -106,24 +106,28 @@ describe('a proposal has an address but no link control', () => {
   });
 });
 
-describe('the proposer sees their own proposal', () => {
-  test('a pending proposal by the viewer prints "yours"; another\'s does not', () => {
+/**
+ * There is no "yours" tag on a row (docs/ui-conventions.md, "The proposals
+ * board", revised 2026-09-08): a proposer's own rows read as theirs because
+ * the proposer is NOT NAMED on them, and the owner's count lives in the
+ * foot.
+ */
+describe('the proposer is named only when they are not the viewer', () => {
+  test('the viewer is never named on their own row, and no row wears a "yours" tag', () => {
     board({ viewerId: 'odoacre' });
-    expect(screen.getByTitle('Replace the slogan').textContent).toMatch(/yours/);
-    expect(screen.getByTitle('Apply to YC').textContent).not.toMatch(/yours/);
+    expect(screen.getByTitle('Replace the slogan').textContent).not.toMatch(/odoacre/);
+    expect(screen.getByTitle('Replace the slogan').textContent).not.toMatch(/yours/);
+    expect(document.querySelector('.pubws-ballot-yours')).toBeNull();
   });
 
-  test('a signed-out viewer sees no "yours" anywhere', () => {
+  test("somebody else's row names them", () => {
+    board({ viewerId: 'odoacre' });
+    expect(screen.getByTitle('Apply to YC').textContent).toMatch(/by /);
+  });
+
+  test('a signed-out viewer reads every proposer, and no "yours" anywhere', () => {
     board({ viewerId: null, signedIn: false });
     expect(screen.queryByText('yours')).toBeNull();
-  });
-
-  test('a decided proposal by the viewer does not print "yours": the mark is for the live ballot', () => {
-    board({
-      viewerId: 'odoacre',
-      // Nothing pending, so the decided ones are the list and no fold hides them.
-      proposals: [proposal('p-9', 9, 'Old idea', 'odoacre', 'approved')],
-    });
-    expect(screen.getByTitle('Old idea').textContent).not.toMatch(/yours/);
+    expect(screen.getByTitle('Replace the slogan').textContent).toMatch(/by /);
   });
 });

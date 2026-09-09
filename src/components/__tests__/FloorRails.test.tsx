@@ -34,7 +34,7 @@ vi.mock('../../lib/api', async () => {
   };
 });
 
-const { FloorStandings, SeasonAdvert } = await import('../FloorRails');
+const { FloorStandings, SeasonBlock } = await import('../FloorRails');
 
 function trader(n: number): LeaderboardEntry {
   return {
@@ -118,10 +118,10 @@ describe('the standings are footers, not rails', () => {
     expect(contractors.querySelector('.pubws-lb-head .pubws-lb-meta')?.textContent).toBe('impact');
   });
 
-  test('one "Show full leaderboard" link under the pair, to /leaderboard, never a board in place', () => {
+  test('one "Full leaderboard" link under the pair, to /leaderboard, never a board in place', () => {
     getLeaderboard.mockResolvedValue({ participants: [{ ...trader(9), id: 'g1', nickname: 'globalpro' }] });
     const { container, getAllByText, queryByText } = standings();
-    const links = getAllByText('Show full leaderboard');
+    const links = getAllByText('Full leaderboard');
     expect(links).toHaveLength(1);
     expect(links[0].tagName).toBe('A');
     expect(links[0]).toHaveAttribute('href', '/leaderboard');
@@ -229,17 +229,23 @@ describe('the season prize beside an entrant', () => {
   });
 });
 
-describe('the footnote under the standings pair', () => {
-  test('one line spells the two marks that carry money, under the pair and above the link', () => {
+/**
+ * One foot under the pair (docs/ui-conventions.md, "The rails: books,
+ * season, announcements, standings"): "IN = in the season · $ = prizes
+ * claimed · Full leaderboard", the last part the link.
+ */
+describe('one foot under the standings pair', () => {
+  test('the two marks that carry money and the way out, in one line under the pair', () => {
     const { container } = standings({ season: runningSeason });
     const key = container.querySelector('.pubws-standings-key') as HTMLElement;
     expect(key).toBeTruthy();
-    expect(key.textContent).toBe('IN = in the season · $ = prizes claimed');
+    expect(key.textContent).toBe('IN = in the season · $ = prizes claimed · Full leaderboard');
     expect(key.closest('.pubws-lb-block')).toBeNull();
     const pair = container.querySelector('.pubws-standings-pair') as HTMLElement;
     const more = container.querySelector('.pubws-lb-more') as HTMLElement;
     expect(pair.compareDocumentPosition(key) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(key.compareDocumentPosition(more) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The link is the foot's last part, not a second line under it.
+    expect(key.contains(more)).toBe(true);
     expect(container.querySelectorAll('.pubws-standings-key')).toHaveLength(1);
   });
 });
@@ -314,176 +320,125 @@ describe("the contractors' impact is the shared impact precision", () => {
   });
 });
 
-describe('the season advert', () => {
-  const advert = (props: Partial<Parameters<typeof SeasonAdvert>[0]> = {}) =>
+/**
+ * The season block (docs/ui-conventions.md, "The rails: books, season,
+ * announcements, standings"): the label, one icon row in mono, the button,
+ * and one line of terms. The season is ADVERTISED, not narrated: the prize
+ * is the hero figure, the terms are the icon row, nothing runs on.
+ */
+describe('the season block', () => {
+  const block = (props: Partial<Parameters<typeof SeasonBlock>[0]> = {}) =>
     render(
       <MemoryRouter>
-        <SeasonAdvert season={runningSeason} signedIn={false} {...props} />
+        <SeasonBlock season={runningSeason} signedIn={false} {...props} />
       </MemoryRouter>,
     );
 
-  test('three lines: the prize as the hero, the terms, the control, and nothing else', () => {
-    const { container, getByText } = advert();
+  test('the label, one icon row, the button and one line, and nothing else', () => {
+    const { container, getByText } = block();
     const root = container.firstElementChild as HTMLElement;
     expect(root.className).toContain('pubws-season');
-    expect(root.children).toHaveLength(3);
-    const hero = root.querySelector('.pubws-season-hero') as HTMLElement;
-    const terms = root.querySelector('.pubws-season-terms') as HTMLElement;
-    expect(hero.textContent).toBe('$1,000 in prizes');
+    expect(root.querySelector('.pubws-lb-head .pubws-h2')?.textContent).toBe('Season 0');
+    const facts = root.querySelector('.pubws-season-facts') as HTMLElement;
     // 2026-09-05 10:00Z to 2026-10-16 00:00Z: 40 days.
-    expect(terms.textContent).toBe('Season 0 ends in 40 days. Free to enter.');
+    expect(facts.textContent?.replace(/\s+/g, ' ').trim()).toBe('$1,000 prizes 40 days left');
     const go = getByText('Enter the season');
     expect(go.tagName).toBe('A');
     expect(go).toHaveAttribute('href', '/season');
-    expect(hero.compareDocumentPosition(terms) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(terms.compareDocumentPosition(go) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // Advertised, not narrated: no counts, no "and", no running sentence.
+    expect(root.querySelector('.pubws-season-terms')?.textContent).toBe('Free to enter. Prizes paid by Telarchy.');
+    expect(facts.compareDocumentPosition(go) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Advertised, not narrated: no counts of traders, no running sentence.
     expect(root.textContent).not.toMatch(/trader/i);
-    expect(root.textContent).not.toMatch(/traded/i);
-    expect(root.textContent).not.toMatch(/ and /);
-    expect(root.textContent).not.toMatch(/left/);
+    expect(root.textContent).not.toMatch(/ends in/);
+    expect(root.querySelector('.pubws-season-hero')).toBeNull();
+  });
+
+  test('the facts are an icon row, never a sentence', () => {
+    const { container } = block();
+    const facts = container.querySelector('.pubws-season-facts') as HTMLElement;
+    expect(facts.querySelector('.pubws-glyph--dollar')).toBeTruthy();
+    expect(facts.querySelector('.pubws-glyph--clock')).toBeTruthy();
   });
 
   test('the prize is the real pool, formatted with its thousands separator', () => {
-    const { container } = advert({ season: { ...runningSeason, poolUsd: 12500 } as PrizeSeason });
-    expect(container.querySelector('.pubws-season-hero')?.textContent).toBe('$12,500 in prizes');
+    const { container } = block({ season: { ...runningSeason, poolUsd: 12500 } as PrizeSeason });
+    expect(container.querySelector('.pubws-season-facts')?.textContent).toContain('$12,500 prizes');
   });
 
   test('no season, nothing rendered', () => {
-    const { container } = advert({ season: null });
+    const { container } = block({ season: null });
     expect(container.firstElementChild).toBeNull();
   });
 
-  test('an entrant reads "You are in." and "See the season"', async () => {
+  test('an entrant reads "You are in"', async () => {
     getMySeason.mockResolvedValue({ season: null, optedIn: true, canEnter: false });
-    const { findByText, container } = advert({ signedIn: true });
-    const go = await findByText('See the season');
+    const { findByText } = block({ signedIn: true });
+    const go = await findByText('You are in');
     expect(go).toHaveAttribute('href', '/season');
-    expect(container.querySelector('.pubws-season-terms')?.textContent).toBe('Season 0 ends in 40 days. You are in.');
-    expect(container.textContent).not.toMatch(/Free to enter/);
   });
 
   test('a signed-in visitor who has not entered is still asked to enter', async () => {
     getMySeason.mockResolvedValue({ season: null, optedIn: false, canEnter: true });
-    const { findByText } = advert({ signedIn: true });
+    const { findByText } = block({ signedIn: true });
     expect(await findByText('Enter the season')).toHaveAttribute('href', '/season');
     expect(getMySeason).toHaveBeenCalled();
   });
 
   test('a signed-out visitor is never asked the server whether they entered', () => {
-    advert();
+    block();
     expect(getMySeason).not.toHaveBeenCalled();
   });
 
-  test('a draft season counts down to its start and is free to enter', () => {
-    const { container, getByText } = advert({ season: { ...draftSeason, startsAt: '2026-09-12T00:00:00.000Z' } });
+  test('a draft season counts down to its start', () => {
+    const { container, getByText } = block({ season: { ...draftSeason, startsAt: '2026-09-12T00:00:00.000Z' } });
     // 2026-09-05 10:00Z to 2026-09-12 00:00Z: 6 days and change.
-    expect(container.querySelector('.pubws-season-terms')?.textContent).toBe(
-      'Season 0 starts in 6 days. Free to enter.',
-    );
+    expect(container.querySelector('.pubws-season-facts')?.textContent).toContain('starts in 6 days');
     expect(getByText('Enter the season')).toHaveAttribute('href', '/season');
   });
 
-  test('under a day, the terms say the hours rather than "0 days"', () => {
-    const { container } = advert({ season: { ...runningSeason, endsAt: '2026-09-05T16:30:00.000Z' } });
-    expect(container.querySelector('.pubws-season-terms')?.textContent).toBe(
-      'Season 0 ends in 6 hours 30 min. Free to enter.',
-    );
+  test('under a day, the clock says the hours rather than "0 days"', () => {
+    const { container } = block({ season: { ...runningSeason, endsAt: '2026-09-05T16:30:00.000Z' } });
+    expect(container.querySelector('.pubws-season-facts')?.textContent).toContain('6 hours 30 min left');
   });
 
-  test('a season past its end offers "See the season", not entry, and says so', () => {
-    const { container, getByText, queryByText } = advert({
+  test('a season past its end offers "See the season", not entry', () => {
+    const { container, getByText, queryByText } = block({
       season: { ...runningSeason, endsAt: '2026-09-01T00:00:00.000Z' } as PrizeSeason,
     });
     expect(getByText('See the season')).toHaveAttribute('href', '/season');
     expect(queryByText('Enter the season')).toBeNull();
-    expect(container.querySelector('.pubws-season-terms')?.textContent).toBe(
-      'Season 0 has ended. Standings are being settled.',
-    );
+    expect(container.querySelector('.pubws-season-facts')?.textContent).toContain('settling');
   });
 
   test('a settled season offers "See the season", not entry', () => {
-    const { container, getByText, queryByText } = advert({
+    const { container, getByText, queryByText } = block({
       season: { ...runningSeason, status: 'settled' } as PrizeSeason,
     });
     expect(getByText('See the season')).toHaveAttribute('href', '/season');
     expect(queryByText('Enter the season')).toBeNull();
-    expect(container.querySelector('.pubws-season-terms')?.textContent).toBe('Season 0 is over. Final standings.');
-    expect(container.querySelector('.pubws-season-hero')?.textContent).toBe('$1,000 in prizes');
+    expect(container.querySelector('.pubws-season-facts')?.textContent).toContain('final standings');
   });
-  test('for a manager one more line says who pays the prizes', () => {
-    const { container } = advert({ canManage: true });
+
+  test('for the owner one more line says what the floor costs them', () => {
+    const { container } = block({ canManage: true });
     const root = container.firstElementChild as HTMLElement;
-    expect(root.children).toHaveLength(4);
     const who = root.querySelector('.pubws-season-who') as HTMLElement;
-    expect(who.textContent).toBe('Prizes paid by Telarchy. Your floor costs you nothing.');
-    // Under the terms, above the control.
+    expect(who.textContent).toBe(
+      'This floor costs you nothing. You fund books in credits when you open them. Approved proposals cost their ask, in dollars.',
+    );
+    // The last line of the block, under the terms.
     const terms = root.querySelector('.pubws-season-terms') as HTMLElement;
-    const go = root.querySelector('.pubws-season-go') as HTMLElement;
     expect(terms.compareDocumentPosition(who) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(who.compareDocumentPosition(go) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  test('a visitor never reads who pays: three lines', () => {
-    const { container } = advert({ canManage: false });
+  test('a visitor never reads what the floor costs the owner', () => {
+    const { container } = block({ canManage: false });
     expect(container.querySelector('.pubws-season-who')).toBeNull();
-    expect((container.firstElementChild as HTMLElement).children).toHaveLength(3);
-  });
-});
-
-/**
- * Below 1500px the advert is one line (docs/ui-conventions.md, critics'
- * round 2): "$1,000 in prizes · Season 0 ends in 23 days · Enter the
- * season", the prize in the price register, the last part the link.
- */
-describe('the season advert as one line', () => {
-  const line = (props: Partial<Parameters<typeof SeasonAdvert>[0]> = {}) =>
-    render(
-      <MemoryRouter>
-        <SeasonAdvert season={runningSeason} signedIn={false} line {...props} />
-      </MemoryRouter>,
-    );
-
-  test('one line: the prize, the countdown, the control, dots between', () => {
-    const { container, getByText } = line();
-    const root = container.firstElementChild as HTMLElement;
-    expect(root.className).toContain('pubws-season--line');
-    expect(root.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      '$1,000 in prizes · Season 0 ends in 40 days · Enter the season',
-    );
-    expect(root.querySelector('.pubws-season-prize')?.textContent).toBe('$1,000');
-    const go = getByText('Enter the season');
-    expect(go.tagName).toBe('A');
-    expect(go).toHaveAttribute('href', '/season');
-    // One line, not the block's three.
-    expect(root.querySelector('.pubws-season-hero')).toBeNull();
-    expect(root.querySelector('.pubws-season-terms')).toBeNull();
   });
 
-  test('an entrant reads "See the season" and no "You are in."', async () => {
-    getMySeason.mockResolvedValue({ season: null, optedIn: true, canEnter: false });
-    const { findByText, container } = line({ signedIn: true });
-    await findByText('See the season');
-    expect(container.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      '$1,000 in prizes · Season 0 ends in 40 days · See the season',
-    );
-  });
-
-  test('a manager reads no "who pays" line in the one-liner', () => {
-    const { container } = line({ canManage: true });
-    expect(container.querySelector('.pubws-season-who')).toBeNull();
-    expect(container.textContent).not.toMatch(/paid by/);
-  });
-
-  test('an ended season says so in the same shape', () => {
-    const { container } = line({ season: { ...runningSeason, endsAt: '2026-09-01T00:00:00.000Z' } as PrizeSeason });
-    expect(container.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      '$1,000 in prizes · Season 0 has ended · See the season',
-    );
-  });
-
-  test('no season, nothing rendered', () => {
-    const { container } = line({ season: null });
-    expect(container.firstElementChild).toBeNull();
+  test('the one-line advert of the old layout is gone', () => {
+    const { container } = block();
+    expect(container.querySelector('.pubws-season--line')).toBeNull();
+    expect(container.querySelector('.pubws-season-prize')).toBeNull();
   });
 });

@@ -4,19 +4,24 @@ import { describe, expect, test, vi } from 'vitest';
 
 /**
  * What is behind a proposal, on the board (owner ask 2026-09-02: "show total
- * liquidity next to a proposal in the proposals panel", and the rule it
- * serves: "proposals are ordered by total liquidity available").
+ * liquidity next to a proposal in the proposals panel").
  *
- * The pool is the sum of BOTH branches across every pair, because that is
- * what somebody put behind this proposal's forecast; a reader comparing two
- * proposals is comparing conviction, and half of it is not the number.
+ * The pool is the sum of BOTH branches, because that is what somebody put
+ * behind this proposal's forecast; a reader comparing two proposals is
+ * comparing conviction, and half of it is not the number. The row prints the
+ * pair ON SCREEN (docs/ui-conventions.md, "The proposals board": "the
+ * credits behind both branches of the pair added up"); `poolOf`, which adds
+ * every pair up, is what the /owners crop still shows.
+ *
+ * Money no longer decides the order: since 2026-09-08 the board ranks by
+ * ABSOLUTE IMPACT and the pool only breaks a tie.
  */
 
 vi.mock('../../lib/api', () => ({
   api: { getParticipant: async () => ({ payoutHandle: 'paid@example.com' }) },
 }));
 
-import { JobsBoard, poolOf } from '../JobsBoard';
+import { JobsBoard, poolOf, poolOfPair } from '../JobsBoard';
 
 const pair = (targetDate: string, approvedPool: number | null, declinedPool: number | null) => ({
   metricId: 'rev',
@@ -82,7 +87,13 @@ describe('the pool behind a proposal', () => {
     expect(poolOf(proposal('c', 'x', [[null, null]]))).toBe(0);
   });
 
-  test('prints beside the proposal, under its impact', () => {
+  test('is the pair on screen, both branches added up', () => {
+    const p = proposal('c', 'x', [[250, 90]]);
+    expect(poolOfPair(p.markets[0])).toBe(340);
+    expect(poolOfPair(null)).toBe(0);
+  });
+
+  test('prints beside the proposal, in its icon row', () => {
     render(
       <MemoryRouter>
         <JobsBoard
@@ -93,12 +104,12 @@ describe('the pool behind a proposal', () => {
         />
       </MemoryRouter>,
     );
-    expect(screen.getByText('6,980')).toBeInTheDocument();
+    expect(screen.getByText('6,980 cr')).toBeInTheDocument();
   });
 
-  // The rule the number exists for: money decides the order, so a proposal
-  // somebody funded is read first.
-  test('orders the ballot deepest first', () => {
+  // The rule the number now serves: rows are sorted by absolute impact,
+  // largest first, TIES BY POOL.
+  test('ties by pool: the same impact, the deeper pair first', () => {
     render(
       <MemoryRouter>
         <JobsBoard
@@ -117,7 +128,7 @@ describe('the pool behind a proposal', () => {
     expect(titles).toEqual(['A proposal somebody believes in', 'A proposal in between', 'A proposal nobody funded']);
   });
 
-  test('a proposal with nothing behind it still shows the zero, and sits last', () => {
+  test('a proposal with nothing behind it still shows the zero, and sits last on the tie', () => {
     render(
       <MemoryRouter>
         <JobsBoard
@@ -130,16 +141,17 @@ describe('the pool behind a proposal', () => {
     );
     const titles = [...document.querySelectorAll('.pubws-ballot-title')].map(n => n.textContent);
     expect(titles).toEqual(['Funded', 'Unfunded']);
-    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.getByText('0 cr')).toBeInTheDocument();
   });
 
-  // Somebody has to tell the person about to post one that money moves it.
-  test('the propose footer says what puts a proposal up the list', () => {
+  // Somebody has to tell the person about to post one what it costs and what
+  // approval pays.
+  test('the foot says posting is free and what approval pays', () => {
     render(
       <MemoryRouter>
         <JobsBoard {...base} proposals={[]} horizonDate="2026-10" horizonMetricId="rev" />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/credits behind it and it moves up/i)).toBeInTheDocument();
+    expect(screen.getByText('Free to post. If approved you are paid the ask in real money.')).toBeInTheDocument();
   });
 });
