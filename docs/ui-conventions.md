@@ -811,7 +811,8 @@ thought had just started.
 
 **There is ONE chart, and how the call moved is a mode of it** (revised
 2026-09-09, replacing the second chart stacked below). The chart's control
-row carries a two-way toggle on the left of its chips, VALUE and CALL:
+row carries a two-way toggle in its left cell, the one the stat row emptied
+when it moved above the plot, VALUE and CALL:
 Value draws the number chart described above, Call draws the market's own
 history (`MarketChart`) in the same slot at the same height, captioned by
 the same caption, with its own ranges (`1D 1W ALL`). Nothing is lost and

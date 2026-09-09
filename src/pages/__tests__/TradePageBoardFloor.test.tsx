@@ -170,7 +170,8 @@ describe('the caption is two strips, metrics then dates', () => {
     expect(dates.parentElement?.className).toBe('pubws-instrument');
     expect(metrics.compareDocumentPosition(dates) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Neither the segmented rows of 2026-08-28 nor the chips of 2026-09-04.
-    expect(container.querySelector('.pubws-seg')).toBeNull();
+    // (The chart's own Value/Call toggle is a .pubws-seg, inside the chart.)
+    expect(container.querySelector('.pubws-instrument > .pubws-seg')).toBeNull();
     expect(container.querySelector('.pubws-instrument-date')).toBeNull();
     expect(container.querySelector('.pubws-chip--metric')).toBeNull();
     expect(container.querySelector('.pubws-chip--date')).toBeNull();

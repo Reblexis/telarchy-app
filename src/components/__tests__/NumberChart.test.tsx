@@ -47,6 +47,60 @@ describe('the window follows the selected horizon', () => {
   });
 });
 
+describe('every open date in the band is the date control', () => {
+  // docs/ui-conventions.md, "The price and the chart" (2026-09-09): a reader
+  // who can see four dots priced differently and cannot press them is being
+  // shown a control that is not one.
+  const markers = [
+    { marketId: 'today', resolvesOn: '2026-08-26T00:00:00Z', consensus: 6, selected: true },
+    { marketId: 'week', resolvesOn: '2026-08-31T00:00:00Z', consensus: 6.5, selected: false },
+    { marketId: 'sep', resolvesOn: '2026-10-01T00:00:00Z', consensus: 19.8, selected: false },
+  ];
+  const wide = (onPickDate?: (id: string) => void) =>
+    render(
+      <NumberChart
+        points={points}
+        markers={markers}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+        onPickDate={onPickDate}
+      />,
+    );
+
+  test('an unselected marker is a button that names the date it would switch to', () => {
+    const picked: string[] = [];
+    const { container } = wide(id => picked.push(id));
+    const buttons = [...container.querySelectorAll('.nchart-marker[role="button"]')];
+    expect(buttons.length).toBeGreaterThan(0);
+    const week = container.querySelector('.nchart-marker[data-market="week"]') as SVGGElement;
+    expect(week.getAttribute('role')).toBe('button');
+    expect(week.getAttribute('aria-label')).toMatch(/6\.5/);
+    fireEvent.click(week);
+    expect(picked).toEqual(['week']);
+  });
+
+  test('the selected marker is not pressable: it is where you already are', () => {
+    const picked: string[] = [];
+    const { container } = wide(id => picked.push(id));
+    const selected = container.querySelector('.nchart-marker.is-selected') as SVGGElement;
+    expect(selected.getAttribute('role')).toBeNull();
+    fireEvent.click(selected);
+    expect(picked).toEqual([]);
+  });
+
+  test('with no handler nothing is pressable, so the chart stays a picture', () => {
+    const { container } = wide();
+    expect(container.querySelector('.nchart-marker[role="button"]')).toBeNull();
+  });
+
+  test('an unselected marker carries its call in the quiet register', () => {
+    const { container } = wide(() => {});
+    const week = container.querySelector('.nchart-marker[data-market="week"]') as SVGGElement;
+    expect(week.textContent).toContain('6.5');
+  });
+});
+
 describe('the markers', () => {
   const markers = [
     { marketId: 'today', resolvesOn: '2026-08-26T00:00:00Z', consensus: 6, selected: true },
@@ -71,7 +125,7 @@ describe('the markers', () => {
     expect(container.querySelectorAll('.nchart-marker').length).toBe(1);
   });
 
-  test('with September selected the near markers are in the window, unlabeled and grey', () => {
+  test('with September selected the near markers are in the window, grey, each with its call', () => {
     const sel = markers.map(m => ({ ...m, selected: m.marketId === 'sep' }));
     const { container } = render(
       <NumberChart
@@ -83,7 +137,13 @@ describe('the markers', () => {
       />,
     );
     expect(container.querySelectorAll('.nchart-marker').length).toBe(3);
-    expect(container.querySelectorAll('.nchart-marker text').length).toBe(1);
+    // Since 2026-09-09 an unselected date carries its own call in the quiet
+    // register, so the date strip and the settlement band agree.
+    expect(container.querySelectorAll('.nchart-marker-val').length).toBe(2);
+    const grey = [...container.querySelectorAll('.nchart-marker:not(.is-selected) .nchart-marker-val')].map(
+      t => t.textContent,
+    );
+    expect(grey).toEqual(['6', '6.5']);
   });
 
   test("the composed bet's ghost draws on the selected marker", () => {

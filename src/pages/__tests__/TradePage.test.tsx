@@ -267,6 +267,8 @@ describe('the live poll leaves the view alone', () => {
   test('the chart is never handed a blanked series while a job is selected', async () => {
     renderFloor();
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
+    // The price replay is the chart's CALL mode since 2026-09-09.
+    fireEvent.click(await screen.findByRole('button', { name: 'Call' }));
     await waitFor(() => expect(screen.getByTestId('chart').getAttribute('data-series-len')).toBe('2'));
 
     h.chartRenders.length = 0;
@@ -724,6 +726,7 @@ describe('the price series belongs to the market on screen', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(payload() as never);
     vi.mocked(api.getPublicMarketHistory).mockClear();
     const { container } = renderFloor();
+    fireEvent.click(await screen.findByRole('button', { name: 'Call' }));
     await waitFor(() => expect(series(container)).toBe('73600,78571'));
     expect(vi.mocked(api.getPublicMarketHistory)).not.toHaveBeenCalledWith('lookpilot', 'm-hero');
   });
@@ -737,6 +740,8 @@ describe('the price series belongs to the market on screen', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(payload() as never);
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-stat--call .pubws-price')?.textContent).toBe('$78,571'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Call' }));
+    await waitFor(() => expect(series(container)).toBeTruthy());
     expect(series(container)).not.toContain('213');
   });
 });
@@ -1197,24 +1202,24 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     expect(container.textContent).not.toContain('expected');
   });
 
-  test('the number chart is the hero and the market history is a captioned strip below it', async () => {
+  test('one chart, and how the call moved is a mode of it', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(oneMarket() as never);
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-numchart .nchart')).toBeTruthy());
-    const num = container.querySelector('.pubws-numchart') as HTMLElement;
-    const hist = container.querySelector('.pubws-callhist') as HTMLElement;
-    expect(hist).toBeTruthy();
-    // Document order IS reading order: the number first, how the call moved after.
-    expect(num.compareDocumentPosition(hist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // Each names itself in the centre of its row: the metric, caption-shaped
-    // (the leading company name stripped), and the strip's own words.
-    expect(num.querySelector('.pubws-chart-cap')?.textContent).toBe('net 2026');
-    expect(hist.querySelector('.pubws-chart-cap')?.textContent).toBe('how the call moved');
-    expect(screen.queryByText('market')).toBeNull();
-    // There is still no MARKET/NUMBER switch.
-    expect(screen.queryByRole('button', { name: 'market' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'number' })).toBeNull();
+    // One chart slot, and nothing stacked under it (revised 2026-09-09: the
+    // second chart cost 340px of the first screen).
+    expect(container.querySelector('.pubws-callhist')).toBeNull();
+    expect(container.querySelectorAll('.pubws-numchart')).toHaveLength(1);
+    // It names itself in the centre of its row: the metric, caption-shaped,
+    // with the leading company name stripped.
+    expect(container.querySelector('.pubws-chart-cap')?.textContent).toBe('net 2026');
+    // And its one control is the mode, in the row's left cell.
+    const toggle = container.querySelector('.pubws-seg--chart') as HTMLElement;
+    expect(toggle.closest('.mchart-left')).toBeTruthy();
+    fireEvent.click(within(toggle).getByRole('button', { name: 'Call' }));
+    await waitFor(() => expect(screen.getByTestId('chart')).toBeTruthy());
+    expect(container.querySelector('.nchart')).toBeNull();
   });
 
   test('a legend under the number chart names the marks', async () => {
