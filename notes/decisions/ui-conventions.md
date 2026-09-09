@@ -1685,3 +1685,56 @@ What changed, in the order the owner took them:
    buttons. What the proposals lose is the always-on-screen slot, so the
    Propose band sits directly under them.
 8. On a phone the trade and the proposals come before the standings.
+
+## 2026-09-09: a proposal is a decision with a price
+
+**Asked (Viktor):** "i think the proposals design could be betyter.. i dont
+know if the way they are visible manaaged and traded now makes sense could
+you figure out a better design /design", then "and also witht he proposal the
+rules are suddenly below the title? feels like the proposal should also be
+below the market itself just liket he metric desscription or the platform
+description", then, on a page per proposal, "im thinking a separate page
+might not necessarilly be a bad idea as people and agents are more oftne
+expert on certain types of decisions rather than a given individual as a
+whole.. so this would allow it to be more dispersed the markets and allow
+nicer discovery", and finally "ok lest do it we will improve upon it
+further if needed".
+
+He was right about the ordering and he found it before the tests did: with a
+proposal open, the description, Edit, Approve, Decline, Remove, the lapse
+line and the branch toggle all sat between the question and the numbers, so
+the number the ruling turns on started at 826px. That is the defect the
+metric definition had, in the one view that had not been fixed on the same
+day.
+
+The design (canvas https://claude.ai/code/artifact/23cc644f-30ba-4539-8bc2-0fbb79d05bf9,
+four artboards on its first page):
+
+1. **The title is the headline** and the four facts are one icon row under
+   it. The conditional sentence is gone.
+2. **The strips carry impacts.** A proposal ships a pair for every cell of
+   the metric x date grid, and until now that grid was never on screen.
+   Proposal #28 is priced on four metrics: one moved, three funded and
+   untraded, and the strip says which is which rather than passing an anchor
+   off as an opinion.
+3. **The impact is the hero, the two worlds are the control.** now / if
+   approved / if declined as three cells, the two branch cells replacing the
+   pill toggle. This is direction C of the 2026-09-04 canvas (PR 205, branch
+   proposal-view-c, never merged) brought onto the floor as it now stands,
+   and it reverses two recorded rules for this view only.
+4. **The world rides the verb**, and the prose and the ruling go below the
+   trade.
+
+Around it: the board is ordered by what needs a ruling first rather than by
+pool, carries one summary line above it, and lets a manager rule from the
+row; and a proposal gets `/<slug>/p/<number>` with a server-rendered title
+and its own share card.
+
+**Declined, with the reason recorded.** A page per market: seventeen markets
+on one floor and four floors is sixty-eight pages at twenty-five visitors a
+day, and a conditional pair on its own page has to redraw the baseline
+anyway. What was missing was not pages but a link worth sending, which is
+seven proposals rather than sixty-eight markets. The proposals board in the
+left column: 280px puts the row back into the stack it was just taken out
+of, the column does not exist below 1500px, and it is dropped exactly when a
+proposal is selected.
