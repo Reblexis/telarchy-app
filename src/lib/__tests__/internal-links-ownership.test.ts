@@ -58,6 +58,17 @@ describe('no root-absolute internal URLs outside the base module', () => {
     expect(offenders).toEqual([]);
   });
 
+  test('no history.replaceState/pushState to a root path: it must carry the base', () => {
+    // The address bar is not the router: a /beta reader who is handed a
+    // root-absolute path by replaceState is walked onto the production build
+    // by their own address bar (seen on a branch preview, 2026-09-09, when a
+    // proposal's address was written without withBase).
+    const offenders = files
+      .filter(f => /history\.(replaceState|pushState)\(\s*[^,]*,\s*[^,]*,\s*["'`]\/(?!\/)/.test(f.text))
+      .map(f => f.path);
+    expect(offenders).toEqual([]);
+  });
+
   test('no fetch of a root path: fetch(withBase(...)) or API_BASE', () => {
     const offenders = files
       .filter(f => /fetch\(\s*["'`]\/(?!\/)/.test(f.text))

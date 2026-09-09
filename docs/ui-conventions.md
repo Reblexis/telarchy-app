@@ -715,7 +715,11 @@ hero number.
   the hash form `#proposal=<id|number>` keeps working and redirects to it,
   because it is in notifications already sent. Selecting a proposal on the
   floor replaces the address with the `/p/` form, and deselecting restores
-  the floor's own.
+  the floor's own. **Both spellings of the path are in play and they are not
+  the same string**: the router's is basename-relative and says whether this
+  is the floor's own address, the address bar's carries the base, and writing
+  the router's into `replaceState` walks a /beta reader onto the production
+  build (`internal-links-ownership.test.ts` fails the suite on it now).
 - **The card is the decision.** Server-rendered from the same payload the
   floor reads, so it cannot drift: the floor's name, the proposal's title,
   the impact on the hero metric with its unit, the number it moves, the pool

@@ -34,6 +34,7 @@ import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import type { FloorRef } from '../lib/agent-prompt';
 import type { LeaderboardEntry, LimitOrder, PublicProposal } from '../lib/api';
 import { api, type PublicWorkspace, setActiveWorkspace } from '../lib/api';
+import { withBase } from '../lib/base-path';
 import { parseFloorHash } from '../lib/floor-hash';
 import {
   buildHorizonViews,
@@ -305,13 +306,16 @@ export function TradePage() {
   // below) is left alone; so is any hash that is not a proposal's.
   useEffect(() => {
     if (!ws || !idOrSlug) return;
-    const floorPath = `/${encodeURIComponent(idOrSlug)}`;
+    /* Two spellings of the same path. The ROUTER's is basename-relative and
+       says whether this is the floor's own address (the /marketplace/:id
+       spelling canonicalises elsewhere and is not ours to write); the
+       ADDRESS BAR's carries the base, or a /beta reader is walked back onto
+       production by their own address bar (docs/ui-conventions.md, "Every
+       internal link is base-aware"). */
+    const routePath = `/${encodeURIComponent(idOrSlug)}`;
+    const floorPath = withBase(routePath);
     const search = window.location.search;
-    /* Only this floor's own address is ours to write, and the router's path
-       is what says so: the /marketplace/:id spelling canonicalises elsewhere,
-       and window.location is not the router's business under a memory
-       history. */
-    const onFloor = location.pathname === floorPath || location.pathname.startsWith(`${floorPath}/p/`);
+    const onFloor = location.pathname === routePath || location.pathname.startsWith(`${routePath}/p/`);
     if (!onFloor) return;
     if (selectedJobId) {
       if (/^\d+$/.test(selectedJobId)) return;
