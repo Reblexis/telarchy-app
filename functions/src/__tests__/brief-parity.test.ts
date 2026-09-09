@@ -14,7 +14,6 @@ jest.mock('../db/client', () => require('./harness/test-db'));
 import {
   agents,
   announcements,
-  markets,
   metricLogs,
   metrics,
   ownerCalls,
@@ -22,7 +21,6 @@ import {
   proposals,
   workspaces,
 } from '../db/schema';
-import { initialPool } from '../lib/amm';
 import { buildWorkspaceContext, renderContextMarkdown } from '../services/workspace-context';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
