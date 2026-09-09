@@ -28,7 +28,7 @@ const PROSE = [
   // doors and error states: the lead under the headline
   'pubws-pitch',
   // the floor
-  'pubws-ws-tagline',
+  'pubws-ws-what',
   'pubws-season',
   'pubws-settles',
   'pubws-na-note',

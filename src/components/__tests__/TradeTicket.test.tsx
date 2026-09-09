@@ -450,11 +450,12 @@ describe('the payoff line', () => {
     }));
   };
 
-  test('an untouched ticket pictures nothing: there is no bet to price', () => {
-    // Revised 2026-09-09: the plain range bar was the second of the card's
-    // two 10px tracks, one measuring credits and one measuring the metric.
+  test('an untouched ticket keeps the plain range bar: there is nothing to price', () => {
+    // The two-tracks confusion of 2026-09-09 is answered by labelling the
+    // stake slider's ends in credits, not by removing the picture (owner,
+    // 2026-09-10).
     const { container } = render(<TradeTicket {...payBase} />);
-    expect(container.querySelector('.pay')).toBeNull();
+    expect(container.querySelector('.pay-track')).toBeTruthy();
     expect(container.querySelector('.scale')).toBeNull();
   });
 

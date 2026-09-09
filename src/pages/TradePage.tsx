@@ -380,6 +380,8 @@ export function TradePage() {
   // 'manage' = opened from the position summary with no side preset.
   const [betModal, setBetModal] = useState<'higher' | 'lower' | 'manage' | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
+  /** The (i) beside the floor's name, for touch: hover and focus are CSS. */
+  const [wsWhatOpen, setWsWhatOpen] = useState(false);
   const joinTried = useRef(false);
   // The owner's decision controls (owner ask 2026-08-11: approve from the
   // floor). manage capability on this workspace reveals them on a selected
@@ -1345,7 +1347,16 @@ export function TradePage() {
               {hint ? (
                 <>
                   <h1 className="pubws-ws-name">{hint.name}</h1>
-                  {hint.description && <p className="pubws-ws-tagline">{hint.description}</p>}
+                  {hint.description && (
+                    <span className="pubws-ws-info">
+                      <span className="pubws-ws-info-btn" aria-hidden="true">
+                        i
+                      </span>
+                      <span className="pubws-ws-what" role="tooltip">
+                        {hint.description}
+                      </span>
+                    </span>
+                  )}
                 </>
               ) : (
                 <>
@@ -1466,7 +1477,27 @@ export function TradePage() {
           {ws.name && (
             <header className="pubws-ident pubws-enter">
               <h1 className="pubws-ws-name">{ws.name}</h1>
-              {ws.description && <p className="pubws-ws-tagline">{ws.description}</p>}
+              {/* What the company sells, behind an (i) rather than as a line
+                of prose under the name (owner ask 2026-09-10). Hover and
+                keyboard focus open it in CSS; the press is for touch, where
+                neither exists. Outside the h1, so the heading's accessible
+                name stays the company's name. */}
+              {ws.description && (
+                <span className={`pubws-ws-info${wsWhatOpen ? ' is-open' : ''}`}>
+                  <button
+                    type="button"
+                    className="pubws-ws-info-btn"
+                    aria-label={`What ${ws.name} is`}
+                    aria-expanded={wsWhatOpen}
+                    onClick={() => setWsWhatOpen(v => !v)}
+                  >
+                    i
+                  </button>
+                  <span className="pubws-ws-what" role="tooltip">
+                    {ws.description}
+                  </span>
+                </span>
+              )}
             </header>
           )}
           {/* The publish band (owner asks 2026-08-28: a real, visible

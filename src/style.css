@@ -6409,6 +6409,10 @@ textarea.jobform-line--desc {
    one line of what the business actually sells. Stays put when a job is
    selected; only the instrument below it swaps. */
 .pubws-ident {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.1rem;
   margin: 0 0 clamp(1.1rem, 2.6vh, 1.7rem);
   text-align: center;
 }
@@ -6424,13 +6428,71 @@ textarea.jobform-line--desc {
   color: var(--text-primary);
 }
 
-.pubws-ws-tagline {
-  margin: 0.3rem 0 0;
-  font-size: 0.95rem;
+/* What the company sells, one gesture from its name (docs/ui-conventions.md,
+   "The page ends", revised 2026-09-10): the identity block is one line, and
+   the sentence opens on hover, on focus and on a press. */
+.pubws-ws-info {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 0.45rem;
+}
+.pubws-ws-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.pubws-ws-info-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+.pubws-ws-info-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.pubws-ws-what {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: 50%;
+  z-index: 20;
+  width: max-content;
+  max-width: min(22rem, 70vw);
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  box-shadow: 0 6px 20px rgb(23 23 28 / 10%);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 400;
   line-height: 1.45;
   color: var(--text-secondary);
   text-align: left;
+  transform: translateX(-50%);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-fast);
 }
+.pubws-ws-info:hover .pubws-ws-what,
+.pubws-ws-info:focus-within .pubws-ws-what,
+.pubws-ws-info.is-open .pubws-ws-what {
+  opacity: 1;
+  visibility: visible;
+}
+
 
 /* The manager's in-place definition editor. */
 .pubws-know-edit { display: flex; flex-direction: column; gap: 0.6rem; }

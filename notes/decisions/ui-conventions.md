@@ -1889,3 +1889,29 @@ selling is not a direction.
 Also: the ticket's context line said the date twice ("LookPilot · settles 30
 Sep" over "Net revenue, this month"). The settle day goes; the clock is in
 the title already.
+
+**2026-09-10: the composed card really is composed, and the tagline becomes
+an (i).** Viktor, of the ticket at rest: "why isnt ther the arrow already
+present .. as we designed.. it should be there from the start.. as well as
+the visualization". Both were true: direction B's drawing showed `0 cr ->
+$7,050` over a track, and what shipped showed a bare "0 cr" with no arrow
+and, after the previous evening's cut, no picture either.
+
+The fix for the arrow is a small idea worth keeping: **a 0 cr bet moves the
+market nowhere, so the landing at rest IS the market's own call.** The
+composer therefore shows `0 cr -> $7,050` from the first paint and both
+halves stay typeable. `newValue` still means a real composed bet; only the
+displayed value falls back.
+
+The picture comes back with it, which reverses the previous day's "no
+picture until there is a stake". That rule existed because two identical
+10px tracks were stacked with nothing saying which measured credits and
+which measured the metric. Labelling the stake slider's ends in credits is
+what actually answered that, so the range bar can stand at rest again.
+
+Also: the workspace description is no longer a line of prose under the
+floor's name but an (i) beside it, opening on hover, on focus and on a press
+("this text i think would be better shown upon hover with some (i) icon next
+to the name rather than being bleow it"). It sits OUTSIDE the h1 so the
+heading's accessible name stays the company's name, and the loading ghost
+draws the same shape so nothing shifts when the payload lands.
