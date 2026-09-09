@@ -5176,7 +5176,11 @@ one implementation: <code>/telarchy/p/28</code> is the floor with #28 selected, 
 the hash form <code>#proposal=&lt;id|number&gt;</code> keeps working and redirects to it,
 because it is in notifications already sent. Selecting a proposal on the
 floor replaces the address with the <code>/p/</code> form, and deselecting restores
-the floor's own.</li>
+the floor's own. <strong>Both spellings of the path are in play and they are not
+the same string</strong>: the router's is basename-relative and says whether this
+is the floor's own address, the address bar's carries the base, and writing
+the router's into <code>replaceState</code> walks a /beta reader onto the production
+build (<code>internal-links-ownership.test.ts</code> fails the suite on it now).</li>
 <li><strong>The card is the decision.</strong> Server-rendered from the same payload the
 floor reads, so it cannot drift: the floor's name, the proposal's title,
 the impact on the hero metric with its unit, the number it moves, the pool
