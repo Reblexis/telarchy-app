@@ -11237,3 +11237,81 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .pubws-world-cell--declined.is-active .pubws-price {
   color: var(--lower);
 }
+
+/* The board's summary line: what is on it before a row is read
+   (docs/ui-conventions.md, "The proposals board", 2026-09-09). */
+.pubws-propsum {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-align: left;
+}
+.pubws-propsum-due {
+  color: var(--accent);
+}
+.pubws-ballot-all {
+  display: block;
+  width: 100%;
+  padding: 0.7rem 0;
+  border: none;
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-align: left;
+  cursor: pointer;
+}
+/* Ruling in place, on the row it belongs to. */
+.pubws-rule {
+  padding: 0.9rem 0 1rem;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+.pubws-rule-what {
+  margin: 0 0 0.7rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.pubws-rule-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pubws-rule-reason {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.88rem;
+}
+.pubws-rule-reason:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.pubws-rule-acts {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+.pubws-dir--approve {
+  border-color: var(--higher);
+  background: var(--higher);
+  color: var(--on-signal);
+}
+.pubws-dir--approve:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--higher);
+}

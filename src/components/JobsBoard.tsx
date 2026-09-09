@@ -39,6 +39,11 @@ interface Props {
    *  the proposal and opens the ticket on that side. Absent on a board that
    *  is only a list, where no row grows verbs. */
   onTrade?: (id: string, direction: 'higher' | 'lower') => void;
+  /** A manage-capable session rules from the row (docs/ui-conventions.md,
+   *  "The proposals board", 2026-09-09): four pending proposals is a
+   *  morning's work, not four page loads. Absent for everyone else. */
+  canManage?: boolean;
+  onRule?: (id: string, action: 'approve' | 'decline', reason?: string) => void | Promise<void>;
   onPropose: (title: string, description: string, askUsd: number, decideBy: string) => Promise<void>;
   /** The floor's own decision window in minutes, the preselected preset on
    *  the form (docs/guides/proposals.md, "The deadline, and the close"). */
@@ -101,7 +106,21 @@ export function pendingBallot(
 ): PublicProposal[] {
   const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
   const byPool = (a: PublicProposal, b: PublicProposal) => poolOf(b) - poolOf(a) || byImpact(a, b);
-  return proposals.filter(isPending).sort(byPool);
+  /* Soonest ruling first (revised 2026-09-09, replacing pool-first of
+     2026-09-02): the question a reader has is which of these needs them, not
+     which is deepest, and pool-first put the biggest claimed impact on the
+     floor at the bottom because nobody had funded it. A proposal with no
+     deadline sorts last rather than first, the way a decided one with no
+     decision time does. Pool still decides between two closing the same day,
+     so the propose footer keeps meaning what it says. */
+  const dueAt = (p: PublicProposal) => (p.decideBy ? Date.parse(p.decideBy) : Number.POSITIVE_INFINITY);
+  const byDue = (a: PublicProposal, b: PublicProposal) => {
+    const ta = dueAt(a);
+    const tb = dueAt(b);
+    if (ta !== tb) return ta < tb ? -1 : 1;
+    return byPool(a, b);
+  };
+  return proposals.filter(isPending).sort(byDue);
 }
 
 /**
@@ -258,6 +277,8 @@ export function JobsBoard({
   selectedId,
   onSelect,
   onTrade,
+  canManage = false,
+  onRule,
   onPropose,
   signedIn,
   onRequireSignup,
@@ -279,6 +300,11 @@ export function JobsBoard({
   // (owner report, docs/ui-conventions.md "the board reads the pair on screen").
   const impactOf = (p: PublicProposal) => (horizonDate ? deltaAt(p, horizonDate, horizonMetricId) : headlineDelta(p));
   const [foldOpen, setFoldOpen] = useState(false);
+  /* Ruling in place: which row is being ruled on, which way, and the reason
+     the charter promises to publish. Approve confirms too, because a list is
+     a place to mis-click and approving pays real money. */
+  const [ruling, setRuling] = useState<{ id: string; action: 'approve' | 'decline'; reason: string } | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
   // The window in minutes: a preset, or a custom number and unit.
@@ -327,6 +353,14 @@ export function JobsBoard({
   const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
   // Money decides the order (see `pendingBallot`).
   const pending = pendingBallot(proposals, impactOf);
+  /* Five rows and a line for the rest: the board is one screen at four
+     pending and would not be at twenty. */
+  const CAP = 5;
+  const shownPending = showAll ? pending : pending.slice(0, CAP);
+  const hiddenPending = pending.length - shownPending.length;
+  /* One line above the board, before any row is read. The count in ink, the
+     urgency in the accent, the invitation quiet. */
+  const dueToday = pending.filter(p => p.decideBy && Date.parse(p.decideBy) - Date.now() < 24 * 60 * 60 * 1000).length;
   // Newest decision first; a proposal with no decision time sorts last and
   // impact breaks a tie.
   const decidedAt = (p: PublicProposal) => (p.resolvedAt ? Date.parse(p.resolvedAt) : Number.NEGATIVE_INFINITY);
@@ -513,6 +547,27 @@ export function JobsBoard({
               <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>
             )}
           </span>
+          {/* Not on the row the page is already pointed at: that proposal's
+              own ruling band is on screen, and two Approves for one proposal
+              is one too many. */}
+          {canManage && onRule && isPending(p) && !selected && (
+            <span className="pubws-prow-acts">
+              <button
+                type="button"
+                className="pubws-dir pubws-dir--mini pubws-dir--approve"
+                onClick={() => setRuling({ id: p.id, action: 'approve', reason: '' })}
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                className="pubws-dir pubws-dir--mini"
+                onClick={() => setRuling({ id: p.id, action: 'decline', reason: '' })}
+              >
+                Decline
+              </button>
+            </span>
+          )}
           {tradeable && (
             <span className="pubws-prow-acts">
               <button
@@ -532,6 +587,48 @@ export function JobsBoard({
             </span>
           )}
         </div>
+        {ruling?.id === p.id && (
+          /* The ruling itself, on the row: Approve names the money it pays
+             and Decline asks for the reason the charter publishes, with the
+             confirm off until one is typed. */
+          <div className={`pubws-rule pubws-rule--${ruling.action}`}>
+            {ruling.action === 'approve' ? (
+              <p className="pubws-rule-what">
+                Approving pays {askUsd === null ? 'nothing' : `$${askUsd}`} and records every pair at the call standing
+                this instant.
+              </p>
+            ) : (
+              <>
+                <span className="pubws-rule-label">Why you are declining it, published on the proposal</span>
+                <textarea
+                  className="pubws-rule-reason"
+                  rows={2}
+                  value={ruling.reason}
+                  onChange={e => setRuling({ ...ruling, reason: e.target.value })}
+                />
+              </>
+            )}
+            <div className="pubws-rule-acts">
+              <button
+                type="button"
+                className={`pubws-decide pubws-decide--${ruling.action === 'approve' ? 'approve' : 'decline'}`}
+                disabled={ruling.action === 'decline' && ruling.reason.trim().length === 0}
+                onClick={() => {
+                  const reason = ruling.action === 'decline' ? ruling.reason.trim() : undefined;
+                  setRuling(null);
+                  void onRule?.(p.id, ruling.action, reason);
+                }}
+              >
+                {ruling.action === 'approve'
+                  ? `Approve and pay ${askUsd === null ? 'nothing' : `$${askUsd}`}`
+                  : 'Decline and publish'}
+              </button>
+              <button type="button" className="pubws-decide" onClick={() => setRuling(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </li>
     );
   };
@@ -549,11 +646,35 @@ export function JobsBoard({
         )}
       </div>
 
+      {pending.length > 0 && (
+        <p className="pubws-propsum">
+          <b>
+            {pending.length} proposal{pending.length === 1 ? '' : 's'} open
+          </b>{' '}
+          on this number
+          {dueToday > 0 && (
+            <>
+              {' · '}
+              <span className="pubws-propsum-due">
+                {dueToday} decide{dueToday === 1 ? 's' : ''} today
+              </span>
+            </>
+          )}
+          {' · anyone can post one'}
+        </p>
+      )}
       {proposals.length === 0 ? (
         <p className="pubws-lb-empty">Nothing on the ballot yet. Yours could be first.</p>
       ) : (
         <ul className="pubws-ballot">
-          {pending.map(row)}
+          {shownPending.map(row)}
+          {hiddenPending > 0 && (
+            <li>
+              <button type="button" className="pubws-ballot-all" onClick={() => setShowAll(true)}>
+                {hiddenPending} more open
+              </button>
+            </li>
+          )}
           {foldable && (
             <li>
               {/* One hairline row standing for the archive, in the rail
