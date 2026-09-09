@@ -28,6 +28,7 @@ import { ReportButton } from '../components/ReportButton';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { type TicketPosition, TradeTicket } from '../components/TradeTicket';
+import { WhatMovedIt } from '../components/WhatMovedIt';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import type { FloorRef } from '../lib/agent-prompt';
@@ -2076,6 +2077,7 @@ export function TradePage() {
                       unit={unit}
                       now={now}
                       preview={chartPreview}
+                      events={ws.heroEvents}
                       center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
                     />
                   </div>
@@ -2096,6 +2098,10 @@ export function TradePage() {
                       secondary={chartSecondary}
                     />
                   </div>
+                  {/* The marks on the number chart, in words: what the owner
+                    did and when. No figure of its own; what the number did
+                    afterwards is the line above (docs/ui-conventions.md). */}
+                  <WhatMovedIt events={ws.heroEvents ?? []} />
                 </div>
               )}
               {/* What is left to reach the price, in the reader's own arithmetic

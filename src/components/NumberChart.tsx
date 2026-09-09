@@ -55,6 +55,14 @@ interface Props {
   marksLegend?: boolean;
   now?: Date;
   height?: number;
+  /**
+   * The dated things the owner did, marked against the line they moved
+   * (docs/ui-conventions.md, "The price and the chart"). Only the ones inside
+   * the window and on the past side are drawn: a mark with no line under it
+   * explains nothing, and one in the future has not moved anything yet. They
+   * are numbered oldest to newest so the list beneath reads against them.
+   */
+  events?: Array<{ at: string; kind: string; label: string }>;
   /** The composed bet's ghost (owner ask 2026-08-28): where the SELECTED
    *  market's call would move, drawn on its marker in the market chart's
    *  own ghost vocabulary. */
@@ -213,6 +221,7 @@ export function NumberChart({
   now: nowProp,
   height,
   preview = null,
+  events,
 }: Props) {
   // Anchored once per mount, never per render: a per-render default was a
   // fresh advancing timestamp that moved the tween target every render,
@@ -290,6 +299,17 @@ export function NumberChart({
   for (let t = Math.ceil(y0 / step) * step; t <= y1; t += step) ticks.push(Number(t.toFixed(6)));
 
   const nowT = now.getTime();
+  // The marks: inside the window, on the past side, oldest first. A mark with
+  // no line under it explains nothing, and one in the future has moved
+  // nothing yet.
+  // Numbered by position in the WHOLE list, oldest first, so the number on a
+  // mark and the number in the list beneath name the same event whether or
+  // not the current window happens to hold it.
+  const shownEvents = (events ?? [])
+    .map(e => ({ ...e, t: new Date(e.at).getTime() }))
+    .sort((a, b) => a.t - b.t)
+    .map((e, i) => ({ ...e, n: i + 1 }))
+    .filter(e => e.t >= x0 && e.t <= Math.min(x1, nowT));
   // Readings joined by straight segments with a dot at each reading, then a
   // dashed hold from the last reading to now: the value in force. A step
   // line read as a staircase of a daily-synced level, which nobody meant.
@@ -437,6 +457,16 @@ export function NumberChart({
             </text>
           </>
         )}
+        {shownEvents.map(e => (
+          <g key={`${e.at}-${e.kind}`} className={`numchart-event is-${e.kind}`}>
+            <title>{`${e.label}`}</title>
+            <line className="numchart-event-rule" x1={x(e.t)} x2={x(e.t)} y1={PAD_T - 2} y2={H - PAD_B} />
+            <circle className="numchart-event-dot" cx={x(e.t)} cy={PAD_T - 2} r={7} />
+            <text className="numchart-event-num" x={x(e.t)} y={PAD_T + 1.5} textAnchor="middle">
+              {e.n}
+            </text>
+          </g>
+        ))}
         {d && <path key={`line-${selectedResolvesOn}`} className="nchart-line" d={d} pathLength={1} />}
         {last && nowT > new Date(last.at).getTime() && holdX > lastX && (
           <line className="nchart-hold" x1={lastX} x2={holdX} y1={y(last.value)} y2={y(last.value)} />

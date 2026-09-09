@@ -32,6 +32,7 @@ import { wrap } from '../lib/wrap';
 import { authMiddleware, getAuthWorkspaceMemberships } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { buildDataRoomFeed, dataRoomTool, renderDataRoomDocument } from '../services/data-room';
+import { buildFloorEvents, type FloorEvent } from '../services/floor-events';
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
 import { linkedManifoldCount, platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
@@ -620,6 +621,9 @@ async function buildFloorPayload(ws: PublicWs) {
   // from), and a simple activity pulse. Without these the page asks people
   // to bet on a number with no evidence, which serious forecasters refuse.
   let heroHistory: Array<{ at: Date | null; value: number }> | undefined;
+  // The dated things the owner did, to draw against the line they moved
+  // (docs/ui-conventions.md, "The price and the chart").
+  let heroEvents: FloorEvent[] | undefined;
   let horizonHistories:
     | Array<{
         marketId: string;
@@ -713,6 +717,10 @@ async function buildFloorPayload(ws: PublicWs) {
         .orderBy(desc(metricLogs.timestamp))
         .limit(500);
       heroHistory = logs.reverse();
+      // Only as far back as the line goes: a mark with no chart under it
+      // explains nothing.
+      const firstReading = heroHistory[0]?.at ?? null;
+      heroEvents = await buildFloorEvents(workspaceId, firstReading ? new Date(firstReading) : undefined);
     }
     // Every open horizon's own metric history, so a two-clock workspace can
     // draw one actual-vs-forecast chart per horizon instead of only the
@@ -1177,6 +1185,7 @@ async function buildFloorPayload(ws: PublicWs) {
           proposals: openProposals,
           topContractors,
           heroHistory,
+          heroEvents,
           horizonHistories,
           heroMetricDescription,
           heroMetricId: heroMetricIdOut,
