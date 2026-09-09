@@ -598,88 +598,135 @@ any of it.
 not capped; the metric log is read once per distinct metric, not once per
 market, so the cost is per metric.
 
-### A proposal keeps the clock line, and says which world it is
+### A proposal is a decision with a price
 
-The caption block does not change shape when a proposal is opened. Same
-pickers, same one sentence, in the same positions; the sentence itself
-grows the condition, naming the world the number belongs to:
+**Revised 2026-09-09**, replacing "A proposal keeps the clock line, and says
+which world it is". That section held two rules this one reverses for the
+proposal view only: that the caption keeps its pickers and its conditional
+sentence, and that the big number is never the impact. The decision is the
+owner's (direction C of the 2026-09-04 proposal-page canvas, put on beta as
+PR 205 and never merged, then re-drawn on 2026-09-09 against the floor as it
+now stands). The grounds are in `notes/decisions/ui-conventions.md`.
+
+A proposal is not a variant of the metric view. It is a decision with a
+deadline, an ask, and a price, and it reads in that order:
 
 ```
-        [ WEEKLY ACTIVE TRADERS ]  ...
-        [ this week · 30 Aug ]  [ 30 Sep ]
-        What will be LookPilot's weekly active traders this week
-                if Jason is paid $100 for making a market?
+  #28  A 500 dollar prize for the best open-source trading agent
+  Viktor36 · no payment asked · decides 15 Sept · 24,857 behind it
 
-                    17.5
-              [ HIGHER ]  [ LOWER ]
+  MOVES  ACTIVE TRADERS   REVENUE     OUTSIDE OWNERS   FORECASTERS
+         +1.4             ±$0         ±0               ±0
+                          untraded    untraded         untraded
+  BY     THIS WEEK        THIS MONTH
+         ±0               +1.4
+
+            IF APPROVED, ACTIVE TRADERS THIS MONTH MOVE BY
+                             +1.4
+     NOW 9.00  |  IF APPROVED · 30 SEP 20.0  |  IF DECLINED · 30 SEP 18.6
+                        [ chart, both worlds ]
+        [ BET HIGHER · if approved ]  [ BET LOWER · if approved ]
 ```
 
-Everything the floor already does then works unchanged: the pickers change
-the horizon and the conditional pair follows, because `pair` resolves by
-the horizon on screen. The world phrase is the branch toggle: `WorldWord`
-renders `is paid $100` / `is not paid $100` with both phrases in one grid
-cell so the sentence cannot reflow on a switch. One rule everywhere: **one
-clock at a time, with a way to the others**, on the headline and on a
-proposal alike; the big number stays the metric's own number in the
-metric's own unit, never an "impact" abstraction that exists nowhere else
-on the floor. A proposal's effect on both horizons at once is deliberately
-not shown (that is the cross-horizon conflict mark, which does not exist).
+- **The title is the headline**, with its number before it, left-aligned, in
+  the display face. Not a conditional sentence: "what will be X's Y this
+  month if Z does W" makes a reader parse a number, a proposer, a price and a
+  task as one clause before anything is on screen. The four facts of a
+  proposal follow as ONE icon row in the market's own facts vocabulary: the
+  proposer, the USD ask, the countdown to the decision, and the pool behind
+  the pair.
+- **The strips say what it moves.** With a proposal open, the metric strip
+  and the date strip stop showing levels and show THIS proposal's impact on
+  each cell: `MOVES  ACTIVE TRADERS +1.4  REVENUE ±$0 ...`, `BY  THIS WEEK ±0
+  THIS MONTH +1.4`. A proposal ships a pair for every cell of the grid
+  (below), and until now that grid has never been on screen; the strip is
+  where it belongs, because it is the product's own claim stated literally.
+  The strips keep the floor's order, primary metric first and dates soonest
+  first: a strip that reorders itself when a proposal opens moves the tabs
+  under the reader's finger. The selected tab is scrolled into view.
+- **An untraded pair says so.** A funded pair nobody has traded prints its
+  ±0 with "untraded" under it, in the quiet register. The zero is the
+  anchor, not an opinion, and a strip that cannot tell the two apart is
+  claiming four forecasts where it has one.
+- **The impact is the number.** The hero is the selected cell's impact,
+  if-done minus if-not-done, over the caption "if approved, <metric> <date>
+  move by", green up and red down. This is the reversal: on the metric view
+  the big number is the metric's own value, and on a proposal it is the
+  impact, because the impact is the only number the ruling turns on and the
+  only one the pair actually prices.
+- **The two worlds are the control.** Under the hero, three cells on
+  hairlines in the stat row's anatomy: now, if approved, if declined, each a
+  caption over a value. The two branch cells ARE the branch toggle
+  (`aria-pressed`), replacing the pair of pills: the number you are switching
+  to is the thing you press. The baseline stays on screen as the first cell,
+  which is the whole reason a pair can be read at all.
+- **The world rides the verb.** "Bet Higher · if approved", on the button,
+  never only in a toggle further up the page. A trader who has scrolled past
+  the toggle cannot tell which world a verb belongs to, and the ticket in the
+  rail names the same world in its header.
+- **The words and the ruling are below the trade**, in the order the metric
+  view already uses: question, numbers, chart, verbs, then "What <proposer>
+  would do" as the tinted block "How this settles" wears, then the owner's
+  ruling band, then the rest of the ballot. Nothing that is prose or a
+  control stands between the title and the number.
 
-- **The caption is rendered for both states**, not duplicated into two
-  branches. A second copy is how the two drift.
-- **The back affordance survives** the caption not being the back button.
-  A proposal still needs one way out to the floor.
-- **The world line is one sentence, not a label plus a value.** It reads as
-  English because a stranger has to understand what the number is
-  conditional on before the number means anything.
-- **With one open horizon nothing changes**: same caption, same world line.
+**The deadline is said ONCE, in the facts row under the title** (a clock
+glyph and the date, in the accent: "decides 14 Sep"; "decided 12 Sep" after
+the ruling). Under a day it counts down instead ("decides in 4h"), red
+inside the last hour, because a date is no use when the answer is due this
+afternoon. There is no standalone chip above the title and nothing under the
+pitch, in the ticket or on the chart. The owner's bar carries three mono
+words under its buttons, "declines itself in 4h", and nothing to press: a
+deadline does not move. On the board a pending row carries the same clock
+and countdown among its facts, red inside the last day; a row nobody ruled
+on by its deadline wears a "lapsed" pill in the decided fold, in the quiet
+register rather than the decline's red: a lapse is not a verdict. Once the
+proposal is closed (decided or lapsed) the ticket and the verbs are gone,
+the call cell's caption reads "market's call at the decision", and the
+position card says when it settles ("settles 30 Sep") where the Sell button
+was. The proposal form asks for a DURATION, not a date, because a date
+picker cannot express ten minutes: a row of presets (1h, 6h, 1 day, 3 days,
+1 week, custom) with the floor's own default preselected and named as such.
+Custom reveals a number and a unit, nothing more.
 
-**The deadline is one amber chip.** Beside the date chips of the caption
-row a third chip reads "decides 14 Sep" (a clock glyph, the date), in the
-accent; after the ruling it reads "decided 12 Sep". It is the only mention
-of the deadline on the page: nothing under the pitch, nothing in the ticket,
-nothing on the chart. Under a day the chip counts down instead ("decides in 4h"), red inside the
-last hour, because a date is no use when the answer is due this afternoon.
-The owner's bar carries three mono words under its buttons, "declines itself
-in 4h", and nothing to press: a deadline does not move. On the board a pending row carries a clock and a
-countdown ("6d") beside its pool, in the same mono register, red inside the
-last day; a row nobody ruled on by its deadline wears a "lapsed" pill in
-the decided fold, in the quiet register rather than the decline's red: a
-lapse is not a verdict. Once the proposal is closed (decided or lapsed) the ticket
-and the verbs are gone, the call cell's caption reads "market's call at the
-decision", and the position card says when it settles ("settles 30 Sep")
-where the Sell button was. The proposal form asks for a DURATION, not a date, because a date picker
-cannot express ten minutes: a row of presets (1h, 6h, 1 day, 3 days, 1 week,
-custom) with the floor's own default preselected and named as such. Custom
-reveals a number and a unit, nothing more.
+**What did not change.** The pair still resolves by the cell on screen, so
+picking a metric or a date moves the pair with it. The ticket trades the
+selected branch: its probability and liquidity come from the active market,
+never the baseline, or payouts, the bet ghost and position worth are all
+computed against the wrong curve, and positions refetch on every switch
+because they belong to the market on screen. The chart draws the branch's
+own history, falling back to the market's current call as a single point
+when nobody has traded it yet. A manager edits a proposal in place: the
+words save without touching the market; the price only moves while nobody
+has traded the pair, and the server says so plainly when it will not
+(docs/market-integrity.md, I1b). Same three fields as posting one, same
+order.
 
-In proposal mode the headline is the question the market actually prices,
-naming who is paid and how much ("What is <metric> @ <date> if <proposer>
-is paid $<ask> to do: <task>", the task in ink and the rest a register
-quieter). In the conditional headline the paid phrase IS the world toggle
-(`.pubws-world`): green "is paid $X" in the approved branch, red "is not
-paid $X" in the declined one, dotted underline as the click affordance, and
-clicking it flips the branch. Both phrases stack in one grid cell so the
-headline sizes to the longer phrase and never reflows on a switch, whatever
-the ask's width; the inactive phrase waits a step below at opacity 0 and
-rises in on a 240ms crossfade (reduced-motion snaps). The proposal's own
-description sits under the headline as the details; it is NOT repeated
-under the proposal row on the board. The price is the selected branch's
-call, the since-open chip becomes the impact (approved minus declined, the
-same number whichever branch is on screen), and the chart draws the
-branch's own history (fetched per market from
-`/api/marketplace/:id/markets/:marketId/history`, falling back to the
-market's current call as a single point when nobody has traded it yet, so
-a fresh proposal shows a chart rather than blank space). The ticket trades
-that branch: its probability and liquidity must come from the active
-market, not the baseline, or payouts, the bet ghost and position worth are
-all computed against the wrong curve. Positions refetch on every switch,
-because they belong to the market on screen.
+### A proposal has an address and a card
 
-A manager edits a proposal in place: the words save without touching the
-market; the price only moves while nobody has traded the pair, and the
-server says so plainly when it will not (docs/market-integrity.md, I1b).
-Same three fields as posting one, same order.
+**A decision is the one thing on this site worth sending to one person**
+(2026-09-09). A proposal therefore has a real URL, `/<slug>/p/<number>`, and
+its own share card; a metric book has neither, because nobody links "active
+traders in September" on its own and the floor's card already carries the
+hero number.
+
+- **The address renders the floor, opened on that proposal.** One page and
+  one implementation: `/telarchy/p/28` is the floor with #28 selected, and
+  the hash form `#proposal=<id|number>` keeps working and redirects to it,
+  because it is in notifications already sent. Selecting a proposal on the
+  floor replaces the address with the `/p/` form, and deselecting restores
+  the floor's own.
+- **The card is the decision.** Server-rendered from the same payload the
+  floor reads, so it cannot drift: the floor's name, the proposal's title,
+  the impact on the hero metric with its unit, the number it moves, the pool
+  behind it, and the day it is decided. The workspace card already works this
+  way and lends it its anatomy.
+- **The title says the decision and the price**: "Should <floor> pay for
+  <task>? The market says <impact> <metric>", with the description naming the
+  deadline. Every page on the site otherwise shares one og:title and one logo
+  image, which is why a proposal cannot currently be sent to the person who
+  knows how to price it.
+
 
 ### A proposal ships every pair of the grid, and the board reads the pair on screen
 
@@ -1391,6 +1438,23 @@ which is the point of the change. Because a reader now has to pass the
 chart to learn that paid work exists here, the propose band sits directly
 under the last row rather than at the foot of a rail.
 
+**One line above the board says what is on it** (2026-09-09): "4 proposals
+open on this number · 1 decides today · anyone can post one", the count in
+ink, the urgency in the accent, the invitation quiet. It is the only thing on
+a first screen that says paid work happens here, it costs one row of type at
+every width, and it is what a visitor who came for the number is owed before
+they scroll past four rows about other people's offers.
+
+**The board is ordered by what needs a ruling first** (revised 2026-09-09,
+replacing pool-first of 2026-09-02): soonest decision at the top, with the
+pool breaking a tie, so a proposal closing today is never below one closing
+next week. Pool-first put the biggest claimed impact on the floor at the
+bottom of the list because nobody had funded it, which is a ranking that
+answers a question no reader asked. The propose footer still says what moves
+a row up, because between two proposals closing the same day depth is still
+what decides. Five pending rows and a "show all" line: four fit today and
+twenty would not, and the decided fold under it is unchanged.
+
 **The row is two lines, and only one of them is loud.** The first line is
 the title and, right-aligned, the impact: if-done minus if-not-done,
 green/red, "open" while unpriced, under a single column label ("impact if
@@ -1411,7 +1475,17 @@ growing a fourth item is what made this row unreadable in a 340px rail
 Higher / Lower pair (`.pubws-dir--mini`) at the end of the row, which selects
 that proposal and opens the ticket on that side, exactly as pressing the row
 and then a verb would (and the ticket is already on screen, in the rail, so
-nothing scrolls). Kalshi repeats a pressable price on
+nothing scrolls).
+
+**And a manager rules from the row.** Beside those two verbs, for a
+manage-capable session only, Approve and Decline in the decision bar's own
+vocabulary: Approve the one money-coloured pill, Decline opening its
+published reason ON the row, with the confirm off until a reason is typed,
+because the charter's promise has to be kept where the ruling happens.
+Four pending proposals is a morning's work and should not be four page
+loads. The bar on the proposal's own page is the same two controls with the
+same rules; neither is a second implementation of the other. Nobody but a
+manager ever renders either, and the backend enforces manage regardless. Kalshi repeats a pressable price on
 every row of its ladder; a priced row with nothing to press is a table, not
 a market. The pair is hidden on a decided proposal, which nothing can be
 traded on any more, and on an unfunded one, which has no market to trade
