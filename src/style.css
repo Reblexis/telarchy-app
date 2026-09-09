@@ -5116,15 +5116,18 @@ textarea.jobform-line--desc {
   .pubws--center .pubws-main.pubws-main--floor {
     display: grid;
     grid-template-columns: minmax(0, 720px) 320px;
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto auto auto;
     gap: 0 clamp(1.4rem, 2.6vw, 3rem);
     justify-content: center;
     align-content: center;
     align-items: start;
   }
   .pubws-main--floor .pubws-center { min-width: 0; grid-column: 1; grid-row: 1; }
-  .pubws-rail--left { min-width: 0; grid-column: 1; grid-row: 2; margin-top: 2.4rem; }
-  .pubws-main--floor .pubws-know-col { min-width: 0; grid-column: 1; grid-row: 3; }
+  /* Everything under the trade: the proposals, the propose band, how this
+     settles, the activity, the standings (2026-09-09). */
+  .pubws-main--floor .pubws-tail { min-width: 0; grid-column: 1; grid-row: 2; }
+  .pubws-rail--left { min-width: 0; grid-column: 1; grid-row: 3; margin-top: 2.4rem; }
+  .pubws-main--floor .pubws-know-col { min-width: 0; grid-column: 1; grid-row: 4; }
   .pubws-main--floor .mchart {
     width: 100%;
     margin-left: 0;
@@ -5135,7 +5138,7 @@ textarea.jobform-line--desc {
     top: 1.4rem;
     min-width: 0;
     grid-column: 2;
-    grid-row: 1 / span 3;
+    grid-row: 1 / span 4;
     margin-top: 2.2rem;
     border-left: 1px solid var(--border-color);
     padding-left: clamp(1rem, 2vw, 1.6rem);
@@ -5152,10 +5155,11 @@ textarea.jobform-line--desc {
      A selected proposal keeps the two tracks, centred. */
   .pubws--center .pubws-main.pubws-main--floor.pubws-main--context {
     grid-template-columns: 280px minmax(0, 960px) 320px;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
   }
   .pubws-main--context .pubws-center { grid-column: 2; grid-row: 1; }
-  .pubws-main--context .pubws-know-col { grid-column: 2; grid-row: 2; }
+  .pubws-main--context .pubws-tail { grid-column: 2; grid-row: 2; }
+  .pubws-main--context .pubws-know-col { grid-column: 2; grid-row: 3; }
   /* Both rails span both rows of the centre column and start below the
      top bar line, so their headings sit level with the market's. The left
      column is static: it carries the definition, which can run to
@@ -5163,12 +5167,12 @@ textarea.jobform-line--desc {
      its foot into view. */
   .pubws-main--context .pubws-rail--left {
     grid-column: 1;
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
     margin-top: 2.2rem;
     border-right: 1px solid var(--border-color);
     padding-right: clamp(1rem, 2vw, 1.6rem);
   }
-  .pubws-main--context .pubws-rail--right { grid-column: 3; grid-row: 1 / span 2; }
+  .pubws-main--context .pubws-rail--right { grid-column: 3; grid-row: 1 / span 3; }
 }
 
 @media (max-width: 1119.98px) {
@@ -5180,6 +5184,9 @@ textarea.jobform-line--desc {
     margin: 2.4rem auto 0;
   }
   .pubws-know-col { width: 100%; max-width: 660px; margin: 0 auto; }
+  /* One column on a phone: the tail sits exactly where the DOM puts it,
+     under the ticket, which is under the verbs. */
+  .pubws-tail { width: 100%; max-width: 660px; margin: 0 auto; }
   /* Stacked on a phone. */
   .pubws-standings-pair { grid-template-columns: 1fr; row-gap: 1.7rem; }
   .pubws-ghost-standings { grid-template-columns: 1fr; }
@@ -11135,3 +11142,24 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   font-size: 9.5px;
   fill: var(--text-tertiary);
 }
+
+/* The rail's own head: what the ticket is pointed at (docs/ui-conventions.md,
+   "The rails, and the standings under the verbs", 2026-09-09). */
+.pubws-ticket-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.9rem;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+.pubws-ticket-what {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+/* The proposals board, under the trade at the column's full width. */
+.pubws-board { text-align: left; }
+.pubws-tail > * + * { margin-top: clamp(2.2rem, 6vh, 3.2rem); }

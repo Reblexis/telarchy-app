@@ -329,9 +329,11 @@ describe('an unfunded market does not offer a bet it cannot take', () => {
     expect(screen.queryByText(/no market yet/i)).toBeNull();
   });
 
-  test('a bet verb opens the ticket inline, not in a modal', async () => {
-    // Owner ask 2026-08-28: composing the bet must not cover the charts,
-    // because the composed bet's ghost draws on the market chart above.
+  test('a bet verb seeds the ticket in the rail, not a modal', async () => {
+    // Owner ask 2026-08-28: composing the bet must not cover the chart,
+    // because the composed bet's ghost draws on it. Since 2026-09-09 the
+    // ticket does not wait for the press at all: it is the right rail, and
+    // the verb seeds its side.
     const { api } = await import('../../lib/api');
     const ws = h.workspace();
     ws.joinAs = 'trader';
@@ -341,8 +343,9 @@ describe('an unfunded market does not offer a bet it cannot take', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Bet Higher/ }));
     await waitFor(() => expect(container.querySelector('.pubws-ticket-inline')).toBeTruthy());
     expect(document.querySelector('.floor-modal-overlay')).toBeNull();
-    // The ticket sits inside the floor's action section, under the verbs.
-    expect(container.querySelector('.pubws-act .pubws-ticket-inline')).toBeTruthy();
+    // It lives in the rail, which stacks straight under the verbs below 1120px.
+    expect(container.querySelector('.pubws-rail--right .pubws-ticket-inline')).toBeTruthy();
+    expect(container.querySelector('.pubws-act .pubws-ticket-inline')).toBeNull();
   });
 });
 
