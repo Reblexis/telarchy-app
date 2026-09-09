@@ -326,11 +326,10 @@ describe('what Otto browses', () => {
     for (const s of feed.doc.sections) expect(index).toContain(s.id);
     expect(index).toContain('read_data_room');
 
-    const section = renderDataRoomSection(feed, 'who-is-here');
+    const section = renderDataRoomSection(feed, 'behind-the-next-reading');
     // The prose exactly as published, and the live figures under it.
-    expect(section).toContain('runs on itself');
-    expect(section).toContain('page loads');
-    expect(section).toContain('verified on Manifold');
+    expect(section).toContain('Lapse dates assume no further trading');
+    expect(section).toContain('traded this week, per verified participant');
   });
 
   it('says which sections exist rather than inventing the one asked for', async () => {

@@ -46,165 +46,76 @@ export type PartName = (typeof KNOWN_PARTS)[number]['id'];
 
 /** When the prose was last edited. The numbers carry their own timestamp and
  *  are generated per request, so this dates the words alone. */
-export const CONTENT_UPDATED_AT = '2026-09-09';
+export const CONTENT_UPDATED_AT = '2026-09-10';
 
 export const DATA_ROOM_MARKDOWN = `
 ## Overview
 
 part:numbers
 
-Telarchy is the approval layer for actions. An owner names the numbers they
-actually care about. Anyone, a person or an AI, proposes something to do about
-them and names a price. A market prices what each proposal would do to those
-numbers if it were approved, and the owner approves on a calibrated figure
-rather than on a pitch.
+Telarchy prices proposed actions against company metrics or personal goals
+before an owner approves them. Participants can be people or bots.
 
-This page is Telarchy's own books. The platform runs a floor on itself, one
-market prices its weekly pulse, and everything that market settles against is
-published here, live, from the same database that serves the site. Nothing on
-this page is a projection and nothing here argues a position.
+These are Telarchy's own readings and the activity behind them. Small numbers
+are published anyway. The same evidence is available at [the public data
+feed](/api/data-room), without an account or key.
 
-The numbers are small. Publishing them anyway is the point: the floor's charter
-promises that a week near zero means nobody showed up, and a data room that only
-published flattering figures would make that promise a lie.
+The active-trader count requires a paid Manifold record claim and trading
+volume at or above the threshold shown below. Linking a profile alone does
+not qualify. Volume sums absolute trade costs across the platform in the
+trailing week, including sales and redemption rows.
 
 block:pulse
-
-## What it is for
-
-part:numbers
-
-As AI takes over more of the operational work, the scarce thing is not the
-ability to act. It is knowing which actions are worth taking. You cannot verify
-a proposer's judgment, because an AI has no skin in the game and a person
-pitching their own project has the wrong kind, so the answer is not to trust the
-proposal. It is to price it, in front of forecasters who lose money when they
-are wrong.
-
-That is the whole mechanism. The owner defines the metrics. Participants,
-human or AI, propose actions and put a price on them. Conditional markets price
-each proposal twice, once in the world where it is approved and once in the
-world where it is not, and the gap between those two prices is the priced impact
-of approving. The owner reads the gap and decides.
-
-Telarchy is a decision-market system, which is futarchy with the vote removed:
-where futarchy needs a vote to agree on the welfare metric, an owner simply
-names their own. The name is telos, purpose, plus archy, rule.
-
-What it does not claim to solve is worth stating as plainly. Choosing the right
-metric is still the owner's job, and the system will faithfully optimise
-whatever metric it is given, so Goodhart is a live failure mode rather than a
-solved one. Whether a model is internally deceptive is not something a market on
-outcomes can see. The slice this takes is the control surface: every proposed
-action priced against stated goals before it is taken, and the record of who was
-right kept in public.
-
-Two sides buy different things from the same substrate. An owner buys a
-calibrated number before committing. A forecaster buys a benchmark where being
-right pays in money rather than points, and where their track record is public
-and portable. The trader side is being built first, because with no users at all
-the scarce resource is a stranger's first minute, and the only first minute on
-offer is trading a real company's roadmap.
 
 ## The readings
 
 part:numbers
 
-Every number this floor prices, and everything it has done. Each is drawn
-from the hourly reading the platform takes of itself, one point per day, with
-the dated things the owner did marked on the day they happened. The eight
-weekly readings are printed under each line, because a shape is not a base
-rate and "how far does this normally move in a week" is a number.
+The latest recorded value on each measured day, followed by the last reading
+in each weekly interval. These are observations, not market forecasts. The
+current day and interval are still incomplete. A missing weekly reading is
+not zero.
 
-A week the sync did not run is a hole rather than a repeat of the week before,
-because a week nobody measured and a week nothing happened are different
-facts.
+Event marks show recent announcements and decisions on Telarchy's floor.
+Their dates do not establish what caused a change, and approval does not
+mean the work was delivered.
 
 block:rates
 
-## What moved it
+## Behind the next reading
 
 part:numbers
 
-Announcements and decisions around the readings. These dates provide context;
-they do not establish what caused a change.
+Verified participants' trading volumes are sorted below, including those
+with no trades. Lapse dates assume no further trading and are sampled at
+daily intervals, not exact expiry times.
 
-block:events
+The profit list excludes platform-admin and platform-operated accounts. It
+combines profit from recent resolutions with the value of qualifying open
+positions, so it can change before settlement. It is not the prize season's
+score. The threshold lines show the amounts needed to count.
 
-## What is scheduled
+Outside-owner activity counts floors where the owner approved or declined a
+proposal within the metric's trailing week. Platform-admin and
+platform-operated owners are excluded, as are template starter decisions.
+The pending list below covers public outside floors only; a pending proposal
+is not a qualifying decision.
 
-part:numbers
-
-What has already been committed, between now and the settle dates on the
-board: every open book with the day it settles, every proposal on the ballot
-with the day it must be decided by. Nothing here is a plan typed in for this
-page; each row is a date something in the database falls due on.
-
-block:calendar
-
-## The window
-
-part:numbers
-
-Every number this floor prices counts a trailing window, so part of the next
-reading is already fixed by rows that exist today. Those rows are here, one at
-a time: what each verified participant has traded this week, the day each
-counted trader falls out of their own week if they never trade again, what
-every participant is up or down, every undecided proposal on an outside floor
-with the day it decides by, and every payment on the revenue rail.
-
-Nobody is named. A participant is an entry in a list of numbers, a payment is
-an amount and a date, and a floor appears under the name its own page already
-carries.
+Payment rows cover the revenue window and exclude purchases by platform-admin
+accounts. Only completed payments count towards revenue. Payment dates use
+completion where recorded, otherwise creation. This is the liquidity-purchase
+rail, not a full set of company accounts.
 
 block:window
-
-## Who is here
-
-part:place
-
-The floor this platform runs on itself measures weekly active verified traders:
-distinct participants with a public Manifold profile synced to their account
-who have traded at least a hundred credits anywhere on the platform in the
-trailing seven days.
-
-Every word of that is load-bearing. Verified means each counted trader maps to
-a public profile anyone can inspect on the leaderboard. The hundred-credit
-floor keeps a one-credit gesture from counting, because signup credits are
-free. The number syncs once a day from the same database that serves this page,
-and the owner cannot edit it.
-
-Four numbers stand between a stranger and that definition, and each is a filter
-on the one above it. Page loads count what the visit rollup holds, which starts
-later than the accounts do, so the first step is not a cohort and the
-percentage under it is arithmetic between two published figures rather than a
-claim that those accounts came out of those loads.
-
-block:funnel
-
-## Traction
-
-part:place
-
-What has happened so far, in full. Participants include automated ones, which
-are most of them: the platform's own trading agents hold accounts like anyone
-else, and a count that hid them would be a nicer number and a false one.
-
-block:traction
-
-Proposals are the jobs side of the floor. Anyone may propose a piece of work and
-a price, the markets price what approving it would do to the metric, and the
-owner approves or declines with a written reason. Every decision is public and
-sits on the floor next to the market that priced it.
 
 ## Trading
 
 part:place
 
-How busy the place actually is, day by day: the trades placed, the credits
-they moved, and how many people placed them. The trader count is a threshold
-on this; the shape underneath it is what says whether the count is about to
-move.
+Trading on public floors, including the platform's own participants. Credits
+are trading volume, not revenue. These daily series exclude redemptions and
+include participants without a paid Manifold claim; their scope differs from
+the active-trader count above.
 
 block:trading
 
@@ -212,125 +123,68 @@ block:trading
 
 part:place
 
-Every document load the site serves is logged by the site itself. There is no
-third-party analytics on Telarchy, no tracking cookie and no advertising
-network, which the privacy policy states and this is the same log that backs it.
+Filtered server requests and distinct addresses. The filter removes recognised
+crawlers and scanner paths, but does not establish that a visitor is human.
+An address is not a person, and repeated requests are not new visitors.
+Missing asset requests can remain in these counts. The current day is partial.
 
-Crawlers and vulnerability scanners are the majority of raw hits before a
-launch, so both this page and the owner's own cockpit drop anything whose
-user-agent looks like a bot and any scanner probe path. They call the same
-filter, so the public number cannot flatter and the private one cannot differ.
-
-Individual visit rows are deleted after thirty days, per the privacy policy.
-What survives is a daily count of visits and distinct addresses, kept forever:
-no address, no country, no path, no referrer. History therefore starts on the
-day the rollup shipped rather than at the beginning of time.
+The retained daily totals contain no addresses, paths or referrers. The start
+date marks the earliest retained day, not the site's launch. Acquisition
+channels and visitor identities are not published here.
 
 block:traffic
 
-Which channel a visitor came from is deliberately not published. It names
-outreach that has not happened yet, and the same is true of who signed up, so
-signup counts are here and the people behind them are not.
-
-## Proposals
+## Proposals and decisions
 
 part:place
 
-Proposals are the jobs side of the floor. Anyone may propose a piece of work
-and a price, the markets price what approving it would do to the metric, and
-the owner approves or declines with a written reason. Every decision is public
-and sits on the floor next to the market that priced it.
+Proposal totals cover the platform, including private floors and the
+operator's own activity. Removed entries are excluded. Approved amounts are
+commitments, not evidence of payment or delivery.
+
+The dated list is recent activity on Telarchy's own floor, not the full set
+behind these totals. A delivery is listed separately when recorded.
 
 block:contracts
+block:events
 
-## Shipping
-
-part:place
-
-The change log is the git history of the repository this site is built from,
-regenerated on every deploy. Nothing here is curated: the bars are every commit,
-and the entries are the commit subjects as they were written.
-
-A commit whose message says it is private is counted in the pace and never
-quoted, which exists so that a change that cannot be named does not have to be
-described vaguely instead. Everything else is published the moment it deploys.
-
-block:shipping
-
-## Plans
+## What is scheduled
 
 part:plan
 
-The first season starts on 22 August 2026 and ends on 1 October 2026. It pays
-real money to the traders who are most accurate over that window, scored on
-settled profit, meaning what the markets that actually resolved during the
-season paid you minus what you paid on them, rather than on volume or on marks
-that have not settled. Liquidity ramps up over the first three weeks rather than
-opening deep. A contest is the cheapest way to find out whether people will
-forecast for real stakes. The rules a contestant reads are published, and Season
-0 says in its own text that we may change them while it runs: five amendments
-have landed so far, each announced on the season page before it took effect and
-each written to increase what is paid rather than to reduce anyone's standing.
+Upcoming baseline settlement dates and pending proposal deadlines on
+Telarchy's floor. A deadline is not a promise of approval or delivery.
+The outreach list shows recorded stages, without names; it does not measure
+responses or adoption beyond what has been recorded.
 
-Until the trader side pulls, the owner side stays deliberately quiet. Creating a
-workspace is self-serve, capped at three floors per account, and a new floor is
-born unlisted: live, tradeable and shareable by link, but on the front page only
-once a human puts it there. So a floor arrives as a conversation rather than as
-a signup. The order is intentional: a two-sided market is bootstrapped one side
-at a time, and a floor with no traders is worth nothing to the company standing
-on it.
+block:calendar
 
-The nearer work is the floor itself. A visitor should be able to arrive knowing
-nothing, read what a company is, see what the market thinks, ask a question in
-their own words and get a real answer, and place a bet in the same minute. Every
-question asked of a floor is kept with the answer it got, because a question is
-a gap in the page said in a visitor's own words, and that is the highest-signal
-data a pre-launch product makes.
-
-After that, the second company. One live floor proves the mechanism works and
-proves nothing about whether it transfers, and the honest version of this page
-in three months either names more companies or explains why it does not.
-
-## Risks
+## Limits and checking
 
 part:plan
 
-There is no revenue. The platform charges nothing today, the business model is
-unsettled, and the season's prize pool is an operator cost rather than an
-investment anyone has made.
+Activity counts do not establish independent demand. This feed does not report
+operating costs, cash balance, runway or staffing. Choosing suitable metrics
+remains the owner's responsibility. They can be gamed, and outcome markets
+do not reveal whether a model is internally deceptive.
 
-There is one company on the floor besides Telarchy itself, and it is run by the
-same person who runs Telarchy. That is the fastest way to get a real floor and
-also the weakest possible evidence that anyone else wants one.
+Trading credits are play money, have no cash value and cannot be redeemed.
+Prize payments are separate. The experimental season may change its rules
+while it runs; changes must be announced before taking effect and applied to
+minimise harm to entrants and standings. Entry is free,
+with no purchase or stake. Read the [season's eligibility, scoring and payment
+rules](/legal/season-0) before entering, and [the season page](/season) for
+current dates and notices. This page does not establish the legal status of
+prediction markets where real money is involved.
 
-The metric this platform prices itself on is gameable in principle, which is why
-it counts verified profiles and a credit floor rather than raw signups, and why
-the resolution route is public. It remains a proxy for something less
-measurable, and Goodhart applies to the operator as much as to anyone.
+Read [the data feed](/api/data-room) to check the figures, and use its
+publication timestamp. The feed is computed from the site's database and
+cached briefly; histories contain recorded observations rather than fresh
+measurements of the past. A failed request is not a zero reading.
 
-The mechanism is prediction markets, which carries a regulatory question in some
-jurisdictions when real money is involved. Season credits are not securities and
-the season is a skill contest with published rules, but this is a live legal
-question rather than a settled one.
-
-Everything here is built by one person. The shipping pace on this page is
-evidence of speed and equally evidence of a single point of failure.
-
-## Checking these numbers
-
-part:plan
-
-This whole page, prose and figures together, is one public read at
-\`/api/data-room\`. No account, no key, no cookie. If a number here does not
-match that response, the response is right.
-
-The weekly pulse resolves against \`/api/marketplace/stats\`, and the floor's
-own payload, including the market, its price and its history, is at
-\`/api/marketplace/telarchy\`. The full endpoint catalogue is at \`/api/help\`.
-An agent should read those routes rather than scrape this page.
-
-A figure that cannot be computed is published as null and rendered here as not
-published, never as zero. Every figure on this page is computed at read time
-from the live tables, except the change log, which is generated from git at
-deploy time and dated.
+[Platform statistics](/api/marketplace/stats) supply the resolution figures.
+[Telarchy's floor payload](/api/marketplace/telarchy) carries its metrics and
+markets. [API help](/api/help) lists the endpoints. These reads are public.
+[The earn table](/earn) explains record claims. The feed also carries the
+omitted activity summaries and a change log generated from git at build time.
 `;
