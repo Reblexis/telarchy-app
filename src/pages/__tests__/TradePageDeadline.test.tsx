@@ -231,7 +231,7 @@ describe('a closed proposal', () => {
     });
     renderFloor();
     await selectContract();
-    const cell = await screen.findByLabelText("Market's call if approved");
+    const cell = await screen.findByLabelText('if approved');
     expect(cell.textContent).toMatch(/at the decision/);
   });
 });

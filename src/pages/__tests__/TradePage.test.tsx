@@ -955,7 +955,7 @@ describe('the floor carries Otto', () => {
  * line"): the question line and its cycle words render in BOTH states, and
  * the proposal adds one sentence underneath naming the world.
  */
-describe('a proposal keeps the clock line', () => {
+describe('a proposal keeps its way between the cells', () => {
   /** A floor with two open horizons, and a proposal priced on both. */
   function twoClocks() {
     const ws = h.workspace();
@@ -1019,8 +1019,8 @@ describe('a proposal keeps the clock line', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
 
-    // One metric on two dates: the dates strip draws, and the sentence's
-    // date word is a cycle button.
+    // One metric on two dates: the dates strip draws, and on the metric view
+    // the sentence's date word is a cycle button too.
     await waitFor(() => expect(screen.getByLabelText('Dates')).toBeTruthy());
     expect(screen.getByLabelText('Dates').querySelectorAll('[role="tab"]')).toHaveLength(2);
     expect(screen.getByRole('button', { name: /^Date: / })).toBeTruthy();
@@ -1028,10 +1028,12 @@ describe('a proposal keeps the clock line', () => {
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
     await screen.findByRole('button', { name: 'if approved' });
 
-    // The regression: this used to be 0, because the caption and its
-    // controls lived in the branch that a selected proposal replaced.
+    // The regression this guards: the way between the cells used to live in
+    // the branch a selected proposal replaced, so it was gone. The strips
+    // survive, and since 2026-09-09 they are the only way, because the
+    // question sentence is not rendered on a proposal.
     expect(screen.getByLabelText('Dates').querySelectorAll('[role="tab"]')).toHaveLength(2);
-    expect(screen.getByRole('button', { name: /^Date: / })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Date: / })).toBeNull();
   });
 
   test('the clock line still names the metric and its settle day on a proposal', async () => {
@@ -1042,30 +1044,32 @@ describe('a proposal keeps the clock line', () => {
     await screen.findByRole('button', { name: 'if approved' });
 
     // The floor opens on the furthest-resolving market, so the month is on
-    // screen; the strips keep their tabs with a proposal open, and the
-    // question line says the same cell as a sentence.
-    expect(screen.getByLabelText('Dates').querySelectorAll('[role="tab"]')).toHaveLength(2);
-    const ask = document.querySelector('.pubws-instrument-ask');
-    expect(ask?.textContent).toContain('monthly net revenue');
-    expect(ask?.textContent).toMatch(/ on \d/);
+    // screen; the strips keep their tabs with a proposal open, and each one
+    // now carries this proposal's impact on that cell.
+    const dates = screen.getByLabelText('Dates');
+    expect(dates.querySelectorAll('[role="tab"]')).toHaveLength(2);
+    expect(dates.textContent).toMatch(/[+\u00b1-]/);
+    // One metric on this floor, so no metric strip: the proposal's own head
+    // names what it is priced against instead.
+    expect(screen.queryByLabelText('Metrics')).toBeNull();
+    expect(document.querySelector('.pubws-proposal-title')?.textContent).toMatch(/rewrite the store page/i);
   });
 
-  test('the proposal folds its condition into the one question sentence', async () => {
+  test('the proposal leads with its title, not with the conditional sentence', async () => {
+    // Revised 2026-09-09: the sentence made a reader parse a number, a
+    // proposer, a price and a task as one clause before anything was on
+    // screen. The title is the headline and the facts are one row under it.
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     renderFloor();
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
 
-    const question = await screen.findByRole('heading', { name: /is paid \$80/ });
-    // One sentence carries the market AND the condition (owner ask
-    // 2026-08-28: modify the question, do not add a line under it): "What
-    // will be ... if Ada is paid $80 to do: rewrite the store page?".
-    expect(question.className).toContain('pubws-instrument-ask');
-    expect(question.textContent?.startsWith('What will be')).toBe(true);
-    expect(question.textContent).toMatch(/net revenue/i);
-    expect(question.textContent?.trim().endsWith('?')).toBe(true);
-    // And no second question heading under it.
-    expect(document.querySelector('.pubws-question')).toBeNull();
+    const title = await screen.findByRole('heading', { name: /rewrite the store page/ });
+    expect(title.className).toContain('pubws-proposal-title');
+    expect(document.querySelector('.pubws-instrument-ask')).toBeNull();
+    expect(document.body.textContent).not.toMatch(/is paid \$80 to do/);
+    // The ask is a fact on the row under it instead.
+    expect(document.querySelector('.pubws-proposal-head .pubws-prow-meta')?.textContent).toContain('$80');
   });
 
   test('picking the other metric re-points the proposal at that market', async () => {
