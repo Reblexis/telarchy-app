@@ -1738,3 +1738,12 @@ seven proposals rather than sixty-eight markets. The proposals board in the
 left column: 280px puts the row back into the stack it was just taken out
 of, the column does not exist below 1500px, and it is dropped exactly when a
 proposal is selected.
+
+**Built 2026-09-09, and what is not.** The address, the head and the words
+are in: `/<slug>/p/<number>` renders the floor opened on that proposal, the
+hash redirects to it, and the server injects the decision's own title and
+description so a link unfurls as the decision rather than as the site. The
+og:image still points at the FLOOR's card (the workspace hero card that has
+existed since 2026-08-10); the proposal's own card, the black one on the
+canvas with the impact and the deadline, is not drawn yet. A reader sees the
+right words and the floor's picture until it is.

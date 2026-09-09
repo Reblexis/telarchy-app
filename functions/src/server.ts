@@ -403,6 +403,35 @@ import('./app')
         } catch (e) {
           console.error('audience-meta injection failed:', e);
         }
+        /* A proposal's own address (docs/ui-conventions.md, "A proposal has
+           an address and a card", 2026-09-09): the floor's HTML with the
+           decision's own head on it, so a link to one decision unfurls as
+           that decision rather than as the site. */
+        const proposalMatch = req.path.match(/^\/([^/.]+)\/p\/(\d+)$/);
+        if (proposalMatch && !RESERVED.has(proposalMatch[1])) {
+          try {
+            const { resolveProposalShare, resolvePublicWorkspace } = await import('./routes/marketplace');
+            const slug = decodeURIComponent(proposalMatch[1]);
+            const share = await resolveProposalShare(slug, Number(proposalMatch[2]));
+            if (share) {
+              const { injectProposalMeta } = await import('./lib/share-meta');
+              const { injectFloorHint } = await import('./lib/inline-data');
+              const ws = await resolvePublicWorkspace(slug);
+              const html = fs.readFileSync(indexPath, 'utf8');
+              res.setHeader('Cache-Control', 'no-cache');
+              const withMeta = injectProposalMeta(
+                html,
+                share,
+                `${publicOrigin()}${req.path}`,
+                `${publicOrigin()}/api/marketplace/${encodeURIComponent(slug)}/card.png`,
+              );
+              res.type('html').send(ws ? injectFloorHint(withMeta, ws) : withMeta);
+              return;
+            }
+          } catch (e) {
+            console.error('proposal share-meta injection failed:', e);
+          }
+        }
         const rootMatch = req.path.match(/^\/([^/.]+)$/);
         const shareMatch =
           req.path.match(/^\/marketplace\/([^/]+)$/) ?? (rootMatch && !RESERVED.has(rootMatch[1]) ? rootMatch : null);
