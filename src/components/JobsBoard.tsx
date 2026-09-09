@@ -358,9 +358,6 @@ export function JobsBoard({
   const CAP = 5;
   const shownPending = showAll ? pending : pending.slice(0, CAP);
   const hiddenPending = pending.length - shownPending.length;
-  /* One line above the board, before any row is read. The count in ink, the
-     urgency in the accent, the invitation quiet. */
-  const dueToday = pending.filter(p => p.decideBy && Date.parse(p.decideBy) - Date.now() < 24 * 60 * 60 * 1000).length;
   // Newest decision first; a proposal with no decision time sorts last and
   // impact breaks a tie.
   const decidedAt = (p: PublicProposal) => (p.resolvedAt ? Date.parse(p.resolvedAt) : Number.NEGATIVE_INFINITY);
@@ -646,23 +643,6 @@ export function JobsBoard({
         )}
       </div>
 
-      {pending.length > 0 && (
-        <p className="pubws-propsum">
-          <b>
-            {pending.length} proposal{pending.length === 1 ? '' : 's'} open
-          </b>{' '}
-          on this number
-          {dueToday > 0 && (
-            <>
-              {' · '}
-              <span className="pubws-propsum-due">
-                {dueToday} decide{dueToday === 1 ? 's' : ''} today
-              </span>
-            </>
-          )}
-          {' · anyone can post one'}
-        </p>
-      )}
       {proposals.length === 0 ? (
         <p className="pubws-lb-empty">Nothing on the ballot yet. Yours could be first.</p>
       ) : (
@@ -711,20 +691,20 @@ export function JobsBoard({
           {showDecided && decided.map(row)}
         </ul>
       )}
+      {/* Proposing is not a main action (owner ask 2026-09-09: "traders are
+          there to mostly trade not propose actions"). The band that stood
+          here, a question, a button the width of the column and its
+          fineprint, is gone; the page's closing board carries the
+          invitation, and this is the quiet way in for anyone who came
+          looking for it. Whoever the workspace allows can still post one. */}
       <div className="pubws-propose">
-        <p className="pubws-propose-lead">Do you think you could do something useful for {workspaceName}?</p>
-        <button className="pubws-propose-cta" onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}>
-          + Propose
+        <button
+          type="button"
+          className="pubws-propose-quiet"
+          onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}
+        >
+          + Propose work on this number
         </button>
-        {/* Surface the upside on the board itself, not only inside the form.
-            The credit bounty is the workspace's own proposalReward and
-            defaults to 0, so say it only where it is actually paid: a
-            hardcoded "plus 500 cr" was a promise most floors do not keep. */}
-        <p className="pubws-propose-cost">
-          Free to post. Approved means <strong>you are paid in real money</strong>
-          {proposalReward > 0 ? <>, plus {proposalReward.toLocaleString()}&nbsp;cr</> : null}. Put credits behind it and
-          it moves up.
-        </p>
       </div>
 
       {/* The form is the ticket's structure, not just its underlines

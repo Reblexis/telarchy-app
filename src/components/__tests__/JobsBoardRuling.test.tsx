@@ -86,30 +86,6 @@ function ruleBoard(props: Record<string, unknown> = {}, ps = [p('c1')]) {
   );
 }
 
-describe('the board says what is on it before a row is read', () => {
-  test('one line: how many are open, how many decide today, and that anyone can post', () => {
-    const { container } = ruleBoard({}, [
-      p('c1', { decideBy: inDays(0.4) }),
-      p('c2', { decideBy: inDays(4) }),
-      p('c3', { decideBy: inDays(5) }),
-    ]);
-    const line = container.querySelector('.pubws-propsum') as HTMLElement;
-    expect(line.textContent).toContain('3 proposals open');
-    expect(line.textContent).toContain('1 decides today');
-    expect(line.textContent).toContain('anyone can post one');
-  });
-
-  test('nothing decides today, nothing says it does', () => {
-    const { container } = ruleBoard({}, [p('c1', { decideBy: inDays(4) })]);
-    expect(container.querySelector('.pubws-propsum')?.textContent).not.toMatch(/today/);
-  });
-
-  test('an empty ballot has no summary line to draw', () => {
-    const { container } = ruleBoard({}, []);
-    expect(container.querySelector('.pubws-propsum')).toBeNull();
-  });
-});
-
 describe('the board is ordered by what needs a ruling first', () => {
   test('soonest decision leads, and the pool breaks a tie', () => {
     // The same instant, not "the same day": two proposals closing together

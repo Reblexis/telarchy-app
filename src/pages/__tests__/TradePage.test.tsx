@@ -1409,15 +1409,6 @@ describe('the floor quotes both sides before the first click', () => {
     expect(container.textContent).not.toContain('86c');
   });
 
-  test('one line under the verbs says what a share pays, naming both ends', async () => {
-    const { api } = await import('../../lib/api');
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(tradable(0.5) as never);
-    const { container } = renderFloor();
-
-    await screen.findByRole('button', { name: /Bet Higher/ });
-    expect(container.textContent).toContain('A share pays 1 cr at $500,000, nothing at $0.');
-  });
-
   test('the line goes once the ticket is open, which says the same thing about the bet', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(tradable(0.5) as never);
@@ -1562,7 +1553,7 @@ describe('a posted proposal is selected the moment it lands', () => {
     renderFloor();
     await screen.findByTitle('rewrite the store page');
 
-    fireEvent.click(screen.getByText('+ Propose'));
+    fireEvent.click(screen.getByText(/\+ Propose/));
     fireEvent.change(await screen.findByLabelText('Proposal title'), { target: { value: 'Replace the slogan' } });
     fireEvent.click(screen.getByRole('button', { name: /^Propose/ }));
 

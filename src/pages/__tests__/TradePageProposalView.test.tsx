@@ -300,10 +300,7 @@ describe('the impact is the number and the two worlds are the control', () => {
     const { readFileSync } = await import('node:fs');
     const { dirname, join } = await import('node:path');
     const { fileURLToPath } = await import('node:url');
-    const css = readFileSync(
-      join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'),
-      'utf8',
-    );
+    const css = readFileSync(join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'), 'utf8');
     const rule = css.match(/\.pubws-worlds \{([^}]*)\}/);
     expect(rule).toBeTruthy();
     expect(rule![1]).toMatch(/grid-template-columns:\s*repeat\(3,/);

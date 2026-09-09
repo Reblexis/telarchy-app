@@ -132,14 +132,4 @@ describe('the pool behind a proposal', () => {
     expect(titles).toEqual(['Funded', 'Unfunded']);
     expect(screen.getByText('0')).toBeInTheDocument();
   });
-
-  // Somebody has to tell the person about to post one that money moves it.
-  test('the propose footer says what puts a proposal up the list', () => {
-    render(
-      <MemoryRouter>
-        <JobsBoard {...base} proposals={[]} horizonDate="2026-10" horizonMetricId="rev" />
-      </MemoryRouter>,
-    );
-    expect(screen.getByText(/credits behind it and it moves up/i)).toBeInTheDocument();
-  });
 });

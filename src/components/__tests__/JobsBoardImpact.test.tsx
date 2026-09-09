@@ -171,7 +171,7 @@ describe('the deadline on the row', () => {
         <JobsBoard {...base} proposals={[job]} horizonDate="2026-W35" horizonMetricId="rev" decisionMinutes={1440} />
       </MemoryRouter>,
     );
-    fireEvent.click(screen.getByText('+ Propose'));
+    fireEvent.click(screen.getByText(/\+ Propose/));
     const row = await screen.findByLabelText('Decided within');
     expect(row.textContent).toContain('1 day');
     expect(screen.getByRole('button', { name: '1 day' }).getAttribute('aria-pressed')).toBe('true');
@@ -186,7 +186,7 @@ describe('the deadline on the row', () => {
         <JobsBoard {...base} proposals={[job]} horizonDate="2026-W35" horizonMetricId="rev" decisionMinutes={1440} />
       </MemoryRouter>,
     );
-    fireEvent.click(screen.getByText('+ Propose'));
+    fireEvent.click(screen.getByText(/\+ Propose/));
     fireEvent.click(await screen.findByRole('button', { name: 'custom' }));
     const n = (await screen.findByLabelText('Custom window')) as HTMLInputElement;
     expect((screen.getByLabelText('Custom window unit') as HTMLSelectElement).value).toBe('m');
