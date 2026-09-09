@@ -112,6 +112,58 @@ describe('the dates already committed', () => {
     expect(c.dates.map(d => d.label)).toEqual(['Sooner', 'Later']);
   });
 
+  test('a proposal’s branch markets are not extra dates on the calendar', async () => {
+    // Two branch markets per proposal per horizon, on the same metric and the
+    // same day as the baseline book. Published raw they printed the same date
+    // over a hundred times on the live page (2026-09-09).
+    await market('base', '2026-09');
+    await db.insert(markets).values([
+      {
+        id: 'br-a',
+        workspaceId: WS,
+        metricId: 'm1',
+        metricName: 'Active traders',
+        targetDate: '2026-09',
+        rangeMin: 0,
+        rangeMax: 50,
+        shares: [0, 0] as [number, number],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: 'p1',
+        branch: 'approved',
+      },
+      {
+        id: 'br-d',
+        workspaceId: WS,
+        metricId: 'm1',
+        metricName: 'Active traders',
+        targetDate: '2026-09',
+        rangeMin: 0,
+        rangeMax: 50,
+        shares: [0, 0] as [number, number],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: false,
+        proposalId: 'p1',
+        branch: 'declined',
+      },
+    ]);
+    const c = await buildCalendar(NOW);
+    expect(c.dates.filter(d => d.kind === 'settles')).toHaveLength(1);
+  });
+
+  test('two books on the same metric and the same day are one date', async () => {
+    await market('a', '2026-09');
+    await market('b', '2026-09');
+    const c = await buildCalendar(NOW);
+    expect(c.dates.filter(d => d.kind === 'settles')).toHaveLength(1);
+  });
+
   test('another floor’s dates are not this platform’s plan', async () => {
     await market('mkt', '2026-09-30', { workspaceId: OTHER, metricId: 'm2' });
     await proposal('p1', { status: 'pending', decideBy: '2026-09-15T17:00:00Z', workspaceId: OTHER });

@@ -131,8 +131,11 @@ publishes, and a reader who wants one can do it.
 The change log is retrospective and the metric is forward, so a forecaster
 pricing the end of the month was pricing the owner's calendar without being
 shown it. `calendar` publishes the dates the platform already holds: every
-open book with the instant it settles, and every proposal still on the ballot
-with the instant it must be decided by. Soonest first, and only what is still
+number that settles with the instant it settles on, and every proposal still
+on the ballot with the instant it must be decided by. Baseline books only, one
+row per number and day: a proposal spawns two branch markets per horizon on
+the same metric and the same date, and the reader is being told a date rather
+than a book count. Soonest first, and only what is still
 ahead: a date that has passed is in the change log, not in the plan.
 
 Nothing here is typed in for the page. Every row is a date something already
