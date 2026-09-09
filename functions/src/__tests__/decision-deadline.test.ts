@@ -25,16 +25,7 @@ jest.mock('../middleware/auth', () => ({
 import { and, eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import {
-  agents,
-  limitOrders,
-  markets,
-  metrics,
-  positions,
-  proposalRevisions,
-  proposals,
-  workspaces,
-} from '../db/schema';
+import { agents, limitOrders, markets, metrics, positions, proposals, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
@@ -69,7 +60,7 @@ const OWNER = 'agent-dl-owner';
 const PROPOSER = 'agent-dl-proposer';
 const TRADER = 'agent-dl-trader';
 const METRIC = 'metric-dl';
-const DAY = 24 * 60 * 60 * 1000;
+const _DAY = 24 * 60 * 60 * 1000;
 
 async function seed(opts: { decisionMinutes?: number } = {}) {
   await db.insert(agents).values([
@@ -130,7 +121,7 @@ const post = (body: Record<string, unknown>, agent = PROPOSER) =>
     .set('Content-Type', 'application/json')
     .send(body);
 
-const patch = (id: string, body: Record<string, unknown>, agent = PROPOSER) =>
+const _patch = (id: string, body: Record<string, unknown>, agent = PROPOSER) =>
   request(app)
     .patch(`/api/proposals/${id}`)
     .set('X-Test-Agent-Id', agent)
