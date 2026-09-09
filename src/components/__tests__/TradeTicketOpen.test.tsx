@@ -225,7 +225,7 @@ describe('the stake is one group, and nothing is pictured before a bet', () => {
   test('the slider says what its own ends are, in credits', () => {
     render(<TradeTicket {...base} />);
     expect(screen.getByText('1 cr')).toBeTruthy();
-    expect(screen.getByText(/10,000 cr, all you have/)).toBeTruthy();
+    expect(screen.getByText(/10k cr, all you have/)).toBeTruthy();
   });
 
   test('at 0 cr nothing is pictured: no range bar, no payoff line', () => {
@@ -285,5 +285,33 @@ describe('the sell panel pictures the sale', () => {
     const go = screen.getByRole('button', { name: /^Sell all for/ });
     expect(go.className).toContain('ticket-go--ink');
     expect(go.className).not.toMatch(/ticket-go--(higher|lower)/);
+  });
+});
+
+describe('the sell size is a size, not a direction', () => {
+  const held = { direction: 'lower' as const, shares: 1_194, totalCost: 1_780 };
+
+  test('the size slider wears no direction colour', () => {
+    const { container } = render(<TradeTicket {...base} positions={[held]} manageMode />);
+    fireEvent.click(
+      within(container.querySelector('.ticket-pos-head') as HTMLElement).getByRole('button', { name: 'Sell' }),
+    );
+    const slider = container.querySelector('.ticket-sell-panel .ticket-slider') as HTMLElement;
+    expect(slider.className).not.toMatch(/ticket-slider--(higher|lower)/);
+  });
+
+  test('the size row is short enough not to wrap at 293px', () => {
+    const { container } = render(<TradeTicket {...base} positions={[held]} manageMode />);
+    fireEvent.click(
+      within(container.querySelector('.ticket-pos-head') as HTMLElement).getByRole('button', { name: 'Sell' }),
+    );
+    // "1,194 of 1,194", not "1,194 of 1,194 shares": the head row above it
+    // already says shares.
+    expect(screen.getByText('1,194 of 1,194')).toBeTruthy();
+  });
+
+  test('the balance end of the stake slider is compact', () => {
+    render(<TradeTicket {...base} balance={946_418} />);
+    expect(screen.getByText(/946\.4k cr, all you have/)).toBeTruthy();
   });
 });

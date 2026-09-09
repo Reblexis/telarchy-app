@@ -5939,6 +5939,7 @@ textarea.jobform-line--desc {
 }
 .ticket-slider--higher { --slider-fill: var(--higher); }
 .ticket-slider--lower { --slider-fill: var(--lower); }
+.ticket-slider--size { --slider-fill: var(--text-secondary); }
 /* A slim upright handle instead of a disc (owner ask 2026-08-12: the round
    thumb read as buggy and misaligned with the fill). A thin bar sits exactly
    at the fill edge and reads as a proper grip; the bg-ring keeps it distinct
