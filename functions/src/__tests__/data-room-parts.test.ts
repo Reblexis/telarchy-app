@@ -43,20 +43,26 @@ describe('the page the prose actually describes', () => {
     expect(seen).toEqual([...seen].sort((a, b) => a - b));
   });
 
-  test('the numbers a forecaster prices come before the company that runs them', () => {
+  test('the numbers a forecaster prices come before the place that produces them', () => {
     const ids = sections.map(s => s.id);
-    expect(ids.indexOf('the-readings')).toBeGreaterThan(-1);
-    expect(ids.indexOf('the-readings')).toBeLessThan(ids.indexOf('who-is-here'));
+    expect(ids).toContain('the-readings');
+    expect(ids.indexOf('the-readings')).toBeLessThan(ids.indexOf('trading'));
     expect(ids.indexOf('the-readings')).toBeLessThan(ids.indexOf('traffic'));
+  });
+
+  test('every figure the page still draws is named by exactly one section', () => {
+    const named = sections.flatMap(s => s.blocks);
+    expect(new Set(named).size).toBe(named.length);
   });
 
   test('every part has at least one section, so the index never shows an empty heading', () => {
     for (const p of KNOWN_PARTS) expect(sections.some(s => s.part === p.id)).toBe(true);
   });
 
-  test('the readings are their own section rather than a footnote inside the window', () => {
-    const numbers = sections.find(s => s.id === 'the-readings');
-    expect(numbers?.blocks).toContain('rates');
-    expect(sections.find(s => s.id === 'the-window')?.blocks).not.toContain('rates');
+  test('the readings are their own section rather than a footnote under the near-threshold rows', () => {
+    const readings = sections.find(s => s.id === 'the-readings');
+    expect(readings?.blocks).toEqual(['rates']);
+    const rows = sections.find(s => s.blocks.includes('window'));
+    expect(rows?.id).not.toBe('the-readings');
   });
 });
