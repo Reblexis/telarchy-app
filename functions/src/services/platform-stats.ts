@@ -137,6 +137,16 @@ export async function outsideOwnersDeciding7d(): Promise<number> {
 export const PROFITABLE_FORECASTER_MIN_CREDITS = 100;
 
 /**
+ * Credits a verified participant has to trade in the trailing week to count
+ * as an active trader. Signup credits are free, so a one-credit gesture must
+ * not count. Exported because the data room's window block publishes the
+ * spend of every verified participant against this same line, and a second
+ * copy of the number is how a block and the metric beside it start
+ * disagreeing (docs/data-room.md).
+ */
+export const WEEKLY_TRADER_MIN_CREDITS = 100;
+
+/**
  * "Profitable forecasters" (docs/metrics.md): participants whose trading
  * profit, marked to market, is at least 100 credits over the markets that
  * resolved in the trailing 30 days plus every market still open, house
@@ -235,7 +245,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
     .from(trades)
     .where(gt(trades.createdAt, weekAgo))
     .groupBy(trades.agentId);
-  const qualifying = spendByAgent.filter(r => Number(r.spend) >= 100).map(r => r.id);
+  const qualifying = spendByAgent.filter(r => Number(r.spend) >= WEEKLY_TRADER_MIN_CREDITS).map(r => r.id);
   const weeklyActiveVerifiedTraders = (await paidManifoldLinkAgents(qualifying)).size;
   const outsideOwnersDeciding = await outsideOwnersDeciding7d();
   const profitableForecasters = await profitableForecasters30d();

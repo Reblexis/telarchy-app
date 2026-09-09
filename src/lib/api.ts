@@ -779,7 +779,7 @@ export interface PublicWorkspaceMarket {
  *  prose and every figure on the page, so the page cannot show a number the
  *  response does not carry. A term that could not be computed is null, never
  *  zero. */
-export type DataRoomBlock = 'pulse' | 'funnel' | 'traction' | 'contracts' | 'traffic' | 'shipping';
+export type DataRoomBlock = 'pulse' | 'funnel' | 'window' | 'traction' | 'contracts' | 'traffic' | 'shipping';
 
 export interface DataRoomFeed {
   schema: number;
@@ -815,6 +815,17 @@ export interface DataRoomFeed {
       /** The day the visit rollup starts, so the page can say the first
        *  conversion is not a cohort. */
       loadsSince: string | null;
+    };
+    /** The rows that already determine part of the next reading: one entry
+     *  per participant, per lapsing week, per undecided proposal, per payment.
+     *  Rows rather than counts, because a count throws the tail away
+     *  (docs/data-room.md, "The window is the rows behind the next reading"). */
+    window: {
+      at: string;
+      traders: { threshold: number; spend: number[]; lapses: string[] };
+      forecasters: { threshold: number; profit: number[] };
+      owners: { pending: Array<{ slug: string | null; title: string; decideBy: string | null }> };
+      revenue: { payments: Array<{ usd: number; status: string; at: string }> };
     };
     traction: {
       participants: number;

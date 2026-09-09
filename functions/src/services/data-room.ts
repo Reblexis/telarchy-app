@@ -6,6 +6,7 @@ import { agents, authUser, markets, pageVisits, proposals, trades, trafficDaily,
 import { ttlCache } from '../lib/ttl-cache';
 import { humanVisitFilter } from '../lib/visit-log';
 import { paidManifoldLinkCount, platformStats } from './platform-stats';
+import { buildTraderWindow } from './trader-window';
 
 /**
  * The data room: Telarchy's own books, prose and numbers in one payload.
@@ -282,7 +283,13 @@ export function buildDataRoomFeed(): Promise<DataRoomFeed> {
 }
 
 async function computeDataRoomFeed(): Promise<DataRoomFeed> {
-  const [stats, tract, contractRows, traf] = await Promise.all([platformStats(), traction(), contracts(), traffic()]);
+  const [stats, tract, contractRows, traf, windowRows] = await Promise.all([
+    platformStats(),
+    traction(),
+    contracts(),
+    traffic(),
+    buildTraderWindow(),
+  ]);
   const chain = funnel({
     loads: traf.totalVisits,
     accounts: tract.accounts,
@@ -306,6 +313,9 @@ async function computeDataRoomFeed(): Promise<DataRoomFeed> {
         source: '/api/marketplace/stats',
       },
       funnel: chain,
+      // The rows behind the next reading, not a count of them
+      // (docs/data-room.md, "The window is the rows behind the next reading").
+      window: windowRows,
       traction: tract,
       contracts: contractRows,
       traffic: traf,
@@ -387,6 +397,31 @@ function renderBlock(name: string, feed: DataRoomFeed): string {
       `shipping: ${fmt(v.total)} changes over ${v.days.length} days, log generated ${v.builtAt}`,
       `  newest changes:`,
       recent,
+    ].join('\n');
+  }
+
+  if (name === 'window') {
+    const overTraders = v.traders.spend.filter((x: number) => x >= v.traders.threshold).length;
+    const near = v.traders.spend.filter((x: number) => x > 0 && x < v.traders.threshold);
+    const overProfit = v.forecasters.profit.filter((x: number) => x >= v.forecasters.threshold).length;
+    return [
+      'window (the rows that already determine part of the next reading):',
+      `  traded this week, per verified participant, high to low: ${v.traders.spend.map(fmt).join(', ') || 'none'}`,
+      `  at or above ${fmt(v.traders.threshold)} credits, so counted today: ${fmt(overTraders)}`,
+      `  under it but not at zero: ${near.length ? near.map(fmt).join(', ') : 'none'}`,
+      `  the day each counted trader falls out of their week: ${v.traders.lapses.join(', ') || 'none'}`,
+      `  marked profit, per participant, high to low: ${v.forecasters.profit.map(fmt).join(', ') || 'none'}`,
+      `  at or above ${fmt(v.forecasters.threshold)} credits: ${fmt(overProfit)}`,
+      '  undecided proposals on outside floors:',
+      ...(v.owners.pending.length
+        ? v.owners.pending.map(
+            (r: any) => `    ${r.slug}: ${r.title}${r.decideBy ? ` (decides by ${r.decideBy})` : ''}`,
+          )
+        : ['    none']),
+      '  payments on the revenue rail in the last 30 days:',
+      ...(v.revenue.payments.length
+        ? v.revenue.payments.map((p: any) => `    ${p.at}: $${fmt(p.usd)}, ${p.status}`)
+        : ['    none']),
     ].join('\n');
   }
 

@@ -103,6 +103,143 @@ function DayBars({ points, label }: { points: Array<{ day: string; value: number
 }
 
 /**
+ * A distribution: one bar per row, in the order the feed sorted them, with the
+ * line that decides the count drawn across it.
+ *
+ * The block this belongs to exists because a count ("four are between 40 and
+ * 99") throws away the shape, so the drawing has to keep every row: no
+ * grouping, no top ten, and a zero keeps its slot. What a tall tail would
+ * otherwise cost is the near-threshold detail, which is the part a forecaster
+ * is actually pricing, so the axis is capped and every value past it is
+ * printed underneath in full. Nothing is clipped in silence.
+ */
+function Distribution({
+  id,
+  values,
+  threshold,
+  cap,
+  unit,
+  signed,
+  caption,
+  label,
+}: {
+  id: string;
+  values: number[];
+  threshold: number;
+  cap: number;
+  unit: string;
+  signed?: boolean;
+  caption: string;
+  label: string;
+}) {
+  if (!values.length) return <p className="dr-empty">Nothing recorded yet.</p>;
+  const W = 760;
+  const H = 190;
+  const PAD = 16;
+  const hasNeg = values.some(v => v < 0);
+  const top = Math.max(threshold * 1.25, Math.min(cap, Math.max(...values)));
+  const bottom = hasNeg ? Math.min(-threshold / 2, Math.max(-cap, Math.min(...values))) : 0;
+  const span = top - bottom || 1;
+  const plotH = H - PAD * 2;
+  const y = (v: number) => PAD + ((top - Math.max(bottom, Math.min(top, v))) / span) * plotH;
+  const zeroY = y(0);
+  const gap = values.length > 60 ? 1 : 3;
+  const w = Math.max(1, (W - gap * (values.length - 1)) / values.length);
+  const past = values.filter(v => Math.abs(v) > cap);
+  return (
+    <figure className={`dr-dist${signed ? ' dr-dist--signed' : ''}`} data-dist={id}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label} className="dr-dist-svg">
+        <line x1={0} y1={zeroY} x2={W} y2={zeroY} className="dr-dist-zero" />
+        {values.map((v, i) => {
+          const x = i * (w + gap);
+          const yv = y(v);
+          const h = v === 0 ? 1.5 : Math.max(1.5, Math.abs(yv - zeroY));
+          const yTop = v < 0 ? zeroY : Math.min(yv, zeroY - 1.5);
+          return (
+            <rect
+              // Position is the identity here: the rows are anonymous numbers.
+              key={`${id}-${i}`}
+              x={x}
+              y={yTop}
+              width={w}
+              height={h}
+              className={`dr-dist-bar${v < 0 ? ' is-down' : ' is-up'}`}
+            >
+              <title>{`${n(Math.round(v))} ${unit}`}</title>
+            </rect>
+          );
+        })}
+        <line x1={0} y1={y(threshold)} x2={W} y2={y(threshold)} className="dr-dist-threshold" />
+      </svg>
+      <figcaption className="dr-dist-cap">
+        <span>{caption}</span>
+        <span className="dr-dist-line">{`${n(threshold)} ${unit} counts`}</span>
+      </figcaption>
+      {past.length > 0 && (
+        <p className="dr-dist-over">
+          Past the axis: {past.map(v => n(Math.round(v))).join(', ')} {unit}
+        </p>
+      )}
+    </figure>
+  );
+}
+
+/**
+ * One dot per counted trader, standing on the day their own trailing week
+ * falls under the threshold. Seven columns, because a window that takes in
+ * nothing new always empties inside seven days; a day nobody lapses keeps its
+ * empty column.
+ */
+function LapseStrip({ from, lapses }: { from: string; lapses: string[] }) {
+  const start = new Date(`${from.slice(0, 10)}T00:00:00Z`);
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start.getTime() + (i + 1) * 24 * 60 * 60 * 1000);
+    return d.toISOString().slice(0, 10);
+  });
+  return (
+    <div className="dr-lapse">
+      {days.map(day => {
+        const on = lapses.filter(l => l === day).length;
+        return (
+          <div key={day} className="dr-lapse-day">
+            <span className="dr-lapse-dots">
+              {Array.from({ length: on }, (_, i) => (
+                <span key={`${day}-${i}`} className="dr-lapse-dot" />
+              ))}
+            </span>
+            <span className="dr-lapse-label">{dayLabel(day)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A dated hairline list: the day on the left, the row, and what it is. */
+function WhenList({
+  id,
+  rows,
+  empty,
+}: {
+  id: string;
+  rows: Array<{ key: string; when: string; main: React.ReactNode; right?: React.ReactNode }>;
+  empty: string;
+}) {
+  if (!rows.length) return <p className="dr-empty">{empty}</p>;
+  return (
+    <ul className="dr-when" data-when={id}>
+      {rows.map(r => (
+        <li key={r.key} className="dr-when-row">
+          <span className="dr-when-day">{r.when}</span>
+          <span className="dr-when-main">{r.main}</span>
+          {r.right !== undefined && <span className="dr-when-right">{r.right}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
  * The named changes, newest first. Only the most recent are on screen at
  * first: the log is the longest thing on the page by an order of magnitude,
  * and a reader who wants all of it says so (or reads the feed, which carries
@@ -181,6 +318,59 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
           Loads count what the visit rollup holds and accounts predate it, so the first percentage is arithmetic between
           two published numbers rather than a claim that those accounts came out of those loads.
         </p>
+      </>
+    );
+  }
+
+  if (name === 'window') {
+    const w = e.window;
+    return (
+      <>
+        <h3 className="dr-h3">Traded this week, one bar per verified participant</h3>
+        <Distribution
+          id="traders"
+          values={w.traders.spend}
+          threshold={w.traders.threshold}
+          cap={500}
+          unit="cr"
+          caption={`${n(w.traders.spend.length)} verified participants, sorted`}
+          label="Credits traded in the trailing seven days, one bar per verified participant"
+        />
+        <h3 className="dr-h3">When each counted week lapses, one dot per trader</h3>
+        <LapseStrip from={w.at} lapses={w.traders.lapses} />
+        <h3 className="dr-h3">Marked profit, one bar per participant</h3>
+        <Distribution
+          id="forecasters"
+          values={w.forecasters.profit}
+          threshold={w.forecasters.threshold}
+          cap={600}
+          unit="cr"
+          signed
+          caption="marked to market, house excluded"
+          label="Marked profit per participant, sorted"
+        />
+        <h3 className="dr-h3">Undecided on an outside floor</h3>
+        <WhenList
+          id="owners"
+          empty="Nothing waiting on a decision."
+          rows={w.owners.pending.map((p, i) => ({
+            key: `${p.slug ?? 'floor'}-${i}`,
+            when: p.decideBy ? dayLabel(p.decideBy) : 'no deadline',
+            main: p.title,
+            right: p.slug,
+          }))}
+        />
+        <h3 className="dr-h3">On the revenue rail</h3>
+        <WhenList
+          id="revenue"
+          empty="No payment on the rail in the last 30 days."
+          rows={w.revenue.payments.map((p, i) => ({
+            key: `pay-${i}`,
+            when: dayLabel(p.at),
+            main: `$${n(p.usd)}`,
+            right: p.status,
+          }))}
+        />
       </>
     );
   }
