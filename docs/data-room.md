@@ -126,6 +126,25 @@ Summaries of the eight (the biggest week, how many weeks were flat) are
 deliberately absent. They are arithmetic on numbers the block already
 publishes, and a reader who wants one can do it.
 
+## What is scheduled
+
+The change log is retrospective and the metric is forward, so a forecaster
+pricing the end of the month was pricing the owner's calendar without being
+shown it. `calendar` publishes the dates the platform already holds: every
+open book with the instant it settles, and every proposal still on the ballot
+with the instant it must be decided by. Soonest first, and only what is still
+ahead: a date that has passed is in the change log, not in the plan.
+
+Nothing here is typed in for the page. Every row is a date something already
+in the database falls due on, which is what keeps the calendar from becoming
+a list of intentions nobody is held to.
+
+The block also carries the outreach list as one entry per person, the stage
+they have reached and nothing else. Who is being written to stays unpublished
+for the same reason referers are (above); how many people are at each stage
+is the chain that ends in "outside owners deciding", and a stage names
+nobody.
+
 ## Every number comes from the database that serves the site
 
 `GET /api/data-room` is one public, uncredentialed read that returns the

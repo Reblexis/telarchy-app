@@ -874,6 +874,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'POST',
+      path: '/api/workspaces/:id/calls',
+      auth: 'admin',
+      description:
+        "The owner's own call: what YOU expect a metric to read at a date, published beside what the market says. Body: { metricId, targetDate, value }. Append-only: a second call on the same metric and date is a second row, never an edit, and the floor prints the newest with how many stand behind it, because a forecast that can be rewritten after the fact is not one. It moves no price, settles no market and pays nobody; the floor shows it as a third cell in the stat row and GET /api/marketplace/:idOrSlug returns them as ownerCalls.",
+    },
+    {
+      method: 'POST',
       path: '/api/workspaces/:id/announcements',
       auth: 'admin',
       description:

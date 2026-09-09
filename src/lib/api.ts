@@ -609,6 +609,8 @@ export interface PublicWorkspace {
    *  decisions, deliveries. Newest first; the chart and the list beneath it
    *  number them oldest first. */
   heroEvents?: FloorEvent[];
+  /** The owner's own calls, newest per metric and date. */
+  ownerCalls?: OwnerCall[];
   /** The metric's own description: the owner's provenance statement. */
   heroMetricDescription?: string | null;
   /** The hero metric's id, so a manager can edit that description in place.
@@ -703,6 +705,18 @@ export interface PublicProposalMarketPair {
   declinedVolume: number | null;
   rangeMin: number;
   rangeMax: number;
+}
+
+/** The owner's own call for a metric at a date, beside the market's
+ *  (docs/owner-on-the-floor.md, "The owner's own call"). `revisions` is how
+ *  many earlier calls stand behind this one; calls are append-only. */
+export interface OwnerCall {
+  metricId: string;
+  targetDate: string;
+  value: number;
+  at: string;
+  by: string;
+  revisions: number;
 }
 
 /** A dated thing the owner did, drawn against the line it moved
@@ -821,7 +835,16 @@ export interface PublicWorkspaceMarket {
  *  prose and every figure on the page, so the page cannot show a number the
  *  response does not carry. A term that could not be computed is null, never
  *  zero. */
-export type DataRoomBlock = 'pulse' | 'funnel' | 'window' | 'rates' | 'traction' | 'contracts' | 'traffic' | 'shipping';
+export type DataRoomBlock =
+  | 'pulse'
+  | 'funnel'
+  | 'window'
+  | 'rates'
+  | 'calendar'
+  | 'traction'
+  | 'contracts'
+  | 'traffic'
+  | 'shipping';
 
 export interface DataRoomFeed {
   schema: number;
@@ -875,6 +898,12 @@ export interface DataRoomFeed {
     rates: {
       weeks: string[];
       metrics: Array<{ name: string; readings: Array<number | null> }>;
+    };
+    /** The dates the platform already holds: books settling, proposals to be
+     *  decided, and the outreach list as stages with nobody named. */
+    calendar: {
+      dates: Array<{ at: string; kind: 'settles' | 'decides'; label: string }>;
+      outreach: { stages: string[] };
     };
     traction: {
       participants: number;
@@ -1838,6 +1867,10 @@ export const api = {
       }>;
     }>,
   approveProposal: (id: string) => request(`/api/proposals/${id}/approve`, { method: 'POST' }),
+  /** Publish what YOU expect a metric to read at a date, beside what the
+   *  market says. Append-only: this never edits an earlier call. */
+  setOwnerCall: (workspaceId: string, body: { metricId: string; targetDate: string; value: number }) =>
+    request(`/api/workspaces/${workspaceId}/calls`, { method: 'POST', body: JSON.stringify(body) }),
   /** Say whether the approved work happened (docs/guides/proposals.md, "After
    *  approval: say whether it happened"). Only an approved proposal has one. */
   setProposalDelivery: (id: string, state: 'not_started' | 'in_progress' | 'delivered', note?: string) =>

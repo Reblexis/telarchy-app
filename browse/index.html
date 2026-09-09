@@ -162,11 +162,12 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h4">The funnel is the chain that ends in the metric</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h5">The window is the rows behind the next reading</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h6">The base rates are every weekly reading</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h7">Every number comes from the database that serves the site</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h8">Traffic, and what is deliberately not published</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h9">Otto browses it; it is not in his context</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h10">The change log is the git history</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h11">Rules for changing this page</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h7">What is scheduled</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h8">Every number comes from the database that serves the site</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h9">Traffic, and what is deliberately not published</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h10">Otto browses it; it is not in his context</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h11">The change log is the git history</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h12">Rules for changing this page</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-formulas-md">docs/formulas.md</a></summary>
@@ -277,7 +278,8 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h5">What already lived on the floor</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h6">Machinery, and the trap v1 refuses to ship</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h7">Handing it to your own agent</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h8">What is deliberately not here</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h8">The owner&#x27;s own call</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h9">What is deliberately not here</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-record-links-md">docs/record-links.md</a></summary>
@@ -1878,7 +1880,22 @@ rather than ours.</p>
 <p>Summaries of the eight (the biggest week, how many weeks were flat) are
 deliberately absent. They are arithmetic on numbers the block already
 publishes, and a reader who wants one can do it.</p>
-<h2 id="docs-data-room-md--h7">Every number comes from the database that serves the site</h2>
+<h2 id="docs-data-room-md--h7">What is scheduled</h2>
+<p>The change log is retrospective and the metric is forward, so a forecaster
+pricing the end of the month was pricing the owner's calendar without being
+shown it. <code>calendar</code> publishes the dates the platform already holds: every
+open book with the instant it settles, and every proposal still on the ballot
+with the instant it must be decided by. Soonest first, and only what is still
+ahead: a date that has passed is in the change log, not in the plan.</p>
+<p>Nothing here is typed in for the page. Every row is a date something already
+in the database falls due on, which is what keeps the calendar from becoming
+a list of intentions nobody is held to.</p>
+<p>The block also carries the outreach list as one entry per person, the stage
+they have reached and nothing else. Who is being written to stays unpublished
+for the same reason referers are (above); how many people are at each stage
+is the chain that ends in &quot;outside owners deciding&quot;, and a stage names
+nobody.</p>
+<h2 id="docs-data-room-md--h8">Every number comes from the database that serves the site</h2>
 <p><code>GET /api/data-room</code> is one public, uncredentialed read that returns the
 document and every number on it. The page renders that response and nothing
 else, so a visitor can fetch the same URL and check the page against it. Agents
@@ -1894,7 +1911,7 @@ a duplicate, a test row) is not a decision, and counting it would leave the
 approved, declined, pending and withdrawn rows summing to less than the total.</p>
 <p><strong>Refuse, do not guess.</strong> A term that cannot be computed is <code>null</code>, and the page
 renders <code>null</code> as &quot;not published&quot; rather than as zero.</p>
-<h2 id="docs-data-room-md--h8">Traffic, and what is deliberately not published</h2>
+<h2 id="docs-data-room-md--h9">Traffic, and what is deliberately not published</h2>
 <p>Visits are the platform's own server-side document-load log (<code>page_visits</code>); no
 third-party analytics exist on the site, as the privacy policy says. The
 human filter (drop bot user-agents and scanner probe paths) is the same one the
@@ -1916,7 +1933,7 @@ only.</li>
 <li><strong>Email addresses and the waitlist.</strong> Signup counts are published; who signed
 up is not.</li>
 </ul>
-<h2 id="docs-data-room-md--h9">Otto browses it; it is not in his context</h2>
+<h2 id="docs-data-room-md--h10">Otto browses it; it is not in his context</h2>
 <p>The floor's answer service (Otto, <code>functions/src/lib/ask.ts</code>) is handed the
 floor's brief as fixed context and one tool, <code>read_data_room</code>, which reads the
 index and then one section at a time from the same cached feed the page
@@ -1937,7 +1954,7 @@ entries, prose and figures together. The trade-off runs the other way there:
 an agent makes one request and then has to price the number, and one that has
 to scrape a page to learn what moves it prices worse than one that read it.
 Every other floor's brief carries only what that workspace itself published.</p>
-<h2 id="docs-data-room-md--h10">The change log is the git history</h2>
+<h2 id="docs-data-room-md--h11">The change log is the git history</h2>
 <p>The history starts at the public open-source release, which is a clean-root
 snapshot; the private archive keeps the earlier history and it is not stitched
 in.</p>
@@ -1953,7 +1970,7 @@ Use it rather than writing a vague subject: the log's value is that it is the
 real one.</p>
 <p>Two things are published: a bar per day (how fast this is being built, which is
 machine-derived and unarguable) and the subjects themselves, newest first.</p>
-<h2 id="docs-data-room-md--h11">Rules for changing this page</h2>
+<h2 id="docs-data-room-md--h12">Rules for changing this page</h2>
 <ol>
 <li>A number that changes over time is computed in <code>functions/src/services/ data-room.ts</code> from a live table, or it is labelled on the page with the date
 it was exported. There is no third category: a figure that quietly stops
@@ -3533,7 +3550,22 @@ screenshots.</p>
 <p>Otto carries the same handoff. Every Otto conversation has the second row at
 its foot, and the operator door offers the key beside the prompt Otto has
 been writing (owner direction 2026-08-23, <code>services/setup-handoff.ts</code>).</p>
-<h2 id="docs-owner-on-the-floor-md--h8">What is deliberately not here</h2>
+<h2 id="docs-owner-on-the-floor-md--h8">The owner's own call</h2>
+<p>The owner may publish what THEY expect a metric to read at a date, beside what
+the market says: <code>POST /api/workspaces/:id/calls</code> with <code>{ metricId, targetDate, value }</code>, behind <code>manage</code> like every other owner control. The
+floor prints it as a third cell in the stat row, in ink, labelled with the
+owner's handle, and the number chart draws nothing extra for it.</p>
+<p>It is a record, not a control: it moves no price, settles no market and pays
+nobody. What it does is put the owner on the same hook as the people they are
+asking to forecast, which is the only reason to publish one.</p>
+<p><strong>Calls are append-only.</strong> A new call on the same metric and date does not
+edit the old one; it is a second row, and the floor prints the newest with
+&quot;revised&quot; and how many stand behind it. A forecast that can be quietly
+rewritten after the fact is not a forecast, and the whole value of publishing
+one is that it was made before the answer was known.</p>
+<p><strong>A call is never required.</strong> A floor with none prints two cells, exactly as
+before.</p>
+<h2 id="docs-owner-on-the-floor-md--h9">What is deliberately not here</h2>
 <ul>
 <li><strong>Closing a market</strong> is not a floor control: it voids other people's
 positions, which does not belong one click from a button that buys

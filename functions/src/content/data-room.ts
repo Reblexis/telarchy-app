@@ -22,6 +22,7 @@ export const KNOWN_BLOCKS = [
   'funnel',
   'window',
   'rates',
+  'calendar',
   'traction',
   'contracts',
   'traffic',
@@ -130,6 +131,15 @@ of the week before, because a week nobody measured and a week nothing happened
 are different facts.
 
 block:rates
+
+## What is scheduled
+
+What has already been committed, between now and the settle dates on the
+board: every open book with the day it settles, every proposal on the ballot
+with the day it must be decided by. Nothing here is a plan typed in for this
+page; each row is a date something in the database falls due on.
+
+block:calendar
 
 ## Traction
 

@@ -6,6 +6,7 @@ import { agents, authUser, markets, pageVisits, proposals, trades, trafficDaily,
 import { ttlCache } from '../lib/ttl-cache';
 import { humanVisitFilter } from '../lib/visit-log';
 import { buildBaseRates } from './base-rates';
+import { buildCalendar } from './calendar';
 import { paidManifoldLinkCount, platformStats } from './platform-stats';
 import { buildTraderWindow } from './trader-window';
 
@@ -284,13 +285,14 @@ export function buildDataRoomFeed(): Promise<DataRoomFeed> {
 }
 
 async function computeDataRoomFeed(): Promise<DataRoomFeed> {
-  const [stats, tract, contractRows, traf, windowRows, rates] = await Promise.all([
+  const [stats, tract, contractRows, traf, windowRows, rates, calendar] = await Promise.all([
     platformStats(),
     traction(),
     contracts(),
     traffic(),
     buildTraderWindow(),
     buildBaseRates(),
+    buildCalendar(),
   ]);
   const chain = funnel({
     loads: traf.totalVisits,
@@ -321,6 +323,9 @@ async function computeDataRoomFeed(): Promise<DataRoomFeed> {
       // Every weekly reading, so "how far does it normally move" is a number
       // rather than a shape (docs/data-room.md, "The base rates").
       rates,
+      // The dates already committed, so a forecaster can see the owner's
+      // calendar (docs/data-room.md, "What is scheduled").
+      calendar,
       traction: tract,
       contracts: contractRows,
       traffic: traf,
@@ -438,6 +443,20 @@ function renderBlock(name: string, feed: DataRoomFeed): string {
         (m: any) =>
           `  ${m.name}: ${m.readings.map((r: number | null) => (r === null ? 'not read' : fmt(r))).join(', ')}`,
       ),
+    ].join('\n');
+  }
+
+  if (name === 'calendar') {
+    const stageCounts = new Map<string, number>();
+    for (const st of v.outreach.stages) stageCounts.set(st, (stageCounts.get(st) ?? 0) + 1);
+    return [
+      'calendar (what is already committed, soonest first):',
+      ...(v.dates.length
+        ? v.dates.map((d: any) => `  ${d.at.slice(0, 10)}: ${d.label} (${d.kind})`)
+        : ['  nothing scheduled']),
+      `  outreach list, by stage: ${
+        stageCounts.size ? [...stageCounts.entries()].map(([st, n]) => `${st} ${n}`).join(', ') : 'nobody on it'
+      }`,
     ].join('\n');
   }
 
