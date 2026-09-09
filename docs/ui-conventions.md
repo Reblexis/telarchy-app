@@ -2049,6 +2049,36 @@ figures that are supposed to mean a stranger showed up. Filtering it on read
 instead would move those hits into the "bot hits" count, which is a
 different lie.
 
+### The cockpit may never take the site down
+
+`/admin` is left open for hours, so its cost is a running cost rather than a
+page load. Three rules keep it from becoming an outage, all of them learned
+from one on 2026-09-09, when the page was left open overnight and the whole
+site answered 503 for two hours
+(`notes/incident-admin-poll-outage-2026-09-09.md`).
+
+- **Every expensive cockpit read is cached server-side.** `floor-stats` and
+  `journeys` each read the visitor log, which no page load can afford to do
+  on demand; both are served from a short-lived cache, so a page polling
+  every twenty seconds cannot ask the database more than once a minute.
+  Data a minute old is the right trade for a dashboard nobody is watching
+  in real time.
+- **The page backs off when a request fails.** A failing backend must never
+  be hammered by its own console: after a failed poll the next one waits
+  longer, doubling up to five minutes, and a successful poll resets it. A
+  poll is also skipped while the previous one is still in flight, so slow
+  responses cannot stack.
+- **The visitor log is indexed on time.** Every read of it is a time range,
+  and it grows forever between purges.
+
+The arithmetic behind the rules: production runs at most four instances with
+a four-connection pool each, so sixteen database connections serve the whole
+site. Four cockpit reads every twenty seconds, one of them taking seconds,
+consume that budget on their own, and then every other request fails waiting
+for a connection with `timeout exceeded when trying to connect`, which reads
+like a database outage and is not one. A dashboard's running cost has to be
+a small fraction of the connection budget, not most of it.
+
 ### Journeys: what one visitor did, in order
 
 The counts say a stranger showed up; they never say what happened next. A

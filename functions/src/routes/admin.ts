@@ -20,6 +20,7 @@ import { AppError } from '../lib/errors';
 import { classifyIps } from '../lib/ip-classify';
 import { getParticipantDisplayNames, listParticipantsForWorkspace } from '../lib/participants';
 import { isPlatformAuthorized } from '../lib/platform-admin';
+import { ttlCache } from '../lib/ttl-cache';
 import { humanVisitFilter, sessionize } from '../lib/visit-log';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
@@ -125,16 +126,25 @@ adminRouter.get(
  * window); signups from the auth user table; the floor's contact
  * requests from the waitlist.
  */
-adminRouter.get(
-  '/floor-stats',
-  wrap(async (req, res) => {
-    // Platform-admin only, NOT workspace `manage`: this response is
-    // platform-global (every user's email, the waitlist, and every visitor's
-    // IP), so a mere workspace owner/admin must not read it. Gated like the
-    // other platform routes in this file (agent-controls, markets/featured).
-    if (!(await isPlatformAuthorized(req))) {
-      throw new AppError('Platform admin or master key required', 403);
-    }
+/**
+ * The cockpit's two expensive reads are cached (docs/ui-conventions.md, "The
+ * cockpit may never take the site down"). `/admin` polls them for hours on
+ * end, and each one reads the visitor log; uncached, a page left open
+ * overnight took the whole site down on 2026-09-09
+ * (notes/incident-admin-poll-outage-2026-09-09.md). A minute of staleness is
+ * the right trade for a dashboard nobody watches in real time, and the
+ * gate stays OUTSIDE the cache so an unauthorised caller is still refused.
+ */
+const COCKPIT_TTL_MS = 60_000;
+
+const floorStatsCache = ttlCache({
+  ttlMs: COCKPIT_TTL_MS,
+  keyOf: () => 'floor-stats',
+  load: () => computeFloorStats(),
+});
+
+async function computeFloorStats() {
+  {
     const _monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000);
     const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 3600 * 1000);
     const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
@@ -285,7 +295,7 @@ adminRouter.get(
 
     const [{ n: totalUsers }] = await db.select({ n: sql<number>`count(*)::int` }).from(authUser);
 
-    res.json({
+    return {
       visits24h: Number(visits24h),
       uniques24h: Number(uniques24h),
       botVisits: Number(botVisits),
@@ -299,7 +309,21 @@ adminRouter.get(
       recentSignups,
       totalUsers,
       waitlist: waitlistRows,
-    });
+    };
+  }
+}
+
+adminRouter.get(
+  '/floor-stats',
+  wrap(async (req, res) => {
+    // Platform-admin only, NOT workspace `manage`: this response is
+    // platform-global (every user's email, the waitlist, and every visitor's
+    // IP), so a mere workspace owner/admin must not read it. Gated like the
+    // other platform routes in this file (agent-controls, markets/featured).
+    if (!(await isPlatformAuthorized(req))) {
+      throw new AppError('Platform admin or master key required', 403);
+    }
+    res.json(await floorStatsCache.get());
   }),
 );
 
@@ -317,15 +341,14 @@ adminRouter.get(
  * filter, because a journey and the counts must not disagree about who
  * counts as a visitor.
  */
-adminRouter.get(
-  '/journeys',
-  wrap(async (req, res) => {
-    // Same gate as /floor-stats: this response carries visitor IPs and is
-    // platform-global, so workspace `manage` is not enough.
-    if (!(await isPlatformAuthorized(req))) {
-      throw new AppError('Platform admin or master key required', 403);
-    }
+const journeysCache = ttlCache({
+  ttlMs: COCKPIT_TTL_MS,
+  keyOf: () => 'journeys',
+  load: () => computeJourneys(),
+});
 
+async function computeJourneys() {
+  {
     // The privacy policy's request-log window. Rows past it are deleted by
     // the daily maintenance job; bounding the read as well means a late job
     // can never surface a visit the policy says is gone.
@@ -363,7 +386,7 @@ adminRouter.get(
 
     const bounced = journeys.filter(j => j.bounced).length;
 
-    res.json({
+    return {
       // Summary counts every journey in the window; the list below is capped
       // for the page, so the two are deliberately different numbers.
       summary: {
@@ -374,7 +397,19 @@ adminRouter.get(
       },
       topExits,
       journeys: journeys.slice(0, 300),
-    });
+    };
+  }
+}
+
+adminRouter.get(
+  '/journeys',
+  wrap(async (req, res) => {
+    // Same gate as /floor-stats: this response carries visitor IPs and is
+    // platform-global, so workspace `manage` is not enough.
+    if (!(await isPlatformAuthorized(req))) {
+      throw new AppError('Platform admin or master key required', 403);
+    }
+    res.json(await journeysCache.get());
   }),
 );
 
