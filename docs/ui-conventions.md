@@ -425,42 +425,51 @@ javascript: vector in an img src.
 
 The floor prices a SET of metrics, and every one of them is one number read
 on several dates. The horizon list is therefore a grid, metrics x dates.
-The caption carries two independent pickers on ONE line, and under them
-the selected cell stated as the market's own question, one sentence in the
-display face. The pickers are the board's caption vocabulary (docs
-"The marketplace"): two mono small-caps chips separated by a middle dot,
-each a dropdown (revised 2026-09-04 on the floor canvas, replacing the two
-segmented rows of 2026-08-28: the rows cost two lines and a pair of owner
-buttons before the question, and the board under the home page's headline
-had already taught the caption's shape):
+**Both axes of that grid are strips, and every tab carries its call**
+(revised 2026-09-09, replacing the two dropdown chips of 2026-09-04): two
+rows of mono small-caps tabs on their own hairline, the metrics first and
+the dates under them, each tab its name with the market's current call in
+the quiet register beneath it, the selected one in ink over an accent
+underline. A dropdown hides how many books a floor prices and what they
+say; a strip is the scoreboard of everything this floor prices, read
+without pressing anything, which is the whole of what a visitor came to
+find out:
 
 ```
-        [ NET REVENUE v ]  ·  [ THIS MONTH · SETTLES 30 SEP v ]     <- two chips, each a menu
-        What will be LookPilot's net revenue this month?
+  ACTIVE TRADERS   REVENUE   OUTSIDE OWNERS DECIDING   PROFITABLE FORECASTERS
+  17.9             $45       1.0                       6.4
+  ------------
+  THIS WEEK   THIS MONTH
+  14.3        17.9
+              ----------
+        What will be Telarchy's active traders this month?
               NOW · READ 35M AGO   |   MARKET'S CALL · FOR 30 SEP
-              $7,674               |   $6,850
+              9.00                 |   17.9  ▲ +0.4
                   [ HIGHER ]  [ LOWER ]
 ```
 
-- **The metric chip** (`.pubws-chip`, `.pubws-chip--metric`) names the
-  selected metric; pressing it opens a menu (`.pubws-chip-menu`) listing
-  the floor's metrics, primary first, the selected one marked, and for
-  the owner a last entry "Manage metrics" that opens the metrics dialog
-  (the former "Metrics" button). With one metric and nothing to manage the
-  chip is plain text with no chevron and no menu; the owner keeps the menu,
-  because "Manage metrics" is their way into the dialog.
-- **The date chip** (`.pubws-chip--date`) reads the selected clock and its
-  settle day ("THIS MONTH · SETTLES 30 SEP"; `dateSegmentOf` computes both
-  from the market, never stored on the metric); its menu lists the
-  metric's open dates soonest first, and for the owner a last entry
-  "Manage dates" that opens the metric's sheet, where the dates are rows
-  (docs/owner-on-the-floor.md, dialog 2; the former "Dates" button).
-  With one open date and nothing to manage the chip is plain text, so the
-  settle day never leaves the page.
-- Menus close on a pick, on Escape, and on a click outside; the chip is a
-  `button` with `aria-expanded`, the menu a `listbox` of `option`s, so a
-  keyboard reader gets the same control. The chips wrap onto two lines on
-  a phone rather than shrinking their labels.
+- **The metric strip** (`.pubws-strip`, `.pubws-strip--metric`) lists the
+  floor's metrics, primary first, each tab (`.pubws-strip-tab`) the metric's
+  name over its current call for the SELECTED date, so moving along the
+  strip compares like with like. A floor with one metric draws no strip at
+  all, because a strip of one is a label.
+- **The date strip** (`.pubws-strip--date`) lists the selected metric's open
+  dates soonest first, each tab the clock's name ("THIS WEEK", "THIS MONTH";
+  `dateSegmentOf`) over that date's call. The settle day it used to carry
+  moves to the stat row's caption, which already says "FOR 30 SEP · SETTLES
+  IN 21D" and is the only place it needs to be said. One open date draws no
+  strip.
+- **A tab with no price prints a dash**, never a borrowed number: an
+  unfunded book is a book nobody has priced, and a strip that invents a
+  value for it is worse than one that admits it.
+- **The owner's two entries stay reachable.** "Manage metrics" and "Manage
+  dates" are the last tab of their strip, in the accent, for a manager only;
+  they open the same dialogs the chips' menus opened (the metrics dialog and
+  the metric's sheet, docs/owner-on-the-floor.md).
+- Each tab is a `button` in a `tablist` with `aria-selected`, so a keyboard
+  reader moves along the strip with the arrow keys. The strips scroll
+  sideways on a phone rather than wrapping or shrinking their labels; the
+  selected tab is scrolled into view.
 
 - **The sentence is "What will be {company}'s {metric} {date}?"** The
   scaffold words sit a register quieter (`.pubws-instrument-ask`); the
@@ -721,15 +730,17 @@ reads now, what the market says it will read, then the picture of both on
 one axis. Everything in this section serves that order (decision record:
 `notes/decisions/ui-conventions.md`, 2026-09-03).
 
-**The summary line.** When the metric has a definition, its FIRST SENTENCE
-prints under the question line in the quiet register
-(`.pubws-instrument-sum`, `firstSentenceOf`), so a reader knows what the
-number is before they see it: "Everything LookPilot earned in the last 30
-days from Steam and direct sales, net of Valve's cut and refunds." A
-definition with no sentence end prints whole; a metric with no definition
-prints no line. The full definition stays where it was, under "What is
-this market?"; an owner who wants a different summary writes a different
-first sentence.
+**Nothing about settlement stands between the question and the number**
+(revised 2026-09-09). The summary line under the question is gone, and with
+it the last way the definition could print twice: the rule the market settles
+on is one block UNDER the trade, "How this settles"
+(`.pubws-settles`, a tinted `--bg-secondary` panel with the section's tiny
+uppercase label), carrying the metric's full definition and the settle
+instant in one paragraph. A reader meets the question, the two numbers, the
+chart and the two verbs first, and reads the rule when they want to check it,
+which is the order every venue that prices a number uses. A metric with no
+definition prints the settle sentence alone. The know block keeps the
+manager's Edit control on that same text.
 
 **The stat row** (`.pubws-stats`) is two named numbers in ONE row, two
 cells on hairlines the way the home board draws its cells (revised
@@ -749,10 +760,19 @@ the same vertical rhythm.
 - The market's call (`.pubws-stat--call`, amber): the consensus, "market's
   call", then "for 30 Sep · settles in 27d" (`.pubws-settle-in`: the day
   being forecast, which is the day before the settle instant, exactly as
-  the date picker names it, and the countdown ticking by the minute, the
+  the date strip names it, and the countdown ticking by the minute, the
   exact UTC instant on hover; "settling" once it is). A selected proposal's
   impact chip sits beside the value as the bare arrow and delta
   ("▲ +7.8"), because the impact is the proposal's one number.
+- **The call carries its own move** (2026-09-09), on the plain market view
+  where no proposal impact occupies that slot: the same chip anatomy
+  (`.pubws-delta-chip`, green up, red down) reading the change since the
+  last point at least 24 hours old in `marketHistory`, "▲ +0.4", with
+  "since yesterday" as its hover title. A returning trader's first question
+  is what moved while they were away, and a bare consensus cannot answer it.
+  A market with no point that old, or one that has not moved, prints no chip
+  rather than a grey zero; a selected proposal's impact wins the slot,
+  because the proposal is what that view is about.
 
 The price carries the metric's currency symbol when the trimmed
 parenthetical tail names one (e.g. "USD" -> "$"; the same prefix runs
@@ -778,14 +798,29 @@ with a stat each and no words joining them; a Manifold trader read the
 $6k on the bottom one as a lifetime total and bet against a company he
 thought had just started.
 
-**The market's own history is a strip below** (`.pubws-callhist`,
-`MarketChart` at half height): how the call moved since the market
-opened, captioned "how the call moved" in the centre of its row with its
-chips (`1D 1W ALL`) on the right and nothing in its left cell. It is the
-"how did we get here", not the hero. The composed bet's ghost draws on
-BOTH charts: the strip moves its live dot's ghost, and the number chart
-draws the same ghost on the selected market's marker (`preview` on both
-components, one value from the ticket).
+**There is ONE chart, and how the call moved is a mode of it** (revised
+2026-09-09, replacing the second chart stacked below). The chart's control
+row carries a two-way toggle on the left of its chips, VALUE and CALL:
+Value draws the number chart described above, Call draws the market's own
+history (`MarketChart`) in the same slot at the same height, captioned by
+the same caption, with its own ranges (`1D 1W ALL`). Nothing is lost and
+the reader chooses which question they are asking. Two charts stacked cost
+340px of the first screen and pushed the two bet verbs to 1035px on a
+1000px viewport, below the fold, which is the one thing a trading page may
+not do. The composed bet's ghost draws in whichever mode is on screen
+(`preview` on both components, one value from the ticket), and the mode is
+remembered for the session, not the page load.
+
+**The chart's footer is where the counts live** (revised 2026-09-09,
+moving them up from the tab row): under the plot, the market's money on the
+left and the range chips on the right, the way every exchange labels a
+chart. Two of the three counts take a word, because a bare number cannot
+say what it counts: "42k pool · 30k volume", mono and quiet
+(`.pubws-chartfoot`). The trader count keeps its icon and drops its label,
+since a number beside a person already reads as people. The full sentence
+stays as each item's hover title. This is the only place the counts appear;
+the facts row under the bet verbs keeps the owner's Inject and Buy controls
+and nothing else.
 
 **When a market settles is said once, beside the call.** The date
 picker names each market by its clock and settle day (`TODAY · 26 AUG`,
@@ -803,9 +838,9 @@ one thing that still prints under the stat row is the N/A caveat of a
 metric with no reading yet ("N/A, all bets refunded, if there is still no
 reading by then"), because it changes what a bet is.
 
-- **The market chart** is the prediction (`MarketChart`, the strip): one
-  amber step line of the market's call over its lifetime, gradient fill,
-  labeled end dot, crosshair. The series STARTS at the price the market opened at,
+- **The market chart** is the prediction (`MarketChart`, the chart's CALL
+  mode): one amber step line of the market's call over its lifetime,
+  gradient fill, labeled end dot, crosshair. The series STARTS at the price the market opened at,
   stamped with its creation time, because a pair that opens anchored and
   has traded once is otherwise a single point, which draws as a flat line
   and a cliff at the live dot and reads as if every trade happened at once.
@@ -823,8 +858,16 @@ reading by then"), because it changes what a bet is.
   real move fills the plot; three readings within an hour used to draw as a
   full-height wall at the now rule. **It is about the market on
   screen**: the selected market's marker is amber and labeled; the others
-  are grey and unlabeled, and one that falls outside the window is simply
-  not drawn. Hovering snaps to the nearest reading on the past side (the dot sits on
+  are grey, carry their call in the quiet register, and one that falls
+  outside the window is simply not drawn. **Every marker is the date
+  control** (2026-09-09): pressing one selects that market, which is the
+  same act as pressing its tab in the date strip, and the two controls stay
+  in step because they are one selection. A marker is a `button` with the
+  date and its call as its accessible name, grows a ring on hover and
+  focus, and names the date it would switch to in a tooltip; the selected
+  one is not pressable, because it is where you already are. A reader who
+  can see four dots priced differently and cannot press them is being shown
+  a control that is not one. Hovering snaps to the nearest reading on the past side (the dot sits on
   a real point of the line, the tooltip names that reading and its date), and the nearest market's call on the future side,
   in the same crosshair and tooltip the market view uses. **The window follows the selected
   horizon** rather than stretching to show every marker: roughly two days
@@ -1325,17 +1368,40 @@ yanking a composed bet or a selected branch out from under the visitor is
 worse than stale code. In dev (no built bundle in the served page) the
 check is inert.
 
-### The proposals board (right rail)
+### The proposals board (under the trade)
 
-The proposals board IS the right rail, under a bare "Proposals" label; it
-renders for everyone, with proposing routed to /signup when anonymous.
-**One number per proposal** (as few numbers as possible): the impact, which
-is if-done minus if-not-done, green/red, "open" while unpriced, under a
-single right-aligned column label ("impact if done", or "impact by <date>"
-when the horizon on screen has a date) rather than a label per row. The
-two branch values are not shown. Rows carry the title, the proposer, and
-the USD ask (the two required facts of a proposal), and are ranked by
-impact, since the ballot is a ranking the owner acts on.
+**The proposals board sits under the trade, at the column's full width**
+(revised 2026-09-09, moving it out of the right rail, which the ticket now
+holds). It renders for everyone, under a bare "Proposals" label, with
+proposing routed to /signup when anonymous. What it gives up is the
+always-on-screen slot; what it buys is a row wide enough to be acted on,
+which is the point of the change. Because a reader now has to pass the
+chart to learn that paid work exists here, the propose band sits directly
+under the last row rather than at the foot of a rail.
+
+**The row is two lines, and only one of them is loud.** The first line is
+the title and, right-aligned, the impact: if-done minus if-not-done,
+green/red, "open" while unpriced, under a single column label ("impact if
+done", or "impact by <date>" when the horizon on screen has a date) rather
+than a label per row. The second line is the facts as an ICON ROW
+(`.pubws-prow-meta`), the same vocabulary the market's own facts use:
+proposer, the USD ask, the decision date, and the pool behind the pair.
+Icons, not words, because four labelled facts under every row is a
+paragraph per proposal; each icon carries its words as a hover title. The
+rows are ranked by pool as before. **Nothing is stacked on the right edge**:
+the impact and the two verbs sit on one horizontal line with the title, and
+a fact that cannot fit there goes to the icon row instead. The right edge
+growing a fourth item is what made this row unreadable in a 340px rail
+(Viktor, 2026-09-09: "4 things below each otherh seem like too much").
+
+**Every row can be traded from where it is read** (2026-09-09): a compact
+Higher / Lower pair (`.pubws-dir--mini`) at the end of the first line,
+which selects that proposal and opens the ticket on that side, exactly as
+pressing the row and then a verb would. Kalshi repeats a pressable price on
+every row of its ladder; a priced row with nothing to press is a table, not
+a market. The pair is hidden on a decided proposal, which nothing can be
+traded on any more, and on an unfunded one, which has no market to trade
+against.
 
 **A proposal prints what is behind it, and the ballot is ordered by it.**
 Under the impact, in the drop the market's own pool rows wear, every proposal
@@ -1610,43 +1676,42 @@ answer to "which one?") and the scroll stops gliding.
 
 ### The rails, and the standings under the verbs
 
-The board is signed-in only; the anonymous poster stays clean. On
-viewports >=1500px the page is a THREE-column floor (revised 2026-09-06,
-Viktor, after the two-column cut left a dead band on a wide screen; design
-record in the telarchy umbrella,
-`notes/floor-boards-yc-and-venues-2026-09-04.md`): a narrow left column of
-this market's own context, the market in a wide centre column (up to
-960px, so the chart and both numbers get the room and the question line
-sits on one row), and the proposals board as the right rail, each rail
-separated from the centre by a vertical 1px `var(--border-color)`
-hairline so the three read as one instrument. Between 1120px and 1500px
-there is no room for three: the floor is two columns, the market at up to
-720px beside the proposals rail, and the left column's context stacks
-under the market (a 1280px laptop squeezed the centre to 509px with three
-tracks). **The left column exists only
-in the plain market view**: with a proposal selected the floor is the
-two-column layout at every width, the pair beside the proposals, because
-a proposal's page is about the proposal and its two branches, not about
-the metric's definition (Viktor, 2026-09-06). **The definition is on
-screen once, never twice** (same day: "minimal text no repetition and
-maximum intuitiveness"): when the left column carries "What is this
-market?", the summary line under the question is not rendered; the
-summary line returns wherever the definition block is not above the fold
-(the two-column widths, the phone, a selected proposal). **The left
-column is about THIS market and never about other people**: from the top, "What is this
-market?" (the definition the market settles on, with its Edit for a
-manager), the season block, and the announcements. Nothing on the first
-screen ranks anyone, because every venue that works puts title, number,
-chart and trade control first and nothing about other people above the
-fold, and a board of the same dozen names at 25 visitors a day reads as
-"no one is really using this" rather than as proof. The definition and
-announcements therefore leave the know block under the market; what
-remains there is the checklist for a manager and the subject block.
+The board is signed-in only; the anonymous poster stays clean.
+**The right rail is the ticket** (revised 2026-09-09, replacing the
+proposals board that used to hold it): from 1120px up the floor is the
+market in the centre column with the trade ticket alone in a sticky right
+rail, separated by a vertical 1px `var(--border-color)` hairline, so what a
+trader does is on screen from the moment the page opens instead of waiting
+below the fold for a press. The rail names the market the ticket is pointed
+at above it ("Active traders, this month, settles 30 Sep"); selecting a
+proposal repoints it at that pair and says so in the same line. On
+viewports >=1500px a narrow left column returns for this market's own
+context and the centre grows to 960px, so the chart and both numbers get
+the room and the question line sits on one row (the three-column rule of
+2026-09-06, Viktor; design record in the telarchy umbrella,
+`notes/floor-boards-yc-and-venues-2026-09-04.md`). Between 1120px and
+1500px there is no room for three (a 1280px laptop squeezed the centre to
+509px with three tracks). **The left column exists only in the plain market
+view**: with a proposal selected the floor is centre plus ticket at every
+width, because a proposal's page is about the proposal and its two
+branches, not about the metric's definition (Viktor, 2026-09-06). **The
+left column is about THIS market and never about other people**: the season
+block and the announcements. Nothing on the first screen ranks anyone,
+because every venue that works puts title, number, chart and trade control
+first and nothing about other people above the fold, and a board of the
+same dozen names at 25 visitors a day reads as "no one is really using
+this" rather than as proof. **The definition is not in that column
+either**: since 2026-09-09 the rule the market settles on is the one block
+under the trade, which is what makes it unrepeatable at any width and
+retires both the summary line and the width test that used to hide it.
+What remains in the know block under the market is the checklist for a
+manager and the subject block.
 
 **Social proof is real use, not a ranking, and facts are the icon row,
 never a sentence** (owner rule 2026-09-03, and again 2026-09-06 when a
-prose count strip was cut). The market's facts row (traders, pool,
-volume, Inject) under the bet verbs is the only place the counts appear.
+prose count strip was cut). Since 2026-09-09 the counts themselves live
+in the chart's footer, where two of the three take one word each; what
+remains under the bet verbs is the owner's Inject and Buy controls.
 The season is ADVERTISED, not narrated (Viktor, 2026-09-06: "season can
 be advertised better than with these weird words"): the block leads with
 the money as its hero line in the mono numeral style of the market's own
@@ -1668,11 +1733,17 @@ same rows, restricted to accounts with a position on either branch of the
 selected pair, ranked by that position's marked profit, with the meta "this
 proposal"; when nobody holds one it says "nobody yet" in one row rather
 than hiding. The contractors footer does not change, since the contractor
-score is workspace-wide by construction. Below 1120px the proposals board
-stacks under the market column before the know block, and the standings
-footers stay where they are, under the facts row: the action before the
-proof. The floor column keeps a small gap under the top bar on narrow
-viewports. The loading ghosts draw the same three columns.
+score is workspace-wide by construction.
+
+**The order under the trade is the same at every width** (2026-09-09): the
+two bet verbs, then the proposals board, then the propose band, then how
+this settles, then the standings footers, then the announcements and the
+rest. On a phone this replaces an order that put both standings, the
+definition and the announcements between the trade and the proposals, so
+paid work began at 2327px of a 4240px page. A visitor comes to price the
+number or to be paid for moving it, and both of those now happen in the
+first screen and the one after it. The floor column keeps a small gap under
+the top bar on narrow viewports. The loading ghosts draw the same columns.
 
 **Both standings are scoped to THIS workspace.** The traders footer passes the
 workspace to `/api/leaderboard` (`?workspaceId=<id or slug>`), so a
