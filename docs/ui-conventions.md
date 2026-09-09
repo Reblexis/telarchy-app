@@ -656,7 +656,9 @@ deadline, an ask, and a price, and it reads in that order:
   only one the pair actually prices.
 - **The two worlds are the control.** Under the hero, three cells on
   hairlines in the stat row's anatomy: now, if approved, if declined, each a
-  caption over a value. The two branch cells ARE the branch toggle
+  caption over a value. The branch captions carry the day being forecast and
+  not the settle note the metric view uses ("if approved · 30 Sep"): the same
+  note on two cells beside each other is said twice and truncates. The two branch cells ARE the branch toggle
   (`aria-pressed`), replacing the pair of pills: the number you are switching
   to is the thing you press. The baseline stays on screen as the first cell,
   which is the whole reason a pair can be read at all.
