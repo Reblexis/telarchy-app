@@ -8558,6 +8558,94 @@ textarea.jobform-line--desc {
 
 .dr-chart-max { font-family: 'JetBrains Mono', monospace; }
 
+/* ---- The data room's one chart -------------------------------------- */
+/* docs/data-room.md, "How the page draws things". Every published series goes
+   through TimeChart so they read as one instrument: one grid, one date axis,
+   one crosshair, one tooltip. Ink for the first series, the accent for the
+   second, and identity is never colour alone (the legend names them). */
+
+.tchart { margin: 0.9rem 0 0; position: relative; }
+
+.tchart-svg { display: block; width: 100%; touch-action: pan-y; }
+
+.tchart-grid { stroke: var(--border-color); stroke-width: 1; }
+
+.tchart-ylabel,
+.tchart-xlabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  fill: var(--text-tertiary);
+}
+
+/* Series one is the reading, in ink; series two is the accent; a third and a
+   fourth step down in weight rather than reaching for new hues, because this
+   page prices one thing at a time and a rainbow would be decoration. */
+.tchart-series .tchart-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.tchart-series.is-s0 .tchart-line { stroke: var(--text-primary); }
+.tchart-series.is-s1 .tchart-line { stroke: var(--accent); }
+.tchart-series.is-s2 .tchart-line { stroke: var(--text-tertiary); stroke-dasharray: 5 3; }
+.tchart-series.is-s0 .tchart-dot { fill: var(--text-primary); }
+.tchart-series.is-s1 .tchart-dot { fill: var(--accent); }
+.tchart-series.is-s2 .tchart-dot { fill: var(--text-tertiary); }
+.tchart-series.is-s0 .tchart-area { fill: var(--bg-tertiary); }
+.tchart-series.is-s1 .tchart-area { fill: var(--accent-soft); }
+.tchart-series.is-s2 .tchart-area { fill: var(--bg-secondary); }
+
+.tchart-bars.is-s0 rect { fill: var(--text-primary); opacity: 0.75; }
+.tchart-bars.is-s1 rect { fill: var(--accent); opacity: 0.8; }
+.tchart-bars.is-s2 rect { fill: var(--border-strong); }
+
+/* The dated things the owner did: a tick on the day, numbered against the
+   list the page prints beneath. Never a figure (docs/data-room.md). */
+.tchart-event-rule { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 2 3; }
+.tchart-event-dot { fill: var(--accent); }
+.tchart-event-num { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; fill: var(--button-text); }
+
+.tchart-cursor line { stroke: var(--text-primary); stroke-width: 1; opacity: 0.35; }
+.tchart-cursor-dot { fill: var(--bg-primary); stroke: var(--text-primary); stroke-width: 2; }
+
+/* The panel the pointer answers with. It sits under the chart rather than
+   floating over it: a tooltip that covers the line hides the thing it is
+   describing, and on a phone there is no pointer to move away. */
+.tchart-tip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.9rem;
+  min-height: 1.4rem;
+  margin-top: 0.3rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.tchart-tip-day { color: var(--text-primary); font-weight: 600; }
+.tchart-tip-event { color: var(--accent); }
+
+.tchart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+
+.tchart-legend-item { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+.tchart-swatch { width: 10px; height: 3px; border-radius: 2px; background: var(--text-primary); }
+.tchart-swatch.is-s1 { background: var(--accent); }
+.tchart-swatch.is-s2 { background: var(--text-tertiary); }
+
+.tchart-cap {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.3rem;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+
 /* ---- The window: the rows behind the next reading ------------------- */
 /* docs/data-room.md. Every block here draws one mark per row, because the
    count it replaced threw the tail away. Section labels inside a section, so

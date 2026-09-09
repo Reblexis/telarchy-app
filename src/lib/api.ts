@@ -788,6 +788,7 @@ export type DataRoomBlock =
   | 'rates'
   | 'events'
   | 'calendar'
+  | 'trading'
   | 'traction'
   | 'contracts'
   | 'traffic'
@@ -844,7 +845,13 @@ export interface DataRoomFeed {
      *  week before carried forward. */
     rates: {
       weeks: string[];
-      metrics: Array<{ name: string; readings: Array<number | null> }>;
+      metrics: Array<{
+        name: string;
+        readings: Array<number | null>;
+        /** One point per day, the reading at the end of it: what the page
+         *  draws. A day nobody measured is absent, so the line breaks. */
+        daily: Array<{ at: string; value: number }>;
+      }>;
     };
     /** Dated context from Telarchy's own workspace; no causal effect is asserted. */
     events: Array<{ at: string; kind: string; label: string }>;
@@ -854,6 +861,8 @@ export interface DataRoomFeed {
       dates: Array<{ at: string; kind: 'settles' | 'decides'; label: string }>;
       outreach: { stages: string[] };
     };
+    /** How busy the place is, day by day: the shape under the trader count. */
+    trading: { byDay: Array<{ day: string; trades: number; credits: number; traders: number }> };
     traction: {
       participants: number;
       accounts: number;

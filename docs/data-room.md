@@ -148,6 +148,38 @@ for the same reason referers are (above); how many people are at each stage
 is the chain that ends in "outside owners deciding", and a stage names
 nobody.
 
+## How the page draws things
+
+**A number that has a history is drawn over time.** Every priced metric, the
+traffic, the signups, the trading and the change log are lines and areas on a
+date axis, not a single figure or a bar per category. A forecaster is pricing
+where a number goes next, and a shape over time is the only drawing that
+answers that; a point-in-time figure answers "what is it now", which the page
+already says in words.
+
+**The line carries what happened to it.** The dated things the owner did (the
+`events` block: announcements, decisions, deliveries) are drawn on the metric
+charts as marks on the day they happened, numbered against the list beneath.
+They are context, not proof of causation, and the page says so once rather
+than beside each mark.
+
+**Every chart answers the pointer.** Hovering anywhere on a chart puts a
+crosshair on the nearest day and a panel naming the date, each series' value
+there, and any event on that day. A chart with two or more series carries a
+legend; a chart with one is named by its own caption. Nothing is encoded by
+colour alone.
+
+**Two things stay distributions**, because they are not histories: what each
+verified participant has traded this week, and each participant's marked
+profit. Both answer "who is near the line the count is drawn at", which no
+time series shows, and both sit under the window block that exists for exactly
+that question.
+
+**A chart never invents a point.** A day with no reading is a gap in the line,
+not a straight segment across it, for the same reason a week with no reading
+publishes null: a day nobody measured and a day the number did not move are
+different facts.
+
 ## Every number comes from the database that serves the site
 
 `GET /api/data-room` is one public, uncredentialed read that returns the

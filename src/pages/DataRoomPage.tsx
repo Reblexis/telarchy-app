@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { TimeChart } from '../components/TimeChart';
 import { useAuth } from '../hooks/useAuth';
 import { api, type DataRoomBlock, type DataRoomFeed } from '../lib/api';
 import { withBase } from '../lib/base-path';
@@ -64,41 +65,6 @@ function Rows({ rows }: { rows: Array<{ key: string; left: React.ReactNode; valu
         </li>
       ))}
     </ul>
-  );
-}
-
-/**
- * A column per day. Days with nothing keep their slot, because a gap in a
- * count of days is information: a week where nothing shipped should look
- * empty, not be quietly compressed away.
- */
-function DayBars({ points, label }: { points: Array<{ day: string; value: number }>; label: string }) {
-  if (!points.length) return <p className="dr-empty">Nothing recorded yet.</p>;
-  const max = Math.max(1, ...points.map(p => p.value));
-  const W = 760;
-  const H = 130;
-  const gap = points.length > 90 ? 0.5 : 2;
-  const w = Math.max(1, (W - gap * (points.length - 1)) / points.length);
-  const first = points[0];
-  const last = points[points.length - 1];
-  return (
-    <figure className="dr-chart">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label} className="dr-chart-svg">
-        {points.map((p, i) => {
-          const h = p.value === 0 ? 0 : Math.max(1.5, (p.value / max) * (H - 10));
-          return (
-            <rect key={p.day} x={i * (w + gap)} y={H - h} width={w} height={h} className="dr-chart-bar">
-              <title>{`${dayLabel(p.day)}: ${n(p.value)}`}</title>
-            </rect>
-          );
-        })}
-      </svg>
-      <figcaption className="dr-chart-cap">
-        <span>{dayLabel(first.day)}</span>
-        <span className="dr-chart-max">peak {n(max)}</span>
-        <span>{dayLabel(last.day)}</span>
-      </figcaption>
-    </figure>
   );
 }
 
@@ -193,7 +159,19 @@ function Distribution({
  * nothing happened are different facts, and a smooth line through the gap
  * would state the wrong one.
  */
-function WeeklyRate({ name, readings, weeks }: { name: string; readings: Array<number | null>; weeks: string[] }) {
+function WeeklyRate({
+  name,
+  readings,
+  weeks,
+  daily,
+  events,
+}: {
+  name: string;
+  readings: Array<number | null>;
+  weeks: string[];
+  daily: Array<{ at: string; value: number }>;
+  events: Array<{ at: string; kind: string; label: string }>;
+}) {
   const W = 700;
   const H = 40;
   const known = readings.filter((v): v is number => v !== null);
@@ -219,11 +197,15 @@ function WeeklyRate({ name, readings, weeks }: { name: string; readings: Array<n
   return (
     <section className="dr-rate">
       <h4 className="dr-rate-name">{name}</h4>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="dr-rate-svg" role="img" aria-label={name}>
-        {runs.map(points => (
-          <polyline key={points[0]} points={points.join(' ')} className="dr-rate-line" />
-        ))}
-      </svg>
+      {/* The line is every DAILY reading, annotated with the dated things the
+          owner did; the eight weekly numbers stay printed under it, because a
+          shape is not a base rate (docs/data-room.md). */}
+      <TimeChart
+        series={[{ key: name, label: name, points: daily, kind: 'area' }]}
+        events={events}
+        label={`${name}, every daily reading`}
+        height={170}
+      />
       <div className="dr-rate-vals">
         {readings.map((v, i) => (
           <span key={weeks[i] ?? i} className={v === null ? 'is-unread' : undefined}>
@@ -233,18 +215,13 @@ function WeeklyRate({ name, readings, weeks }: { name: string; readings: Array<n
       </div>
       <div className="dr-rate-cap">
         <span>{dayLabel(weeks[0])}</span>
+        <span>the reading at the end of each of the last eight weeks</span>
         <span>{dayLabel(weeks[weeks.length - 1])}</span>
       </div>
     </section>
   );
 }
 
-/**
- * One dot per counted trader, standing on the day their own trailing week
- * falls under the threshold. Seven columns, because a window that takes in
- * nothing new always empties inside seven days; a day nobody lapses keeps its
- * empty column.
- */
 function LapseStrip({ from, lapses }: { from: string; lapses: string[] }) {
   const start = new Date(`${from.slice(0, 10)}T00:00:00Z`);
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -463,7 +440,14 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
     return (
       <div className="dr-rates">
         {r.metrics.map(m => (
-          <WeeklyRate key={m.name} name={m.name} readings={m.readings} weeks={r.weeks} />
+          <WeeklyRate
+            key={m.name}
+            name={m.name}
+            readings={m.readings}
+            weeks={r.weeks}
+            daily={m.daily ?? []}
+            events={e.events ?? []}
+          />
         ))}
       </div>
     );
@@ -516,6 +500,35 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
           <Figure value={t.trades} label="trades, lifetime" />
           <Figure value={t.creditsTraded} label="credits traded" />
         </Figures>
+        {t.signupsByDay.length > 0 && (
+          <>
+            <h3 className="dr-h3">Signups, and the accounts they add up to</h3>
+            <TimeChart
+              series={[
+                {
+                  key: 'signups',
+                  label: 'Signups that day',
+                  points: t.signupsByDay.map(d => ({ at: d.day, value: d.signups })),
+                  kind: 'bars',
+                },
+                {
+                  key: 'cumulative',
+                  label: 'Accounts, running total',
+                  points: t.signupsByDay.map((d, i) => ({
+                    at: d.day,
+                    value: t.signupsByDay.slice(0, i + 1).reduce((sum, x) => sum + x.signups, 0),
+                  })),
+                },
+              ]}
+              events={e.events ?? []}
+              label="Signups per day and the running total of accounts"
+              height={190}
+              caption={
+                <span>The running total starts at the first signup this window holds, not at zero accounts.</span>
+              }
+            />
+          </>
+        )}
         <Rows
           rows={[
             { key: 'accounts', left: 'Accounts with an email login', value: t.accounts },
@@ -548,6 +561,44 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
     );
   }
 
+  if (name === 'trading') {
+    const t = e.trading;
+    return (
+      <>
+        <h3 className="dr-h3">Credits traded, per day</h3>
+        <TimeChart
+          series={[
+            {
+              key: 'credits',
+              label: 'Credits traded',
+              points: t.byDay.map(d => ({ at: d.day, value: d.credits })),
+              kind: 'area',
+            },
+          ]}
+          events={e.events ?? []}
+          label="Credits traded per day"
+          height={180}
+          caption={<span>Buys and sells, absolute cost; a redemption is bookkeeping and is not counted.</span>}
+        />
+        <h3 className="dr-h3">Trades placed, and the people who placed them</h3>
+        <TimeChart
+          series={[
+            {
+              key: 'trades',
+              label: 'Trades',
+              points: t.byDay.map(d => ({ at: d.day, value: d.trades })),
+              kind: 'bars',
+            },
+            { key: 'traders', label: 'people trading', points: t.byDay.map(d => ({ at: d.day, value: d.traders })) },
+          ]}
+          label="Trades and distinct traders per day"
+          height={180}
+          caption={<span>A day with no trading has no bar: nothing happened, which is not a measurement of none.</span>}
+        />
+      </>
+    );
+  }
+
   if (name === 'traffic') {
     const t = e.traffic;
     return (
@@ -558,11 +609,30 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
           <Figure value={t.visits7d} label="visits, last 7 days" />
           <Figure value={t.totalVisits} label="visits, all kept history" />
         </Figures>
-        <DayBars points={t.byDay.map(d => ({ day: d.day, value: d.visits }))} label="Visits per day" />
-        <p className="dr-note">
-          Visits per day, humans only.{' '}
-          {t.keptSince ? <>Kept from {dayLabel(t.keptSince)}, the day the rollup started.</> : <>Nothing kept yet.</>}
-        </p>
+        <TimeChart
+          series={[
+            {
+              key: 'visits',
+              label: 'Visits',
+              points: t.byDay.map(d => ({ at: d.day, value: d.visits })),
+              kind: 'area',
+            },
+            { key: 'uniques', label: 'Distinct visitors', points: t.byDay.map(d => ({ at: d.day, value: d.uniques })) },
+          ]}
+          events={e.events ?? []}
+          label="Visits and distinct visitors per day"
+          height={190}
+          caption={
+            <span>
+              Humans only.{' '}
+              {t.keptSince ? (
+                <>Kept from {dayLabel(t.keptSince)}, the day the rollup started.</>
+              ) : (
+                <>Nothing kept yet.</>
+              )}
+            </span>
+          }
+        />
       </>
     );
   }
@@ -576,7 +646,18 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
           <Figure value={s.days.length} label="days with a change" />
           <Figure value={dayLabel(s.builtAt)} label="log generated" />
         </Figures>
-        <DayBars points={s.days.map(d => ({ day: d.date, value: d.changes }))} label="Changes shipped per day" />
+        <TimeChart
+          series={[
+            {
+              key: 'changes',
+              label: 'Changes',
+              points: s.days.map(d => ({ at: d.date, value: d.changes })),
+              kind: 'bars',
+            },
+          ]}
+          label="Changes shipped per day"
+          height={170}
+        />
         <ChangeLog changes={s.changes} />
       </>
     );
