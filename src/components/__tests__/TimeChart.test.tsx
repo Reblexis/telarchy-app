@@ -135,6 +135,58 @@ describe('the pointer', () => {
   });
 });
 
+describe('a running total is never broken', () => {
+  const SPARSE = [
+    { at: '2026-08-01', value: 1 },
+    { at: '2026-08-02', value: 3 },
+    { at: '2026-08-20', value: 9 },
+  ];
+
+  test('a series that is defined between its points draws one line through the quiet days', () => {
+    const c = chart({ series: [{ key: 'total', label: 'Accounts, running total', points: SPARSE, connect: true }] });
+    expect(c.querySelectorAll('.tchart-line')).toHaveLength(1);
+  });
+
+  test('without that, a gap still breaks it: a reading is not defined between readings', () => {
+    const c = chart({ series: [{ key: 'reading', label: 'Reading', points: SPARSE }] });
+    expect(c.querySelectorAll('.tchart-line')).toHaveLength(2);
+  });
+});
+
+describe('the value axis', () => {
+  test('a range of about sixty gets more than two ticks to read against', () => {
+    const c = chart({
+      series: [
+        {
+          key: 'x',
+          label: 'X',
+          points: [
+            { at: '2026-08-01', value: 0 },
+            { at: '2026-08-02', value: 59 },
+          ],
+        },
+      ],
+    });
+    expect(c.querySelectorAll('.tchart-ylabel').length).toBeGreaterThanOrEqual(3);
+  });
+
+  test('a range of about seventeen too', () => {
+    const c = chart({
+      series: [
+        {
+          key: 'x',
+          label: 'X',
+          points: [
+            { at: '2026-08-01', value: 0 },
+            { at: '2026-08-02', value: 17 },
+          ],
+        },
+      ],
+    });
+    expect(c.querySelectorAll('.tchart-ylabel').length).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe('a heavy tail', () => {
   const SPIKY = [
     {

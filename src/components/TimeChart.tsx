@@ -37,6 +37,12 @@ export interface TimeSeries {
   /** 'line' (default) fills nothing; 'area' shades under it; 'bars' is a
    *  count per day, where a gap genuinely means none. */
   kind?: 'line' | 'area' | 'bars';
+  /**
+   * True for a series that is DEFINED between its points, such as a running
+   * total: it never breaks on a quiet stretch, because nothing was missing
+   * there. A reading is not defined between readings and must not set this.
+   */
+  connect?: boolean;
 }
 
 export interface TimeEvent {
@@ -103,12 +109,18 @@ function logTicks(hi: number): number[] {
 /** Three-ish ticks on round numbers, so an axis reads 5 / 10 / 15. */
 function ticksFor(lo: number, hi: number): number[] {
   const span = hi - lo || 1;
-  const raw = span / 3;
-  const mag = 10 ** Math.floor(Math.log10(raw));
-  const step = [1, 2, 2.5, 5, 10].map(k => k * mag).find(k => k >= raw) ?? raw;
-  const out: number[] = [];
-  for (let t = Math.ceil(lo / step) * step; t <= hi + step / 1000; t += step) out.push(Number(t.toFixed(6)));
-  return out.length >= 2 ? out : [lo, hi];
+  const mag = 10 ** Math.floor(Math.log10(span / 3));
+  const at = (step: number) => {
+    const out: number[] = [];
+    for (let t = Math.ceil(lo / step) * step; t <= hi + step / 1000; t += step) out.push(Number(t.toFixed(6)));
+    return out;
+  };
+  // The finest step that still leaves an axis a reader can scan: three to
+  // five labels. Taking the first step wider than span/3 gave two on a range
+  // of seventeen, which is a top and a bottom and nothing to read against.
+  const candidates = [1, 2, 2.5, 5, 10, 20].map(k => k * mag);
+  const good = candidates.map(at).filter(t => t.length >= 3 && t.length <= 6);
+  return good[0] ?? at(candidates[candidates.length - 1]);
 }
 
 export function TimeChart({
@@ -165,7 +177,7 @@ export function TimeChart({
     let run: Array<{ t: number; v: number }> = [];
     for (const p of sorted) {
       const t = tOf(p.at);
-      if (run.length && t - run[run.length - 1].t > gapDays * DAY_MS) {
+      if (!s.connect && run.length && t - run[run.length - 1].t > gapDays * DAY_MS) {
         runs.push(run);
         run = [];
       }
