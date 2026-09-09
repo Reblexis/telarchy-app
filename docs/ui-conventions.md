@@ -470,6 +470,13 @@ find out:
   reader moves along the strip with the arrow keys. The strips scroll
   sideways on a phone rather than wrapping or shrinking their labels; the
   selected tab is scrolled into view.
+- **The caption line below them carries the proposal's deadline and nothing
+  else.** With the pickers gone from it, the `h2` renders only when a
+  proposal is selected, which is the one thing that still belongs on that
+  line (the amber chip, below).
+- **A market with no price keeps the settle day.** It prints no stat row, so
+  the day it is forecasting rides the "no price yet" line instead. The day
+  never leaves the page, which is the rule the date chip used to carry.
 
 - **The sentence is "What will be {company}'s {metric} {date}?"** The
   scaffold words sit a register quieter (`.pubws-instrument-ask`); the

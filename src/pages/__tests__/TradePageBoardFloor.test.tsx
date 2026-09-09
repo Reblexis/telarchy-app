@@ -6,8 +6,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
- * The floor as a board (docs/ui-conventions.md, revised 2026-09-04): the
- * caption is two chips on one line, each a menu; the stat row is two cells
+ * The floor as a board (docs/ui-conventions.md, revised 2026-09-09): the
+ * caption is two strips, metrics then dates; the stat row is two cells
  * on hairlines with the caption line over the value; and the page ends on
  * a three-cell board that carries the owner sentence and the email field.
  *
@@ -136,8 +136,6 @@ function renderFloor(path = '/lookpilot') {
 }
 
 const caption = (container: HTMLElement) => container.querySelector('.pubws-instrument-label') as HTMLElement;
-const metricChip = (container: HTMLElement) => container.querySelector('.pubws-chip--metric') as HTMLElement;
-const dateChip = (container: HTMLElement) => container.querySelector('.pubws-chip--date') as HTMLElement;
 const ask = (container: HTMLElement) => container.querySelector('.pubws-instrument-ask')?.textContent ?? '';
 
 beforeEach(() => {
@@ -160,120 +158,38 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('the caption is two chips on one line', () => {
-  test('the caption is two chips and no segmented row', async () => {
+describe('the caption is two strips, metrics then dates', () => {
+  // The strips themselves are pinned in TradePageStrips.test.tsx. What this
+  // file keeps is where they sit and what they replaced.
+  test('the strips are block children of the centre column, and the old rows are gone', async () => {
     const { container } = renderFloor();
-    await waitFor(() => expect(metricChip(container)).toBeTruthy());
-    // Both chips INSIDE the caption h2, which is a block child of
-    // .pubws-center (the layout rule in "The question line").
-    const cap = caption(container);
-    expect(cap.tagName).toBe('H2');
-    expect(cap.closest('.pubws-center')).toBeTruthy();
-    // No flex wrapper between the heading and the column.
-    expect(cap.parentElement?.className).toBe('pubws-instrument');
-    expect(cap.contains(metricChip(container))).toBe(true);
-    expect(cap.contains(dateChip(container))).toBe(true);
-    // A middle dot between them, and the old rows are gone.
-    expect(cap.textContent).toMatch(/net revenue\s*·\s*this month · settles 30 Sep/i);
+    const metrics = await screen.findByLabelText('Metrics');
+    const dates = screen.getByLabelText('Dates');
+    expect(metrics.closest('.pubws-center')).toBeTruthy();
+    expect(metrics.parentElement?.className).toBe('pubws-instrument');
+    expect(dates.parentElement?.className).toBe('pubws-instrument');
+    expect(metrics.compareDocumentPosition(dates) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Neither the segmented rows of 2026-08-28 nor the chips of 2026-09-04.
     expect(container.querySelector('.pubws-seg')).toBeNull();
     expect(container.querySelector('.pubws-instrument-date')).toBeNull();
-    expect(container.querySelector('[aria-label="Metrics"]')).toBeNull();
-    expect(container.querySelector('[aria-label="The dates this metric is priced on"]')).toBeNull();
-    // Each chip is a button that says whether its menu is open.
-    expect(metricChip(container).tagName).toBe('BUTTON');
-    expect(metricChip(container).getAttribute('aria-expanded')).toBe('false');
-    expect(dateChip(container).tagName).toBe('BUTTON');
-    expect(dateChip(container).getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('.pubws-chip--metric')).toBeNull();
+    expect(container.querySelector('.pubws-chip--date')).toBeNull();
     expect(container.querySelector('.pubws-chip-menu')).toBeNull();
+    // The caption h2 is now only there when a proposal brings its deadline.
+    expect(caption(container)).toBeNull();
   });
 
-  test('the metric menu lists metrics primary first and picking one keeps the date', async () => {
-    const { container } = renderFloor();
-    await waitFor(() => expect(metricChip(container)).toBeTruthy());
-    // The floor opens on the primary: net revenue (order 0) on 30 Sep. Step
-    // to this week first, so the date to keep is not the fallback.
-    fireEvent.click(dateChip(container));
-    fireEvent.click(screen.getByRole('option', { name: 'this week · 6 Sep' }));
-    await waitFor(() => expect(ask(container)).toBe("What will be LookPilot's net revenue this week?"));
-
-    fireEvent.click(metricChip(container));
-    expect(metricChip(container).getAttribute('aria-expanded')).toBe('true');
-    const menu = container.querySelector('.pubws-chip-menu') as HTMLElement;
-    expect(menu.getAttribute('role')).toBe('listbox');
-    const options = within(menu).getAllByRole('option');
-    expect(options.map(o => o.textContent)).toEqual(['net revenue', 'Steam reviews']);
-    expect(options[0].getAttribute('aria-selected')).toBe('true');
-    expect(options[1].getAttribute('aria-selected')).toBe('false');
-    // No owner entry for a visitor.
-    expect(within(menu).queryByRole('option', { name: /manage/i })).toBeNull();
-
-    fireEvent.click(options[1]);
-    // The pick closes the menu and keeps the date (cellOf).
-    await waitFor(() => expect(ask(container)).toBe("What will be LookPilot's Steam reviews this week?"));
-    expect(container.querySelector('.pubws-chip-menu')).toBeNull();
-    expect(metricChip(container).getAttribute('aria-expanded')).toBe('false');
-  });
-
-  test('the date chip reads the clock and its settle day, and its menu lists dates soonest first', async () => {
-    const { container } = renderFloor();
-    await waitFor(() => expect(dateChip(container)).toBeTruthy());
-    expect(dateChip(container).textContent).toBe('this month · settles 30 Sep');
-    expect(dateChip(container).title).toMatch(/^settles /);
-    fireEvent.click(dateChip(container));
-    const menu = container.querySelector('.pubws-chip-menu') as HTMLElement;
-    const options = within(menu).getAllByRole('option');
-    // Labelled exactly as dateSegmentOf labels them, soonest first.
-    expect(options.map(o => o.textContent)).toEqual(['this week · 6 Sep', 'this month · 30 Sep']);
-    expect(options[1].getAttribute('aria-selected')).toBe('true');
-    expect(within(menu).queryByRole('option', { name: /manage/i })).toBeNull();
-    fireEvent.click(options[0]);
-    await waitFor(() => expect(dateChip(container).textContent).toBe('this week · settles 6 Sep'));
-    // Picking a date never changes the metric.
-    expect(ask(container)).toBe("What will be LookPilot's net revenue this week?");
-  });
-
-  test('one metric means plain text, no menu; one date too, and the settle day stays', async () => {
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.single() as never);
-    const { container } = renderFloor();
-    await waitFor(() => expect(metricChip(container)).toBeTruthy());
-    expect(metricChip(container).tagName).not.toBe('BUTTON');
-    expect(metricChip(container).querySelector('svg')).toBeNull();
-    expect(metricChip(container).textContent).toBe('net revenue');
-    expect(dateChip(container).tagName).not.toBe('BUTTON');
-    expect(dateChip(container).querySelector('svg')).toBeNull();
-    expect(dateChip(container).textContent).toBe('this month · settles 30 Sep');
-    fireEvent.click(metricChip(container));
-    fireEvent.click(dateChip(container));
-    expect(container.querySelector('.pubws-chip-menu')).toBeNull();
-    expect(container.querySelector('[aria-expanded]')).toBeNull();
-  });
-
-  test('Escape and an outside click close the menu', async () => {
-    const { container } = renderFloor();
-    await waitFor(() => expect(metricChip(container)).toBeTruthy());
-    fireEvent.click(metricChip(container));
-    expect(container.querySelector('.pubws-chip-menu')).toBeTruthy();
-    fireEvent.keyDown(document, { key: 'Escape' });
-    await waitFor(() => expect(container.querySelector('.pubws-chip-menu')).toBeNull());
-    expect(metricChip(container).getAttribute('aria-expanded')).toBe('false');
-
-    fireEvent.click(dateChip(container));
-    expect(container.querySelector('.pubws-chip-menu')).toBeTruthy();
-    fireEvent.mouseDown(container.querySelector('.pubws-ws-name') as HTMLElement);
-    await waitFor(() => expect(container.querySelector('.pubws-chip-menu')).toBeNull());
-    expect(dateChip(container).getAttribute('aria-expanded')).toBe('false');
-  });
-
-  test('the cycle words in the question sentence are untouched', async () => {
+  test('the cycle words in the question sentence move the strips with them', async () => {
     const { container } = renderFloor();
     await waitFor(() => expect(ask(container)).toBe("What will be LookPilot's net revenue this month?"));
     fireEvent.click(screen.getByRole('button', { name: /^Metric: / }));
     await waitFor(() => expect(ask(container)).toBe("What will be LookPilot's Steam reviews this month?"));
     fireEvent.click(screen.getByRole('button', { name: /^Date: / }));
     await waitFor(() => expect(ask(container)).toBe("What will be LookPilot's Steam reviews this week?"));
-    // The chips follow the words.
-    expect(metricChip(container).textContent).toBe('Steam reviews');
-    expect(dateChip(container).textContent).toBe('this week · settles 6 Sep');
+    const selected = (label: string) =>
+      (screen.getByLabelText(label).querySelector('[aria-selected="true"]') as HTMLElement).textContent ?? '';
+    expect(selected('Metrics')).toContain('Steam reviews');
+    expect(selected('Dates')).toMatch(/this week/);
   });
 });
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -161,16 +161,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('"Manage dates" in the date chip menu', () => {
+describe('"Manage dates" at the end of the dates strip', () => {
   test('opens the metrics dialog straight onto the sheet of the metric on screen', async () => {
-    const { container } = renderFloor();
-    // The way in is the last entry of the date chip's menu (docs/ui-conventions.md,
-    // "The question line"); the chip is a button once the page knows the
-    // viewer can manage.
-    await waitFor(() => expect(container.querySelector('.pubws-chip--date')?.tagName).toBe('BUTTON'));
-    fireEvent.click(container.querySelector('.pubws-chip--date') as HTMLElement);
-    const options = within(container.querySelector('.pubws-chip-menu') as HTMLElement).getAllByRole('option');
-    fireEvent.click(options[options.length - 1]);
+    renderFloor();
+    // The way in is the last tab of the dates strip (docs/ui-conventions.md,
+    // "The question line"); it is there once the page knows the viewer can
+    // manage.
+    const manage = await screen.findByText('Manage dates');
+    fireEvent.click(manage);
     // The sheet, not the list: the head names the metric and the rows table
     // is on it, with the metric's one date as a row.
     await waitFor(() =>
