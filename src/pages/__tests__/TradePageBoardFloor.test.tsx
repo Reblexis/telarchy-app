@@ -469,6 +469,24 @@ describe('three columns, and the standings under the verbs', () => {
     expect(more[0].textContent).toBe('Show full leaderboard');
   });
 
+  test('paid work comes before the standings, at every width', async () => {
+    // Steal 8 (2026-09-09): at 390 the floor used to put both standings, the
+    // definition and the announcements between the trade and the proposals,
+    // so paid work began at 2327px of a 4240px page. The DOM order IS the
+    // phone order, so this one assertion is the phone rule.
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(floorWithProposal() as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-standings')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('.pubws-ballot')).toBeTruthy());
+    const bet = container.querySelector('.pubws-bet') as HTMLElement;
+    const board = container.querySelector('.pubws-ballot') as HTMLElement;
+    const standings = container.querySelector('.pubws-standings') as HTMLElement;
+    const announcements = container.querySelector('[aria-label="Announcements"]') as HTMLElement;
+    expect(follows(bet, board)).toBe(true);
+    expect(follows(board, standings)).toBe(true);
+    expect(follows(standings, announcements)).toBe(true);
+  });
+
   test('the season block is an advert: three lines, no counts, no running sentence', async () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-season')).toBeTruthy());

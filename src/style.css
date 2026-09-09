@@ -11163,3 +11163,61 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 /* The proposals board, under the trade at the column's full width. */
 .pubws-board { text-align: left; }
 .pubws-tail > * + * { margin-top: clamp(2.2rem, 6vh, 3.2rem); }
+
+/* The proposal row (docs/ui-conventions.md, "The proposals board", revised
+   2026-09-09): two lines, and only one of them is loud. Title and impact on
+   the first, the four facts as an icon row on the second, the two verbs on
+   the right. Nothing is stacked on the right edge. */
+.pubws-prow {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.7rem 0;
+}
+.pubws-prow .pubws-ballot-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  flex: 1;
+  min-width: 0;
+}
+.pubws-prow-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.85rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.pubws-prow-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.pubws-prow-meta svg {
+  flex: none;
+  opacity: 0.85;
+}
+.pubws-prow-impact {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.pubws-prow-acts {
+  flex: none;
+  display: inline-flex;
+  gap: 0.4rem;
+}
+@media (max-width: 520px) {
+  /* On a phone the verbs drop under the row rather than squeezing the title. */
+  .pubws-prow {
+    flex-wrap: wrap;
+  }
+  .pubws-prow-acts {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
