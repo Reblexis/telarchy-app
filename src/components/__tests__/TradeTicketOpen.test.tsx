@@ -112,3 +112,37 @@ describe('selling is a tab on the ticket', () => {
     expect(within(tabs).getByRole('button', { name: 'Sell' }).getAttribute('aria-pressed')).toBe('true');
   });
 });
+
+describe('the tabs come first, and the price mode belongs to Buy', () => {
+  /**
+   * Found on the branch preview, 2026-09-09: the Sell tab's own content
+   * rendered ABOVE the tab row that selects it, and the Quick/Limit toggle
+   * stayed on screen while selling, where there is no order to price.
+   */
+  const follows = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  test('the Sell tab renders under the tabs, never above them', () => {
+    const { container } = render(<TradeTicket {...base} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sell' }));
+    const tabs = container.querySelector('.ticket-tabs') as Element;
+    const invite = container.querySelector('.ticket-invite') as Element;
+    expect(invite).toBeTruthy();
+    expect(follows(tabs, invite)).toBe(true);
+  });
+
+  test('a held position also renders under the tabs', () => {
+    const { container } = render(<TradeTicket {...base} positions={[held]} manageMode />);
+    const tabs = container.querySelector('.ticket-tabs') as Element;
+    const rows = container.querySelector('.ticket-pos') as Element;
+    expect(rows).toBeTruthy();
+    expect(follows(tabs, rows)).toBe(true);
+  });
+
+  test('Quick and Limit are gone on the Sell tab', () => {
+    render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);
+    expect(screen.getByRole('button', { name: 'Quick' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Sell' }));
+    expect(screen.queryByRole('button', { name: 'Quick' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Limit' })).toBeNull();
+  });
+});

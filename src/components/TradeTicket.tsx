@@ -419,6 +419,82 @@ export function TradeTicket({
 
   return (
     <div className={`ticket${dir ? ' is-open' : ''}`} aria-label="Place a trade">
+      {/* Buy | Sell, Kalshi's own shape: the two things a holder can do with
+        one market, one press apart. */}
+      <div className="ticket-tabs" role="group" aria-label="Buy or sell">
+        <button
+          type="button"
+          className={`ticket-tab${tab === 'buy' ? ' is-active' : ''}`}
+          aria-pressed={tab === 'buy'}
+          onClick={() => setTab('buy')}
+        >
+          Buy
+        </button>
+        <button
+          type="button"
+          className={`ticket-tab${tab === 'sell' ? ' is-active' : ''}`}
+          aria-pressed={tab === 'sell'}
+          onClick={() => setTab('sell')}
+        >
+          Sell
+        </button>
+      </div>
+      <div className="ticket-head">
+        {tab === 'buy' && (
+          <div className="ticket-seg" role="group" aria-label="Direction">
+            <button
+              className={`ticket-side ticket-side--lower${dir === 'lower' ? ' is-active' : ''}`}
+              aria-pressed={dir === 'lower'}
+              onClick={() => pick('lower')}
+            >
+              <span className="ticket-side-word">Lower</span>
+              {lowerCeiling !== null && <span className="ticket-side-max">up to {lowerCeiling}</span>}
+            </button>
+            <button
+              className={`ticket-side ticket-side--higher${dir === 'higher' ? ' is-active' : ''}`}
+              aria-pressed={dir === 'higher'}
+              onClick={() => pick('higher')}
+            >
+              <span className="ticket-side-word">Higher</span>
+              {higherCeiling !== null && <span className="ticket-side-max">up to {higherCeiling}</span>}
+            </button>
+          </div>
+        )}
+
+        {/* The price question lives in the header, Manifold-style, but only
+            once a side exists to ask it about (owner direction 2026-08-10:
+            an untouched ticket asks one question). */}
+        {tab === 'buy' && dir && canLimit && (
+          <div className="ticket-mode" role="group" aria-label="Order type">
+            <button
+              className={`ticket-mode-opt${!isLimit ? ' is-active' : ''}`}
+              aria-pressed={!isLimit}
+              onClick={() => {
+                setMode('quick');
+                setError('');
+              }}
+            >
+              Quick
+            </button>
+            <button
+              className={`ticket-mode-opt${isLimit ? ' is-active' : ''}`}
+              aria-pressed={isLimit}
+              onClick={enterLimit}
+            >
+              Limit
+            </button>
+          </div>
+        )}
+        {/* Nothing to close until a side is chosen: since 2026-09-09 the
+            ticket is the floor's right rail and is always on screen, so a
+            close control on the untouched state would be a dead button. */}
+        {(dir || manageMode) && (
+          <button className="ticket-close" aria-label="Close" onClick={() => (onClose ? onClose() : setDir(null))}>
+            ×
+          </button>
+        )}
+      </div>
+
       {/* The held-position rows and their Sell affordance are the SELL tab
         (owner ask 2026-09-09, reversing 2026-08-28: selling was the position
         panel's job). The positions PROP still arrives in both tabs, because
@@ -555,82 +631,6 @@ export function TradeTicket({
           ))}
         </div>
       )}
-
-      {/* Buy | Sell, Kalshi's own shape: the two things a holder can do with
-        one market, one press apart. */}
-      <div className="ticket-tabs" role="group" aria-label="Buy or sell">
-        <button
-          type="button"
-          className={`ticket-tab${tab === 'buy' ? ' is-active' : ''}`}
-          aria-pressed={tab === 'buy'}
-          onClick={() => setTab('buy')}
-        >
-          Buy
-        </button>
-        <button
-          type="button"
-          className={`ticket-tab${tab === 'sell' ? ' is-active' : ''}`}
-          aria-pressed={tab === 'sell'}
-          onClick={() => setTab('sell')}
-        >
-          Sell
-        </button>
-      </div>
-      <div className="ticket-head">
-        {tab === 'buy' && (
-          <div className="ticket-seg" role="group" aria-label="Direction">
-            <button
-              className={`ticket-side ticket-side--lower${dir === 'lower' ? ' is-active' : ''}`}
-              aria-pressed={dir === 'lower'}
-              onClick={() => pick('lower')}
-            >
-              <span className="ticket-side-word">Lower</span>
-              {lowerCeiling !== null && <span className="ticket-side-max">up to {lowerCeiling}</span>}
-            </button>
-            <button
-              className={`ticket-side ticket-side--higher${dir === 'higher' ? ' is-active' : ''}`}
-              aria-pressed={dir === 'higher'}
-              onClick={() => pick('higher')}
-            >
-              <span className="ticket-side-word">Higher</span>
-              {higherCeiling !== null && <span className="ticket-side-max">up to {higherCeiling}</span>}
-            </button>
-          </div>
-        )}
-
-        {/* The price question lives in the header, Manifold-style, but only
-            once a side exists to ask it about (owner direction 2026-08-10:
-            an untouched ticket asks one question). */}
-        {dir && canLimit && (
-          <div className="ticket-mode" role="group" aria-label="Order type">
-            <button
-              className={`ticket-mode-opt${!isLimit ? ' is-active' : ''}`}
-              aria-pressed={!isLimit}
-              onClick={() => {
-                setMode('quick');
-                setError('');
-              }}
-            >
-              Quick
-            </button>
-            <button
-              className={`ticket-mode-opt${isLimit ? ' is-active' : ''}`}
-              aria-pressed={isLimit}
-              onClick={enterLimit}
-            >
-              Limit
-            </button>
-          </div>
-        )}
-        {/* Nothing to close until a side is chosen: since 2026-09-09 the
-            ticket is the floor's right rail and is always on screen, so a
-            close control on the untouched state would be a dead button. */}
-        {(dir || manageMode) && (
-          <button className="ticket-close" aria-label="Close" onClick={() => (onClose ? onClose() : setDir(null))}>
-            ×
-          </button>
-        )}
-      </div>
 
       {/* What a share has to beat, drawn rather than said. The track's own
           ends carry what the payout sentence used to (a credit at the top,
