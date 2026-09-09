@@ -33,6 +33,8 @@ import { consensus } from '../lib/amm';
 import { resolutionInstant } from '../lib/date-utils';
 import { branchIsShown, horizonSettled } from '../lib/market-pairs';
 import { getParticipantDisplayNames } from '../lib/participants';
+import { buildFloorEvents } from './floor-events';
+import { latestOwnerCalls } from './owner-calls';
 import { getProposalMarketSummariesForProposal, getTradeCountMap } from './proposals';
 
 /**
@@ -122,8 +124,39 @@ export interface WorkspaceContext {
       approvedTrades: number | null;
       declinedTrades: number | null;
     }>;
+    /**
+     * Whether the approved work happened (docs/guides/proposals.md, "After
+     * approval: say whether it happened"). Null on anything not approved: a
+     * declined proposal was never promised and a pending one has nothing to
+     * report. An approved one always carries a state, because silence would
+     * let a reader take approval for delivery, which is the thing this
+     * proposal's own conditional market cannot otherwise be checked against.
+     */
+    delivery: { state: string; note: string | null; at: string | null } | null;
     recentComments: Array<{ from: string; content: string; at: string }>;
   }>;
+  /**
+   * The owner's own calls, beside the market's (docs/owner-on-the-floor.md).
+   * A record, not a price: it settles nothing and pays nobody. `revisions` is
+   * how many earlier calls stand behind this one.
+   */
+  ownerCalls: Array<{
+    metricId: string;
+    /** The metric's CURRENT name, so a renamed metric is still one metric. */
+    metricName: string;
+    targetDate: string;
+    value: number;
+    at: string;
+    by: string;
+    revisions: number;
+  }>;
+  /**
+   * The dated things the owner did, newest first (docs/ui-conventions.md,
+   * "The price and the chart"). The page draws these against the metric's
+   * line; a reader of the brief gets the same list, so a jump in the history
+   * above is explicable here rather than taken on faith.
+   */
+  events: Array<{ at: string; kind: string; label: string }>;
   announcements: Array<{ body: string; publishedAt: string }>;
   /** Published text sources: the owner's own documents about the business. */
   documents: Array<{ name: string; description: string; content: string; updatedAt: string }>;
@@ -239,6 +272,15 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
     workspaceId,
   );
 
+  // The same two things the floor shows beside the number: what the owner
+  // called it, and the dated things they did. A brief that is thinner than
+  // the page asks an agent to price a floor on less than a reader gets.
+  const [ownerCalls, events] = await Promise.all([
+    latestOwnerCalls(workspaceId),
+    // Only as far back as the readings go, the same window the page marks.
+    buildFloorEvents(workspaceId, firstReadingDay ? new Date(`${firstReadingDay}T00:00:00Z`) : undefined),
+  ]);
+
   const contracts = await Promise.all(
     liveProposals.map(async p => {
       // The priced impact is the ballot's set, filtered by the ballot's rule:
@@ -288,6 +330,14 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
         createdAt: p.createdAt.toISOString(),
         declineReason: p.declineReason,
         decisionOpen: p.status === 'pending',
+        delivery:
+          p.status === 'approved'
+            ? {
+                state: p.deliveryState ?? 'not_started',
+                note: p.deliveryNote ?? null,
+                at: p.deliveredAt ? p.deliveredAt.toISOString().slice(0, 10) : null,
+              }
+            : null,
         impact: pairs,
         recentComments: commentRows
           .filter(c => c.proposalId === p.id)
@@ -342,6 +392,8 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
         return a.targetDate.localeCompare(b.targetDate);
       }),
     contracts,
+    ownerCalls: ownerCalls.map(c => ({ ...c, metricName: nameOf(c.metricId, c.metricId) })),
+    events,
     announcements: announcementRows.map(a => ({ body: a.body, publishedAt: a.publishedAt.toISOString() })),
     documents,
   };
@@ -449,6 +501,17 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
     }
     if (c.impact.length === 0) out.push('No market prices this proposal yet.');
     if (c.declineReason) out.push(`Declined because: ${c.declineReason}`);
+    // Whether the approved work happened. Without it the prices above are a
+    // forecast of a world nobody can confirm arrived.
+    if (c.delivery) {
+      const word =
+        c.delivery.state === 'delivered'
+          ? `delivered${c.delivery.at ? ` on ${c.delivery.at}` : ''}`
+          : c.delivery.state === 'in_progress'
+            ? 'in progress'
+            : 'not started';
+      out.push(`The approved work is ${word}.${c.delivery.note ? ` The owner says: ${c.delivery.note}` : ''}`);
+    }
     for (const m of c.recentComments) out.push(`Comment from ${m.from}: ${m.content}`);
   };
 
@@ -475,6 +538,29 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
  * only this workspace can tell him for a round trip.
  */
 function renderFloorTail(ctx: WorkspaceContext, out: string[]): void {
+  // The owner's own number, beside the market's. It settles nothing and pays
+  // nobody; it is here because the owner publishing one stands on the same
+  // hook as the reader being asked to forecast.
+  if (ctx.ownerCalls.length > 0) {
+    out.push('', "## The owner's own calls");
+    out.push(
+      'What the owner expects, published beside what the market says. It moves no price and settles no market; a revised call is a new row and the earlier ones stay on the record.',
+    );
+    for (const c of ctx.ownerCalls) {
+      const revised = c.revisions > 0 ? `, revised, ${c.revisions} earlier call${c.revisions === 1 ? '' : 's'}` : '';
+      out.push(`- ${c.metricName} ${c.targetDate}: ${c.by}'s own call is ${num(c.value)}${revised}`);
+    }
+  }
+
+  // The dated things the owner did, so a jump in the readings above is
+  // explicable rather than taken on faith. No figure beside them: what the
+  // number did afterwards is the history this brief already carries.
+  if (ctx.events.length > 0) {
+    out.push('', '## What moved it');
+    out.push('The dated things the owner did, newest first, against the readings above.');
+    for (const e of ctx.events) out.push(`- ${e.at.slice(0, 10)} ${e.kind}: ${e.label}`);
+  }
+
   if (ctx.announcements.length > 0) {
     out.push('', '## Announcements (newest first)');
     for (const a of ctx.announcements) out.push('', `**${a.publishedAt.slice(0, 10)}**`, a.body);
