@@ -1219,9 +1219,11 @@ slider, what you GET and what that is against what those shares cost you
 ("You get 427 cr", "Profit / loss -466 cr", green up and red down), so
 dragging the size shows the trade being made rather than a settlement that
 is no longer yours. The cost side is pro rata: selling half a position
-compares against half of what it cost. **The sell confirm is INK**, never a
-direction's colour: selling is not a direction, and a green button closing a
-Lower position says the opposite of what it does.
+compares against half of what it cost. **The sell confirm is INK and the
+size slider is neutral**, never a direction's colour: selling is not a
+direction, a green button closing a Lower position says the opposite of what
+it does, and a full-width red track at 100% reads as an error bar rather
+than a size.
 
 Limit mode swaps the composer's right half from the landing value to the
 price itself, in the same underlined register, and the confirm becomes the
