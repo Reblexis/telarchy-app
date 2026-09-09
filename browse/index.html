@@ -2622,11 +2622,14 @@ The protection is the same one I1 settled on for a metric's words:
 disclosure, not prevention. The change writes its append-only
 <code>proposal_revisions</code> row, rendered beside the proposal, so someone already
 holding can see the deal's number move and trade on the new one.</li>
-<li><strong>The deadline moves later, never earlier.</strong> <code>decideBy</code> may be extended
-while the proposal is pending, by the proposer or a manager, and the
-change writes its revision row like an ask change. Moving it earlier is
-refused: whoever funded or traded the pair did so for the announced
-window, and shortening it would close their book under them.</li>
+<li><strong>The deadline never moves.</strong> <code>decideBy</code> is fixed when the proposal is
+posted; no edit changes it, in either direction, by anyone, and the
+endpoint refuses the field outright. Whoever funded or traded the pair did
+so for the window that was announced: shortening it closes their book
+under them, and lengthening it holds their credits past the date they
+agreed to, which is the same harm from the other side. The owner may
+always decide earlier than the deadline; that is a decision, not a change
+to the terms.</li>
 <li><strong>The title may not disagree with the ask.</strong> A paid proposal's title carries
 its price by convention (&quot;$200: rewrite the store page&quot;), and two places
 stating one number is how they end up stating two. An edit whose title names
@@ -4954,16 +4957,19 @@ conditional on before the number means anything.</li>
 row a third chip reads &quot;decides 14 Sep&quot; (a clock glyph, the date), in the
 accent; after the ruling it reads &quot;decided 12 Sep&quot;. It is the only mention
 of the deadline on the page: nothing under the pitch, nothing in the ticket,
-nothing on the chart. The owner's bar carries three mono words after its
-buttons, &quot;lapses 14 Sep · extend&quot;, where extend opens a date field and
-accepts a later date only. On the board a pending row carries a clock and a
+nothing on the chart. Under a day the chip counts down instead (&quot;decides in 4h&quot;), red inside the
+last hour, because a date is no use when the answer is due this afternoon.
+The owner's bar carries three mono words under its buttons, &quot;declines itself
+in 4h&quot;, and nothing to press: a deadline does not move. On the board a pending row carries a clock and a
 countdown (&quot;6d&quot;) beside its pool, in the same mono register, red inside the
 last day; a row nobody ruled on by its deadline wears a &quot;lapsed&quot; pill in
 the decided fold. Once the proposal is closed (decided or lapsed) the ticket
 and the verbs are gone, the call cell's caption reads &quot;market's call at the
 decision&quot;, and the position card says when it settles (&quot;settles 30 Sep&quot;)
-where the Sell button was. The proposal form carries one prefilled field,
-&quot;Decision by&quot;, with &quot;default 7d&quot; beside it and no hint paragraph.</p>
+where the Sell button was. The proposal form asks for a DURATION, not a date, because a date picker
+cannot express ten minutes: a row of presets (1h, 6h, 1 day, 3 days, 1 week,
+custom) with the floor's own default preselected and named as such. Custom
+reveals a number and a unit, nothing more.</p>
 <p>In proposal mode the headline is the question the market actually prices,
 naming who is paid and how much (&quot;What is <metric> @ <date> if <proposer>
 is paid $<ask> to do: <task>&quot;, the task in ink and the rest a register
@@ -7948,7 +7954,7 @@ back to this table.</p>
 <tr>
 <td><code>proposal_closed</code></td>
 <td>400</td>
-<td>The proposal was decided or its deadline passed; both branches are closed, buys and sells alike. Positions settle at the date.</td>
+<td>The proposal was decided, or its deadline passed; both branches are closed, buys and sells alike, from the deadline instant itself rather than when a sweep gets to it. Positions settle at the date.</td>
 <td>Stop. Never retry.</td>
 </tr>
 <tr>
@@ -8710,7 +8716,7 @@ have it.</strong> A teammate you add with <code>role: &quot;admin&quot;</code> l
 publish announcements, edit the charter and manage groups. They get 403 on
 every lifecycle setting (<code>visibility</code>, <code>autoFundNewMarkets</code>,
 <code>newMarketLiquidityCredits</code>, <code>proposalReward</code>, <code>spamPenalty</code>,
-<code>maxPendingProposalsPerParticipant</code>, <code>decisionDays</code>) and they
+<code>maxPendingProposalsPerParticipant</code>, <code>decisionMinutes</code>) and they
 cannot delete the workspace. In practice only the creator can, because the
 creator gets every capability by being the creator and no group hands
 <code>manage_workspace</code> out.</p>
@@ -9108,14 +9114,18 @@ refunded.</p>
 <h2 id="docs-guides-get-paid-md--h5">The decision</h2>
 <p>The owner approves, declines with a reason, or declines it as spam, by the
 proposal's deadline. The deadline (<code>decideBy</code>) defaults to the floor's
-<code>decisionDays</code> after posting, 7 by default; ask for a later one in the post
-(<code>decideBy</code>, an ISO instant) if the work needs a slower decision, and move it
-later while pending with <code>PATCH /api/proposals/:id { decideBy }</code> (never
-earlier: traders funded the pair for the announced window). Trading on your
-proposal closes at the decision or the deadline, whichever comes first, and
-the prices just before the close are what the owner decided on. Undecided at
-the deadline, it lapses as declined; post it again if you still want to do
-the work.</p>
+<code>decisionMinutes</code> after posting, one day by default; pick a different window
+in the post itself (<code>decideBy</code>, an ISO instant in the future) if the work
+needs a slower decision, from a minute to ninety days. <strong>It cannot be
+changed afterwards</strong>, by you or by them, so pick it when you post. Trading
+on your proposal closes at the decision or the deadline, whichever comes
+first, and the prices just before the close are what the owner decided on.
+Undecided at the deadline, it lapses as declined; post it again if you still
+want to do the work.</p>
+<p>A short window prices nothing. A market needs people to see it: a proposal
+due in ten minutes will be decided on whatever the opening prices say, which
+is to say on nothing. Use the short windows for work the owner is waiting
+on, not for work you want priced.</p>
 <p><strong>Approval is the payment.</strong> In this system pressing approve is not a promise to
 decide later, it is the moment the money is owed. Whatever rail carries the
 dollars afterwards is settlement of a debt already incurred. What that means for
@@ -9794,10 +9804,18 @@ metric's own books and never a proposal.</p>
 <p>All four need the <code>manage</code> capability. The proposer has a fifth, <code>POST /api/proposals/:id/withdraw</code>, which voids both branches and moves no money.</p>
 <h2 id="docs-guides-proposals-md--h4">The deadline, and the close</h2>
 <p>Every proposal carries a deadline, <code>decideBy</code>: the instant by which you
-decide. It defaults to <code>decisionDays</code> after posting (a workspace setting, 7
-by default); the proposer may ask for a later one when posting; you, or the
-proposer, may move it later while the proposal is pending (<code>PATCH /api/proposals/:id { decideBy }</code>, later only, written to the revision log
-like an ask change). You may decide at any moment before it.</p>
+decide. It defaults to <code>decisionMinutes</code> after posting (a workspace setting,
+<strong>1,440, one day</strong>, anywhere from a minute to ninety days); the proposer
+picks a different window when posting if the work needs one. <strong>It never
+moves after that.</strong> Not by you, not by them, in either direction: whoever
+funded or traded the pair did so for the window that was announced, and a
+deadline that can be pushed is not a deadline. You may decide at any moment
+before it, which is a decision, not a change to the terms.</p>
+<p><strong>Halfway to the deadline, you get an email</strong>, capped at twelve hours out:
+a one-day proposal warns twelve hours before, a two-hour one an hour before,
+a one-minute one not at all. It goes to everyone who can decide on the
+floor, once per proposal, and carries the ask, the market's number and what
+is behind it, so the mail is enough to decide on.</p>
 <p><strong>Trading on both branches closes at the decision, or at the deadline,
 whichever comes first.</strong> No buys and no sells after that; open limit orders
 are released and their credits returned. The surviving branch's positions

@@ -35,9 +35,9 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onPropose: (title: string, description: string, askUsd: number, decideBy: string) => Promise<void>;
-  /** The floor's default deadline in days, prefilled on the form
-   *  (docs/guides/proposals.md, "The deadline, and the close"). */
-  decisionDays?: number;
+  /** The floor's own decision window in minutes, the preselected preset on
+   *  the form (docs/guides/proposals.md, "The deadline, and the close"). */
+  decisionMinutes?: number;
   /** Whether a participant is signed in. When false, the propose button
       becomes a signup door rather than opening a form the submit would
       bounce anyway. */
@@ -134,9 +134,27 @@ export function countdownTo(iso: string, now = Date.now()): { label: string; urg
   return { label: '<1h', urgent: true };
 }
 
-/** yyyy-mm-dd, `days` from now, for the form's date field. */
-function dateInDays(days: number): string {
-  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+/**
+ * The windows a proposer picks from (docs/ui-conventions.md): a DURATION,
+ * not a date, because a date picker cannot express ten minutes. The floor's
+ * own default is preselected and named as such; custom takes a number and a
+ * unit and nothing else.
+ */
+export const WINDOW_PRESETS: Array<{ minutes: number; label: string }> = [
+  { minutes: 60, label: '1h' },
+  { minutes: 360, label: '6h' },
+  { minutes: 1440, label: '1 day' },
+  { minutes: 4320, label: '3 days' },
+  { minutes: 10080, label: '1 week' },
+];
+
+/** "1 day", "45 minutes", "3 days": a window said the way a person says it. */
+export function windowLabel(minutes: number): string {
+  const preset = WINDOW_PRESETS.find(p => p.minutes === minutes);
+  if (preset) return preset.label;
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 1440) return `${Math.round(minutes / 60)}h`;
+  return `${Math.round(minutes / 1440)}d`;
 }
 
 const PoolDrop = () => (
@@ -207,7 +225,7 @@ export function JobsBoard({
   horizonDate,
   horizonMetricId,
   viewerId = null,
-  decisionDays = 7,
+  decisionMinutes = 1440,
 }: Props) {
   const navigate = useNavigate();
   // The number the charter funds on, falling back to the largest priced delta
@@ -222,7 +240,11 @@ export function JobsBoard({
   const [foldOpen, setFoldOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
-  const [decideBy, setDecideBy] = useState(() => dateInDays(decisionDays));
+  // The window in minutes: a preset, or a custom number and unit.
+  const [windowMinutes, setWindowMinutes] = useState(decisionMinutes);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customN, setCustomN] = useState('30');
+  const [customUnit, setCustomUnit] = useState<'m' | 'h' | 'd'>('m');
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [formBusy, setFormBusy] = useState(false);
@@ -313,13 +335,13 @@ export function JobsBoard({
     setFormErr('');
     setFormBusy(true);
     try {
-      // The deadline is the end of the chosen day, UTC.
-      await onPropose(fullTitle, desc.trim(), askNum, new Date(`${decideBy}T23:59:59.000Z`).toISOString());
+      await onPropose(fullTitle, desc.trim(), askNum, new Date(Date.now() + windowMinutes * 60_000).toISOString());
       // The green moment: the one place the form earns its color.
       setPlaced(true);
       closeTimer.current = setTimeout(() => {
         setAsk('');
-        setDecideBy(dateInDays(decisionDays));
+        setWindowMinutes(decisionMinutes);
+        setCustomOpen(false);
         setTitle('');
         setDesc('');
         setPlaced(false);
@@ -392,8 +414,10 @@ export function JobsBoard({
                   <span>by {p.proposedByName}</span>
                 ))}
               {askUsd !== null && <span>${askUsd} to them</span>}
+              {/* A lapse is not a verdict, so it wears the quiet pill rather
+                  than the decline's red (docs/ui-conventions.md). */}
               {p.status && p.status !== 'pending' && (
-                <span className={`pubws-ballot-status is-${p.lapsedAt ? 'declined' : p.status}`}>
+                <span className={`pubws-ballot-status is-${p.lapsedAt ? 'lapsed' : p.status}`}>
                   {p.lapsedAt ? 'lapsed' : p.status}
                 </span>
               )}
@@ -576,22 +600,70 @@ export function JobsBoard({
 
             {/* A paid job cannot go up without somewhere for the money to
                 go; the warning names the fix and the confirm stays off. */}
-            {/* The deadline, prefilled with the floor's default; no hint
-                paragraph (docs/ui-conventions.md). */}
-            <label className="jobform-field">
-              <span className="ticket-label">Decision by</span>
-              <span className="jobform-deadline">
-                <input
-                  className="jobform-line jobform-line--date"
-                  type="date"
-                  value={decideBy}
-                  min={dateInDays(1)}
-                  onChange={e => setDecideBy(e.target.value)}
-                  aria-label="Decision by"
-                />
-                <span className="jobform-count">default {decisionDays}d</span>
-              </span>
-            </label>
+            {/* How long the owner has, as a duration (docs/ui-conventions.md):
+                presets with the floor's own preselected, and custom for
+                anything else. */}
+            <div className="jobform-field">
+              <span className="ticket-label">Decided within</span>
+              <div className="jobform-windows" aria-label="Decided within">
+                {WINDOW_PRESETS.map(p => (
+                  <button
+                    key={p.minutes}
+                    type="button"
+                    className={`jobform-window${!customOpen && windowMinutes === p.minutes ? ' is-on' : ''}`}
+                    aria-pressed={!customOpen && windowMinutes === p.minutes}
+                    onClick={() => {
+                      setCustomOpen(false);
+                      setWindowMinutes(p.minutes);
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={`jobform-window${customOpen ? ' is-on' : ''}`}
+                  aria-pressed={customOpen}
+                  onClick={() => setCustomOpen(true)}
+                >
+                  custom
+                </button>
+                {!customOpen && windowMinutes === decisionMinutes && (
+                  <span className="jobform-count">floor's default</span>
+                )}
+              </div>
+              {customOpen && (
+                <div className="jobform-windows">
+                  <input
+                    className="jobform-line jobform-line--n"
+                    inputMode="numeric"
+                    value={customN}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/[^0-9]/g, '');
+                      setCustomN(raw);
+                      const n = parseInt(raw, 10);
+                      if (n > 0) setWindowMinutes(n * (customUnit === 'd' ? 1440 : customUnit === 'h' ? 60 : 1));
+                    }}
+                    aria-label="Custom window"
+                  />
+                  <select
+                    className="jobform-line jobform-line--unit"
+                    value={customUnit}
+                    onChange={e => {
+                      const u = e.target.value as 'm' | 'h' | 'd';
+                      setCustomUnit(u);
+                      const n = parseInt(customN, 10);
+                      if (n > 0) setWindowMinutes(n * (u === 'd' ? 1440 : u === 'h' ? 60 : 1));
+                    }}
+                    aria-label="Custom window unit"
+                  >
+                    <option value="m">minutes</option>
+                    <option value="h">hours</option>
+                    <option value="d">days</option>
+                  </select>
+                </div>
+              )}
+            </div>
 
             {needsPayout && (
               <p className="ticket-err">A paid proposal needs payment details first: add them in your account menu.</p>

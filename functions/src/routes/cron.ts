@@ -107,10 +107,12 @@ cronRouter.post(
     let balanceSnapshots = 0;
     const ran = await withSingletonLock('resolve', async () => {
       const wsIds = req.body?.workspaceId ? [req.body.workspaceId as string] : await allWorkspaceIds();
-      const { lapseOverdueProposals } = await import('../services/proposals');
+      const { lapseOverdueProposals, warnProposalDeadlines } = await import('../services/proposals');
       for (const wsId of wsIds) {
         // Undecided at the deadline, a proposal lapses as declined
-        // (docs/guides/proposals.md), before the books are looked at.
+        // (docs/guides/proposals.md), before the books are looked at; and
+        // halfway through its window the owner is reminded it is theirs.
+        await warnProposalDeadlines(wsId);
         const lapsed = await lapseOverdueProposals(wsId);
         const resolved = await resolvePredictions(req.body?.targetDate as string | undefined, wsId);
         const cleaned = await cleanupOldEvents(wsId);

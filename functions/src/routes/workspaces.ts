@@ -391,7 +391,7 @@ workspacesRouter.put(
     const hasProposalRewardKey = Object.prototype.hasOwnProperty.call(req.body, 'proposalReward');
     const hasSpamPenaltyKey = Object.prototype.hasOwnProperty.call(req.body, 'spamPenalty');
     const hasMaxPendingKey = Object.prototype.hasOwnProperty.call(req.body, 'maxPendingProposalsPerParticipant');
-    const hasDecisionDaysKey = Object.prototype.hasOwnProperty.call(req.body, 'decisionDays');
+    const hasDecisionDaysKey = Object.prototype.hasOwnProperty.call(req.body, 'decisionMinutes');
     const touchesLifecycleFields =
       hasAutoFundKey ||
       hasCreditsKey ||
@@ -529,12 +529,14 @@ workspacesRouter.put(
     }
 
     if (hasDecisionDaysKey) {
-      const d = req.body.decisionDays;
-      if (typeof d !== 'number' || !Number.isInteger(d) || d < 1 || d > 90) {
-        res.status(400).json({ error: 'decisionDays must be a whole number of days between 1 and 90' });
+      const d = req.body.decisionMinutes;
+      if (typeof d !== 'number' || !Number.isInteger(d) || d < 1 || d > 129_600) {
+        res
+          .status(400)
+          .json({ error: 'decisionMinutes must be a whole number of minutes between 1 and 129600 (ninety days)' });
         return;
       }
-      update.decisionDays = d;
+      update.decisionMinutes = d;
     }
 
     if (hasSpamPenaltyKey) {

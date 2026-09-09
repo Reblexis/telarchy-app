@@ -86,11 +86,19 @@ All four need the `manage` capability. The proposer has a fifth, `POST
 ## The deadline, and the close
 
 Every proposal carries a deadline, `decideBy`: the instant by which you
-decide. It defaults to `decisionDays` after posting (a workspace setting, 7
-by default); the proposer may ask for a later one when posting; you, or the
-proposer, may move it later while the proposal is pending (`PATCH
-/api/proposals/:id { decideBy }`, later only, written to the revision log
-like an ask change). You may decide at any moment before it.
+decide. It defaults to `decisionMinutes` after posting (a workspace setting,
+**1,440, one day**, anywhere from a minute to ninety days); the proposer
+picks a different window when posting if the work needs one. **It never
+moves after that.** Not by you, not by them, in either direction: whoever
+funded or traded the pair did so for the window that was announced, and a
+deadline that can be pushed is not a deadline. You may decide at any moment
+before it, which is a decision, not a change to the terms.
+
+**Halfway to the deadline, you get an email**, capped at twelve hours out:
+a one-day proposal warns twelve hours before, a two-hour one an hour before,
+a one-minute one not at all. It goes to everyone who can decide on the
+floor, once per proposal, and carries the ask, the market's number and what
+is behind it, so the mail is enough to decide on.
 
 **Trading on both branches closes at the decision, or at the deadline,
 whichever comes first.** No buys and no sells after that; open limit orders
@@ -100,10 +108,12 @@ once. The prices immediately before the close are the decision record. So
 the number you decide on is the last one anybody could trade, and nothing
 is spent on a book after it can no longer change the decision.
 
-**Undecided at the deadline, a proposal lapses as declined.** The approved
-branch is refunded, the declined branch settles on the actual value, the
-record is the prices at the deadline, and the floor marks it "lapsed"
-(`lapsedAt`). The proposer can post it again.
+**Undecided at the deadline, a proposal lapses.** Both branches are voided
+and everyone is refunded: nobody ruled, so neither world is the one we are
+in and there is nothing to settle against. Its status is `lapsed`, its own
+thing and not a decline, so it counts against nobody; the prices at the
+deadline are recorded as what it was worth when the clock ran out. The
+proposer can post it again.
 
 A proposal only spawns pairs on dates that settle after its deadline: a
 "this week" cell that would settle before you decide is not spawned, and a

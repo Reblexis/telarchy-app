@@ -165,15 +165,49 @@ describe('the deadline on the row', () => {
     expect(screen.queryByText('declined')).toBeNull();
   });
 
-  test('the form carries a prefilled Decision by field with the default', async () => {
+  test("the form asks for a window, with the floor's own preselected", async () => {
     render(
       <MemoryRouter>
-        <JobsBoard {...base} proposals={[job]} horizonDate="2026-W35" horizonMetricId="rev" decisionDays={7} />
+        <JobsBoard {...base} proposals={[job]} horizonDate="2026-W35" horizonMetricId="rev" decisionMinutes={1440} />
       </MemoryRouter>,
     );
     fireEvent.click(screen.getByText('+ Propose'));
-    const field = (await screen.findByLabelText('Decision by')) as HTMLInputElement;
-    expect(field.value).toBe(new Date(Date.now() + 7 * DAY).toISOString().slice(0, 10));
-    expect(screen.getByText('default 7d')).toBeTruthy();
+    const row = await screen.findByLabelText('Decided within');
+    expect(row.textContent).toContain('1 day');
+    expect(screen.getByRole('button', { name: '1 day' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText("floor's default")).toBeTruthy();
+    // A date picker cannot express ten minutes, so there is none.
+    expect(document.querySelector('input[type="date"]')).toBeNull();
+  });
+
+  test('custom takes a number and a unit, down to minutes', async () => {
+    render(
+      <MemoryRouter>
+        <JobsBoard {...base} proposals={[job]} horizonDate="2026-W35" horizonMetricId="rev" decisionMinutes={1440} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByText('+ Propose'));
+    fireEvent.click(await screen.findByRole('button', { name: 'custom' }));
+    const n = (await screen.findByLabelText('Custom window')) as HTMLInputElement;
+    expect((screen.getByLabelText('Custom window unit') as HTMLSelectElement).value).toBe('m');
+    fireEvent.change(n, { target: { value: '10' } });
+    expect(n.value).toBe('10');
+  });
+
+  test('a lapsed proposal wears the quiet pill, never the decline red', () => {
+    const j = {
+      ...job,
+      status: 'lapsed',
+      resolvedAt: '2026-09-08T00:00:00.000Z',
+      lapsedAt: '2026-09-08T00:00:00.000Z',
+    };
+    const { container } = render(
+      <MemoryRouter>
+        <JobsBoard {...base} proposals={[j] as never} horizonDate="2026-W35" horizonMetricId="rev" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('lapsed')).toBeTruthy();
+    expect(container.querySelector('.pubws-ballot-status.is-lapsed')).toBeTruthy();
+    expect(container.querySelector('.pubws-ballot-status.is-declined')).toBeNull();
   });
 });

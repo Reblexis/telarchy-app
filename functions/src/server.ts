@@ -183,6 +183,28 @@ import('./app')
         if (r.fills > 0) console.log('Limit sweep:', r);
       }),
     );
+    // A proposal's deadline can be a minute away (docs/guides/proposals.md,
+    // "The deadline, and the close"), and the resolve pass above runs every
+    // ten. The trade path refuses past the deadline on its own, so this only
+    // makes the decline durable and sends the reminder; a minute is close
+    // enough for both.
+    scheduleEvery(
+      60_000,
+      'proposalDeadlines',
+      singleton('proposalDeadlines', async () => {
+        const { lapseOverdueProposals, warnProposalDeadlines } = await import('./services/proposals');
+        const { db } = await import('./db/client');
+        const { workspaces } = await import('./db/schema');
+        const wsIds = (await db.select({ id: workspaces.id }).from(workspaces)).map((r: { id: string }) => r.id);
+        let lapsed = 0;
+        let warned = 0;
+        for (const wsId of wsIds) {
+          warned += await warnProposalDeadlines(wsId);
+          lapsed += await lapseOverdueProposals(wsId);
+        }
+        if (lapsed > 0 || warned > 0) console.log(`Proposal deadlines: ${lapsed} lapsed, ${warned} warned`);
+      }),
+    );
     scheduleDailyUTC(0, 10, 'dailyMarketRefresh', singleton('dailyMarketRefresh', runDailyRefresh));
     // Data hygiene: visit-log retention, question IP scrub, trace retention
     // (services/maintenance.ts). Used to run on admin read paths or never.

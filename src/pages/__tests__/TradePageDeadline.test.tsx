@@ -171,6 +171,7 @@ describe('the deadline is one amber chip', () => {
     renderFloor();
     await selectContract();
     const chip = await screen.findByLabelText('Decision deadline');
+    // Six days out it names the day; under a day it counts down.
     expect(chip.textContent).toMatch(/decides/i);
     // The only mention: no sentence about the deadline under the pitch or in the ticket.
     expect(screen.queryByText(/Trading on this proposal closes/)).toBeNull();
@@ -196,26 +197,13 @@ describe('the deadline is one amber chip', () => {
 });
 
 describe("the owner's bar", () => {
-  test('says the proposal lapses on the date, and offers to extend', async () => {
+  test('says the proposal declines itself, and offers nothing to press', async () => {
     renderFloor();
     await selectContract();
     await screen.findByRole('button', { name: /Approve/ });
-    expect(screen.getByText(/lapses/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /extend/i })).toBeTruthy();
-  });
-
-  test('extending sends a later deadline', async () => {
-    renderFloor();
-    await selectContract();
-    fireEvent.click(await screen.findByRole('button', { name: /extend/i }));
-    const field = await screen.findByLabelText('New deadline');
-    const later = new Date(Date.now() + 20 * h.DAY).toISOString().slice(0, 10);
-    fireEvent.change(field, { target: { value: later } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save deadline' }));
-    const { api } = await import('../../lib/api');
-    await waitFor(() => expect(vi.mocked(api.editProposal)).toHaveBeenCalled());
-    const [, body] = vi.mocked(api.editProposal).mock.calls[0] as unknown as [string, { decideBy?: string }];
-    expect(body.decideBy?.slice(0, 10)).toBe(later);
+    expect(screen.getByText(/declines itself/)).toBeTruthy();
+    // The deadline never moves (docs/market-integrity.md I1b).
+    expect(screen.queryByRole('button', { name: /extend/i })).toBeNull();
   });
 });
 
@@ -245,5 +233,30 @@ describe('a closed proposal', () => {
     await selectContract();
     const cell = await screen.findByLabelText("Market's call if approved");
     expect(cell.textContent).toMatch(/at the decision/);
+  });
+});
+
+describe('the deadline reads at every scale', () => {
+  test('under a day it counts down in hours', async () => {
+    await withProposal({ decideBy: new Date(Date.now() + 4 * 3_600_000).toISOString() });
+    renderFloor();
+    await selectContract();
+    expect((await screen.findByLabelText('Decision deadline')).textContent).toMatch(/in 4h/);
+  });
+
+  test('inside the hour it counts down in minutes, in red', async () => {
+    await withProposal({ decideBy: new Date(Date.now() + 12 * 60_000).toISOString() });
+    renderFloor();
+    await selectContract();
+    const chip = await screen.findByLabelText('Decision deadline');
+    expect(chip.textContent).toMatch(/in 1[23]m/);
+    expect(chip.className).toContain('is-urgent');
+  });
+
+  test('a day or more out it names the day', async () => {
+    await withProposal({ decideBy: new Date(Date.now() + 3 * 86_400_000).toISOString() });
+    renderFloor();
+    await selectContract();
+    expect((await screen.findByLabelText('Decision deadline')).textContent).toMatch(/decides \d/);
   });
 });

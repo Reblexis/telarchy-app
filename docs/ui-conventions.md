@@ -622,16 +622,20 @@ not shown (that is the cross-horizon conflict mark, which does not exist).
 row a third chip reads "decides 14 Sep" (a clock glyph, the date), in the
 accent; after the ruling it reads "decided 12 Sep". It is the only mention
 of the deadline on the page: nothing under the pitch, nothing in the ticket,
-nothing on the chart. The owner's bar carries three mono words after its
-buttons, "lapses 14 Sep · extend", where extend opens a date field and
-accepts a later date only. On the board a pending row carries a clock and a
+nothing on the chart. Under a day the chip counts down instead ("decides in 4h"), red inside the
+last hour, because a date is no use when the answer is due this afternoon.
+The owner's bar carries three mono words under its buttons, "declines itself
+in 4h", and nothing to press: a deadline does not move. On the board a pending row carries a clock and a
 countdown ("6d") beside its pool, in the same mono register, red inside the
 last day; a row nobody ruled on by its deadline wears a "lapsed" pill in
-the decided fold. Once the proposal is closed (decided or lapsed) the ticket
+the decided fold, in the quiet register rather than the decline's red: a
+lapse is not a verdict. Once the proposal is closed (decided or lapsed) the ticket
 and the verbs are gone, the call cell's caption reads "market's call at the
 decision", and the position card says when it settles ("settles 30 Sep")
-where the Sell button was. The proposal form carries one prefilled field,
-"Decision by", with "default 7d" beside it and no hint paragraph.
+where the Sell button was. The proposal form asks for a DURATION, not a date, because a date picker
+cannot express ten minutes: a row of presets (1h, 6h, 1 day, 3 days, 1 week,
+custom) with the floor's own default preselected and named as such. Custom
+reveals a number and a unit, nothing more.
 
 In proposal mode the headline is the question the market actually prices,
 naming who is paid and how much ("What is <metric> @ <date> if <proposer>

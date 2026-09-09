@@ -564,7 +564,7 @@ export interface PublicWorkspace {
   spamPenalty: number;
   /** Days a new proposal has before it lapses as declined unless decided
    *  (docs/guides/proposals.md, "The deadline, and the close"). */
-  decisionDays?: number;
+  decisionMinutes?: number;
   /** What pressing join actually grants, per the Public group's capabilities. */
   joinAs: 'trader' | 'viewer';
   /** The platform signup grant, so the page can say what you start with. */
@@ -692,7 +692,9 @@ export interface PublicProposal {
    *  predate the field. */
   askUsd?: number | null;
   /** Job lifecycle: on the ballot, or decided (the owner picked a branch). */
-  status?: 'pending' | 'approved' | 'declined';
+  /** Lifecycle. `lapsed` is its own outcome: nobody ruled by the deadline,
+   *  both books voided and refunded, and it counts against nobody. */
+  status?: 'pending' | 'approved' | 'declined' | 'lapsed';
   resolvedAt?: string | null;
   declineReason?: string | null;
   /** The decision deadline, and the close (docs/guides/proposals.md):
@@ -1619,7 +1621,7 @@ export const api = {
     askUsd?: number;
     payoutHandle?: string;
     /** The decision deadline, an ISO instant in the future; the floor's
-     *  decisionDays from now when omitted. */
+     *  decisionMinutes from now when omitted. */
     decideBy?: string;
   }) => request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
   /** Edit a proposal's definition: words and price both, published as
@@ -1795,10 +1797,7 @@ export const api = {
     request('/api/admin/outreach/lessons'),
   outreachSetLessons: (lessons: string): Promise<{ ok: true }> =>
     request('/api/admin/outreach/lessons', { method: 'PUT', body: JSON.stringify({ lessons }) }),
-  editProposal: (
-    id: string,
-    body: { title?: string; description?: string; askUsd?: number | null; decideBy?: string },
-  ) =>
+  editProposal: (id: string, body: { title?: string; description?: string; askUsd?: number | null }) =>
     request(`/api/proposals/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(body),

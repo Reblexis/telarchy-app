@@ -123,9 +123,14 @@ export const workspaces = pgTable('workspaces', {
   spamPenalty: doublePrecision('spam_penalty').notNull().default(0),
   /** Per-participant cap on simultaneously pending proposals in this workspace. 0 disables the cap. Never applies to a caller holding manage (owner, admins, platform admins). */
   maxPendingProposalsPerParticipant: integer('max_pending_proposals').notNull().default(0),
-  /** How many days a new proposal has before it lapses as declined unless
-   *  decided (docs/guides/proposals.md, "The deadline, and the close").
-   *  Whole days, 1..90. A proposer may ask for longer per proposal. */
+  /** How long a new proposal has before it lapses as declined unless decided
+   *  (docs/guides/proposals.md, "The deadline, and the close"). Whole
+   *  MINUTES, 1..129,600 (ninety days), one day by default: a floor clearing
+   *  a backlog by hand wants ten minutes, one pricing a quarter wants weeks.
+   *  The proposer may name a different window when posting; nothing moves it
+   *  afterwards. `decisionDays` below is the retired days-only form, left in
+   *  place so the previous build keeps serving through the deploy. */
+  decisionMinutes: integer('decision_minutes').notNull().default(1440),
   decisionDays: integer('decision_days').notNull().default(7),
 });
 
@@ -914,6 +919,9 @@ export const proposals = pgTable(
      *  decision. Status is 'declined'; this is what the floor's "lapsed"
      *  pill reads. */
     lapsedAt: timestamp('lapsed_at'),
+    /** When the "you have half your window left" reminder went out, so it
+     *  goes out once and never again. */
+    deadlineWarnedAt: timestamp('deadline_warned_at'),
     /**
      * The pair prices at the moment the owner ruled, one entry per
      * (metric, targetDate): what the contractor rail scores an approved job

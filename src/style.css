@@ -2460,6 +2460,29 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
 /* The deadline chip (docs/ui-conventions.md, "The deadline is one amber
    chip"): the caption row's one mention of it, in the accent. */
 .pubws-chip--deadline { border-color: var(--accent); color: var(--accent); gap: 0.35rem; }
+.pubws-chip--deadline.is-urgent { border-color: var(--lower); color: var(--lower); }
+.pubws-ownerbar-note.is-urgent { color: var(--lower); }
+/* The window a proposer picks, in the caption chips' register. */
+.jobform-windows { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.jobform-window {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.jobform-window:hover { color: var(--text-primary); border-color: var(--border-hover); }
+.jobform-window.is-on {
+  border-color: var(--text-primary);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.jobform-line--n { width: 5ch; font-family: 'JetBrains Mono', monospace; }
+.jobform-line--unit { width: auto; }
 
 /* The deadline on a board row: a clock and a countdown beside the pool, in
    the pool's own mono register; red inside the last day. */
@@ -5307,6 +5330,10 @@ textarea.jobform-line--desc {
   padding: 0.04rem 0.34rem;
   border-radius: 4px;
   white-space: nowrap;
+}
+.pubws-ballot-status.is-lapsed {
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
 }
 .pubws-ballot-status.is-approved {
   color: var(--success, #16a34a);
