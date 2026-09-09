@@ -514,6 +514,9 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
                 {
                   key: 'cumulative',
                   label: 'Accounts, running total',
+                  // Defined between its points: a quiet fortnight is not a
+                  // hole in the total, it is a flat stretch of it.
+                  connect: true,
                   points: t.signupsByDay.map((d, i) => ({
                     at: d.day,
                     value: t.signupsByDay.slice(0, i + 1).reduce((sum, x) => sum + x.signups, 0),
