@@ -539,6 +539,25 @@ export function TradePage() {
   const heroDates = hero ? [...datesOf(horizons, hero.metricId)].reverse() : [];
   // One clock for the page, so the countdown and every settle tooltip agree.
   const [now, setNow] = useState(() => new Date());
+  /* ONE chart, and how the call moved is a mode of it (docs/ui-conventions.md,
+     "The price and the chart", 2026-09-09). Two stacked charts cost 340px of
+     the first screen and put the bet verbs below the fold. The mode is
+     remembered for the session, not the page load. */
+  const [chartMode, setChartMode] = useState<'value' | 'call'>(() => {
+    try {
+      return sessionStorage.getItem('floorChartMode') === 'call' ? 'call' : 'value';
+    } catch {
+      return 'value';
+    }
+  });
+  const pickChartMode = useCallback((m: 'value' | 'call') => {
+    setChartMode(m);
+    try {
+      sessionStorage.setItem('floorChartMode', m);
+    } catch {
+      // A browser that refuses storage still gets the toggle, just not the memory.
+    }
+  }, []);
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
@@ -1082,6 +1101,29 @@ export function TradePage() {
   const chartSeries = useMemo(
     () => (active && active.history.length > 0 ? active.history : [{ at: now.toISOString(), consensus }]),
     [active, consensus, now],
+  );
+  /* The chart's one control: VALUE draws the number's own trajectory, CALL
+     draws how the market's call moved. It rides the chart's left cell, which
+     the stat row emptied when it moved above the plot. */
+  const chartModeToggle = (
+    <span className="pubws-seg pubws-seg--chart" role="group" aria-label="Chart">
+      <button
+        type="button"
+        className={`pubws-seg-btn${chartMode === 'value' ? ' is-active' : ''}`}
+        aria-pressed={chartMode === 'value'}
+        onClick={() => pickChartMode('value')}
+      >
+        Value
+      </button>
+      <button
+        type="button"
+        className={`pubws-seg-btn${chartMode === 'call' ? ' is-active' : ''}`}
+        aria-pressed={chartMode === 'call'}
+        onClick={() => pickChartMode('call')}
+      >
+        Call
+      </button>
+    </span>
   );
   const chartOrders = useMemo(
     () => orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue })),
@@ -1993,41 +2035,59 @@ export function TradePage() {
                     (caption-shaped), its left cell empty because the stats
                     are above, a legend naming the marks below. */}
                   <div className="pubws-numchart">
-                    <NumberChart
-                      points={hero.metricHistory}
-                      markers={datesOf(horizons, hero.metricId).flatMap(d => {
-                        if (!d.resolvesOn) return [];
-                        // The open proposal's pair on this date, by (metric, date).
-                        const pr = selectedJob?.markets.find(
-                          m => m.targetDate === d.targetDate && (m.metricId === undefined || m.metricId === d.metricId),
-                        );
-                        return [
-                          {
-                            marketId: d.marketId,
-                            resolvesOn: d.resolvesOn,
-                            consensus: d.consensus,
-                            selected: d.marketId === hero.marketId,
-                            pair: pr ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus } : null,
-                          },
-                        ];
-                      })}
-                      impactFrom={branch}
-                      marksLegend
-                      legend={
-                        selectedJob
-                          ? {
-                              approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
-                              declined: 'if not',
-                            }
-                          : null
-                      }
-                      selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
-                      granularity={granularityOf(hero.targetDate)}
-                      unit={unit}
-                      now={now}
-                      preview={chartPreview}
-                      center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
-                    />
+                    {chartMode === 'value' ? (
+                      <NumberChart
+                        points={hero.metricHistory}
+                        markers={datesOf(horizons, hero.metricId).flatMap(d => {
+                          if (!d.resolvesOn) return [];
+                          // The open proposal's pair on this date, by (metric, date).
+                          const pr = selectedJob?.markets.find(
+                            m =>
+                              m.targetDate === d.targetDate && (m.metricId === undefined || m.metricId === d.metricId),
+                          );
+                          return [
+                            {
+                              marketId: d.marketId,
+                              resolvesOn: d.resolvesOn,
+                              consensus: d.consensus,
+                              selected: d.marketId === hero.marketId,
+                              pair: pr ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus } : null,
+                            },
+                          ];
+                        })}
+                        impactFrom={branch}
+                        marksLegend
+                        legend={
+                          selectedJob
+                            ? {
+                                approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
+                                declined: 'if not',
+                              }
+                            : null
+                        }
+                        selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
+                        granularity={granularityOf(hero.targetDate)}
+                        unit={unit}
+                        now={now}
+                        preview={chartPreview}
+                        center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
+                        corner={chartModeToggle}
+                        onPickDate={setHorizonId}
+                      />
+                    ) : (
+                      <MarketChart
+                        key={active.marketId}
+                        series={chartSeries}
+                        consensus={consensus}
+                        unit={unit}
+                        ranges={['1D', '1W']}
+                        center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
+                        corner={chartModeToggle}
+                        preview={chartPreview}
+                        orders={chartOrders}
+                        secondary={chartSecondary}
+                      />
+                    )}
                   </div>
                   {/* The chart's footer: the market's money under the plot it
                     describes (docs/ui-conventions.md, "The price and the
@@ -2035,23 +2095,6 @@ export function TradePage() {
                     the traders keep their icon. */}
                   <div className="pubws-chartfoot">
                     <MarketMoney traders={active.traders} pool={active.pool} volume={active.volume} />
-                  </div>
-                  {/* How the call moved: the market's own price history as a
-                    strip at half height. The "how did we get here", not the
-                    hero. The composed bet's ghost draws here too. */}
-                  <div className="pubws-callhist">
-                    <MarketChart
-                      key={active.marketId}
-                      series={chartSeries}
-                      consensus={consensus}
-                      unit={unit}
-                      ranges={['1D', '1W']}
-                      height={130}
-                      center={<span className="pubws-chart-cap">how the call moved</span>}
-                      preview={chartPreview}
-                      orders={chartOrders}
-                      secondary={chartSecondary}
-                    />
                   </div>
                 </div>
               )}
