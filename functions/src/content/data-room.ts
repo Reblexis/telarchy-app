@@ -17,7 +17,16 @@
 
 /** The blocks the page knows how to render. A directive naming anything else
  *  is a mistake that must be loud, not an empty space on a public page. */
-export const KNOWN_BLOCKS = ['pulse', 'funnel', 'window', 'traction', 'contracts', 'traffic', 'shipping'] as const;
+export const KNOWN_BLOCKS = [
+  'pulse',
+  'funnel',
+  'window',
+  'rates',
+  'traction',
+  'contracts',
+  'traffic',
+  'shipping',
+] as const;
 export type BlockName = (typeof KNOWN_BLOCKS)[number];
 
 /** When the prose was last edited. The numbers carry their own timestamp and
@@ -113,6 +122,14 @@ an amount and a date, and a floor appears under the name its own page already
 carries.
 
 block:window
+
+Behind the window is the record of how far each number has actually moved.
+Every weekly reading of every number this floor prices is here, eight weeks
+back, oldest first. A week the sync did not run is a hole rather than a repeat
+of the week before, because a week nobody measured and a week nothing happened
+are different facts.
+
+block:rates
 
 ## Traction
 

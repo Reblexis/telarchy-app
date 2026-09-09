@@ -104,6 +104,28 @@ numbers and a payment is an amount with a date. The only identity the block
 carries is a public workspace's own slug, which that workspace's floor already
 publishes.
 
+## The base rates are every weekly reading
+
+A forecaster's first question about a number is how far it usually moves in
+the time they are being asked to price, and the page answered it only as a
+shape on a chart. `rates` publishes the readings themselves: for every
+metric the platform records on its own floor, the reading that stood at the
+end of each of the last eight weeks, oldest first.
+
+A week with no reading publishes null rather than the week before's value.
+Carrying a number forward would turn a week the sync did not run into a week
+the number did not move, which is the one thing this block exists to tell
+apart.
+
+The metrics come from the workspace named by `SELF_SYNC_WORKSPACE_ID`, the
+same one the hourly self-sync writes to. An instance that has not set it
+publishes an empty block, because its floor measures its owner's business
+rather than ours.
+
+Summaries of the eight (the biggest week, how many weeks were flat) are
+deliberately absent. They are arithmetic on numbers the block already
+publishes, and a reader who wants one can do it.
+
 ## Every number comes from the database that serves the site
 
 `GET /api/data-room` is one public, uncredentialed read that returns the

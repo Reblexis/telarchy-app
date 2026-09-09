@@ -779,7 +779,7 @@ export interface PublicWorkspaceMarket {
  *  prose and every figure on the page, so the page cannot show a number the
  *  response does not carry. A term that could not be computed is null, never
  *  zero. */
-export type DataRoomBlock = 'pulse' | 'funnel' | 'window' | 'traction' | 'contracts' | 'traffic' | 'shipping';
+export type DataRoomBlock = 'pulse' | 'funnel' | 'window' | 'rates' | 'traction' | 'contracts' | 'traffic' | 'shipping';
 
 export interface DataRoomFeed {
   schema: number;
@@ -826,6 +826,13 @@ export interface DataRoomFeed {
       forecasters: { threshold: number; profit: number[] };
       owners: { pending: Array<{ slug: string | null; title: string; decideBy: string | null }> };
       revenue: { payments: Array<{ usd: number; status: string; at: string }> };
+    };
+    /** Every weekly reading of every number the platform records about
+     *  itself, oldest first. A week with no reading is null and never the
+     *  week before carried forward. */
+    rates: {
+      weeks: string[];
+      metrics: Array<{ name: string; readings: Array<number | null> }>;
     };
     traction: {
       participants: number;

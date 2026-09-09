@@ -5,6 +5,7 @@ import { db } from '../db/client';
 import { agents, authUser, markets, pageVisits, proposals, trades, trafficDaily, workspaces } from '../db/schema';
 import { ttlCache } from '../lib/ttl-cache';
 import { humanVisitFilter } from '../lib/visit-log';
+import { buildBaseRates } from './base-rates';
 import { paidManifoldLinkCount, platformStats } from './platform-stats';
 import { buildTraderWindow } from './trader-window';
 
@@ -283,12 +284,13 @@ export function buildDataRoomFeed(): Promise<DataRoomFeed> {
 }
 
 async function computeDataRoomFeed(): Promise<DataRoomFeed> {
-  const [stats, tract, contractRows, traf, windowRows] = await Promise.all([
+  const [stats, tract, contractRows, traf, windowRows, rates] = await Promise.all([
     platformStats(),
     traction(),
     contracts(),
     traffic(),
     buildTraderWindow(),
+    buildBaseRates(),
   ]);
   const chain = funnel({
     loads: traf.totalVisits,
@@ -316,6 +318,9 @@ async function computeDataRoomFeed(): Promise<DataRoomFeed> {
       // The rows behind the next reading, not a count of them
       // (docs/data-room.md, "The window is the rows behind the next reading").
       window: windowRows,
+      // Every weekly reading, so "how far does it normally move" is a number
+      // rather than a shape (docs/data-room.md, "The base rates").
+      rates,
       traction: tract,
       contracts: contractRows,
       traffic: traf,
@@ -422,6 +427,17 @@ function renderBlock(name: string, feed: DataRoomFeed): string {
       ...(v.revenue.payments.length
         ? v.revenue.payments.map((p: any) => `    ${p.at}: $${fmt(p.usd)}, ${p.status}`)
         : ['    none']),
+    ].join('\n');
+  }
+
+  if (name === 'rates') {
+    if (!v.metrics.length) return 'rates: nothing recorded yet';
+    return [
+      `rates (the reading at the end of each of the last eight weeks, oldest first, weeks ending ${v.weeks[0]} to ${v.weeks[v.weeks.length - 1]}):`,
+      ...v.metrics.map(
+        (m: any) =>
+          `  ${m.name}: ${m.readings.map((r: number | null) => (r === null ? 'not read' : fmt(r))).join(', ')}`,
+      ),
     ].join('\n');
   }
 
