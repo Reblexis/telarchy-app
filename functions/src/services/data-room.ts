@@ -1,6 +1,12 @@
 import { and, asc, count, eq, gte, ne, sql } from 'drizzle-orm';
 import { CHANGE_DAYS, CHANGELOG_BUILT_AT, CHANGES, TOTAL_CHANGES } from '../content/changelog';
-import { type BlockName, CONTENT_UPDATED_AT, DATA_ROOM_MARKDOWN, KNOWN_BLOCKS, KNOWN_PARTS } from '../content/data-room';
+import {
+  type BlockName,
+  CONTENT_UPDATED_AT,
+  DATA_ROOM_MARKDOWN,
+  KNOWN_BLOCKS,
+  KNOWN_PARTS,
+} from '../content/data-room';
 import { db } from '../db/client';
 import { agents, authUser, markets, pageVisits, proposals, trades, trafficDaily, workspaces } from '../db/schema';
 import { ttlCache } from '../lib/ttl-cache';
