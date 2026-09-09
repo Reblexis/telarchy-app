@@ -1811,3 +1811,23 @@ tab's rows rendered above the tab row that selects them, and Quick/Limit
 stayed on screen while selling. Both are now rules in the doc and tests in
 `TradeTicketOpen.test.tsx`, the second proved by putting the ungated toggle
 back and watching it go red.
+
+**The ticket had four rows of chrome, and one of them had no CSS.** Viktor,
+2026-09-09, of a screenshot of the rail: "wtf is this.. do better /design".
+The tab row I had added the week's Buy|Sell to carried no `.ticket-tabs` or
+`.ticket-tab` rules at all, so two buttons rendered as the word "BuySell".
+Measuring the card before redrawing it found the rest: the rail is 293px
+wide, and Buy/Sell, the sides, the order type and a close were four separate
+rows above the first number, with the order type wrapping onto its own line
+and reading as a third mode beside the ×.
+
+The canvas (https://claude.ai/code/artifact/4c23f937-764a-412e-9081-086607a0e51b,
+four artboards: shipped, the rail, composed, Sell) proposed and Viktor took
+one rule of chrome (tabs left, order type at its right end, hairline under
+the width), a 50/50 side row, and no close control at all. The × closed a
+card the rail redrew in the same frame; all it did was drop the ghost.
+
+Not changed: the payoff line at a 1 cr stake really does read 0, 0, -1, -1.
+Those are the true numbers for a one-credit bet, and the line already falls
+back to the plain range bar at 0 cr, so nothing was invented to make a
+degenerate bet look interesting.

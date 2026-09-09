@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { TradeTicket } from '../TradeTicket';
 
 /**
@@ -144,5 +147,46 @@ describe('the tabs come first, and the price mode belongs to Buy', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sell' }));
     expect(screen.queryByRole('button', { name: 'Quick' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Limit' })).toBeNull();
+  });
+});
+
+describe('one rule of chrome', () => {
+  /**
+   * The rail is 293px wide (docs/ui-conventions.md, "The ticket": "The card
+   * carries ONE rule of chrome"). Viktor, 2026-09-09, of the card that had
+   * four rows of it and an unstyled tab row: "wtf is this".
+   */
+  const css = () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    return readFileSync(join(dirname(dirname(here)), 'style.css'), 'utf8');
+  };
+  const rule = (sel: string) => {
+    const m = css().match(new RegExp(`\\${sel}\\s*\\{([^}]*)\\}`));
+    return m ? m[1] : null;
+  };
+
+  test('the tab row is a rule, and the chosen tab is underlined', () => {
+    expect(rule('.ticket-tabs')).toMatch(/border-bottom/);
+    expect(rule('.ticket-tab')).toBeTruthy();
+    expect(rule('.ticket-tab.is-active')).toMatch(/border-bottom/);
+  });
+
+  test('the two sides are one 50/50 row at the card&rsquo;s full width', () => {
+    const seg = rule('.ticket-seg');
+    expect(seg).toMatch(/grid-template-columns:\s*1fr 1fr/);
+    expect(seg).not.toMatch(/margin:\s*0 auto/);
+  });
+
+  test('the order type rides the tab row, not a row of its own', () => {
+    const { container } = render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);
+    const tabs = container.querySelector('.ticket-tabs') as HTMLElement;
+    expect(tabs.querySelector('.ticket-mode')).toBeTruthy();
+    expect(container.querySelector('.ticket-head .ticket-mode')).toBeNull();
+  });
+
+  test('nothing closes the ticket, because the rail draws it again', () => {
+    const { container } = render(<TradeTicket {...base} />);
+    expect(container.querySelector('.ticket-close')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
   });
 });
