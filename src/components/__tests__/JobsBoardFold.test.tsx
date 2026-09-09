@@ -89,7 +89,9 @@ function board(props: Partial<React.ComponentProps<typeof JobsBoard>> = {}) {
   );
 }
 
-const titles = () => screen.getAllByRole('button').map(b => b.textContent ?? '');
+/** The proposals on the list, in order, by their title line alone: the row's
+ *  facts are an icon row under it since 2026-09-09. */
+const titles = () => [...document.querySelectorAll('.pubws-ballot-title')].map(b => b.textContent ?? '');
 
 describe('the board opens on the live ballot', () => {
   test('the pending proposals are the list, and the decided ones are not on it', () => {
@@ -136,7 +138,7 @@ describe('the board opens on the live ballot', () => {
     });
     fireEvent.click(screen.getByText('Show'));
     const shown = titles().filter(t => /Undated|Same minute|Older/.test(t));
-    expect(shown.map(t => t.replace(/by Jason.*$/, '').trim())).toEqual([
+    expect(shown.map(t => t.trim())).toEqual([
       'Same minute large',
       'Same minute small',
       'Older',

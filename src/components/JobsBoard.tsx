@@ -34,6 +34,11 @@ interface Props {
   /** The job whose conditional market the page is currently showing. */
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** Trade this proposal's pair from the row it is read on
+   *  (docs/ui-conventions.md, "The proposals board", 2026-09-09): selects
+   *  the proposal and opens the ticket on that side. Absent on a board that
+   *  is only a list, where no row grows verbs. */
+  onTrade?: (id: string, direction: 'higher' | 'lower') => void;
   onPropose: (title: string, description: string, askUsd: number, decideBy: string) => Promise<void>;
   /** The floor's own decision window in minutes, the preselected preset on
    *  the form (docs/guides/proposals.md, "The deadline, and the close"). */
@@ -157,6 +162,41 @@ export function windowLabel(minutes: number): string {
   return `${Math.round(minutes / 1440)}d`;
 }
 
+const Person = () => (
+  <svg
+    width="11"
+    height="11"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="8" r="3.4" />
+    <path d="M5 20a7 7 0 0 1 14 0" />
+  </svg>
+);
+
+const Coin = () => (
+  <svg
+    width="11"
+    height="11"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5v9" />
+    <path d="M14.4 9.6a2.6 2.6 0 0 0-2.4-1.3c-1.4 0-2.5.8-2.5 2s1.1 1.7 2.5 1.7 2.5.5 2.5 1.7-1.1 2-2.5 2a2.6 2.6 0 0 1-2.4-1.3" />
+  </svg>
+);
+
 const PoolDrop = () => (
   <svg width="9" height="11" viewBox="0 0 12 15" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
     <path d="M6 1.5C6 1.5 1.5 6.5 1.5 9.3a4.5 4.5 0 0 0 9 0C10.5 6.5 6 1.5 6 1.5Z" />
@@ -217,6 +257,7 @@ export function JobsBoard({
   unit,
   selectedId,
   onSelect,
+  onTrade,
   onPropose,
   signedIn,
   onRequireSignup,
@@ -363,22 +404,35 @@ export function JobsBoard({
     // only for proposals created before the column existed.
     const { ask: parsedAsk, rest: titleRest } = splitAsk(p.title);
     const askUsd = p.askUsd ?? parsedAsk;
+    // Two lines, and only one of them is loud (docs/ui-conventions.md, "The
+    // proposals board", revised 2026-09-09): the title and the impact on the
+    // first, the four facts as an icon row on the second, the two verbs on
+    // the right. Nothing stacked on the right edge, which is what made this
+    // row unreadable in a 340px rail.
+    const countdown = isPending(p) && p.decideBy ? countdownTo(p.decideBy) : null;
+    // A priced, live proposal is one you can act on from where you read it.
+    // A decided one has nothing left to trade, and an unpriced one has no
+    // market to trade against.
+    const tradeable = !!onTrade && isPending(p) && delta !== null;
     return (
       <li key={p.id} className={selected ? 'is-open' : ''}>
-        <button
-          className={`pubws-ballot-row${selected ? ' is-selected' : ''}`}
-          aria-pressed={selected}
-          title={titleRest}
-          onClick={() => onSelect(p.id)}
-        >
-          <span className="pubws-ballot-main">
+        <div className={`pubws-prow${selected ? ' is-selected' : ''}`}>
+          <button
+            className={`pubws-ballot-row${selected ? ' is-selected' : ''}`}
+            aria-pressed={selected}
+            title={titleRest}
+            onClick={() => onSelect(p.id)}
+          >
             <span className="pubws-ballot-title">
               {/* The number leads: it is how a person names the proposal
                   ("what does #7 mean?"), so it reads before the words. */}
               {p.number ? <span className="pubws-ballot-num">#{p.number}</span> : null}
               {titleRest}
             </span>
-            <span className="pubws-ballot-facts">
+            {/* The facts as an ICON ROW, the same vocabulary the market's own
+                facts use: four labelled facts under every row is a paragraph
+                per proposal. Each icon carries its words as a hover. */}
+            <span className="pubws-prow-meta">
               {/* A pending proposal by the person reading is theirs, and says
                   so: an unfunded one sits last on the ballot, and its author
                   otherwise reloads the floor and cannot find it. */}
@@ -388,10 +442,10 @@ export function JobsBoard({
               {/* A link cannot nest inside the row button, so the name is
                   a span that navigates; stopPropagation keeps the row from
                   also selecting. */}
-              {p.proposedByName &&
-                (p.proposedByHandle ? (
-                  <span>
-                    by{' '}
+              {p.proposedByName && (
+                <span title={`Proposed by ${p.proposedByName}`}>
+                  <Person />
+                  {p.proposedByHandle ? (
                     <span
                       className="pubws-name-link"
                       role="link"
@@ -409,21 +463,45 @@ export function JobsBoard({
                     >
                       {p.proposedByName}
                     </span>
-                  </span>
-                ) : (
-                  <span>by {p.proposedByName}</span>
-                ))}
-              {askUsd !== null && <span>${askUsd} to them</span>}
-              {/* A lapse is not a verdict, so it wears the quiet pill rather
-                  than the decline's red (docs/ui-conventions.md). */}
+                  ) : (
+                    p.proposedByName
+                  )}
+                </span>
+              )}
+              {askUsd !== null && (
+                <span title={`$${askUsd} to them if you approve it`}>
+                  <Coin />${askUsd}
+                </span>
+              )}
+              {/* The deadline, as a countdown (docs/ui-conventions.md, "The
+                  deadline is one amber chip"): red inside the last day. */}
+              {countdown && (
+                <span
+                  className={`pubws-ballot-clock${countdown.urgent ? ' is-urgent' : ''}`}
+                  aria-label="Decision in"
+                  title={`The owner decides by ${new Date(p.decideBy as string).toUTCString()}`}
+                >
+                  <Clock />
+                  {countdown.label}
+                </span>
+              )}
+              {/* What is behind the forecast: what the number beside it is
+                  worth trusting, and what the list is ordered by. */}
+              <span
+                className="pubws-ballot-pool"
+                title={`${Math.round(poolOf(p)).toLocaleString()} credits behind this proposal`}
+              >
+                <PoolDrop />
+                {Math.round(poolOf(p)).toLocaleString()}
+              </span>
               {p.status && p.status !== 'pending' && (
                 <span className={`pubws-ballot-status is-${p.lapsedAt ? 'lapsed' : p.status}`}>
                   {p.lapsedAt ? 'lapsed' : p.status}
                 </span>
               )}
             </span>
-          </span>
-          <span className="pubws-ballot-impact">
+          </button>
+          <span className="pubws-prow-impact pubws-ballot-impact">
             {/* "open" = nobody has priced it yet; a hard 0 means the two
                 worlds are priced the same, which is a statement, not an
                 absence. */}
@@ -434,36 +512,26 @@ export function JobsBoard({
             ) : (
               <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>
             )}
-            {/* What is behind the forecast, in the drop the market's own pool
-                rows wear. Quiet and mono under the delta: it is what the
-                number above it is worth trusting, and it is what the list is
-                ordered by. */}
-            <span
-              className="pubws-ballot-pool"
-              title={`${Math.round(poolOf(p)).toLocaleString()} credits behind this proposal`}
-            >
-              <PoolDrop />
-              {Math.round(poolOf(p)).toLocaleString()}
-            </span>
-            {/* The deadline, as a countdown beside the pool (docs/ui-conventions.md,
-                "The deadline is one amber chip"): red inside the last day. */}
-            {isPending(p) &&
-              p.decideBy &&
-              (() => {
-                const c = countdownTo(p.decideBy);
-                return (
-                  <span
-                    className={`pubws-ballot-clock${c.urgent ? ' is-urgent' : ''}`}
-                    aria-label="Decision in"
-                    title={`The owner decides by ${new Date(p.decideBy).toUTCString()}`}
-                  >
-                    <Clock />
-                    {c.label}
-                  </span>
-                );
-              })()}
           </span>
-        </button>
+          {tradeable && (
+            <span className="pubws-prow-acts">
+              <button
+                type="button"
+                className="pubws-dir pubws-dir--mini pubws-dir--higher"
+                onClick={() => onTrade?.(p.id, 'higher')}
+              >
+                Higher
+              </button>
+              <button
+                type="button"
+                className="pubws-dir pubws-dir--mini pubws-dir--lower"
+                onClick={() => onTrade?.(p.id, 'lower')}
+              >
+                Lower
+              </button>
+            </span>
+          )}
+        </div>
       </li>
     );
   };
