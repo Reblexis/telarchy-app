@@ -508,7 +508,7 @@ export function NumberChart({
               {my !== null && <circle cx={mx} cy={my} r={m.selected ? 4.5 : 3.5} />}
               {/* The other open dates carry their call, so the date strip and
                 the settlement band say the same thing (2026-09-09). */}
-              {my !== null && !m.selected && !hasPair && (
+              {my !== null && !m.selected && !hasPair && mx >= x(nowT) && (
                 <text className="nchart-marker-val" x={mx} y={my - 9} textAnchor="middle">
                   {fmt(m.consensus as number, unit)}
                 </text>

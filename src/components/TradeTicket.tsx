@@ -584,7 +584,10 @@ export function TradeTicket({
             </button>
           </div>
         )}
-        {(dir || onClose) && (
+        {/* Nothing to close until a side is chosen: since 2026-09-09 the
+            ticket is the floor's right rail and is always on screen, so a
+            close control on the untouched state would be a dead button. */}
+        {(dir || manageMode) && (
           <button className="ticket-close" aria-label="Close" onClick={() => (onClose ? onClose() : setDir(null))}>
             ×
           </button>
@@ -608,6 +611,11 @@ export function TradeTicket({
           spend={null}
         />
       )}
+
+      {/* The untouched ticket says what to do with it. In the rail it is on
+          screen before anyone has decided anything, and a track with no
+          instruction under it read as a broken card (preview, 2026-09-09). */}
+      {!manageMode && !dir && <p className="ticket-invite">Pick a side to compose a bet.</p>}
 
       {dir && (
         <>
