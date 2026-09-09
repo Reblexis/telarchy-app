@@ -1633,3 +1633,55 @@ alone at full width, what you keep beside the questions, one closing row.
 The per-metric-exposure and sealed-number drawings are no longer placed on
 /owners. The page description lost its "human or AI" to the once-per-page
 rule; the body keeps it.
+
+## 2026-09-09: eight things the floor takes from Kalshi
+
+**Asked (Viktor):** "could you figure out how to make the design of telarchy
+floor more similar to kalshi? meaning /steal-what-works as kalshi is optimized
+alreayd for traders", then "do a /design of how each achange would look and i
+will approve/decline/tell you to iterate", then, per item: "1. okay labeled
+volume/liqudiity but do you have to label everything? i dont want too much
+text", "2. definitely agree", "3. okay but figure out a better design so there
+not too much stuff cluttering it.. 4 things below each otherh seem like too
+much", "4. agree i think same should be done fro the dates and on the dates y
+oucan show the values", "5. agreed also in the value vvisualization chart allow
+clickingo nthe markets (Ithe future preidciton points which switchets the
+market )", "6. sure but figure out better /design", "7. interesteing maybe the
+proposals shouldnt appear at the side at all and instead below or somthing",
+"8. okay lets do it", then "in 6. colud you only use icons maybe below the
+proposasl where possible so it looks better.. otehrwise go ahead and build it
+in a beta branch".
+
+The measurement behind it (telarchy umbrella,
+`notes/kalshi-steal-2026-09-09.md`): Kalshi's BTC market page and this floor
+are the same length (2652 vs 2704px) and carry the same number of words (633
+vs 654), but Kalshi has twelve trade controls with the first at 632px of a
+1000px viewport, and the floor had two with the first at 1035px. The
+difference is not verbosity, it is that Kalshi repeats a priced, pressable row
+and the floor did not. The eight changes, and the design canvas they were
+approved from, are in that note.
+
+What changed, in the order the owner took them:
+
+1. The counts move under the chart they describe and only the two
+   unguessable ones take a word ("42k pool · 30k volume"); the trader count
+   keeps its icon and loses its label, because a number beside a person is
+   already a person count.
+2. The settlement rule leaves the space between the question and the number
+   and becomes one block under the trade. It is on the page exactly once, at
+   every width, which is also the fix for the duplicate at 390.
+3. The market's call carries its own move since yesterday, beside the value
+   rather than under it.
+4. Both dropdowns become strips, and both carry their call, so the top of the
+   floor is the scoreboard of everything it prices.
+5. One chart with a Value / Call toggle instead of two stacked, and the open
+   dates in the settlement band are the date control: each is a dot you can
+   press, and pressing one is the same act as pressing its tab in the date
+   strip.
+6. The proposal row is two lines: title and impact on the first, the four
+   facts as an icon row on the second, the two verbs on the right.
+7. The right rail is the ticket and nothing else; the proposals take the full
+   width under the trade, which is what gives that row the room for its own
+   buttons. What the proposals lose is the always-on-screen slot, so the
+   Propose band sits directly under them.
+8. On a phone the trade and the proposals come before the standings.
