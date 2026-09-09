@@ -132,10 +132,10 @@ const stepMetric = (container: HTMLElement) => {
   );
 };
 
-/** The "What is this market?" section, so queries never leak into the
+/** The "How this settles" section, so queries never leak into the
  *  workspace-about section, which has its own Edit button and prose. */
 const defSection = (container: HTMLElement) =>
-  within(container.querySelector('[aria-label="What is this market"]') as HTMLElement);
+  within(container.querySelector('[aria-label="How this settles"]') as HTMLElement);
 
 beforeEach(() => {
   globalThis.IntersectionObserver = class {

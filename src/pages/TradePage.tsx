@@ -18,7 +18,7 @@ import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { Logo } from '../components/Logo';
 import { ManifoldButton } from '../components/ManifoldButton';
 import { MarketChart } from '../components/MarketChart';
-import { MarketFacts } from '../components/MarketFacts';
+import { MarketFacts, MarketMoney } from '../components/MarketFacts';
 import { MetricsDialog } from '../components/MetricsDialog';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart } from '../components/NumberChart';
@@ -42,7 +42,6 @@ import {
   dateQuestionOf,
   dateSegmentOf,
   datesOf,
-  firstSentenceOf,
   forecastDayOf,
   type HorizonView,
   horizonById,
@@ -1106,6 +1105,24 @@ export function TradePage() {
     () => orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue })),
     [orders],
   );
+  /* The call's own move since yesterday (docs/ui-conventions.md, "The stat
+     row"): the change against the last point at least 24 hours old in this
+     market's own price replay. A returning trader's first question is what
+     moved while they were away, and a bare consensus cannot answer it. No
+     point that old, or no move, prints nothing: a grey zero is noise, and a
+     selected proposal's impact owns the slot instead. */
+  const callMove = useMemo(() => {
+    if (selectedJob || typeof consensus !== 'number') return null;
+    const cutoff = now.getTime() - 24 * 60 * 60 * 1000;
+    let prior: number | null = null;
+    for (const point of chartSeries) {
+      const at = new Date(point.at).getTime();
+      if (Number.isFinite(at) && at <= cutoff) prior = point.consensus;
+    }
+    if (prior === null) return null;
+    const move = consensus - prior;
+    return Math.abs(move) < 1e-9 ? null : move;
+  }, [chartSeries, consensus, now, selectedJob]);
   /* Only ever the other BRANCH: same metric, same window, two worlds, so
      the gap is the priced impact. The other horizon measures a different
      window and shares no scale with this one (2026-08-15), so it gets its
@@ -1601,14 +1618,6 @@ export function TradePage() {
                   </>
                 )}
               </h2>
-              {/* The summary line (docs/ui-conventions.md, "The price and the
-                chart"): the definition's first sentence, so a reader knows
-                what the number is before the numbers. A Manifold trader read
-                a rolling 30-day total as the lifetime revenue of a company
-                "that just started right out of the gates" (2026-09-03). */}
-              {firstSentenceOf(horizonDescription) && (
-                <p className="pubws-instrument-sum pubws-enter pubws-enter--1">{firstSentenceOf(horizonDescription)}</p>
-              )}
               {selectedJob && (
                 <>
                   {editingJob ? (
@@ -1931,6 +1940,15 @@ export function TradePage() {
                         <span className="pubws-price">
                           <AnimatedNumber value={consensus} render={v => `${unit}${formatValue(v)}`} />
                         </span>
+                        {!selectedJob && callMove !== null && (
+                          <span
+                            key={`mv-${Math.round(callMove * 100)}`}
+                            className={`pubws-delta-chip ${callMove >= 0 ? 'is-up' : 'is-down'}`}
+                            title="since yesterday"
+                          >
+                            {callMove >= 0 ? '▲' : '▼'} {formatDelta(callMove, unit)}
+                          </span>
+                        )}
                         {selectedJob &&
                           (jobImpact === null ? (
                             <span className="pubws-delta-chip">not yet priced</span>
@@ -1986,6 +2004,13 @@ export function TradePage() {
                       preview={chartPreview}
                       center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
                     />
+                  </div>
+                  {/* The chart's footer: the market's money under the plot it
+                    describes (docs/ui-conventions.md, "The price and the
+                    chart", 2026-09-09). Two of the three take one word;
+                    the traders keep their icon. */}
+                  <div className="pubws-chartfoot">
+                    <MarketMoney traders={active.traders} pool={active.pool} volume={active.volume} />
                   </div>
                   {/* How the call moved: the market's own price history as a
                     strip at half height. The "how did we get here", not the
@@ -2211,6 +2236,10 @@ export function TradePage() {
                         traders={active.traders}
                         pool={active.pool}
                         volume={active.volume}
+                        /* The counts live in the chart's footer since
+                           2026-09-09; what is left here is the owner's
+                           controls beside the number they change. */
+                        counts={false}
                         canManage={canManage}
                         canTrade={trading}
                         fundingHref={`/${idOrSlug ?? ''}/funding`}
@@ -2276,6 +2305,100 @@ export function TradePage() {
             </section>
           ) : null}
 
+          {/* "How this settles" is the metric's stored definition, verbatim,
+          because it is the settlement text (owner direction 2026-08-10). It
+          sits UNDER the trade since 2026-09-09 (docs/ui-conventions.md, "The
+          price and the chart"): a reader meets the question, the numbers,
+          the chart and the two verbs first and reads the rule when they want
+          to check it. One place at every width, which is also what stopped
+          it printing twice on a phone.
+
+          Editing the definition no longer voids the market (owner
+          direction 2026-08-18, docs/market-integrity.md). Every edit is
+          logged instead, and the log is rendered below the definition so
+          a trader can see whether the wording moved after they took
+          their position. */}
+          <section className="pubws-know pubws-settles pubws-enter pubws-enter--3" aria-label="How this settles">
+            <h2 className="pubws-know-head">
+              How this settles
+              {/* Managers edit the definition in place (owner ask 2026-08-18).
+              Saving keeps the market: the price, the pool and every
+              position survive. What it does instead is publish the change
+              here, which is the honest trade when no code can tell a
+              clarification from a redefinition. */}
+              {canManage && hero?.metricId && !editingDef && (
+                <button
+                  className="pubws-decide"
+                  style={{ marginLeft: '0.6rem' }}
+                  onClick={() => {
+                    setDefDraft(horizonDescription ?? '');
+                    setDefErr('');
+                    setEditingDef(true);
+                  }}
+                >
+                  Edit
+                </button>
+              )}
+            </h2>
+            {/* The metric's stored definition, verbatim: it is the settlement
+            text (see the section comment above). This paragraph was
+            hardcoded LookPilot prose from the one-workspace era; a second
+            floor (telarchy, 2026-08-14) made that a lie on every other
+            workspace. No fallback: a workspace whose owner wrote no
+            definition shows no definition rather than someone else's. */}
+            {editingDef ? (
+              <div className="pubws-know-edit">
+                <textarea
+                  className="pubws-know-edit-text"
+                  value={defDraft}
+                  rows={14}
+                  onChange={e => setDefDraft(e.target.value)}
+                />
+                <p className="pubws-settle">
+                  This text is what the market settles on. Saving keeps every position and publishes the change below,
+                  old wording and new.
+                </p>
+                <div>
+                  <button
+                    className="pubws-decide"
+                    disabled={defSaving}
+                    onClick={() => {
+                      void saveDefinition();
+                    }}
+                  >
+                    {defSaving ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    className="pubws-decide"
+                    style={{ marginLeft: '0.5rem' }}
+                    disabled={defSaving}
+                    onClick={() => setEditingDef(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {defErr && <p className="ticket-err">{defErr}</p>}
+              </div>
+            ) : (
+              horizonDescription && (
+                /* The settlement text renders as markdown (owner ask
+               2026-08-21), same stack as the announcements body, plus
+               remark-breaks so a plain newline is a line break: owners
+               write this text over the API and a collapsed paragraph
+               misquotes what the market settles on. */
+                <div className="pubws-know-what">
+                  <ReactMarkdown remarkPlugins={MARKDOWN_PLUGINS} components={MARKDOWN_COMPONENTS}>
+                    {horizonDescription}
+                  </ReactMarkdown>
+                </div>
+              )
+            )}
+            {/* The actual-trajectory chart that used to sit here was removed
+            on owner direction 2026-08-18: the floor no longer plots the
+            metric's measured values, only the market. The history fields
+            stay in the API. */}
+          </section>
+
           {/* Under the verbs and the facts row (docs/ui-conventions.md,
             "The rails, and the standings under the verbs", revised
             2026-09-06): the two standings footers. Footers, not rails:
@@ -2322,96 +2445,6 @@ export function TradePage() {
             2026-09-06). */}
         {!selectedJob && (
           <aside className="pubws-rail pubws-rail--left" aria-label="About this market">
-            {/* "What is this market?" is the metric's stored definition,
-            verbatim, because it is the settlement text (owner direction
-            2026-08-10). "What is LookPilot?", the product in its own words,
-            stays in the know block under the market.
-
-            Editing the definition no longer voids the market (owner
-            direction 2026-08-18, docs/market-integrity.md). Every edit is
-            logged instead, and the log is rendered below the definition so
-            a trader can see whether the wording moved after they took
-            their position. */}
-            <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this market">
-              <h2 className="pubws-know-head">
-                What is this market?
-                {/* Managers edit the definition in place (owner ask 2026-08-18).
-                Saving keeps the market: the price, the pool and every
-                position survive. What it does instead is publish the change
-                here, which is the honest trade when no code can tell a
-                clarification from a redefinition. */}
-                {canManage && hero?.metricId && !editingDef && (
-                  <button
-                    className="pubws-decide"
-                    style={{ marginLeft: '0.6rem' }}
-                    onClick={() => {
-                      setDefDraft(horizonDescription ?? '');
-                      setDefErr('');
-                      setEditingDef(true);
-                    }}
-                  >
-                    Edit
-                  </button>
-                )}
-              </h2>
-              {/* The metric's stored definition, verbatim: it is the settlement
-              text (see the section comment above). This paragraph was
-              hardcoded LookPilot prose from the one-workspace era; a second
-              floor (telarchy, 2026-08-14) made that a lie on every other
-              workspace. No fallback: a workspace whose owner wrote no
-              definition shows no definition rather than someone else's. */}
-              {editingDef ? (
-                <div className="pubws-know-edit">
-                  <textarea
-                    className="pubws-know-edit-text"
-                    value={defDraft}
-                    rows={14}
-                    onChange={e => setDefDraft(e.target.value)}
-                  />
-                  <p className="pubws-settle">
-                    This text is what the market settles on. Saving keeps every position and publishes the change below,
-                    old wording and new.
-                  </p>
-                  <div>
-                    <button
-                      className="pubws-decide"
-                      disabled={defSaving}
-                      onClick={() => {
-                        void saveDefinition();
-                      }}
-                    >
-                      {defSaving ? 'Saving…' : 'Save'}
-                    </button>
-                    <button
-                      className="pubws-decide"
-                      style={{ marginLeft: '0.5rem' }}
-                      disabled={defSaving}
-                      onClick={() => setEditingDef(false)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  {defErr && <p className="ticket-err">{defErr}</p>}
-                </div>
-              ) : (
-                horizonDescription && (
-                  /* The settlement text renders as markdown (owner ask
-                 2026-08-21), same stack as the announcements body, plus
-                 remark-breaks so a plain newline is a line break: owners
-                 write this text over the API and a collapsed paragraph
-                 misquotes what the market settles on. */
-                  <div className="pubws-know-what">
-                    <ReactMarkdown remarkPlugins={MARKDOWN_PLUGINS} components={MARKDOWN_COMPONENTS}>
-                      {horizonDescription}
-                    </ReactMarkdown>
-                  </div>
-                )
-              )}
-              {/* The actual-trajectory chart that used to sit here was removed
-              on owner direction 2026-08-18: the floor no longer plots the
-              metric's measured values, only the market. The history fields
-              stay in the API. */}
-            </section>
             {/* The season, advertised rather than narrated: three lines, the
             money first. */}
             <SeasonAdvert season={season} signedIn={!!user} />

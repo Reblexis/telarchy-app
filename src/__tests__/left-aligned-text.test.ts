@@ -30,7 +30,7 @@ const PROSE = [
   // the floor
   'pubws-ws-tagline',
   'pubws-season',
-  'pubws-instrument-sum',
+  'pubws-settles',
   'pubws-na-note',
   'pubws-gap',
   'pubws-propose-cost',

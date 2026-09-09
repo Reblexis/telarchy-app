@@ -85,10 +85,36 @@ export const Page = () => (
   </svg>
 );
 
+/**
+ * The market's money, in the chart's footer (docs/ui-conventions.md, "The
+ * price and the chart", revised 2026-09-09). Two of the three counts take a
+ * single word, because a bare number cannot say what it counts: 42k could be
+ * credits, dollars or trades. The trader count keeps its icon and drops its
+ * label, since a number beside a person already reads as people. Each item
+ * carries the full sentence as its hover. This is the only place the counts
+ * appear.
+ */
+export function MarketMoney({ traders, pool, volume }: { traders: number; pool: number; volume: number }) {
+  return (
+    <span className="pubws-money" aria-label="Market money">
+      <span
+        title={`${short(pool)} credits in the pool: the liquidity put up by the owner and others, which winnings come out of`}
+      >
+        {short(pool)} pool
+      </span>
+      <span title={`${short(volume)} credits traded on this market over its life`}>{short(volume)} volume</span>
+      <span title={`${traders} distinct participant${traders === 1 ? '' : 's'} have traded this market`}>
+        <People /> {short(traders)}
+      </span>
+    </span>
+  );
+}
+
 export function MarketFacts({
   traders,
   pool,
   volume,
+  counts = true,
   canManage = false,
   canTrade = false,
   onInject,
@@ -97,6 +123,9 @@ export function MarketFacts({
   traders: number;
   pool: number;
   volume: number;
+  /** The counts moved to the chart's footer on 2026-09-09; this row keeps
+   *  the owner's controls. Kept for surfaces that still want them inline. */
+  counts?: boolean;
   canManage?: boolean;
   /** Anyone who can trade this market can deepen it, which is what the API
    *  has always said (`requireCapability('trade')`) and what the button did
@@ -108,19 +137,25 @@ export function MarketFacts({
   /** The floor's funding page, where the credits to inject are bought. */
   fundingHref?: string;
 }) {
+  const acts = ((canManage || canTrade) && onInject) || (canManage && fundingHref);
+  if (!counts && !acts) return null;
   return (
     <span className="pubws-facts" aria-label="Market facts">
-      <span title={`${traders} distinct participant${traders === 1 ? '' : 's'} have traded this market`}>
-        <People /> {short(traders)}
-      </span>
-      <span
-        title={`${short(pool)} credits in the pool: the liquidity put up by the owner and others, which winnings come out of`}
-      >
-        <Drop /> {short(pool)}
-      </span>
-      <span title={`${short(volume)} credits traded on this market over its life`}>
-        <Bars /> {short(volume)}
-      </span>
+      {counts && (
+        <>
+          <span title={`${traders} distinct participant${traders === 1 ? '' : 's'} have traded this market`}>
+            <People /> {short(traders)}
+          </span>
+          <span
+            title={`${short(pool)} credits in the pool: the liquidity put up by the owner and others, which winnings come out of`}
+          >
+            <Drop /> {short(pool)}
+          </span>
+          <span title={`${short(volume)} credits traded on this market over its life`}>
+            <Bars /> {short(volume)}
+          </span>
+        </>
+      )}
       {(canManage || canTrade) && onInject && (
         <button type="button" className="pubws-facts-act" onClick={onInject}>
           Inject
