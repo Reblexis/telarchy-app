@@ -566,6 +566,9 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
     return (
       <>
         <h3 className="dr-h3">Credits traded, per day</h3>
+        {/* A log axis, because one seeding day is three orders of magnitude
+            above an ordinary one and a linear axis puts every ordinary day on
+            the floor. The axis is labelled in powers and the caption says so. */}
         <TimeChart
           series={[
             {
@@ -578,9 +581,15 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
           events={e.events ?? []}
           label="Credits traded per day"
           height={180}
-          caption={<span>Buys and sells, absolute cost; a redemption is bookkeeping and is not counted.</span>}
+          scale="log"
+          caption={
+            <>
+              <span>Buys and sells, absolute cost; a redemption is bookkeeping and is not counted.</span>
+              <span>log axis</span>
+            </>
+          }
         />
-        <h3 className="dr-h3">Trades placed, and the people who placed them</h3>
+        <h3 className="dr-h3">Trades placed, per day</h3>
         <TimeChart
           series={[
             {
@@ -589,11 +598,23 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
               points: t.byDay.map(d => ({ at: d.day, value: d.trades })),
               kind: 'bars',
             },
+          ]}
+          label="Trades placed per day"
+          height={160}
+          caption={<span>A day with no trading has no bar: nothing happened, which is not a measurement of none.</span>}
+        />
+        <h3 className="dr-h3">People trading, per day</h3>
+        {/* Its own chart rather than a second line on the one above: ten
+            people against a hundred trades on one axis draws the people as a
+            flat line on the floor, which answers nothing. */}
+        <TimeChart
+          series={[
             { key: 'traders', label: 'people trading', points: t.byDay.map(d => ({ at: d.day, value: d.traders })) },
           ]}
-          label="Trades and distinct traders per day"
-          height={180}
-          caption={<span>A day with no trading has no bar: nothing happened, which is not a measurement of none.</span>}
+          events={e.events ?? []}
+          label="Distinct people trading per day"
+          height={160}
+          caption={<span>Distinct participants who placed at least one trade that day.</span>}
         />
       </>
     );
@@ -609,6 +630,7 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
           <Figure value={t.visits7d} label="visits, last 7 days" />
           <Figure value={t.totalVisits} label="visits, all kept history" />
         </Figures>
+        <h3 className="dr-h3">Visits, per day</h3>
         <TimeChart
           series={[
             {
@@ -617,11 +639,10 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
               points: t.byDay.map(d => ({ at: d.day, value: d.visits })),
               kind: 'area',
             },
-            { key: 'uniques', label: 'Distinct visitors', points: t.byDay.map(d => ({ at: d.day, value: d.uniques })) },
           ]}
           events={e.events ?? []}
-          label="Visits and distinct visitors per day"
-          height={190}
+          label="Visits per day"
+          height={180}
           caption={
             <span>
               Humans only.{' '}
@@ -632,6 +653,19 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
               )}
             </span>
           }
+        />
+        <h3 className="dr-h3">Distinct visitors, per day</h3>
+        {/* Its own chart: thirty people against six hundred loads on one axis
+            draws the people as a flat line, and the people are the number
+            that matters. */}
+        <TimeChart
+          series={[
+            { key: 'uniques', label: 'Distinct visitors', points: t.byDay.map(d => ({ at: d.day, value: d.uniques })) },
+          ]}
+          events={e.events ?? []}
+          label="Distinct visitors per day"
+          height={180}
+          caption={<span>Distinct addresses, the same human filter the cockpit uses.</span>}
         />
       </>
     );
