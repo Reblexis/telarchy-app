@@ -1822,14 +1822,11 @@ export function TradePage() {
                         >
                           <span className="pubws-stat-what">
                             if approved
-                            {selectedJobClosed ? (
-                              ' \u00b7 at the decision'
-                            ) : settleNote ? (
-                              <>
-                                {' \u00b7 '}
-                                {settleNote}
-                              </>
-                            ) : null}
+                            {selectedJobClosed
+                              ? ' \u00b7 at the decision'
+                              : hero?.resolvesOn
+                                ? ` \u00b7 ${forecastDayOf(hero.resolvesOn)}`
+                                : null}
                           </span>
                           <span className="pubws-price">
                             {pair?.approvedConsensus !== null && pair?.approvedConsensus !== undefined
@@ -1847,14 +1844,11 @@ export function TradePage() {
                         >
                           <span className="pubws-stat-what">
                             if declined
-                            {selectedJobClosed ? (
-                              ' \u00b7 at the decision'
-                            ) : settleNote ? (
-                              <>
-                                {' \u00b7 '}
-                                {settleNote}
-                              </>
-                            ) : null}
+                            {selectedJobClosed
+                              ? ' \u00b7 at the decision'
+                              : hero?.resolvesOn
+                                ? ` \u00b7 ${forecastDayOf(hero.resolvesOn)}`
+                                : null}
                           </span>
                           <span className="pubws-price">
                             {pair?.declinedConsensus !== null && pair?.declinedConsensus !== undefined
