@@ -111,15 +111,18 @@ needs the tail.
 - `traders.spend` is credits traded in the trailing seven days, one entry per
   participant in the verified set, sorted high to low, zeroes included. The
   entries at or above `traders.threshold` are the weekly active verified
-  traders the pulse publishes: both read the one query in
-  `platform-stats.ts`, so the block and the metric cannot disagree.
+  traders the pulse publishes. The unrounded absolute-cost sum is authoritative,
+  using the same window and verified set as `platform-stats.ts`.
 - `traders.lapses` is one entry per counted trader: the day their own trailing
   window drops under the threshold if they never trade again. Every counted
   trader has one and it is always inside the seven days, because a window that
-  takes in nothing new always empties.
+  takes in nothing new always empties. Compute the first trade-expiry instant
+  that leaves spend below the threshold and publish its UTC date, including
+  today. The chart covers today through seven days ahead.
 - `forecasters.profit` is marked profit, one entry per participant, house
   excluded, sorted high to low. The entries at or above
-  `forecasters.threshold` are the profitable forecasters.
+  `forecasters.threshold` are the profitable forecasters. The unrounded marked
+  profit used by the metric is authoritative and is published unchanged.
 - `owners.pending` is one row per public workspace holding an undecided
   proposal, with the date it decides by. Outside owners deciding cannot rise
   above the number of workspaces with something to decide.
@@ -229,6 +232,11 @@ not a straight segment across it, for the same reason a week with no reading
 publishes null: a day nobody measured and a day the number did not move are
 different facts.
 
+Trading activity is complete over the queried trailing 120 days through the
+computation instant (the first and last UTC dates can be partial). Every covered
+date has a row, including zero trades, credits and traders on quiet days. Dates
+outside that interval stay absent. This does not zero-fill metric readings.
+
 ## Every number comes from the database that serves the site
 
 `GET /api/data-room` is one public, uncredentialed read that returns the
@@ -254,10 +262,13 @@ renders `null` as "not published" rather than as zero.
 
 Visits are the platform's own server-side document-load log (`page_visits`); no
 third-party analytics exist on the site, as the privacy policy says. The
-human filter (drop bot user-agents and scanner probe paths) is the same one the
+traffic filter (drop recognised bot user-agents and scanner probe paths) is the same one the
 owner's cockpit uses: `humanVisitFilter()` in `functions/src/lib/visit-log.ts`
 owns it, and `/admin` and the data room both call it, so the public number and
 the private one cannot disagree.
+
+The captions say "Known crawlers and scanner paths excluded" and "Distinct
+addresses". The filter does not establish that a requester is human.
 
 Raw visit rows are purged at 30 days by the privacy policy, which would cap the
 public history at a month forever. `traffic_daily` is a rollup of visits and

@@ -59,6 +59,22 @@ function ticksFor(lo: number, hi: number): number[] {
 
 const n = (v: number) => Math.round(v).toLocaleString('en-US');
 
+/**
+ * A value as the reader should see it beside the line it is being judged
+ * against. Two decimals is enough to read, except where rounding to two would
+ * put the number ON the line or across it: 99.996 printed as 100 sits on a
+ * line the count says it is under, and 100.004 printed as 100 claims a tie it
+ * does not have. Those keep the digits it takes to be unambiguous.
+ */
+function atThreshold(v: number, threshold: number): string {
+  const short = Math.round(v * 100) / 100;
+  const misleading = short === threshold && v !== threshold;
+  const crossed = v < threshold !== short < threshold;
+  return crossed || misleading
+    ? v.toLocaleString('en-US', { maximumFractionDigits: 20 })
+    : short.toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+
 export function RankChart({ id, values, threshold, cap, unit, label, signed = false, caption, height = 190 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -140,7 +156,7 @@ export function RankChart({ id, values, threshold, cap, unit, label, signed = fa
               {hover + 1} of {values.length}
             </span>
             <span className="tchart-tip-row">
-              {n(values[hover])} {unit}
+              {atThreshold(values[hover], threshold)} {unit}
             </span>
             <span className={values[hover] >= threshold ? 'tchart-tip-over' : 'tchart-tip-row'}>
               {values[hover] >= threshold ? 'over the line' : 'under the line'}

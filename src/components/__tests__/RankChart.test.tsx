@@ -84,3 +84,41 @@ describe('a signed distribution', () => {
     expect(c.querySelector('.tchart-tip')?.textContent).toContain('-520');
   });
 });
+
+test.each([99.6, 99.996, 100, 100.004])('the hover value preserves which side of the threshold %s is on', value => {
+  const c = chart({ values: [value] });
+  const svg = c.querySelector('svg') as SVGSVGElement;
+  svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 760, height: 190 }) as DOMRect;
+  fireEvent.pointerMove(svg, { clientX: 400, clientY: 50 });
+  expect(c.querySelector('.tchart-tip')?.textContent).toContain(`${value} cr`);
+  expect(c.querySelector('.tchart-tip')?.textContent).toContain(value >= 100 ? 'over the line' : 'under the line');
+});
+
+describe('a value beside the line it is judged against', () => {
+  const hover = (values: number[], threshold: number, x: number) => {
+    const c = chart({ values, threshold, cap: 1000 });
+    const svg = c.querySelector('svg') as SVGSVGElement;
+    svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 760, height: 190 }) as DOMRect;
+    fireEvent.pointerMove(svg, { clientX: x, clientY: 50 });
+    return c.querySelector('.tchart-tip')?.textContent ?? '';
+  };
+
+  test('an ordinary value reads as two decimals at most', () => {
+    expect(hover([140.25], 100, 400)).toContain('140.25');
+  });
+
+  test('a value that would ROUND across the line keeps the digits that keep it on its side', () => {
+    // 99.996 is under the threshold the count uses. Printed as 100 it would
+    // sit on the line while the panel beside it says "under".
+    const tip = hover([99.996], 100, 400);
+    expect(tip).toContain('under the line');
+    expect(tip).not.toMatch(/\b100\b/);
+    expect(tip).toContain('99.996');
+  });
+
+  test('a value exactly on the line counts, and prints as itself', () => {
+    const tip = hover([100], 100, 400);
+    expect(tip).toContain('over the line');
+    expect(tip).toContain('100');
+  });
+});

@@ -106,29 +106,58 @@ describe('the trading behind the trader count, over time', () => {
   test('a sell counts as trading, the same as a buy', async () => {
     await trade('t1', { ago: 1, credits: -150 });
     const t = await buildTradingByDay(NOW);
-    expect(t.byDay[0].credits).toBe(150);
+    expect(t.byDay.find(d => d.day === '2026-09-08')?.credits).toBe(150);
   });
 
   test('a redemption is bookkeeping, not a trade anyone placed', async () => {
     await trade('t1', { ago: 1, credits: 30 });
     await trade('r1', { ago: 1, credits: -30, kind: 'redeem' });
     const t = await buildTradingByDay(NOW);
-    expect(t.byDay[0]).toEqual({ day: '2026-09-08', trades: 1, credits: 30, traders: 1 });
+    expect(t.byDay.find(d => d.day === '2026-09-08')).toEqual({
+      day: '2026-09-08',
+      trades: 1,
+      credits: 30,
+      traders: 1,
+    });
   });
 
   test('a private workspace’s trading is not published', async () => {
     await trade('t1', { ago: 1, credits: 30, ws: OTHER });
-    expect(await buildTradingByDay(NOW)).toEqual({ byDay: [] });
+    expect((await buildTradingByDay(NOW)).byDay.every(d => d.trades === 0 && d.credits === 0 && d.traders === 0)).toBe(
+      true,
+    );
   });
 
-  test('days run oldest first and a day with no trading is absent, not zero', async () => {
+  test('QUIET DAYS ARE REAL ZEROS inside the query coverage', async () => {
     await trade('t1', { ago: 3, credits: 10 });
     await trade('t2', { ago: 1, credits: 10 });
     const t = await buildTradingByDay(NOW);
-    expect(t.byDay.map(d => d.day)).toEqual(['2026-09-06', '2026-09-08']);
+    expect(t.byDay.slice(-4)).toEqual([
+      { day: '2026-09-06', trades: 1, credits: 10, traders: 1 },
+      { day: '2026-09-07', trades: 0, credits: 0, traders: 0 },
+      { day: '2026-09-08', trades: 1, credits: 10, traders: 1 },
+      { day: '2026-09-09', trades: 0, credits: 0, traders: 0 },
+    ]);
   });
 
-  test('nothing traded yet is an empty series, not a missing one', async () => {
-    expect(await buildTradingByDay(NOW)).toEqual({ byDay: [] });
+  test('an empty query still publishes every covered UTC date', async () => {
+    const t = await buildTradingByDay(NOW);
+    expect(t.byDay).toHaveLength(121); // 120 trailing days touch 121 UTC dates at noon.
+    expect(t.byDay[0].day).toBe('2026-05-12');
+    expect(t.byDay[120].day).toBe('2026-09-09');
+    expect((await buildTradingByDay(NOW)).byDay.every(d => d.trades === 0 && d.credits === 0 && d.traders === 0)).toBe(
+      true,
+    );
   });
+});
+
+test('DATES OUTSIDE QUERY COVERAGE ARE ABSENT and boundary dates contain only covered trades', async () => {
+  await trade('too-old', { ago: 120, credits: 99 });
+  await trade('first', { ago: 120 - 1 / 24, credits: 10 });
+  await trade('last', { ago: 0, credits: 20 });
+  await trade('future', { ago: -1, credits: 99 });
+  const { byDay } = await buildTradingByDay(NOW);
+  expect(byDay).toHaveLength(121);
+  expect(byDay[0]).toEqual({ day: '2026-05-12', trades: 1, credits: 10, traders: 1 });
+  expect(byDay[120]).toEqual({ day: '2026-09-09', trades: 1, credits: 20, traders: 1 });
 });

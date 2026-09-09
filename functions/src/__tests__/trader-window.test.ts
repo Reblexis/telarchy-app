@@ -173,7 +173,7 @@ describe('the forecasters block publishes the profit distribution', () => {
       ]),
     );
     const w = await buildTraderWindow(NOW);
-    expect(w.forecasters.profit).toEqual([860, 40, -120]);
+    expect(w.forecasters.profit).toEqual([860.4, 40, -120]);
   });
 
   test('house accounts are not in the distribution', async () => {
@@ -335,5 +335,59 @@ describe('the block names nobody', () => {
     for (const id of ['v1', 'v2', 'outsider', 'house']) expect(json).not.toContain(id);
     // The one identity it does carry is a public workspace's own slug.
     expect(json).toContain('pinecast');
+  });
+});
+
+describe('published values preserve the metric threshold', () => {
+  test('UNROUNDED SPEND DECIDES WHO COUNTS, including fractional buys and sells', async () => {
+    await verify('v1', 'v2', 'v3');
+    await trade('below', 'v1', -99.996, 1);
+    await trade('equal', 'v2', 100, 1);
+    await trade('above', 'v3', 100.004, 1);
+    const { traders: t } = await buildTraderWindow(NOW);
+    expect(t.spend).toEqual([100.004, 100, 99.996]);
+    expect(t.spend.filter(v => v >= t.threshold)).toHaveLength(2);
+    expect(t.lapses).toHaveLength(2);
+  });
+
+  test('UNROUNDED PROFIT DECIDES WHO COUNTS, with losses and zero preserved', async () => {
+    marked.mockResolvedValue(
+      new Map([
+        ['v1', 99.6],
+        ['v2', 100],
+        ['v3', 100.4],
+        ['outsider', -0.4],
+        ['unverified', 0],
+      ]),
+    );
+    const { forecasters: f } = await buildTraderWindow(NOW);
+    expect(f.profit).toEqual([100.4, 100, 99.6, 0, -0.4]);
+    expect(f.profit.filter(v => v >= f.threshold)).toHaveLength(2);
+  });
+});
+
+describe('lapses use the exact trade expiry in UTC', () => {
+  test.each([
+    ['before midnight today', 6.75, '2026-09-09'],
+    ['at midnight', 6.5, '2026-09-10'],
+    ['at 02:00 before the sampled computation time', 5 + 10 / 24, '2026-09-11'],
+  ])('a trader lapsing %s is dated on the crossing day', async (_label, ago, day) => {
+    await verify('v1');
+    await trade('expiry', 'v1', 100, ago);
+    expect((await buildTraderWindow(NOW)).traders.lapses).toEqual([day]);
+  });
+
+  test('remaining spend equal to the threshold still counts and simultaneous expiries leave together', async () => {
+    await verify('v1');
+    await trade('early', 'v1', 40, 6.75);
+    await trade('same1', 'v1', 60, 5.75);
+    await trade('same2', 'v1', -40, 5.75);
+    expect((await buildTraderWindow(NOW)).traders.lapses).toEqual(['2026-09-10']);
+  });
+
+  test('a trade exactly seven days old is already out of the window', async () => {
+    await verify('v1');
+    await trade('expired', 'v1', 100, 7);
+    expect((await buildTraderWindow(NOW)).traders).toEqual({ threshold: 100, spend: [0], lapses: [] });
   });
 });
