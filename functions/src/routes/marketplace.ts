@@ -1863,6 +1863,89 @@ marketplaceRouter.get(
  * data only (market consensus is already public on this page), so no
  * `read` gate; five-minute cache keeps scraper storms off the replay.
  */
+/**
+ * What a proposal's link says about itself (docs/ui-conventions.md, "A
+ * proposal has an address and a card", 2026-09-09). Read from the same tables
+ * the floor reads, on the floor's hero market, so the words in an unfurl
+ * cannot drift from the page they point at. Null when the workspace is not
+ * public or the number names nothing.
+ */
+export async function resolveProposalShare(
+  idOrSlug: string,
+  number: number,
+): Promise<import('../lib/share-meta').ShareMetaProposal | null> {
+  const ws = await resolvePublicWorkspace(idOrSlug);
+  if (!ws || restrictedToMembers(ws.visibility)) return null;
+  const [p] = await db
+    .select({
+      id: proposals.id,
+      title: proposals.title,
+      askUsd: proposals.askUsd,
+      status: proposals.status,
+      decideBy: proposals.decideBy,
+    })
+    .from(proposals)
+    .where(and(eq(proposals.workspaceId, ws.id), eq(proposals.number, number)))
+    .limit(1);
+  if (!p) return null;
+
+  const wsMarkets = await db
+    .select()
+    .from(markets)
+    .where(and(eq(markets.workspaceId, ws.id), eq(markets.active, true)));
+  const orders = await metricOrdersOf([ws.id]);
+  const baseline = wsMarkets
+    .filter(m => !m.proposalId && !m.resolved)
+    .map(m => ({ ...m, marketId: m.id, metricOrder: orders.get(m.metricId) ?? null }));
+  baseline.sort(compareSoonestFirst);
+  const hero = primaryMarket(baseline);
+
+  let impact: number | null = null;
+  let metricLabel = ws.name;
+  let unit = '';
+  if (hero) {
+    metricLabel = hero.metricName.replace(/\s*\(.*\)\s*$/, '').toLowerCase();
+    const tail = hero.metricName.match(/\(([^)]*)\)\s*$/)?.[1] ?? '';
+    unit = /\busd\b|\$/i.test(tail) ? '$' : '';
+    /* The pair on the hero cell, resolved by BOTH metric and date: two
+       metrics read on one date are two pairs. */
+    const branchOf = (branch: string) =>
+      wsMarkets.find(
+        m =>
+          m.proposalId === p.id &&
+          m.branch === branch &&
+          m.metricId === hero.metricId &&
+          m.targetDate === hero.targetDate,
+      );
+    const a = branchOf('approved');
+    const d = branchOf('declined');
+    const priceOf = (m: typeof a) =>
+      m ? (consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax) ?? null) : null;
+    const pa = priceOf(a);
+    const pd = priceOf(d);
+    impact = pa !== null && pd !== null ? pa - pd : null;
+  }
+
+  return {
+    floorName: ws.name,
+    number,
+    title: p.title.replace(/^\$[\d,]+\s*:\s*/, ''),
+    askUsd: p.askUsd === null || p.askUsd === undefined ? null : Number(p.askUsd),
+    impact,
+    metricLabel,
+    unit,
+    decideBy: p.decideBy
+      ? new Date(p.decideBy).toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          timeZone: 'UTC',
+        })
+      : null,
+    decided: p.status === 'approved' || p.status === 'declined' ? p.status : null,
+  };
+}
+
 marketplaceRouter.get(
   '/:workspaceId/card.png',
   wrap(async (req, res) => {

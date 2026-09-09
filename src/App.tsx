@@ -209,6 +209,10 @@ export function App() {
         {/* Where money enters one floor (docs/liquidity-purchases.md). Above
             /:slug so a workspace named "funding" cannot swallow it. */}
         <Route path="/:slug/funding" element={<FundingPage />} />
+        {/* A proposal has an address (docs/ui-conventions.md, "A proposal
+            has an address and a card", 2026-09-09): the floor, opened on it.
+            Before /:slug so a floor cannot swallow it. */}
+        <Route path="/:slug/p/:number" element={<TradePage />} />
         <Route path="/:slug" element={<TradePage />} />
 
         {/* Anything else, every dead console URL included, is not an error

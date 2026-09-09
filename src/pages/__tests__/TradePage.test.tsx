@@ -164,6 +164,7 @@ function renderFloor(entries: string[] = ['/lookpilot']) {
     <MemoryRouter initialEntries={entries}>
       <Routes>
         <Route path="/marketplace/:workspaceId" element={<TradePage />} />
+        <Route path="/:slug/p/:number" element={<TradePage />} />
         <Route path="/:slug" element={<TradePage />} />
       </Routes>
       <BellStandIn />
@@ -1588,21 +1589,33 @@ describe('a proposal address accepts the number', () => {
  * "A proposal has a number and an address"): the address bar is the link.
  */
 describe('selecting a proposal changes the address', () => {
-  test('a click writes #proposal=<number>; a second click clears it; history is not grown', async () => {
+  test('a click writes /<slug>/p/<number>; a second click clears it; history is not grown', async () => {
     renderFloor();
     const row = await screen.findByTitle('rewrite the store page');
     const depth = window.history.length;
     fireEvent.click(row);
-    await waitFor(() => expect(window.location.hash).toBe('#proposal=1'));
+    await waitFor(() => expect(window.location.pathname).toBe('/lookpilot/p/1'));
+    expect(window.location.hash).toBe('');
     expect(window.history.length).toBe(depth);
     fireEvent.click(row);
-    await waitFor(() => expect(window.location.hash).toBe(''));
+    await waitFor(() => expect(window.location.pathname).toBe('/lookpilot'));
   });
 
-  test('a pasted #proposal=1 stays in the address bar once the proposal is open', async () => {
+  test('a link to /<slug>/p/<number> opens that proposal', async () => {
+    renderFloor(['/lookpilot/p/1']);
+    await screen.findByRole('button', { name: 'if declined' });
+    expect(document.querySelector('.pubws-proposal-title')?.textContent).toContain('rewrite the store page');
+    await waitFor(() => expect(window.location.pathname).toBe('/lookpilot/p/1'));
+  });
+
+  test('a pasted #proposal=1 becomes the /p/ address once the proposal is open', async () => {
     renderFloor(['/lookpilot#proposal=1']);
     await screen.findByRole('button', { name: 'if declined' });
-    await waitFor(() => expect(window.location.hash).toBe('#proposal=1'));
+    // The hash is what an email already sent carries; the address bar shows
+    // the sendable form (docs/ui-conventions.md, "A proposal has an address
+    // and a card", 2026-09-09).
+    await waitFor(() => expect(window.location.pathname).toBe('/lookpilot/p/1'));
+    expect(window.location.hash).toBe('');
   });
 });
 

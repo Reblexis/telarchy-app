@@ -304,20 +304,39 @@ export function TradePage() {
   // leaves the floor. A number still waiting for its proposal (the effect
   // below) is left alone; so is any hash that is not a proposal's.
   useEffect(() => {
-    if (!ws) return;
-    const path = window.location.pathname + window.location.search;
+    if (!ws || !idOrSlug) return;
+    const floorPath = `/${encodeURIComponent(idOrSlug)}`;
+    const search = window.location.search;
+    /* Only this floor's own address is ours to write, and the router's path
+       is what says so: the /marketplace/:id spelling canonicalises elsewhere,
+       and window.location is not the router's business under a memory
+       history. */
+    const onFloor = location.pathname === floorPath || location.pathname.startsWith(`${floorPath}/p/`);
+    if (!onFloor) return;
     if (selectedJobId) {
       if (/^\d+$/.test(selectedJobId)) return;
       const p = ws.proposals?.find(x => x.id === selectedJobId);
-      const name = p?.number ? String(p.number) : selectedJobId;
-      const want = `#proposal=${encodeURIComponent(name)}`;
-      if (window.location.hash !== want) window.history.replaceState(null, '', path + want);
-    } else if (parseFloorHash(window.location.hash)?.proposal) {
-      window.history.replaceState(null, '', path);
+      /* A proposal with a number gets the sendable address; one without (a
+         payload older than the column) keeps the hash it always had. */
+      const want = p?.number
+        ? `${floorPath}/p/${p.number}${search}`
+        : `${floorPath}${search}#proposal=${encodeURIComponent(selectedJobId)}`;
+      if (window.location.pathname + search + window.location.hash !== want) {
+        window.history.replaceState(null, '', want);
+      }
+    } else if (window.location.pathname !== floorPath || parseFloorHash(window.location.hash)?.proposal) {
+      window.history.replaceState(null, '', floorPath + search);
     }
-  }, [ws, selectedJobId]);
+  }, [ws, selectedJobId, idOrSlug, location.pathname]);
   // A proposal address accepts the number too: #proposal=7 names proposal
   // #7 (docs/ui-conventions.md, "A proposal has a number and an address").
+  /* A proposal's own address (docs/ui-conventions.md, "A proposal has an
+     address and a card", 2026-09-09): /<slug>/p/<number> is the floor opened
+     on that proposal. The number waits as the selection the same way a hash
+     number does, until the payload arrives and one answers to it. */
+  useEffect(() => {
+    if (params.number && /^\d+$/.test(params.number)) setSelectedJobId(cur => cur ?? params.number!);
+  }, [params.number]);
   // The hash lands before the payload does, so the number waits here as the
   // selection until the proposals arrive and one of them answers to it.
   useEffect(() => {
