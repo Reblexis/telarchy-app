@@ -1,3 +1,4 @@
+import { beforeEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
 // Vitest 4.x prints a `--localstorage-file` warning when its flag is malformed
@@ -80,3 +81,14 @@ HTMLCanvasElement.prototype.getContext = (() => {
   };
   return () => stub as unknown as CanvasRenderingContext2D;
 })();
+
+// Per-session UI memory (the floor's chart mode) must not leak from one test
+// into the next: jsdom keeps one sessionStorage per file, so a test that
+// switched the chart to CALL left every later test looking at the wrong one.
+beforeEach(() => {
+  try {
+    sessionStorage.clear();
+  } catch {
+    // A run without storage has nothing to clear.
+  }
+});

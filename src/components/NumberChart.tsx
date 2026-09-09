@@ -1,4 +1,4 @@
-import type { ReactNode, PointerEvent as ReactPointerEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, PointerEvent as ReactPointerEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { forecastDayOf } from '../lib/floor-horizons';
 import { GEOM } from './MarketChart';
@@ -53,6 +53,11 @@ interface Props {
    *  the amber dot "market's call for <day>", the grey dots "other open
    *  dates" only when there are any. A proposal's legend replaces it. */
   marksLegend?: boolean;
+  /** Press a marker to select that date's market. The selected one is not
+   *  pressable, because it is where the reader already is; with no handler
+   *  the chart stays a picture (docs/ui-conventions.md, "The price and the
+   *  chart", 2026-09-09). */
+  onPickDate?: (marketId: string) => void;
   now?: Date;
   height?: number;
   /** The composed bet's ghost (owner ask 2026-08-28): where the SELECTED
@@ -210,6 +215,7 @@ export function NumberChart({
   legend = null,
   marksLegend = false,
   impactFrom = 'approved',
+  onPickDate,
   now: nowProp,
   height,
   preview = null,
@@ -452,8 +458,32 @@ export function NumberChart({
           const hasPair = ap !== null && dc !== null;
           const ay = ap === null ? null : y(ap);
           const dy = dc === null ? null : y(dc);
+          /* Every open date in the settlement band is the date control: the
+             same act as pressing its tab in the date strip. */
+          const pickable = !!onPickDate && !m.selected;
+          const pick = pickable
+            ? {
+                role: 'button',
+                tabIndex: 0,
+                'aria-label': `${dayLabel(new Date(m.resolvesOn).getTime())}${
+                  m.consensus === null ? '' : `, ${fmt(m.consensus, unit)}`
+                }`,
+                onClick: () => onPickDate?.(m.marketId),
+                onKeyDown: (e: ReactKeyboardEvent) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onPickDate?.(m.marketId);
+                  }
+                },
+              }
+            : {};
           return (
-            <g key={m.marketId} className={m.selected ? 'nchart-marker is-selected' : 'nchart-marker'}>
+            <g
+              key={m.marketId}
+              data-market={m.marketId}
+              className={`nchart-marker${m.selected ? ' is-selected' : ''}${pickable ? ' is-pickable' : ''}`}
+              {...pick}
+            >
               <line x1={mx} x2={mx} y1={PAD_T - 6} y2={H - PAD_B + 6} />
               {/* The proposal's pair: green if approved, red if declined, a
                 bar between them whose length is the priced impact. */}
@@ -476,6 +506,13 @@ export function NumberChart({
                 </g>
               )}
               {my !== null && <circle cx={mx} cy={my} r={m.selected ? 4.5 : 3.5} />}
+              {/* The other open dates carry their call, so the date strip and
+                the settlement band say the same thing (2026-09-09). */}
+              {my !== null && !m.selected && !hasPair && (
+                <text className="nchart-marker-val" x={mx} y={my - 9} textAnchor="middle">
+                  {fmt(m.consensus as number, unit)}
+                </text>
+              )}
               {m.selected && preview && (
                 <g className={`mchart-ghost mchart-ghost--${preview.direction}`}>
                   {my !== null && <line className="mchart-ghost-line" x1={mx} x2={mx} y1={my} y2={y(preview.value)} />}
