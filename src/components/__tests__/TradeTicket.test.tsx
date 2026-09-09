@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import { SLIDER_STEPS } from '../../lib/bet-slider';
 import { TradeTicket } from '../TradeTicket';
@@ -23,17 +23,33 @@ const base = {
   rangeMax: 500_000,
 };
 
+/**
+ * The ticket opens on a side at 0 cr since 2026-09-09 (owner ask: "the bet
+ * dialog should start like this"). These tests were written when a side had
+ * to be picked and 25 cr was the default, so picking one now also stakes the
+ * 25 they assume; what each test is actually about is unchanged.
+ */
+function pick(side: 'Higher' | 'Lower', amount = '25') {
+  const sides = screen.getByRole('group', { name: 'Direction' });
+  fireEvent.click(within(sides).getByRole('button', { name: new RegExp(side) }));
+  const input = screen.queryByLabelText('Credits to spend');
+  if (input) fireEvent.change(input, { target: { value: amount } });
+}
+
 describe('progressive disclosure', () => {
-  test('an untouched ticket asks only for a side', () => {
+  test('an untouched ticket is already on a side, at nothing', () => {
+    // Revised 2026-09-09: the ticket is the floor's rail and opens composed.
+    // What it still does not do is offer Limit on a market that cannot take
+    // orders.
     render(<TradeTicket {...base} />);
     expect(screen.getByText('Higher')).toBeTruthy();
-    expect(screen.queryByLabelText('Credits to spend')).toBeNull();
+    expect(screen.getByLabelText('Credits to spend')).toBeTruthy();
     expect(screen.queryByText('Limit')).toBeNull();
   });
 
-  test('picking a side reveals the amount, the order type, and the confirm', () => {
+  test('staking an amount reveals the order type and arms the confirm', () => {
     const { container } = render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     expect(screen.getByLabelText('Credits to spend')).toBeTruthy();
     expect(screen.getByText('Quick')).toBeTruthy();
     expect(screen.getByText('Limit')).toBeTruthy();
@@ -46,7 +62,7 @@ describe('progressive disclosure', () => {
 
   test('the Limit toggle stays hidden when the market cannot take orders', () => {
     render(<TradeTicket {...base} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     expect(screen.queryByText('Limit')).toBeNull();
   });
 });
@@ -54,7 +70,7 @@ describe('progressive disclosure', () => {
 describe('win facts', () => {
   test('a limit order breaks even exactly at its own price', () => {
     const { container } = render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
 
@@ -68,7 +84,7 @@ describe('win facts', () => {
 
   test('a lower bet is worth most at the bottom of the range', () => {
     const { container } = render(<TradeTicket {...base} />);
-    fireEvent.click(screen.getByText('Lower'));
+    pick('Lower');
     const cr = Array.from(container.querySelectorAll('.scale-cr > span')).map(e => e.textContent ?? '');
     expect(cr[0]?.startsWith('+')).toBe(true);
     expect(cr[cr.length - 1]).toBe('-25 cr');
@@ -76,10 +92,10 @@ describe('win facts', () => {
 });
 
 describe('dialog mode', () => {
-  test('initialDir opens with the side chosen and the amount visible', () => {
-    render(<TradeTicket {...base} initialDir="higher" />);
+  test('initialDir opens on the side the verb named', () => {
+    render(<TradeTicket {...base} initialDir="lower" />);
     expect(screen.getByLabelText('Credits to spend')).toBeTruthy();
-    expect(screen.getByText('Bet 25 cr on Higher')).toBeTruthy();
+    expect(screen.getByText('Bet 0 cr on Lower')).toBeTruthy();
   });
 
   test('the X calls onClose instead of collapsing', () => {
@@ -95,7 +111,7 @@ describe('dialog mode', () => {
 describe('limit mode', () => {
   test('the confirm restates the whole instruction', () => {
     render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     const input = screen.getByLabelText('Limit price in $') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '40000' } });
@@ -105,7 +121,7 @@ describe('limit mode', () => {
   test('a limit on the wrong side of the call is refused before it is sent', () => {
     const onPlaceLimit = vi.fn(async () => {});
     render(<TradeTicket {...base} onPlaceLimit={onPlaceLimit} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '60000' } });
 
@@ -118,7 +134,7 @@ describe('limit mode', () => {
 
   test('a lower order wants a limit above the call', () => {
     render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);
-    fireEvent.click(screen.getByText('Lower'));
+    pick('Lower');
     fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '70000' } });
     expect(screen.getByText('Buy Lower with 25 cr over $70,000')).toBeTruthy();
@@ -128,7 +144,7 @@ describe('limit mode', () => {
     const onTrade = vi.fn(async () => {});
     const onPlaceLimit = vi.fn(async () => {});
     render(<TradeTicket {...base} onTrade={onTrade} onPlaceLimit={onPlaceLimit} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
     fireEvent.click(screen.getByText('Buy Higher with 25 cr under $40,000'));
@@ -140,7 +156,7 @@ describe('limit mode', () => {
   test('a resting order casts no ghost on the chart, since it moves no price', () => {
     const onPreview = vi.fn();
     render(<TradeTicket {...base} onPreview={onPreview} onPlaceLimit={async () => {}} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     expect(onPreview).toHaveBeenLastCalledWith(expect.objectContaining({ direction: 'higher' }));
 
     fireEvent.click(screen.getByText('Limit'));
@@ -179,7 +195,7 @@ describe('resting orders', () => {
 describe('bet amount slider', () => {
   test('a thousands balance no longer crams every sensible bet into the left edge', () => {
     render(<TradeTicket {...base} balance={23_400} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const slider = screen.getByLabelText('Bet amount slider') as HTMLInputElement;
     const amount = screen.getByLabelText('Credits to spend') as HTMLInputElement;
     // Mid-track is the geometric mean of 1..23,400 (~153, snapped to two
@@ -195,7 +211,7 @@ describe('bet amount slider', () => {
 describe('betting towards a value', () => {
   test('typing a target into New value sets the side, the cost, and a confirm that names the target', () => {
     render(<TradeTicket {...base} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const target = screen.getByLabelText('Bet the market to this value in $');
     // Ask for a value below the current call (base probability 0.5 maps
     // to 250k on this range): the ticket flips to Lower and prices it.
@@ -215,7 +231,7 @@ describe('betting towards a value', () => {
 
   test('an unreachable target caps the amount at the per-market maximum', () => {
     render(<TradeTicket {...base} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const target = screen.getByLabelText('Bet the market to this value in $');
     fireEvent.focus(target);
     fireEvent.change(target, { target: { value: '499000' } });
@@ -227,7 +243,7 @@ describe('betting towards a value', () => {
     const onTrade = vi.fn(async () => {});
     const onTradeTarget = vi.fn(async () => {});
     render(<TradeTicket {...base} onTrade={onTrade} onTradeTarget={onTradeTarget} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const target = screen.getByLabelText('Bet the market to this value in $');
     fireEvent.focus(target);
     fireEvent.change(target, { target: { value: '300000' } });
@@ -243,7 +259,7 @@ describe('betting towards a value', () => {
     const onTrade = vi.fn(async () => {});
     const onTradeTarget = vi.fn(async () => {});
     render(<TradeTicket {...base} onTrade={onTrade} onTradeTarget={onTradeTarget} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const target = screen.getByLabelText('Bet the market to this value in $');
     fireEvent.focus(target);
     fireEvent.change(target, { target: { value: '300000' } });
@@ -255,13 +271,13 @@ describe('betting towards a value', () => {
 
   test('picking a side after typing a target clears the target instruction', () => {
     render(<TradeTicket {...base} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const target = screen.getByLabelText('Bet the market to this value in $');
     fireEvent.focus(target);
     fireEvent.change(target, { target: { value: '100000' } });
     expect(screen.getByText(/Bet to \$100,000/)).toBeTruthy();
     // Re-picking Higher is a manual side choice: back to a budget buy.
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     expect(screen.queryByText(/Bet to \$/)).toBeNull();
   });
 });
@@ -292,13 +308,13 @@ describe('the preview knows about redemption (2026-08-30)', () => {
     // own doing. The liquidation this replaced landed ~389 here, dragged
     // down by the forced sale of all 50 shares.
     const withPosition = render(<TradeTicket {...netted} />);
-    fireEvent.click(screen.getByText('Lower'));
+    pick('Lower');
     fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '25' } });
     const held = landing(withPosition.container);
     withPosition.unmount();
 
     const flat = render(<TradeTicket {...netted} positions={[]} />);
-    fireEvent.click(screen.getByText('Lower'));
+    pick('Lower');
     fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '25' } });
     expect(landing(flat.container)).toBeCloseTo(held, 1);
     expect(held).toBeGreaterThan(450);
@@ -311,7 +327,7 @@ describe('the preview knows about redemption (2026-08-30)', () => {
     // Redemption cannot fund the buy, because it happens after it, so 25
     // is now past the ceiling and the slider pins to its top.
     const poor = render(<TradeTicket {...netted} balance={10} />);
-    fireEvent.click(screen.getByText('Lower'));
+    pick('Lower');
     const pinned = poor.container.querySelector('input[aria-label="Bet amount slider"]') as HTMLInputElement;
     expect(pinned.value).toBe(String(SLIDER_STEPS));
     poor.unmount();
@@ -319,7 +335,7 @@ describe('the preview knows about redemption (2026-08-30)', () => {
     // With the balance actually covering it, the same amount sits inside
     // the track: the ceiling moved with the balance, nothing else.
     const rich = render(<TradeTicket {...netted} balance={1000} />);
-    fireEvent.click(screen.getByText('Lower'));
+    pick('Lower');
     const inside = rich.container.querySelector('input[aria-label="Bet amount slider"]') as HTMLInputElement;
     expect(Number(inside.value)).toBeLessThan(SLIDER_STEPS);
   });
@@ -414,7 +430,7 @@ describe('the quote at rest', () => {
 
   test('the quotes stay on the pills once a side is picked', () => {
     render(<TradeTicket {...base} probability={0.14} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     expect(screen.getByText('up to 393 cr')).toBeTruthy();
     expect(screen.getByText('up to 30 cr')).toBeTruthy();
   });
@@ -450,7 +466,7 @@ describe('the payoff line', () => {
 
   test('the line carries two rows and nothing else: credits over it, values under', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const scale = container.querySelector('.scale') as HTMLElement;
     expect(scale.querySelectorAll('.scale-cr')).toHaveLength(1);
     expect(scale.querySelectorAll('.scale-val')).toHaveLength(1);
@@ -463,7 +479,7 @@ describe('the payoff line', () => {
     // break-even came near it, and then every credit figure on the ticket
     // was a loss (owner report, 2026-09-01).
     const { container } = render(<TradeTicket {...payBase} probability={0.86} liquidity={800} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const s = stops(container);
     expect(s[0].at).toBe(0);
     expect(s[s.length - 1].at).toBe(100);
@@ -473,7 +489,7 @@ describe('the payoff line', () => {
 
   test('the break-even is a stop, and it is the one that reads 0 cr', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const zero = stops(container).filter(s => s.credits === '0 cr');
     expect(zero).toHaveLength(1);
     expect(zero[0].at).toBeCloseTo(52.94, 1);
@@ -482,7 +498,7 @@ describe('the payoff line', () => {
   test('no two stops crowd: every pair is at least a seventh of the range apart', () => {
     for (const p of [0.02, 0.2, 0.5, 0.7, 0.86, 0.97]) {
       const { container, unmount } = render(<TradeTicket {...payBase} probability={p} liquidity={800} />);
-      fireEvent.click(screen.getByText('Higher'));
+      pick('Higher');
       const at = stops(container).map(s => s.at);
       expect(at.length).toBeGreaterThanOrEqual(3);
       expect(at.length).toBeLessThanOrEqual(5);
@@ -493,7 +509,7 @@ describe('the payoff line', () => {
 
   test('a stop near an edge leans away from it rather than over its neighbour', () => {
     const { container } = render(<TradeTicket {...payBase} probability={0.86} liquidity={800} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const near = Array.from(container.querySelectorAll('.scale-val > span')).find(
       e => Number((e as HTMLElement).dataset.at) > 82 && Number((e as HTMLElement).dataset.at) < 100,
     ) as HTMLElement;
@@ -502,7 +518,7 @@ describe('the payoff line', () => {
 
   test('the ends pin to the card, so no label hangs off it', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const els = Array.from(container.querySelectorAll('.scale-val > span')) as HTMLElement[];
     expect(els[0].style.left).toBe('0px');
     expect(els[els.length - 1].style.right).toBe('0px');
@@ -516,7 +532,7 @@ describe('the payoff line', () => {
 
   test('the rule turns colour where the bet starts paying', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const [, loseEnds] = seg(container, '.rule-lose');
     const [winStarts] = seg(container, '.rule-win');
     expect(loseEnds).toBeCloseTo(52.94, 1);
@@ -525,7 +541,7 @@ describe('the payoff line', () => {
 
   test('THE GREEN SIDE IS THE SIDE THE BET WINS ON: a higher bet wins above the break-even', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const [loseFrom, loseTo] = seg(container, '.rule-lose');
     const [winFrom, winTo] = seg(container, '.rule-win');
     expect(loseFrom).toBeCloseTo(0, 5);
@@ -539,7 +555,7 @@ describe('the payoff line', () => {
     // the segments were laid out in a fixed order and only their widths
     // knew about the direction.
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Lower'));
+    pick('Lower');
     const [winFrom, winTo] = seg(container, '.rule-win');
     const [loseFrom, loseTo] = seg(container, '.rule-lose');
     expect(winFrom).toBeCloseTo(0, 5);
@@ -552,7 +568,7 @@ describe('the payoff line', () => {
     // every stop under green must read +, and every stop under red -.
     for (const dir of ['Higher', 'Lower']) {
       const { container, unmount } = render(<TradeTicket {...payBase} />);
-      fireEvent.click(screen.getByText(dir));
+      pick(dir as 'Higher' | 'Lower');
       const [winFrom, winTo] = seg(container, '.rule-win');
       const [loseFrom, loseTo] = seg(container, '.rule-lose');
       for (const s of stops(container)) {
@@ -569,7 +585,7 @@ describe('the payoff line', () => {
 
   test('THE STAKE AND THE VALUE IT BUYS ARE ONE LINE, and both are typeable', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const compose = container.querySelector('.compose') as HTMLElement;
     expect(compose.contains(screen.getByLabelText('Credits to spend'))).toBe(true);
     expect(compose.contains(screen.getByLabelText('Bet the market to this value in $'))).toBe(true);
@@ -577,7 +593,7 @@ describe('the payoff line', () => {
 
   test('typing into the value half composes a bet that lands there', () => {
     render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const target = screen.getByLabelText('Bet the market to this value in $');
     fireEvent.focus(target);
     fireEvent.change(target, { target: { value: '400000' } });
@@ -586,14 +602,14 @@ describe('the payoff line', () => {
 
   test('typing into the stake half goes back to spending a budget', () => {
     render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '40' } });
     expect(screen.getByText('Bet 40 cr on Higher')).toBeTruthy();
   });
 
   test('a market with no range draws nothing, and still takes a bet', () => {
     const { container } = render(<TradeTicket {...payBase} rangeMin={undefined} rangeMax={undefined} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     // Without a range there is no landing value, no break-even and no
     // payout to state, so the ticket falls back to a stake and a confirm
     // rather than inventing any of them.
@@ -606,7 +622,7 @@ describe('the payoff line', () => {
 
   test('a stake of nothing prices nothing', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '' } });
     expect(container.querySelector('.scale')).toBeNull();
   });
@@ -615,7 +631,7 @@ describe('the payoff line', () => {
     // A row reading "0, 33.3, 66.7, 84, 100" is ragged: the one that lands
     // on a whole number has to say 84.0 like the rest (owner, 2026-09-01).
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const vals = stops(container).map(s => s.value);
     expect(vals).toEqual(['$0.0k', '$166.7k', '$264.7k', '$333.3k', '$500.0k']);
     const decimals = vals.map(v => (v.split('.')[1] ?? '').replace(/[^\d]/g, '').length);
@@ -624,7 +640,7 @@ describe('the payoff line', () => {
 
   test('and drops them together when no value on the line needs one', () => {
     const { container } = render(<TradeTicket {...payBase} rangeMin={0} rangeMax={12} consensus={6} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const vals = stops(container).map(s => s.value);
     for (const v of vals) expect(v.includes('.')).toBe(vals[0].includes('.'));
   });
@@ -636,7 +652,7 @@ describe('the payoff line', () => {
     // now: an interior stop is either at its third or not drawn, and the
     // only label that travels is the break-even, which really is moving.
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     for (const amount of ['5', '25', '60', '120', '200', '400', '1000']) {
       fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: amount } });
       const at = stops(container).map(s => s.at);
@@ -655,7 +671,7 @@ describe('the payoff line', () => {
     // side of it, so the stop flickered between "0 cr" and "-0 cr" as the
     // stake moved (owner, 2026-09-01).
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     for (let amount = 1; amount <= 60; amount += 1) {
       fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: String(amount) } });
       // A stake small enough can be worth under a credit at several stops,
@@ -677,7 +693,7 @@ describe('the payoff line', () => {
 
   test('HOVERING THE LINE SAYS WHAT THE NUMBERS MEAN, not just what they are', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     // A quarter along the range is $125,000; 25 cr bought 47.2 shares, so
     // that settles at 47.2266 * 0.25 - 25 = -13 credits.
     const { top, bottom } = hover(container, 100);
@@ -687,20 +703,20 @@ describe('the payoff line', () => {
 
   test('and says it as a gain where the bet gains', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     expect(hover(container, 380).top).toBe('you make +20 cr');
   });
 
   test('and names the break-even for what it is', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     // The break-even is at 52.94% of the range: 400px * 0.5294 = 212px.
     expect(hover(container, 211.7).top).toBe('you break even');
   });
 
   test('the readout follows the pointer and the static stops stand down', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const scale = container.querySelector('.scale') as HTMLElement;
     scale.getBoundingClientRect = () => ({ left: 0, width: 400, top: 0, height: 40 }) as DOMRect;
     expect(container.querySelector('.scale.is-reading')).toBeNull();
@@ -712,7 +728,7 @@ describe('the payoff line', () => {
 
   test('leaving the line puts the readout away', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     const scale = container.querySelector('.scale') as HTMLElement;
     scale.getBoundingClientRect = () => ({ left: 0, width: 400, top: 0, height: 40 }) as DOMRect;
     fireEvent.pointerMove(scale, { clientX: 100 });
@@ -722,7 +738,7 @@ describe('the payoff line', () => {
 
   test('a line with no width on screen reads out nothing rather than dividing by it', () => {
     const { container } = render(<TradeTicket {...payBase} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     fireEvent.pointerMove(container.querySelector('.scale') as HTMLElement, { clientX: 40 });
     expect(container.querySelector('.scale-cursor')).toBeNull();
   });
@@ -732,7 +748,7 @@ describe('the payoff line', () => {
     // shows beside the stake has to be the limit itself. It used to show
     // the landing of a market buy that was not being placed.
     const { container } = render(<TradeTicket {...payBase} onPlaceLimit={async () => {}} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     const compose = container.querySelector('.compose') as HTMLElement;
     expect(compose.contains(screen.getByLabelText('Limit price in $'))).toBe(true);
@@ -741,7 +757,7 @@ describe('the payoff line', () => {
 
   test('and the price lives in the composer, not in a second row of its own', () => {
     const { container } = render(<TradeTicket {...payBase} onPlaceLimit={async () => {}} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     expect(container.querySelectorAll('.compose')).toHaveLength(1);
     expect(container.querySelector('.ticket-amt--price')).toBeNull();
@@ -750,7 +766,7 @@ describe('the payoff line', () => {
 
   test('typing the limit into the composer composes the whole instruction', () => {
     render(<TradeTicket {...payBase} onPlaceLimit={async () => {}} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
     expect(screen.getByText('Buy Higher with 25 cr under $40,000')).toBeTruthy();
@@ -758,7 +774,7 @@ describe('the payoff line', () => {
 
   test('the line prices the FILL, not a walk the order never takes', () => {
     const { container } = render(<TradeTicket {...payBase} onPlaceLimit={async () => {}} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '100000' } });
     // Filled at a fifth of the range, 25 cr buys 125 shares: the whole stake
@@ -771,7 +787,7 @@ describe('the payoff line', () => {
 
   test('a limit the market has already passed prices nothing at all', () => {
     const { container } = render(<TradeTicket {...payBase} onPlaceLimit={async () => {}} />);
-    fireEvent.click(screen.getByText('Higher'));
+    pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     // Buying higher waits for a cheaper price, so a limit above the current
     // call would fill at once: the ticket says so and draws no payoff.

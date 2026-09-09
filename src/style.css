@@ -11355,3 +11355,61 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
     padding-left: 0;
   }
 }
+
+/* The proposer's Edit, on the head row rather than a button the width of a
+   paragraph (owner ask 2026-09-09). */
+.pubws-icon-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.pubws-icon-edit:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.pubws-icon-edit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.pubws-proposal-words .pubws-know-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* Proposing, as a quiet way in rather than a main action (owner ask
+   2026-09-09). The page's closing board carries the invitation. */
+.pubws-propose {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.4rem;
+}
+.pubws-propose-quiet {
+  padding: 0.5rem 0;
+  border: none;
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  cursor: pointer;
+}
+.pubws-propose-quiet:hover {
+  color: var(--accent-hover);
+}
+.pubws-propose-quiet:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}

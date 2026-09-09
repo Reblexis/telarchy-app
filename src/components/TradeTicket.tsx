@@ -130,8 +130,19 @@ export function TradeTicket({
   onClose,
   manageMode = false,
 }: Props) {
-  const [dir, setDir] = useState<'higher' | 'lower' | null>(initialDir ?? null);
-  const [amount, setAmount] = useState('25');
+  /* The ticket opens COMPOSED (owner ask 2026-09-09, "the bet dialog should
+     start like this"): a side already chosen and nothing staked. It is the
+     floor's right rail now, on screen before anyone has decided anything, so
+     an untouched one that asks for a side first spends the reader's first
+     look on a question the page can answer itself. Higher leads, the way the
+     verbs above it do. */
+  const [dir, setDir] = useState<'higher' | 'lower' | null>(initialDir ?? 'higher');
+  const [amount, setAmount] = useState('0');
+  /* Buy or sell, the ticket's two tabs (owner ask 2026-09-09: "could sell be
+     possible from there as well? just like its in kalshi"), reversing the
+     2026-08-28 rule that selling was the position panel's job. A ticket
+     opened to manage a holding opens on Sell. */
+  const [tab, setTab] = useState<'buy' | 'sell'>(manageMode ? 'sell' : 'buy');
   const [mode, setMode] = useState<'quick' | 'limit'>('quick');
   const [limit, setLimit] = useState('');
   // Betting towards a value (owner direction 2026-08-11) without a new
@@ -309,7 +320,11 @@ export function TradeTicket({
   };
 
   const pick = (d: 'higher' | 'lower') => {
-    setDir(cur => (cur === d ? null : d));
+    /* A side never turns off. It used to toggle, which was right while the
+       ticket was a card that disclosed itself; now that it opens composed
+       (2026-09-09), pressing the side you are already on would collapse the
+       composer under your own finger. */
+    setDir(d);
     setTarget(null);
     setError('');
   };
@@ -404,11 +419,11 @@ export function TradeTicket({
 
   return (
     <div className={`ticket${dir ? ' is-open' : ''}`} aria-label="Place a trade">
-      {/* The held-position rows (with their Sell affordance) belong to
-        manage mode only (owner ask 2026-08-28: selling is the panel below
-        the ticket, not the bet ticket). The positions PROP still arrives in
-        both modes, because the preview nets against it. */}
-      {manageMode && held !== null && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
+      {/* The held-position rows and their Sell affordance are the SELL tab
+        (owner ask 2026-09-09, reversing 2026-08-28: selling was the position
+        panel's job). The positions PROP still arrives in both tabs, because
+        the buy preview nets against them. */}
+      {tab === 'sell' && held !== null && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
         <PayoffLine
           unit={unit}
           rangeMin={rangeMin}
@@ -425,7 +440,10 @@ export function TradeTicket({
         />
       )}
 
-      {manageMode && positions.length > 0 && (
+      {tab === 'sell' && positions.length === 0 && (
+        <p className="ticket-invite">You hold nothing on this market yet, so there is nothing to sell.</p>
+      )}
+      {tab === 'sell' && positions.length > 0 && (
         <div className="ticket-pos">
           {positions.map(p => {
             // Live worth: what the position would fetch right now vs what
@@ -538,8 +556,28 @@ export function TradeTicket({
         </div>
       )}
 
+      {/* Buy | Sell, Kalshi's own shape: the two things a holder can do with
+        one market, one press apart. */}
+      <div className="ticket-tabs" role="group" aria-label="Buy or sell">
+        <button
+          type="button"
+          className={`ticket-tab${tab === 'buy' ? ' is-active' : ''}`}
+          aria-pressed={tab === 'buy'}
+          onClick={() => setTab('buy')}
+        >
+          Buy
+        </button>
+        <button
+          type="button"
+          className={`ticket-tab${tab === 'sell' ? ' is-active' : ''}`}
+          aria-pressed={tab === 'sell'}
+          onClick={() => setTab('sell')}
+        >
+          Sell
+        </button>
+      </div>
       <div className="ticket-head">
-        {!manageMode && (
+        {tab === 'buy' && (
           <div className="ticket-seg" role="group" aria-label="Direction">
             <button
               className={`ticket-side ticket-side--lower${dir === 'lower' ? ' is-active' : ''}`}
@@ -599,7 +637,7 @@ export function TradeTicket({
           nothing at the bottom) and the mark says where a share bought this
           second breaks even, which is wherever the market already is. The
           floor's verbs keep the sentence, having no track to carry it. */}
-      {!manageMode && !dir && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
+      {tab === 'buy' && !dir && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
         <PayoffLine
           unit={unit}
           rangeMin={rangeMin}
@@ -615,9 +653,7 @@ export function TradeTicket({
       {/* The untouched ticket says what to do with it. In the rail it is on
           screen before anyone has decided anything, and a track with no
           instruction under it read as a broken card (preview, 2026-09-09). */}
-      {!manageMode && !dir && <p className="ticket-invite">Pick a side to compose a bet.</p>}
-
-      {dir && (
+      {tab === 'buy' && dir && (
         <>
           {/* The stake and the value it buys, on one line, either of which
           a trader can type into (owner, 2026-09-01: "X cr -> {X} value
@@ -714,7 +750,7 @@ export function TradeTicket({
               numbers in an order"). Manage mode has its own line above,
               drawn against the position rather than against a new bet, and
               two tracks in one card would be one too many. */}
-          {!manageMode && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
+          {tab === 'buy' && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
             <PayoffLine
               unit={unit}
               rangeMin={rangeMin}

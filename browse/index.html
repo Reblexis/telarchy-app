@@ -5080,11 +5080,11 @@ deadline, an ask, and a price, and it reads in that order:</p>
 <pre><code>  #28  A 500 dollar prize for the best open-source trading agent
   Viktor36 · no payment asked · decides 15 Sept · 24,857 behind it
 
-  MOVES  ACTIVE TRADERS   REVENUE     OUTSIDE OWNERS   FORECASTERS
-         +1.4             ±$0         ±0               ±0
-                          untraded    untraded         untraded
-  BY     THIS WEEK        THIS MONTH
-         ±0               +1.4
+  ACTIVE TRADERS   REVENUE     OUTSIDE OWNERS   FORECASTERS
+  +1.4             ±$0         ±0               ±0
+                   untraded    untraded         untraded
+  THIS WEEK        THIS MONTH
+  ±0               +1.4
 
             IF APPROVED, ACTIVE TRADERS THIS MONTH MOVE BY
                              +1.4
@@ -5102,7 +5102,10 @@ proposer, the USD ask, the countdown to the decision, and the pool behind
 the pair.</li>
 <li><strong>The strips say what it moves.</strong> With a proposal open, the metric strip
 and the date strip stop showing levels and show THIS proposal's impact on
-each cell: <code>MOVES  ACTIVE TRADERS +1.4  REVENUE ±$0 ...</code>, <code>BY  THIS WEEK ±0 THIS MONTH +1.4</code>. A proposal ships a pair for every cell of the grid
+each cell: <code>ACTIVE TRADERS +1.4  REVENUE ±$0 ...</code>, <code>THIS WEEK ±0 THIS MONTH +1.4</code>. They carry no leading label (&quot;moves&quot;, &quot;by&quot;): the strips
+are where they always are, and a word in front of each one captions
+something the reader is already looking at (owner ask 2026-09-09, &quot;i dont
+like the moves and by texts remove those&quot;). A proposal ships a pair for every cell of the grid
 (below), and until now that grid has never been on screen; the strip is
 where it belongs, because it is the product's own claim stated literally.
 The strips keep the floor's order, primary metric first and dates soonest
@@ -5161,11 +5164,16 @@ never the baseline, or payouts, the bet ghost and position worth are all
 computed against the wrong curve, and positions refetch on every switch
 because they belong to the market on screen. The chart draws the branch's
 own history, falling back to the market's current call as a single point
-when nobody has traded it yet. A manager edits a proposal in place: the
-words save without touching the market; the price only moves while nobody
-has traded the pair, and the server says so plainly when it will not
-(docs/market-integrity.md, I1b). Same three fields as posting one, same
-order.</p>
+when nobody has traded it yet.</p>
+<p><strong>The proposer and the manager edit in place, from a PENCIL.</strong> The control is
+an icon on the head of &quot;What <proposer> would do&quot;, where the metric
+definition's own edit already sits, not a full-width button under the prose
+(owner ask 2026-09-09: &quot;make that more like an icon&quot;). Correcting a listing
+is a rare act and the ruling below it is not; a control the same size as the
+ruling claims to be as important as it. The words save without touching the
+market; the price only moves while nobody has traded the pair, and the server
+says so plainly when it will not (docs/market-integrity.md, I1b). Same three
+fields as posting one, same order.</p>
 <h3 id="docs-ui-conventions-md--h20">A proposal has an address and a card</h3>
 <p><strong>A decision is the one thing on this site worth sending to one person</strong>
 (2026-09-09). A proposal therefore has a real URL, <code>/&lt;slug&gt;/p/&lt;number&gt;</code>, and
@@ -5486,12 +5494,15 @@ wrapper: the ticket's OWN card is the one card, at the column's full
 width, after Manifold's bet panel - a card inside a card is the shipped
 mistake this sentence exists to prevent), so the charts above stay on
 screen while the bet is composed and
-the composed bet's ghost draws on both charts. The bet ticket carries NO
-held-position row and no resting orders (owner ask 2026-08-28: selling
-is the position panel's job, and the strip made the card tall); managing
-a held position opens the same inline ticket in manage mode, which keeps
-both. <strong>Hiding those rows never means withholding the position from the
-ticket</strong>: the &quot;New value&quot; preview NETS against it, because buying the
+the composed bet's ghost draws on both charts.</p>
+<p><strong>Buy and Sell are two tabs of the one ticket</strong> (owner ask 2026-09-09, after
+Kalshi: &quot;could sell be possible from there as well?&quot;). Buy composes a bet;
+Sell holds the held-position rows and the resting orders, so closing a
+position never means finding another surface. Buy is the open tab, and
+managing a held position opens the same inline ticket on Sell. A Sell tab
+with nothing to sell says so in one line rather than vanishing: a tab that
+disappears when it is empty reads as a missing feature. <strong>Hiding those rows
+on the Buy tab never means withholding the position from the ticket</strong>: the &quot;New value&quot; preview NETS against it, because buying the
 opposite side closes the held position on the server first and the buy
 prices against the post-close book. Handing the bet ticket an empty
 positions list to hide the rows made it quote a landing the trade never
@@ -5502,22 +5513,25 @@ being a dead click; its close control collapses it and drops the ghost.</p>
 (<code>--bg-secondary</code>, 14px radius) with the Lower/Higher pills top left and a
 Quick/Limit toggle top right. It is the one card on the poster, and
 exactly ONE element in it carries a fill, the confirm, which is what makes
-that button unmistakably the action. Progressive disclosure: an untouched
-ticket is only the two side pills, and the card grows when a side is
-picked (the amount, the confirm, the fine print and, when it exists, the
-price mode all appear once a side is chosen), so an untouched ticket asks
-exactly one question.</p>
+that button unmistakably the action. <strong>The ticket opens COMPOSED</strong> (owner
+ask 2026-09-09, replacing the progressive disclosure of 2026-08-28): the
+side that was pressed is already chosen, the stake reads 0 cr with the
+slider at its left end, and the confirm already states the instruction
+(&quot;Bet 0 cr on Higher&quot;), so the first act is dragging a stake rather than
+answering a question the reader answered by pressing a verb. A side pill
+never toggles OFF: pressing the chosen side again leaves it chosen, because
+a composer that collapses under the reader's finger reads as a broken
+button.</p>
 <p><strong>An untouched ticket still quotes both sides</strong>, and so does the floor that
 has not opened one. Each side pill carries what a credit spent on that side
 can come back as, and so does each of the floor's two bet verbs, which are
 the untouched state on a market page: the ticket only exists once a verb has
 been pressed and it opens with a side already chosen, so quoting inside it
 alone would still make a visitor commit to a direction to learn anything.
-Under the floor's verbs one SHORT line says what a share pays: 1 cr at the
-top of the range, nothing at the bottom. Short because a sentence of
-explanation under a two-character number reads as a warning rather than as
-its unit (owner, 2026-08-31: &quot;this seems like too much text&quot;); inside the
-ticket the payoff line replaces that sentence outright. Lower/Higher are two
+<strong>Nothing under the verbs explains what a share pays</strong> (owner ask
+2026-09-09, removing the short line of 2026-08-31): the ticket's own payoff
+line prices the actual bet in credits, and a rule of arithmetic under the
+verbs is read by nobody who is not already composing one. Lower/Higher are two
 words, not boxes; state is carried by colour and a fill on the chosen one,
 with the floor's ▲/▼ glyph keeping its --higher/--lower colour even while
 the word is quiet, since direction is the fastest thing on the page to read.</p>
@@ -5832,23 +5846,28 @@ check is inert.</p>
 holds). It renders for everyone, under a bare &quot;Proposals&quot; label, with
 proposing routed to /signup when anonymous. What it gives up is the
 always-on-screen slot; what it buys is a row wide enough to be acted on,
-which is the point of the change. Because a reader now has to pass the
-chart to learn that paid work exists here, the propose band sits directly
-under the last row rather than at the foot of a rail.</p>
-<p><strong>One line above the board says what is on it</strong> (2026-09-09): &quot;4 proposals
-open on this number · 1 decides today · anyone can post one&quot;, the count in
-ink, the urgency in the accent, the invitation quiet. It is the only thing on
-a first screen that says paid work happens here, it costs one row of type at
-every width, and it is what a visitor who came for the number is owed before
-they scroll past four rows about other people's offers.</p>
+which is the point of the change.</p>
+<p><strong>Proposing is a quiet way in, never a main action</strong> (owner ask 2026-09-09:
+&quot;for traders that might be too confusing to be this prominent ... they are
+there to mostly trade not proposa actions&quot;). One plain accent line under the
+last row, &quot;+ Propose work on this number&quot;, in the register a text link
+wears: no band, no filled button, no sub-line pricing the offer. Somebody
+who came to post work will find one line; somebody who came to trade is not
+asked to consider becoming a contractor before they have read a price. The
+control is still there for everyone the workspace allows, and the dialog it
+opens is unchanged.</p>
+<p><strong>Nothing summarises the board above it</strong> (owner ask 2026-09-09, removing
+the count line of the same day: &quot;like i think the way it isdisplayed below is
+engouh&quot;). The rows say how many there are and when they decide; a sentence
+counting them is a second telling of what is already on screen, and it spent
+its row selling proposing to a reader who came to trade.</p>
 <p><strong>The board is ordered by what needs a ruling first</strong> (revised 2026-09-09,
 replacing pool-first of 2026-09-02): soonest decision at the top, with the
 pool breaking a tie, so a proposal closing today is never below one closing
 next week. Pool-first put the biggest claimed impact on the floor at the
 bottom of the list because nobody had funded it, which is a ranking that
-answers a question no reader asked. The propose footer still says what moves
-a row up, because between two proposals closing the same day depth is still
-what decides. Five pending rows and a &quot;show all&quot; line: four fit today and
+answers a question no reader asked. Between two proposals closing the same day depth is
+still what decides. Five pending rows and a &quot;show all&quot; line: four fit today and
 twenty would not, and the decided fold under it is unchanged.</p>
 <p><strong>The row is two lines, and only one of them is loud.</strong> The first line is
 the title and, right-aligned, the impact: if-done minus if-not-done,
@@ -5894,9 +5913,7 @@ wants. Quiet and mono, so the impact stays the headline it has always been.
 The pending list is ranked by that pool, deepest first, with impact breaking
 a tie (owner decision 2026-09-02: &quot;proposals are ordered by total liquidity
 available&quot;). A proposal nobody has funded sits at the bottom rather than at
-the top by accident of its own unpriced delta, and the propose footer says
-what moves one up, because the person about to post one is exactly who needs
-to know. Decided proposals stay ranked by impact: nothing can be funded into
+the top by accident of its own unpriced delta. Decided proposals stay ranked by impact: nothing can be funded into
 them any more.</p>
 <p><strong>A proposal has a number and an address.</strong> Every proposal carries a
 short number, <code>#7</code>, assigned in order of posting within its floor, never
@@ -5959,9 +5976,9 @@ small left labels, and the whole deal rides the confirm button itself (the
 cost belongs at the moment of commitment, on the final button, not only
 near the first press; there is no separate line under the fields and no
 facts table): <code>.ticket-go</code> carries a quieter second line
-(<code>.ticket-go-sub</code>) saying that posting is free and what approval pays, the
-exact phrase the board shows under its own button so the two surfaces never
-disagree. Posting a proposal costs nothing; the only credits a proposer can
+(<code>.ticket-go-sub</code>) saying that posting is free and what approval pays; the
+board itself no longer says it, because the line that carried that phrase
+was the band that has been removed. Posting a proposal costs nothing; the only credits a proposer can
 put in are the optional <code>liquiditySubsidy</code> on the branch markets, and the
 credits back on approval are the workspace's <code>proposalReward</code>, which is 0
 unless the workspace sets it. Color only speaks as state: accent focus,

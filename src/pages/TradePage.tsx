@@ -58,7 +58,7 @@ import {
   timeLeftOf,
 } from '../lib/floor-horizons';
 import { dropInline, readInline } from '../lib/inline-data';
-import { maxWinLabel, payoutLine } from '../lib/market-quote';
+import { maxWinLabel } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
 
@@ -1561,7 +1561,6 @@ export function TradePage() {
                    (docs/ui-conventions.md, "A proposal is a decision with a
                    price", 2026-09-09): a proposal ships a pair for every cell
                    of the grid, and that grid was never on screen before. */
-                label={selectedJob ? 'moves' : undefined}
                 tabs={metricHeads.map(m => {
                   const cell = cellOf(horizons, m.metricId, hero?.targetDate);
                   const cellPair = selectedJob ? pairAt(selectedJob, hero?.targetDate, m.metricId) : null;
@@ -1590,7 +1589,6 @@ export function TradePage() {
                 <FloorStrip
                   ariaLabel="Dates"
                   kind="date"
-                  label={selectedJob ? 'by' : undefined}
                   tabs={heroDates.map(d => {
                     const datePair = selectedJob ? pairAt(selectedJob, d.targetDate, d.metricId) : null;
                     return {
@@ -1617,42 +1615,6 @@ export function TradePage() {
                       : null
                   }
                 />
-              )}
-              {/* The deadline is one amber chip (docs/ui-conventions.md): the
-                only mention of it on the page. It is the whole of this line
-                now that the pickers are strips above it. */}
-              {selectedJob && (
-                <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
-                  <span
-                    className="pubws-chip pubws-chip--plain pubws-chip--deadline"
-                    aria-label="Decision deadline"
-                    title={
-                      selectedJobClosed
-                        ? 'Decided; trading on this proposal is closed'
-                        : selectedJob.decideBy
-                          ? `The owner decides by ${new Date(selectedJob.decideBy).toUTCString()}`
-                          : undefined
-                    }
-                  >
-                    <svg
-                      width="10"
-                      height="10"
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      aria-hidden="true"
-                    >
-                      <circle cx="8" cy="8" r="6.2" />
-                      <path d="M8 4.5V8l2.4 1.6" />
-                    </svg>
-                    {selectedJobClosed
-                      ? `decided ${dayOf(selectedJob.resolvedAt ?? selectedJob.closedAt ?? null)}`
-                      : selectedJob.decideBy
-                        ? `decides ${dayOf(selectedJob.decideBy)}`
-                        : 'no deadline'}
-                  </span>
-                </h2>
               )}
               {/* The question line (owner ask 2026-08-28): under the pickers,
                the selected cell stated as the market's own sentence, "What
@@ -1693,7 +1655,7 @@ export function TradePage() {
                       {jobAskUsd === null ? 'no payment asked' : `$${jobAskUsd}`}
                     </span>
                     {selectedJobClosed ? (
-                      <span>
+                      <span aria-label="Decision deadline">
                         <ClockGlyph />
                         decided {dayOf(selectedJob.resolvedAt ?? selectedJob.closedAt ?? null)}
                       </span>
@@ -1701,6 +1663,7 @@ export function TradePage() {
                       selectedJob.decideBy && (
                         <span
                           className="pubws-chip--deadline"
+                          aria-label="Decision deadline"
                           title={`The owner decides by ${new Date(selectedJob.decideBy).toUTCString()}`}
                         >
                           <ClockGlyph />
@@ -2103,38 +2066,33 @@ export function TradePage() {
                      visitor commit to a direction to learn a price. The line
                      leaves when the ticket opens, because from there the
                      fact rows say the same thing about the actual bet. */
-                  <>
-                    <div className="pubws-bet" role="group" aria-label="Bet">
-                      {/* The world rides the verb (docs/ui-conventions.md,
+                  <div className="pubws-bet" role="group" aria-label="Bet">
+                    {/* The world rides the verb (docs/ui-conventions.md,
                         2026-09-09): a trader who has scrolled past the world
                         cells cannot tell which of the two a button belongs
                         to, and a toggle further up the page is not an
                         answer. */}
-                      <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>
-                        Bet Higher ↑
-                        <span className="pubws-bet-max">
-                          {selectedJob
-                            ? `if ${branch}${higherCeiling !== null ? ` · up to ${higherCeiling}` : ''}`
-                            : higherCeiling !== null
-                              ? `up to ${higherCeiling}`
-                              : ''}
-                        </span>
-                      </button>
-                      <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>
-                        Bet Lower ↓
-                        <span className="pubws-bet-max">
-                          {selectedJob
-                            ? `if ${branch}${lowerCeiling !== null ? ` · up to ${lowerCeiling}` : ''}`
-                            : lowerCeiling !== null
-                              ? `up to ${lowerCeiling}`
-                              : ''}
-                        </span>
-                      </button>
-                    </div>
-                    {!betModal && active.rangeMin !== undefined && active.rangeMax !== undefined && (
-                      <p className="pubws-bet-note">{payoutLine(unit, active.rangeMin, active.rangeMax)}</p>
-                    )}
-                  </>
+                    <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>
+                      Bet Higher ↑
+                      <span className="pubws-bet-max">
+                        {selectedJob
+                          ? `if ${branch}${higherCeiling !== null ? ` · up to ${higherCeiling}` : ''}`
+                          : higherCeiling !== null
+                            ? `up to ${higherCeiling}`
+                            : ''}
+                      </span>
+                    </button>
+                    <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>
+                      Bet Lower ↓
+                      <span className="pubws-bet-max">
+                        {selectedJob
+                          ? `if ${branch}${lowerCeiling !== null ? ` · up to ${lowerCeiling}` : ''}`
+                          : lowerCeiling !== null
+                            ? `up to ${lowerCeiling}`
+                            : ''}
+                      </span>
+                    </button>
+                  </div>
                 ) : (
                   <p className="pubws-unfunded" role="status">
                     {selectedJob
@@ -2217,7 +2175,44 @@ export function TradePage() {
               className="pubws-proposal-words pubws-know pubws-enter pubws-enter--3"
               aria-label="What the proposer would do"
             >
-              <h2 className="pubws-know-head">What {selectedJob.proposedByName ?? 'the proposer'} would do</h2>
+              <h2 className="pubws-know-head">
+                What {selectedJob.proposedByName ?? 'the proposer'} would do
+                {/* Correcting a listing is a small, rare act, so it gets a
+                  small, rare control (owner ask 2026-09-09): a pencil where
+                  the metric definition's edit already sits, not a
+                  full-width button under the prose. */}
+                {canEditJob && !editingJob && (
+                  <button
+                    type="button"
+                    className="pubws-icon-edit"
+                    aria-label="Edit proposal"
+                    title="Edit proposal"
+                    onClick={() => {
+                      const split = splitAsk(selectedJob.title);
+                      setJobAsk(split.ask !== null ? String(split.ask) : '');
+                      setJobTitle(split.rest);
+                      setJobDesc(selectedJob.description ?? '');
+                      setJobErr('');
+                      setEditingJob(true);
+                    }}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                  </button>
+                )}
+              </h2>
               {selectedJob && (
                 <>
                   {editingJob ? (
@@ -2311,26 +2306,6 @@ export function TradePage() {
                         timeZone: 'UTC',
                       })}
                     </p>
-                  )}
-                  {/* The proposer's own controls. A proposal is a listing its
-                author should be able to correct: a typo, a clearer
-                description, a price they got wrong before anyone traded. */}
-                  {canEditJob && !editingJob && (
-                    <div className="pubws-ownerbar pubws-enter pubws-enter--1">
-                      <button
-                        className="pubws-decide"
-                        onClick={() => {
-                          const split = splitAsk(selectedJob.title);
-                          setJobAsk(split.ask !== null ? String(split.ask) : '');
-                          setJobTitle(split.rest);
-                          setJobDesc(selectedJob.description ?? '');
-                          setJobErr('');
-                          setEditingJob(true);
-                        }}
-                      >
-                        Edit proposal
-                      </button>
-                    </div>
                   )}
                   {/* The owner's press, on the floor itself (owner ask
                 2026-08-11). Approve is the money verb, green; decline

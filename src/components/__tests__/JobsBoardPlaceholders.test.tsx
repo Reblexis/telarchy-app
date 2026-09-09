@@ -41,7 +41,7 @@ function openForm(props: Partial<React.ComponentProps<typeof JobsBoard>> = {}) {
     </MemoryRouter>,
   );
   // The exact CTA, not a loose regex: "Proposals" is also the board heading.
-  fireEvent.click(screen.getByText('+ Propose'));
+  fireEvent.click(screen.getByText(/\+ Propose/));
 }
 
 describe("the phrase for a floor's numbers", () => {

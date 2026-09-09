@@ -28,15 +28,11 @@ export interface StripTab {
 export function FloorStrip({
   ariaLabel,
   kind,
-  label,
   tabs,
   onPick,
   manage,
 }: {
   ariaLabel: string;
-  /** What the strip's values are, when they are not levels: "moves" and "by"
-   *  with a proposal open. */
-  label?: string;
   /** 'metric' | 'date', for the class the stylesheet keys on. */
   kind: 'metric' | 'date';
   tabs: StripTab[];
@@ -66,11 +62,6 @@ export function FloorStrip({
 
   return (
     <div className={`pubws-strip pubws-strip--${kind}`} role="tablist" aria-label={ariaLabel} ref={ref}>
-      {label && (
-        <span className="pubws-strip-label" aria-hidden="true">
-          {label}
-        </span>
-      )}
       {tabs.map(t => (
         <button
           key={t.id}

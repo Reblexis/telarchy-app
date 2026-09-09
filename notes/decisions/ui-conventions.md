@@ -1747,3 +1747,61 @@ og:image still points at the FLOOR's card (the workspace hero card that has
 existed since 2026-08-10); the proposal's own card, the black one on the
 canvas with the impact and the deadline, is not drawn yet. A reader sees the
 right words and the floor's picture until it is.
+
+## 2026-09-09, part two: what Viktor cut from the built floor
+
+He read the branch preview and took seven things off it in a row. Every one
+of them is a removal or a demotion, and they share a premise worth writing
+down once: **a trader came to trade, and every element that is not the price
+is spending the trader's attention on somebody else's job.**
+
+**Asked (Viktor), in order:**
+
+- "the bet dialog should start like this" (screenshot: Higher already
+  chosen, 0 cr, slider at its left end, "Bet 0 cr on Higher").
+- "and could sell be possible from there as well? just like its in kalshi?"
+  (screenshot of Kalshi's BUY | SELL tabs).
+- "i dont like the moves and by texts remove those from the proposal uis..
+  and remove this too as the decides by is already below" (the DECIDES 15
+  SEPT chip above the title).
+- "and this too", "wherever that is" - "A share pays 1 cr at 50, nothing at
+  0."
+- "and edit proposal make that more like an icon in topright/bottomright next
+  to the descirtpipn or whatever", then "or figure out a better design tahn
+  o0nnem big button if you can.."
+- "remove thsi as well" - "11 proposals open on this number · anyone can post
+  one".
+- "also i think remove the propose option from there as for traders that
+  might be too confusing to be this prominent.. figure out how to make it
+  still available to the workspace owners/managers", then "and actually if
+  someone wants to make a proposal they still could if the workspace allows
+  it, but it shouldnt be a main action as traders are there to mostly trade
+  not proposa actions", then "like i think the way it isdisplayed below is
+  engouh".
+
+**What changed.** The ticket opens composed rather than as two pills, and a
+side pill no longer toggles off (it did, and pressing the chosen side
+collapsed the whole composer, which is a bug the rule now forbids). Buy and
+Sell are tabs of the one ticket. The strips lost their MOVES/BY captions, the
+proposal lost the standalone deadline chip above its title, the floor lost the
+payout sentence under its verbs, the board lost its summary line, and the
+propose band became one quiet accent line under the last row. Editing a
+proposal is a pencil on the head of "What <proposer> would do", beside where
+the metric definition's edit already sits.
+
+Two of these reverse rules recorded here earlier the same week. The count
+line above the board ("It is the only thing on a first screen that says paid
+work happens here") lasted one day; progressive disclosure in the ticket
+(2026-08-28) lasted twelve. Both were arguments for showing a reader
+something they had not asked for, and the owner's answer both times was that
+the floor is a trading surface first.
+
+**Still open: where contractors go.** Viktor: "like for contractors i think
+there should be a separate page dont u? or how would you /design it i just
+feel like for traders its in most cases irrelevant". The floor now carries
+the invitation as one quiet line, which is the right weight for it there, and
+that leaves nowhere that is actually addressed to somebody looking for paid
+work across floors. The same argument that gave a proposal its own address
+applies: a cross-floor surface for open proposals is a link worth sending to
+a person who is expert in one kind of decision, and it is where the loud
+invitation belongs. Not designed yet.
