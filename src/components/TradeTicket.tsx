@@ -100,6 +100,13 @@ function fmtShares(v: number): string {
   return v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1);
 }
 
+/** A credit figure that has to share a 293px row with words. */
+function fmtCompact(v: number): string {
+  if (v >= 1_000_000) return `${Math.round(v / 100_000) / 10}M`;
+  if (v >= 1_000) return `${Math.round(v / 100) / 10}k`;
+  return fmt(v);
+}
+
 function fmt(v: number): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -579,7 +586,9 @@ export function TradeTicket({
                   <div className="ticket-sell-panel">
                     <input
                       type="range"
-                      className={`ticket-slider ticket-slider--${p.direction}`}
+                      /* A size, not a direction: a full-width red track at
+                        100% read as an error bar (owner report 2026-09-09). */
+                      className="ticket-slider ticket-slider--size"
                       min={0}
                       max={p.shares}
                       step={p.shares / 200 || 1}
@@ -597,7 +606,9 @@ export function TradeTicket({
                       <div className="ticket-fact">
                         <span className="ticket-fact-k">Selling</span>
                         <span className="ticket-fact-v">
-                          {fmtShares(sharesToSell)} of {fmtShares(p.shares)} shares
+                          {/* No "shares": the head row above already says it,
+                            and the pair wrapped at 293px. */}
+                          {fmtShares(sharesToSell)} of {fmtShares(p.shares)}
                         </span>
                       </div>
                       <div className="ticket-fact">
@@ -759,7 +770,7 @@ export function TradeTicket({
             a value range read as a second range bar. */}
           <div className="ticket-slider-ends">
             <span>1 cr</span>
-            <span>{fmt(maxBet)} cr, all you have</span>
+            <span>{fmtCompact(maxBet)} cr, all you have</span>
           </div>
 
           {/* The price itself is the composer's right half now; this says
