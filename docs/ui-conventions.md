@@ -2125,8 +2125,13 @@ need comes back.
 
 **A floor stops explaining itself after the market.** The page above the
 fold is the explanation and it SHOWS rather than tells: the company's name,
-one line of what it sells, the number, its chart, and two priced sides a
-visitor can act on. Below that, "What is this market?" carries the metric's
+the number, its chart, and two priced sides a visitor can act on. **What the
+company sells is behind an (i) beside its name** (owner ask 2026-09-10),
+opening on hover, on keyboard focus and on a press, rather than standing as
+a line of prose under the name: a trader who came for the number reads the
+name and the number, and the one who does not know the company is one
+gesture from the sentence. The identity block is therefore one line tall,
+and "What is <company>?" below the market still carries the full text. Below that, "What is this market?" carries the metric's
 own definition, which is the settlement text a trader needs, and "What is
 <company>?" carries the company's. That is already twice; a numbered
 explainer and a pair of cards under it answered the same question a third

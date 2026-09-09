@@ -210,6 +210,14 @@ export function TradeTicket({
   const _payout = composed?.shares ?? null;
   // Where the market's call would land if this bet were placed now.
   const newValue = composed && span !== null && rangeMin !== undefined ? rangeMin + composed.newProb * span : null;
+  /**
+   * The landing the composer SHOWS. A 0 cr bet moves the market nowhere, so
+   * at rest the landing is the market's own call: the arrow and the value
+   * are on screen from the first paint, and typing into either half still
+   * composes a bet (owner ask 2026-09-10, "it should be there from the
+   * start"). Only `newValue` may be read where a real bet is meant.
+   */
+  const shownValue = newValue ?? (span !== null && rangeMin !== undefined ? consensus : null);
 
   // A resting order is only resting if the market has not already reached it.
   // Buying higher means waiting for a cheaper price, so the limit sits below
@@ -381,13 +389,13 @@ export function TradeTicket({
      payoff line now (the fact row that used to hold it is gone), and
      falls back to that row on a market with no range to draw. */
   const targetInput =
-    newValue === null || span === null || rangeMin === undefined ? null : (
+    shownValue === null || span === null || rangeMin === undefined ? null : (
       <input
         className="ticket-newvalue"
-        value={targetDraft ?? fmtValue(newValue)}
-        style={{ width: `${Math.max(2, (targetDraft ?? fmtValue(newValue)).length)}ch` }}
+        value={targetDraft ?? fmtValue(shownValue)}
+        style={{ width: `${Math.max(2, (targetDraft ?? fmtValue(shownValue)).length)}ch` }}
         onFocus={e => {
-          setTargetDraft(fmtValue(newValue).replace(/,/g, ''));
+          setTargetDraft(fmtValue(shownValue).replace(/,/g, ''));
           // A plain select() dies when the mouse click that caused
           // the focus lands and collapses the selection to a caret,
           // so a real mouse user TYPES INTO the old number (caught
@@ -791,23 +799,18 @@ export function TradeTicket({
               numbers in an order"). Manage mode has its own line above,
               drawn against the position rather than against a new bet, and
               two tracks in one card would be one too many. */}
-          {tab === 'buy' &&
-            !!winFacts &&
-            winFacts.spend > 0 &&
-            rangeMin !== undefined &&
-            rangeMax !== undefined &&
-            consensus !== null && (
-              <PayoffLine
-                unit={unit}
-                rangeMin={rangeMin}
-                rangeMax={rangeMax}
-                consensus={consensus}
-                direction={dir}
-                breakeven={winFacts ? winFacts.breakeven : null}
-                shares={winFacts ? winFacts.maxPayout : null}
-                spend={winFacts ? winFacts.spend : null}
-              />
-            )}
+          {tab === 'buy' && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
+            <PayoffLine
+              unit={unit}
+              rangeMin={rangeMin}
+              rangeMax={rangeMax}
+              consensus={consensus}
+              direction={dir}
+              breakeven={winFacts ? winFacts.breakeven : null}
+              shares={winFacts ? winFacts.maxPayout : null}
+              spend={winFacts ? winFacts.spend : null}
+            />
+          )}
 
           {!hasPayoff && (
             <div className="ticket-facts">

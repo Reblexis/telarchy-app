@@ -228,9 +228,15 @@ describe('the stake is one group, and nothing is pictured before a bet', () => {
     expect(screen.getByText(/10k cr, all you have/)).toBeTruthy();
   });
 
-  test('at 0 cr nothing is pictured: no range bar, no payoff line', () => {
+  test('the whole card is composed at rest: the arrow, the landing and the picture', () => {
+    // Owner ask 2026-09-10: "why isnt ther the arrow already present .. as we
+    // designed.. it should be there from the start.. as well as the
+    // visualization". A 0 cr bet moves the market nowhere, so the landing IS
+    // the market's own call, and the range bar is what there is to picture.
     const { container } = render(<TradeTicket {...base} />);
-    expect(container.querySelector('.pay')).toBeNull();
+    expect(container.querySelector('.compose-arrow')).toBeTruthy();
+    expect((container.querySelector('.ticket-newvalue') as HTMLInputElement).value).toBe('100,000');
+    expect(container.querySelector('.pay')).toBeTruthy();
     expect(container.querySelector('.scale')).toBeNull();
   });
 

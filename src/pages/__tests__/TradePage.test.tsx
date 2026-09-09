@@ -655,23 +655,33 @@ test('the workspace name heads the page', async () => {
   expect(container.querySelector('.pubws-ask-word--live')).toBeNull();
 });
 
-test('the workspace description is the company tagline, and is optional', async () => {
+test('what the company sells is behind an (i) beside its name, and is optional', async () => {
   const { api } = await import('../../lib/api');
-  // What the business sells, said once under its name: without it the floor
-  // opens with a number about a word the visitor has never seen.
+  // Owner ask 2026-09-10: "this text i think would be better shown upon hover
+  // with some (i) icon next to the name rather than being bleow it".
   vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
     ...h.workspace(),
     description: 'Webcam head tracker for sims.',
   } as never);
   const first = renderFloor();
-  await waitFor(() => expect(first.container.querySelector('.pubws-ws-tagline')).toBeTruthy());
-  expect(first.container.querySelector('.pubws-ws-tagline')!.textContent).toBe('Webcam head tracker for sims.');
+  await waitFor(() => expect(first.container.querySelector('.pubws-ws-info')).toBeTruthy());
+  // Not a line of prose under the name any more.
+  expect(first.container.querySelector('.pubws-ws-tagline')).toBeNull();
+  const btn = first.container.querySelector('.pubws-ws-info-btn') as HTMLButtonElement;
+  expect(btn.getAttribute('aria-label')).toBe('What LookPilot is');
+  const what = first.container.querySelector('.pubws-ws-what') as HTMLElement;
+  expect(what.textContent).toBe('Webcam head tracker for sims.');
+  // Closed until asked, and a press opens it (hover and focus do it in CSS).
+  expect(first.container.querySelector('.pubws-ws-info.is-open')).toBeNull();
+  fireEvent.click(btn);
+  await waitFor(() => expect(first.container.querySelector('.pubws-ws-info.is-open')).toBeTruthy());
   first.unmount();
 
-  // A workspace that never wrote one gets no empty line under its name.
+  // A workspace that never wrote one gets no icon at all.
   vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.workspace() as never);
   const second = renderFloor();
   await waitFor(() => expect(second.container.querySelector('.pubws-ws-name')).toBeTruthy());
+  expect(second.container.querySelector('.pubws-ws-info')).toBeNull();
   expect(second.container.querySelector('.pubws-ws-tagline')).toBeNull();
 });
 
