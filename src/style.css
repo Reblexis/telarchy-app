@@ -8624,6 +8624,43 @@ textarea.jobform-line--desc {
   color: var(--text-tertiary);
 }
 
+/* Every weekly reading, one row per metric. The numbers are printed under the
+   line because the block replaced a summary of them. */
+.dr-rates { display: flex; flex-direction: column; gap: 1.6rem; margin-top: 1rem; }
+
+.dr-rate { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.dr-rate-name {
+  margin: 0 0 0.2rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border-strong);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.dr-rate-svg { display: block; width: 100%; height: 44px; }
+.dr-rate-line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+
+.dr-rate-vals {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+/* A week nobody measured, which is not a week the number did not move. */
+.dr-rate-vals .is-unread { color: var(--text-tertiary); }
+
+.dr-rate-cap {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+
 /* A dated hairline list: the day, the row, and what state it is in. */
 .dr-when { list-style: none; margin: 0.8rem 0 0; padding: 0; border-top: 1px solid var(--border-color); }
 

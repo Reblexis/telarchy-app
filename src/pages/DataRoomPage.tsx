@@ -185,6 +185,61 @@ function Distribution({
 }
 
 /**
+ * One metric's eight weekly readings: the line, then the numbers under it.
+ *
+ * The numbers are printed because the block replaced a summary ("biggest week
+ * +3") and a shape is not a base rate. A week with no reading breaks the line
+ * rather than being interpolated across: a week nobody measured and a week
+ * nothing happened are different facts, and a smooth line through the gap
+ * would state the wrong one.
+ */
+function WeeklyRate({ name, readings, weeks }: { name: string; readings: Array<number | null>; weeks: string[] }) {
+  const W = 700;
+  const H = 40;
+  const known = readings.filter((v): v is number => v !== null);
+  const max = Math.max(1, ...known);
+  const min = Math.min(0, ...known);
+  const span = max - min || 1;
+  const step = readings.length > 1 ? W / (readings.length - 1) : 0;
+  const y = (v: number) => 4 + ((max - v) / span) * (H - 8);
+
+  // One polyline per unbroken run of readings.
+  const runs: string[][] = [];
+  let run: string[] = [];
+  readings.forEach((v, i) => {
+    if (v === null) {
+      if (run.length) runs.push(run);
+      run = [];
+      return;
+    }
+    run.push(`${i * step},${y(v)}`);
+  });
+  if (run.length) runs.push(run);
+
+  return (
+    <section className="dr-rate">
+      <h4 className="dr-rate-name">{name}</h4>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="dr-rate-svg" role="img" aria-label={name}>
+        {runs.map(points => (
+          <polyline key={points[0]} points={points.join(' ')} className="dr-rate-line" />
+        ))}
+      </svg>
+      <div className="dr-rate-vals">
+        {readings.map((v, i) => (
+          <span key={weeks[i] ?? i} className={v === null ? 'is-unread' : undefined}>
+            {v === null ? '—' : n(Math.round(v))}
+          </span>
+        ))}
+      </div>
+      <div className="dr-rate-cap">
+        <span>{dayLabel(weeks[0])}</span>
+        <span>{dayLabel(weeks[weeks.length - 1])}</span>
+      </div>
+    </section>
+  );
+}
+
+/**
  * One dot per counted trader, standing on the day their own trailing week
  * falls under the threshold. Seven columns, because a window that takes in
  * nothing new always empties inside seven days; a day nobody lapses keeps its
@@ -372,6 +427,18 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
           }))}
         />
       </>
+    );
+  }
+
+  if (name === 'rates') {
+    const r = e.rates;
+    if (!r.metrics.length) return <p className="dr-empty">Nothing recorded yet.</p>;
+    return (
+      <div className="dr-rates">
+        {r.metrics.map(m => (
+          <WeeklyRate key={m.name} name={m.name} readings={m.readings} weeks={r.weeks} />
+        ))}
+      </div>
     );
   }
 
