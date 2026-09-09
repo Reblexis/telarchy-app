@@ -199,9 +199,10 @@ describe('/admin', () => {
  */
 describe('/admin questions', () => {
   test('shows what was asked, what came back, and who asked', async () => {
-    render(<AdminPage />);
-    // Questions live on the Reports tab now (docs/ui-conventions.md).
-    fireEvent.click(await screen.findByRole('button', { name: /reports/i }));
+    // Questions live on the Reports tab now (docs/ui-conventions.md). The
+    // fragment picks it before the page mounts, which does not depend on the
+    // hash another test happened to leave behind.
+    renderPage('reports');
     expect(await screen.findByText('What does LookPilot sell?')).toBeTruthy();
     expect(screen.getByText('Webcam head tracking, $14.99 on Steam.')).toBeTruthy();
     // The unanswered one says so, with the reason.
