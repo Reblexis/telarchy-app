@@ -1067,10 +1067,25 @@ Sell holds the held-position rows and the resting orders, so closing a
 position never means finding another surface. Buy is the open tab, and
 managing a held position opens the same inline ticket on Sell. A Sell tab
 with nothing to sell says so in one line rather than vanishing: a tab that
-disappears when it is empty reads as a missing feature. The tab row is the
-FIRST thing in the card and the price mode (Quick/Limit) is a Buy control:
-a tab's own content above the tabs that select it, or an order type offered
-while selling, are both the card describing a state it is not in. **Hiding those rows
+disappears when it is empty reads as a missing feature.
+
+**The card carries ONE rule of chrome, and the rail is 293px wide** (owner
+report 2026-09-09, of a card that had four: the tabs, the sides, the order
+type and a close). The tab row is the FIRST thing in the card and it is a
+rule: Buy and Sell as underlined tabs on the left, the order type (Quick /
+Limit) at its right end, a hairline under the whole width. Everything else
+follows below it. The order type is a BUY control and is not drawn while
+selling, and a tab's own content never renders above the tabs that select
+it: both are the card describing a state it is not in.
+
+**There is no close control.** The ticket is the rail, always on screen, so
+the × closed a card the page drew again in the same frame; all it really did
+was drop the composed bet's ghost. A control that appears to undo something
+it cannot undo is worse than no control.
+
+**The two sides are one 50/50 row at the card's full width.** They were
+auto-width and centred, which at 293px left the card visibly lopsided and
+pushed the order type onto a line of its own. **Hiding those rows
 on the Buy tab never means withholding the position from the ticket**: the "New value" preview NETS against it, because buying the
 opposite side closes the held position on the server first and the buy
 prices against the post-close book. Handing the bet ticket an empty

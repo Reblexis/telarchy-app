@@ -73,7 +73,6 @@ interface Props {
       preselect it when they spawn the ticket in a dialog). */
   initialDir?: 'higher' | 'lower';
   /** In a dialog, the X closes the dialog instead of collapsing the card. */
-  onClose?: () => void;
   /** Managing an existing position (selling/cancelling), not opening a new
       bet: hide the Lower/Higher side pills, which are only for a new trade. */
   manageMode?: boolean;
@@ -127,7 +126,6 @@ export function TradeTicket({
   onPlaceLimit,
   onCancelLimit,
   initialDir,
-  onClose,
   manageMode = false,
 }: Props) {
   /* The ticket opens COMPOSED (owner ask 2026-09-09, "the bet dialog should
@@ -438,6 +436,33 @@ export function TradeTicket({
         >
           Sell
         </button>
+        {/* The order type rides the same rule (owner report 2026-09-09: it
+          had a row of its own, which at 293px wrapped under the sides and
+          read as a third mode beside a close button). It is a Buy control,
+          so it is not drawn while selling. */}
+        {tab === 'buy' && canLimit && (
+          <div className="ticket-mode" role="group" aria-label="Order type">
+            <button
+              type="button"
+              className={`ticket-mode-opt${!isLimit ? ' is-active' : ''}`}
+              aria-pressed={!isLimit}
+              onClick={() => {
+                setMode('quick');
+                setError('');
+              }}
+            >
+              Quick
+            </button>
+            <button
+              type="button"
+              className={`ticket-mode-opt${isLimit ? ' is-active' : ''}`}
+              aria-pressed={isLimit}
+              onClick={enterLimit}
+            >
+              Limit
+            </button>
+          </div>
+        )}
       </div>
       <div className="ticket-head">
         {tab === 'buy' && (
@@ -459,39 +484,6 @@ export function TradeTicket({
               {higherCeiling !== null && <span className="ticket-side-max">up to {higherCeiling}</span>}
             </button>
           </div>
-        )}
-
-        {/* The price question lives in the header, Manifold-style, but only
-            once a side exists to ask it about (owner direction 2026-08-10:
-            an untouched ticket asks one question). */}
-        {tab === 'buy' && dir && canLimit && (
-          <div className="ticket-mode" role="group" aria-label="Order type">
-            <button
-              className={`ticket-mode-opt${!isLimit ? ' is-active' : ''}`}
-              aria-pressed={!isLimit}
-              onClick={() => {
-                setMode('quick');
-                setError('');
-              }}
-            >
-              Quick
-            </button>
-            <button
-              className={`ticket-mode-opt${isLimit ? ' is-active' : ''}`}
-              aria-pressed={isLimit}
-              onClick={enterLimit}
-            >
-              Limit
-            </button>
-          </div>
-        )}
-        {/* Nothing to close until a side is chosen: since 2026-09-09 the
-            ticket is the floor's right rail and is always on screen, so a
-            close control on the untouched state would be a dead button. */}
-        {(dir || manageMode) && (
-          <button className="ticket-close" aria-label="Close" onClick={() => (onClose ? onClose() : setDir(null))}>
-            ×
-          </button>
         )}
       </div>
 

@@ -2150,10 +2150,6 @@ export function TradePage() {
                 onRequireSignup={trading ? undefined : () => navigate(authPath('signup', location))}
                 initialDir={betModal === 'manage' || betModal === null ? undefined : betModal}
                 manageMode={betModal === 'manage'}
-                onClose={() => {
-                  setBetModal(null);
-                  setTicketPreview(null);
-                }}
               />
             </div>
           )}

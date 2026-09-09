@@ -97,15 +97,6 @@ describe('dialog mode', () => {
     expect(screen.getByLabelText('Credits to spend')).toBeTruthy();
     expect(screen.getByText('Bet 0 cr on Lower')).toBeTruthy();
   });
-
-  test('the X calls onClose instead of collapsing', () => {
-    const onClose = vi.fn();
-    render(<TradeTicket {...base} initialDir="lower" onClose={onClose} />);
-    fireEvent.click(screen.getByLabelText('Close'));
-    expect(onClose).toHaveBeenCalled();
-    // Still expanded: closing is the dialog's job, not the card's.
-    expect(screen.getByLabelText('Credits to spend')).toBeTruthy();
-  });
 });
 
 describe('limit mode', () => {
