@@ -2846,6 +2846,28 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   background: var(--bg-primary);
   text-align: left;
 }
+
+/* Three cells when the owner has published a call for the date on screen
+   (docs/owner-on-the-floor.md, "The owner's own call"): the reading, the
+   market's call, the owner's. Two otherwise, exactly as before. */
+.pubws-stats:has(.pubws-stat--owner) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* The owner's field for it: the ballot's own input and button, under the
+   stat row rather than in it, because the row is a reading. */
+.pubws-ownercall {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+.pubws-ownercall-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
 .pubws-stat--call { padding-left: 1.25rem; }
 .pubws-stat--call .pubws-price { color: var(--accent); }
 .pubws-stat-value { display: inline-flex; align-items: baseline; gap: 0.6rem; }
@@ -8758,6 +8780,23 @@ textarea.jobform-line--desc {
   justify-content: space-between;
   font-size: 0.68rem;
   color: var(--text-tertiary);
+}
+
+/* The outreach list: one square per person, shaded by how far they have got.
+   The squares are the count, so no count is printed beside them. */
+.dr-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 0.8rem;
+  max-width: 30rem;
+}
+
+.dr-stage-cell {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  background: var(--accent);
 }
 
 /* A dated hairline list: the day, the row, and what state it is in. */

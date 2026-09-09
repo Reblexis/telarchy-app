@@ -295,6 +295,33 @@ function WhenList({
 }
 
 /**
+ * The outreach list: one square per person, shaded by how far they have got.
+ *
+ * Squares rather than a count per stage, for the same reason the window
+ * draws bars: the shape of a list of thirty is a thing you see, and the count
+ * is the shape with the tail thrown away. Nobody is named; a square is a
+ * stage (docs/data-room.md, "What is scheduled").
+ */
+const STAGE_ORDER = ['no', 'draft', 'ready', 'sent', 'replied', 'call', 'workspace', 'activated'];
+
+function StageGrid({ stages }: { stages: string[] }) {
+  if (!stages.length) return <p className="dr-empty">Nobody on the list yet.</p>;
+  return (
+    <div className="dr-stages">
+      {stages.map((stage, i) => (
+        <span
+          key={`${stage}-${i}`}
+          className="dr-stage-cell"
+          data-stage={stage}
+          style={{ opacity: 0.2 + (Math.max(0, STAGE_ORDER.indexOf(stage)) / (STAGE_ORDER.length - 1)) * 0.8 }}
+          title={stage}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
  * The named changes, newest first. Only the most recent are on screen at
  * first: the log is the longest thing on the page by an order of magnitude,
  * and a reader who wants all of it says so (or reads the feed, which carries
@@ -439,6 +466,26 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
           <WeeklyRate key={m.name} name={m.name} readings={m.readings} weeks={r.weeks} />
         ))}
       </div>
+    );
+  }
+
+  if (name === 'calendar') {
+    const c = e.calendar;
+    return (
+      <>
+        <WhenList
+          id="calendar"
+          empty="Nothing scheduled."
+          rows={c.dates.map((d, i) => ({
+            key: `${d.at}-${i}`,
+            when: dayLabel(d.at),
+            main: d.label,
+            right: d.kind,
+          }))}
+        />
+        <h3 className="dr-h3">The outreach list, one square per person</h3>
+        <StageGrid stages={c.outreach.stages} />
+      </>
     );
   }
 

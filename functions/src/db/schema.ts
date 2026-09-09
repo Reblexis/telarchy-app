@@ -1313,6 +1313,35 @@ export const earnRuleHistory = pgTable(
  * session id. Completed rows are the platform's liquidity revenue, which
  * sizes the next season's pool (docs/liquidity-purchases.md).
  */
+/**
+ * The owner's own call: what they expect a metric to read at a date, beside
+ * what the market says (docs/owner-on-the-floor.md, "The owner's own call").
+ *
+ * APPEND-ONLY. A second call on the same metric and date is a second row, not
+ * an edit: a forecast that can be quietly rewritten after the fact is not a
+ * forecast, and publishing one is only worth anything because it was made
+ * before the answer was known. The floor prints the newest and how many stand
+ * behind it.
+ */
+export const ownerCalls = pgTable(
+  'owner_calls',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    metricId: text('metric_id').notNull(),
+    /** The date the call is for, in the metric's own horizon vocabulary. */
+    targetDate: text('target_date').notNull(),
+    value: doublePrecision('value').notNull(),
+    /** Who made it: the participant id, so the floor can print a handle. */
+    createdBy: text('created_by').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [
+    primaryKey({ columns: [t.id, t.workspaceId] }),
+    index('owner_calls_ws_metric_date_idx').on(t.workspaceId, t.metricId, t.targetDate, t.createdAt),
+  ],
+);
+
 export const liquidityPurchases = pgTable('liquidity_purchases', {
   id: text('id').primaryKey(),
   workspaceId: text('workspace_id').notNull(),

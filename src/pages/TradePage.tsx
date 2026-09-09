@@ -725,6 +725,35 @@ export function TradePage() {
     setDeliveryErr('');
   }, [selectedJob?.id, selectedJob?.deliveryNote]);
 
+  // The owner's own call for the metric and date on screen
+  // (docs/owner-on-the-floor.md, "The owner's own call"). Beside the market's
+  // number, never instead of it, and absent on a floor that has made none.
+  const ownerCall = (ws?.ownerCalls ?? []).find(
+    c => c.metricId === hero?.metricId && c.targetDate === hero?.targetDate,
+  );
+  const [callDraft, setCallDraft] = useState('');
+  const [callBusy, setCallBusy] = useState(false);
+  const [callErr, setCallErr] = useState('');
+  const publishCall = async () => {
+    if (!ws || !hero) return;
+    const value = Number(callDraft);
+    if (!Number.isFinite(value)) {
+      setCallErr('A call is a number');
+      return;
+    }
+    setCallErr('');
+    setCallBusy(true);
+    try {
+      await api.setOwnerCall(ws.workspaceId, { metricId: hero.metricId, targetDate: hero.targetDate, value });
+      setCallDraft('');
+      reload();
+    } catch (e) {
+      setCallErr((e as Error).message || 'Could not publish it');
+    } finally {
+      setCallBusy(false);
+    }
+  };
+
   const selectedJobDecided = !!selectedJob?.status && selectedJob.status !== 'pending';
   // Trading on both branches closes at the decision or the deadline
   // (docs/guides/proposals.md, "The deadline, and the close"): no verbs, no
@@ -2039,7 +2068,43 @@ export function TradePage() {
                           ))}
                       </span>
                     </div>
+                    {/* The owner's own call, ink, third
+                      (docs/owner-on-the-floor.md, "The owner's own call"). A
+                      record, not a control: it moves no price and pays
+                      nobody. It is here so the owner stands on the same hook
+                      as the people they are asking to forecast. */}
+                    {ownerCall && (
+                      <div className="pubws-stat-block pubws-stat--owner" aria-label="The owner's call">
+                        <span className="pubws-stat-what">
+                          {ownerCall.by}'s call
+                          {ownerCall.revisions > 0 ? ` · revised, ${ownerCall.revisions} behind it` : ''}
+                        </span>
+                        <span className="pubws-price">
+                          {unit}
+                          {formatValue(ownerCall.value)}
+                        </span>
+                      </div>
+                    )}
                   </div>
+                  {canManage && hero && (
+                    <div className="pubws-ownercall">
+                      <label className="pubws-ownercall-label" htmlFor="ownercall">
+                        Your call for this date
+                      </label>
+                      <input
+                        id="ownercall"
+                        className="pubws-decide-reason"
+                        value={callDraft}
+                        onChange={e => setCallDraft(e.target.value)}
+                        inputMode="decimal"
+                        placeholder={ownerCall ? String(ownerCall.value) : 'a number'}
+                      />
+                      <button type="button" className="pubws-decide" disabled={callBusy} onClick={publishCall}>
+                        Publish call
+                      </button>
+                      {callErr && <span className="pubws-ownerbar-note">{callErr}</span>}
+                    </div>
+                  )}
                   {/* The number chart, the hero: titled by the metric itself
                     (caption-shaped), its left cell empty because the stats
                     are above, a legend naming the marks below. */}
