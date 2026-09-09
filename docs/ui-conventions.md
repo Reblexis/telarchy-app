@@ -812,9 +812,9 @@ not do. The composed bet's ghost draws in whichever mode is on screen
 remembered for the session, not the page load.
 
 **The chart's footer is where the counts live** (revised 2026-09-09,
-moving them up from the tab row): under the plot, the market's money on the
-left and the range chips on the right, the way every exchange labels a
-chart. Two of the three counts take a word, because a bare number cannot
+moving them up from the tab row): one quiet row under the plot, the way
+every exchange labels a chart. The range chips stay in the chart's own
+control row above the plot, where they have always been. Two of the three counts take a word, because a bare number cannot
 say what it counts: "42k pool · 30k volume", mono and quiet
 (`.pubws-chartfoot`). The trader count keeps its icon and drops its label,
 since a number beside a person already reads as people. The full sentence
