@@ -4,24 +4,28 @@ import { useEffect, useRef } from 'react';
  * One axis of the floor's grid as a strip of tabs (docs/ui-conventions.md,
  * "The question line: the pickers, and the sentence", revised 2026-09-09).
  *
- * Each tab is its name over the market's current call, so the top of the
- * floor is the scoreboard of everything the floor prices, read without
- * pressing anything. The dropdown chips this replaced hid both how many
- * books a floor had and what any of them said.
+ * Only the DATE strip carries a call (owner ask 2026-09-09): a metric on
+ * its own is not a market, so a number under a metric's name is really the
+ * value for whichever date happens to be selected. With a proposal open the
+ * metric tabs do carry one, because then each is a pair the proposal prices.
  *
  * A tab with no price prints a dash, never a borrowed number: an unfunded
  * book is one nobody has priced, and inventing a value for it is worse than
- * admitting there is none.
+ * admitting there is none. A tab with nothing staked on it says so and is
+ * dead: there is nothing to trade there on arrival.
  */
 export interface StripTab {
   id: string;
   label: string;
-  /** The call, already formatted with its own unit; null when there is none. */
-  value: string | null;
+  /** The call, already formatted with its own unit. `null` prints the dash
+   *  (a book nobody has priced); `undefined` means this strip carries no
+   *  call at all, which is the metric strip outside a proposal. */
+  value?: string | null;
   selected: boolean;
-  /** A word under the value: "untraded" on a funded pair nobody has priced,
-   *  so a zero anchor is never passed off as an opinion. */
-  note?: string;
+  /** A cell with nothing staked on it: there is no forecast to show and
+   *  nothing to trade on arrival, so the tab is dead (owner ask
+   *  2026-09-09). */
+  disabled?: boolean;
   title?: string;
 }
 
@@ -69,13 +73,16 @@ export function FloorStrip({
           role="tab"
           data-tab={t.id}
           aria-selected={t.selected}
+          aria-disabled={t.disabled || undefined}
           title={t.title}
-          className={`pubws-strip-tab${t.selected ? ' is-selected' : ''}`}
-          onClick={() => onPick(t.id)}
+          className={`pubws-strip-tab${t.selected ? ' is-selected' : ''}${t.disabled ? ' is-dead' : ''}`}
+          onClick={() => {
+            if (t.disabled) return;
+            onPick(t.id);
+          }}
         >
           <span className="pubws-strip-name">{t.label}</span>
-          <span className="pubws-strip-val">{t.value ?? '-'}</span>
-          {t.note && <span className="pubws-strip-note">{t.note}</span>}
+          {t.value !== undefined && <span className="pubws-strip-val">{t.value ?? '-'}</span>}
         </button>
       ))}
       {manage && (

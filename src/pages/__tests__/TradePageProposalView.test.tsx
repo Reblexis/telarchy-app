@@ -252,12 +252,39 @@ describe('the strips say what it moves', () => {
     expect(tabs[1]).toMatch(/±0/);
   });
 
-  test('a funded pair nobody has traded says untraded, not an opinion', async () => {
+  test('a pair with no liquidity says so, and cannot be pressed', async () => {
+    // Owner ask 2026-09-09, replacing "untraded": "its just useless tag..
+    // if liuqidity isnt present.. then just dont make it clickable".
+    const ws = h.grid();
+    const pair = ws.proposals[0].markets[0];
+    pair.approvedLiquidity = 0;
+    pair.declinedLiquidity = 0;
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async () => ws as never);
     const { container } = renderFloor();
     await openProposal(container);
     const strip = screen.getByLabelText('Metrics');
     const reviews = [...strip.querySelectorAll('[role="tab"]')][1] as HTMLElement;
-    expect(words(reviews)).toContain('untraded');
+    expect(words(reviews)).toContain('no liquidity');
+    expect(reviews.getAttribute('aria-disabled')).toBe('true');
+    const before = reviews.getAttribute('aria-selected');
+    fireEvent.click(reviews);
+    expect(reviews.getAttribute('aria-selected')).toBe(before);
+  });
+
+  test('nothing anywhere says untraded any more', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    expect(container.querySelector('.pubws-strip-note')).toBeNull();
+    expect(container.textContent).not.toMatch(/untraded/i);
+  });
+
+  test('a funded pair keeps its impact, tagged with nothing', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    const strip = screen.getByLabelText('Metrics');
+    const rev = [...strip.querySelectorAll('[role="tab"]')][0] as HTMLElement;
+    expect(words(rev)).toMatch(/\+\$300/);
+    expect(rev.getAttribute('aria-disabled')).not.toBe('true');
   });
 
   test('the dates strip carries the impact at each date', async () => {

@@ -141,9 +141,15 @@ function pairAt(job: PublicProposal, targetDate: string | undefined, metricId: s
   );
 }
 
-/** A funded pair nobody has traded: its zero is the anchor, not an opinion. */
-function isUntraded(pair: { approvedVolume: number | null; declinedVolume: number | null }): boolean {
-  return (pair.approvedVolume ?? 0) === 0 && (pair.declinedVolume ?? 0) === 0;
+/**
+ * Whether anything is staked on a pair. Nothing staked means no forecast to
+ * print and nothing to trade on arrival, so the strip says "no liquidity"
+ * and the tab is dead (owner ask 2026-09-09, replacing the "untraded" note
+ * of the same day).
+ */
+function hasLiquidity(pair: { approvedLiquidity: number | null; declinedLiquidity: number | null } | null): boolean {
+  if (!pair) return false;
+  return (pair.approvedLiquidity ?? 0) > 0 || (pair.declinedLiquidity ?? 0) > 0;
 }
 
 /** What a proposal does to one cell, as a strip tab reads it. */
@@ -749,6 +755,23 @@ export function TradePage() {
     !!selectedJob &&
     (selectedJob.status ?? 'pending') === 'pending' &&
     (canManage || (!!myAgentId && selectedJob.proposedByHandle === myAgentId));
+
+  /* What the ticket says it trades, in the card (docs/ui-conventions.md,
+     "The rails, and the standings under the verbs", revised 2026-09-09):
+     a quiet line of context over the bold subject. */
+  const ticketSubject = (() => {
+    if (selectedJob) {
+      const bits = [`#${selectedJob.number}`, `if ${branch}`];
+      if (selectedJob.decideBy) bits.push(`decides ${dayOf(selectedJob.decideBy)}`);
+      return { context: bits.join(' · '), title: selectedJob.title };
+    }
+    if (!hero) return undefined;
+    const clock = /^(today|this week|this month)$/.test(hero.label) ? hero.label : '';
+    const subject = captionLabel(metricLabel, ws?.name);
+    const title = `${subject.charAt(0).toUpperCase()}${subject.slice(1)}${clock ? `, ${clock}` : ''}`;
+    const ctx = [ws?.name, hero.settleShort ? `settles ${hero.settleShort}` : null].filter(Boolean).join(' · ');
+    return { context: ctx, title };
+  })();
 
   const saveJobEdit = async () => {
     if (!selectedJob || !ws) return;
@@ -1564,18 +1587,16 @@ export function TradePage() {
                 tabs={metricHeads.map(m => {
                   const cell = cellOf(horizons, m.metricId, hero?.targetDate);
                   const cellPair = selectedJob ? pairAt(selectedJob, hero?.targetDate, m.metricId) : null;
+                  const dry = !!selectedJob && !hasLiquidity(cellPair);
                   return {
                     id: m.metricId,
                     label: captionLabel(m.metricLabel, ws.name),
-                    /* The call for the date on screen, so moving along the
-                       strip compares like with like; the proposal's impact on
-                       it when one is open. */
-                    value: selectedJob
-                      ? impactLabel(cellPair, cell?.unit ?? '')
-                      : cell && cell.consensus !== null
-                        ? `${cell.unit}${formatValue(cell.consensus)}`
-                        : null,
-                    note: selectedJob && cellPair && isUntraded(cellPair) ? 'untraded' : undefined,
+                    /* A metric on its own is not a market, so the plain view's
+                       metric tab is a NAME and nothing else (owner ask
+                       2026-09-09). With a proposal open each tab IS a pair the
+                       proposal prices, and the number is its claim about it. */
+                    value: selectedJob ? (dry ? 'no liquidity' : impactLabel(cellPair, cell?.unit ?? '')) : undefined,
+                    disabled: dry,
                     selected: hero?.metricId === m.metricId,
                   };
                 })}
@@ -1591,15 +1612,18 @@ export function TradePage() {
                   kind="date"
                   tabs={heroDates.map(d => {
                     const datePair = selectedJob ? pairAt(selectedJob, d.targetDate, d.metricId) : null;
+                    const dry = !!selectedJob && !hasLiquidity(datePair);
                     return {
                       id: d.marketId,
                       label: d.label,
                       value: selectedJob
-                        ? impactLabel(datePair, d.unit)
+                        ? dry
+                          ? 'no liquidity'
+                          : impactLabel(datePair, d.unit)
                         : d.consensus !== null
                           ? `${d.unit}${formatValue(d.consensus)}`
                           : null,
-                      note: selectedJob && datePair && isUntraded(datePair) ? 'untraded' : undefined,
+                      disabled: dry,
                       selected: d.marketId === hero.marketId,
                       title: d.resolvesOn ? `settles ${settleInstant(d.resolvesOn)}` : undefined,
                     };
@@ -2107,12 +2131,6 @@ export function TradePage() {
         </div>
         {/* The right rail: the ticket, and nothing else. */}
         <aside className="pubws-rail pubws-rail--right" aria-label="Your trade">
-          <div className="pubws-ticket-head">
-            <span className="pubws-h2">Your trade</span>
-            <span className="pubws-ticket-what">
-              {selectedJob ? selectedJob.title : `${captionLabel(metricLabel, ws.name)}, ${dateSegmentOf(hero)}`}
-            </span>
-          </div>
           {/* The rail IS the ticket (docs/ui-conventions.md, "The rails,
             and the standings under the verbs", revised 2026-09-09): what
             a trader does is on screen from the moment the page opens
@@ -2150,6 +2168,7 @@ export function TradePage() {
                 onRequireSignup={trading ? undefined : () => navigate(authPath('signup', location))}
                 initialDir={betModal === 'manage' || betModal === null ? undefined : betModal}
                 manageMode={betModal === 'manage'}
+                subject={ticketSubject}
               />
             </div>
           )}

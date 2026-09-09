@@ -190,3 +190,30 @@ describe('one rule of chrome', () => {
     expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
   });
 });
+
+describe('the ticket names its own subject', () => {
+  /**
+   * Kalshi carries the event and the subject inside the card, between the
+   * BUY/SELL row and the side prices. Ours had a "YOUR TRADE" label, a line
+   * of prose and a hairline stranded ABOVE the card (owner report
+   * 2026-09-09: "it looks super weird").
+   */
+  test('the subject sits under the tab rule, context quiet and title bold', () => {
+    const { container } = render(
+      <TradeTicket {...base} subject={{ context: 'LookPilot · settles 30 Sep', title: 'Net revenue, this month' }} />,
+    );
+    const subject = container.querySelector('.ticket-subject') as HTMLElement;
+    expect(subject).toBeTruthy();
+    expect(subject.querySelector('.ticket-subject-ctx')?.textContent).toBe('LookPilot · settles 30 Sep');
+    expect(subject.querySelector('.ticket-subject-title')?.textContent).toBe('Net revenue, this month');
+    const tabs = container.querySelector('.ticket-tabs') as Element;
+    const sides = container.querySelector('.ticket-seg') as Element;
+    expect(tabs.compareDocumentPosition(subject) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(subject.compareDocumentPosition(sides) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('a ticket with no subject draws no empty block', () => {
+    const { container } = render(<TradeTicket {...base} />);
+    expect(container.querySelector('.ticket-subject')).toBeNull();
+  });
+});

@@ -1831,3 +1831,31 @@ Not changed: the payoff line at a 1 cr stake really does read 0, 0, -1, -1.
 Those are the true numbers for a one-credit bet, and the line already falls
 back to the plain range bar at 0 cr, so nothing was invented to make a
 degenerate bet look interesting.
+
+**The ticket's subject, and three cuts to the strips** (Viktor, 2026-09-09,
+same evening). "i dont like the net revenue this month text theer the way it
+is .. it looks super weird", with Kalshi's ticket beside it: theirs carries
+the event and the subject INSIDE the card between the BUY/SELL row and the
+side prices, ours had a "YOUR TRADE" eyebrow, a line of prose and a hairline
+stranded above a 293px card that has a header of its own. The subject moved
+into the card, quiet context over a bold title.
+
+Then, on the strips:
+
+- "dont show the values here as it doesnt make sense given that they arent
+  individual markets" - the METRIC strip is names only now. A metric on its
+  own is not a market, so the number under it was really the value for
+  whichever date happened to be selected. This reverses part of the same
+  day's Kalshi steal (the strip as a scoreboard of every book); the date
+  strip still carries calls, and with a proposal open the metric tabs carry
+  its impacts, because then each tab really is a pair.
+- "dont show the untraded tag or whatever that is there.. its just useless
+  tag" - gone, on both strips.
+- "if liuqidity isnt present.. then just dont make it clickable in the first
+  place" and "instead of the prediction show 'no liquidity'" - a proposal
+  pair with nothing staked reads "no liquidity" and its tab is dead.
+
+One consequence to watch: a manager can no longer select an unfunded pair
+from the strip, so Inject on that cell is out of reach from there. Nobody
+has asked to fund a pair that way yet; if it comes up, the funding path
+belongs on the proposal's own board rather than behind a dead tab.
