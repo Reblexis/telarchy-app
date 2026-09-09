@@ -1,8 +1,12 @@
 import { and, eq, gt, inArray } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agents, earnClaims, liquidityPurchases, proposals, trades, workspaces } from '../db/schema';
-import { loadSeasonMarked } from '../lib/board';
-import { MANIFOLD_PAID_KEY, PROFITABLE_FORECASTER_MIN_CREDITS, WEEKLY_TRADER_MIN_CREDITS } from './platform-stats';
+import {
+  MANIFOLD_PAID_KEY,
+  PROFITABLE_FORECASTER_MIN_CREDITS,
+  platformMarkedProfit,
+  WEEKLY_TRADER_MIN_CREDITS,
+} from './platform-stats';
 
 /**
  * The window: the rows that already determine part of the next reading.
@@ -106,20 +110,14 @@ async function tradersBlock(now: Date): Promise<TraderWindow['traders']> {
   return { threshold: WEEKLY_TRADER_MIN_CREDITS, spend, lapses };
 }
 
-/** Marked profit per participant, over the same window the metric marks. */
-async function forecastersBlock(now: Date): Promise<TraderWindow['forecasters']> {
-  const windowStart = new Date(now.getTime() - 30 * DAY_MS);
-  const windowEnd = new Date(now.getTime() + 366 * DAY_MS);
-  const [allWs, house] = await Promise.all([
-    db.select({ id: workspaces.id }).from(workspaces),
-    db.select({ id: agents.id, admin: agents.platformAdmin, operated: agents.platformOperated }).from(agents),
-  ]);
-  const houseIds = new Set(house.filter(h => h.admin === true || h.operated === true).map(h => h.id));
-  const marked = await loadSeasonMarked(
-    allWs.map(w => w.id),
-    windowStart,
-    windowEnd,
-  );
+/**
+ * Marked profit per participant, from the same board pass the metric counts.
+ *
+ * Shared rather than recomputed: it is the heaviest read on the page, and a
+ * second pass could also disagree with the count printed beside it.
+ */
+async function forecastersBlock(now?: Date): Promise<TraderWindow['forecasters']> {
+  const { profit: marked, houseIds } = await platformMarkedProfit(now);
   const profit = [...marked.entries()]
     .filter(([agentId]) => !houseIds.has(agentId))
     .map(([, p]) => Math.round(p))
@@ -173,10 +171,13 @@ async function revenueBlock(now: Date): Promise<TraderWindow['revenue']> {
   return { payments };
 }
 
-export async function buildTraderWindow(now = new Date()): Promise<TraderWindow> {
+export async function buildTraderWindow(at?: Date): Promise<TraderWindow> {
+  const now = at ?? new Date();
   const [traders, forecasters, owners, revenue] = await Promise.all([
     tradersBlock(now),
-    forecastersBlock(now),
+    // `at` rather than `now`: a caller that did not name an instant shares the
+    // cached board pass with the metric, which is the point of sharing it.
+    forecastersBlock(at),
     ownersBlock(),
     revenueBlock(now),
   ]);

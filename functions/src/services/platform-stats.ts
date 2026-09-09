@@ -158,7 +158,14 @@ export const WEEKLY_TRADER_MIN_CREDITS = 100;
  * this number and the leaderboard can never disagree about a trader; only the
  * window and the threshold are decided here.
  */
-export async function profitableForecasters30d(now = new Date()): Promise<number> {
+export interface PlatformMarkedProfit {
+  /** agentId -> marked profit over the window, house included. */
+  profit: Map<string, number>;
+  /** The platform's own accounts, which no count of forecasters includes. */
+  houseIds: Set<string>;
+}
+
+async function computeMarkedProfit(now: Date): Promise<PlatformMarkedProfit> {
   const windowStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   // Far enough ahead that every open market's settlement falls inside it, so
   // the open half marks every held position rather than only the ones
@@ -171,12 +178,36 @@ export async function profitableForecasters30d(now = new Date()): Promise<number
       .from(agents)
       .where(sql`${agents.platformAdmin} = true or ${agents.platformOperated} = true`),
   ]);
-  const houseIds = new Set(house.map(h => h.id));
   const profit = await loadSeasonMarked(
     allWs.map(w => w.id),
     windowStart,
     windowEnd,
   );
+  return { profit, houseIds: new Set(house.map(h => h.id)) };
+}
+
+/**
+ * One board pass over every workspace, cached for a minute.
+ *
+ * Two public surfaces need it in the same breath: the metric (the count at or
+ * above the threshold) and the data room's window block (the distribution
+ * itself). It is the heaviest read either of them does, so it is computed
+ * once and shared, which also makes it impossible for the count and the
+ * distribution beside it to disagree. A caller that names its own `now`
+ * (tests, and anything reconstructing a past instant) bypasses the cache.
+ */
+const markedCache = ttlCache({
+  ttlMs: 60_000,
+  keyOf: () => 'marked',
+  load: () => computeMarkedProfit(new Date()),
+});
+
+export function platformMarkedProfit(now?: Date): Promise<PlatformMarkedProfit> {
+  return now ? computeMarkedProfit(now) : markedCache.get();
+}
+
+export async function profitableForecasters30d(now?: Date): Promise<number> {
+  const { profit, houseIds } = await platformMarkedProfit(now);
   let n = 0;
   for (const [agentId, p] of profit) {
     if (houseIds.has(agentId)) continue;
