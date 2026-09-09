@@ -2,25 +2,9 @@ import { and, desc, eq, gt, inArray, isNotNull } from 'drizzle-orm';
 import { db } from '../db/client';
 import { announcements, proposals } from '../db/schema';
 
-/**
- * What moved it: the dated things the owner did, for the floor to draw
- * against the line they moved.
- *
- * Spec: docs/ui-conventions.md, "The price and the chart". The chart drew a
- * metric's history with nothing to explain it. A jump on a particular day had
- * a cause, the cause was already in the database with a date on it, and the
- * page said nothing, so every reader had to reconstruct it by memory or not
- * at all.
- *
- * An event is something the owner DID that a forecaster could not otherwise
- * see happen on a date: an announcement, a decision, a delivery. Posting a
- * proposal is not one - anyone can post one and it moves nothing until it is
- * decided.
- *
- * No number is attached to an event. What the metric did afterwards is on the
- * chart the marks sit on, and printing it beside the label would be the same
- * fact stated twice, the second time rounded.
- */
+/** Dated context for the data room (docs/data-room.md, "What moved it").
+ * Announcements, decisions and any historical deliveries are events. Their
+ * proximity to a metric reading does not establish causation. */
 
 export type FloorEventKind = 'announcement' | 'approved' | 'declined' | 'delivered';
 

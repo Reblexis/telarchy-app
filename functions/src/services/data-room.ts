@@ -7,6 +7,7 @@ import { ttlCache } from '../lib/ttl-cache';
 import { humanVisitFilter } from '../lib/visit-log';
 import { buildBaseRates } from './base-rates';
 import { buildCalendar } from './calendar';
+import { buildFloorEvents } from './floor-events';
 import { paidManifoldLinkCount, platformStats } from './platform-stats';
 import { buildTraderWindow } from './trader-window';
 
@@ -285,7 +286,7 @@ export function buildDataRoomFeed(): Promise<DataRoomFeed> {
 }
 
 async function computeDataRoomFeed(): Promise<DataRoomFeed> {
-  const [stats, tract, contractRows, traf, windowRows, rates, calendar] = await Promise.all([
+  const [stats, tract, contractRows, traf, windowRows, rates, calendar, events] = await Promise.all([
     platformStats(),
     traction(),
     contracts(),
@@ -293,6 +294,7 @@ async function computeDataRoomFeed(): Promise<DataRoomFeed> {
     buildTraderWindow(),
     buildBaseRates(),
     buildCalendar(),
+    process.env.SELF_SYNC_WORKSPACE_ID ? buildFloorEvents(process.env.SELF_SYNC_WORKSPACE_ID) : Promise.resolve([]),
   ]);
   const chain = funnel({
     loads: traf.totalVisits,
@@ -326,6 +328,7 @@ async function computeDataRoomFeed(): Promise<DataRoomFeed> {
       // The dates already committed, so a forecaster can see the owner's
       // calendar (docs/data-room.md, "What is scheduled").
       calendar,
+      events,
       traction: tract,
       contracts: contractRows,
       traffic: traf,
@@ -444,6 +447,17 @@ function renderBlock(name: string, feed: DataRoomFeed): string {
           `  ${m.name}: ${m.readings.map((r: number | null) => (r === null ? 'not read' : fmt(r))).join(', ')}`,
       ),
     ].join('\n');
+  }
+
+  if (name === 'events') {
+    return v.length
+      ? [
+          'What moved it (dated context, not proof of causation):',
+          ...[...v]
+            .sort((a: any, b: any) => a.at.localeCompare(b.at))
+            .map((e: any) => `  ${e.at.slice(0, 10)}: ${e.label} (${e.kind})`),
+        ].join('\n')
+      : 'No events recorded yet.';
   }
 
   if (name === 'calendar') {

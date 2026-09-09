@@ -441,22 +441,6 @@ export interface ProfileProposedJob {
   createdAt: string;
 }
 
-export interface SettledCall {
-  workspaceId: string;
-  workspaceName: string;
-  workspaceSlug: string;
-  marketId: string;
-  metricName: string;
-  targetDate: string;
-  resolvedAt: string;
-  /** What the market settled on. */
-  close: number;
-  /** The market's call as this participant left it, or null if never recorded. */
-  call: number | null;
-  rangeMin: number;
-  rangeMax: number;
-}
-
 export interface PublicParticipantProfile {
   id: string;
   nickname: string | null;
@@ -494,11 +478,6 @@ export interface PublicParticipantProfile {
   activeWorkspaces: Array<{ id: string; name: string }>;
   openPositions: PublicProfilePosition[];
   recentTrades: PublicProfileTrade[];
-  /** Every settled market this participant traded: what it closed at and what
-   *  they last called it (the consensus recorded on their last trade in that
-   *  book). Newest settlement first; viewer-scoped like openPositions. A call
-   *  the platform never recorded is null, never zero. */
-  settledCalls: SettledCall[];
   /** Jobs this participant proposed on public boards, newest first. */
   proposedJobs: ProfileProposedJob[];
   /** Daily balance snapshots (credits) plus a live "now" point. Snapshots are
@@ -604,13 +583,6 @@ export interface PublicWorkspace {
   /** Hero-metric logged history (oldest first), the evidence a forecaster
    *  prices against. Same Open-workspace disclosure rule as the ballot. */
   heroHistory?: Array<{ at: string; value: number }>;
-  /** The dated things the owner did, marked against the line they moved
-   *  (docs/ui-conventions.md, "The price and the chart"): announcements,
-   *  decisions, deliveries. Newest first; the chart and the list beneath it
-   *  number them oldest first. */
-  heroEvents?: FloorEvent[];
-  /** The owner's own calls, newest per metric and date. */
-  ownerCalls?: OwnerCall[];
   /** The metric's own description: the owner's provenance statement. */
   heroMetricDescription?: string | null;
   /** The hero metric's id, so a manager can edit that description in place.
@@ -707,26 +679,6 @@ export interface PublicProposalMarketPair {
   rangeMax: number;
 }
 
-/** The owner's own call for a metric at a date, beside the market's
- *  (docs/owner-on-the-floor.md, "The owner's own call"). `revisions` is how
- *  many earlier calls stand behind this one; calls are append-only. */
-export interface OwnerCall {
-  metricId: string;
-  targetDate: string;
-  value: number;
-  at: string;
-  by: string;
-  revisions: number;
-}
-
-/** A dated thing the owner did, drawn against the line it moved
- *  (docs/ui-conventions.md, "The price and the chart"). */
-export interface FloorEvent {
-  at: string;
-  kind: 'announcement' | 'approved' | 'declined' | 'delivered';
-  label: string;
-}
-
 export interface PublicProposal {
   id: string;
   /** The short per-floor ordinal a person names it by, "#7" (docs/
@@ -750,14 +702,6 @@ export interface PublicProposal {
   decideBy?: string | null;
   closedAt?: string | null;
   lapsedAt?: string | null;
-  /** Whether the approved work happened (docs/guides/proposals.md, "After
-   *  approval: say whether it happened"). Read only on an approved proposal:
-   *  a declined one was never promised and a pending one has nothing to
-   *  report. Absent on a payload from before the field, which reads as
-   *  'not_started', never as delivered. */
-  deliveryState?: 'not_started' | 'in_progress' | 'delivered';
-  deliveryNote?: string | null;
-  deliveredAt?: string | null;
   proposedByName: string | null;
   /** Resolvable segment for /participants/:id (participant id; the page
    *  also resolves nicknames). */
@@ -840,6 +784,7 @@ export type DataRoomBlock =
   | 'funnel'
   | 'window'
   | 'rates'
+  | 'events'
   | 'calendar'
   | 'traction'
   | 'contracts'
@@ -899,6 +844,8 @@ export interface DataRoomFeed {
       weeks: string[];
       metrics: Array<{ name: string; readings: Array<number | null> }>;
     };
+    /** Dated context from Telarchy's own workspace; no causal effect is asserted. */
+    events: Array<{ at: string; kind: string; label: string }>;
     /** The dates the platform already holds: books settling, proposals to be
      *  decided, and the outreach list as stages with nobody named. */
     calendar: {
@@ -1867,17 +1814,6 @@ export const api = {
       }>;
     }>,
   approveProposal: (id: string) => request(`/api/proposals/${id}/approve`, { method: 'POST' }),
-  /** Publish what YOU expect a metric to read at a date, beside what the
-   *  market says. Append-only: this never edits an earlier call. */
-  setOwnerCall: (workspaceId: string, body: { metricId: string; targetDate: string; value: number }) =>
-    request(`/api/workspaces/${workspaceId}/calls`, { method: 'POST', body: JSON.stringify(body) }),
-  /** Say whether the approved work happened (docs/guides/proposals.md, "After
-   *  approval: say whether it happened"). Only an approved proposal has one. */
-  setProposalDelivery: (id: string, state: 'not_started' | 'in_progress' | 'delivered', note?: string) =>
-    request(`/api/proposals/${id}/delivery`, {
-      method: 'POST',
-      body: JSON.stringify({ state, note: note ?? '' }),
-    }),
   /** `declineReason` is published permanently on the proposal. Required by the
    *  backend when the workspace has a charter, since that is the promise. */
   /** Admin: take a job off the board entirely (refunds every stake first). */

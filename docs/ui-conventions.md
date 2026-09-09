@@ -266,7 +266,7 @@ is verified, and one line of standing: "Trading since <month day, year> ·
 #N on the leaderboard" (the rank line is omitted when the participant has
 no rank). The bio follows when set.
 
-**The stats strip** is one ruled band of four cells, and every number in
+**The stats strip** is one ruled band of three cells, and every number in
 it is one the platform already reports elsewhere, so the profile never
 disagrees with another page:
 
@@ -276,10 +276,6 @@ disagrees with another page:
 - **Balance**: the participant's tradeable credits right now, platform-wide
   (the live point of the balance history), with "N cr in positions"
   beneath: what their open positions are worth at the current call, summed.
-- **Accuracy**: the share of resolved markets that settled on the side they
-  held, the leaderboard's own figure, with "of N resolved" beneath. A
-  participant with nothing resolved reads "not yet", never 0%: a forecaster
-  who has not been scored has no score, and a zero would say they were wrong.
 - **Trades**: how many, with "N cr traded · <ago>" beneath. The
   traded figure is credits moved by their buys and sells on public floors;
   redemptions are not trades and do not count.
@@ -289,18 +285,6 @@ invested and profit tiles are: the pressed cell (its label in ink, a 2px
 ink rule under it) is the series the chart below draws, and Balance is
 pressed on arrival. Trades is a number, not a series, and is not
 pressable.
-
-**Settled** is every market they traded that has resolved, newest first:
-the metric and date, then "closed X · called Y · range A to B", the two
-values as marks on that market's own scale (the close in ink, their call in
-the accent), and the distance between them on the right. Their call is the
-market's call as they left it, the consensus recorded on their last trade in
-that book, so a participant who traded once and never came back is scored on
-what they actually said. A call the platform never recorded (a trade older
-than those columns) draws no mark and says "no call recorded": a dot at zero
-would read as a forecast of zero. Each row's scale is its own, because a
-revenue book running to $1,000 and a trader count running to 50 share no
-axis and normalising them would be a summary statistic wearing a drawing.
 
 **The chart** is the floor's market chart (`MarketChart`, "The price and
 the chart") drawing the pressed cell's series, ending on the live point:
@@ -736,21 +720,6 @@ it.** A newcomer reads the floor top to bottom: what the number is, what it
 reads now, what the market says it will read, then the picture of both on
 one axis. Everything in this section serves that order (decision record:
 `notes/decisions/ui-conventions.md`, 2026-09-03).
-
-**What moved it.** The dated things the owner did are marked against the
-line they moved: an announcement, a decision, a delivery. Each is a numbered
-dot on a dashed hairline through the plot, and under the chart the same
-events are one hairline row each, oldest first, carrying the number, the day,
-the label and which kind of thing it was. The numbering is over the whole
-list rather than the visible window, so a mark and a row name each other
-whatever range is selected. Only past events inside the window are marked: a
-mark with no line under it explains nothing, and one in the future has moved
-nothing yet. A proposal being POSTED is not an event; anyone can post one and
-it moves nothing until it is decided.
-
-**No figure sits beside an event.** What the number did afterwards is the
-line the marks stand on. "+3 in the week after" would be the same fact stated
-twice, the second time rounded, over a seven-day window nobody chose.
 
 **The summary line.** When the metric has a definition, its FIRST SENTENCE
 prints under the question line in the quiet register

@@ -2055,7 +2055,7 @@ button.notif-row-link {
 
 .prof-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-top: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
 }
@@ -2103,35 +2103,6 @@ button.notif-row-link {
   font-variant-numeric: tabular-nums;
   font-size: 0.72rem;
   color: var(--text-tertiary);
-}
-
-/* One settled market: the close in ink, their call in the accent, on that
-   market's own scale. Two markets with different ranges share no axis, so
-   each row carries its own. */
-.prof-call-scale {
-  flex: none;
-  width: 180px;
-  height: 20px;
-  align-self: center;
-}
-.prof-call-axis { stroke: var(--border-color); stroke-width: 1; }
-.prof-call-gap { stroke: var(--border-strong); stroke-width: 2; }
-.prof-call-dot.is-close { fill: var(--text-primary); }
-.prof-call-dot.is-call { fill: var(--accent); stroke: var(--bg-primary); stroke-width: 2; }
-.prof-call-dist {
-  flex: none;
-  width: 5.4rem;
-  text-align: right;
-  font-family: 'JetBrains Mono', monospace;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-@media (max-width: 620px) {
-  /* The scale is the first thing to go: the numbers beside it say the same. */
-  .prof-call-scale { display: none; }
 }
 /* A phone's three cells are 110px wide: the unit goes, the sub-lines
    wrap, and a six-figure balance still fits on its line. */
@@ -2504,76 +2475,6 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
 }
 .pubws-ballot-clock.is-urgent { color: var(--lower); }
 
-/* The marks on the number chart, and the list that names them
-   (docs/ui-conventions.md, "The price and the chart"). The mark is a numbered
-   dot on a hairline dropped through the plot; the number is the row's number
-   in the list, so the two name each other without a legend. */
-.numchart-event-rule { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 2 3; }
-.numchart-event-dot { fill: var(--accent); }
-.numchart-event-num {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  font-weight: 600;
-  fill: var(--button-text);
-}
-
-.pubws-moved { margin-top: 1.6rem; }
-
-.pubws-moved-list { list-style: none; margin: 0.7rem 0 0; padding: 0; border-top: 1px solid var(--border-color); }
-
-.pubws-moved-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.7rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.84rem;
-}
-
-.pubws-moved-num {
-  flex: none;
-  width: 1.2rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  color: var(--accent);
-}
-
-.pubws-moved-day {
-  flex: none;
-  width: 3.8rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  color: var(--text-tertiary);
-}
-
-.pubws-moved-what { flex: 1; color: var(--text-secondary); line-height: 1.45; text-align: left; }
-
-.pubws-moved-kind {
-  flex: none;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
-}
-
-/* Whether an approved proposal's work happened (docs/guides/proposals.md,
-   "After approval: say whether it happened"). Neutral grey like every other
-   state chip; "not started" is the one that gets the accent, because it is
-   the state a reader would otherwise assume away. */
-.pubws-ballot-delivery {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.66rem;
-  letter-spacing: 0.02em;
-  color: var(--text-tertiary);
-}
-.pubws-ballot-delivery.is-not_started { color: var(--accent); }
-
-/* The pressed state on an owner's segmented control. */
-.pubws-decide.is-on {
-  border-color: var(--text-primary);
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
 /* The owner's three words under the buttons, and the extend field: last in
    the bar and on their own line, whatever order the buttons come in. */
 .pubws-ownerbar-note {
@@ -2846,28 +2747,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   background: var(--bg-primary);
   text-align: left;
 }
-
-/* Three cells when the owner has published a call for the date on screen
-   (docs/owner-on-the-floor.md, "The owner's own call"): the reading, the
-   market's call, the owner's. Two otherwise, exactly as before. */
-.pubws-stats:has(.pubws-stat--owner) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-
-/* The owner's field for it: the ballot's own input and button, under the
-   stat row rather than in it, because the row is a reading. */
-.pubws-ownercall {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.7rem;
-}
-.pubws-ownercall-label {
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-tertiary);
-}
-
 .pubws-stat--call { padding-left: 1.25rem; }
 .pubws-stat--call .pubws-price { color: var(--accent); }
 .pubws-stat-value { display: inline-flex; align-items: baseline; gap: 0.6rem; }

@@ -14,7 +14,7 @@ import { FloorChecklist } from '../components/FloorChecklist';
 import { FloorComments } from '../components/FloorComments';
 import { FloorStandings, type ProposalTraderRow, SeasonAdvert, useCurrentSeason } from '../components/FloorRails';
 import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
-import { DELIVERY_WORD, fmtDay, JobsBoard, splitAsk } from '../components/JobsBoard';
+import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { Logo } from '../components/Logo';
 import { ManifoldButton } from '../components/ManifoldButton';
 import { MarketChart } from '../components/MarketChart';
@@ -28,7 +28,6 @@ import { ReportButton } from '../components/ReportButton';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { type TicketPosition, TradeTicket } from '../components/TradeTicket';
-import { WhatMovedIt } from '../components/WhatMovedIt';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import type { FloorRef } from '../lib/agent-prompt';
@@ -352,11 +351,6 @@ export function TradePage() {
   const [jobSaving, setJobSaving] = useState(false);
   const [jobErr, setJobErr] = useState('');
   const [declineReason, setDeclineReason] = useState<string | null>(null); // null = decline not open
-  // After approval: whether the approved work happened
-  // (docs/guides/proposals.md). The note is the owner's one line about it.
-  const [deliveryNote, setDeliveryNote] = useState('');
-  const [deliveryBusy, setDeliveryBusy] = useState(false);
-  const [deliveryErr, setDeliveryErr] = useState('');
   const [decideBusy, setDecideBusy] = useState(false);
   const [decideErr, setDecideErr] = useState('');
   // Removing a job is not a decision and has no undo in the UI, so it arms
@@ -474,20 +468,6 @@ export function TradePage() {
       })
       .catch(() => {});
   }, [canManage, ws?.workspaceId]);
-
-  const setDelivery = async (state: 'not_started' | 'in_progress' | 'delivered') => {
-    if (!selectedJobId) return;
-    setDeliveryErr('');
-    setDeliveryBusy(true);
-    try {
-      await api.setProposalDelivery(selectedJobId, state, deliveryNote.trim());
-      reload();
-    } catch (e) {
-      setDeliveryErr((e as Error).message || 'Could not record it');
-    } finally {
-      setDeliveryBusy(false);
-    }
-  };
 
   const decide = async (action: 'approve' | 'decline', refund = false) => {
     if (!selectedJobId || !ws) return;
@@ -718,42 +698,6 @@ export function TradePage() {
     null;
   // A decided job is history: its markets are resolved, so trading is paused;
   // the page still shows the impact that was priced for it.
-  // The note field follows the proposal on screen, so switching proposals
-  // never carries one proposal's line onto another.
-  useEffect(() => {
-    setDeliveryNote(selectedJob?.deliveryNote ?? '');
-    setDeliveryErr('');
-  }, [selectedJob?.id, selectedJob?.deliveryNote]);
-
-  // The owner's own call for the metric and date on screen
-  // (docs/owner-on-the-floor.md, "The owner's own call"). Beside the market's
-  // number, never instead of it, and absent on a floor that has made none.
-  const ownerCall = (ws?.ownerCalls ?? []).find(
-    c => c.metricId === hero?.metricId && c.targetDate === hero?.targetDate,
-  );
-  const [callDraft, setCallDraft] = useState('');
-  const [callBusy, setCallBusy] = useState(false);
-  const [callErr, setCallErr] = useState('');
-  const publishCall = async () => {
-    if (!ws || !hero) return;
-    const value = Number(callDraft);
-    if (!Number.isFinite(value)) {
-      setCallErr('A call is a number');
-      return;
-    }
-    setCallErr('');
-    setCallBusy(true);
-    try {
-      await api.setOwnerCall(ws.workspaceId, { metricId: hero.metricId, targetDate: hero.targetDate, value });
-      setCallDraft('');
-      reload();
-    } catch (e) {
-      setCallErr((e as Error).message || 'Could not publish it');
-    } finally {
-      setCallBusy(false);
-    }
-  };
-
   const selectedJobDecided = !!selectedJob?.status && selectedJob.status !== 'pending';
   // Trading on both branches closes at the decision or the deadline
   // (docs/guides/proposals.md, "The deadline, and the close"): no verbs, no
@@ -1741,44 +1685,6 @@ export function TradePage() {
                       })}
                     </p>
                   )}
-                  {/* After approval: whether it happened
-                    (docs/guides/proposals.md, "After approval: say whether it
-                    happened"). The market priced "if approved, X"; a reader
-                    who cannot see whether the approved thing was done cannot
-                    tell a market that was wrong from a promise that was not
-                    kept. */}
-                  {!editingJob && selectedJob.status === 'approved' && !selectedJob.lapsedAt && (
-                    <p className="pubws-proposal-meta">
-                      {DELIVERY_WORD[selectedJob.deliveryState ?? 'not_started']}
-                      {selectedJob.deliveryState === 'delivered' && selectedJob.deliveredAt
-                        ? ` ${fmtDay(selectedJob.deliveredAt)}`
-                        : ''}
-                      {selectedJob.deliveryNote ? ` · ${selectedJob.deliveryNote}` : ''}
-                    </p>
-                  )}
-                  {canManage && !editingJob && selectedJob.status === 'approved' && !selectedJob.lapsedAt && (
-                    <div className="pubws-ownerbar pubws-enter pubws-enter--1">
-                      <input
-                        className="pubws-decide-reason"
-                        value={deliveryNote}
-                        onChange={e => setDeliveryNote(e.target.value)}
-                        placeholder="What happened, published on the proposal"
-                        aria-label="Delivery note"
-                      />
-                      {(['not_started', 'in_progress', 'delivered'] as const).map(state => (
-                        <button
-                          key={state}
-                          type="button"
-                          className={`pubws-decide${(selectedJob.deliveryState ?? 'not_started') === state ? ' is-on' : ''}`}
-                          disabled={deliveryBusy}
-                          onClick={() => setDelivery(state)}
-                        >
-                          {DELIVERY_WORD[state]}
-                        </button>
-                      ))}
-                      {deliveryErr && <span className="pubws-ownerbar-note">{deliveryErr}</span>}
-                    </div>
-                  )}
                   {/* The proposer's own controls. A proposal is a listing its
                     author should be able to correct: a typo, a clearer
                     description, a price they got wrong before anyone traded. */}
@@ -2068,43 +1974,7 @@ export function TradePage() {
                           ))}
                       </span>
                     </div>
-                    {/* The owner's own call, ink, third
-                      (docs/owner-on-the-floor.md, "The owner's own call"). A
-                      record, not a control: it moves no price and pays
-                      nobody. It is here so the owner stands on the same hook
-                      as the people they are asking to forecast. */}
-                    {ownerCall && (
-                      <div className="pubws-stat-block pubws-stat--owner" aria-label="The owner's call">
-                        <span className="pubws-stat-what">
-                          {ownerCall.by}'s call
-                          {ownerCall.revisions > 0 ? ` · revised, ${ownerCall.revisions} behind it` : ''}
-                        </span>
-                        <span className="pubws-price">
-                          {unit}
-                          {formatValue(ownerCall.value)}
-                        </span>
-                      </div>
-                    )}
                   </div>
-                  {canManage && hero && (
-                    <div className="pubws-ownercall">
-                      <label className="pubws-ownercall-label" htmlFor="ownercall">
-                        Your call for this date
-                      </label>
-                      <input
-                        id="ownercall"
-                        className="pubws-decide-reason"
-                        value={callDraft}
-                        onChange={e => setCallDraft(e.target.value)}
-                        inputMode="decimal"
-                        placeholder={ownerCall ? String(ownerCall.value) : 'a number'}
-                      />
-                      <button type="button" className="pubws-decide" disabled={callBusy} onClick={publishCall}>
-                        Publish call
-                      </button>
-                      {callErr && <span className="pubws-ownerbar-note">{callErr}</span>}
-                    </div>
-                  )}
                   {/* The number chart, the hero: titled by the metric itself
                     (caption-shaped), its left cell empty because the stats
                     are above, a legend naming the marks below. */}
@@ -2142,7 +2012,6 @@ export function TradePage() {
                       unit={unit}
                       now={now}
                       preview={chartPreview}
-                      events={ws.heroEvents}
                       center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
                     />
                   </div>
@@ -2163,10 +2032,6 @@ export function TradePage() {
                       secondary={chartSecondary}
                     />
                   </div>
-                  {/* The marks on the number chart, in words: what the owner
-                    did and when. No figure of its own; what the number did
-                    afterwards is the line above (docs/ui-conventions.md). */}
-                  <WhatMovedIt events={ws.heroEvents ?? []} />
                 </div>
               )}
               {/* What is left to reach the price, in the reader's own arithmetic

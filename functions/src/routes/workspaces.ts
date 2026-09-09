@@ -33,7 +33,6 @@ import { getAuthWorkspaceMemberships } from '../middleware/auth';
 import { computeCapabilities } from '../middleware/capabilities';
 import { requireCapability, requireIdentity } from '../middleware/roles';
 import { voidMarket } from '../services/markets';
-import { latestOwnerCalls, recordOwnerCall } from '../services/owner-calls';
 import { createWorkspaceFromTemplate, WorkspaceCreateError } from '../services/workspace-create';
 import type { AuthInfo } from '../types';
 
@@ -726,33 +725,6 @@ async function attributedPublisher(
  * an announcement proves is that a disclosure existed at a time, so a
  * timestamp the publisher picks would make the whole surface decorative.
  */
-/**
- * The owner's own call: what they expect a metric to read at a date, beside
- * what the market says (docs/owner-on-the-floor.md, "The owner's own call").
- *
- * Append-only. This never edits an earlier call, because a forecast that can
- * be rewritten after the fact is not one; the floor prints the newest and how
- * many stand behind it.
- */
-workspacesRouter.post(
-  '/:id/calls',
-  requireCapability('manage'),
-  wrap(async (req, res) => {
-    const workspaceId = req.params.id as string;
-    const { metricId, targetDate, value } = req.body ?? {};
-    if (typeof metricId !== 'string' || !metricId) {
-      res.status(400).json({ error: 'metricId is required' });
-      return;
-    }
-    await recordOwnerCall(
-      workspaceId,
-      { metricId, targetDate: String(targetDate ?? ''), value: Number(value) },
-      req.auth?.agentId ?? 'owner',
-    );
-    res.json({ ok: true, calls: await latestOwnerCalls(workspaceId) });
-  }),
-);
-
 workspacesRouter.post(
   '/:id/announcements',
   requireCapability('manage'),

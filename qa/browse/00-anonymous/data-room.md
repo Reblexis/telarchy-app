@@ -112,3 +112,14 @@ curl -sf "$TT_BASE_URL/api/data-room" \
   driven here; T3 asserts the first page of the log renders.
 - Nothing asserts the page against a floor with no open market (the "No open
   market on this floor right now" branch), because production always has one.
+
+## Event context belongs to the data room
+
+At desktop and phone widths, open the What moved it section. Each recorded
+announcement or decision has a date, label and kind. Empty history says
+"No events recorded yet." The markdown section and JSON feed carry the same
+rows. The existing weekly readings, window, calendar and outreach stages remain.
+
+Open a workspace floor: its number chart has no event markers and there is no
+What moved it section, owner-call editor or delivery editor. Participant profiles
+retain their earlier layout. These additions are not part of data-room work.

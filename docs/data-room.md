@@ -255,3 +255,19 @@ machine-derived and unarguable) and the subjects themselves, newest first.
 4. `data-room.test.ts` pins the contract: the route answers anonymously, every
    block the prose names is one the feed carries, and the traffic rollup counts
    what the cockpit counts.
+
+
+## What moved it
+
+The data room shows the twelve most recent dated announcements and proposal
+decisions from Telarchy's configured self-sync workspace, ordered oldest first.
+Any already-recorded delivery is included. Each row names the day, event and
+kind. These events give context for the readings; they do not establish that
+the event caused a change. An empty record says no events are recorded. The
+same rows are published in the JSON feed and markdown section for agents.
+
+This context belongs only in the data room. Workspace floors keep their prior
+charts and controls, with no event markers, What moved it section, owner-call
+controls, or delivery controls. Participant profiles keep their prior layout.
+Previously applied migrations remain in the journal to preserve stored data;
+the reverted controls and their new write endpoints are absent.

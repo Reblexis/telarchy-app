@@ -32,6 +32,7 @@ import request from 'supertest';
 import { DATA_ROOM_MARKDOWN, KNOWN_BLOCKS } from '../content/data-room';
 import {
   agents,
+  announcements,
   earnClaims,
   markets,
   metricLogs,
@@ -347,4 +348,33 @@ describe('what Otto browses', () => {
     // "since 0" would read as a measurement rather than as an absence.
     expect(renderDataRoomSection(feed, 'traffic')).toContain('not published');
   });
+});
+
+test('EVENT HISTORY IS PUBLISHED IN BOTH THE DATA ROOM FEED AND ITS AGENT SECTION', async () => {
+  const saved = process.env.SELF_SYNC_WORKSPACE_ID;
+  process.env.SELF_SYNC_WORKSPACE_ID = WS;
+  try {
+    await seed();
+    await db
+      .insert(announcements)
+      .values({
+        id: 'data-room-event',
+        workspaceId: WS,
+        body: 'Opened the market',
+        publishedBy: 'a1',
+        publishedAt: new Date('2026-09-01'),
+      });
+    clearDataRoomCache();
+    const feed = await buildDataRoomFeed();
+    expect((feed.evidence as any).events).toEqual(
+      expect.arrayContaining([expect.objectContaining({ label: 'Opened the market' })]),
+    );
+    const section = feed.doc.sections.find(s => s.blocks.includes('events' as any));
+    expect(section).toBeDefined();
+    expect(renderDataRoomSection(feed, section!.id)).toContain('Opened the market');
+  } finally {
+    if (saved === undefined) delete process.env.SELF_SYNC_WORKSPACE_ID;
+    else process.env.SELF_SYNC_WORKSPACE_ID = saved;
+    clearDataRoomCache();
+  }
 });

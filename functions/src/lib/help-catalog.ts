@@ -748,13 +748,6 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
         'Approve a pending proposal. The declined branch is voided and refunded; the approved branch closes to trading (buys and sells alike, code proposal_closed; open limit orders released) and its positions settle against the metric at its date. If the workspace has proposalReward > 0, debits owner balance and credits proposer; returns 409 if owner balance is insufficient.',
     },
     {
-      method: 'POST',
-      path: '/api/proposals/:id/delivery',
-      auth: 'admin',
-      description:
-        "Say whether the approved work happened. Body: { state, note? } where state is not_started | in_progress | delivered and note is one line (max 1000 chars) published on the proposal; an omitted note keeps the one already there, an empty one clears it. Only an approved proposal has a delivery state: a pending or declined one answers 400. delivered stamps deliveredAt; moving back off delivered clears it. The state is public on the proposal (deliveryState, deliveryNote, deliveredAt) because a conditional market prices 'if this is approved, the metric lands at X', and a forecaster who cannot see whether the approved thing was done cannot tell a market that was wrong from a promise that was not kept.",
-    },
-    {
       method: 'PATCH',
       path: '/api/proposals/:id',
       auth: 'agent',
@@ -871,13 +864,6 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       auth: 'admin',
       description:
         'Update workspace settings. Body: { name?, description?, charter?, subjectAbout?, telarchyStartedOn?, autoFundNewMarkets?, newMarketLiquidityCredits?, visibility?, proposalReward?, spamPenalty?, maxPendingProposalsPerParticipant?, decisionDays? }. decisionDays (whole days, 1..90, default 7) is how long a new proposal has before it lapses as declined unless decided; a proposer may ask for longer per proposal. telarchyStartedOn (ISO date string, null to clear) is when the owner says this workspace started running its number through Telarchy; the floor\'s actual-vs-forecast chart marks it with one dashed vertical line, and null means no marker. It is owner-declared rather than derived, because the honest date is neither the workspace\'s creation nor its first trade. subjectAbout (<=4000 chars, null to clear) is the owner-authored "What is <name>?" blurb shown on the public floor: free text, the company/subject in the owner\'s own words plus sources; null falls back to the floor\'s default copy. newMarketLiquidityCredits must be positive (down to one nanocredit; no 0.1 floor). proposalReward (paid by owner to proposer on approve) and spamPenalty (taken from proposer to owner on decline-spam) are non-negative; 0 disables. maxPendingProposalsPerParticipant is a non-negative integer cap on simultaneous pending proposals per participant (0 disables the cap; default 0); it never applies to a caller holding manage (the owner, their admins, a platform admin). description (<=280 chars) is the one-line summary shown on the marketplace card and the public workspace page. charter (<=20000 chars) is the owner\'s public commitment: what they will actually do with the number the market produces, and the pre-declared reasons they may decline anyway. It is served on the public workspace page\'s payload and is the thing that makes an open workspace worth an outside forecaster\'s effort (the floor itself currently renders the owner-prose zone - the metric definition, announcements, and the "What is <name>?" blurb - rather than the charter body); a workspace that invites strangers to forecast without saying what their work buys them is asking for free labour. Pass null or "" to clear either. The lifecycle-shaped fields (autoFundNewMarkets, newMarketLiquidityCredits, visibility, proposalReward, spamPenalty, maxPendingProposalsPerParticipant) require the manage_workspace capability in addition to the route-level manage gate; everything else (name, description, charter) only needs manage. Set visibility="public" to list on the marketplace. Who can do what after joining is governed by the Public group capabilities. Setting visibility="private" also drops the trade capability from the Public group, so a workspace taken private never keeps open trading rights it was granted while it was public.',
-    },
-    {
-      method: 'POST',
-      path: '/api/workspaces/:id/calls',
-      auth: 'admin',
-      description:
-        "The owner's own call: what YOU expect a metric to read at a date, published beside what the market says. Body: { metricId, targetDate, value }. Append-only: a second call on the same metric and date is a second row, never an edit, and the floor prints the newest with how many stand behind it, because a forecast that can be rewritten after the fact is not one. It moves no price, settles no market and pays nobody; the floor shows it as a third cell in the stat row and GET /api/marketplace/:idOrSlug returns them as ownerCalls.",
     },
     {
       method: 'POST',

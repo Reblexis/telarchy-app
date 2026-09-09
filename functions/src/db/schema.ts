@@ -866,8 +866,7 @@ export const proposals = pgTable(
     /** Penalty credits actually charged on spam-decline. 0 if not declined as spam. */
     penaltyCharged: doublePrecision('penalty_charged').notNull().default(0),
     /**
-     * Whether the approved work actually happened
-     * (docs/guides/proposals.md, "After approval: say whether it happened"):
+     * Historical delivery record retained for data-room events; its write control is retired:
      * 'not_started' | 'in_progress' | 'delivered'. Meaningful only on an
      * approved proposal; a declined one was never promised and a pending one
      * has nothing to report, so both keep the default and no surface shows it.
@@ -1315,7 +1314,8 @@ export const earnRuleHistory = pgTable(
  */
 /**
  * The owner's own call: what they expect a metric to read at a date, beside
- * what the market says (docs/owner-on-the-floor.md, "The owner's own call").
+ * what the market says. Retained for applied-migration compatibility; the
+ * publication controls are retired (docs/data-room.md, "What moved it").
  *
  * APPEND-ONLY. A second call on the same metric and date is a second row, not
  * an edit: a forecast that can be quietly rewritten after the fact is not a
