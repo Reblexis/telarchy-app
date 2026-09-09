@@ -143,13 +143,15 @@ function renderFloor() {
   );
 }
 
-/** The three numbers on the row, in order: traders, pool, traded. The
- *  owner's Inject and Buy sit on the same row and are not facts. */
+/** The three numbers of the market on screen, in order: traders, pool,
+ *  traded. They live in the chart's footer since 2026-09-09; the owner's
+ *  Inject and Buy stay on the tab row and are not facts. */
 async function facts(): Promise<string> {
-  const row = await screen.findByLabelText('Market facts');
-  return [...row.querySelectorAll(':scope > span')]
-    .map(s => (s.textContent ?? '').replace(/\s+/g, ' ').trim())
-    .join(' ');
+  const row = await screen.findByLabelText('Market money');
+  const [pool, volume, traders] = [...row.querySelectorAll(':scope > span')].map(s =>
+    (s.textContent ?? '').replace(/\s+/g, ' ').trim(),
+  );
+  return [traders, pool.replace(' pool', ''), volume.replace(' volume', '')].join(' ');
 }
 
 /** Put the proposal on screen, the way a reader does: click its row. */

@@ -407,10 +407,11 @@ test('the page explains, then asks, then offers the owner door', async () => {
   const order = [...container.querySelectorAll('.pubws-know-head, .pubws-end-label')].map(n =>
     (n.textContent ?? '').slice(0, 16),
   );
-  // Two "know" blocks already: the market's own definition, then the
-  // company's. Those are the explanation; the closing board says only what
-  // they cannot, then offers the owner door.
-  expect(order).toEqual(['What is this mar', 'What is LookPilo', 'New here?', 'Do the work', 'Your own numbers']);
+  // Two "know" blocks already: the rule the market settles on (under the
+  // trade since 2026-09-09), then the company's own words. Those are the
+  // explanation; the closing board says only what they cannot, then offers
+  // the owner door.
+  expect(order).toEqual(['How this settles', 'What is LookPilo', 'New here?', 'Do the work', 'Your own numbers']);
 });
 
 /**
@@ -1249,21 +1250,21 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     expect(container.querySelector('.pubws-numchart .nchart-legend')?.textContent).toContain('other open dates');
   });
 
-  test("the definition's first sentence sits under the question", async () => {
+  test('nothing about settlement stands between the question and the number', async () => {
+    // Revised 2026-09-09: the summary line is gone and the rule the market
+    // settles on is one block under the trade.
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(oneMarket() as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-instrument-sum')).toBeTruthy());
-    expect(container.querySelector('.pubws-instrument-sum')?.textContent).toBe('The year, net of refunds.');
-    // Right under the question, before the numbers.
-    const ask = container.querySelector('.pubws-instrument-ask') as HTMLElement;
-    const sum = container.querySelector('.pubws-instrument-sum') as HTMLElement;
+    await waitFor(() => expect(container.querySelector('.pubws-stats')).toBeTruthy());
+    expect(container.querySelector('.pubws-instrument-sum')).toBeNull();
+    const settles = container.querySelector('.pubws-settles') as HTMLElement;
+    expect(settles.textContent).toContain('The year, net of refunds.');
     const stats = container.querySelector('.pubws-stats') as HTMLElement;
-    expect(ask.compareDocumentPosition(sum) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(sum.compareDocumentPosition(stats) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(stats.compareDocumentPosition(settles) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  test('no definition, no line', async () => {
+  test('no definition, no block', async () => {
     const { api } = await import('../../lib/api');
     const ws = oneMarket();
     ws.horizonHistories[0].description = null as unknown as string;
@@ -1271,6 +1272,7 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-stats')).toBeTruthy());
     expect(container.querySelector('.pubws-instrument-sum')).toBeNull();
+    expect(container.querySelector('.pubws-settles .pubws-know-what')).toBeNull();
   });
 
   test('no reading yet: the reading says so and carries no age', async () => {

@@ -2792,14 +2792,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 
 /* The summary line under the question: the definition's first sentence,
    in the register of the pitch, never louder than the question. */
-.pubws-instrument-sum {
-  margin: 0 auto 0.4rem;
-  max-width: 48ch;
-  font-size: 0.84rem;
-  line-height: 1.5;
-  color: var(--text-secondary);
-  text-align: left;
-}
 
 /* Each chart's title, centred in its control row: the same tiny uppercase
    register as section labels, so the two plots name themselves without
@@ -5178,13 +5170,6 @@ textarea.jobform-line--desc {
     padding-right: clamp(1rem, 2vw, 1.6rem);
   }
   .pubws-main--context .pubws-rail--right { grid-column: 3; grid-row: 1 / span 2; }
-  /* The definition is on screen once, never twice: with the left column
-     carrying "What is this market?" beside the market, the summary line
-     under the question (the definition's first sentence) is hidden. It
-     returns wherever the left column's content is not beside the market:
-     the two-column widths, the phone, a selected proposal (the root then
-     lacks the context class). */
-  .pubws-main--context .pubws-instrument-sum { display: none; }
 }
 
 @media (max-width: 1119.98px) {
@@ -11001,3 +10986,41 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .own-quiet svg { width: 14px; height: 14px; }
 .own + .pubws-aud-nav,
 .own .pubws-aud-nav { margin-top: 2.4rem; }
+
+/* The chart's footer (docs/ui-conventions.md, "The price and the chart",
+   2026-09-09): the market's money under the plot it describes, where every
+   exchange puts it, instead of three unlabelled icons beside the tab row. */
+.pubws-chartfoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.35rem;
+}
+.pubws-money {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.9rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.pubws-money > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: help;
+}
+/* The settlement rule, under the trade (docs/ui-conventions.md, "The price
+   and the chart"): one tinted block, never a paragraph between the question
+   and the number. */
+.pubws-settles {
+  margin-top: clamp(1.6rem, 4vh, 2.4rem);
+  padding: 1rem 1.2rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  text-align: left;
+}
