@@ -769,8 +769,10 @@ export function TradePage() {
     const clock = /^(today|this week|this month)$/.test(hero.label) ? hero.label : '';
     const subject = captionLabel(metricLabel, ws?.name);
     const title = `${subject.charAt(0).toUpperCase()}${subject.slice(1)}${clock ? `, ${clock}` : ''}`;
-    const ctx = [ws?.name, hero.settleShort ? `settles ${hero.settleShort}` : null].filter(Boolean).join(' · ');
-    return { context: ctx, title };
+    /* The floor and nothing else: the clock is in the title already, and a
+       settle day beside it said the same date twice (owner report
+       2026-09-09, "ther eis twice the date"). */
+    return { context: ws?.name ?? '', title };
   })();
 
   const saveJobEdit = async () => {

@@ -1859,3 +1859,33 @@ One consequence to watch: a manager can no longer select an unfunded pair
 from the strip, so Inject on that cell is out of reach from there. Nobody
 has asked to fund a pair that way yet; if it comes up, the funding path
 belongs on the proposal's own board rather than behind a dead tab.
+
+**Direction B, and the sell panel pictures the sale** (Viktor, 2026-09-09,
+picking from the second canvas after "please do /design first this doesnt
+look too good"). Measuring the card at its real 293px found what the
+screenshot could only suggest: the ceilings wrapped, so the pills were 78px
+tall for two words; the 26px stake numeral sat alone in a 46px band; and two
+identical 10px tracks were stacked, the top measuring CREDITS (1 cr to the
+balance) and the bottom measuring the METRIC ($0 to $25,000), with nothing
+saying which was which.
+
+B keeps the "X cr -> value" line he asked for on 1 Sept as the hero, pulls
+the slider under it as one group with its ends labelled in credits, and
+draws no picture at all until a stake exists. A drops the numeral for a
+Kalshi-style field row; he took B, which also keeps the two-way input a
+field could not hold at 293px.
+
+Then the Sell tab, which he could not read at all: "alsoo i dont understand
+the sell visualization". It carried the held position's SETTLEMENT payoff
+line, four credit stops in 293px, two of which overlapped by 11 measured
+pixels, under no caption; the delta wrapped onto its own line as a fifth
+orphan number; a full-width red track at 100% read as an error bar; and the
+confirm was green for closing a Lower position. His instruction was to
+picture the SALE instead: "show how much you get from it and profit/lose if
+you sell how much". So the panel now says Selling / You get / Profit / loss,
+pro rata against what those shares cost, and the confirm is ink, because
+selling is not a direction.
+
+Also: the ticket's context line said the date twice ("LookPilot · settles 30
+Sep" over "Net revenue, this month"). The settle day goes; the clock is in
+the title already.

@@ -42,7 +42,10 @@ describe('the ticket opens composed', () => {
     const higher = within(sides).getByRole('button', { name: /Higher/ });
     expect(higher.getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByLabelText('Credits to spend')).toBeTruthy();
-    expect(container.querySelector('.pay')).toBeTruthy();
+    // The whole composer, which since 2026-09-09 means the slider and its
+    // ends rather than a range bar: nothing is pictured before a stake.
+    expect(container.querySelector('.ticket-slider')).toBeTruthy();
+    expect(container.querySelector('.ticket-slider-ends')).toBeTruthy();
     const go = screen.getByRole('button', { name: /^Bet 0 cr on Higher$/ }) as HTMLButtonElement;
     expect(go.disabled).toBe(true);
   });
@@ -82,7 +85,7 @@ describe('selling is a tab on the ticket', () => {
     expect(screen.queryByLabelText('Credits to spend')).toBeNull();
     // The row says what it is worth; pressing its Sell opens the amount and
     // the one confirm, exactly as the position panel's did.
-    expect(screen.getByText(/worth/)).toBeTruthy();
+    expect(screen.getByText('Worth now')).toBeTruthy();
     fireEvent.click(
       within(container.querySelector('.ticket-pos-head') as HTMLElement).getByRole('button', { name: 'Sell' }),
     );
@@ -215,5 +218,72 @@ describe('the ticket names its own subject', () => {
   test('a ticket with no subject draws no empty block', () => {
     const { container } = render(<TradeTicket {...base} />);
     expect(container.querySelector('.ticket-subject')).toBeNull();
+  });
+});
+
+describe('the stake is one group, and nothing is pictured before a bet', () => {
+  test('the slider says what its own ends are, in credits', () => {
+    render(<TradeTicket {...base} />);
+    expect(screen.getByText('1 cr')).toBeTruthy();
+    expect(screen.getByText(/10,000 cr, all you have/)).toBeTruthy();
+  });
+
+  test('at 0 cr nothing is pictured: no range bar, no payoff line', () => {
+    const { container } = render(<TradeTicket {...base} />);
+    expect(container.querySelector('.pay')).toBeNull();
+    expect(container.querySelector('.scale')).toBeNull();
+  });
+
+  test('a stake draws the payoff line', () => {
+    const { container } = render(<TradeTicket {...base} />);
+    fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '250' } });
+    expect(container.querySelector('.scale')).toBeTruthy();
+  });
+
+  test('a side pill quotes its ceiling compactly, so the pill is one line', () => {
+    // liquidity 5,000 at 20c: 8,047 cr exact, "8k cr" compact.
+    render(<TradeTicket {...base} liquidity={5_000} />);
+    const sides = screen.getByRole('group', { name: 'Direction' });
+    const higher = within(sides).getByRole('button', { name: /Higher/ }).textContent ?? '';
+    expect(higher).toMatch(/up to [\d.]+k cr/);
+    expect(higher).not.toMatch(/\d,\d{3}/);
+  });
+});
+
+describe('the sell panel pictures the sale', () => {
+  const held = { direction: 'higher' as const, shares: 40, totalCost: 25 };
+
+  const openSell = (container: HTMLElement) =>
+    fireEvent.click(
+      within(container.querySelector('.ticket-pos-head') as HTMLElement).getByRole('button', { name: 'Sell' }),
+    );
+
+  test('the position states what it cost and what it is worth', () => {
+    render(<TradeTicket {...base} positions={[held]} manageMode />);
+    expect(screen.getByText('You paid')).toBeTruthy();
+    expect(screen.getByText('Worth now')).toBeTruthy();
+    expect(screen.getByText(/40\.0 shares/)).toBeTruthy();
+  });
+
+  test('no settlement payoff line on Sell: it prices a bet nobody is placing', () => {
+    const { container } = render(<TradeTicket {...base} positions={[held]} manageMode />);
+    expect(container.querySelector('.pay')).toBeNull();
+    expect(container.querySelector('.scale')).toBeNull();
+  });
+
+  test('opening the sell panel shows what you get and the profit or loss', () => {
+    const { container } = render(<TradeTicket {...base} positions={[held]} manageMode />);
+    openSell(container);
+    expect(screen.getByText('You get')).toBeTruthy();
+    expect(screen.getByText('Profit / loss')).toBeTruthy();
+    expect(screen.getByText('Selling')).toBeTruthy();
+  });
+
+  test('the sell confirm is ink: selling is not a direction', () => {
+    const { container } = render(<TradeTicket {...base} positions={[held]} manageMode />);
+    openSell(container);
+    const go = screen.getByRole('button', { name: /^Sell all for/ });
+    expect(go.className).toContain('ticket-go--ink');
+    expect(go.className).not.toMatch(/ticket-go--(higher|lower)/);
   });
 });

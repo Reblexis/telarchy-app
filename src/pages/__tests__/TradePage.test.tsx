@@ -1311,7 +1311,7 @@ describe("the owner's own reading, under the market's", () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.workspace() as never);
     renderFloor();
-    await screen.findByText(h.workspace().name);
+    await screen.findAllByText(h.workspace().name);
     // Signed out here, so canManage is false: no line, no Report.
     expect(screen.queryByRole('button', { name: 'Report' })).toBeNull();
     expect(screen.queryByText(/^Yours:/)).toBeNull();
@@ -1327,7 +1327,7 @@ describe('the owner of a not-public floor', () => {
     const ws = { ...h.workspace(), visibility: 'private', slug: 'my-life' };
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     renderFloor([`/marketplace/${ws.workspaceId}`]);
-    await screen.findByText(h.workspace().name);
+    await screen.findAllByText(h.workspace().name);
     // Still at the id address: the loads stayed on the id, never the slug.
     const loads = vi.mocked(api.getMarketplaceWorkspace).mock.calls.map(c => c[0]);
     expect(loads).not.toContain('my-life');
@@ -1338,7 +1338,7 @@ describe('the owner of a not-public floor', () => {
     const ws = { ...h.workspace(), visibility: 'public', slug: 'lookpilot' };
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     renderFloor([`/marketplace/${ws.workspaceId}`]);
-    await screen.findByText(h.workspace().name);
+    await screen.findAllByText(h.workspace().name);
     await waitFor(() => {
       const loads = vi.mocked(api.getMarketplaceWorkspace).mock.calls.map(c => c[0]);
       expect(loads).toContain('lookpilot');
@@ -1352,7 +1352,7 @@ describe('the owner of a not-public floor', () => {
     vi.mocked(api.getProfile).mockResolvedValue({ capabilities: ['read', 'trade', 'manage'] } as never);
     renderFloor();
     // Signed out in this harness, so canManage stays false: no band, no button.
-    await screen.findByText(h.workspace().name);
+    await screen.findAllByText(h.workspace().name);
     expect(screen.queryByText('Publish this market')).toBeNull();
     expect(screen.queryByText(/Only people with the link/)).toBeNull();
   });

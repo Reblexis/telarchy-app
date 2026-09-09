@@ -349,8 +349,8 @@ export function TradeTicket({
      drawn only where it cannot be: a market with no range. */
   const hasPayoff = rangeMin !== undefined && rangeMax !== undefined && consensus !== null;
   /* What each side has on the table, which is what the pills quote. */
-  const higherCeiling = maxWinLabel(probability, liquidity);
-  const lowerCeiling = maxWinLabel(1 - probability, liquidity);
+  const higherCeiling = maxWinLabel(probability, liquidity, { compact: true });
+  const lowerCeiling = maxWinLabel(1 - probability, liquidity, { compact: true });
   const sideWord = dir === 'higher' ? 'Higher' : 'Lower';
   const confirmLabel = () => {
     if (busy === 'place') return isLimit ? 'Placing order…' : 'Placing…';
@@ -505,24 +505,10 @@ export function TradeTicket({
       {/* The held-position rows and their Sell affordance are the SELL tab
         (owner ask 2026-09-09, reversing 2026-08-28: selling was the position
         panel's job). The positions PROP still arrives in both tabs, because
-        the buy preview nets against them. */}
-      {tab === 'sell' && held !== null && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
-        <PayoffLine
-          unit={unit}
-          rangeMin={rangeMin}
-          rangeMax={rangeMax}
-          consensus={consensus}
-          direction={held.direction}
-          breakeven={
-            held.direction === 'higher'
-              ? rangeMin + (held.totalCost / held.shares) * (rangeMax - rangeMin)
-              : rangeMin + (1 - held.totalCost / held.shares) * (rangeMax - rangeMin)
-          }
-          shares={held.shares}
-          spend={held.totalCost}
-        />
-      )}
-
+        the buy preview nets against them. The settlement payoff line that
+        used to sit here is gone: it priced a bet nobody is placing, and its
+        four credit stops did not fit 293px (owner report 2026-09-09, "i
+        dont understand the sell visualization at all"). */}
       {tab === 'sell' && positions.length === 0 && (
         <p className="ticket-invite">You hold nothing on this market yet, so there is nothing to sell.</p>
       )}
@@ -540,23 +526,14 @@ export function TradeTicket({
             const sellPct = p.shares > 0 ? (sharesToSell / p.shares) * 100 : 0;
             return (
               <div key={p.direction} className={`ticket-pos-row${selling ? ' is-selling' : ''}`}>
+                {/* The position in the fact rows the buy side already uses
+                  (owner report 2026-09-09): what you hold, what it cost,
+                  what it is worth now with the change beside it. */}
                 <div className="ticket-pos-head">
                   <span className={`ticket-pos-dir ticket-pos-dir--${p.direction}`}>
                     {p.direction === 'higher' ? '▲' : '▼'} {p.direction}
                   </span>
-                  <span className="ticket-pos-detail">
-                    worth {fmt(worth)} cr
-                    {/* The delta is only worth a number once it has moved. */}
-                    {Math.abs(delta) >= 0.5 && (
-                      <>
-                        {' '}
-                        <span className={`ticket-pos-delta ${delta >= 0 ? 'is-up' : 'is-down'}`}>
-                          {delta >= 0 ? '+' : '-'}
-                          {fmt(Math.abs(delta))}
-                        </span>
-                      </>
-                    )}
-                  </span>
+                  <span className="ticket-pos-detail">{fmtShares(p.shares)} shares</span>
                   <button
                     className="ticket-sell"
                     disabled={busy !== null}
@@ -571,6 +548,28 @@ export function TradeTicket({
                   >
                     {selling ? 'Cancel' : 'Sell'}
                   </button>
+                </div>
+                <div className="ticket-facts ticket-facts--pos">
+                  <div className="ticket-fact">
+                    <span className="ticket-fact-k">You paid</span>
+                    <span className="ticket-fact-v">{fmt(p.totalCost)} cr</span>
+                  </div>
+                  <div className="ticket-fact">
+                    <span className="ticket-fact-k">Worth now</span>
+                    <span className="ticket-fact-v">
+                      {fmt(worth)} cr
+                      {/* The delta is only worth a number once it has moved. */}
+                      {Math.abs(delta) >= 0.5 && (
+                        <>
+                          {' '}
+                          <span className={`ticket-pos-delta ${delta >= 0 ? 'is-up' : 'is-down'}`}>
+                            {delta >= 0 ? '+' : '-'}
+                            {fmt(Math.abs(delta))}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Pick how much to sell: a shares slider (owner ask
@@ -589,14 +588,43 @@ export function TradeTicket({
                       onChange={e => setSellShares(parseFloat(e.target.value))}
                       aria-label={`Shares of ${p.direction} to sell`}
                     />
-                    <div className="ticket-sell-facts">
-                      <span>
-                        {Math.round(sellPct)}% · {fmtShares(sharesToSell)} shares
-                      </span>
-                      <span>≈ {fmt(sellWorth)} cr</span>
+                    {/* What the SALE does, which is the only picture the
+                      sell panel needs (owner ask 2026-09-09: "show how much
+                      you get from it and profit/lose if you sell"). The cost
+                      side is pro rata, so selling half compares against half
+                      of what it cost. */}
+                    <div className="ticket-facts">
+                      <div className="ticket-fact">
+                        <span className="ticket-fact-k">Selling</span>
+                        <span className="ticket-fact-v">
+                          {fmtShares(sharesToSell)} of {fmtShares(p.shares)} shares
+                        </span>
+                      </div>
+                      <div className="ticket-fact">
+                        <span className="ticket-fact-k">You get</span>
+                        <span className="ticket-fact-v">{fmt(sellWorth)} cr</span>
+                      </div>
+                      <div className="ticket-fact">
+                        <span className="ticket-fact-k">Profit / loss</span>
+                        <span className="ticket-fact-v">
+                          {(() => {
+                            const paidForThese = p.shares > 0 ? (p.totalCost * sharesToSell) / p.shares : 0;
+                            const pl = sellWorth - paidForThese;
+                            return (
+                              <span className={`ticket-pos-delta ${pl >= 0 ? 'is-up' : 'is-down'}`}>
+                                {pl >= 0 ? '+' : '-'}
+                                {fmt(Math.abs(pl))} cr
+                              </span>
+                            );
+                          })()}
+                        </span>
+                      </div>
                     </div>
                     <button
-                      className={`ticket-go ticket-go--${p.direction === 'higher' ? 'lower' : 'higher'}`}
+                      /* Selling is not a direction, so the confirm wears no
+                        direction's colour (owner report 2026-09-09: green
+                        for closing a Lower position). */
+                      className="ticket-go ticket-go--ink"
                       disabled={busy !== null || sharesToSell <= 0}
                       onClick={() => void sell(p, sharesToSell)}
                     >
@@ -644,18 +672,6 @@ export function TradeTicket({
           nothing at the bottom) and the mark says where a share bought this
           second breaks even, which is wherever the market already is. The
           floor's verbs keep the sentence, having no track to carry it. */}
-      {tab === 'buy' && !dir && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
-        <PayoffLine
-          unit={unit}
-          rangeMin={rangeMin}
-          rangeMax={rangeMax}
-          consensus={consensus}
-          direction={null}
-          breakeven={null}
-          shares={null}
-          spend={null}
-        />
-      )}
 
       {/* The untouched ticket says what to do with it. In the rail it is on
           screen before anyone has decided anything, and a track with no
@@ -738,6 +754,13 @@ export function TradeTicket({
             }}
             aria-label="Bet amount slider"
           />
+          {/* What the track actually moves between, in the unit it moves in
+            (owner ask 2026-09-09). Unlabelled, a credits slider sitting over
+            a value range read as a second range bar. */}
+          <div className="ticket-slider-ends">
+            <span>1 cr</span>
+            <span>{fmt(maxBet)} cr, all you have</span>
+          </div>
 
           {/* The price itself is the composer's right half now; this says
               what the pair means, since a resting order waits rather than
@@ -757,18 +780,23 @@ export function TradeTicket({
               numbers in an order"). Manage mode has its own line above,
               drawn against the position rather than against a new bet, and
               two tracks in one card would be one too many. */}
-          {tab === 'buy' && rangeMin !== undefined && rangeMax !== undefined && consensus !== null && (
-            <PayoffLine
-              unit={unit}
-              rangeMin={rangeMin}
-              rangeMax={rangeMax}
-              consensus={consensus}
-              direction={dir}
-              breakeven={winFacts ? winFacts.breakeven : null}
-              shares={winFacts ? winFacts.maxPayout : null}
-              spend={winFacts ? winFacts.spend : null}
-            />
-          )}
+          {tab === 'buy' &&
+            !!winFacts &&
+            winFacts.spend > 0 &&
+            rangeMin !== undefined &&
+            rangeMax !== undefined &&
+            consensus !== null && (
+              <PayoffLine
+                unit={unit}
+                rangeMin={rangeMin}
+                rangeMax={rangeMax}
+                consensus={consensus}
+                direction={dir}
+                breakeven={winFacts ? winFacts.breakeven : null}
+                shares={winFacts ? winFacts.maxPayout : null}
+                spend={winFacts ? winFacts.spend : null}
+              />
+            )}
 
           {!hasPayoff && (
             <div className="ticket-facts">

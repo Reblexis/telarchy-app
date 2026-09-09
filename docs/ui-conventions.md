@@ -1162,6 +1162,26 @@ button first (`notes/quroe-churn-2026-08-27.md`); once a side is picked the
 payoff line prices his actual bet in credits, so nothing is lost by quoting
 depth rather than price before the click.
 
+**The stake, its slider and the slider's ends are ONE group** (owner ask
+2026-09-09, of a card whose 26px stake numeral sat alone in a 46px band):
+the line, the track directly under it, and under that the two ends the track
+actually moves between, in CREDITS ("1 cr", "500 cr, all you have").
+Labelling the ends is what stops the slider being read as the metric's
+range; the card carried two identical 10px tracks stacked, one measuring
+credits and one measuring the metric, and nothing said which was which.
+
+**No picture until there is a stake.** At 0 cr the payoff line is not drawn:
+the plain range bar it used to fall back to was the second of those two
+tracks, and there is nothing to picture before a bet exists. The line
+appears the moment a stake does, under the slider, where its own two rows of
+type make it plainly a different object.
+
+**A side pill's ceiling is one line.** Quoted compactly ("up to 25.8k cr")
+so a pill is one line of type: at the rail's 293px the exact figure wrapped
+and left the pills 78px tall for two words. The floor's verbs, which have
+the room, keep the exact figure; both come from `maxWinLabel`, so the
+wording cannot drift.
+
 The amount is one bare underlined mono numeral (no boxed field, no stepper
 chips, no presets) with a slider under it, its fill in the chosen side's
 colour. The slider spans 1 cr to the trader's whole balance on a LOGARITHMIC track (a linear 0-to-balance slider
@@ -1185,8 +1205,23 @@ ends of the range and the quarters, each with the credits the bet wins or
 loses if the number settles there. The confirm is full width, tinted by
 the side, and always states what it will do ("Bet 25 cr on Higher");
 success flashes "Placed" on the button itself; errors render inside the
-ticket. Held positions sit at the top of the ticket as rows (tinted
-direction, mono payout, a Sell pill).
+ticket.
+
+**A held position states itself in the same fact rows the Buy tab uses**
+(owner report 2026-09-09: "i dont understand the sell visualization at
+all"). The direction and the share count on one line, then "You paid" and
+"Worth now" with the change beside the worth, then the Sell control. **The
+Sell tab draws no settlement payoff line**: it priced a bet nobody is
+placing, its four credit stops did not fit 293px (two of them overlapped by
+11px), and nothing said they were the position's worth rather than a bet's.
+**What the sell panel pictures instead is the sale**: at the size on the
+slider, what you GET and what that is against what those shares cost you
+("You get 427 cr", "Profit / loss -466 cr", green up and red down), so
+dragging the size shows the trade being made rather than a settlement that
+is no longer yours. The cost side is pro rata: selling half a position
+compares against half of what it cost. **The sell confirm is INK**, never a
+direction's colour: selling is not a direction, and a green button closing a
+Lower position says the opposite of what it does.
 
 Limit mode swaps the composer's right half from the landing value to the
 price itself, in the same underlined register, and the confirm becomes the
@@ -1258,10 +1293,12 @@ Same register as the single numeral it replaces: mono, underlined, no box,
 no stepper chips. The arrow between them is what makes the pair read as one
 instruction rather than two fields.
 
-An untouched ticket has no bet to price, so it keeps the plain range bar
-marked only at the current value, which is exactly where a share bought
-right now breaks even, with the range's ends labelled underneath. A held
-position IS a bet, so it is priced the same way, at what it actually paid.
+An untouched ticket has no bet to price, so it draws nothing at all: the
+plain range bar it used to keep was the second of the card's two tracks and
+is gone with it (2026-09-09). A held position is priced by the SALE it
+would make, on the Sell tab, in proceeds and profit or loss against what
+those shares cost, rather than by a settlement line for a bet nobody is
+placing.
 
 **A resting order names its LIMIT in that same line**, because it moves
 nothing until it fills and so causes no landing to name. The right half is
@@ -1838,10 +1875,12 @@ revenue this month text theer the way it is .. it looks super weird"; the
 model is Kalshi's own ticket, which carries the event and the subject in the
 card between its BUY/SELL row and its side prices). Under the tab rule: one
 quiet line of context and one bold line naming the thing being traded. On a
-market that is the floor and the settle day over the metric and its clock
-("LookPilot · settles 30 Sep" / "Net revenue, this month"); on a proposal it
-is the number, the world and the deadline over the proposal's own title
-("#11 · if approved · decides 15 Sept"). Nothing above the card names it: a
+market the context is the FLOOR and nothing else ("LookPilot" / "Net
+revenue, this month"): the clock is already in the title, and a settle day
+beside it said the same date twice (owner report 2026-09-09, "ther eis twice
+the date"). On a proposal it is the number, the world and the deadline over
+the proposal's own title ("#11 · if approved · decides 15 Sept"), none of
+which the title repeats. Nothing above the card names it: a
 label, a subject and a hairline outside a card that has a header of its own
 is the same header said twice, in a column 293px wide. On
 viewports >=1500px a narrow left column returns for this market's own

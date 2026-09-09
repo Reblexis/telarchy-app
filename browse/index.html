@@ -5589,6 +5589,23 @@ itself the fix for a trader who could not price a trade without pressing a
 button first (<code>notes/quroe-churn-2026-08-27.md</code>); once a side is picked the
 payoff line prices his actual bet in credits, so nothing is lost by quoting
 depth rather than price before the click.</p>
+<p><strong>The stake, its slider and the slider's ends are ONE group</strong> (owner ask
+2026-09-09, of a card whose 26px stake numeral sat alone in a 46px band):
+the line, the track directly under it, and under that the two ends the track
+actually moves between, in CREDITS (&quot;1 cr&quot;, &quot;500 cr, all you have&quot;).
+Labelling the ends is what stops the slider being read as the metric's
+range; the card carried two identical 10px tracks stacked, one measuring
+credits and one measuring the metric, and nothing said which was which.</p>
+<p><strong>No picture until there is a stake.</strong> At 0 cr the payoff line is not drawn:
+the plain range bar it used to fall back to was the second of those two
+tracks, and there is nothing to picture before a bet exists. The line
+appears the moment a stake does, under the slider, where its own two rows of
+type make it plainly a different object.</p>
+<p><strong>A side pill's ceiling is one line.</strong> Quoted compactly (&quot;up to 25.8k cr&quot;)
+so a pill is one line of type: at the rail's 293px the exact figure wrapped
+and left the pills 78px tall for two words. The floor's verbs, which have
+the room, keep the exact figure; both come from <code>maxWinLabel</code>, so the
+wording cannot drift.</p>
 <p>The amount is one bare underlined mono numeral (no boxed field, no stepper
 chips, no presets) with a slider under it, its fill in the chosen side's
 colour. The slider spans 1 cr to the trader's whole balance on a LOGARITHMIC track (a linear 0-to-balance slider
@@ -5610,8 +5627,22 @@ ends of the range and the quarters, each with the credits the bet wins or
 loses if the number settles there. The confirm is full width, tinted by
 the side, and always states what it will do (&quot;Bet 25 cr on Higher&quot;);
 success flashes &quot;Placed&quot; on the button itself; errors render inside the
-ticket. Held positions sit at the top of the ticket as rows (tinted
-direction, mono payout, a Sell pill).</p>
+ticket.</p>
+<p><strong>A held position states itself in the same fact rows the Buy tab uses</strong>
+(owner report 2026-09-09: &quot;i dont understand the sell visualization at
+all&quot;). The direction and the share count on one line, then &quot;You paid&quot; and
+&quot;Worth now&quot; with the change beside the worth, then the Sell control. <strong>The
+Sell tab draws no settlement payoff line</strong>: it priced a bet nobody is
+placing, its four credit stops did not fit 293px (two of them overlapped by
+11px), and nothing said they were the position's worth rather than a bet's.
+<strong>What the sell panel pictures instead is the sale</strong>: at the size on the
+slider, what you GET and what that is against what those shares cost you
+(&quot;You get 427 cr&quot;, &quot;Profit / loss -466 cr&quot;, green up and red down), so
+dragging the size shows the trade being made rather than a settlement that
+is no longer yours. The cost side is pro rata: selling half a position
+compares against half of what it cost. <strong>The sell confirm is INK</strong>, never a
+direction's colour: selling is not a direction, and a green button closing a
+Lower position says the opposite of what it does.</p>
 <p>Limit mode swaps the composer's right half from the landing value to the
 price itself, in the same underlined register, and the confirm becomes the
 whole instruction (&quot;Buy Higher with 25 cr under $65,000&quot;), with breakeven
@@ -5673,10 +5704,12 @@ of getting there, placed as the server's <code>{targetValue, maxBudget}</code> m
 Same register as the single numeral it replaces: mono, underlined, no box,
 no stepper chips. The arrow between them is what makes the pair read as one
 instruction rather than two fields.</p>
-<p>An untouched ticket has no bet to price, so it keeps the plain range bar
-marked only at the current value, which is exactly where a share bought
-right now breaks even, with the range's ends labelled underneath. A held
-position IS a bet, so it is priced the same way, at what it actually paid.</p>
+<p>An untouched ticket has no bet to price, so it draws nothing at all: the
+plain range bar it used to keep was the second of the card's two tracks and
+is gone with it (2026-09-09). A held position is priced by the SALE it
+would make, on the Sell tab, in proceeds and profit or loss against what
+those shares cost, rather than by a settlement line for a bet nobody is
+placing.</p>
 <p><strong>A resting order names its LIMIT in that same line</strong>, because it moves
 nothing until it fills and so causes no landing to name. The right half is
 the price input itself, in the same underlined register, with one line under
@@ -6192,10 +6225,12 @@ revenue this month text theer the way it is .. it looks super weird&quot;; the
 model is Kalshi's own ticket, which carries the event and the subject in the
 card between its BUY/SELL row and its side prices). Under the tab rule: one
 quiet line of context and one bold line naming the thing being traded. On a
-market that is the floor and the settle day over the metric and its clock
-(&quot;LookPilot · settles 30 Sep&quot; / &quot;Net revenue, this month&quot;); on a proposal it
-is the number, the world and the deadline over the proposal's own title
-(&quot;#11 · if approved · decides 15 Sept&quot;). Nothing above the card names it: a
+market the context is the FLOOR and nothing else (&quot;LookPilot&quot; / &quot;Net
+revenue, this month&quot;): the clock is already in the title, and a settle day
+beside it said the same date twice (owner report 2026-09-09, &quot;ther eis twice
+the date&quot;). On a proposal it is the number, the world and the deadline over
+the proposal's own title (&quot;#11 · if approved · decides 15 Sept&quot;), none of
+which the title repeats. Nothing above the card names it: a
 label, a subject and a hairline outside a card that has a header of its own
 is the same header said twice, in a column 293px wide. On
 viewports &gt;=1500px a narrow left column returns for this market's own
