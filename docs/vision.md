@@ -478,6 +478,24 @@ A visitor looking at "the market says 25" cannot tell whether 25 is right. What 
 
 **`GET /api/marketplace/:idOrSlug/context` is the brief**: one read carrying the company and its charter, every metric with its definition and recent readings, the open markets and their current prices, every proposal with the market's priced impact and its conversation, the owner's announcements, and the owner's published documents. `?format=md` returns the same facts as one markdown document, which is the form to hand a language model. It is derived, not stored, and the proposal impact is the set the floor's own ballot shows, priced the same way, so a brief and a page can never quote different deltas.
 
+**The brief says what the page says.** Three things the floor shows a human
+reader are in it, because an agent reading the brief is pricing the same
+floor and a surface that is richer for the visitor who does not trade than
+for the participant who does is not a brief, it is a shop window:
+
+- **Whether the approved work happened**, on every approved proposal:
+  `delivery` carries the state, the owner's line about it and the day it was
+  delivered (docs/guides/proposals.md). Null on anything not approved. Without
+  it the priced impact above is a forecast of a world nobody can confirm
+  arrived.
+- **The owner's own calls**, in `ownerCalls`, beside what the market says. A
+  record, not a price: it settles nothing and pays nobody, and a revised call
+  is a new row with the earlier ones still on it.
+- **What moved it**, in `events`: the dated things the owner did over the
+  window the readings cover, so a jump in the history is explicable rather
+  than taken on faith. No figure sits beside an event; what the number did
+  afterwards is the history the brief already carries.
+
 **A price in the brief says what it is a price of.** A reader who cannot tell a live horizon from a settled one, a proposal still open for a decision from one already ruled on, or a price two people made from an untouched seed will average them together and be confidently wrong, which is worse than having no brief at all. So four things are stated rather than left to be inferred:
 
 - **Only live pairs, for a proposal nobody has decided.** A conditional pair whose horizon was retired is voided, and on a pending proposal it is dead weight: it keeps printing its last delta for a question the floor no longer asks. The brief drops it, exactly as the ballot does. A decided proposal keeps its voided pairs, because those are the record of what was priced when the owner ruled. `lib/market-pairs.ts` owns the rule and both readers call it.
