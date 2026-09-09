@@ -106,7 +106,7 @@ and portable. The trader side is being built first, because with no users at all
 the scarce resource is a stranger's first minute, and the only first minute on
 offer is trading a real company's roadmap.
 
-## The numbers
+## The readings
 
 part:numbers
 
@@ -115,6 +115,10 @@ from the hourly reading the platform takes of itself, one point per day, with
 the dated things the owner did marked on the day they happened. The eight
 weekly readings are printed under each line, because a shape is not a base
 rate and "how far does this normally move in a week" is a number.
+
+A week the sync did not run is a hole rather than a repeat of the week before,
+because a week nobody measured and a week nothing happened are different
+facts.
 
 block:rates
 
@@ -154,12 +158,6 @@ an amount and a date, and a floor appears under the name its own page already
 carries.
 
 block:window
-
-Behind the window is the record of how far each number has actually moved.
-Every weekly reading of every number this floor prices is here, eight weeks
-back, oldest first. A week the sync did not run is a hole rather than a repeat
-of the week before, because a week nobody measured and a week nothing happened
-are different facts.
 
 ## Who is here
 

@@ -38,8 +38,24 @@ interface Props {
 }
 
 const W = 760;
+const PAD_L = 44;
 const PAD_T = 16;
 const PAD_B = 16;
+
+/** Three-ish ticks on round numbers, the same axis TimeChart draws. */
+function ticksFor(lo: number, hi: number): number[] {
+  const mag = 10 ** Math.floor(Math.log10((hi - lo || 1) / 3));
+  const at = (step: number) => {
+    const out: number[] = [];
+    for (let t = Math.ceil(lo / step) * step; t <= hi + step / 1000; t += step) out.push(Number(t.toFixed(6)));
+    return out;
+  };
+  const good = [1, 2, 2.5, 5, 10, 20]
+    .map(k => k * mag)
+    .map(at)
+    .filter(t => t.length >= 3 && t.length <= 6);
+  return good[0] ?? [lo, hi];
+}
 
 const n = (v: number) => Math.round(v).toLocaleString('en-US');
 
@@ -64,14 +80,15 @@ export function RankChart({ id, values, threshold, cap, unit, label, signed = fa
   const y = (v: number) => PAD_T + ((top - Math.max(bottom, Math.min(top, v))) / span) * plotH;
   const zeroY = y(0);
   const gap = values.length > 60 ? 1 : 3;
-  const w = Math.max(1, (W - gap * (values.length - 1)) / values.length);
+  const plotW = W - PAD_L;
+  const w = Math.max(1, (plotW - gap * (values.length - 1)) / values.length);
   const past = values.filter(v => Math.abs(v) > cap);
 
   const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect || rect.width === 0) return;
     const px = ((e.clientX - rect.left) / rect.width) * W;
-    setHover(Math.max(0, Math.min(values.length - 1, Math.floor(px / (w + gap)))));
+    setHover(Math.max(0, Math.min(values.length - 1, Math.floor((px - PAD_L) / (w + gap)))));
   };
 
   return (
@@ -79,7 +96,6 @@ export function RankChart({ id, values, threshold, cap, unit, label, signed = fa
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
         role="img"
         aria-label={label}
         className="rchart-svg"
@@ -88,9 +104,17 @@ export function RankChart({ id, values, threshold, cap, unit, label, signed = fa
         onPointerLeave={() => setHover(null)}
       >
         <title>{label}</title>
-        <line x1={0} y1={zeroY} x2={W} y2={zeroY} className="rchart-zero" />
+        {ticksFor(bottom, top).map(t => (
+          <g key={t}>
+            <line className="tchart-grid" x1={PAD_L} x2={W} y1={y(t)} y2={y(t)} />
+            <text className="tchart-ylabel" x={PAD_L - 6} y={y(t) + 3} textAnchor="end">
+              {n(t)}
+            </text>
+          </g>
+        ))}
+        <line x1={PAD_L} y1={zeroY} x2={W} y2={zeroY} className="rchart-zero" />
         {values.map((v, i) => {
-          const x = i * (w + gap);
+          const x = PAD_L + i * (w + gap);
           const yv = y(v);
           const h = v === 0 ? 1.5 : Math.max(1.5, Math.abs(yv - zeroY));
           const yTop = v < 0 ? zeroY : Math.min(yv, zeroY - 1.5);
@@ -106,7 +130,7 @@ export function RankChart({ id, values, threshold, cap, unit, label, signed = fa
             />
           );
         })}
-        <line x1={0} y1={y(threshold)} x2={W} y2={y(threshold)} className="rchart-threshold" />
+        <line x1={PAD_L} y1={y(threshold)} x2={W} y2={y(threshold)} className="rchart-threshold" />
       </svg>
 
       <div className="tchart-tip-slot">
