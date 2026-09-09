@@ -355,15 +355,13 @@ test('EVENT HISTORY IS PUBLISHED IN BOTH THE DATA ROOM FEED AND ITS AGENT SECTIO
   process.env.SELF_SYNC_WORKSPACE_ID = WS;
   try {
     await seed();
-    await db
-      .insert(announcements)
-      .values({
-        id: 'data-room-event',
-        workspaceId: WS,
-        body: 'Opened the market',
-        publishedBy: 'a1',
-        publishedAt: new Date('2026-09-01'),
-      });
+    await db.insert(announcements).values({
+      id: 'data-room-event',
+      workspaceId: WS,
+      body: 'Opened the market',
+      publishedBy: 'a1',
+      publishedAt: new Date('2026-09-01'),
+    });
     clearDataRoomCache();
     const feed = await buildDataRoomFeed();
     expect((feed.evidence as any).events).toEqual(
