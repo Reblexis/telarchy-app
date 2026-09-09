@@ -168,6 +168,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h10">Otto browses it; it is not in his context</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h11">The change log is the git history</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h12">Rules for changing this page</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h13">What moved it</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-formulas-md">docs/formulas.md</a></summary>
@@ -278,8 +279,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h5">What already lived on the floor</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h6">Machinery, and the trap v1 refuses to ship</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h7">Handing it to your own agent</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h8">The owner&#x27;s own call</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h9">What is deliberately not here</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h8">What is deliberately not here</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-record-links-md">docs/record-links.md</a></summary>
@@ -638,10 +638,9 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h3">The four ways it ends</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h4">The deadline, and the close</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h5">Approving is the payment</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h6">After approval: say whether it happened</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h7">Declining, and why the reason is enforced</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h8">What the declined branch does</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h9">Two habits that make the delta mean something</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h6">Declining, and why the reason is enforced</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h7">What the declined branch does</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h8">Two habits that make the delta mean something</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-recipes-md">docs/guides/recipes.md</a></summary>
@@ -1986,6 +1985,18 @@ the module refuses to load.</li>
 block the prose names is one the feed carries, and the traffic rollup counts
 what the cockpit counts.</li>
 </ol>
+<h2 id="docs-data-room-md--h13">What moved it</h2>
+<p>The data room shows the twelve most recent dated announcements and proposal
+decisions from Telarchy's configured self-sync workspace, ordered oldest first.
+Any already-recorded delivery is included. Each row names the day, event and
+kind. These events give context for the readings; they do not establish that
+the event caused a change. An empty record says no events are recorded. The
+same rows are published in the JSON feed and markdown section for agents.</p>
+<p>This context belongs only in the data room. Workspace floors keep their prior
+charts and controls, with no event markers, What moved it section, owner-call
+controls, or delivery controls. Participant profiles keep their prior layout.
+Previously applied migrations remain in the journal to preserve stored data;
+the reverted controls and their new write endpoints are absent.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
@@ -3553,22 +3564,7 @@ screenshots.</p>
 <p>Otto carries the same handoff. Every Otto conversation has the second row at
 its foot, and the operator door offers the key beside the prompt Otto has
 been writing (owner direction 2026-08-23, <code>services/setup-handoff.ts</code>).</p>
-<h2 id="docs-owner-on-the-floor-md--h8">The owner's own call</h2>
-<p>The owner may publish what THEY expect a metric to read at a date, beside what
-the market says: <code>POST /api/workspaces/:id/calls</code> with <code>{ metricId, targetDate, value }</code>, behind <code>manage</code> like every other owner control. The
-floor prints it as a third cell in the stat row, in ink, labelled with the
-owner's handle, and the number chart draws nothing extra for it.</p>
-<p>It is a record, not a control: it moves no price, settles no market and pays
-nobody. What it does is put the owner on the same hook as the people they are
-asking to forecast, which is the only reason to publish one.</p>
-<p><strong>Calls are append-only.</strong> A new call on the same metric and date does not
-edit the old one; it is a second row, and the floor prints the newest with
-&quot;revised&quot; and how many stand behind it. A forecast that can be quietly
-rewritten after the fact is not a forecast, and the whole value of publishing
-one is that it was made before the answer was known.</p>
-<p><strong>A call is never required.</strong> A floor with none prints two cells, exactly as
-before.</p>
-<h2 id="docs-owner-on-the-floor-md--h9">What is deliberately not here</h2>
+<h2 id="docs-owner-on-the-floor-md--h8">What is deliberately not here</h2>
 <ul>
 <li><strong>Closing a market</strong> is not a floor control: it voids other people's
 positions, which does not belong one click from a button that buys
@@ -4581,7 +4577,7 @@ made, each one a door back to the market it was made on. Standalone, in the
 is verified, and one line of standing: &quot;Trading since &lt;month day, year&gt; ·
 #N on the leaderboard&quot; (the rank line is omitted when the participant has
 no rank). The bio follows when set.</p>
-<p><strong>The stats strip</strong> is one ruled band of four cells, and every number in
+<p><strong>The stats strip</strong> is one ruled band of three cells, and every number in
 it is one the platform already reports elsewhere, so the profile never
 disagrees with another page:</p>
 <ul>
@@ -4591,10 +4587,6 @@ when positive, red when negative.</li>
 <li><strong>Balance</strong>: the participant's tradeable credits right now, platform-wide
 (the live point of the balance history), with &quot;N cr in positions&quot;
 beneath: what their open positions are worth at the current call, summed.</li>
-<li><strong>Accuracy</strong>: the share of resolved markets that settled on the side they
-held, the leaderboard's own figure, with &quot;of N resolved&quot; beneath. A
-participant with nothing resolved reads &quot;not yet&quot;, never 0%: a forecaster
-who has not been scored has no score, and a zero would say they were wrong.</li>
 <li><strong>Trades</strong>: how many, with &quot;N cr traded · <ago>&quot; beneath. The
 traded figure is credits moved by their buys and sells on public floors;
 redemptions are not trades and do not count.</li>
@@ -4604,17 +4596,6 @@ invested and profit tiles are: the pressed cell (its label in ink, a 2px
 ink rule under it) is the series the chart below draws, and Balance is
 pressed on arrival. Trades is a number, not a series, and is not
 pressable.</p>
-<p><strong>Settled</strong> is every market they traded that has resolved, newest first:
-the metric and date, then &quot;closed X · called Y · range A to B&quot;, the two
-values as marks on that market's own scale (the close in ink, their call in
-the accent), and the distance between them on the right. Their call is the
-market's call as they left it, the consensus recorded on their last trade in
-that book, so a participant who traded once and never came back is scored on
-what they actually said. A call the platform never recorded (a trade older
-than those columns) draws no mark and says &quot;no call recorded&quot;: a dot at zero
-would read as a forecast of zero. Each row's scale is its own, because a
-revenue book running to $1,000 and a trader count running to 50 share no
-axis and normalising them would be a summary statistic wearing a drawing.</p>
 <p><strong>The chart</strong> is the floor's market chart (<code>MarketChart</code>, &quot;The price and
 the chart&quot;) drawing the pressed cell's series, ending on the live point:
 the same step line, gradient, labeled end dot, crosshair and tooltip, and
@@ -5022,19 +5003,6 @@ it.</strong> A newcomer reads the floor top to bottom: what the number is, what 
 reads now, what the market says it will read, then the picture of both on
 one axis. Everything in this section serves that order (decision record:
 <code>notes/decisions/ui-conventions.md</code>, 2026-09-03).</p>
-<p><strong>What moved it.</strong> The dated things the owner did are marked against the
-line they moved: an announcement, a decision, a delivery. Each is a numbered
-dot on a dashed hairline through the plot, and under the chart the same
-events are one hairline row each, oldest first, carrying the number, the day,
-the label and which kind of thing it was. The numbering is over the whole
-list rather than the visible window, so a mark and a row name each other
-whatever range is selected. Only past events inside the window are marked: a
-mark with no line under it explains nothing, and one in the future has moved
-nothing yet. A proposal being POSTED is not an event; anyone can post one and
-it moves nothing until it is decided.</p>
-<p><strong>No figure sits beside an event.</strong> What the number did afterwards is the
-line the marks stand on. &quot;+3 in the week after&quot; would be the same fact stated
-twice, the second time rounded, over a seven-day window nobody chose.</p>
 <p><strong>The summary line.</strong> When the metric has a definition, its FIRST SENTENCE
 prints under the question line in the quiet register
 (<code>.pubws-instrument-sum</code>, <code>firstSentenceOf</code>), so a reader knows what the
@@ -6905,24 +6873,6 @@ template.</p>
 <h3 id="docs-vision-md--h32">The workspace brief, and asking the floor a question</h3>
 <p>A visitor looking at &quot;the market says 25&quot; cannot tell whether 25 is right. What would tell them is spread across a chart, a metric definition, a charter, eight proposals and whatever the owner has written about the business, and reading all of it costs more than the bet is worth. That is the friction that keeps a floor's traffic from becoming its traders, so the floor answers questions.</p>
 <p><strong><code>GET /api/marketplace/:idOrSlug/context</code> is the brief</strong>: one read carrying the company and its charter, every metric with its definition and recent readings, the open markets and their current prices, every proposal with the market's priced impact and its conversation, the owner's announcements, and the owner's published documents. <code>?format=md</code> returns the same facts as one markdown document, which is the form to hand a language model. It is derived, not stored, and the proposal impact is the set the floor's own ballot shows, priced the same way, so a brief and a page can never quote different deltas.</p>
-<p><strong>The brief says what the page says.</strong> Three things the floor shows a human
-reader are in it, because an agent reading the brief is pricing the same
-floor and a surface that is richer for the visitor who does not trade than
-for the participant who does is not a brief, it is a shop window:</p>
-<ul>
-<li><strong>Whether the approved work happened</strong>, on every approved proposal:
-<code>delivery</code> carries the state, the owner's line about it and the day it was
-delivered (docs/guides/proposals.md). Null on anything not approved. Without
-it the priced impact above is a forecast of a world nobody can confirm
-arrived.</li>
-<li><strong>The owner's own calls</strong>, in <code>ownerCalls</code>, beside what the market says. A
-record, not a price: it settles nothing and pays nobody, and a revised call
-is a new row with the earlier ones still on it.</li>
-<li><strong>What moved it</strong>, in <code>events</code>: the dated things the owner did over the
-window the readings cover, so a jump in the history is explicable rather
-than taken on faith. No figure sits beside an event; what the number did
-afterwards is the history the brief already carries.</li>
-</ul>
 <p><strong>A price in the brief says what it is a price of.</strong> A reader who cannot tell a live horizon from a settled one, a proposal still open for a decision from one already ruled on, or a price two people made from an untouched seed will average them together and be confidently wrong, which is worse than having no brief at all. So four things are stated rather than left to be inferred:</p>
 <ul>
 <li><strong>Only live pairs, for a proposal nobody has decided.</strong> A conditional pair whose horizon was retired is voided, and on a pending proposal it is dead weight: it keeps printing its last delta for a question the floor no longer asks. The brief drops it, exactly as the ballot does. A decided proposal keeps its voided pairs, because those are the record of what was priced when the owner ruled. <code>lib/market-pairs.ts</code> owns the rule and both readers call it.</li>
@@ -9845,24 +9795,7 @@ you need and what you have.</li>
 <p>The reward is checked before anything else moves. An approve that returns 409
 leaves the proposal exactly as it was: still pending, both branches still open
 and priced, no stake bought out. Top up and approve again.</p>
-<h2 id="docs-guides-proposals-md--h6">After approval: say whether it happened</h2>
-<p>An approved proposal is a promise the market priced. Until you say otherwise it
-sits at <strong>not started</strong>, and the floor says so in public beside the price the
-approval was made on.</p>
-<p><code>POST /api/proposals/:id/delivery</code> takes <code>{ state, note? }</code>, where <code>state</code> is
-<code>not_started</code>, <code>in_progress</code> or <code>delivered</code> and the note is one line in your own
-words saying what happened, with a link if there is one to give. Only a caller
-who can decide proposals on that workspace may set it, and only an approved
-proposal has a delivery state at all: a declined one was never promised and a
-pending one has nothing to report. <code>delivered</code> stamps the day, and moving back
-off <code>delivered</code> clears that stamp, because a date that survives the state it
-recorded is a lie.</p>
-<p>Why it is enforced as a public field rather than left to a comment: a
-conditional market prices &quot;if this is approved, the metric lands at X&quot;. A
-forecaster who cannot see whether the approved thing was done cannot tell a
-market that was wrong from a promise that was not kept, and prices both the
-same. The state is what makes the conditional checkable after the fact.</p>
-<h2 id="docs-guides-proposals-md--h7">Declining, and why the reason is enforced</h2>
+<h2 id="docs-guides-proposals-md--h6">Declining, and why the reason is enforced</h2>
 <p><code>POST /api/proposals/:id/decline</code> takes <code>{ declineReason?, refund? }</code>.</p>
 <p><strong>A reason is required exactly when your workspace has a charter set.</strong> That
 coupling is the point. Making a public commitment about what you will do with
@@ -9885,7 +9818,7 @@ There is no button for it on the floor; it is an API call.</p>
 <p><strong>Remove</strong> takes a proposal off the board entirely: a duplicate, a test row,
 something that should never have been there. Every stake is refunded first. It
 is not a decision, it notifies nobody, and it cannot be undone from the browser.</p>
-<h2 id="docs-guides-proposals-md--h8">What the declined branch does</h2>
+<h2 id="docs-guides-proposals-md--h7">What the declined branch does</h2>
 <p>Both branches are real markets and both can pay. Whichever world the decision
 creates is the one that settles against the metric; the other is a
 counterfactual with nothing to settle against, so it voids and every position
@@ -9906,7 +9839,7 @@ market's resolution instant created no world, so both branches void there and
 everyone is refunded.</p>
 <p><em>(Until 2026-08-30 the resolver voided a declined proposal's surviving branch
 too, so a decline paid nobody. Fixed; the behaviour above is what runs.)</em></p>
-<h2 id="docs-guides-proposals-md--h9">Two habits that make the delta mean something</h2>
+<h2 id="docs-guides-proposals-md--h8">Two habits that make the delta mean something</h2>
 <p><strong>Publish a charter.</strong> Forecasters are being asked to price a stranger's
 decisions with their own credits. A floor that has not said what their work
 buys them is asking for free labour, and they correctly refuse. The charter is

@@ -999,11 +999,6 @@
     "agent": 404,
     "master": 404
   },
-  "POST /api/proposals/:proposalId/delivery": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
-  },
   "GET /api/proposals/:proposalId/messages": {
     "anon": 401,
     "agent": 404,
@@ -1203,11 +1198,6 @@
     "anon": 401,
     "agent": 404,
     "master": 404
-  },
-  "POST /api/workspaces/:id/calls": {
-    "anon": 401,
-    "agent": 400,
-    "master": 400
   },
   "POST /api/workspaces/:id/join": {
     "anon": 401,

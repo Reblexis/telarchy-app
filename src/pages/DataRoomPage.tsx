@@ -469,6 +469,23 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
     );
   }
 
+  if (name === 'events') {
+    return (
+      <WhenList
+        id="events"
+        empty="No events recorded yet."
+        rows={[...(e.events ?? [])]
+          .sort((a, b) => a.at.localeCompare(b.at))
+          .map((event, i) => ({
+            key: `${event.at}-${i}`,
+            when: dayLabel(event.at),
+            main: event.label,
+            right: event.kind,
+          }))}
+      />
+    );
+  }
+
   if (name === 'calendar') {
     const c = e.calendar;
     return (

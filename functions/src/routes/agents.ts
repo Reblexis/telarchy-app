@@ -996,43 +996,6 @@ agentsRouter.get(
         return { at: e.at.toISOString(), cumulative: Math.round(cumulativePnl * 100) / 100 };
       });
 
-    // Every settled market this participant traded: what it closed at, and
-    // what they last called it (docs/ui-conventions.md, "The participant
-    // profile"). Their call is the consensus recorded on their last non-
-    // redemption trade in that book, which is the market's call as they left
-    // it. A redemption moves no price and is never a call; a row written
-    // before the columns existed publishes null, never zero. Nothing is
-    // derived from these: the distance is visible on the row.
-    const SETTLED_CALLS_LIMIT = 25;
-    const lastCallByMarket = new Map<string, { at: Date; call: number | null }>();
-    for (const t of tradeRows) {
-      if (t.agentId !== agent.id || !viewerWsIds.has(t.workspaceId)) continue;
-      if (t.kind === 'redeem') continue;
-      const m = marketById.get(t.marketId);
-      if (!m?.resolved || m.actualValue === null || !m.resolvedAt) continue;
-      const prev = lastCallByMarket.get(t.marketId);
-      if (!prev || t.createdAt > prev.at)
-        lastCallByMarket.set(t.marketId, { at: t.createdAt, call: t.consensusAfter ?? null });
-    }
-    const settledCalls = Array.from(lastCallByMarket, ([marketId, own]) => {
-      const m = marketById.get(marketId)!;
-      return {
-        workspaceId: m.workspaceId,
-        workspaceName: wsNameById.get(m.workspaceId) ?? m.workspaceId,
-        workspaceSlug: wsSlugById.get(m.workspaceId) ?? m.workspaceId,
-        marketId,
-        metricName: m.metricName,
-        targetDate: m.targetDate,
-        resolvedAt: (m.resolvedAt as Date).toISOString(),
-        close: m.actualValue as number,
-        call: own.call,
-        rangeMin: m.rangeMin,
-        rangeMax: m.rangeMax,
-      };
-    })
-      .sort((a, b) => new Date(b.resolvedAt).getTime() - new Date(a.resolvedAt).getTime())
-      .slice(0, SETTLED_CALLS_LIMIT);
-
     // Proposed jobs this participant put on public boards, newest first
     // (owner ask 2026-08-11). Only public-visibility workspaces, so nothing
     // leaks from a private board.
@@ -1080,7 +1043,6 @@ agentsRouter.get(
       activeWorkspaces,
       openPositions: openPositionsCapped,
       recentTrades,
-      settledCalls,
       proposedJobs,
       balanceHistory,
       profitHistory: [...profitPoints, { at: new Date().toISOString(), profit: (entry ?? emptyStats).totalEarnings }],

@@ -23,6 +23,7 @@ export const KNOWN_BLOCKS = [
   'window',
   'rates',
   'calendar',
+  'events',
   'traction',
   'contracts',
   'traffic',
@@ -131,6 +132,13 @@ of the week before, because a week nobody measured and a week nothing happened
 are different facts.
 
 block:rates
+
+## What moved it
+
+Announcements and decisions around the readings. These dates provide context;
+they do not establish what caused a change.
+
+block:events
 
 ## What is scheduled
 

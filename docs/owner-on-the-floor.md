@@ -336,27 +336,6 @@ Otto carries the same handoff. Every Otto conversation has the second row at
 its foot, and the operator door offers the key beside the prompt Otto has
 been writing (owner direction 2026-08-23, `services/setup-handoff.ts`).
 
-## The owner's own call
-
-The owner may publish what THEY expect a metric to read at a date, beside what
-the market says: `POST /api/workspaces/:id/calls` with `{ metricId,
-targetDate, value }`, behind `manage` like every other owner control. The
-floor prints it as a third cell in the stat row, in ink, labelled with the
-owner's handle, and the number chart draws nothing extra for it.
-
-It is a record, not a control: it moves no price, settles no market and pays
-nobody. What it does is put the owner on the same hook as the people they are
-asking to forecast, which is the only reason to publish one.
-
-**Calls are append-only.** A new call on the same metric and date does not
-edit the old one; it is a second row, and the floor prints the newest with
-"revised" and how many stand behind it. A forecast that can be quietly
-rewritten after the fact is not a forecast, and the whole value of publishing
-one is that it was made before the answer was known.
-
-**A call is never required.** A floor with none prints two cells, exactly as
-before.
-
 ## What is deliberately not here
 
 - **Closing a market** is not a floor control: it voids other people's
