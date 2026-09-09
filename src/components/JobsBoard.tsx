@@ -113,7 +113,7 @@ export function pendingBallot(
  */
 /** The pool's mark, the same drop the market facts use. */
 /** The deadline's mark: a clock in the drop's register. */
-const Clock = () => (
+export const ClockGlyph = () => (
   <svg
     width="10"
     height="10"
@@ -162,7 +162,7 @@ export function windowLabel(minutes: number): string {
   return `${Math.round(minutes / 1440)}d`;
 }
 
-const Person = () => (
+export const PersonGlyph = () => (
   <svg
     width="11"
     height="11"
@@ -179,7 +179,7 @@ const Person = () => (
   </svg>
 );
 
-const Coin = () => (
+export const CoinGlyph = () => (
   <svg
     width="11"
     height="11"
@@ -197,7 +197,7 @@ const Coin = () => (
   </svg>
 );
 
-const PoolDrop = () => (
+export const DropGlyph = () => (
   <svg width="9" height="11" viewBox="0 0 12 15" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
     <path d="M6 1.5C6 1.5 1.5 6.5 1.5 9.3a4.5 4.5 0 0 0 9 0C10.5 6.5 6 1.5 6 1.5Z" />
   </svg>
@@ -444,7 +444,7 @@ export function JobsBoard({
                   also selecting. */}
               {p.proposedByName && (
                 <span title={`Proposed by ${p.proposedByName}`}>
-                  <Person />
+                  <PersonGlyph />
                   {p.proposedByHandle ? (
                     <span
                       className="pubws-name-link"
@@ -470,7 +470,7 @@ export function JobsBoard({
               )}
               {askUsd !== null && (
                 <span title={`$${askUsd} to them if you approve it`}>
-                  <Coin />${askUsd}
+                  <CoinGlyph />${askUsd}
                 </span>
               )}
               {/* The deadline, as a countdown (docs/ui-conventions.md, "The
@@ -481,7 +481,7 @@ export function JobsBoard({
                   aria-label="Decision in"
                   title={`The owner decides by ${new Date(p.decideBy as string).toUTCString()}`}
                 >
-                  <Clock />
+                  <ClockGlyph />
                   {countdown.label}
                 </span>
               )}
@@ -491,7 +491,7 @@ export function JobsBoard({
                 className="pubws-ballot-pool"
                 title={`${Math.round(poolOf(p)).toLocaleString()} credits behind this proposal`}
               >
-                <PoolDrop />
+                <DropGlyph />
                 {Math.round(poolOf(p)).toLocaleString()}
               </span>
               {p.status && p.status !== 'pending' && (

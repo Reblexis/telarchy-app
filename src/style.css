@@ -2649,10 +2649,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   color: var(--text-secondary);
 }
 
-/* Carrying a contract's condition the sentence runs long, so it gets a
-   wider measure instead of a taller stack (owner ask 2026-08-28: modify
-   the question, do not add a line). */
-.pubws-instrument-ask--cond { max-width: 40ch; }
 
 /* A cycle word: the metric or the date inside the question. Live ones wear
    the world word's dotted underline, so a clickable word looks the same
@@ -3265,32 +3261,10 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 
 .pubws-ballot-detail { padding: 0.5rem 0 0.3rem; }
 
-.pubws-branches {
-  margin-top: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
 
-.pubws-branch {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  font-size: 0.85rem;
-}
 
-.pubws-branch-label {
-  min-width: 6.5rem;
-  color: var(--text-secondary);
-}
 
-.pubws-branch-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  min-width: 4.5rem;
-}
 
-.pubws-branch-btns { display: inline-flex; gap: 0.35rem; }
 
 .pubws-proposal-meta {
   margin: 0.5rem 0 0;
@@ -4478,39 +4452,6 @@ textarea.jobform-line--desc {
 }
 .pubws-back:hover { color: var(--text-primary); }
 
-/* The two worlds of a job, and which one you are betting in. Green is the
-   approved world, red the declined one, matching the chart's lines. */
-.pubws-branch {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  margin: 0.8rem 0 0.2rem;
-}
-
-.pubws-branch-opt {
-  padding: 0.3rem 0.9rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: none;
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
-}
-.pubws-branch-opt:hover:not(.is-active) { color: var(--text-primary); }
-.pubws-branch-opt--approved.is-active {
-  border-color: var(--higher);
-  color: var(--higher);
-  background: color-mix(in srgb, var(--higher) 10%, transparent);
-}
-.pubws-branch-opt--declined.is-active {
-  border-color: var(--lower);
-  color: var(--lower);
-  background: color-mix(in srgb, var(--lower) 10%, transparent);
-}
-.pubws-branch-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* A chip that changes value re-mounts (keyed) and slides in, so a moved
    impact is seen moving. */
@@ -4523,57 +4464,20 @@ textarea.jobform-line--desc {
   .pubws-delta-chip { animation: none; }
 }
 
-.pubws-question-task { color: var(--text-primary); }
 
-/* The paid / not-paid phrase as the world toggle. Both phrases stack in
-   one grid cell so the width is the longer phrase's and a switch never
-   reflows the headline; the inactive one waits a step below at opacity 0
-   and rises in on the crossfade. */
-.pubws-world {
-  display: inline-grid;
-  justify-items: center;
-  vertical-align: baseline;
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-}
-.pubws-world--live { cursor: pointer; }
-
-.pubws-world-opt {
-  grid-area: 1 / 1;
-  white-space: nowrap;
-  font-weight: 600;
-  transition: opacity 240ms ease, transform 240ms ease;
-}
-.pubws-world-opt--approved { color: var(--higher); }
-.pubws-world-opt--declined { color: var(--lower); }
-
-/* The clickable phrase says so: a dotted underline in its own colour. */
-.pubws-world--live .pubws-world-opt { border-bottom: 2px dotted currentColor; }
-.pubws-world--live:hover .pubws-world-opt { filter: brightness(1.15); }
-
-.pubws-world--approved .pubws-world-opt--declined,
-.pubws-world--declined .pubws-world-opt--approved {
-  opacity: 0;
-  transform: translateY(0.45em);
-  pointer-events: none;
-}
-
-.pubws-world--live:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-@media (prefers-reduced-motion: reduce) {
-  .pubws-world-opt { transition: none; }
-}
-
-/* The job's own words, where the question is: the row below stops
-   repeating them. */
+/* The proposal's own words, under the trade since 2026-09-09 (they moved out
+   of the space between the title and the number). Left-aligned prose in a
+   full-width block, like every other block of prose on the floor. */
 .pubws-details {
-  max-width: 52ch;
-  margin: 0.6rem auto 0;
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: var(--text-tertiary);
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.pubws-proposal-words .pubws-ownerbar {
+  justify-content: flex-start;
 }
 
 /* A selected job row is the one driving the view above. */
@@ -6401,7 +6305,6 @@ textarea.jobform-line--desc {
   overflow: hidden;
   overflow-wrap: anywhere;
 }
-.pubws-question-task { overflow-wrap: anywhere; }
 .pubws-rail .pubws-ballot-facts { font-size: 0.72rem; }
 
 .pubws-know {
@@ -11229,4 +11132,108 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   line-height: 1.45;
   color: var(--text-tertiary);
   text-align: left;
+}
+
+/* A proposal is a decision with a price (docs/ui-conventions.md, 2026-09-09):
+   the title is the headline, the four facts are one icon row under it. */
+.pubws-proposal-head {
+  margin-top: clamp(1.4rem, 4vh, 2rem);
+  text-align: left;
+}
+.pubws-proposal-title {
+  margin: 0;
+  font-family: 'Fraunces', ui-serif, Georgia, serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: clamp(1.2rem, 3.4vw, 1.5rem);
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+.pubws-proposal-head .pubws-prow-meta {
+  margin-top: 0.55rem;
+}
+.pubws-proposal-head .pubws-chip--deadline {
+  border: none;
+  padding: 0;
+  color: var(--accent);
+}
+/* The label a strip wears when its values are impacts, not levels. */
+.pubws-strip-label {
+  align-self: flex-end;
+  flex: none;
+  padding-bottom: 0.55rem;
+  margin-right: 0.2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pubws-strip-note {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-top: 0.1rem;
+}
+/* The impact is the number, and the two worlds are the control under it. */
+.pubws-impact {
+  margin-top: 1.4rem;
+  text-align: center;
+}
+.pubws-impact-what {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pubws-impact-hero {
+  margin: 0.35rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: clamp(2.2rem, 7vw, 3rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+.pubws-impact-hero.is-up {
+  color: var(--higher);
+}
+.pubws-impact-hero.is-down {
+  color: var(--lower);
+}
+.pubws-world-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.9rem 0.9rem 0.9rem 0;
+  border: none;
+  background: var(--bg-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.pubws-world-cell--approved,
+.pubws-world-cell.is-active {
+  background: var(--higher-soft);
+}
+.pubws-world-cell:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.pubws-world-cell .pubws-price {
+  font-size: clamp(1.2rem, 3.4vw, 1.5rem);
+}
+.pubws-world-cell--declined.is-active .pubws-price {
+  color: var(--lower);
 }

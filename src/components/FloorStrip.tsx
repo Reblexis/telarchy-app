@@ -19,17 +19,24 @@ export interface StripTab {
   /** The call, already formatted with its own unit; null when there is none. */
   value: string | null;
   selected: boolean;
+  /** A word under the value: "untraded" on a funded pair nobody has priced,
+   *  so a zero anchor is never passed off as an opinion. */
+  note?: string;
   title?: string;
 }
 
 export function FloorStrip({
   ariaLabel,
   kind,
+  label,
   tabs,
   onPick,
   manage,
 }: {
   ariaLabel: string;
+  /** What the strip's values are, when they are not levels: "moves" and "by"
+   *  with a proposal open. */
+  label?: string;
   /** 'metric' | 'date', for the class the stylesheet keys on. */
   kind: 'metric' | 'date';
   tabs: StripTab[];
@@ -59,6 +66,11 @@ export function FloorStrip({
 
   return (
     <div className={`pubws-strip pubws-strip--${kind}`} role="tablist" aria-label={ariaLabel} ref={ref}>
+      {label && (
+        <span className="pubws-strip-label" aria-hidden="true">
+          {label}
+        </span>
+      )}
       {tabs.map(t => (
         <button
           key={t.id}
@@ -72,6 +84,7 @@ export function FloorStrip({
         >
           <span className="pubws-strip-name">{t.label}</span>
           <span className="pubws-strip-val">{t.value ?? '-'}</span>
+          {t.note && <span className="pubws-strip-note">{t.note}</span>}
         </button>
       ))}
       {manage && (

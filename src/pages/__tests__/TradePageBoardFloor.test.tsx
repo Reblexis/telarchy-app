@@ -589,7 +589,7 @@ describe('three columns, and the standings under the verbs', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(floorWithProposal() as never);
     const { container } = renderFloor('/lookpilot#proposal=job-1');
     await waitFor(() => expect(container.querySelector('.pubws-pair-toggle, [aria-label="Proposals"]')).toBeTruthy());
-    await waitFor(() => expect(container.querySelector('.pubws-question-task')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('.pubws-proposal-title')).toBeTruthy());
     expect(container.querySelector('.pubws-rail--left')).toBeNull();
     expect(container.querySelector('.pubws-season')).toBeNull();
     expect(container.querySelector('a[href="/season"]')).toBeNull();
