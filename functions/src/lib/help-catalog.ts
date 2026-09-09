@@ -748,6 +748,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
         'Approve a pending proposal. The declined branch is voided and refunded; the approved branch closes to trading (buys and sells alike, code proposal_closed; open limit orders released) and its positions settle against the metric at its date. If the workspace has proposalReward > 0, debits owner balance and credits proposer; returns 409 if owner balance is insufficient.',
     },
     {
+      method: 'POST',
+      path: '/api/proposals/:id/delivery',
+      auth: 'admin',
+      description:
+        "Say whether the approved work happened. Body: { state, note? } where state is not_started | in_progress | delivered and note is one line (max 1000 chars) published on the proposal; an omitted note keeps the one already there, an empty one clears it. Only an approved proposal has a delivery state: a pending or declined one answers 400. delivered stamps deliveredAt; moving back off delivered clears it. The state is public on the proposal (deliveryState, deliveryNote, deliveredAt) because a conditional market prices 'if this is approved, the metric lands at X', and a forecaster who cannot see whether the approved thing was done cannot tell a market that was wrong from a promise that was not kept.",
+    },
+    {
       method: 'PATCH',
       path: '/api/proposals/:id',
       auth: 'agent',

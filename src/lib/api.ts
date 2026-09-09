@@ -723,6 +723,14 @@ export interface PublicProposal {
   decideBy?: string | null;
   closedAt?: string | null;
   lapsedAt?: string | null;
+  /** Whether the approved work happened (docs/guides/proposals.md, "After
+   *  approval: say whether it happened"). Read only on an approved proposal:
+   *  a declined one was never promised and a pending one has nothing to
+   *  report. Absent on a payload from before the field, which reads as
+   *  'not_started', never as delivered. */
+  deliveryState?: 'not_started' | 'in_progress' | 'delivered';
+  deliveryNote?: string | null;
+  deliveredAt?: string | null;
   proposedByName: string | null;
   /** Resolvable segment for /participants/:id (participant id; the page
    *  also resolves nicknames). */
@@ -1817,6 +1825,13 @@ export const api = {
       }>;
     }>,
   approveProposal: (id: string) => request(`/api/proposals/${id}/approve`, { method: 'POST' }),
+  /** Say whether the approved work happened (docs/guides/proposals.md, "After
+   *  approval: say whether it happened"). Only an approved proposal has one. */
+  setProposalDelivery: (id: string, state: 'not_started' | 'in_progress' | 'delivered', note?: string) =>
+    request(`/api/proposals/${id}/delivery`, {
+      method: 'POST',
+      body: JSON.stringify({ state, note: note ?? '' }),
+    }),
   /** `declineReason` is published permanently on the proposal. Required by the
    *  backend when the workspace has a charter, since that is the promise. */
   /** Admin: take a job off the board entirely (refunds every stake first). */

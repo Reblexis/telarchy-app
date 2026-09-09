@@ -72,6 +72,23 @@ function fmtVal(v: number, unit: string): string {
   return unit + v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
+/** "2 Sep": a day, in the register the rest of the row's facts use. */
+export function fmtDay(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+/**
+ * What an approved proposal's delivery state reads as
+ * (docs/guides/proposals.md, "After approval: say whether it happened").
+ * "not started" is said out loud rather than left blank: silence would let a
+ * reader take approval for delivery.
+ */
+export const DELIVERY_WORD: Record<string, string> = {
+  not_started: 'not started',
+  in_progress: 'in progress',
+  delivered: 'delivered',
+};
+
 /** A signed impact figure as the ballot prints it: "+12.0", "-3.0", "+120". */
 export function fmtDelta(d: number, unit: string): string {
   return `${d > 0 ? '+' : d < 0 ? '-' : ''}${fmtVal(Math.abs(d), unit).replace(/^([+-])?/, '')}`;
@@ -395,6 +412,17 @@ export function JobsBoard({
               {p.status && p.status !== 'pending' && (
                 <span className={`pubws-ballot-status is-${p.lapsedAt ? 'declined' : p.status}`}>
                   {p.lapsedAt ? 'lapsed' : p.status}
+                </span>
+              )}
+              {/* Whether the approved work happened (docs/guides/proposals.md).
+                  Only an approved proposal carries one: a declined one was
+                  never promised. A row that says nothing would let a reader
+                  take approval for delivery, which is the thing a conditional
+                  market cannot be checked against. */}
+              {p.status === 'approved' && !p.lapsedAt && (
+                <span className={`pubws-ballot-delivery is-${p.deliveryState ?? 'not_started'}`}>
+                  {DELIVERY_WORD[p.deliveryState ?? 'not_started']}
+                  {p.deliveryState === 'delivered' && p.deliveredAt ? ` ${fmtDay(p.deliveredAt)}` : ''}
                 </span>
               )}
             </span>

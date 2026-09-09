@@ -149,6 +149,27 @@ The reward is checked before anything else moves. An approve that returns 409
 leaves the proposal exactly as it was: still pending, both branches still open
 and priced, no stake bought out. Top up and approve again.
 
+## After approval: say whether it happened
+
+An approved proposal is a promise the market priced. Until you say otherwise it
+sits at **not started**, and the floor says so in public beside the price the
+approval was made on.
+
+`POST /api/proposals/:id/delivery` takes `{ state, note? }`, where `state` is
+`not_started`, `in_progress` or `delivered` and the note is one line in your own
+words saying what happened, with a link if there is one to give. Only a caller
+who can decide proposals on that workspace may set it, and only an approved
+proposal has a delivery state at all: a declined one was never promised and a
+pending one has nothing to report. `delivered` stamps the day, and moving back
+off `delivered` clears that stamp, because a date that survives the state it
+recorded is a lie.
+
+Why it is enforced as a public field rather than left to a comment: a
+conditional market prices "if this is approved, the metric lands at X". A
+forecaster who cannot see whether the approved thing was done cannot tell a
+market that was wrong from a promise that was not kept, and prices both the
+same. The state is what makes the conditional checkable after the fact.
+
 ## Declining, and why the reason is enforced
 
 `POST /api/proposals/:id/decline` takes `{ declineReason?, refund? }`.

@@ -2504,6 +2504,25 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
 }
 .pubws-ballot-clock.is-urgent { color: var(--lower); }
 
+/* Whether an approved proposal's work happened (docs/guides/proposals.md,
+   "After approval: say whether it happened"). Neutral grey like every other
+   state chip; "not started" is the one that gets the accent, because it is
+   the state a reader would otherwise assume away. */
+.pubws-ballot-delivery {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  color: var(--text-tertiary);
+}
+.pubws-ballot-delivery.is-not_started { color: var(--accent); }
+
+/* The pressed state on an owner's segmented control. */
+.pubws-decide.is-on {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 /* The owner's three words under the buttons, and the extend field: last in
    the bar and on their own line, whatever order the buttons come in. */
 .pubws-ownerbar-note {
