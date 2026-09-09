@@ -45,9 +45,9 @@ describe('the page the prose actually describes', () => {
 
   test('the numbers a forecaster prices come before the company that runs them', () => {
     const ids = sections.map(s => s.id);
-    expect(ids.indexOf('the-numbers')).toBeGreaterThan(-1);
-    expect(ids.indexOf('the-numbers')).toBeLessThan(ids.indexOf('who-is-here'));
-    expect(ids.indexOf('the-numbers')).toBeLessThan(ids.indexOf('traffic'));
+    expect(ids.indexOf('the-readings')).toBeGreaterThan(-1);
+    expect(ids.indexOf('the-readings')).toBeLessThan(ids.indexOf('who-is-here'));
+    expect(ids.indexOf('the-readings')).toBeLessThan(ids.indexOf('traffic'));
   });
 
   test('every part has at least one section, so the index never shows an empty heading', () => {
@@ -55,7 +55,7 @@ describe('the page the prose actually describes', () => {
   });
 
   test('the readings are their own section rather than a footnote inside the window', () => {
-    const numbers = sections.find(s => s.id === 'the-numbers');
+    const numbers = sections.find(s => s.id === 'the-readings');
     expect(numbers?.blocks).toContain('rates');
     expect(sections.find(s => s.id === 'the-window')?.blocks).not.toContain('rates');
   });
