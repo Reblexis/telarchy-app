@@ -160,6 +160,24 @@ describe('the outreach workbench', () => {
     expect(await screen.findByText(/0 sent, 0 answered/)).toBeInTheDocument();
   });
 
+  test('approving is the authorisation to send, and it sends nothing', async () => {
+    render(<OutreachWorkbench />);
+    fireEvent.click(await screen.findByRole('button', { name: /Rob Hallam/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Approve to send$/ }));
+    await waitFor(() => expect(api.outreachUpdate).toHaveBeenCalledWith('p1', { status: 'approved' }));
+    // Approving is not sending: nothing else was called.
+    expect(mock(api.outreachUpdate).mock.calls).toHaveLength(1);
+  });
+
+  test('an approved row says so and offers to take it back', async () => {
+    mock(api.outreachProspects).mockResolvedValue(list([{ ...rob, status: 'approved' }]));
+    render(<OutreachWorkbench />);
+    fireEvent.click(await screen.findByRole('button', { name: /Rob Hallam/ }));
+    expect(screen.getByText(/Approved, waiting to be sent/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Unapprove/ }));
+    await waitFor(() => expect(api.outreachUpdate).toHaveBeenCalledWith('p1', { status: 'ready' }));
+  });
+
   test('the log line for the contract is one click away', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });

@@ -29,6 +29,8 @@ import { AdminPage } from '../AdminPage';
 
 describe('/admin', () => {
   test('carries the Manifold update card', async () => {
+    // The Manifold card is on the Setup tab (docs/ui-conventions.md).
+    window.location.hash = '#setup';
     render(
       <MemoryRouter>
         <AdminPage />

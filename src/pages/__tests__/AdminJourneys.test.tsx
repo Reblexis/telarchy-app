@@ -95,6 +95,10 @@ function mount(journeysBody: unknown) {
     rules: [],
   });
   (api.getJourneys as ReturnType<typeof vi.fn>).mockResolvedValue(journeysBody);
+  // Journeys live on the Traffic tab (docs/ui-conventions.md, "The cockpit
+  // is tabbed"): the fragment picks it before the page mounts, so the tab's
+  // reads happen exactly once.
+  window.location.hash = '#traffic';
   return render(
     <MemoryRouter>
       <AdminPage />

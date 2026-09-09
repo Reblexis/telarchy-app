@@ -263,11 +263,12 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><a href="#docs-outreach-workbench-md--h1">The outreach workbench</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h2">The prospect</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h3">What the owner does</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h4">Drafting</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h5">What it learns</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h6">Endpoints</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h7">Storage</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h8">What it is not</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h4">Who actually sends, and how it cannot send twice</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h5">Drafting</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h6">What it learns</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h7">Endpoints</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h8">Storage</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h9">What it is not</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-owner-on-the-floor-md">docs/owner-on-the-floor.md</a></summary>
@@ -364,14 +365,15 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h39">Text contrast</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h40">The marketplace (/marketplace)</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h41">The cockpit (/admin)</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h42">The cockpit may never take the site down</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h43">Journeys: what one visitor did, in order</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h44">Reusing a component&#x27;s classes: mind the cascade order</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h45">When in doubt</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h46">What a market says about itself, and what your position is worth</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h47">The data room</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h48">The frontend never speaks HTTP directly</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h49">Telling somebody there are credits to earn</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h42">The cockpit is tabbed, and only the open tab costs anything</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h43">The cockpit may never take the site down</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h44">Journeys: what one visitor did, in order</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h45">Reusing a component&#x27;s classes: mind the cascade order</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h46">When in doubt</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h47">What a market says about itself, and what your position is worth</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h48">The data room</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h49">The frontend never speaks HTTP directly</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h50">Telling somebody there are credits to earn</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-vision-md">docs/vision.md</a></summary>
@@ -3122,8 +3124,8 @@ what is here; a fact not in the evidence is not a fact.</li>
 <li><strong>The message</strong>: the current draft, editable by hand at any time.</li>
 <li><strong>The conversation</strong>: the turns of the argument about the draft, kept so
 &quot;shorter&quot; means shorter than the last one.</li>
-<li><strong>Status and outcome</strong>: <code>draft</code>, <code>ready</code>, <code>sent</code>, <code>replied</code>, <code>call</code>,
-<code>workspace</code>, <code>activated</code>, <code>no</code>; the planned send day; when it was sent and
+<li><strong>Status and outcome</strong>: <code>draft</code>, <code>ready</code>, <code>approved</code>, <code>sent</code>, <code>replied</code>,
+<code>call</code>, <code>workspace</code>, <code>activated</code>, <code>no</code>; the planned send day; when it was sent and
 the exact text that went out (frozen at that moment); a note on what came
 back (their words, or &quot;no answer&quot;).</li>
 </ul>
@@ -3140,11 +3142,17 @@ under 75 words, asks one thing, carries his name and the one link
 API cost?&quot;). Every turn comes back as the revised message and what it
 says to him; both stay on screen.</li>
 <li>Edits the text by hand if he wants; the textarea is the message.</li>
-<li>Sends it himself: the channel link opens where the person reads (their X
-profile for a DM, a mailto with the message prefilled, the LinkedIn or
-Bluesky profile, the HN user page), and &quot;Copy&quot; puts the text on the
-clipboard. &quot;I sent this&quot; freezes the text, stamps the time and moves the
-row to <code>sent</code>.</li>
+<li><strong>Approves it.</strong> Approving is the owner saying this exact text may go to
+this exact person, and it is the only thing that authorises a send. It
+moves the row to <code>approved</code> and changes nothing else: an approved message
+has not been sent and does not count as sent anywhere.</li>
+<li>Sends it, or has it sent. Either the owner does it himself, where the
+channel link opens where the person reads (their X profile for a DM, a
+mailto with the message prefilled, the LinkedIn or Bluesky profile, the HN
+user page) and &quot;Copy&quot; puts the text on the clipboard; or an agent picks up
+the approved rows and drives the same surfaces (see &quot;Who actually sends&quot;
+below). Either way &quot;I sent this&quot; freezes the text, stamps the time and
+moves the row to <code>sent</code>.</li>
 <li>Records what came back: a status and a note in their words. A reply is
 evidence, whatever it says.</li>
 <li>Reads the log: who was written to, on what channel, what came back, and
@@ -3156,7 +3164,36 @@ per person, so the traders who priced the promise can count.</li>
 <p>Nothing here sends. The workbench drafts, links and remembers; the owner
 sends. Copy under his name is the one thing he must approve, and a DM
 tool that sends is the fastest way to lose an account.</p>
-<h2 id="docs-outreach-workbench-md--h4">Drafting</h2>
+<h2 id="docs-outreach-workbench-md--h4">Who actually sends, and how it cannot send twice</h2>
+<p>Nothing in this surface sends anything. The owner sends, or an agent sends
+on his behalf, and in both cases the workbench is the record that decides
+what may go out.</p>
+<p><strong>Approval is the authorisation.</strong> An agent may send a row only when its
+status is <code>approved</code>. A row in <code>draft</code> or <code>ready</code> has not been read by the
+owner; a row in <code>sent</code> or anything after it has already gone. This is what
+makes an agent safe to point at a list of strangers: the list of what it may
+do is a list the owner wrote, one row at a time.</p>
+<p><strong>Two checks before every single send, not once per run.</strong> The rule is the
+owner's (2026-09-09): &quot;before sending a message it checks it hasn't sent
+yet&quot;.</p>
+<ol>
+<li>Re-read the row immediately before sending it. If <code>sentAt</code> is set, skip
+it and record why. A run that read the list five minutes ago is reading
+history, and the owner may have sent one by hand in between.</li>
+<li>Look at the channel itself. An existing thread with that person, or a
+message already in it, means it has gone whatever the row says. The
+record can be wrong; the channel is what the person actually received.</li>
+</ol>
+<p><strong>Then mark it immediately.</strong> <code>sent</code> is stamped as soon as the send is
+confirmed, before moving to the next person, so a crash mid-run can never
+leave a message sent and unrecorded. <code>sentText</code> freezes at that moment, so
+the record is what actually went out rather than what the row says later.</p>
+<p><strong>The strategy is not the skill's business.</strong> Whether this batch is X direct
+messages, email, LinkedIn or a public reply is a property of the rows, which
+carry the channel and the handle. An agent that can drive those surfaces can
+run any outreach the owner approves, and a new strategy is new rows rather
+than new code.</p>
+<h2 id="docs-outreach-workbench-md--h5">Drafting</h2>
 <p>Same model, same effort, same fallback and the same no-dashes rule as the X
 workbench (<code>X_DRAFT_MODEL</code>, <code>X_DRAFT_EFFORT</code>, <code>X_DRAFT_FALLBACK</code>; docs/x-workbench.md,
 &quot;Drafting&quot;). The system prompt carries, in this order:</p>
@@ -3179,7 +3216,7 @@ written to twice with the same words is spam.</li>
 </ul>
 <p>The user turn is the prospect: name, segment, channel, the evidence, and the
 current message if there is one; then the argument so far.</p>
-<h2 id="docs-outreach-workbench-md--h5">What it learns</h2>
+<h2 id="docs-outreach-workbench-md--h6">What it learns</h2>
 <p>The log shows each prospect with its channel, segment, sent date and
 outcome, plus a summary: how many sent, how many answered, the reply rate by
 segment and by channel, and which of three tracked features (under 75
@@ -3188,7 +3225,7 @@ With fewer than ten sent it says so instead of pretending to a pattern.</p>
 <p>&quot;Ask&quot; answers a question about the outreach (which segment to push, why a
 message got nothing, what to try next) from the record and the lessons,
 says which it rests on, and says when neither answers.</p>
-<h2 id="docs-outreach-workbench-md--h6">Endpoints</h2>
+<h2 id="docs-outreach-workbench-md--h7">Endpoints</h2>
 <p>All platform admin. Documented in <code>/api/help</code> like every other route.</p>
 <div class="tablewrap"><table>
 <thead>
@@ -3232,14 +3269,15 @@ says which it rests on, and says when neither answers.</p>
 </tr>
 </tbody>
 </table></div>
-<h2 id="docs-outreach-workbench-md--h7">Storage</h2>
+<h2 id="docs-outreach-workbench-md--h8">Storage</h2>
 <p><code>outreach_prospects</code>: one row per person with the fields above; the
 conversation as JSON; <code>sent_text</code> and <code>sent_at</code> set once when the status
-first becomes <code>sent</code> and never changed after. <code>outreach_lessons</code>: one row of
+first becomes <code>sent</code> and never changed after. <code>approved</code> is a status like any
+other and stamps nothing: it is a permission, not an event. <code>outreach_lessons</code>: one row of
 text with an updated-at, like <code>x_voice_profile</code>. Evidence, messages and
 notes are personal (names, handles, what strangers wrote back) and live in
 the database, never in this repository.</p>
-<h2 id="docs-outreach-workbench-md--h8">What it is not</h2>
+<h2 id="docs-outreach-workbench-md--h9">What it is not</h2>
 <p>Not a sender, not a sequencer, not a CRM for a sales team. It holds the
 thirty to a few hundred people one founder writes to himself, and it makes
 each next message better than the last because the last one is on record.</p>
@@ -6206,7 +6244,20 @@ the owner reading the page does not raise the visits, uniques or top-pages
 figures that are supposed to mean a stranger showed up. Filtering it on read
 instead would move those hits into the &quot;bot hits&quot; count, which is a
 different lie.</p>
-<h3 id="docs-ui-conventions-md--h42">The cockpit may never take the site down</h3>
+<h3 id="docs-ui-conventions-md--h42">The cockpit is tabbed, and only the open tab costs anything</h3>
+<p><code>/admin</code> carries every operational surface there is: outreach, the X
+workbench, traffic, the people to pay, the earn table, what the floors were
+asked, and what people reported. On one page that is a scroll nobody reads
+to the bottom of, and worse, it is one page's worth of queries every poll
+whether or not anyone is looking at them.</p>
+<p>So the page is a set of tabs, one group of surfaces each, and <strong>the page
+loads and polls only what the open tab needs</strong>. Opening the outreach tab
+must not read the visitor log. This is the same rule as the one below,
+approached from the other side: the cheapest query is the one nobody asked
+for.</p>
+<p>The open tab is in the URL fragment, so a reload comes back where the owner
+was and a link can point at one surface.</p>
+<h3 id="docs-ui-conventions-md--h43">The cockpit may never take the site down</h3>
 <p><code>/admin</code> is left open for hours, so its cost is a running cost rather than a
 page load. Three rules keep it from becoming an outage, all of them learned
 from one on 2026-09-09, when the page was left open overnight and the whole
@@ -6234,7 +6285,7 @@ consume that budget on their own, and then every other request fails waiting
 for a connection with <code>timeout exceeded when trying to connect</code>, which reads
 like a database outage and is not one. A dashboard's running cost has to be
 a small fraction of the connection budget, not most of it.</p>
-<h3 id="docs-ui-conventions-md--h43">Journeys: what one visitor did, in order</h3>
+<h3 id="docs-ui-conventions-md--h44">Journeys: what one visitor did, in order</h3>
 <p>The counts say a stranger showed up; they never say what happened next. A
 journey is one visitor's ordered path through the site in a single sitting,
 which is the only thing on the page that can answer &quot;where did they stop&quot;.
@@ -6275,7 +6326,7 @@ it inside an average.</p>
 not the clicks inside a page. The recorded-DOM version and what it would
 cost is <code>notes/session-replay-2026-09-01.md</code>.</p>
 <p>The cockpit shares no code with the deleted console.</p>
-<h2 id="docs-ui-conventions-md--h44">Reusing a component's classes: mind the cascade order</h2>
+<h2 id="docs-ui-conventions-md--h45">Reusing a component's classes: mind the cascade order</h2>
 <p>Several blocks (the proposal form, the account dialog, the Manifold import)
 compose the ticket's own classes and then correct one or two properties.
 <code>style.css</code> is one long file and the <code>.ticket-*</code> base rules live near the
@@ -6291,14 +6342,14 @@ before rewriting the markup.</p>
 placeholder, so it reads as a field awaiting digits rather than as a
 glyph; the hug-the-digits behaviour applies to amounts being actively
 edited.</p>
-<h2 id="docs-ui-conventions-md--h45">When in doubt</h2>
+<h2 id="docs-ui-conventions-md--h46">When in doubt</h2>
 <ul>
 <li>Strip color before adding it.</li>
 <li>Add whitespace before adding a divider.</li>
 <li>Use a hairline before using a card.</li>
 <li>Match an existing pattern before inventing one.</li>
 </ul>
-<h3 id="docs-ui-conventions-md--h46">What a market says about itself, and what your position is worth</h3>
+<h3 id="docs-ui-conventions-md--h47">What a market says about itself, and what your position is worth</h3>
 <p>Three facts sit at the right end of the Discussion / Positions / Trades
 row, as three icons with bare numbers (people, drop, bars: the shape
 Manifold's market header uses): how many
@@ -6328,7 +6379,7 @@ with its condition in the hover, never the headline: the breakeven line
 stays first, because a share's payout is linear in the settled value and
 &quot;to win N&quot; alone, as Manifold prints it for a yes/no share, would read as
 a promise here.</p>
-<h2 id="docs-ui-conventions-md--h47">The data room</h2>
+<h2 id="docs-ui-conventions-md--h48">The data room</h2>
 <p><code>telarchy.com/data-room</code> (<code>DataRoomPage</code>, <code>.dr-*</code>) is a document, so it takes
 the 760px column, not the poster's 660px. It is one scrolling page with a
 sticky index of its own sections under the top bar, not a sidebar and not a
@@ -6340,7 +6391,7 @@ charts hand-rolled as inline SVG (a bar per day, one line for a metric's
 readings) rather than a chart library, because the only shapes needed are a
 column and a line. A number the feed refused to compute renders as &quot;not
 published&quot;, never as zero. Spec: <code>docs/data-room.md</code>.</p>
-<h2 id="docs-ui-conventions-md--h48">The frontend never speaks HTTP directly</h2>
+<h2 id="docs-ui-conventions-md--h49">The frontend never speaks HTTP directly</h2>
 <p><code>src/lib/api.ts</code> is the one module that calls <code>fetch</code>. Everything else, page
 or component, calls a method on <code>api</code>. That is not tidiness: the parity guard
 that proves the UI has no capability the public API lacks reads that single
@@ -6348,7 +6399,7 @@ file, so a component doing its own <code>fetch</code> is a capability nobody can
 is also what makes &quot;an assistant acting as you can do what you can do, and
 nothing more&quot; true by construction rather than by review.</p>
 <p><code>api-parity.test.ts</code> fails the build on a <code>fetch(</code> anywhere else under <code>src/</code>.</p>
-<h2 id="docs-ui-conventions-md--h49">Telling somebody there are credits to earn</h2>
+<h2 id="docs-ui-conventions-md--h50">Telling somebody there are credits to earn</h2>
 <p>Discovery goes where the lack is felt, not where attention is cheapest
 (owner ask 2026-08-30; design
 https://claude.ai/code/artifact/9794469a-2222-4fb9-938a-c519b412d771).

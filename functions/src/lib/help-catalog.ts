@@ -1248,7 +1248,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/admin/outreach/prospects/:id',
       auth: 'admin',
       description:
-        "Edit any field of a prospect (platform admin). The first move to status 'sent' (or any later status) freezes sentText and sentAt to what went out and never changes them again; it needs a message to freeze. Statuses: draft, ready, sent, replied, call, workspace, activated, no. Returns { prospect }.",
+        "Edit any field of a prospect (platform admin). The first move to status 'sent' (or any later status) freezes sentText and sentAt to what went out and never changes them again; it needs a message to freeze. Statuses: draft, ready, approved, sent, replied, call, workspace, activated, no. `approved` is the owner authorising this exact text for this exact person and is the only status an agent may send from; it stamps nothing and counts as sent nowhere. Returns { prospect }.",
     },
     {
       method: 'DELETE',

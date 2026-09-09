@@ -34,8 +34,8 @@ is allowed to say:
 - **The message**: the current draft, editable by hand at any time.
 - **The conversation**: the turns of the argument about the draft, kept so
   "shorter" means shorter than the last one.
-- **Status and outcome**: `draft`, `ready`, `sent`, `replied`, `call`,
-  `workspace`, `activated`, `no`; the planned send day; when it was sent and
+- **Status and outcome**: `draft`, `ready`, `approved`, `sent`, `replied`,
+  `call`, `workspace`, `activated`, `no`; the planned send day; when it was sent and
   the exact text that went out (frozen at that moment); a note on what came
   back (their words, or "no answer").
 
@@ -53,22 +53,62 @@ import of the same shape (that is how a researched list becomes rows).
    API cost?"). Every turn comes back as the revised message and what it
    says to him; both stay on screen.
 4. Edits the text by hand if he wants; the textarea is the message.
-5. Sends it himself: the channel link opens where the person reads (their X
-   profile for a DM, a mailto with the message prefilled, the LinkedIn or
-   Bluesky profile, the HN user page), and "Copy" puts the text on the
-   clipboard. "I sent this" freezes the text, stamps the time and moves the
-   row to `sent`.
-6. Records what came back: a status and a note in their words. A reply is
+5. **Approves it.** Approving is the owner saying this exact text may go to
+   this exact person, and it is the only thing that authorises a send. It
+   moves the row to `approved` and changes nothing else: an approved message
+   has not been sent and does not count as sent anywhere.
+6. Sends it, or has it sent. Either the owner does it himself, where the
+   channel link opens where the person reads (their X profile for a DM, a
+   mailto with the message prefilled, the LinkedIn or Bluesky profile, the HN
+   user page) and "Copy" puts the text on the clipboard; or an agent picks up
+   the approved rows and drives the same surfaces (see "Who actually sends"
+   below). Either way "I sent this" freezes the text, stamps the time and
+   moves the row to `sent`.
+7. Records what came back: a status and a note in their words. A reply is
    evidence, whatever it says.
-7. Reads the log: who was written to, on what channel, what came back, and
+8. Reads the log: who was written to, on what channel, what came back, and
    what the pattern across them says.
-8. Copies a log line for the proposal this outreach was promised on:
+9. Copies a log line for the proposal this outreach was promised on:
    `NN. NAME (SEG), sent DATE via CHANNEL. Answer: ... Floor: ...`, one line
    per person, so the traders who priced the promise can count.
 
 Nothing here sends. The workbench drafts, links and remembers; the owner
 sends. Copy under his name is the one thing he must approve, and a DM
 tool that sends is the fastest way to lose an account.
+
+## Who actually sends, and how it cannot send twice
+
+Nothing in this surface sends anything. The owner sends, or an agent sends
+on his behalf, and in both cases the workbench is the record that decides
+what may go out.
+
+**Approval is the authorisation.** An agent may send a row only when its
+status is `approved`. A row in `draft` or `ready` has not been read by the
+owner; a row in `sent` or anything after it has already gone. This is what
+makes an agent safe to point at a list of strangers: the list of what it may
+do is a list the owner wrote, one row at a time.
+
+**Two checks before every single send, not once per run.** The rule is the
+owner's (2026-09-09): "before sending a message it checks it hasn't sent
+yet".
+
+1. Re-read the row immediately before sending it. If `sentAt` is set, skip
+   it and record why. A run that read the list five minutes ago is reading
+   history, and the owner may have sent one by hand in between.
+2. Look at the channel itself. An existing thread with that person, or a
+   message already in it, means it has gone whatever the row says. The
+   record can be wrong; the channel is what the person actually received.
+
+**Then mark it immediately.** `sent` is stamped as soon as the send is
+confirmed, before moving to the next person, so a crash mid-run can never
+leave a message sent and unrecorded. `sentText` freezes at that moment, so
+the record is what actually went out rather than what the row says later.
+
+**The strategy is not the skill's business.** Whether this batch is X direct
+messages, email, LinkedIn or a public reply is a property of the rows, which
+carry the channel and the handle. An agent that can drive those surfaces can
+run any outreach the owner approves, and a new strategy is new rows rather
+than new code.
 
 ## Drafting
 
@@ -126,7 +166,8 @@ All platform admin. Documented in `/api/help` like every other route.
 
 `outreach_prospects`: one row per person with the fields above; the
 conversation as JSON; `sent_text` and `sent_at` set once when the status
-first becomes `sent` and never changed after. `outreach_lessons`: one row of
+first becomes `sent` and never changed after. `approved` is a status like any
+other and stamps nothing: it is a permission, not an event. `outreach_lessons`: one row of
 text with an updated-at, like `x_voice_profile`. Evidence, messages and
 notes are personal (names, handles, what strangers wrote back) and live in
 the database, never in this repository.
