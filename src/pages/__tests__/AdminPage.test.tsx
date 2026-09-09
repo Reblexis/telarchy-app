@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -110,12 +110,16 @@ const reports = [
   },
 ];
 
-const renderPage = () =>
-  render(
+const renderPage = (tab = 'traffic') => {
+  // The cockpit is tabbed, so a test says which surface it is looking at
+  // (docs/ui-conventions.md, "The cockpit is tabbed").
+  window.location.hash = `#${tab}`;
+  return render(
     <MemoryRouter>
       <AdminPage />
     </MemoryRouter>,
   );
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -146,8 +150,9 @@ describe('/admin', () => {
     expect(screen.getByText('new@example.com')).toBeInTheDocument();
     expect(screen.getByText('waiting@example.com')).toBeInTheDocument();
     expect(screen.getByText('marketplace')).toBeInTheDocument();
-    // Reports render their body inline, not behind a click.
-    expect(screen.getByText('Chart is blank')).toBeInTheDocument();
+    // Reports are their own tab now; the traffic assertions above stand.
+    fireEvent.click(screen.getByRole('button', { name: /reports/i }));
+    expect(await screen.findByText('Chart is blank')).toBeInTheDocument();
     expect(screen.getByText('Nothing draws.')).toBeInTheDocument();
     expect(navigate).not.toHaveBeenCalled();
   });
@@ -195,6 +200,8 @@ describe('/admin', () => {
 describe('/admin questions', () => {
   test('shows what was asked, what came back, and who asked', async () => {
     render(<AdminPage />);
+    // Questions live on the Reports tab now (docs/ui-conventions.md).
+    fireEvent.click(await screen.findByRole('button', { name: /reports/i }));
     expect(await screen.findByText('What does LookPilot sell?')).toBeTruthy();
     expect(screen.getByText('Webcam head tracking, $14.99 on Steam.')).toBeTruthy();
     // The unanswered one says so, with the reason.

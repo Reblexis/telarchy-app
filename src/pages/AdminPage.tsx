@@ -209,6 +209,17 @@ function Journeys({ feed }: { feed: JourneyFeed | null }) {
   );
 }
 
+/** The cockpit's groups, in the order the owner works them. */
+const TABS = [
+  { id: 'outreach', label: 'Outreach' },
+  { id: 'x', label: 'X' },
+  { id: 'traffic', label: 'Traffic' },
+  { id: 'people', label: 'People' },
+  { id: 'reports', label: 'Reports' },
+  { id: 'setup', label: 'Setup' },
+] as const;
+type TabId = (typeof TABS)[number]['id'];
+
 export function AdminPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -256,6 +267,17 @@ export function AdminPage() {
     };
   }, [user, authLoading, navigate]);
 
+  // The open tab, from the URL fragment so a reload comes back where he was
+  // and a link can point at one surface (docs/ui-conventions.md).
+  const [tab, setTab] = useState<TabId>(() => {
+    const fromHash = window.location.hash.replace('#', '');
+    return TABS.some(t => t.id === fromHash) ? (fromHash as TabId) : 'outreach';
+  });
+  // Which reads this tab actually needs. Everything else is not fetched at
+  // all, which is the point of the tabs.
+  const needsStats = tab === 'traffic';
+  const needsFeedback = tab === 'reports';
+
   // The poll's own state, kept in refs so rescheduling never re-runs the
   // effect: how many polls have failed in a row (docs/ui-conventions.md, "The
   // cockpit may never take the site down"), and whether one is still in
@@ -265,6 +287,7 @@ export function AdminPage() {
 
   useEffect(() => {
     if (!allowed) return;
+    if (!needsStats && !needsFeedback) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const load = () => {
@@ -279,60 +302,68 @@ export function AdminPage() {
         console.error(`${what} fetch failed:`, e);
       };
 
-      const stats = api
-        .getFloorStats()
-        .then(s => {
-          if (!cancelled) {
-            setStats(s as FloorStats);
-            setError('');
-          }
-        })
-        .catch(e => {
-          fail('stats', e);
-          if (!cancelled) setError((e as Error).message || 'Could not load stats');
-        });
+      const stats = !needsStats
+        ? Promise.resolve()
+        : api
+            .getFloorStats()
+            .then(s => {
+              if (!cancelled) {
+                setStats(s as FloorStats);
+                setError('');
+              }
+            })
+            .catch(e => {
+              fail('stats', e);
+              if (!cancelled) setError((e as Error).message || 'Could not load stats');
+            });
 
       // Reports come from the documented admin endpoint rather than being
       // bolted onto floor-stats: one capability, one route.
-      const reports = api
-        .getFeedback({ limit: 100 })
-        .then(r => {
-          if (!cancelled) setReports(r.items);
-        })
-        .catch(e => {
-          fail('feedback', e);
-          if (!cancelled) setReports([]);
-        });
+      const reports = !needsFeedback
+        ? Promise.resolve()
+        : api
+            .getFeedback({ limit: 100 })
+            .then(r => {
+              if (!cancelled) setReports(r.items);
+            })
+            .catch(e => {
+              fail('feedback', e);
+              if (!cancelled) setReports([]);
+            });
 
       // What the floors were asked, on the same poll as the rest.
-      const asked = api
-        .getFloorQuestions(100)
-        .then(q => {
-          if (!cancelled) setQuestions(q);
-        })
-        .catch(e => {
-          fail('questions', e);
-          if (!cancelled) setQuestions({ totalCostUsd: 0, questions: [] });
-        });
+      const asked = !needsFeedback
+        ? Promise.resolve()
+        : api
+            .getFloorQuestions(100)
+            .then(q => {
+              if (!cancelled) setQuestions(q);
+            })
+            .catch(e => {
+              fail('questions', e);
+              if (!cancelled) setQuestions({ totalCostUsd: 0, questions: [] });
+            });
 
       // Journeys last, and the CALL itself is guarded, not only its promise.
       // A rejected promise leaves the page standing; a call that throws where
       // it is made kills the whole poll, taking every other block with it,
       // which is how one missing admin method blanked the cockpit before.
-      const journeysRound = Promise.resolve()
-        .then(() => api.getJourneys())
-        .then(j => {
-          if (!cancelled) setJourneys(j);
-        })
-        .catch(e => {
-          fail('journeys', e);
-          if (!cancelled)
-            setJourneys({
-              summary: { journeys: 0, bounced: 0, visitors: 0, medianSteps: 0 },
-              topExits: [],
-              journeys: [],
+      const journeysRound = !needsStats
+        ? Promise.resolve()
+        : Promise.resolve()
+            .then(() => api.getJourneys())
+            .then(j => {
+              if (!cancelled) setJourneys(j);
+            })
+            .catch(e => {
+              fail('journeys', e);
+              if (!cancelled)
+                setJourneys({
+                  summary: { journeys: 0, bounced: 0, visitors: 0, medianSteps: 0 },
+                  topExits: [],
+                  journeys: [],
+                });
             });
-        });
 
       Promise.all([stats, reports, asked, journeysRound]).then(() => {
         inFlightRef.current = false;
@@ -348,7 +379,7 @@ export function AdminPage() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [allowed]);
+  }, [allowed, needsStats, needsFeedback]);
 
   const open = reports?.filter(r => r.status === 'open').length ?? 0;
 
@@ -368,234 +399,268 @@ export function AdminPage() {
           reported.
         </p>
 
-        <EarnTableEditor />
-
         {/* Who to pay, and where (owner ask 2026-08-20). Approving a proposal
             means sending real money to a stranger, and their payout details are
             stripped from every other route by design, so this is the one place
             they surface. Search is explicit rather than a list on load: a page
             that prints everybody's payout handle the moment it opens is a page
             you cannot screen-share. */}
-        <XWorkbench />
 
-        <OutreachWorkbench />
-
-        <ManifoldUpdate />
-
-        <section className="adm-block">
-          <h2 className="pubws-h2">Who to pay</h2>
-          <p className="adm-note">
-            Search by name, account id or email. Blank shows everyone who has payout details on file. Platform admin
-            only, and nowhere else in the API.
-          </p>
-          <form
-            className="adm-payform"
-            onSubmit={e => {
-              e.preventDefault();
-              setPayErr('');
-              api
-                .findParticipants(payQ)
-                .then(r => setPayRows(r.participants))
-                .catch(err => {
-                  setPayErr((err as Error).message || 'Could not search');
-                  setPayRows(null);
-                });
-            }}
-          >
-            <input
-              className="adm-payq"
-              value={payQ}
-              onChange={e => setPayQ(e.target.value)}
-              placeholder="name, id or email"
-              aria-label="Find a participant"
-            />
-            <button className="adm-paygo" type="submit">
-              Find
+        {/* One group of surfaces at a time, and the page loads only what the
+            open tab needs (docs/ui-conventions.md, "The cockpit is tabbed").
+            Opening outreach must not read the visitor log: that read is what
+            took the site down on 2026-09-09. */}
+        <nav className="adm-tabs">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              type="button"
+              className="adm-tab"
+              aria-pressed={tab === t.id}
+              onClick={() => {
+                setTab(t.id);
+                window.location.hash = t.id;
+              }}
+            >
+              {t.label}
             </button>
-          </form>
-          {payErr && <p className="adm-err">{payErr}</p>}
-          {payRows && payRows.length === 0 && <p className="adm-empty">Nobody matches that.</p>}
-          {payRows && payRows.length > 0 && (
-            <ul className="adm-paylist">
-              {payRows.map(p => (
-                <li key={p.id} className="adm-payrow">
-                  <div className="adm-payhead">
-                    <span className="adm-payname">{p.nickname || p.id}</span>
-                    {p.platformOperated && <span className="adm-paytag">house</span>}
-                    {p.approvedUsd > 0 && (
-                      <span className="adm-payowed">${p.approvedUsd.toLocaleString('en-US')} approved</span>
-                    )}
-                  </div>
-                  {p.email && <div className="adm-paymeta">{p.email}</div>}
-                  <div className="adm-payhandle">
-                    {p.payoutHandle || <span className="adm-paynone">no payout details on file</span>}
-                  </div>
-                  {p.approvedContracts.length > 0 && (
-                    <ul className="adm-paycon">
-                      {p.approvedContracts.map((c, i) => (
-                        <li key={i}>
-                          ${c.askUsd} &middot; {c.title}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+          ))}
+        </nav>
 
-        {error && <p className="adm-err">{error}</p>}
-        {!stats && !error && <p className="adm-empty">Loading&hellip;</p>}
+        {tab === 'outreach' && <OutreachWorkbench />}
 
-        {stats && (
+        {tab === 'x' && <XWorkbench />}
+
+        {tab === 'setup' && (
           <>
-            <div className="adm-figures">
-              <Figure value={stats.visits24h} label="visits · 24h" />
-              <Figure value={stats.uniques24h} label="people · 24h" />
-              <Figure value={stats.totalUsers} label="accounts" />
-              <Figure value={stats.waitlist.length} label="waitlist" />
-              <Figure value={stats.botVisits} label="bot hits · filtered" />
-            </div>
+            <EarnTableEditor />
+            <ManifoldUpdate />
+          </>
+        )}
 
-            <Rows
-              title="By day"
-              note="Human visits, bots and scanners filtered out."
-              bar
-              empty="Nobody yet."
-              rows={stats.visitsByDay
-                .slice()
-                .reverse()
-                .map(d => ({
-                  key: d.day,
-                  left: dayLabel(d.day),
-                  right: `${n(d.uniques)} unique`,
-                  value: d.visits,
-                }))}
-            />
-
-            <Rows
-              title="Where they came from"
-              note="Grouped by domain, so one channel is one row."
-              empty="No human visits yet."
-              rows={stats.topReferers.map(r => ({ key: r.source, left: r.source, value: r.visits }))}
-            />
-
-            <Rows
-              title="Pages"
-              empty="No human visits yet."
-              rows={stats.topPaths.map(p => ({
-                key: p.path,
-                left: <span className="adm-mono">{p.path}</span>,
-                value: p.visits,
-              }))}
-            />
-
-            <Rows
-              title="Countries"
-              empty="No human visits yet."
-              rows={stats.topCountries.map(c => ({
-                key: c.country,
-                left: countryLabel(c.country),
-                right: `${n(c.uniques)} unique`,
-                value: c.visits,
-              }))}
-            />
-
-            <Rows
-              title="Visitors"
-              note={`${stats.visitorSummary.people} likely people · ${stats.visitorSummary.servers} server/bot · ${stats.visitorSummary.proxies} proxy or VPN, by IP type.`}
-              empty="No human visits yet."
-              rows={stats.recentVisitors.map(v => ({
-                key: v.ip,
-                left: (
-                  <>
-                    <span className="adm-mono">{v.ip}</span>
-                    {/* Neutral chip, not a colour code: person is the
-                        expected case, so only the others are worth a word. */}
-                    {v.kind !== 'person' && (
-                      <span className="adm-tag">
-                        {v.kind === 'server' ? 'server' : v.kind === 'proxy' ? 'proxy' : '?'}
-                      </span>
+        {tab === 'people' && (
+          <section className="adm-block">
+            <h2 className="pubws-h2">Who to pay</h2>
+            <p className="adm-note">
+              Search by name, account id or email. Blank shows everyone who has payout details on file. Platform admin
+              only, and nowhere else in the API.
+            </p>
+            <form
+              className="adm-payform"
+              onSubmit={e => {
+                e.preventDefault();
+                setPayErr('');
+                api
+                  .findParticipants(payQ)
+                  .then(r => setPayRows(r.participants))
+                  .catch(err => {
+                    setPayErr((err as Error).message || 'Could not search');
+                    setPayRows(null);
+                  });
+              }}
+            >
+              <input
+                className="adm-payq"
+                value={payQ}
+                onChange={e => setPayQ(e.target.value)}
+                placeholder="name, id or email"
+                aria-label="Find a participant"
+              />
+              <button className="adm-paygo" type="submit">
+                Find
+              </button>
+            </form>
+            {payErr && <p className="adm-err">{payErr}</p>}
+            {payRows && payRows.length === 0 && <p className="adm-empty">Nobody matches that.</p>}
+            {payRows && payRows.length > 0 && (
+              <ul className="adm-paylist">
+                {payRows.map(p => (
+                  <li key={p.id} className="adm-payrow">
+                    <div className="adm-payhead">
+                      <span className="adm-payname">{p.nickname || p.id}</span>
+                      {p.platformOperated && <span className="adm-paytag">house</span>}
+                      {p.approvedUsd > 0 && (
+                        <span className="adm-payowed">${p.approvedUsd.toLocaleString('en-US')} approved</span>
+                      )}
+                    </div>
+                    {p.email && <div className="adm-paymeta">{p.email}</div>}
+                    <div className="adm-payhandle">
+                      {p.payoutHandle || <span className="adm-paynone">no payout details on file</span>}
+                    </div>
+                    {p.approvedContracts.length > 0 && (
+                      <ul className="adm-paycon">
+                        {p.approvedContracts.map((c, i) => (
+                          <li key={i}>
+                            ${c.askUsd} &middot; {c.title}
+                          </li>
+                        ))}
+                      </ul>
                     )}
-                    <span className="adm-sub">
-                      {countryLabel(v.country)}
-                      {v.org ? ` · ${v.org}` : ''}
-                    </span>
-                  </>
-                ),
-                right: new Date(v.lastSeen).toLocaleString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }),
-                value: v.visits,
-              }))}
-            />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
-            <Journeys feed={journeys} />
+        {tab === 'traffic' && (
+          <>
+            {error && <p className="adm-err">{error}</p>}
+            {!stats && !error && <p className="adm-empty">Loading&hellip;</p>}
+            {stats && (
+              <>
+                <div className="adm-figures">
+                  <Figure value={stats.visits24h} label="visits · 24h" />
+                  <Figure value={stats.uniques24h} label="people · 24h" />
+                  <Figure value={stats.totalUsers} label="accounts" />
+                  <Figure value={stats.waitlist.length} label="waitlist" />
+                  <Figure value={stats.botVisits} label="bot hits · filtered" />
+                </div>
 
-            <Rows
-              title="Where they stopped"
-              note="The last page of a sitting. The page most often last-seen is the page losing people."
-              bar
-              empty="No human visits yet."
-              rows={(journeys?.topExits ?? []).map(e => ({
-                key: e.path,
-                left: <span className="adm-mono">{e.path}</span>,
-                value: e.journeys,
-              }))}
-            />
+                <Rows
+                  title="By day"
+                  note="Human visits, bots and scanners filtered out."
+                  bar
+                  empty="Nobody yet."
+                  rows={stats.visitsByDay
+                    .slice()
+                    .reverse()
+                    .map(d => ({
+                      key: d.day,
+                      left: dayLabel(d.day),
+                      right: `${n(d.uniques)} unique`,
+                      value: d.visits,
+                    }))}
+                />
 
-            <Rows
-              title="Signups by day"
-              bar
-              empty="None yet."
-              rows={stats.signupsByDay
-                .slice()
-                .reverse()
-                .map(d => ({
-                  key: d.day,
-                  left: dayLabel(d.day),
-                  value: d.signups,
-                }))}
-            />
+                <Rows
+                  title="Where they came from"
+                  note="Grouped by domain, so one channel is one row."
+                  empty="No human visits yet."
+                  rows={stats.topReferers.map(r => ({ key: r.source, left: r.source, value: r.visits }))}
+                />
 
-            <Rows
-              title="Recent signups"
-              empty="Nobody has signed up yet."
-              rows={stats.recentSignups.map(s => ({
-                key: s.email,
-                left: (
-                  <>
-                    <span className="adm-mono">{s.email}</span>
-                    {s.name && <span className="adm-sub">{s.name}</span>}
-                  </>
-                ),
-                value: s.createdAt?.slice(0, 10) ?? '',
-              }))}
-            />
+                <Rows
+                  title="Pages"
+                  empty="No human visits yet."
+                  rows={stats.topPaths.map(p => ({
+                    key: p.path,
+                    left: <span className="adm-mono">{p.path}</span>,
+                    value: p.visits,
+                  }))}
+                />
 
-            <Rows
-              title={`Waitlist (${stats.waitlist.length})`}
-              note="Everyone, newest first. These are people waiting on a reply from you."
-              empty="Empty."
-              rows={stats.waitlist.map(w => ({
-                key: w.email,
-                left: (
-                  <>
-                    <span className="adm-mono">{w.email}</span>
-                    {/* Which door: the marketplace tile, or a floor's own box.
-                        Both post to the same endpoint, so without it every
-                        signup reads the same and no surface can be credited. */}
-                    <span className="adm-sub">{w.source ?? 'unknown door'}</span>
-                  </>
-                ),
-                value: w.createdAt?.slice(0, 10) ?? '',
-              }))}
-            />
+                <Rows
+                  title="Countries"
+                  empty="No human visits yet."
+                  rows={stats.topCountries.map(c => ({
+                    key: c.country,
+                    left: countryLabel(c.country),
+                    right: `${n(c.uniques)} unique`,
+                    value: c.visits,
+                  }))}
+                />
 
+                <Rows
+                  title="Visitors"
+                  note={`${stats.visitorSummary.people} likely people · ${stats.visitorSummary.servers} server/bot · ${stats.visitorSummary.proxies} proxy or VPN, by IP type.`}
+                  empty="No human visits yet."
+                  rows={stats.recentVisitors.map(v => ({
+                    key: v.ip,
+                    left: (
+                      <>
+                        <span className="adm-mono">{v.ip}</span>
+                        {/* Neutral chip, not a colour code: person is the
+                          expected case, so only the others are worth a word. */}
+                        {v.kind !== 'person' && (
+                          <span className="adm-tag">
+                            {v.kind === 'server' ? 'server' : v.kind === 'proxy' ? 'proxy' : '?'}
+                          </span>
+                        )}
+                        <span className="adm-sub">
+                          {countryLabel(v.country)}
+                          {v.org ? ` · ${v.org}` : ''}
+                        </span>
+                      </>
+                    ),
+                    right: new Date(v.lastSeen).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }),
+                    value: v.visits,
+                  }))}
+                />
+
+                <Journeys feed={journeys} />
+
+                <Rows
+                  title="Where they stopped"
+                  note="The last page of a sitting. The page most often last-seen is the page losing people."
+                  bar
+                  empty="No human visits yet."
+                  rows={(journeys?.topExits ?? []).map(e => ({
+                    key: e.path,
+                    left: <span className="adm-mono">{e.path}</span>,
+                    value: e.journeys,
+                  }))}
+                />
+
+                <Rows
+                  title="Signups by day"
+                  bar
+                  empty="None yet."
+                  rows={stats.signupsByDay
+                    .slice()
+                    .reverse()
+                    .map(d => ({
+                      key: d.day,
+                      left: dayLabel(d.day),
+                      value: d.signups,
+                    }))}
+                />
+
+                <Rows
+                  title="Recent signups"
+                  empty="Nobody has signed up yet."
+                  rows={stats.recentSignups.map(s => ({
+                    key: s.email,
+                    left: (
+                      <>
+                        <span className="adm-mono">{s.email}</span>
+                        {s.name && <span className="adm-sub">{s.name}</span>}
+                      </>
+                    ),
+                    value: s.createdAt?.slice(0, 10) ?? '',
+                  }))}
+                />
+
+                <Rows
+                  title={`Waitlist (${stats.waitlist.length})`}
+                  note="Everyone, newest first. These are people waiting on a reply from you."
+                  empty="Empty."
+                  rows={stats.waitlist.map(w => ({
+                    key: w.email,
+                    left: (
+                      <>
+                        <span className="adm-mono">{w.email}</span>
+                        {/* Which door: the marketplace tile, or a floor's own box.
+                          Both post to the same endpoint, so without it every
+                          signup reads the same and no surface can be credited. */}
+                        <span className="adm-sub">{w.source ?? 'unknown door'}</span>
+                      </>
+                    ),
+                    value: w.createdAt?.slice(0, 10) ?? '',
+                  }))}
+                />
+              </>
+            )}
+          </>
+        )}
+
+        {tab === 'reports' && (
+          <>
             {/* What the floors were asked, and what they answered (owner ask
                 2026-08-20). This is the page's most useful list before
                 launch: a question is a gap in the floor said in a visitor's

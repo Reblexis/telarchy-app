@@ -2049,6 +2049,23 @@ figures that are supposed to mean a stranger showed up. Filtering it on read
 instead would move those hits into the "bot hits" count, which is a
 different lie.
 
+### The cockpit is tabbed, and only the open tab costs anything
+
+`/admin` carries every operational surface there is: outreach, the X
+workbench, traffic, the people to pay, the earn table, what the floors were
+asked, and what people reported. On one page that is a scroll nobody reads
+to the bottom of, and worse, it is one page's worth of queries every poll
+whether or not anyone is looking at them.
+
+So the page is a set of tabs, one group of surfaces each, and **the page
+loads and polls only what the open tab needs**. Opening the outreach tab
+must not read the visitor log. This is the same rule as the one below,
+approached from the other side: the cheapest query is the one nobody asked
+for.
+
+The open tab is in the URL fragment, so a reload comes back where the owner
+was and a link can point at one surface.
+
 ### The cockpit may never take the site down
 
 `/admin` is left open for hours, so its cost is a running cost rather than a

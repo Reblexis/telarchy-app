@@ -4,7 +4,7 @@ import { api, type OutreachProspect, type OutreachSummary } from '../lib/api';
 type Turn = { role: 'user' | 'assistant'; content: string };
 
 const CHANNELS = ['x', 'email', 'linkedin', 'bluesky', 'hn', 'discord', 'other'];
-const STATUSES = ['draft', 'ready', 'sent', 'replied', 'call', 'workspace', 'activated', 'no'];
+const STATUSES = ['draft', 'ready', 'approved', 'sent', 'replied', 'call', 'workspace', 'activated', 'no'];
 
 /** What it said to him on an assistant turn, kept inside the turn so the
  *  model remembers what it said and the screen can show it. */
@@ -417,6 +417,34 @@ export function OutreachWorkbench() {
                 onChange={e => setEdited(e.target.value)}
                 aria-label="The message you will send"
               />
+              {/* Approving is the owner saying this exact text may go to this
+                  exact person, and it is the only thing that authorises a
+                  send, by him or by an agent working the approved rows
+                  (docs/outreach-workbench.md, "Who actually sends"). It is
+                  not a send and stamps nothing. */}
+              <div className="xw-actions">
+                {sent ? null : open.status === 'approved' ? (
+                  <>
+                    <strong className="ow-approved">Approved, waiting to be sent</strong>
+                    <button
+                      className="adm-linkbtn"
+                      onClick={() => patch(open.id, { status: 'ready' }, 'Approval withdrawn.')}
+                      disabled={busy === 'save'}
+                    >
+                      Unapprove
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="adm-paygo"
+                    onClick={() => patch(open.id, { status: 'approved' }, 'Approved.')}
+                    disabled={busy === 'save' || !edited.trim()}
+                  >
+                    Approve to send
+                  </button>
+                )}
+              </div>
+
               <div className="xw-actions">
                 {open.link ? (
                   <a className="adm-paygo" href={open.link} target="_blank" rel="noreferrer">

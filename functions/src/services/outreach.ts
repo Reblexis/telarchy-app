@@ -26,10 +26,27 @@ import {
 export const CHANNELS = ['x', 'email', 'linkedin', 'bluesky', 'hn', 'discord', 'other'] as const;
 export type Channel = (typeof CHANNELS)[number];
 
-export const STATUSES = ['draft', 'ready', 'sent', 'replied', 'call', 'workspace', 'activated', 'no'] as const;
+/**
+ * `approved` is the owner saying this exact text may go to this exact
+ * person, and it is the only status an agent may send from
+ * (docs/outreach-workbench.md, "Who actually sends"). It stamps nothing: an
+ * approved message has not been sent and counts as sent nowhere.
+ */
+export const STATUSES = [
+  'draft',
+  'ready',
+  'approved',
+  'sent',
+  'replied',
+  'call',
+  'workspace',
+  'activated',
+  'no',
+] as const;
 export type Status = (typeof STATUSES)[number];
 
-/** Every status from `sent` onwards means the message went out. */
+/** Every status from `sent` onwards means the message went out. `approved`
+ *  is deliberately absent: permission is not delivery. */
 const WENT_OUT = new Set<string>(['sent', 'replied', 'call', 'workspace', 'activated', 'no']);
 /** Every status after `sent` means the person answered, "no" included. */
 const ANSWERED = new Set<string>(['replied', 'call', 'workspace', 'activated', 'no']);
