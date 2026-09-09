@@ -14,8 +14,8 @@ import { db } from '../db/client';
  * sell is trading exactly like a buy, so credits are absolute cost over
  * non-redemption rows: the same arithmetic the trader metric counts with.
  *
- * A day nobody traded is absent rather than a zero, so a chart draws a gap
- * where nothing happened instead of asserting a measurement of none.
+ * Every UTC date touched by the query has a row, including quiet days.
+ * The first and last dates can be partial; dates outside coverage are absent.
  */
 
 const DAYS = 120;
@@ -36,17 +36,25 @@ export async function buildTradingByDay(now = new Date()): Promise<TradingByDay>
     where w.visibility = 'public'
       and t.kind <> 'redeem'
       and t.created_at > ${from}
+      and t.created_at <= ${now}
     group by 1
     order by 1 asc
   `);
   const rows = ((res as unknown as { rows?: Array<{ day: string; trades: number; credits: number; traders: number }> })
     .rows ?? []) as Array<{ day: string; trades: number; credits: number; traders: number }>;
-  return {
-    byDay: rows.map(r => ({
-      day: r.day,
-      trades: Number(r.trades),
-      credits: Math.round(Number(r.credits) * 100) / 100,
-      traders: Number(r.traders),
-    })),
-  };
+  const byDate = new Map(rows.map(r => [r.day, r]));
+  const byDay: TradingByDay['byDay'] = [];
+  const day = new Date(from);
+  day.setUTCHours(0, 0, 0, 0);
+  for (; day <= now; day.setUTCDate(day.getUTCDate() + 1)) {
+    const date = day.toISOString().slice(0, 10);
+    const row = byDate.get(date);
+    byDay.push({
+      day: date,
+      trades: Number(row?.trades ?? 0),
+      credits: Math.round(Number(row?.credits ?? 0) * 100) / 100,
+      traders: Number(row?.traders ?? 0),
+    });
+  }
+  return { byDay };
 }

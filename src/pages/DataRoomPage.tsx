@@ -289,8 +289,8 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
     // The seven days the counted traders lapse over are a series over days,
     // so they are drawn as one, by the same component as every other series
     // (docs/data-room.md, "How the page draws things").
-    const lapseDays = Array.from({ length: 7 }, (_, k) => {
-      const d = new Date(new Date(`${w.at.slice(0, 10)}T00:00:00Z`).getTime() + (k + 1) * 86400000);
+    const lapseDays = Array.from({ length: 8 }, (_, k) => {
+      const d = new Date(new Date(`${w.at.slice(0, 10)}T00:00:00Z`).getTime() + k * 86400000);
       return d.toISOString().slice(0, 10);
     });
     return (
@@ -553,7 +553,7 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
       <>
         <Figures>
           <Figure value={t.visits24h} label="visits, last 24h" />
-          <Figure value={t.uniques24h} label="distinct visitors, 24h" />
+          <Figure value={t.uniques24h} label="distinct addresses, 24h" />
           <Figure value={t.visits7d} label="visits, last 7 days" />
           <Figure value={t.totalVisits} label="visits, all kept history" />
         </Figures>
@@ -572,7 +572,7 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
           height={180}
           caption={
             <span>
-              Humans only.{' '}
+              Known crawlers and scanner paths excluded.{' '}
               {t.keptSince ? (
                 <>Kept from {dayLabel(t.keptSince)}, the day the rollup started.</>
               ) : (
@@ -581,18 +581,22 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
             </span>
           }
         />
-        <h3 className="dr-h3">Distinct visitors, per day</h3>
+        <h3 className="dr-h3">Distinct addresses, per day</h3>
         {/* Its own chart: thirty people against six hundred loads on one axis
             draws the people as a flat line, and the people are the number
             that matters. */}
         <TimeChart
           series={[
-            { key: 'uniques', label: 'Distinct visitors', points: t.byDay.map(d => ({ at: d.day, value: d.uniques })) },
+            {
+              key: 'uniques',
+              label: 'Distinct addresses',
+              points: t.byDay.map(d => ({ at: d.day, value: d.uniques })),
+            },
           ]}
           events={e.events ?? []}
-          label="Distinct visitors per day"
+          label="Distinct addresses per day"
           height={180}
-          caption={<span>Distinct addresses, the same human filter the cockpit uses.</span>}
+          caption={<span>Distinct addresses, the same traffic filter the cockpit uses.</span>}
         />
       </>
     );

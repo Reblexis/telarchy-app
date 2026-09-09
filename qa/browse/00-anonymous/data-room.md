@@ -103,6 +103,33 @@ curl -sf "$TT_BASE_URL/api/data-room" \
   | jq -e '.evidence.contracts | (.approved + .declined + .pending + .withdrawn) == .proposed' >/dev/null
 ```
 
+### T6. Traffic captions describe the filter and the counted unit
+
+```bash
+$B text | grep -qF 'Known crawlers and scanner paths excluded' || exit 1
+$B text | grep -qF 'Distinct addresses, per day' || exit 1
+$B text | grep -qE 'Humans only|Distinct visitors' && exit 1
+true
+```
+
+### T7. Quiet trading days are dated zeros
+
+```bash
+curl -sf "$TT_BASE_URL/api/data-room" | jq -e '
+  .evidence.trading.byDay as $days |
+  ($days | length) == 121 and
+  all(range(1; $days | length);
+    (($days[.].day + "T00:00:00Z" | fromdateiso8601) -
+     ($days[. - 1].day + "T00:00:00Z" | fromdateiso8601)) == 86400)
+' >/dev/null
+```
+
+The lapse chart starts on the UTC date of `evidence.window.at` and ends seven
+days later. Hover today's bar and check its value against the number of
+`traders.lapses` entries for today. Fractional spend and profit around the
+threshold, exact intraday expiries and empty trading queries are covered by
+`trader-window.test.ts` and `data-room-series.test.ts` with controlled data.
+
 ## Known gaps
 
 - The freshness of `shipping.builtAt` against the running revision is not

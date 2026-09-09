@@ -79,10 +79,10 @@ describe('the window draws one mark per row', () => {
 
   test('the seven days the counted weeks lapse over are a series, days with none included', async () => {
     const container = await renderFeed(FULL);
-    // One bar a day for seven days: a day nobody lapses on is a real zero,
+    // One bar per UTC date, today through seven days ahead: a day nobody lapses on is a real zero,
     // not a missing day.
-    expect(container.querySelectorAll('[data-lapse] .tchart-bars rect')).toHaveLength(7);
-    expect(container.querySelector('[data-lapse]')?.textContent).toContain('Sep 10');
+    expect(container.querySelectorAll('[data-lapse] .tchart-bars rect')).toHaveLength(8);
+    expect(container.querySelector('[data-lapse]')?.textContent).toContain('Sep 9');
   });
 
   test('every undecided proposal is a row, with its floor and its deadline', async () => {

@@ -1019,7 +1019,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/data-room',
       auth: false,
       description:
-        "Telarchy's own books (telarchy.com/data-room), prose and numbers in one anonymous read: { schema, generatedAt, doc: { updatedAt, sections: [{ id, title, markdown, blocks }] }, evidence: { pulse, market, traction, proposals, traffic, shipping } }. Every figure is computed at request time from the live tables except `shipping`, which is generated from git at deploy time and dated with builtAt. Cached 60s, open to every origin, no key. A term that cannot be computed is null, never zero. Spec: docs/data-room.md.",
+        "Telarchy's own books (telarchy.com/data-room), prose and numbers in one anonymous read: { schema, generatedAt, doc: { updatedAt, sections: [{ id, title, markdown, blocks }] }, evidence: { pulse, market, traction, proposals, traffic, shipping } }. Every figure is computed at request time from the live tables except `shipping`, which is generated from git at deploy time and dated with builtAt. Cached 60s, open to every origin, no key. A term that cannot be computed is null, never zero. Window spend and profit retain the unrounded metric values; lapses are exact trade-expiry UTC dates, including today. Trading history fills quiet dates with zeros only within its trailing 120-day query through the computation instant (boundary dates can be partial); missing metric readings stay absent. Traffic counts distinct addresses after excluding known crawlers and scanner paths, not verified humans. Spec: docs/data-room.md.",
     },
     {
       method: 'GET',

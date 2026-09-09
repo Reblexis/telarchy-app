@@ -1,6 +1,6 @@
 ---
 name: telarchy-agent
-description: Interact with any Telarchy deployment (self-hosted or hosted). Metrics, prediction markets, proposals, workspaces, credits/USDC, and API usage. Use when working with Telarchy before calling its HTTP API.
+description: Interact with any Telarchy deployment (self-hosted or hosted). Metrics, prediction markets, proposals, workspaces, credits/USDC, API usage, and public data-room figures. Use when working with Telarchy before calling its HTTP API.
 metadata: {"openclaw": {"requires": {"env": ["TELARCHY_URL"]}}}
 ---
 
@@ -218,3 +218,13 @@ All workspace-scoped routes require **`X-Workspace-Id: <workspaceId>`**. There i
 ## Hooks (optional)
 
 `~/.openclaw/workspaces/<agentId>/hooks.json` - **`events`** array: string (event type) or `{ type, metricNames?, metricIds? }`. A watcher polls `GET /events?since=...` and wakes the agent when subscriptions match. See repo `scripts/hook-watcher.cjs`.
+
+
+## Public data room
+
+`GET /api/data-room` needs no key. Its window publishes unrounded spend and
+marked profit for threshold comparisons. Lapses are UTC dates of exact trade
+expiry crossings, including today. Trading history includes quiet-day zeros
+only within the trailing 120-day query through the computation instant; boundary
+dates can be partial. Missing metric readings remain absent. Traffic counts
+addresses after filtering known crawlers and scanner paths, not verified humans.

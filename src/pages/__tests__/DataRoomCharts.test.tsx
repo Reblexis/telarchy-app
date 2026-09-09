@@ -141,6 +141,14 @@ describe('traffic', () => {
     const c = await renderBlocks(['traffic'], { traffic: TRAFFIC });
     expect(c.querySelectorAll('.tchart-svg').length).toBe(2);
     expect(c.textContent).toContain('Visits, per day');
-    expect(c.textContent).toContain('Distinct visitors, per day');
+    expect(c.textContent).toContain('Distinct addresses, per day');
   });
+});
+
+test('TRAFFIC FILTERING DOES NOT ESTABLISH HUMAN IDENTITY', async () => {
+  const c = await renderBlocks(['traffic'], { traffic: TRAFFIC });
+  expect(c.textContent).toContain('Known crawlers and scanner paths excluded');
+  expect(c.textContent).not.toContain('Humans only');
+  expect(c.textContent).not.toContain('Distinct visitors');
+  expect(screen.getByLabelText('Distinct addresses per day')).toBeTruthy();
 });

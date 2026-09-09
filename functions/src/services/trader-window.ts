@@ -89,15 +89,19 @@ async function tradersBlock(now: Date): Promise<TraderWindow['traders']> {
   }
 
   const spendOf = (id: string) => (byAgent.get(id) ?? []).reduce((sum, t) => sum + t.credits, 0);
-  const spend = verified.map(id => round2(spendOf(id))).sort((a, b) => b - a);
+  // The metric's unrounded absolute-cost sum is authoritative at the threshold.
+  const spend = verified.map(id => spendOf(id)).sort((a, b) => b - a);
 
   const lapses: string[] = [];
   for (const id of verified) {
     if (spendOf(id) < WEEKLY_TRADER_MIN_CREDITS) continue;
     const own = byAgent.get(id) ?? [];
-    for (let d = 1; d <= LAPSE_DAYS; d++) {
-      const then = new Date(now.getTime() + d * DAY_MS);
-      const cutoff = new Date(then.getTime() - LAPSE_DAYS * DAY_MS);
+    // Spend changes only when trades expire. Equal timestamps leave together;
+    // summing the remaining rows preserves the metric's threshold arithmetic.
+    const expiries = [...new Set(own.map(t => t.at.getTime()))].sort((a, b) => a - b);
+    for (const expiry of expiries) {
+      const cutoff = new Date(expiry);
+      const then = new Date(expiry + LAPSE_DAYS * DAY_MS);
       const held = own.filter(t => t.at > cutoff).reduce((sum, t) => sum + t.credits, 0);
       if (held < WEEKLY_TRADER_MIN_CREDITS) {
         lapses.push(isoDay(then));
@@ -120,7 +124,8 @@ async function forecastersBlock(now?: Date): Promise<TraderWindow['forecasters']
   const { profit: marked, houseIds } = await platformMarkedProfit(now);
   const profit = [...marked.entries()]
     .filter(([agentId]) => !houseIds.has(agentId))
-    .map(([, p]) => Math.round(p))
+    // The metric's unrounded marked profit is authoritative at the threshold.
+    .map(([, p]) => p)
     .sort((a, b) => b - a);
   return { threshold: PROFITABLE_FORECASTER_MIN_CREDITS, profit };
 }
