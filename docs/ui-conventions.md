@@ -1694,9 +1694,13 @@ proposals board that used to hold it): from 1120px up the floor is the
 market in the centre column with the trade ticket alone in a sticky right
 rail, separated by a vertical 1px `var(--border-color)` hairline, so what a
 trader does is on screen from the moment the page opens instead of waiting
-below the fold for a press. The rail names the market the ticket is pointed
-at above it ("Active traders, this month, settles 30 Sep"); selecting a
-proposal repoints it at that pair and says so in the same line. On
+below the fold for a press. The ticket is mounted from the first paint in its
+untouched state, both sides quoted and no side chosen; the two verbs under
+the chart seed its side rather than summoning it, and it is keyed by that
+side so pressing the other verb re-seeds it instead of being a dead click.
+The rail names what the ticket is pointed at above it (`.pubws-ticket-head`:
+"net revenue, this month"); selecting a proposal repoints it at that pair and
+says so in the same line. On
 viewports >=1500px a narrow left column returns for this market's own
 context and the centre grows to 960px, so the chart and both numbers get
 the room and the question line sits on one row (the three-column rule of
@@ -1748,9 +1752,13 @@ than hiding. The contractors footer does not change, since the contractor
 score is workspace-wide by construction.
 
 **The order under the trade is the same at every width** (2026-09-09): the
-two bet verbs, then the proposals board, then the propose band, then how
-this settles, then the standings footers, then the announcements and the
-rest. On a phone this replaces an order that put both standings, the
+two bet verbs, then the ticket, then the proposals board, then the propose
+band, then how this settles, then the market's own activity, then the
+standings footers, then the announcements and the rest. Everything after the
+verbs is ONE grid item (`.pubws-tail`), and the ticket rail is its own,
+placed in the DOM between them: so the document order IS the phone order and
+the grid alone puts the rail beside the market on a wide screen. Nothing is
+rendered twice to achieve it. On a phone this replaces an order that put both standings, the
 definition and the announcements between the trade and the proposals, so
 paid work began at 2327px of a 4240px page. A visitor comes to price the
 number or to be paid for moving it, and both of those now happen in the
