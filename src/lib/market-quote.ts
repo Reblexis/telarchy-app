@@ -66,12 +66,21 @@ export function payoutLine(unit: string, rangeMin: number, rangeMax: number): st
  * Null where there is nothing to state: an unfunded market has no price
  * either and refuses trades, and a free side has no ceiling at all.
  */
-export function maxWinLabel(p: number, liquidity: number): string | null {
+export function maxWinLabel(p: number, liquidity: number, opts?: { compact?: boolean }): string | null {
   if (!Number.isFinite(liquidity) || liquidity <= 0) return null;
   const price = Math.min(1, Math.max(0, p));
   if (price <= 0) return null;
   const cr = liquidity * Math.log(1 / price);
   if (cr < 0.95) return '<1 cr';
   if (cr < 10) return `${Math.round(cr * 10) / 10} cr`;
+  // Compact where the ceiling has to share a 293px row with a word: the
+  // ticket's side pills (owner ask 2026-09-09, of a pill 78px tall because
+  // "up to 25,793 cr" wrapped). The floor's verbs have the room and keep
+  // the exact figure. One function, so the two can never word it
+  // differently.
+  if (opts?.compact) {
+    if (cr >= 1_000_000) return `${Math.round(cr / 100_000) / 10}M cr`;
+    if (cr >= 1_000) return `${Math.round(cr / 100) / 10}k cr`;
+  }
   return `${Math.round(cr).toLocaleString('en-US')} cr`;
 }

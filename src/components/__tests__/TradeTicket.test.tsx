@@ -407,10 +407,11 @@ describe('the quote at rest', () => {
     expect(container.textContent).not.toContain('86c');
   });
 
-  test('the track replaces the payout sentence inside the ticket', () => {
+  test('the payoff line replaces the payout sentence inside the ticket', () => {
     const { container } = render(<TradeTicket {...base} />);
     expect(container.textContent).not.toContain('A share pays');
-    expect(container.querySelector('.pay-ends')?.textContent).toContain('$500,000');
+    fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '25' } });
+    expect(container.querySelector('.scale')?.textContent).toContain('$500.0k');
   });
 
   test('without a range there is no track, but the quotes stand', () => {
@@ -449,9 +450,11 @@ describe('the payoff line', () => {
     }));
   };
 
-  test('an untouched ticket keeps the plain range bar: there is nothing to price', () => {
+  test('an untouched ticket pictures nothing: there is no bet to price', () => {
+    // Revised 2026-09-09: the plain range bar was the second of the card's
+    // two 10px tracks, one measuring credits and one measuring the metric.
     const { container } = render(<TradeTicket {...payBase} />);
-    expect(container.querySelector('.pay-track')).toBeTruthy();
+    expect(container.querySelector('.pay')).toBeNull();
     expect(container.querySelector('.scale')).toBeNull();
   });
 
@@ -787,18 +790,19 @@ describe('the payoff line', () => {
     expect(screen.getByText(/or it fills right now/)).toBeTruthy();
   });
 
-  test('a held position is priced the same way, at what it actually paid', () => {
+  test('a held position is priced by the SALE, not by a settlement line', () => {
+    // Revised 2026-09-09 (owner: "i dont understand the sell visualization
+    // at all"): the Sell tab prices what selling does, in proceeds and
+    // profit or loss, and draws no settlement line at all.
     const { container } = render(
-      <TradeTicket
-        {...payBase}
-        manageMode
-        initialDir="higher"
-        positions={[{ direction: 'higher', shares: 100, totalCost: 20 }]}
-      />,
+      <TradeTicket {...payBase} manageMode positions={[{ direction: 'higher', shares: 100, totalCost: 20 }]} />,
     );
-    const s = stops(container);
-    expect(s[0].credits).toBe('-20 cr');
-    expect(s[s.length - 1].credits).toBe('+80 cr');
-    expect(s.find(x => x.credits === '0 cr')?.at).toBeCloseTo(20, 5);
+    expect(container.querySelector('.scale')).toBeNull();
+    expect(container.querySelector('.pay')).toBeNull();
+    fireEvent.click(
+      within(container.querySelector('.ticket-pos-head') as HTMLElement).getByRole('button', { name: 'Sell' }),
+    );
+    expect(screen.getByText('You get')).toBeTruthy();
+    expect(screen.getByText('Profit / loss')).toBeTruthy();
   });
 });

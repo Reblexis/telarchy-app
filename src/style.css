@@ -5399,6 +5399,26 @@ textarea.jobform-line--desc {
   border-radius: 14px;
 }
 
+/* The credits the stake slider moves between, right under its track
+   (docs/ui-conventions.md, "The ticket": the stake, its slider and the
+   slider's ends are one group). */
+.ticket-slider-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -0.35rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+/* Selling is not a direction, so its confirm wears none. */
+.ticket-go--ink:not(:disabled) {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+}
+.ticket-facts--pos {
+  gap: 0.25rem;
+}
+
 .ticket-pos {
   display: flex;
   flex-direction: column;
