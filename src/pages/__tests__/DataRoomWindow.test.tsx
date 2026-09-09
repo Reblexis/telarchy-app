@@ -67,20 +67,22 @@ async function renderFeed(window: unknown) {
 describe('the window draws one mark per row', () => {
   test('one bar per verified participant, zeroes included', async () => {
     const container = await renderFeed(FULL);
-    const bars = container.querySelectorAll('[data-dist="traders"] .dr-dist-bar');
+    const bars = container.querySelectorAll('[data-rank="traders"] .rchart-bar');
     expect(bars).toHaveLength(FULL.traders.spend.length);
   });
 
   test('one bar per participant in the profit distribution, losses included', async () => {
     const container = await renderFeed(FULL);
-    const bars = container.querySelectorAll('[data-dist="forecasters"] .dr-dist-bar');
+    const bars = container.querySelectorAll('[data-rank="forecasters"] .rchart-bar');
     expect(bars).toHaveLength(FULL.forecasters.profit.length);
   });
 
-  test('one dot per lapsing week, and the days are named', async () => {
+  test('the seven days the counted weeks lapse over are a series, days with none included', async () => {
     const container = await renderFeed(FULL);
-    expect(container.querySelectorAll('.dr-lapse-dot')).toHaveLength(FULL.traders.lapses.length);
-    expect(container.querySelector('.dr-lapse')?.textContent).toContain('Sep 10');
+    // One bar a day for seven days: a day nobody lapses on is a real zero,
+    // not a missing day.
+    expect(container.querySelectorAll('[data-lapse] .tchart-bars rect')).toHaveLength(7);
+    expect(container.querySelector('[data-lapse]')?.textContent).toContain('Sep 10');
   });
 
   test('every undecided proposal is a row, with its floor and its deadline', async () => {
@@ -111,13 +113,13 @@ describe('nothing is lost off the top of an axis', () => {
   test('a value taller than the axis is printed, not silently clipped', async () => {
     const container = await renderFeed(FULL);
     // 4,200 is far past the traders axis, so the page prints it in full.
-    const over = container.querySelector('[data-dist="traders"] .dr-dist-over')?.textContent ?? '';
+    const over = container.querySelector('[data-rank="traders"] .rchart-over')?.textContent ?? '';
     expect(over).toContain('4,200');
   });
 
   test('the threshold that decides the count is drawn and named', async () => {
     const container = await renderFeed(FULL);
-    expect(container.querySelectorAll('.dr-dist-threshold').length).toBeGreaterThanOrEqual(2);
+    expect(container.querySelectorAll('.rchart-threshold').length).toBeGreaterThanOrEqual(2);
     expect(container.textContent).toContain('100 cr counts');
   });
 });
@@ -131,7 +133,7 @@ describe('an empty window says so', () => {
       owners: { pending: [] },
       revenue: { payments: [] },
     });
-    expect(container.querySelectorAll('.dr-dist-bar')).toHaveLength(0);
+    expect(container.querySelectorAll('.rchart-bar')).toHaveLength(0);
     expect(screen.getAllByText(/Nothing recorded yet|No payment|Nothing waiting/).length).toBeGreaterThan(0);
   });
 });

@@ -1,6 +1,6 @@
 import { and, asc, count, eq, gte, ne, sql } from 'drizzle-orm';
 import { CHANGE_DAYS, CHANGELOG_BUILT_AT, CHANGES, TOTAL_CHANGES } from '../content/changelog';
-import { type BlockName, CONTENT_UPDATED_AT, DATA_ROOM_MARKDOWN, KNOWN_BLOCKS } from '../content/data-room';
+import { type BlockName, CONTENT_UPDATED_AT, DATA_ROOM_MARKDOWN, KNOWN_BLOCKS, KNOWN_PARTS } from '../content/data-room';
 import { db } from '../db/client';
 import { agents, authUser, markets, pageVisits, proposals, trades, trafficDaily, workspaces } from '../db/schema';
 import { ttlCache } from '../lib/ttl-cache';
@@ -32,6 +32,9 @@ const CACHE_MS = 60_000;
 export interface DataRoomSection {
   id: string;
   title: string;
+  /** Which part of the page it belongs to (docs/data-room.md, "One page,
+   *  three parts"), or null on a section that names none. */
+  part: string | null;
   /** The prose, verbatim, with the block directives removed. */
   markdown: string;
   /** Which blocks belong to this section, in source order. */
@@ -47,11 +50,24 @@ export interface DataRoomSection {
  * silently deleting a number from the document.
  */
 export function parseDataRoomContent(markdown: string): DataRoomSection[] {
-  const parts = markdown.split(/^## /m).filter(p => p.trim());
-  const sections = parts.map(part => {
-    const nl = part.indexOf('\n');
-    const title = (nl < 0 ? part : part.slice(0, nl)).trim();
-    const body = nl < 0 ? '' : part.slice(nl + 1);
+  const chunks = markdown.split(/^## /m).filter(c => c.trim());
+  const sections = chunks.map(chunk => {
+    const nl = chunk.indexOf('\n');
+    const title = (nl < 0 ? chunk : chunk.slice(0, nl)).trim();
+    const body = nl < 0 ? '' : chunk.slice(nl + 1);
+    // Which part of the page this section is in. Same shape as `block:`, and
+    // the same rule: an unknown name is a mistake that must be loud rather
+    // than a section that quietly falls out of the index.
+    let part: string | null = null;
+    for (const m of body.matchAll(/^part:([a-z-]+)$/gm)) {
+      if (!(KNOWN_PARTS as readonly { id: string }[]).some(p => p.id === m[1])) {
+        throw new Error(
+          `data room: section "${title}" names unknown part "${m[1]}". ` +
+            `Known parts: ${KNOWN_PARTS.map(p => p.id).join(', ')}`,
+        );
+      }
+      part = m[1];
+    }
     const blocks: BlockName[] = [];
     for (const m of body.matchAll(/^block:([a-z]+)$/gm)) {
       const name = m[1];
@@ -68,8 +84,9 @@ export function parseDataRoomContent(markdown: string): DataRoomSection[] {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, ''),
       title,
+      part,
       markdown: body
-        .replace(/^block:[a-z]+$/gm, '')
+        .replace(/^(?:block|part):[a-z-]+$/gm, '')
         .replace(/\n{3,}/g, '\n\n')
         .trim(),
       blocks,

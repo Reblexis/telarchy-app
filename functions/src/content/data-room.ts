@@ -32,12 +32,26 @@ export const KNOWN_BLOCKS = [
 ] as const;
 export type BlockName = (typeof KNOWN_BLOCKS)[number];
 
+/**
+ * The three parts the page is ordered into (docs/data-room.md, "One page,
+ * three parts"), in the order they run down it. A section names one with a
+ * `part:` directive; an unknown name throws at load, like an unknown block.
+ */
+export const KNOWN_PARTS = [
+  { id: 'numbers', title: 'The numbers' },
+  { id: 'place', title: 'The place' },
+  { id: 'plan', title: 'The plan' },
+] as const;
+export type PartName = (typeof KNOWN_PARTS)[number]['id'];
+
 /** When the prose was last edited. The numbers carry their own timestamp and
  *  are generated per request, so this dates the words alone. */
 export const CONTENT_UPDATED_AT = '2026-09-09';
 
 export const DATA_ROOM_MARKDOWN = `
 ## Overview
+
+part:numbers
 
 Telarchy is the approval layer for actions. An owner names the numbers they
 actually care about. Anyone, a person or an AI, proposes something to do about
@@ -57,6 +71,8 @@ published flattering figures would make that promise a lie.
 block:pulse
 
 ## What it is for
+
+part:numbers
 
 As AI takes over more of the operational work, the scarce thing is not the
 ability to act. It is knowing which actions are worth taking. You cannot verify
@@ -90,28 +106,41 @@ and portable. The trader side is being built first, because with no users at all
 the scarce resource is a stranger's first minute, and the only first minute on
 offer is trading a real company's roadmap.
 
-## Who is here
+## The numbers
 
-The floor this platform runs on itself measures weekly active verified traders:
-distinct participants with a public Manifold profile synced to their account
-who have traded at least a hundred credits anywhere on the platform in the
-trailing seven days.
+part:numbers
 
-Every word of that is load-bearing. Verified means each counted trader maps to
-a public profile anyone can inspect on the leaderboard. The hundred-credit
-floor keeps a one-credit gesture from counting, because signup credits are
-free. The number syncs once a day from the same database that serves this page,
-and the owner cannot edit it.
+Every number this floor prices, and everything it has done. Each is drawn
+from the hourly reading the platform takes of itself, one point per day, with
+the dated things the owner did marked on the day they happened. The eight
+weekly readings are printed under each line, because a shape is not a base
+rate and "how far does this normally move in a week" is a number.
 
-Four numbers stand between a stranger and that definition, and each is a filter
-on the one above it. Page loads count what the visit rollup holds, which starts
-later than the accounts do, so the first step is not a cohort and the
-percentage under it is arithmetic between two published figures rather than a
-claim that those accounts came out of those loads.
+block:rates
 
-block:funnel
+## What moved it
+
+part:numbers
+
+Announcements and decisions around the readings. These dates provide context;
+they do not establish what caused a change.
+
+block:events
+
+## What is scheduled
+
+part:numbers
+
+What has already been committed, between now and the settle dates on the
+board: every open book with the day it settles, every proposal on the ballot
+with the day it must be decided by. Nothing here is a plan typed in for this
+page; each row is a date something in the database falls due on.
+
+block:calendar
 
 ## The window
+
+part:numbers
 
 Every number this floor prices counts a trailing window, so part of the next
 reading is already fixed by rows that exist today. Those rows are here, one at
@@ -132,34 +161,32 @@ back, oldest first. A week the sync did not run is a hole rather than a repeat
 of the week before, because a week nobody measured and a week nothing happened
 are different facts.
 
-block:rates
+## Who is here
 
-## What moved it
+part:place
 
-Announcements and decisions around the readings. These dates provide context;
-they do not establish what caused a change.
+The floor this platform runs on itself measures weekly active verified traders:
+distinct participants with a public Manifold profile synced to their account
+who have traded at least a hundred credits anywhere on the platform in the
+trailing seven days.
 
-block:events
+Every word of that is load-bearing. Verified means each counted trader maps to
+a public profile anyone can inspect on the leaderboard. The hundred-credit
+floor keeps a one-credit gesture from counting, because signup credits are
+free. The number syncs once a day from the same database that serves this page,
+and the owner cannot edit it.
 
-## What is scheduled
+Four numbers stand between a stranger and that definition, and each is a filter
+on the one above it. Page loads count what the visit rollup holds, which starts
+later than the accounts do, so the first step is not a cohort and the
+percentage under it is arithmetic between two published figures rather than a
+claim that those accounts came out of those loads.
 
-What has already been committed, between now and the settle dates on the
-board: every open book with the day it settles, every proposal on the ballot
-with the day it must be decided by. Nothing here is a plan typed in for this
-page; each row is a date something in the database falls due on.
-
-block:calendar
-
-## Trading
-
-How busy the place actually is, day by day: the trades placed, the credits
-they moved, and how many people placed them. The trader count is a threshold
-on this; the shape underneath it is what says whether the count is about to
-move.
-
-block:trading
+block:funnel
 
 ## Traction
+
+part:place
 
 What has happened so far, in full. Participants include automated ones, which
 are most of them: the platform's own trading agents hold accounts like anyone
@@ -172,9 +199,20 @@ a price, the markets price what approving it would do to the metric, and the
 owner approves or declines with a written reason. Every decision is public and
 sits on the floor next to the market that priced it.
 
-block:contracts
+## Trading
+
+part:place
+
+How busy the place actually is, day by day: the trades placed, the credits
+they moved, and how many people placed them. The trader count is a threshold
+on this; the shape underneath it is what says whether the count is about to
+move.
+
+block:trading
 
 ## Traffic
+
+part:place
 
 Every document load the site serves is logged by the site itself. There is no
 third-party analytics on Telarchy, no tracking cookie and no advertising
@@ -196,7 +234,20 @@ Which channel a visitor came from is deliberately not published. It names
 outreach that has not happened yet, and the same is true of who signed up, so
 signup counts are here and the people behind them are not.
 
+## Proposals
+
+part:place
+
+Proposals are the jobs side of the floor. Anyone may propose a piece of work
+and a price, the markets price what approving it would do to the metric, and
+the owner approves or declines with a written reason. Every decision is public
+and sits on the floor next to the market that priced it.
+
+block:contracts
+
 ## Shipping
+
+part:place
 
 The change log is the git history of the repository this site is built from,
 regenerated on every deploy. Nothing here is curated: the bars are every commit,
@@ -209,6 +260,8 @@ described vaguely instead. Everything else is published the moment it deploys.
 block:shipping
 
 ## Plans
+
+part:plan
 
 The first season starts on 22 August 2026 and ends on 1 October 2026. It pays
 real money to the traders who are most accurate over that window, scored on
@@ -242,6 +295,8 @@ in three months either names more companies or explains why it does not.
 
 ## Risks
 
+part:plan
+
 There is no revenue. The platform charges nothing today, the business model is
 unsettled, and the season's prize pool is an operator cost rather than an
 investment anyone has made.
@@ -265,6 +320,8 @@ evidence of speed and equally evidence of a single point of failure.
 
 ## Checking these numbers
 
+part:plan
+
 This whole page, prose and figures together, is one public read at
 \`/api/data-room\`. No account, no key, no cookie. If a number here does not
 match that response, the response is right.
@@ -278,4 +335,4 @@ A figure that cannot be computed is published as null and rendered here as not
 published, never as zero. Every figure on this page is computed at read time
 from the live tables, except the change log, which is generated from git at
 deploy time and dated.
-`.trim();
+`;

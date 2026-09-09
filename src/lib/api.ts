@@ -802,6 +802,9 @@ export interface DataRoomFeed {
     sections: Array<{
       id: string;
       title: string;
+      /** Which part of the page it belongs to (docs/data-room.md, "One page,
+       *  three parts"): the index groups the sections under it. */
+      part: string | null;
       markdown: string;
       blocks: DataRoomBlock[];
     }>;
