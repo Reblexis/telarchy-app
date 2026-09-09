@@ -737,6 +737,21 @@ reads now, what the market says it will read, then the picture of both on
 one axis. Everything in this section serves that order (decision record:
 `notes/decisions/ui-conventions.md`, 2026-09-03).
 
+**What moved it.** The dated things the owner did are marked against the
+line they moved: an announcement, a decision, a delivery. Each is a numbered
+dot on a dashed hairline through the plot, and under the chart the same
+events are one hairline row each, oldest first, carrying the number, the day,
+the label and which kind of thing it was. The numbering is over the whole
+list rather than the visible window, so a mark and a row name each other
+whatever range is selected. Only past events inside the window are marked: a
+mark with no line under it explains nothing, and one in the future has moved
+nothing yet. A proposal being POSTED is not an event; anyone can post one and
+it moves nothing until it is decided.
+
+**No figure sits beside an event.** What the number did afterwards is the
+line the marks stand on. "+3 in the week after" would be the same fact stated
+twice, the second time rounded, over a seven-day window nobody chose.
+
 **The summary line.** When the metric has a definition, its FIRST SENTENCE
 prints under the question line in the quiet register
 (`.pubws-instrument-sum`, `firstSentenceOf`), so a reader knows what the

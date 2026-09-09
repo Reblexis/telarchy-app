@@ -604,6 +604,11 @@ export interface PublicWorkspace {
   /** Hero-metric logged history (oldest first), the evidence a forecaster
    *  prices against. Same Open-workspace disclosure rule as the ballot. */
   heroHistory?: Array<{ at: string; value: number }>;
+  /** The dated things the owner did, marked against the line they moved
+   *  (docs/ui-conventions.md, "The price and the chart"): announcements,
+   *  decisions, deliveries. Newest first; the chart and the list beneath it
+   *  number them oldest first. */
+  heroEvents?: FloorEvent[];
   /** The metric's own description: the owner's provenance statement. */
   heroMetricDescription?: string | null;
   /** The hero metric's id, so a manager can edit that description in place.
@@ -698,6 +703,14 @@ export interface PublicProposalMarketPair {
   declinedVolume: number | null;
   rangeMin: number;
   rangeMax: number;
+}
+
+/** A dated thing the owner did, drawn against the line it moved
+ *  (docs/ui-conventions.md, "The price and the chart"). */
+export interface FloorEvent {
+  at: string;
+  kind: 'announcement' | 'approved' | 'declined' | 'delivered';
+  label: string;
 }
 
 export interface PublicProposal {

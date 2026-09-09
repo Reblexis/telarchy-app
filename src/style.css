@@ -2504,6 +2504,57 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
 }
 .pubws-ballot-clock.is-urgent { color: var(--lower); }
 
+/* The marks on the number chart, and the list that names them
+   (docs/ui-conventions.md, "The price and the chart"). The mark is a numbered
+   dot on a hairline dropped through the plot; the number is the row's number
+   in the list, so the two name each other without a legend. */
+.numchart-event-rule { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 2 3; }
+.numchart-event-dot { fill: var(--accent); }
+.numchart-event-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  fill: var(--button-text);
+}
+
+.pubws-moved { margin-top: 1.6rem; }
+
+.pubws-moved-list { list-style: none; margin: 0.7rem 0 0; padding: 0; border-top: 1px solid var(--border-color); }
+
+.pubws-moved-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.84rem;
+}
+
+.pubws-moved-num {
+  flex: none;
+  width: 1.2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.pubws-moved-day {
+  flex: none;
+  width: 3.8rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+.pubws-moved-what { flex: 1; color: var(--text-secondary); line-height: 1.45; text-align: left; }
+
+.pubws-moved-kind {
+  flex: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+
 /* Whether an approved proposal's work happened (docs/guides/proposals.md,
    "After approval: say whether it happened"). Neutral grey like every other
    state chip; "not started" is the one that gets the accent, because it is
