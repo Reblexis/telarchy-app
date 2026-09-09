@@ -4545,7 +4545,7 @@ made, each one a door back to the market it was made on. Standalone, in the
 is verified, and one line of standing: &quot;Trading since &lt;month day, year&gt; ·
 #N on the leaderboard&quot; (the rank line is omitted when the participant has
 no rank). The bio follows when set.</p>
-<p><strong>The stats strip</strong> is one ruled band of three cells, and every number in
+<p><strong>The stats strip</strong> is one ruled band of four cells, and every number in
 it is one the platform already reports elsewhere, so the profile never
 disagrees with another page:</p>
 <ul>
@@ -4555,6 +4555,10 @@ when positive, red when negative.</li>
 <li><strong>Balance</strong>: the participant's tradeable credits right now, platform-wide
 (the live point of the balance history), with &quot;N cr in positions&quot;
 beneath: what their open positions are worth at the current call, summed.</li>
+<li><strong>Accuracy</strong>: the share of resolved markets that settled on the side they
+held, the leaderboard's own figure, with &quot;of N resolved&quot; beneath. A
+participant with nothing resolved reads &quot;not yet&quot;, never 0%: a forecaster
+who has not been scored has no score, and a zero would say they were wrong.</li>
 <li><strong>Trades</strong>: how many, with &quot;N cr traded · <ago>&quot; beneath. The
 traded figure is credits moved by their buys and sells on public floors;
 redemptions are not trades and do not count.</li>
@@ -4564,6 +4568,17 @@ invested and profit tiles are: the pressed cell (its label in ink, a 2px
 ink rule under it) is the series the chart below draws, and Balance is
 pressed on arrival. Trades is a number, not a series, and is not
 pressable.</p>
+<p><strong>Settled</strong> is every market they traded that has resolved, newest first:
+the metric and date, then &quot;closed X · called Y · range A to B&quot;, the two
+values as marks on that market's own scale (the close in ink, their call in
+the accent), and the distance between them on the right. Their call is the
+market's call as they left it, the consensus recorded on their last trade in
+that book, so a participant who traded once and never came back is scored on
+what they actually said. A call the platform never recorded (a trade older
+than those columns) draws no mark and says &quot;no call recorded&quot;: a dot at zero
+would read as a forecast of zero. Each row's scale is its own, because a
+revenue book running to $1,000 and a trader count running to 50 share no
+axis and normalising them would be a summary statistic wearing a drawing.</p>
 <p><strong>The chart</strong> is the floor's market chart (<code>MarketChart</code>, &quot;The price and
 the chart&quot;) drawing the pressed cell's series, ending on the live point:
 the same step line, gradient, labeled end dot, crosshair and tooltip, and
