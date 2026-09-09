@@ -175,6 +175,19 @@ profit. Both answer "who is near the line the count is drawn at", which no
 time series shows, and both sit under the window block that exists for exactly
 that question.
 
+**Two numbers of different size get two charts.** Thirty distinct visitors
+against six hundred loads, or ten people against a hundred trades, share an
+axis only by drawing the smaller one as a flat line on the floor, and the
+smaller one is usually the number that matters. Series share a chart when they
+are within about five times each other; otherwise they are stacked charts with
+the same date axis.
+
+**A heavy tail gets a log axis, and says so.** Credits traded has seeding days
+three orders of magnitude above an ordinary one. The axis is labelled in
+powers and the caption names the scale, so the compression is stated rather
+than hidden. Nothing else on the page uses one; the funnel in particular
+stays printed, for the reason its own section gives.
+
 **A chart never invents a point.** A day with no reading is a gap in the line,
 not a straight segment across it, for the same reason a week with no reading
 publishes null: a day nobody measured and a day the number did not move are

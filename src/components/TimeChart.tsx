@@ -55,6 +55,14 @@ interface Props {
   height?: number;
   /** Days between two readings past which the line breaks. */
   gapDays?: number;
+  /**
+   * 'log' for a heavy-tailed count (credits traded, where one day is three
+   * orders of magnitude above the rest): a linear axis puts every ordinary
+   * day on the floor and answers nothing. The axis is labelled in powers so
+   * the compression is stated rather than hidden, and the caption should say
+   * so in words too.
+   */
+  scale?: 'linear' | 'log';
   /** A caption under the chart, in the page's quiet register. */
   caption?: ReactNode;
 }
@@ -85,6 +93,13 @@ function fmtValue(v: number, unit: string): string {
   return `${unit}${Math.round(v * 100) / 100}`;
 }
 
+/** Powers of ten up to the top of a log axis: 1, 10, 100, 1k, ... */
+function logTicks(hi: number): number[] {
+  const out: number[] = [];
+  for (let p = 0; 10 ** p <= Math.max(1, hi); p++) out.push(10 ** p);
+  return out.length >= 2 ? out : [1, Math.max(10, hi)];
+}
+
 /** Three-ish ticks on round numbers, so an axis reads 5 / 10 / 15. */
 function ticksFor(lo: number, hi: number): number[] {
   const span = hi - lo || 1;
@@ -96,7 +111,16 @@ function ticksFor(lo: number, hi: number): number[] {
   return out.length >= 2 ? out : [lo, hi];
 }
 
-export function TimeChart({ series, label, events = [], unit = '', height = 200, gapDays = 3, caption }: Props) {
+export function TimeChart({
+  series,
+  label,
+  events = [],
+  unit = '',
+  height = 200,
+  gapDays = 3,
+  scale = 'linear',
+  caption,
+}: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [cursorT, setCursorT] = useState<number | null>(null);
 
@@ -124,9 +148,15 @@ export function TimeChart({ series, label, events = [], unit = '', height = 200,
   }
 
   const { t0, t1, y0, y1 } = model;
+  // On a log axis a value sits at log10(v + 1), so zero has a place (the
+  // floor) and 20 and 40 are a readable distance apart.
+  const lg = (v: number) => Math.log10(Math.max(0, v) + 1);
   const x = (t: number) =>
     t1 === t0 ? (W - PAD_L - PAD_R) / 2 + PAD_L : PAD_L + ((t - t0) / (t1 - t0)) * (W - PAD_L - PAD_R);
-  const y = (v: number) => PAD_T + (1 - (v - y0) / (y1 - y0 || 1)) * (H - PAD_T - PAD_B);
+  const y = (v: number) =>
+    scale === 'log'
+      ? PAD_T + (1 - lg(v) / (lg(y1) || 1)) * (H - PAD_T - PAD_B)
+      : PAD_T + (1 - (v - y0) / (y1 - y0 || 1)) * (H - PAD_T - PAD_B);
 
   // One polyline per unbroken run: a hole in the readings is a hole in the line.
   const runsOf = (s: TimeSeries) => {
@@ -191,7 +221,7 @@ export function TimeChart({ series, label, events = [], unit = '', height = 200,
         onPointerLeave={() => setCursorT(null)}
       >
         <title>{label}</title>
-        {ticksFor(y0, y1).map(t => (
+        {(scale === 'log' ? logTicks(y1) : ticksFor(y0, y1)).map(t => (
           <g key={t}>
             <line className="tchart-grid" x1={PAD_L} x2={W - PAD_R} y1={y(t)} y2={y(t)} />
             <text className="tchart-ylabel" x={PAD_L - 6} y={y(t) + 3} textAnchor="end">

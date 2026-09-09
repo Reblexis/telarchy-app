@@ -117,11 +117,17 @@ describe('a priced metric is a line over time, annotated', () => {
 });
 
 describe('the trading under the trader count', () => {
-  test('credits and trades are drawn over time, with the people who made them', async () => {
+  test('credits, trades and the people who placed them are three charts, not one squashed one', async () => {
     const c = await renderBlocks(['trading'], { trading: TRADING });
-    expect(c.querySelectorAll('.tchart-svg').length).toBeGreaterThanOrEqual(2);
-    expect(c.textContent).toContain('Credits traded');
-    expect(c.textContent).toContain('people trading');
+    // Ten people against a hundred trades on one axis draws the people flat.
+    expect(c.querySelectorAll('.tchart-svg').length).toBe(3);
+    expect(c.textContent).toContain('Credits traded, per day');
+    expect(c.textContent).toContain('People trading, per day');
+  });
+
+  test('the credits axis is a log one, and says so', async () => {
+    const c = await renderBlocks(['trading'], { trading: TRADING });
+    expect(c.textContent).toContain('log axis');
   });
 
   test('nothing traded yet says so', async () => {
@@ -131,10 +137,10 @@ describe('the trading under the trader count', () => {
 });
 
 describe('traffic', () => {
-  test('visits and distinct visitors are two named series on one chart', async () => {
+  test('visits and distinct visitors get a chart each, because one axis flattens the people', async () => {
     const c = await renderBlocks(['traffic'], { traffic: TRAFFIC });
-    const legend = c.querySelector('.tchart-legend')?.textContent ?? '';
-    expect(legend).toContain('Visits');
-    expect(legend).toContain('Distinct visitors');
+    expect(c.querySelectorAll('.tchart-svg').length).toBe(2);
+    expect(c.textContent).toContain('Visits, per day');
+    expect(c.textContent).toContain('Distinct visitors, per day');
   });
 });

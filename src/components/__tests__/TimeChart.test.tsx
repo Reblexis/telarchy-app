@@ -135,6 +135,55 @@ describe('the pointer', () => {
   });
 });
 
+describe('a heavy tail', () => {
+  const SPIKY = [
+    {
+      key: 'credits',
+      label: 'Credits',
+      points: [
+        { at: '2026-08-01', value: 20 },
+        { at: '2026-08-02', value: 40 },
+        { at: '2026-08-03', value: 230000 },
+        { at: '2026-08-04', value: 60 },
+      ],
+    },
+  ];
+
+  test('a log axis is labelled in powers, so the small days are readable at all', () => {
+    const c = chart({ series: SPIKY, scale: 'log', gapDays: 30 });
+    const ticks = [...c.querySelectorAll('.tchart-ylabel')].map(t => t.textContent);
+    expect(ticks).toContain('100k');
+    expect(ticks).toContain('10');
+  });
+
+  test('on a log axis the quiet days are off the floor, not flattened onto it', () => {
+    const c = chart({ series: SPIKY, scale: 'log', gapDays: 30 });
+    const ys = ((c.querySelector('.tchart-line')?.getAttribute('points') ?? '').trim().split(/\s+/) ?? []).map(p =>
+      Number(p.split(',')[1]),
+    );
+    // The 20-credit day and the 40-credit day are visibly apart, which is the
+    // whole reason for the axis; on a linear one they are the same pixel.
+    expect(Math.abs(ys[0] - ys[1])).toBeGreaterThan(4);
+  });
+
+  test('a zero day still draws, at the bottom of the axis', () => {
+    const c = chart({
+      series: [
+        {
+          key: 'z',
+          label: 'Z',
+          points: [
+            { at: '2026-08-01', value: 0 },
+            { at: '2026-08-02', value: 100 },
+          ],
+        },
+      ],
+      scale: 'log',
+    });
+    expect((c.querySelector('.tchart-line')?.getAttribute('points') ?? '').trim().split(/\s+/)).toHaveLength(2);
+  });
+});
+
 describe('more than one series', () => {
   const TWO = [
     SERIES[0],
