@@ -8531,6 +8531,133 @@ textarea.jobform-line--desc {
 
 .dr-chart-max { font-family: 'JetBrains Mono', monospace; }
 
+/* ---- The window: the rows behind the next reading ------------------- */
+/* docs/data-room.md. Every block here draws one mark per row, because the
+   count it replaced threw the tail away. Section labels inside a section, so
+   four drawings can sit under one heading without four headings. */
+
+.dr-h3 {
+  margin: 2rem 0 0;
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.dr-dist { margin: 0.7rem 0 0; }
+
+.dr-dist-svg {
+  display: block;
+  width: 100%;
+  height: 190px;
+}
+
+.dr-dist-bar { fill: var(--accent); }
+/* Green and red speak only as direction (docs/ui-conventions.md), which is
+   what a profit column is; the spend column has no direction and stays amber. */
+.dr-dist--signed .dr-dist-bar.is-up { fill: var(--higher); }
+.dr-dist--signed .dr-dist-bar.is-down { fill: var(--lower); }
+
+.dr-dist-zero { stroke: var(--border-strong); stroke-width: 1; }
+
+/* The line that decides the count, in the accent, so a reader can see who is
+   over it without being told how many are. */
+.dr-dist-threshold { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 3; }
+
+.dr-dist-cap {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.4rem;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+
+.dr-dist-line { font-family: 'JetBrains Mono', monospace; color: var(--accent); }
+
+/* Every value taller than the axis, printed in full: a capped axis that
+   swallowed the biggest trader would be the summary this block replaced. */
+.dr-dist-over {
+  margin: 0.5rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+
+/* One dot per counted trader, over the seven days their own window empties
+   in. A day nobody lapses keeps its column. */
+.dr-lapse {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 0.8rem;
+  background: var(--border-color);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dr-lapse-day {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  min-height: 4.6rem;
+  padding: 0.5rem 0.4rem;
+  background: var(--bg-primary);
+}
+
+.dr-lapse-dots { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.dr-lapse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.dr-lapse-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  color: var(--text-tertiary);
+}
+
+/* A dated hairline list: the day, the row, and what state it is in. */
+.dr-when { list-style: none; margin: 0.8rem 0 0; padding: 0; border-top: 1px solid var(--border-color); }
+
+.dr-when-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.85rem;
+}
+
+.dr-when-day {
+  flex: none;
+  width: 5.2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+.dr-when-main { flex: 1; color: var(--text-secondary); line-height: 1.45; text-align: left; }
+
+.dr-when-right {
+  flex: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 560px) {
+  .dr-when-day { width: 4.2rem; }
+  .dr-lapse-label { font-size: 0.6rem; }
+}
+
 /* The change log. A date column in mono so the days line up, and the
    subject exactly as it was committed. */
 .dr-log { list-style: none; margin: 1.4rem 0 0; padding: 0; }

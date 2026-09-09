@@ -17,12 +17,12 @@
 
 /** The blocks the page knows how to render. A directive naming anything else
  *  is a mistake that must be loud, not an empty space on a public page. */
-export const KNOWN_BLOCKS = ['pulse', 'funnel', 'traction', 'contracts', 'traffic', 'shipping'] as const;
+export const KNOWN_BLOCKS = ['pulse', 'funnel', 'window', 'traction', 'contracts', 'traffic', 'shipping'] as const;
 export type BlockName = (typeof KNOWN_BLOCKS)[number];
 
 /** When the prose was last edited. The numbers carry their own timestamp and
  *  are generated per request, so this dates the words alone. */
-export const CONTENT_UPDATED_AT = '2026-08-31';
+export const CONTENT_UPDATED_AT = '2026-09-09';
 
 export const DATA_ROOM_MARKDOWN = `
 ## Overview
@@ -98,6 +98,21 @@ percentage under it is arithmetic between two published figures rather than a
 claim that those accounts came out of those loads.
 
 block:funnel
+
+## The window
+
+Every number this floor prices counts a trailing window, so part of the next
+reading is already fixed by rows that exist today. Those rows are here, one at
+a time: what each verified participant has traded this week, the day each
+counted trader falls out of their own week if they never trade again, what
+every participant is up or down, every undecided proposal on an outside floor
+with the day it decides by, and every payment on the revenue rail.
+
+Nobody is named. A participant is an entry in a list of numbers, a payment is
+an amount and a date, and a floor appears under the name its own page already
+carries.
+
+block:window
 
 ## Traction
 

@@ -160,11 +160,12 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h2">It is the platform&#x27;s own books, not a pitch</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h3">Prose is the source, and prose carries no numbers</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h4">The funnel is the chain that ends in the metric</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h5">Every number comes from the database that serves the site</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h6">Traffic, and what is deliberately not published</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h7">Otto browses it; it is not in his context</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h8">The change log is the git history</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h9">Rules for changing this page</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h5">The window is the rows behind the next reading</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h6">Every number comes from the database that serves the site</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h7">Traffic, and what is deliberately not published</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h8">Otto browses it; it is not in his context</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h9">The change log is the git history</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h10">Rules for changing this page</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-formulas-md">docs/formulas.md</a></summary>
@@ -1829,7 +1830,36 @@ is the honest drawing.</p>
 which starts on the date the rollup started, while accounts predate it. The
 page says so where the number appears rather than implying that 36 accounts
 came out of exactly those loads.</p>
-<h2 id="docs-data-room-md--h5">Every number comes from the database that serves the site</h2>
+<h2 id="docs-data-room-md--h5">The window is the rows behind the next reading</h2>
+<p>Every priced number counts a trailing window, so part of its next reading is
+already fixed by rows that exist today. <code>window</code> publishes those rows, one
+unit at a time, and never a count of them: a reader who wants the summary can
+see it in the shape of the data, and a reader who wants to price the tail
+needs the tail.</p>
+<ul>
+<li><code>traders.spend</code> is credits traded in the trailing seven days, one entry per
+participant in the verified set, sorted high to low, zeroes included. The
+entries at or above <code>traders.threshold</code> are the weekly active verified
+traders the pulse publishes: both read the one query in
+<code>platform-stats.ts</code>, so the block and the metric cannot disagree.</li>
+<li><code>traders.lapses</code> is one entry per counted trader: the day their own trailing
+window drops under the threshold if they never trade again. Every counted
+trader has one and it is always inside the seven days, because a window that
+takes in nothing new always empties.</li>
+<li><code>forecasters.profit</code> is marked profit, one entry per participant, house
+excluded, sorted high to low. The entries at or above
+<code>forecasters.threshold</code> are the profitable forecasters.</li>
+<li><code>owners.pending</code> is one row per public workspace holding an undecided
+proposal, with the date it decides by. Outside owners deciding cannot rise
+above the number of workspaces with something to decide.</li>
+<li><code>revenue.payments</code> is one row per payment on the revenue rail inside the
+window, completed or not, with its amount, status and date.</li>
+</ul>
+<p><strong>No participant is named.</strong> A participant is an entry in a sorted list of
+numbers and a payment is an amount with a date. The only identity the block
+carries is a public workspace's own slug, which that workspace's floor already
+publishes.</p>
+<h2 id="docs-data-room-md--h6">Every number comes from the database that serves the site</h2>
 <p><code>GET /api/data-room</code> is one public, uncredentialed read that returns the
 document and every number on it. The page renders that response and nothing
 else, so a visitor can fetch the same URL and check the page against it. Agents
@@ -1845,7 +1875,7 @@ a duplicate, a test row) is not a decision, and counting it would leave the
 approved, declined, pending and withdrawn rows summing to less than the total.</p>
 <p><strong>Refuse, do not guess.</strong> A term that cannot be computed is <code>null</code>, and the page
 renders <code>null</code> as &quot;not published&quot; rather than as zero.</p>
-<h2 id="docs-data-room-md--h6">Traffic, and what is deliberately not published</h2>
+<h2 id="docs-data-room-md--h7">Traffic, and what is deliberately not published</h2>
 <p>Visits are the platform's own server-side document-load log (<code>page_visits</code>); no
 third-party analytics exist on the site, as the privacy policy says. The
 human filter (drop bot user-agents and scanner probe paths) is the same one the
@@ -1867,7 +1897,7 @@ only.</li>
 <li><strong>Email addresses and the waitlist.</strong> Signup counts are published; who signed
 up is not.</li>
 </ul>
-<h2 id="docs-data-room-md--h7">Otto browses it; it is not in his context</h2>
+<h2 id="docs-data-room-md--h8">Otto browses it; it is not in his context</h2>
 <p>The floor's answer service (Otto, <code>functions/src/lib/ask.ts</code>) is handed the
 floor's brief as fixed context and one tool, <code>read_data_room</code>, which reads the
 index and then one section at a time from the same cached feed the page
@@ -1882,7 +1912,7 @@ quote a number the page does not show.</p>
 so a model that keeps reaching for one has to answer instead. A lookup that
 fails is handed back to him as text saying so, never swallowed: he is allowed
 to say the data room would not open, and never to invent what it said.</p>
-<h2 id="docs-data-room-md--h8">The change log is the git history</h2>
+<h2 id="docs-data-room-md--h9">The change log is the git history</h2>
 <p>The history starts at the public open-source release, which is a clean-root
 snapshot; the private archive keeps the earlier history and it is not stitched
 in.</p>
@@ -1898,7 +1928,7 @@ Use it rather than writing a vague subject: the log's value is that it is the
 real one.</p>
 <p>Two things are published: a bar per day (how fast this is being built, which is
 machine-derived and unarguable) and the subjects themselves, newest first.</p>
-<h2 id="docs-data-room-md--h9">Rules for changing this page</h2>
+<h2 id="docs-data-room-md--h10">Rules for changing this page</h2>
 <ol>
 <li>A number that changes over time is computed in <code>functions/src/services/ data-room.ts</code> from a live table, or it is labelled on the page with the date
 it was exported. There is no third category: a figure that quietly stops

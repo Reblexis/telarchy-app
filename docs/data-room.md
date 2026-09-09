@@ -73,6 +73,37 @@ which starts on the date the rollup started, while accounts predate it. The
 page says so where the number appears rather than implying that 36 accounts
 came out of exactly those loads.
 
+## The window is the rows behind the next reading
+
+Every priced number counts a trailing window, so part of its next reading is
+already fixed by rows that exist today. `window` publishes those rows, one
+unit at a time, and never a count of them: a reader who wants the summary can
+see it in the shape of the data, and a reader who wants to price the tail
+needs the tail.
+
+- `traders.spend` is credits traded in the trailing seven days, one entry per
+  participant in the verified set, sorted high to low, zeroes included. The
+  entries at or above `traders.threshold` are the weekly active verified
+  traders the pulse publishes: both read the one query in
+  `platform-stats.ts`, so the block and the metric cannot disagree.
+- `traders.lapses` is one entry per counted trader: the day their own trailing
+  window drops under the threshold if they never trade again. Every counted
+  trader has one and it is always inside the seven days, because a window that
+  takes in nothing new always empties.
+- `forecasters.profit` is marked profit, one entry per participant, house
+  excluded, sorted high to low. The entries at or above
+  `forecasters.threshold` are the profitable forecasters.
+- `owners.pending` is one row per public workspace holding an undecided
+  proposal, with the date it decides by. Outside owners deciding cannot rise
+  above the number of workspaces with something to decide.
+- `revenue.payments` is one row per payment on the revenue rail inside the
+  window, completed or not, with its amount, status and date.
+
+**No participant is named.** A participant is an entry in a sorted list of
+numbers and a payment is an amount with a date. The only identity the block
+carries is a public workspace's own slug, which that workspace's floor already
+publishes.
+
 ## Every number comes from the database that serves the site
 
 `GET /api/data-room` is one public, uncredentialed read that returns the
