@@ -1392,8 +1392,9 @@ the title and, right-aligned, the impact: if-done minus if-not-done,
 green/red, "open" while unpriced, under a single column label ("impact if
 done", or "impact by <date>" when the horizon on screen has a date) rather
 than a label per row. The second line is the facts as an ICON ROW
-(`.pubws-prow-meta`), the same vocabulary the market's own facts use:
-proposer, the USD ask, the decision date, and the pool behind the pair.
+(`.pubws-prow-meta`), the same vocabulary the market's own facts use: the
+proposer, the USD ask, the countdown to the decision, and the pool behind
+the pair.
 Icons, not words, because four labelled facts under every row is a
 paragraph per proposal; each icon carries its words as a hover title. The
 rows are ranked by pool as before. **Nothing is stacked on the right edge**:
@@ -1403,9 +1404,10 @@ growing a fourth item is what made this row unreadable in a 340px rail
 (Viktor, 2026-09-09: "4 things below each otherh seem like too much").
 
 **Every row can be traded from where it is read** (2026-09-09): a compact
-Higher / Lower pair (`.pubws-dir--mini`) at the end of the first line,
-which selects that proposal and opens the ticket on that side, exactly as
-pressing the row and then a verb would. Kalshi repeats a pressable price on
+Higher / Lower pair (`.pubws-dir--mini`) at the end of the row, which selects
+that proposal and opens the ticket on that side, exactly as pressing the row
+and then a verb would (and the ticket is already on screen, in the rail, so
+nothing scrolls). Kalshi repeats a pressable price on
 every row of its ladder; a priced row with nothing to press is a table, not
 a market. The pair is hidden on a decided proposal, which nothing can be
 traded on any more, and on an unfunded one, which has no market to trade

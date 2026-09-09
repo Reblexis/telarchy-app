@@ -2308,6 +2308,14 @@ export function TradePage() {
                 horizonMetricId={hero.metricId}
                 selectedId={selectedJobId}
                 onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
+                /* Trade a proposal from the row it is read on: select it and
+                   open the ticket on that side, exactly as pressing the row
+                   and then a verb would (docs/ui-conventions.md, "The
+                   proposals board", 2026-09-09). */
+                onTrade={(id, direction) => {
+                  setSelectedJobId(id);
+                  setBetModal(direction);
+                }}
                 viewerId={user?.id ?? null}
                 signedIn={!!user}
                 onRequireSignup={() => navigate(authPath('signup', location))}
