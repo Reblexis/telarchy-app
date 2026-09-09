@@ -22,7 +22,6 @@ import { db } from '../db/client';
 import {
   announcements,
   markets,
-  metricLogs,
   metrics as metricsTable,
   permissionGroups,
   proposalMessages,

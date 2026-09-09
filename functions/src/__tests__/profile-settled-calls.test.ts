@@ -25,7 +25,7 @@ jest.mock('../middleware/auth', () => {
 import { eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, markets, metrics, permissionGroups, trades, workspaces } from '../db/schema';
+import { agents, markets, metrics, permissionGroups, trades } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
