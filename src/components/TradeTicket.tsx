@@ -76,6 +76,10 @@ interface Props {
   /** Managing an existing position (selling/cancelling), not opening a new
       bet: hide the Lower/Higher side pills, which are only for a new trade. */
   manageMode?: boolean;
+  /** What this ticket trades, named inside the card: a quiet line of
+   context over the bold subject (docs/ui-conventions.md, "The rails, and
+   the standings under the verbs"). */
+  subject?: { context: string; title: string };
 }
 
 /** A round metric-space step for the "each X beyond" line: ~1/50 of the
@@ -127,6 +131,7 @@ export function TradeTicket({
   onCancelLimit,
   initialDir,
   manageMode = false,
+  subject,
 }: Props) {
   /* The ticket opens COMPOSED (owner ask 2026-09-09, "the bet dialog should
      start like this"): a side already chosen and nothing staked. It is the
@@ -464,6 +469,16 @@ export function TradeTicket({
           </div>
         )}
       </div>
+      {/* What this ticket is pointed at, IN the card, the way Kalshi carries
+        the event and the subject between its BUY/SELL row and its prices
+        (owner report 2026-09-09). Above the card it was a second header in
+        a 293px column. */}
+      {subject && (
+        <div className="ticket-subject">
+          <span className="ticket-subject-ctx">{subject.context}</span>
+          <span className="ticket-subject-title">{subject.title}</span>
+        </div>
+      )}
       <div className="ticket-head">
         {tab === 'buy' && (
           <div className="ticket-seg" role="group" aria-label="Direction">

@@ -5511,6 +5511,29 @@ textarea.jobform-line--desc {
   font-size: 0.74rem;
 }
 
+/* What the ticket trades, inside the card (docs/ui-conventions.md, "The
+   rails, and the standings under the verbs", revised 2026-09-09): a quiet
+   line of context over the bold subject, Kalshi's own order. */
+.ticket-subject {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: -0.2rem;
+  text-align: left;
+}
+.ticket-subject-ctx {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+.ticket-subject-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
 .ticket-head {
   display: flex;
   flex-wrap: wrap;
@@ -11034,6 +11057,17 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   text-transform: uppercase;
   line-height: 1.2;
 }
+/* A cell with nothing staked on it (owner ask 2026-09-09): the tab says so
+   and does not answer, because there is nothing to trade there. */
+.pubws-strip-tab.is-dead {
+  cursor: default;
+  opacity: 0.55;
+}
+.pubws-strip-tab.is-dead .pubws-strip-val {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .pubws-strip-val {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.78rem;
@@ -11090,23 +11124,6 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   fill: var(--text-tertiary);
 }
 
-/* The rail's own head: what the ticket is pointed at (docs/ui-conventions.md,
-   "The rails, and the standings under the verbs", 2026-09-09). */
-.pubws-ticket-head {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding-bottom: 0.6rem;
-  margin-bottom: 0.9rem;
-  border-bottom: 1px solid var(--border-color);
-  text-align: left;
-}
-.pubws-ticket-what {
-  font-size: 0.82rem;
-  line-height: 1.4;
-  color: var(--text-secondary);
-  overflow-wrap: anywhere;
-}
 /* The proposals board, under the trade at the column's full width. */
 .pubws-board { text-align: left; }
 .pubws-tail > * + * { margin-top: clamp(2.2rem, 6vh, 3.2rem); }
@@ -11201,27 +11218,6 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   border: none;
   padding: 0;
   color: var(--accent);
-}
-/* The label a strip wears when its values are impacts, not levels. */
-.pubws-strip-label {
-  align-self: flex-end;
-  flex: none;
-  padding-bottom: 0.55rem;
-  margin-right: 0.2rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-.pubws-strip-note {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.58rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-  margin-top: 0.1rem;
 }
 /* The impact is the number, and the two worlds are the control under it. */
 .pubws-impact {

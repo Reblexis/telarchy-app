@@ -141,16 +141,16 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks());
 
 describe('both axes of the grid are strips, and every tab carries its call', () => {
-  test('the metrics are a strip, each tab its name over its call for the date on screen', async () => {
+  test('the metrics are a strip of NAMES: a metric on its own is not a market', async () => {
+    // Owner ask 2026-09-09: "dont show the values here as it doesnt make
+    // sense given that they arent individual markets". The number under a
+    // metric was the value for whichever date happened to be selected.
     renderFloor();
     const strip = await screen.findByLabelText('Metrics');
     const names = tabs(strip).map(t => words(t));
-    // Stepper order, primary first; the workspace name is stripped from the label.
-    expect(names[0]).toMatch(/^net revenue/i);
-    expect(names[1]).toMatch(/^steam reviews/i);
-    // The call for the SELECTED date (30 Sep), so the strip compares like with like.
-    expect(names[0]).toContain('$7,100');
-    expect(names[1]).toContain('55');
+    expect(names[0]).toMatch(/^net revenue$/i);
+    expect(names[1]).toMatch(/^steam reviews$/i);
+    expect(strip.querySelector('.pubws-strip-val')).toBeNull();
   });
 
   test('the dates are a strip under it, soonest first, each tab its clock over its call', async () => {
@@ -194,15 +194,15 @@ describe('both axes of the grid are strips, and every tab carries its call', () 
     expect(question()).toMatch(/6 Sep/i);
   });
 
-  test('a tab with no price prints a dash, never a borrowed number', async () => {
+  test('a DATE with no price prints a dash, never a borrowed number', async () => {
     const ws = h.grid();
-    ws.markets[3].consensus = null;
+    ws.markets[0].consensus = null;
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     renderFloor();
-    const strip = await screen.findByLabelText('Metrics');
-    const reviews = tabs(strip)[1];
-    expect(within(reviews).getByText('-')).toBeTruthy();
-    expect(words(reviews)).not.toContain('41');
+    const strip = await screen.findByLabelText('Dates');
+    const week = tabs(strip)[0];
+    expect(within(week).getByText('-')).toBeTruthy();
+    expect(words(week)).not.toContain('6,850');
   });
 
   test('a strip of one is a label: one metric and one date draw no strips', async () => {

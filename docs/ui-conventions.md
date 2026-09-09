@@ -425,19 +425,19 @@ javascript: vector in an img src.
 
 The floor prices a SET of metrics, and every one of them is one number read
 on several dates. The horizon list is therefore a grid, metrics x dates.
-**Both axes of that grid are strips, and every tab carries its call**
-(revised 2026-09-09, replacing the two dropdown chips of 2026-09-04): two
-rows of mono small-caps tabs on their own hairline, the metrics first and
-the dates under them, each tab its name with the market's current call in
-the quiet register beneath it, the selected one in ink over an accent
-underline. A dropdown hides how many books a floor prices and what they
+**Both axes of that grid are strips** (revised 2026-09-09, replacing the two
+dropdown chips of 2026-09-04): two rows of mono small-caps tabs on their own
+hairline, the metrics first and the dates under them, the selected one in ink
+over an accent underline. **Only the DATE strip carries a call** (owner ask
+2026-09-09): a metric on its own is not a market, so a number under a metric's
+name is a value for whichever date happens to be selected, printed as though
+it belonged to the metric. A dropdown hides how many books a floor prices and what they
 say; a strip is the scoreboard of everything this floor prices, read
 without pressing anything, which is the whole of what a visitor came to
 find out:
 
 ```
   ACTIVE TRADERS   REVENUE   OUTSIDE OWNERS DECIDING   PROFITABLE FORECASTERS
-  17.9             $45       1.0                       6.4
   ------------
   THIS WEEK   THIS MONTH
   14.3        17.9
@@ -450,9 +450,11 @@ find out:
 
 - **The metric strip** (`.pubws-strip`, `.pubws-strip--metric`) lists the
   floor's metrics, primary first, each tab (`.pubws-strip-tab`) the metric's
-  name over its current call for the SELECTED date, so moving along the
-  strip compares like with like. A floor with one metric draws no strip at
-  all, because a strip of one is a label.
+  name and nothing else. A floor with one metric draws no strip at all,
+  because a strip of one is a label. With a PROPOSAL open the metric tabs do
+  carry a number, because then each one is a pair the proposal actually
+  prices and the number is that proposal's claim about it, not the metric's
+  own level.
 - **The date strip** (`.pubws-strip--date`) lists the selected metric's open
   dates soonest first, each tab the clock's name ("THIS WEEK", "THIS MONTH";
   `dateSegmentOf`) over that date's call. The settle day it used to carry
@@ -462,6 +464,12 @@ find out:
 - **A tab with no price prints a dash**, never a borrowed number: an
   unfunded book is a book nobody has priced, and a strip that invents a
   value for it is worse than one that admits it.
+- **A proposal pair with no liquidity reads "no liquidity", and its tab
+  cannot be pressed** (owner ask 2026-09-09). Nothing has been staked on
+  that cell, so there is no forecast to show and nothing to trade when you
+  arrive: a zero with a word under it was a prediction dressed up as a fact.
+  The word "untraded" is gone with it, on both strips; where there IS
+  liquidity the number stands on its own.
 - **The owner's two entries stay reachable.** "Manage metrics" and "Manage
   dates" are the last tab of their strip, in the accent, for a manager only;
   they open the same dialogs the chips' menus opened (the metrics dialog and
@@ -615,9 +623,8 @@ deadline, an ask, and a price, and it reads in that order:
   #28  A 500 dollar prize for the best open-source trading agent
   Viktor36 · no payment asked · decides 15 Sept · 24,857 behind it
 
-  ACTIVE TRADERS   REVENUE     OUTSIDE OWNERS   FORECASTERS
-  +1.4             ±$0         ±0               ±0
-                   untraded    untraded         untraded
+  ACTIVE TRADERS   REVENUE        OUTSIDE OWNERS   FORECASTERS
+  +1.4             no liquidity   no liquidity     no liquidity
   THIS WEEK        THIS MONTH
   ±0               +1.4
 
@@ -647,10 +654,13 @@ deadline, an ask, and a price, and it reads in that order:
   The strips keep the floor's order, primary metric first and dates soonest
   first: a strip that reorders itself when a proposal opens moves the tabs
   under the reader's finger. The selected tab is scrolled into view.
-- **An untraded pair says so.** A funded pair nobody has traded prints its
-  ±0 with "untraded" under it, in the quiet register. The zero is the
-  anchor, not an opinion, and a strip that cannot tell the two apart is
-  claiming four forecasts where it has one.
+- **A pair with no liquidity says "no liquidity" and cannot be pressed**
+  (owner ask 2026-09-09, replacing the "untraded" note of the same day:
+  "its just useless tag.. especially if theer is a liuqidity present.. if
+  liuqidity isnt present.. then just dont make it clickable in the first
+  place"). Nothing is staked on that cell, so there is no forecast to print
+  and nothing to trade on arrival. Where liquidity IS present the impact
+  stands on its own, tagged with nothing.
 - **The impact is the number.** The hero is the selected cell's impact,
   if-done minus if-not-done, over the caption "if approved, <metric> <date>
   move by", green up and red down. This is the reversal: on the metric view
@@ -1821,9 +1831,19 @@ below the fold for a press. The ticket is mounted from the first paint in its
 untouched state, both sides quoted and no side chosen; the two verbs under
 the chart seed its side rather than summoning it, and it is keyed by that
 side so pressing the other verb re-seeds it instead of being a dead click.
-The rail names what the ticket is pointed at above it (`.pubws-ticket-head`:
-"net revenue, this month"); selecting a proposal repoints it at that pair and
-says so in the same line. On
+**The ticket names its own subject, INSIDE the card** (owner report
+2026-09-09, of a "YOUR TRADE" eyebrow and a hairline stranded above the card
+with "net revenue, this month · 30 Sep" under it: "i dont like the net
+revenue this month text theer the way it is .. it looks super weird"; the
+model is Kalshi's own ticket, which carries the event and the subject in the
+card between its BUY/SELL row and its side prices). Under the tab rule: one
+quiet line of context and one bold line naming the thing being traded. On a
+market that is the floor and the settle day over the metric and its clock
+("LookPilot · settles 30 Sep" / "Net revenue, this month"); on a proposal it
+is the number, the world and the deadline over the proposal's own title
+("#11 · if approved · decides 15 Sept"). Nothing above the card names it: a
+label, a subject and a hairline outside a card that has a header of its own
+is the same header said twice, in a column 293px wide. On
 viewports >=1500px a narrow left column returns for this market's own
 context and the centre grows to 960px, so the chart and both numbers get
 the room and the question line sits on one row (the three-column rule of
