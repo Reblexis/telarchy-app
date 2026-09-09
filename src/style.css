@@ -11221,3 +11221,12 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
     justify-content: flex-end;
   }
 }
+
+/* The untouched ticket in the rail says what to do with it. */
+.ticket-invite {
+  margin: 0.7rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+  text-align: left;
+}
