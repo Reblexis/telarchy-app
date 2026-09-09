@@ -441,6 +441,22 @@ export interface ProfileProposedJob {
   createdAt: string;
 }
 
+export interface SettledCall {
+  workspaceId: string;
+  workspaceName: string;
+  workspaceSlug: string;
+  marketId: string;
+  metricName: string;
+  targetDate: string;
+  resolvedAt: string;
+  /** What the market settled on. */
+  close: number;
+  /** The market's call as this participant left it, or null if never recorded. */
+  call: number | null;
+  rangeMin: number;
+  rangeMax: number;
+}
+
 export interface PublicParticipantProfile {
   id: string;
   nickname: string | null;
@@ -478,6 +494,11 @@ export interface PublicParticipantProfile {
   activeWorkspaces: Array<{ id: string; name: string }>;
   openPositions: PublicProfilePosition[];
   recentTrades: PublicProfileTrade[];
+  /** Every settled market this participant traded: what it closed at and what
+   *  they last called it (the consensus recorded on their last trade in that
+   *  book). Newest settlement first; viewer-scoped like openPositions. A call
+   *  the platform never recorded is null, never zero. */
+  settledCalls: SettledCall[];
   /** Jobs this participant proposed on public boards, newest first. */
   proposedJobs: ProfileProposedJob[];
   /** Daily balance snapshots (credits) plus a live "now" point. Snapshots are

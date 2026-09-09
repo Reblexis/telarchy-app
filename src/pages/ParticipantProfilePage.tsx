@@ -9,6 +9,7 @@ import {
   type PublicParticipantProfile,
   type PublicProfilePosition,
   type PublicProfileTrade,
+  type SettledCall,
 } from '../lib/api';
 import { floorHref } from '../lib/floor-hash';
 
@@ -206,6 +207,59 @@ function ProposalRow({ j }: { j: ProfileProposedJob }) {
   );
 }
 
+/**
+ * One settled market: what it closed at, what this participant last called
+ * it, and the two of them on the market's own scale.
+ *
+ * The scale is per row because the markets are not comparable: a revenue book
+ * running to $1,000 and a trader count running to 50 share no axis, and
+ * normalising them would be a summary statistic wearing a drawing. A call the
+ * platform never recorded (a trade older than the columns) draws no mark and
+ * says so, because a dot at zero would read as a forecast of zero.
+ */
+function CallRow({ c }: { c: SettledCall }) {
+  const span = c.rangeMax - c.rangeMin || 1;
+  const x = (v: number) => 5 + (Math.max(c.rangeMin, Math.min(c.rangeMax, v)) - c.rangeMin) * (250 / span);
+  const distance = c.call === null ? null : Math.abs(c.close - c.call);
+  return (
+    <li className="prof-call">
+      <Link className="prof-row prof-row-link" to={floorHref(c.workspaceSlug, { marketId: c.marketId })}>
+        <span className="prof-row-main">
+          <span className="prof-row-title">
+            {c.metricName}, {c.targetDate}
+          </span>
+          <span className="prof-row-sub">
+            closed {fmtNum(c.close)} · {c.call === null ? 'no call recorded' : `called ${fmtNum(c.call)}`} · range{' '}
+            {fmtNum(c.rangeMin)} to {fmtNum(c.rangeMax)}
+          </span>
+        </span>
+        <svg
+          className="prof-call-scale"
+          viewBox="0 0 260 20"
+          role="img"
+          aria-label={`the close and their call on a scale of ${c.rangeMin} to ${c.rangeMax}`}
+        >
+          <line x1="5" y1="10" x2="255" y2="10" className="prof-call-axis" />
+          {c.call !== null && (
+            <line
+              x1={Math.min(x(c.close), x(c.call))}
+              y1="10"
+              x2={Math.max(x(c.close), x(c.call))}
+              y2="10"
+              className="prof-call-gap"
+            />
+          )}
+          <circle cx={x(c.close)} cy="10" r="5" className="prof-call-dot is-close" />
+          {c.call !== null && <circle cx={x(c.call)} cy="10" r="5" className="prof-call-dot is-call" />}
+        </svg>
+        <span className="prof-call-dist">
+          {distance === null ? '—' : distance === 0 ? 'exact' : `off by ${fmtNum(distance)}`}
+        </span>
+      </Link>
+    </li>
+  );
+}
+
 function Section({ title, empty, children }: { title: string; empty: boolean; children: React.ReactNode }) {
   return (
     <section className="prof-section">
@@ -360,6 +414,17 @@ export function ParticipantProfilePage() {
                   {fmtNum(inPositions)} cr in positions
                 </span>
               </button>
+              <div className="prof-stat" data-testid="prof-stat-accuracy">
+                <span className="prof-h2">Accuracy</span>
+                <span className="prof-stat-val">
+                  {profile.stats.accuracy === null ? 'not yet' : `${Math.round(profile.stats.accuracy * 100)}%`}
+                </span>
+                <span className="prof-stat-sub" title="Markets that resolved on the side they held.">
+                  {profile.stats.accuracy === null
+                    ? 'nothing resolved'
+                    : `of ${profile.stats.resolvedMarkets} resolved`}
+                </span>
+              </div>
               <div className="prof-stat" data-testid="prof-stat-trades">
                 <span className="prof-h2">Trades</span>
                 <span className="prof-stat-val">{profile.stats.totalTrades.toLocaleString('en-US')}</span>
@@ -389,6 +454,12 @@ export function ParticipantProfilePage() {
             <Section title="Trades" empty={profile.recentTrades.length === 0}>
               {profile.recentTrades.map(t => (
                 <TradeRow key={t.id} t={t} />
+              ))}
+            </Section>
+
+            <Section title="Settled" empty={(profile.settledCalls ?? []).length === 0}>
+              {(profile.settledCalls ?? []).map(c => (
+                <CallRow key={`${c.workspaceId}:${c.marketId}`} c={c} />
               ))}
             </Section>
 

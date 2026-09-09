@@ -2055,7 +2055,7 @@ button.notif-row-link {
 
 .prof-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border-top: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
 }
@@ -2103,6 +2103,35 @@ button.notif-row-link {
   font-variant-numeric: tabular-nums;
   font-size: 0.72rem;
   color: var(--text-tertiary);
+}
+
+/* One settled market: the close in ink, their call in the accent, on that
+   market's own scale. Two markets with different ranges share no axis, so
+   each row carries its own. */
+.prof-call-scale {
+  flex: none;
+  width: 180px;
+  height: 20px;
+  align-self: center;
+}
+.prof-call-axis { stroke: var(--border-color); stroke-width: 1; }
+.prof-call-gap { stroke: var(--border-strong); stroke-width: 2; }
+.prof-call-dot.is-close { fill: var(--text-primary); }
+.prof-call-dot.is-call { fill: var(--accent); stroke: var(--bg-primary); stroke-width: 2; }
+.prof-call-dist {
+  flex: none;
+  width: 5.4rem;
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+@media (max-width: 620px) {
+  /* The scale is the first thing to go: the numbers beside it say the same. */
+  .prof-call-scale { display: none; }
 }
 /* A phone's three cells are 110px wide: the unit goes, the sub-lines
    wrap, and a six-figure balance still fits on its line. */
