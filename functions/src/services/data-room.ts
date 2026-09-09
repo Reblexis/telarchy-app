@@ -459,6 +459,24 @@ function renderBlock(name: string, feed: DataRoomFeed): string {
   return [`${name}:`, ...entries].join('\n');
 }
 
+/**
+ * The whole document as one text: every section's prose followed by its
+ * figures.
+ *
+ * This is what an outside agent gets handed in the brief for Telarchy's own
+ * floor (`GET /api/marketplace/:id/context`). Otto is deliberately NOT given
+ * it that way: his brief is the fixed prefix of every question on every
+ * floor, so it stays a tool he opens on his own initiative. An agent reading
+ * the brief makes one request and then has to price the number, which is the
+ * opposite trade-off.
+ */
+export function renderDataRoomDocument(feed: DataRoomFeed): string {
+  return [
+    `Telarchy's data room, telarchy.com/data-room. Words updated ${feed.doc.updatedAt}; figures generated ${feed.generatedAt}.`,
+    ...feed.doc.sections.map(s => renderDataRoomSection(feed, s.id)),
+  ].join('\n\n');
+}
+
 /** The table of contents: what is in the data room, so Otto can pick. */
 export function renderDataRoomIndex(feed: DataRoomFeed): string {
   const lines = feed.doc.sections.map(

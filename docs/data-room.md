@@ -191,6 +191,14 @@ so a model that keeps reaching for one has to answer instead. A lookup that
 fails is handed back to him as text saying so, never swallowed: he is allowed
 to say the data room would not open, and never to invent what it said.
 
+**An outside agent gets it whole, in the brief.** `GET
+/api/marketplace/:id/context` on the platform's own floor (the workspace named
+by `SELF_SYNC_WORKSPACE_ID`) carries the document as one of its `documents`
+entries, prose and figures together. The trade-off runs the other way there:
+an agent makes one request and then has to price the number, and one that has
+to scrape a page to learn what moves it prices worse than one that read it.
+Every other floor's brief carries only what that workspace itself published.
+
 ## The change log is the git history
 
 The history starts at the public open-source release, which is a clean-root

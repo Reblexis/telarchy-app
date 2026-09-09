@@ -17,7 +17,7 @@
  * effect of this endpoint existing.
  */
 
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   announcements,
@@ -46,8 +46,16 @@ import { getProposalMarketSummariesForProposal, getTradeCountMap } from './propo
  */
 const SOURCE_CHARS_EACH = 120_000;
 const SOURCE_CHARS_TOTAL = 200_000;
-/** Readings per metric. Enough to see a trend, not a spreadsheet. */
-const HISTORY_POINTS = 24;
+/**
+ * Days of history per metric, one point each.
+ *
+ * It was 24 READINGS, which was written when readings were daily. The hourly
+ * self-sync (services/self-sync.ts) turned that into one day: an agent asked
+ * to price the end of the month got 24 identical numbers while the page beside
+ * it drew six weeks. A day is the resolution a forecast needs and a cap keeps
+ * the brief a brief.
+ */
+export const BRIEF_HISTORY_DAYS = 120;
 
 export interface WorkspaceContext {
   workspaceId: string;
@@ -163,30 +171,38 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
     })
     .filter(d => d.content.length > 0);
 
+  // One row per metric per day, the LAST reading of that day: "what it read
+  // at the end of that day" is the only point a forecaster can compare across
+  // days. Downsampled in the database rather than in JS, because hourly
+  // readings over four months is thousands of rows for a public payload.
   const logRows =
     metricRows.length === 0
       ? []
-      : await db
-          .select()
-          .from(metricLogs)
-          .where(
-            and(
-              eq(metricLogs.workspaceId, workspaceId),
-              inArray(
-                metricLogs.metricId,
-                metricRows.map(m => m.id),
-              ),
-            ),
-          )
-          .orderBy(desc(metricLogs.timestamp))
-          .limit(metricRows.length * HISTORY_POINTS);
+      : ((
+          (await db.execute(sql`
+            select distinct on (metric_id, to_char(timestamp, 'YYYY-MM-DD'))
+                   metric_id as "metricId",
+                   to_char(timestamp, 'YYYY-MM-DD') as "day",
+                   value
+            from metric_logs
+            where workspace_id = ${workspaceId}
+              and metric_id in (${sql.join(
+                metricRows.map(m => sql`${m.id}`),
+                sql`, `,
+              )})
+            order by metric_id, to_char(timestamp, 'YYYY-MM-DD'), timestamp desc
+          `)) as unknown as { rows?: Array<{ metricId: string; day: string; value: number }> }
+        ).rows ?? ([] as Array<{ metricId: string; day: string; value: number }>));
 
   const historyOf = (metricId: string) =>
     logRows
       .filter(l => l.metricId === metricId)
-      .slice(0, HISTORY_POINTS)
-      .reverse()
-      .map(l => ({ at: l.timestamp.toISOString().slice(0, 10), value: l.value }));
+      .map(l => ({ at: l.day, value: Number(l.value) }))
+      .sort((a, b) => a.at.localeCompare(b.at))
+      .slice(-BRIEF_HISTORY_DAYS);
+
+  /** The first day any of this workspace's numbers was read. */
+  const firstReadingDay = logRows.length ? logRows.map(l => l.day).sort()[0] : null;
 
   const liveProposals = proposalRows.filter(p => p.status !== 'removed');
   const names = await getParticipantDisplayNames(liveProposals.map(p => p.proposedBy));
@@ -294,7 +310,9 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
     description: ws.description,
     charter: ws.charter,
     about: ws.subjectAbout,
-    runningSince: ws.telarchyStartedOn ? new Date(ws.telarchyStartedOn).toISOString().slice(0, 10) : null,
+    // The owner's own start date, or failing that the day this workspace's
+    // numbers first got read, which is when it started running them here.
+    runningSince: ws.telarchyStartedOn ? new Date(ws.telarchyStartedOn).toISOString().slice(0, 10) : firstReadingDay,
     metrics: metricRows.map(m => ({
       name: m.name,
       description: m.description,

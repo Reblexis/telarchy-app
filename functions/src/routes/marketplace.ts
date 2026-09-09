@@ -31,7 +31,7 @@ import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { authMiddleware, getAuthWorkspaceMemberships } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
-import { dataRoomTool } from '../services/data-room';
+import { buildDataRoomFeed, dataRoomTool, renderDataRoomDocument } from '../services/data-room';
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
 import { linkedManifoldCount, platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
@@ -1445,6 +1445,27 @@ marketplaceRouter.get(
     if (!context) {
       res.status(404).json({ error: 'Workspace not found' });
       return;
+    }
+
+    // On the platform's own floor, hand the agent the data room. It is the one
+    // document that says what moves the numbers this floor prices, it is
+    // already public at telarchy.com/data-room, and an agent that has to
+    // scrape a page to find it prices worse than one that reads it. It is
+    // added HERE rather than in buildWorkspaceContext on purpose: that brief
+    // is also Otto's fixed per-question prefix, and he browses the room with
+    // a tool instead (docs/data-room.md, "Otto browses it").
+    if (process.env.SELF_SYNC_WORKSPACE_ID && ws.id === process.env.SELF_SYNC_WORKSPACE_ID) {
+      const feed = await buildDataRoomFeed();
+      context.documents = [
+        ...context.documents,
+        {
+          name: 'Data room',
+          description:
+            "Telarchy's own books: what it is for, who is here, its traffic, what shipped, and what is planned.",
+          content: renderDataRoomDocument(feed),
+          updatedAt: feed.generatedAt,
+        },
+      ];
     }
 
     if (req.query.format === 'md') {
