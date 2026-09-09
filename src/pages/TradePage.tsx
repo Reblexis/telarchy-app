@@ -514,18 +514,23 @@ export function TradePage() {
       .catch(() => {});
   }, [canManage, ws?.workspaceId]);
 
-  const decide = async (action: 'approve' | 'decline', refund = false) => {
-    if (!selectedJobId || !ws) return;
+  const decide = async (action: 'approve' | 'decline', refund = false, id?: string, reason?: string) => {
+    /* The id is explicit so a ruling can come from the board's own row
+       (docs/ui-conventions.md, "The proposals board", 2026-09-09) without
+       selecting the proposal first; the bar on the proposal's page passes
+       none and rules on the one it is under. */
+    const jobId = id ?? selectedJobId;
+    if (!jobId || !ws) return;
     setDecideErr('');
     setDecideBusy(true);
     try {
       if (action === 'approve') {
-        await api.approveProposal(selectedJobId);
+        await api.approveProposal(jobId);
       } else {
-        await api.declineProposal(selectedJobId, (declineReason ?? '').trim(), refund);
+        await api.declineProposal(jobId, (reason ?? declineReason ?? '').trim(), refund);
       }
       setDeclineReason(null);
-      setSelectedJobId(null);
+      setSelectedJobId(cur => (cur === jobId ? null : cur));
       reload();
     } catch (e) {
       setDecideErr((e as Error).message || 'Could not record the decision');
@@ -2502,6 +2507,12 @@ export function TradePage() {
                   setSelectedJobId(id);
                   setBetModal(direction);
                 }}
+                /* A manager rules from the row, with the confirm and the
+                   published reason in place (docs/ui-conventions.md, "The
+                   proposals board", 2026-09-09). The same call the bar on
+                   the proposal's own page makes. */
+                canManage={canManage}
+                onRule={canManage ? (id, action, reason) => decide(action, false, id, reason) : undefined}
                 viewerId={user?.id ?? null}
                 signedIn={!!user}
                 onRequireSignup={() => navigate(authPath('signup', location))}

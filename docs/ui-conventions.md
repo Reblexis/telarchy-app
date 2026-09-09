@@ -1479,9 +1479,12 @@ nothing scrolls).
 
 **And a manager rules from the row.** Beside those two verbs, for a
 manage-capable session only, Approve and Decline in the decision bar's own
-vocabulary: Approve the one money-coloured pill, Decline opening its
-published reason ON the row, with the confirm off until a reason is typed,
-because the charter's promise has to be kept where the ruling happens.
+vocabulary. Both confirm in place: Decline opens its published reason ON the
+row with the confirm off until a reason is typed, because the charter's
+promise has to be kept where the ruling happens, and **Approve confirms too**,
+naming the money it pays, because a list is a place to mis-click and
+approving IS the payment. Neither renders on the row the page is already
+pointed at, whose own ruling band is on screen.
 Four pending proposals is a morning's work and should not be four page
 loads. The bar on the proposal's own page is the same two controls with the
 same rules; neither is a second implementation of the other. Nobody but a
