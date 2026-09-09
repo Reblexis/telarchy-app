@@ -792,6 +792,13 @@
       "when": 1788876001000,
       "tag": "0112_proposal_deadline",
       "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1788955670217,
+      "tag": "0113_proposal_delivery",
+      "breakpoints": true
     }
   ]
 }

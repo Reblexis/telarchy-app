@@ -865,6 +865,24 @@ export const proposals = pgTable(
     rewardPaid: doublePrecision('reward_paid').notNull().default(0),
     /** Penalty credits actually charged on spam-decline. 0 if not declined as spam. */
     penaltyCharged: doublePrecision('penalty_charged').notNull().default(0),
+    /**
+     * Whether the approved work actually happened
+     * (docs/guides/proposals.md, "After approval: say whether it happened"):
+     * 'not_started' | 'in_progress' | 'delivered'. Meaningful only on an
+     * approved proposal; a declined one was never promised and a pending one
+     * has nothing to report, so both keep the default and no surface shows it.
+     *
+     * It is a public field rather than a comment because a conditional market
+     * prices "if this is approved, the metric lands at X": a forecaster who
+     * cannot see whether the approved thing was done cannot tell a market that
+     * was wrong from a promise that was not kept.
+     */
+    deliveryState: text('delivery_state').notNull().default('not_started'),
+    /** The owner's one line about what happened, with a link if there is one. */
+    deliveryNote: text('delivery_note'),
+    /** When it was delivered. Cleared when the state moves back off delivered:
+     *  a date that outlives the state it recorded is a lie. */
+    deliveredAt: timestamp('delivered_at'),
     /** Set when status leaves 'pending'. */
     resolvedAt: timestamp('resolved_at'),
     /** Participant id who approved/declined/spam-declined; equals proposedBy on withdraw. */

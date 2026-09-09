@@ -636,9 +636,10 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h3">The four ways it ends</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h4">The deadline, and the close</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h5">Approving is the payment</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h6">Declining, and why the reason is enforced</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h7">What the declined branch does</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h8">Two habits that make the delta mean something</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h6">After approval: say whether it happened</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h7">Declining, and why the reason is enforced</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h8">What the declined branch does</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h9">Two habits that make the delta mean something</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-recipes-md">docs/guides/recipes.md</a></summary>
@@ -9778,7 +9779,24 @@ you need and what you have.</li>
 <p>The reward is checked before anything else moves. An approve that returns 409
 leaves the proposal exactly as it was: still pending, both branches still open
 and priced, no stake bought out. Top up and approve again.</p>
-<h2 id="docs-guides-proposals-md--h6">Declining, and why the reason is enforced</h2>
+<h2 id="docs-guides-proposals-md--h6">After approval: say whether it happened</h2>
+<p>An approved proposal is a promise the market priced. Until you say otherwise it
+sits at <strong>not started</strong>, and the floor says so in public beside the price the
+approval was made on.</p>
+<p><code>POST /api/proposals/:id/delivery</code> takes <code>{ state, note? }</code>, where <code>state</code> is
+<code>not_started</code>, <code>in_progress</code> or <code>delivered</code> and the note is one line in your own
+words saying what happened, with a link if there is one to give. Only a caller
+who can decide proposals on that workspace may set it, and only an approved
+proposal has a delivery state at all: a declined one was never promised and a
+pending one has nothing to report. <code>delivered</code> stamps the day, and moving back
+off <code>delivered</code> clears that stamp, because a date that survives the state it
+recorded is a lie.</p>
+<p>Why it is enforced as a public field rather than left to a comment: a
+conditional market prices &quot;if this is approved, the metric lands at X&quot;. A
+forecaster who cannot see whether the approved thing was done cannot tell a
+market that was wrong from a promise that was not kept, and prices both the
+same. The state is what makes the conditional checkable after the fact.</p>
+<h2 id="docs-guides-proposals-md--h7">Declining, and why the reason is enforced</h2>
 <p><code>POST /api/proposals/:id/decline</code> takes <code>{ declineReason?, refund? }</code>.</p>
 <p><strong>A reason is required exactly when your workspace has a charter set.</strong> That
 coupling is the point. Making a public commitment about what you will do with
@@ -9801,7 +9819,7 @@ There is no button for it on the floor; it is an API call.</p>
 <p><strong>Remove</strong> takes a proposal off the board entirely: a duplicate, a test row,
 something that should never have been there. Every stake is refunded first. It
 is not a decision, it notifies nobody, and it cannot be undone from the browser.</p>
-<h2 id="docs-guides-proposals-md--h7">What the declined branch does</h2>
+<h2 id="docs-guides-proposals-md--h8">What the declined branch does</h2>
 <p>Both branches are real markets and both can pay. Whichever world the decision
 creates is the one that settles against the metric; the other is a
 counterfactual with nothing to settle against, so it voids and every position
@@ -9822,7 +9840,7 @@ market's resolution instant created no world, so both branches void there and
 everyone is refunded.</p>
 <p><em>(Until 2026-08-30 the resolver voided a declined proposal's surviving branch
 too, so a decline paid nobody. Fixed; the behaviour above is what runs.)</em></p>
-<h2 id="docs-guides-proposals-md--h8">Two habits that make the delta mean something</h2>
+<h2 id="docs-guides-proposals-md--h9">Two habits that make the delta mean something</h2>
 <p><strong>Publish a charter.</strong> Forecasters are being asked to price a stranger's
 decisions with their own credits. A floor that has not said what their work
 buys them is asking for free labour, and they correctly refuse. The charter is

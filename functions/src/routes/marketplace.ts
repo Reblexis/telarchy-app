@@ -1014,6 +1014,13 @@ async function buildFloorPayload(ws: PublicWs) {
         decideBy: p.decideBy ?? null,
         closedAt: p.closedAt ?? null,
         lapsedAt: p.lapsedAt ?? null,
+        // Whether the approved work happened (docs/guides/proposals.md).
+        // Published on every proposal and read only on approved ones: a
+        // conditional nobody can check after the fact prices a promise and a
+        // forecast the same.
+        deliveryState: p.deliveryState ?? 'not_started',
+        deliveryNote: p.deliveryNote ?? null,
+        deliveredAt: p.deliveredAt ?? null,
         proposedByName: names.get(p.proposedBy) ?? null,
         // The linkable handle for the public profile page: prefer the
         // unique nickname, fall back to the raw participant id, which the

@@ -22,6 +22,7 @@ import {
   getProposalMarketSummariesForProposal,
   proposalRevisionsFor,
   removeProposal,
+  setProposalDelivery,
   withdrawProposal,
 } from '../services/proposals';
 
@@ -415,6 +416,31 @@ proposalsRouter.post(
     // The person who filed it is owed the answer, whichever way it went.
     void notifyProposalDecided({ workspaceId, proposalId });
     res.json({ ok: true, rewardPaid: result.rewardPaid });
+  }),
+);
+
+/**
+ * Say whether the approved work happened (docs/guides/proposals.md, "After
+ * approval: say whether it happened").
+ *
+ * Behind `manage`, exactly like approving: the person who owes the promise is
+ * the person who reports on it. The state is public afterwards, because a
+ * conditional market nobody can check after the fact prices a promise and a
+ * forecast the same.
+ */
+proposalsRouter.post(
+  '/:proposalId/delivery',
+  requireCapability('manage'),
+  wrap(async (req, res) => {
+    const { workspaceId } = req.auth!;
+    const proposalId = req.params.proposalId as string;
+    const { state, note } = req.body ?? {};
+    if (note !== undefined && note !== null && typeof note !== 'string') {
+      res.status(400).json({ error: 'note must be a string' });
+      return;
+    }
+    const result = await setProposalDelivery(proposalId, workspaceId, { state, note });
+    res.json({ ok: true, ...result });
   }),
 );
 
