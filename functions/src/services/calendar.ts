@@ -1,4 +1,4 @@
-import { and, asc, eq, isNotNull } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { db } from '../db/client';
 import { markets, outreachProspects, proposals } from '../db/schema';
 import { resolutionInstant } from '../lib/date-utils';
@@ -39,6 +39,10 @@ export async function buildCalendar(now = new Date()): Promise<Calendar> {
             eq(markets.resolved, false),
             eq(markets.voided, false),
             eq(markets.active, true),
+            // Baseline books only. A proposal spawns two branch markets per
+            // horizon on the same metric and the same day, so publishing every
+            // market printed one date over a hundred times.
+            isNull(markets.proposalId),
           ),
         ),
       db
@@ -49,11 +53,15 @@ export async function buildCalendar(now = new Date()): Promise<Calendar> {
         ),
     ]);
 
+    // One row per metric and day: several books can settle the same number on
+    // the same date, and the reader is being told a date, not a book count.
+    const settles = new Map<string, { at: string; label: string }>();
     for (const b of books) {
       const at = resolutionInstant(b.targetDate);
       if (!at) continue;
-      dates.push({ at, kind: 'settles', label: `${b.metricName} ${b.targetDate}` });
+      settles.set(`${b.metricName}:${b.targetDate}`, { at, label: `${b.metricName} ${b.targetDate}` });
     }
+    for (const s of settles.values()) dates.push({ at: s.at, kind: 'settles', label: s.label });
     for (const p of ballot) {
       dates.push({ at: (p.decideBy as Date).toISOString(), kind: 'decides', label: p.title });
     }
