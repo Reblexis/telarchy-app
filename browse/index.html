@@ -360,13 +360,14 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h39">Text contrast</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h40">The marketplace (/marketplace)</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h41">The cockpit (/admin)</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h42">Journeys: what one visitor did, in order</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h43">Reusing a component&#x27;s classes: mind the cascade order</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h44">When in doubt</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h45">What a market says about itself, and what your position is worth</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h46">The data room</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h47">The frontend never speaks HTTP directly</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h48">Telling somebody there are credits to earn</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h42">The cockpit may never take the site down</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h43">Journeys: what one visitor did, in order</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h44">Reusing a component&#x27;s classes: mind the cascade order</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h45">When in doubt</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h46">What a market says about itself, and what your position is worth</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h47">The data room</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h48">The frontend never speaks HTTP directly</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h49">Telling somebody there are credits to earn</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-vision-md">docs/vision.md</a></summary>
@@ -6119,7 +6120,35 @@ the owner reading the page does not raise the visits, uniques or top-pages
 figures that are supposed to mean a stranger showed up. Filtering it on read
 instead would move those hits into the &quot;bot hits&quot; count, which is a
 different lie.</p>
-<h3 id="docs-ui-conventions-md--h42">Journeys: what one visitor did, in order</h3>
+<h3 id="docs-ui-conventions-md--h42">The cockpit may never take the site down</h3>
+<p><code>/admin</code> is left open for hours, so its cost is a running cost rather than a
+page load. Three rules keep it from becoming an outage, all of them learned
+from one on 2026-09-09, when the page was left open overnight and the whole
+site answered 503 for two hours
+(<code>notes/incident-admin-poll-outage-2026-09-09.md</code>).</p>
+<ul>
+<li><strong>Every expensive cockpit read is cached server-side.</strong> <code>floor-stats</code> and
+<code>journeys</code> each read the visitor log, which no page load can afford to do
+on demand; both are served from a short-lived cache, so a page polling
+every twenty seconds cannot ask the database more than once a minute.
+Data a minute old is the right trade for a dashboard nobody is watching
+in real time.</li>
+<li><strong>The page backs off when a request fails.</strong> A failing backend must never
+be hammered by its own console: after a failed poll the next one waits
+longer, doubling up to five minutes, and a successful poll resets it. A
+poll is also skipped while the previous one is still in flight, so slow
+responses cannot stack.</li>
+<li><strong>The visitor log is indexed on time.</strong> Every read of it is a time range,
+and it grows forever between purges.</li>
+</ul>
+<p>The arithmetic behind the rules: production runs at most four instances with
+a four-connection pool each, so sixteen database connections serve the whole
+site. Four cockpit reads every twenty seconds, one of them taking seconds,
+consume that budget on their own, and then every other request fails waiting
+for a connection with <code>timeout exceeded when trying to connect</code>, which reads
+like a database outage and is not one. A dashboard's running cost has to be
+a small fraction of the connection budget, not most of it.</p>
+<h3 id="docs-ui-conventions-md--h43">Journeys: what one visitor did, in order</h3>
 <p>The counts say a stranger showed up; they never say what happened next. A
 journey is one visitor's ordered path through the site in a single sitting,
 which is the only thing on the page that can answer &quot;where did they stop&quot;.
@@ -6160,7 +6189,7 @@ it inside an average.</p>
 not the clicks inside a page. The recorded-DOM version and what it would
 cost is <code>notes/session-replay-2026-09-01.md</code>.</p>
 <p>The cockpit shares no code with the deleted console.</p>
-<h2 id="docs-ui-conventions-md--h43">Reusing a component's classes: mind the cascade order</h2>
+<h2 id="docs-ui-conventions-md--h44">Reusing a component's classes: mind the cascade order</h2>
 <p>Several blocks (the proposal form, the account dialog, the Manifold import)
 compose the ticket's own classes and then correct one or two properties.
 <code>style.css</code> is one long file and the <code>.ticket-*</code> base rules live near the
@@ -6176,14 +6205,14 @@ before rewriting the markup.</p>
 placeholder, so it reads as a field awaiting digits rather than as a
 glyph; the hug-the-digits behaviour applies to amounts being actively
 edited.</p>
-<h2 id="docs-ui-conventions-md--h44">When in doubt</h2>
+<h2 id="docs-ui-conventions-md--h45">When in doubt</h2>
 <ul>
 <li>Strip color before adding it.</li>
 <li>Add whitespace before adding a divider.</li>
 <li>Use a hairline before using a card.</li>
 <li>Match an existing pattern before inventing one.</li>
 </ul>
-<h3 id="docs-ui-conventions-md--h45">What a market says about itself, and what your position is worth</h3>
+<h3 id="docs-ui-conventions-md--h46">What a market says about itself, and what your position is worth</h3>
 <p>Three facts sit at the right end of the Discussion / Positions / Trades
 row, as three icons with bare numbers (people, drop, bars: the shape
 Manifold's market header uses): how many
@@ -6213,7 +6242,7 @@ with its condition in the hover, never the headline: the breakeven line
 stays first, because a share's payout is linear in the settled value and
 &quot;to win N&quot; alone, as Manifold prints it for a yes/no share, would read as
 a promise here.</p>
-<h2 id="docs-ui-conventions-md--h46">The data room</h2>
+<h2 id="docs-ui-conventions-md--h47">The data room</h2>
 <p><code>telarchy.com/data-room</code> (<code>DataRoomPage</code>, <code>.dr-*</code>) is a document, so it takes
 the 760px column, not the poster's 660px. It is one scrolling page with a
 sticky index of its own sections under the top bar, not a sidebar and not a
@@ -6225,7 +6254,7 @@ charts hand-rolled as inline SVG (a bar per day, one line for a metric's
 readings) rather than a chart library, because the only shapes needed are a
 column and a line. A number the feed refused to compute renders as &quot;not
 published&quot;, never as zero. Spec: <code>docs/data-room.md</code>.</p>
-<h2 id="docs-ui-conventions-md--h47">The frontend never speaks HTTP directly</h2>
+<h2 id="docs-ui-conventions-md--h48">The frontend never speaks HTTP directly</h2>
 <p><code>src/lib/api.ts</code> is the one module that calls <code>fetch</code>. Everything else, page
 or component, calls a method on <code>api</code>. That is not tidiness: the parity guard
 that proves the UI has no capability the public API lacks reads that single
@@ -6233,7 +6262,7 @@ file, so a component doing its own <code>fetch</code> is a capability nobody can
 is also what makes &quot;an assistant acting as you can do what you can do, and
 nothing more&quot; true by construction rather than by review.</p>
 <p><code>api-parity.test.ts</code> fails the build on a <code>fetch(</code> anywhere else under <code>src/</code>.</p>
-<h2 id="docs-ui-conventions-md--h48">Telling somebody there are credits to earn</h2>
+<h2 id="docs-ui-conventions-md--h49">Telling somebody there are credits to earn</h2>
 <p>Discovery goes where the lack is felt, not where attention is cheapest
 (owner ask 2026-08-30; design
 https://claude.ai/code/artifact/9794469a-2222-4fb9-938a-c519b412d771).

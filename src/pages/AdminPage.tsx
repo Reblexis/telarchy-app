@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EarnTableEditor } from '../components/EarnTableEditor';
 import { ManifoldUpdate } from '../components/ManifoldUpdate';
@@ -6,6 +6,7 @@ import { OutreachWorkbench } from '../components/OutreachWorkbench';
 import { XWorkbench } from '../components/XWorkbench';
 import { useAuth } from '../hooks/useAuth';
 import { api, type FeedbackItem, type Journey, type JourneyFeed } from '../lib/api';
+import { pollDelay } from '../lib/poll';
 import { TopBar } from './TradePage';
 
 /**
@@ -255,11 +256,30 @@ export function AdminPage() {
     };
   }, [user, authLoading, navigate]);
 
+  // The poll's own state, kept in refs so rescheduling never re-runs the
+  // effect: how many polls have failed in a row (docs/ui-conventions.md, "The
+  // cockpit may never take the site down"), and whether one is still in
+  // flight, because slow responses must not stack.
+  const failuresRef = useRef(0);
+  const inFlightRef = useRef(false);
+
   useEffect(() => {
     if (!allowed) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const load = () => {
-      api
+      // One round of the cockpit's four reads. A round is skipped while the
+      // previous one is still in flight, so slow responses cannot stack, and
+      // the next round is scheduled only once this one has settled.
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      let failed = false;
+      const fail = (what: string, e: unknown) => {
+        failed = true;
+        console.error(`${what} fetch failed:`, e);
+      };
+
+      const stats = api
         .getFloorStats()
         .then(s => {
           if (!cancelled) {
@@ -268,40 +288,44 @@ export function AdminPage() {
           }
         })
         .catch(e => {
+          fail('stats', e);
           if (!cancelled) setError((e as Error).message || 'Could not load stats');
         });
+
       // Reports come from the documented admin endpoint rather than being
       // bolted onto floor-stats: one capability, one route.
-      api
+      const reports = api
         .getFeedback({ limit: 100 })
         .then(r => {
           if (!cancelled) setReports(r.items);
         })
         .catch(e => {
-          console.error('feedback fetch failed:', e);
+          fail('feedback', e);
           if (!cancelled) setReports([]);
         });
+
       // What the floors were asked, on the same poll as the rest.
-      api
+      const asked = api
         .getFloorQuestions(100)
         .then(q => {
           if (!cancelled) setQuestions(q);
         })
         .catch(e => {
-          console.error('questions fetch failed:', e);
+          fail('questions', e);
           if (!cancelled) setQuestions({ totalCostUsd: 0, questions: [] });
         });
+
       // Journeys last, and the CALL itself is guarded, not only its promise.
       // A rejected promise leaves the page standing; a call that throws where
       // it is made kills the whole poll, taking every other block with it,
       // which is how one missing admin method blanked the cockpit before.
-      Promise.resolve()
+      const journeysRound = Promise.resolve()
         .then(() => api.getJourneys())
         .then(j => {
           if (!cancelled) setJourneys(j);
         })
         .catch(e => {
-          console.error('journeys fetch failed:', e);
+          fail('journeys', e);
           if (!cancelled)
             setJourneys({
               summary: { journeys: 0, bounced: 0, visitors: 0, medianSteps: 0 },
@@ -309,13 +333,20 @@ export function AdminPage() {
               journeys: [],
             });
         });
+
+      Promise.all([stats, reports, asked, journeysRound]).then(() => {
+        inFlightRef.current = false;
+        if (cancelled) return;
+        // A round with any failure backs off; a clean one returns to the base
+        // interval (docs/ui-conventions.md).
+        failuresRef.current = failed ? failuresRef.current + 1 : 0;
+        timer = setTimeout(load, pollDelay(failuresRef.current));
+      });
     };
     load();
-    // Left open during a launch, so it keeps itself current.
-    const t = setInterval(load, 20_000);
     return () => {
       cancelled = true;
-      clearInterval(t);
+      if (timer) clearTimeout(timer);
     };
   }, [allowed]);
 
