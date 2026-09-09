@@ -1805,3 +1805,9 @@ work across floors. The same argument that gave a proposal its own address
 applies: a cross-floor surface for open proposals is a link worth sending to
 a person who is expert in one kind of decision, and it is where the loud
 invitation belongs. Not designed yet.
+
+**Two defects the preview showed and the DOM tests could not.** The Sell
+tab's rows rendered above the tab row that selects them, and Quick/Limit
+stayed on screen while selling. Both are now rules in the doc and tests in
+`TradeTicketOpen.test.tsx`, the second proved by putting the ungated toggle
+back and watching it go red.
