@@ -72,7 +72,7 @@ describe('what an outside agent is handed', () => {
     expect(doc).toBeTruthy();
     // Not a link to it, the thing itself: the sections and their figures.
     expect(doc.content).toContain('Overview');
-    expect(doc.content).toContain('funnel');
+    expect(doc.content).toContain('pulse');
   });
 
   test('somebody else’s floor is not handed Telarchy’s books', async () => {
