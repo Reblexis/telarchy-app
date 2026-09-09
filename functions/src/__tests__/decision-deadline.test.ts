@@ -1,5 +1,7 @@
 /**
- * A decision deadline on every proposal, and trading closes at the decision
+ * Trading closes at the decision, and an undecided proposal lapses at its
+ * deadline. The deadline's own rules (its default, its scale, that it never
+ * moves) live in decision-window.test.ts.
  * (docs/guides/proposals.md, "The deadline, and the close"; docs/guides/
  * get-paid.md, "The decision"; docs/market-integrity.md I1b, "The deadline
  * moves later, never earlier"). Owner decision 2026-09-08.
@@ -69,7 +71,7 @@ const TRADER = 'agent-dl-trader';
 const METRIC = 'metric-dl';
 const DAY = 24 * 60 * 60 * 1000;
 
-async function seed(opts: { decisionDays?: number } = {}) {
+async function seed(opts: { decisionMinutes?: number } = {}) {
   await db.insert(agents).values([
     { id: OWNER, apiKeyHash: 'h-dl-owner', balance: toUnits(1000) },
     { id: PROPOSER, apiKeyHash: 'h-dl-proposer', balance: toUnits(1000) },
@@ -83,8 +85,8 @@ async function seed(opts: { decisionDays?: number } = {}) {
     ownerAgentId: OWNER,
     visibility: 'public',
   });
-  if (opts.decisionDays !== undefined) {
-    await db.update(workspaces).set({ decisionDays: opts.decisionDays }).where(eq(workspaces.id, WS));
+  if (opts.decisionMinutes !== undefined) {
+    await db.update(workspaces).set({ decisionMinutes: opts.decisionMinutes }).where(eq(workspaces.id, WS));
   }
   await db.insert(metrics).values({
     id: METRIC,
@@ -165,55 +167,6 @@ async function posted(body: Record<string, unknown> = {}) {
 }
 
 describe('every proposal has a deadline', () => {
-  test("posting without one gets the workspace's decisionDays after posting, seven by default", async () => {
-    await seed();
-    const before = Date.now();
-    const id = await posted();
-    const p = await proposal(id);
-    expect(p.decideBy).not.toBeNull();
-    const at = new Date(p.decideBy!).getTime();
-    expect(at).toBeGreaterThanOrEqual(before + 7 * DAY - 5000);
-    expect(at).toBeLessThanOrEqual(Date.now() + 7 * DAY + 5000);
-  });
-
-  test("the workspace's decisionDays sets the default", async () => {
-    await seed({ decisionDays: 3 });
-    const id = await posted();
-    const at = new Date((await proposal(id)).decideBy!).getTime();
-    expect(at).toBeLessThanOrEqual(Date.now() + 3 * DAY + 5000);
-    expect(at).toBeGreaterThan(Date.now() + 2 * DAY);
-  });
-
-  test('the proposer may ask for a later one, never for one in the past', async () => {
-    await seed();
-    const later = new Date(Date.now() + 30 * DAY).toISOString();
-    const id = await posted({ decideBy: later });
-    expect(new Date((await proposal(id)).decideBy!).toISOString()).toBe(later);
-    const past = await post({ title: 'late', decideBy: new Date(Date.now() - DAY).toISOString() });
-    expect(past.status).toBe(400);
-    const junk = await post({ title: 'junk', decideBy: 'tomorrow' });
-    expect(junk.status).toBe(400);
-  });
-
-  test('the owner sets decisionDays on the workspace, whole days between 1 and 90', async () => {
-    await seed();
-    const ok = await request(app)
-      .put(`/api/workspaces/${WS}/settings`)
-      .set('X-Test-Agent-Id', OWNER)
-      .set('X-Workspace-Id', WS)
-      .send({ decisionDays: 14 });
-    expect(ok.status).toBe(200);
-    expect((await db.select().from(workspaces).where(eq(workspaces.id, WS)))[0].decisionDays).toBe(14);
-    for (const bad of [0, 91, 2.5, 'soon']) {
-      const res = await request(app)
-        .put(`/api/workspaces/${WS}/settings`)
-        .set('X-Test-Agent-Id', OWNER)
-        .set('X-Workspace-Id', WS)
-        .send({ decisionDays: bad });
-      expect(res.status).toBe(400);
-    }
-  });
-
   test('only cells whose date settles after the deadline get a pair', async () => {
     await seed();
     const id = await posted();
@@ -229,35 +182,6 @@ describe('every proposal has a deadline', () => {
     expect(res.body.decideBy).toBeTruthy();
     expect(res.body.closedAt).toBeNull();
     expect(res.body.lapsedAt).toBeNull();
-  });
-});
-
-describe('the deadline moves later, never earlier', () => {
-  test('extending writes a revision row and keeps the pair', async () => {
-    await seed();
-    const id = await posted();
-    const { approved } = await pairOf(id);
-    const later = new Date(Date.now() + 20 * DAY).toISOString();
-    const res = await patch(id, { decideBy: later });
-    expect(res.status).toBe(200);
-    expect(new Date((await proposal(id)).decideBy!).toISOString()).toBe(later);
-    const revs = await db.select().from(proposalRevisions).where(eq(proposalRevisions.proposalId, id));
-    expect(revs.map(r => r.field)).toContain('decideBy');
-    expect((await pairOf(id)).approved.id).toBe(approved.id);
-  });
-
-  test('shortening is refused', async () => {
-    await seed();
-    const id = await posted();
-    const res = await patch(id, { decideBy: new Date(Date.now() + DAY).toISOString() });
-    expect(res.status).toBe(400);
-  });
-
-  test('a manager may extend too; a stranger may not', async () => {
-    await seed();
-    const id = await posted();
-    const later = new Date(Date.now() + 20 * DAY).toISOString();
-    expect((await patch(id, { decideBy: later }, OWNER)).status).toBe(200);
   });
 });
 
@@ -333,8 +257,8 @@ describe('trading closes at the decision', () => {
   });
 });
 
-describe('undecided at the deadline, a proposal lapses as declined', () => {
-  test('the sweep declines it, closes it and marks it lapsed', async () => {
+describe('undecided at the deadline, a proposal lapses', () => {
+  test('the sweep voids both branches, closes it and marks it lapsed', async () => {
     await seed();
     const id = await posted();
     await db
@@ -344,14 +268,14 @@ describe('undecided at the deadline, a proposal lapses as declined', () => {
     const n = await lapseOverdueProposals(WS);
     expect(n).toBe(1);
     const p = await proposal(id);
-    expect(p.status).toBe('declined');
+    expect(p.status).toBe('lapsed');
     expect(p.lapsedAt).not.toBeNull();
     expect(p.closedAt).not.toBeNull();
     expect(p.decidedPricing).not.toBeNull();
+    // Nobody ruled, so neither world happened: both books void.
     const { approved, declined } = await pairOf(id);
     expect(approved.voided).toBe(true);
-    expect(declined.voided).toBe(false);
-    expect(declined.resolved).toBe(false);
+    expect(declined.voided).toBe(true);
   });
 
   test('a proposal whose deadline has not passed is left alone, and the sweep is idempotent', async () => {
@@ -367,7 +291,7 @@ describe('undecided at the deadline, a proposal lapses as declined', () => {
     expect(await lapseOverdueProposals(WS)).toBe(0);
   });
 
-  test('a lapsed proposal refuses trades on its surviving branch', async () => {
+  test('a lapsed proposal refuses trades on either branch', async () => {
     await seed();
     const id = await posted();
     await db
@@ -375,10 +299,12 @@ describe('undecided at the deadline, a proposal lapses as declined', () => {
       .set({ decideBy: new Date(Date.now() - 60_000) })
       .where(eq(proposals.id, id));
     await lapseOverdueProposals(WS);
-    const { declined } = await pairOf(id);
-    const res = await trade(TRADER, declined.id, { direction: 'lower', amount: 5 });
-    expect(res.status).toBe(400);
-    expect(res.body.code).toBe('proposal_closed');
+    const { approved, declined } = await pairOf(id);
+    for (const m of [approved, declined]) {
+      const res = await trade(TRADER, m.id, { direction: 'lower', amount: 5 });
+      expect(res.status).toBe(400);
+      expect(['proposal_closed', 'market_voided', 'market_resolved']).toContain(res.body.code);
+    }
   });
 
   test('a proposal from before deadlines existed never lapses', async () => {

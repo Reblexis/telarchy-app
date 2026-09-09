@@ -34,6 +34,9 @@ export const LOCK_KEYS = {
   dailyMarketRefresh: 71003,
   dailyMaintenance: 71004,
   startupCatchUp: 71005,
+  /** The one-minute pass that lapses overdue proposals and sends the
+   *  owner's deadline reminder (docs/guides/proposals.md). */
+  proposalDeadlines: 71006,
 } as const;
 
 export type LockName = keyof typeof LOCK_KEYS;

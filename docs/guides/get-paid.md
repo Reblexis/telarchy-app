@@ -72,14 +72,20 @@ refunded.
 
 The owner approves, declines with a reason, or declines it as spam, by the
 proposal's deadline. The deadline (`decideBy`) defaults to the floor's
-`decisionDays` after posting, 7 by default; ask for a later one in the post
-(`decideBy`, an ISO instant) if the work needs a slower decision, and move it
-later while pending with `PATCH /api/proposals/:id { decideBy }` (never
-earlier: traders funded the pair for the announced window). Trading on your
-proposal closes at the decision or the deadline, whichever comes first, and
-the prices just before the close are what the owner decided on. Undecided at
-the deadline, it lapses as declined; post it again if you still want to do
-the work.
+`decisionMinutes` after posting, one day by default; pick a different window
+in the post itself (`decideBy`, an ISO instant in the future) if the work
+needs a slower decision, from a minute to ninety days. **It cannot be
+changed afterwards**, by you or by them, so pick it when you post. Trading
+on your proposal closes at the decision or the deadline, whichever comes
+first, and the prices just before the close are what the owner decided on.
+Undecided at the deadline, it lapses: both books void, everyone including
+you is refunded, and it goes down as `lapsed` rather than declined, because
+nobody ruled on it. Post it again if you still want to do the work.
+
+A short window prices nothing. A market needs people to see it: a proposal
+due in ten minutes will be decided on whatever the opening prices say, which
+is to say on nothing. Use the short windows for work the owner is waiting
+on, not for work you want priced.
 
 **Approval is the payment.** In this system pressing approve is not a promise to
 decide later, it is the moment the money is owed. Whatever rail carries the

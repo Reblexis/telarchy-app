@@ -239,7 +239,7 @@ export async function listPublicWorkspaces() {
       proposalReward: workspaces.proposalReward,
       spamPenalty: workspaces.spamPenalty,
       maxPendingProposalsPerParticipant: workspaces.maxPendingProposalsPerParticipant,
-      decisionDays: workspaces.decisionDays,
+      decisionMinutes: workspaces.decisionMinutes,
     })
     .from(workspaces)
     .where(eq(workspaces.visibility, 'public'));
@@ -810,7 +810,10 @@ async function buildFloorPayload(ws: PublicWs) {
       .select()
       .from(proposals)
       .where(
-        and(eq(proposals.workspaceId, workspaceId), inArray(proposals.status, ['pending', 'approved', 'declined'])),
+        and(
+          eq(proposals.workspaceId, workspaceId),
+          inArray(proposals.status, ['pending', 'approved', 'declined', 'lapsed']),
+        ),
       )
       .orderBy(desc(proposals.createdAt))
       .limit(40);
@@ -1151,7 +1154,7 @@ async function buildFloorPayload(ws: PublicWs) {
     proposalReward: ws.proposalReward,
     spamPenalty: ws.spamPenalty,
     // How long a new proposal has before it lapses (docs/guides/proposals.md).
-    decisionDays: ws.decisionDays ?? 7,
+    decisionMinutes: ws.decisionMinutes ?? 1440,
     joinAs: publicCaps.includes('trade') ? 'trader' : 'viewer',
     // What a USER signup starts with. API registrations start with
     // agentSignupCredits (default 0 since 2026-08-28) and are funded by

@@ -131,13 +131,13 @@ proposalsRouter.post(
     // LookPilot floors were created by the admin account, and the owner posts
     // there as a platform admin.
     const [wsForCap] = await db
-      .select({ maxPending: workspaces.maxPendingProposalsPerParticipant, decisionDays: workspaces.decisionDays })
+      .select({ maxPending: workspaces.maxPendingProposalsPerParticipant, decisionMinutes: workspaces.decisionMinutes })
       .from(workspaces)
       .where(eq(workspaces.id, workspaceId));
     const cap = wsForCap?.maxPending ?? 0;
     // The deadline (docs/guides/proposals.md, "The deadline, and the close"):
-    // the proposer's own, if in the future, else the floor's decisionDays
-    // from now.
+    // the proposer's own, if in the future, else the floor's decisionMinutes
+    // from now. Fixed from here on; nothing moves it.
     let deadline: Date;
     if (decideBy !== undefined && decideBy !== null) {
       const parsed = typeof decideBy === 'string' ? new Date(decideBy) : null;
@@ -151,7 +151,7 @@ proposalsRouter.post(
       }
       deadline = parsed;
     } else {
-      deadline = new Date(Date.now() + (wsForCap?.decisionDays ?? 7) * 24 * 60 * 60 * 1000);
+      deadline = new Date(Date.now() + (wsForCap?.decisionMinutes ?? 1440) * 60_000);
     }
     const canReview = req.auth!.capabilities.has('manage');
     if (cap > 0 && !canReview) {
@@ -513,18 +513,18 @@ proposalsRouter.patch(
     const proposalId = req.params.proposalId as string;
     const { title, description, askUsd, decideBy } = req.body ?? {};
 
-    if (title === undefined && description === undefined && askUsd === undefined && decideBy === undefined) {
-      res.status(400).json({ error: 'Pass at least one of title, description, askUsd, decideBy' });
+    // The deadline never moves (docs/market-integrity.md I1b): whoever funded
+    // or traded the pair did so for the window that was announced.
+    if (decideBy !== undefined) {
+      res.status(400).json({
+        error:
+          "A proposal's deadline is fixed when it is posted and cannot be changed. Decide it earlier if you want it over sooner.",
+      });
       return;
     }
-    let nextDeadline: Date | undefined;
-    if (decideBy !== undefined) {
-      const parsed = typeof decideBy === 'string' ? new Date(decideBy) : null;
-      if (!parsed || Number.isNaN(parsed.getTime())) {
-        res.status(400).json({ error: 'decideBy must be an ISO instant' });
-        return;
-      }
-      nextDeadline = parsed;
+    if (title === undefined && description === undefined && askUsd === undefined) {
+      res.status(400).json({ error: 'Pass at least one of title, description, askUsd' });
+      return;
     }
     if (title !== undefined) {
       if (typeof title !== 'string') {
@@ -564,7 +564,7 @@ proposalsRouter.patch(
     const result = await editProposalDefinition(
       proposalId,
       workspaceId,
-      { title, description, askUsd, decideBy: nextDeadline },
+      { title, description, askUsd },
       { agentId, canManage: req.auth!.capabilities.has('manage') },
     );
     res.json({ ok: true, ...result });

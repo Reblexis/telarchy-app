@@ -138,10 +138,14 @@ export async function executeTradeInTx(
   // no longer change the decision. Positions settle at the date.
   if (market.proposalId) {
     const [owner] = await tx
-      .select({ closedAt: proposals.closedAt })
+      .select({ closedAt: proposals.closedAt, decideBy: proposals.decideBy })
       .from(proposals)
       .where(and(eq(proposals.id, market.proposalId), eq(proposals.workspaceId, workspaceId)));
-    if (owner?.closedAt) {
+    // The deadline closes the pair by itself, at the instant it passes: the
+    // sweep that makes it durable runs on a timer, and a one-minute window
+    // cannot wait for a timer (docs/guides/proposals.md).
+    const pastDeadline = !!owner?.decideBy && owner.decideBy.getTime() <= Date.now();
+    if (owner?.closedAt || pastDeadline) {
       throw new AppError(
         'Trading on this proposal closed with the decision; positions settle at the date',
         400,

@@ -147,11 +147,14 @@ that prices it, so the split is the same one I1 draws for a metric:
   disclosure, not prevention. The change writes its append-only
   `proposal_revisions` row, rendered beside the proposal, so someone already
   holding can see the deal's number move and trade on the new one.
-- **The deadline moves later, never earlier.** `decideBy` may be extended
-  while the proposal is pending, by the proposer or a manager, and the
-  change writes its revision row like an ask change. Moving it earlier is
-  refused: whoever funded or traded the pair did so for the announced
-  window, and shortening it would close their book under them.
+- **The deadline never moves.** `decideBy` is fixed when the proposal is
+  posted; no edit changes it, in either direction, by anyone, and the
+  endpoint refuses the field outright. Whoever funded or traded the pair did
+  so for the window that was announced: shortening it closes their book
+  under them, and lengthening it holds their credits past the date they
+  agreed to, which is the same harm from the other side. The owner may
+  always decide earlier than the deadline; that is a decision, not a change
+  to the terms.
 - **The title may not disagree with the ask.** A paid proposal's title carries
   its price by convention ("$200: rewrite the store page"), and two places
   stating one number is how they end up stating two. An edit whose title names

@@ -97,6 +97,22 @@ function formatValue(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
+/**
+ * How a deadline reads at any scale (docs/ui-conventions.md, "The deadline
+ * is one amber chip"): a countdown under a day, because a date is no use
+ * when the answer is due this afternoon, and the date itself above that.
+ */
+function whenOf(iso: string | null | undefined, now = Date.now()): string {
+  if (!iso) return '';
+  const ms = new Date(iso).getTime() - now;
+  if (ms <= 0) return 'now';
+  const minutes = ms / 60_000;
+  if (minutes < 60) return `in ${Math.max(1, Math.ceil(minutes))}m`;
+  const hours = minutes / 60;
+  if (hours < 24) return `in ${Math.ceil(hours)}h`;
+  return dayOf(iso);
+}
+
 /** "30 Sep", the way the floor names a date; "" for nothing. */
 function dayOf(iso: string | null | undefined): string {
   if (!iso) return '';
@@ -703,9 +719,11 @@ export function TradePage() {
   // (docs/guides/proposals.md, "The deadline, and the close"): no verbs, no
   // ticket, no Sell; the position card says when it settles.
   const selectedJobClosed = selectedJobDecided || !!selectedJob?.closedAt;
-  const [extendOpen, setExtendOpen] = useState(false);
-  const [extendDate, setExtendDate] = useState('');
-  const [extendBusy, setExtendBusy] = useState(false);
+  // How the deadline reads, and whether it is close enough to shout about.
+  const deadlineUrgent =
+    !!selectedJob?.decideBy &&
+    !selectedJobClosed &&
+    new Date(selectedJob.decideBy).getTime() - now.getTime() < 60 * 60 * 1000;
   // The selected branch's market id/price shape, and the other branch's for
   // the chart's second line. A branch market can exist without any liquidity
   // (nobody funded the subsidy and the workspace owner could not cover the
@@ -1470,13 +1488,13 @@ export function TradePage() {
                       ·
                     </span>
                     <span
-                      className="pubws-chip pubws-chip--plain pubws-chip--deadline"
+                      className={`pubws-chip pubws-chip--plain pubws-chip--deadline${deadlineUrgent ? ' is-urgent' : ''}`}
                       aria-label="Decision deadline"
                       title={
                         selectedJobClosed
                           ? 'Decided; trading on this proposal is closed'
                           : selectedJob.decideBy
-                            ? `The owner decides by ${new Date(selectedJob.decideBy).toUTCString()}`
+                            ? `The owner decides by ${new Date(selectedJob.decideBy).toUTCString()}, or it declines itself`
                             : undefined
                       }
                     >
@@ -1495,7 +1513,7 @@ export function TradePage() {
                       {selectedJobClosed
                         ? `decided ${dayOf(selectedJob.resolvedAt ?? selectedJob.closedAt ?? null)}`
                         : selectedJob.decideBy
-                          ? `decides ${dayOf(selectedJob.decideBy)}`
+                          ? `decides ${whenOf(selectedJob.decideBy)}`
                           : 'no deadline'}
                     </span>
                   </>
@@ -1734,61 +1752,15 @@ export function TradePage() {
                               >
                                 Decline
                               </button>
-                              {/* What happens if the owner does nothing, and the
-                                one way to buy time (docs/ui-conventions.md, "The
-                                deadline is one amber chip"): later only. */}
-                              {selectedJob.decideBy && !extendOpen && (
-                                <span className="pubws-ownerbar-note">
-                                  lapses {dayOf(selectedJob.decideBy)} ·{' '}
-                                  <button
-                                    type="button"
-                                    className="pubws-ownerbar-link"
-                                    onClick={() => {
-                                      setExtendDate(new Date(selectedJob.decideBy!).toISOString().slice(0, 10));
-                                      setExtendOpen(true);
-                                    }}
-                                  >
-                                    extend
-                                  </button>
-                                </span>
-                              )}
-                              {extendOpen && (
-                                <span className="pubws-ownerbar-note">
-                                  <input
-                                    className="jobform-line jobform-line--date"
-                                    type="date"
-                                    value={extendDate}
-                                    min={
-                                      selectedJob.decideBy
-                                        ? new Date(selectedJob.decideBy).toISOString().slice(0, 10)
-                                        : undefined
-                                    }
-                                    onChange={e => setExtendDate(e.target.value)}
-                                    aria-label="New deadline"
-                                  />
-                                  <button
-                                    type="button"
-                                    className="pubws-decide"
-                                    disabled={extendBusy || !extendDate}
-                                    onClick={() => {
-                                      setExtendBusy(true);
-                                      api
-                                        .editProposal(selectedJob.id, {
-                                          decideBy: new Date(`${extendDate}T23:59:59.000Z`).toISOString(),
-                                        })
-                                        .then(() => {
-                                          setExtendOpen(false);
-                                          reload();
-                                        })
-                                        .catch(e => setDecideErr((e as Error).message || 'Could not extend'))
-                                        .finally(() => setExtendBusy(false));
-                                    }}
-                                  >
-                                    Save deadline
-                                  </button>
-                                  <button type="button" className="pubws-decide" onClick={() => setExtendOpen(false)}>
-                                    Cancel
-                                  </button>
+                              {/* What happens if the owner does nothing. Nothing
+                                to press: a deadline does not move
+                                (docs/market-integrity.md I1b). */}
+                              {selectedJob.decideBy && (
+                                <span
+                                  className={`pubws-ownerbar-note${deadlineUrgent ? ' is-urgent' : ''}`}
+                                  title={`Deadline ${new Date(selectedJob.decideBy).toUTCString()}`}
+                                >
+                                  declines itself {whenOf(selectedJob.decideBy)}
                                 </span>
                               )}
                             </>
@@ -2478,7 +2450,7 @@ export function TradePage() {
               workspaceName={ws.name}
               proposalReward={ws.proposalReward}
               metricNames={metricNames}
-              decisionDays={ws.decisionDays ?? 7}
+              decisionMinutes={ws.decisionMinutes ?? 1440}
               onPropose={async (title, description, askUsd, decideBy) => {
                 // Anonymous proposers go through the signup door; the board
                 // itself is public information (Open workspace ballot).

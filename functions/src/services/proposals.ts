@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   agents,
@@ -575,13 +575,58 @@ export async function closeProposalTrading(proposalId: string, workspaceId: stri
   }
 }
 
-/** Reason recorded on a proposal that lapsed at its deadline. */
-export const LAPSE_REASON = 'Lapsed: not decided by the deadline.';
+/**
+ * Half the window before the deadline, capped at twelve hours, everyone who
+ * can decide gets one email (docs/guides/proposals.md, "The deadline, and
+ * the close"). Once per proposal: `deadlineWarnedAt` is the stamp. A window
+ * short enough that the sweep never catches the moment simply goes unwarned,
+ * which is the honest behaviour for a ten-minute decision.
+ */
+export const MAX_WARN_LEAD_MS = 12 * 60 * 60 * 1000;
+
+export async function warnProposalDeadlines(workspaceId: string): Promise<number> {
+  const { notifyProposalDeadlineSoon } = await import('./notifications');
+  const now = Date.now();
+  const pending = await db
+    .select({ id: proposals.id, createdAt: proposals.createdAt, decideBy: proposals.decideBy })
+    .from(proposals)
+    .where(
+      and(
+        eq(proposals.workspaceId, workspaceId),
+        eq(proposals.status, 'pending'),
+        isNotNull(proposals.decideBy),
+        isNull(proposals.deadlineWarnedAt),
+      ),
+    );
+  let warned = 0;
+  for (const p of pending) {
+    const due = p.decideBy!.getTime();
+    if (due <= now) continue; // past it already; the lapse sweep owns this one
+    const window = due - (p.createdAt?.getTime() ?? due);
+    const lead = Math.min(MAX_WARN_LEAD_MS, Math.max(0, window / 2));
+    if (due - now > lead) continue;
+    try {
+      await notifyProposalDeadlineSoon({ workspaceId, proposalId: p.id });
+      await db
+        .update(proposals)
+        .set({ deadlineWarnedAt: new Date() })
+        .where(and(eq(proposals.id, p.id), eq(proposals.workspaceId, workspaceId)));
+      warned++;
+    } catch (e) {
+      console.error(`warnProposalDeadlines: proposal ${p.id} in ${workspaceId} failed to warn:`, e);
+    }
+  }
+  return warned;
+}
 
 /**
- * Undecided at the deadline, a proposal lapses as declined (docs/guides/
- * proposals.md): the same decline as the owner's, then lapsedAt so the floor
- * can say so. Run from the resolve cron. Returns how many lapsed.
+ * Undecided at the deadline, a proposal LAPSES: both branches are voided and
+ * everyone is refunded, and its status is `lapsed`, its own thing (docs/
+ * guides/proposals.md, "The deadline, and the close"). Not a decline: nobody
+ * ruled, so neither world is the one we are in, there is nothing to settle
+ * against and nothing that should count against the proposer. The prices at
+ * the deadline are still recorded, as the record of what it was worth when
+ * the clock ran out. Run from the one-minute sweep. Returns how many lapsed.
  */
 export async function lapseOverdueProposals(workspaceId: string): Promise<number> {
   const due = await db
@@ -598,10 +643,14 @@ export async function lapseOverdueProposals(workspaceId: string): Promise<number
   let lapsed = 0;
   for (const { id } of due) {
     try {
-      await declineProposal(id, workspaceId, null, LAPSE_REASON);
+      // What it was priced at when the clock ran out, taken before the books
+      // are voided, so the floor can still show what the market made of it.
+      const decidedPricing = await pairPricesNow(id, workspaceId);
+      await voidProposalMarkets(id, workspaceId);
+      const at = new Date();
       await db
         .update(proposals)
-        .set({ lapsedAt: new Date() })
+        .set({ status: 'lapsed', decidedPricing, lapsedAt: at, closedAt: at, resolvedAt: at })
         .where(and(eq(proposals.id, id), eq(proposals.workspaceId, workspaceId)));
       lapsed++;
     } catch (e) {
@@ -946,8 +995,6 @@ export interface ContractEdit {
   title?: string;
   description?: string;
   askUsd?: number | null;
-  /** The deadline, later only (docs/market-integrity.md I1b). */
-  decideBy?: Date;
 }
 
 /** A paid proposal's title carries its price by convention ("$200: ..."). */
@@ -1015,18 +1062,6 @@ export async function editProposalDefinition(
   if (nextTitle !== proposal.title) changed.push('title');
   if (nextDescription !== proposal.description) changed.push('description');
   if (nextAsk !== currentAsk) changed.push('askUsd');
-  // The deadline moves later, never earlier (docs/market-integrity.md I1b):
-  // whoever funded or traded the pair did so for the announced window.
-  let nextDeadline: Date | null = null;
-  if (edit.decideBy !== undefined) {
-    const current = proposal.decideBy ? proposal.decideBy.getTime() : 0;
-    if (edit.decideBy.getTime() <= current) {
-      throw new AppError('decideBy may only move later than the current deadline', 400);
-    }
-    if (edit.decideBy.getTime() <= Date.now()) throw new AppError('decideBy must be in the future', 400);
-    nextDeadline = edit.decideBy;
-    changed.push('decideBy');
-  }
   if (changed.length === 0) return { changed, reanchored: false };
 
   // The ask is burned into the approved branch's opening anchor. Re-anchoring
@@ -1061,27 +1096,12 @@ export async function editProposalDefinition(
 
   await db
     .update(proposals)
-    .set({
-      title: nextTitle,
-      description: nextDescription,
-      askUsd: nextAsk > 0 ? nextAsk : null,
-      ...(nextDeadline ? { decideBy: nextDeadline } : {}),
-    })
+    .set({ title: nextTitle, description: nextDescription, askUsd: nextAsk > 0 ? nextAsk : null })
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
 
   const stamp = new Date();
-  const was = {
-    title: proposal.title,
-    description: proposal.description,
-    askUsd: String(currentAsk),
-    decideBy: proposal.decideBy ? proposal.decideBy.toISOString() : '',
-  };
-  const now = {
-    title: nextTitle,
-    description: nextDescription,
-    askUsd: String(nextAsk),
-    decideBy: nextDeadline ? nextDeadline.toISOString() : was.decideBy,
-  };
+  const was = { title: proposal.title, description: proposal.description, askUsd: String(currentAsk) };
+  const now = { title: nextTitle, description: nextDescription, askUsd: String(nextAsk) };
   await db.insert(proposalRevisions).values(
     changed.map((field, i) => ({
       id: randomUUID(),

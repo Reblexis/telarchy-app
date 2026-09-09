@@ -39,7 +39,7 @@ import {
 import { periodEndInstant } from '../lib/date-utils';
 import { type ChannelOverrides, channelOn, type NotificationKindId } from '../lib/notification-prefs';
 import { publicOrigin, sendEmail } from '../lib/notify';
-import { getParticipantDisplayNames } from '../lib/participants';
+import { getParticipantDisplayNames, resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { type PushPayload, pushConfigured, sendPushToParticipant } from '../lib/push';
 import { readingIsStaleFor, settlingSoon } from '../lib/reading-freshness';
 
@@ -51,7 +51,8 @@ type Reason =
   | 'decision'
   | 'decision-involved'
   | 'any-comment'
-  | 'market-resolved';
+  | 'market-resolved'
+  | 'decision-due';
 
 const REASON_LINE: Record<Reason, string> = {
   'my-proposal': 'You are getting this because someone commented on a proposal you posted.',
@@ -61,6 +62,8 @@ const REASON_LINE: Record<Reason, string> = {
   decision: 'You are getting this because you posted this proposal. Decisions on your own proposals are always sent.',
   'decision-involved': 'You are getting this because you traded or commented on this proposal.',
   'market-resolved': 'You are getting this because you traded this market.',
+  'decision-due':
+    'You are getting this because you decide proposals on this floor. One per proposal, and only when it is about to run out.',
 };
 
 /**
@@ -83,6 +86,10 @@ const REASON_COLUMN: Record<
   reply: 'notifyReplyToMyComment',
   'new-proposal': 'notifyNewProposal',
   'any-comment': 'notifyAnyComment',
+  // A decision that is about to make itself is not news about someone
+  // else's activity; it is the owner's own job running out of time, so it
+  // has no switch, like the decision on your own proposal.
+  'decision-due': null,
   'market-resolved': 'notifyMarketResolved',
   'decision-involved': 'notifyContractDecided',
   decision: null,
@@ -96,6 +103,8 @@ const REASON_KIND: Record<Reason, NotificationKindId> = {
   'any-comment': 'anyComment',
   'market-resolved': 'settled',
   decision: 'decision',
+  // The owner's own job running out of time reads as a decision.
+  'decision-due': 'decision',
   'decision-involved': 'decision',
 };
 
@@ -489,6 +498,87 @@ export async function notifyProposalDecided(opts: { workspaceId: string; proposa
  * reaches here (it did not settle; its refund is the message), and only real
  * trades count: an LP's stake is not a bet on a side.
  */
+/**
+ * Half the window before its deadline, capped at twelve hours, everyone who
+ * can decide on the floor is told a proposal is about to decide itself
+ * (docs/guides/proposals.md, "The deadline, and the close"). Sent once; the
+ * caller stamps `deadlineWarnedAt`. The row is read back rather than passed
+ * in, so the mail can never disagree with the record.
+ */
+export async function notifyProposalDeadlineSoon(opts: { workspaceId: string; proposalId: string }): Promise<void> {
+  const { workspaceId, proposalId } = opts;
+  const [proposal] = await db
+    .select()
+    .from(proposals)
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  if (!proposal || proposal.status !== 'pending' || !proposal.decideBy) return;
+
+  // Everyone who can decide: the groups carrying `manage`.
+  const groups = await db
+    .select({ memberIds: permissionGroups.memberIds, capabilities: permissionGroups.capabilities })
+    .from(permissionGroups)
+    .where(eq(permissionGroups.workspaceId, workspaceId));
+  const wanted = new Map<string, Reason>();
+  for (const g of groups) {
+    if (!(g.capabilities ?? []).includes('manage')) continue;
+    for (const id of g.memberIds ?? []) wanted.set(id, 'decision-due');
+  }
+  const owner = await resolveWorkspaceOwnerAgentId(workspaceId);
+  if (owner) wanted.set(owner, 'decision-due');
+  if (wanted.size === 0) return;
+
+  const recipients = await resolveRecipients(wanted);
+  if (recipients.length === 0) return;
+
+  const { url, name } = await floorUrl(workspaceId);
+  const names = await getParticipantDisplayNames([proposal.proposedBy]);
+  const author = names.get(proposal.proposedBy) ?? proposal.proposedBy;
+  const left = leftToRead(proposal.decideBy.getTime() - Date.now());
+  const ask = proposal.askUsd ? `$${proposal.askUsd}` : 'nothing';
+  const priced = await pricedLine(workspaceId, proposalId);
+
+  await pushDeliver(wanted, { title: `Decide within ${left}: ${proposal.title}`, body: priced ?? proposal.title, url });
+  await deliver(recipients, `Decide within ${left}: ${proposal.title}`, r =>
+    [
+      `${author} asks ${ask} to do this on ${name}:`,
+      '',
+      proposal.title,
+      ...(priced ? ['', priced] : []),
+      '',
+      `You have ${left}. With no verdict it declines itself and everyone on the approved side is refunded.`,
+      '',
+      `Decide it: ${url}#proposal=${proposal.number ?? ''}`,
+      '',
+      REASON_LINE[r.reason],
+    ].join('\n'),
+  );
+}
+
+/** "12 hours", "45 minutes": how long the owner has, said in words. */
+function leftToRead(ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  if (minutes < 90) return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 36) return `${hours} hour${hours === 1 ? '' : 's'}`;
+  return `${Math.round(hours / 24)} days`;
+}
+
+/** What the market makes of it, in one line, or null when nothing prices it. */
+async function pricedLine(workspaceId: string, proposalId: string): Promise<string | null> {
+  try {
+    const { getProposalMarketSummariesForProposal } = await import('./proposals');
+    const pairs = await getProposalMarketSummariesForProposal(proposalId, workspaceId);
+    const best = pairs.filter(p => p.delta !== null).sort((a, b) => Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0))[0];
+    if (!best || best.delta === null) return 'Nothing prices it yet.';
+    const pool = Math.round(((best.approved?.liquidity ?? 0) + (best.declined?.liquidity ?? 0)) * 10) / 10;
+    const sign = best.delta > 0 ? '+' : '';
+    return `The market prices it at ${sign}${best.delta} ${best.metricName} by ${best.targetDate}, on ${pool} credits of liquidity.`;
+  } catch (e) {
+    console.error('deadline mail: priced line failed:', e);
+    return null;
+  }
+}
+
 export async function notifyMarketResolved(opts: { workspaceId: string; marketId: string }): Promise<void> {
   const { workspaceId, marketId } = opts;
   try {
