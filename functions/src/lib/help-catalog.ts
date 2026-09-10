@@ -731,7 +731,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/proposals',
       auth: 'agent/admin',
       description:
-        "List proposals (compact), newest first. Query: ?status=pending|approved|declined|declined_spam|withdrawn (filtered in the database; without it every status but removed), ?limit=1..500 (default 100), ?before=<proposal number, or an ISO instant on createdAt> to page: pass the last entry's number (or createdAt) to get the page before it, and a page shorter than limit is the last one. The whole floor is never returned in one call (docs/infra/deploy.md, \"Reads are bounded in the size of a workspace\"). Each entry includes askUsd (the job price, which burn calculations sum over approved proposals), rewardPaid, penaltyCharged, resolvedAt, resolvedBy, and declineReason (the owner's written reason, set on declined proposals; never truncated).",
+        'List proposals (compact), newest first. Query: ?status=pending|approved|declined|declined_spam|withdrawn (filtered in the database; without it every status but removed), ?limit=1..500 (default 100), ?before=<proposal number, or an ISO instant on createdAt> to page: pass the last entry\'s number (or createdAt) to get the page before it, and a page shorter than limit is the last one. The whole floor is never returned in one call (docs/infra/deploy.md, "Reads are bounded in the size of a workspace"). Each entry includes askUsd (the job price, which burn calculations sum over approved proposals), rewardPaid, penaltyCharged, resolvedAt, resolvedBy, and declineReason (the owner\'s written reason, set on declined proposals; never truncated).',
     },
     {
       method: 'GET',
