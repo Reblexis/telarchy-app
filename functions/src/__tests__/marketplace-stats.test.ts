@@ -237,6 +237,12 @@ describe('GET /api/marketplace/stats', () => {
     expect(floor.body.manifoldImportCount).toBe(stats.body.manifoldImportCount);
   });
 
+  test('activeForecasters is published beside the trader count, zero on an empty platform rather than absent', async () => {
+    const res = await request(app).get('/api/marketplace/stats');
+    expect(res.status).toBe(200);
+    expect(res.body.activeForecasters).toBe(0);
+  });
+
   test('is zero on an empty platform rather than absent', async () => {
     const res = await request(app).get('/api/marketplace/stats');
     expect(res.status).toBe(200);

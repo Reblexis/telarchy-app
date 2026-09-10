@@ -18,6 +18,7 @@ const stats = {
   weeklyActiveVerifiedTraders: 4,
   outsideOwnersDeciding: 1,
   profitableForecasters: 2,
+  activeForecasters: 0,
   manifoldImportCount: 0,
   revenue30dUsd: 0,
 };
@@ -168,4 +169,17 @@ test('unconfigured, it does nothing at all', async () => {
   expect(result.skipped).toMatch(/SELF_SYNC_WORKSPACE_ID/);
   expect(result.readings).toHaveLength(0);
   expect(await logsFor(REVENUE)).toHaveLength(0);
+});
+
+test('active forecasters is recorded every run on the metric of that name and follows the platform number', async () => {
+  const ACTIVE = 'metric-active-forecasters';
+  await db.insert(metrics).values({ id: ACTIVE, workspaceId: WS, name: 'Active forecasters', value: 1, formula: '0', marketRangeMax: 50 });
+  stats.activeForecasters = 3;
+  await syncSelfMetrics();
+  expect(await logsFor(ACTIVE)).toHaveLength(1);
+  const [m] = await db
+    .select({ value: metrics.value })
+    .from(metrics)
+    .where(and(eq(metrics.id, ACTIVE), eq(metrics.workspaceId, WS)));
+  expect(m.value).toBe(3);
 });
