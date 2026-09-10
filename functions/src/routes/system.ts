@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { authAccount, markets, systemConfig } from '../db/schema';
@@ -54,7 +54,9 @@ systemRouter.get(
         ? db
             .select()
             .from(markets)
-            .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)))
+            // Baselines only, in SQL (docs/infra/deploy.md, "Reads are
+            // bounded in the size of a workspace").
+            .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), isNull(markets.proposalId)))
         : Promise.resolve(null),
     ]);
 

@@ -50,11 +50,18 @@ async function getBaselineConsensusMap(marketRows: MarketRow[], workspaceId: str
   const metricIds = [...new Set(marketRows.map(m => m.metricId))];
   const wantedKeys = new Set(marketRows.map(m => `${m.metricId}:${m.targetDate}`));
 
+  // Baselines only, in SQL (docs/infra/deploy.md, "Reads are bounded in the
+  // size of a workspace").
   const openMarkets = await db
     .select()
     .from(markets)
     .where(
-      and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), inArray(markets.metricId, metricIds)),
+      and(
+        eq(markets.workspaceId, workspaceId),
+        eq(markets.resolved, false),
+        isNull(markets.proposalId),
+        inArray(markets.metricId, metricIds),
+      ),
     );
 
   const map = new Map<string, number>();
@@ -154,10 +161,13 @@ export async function createConditionalMarkets(
 
     const leafMetricIds = new Set(metricRows.filter(r => !r.formula || r.formula === '0').map(r => r.id));
 
+    // The source books are baselines, said in SQL (docs/infra/deploy.md,
+    // "Reads are bounded in the size of a workspace"): this runs on every
+    // POST, and a busy floor's open set is mostly branches.
     const openMarkets = await db
       .select()
       .from(markets)
-      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
+      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), isNull(markets.proposalId)));
 
     let sourceMarkets = openMarkets.filter(m => m.active !== false && !m.proposalId && leafMetricIds.has(m.metricId));
 
@@ -478,13 +488,11 @@ export async function createConditionalMarkets(
       .map(m => m.id);
     return [...keptIds, ...newMarkets.map(m => m.id as string)];
   } finally {
-    await db
-      .insert(systemConfig)
-      .values({ key: lockKey, value: { locked: false, expiresAt: 0 } })
-      .onConflictDoUpdate({
-        target: systemConfig.key,
-        set: { value: { locked: false, expiresAt: 0 } },
-      });
+    // The lock row goes with the spawn: an unlocked row is worth nothing to
+    // the next reader and a floor posting a proposal a minute left 5,760 of
+    // them a day (docs/infra/deploy.md, "Reads are bounded in the size of a
+    // workspace"). A missing row reads as unlocked above.
+    await db.delete(systemConfig).where(eq(systemConfig.key, lockKey));
   }
 }
 
@@ -1178,6 +1186,23 @@ export async function countPendingProposalsByProposer(workspaceId: string, propo
 }
 
 export async function getProposalMarketSummariesForProposal(proposalId: string, workspaceId: string) {
+  const byProposal = await getProposalMarketSummariesForProposals([proposalId], workspaceId);
+  return byProposal.get(proposalId) ?? [];
+}
+
+/**
+ * The same summary for many proposals in a bounded number of reads: one
+ * markets read for every id, one trade-count read, one baseline read, one
+ * proposals read (docs/infra/deploy.md, "Reads are bounded in the size of a
+ * workspace"). The brief used to issue 25 of the single version in parallel,
+ * which alone saturates a four-connection pool.
+ */
+export async function getProposalMarketSummariesForProposals(
+  proposalIds: string[],
+  workspaceId: string,
+): Promise<Map<string, PairedProposalMarketSummary[]>> {
+  const out = new Map<string, PairedProposalMarketSummary[]>();
+  if (proposalIds.length === 0) return out;
   // Include voided rows so the post-decision view still shows the
   // counterfactual branch's price at the moment of refund. The LMSR shares
   // are not zeroed on void, so consensus() still computes a meaningful
@@ -1185,18 +1210,44 @@ export async function getProposalMarketSummariesForProposal(proposalId: string, 
   const rows = await db
     .select()
     .from(markets)
-    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId)));
-  const summaries = await buildProposalMarketSummariesFromRows(rows, workspaceId);
-  // A decided proposal is priced on the pair as recorded when the owner
-  // ruled (proposals.decidedPricing), never on its books afterwards (owner
-  // ruling 2026-09-04, docs/ui-conventions.md "Top contractors"). One
-  // substitution here serves the proposal detail, the brief, and every
-  // other reader of the summary. The rest of the branch (liquidity, trade
-  // count, resolution) stays what the books say.
-  const [p] = await db
-    .select({ status: proposals.status, decidedPricing: proposals.decidedPricing })
-    .from(proposals)
-    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.proposalId, proposalIds)));
+  const [tradeCountMap, baselineConsensusMap, proposalRows] = await Promise.all([
+    getTradeCountMap(
+      rows.map(r => r.id),
+      workspaceId,
+    ),
+    getBaselineConsensusMap(rows, workspaceId),
+    db
+      .select({ id: proposals.id, status: proposals.status, decidedPricing: proposals.decidedPricing })
+      .from(proposals)
+      .where(and(eq(proposals.workspaceId, workspaceId), inArray(proposals.id, proposalIds))),
+  ]);
+  const rowsByProposal = new Map<string, MarketRow[]>();
+  for (const r of rows) {
+    const arr = rowsByProposal.get(r.proposalId!);
+    if (arr) arr.push(r);
+    else rowsByProposal.set(r.proposalId!, [r]);
+  }
+  const proposalById = new Map(proposalRows.map(p => [p.id, p]));
+  for (const id of proposalIds) {
+    const summaries = summarizeProposalRows(rowsByProposal.get(id) ?? [], tradeCountMap, baselineConsensusMap);
+    out.set(id, applyDecidedPricing(summaries, proposalById.get(id)));
+  }
+  return out;
+}
+
+/**
+ * A decided proposal is priced on the pair as recorded when the owner
+ * ruled (proposals.decidedPricing), never on its books afterwards (owner
+ * ruling 2026-09-04, docs/ui-conventions.md "Top contractors"). One
+ * substitution here serves the proposal detail, the brief, and every
+ * other reader of the summary. The rest of the branch (liquidity, trade
+ * count, resolution) stays what the books say.
+ */
+function applyDecidedPricing(
+  summaries: PairedProposalMarketSummary[],
+  p: { status: string; decidedPricing: DecidedPair[] | null } | undefined,
+): PairedProposalMarketSummary[] {
   if (!p || p.status === 'pending' || !p.decidedPricing) return summaries;
   const recorded = new Map(p.decidedPricing.map(d => [`${d.metricId}:${d.targetDate}`, d]));
   return summaries.map(pair => {
@@ -1246,18 +1297,12 @@ export interface PairedProposalMarketSummary {
   baselineConsensus: number | null;
 }
 
-async function buildProposalMarketSummariesFromRows(
+/** The pure half: one proposal's rows, already-counted trades, already-read baselines. */
+function summarizeProposalRows(
   rows: MarketRow[],
-  workspaceId: string,
-): Promise<PairedProposalMarketSummary[]> {
-  const [tradeCountMap, baselineConsensusMap] = await Promise.all([
-    getTradeCountMap(
-      rows.map(r => r.id),
-      workspaceId,
-    ),
-    getBaselineConsensusMap(rows, workspaceId),
-  ]);
-
+  tradeCountMap: Map<string, number>,
+  baselineConsensusMap: Map<string, number>,
+): PairedProposalMarketSummary[] {
   // Group rows by (metric, targetDate). Pre-migration single-branch markets
   // were backfilled to branch='approved' so they pair with a null declined.
   const groups = new Map<string, MarketRow[]>();

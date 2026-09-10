@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull, lte } from 'drizzle-orm';
 import { db } from '../db/client';
 import { markets, metricLogs, metrics, updates } from '../db/schema';
 import { AMM_DEFAULTS, consensus as ammConsensus } from '../lib/amm';
@@ -138,10 +138,13 @@ export function enrichMetrics(
 export async function buildConsensusMap(
   workspaceId: string,
 ): Promise<{ map: Record<string, number>; untradedKeys: Set<string> }> {
+  // Baselines only, said in SQL (docs/infra/deploy.md, "Reads are bounded in
+  // the size of a workspace"): the open set of a busy floor is thousands of
+  // proposal branches, none of which belong in the outlook.
   const openMarkets = await db
     .select()
     .from(markets)
-    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), isNull(markets.proposalId)));
 
   if (openMarkets.length === 0) return { map: {}, untradedKeys: new Set() };
 

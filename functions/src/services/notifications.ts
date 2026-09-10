@@ -20,7 +20,7 @@
  *   message, and it names the closer reason (it is their proposal).
  */
 
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   agents,
@@ -794,7 +794,13 @@ export async function listNotifications(
         declineReason: proposals.declineReason,
       })
       .from(proposals)
-      .where(eq(proposals.proposedBy, participantId)),
+      .where(eq(proposals.proposedBy, participantId))
+      // A window, never the whole history (docs/infra/deploy.md, "Reads are
+      // bounded in the size of a workspace"): the operator of a floor that
+      // posts a proposal a minute owns 100k of them after a month, and the
+      // branch markets under them are bounded by this window too.
+      .orderBy(desc(proposals.createdAt))
+      .limit(limit * 2),
     // Markets this participant traded: the scope of "a market I traded
     // settled" and half the scope of "a proposal I am involved in".
     db.select({ marketId: trades.marketId }).from(trades).where(eq(trades.agentId, participantId)),
@@ -934,7 +940,17 @@ export async function listNotifications(
         workspaceId: markets.workspaceId,
       })
       .from(markets)
-      .where(and(inArray(markets.workspaceId, myManaged), eq(markets.resolved, false), eq(markets.active, true)));
+      // Baselines only: the nudge is about a number to report, and a branch
+      // settles on the same reading as the baseline it was spawned from
+      // (docs/infra/deploy.md, "Reads are bounded in the size of a workspace").
+      .where(
+        and(
+          inArray(markets.workspaceId, myManaged),
+          eq(markets.resolved, false),
+          eq(markets.active, true),
+          isNull(markets.proposalId),
+        ),
+      );
     const soon = open.filter(m => settlingSoon(m.targetDate, now));
     if (soon.length > 0) {
       // A metric declared N/A-until-measured has a designed answer for never
@@ -950,7 +966,13 @@ export async function listNotifications(
       const readingRows = await db
         .select({ metricId: metricLogs.metricId, at: sql<Date>`max(${metricLogs.timestamp})` })
         .from(metricLogs)
-        .where(inArray(metricLogs.metricId, [...new Set(soon.map(m => m.metricId))]))
+        // The workspace leads the metric_logs index.
+        .where(
+          and(
+            inArray(metricLogs.workspaceId, myManaged),
+            inArray(metricLogs.metricId, [...new Set(soon.map(m => m.metricId))]),
+          ),
+        )
         .groupBy(metricLogs.metricId);
       const lastReading = new Map(readingRows.map(r => [r.metricId, r.at ? new Date(r.at) : null]));
       for (const m of soon) {

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, lt, ne, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, proposalMessages, proposals, workspaces } from '../db/schema';
@@ -291,24 +291,54 @@ proposalsRouter.post(
   }),
 );
 
+export const PROPOSALS_PAGE_DEFAULT = 100;
+export const PROPOSALS_PAGE_MAX = 500;
+
+/** `?limit=`: 1..500, the default when absent or not a positive number. */
+function pageLimit(raw: unknown): number {
+  const n = typeof raw === 'string' ? parseInt(raw, 10) : NaN;
+  if (!Number.isFinite(n) || n < 1) return PROPOSALS_PAGE_DEFAULT;
+  return Math.min(n, PROPOSALS_PAGE_MAX);
+}
+
+/** `?before=`: a proposal number (digits only) or an ISO instant on createdAt. */
+function beforeCursor(raw: string | undefined): { number?: number; createdAt?: Date } | null {
+  if (!raw) return null;
+  if (/^\d+$/.test(raw)) return { number: parseInt(raw, 10) };
+  const at = new Date(raw);
+  return Number.isNaN(at.getTime()) ? null : { createdAt: at };
+}
+
 proposalsRouter.get(
   '/',
   requireCapability('read'),
   wrap(async (req, res) => {
     const { workspaceId } = req.auth!;
-    const { status } = req.query as Record<string, string>;
+    const { status, before } = req.query as Record<string, string>;
 
-    let rows = await db
-      .select()
-      .from(proposals)
-      .where(eq(proposals.workspaceId, workspaceId))
-      .orderBy(desc(proposals.createdAt));
-
+    // Reads are bounded in the size of a workspace (docs/infra/deploy.md):
+    // the newest `limit` (100, up to 500), paged with `before` on a proposal
+    // number or an ISO instant, status filtered in the database. A floor
+    // posting a proposal a minute holds 100k of them after a month, and
+    // this endpoint answered every one of them to any reader.
+    const limit = pageLimit(req.query.limit);
+    const cursor = beforeCursor(before);
     // Removed jobs are off the board for everyone; the row survives only so the
     // ledger entries that reference its markets keep resolving. Asking for them
     // explicitly (?status=removed) still works, for an admin auditing a removal.
-    if (status) rows = rows.filter(t => t.status === status);
-    else rows = rows.filter(t => t.status !== 'removed');
+    const rows = await db
+      .select()
+      .from(proposals)
+      .where(
+        and(
+          eq(proposals.workspaceId, workspaceId),
+          status ? eq(proposals.status, status) : ne(proposals.status, 'removed'),
+          cursor?.number !== undefined ? lt(proposals.number, cursor.number) : undefined,
+          cursor?.createdAt ? lt(proposals.createdAt, cursor.createdAt) : undefined,
+        ),
+      )
+      .orderBy(desc(proposals.createdAt))
+      .limit(limit);
 
     const names = await getParticipantDisplayNames(rows.map(t => t.proposedBy));
     // Payment information goes to the person who pays, nobody else.

@@ -718,7 +718,8 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h21">Master key rotation</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h22">Cron schedule (Cloud Scheduler)</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h23">Owner notifications (Resend)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h24">Memory</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h24">Reads are bounded in the size of a workspace</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h25">Memory</a></li>
 </ul></details>
 </li>
 </ul></li>
@@ -11951,7 +11952,54 @@ agent-economy umbrella does for agents; this is one more key on that team.</p>
 <p>Participant mail also needs <code>BETTER_AUTH_URL</code> (or it falls back to
 <code>https://telarchy.com</code>), because every one of those emails carries a link
 back to the floor and a link to the account settings that switch it off.</p>
-<h2 id="docs-infra-deploy-md--h24">Memory</h2>
+<h2 id="docs-infra-deploy-md--h24">Reads are bounded in the size of a workspace</h2>
+<p>A workspace can post thousands of proposals a day (one floor proposes and
+decides a proposal a minute; after a month it holds 100k proposals and
+300k markets, of which a few thousand are open). The API instance is 512Mi
+with a four-connection pool on a db-f1-micro, so a read that walks every
+proposal or every market of a workspace is a read that stops working
+within weeks. The rule:</p>
+<ul>
+<li><strong>No public or per-minute read loads every proposal or market of a
+workspace.</strong> A read that wants baselines says <code>proposal_id is null</code> in
+its SQL rather than dropping branch rows in JS (<code>getBaselineConsensusMap</code>,
+<code>buildConsensusMap</code>, the market spawn's source read, the marketplace
+listing, the floor payload, <code>/status</code>, the share card, the workspace
+brief). A read that wants one proposal's markets is served by
+<code>markets (workspace_id, proposal_id)</code>, in any state.</li>
+<li><strong>Lists are paginated.</strong> <code>GET /api/proposals</code> filters <code>status</code> in SQL,
+returns the newest 100 by default (<code>limit</code> up to 500) and pages with
+<code>before</code> (a proposal number, or an ISO instant on <code>createdAt</code>); a page
+shorter than <code>limit</code> is the last one.</li>
+<li><strong>Crons process due work in bounded batches.</strong> <code>resolvePredictions</code>
+looks a fixing up once per (metric, target date) rather than once per
+book, at most two lookups in flight, and settles or voids at most
+<code>RESOLVE_BATCH_MAX</code> (500) books per run; whatever is left is picked up
+by the next tick (every 10 minutes in-process, hourly from the
+scheduler) and the run reports <code>remaining</code>. No run therefore approaches
+Cloud Run's 300 s request timeout, whatever the day's due count.</li>
+<li><strong>The bell inbox is windowed.</strong> A participant's own proposals are read
+newest-first, <code>2 x limit</code> of them; their branch markets are bounded by
+that window; the stale-reading nudge reads baseline books only, with
+the workspace in every <code>metric_logs</code> predicate.</li>
+<li><strong>The workspace brief reads bounded history.</strong> The metric log query is
+windowed to <code>BRIEF_HISTORY_DAYS</code>, the first reading day is a separate
+<code>min(timestamp)</code>, and the 25 proposals' markets come back in one query.</li>
+<li><strong>Nothing accumulates without a reader.</strong> The per-proposal spawn lock
+row in <code>system_config</code> is deleted when the spawn finishes, and event
+cleanup counts deleted rows instead of returning them.</li>
+<li><strong>Every hot predicate has an index.</strong> <code>markets (workspace_id, proposal_id)</code>; the open set and the open baseline set on
+<code>(workspace_id, metric_id, target_date)</code> as partial indexes; <code>markets (resolved_at) where resolved</code>; <code>proposals (workspace_id, status, created_at)</code>, <code>(workspace_id, created_at)</code>, <code>(workspace_id, decide_by) where pending</code>, <code>(status, resolved_at)</code>, <code>(proposed_by, created_at)</code>;
+<code>liquidity_events (market_id)</code>; <code>trades (market_id)</code>. Additive, <code>IF NOT EXISTS</code>, and declared in <code>functions/src/db/schema.ts</code> so drizzle-kit
+keeps them. On the beta store the journal <code>when</code> has to be newer than
+the last applied migration or the store skips it.</li>
+</ul>
+<p>The record behind the rule, with the measured row counts and each read it
+found, is the telarchy umbrella's <code>notes/snake-load-audit-2026-09-10.md</code>.
+A new read of proposals or markets that has no <code>limit</code>, no proposal id and
+no baseline predicate is a divergence from this section, whatever the size
+of the workspaces it was tested against.</p>
+<h2 id="docs-infra-deploy-md--h25">Memory</h2>
 <p><strong>512Mi.</strong> At 256Mi the container is OOM-killed on almost no traffic, and
 Cloud Run answers a killed instance's in-flight requests with 503; the
 endpoint that takes it most often is <code>GET /api/marketplace/:slug</code>, i.e. the

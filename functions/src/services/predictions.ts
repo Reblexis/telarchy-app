@@ -2,6 +2,7 @@ import { and, asc, count, eq, gt, gte, inArray, lte, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agents, liquidityEvents, markets, metricLogs, metrics, positions, proposals, trades } from '../db/schema';
 import { consensus, pHigher, resolutionPayouts } from '../lib/amm';
+import { mapWithConcurrency } from '../lib/concurrency';
 import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
 import { onPricesChanged } from '../lib/market-events';
 import { ttlCache } from '../lib/ttl-cache';
@@ -235,7 +236,7 @@ const GIVE_UP_GRACE_MINUTES = 24 * 60;
  * indefinitely.
  */
 async function marketDueness(
-  market: typeof markets.$inferSelect,
+  market: { metricId: string; targetDate: string },
   workspaceId: string,
   now: Date,
 ): Promise<{ due: boolean; pastDeadline: boolean }> {
@@ -283,10 +284,21 @@ async function marketDueness(
   return { due: false, pastDeadline: now >= deadline };
 }
 
+/**
+ * The most books one run settles or voids (docs/infra/deploy.md, "Reads are
+ * bounded in the size of a workspace"). What is left is reported as
+ * `remaining` and picked up by the next tick, so no run approaches Cloud
+ * Run's 300 s request timeout however many books fall due at once (a floor
+ * posting a proposal a minute has ~1,440 due at midnight).
+ */
+export const RESOLVE_BATCH_MAX = 500;
+/** Fixing lookups in flight at once, against a pool of four. */
+const DUENESS_CONCURRENCY = 2;
+
 export async function resolvePredictions(
   targetDate: string | undefined,
   workspaceId: string,
-): Promise<{ resolved: number; totalPayout: number }> {
+): Promise<{ resolved: number; totalPayout: number; remaining: number }> {
   // Optional `targetDate` override pins "now" to that day's midnight UTC
   // (test/backfill use). A market is resolvable once its period has fully
   // passed; instant-based so hour-granularity markets resolve on the next
@@ -313,20 +325,49 @@ export async function resolvePredictions(
   // settlementLagMinutes past the period end; past that, it voids and refunds
   // rather than locking credits forever (owner decision 2026-09-01,
   // docs/market-integrity.md, notes/resolve-on-the-reading-2026-09-01.md).
-  const dueness = await Promise.all(
-    openMarkets.map(async m => ({ market: m, ...(await marketDueness(m, workspaceId, now)) })),
-  );
-  const marketsToResolve = dueness.filter(d => d.due).map(d => d.market);
-  for (const d of dueness) {
-    if (!d.due && d.pastDeadline) {
-      await voidMarket(
-        d.market,
-        workspaceId,
-        `No reading for ${d.market.targetDate} arrived before this market's deadline, so there is nothing to settle on. Every position was refunded.`,
-      );
-    }
+  //
+  // Dueness is a property of the (metric, target date), not of the book:
+  // every book on one period shares one fixing, so it is looked up once per
+  // group with a bounded number in flight, never once per market in one
+  // Promise.all (docs/infra/deploy.md, "Reads are bounded in the size of a
+  // workspace").
+  const groups = new Map<string, { metricId: string; targetDate: string; markets: typeof openMarkets }>();
+  for (const m of openMarkets) {
+    const key = `${m.metricId}:${m.targetDate}`;
+    const g = groups.get(key);
+    if (g) g.markets.push(m);
+    else groups.set(key, { metricId: m.metricId, targetDate: m.targetDate, markets: [m] });
   }
-  if (marketsToResolve.length === 0) return { resolved: 0, totalPayout: 0 };
+  const dueness = await mapWithConcurrency([...groups.values()], DUENESS_CONCURRENCY, async g => ({
+    ...g,
+    ...(await marketDueness(g, workspaceId, now)),
+  }));
+  // Everything with work to do this run, oldest period first, capped at
+  // RESOLVE_BATCH_MAX; the rest is next tick's.
+  const actionable = dueness
+    .filter(d => d.due || d.pastDeadline)
+    .sort((a, b) => periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime())
+    .flatMap(d => d.markets.map(market => ({ market, due: d.due })));
+  const batch = actionable.slice(0, RESOLVE_BATCH_MAX);
+  const remaining = actionable.length - batch.length;
+  if (remaining > 0) {
+    console.log(
+      `resolvePredictions [${workspaceId}]: ${actionable.length} books actionable, settling ${batch.length} this run`,
+    );
+  }
+
+  let voidedForDeadline = 0;
+  for (const { market, due } of batch) {
+    if (due) continue;
+    await voidMarket(
+      market,
+      workspaceId,
+      `No reading for ${market.targetDate} arrived before this market's deadline, so there is nothing to settle on. Every position was refunded.`,
+    );
+    voidedForDeadline++;
+  }
+  const marketsToResolve = batch.filter(b => b.due).map(b => b.market);
+  if (marketsToResolve.length === 0) return { resolved: 0, totalPayout: 0, remaining };
 
   const allMetrics = await getAllMetrics(workspaceId);
   const metricMap = new Map<string, Metric>(allMetrics.map(m => [m.id, m]));
@@ -343,8 +384,15 @@ export async function resolvePredictions(
 
   let totalPayout = 0;
   let resolvedCount = 0;
+  let processed = 0;
 
   for (const market of marketsToResolve) {
+    processed++;
+    if (processed % 100 === 0) {
+      console.log(
+        `resolvePredictions [${workspaceId}]: ${processed}/${marketsToResolve.length} settled, ${voidedForDeadline} voided for deadline`,
+      );
+    }
     // A conditional pair is symmetric: whichever branch the owner chose settles
     // against the metric like any other market, and the branch they did not
     // choose is the counterfactual, which has nothing to settle against and is
@@ -380,7 +428,7 @@ export async function resolvePredictions(
     }
   }
 
-  return { resolved: resolvedCount, totalPayout };
+  return { resolved: resolvedCount, totalPayout, remaining };
 }
 
 export type MarketStatus = 'open' | 'closed' | 'resolved' | 'voided' | 'all';
@@ -487,7 +535,9 @@ export async function getMarkets(
     ? await db
         .select({ marketId: trades.marketId, count: count() })
         .from(trades)
-        .where(inArray(trades.marketId, marketIds))
+        // The workspace is what the trades index leads with; without it this
+        // is a scan of every trade on the site per listing.
+        .where(and(eq(trades.workspaceId, workspaceId), inArray(trades.marketId, marketIds)))
         .groupBy(trades.marketId)
     : [];
   const tradeCountMap: Record<string, number> = {};
