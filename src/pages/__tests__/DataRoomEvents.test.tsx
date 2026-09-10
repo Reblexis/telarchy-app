@@ -27,7 +27,11 @@ async function show(events: unknown[]) {
 }
 test('WHAT MOVED IT IS VISIBLE IN THE DATA ROOM', async () => {
   await show([{ at: '2026-09-01T00:00:00Z', kind: 'announced', label: 'Opened the market' }]);
-  expect(await screen.findByText('Opened the market')).toBeTruthy();
+  // Twice on the page by design: once in the section's dated list, once in
+  // the desk ticker above it (docs/data-room.md, "The desk").
+  const shown = await screen.findAllByText('Opened the market');
+  expect(shown.some(el => el.closest('.dr-when-row'))).toBe(true);
+  expect(shown.some(el => el.closest('.dr-ticker-item'))).toBe(true);
 });
 test('EMPTY EVENT HISTORY IS EXPLICIT', async () => {
   await show([]);

@@ -2210,18 +2210,28 @@ a promise here.
 
 ## The data room
 
-`telarchy.com/data-room` (`DataRoomPage`, `.dr-*`) is a document, so it takes
-the 760px column, not the poster's 660px. It is one scrolling page with a
-sticky index of its own sections under the top bar, not a sidebar and not a
-route per section: a sidebar is the thing that was deleted, and a reader of a
-business document scrolls.
+`telarchy.com/data-room` (`DataRoomPage`, `.dr-*`) is the one page that fixes
+its own palette: it renders on the site's dark tokens whatever the visitor's
+theme is, because it is an instrument rather than a page about the product,
+and every drawing on it reads better on dark. It sets `data-theme="dark"` on
+its own root and takes the tokens that are already defined there; it does not
+invent a second palette. Everything else is the site's language, amber accent
+included.
 
-Its figures follow the page rules exactly: tiny uppercase section labels,
-hairline rows with an amber rule behind a count, mono tabular numerals, and
-charts hand-rolled as inline SVG (a bar per day, one line for a metric's
-readings) rather than a chart library, because the only shapes needed are a
-column and a line. A number the feed refused to compute renders as "not
-published", never as zero. Spec: `docs/data-room.md`.
+It takes a wide 1180px column rather than the document's 760px, and the prose
+inside it stays capped near 68 characters so a paragraph is still a paragraph
+next to a full-width chart. It is one scrolling page with a sticky index of its
+own sections under the top bar, not a sidebar and not a route per section: a
+sidebar is the thing that was deleted, and a reader of a business document
+scrolls.
+
+Above the first section sit the strip (one tile per number a reader came for:
+figure, seven-day change, the same series drawn small) and the ticker (the
+dated things the owner did, newest first, on one line). Its figures follow the
+page rules exactly: tiny uppercase section labels, hairline rows with an amber
+rule behind a count, mono tabular numerals, and charts hand-rolled as inline
+SVG rather than a chart library. A number the feed refused to compute renders
+as "not published", never as zero. Spec: `docs/data-room.md`.
 
 ## The frontend never speaks HTTP directly
 

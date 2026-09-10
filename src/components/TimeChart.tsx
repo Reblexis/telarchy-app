@@ -71,13 +71,18 @@ interface Props {
   scale?: 'linear' | 'log';
   /** A caption under the chart, in the page's quiet register. */
   caption?: ReactNode;
+  /**
+   * 'spark' is the same chart with its axes turned off, for the desk strip's
+   * tiles (docs/data-room.md, "The desk"): no grid, no labels, no event
+   * marks, because a 40px band has no room for them. The crosshair and the
+   * panel stay, because a drawing a reader cannot interrogate is a claim.
+   */
+  variant?: 'full' | 'spark';
 }
 
 const W = 760;
-const PAD_L = 44;
-const PAD_R = 12;
-const PAD_T = 26;
-const PAD_B = 26;
+const FULL_PAD = { l: 44, r: 12, t: 36, b: 26 };
+const SPARK_PAD = { l: 4, r: 5, t: 7, b: 6 };
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const dayOf = (iso: string) => iso.slice(0, 10);
@@ -132,7 +137,10 @@ export function TimeChart({
   gapDays = 3,
   scale = 'linear',
   caption,
+  variant = 'full',
 }: Props) {
+  const spark = variant === 'spark';
+  const { l: PAD_L, r: PAD_R, t: PAD_T, b: PAD_B } = spark ? SPARK_PAD : FULL_PAD;
   const svgRef = useRef<SVGSVGElement>(null);
   const [cursorT, setCursorT] = useState<number | null>(null);
 
@@ -144,12 +152,16 @@ export function TimeChart({
     if (all.length === 0) return null;
     const t0 = Math.min(...all.map(p => p.t));
     const t1 = Math.max(...all.map(p => p.t));
-    const lo = Math.min(0, ...all.map(p => p.v));
+    const lo = spark ? Math.min(...all.map(p => p.v)) : Math.min(0, ...all.map(p => p.v));
     const hi = Math.max(...all.map(p => p.v));
     // A flat series still needs a band to sit in rather than a line on the floor.
     const pad = (hi - lo || Math.max(1, Math.abs(hi))) * 0.15;
+    // A spark shows SHAPE, not level: it is 38px tall beside the figure it
+    // belongs to, so it uses the series' own range and pads both ends. A
+    // full-size chart keeps its zero, because there the axis is the point.
+    if (spark) return { t0, t1, y0: lo - pad, y1: hi + pad };
     return { t0, t1, y0: lo - (lo < 0 ? pad : 0), y1: hi + pad };
-  }, [drawn]);
+  }, [drawn, spark]);
 
   if (!model) {
     return (
@@ -194,6 +206,18 @@ export function TimeChart({
     .map((e, i) => ({ ...e, n: i + 1 }))
     .filter(e => e.t >= t0 && e.t <= t1);
 
+  // A badge needs room: twelve decisions in a fortnight on a four-month axis
+  // would print twelve numbers on top of each other. The first mark in a
+  // crowd is numbered, the rest keep their rule, and the pointer names every
+  // one of them (docs/data-room.md, "The line carries what happened to it").
+  let lastBadge = -Infinity;
+  const badged = new Set<string>();
+  for (const e of eventsInWindow) {
+    if (x(e.t) - lastBadge < 17) continue;
+    lastBadge = x(e.t);
+    badged.add(`${e.at}-${e.kind}`);
+  }
+
   const nearest =
     cursorT === null
       ? null
@@ -211,8 +235,8 @@ export function TimeChart({
   const zeroY = y(Math.max(y0, 0));
 
   return (
-    <figure className="tchart">
-      {drawn.length > 1 && (
+    <figure className={spark ? 'tchart tchart--spark' : 'tchart'}>
+      {!spark && drawn.length > 1 && (
         <div className="tchart-legend">
           {drawn.map((s, i) => (
             <span key={s.key} className="tchart-legend-item">
@@ -225,7 +249,7 @@ export function TimeChart({
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        className="tchart-svg"
+        className={spark ? 'tchart-svg is-spark' : 'tchart-svg'}
         style={{ height }}
         role="img"
         aria-label={label}
@@ -233,25 +257,37 @@ export function TimeChart({
         onPointerLeave={() => setCursorT(null)}
       >
         <title>{label}</title>
-        {(scale === 'log' ? logTicks(y1) : ticksFor(y0, y1)).map(t => (
-          <g key={t}>
-            <line className="tchart-grid" x1={PAD_L} x2={W - PAD_R} y1={y(t)} y2={y(t)} />
-            <text className="tchart-ylabel" x={PAD_L - 6} y={y(t) + 3} textAnchor="end">
-              {fmtValue(t, unit)}
-            </text>
-          </g>
-        ))}
+        {!spark &&
+          (scale === 'log' ? logTicks(y1) : ticksFor(y0, y1)).map(t => (
+            <g key={t}>
+              <line className="tchart-grid" x1={PAD_L} x2={W - PAD_R} y1={y(t)} y2={y(t)} />
+              <text className="tchart-ylabel" x={PAD_L - 6} y={y(t) + 3} textAnchor="end">
+                {fmtValue(t, unit)}
+              </text>
+            </g>
+          ))}
 
-        {eventsInWindow.map(e => (
-          <g key={`${e.at}-${e.kind}`} className={`tchart-event is-${e.kind}`}>
-            <title>{e.label}</title>
-            <line className="tchart-event-rule" x1={x(e.t)} x2={x(e.t)} y1={PAD_T - 4} y2={H - PAD_B} />
-            <circle className="tchart-event-dot" cx={x(e.t)} cy={PAD_T - 12} r={7} />
-            <text className="tchart-event-num" x={x(e.t)} y={PAD_T - 8.5} textAnchor="middle">
-              {e.n}
-            </text>
-          </g>
-        ))}
+        {!spark &&
+          eventsInWindow.map(e => (
+            <g key={`${e.at}-${e.kind}`} className={`tchart-event is-${e.kind}`}>
+              <title>{e.label}</title>
+              <line
+                className="tchart-event-rule"
+                x1={x(e.t)}
+                x2={x(e.t)}
+                y1={badged.has(`${e.at}-${e.kind}`) ? PAD_T - 18 : PAD_T - 4}
+                y2={H - PAD_B}
+              />
+              {badged.has(`${e.at}-${e.kind}`) && (
+                <>
+                  <circle className="tchart-event-dot" cx={x(e.t)} cy={PAD_T - 18} r={7} />
+                  <text className="tchart-event-num" x={x(e.t)} y={PAD_T - 14.5} textAnchor="middle">
+                    {e.n}
+                  </text>
+                </>
+              )}
+            </g>
+          ))}
 
         {drawn.map((s, i) =>
           s.kind === 'bars' ? (
@@ -282,10 +318,21 @@ export function TimeChart({
                   <polyline className="tchart-line" points={run.map(p => `${x(p.t)},${y(p.v)}`).join(' ')} />
                 </g>
               ))}
-              {s.points.length <= 40 &&
+              {!spark &&
+                s.points.length <= 40 &&
                 s.points.map(p => (
                   <circle key={p.at} className="tchart-dot" cx={x(tOf(p.at))} cy={y(p.value)} r={2.5} />
                 ))}
+              {/* A spark carries one dot, on the reading the figure beside it
+                  is: where the line ends is the number. */}
+              {spark && s.points.length > 0 && (
+                <circle
+                  className="tchart-dot"
+                  cx={x(tOf(s.points[s.points.length - 1].at))}
+                  cy={y(s.points[s.points.length - 1].value)}
+                  r={2.6}
+                />
+              )}
             </g>
           ),
         )}
@@ -302,12 +349,16 @@ export function TimeChart({
           </g>
         )}
 
-        <text className="tchart-xlabel" x={PAD_L} y={H - 8} textAnchor="start">
-          {dayLabel(days[0])}
-        </text>
-        <text className="tchart-xlabel" x={W - PAD_R} y={H - 8} textAnchor="end">
-          {dayLabel(days[days.length - 1])}
-        </text>
+        {!spark && (
+          <>
+            <text className="tchart-xlabel" x={PAD_L} y={H - 8} textAnchor="start">
+              {dayLabel(days[0])}
+            </text>
+            <text className="tchart-xlabel" x={W - PAD_R} y={H - 8} textAnchor="end">
+              {dayLabel(days[days.length - 1])}
+            </text>
+          </>
+        )}
       </svg>
 
       {nearest && (

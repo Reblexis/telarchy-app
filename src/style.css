@@ -8314,13 +8314,46 @@ textarea.jobform-line--desc {
    hand-rolled SVG charts. No cards, no sidebar, no second palette.
    Spec: docs/data-room.md; language: docs/ui-conventions.md. */
 
-.dr {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: clamp(2.5rem, 8vh, 4.5rem) 1.25rem 6rem;
+/* The desk (docs/data-room.md, "The desk: the strip, the ticker, and the
+   dark"). The page fixes its own palette: `data-theme="dark"` on the root
+   takes the site's own dark tokens, so nothing here is a second palette, and
+   the drawings sit on the surface they read best on. */
+.dr-desk {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  /* The site frames every page in the body's 2rem of paper. A desk is the
+     surface, so it bleeds over that frame rather than floating in it. */
+  margin: -2rem;
+  padding: 2rem;
 }
 
-.dr-head { text-align: center; }
+@media (max-width: 768px) {
+  .dr-desk { margin: -1rem; padding: 1rem; }
+}
+
+@media (max-width: 480px) {
+  .dr-desk { margin: -0.75rem; padding: 0.75rem; }
+}
+
+.dr {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(1.75rem, 5vh, 3rem) 1.25rem 6rem;
+}
+
+/* The masthead: what the page is on the left, when it was read on the right. */
+.dr-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 2.5rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dr-head-main { max-width: 46rem; }
 
 .dr-title {
   margin: 0;
@@ -8332,9 +8365,9 @@ textarea.jobform-line--desc {
 }
 
 .dr-lead {
-  margin: 0.8rem auto 0;
-  max-width: 34rem;
-  font-size: 0.95rem;
+  margin: 0.6rem 0 0;
+  max-width: 42rem;
+  font-size: 0.92rem;
   line-height: 1.55;
   color: var(--text-secondary);
   text-align: left;
@@ -8343,9 +8376,145 @@ textarea.jobform-line--desc {
 /* When the words were written, when the figures were read, and the route
    that answers both. The page's claim to be checkable lives in this line. */
 .dr-stamp {
-  margin: 0.9rem 0 0;
-  font-size: 0.72rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 1.1rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
   color: var(--text-tertiary);
+}
+
+/* The read is live, which is the page's whole claim; the dot says so without
+   a sentence. It does not blink: a pulsing dot on a page of numbers is
+   decoration competing with the numbers. */
+.dr-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--higher);
+}
+
+.dr-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--higher);
+  box-shadow: 0 0 0 3px var(--higher-soft);
+}
+
+/* ---- The strip ------------------------------------------------------ */
+/* One tile per number a reader came for: the figure, the seven-day change,
+   and the same series drawn small. Every value is one the page publishes
+   further down, and the tile links to where it is drawn full size. */
+
+.dr-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  /* The separators are the grid's own gaps showing through, so a hairline
+     never lands on the outside edge of a wrapped row. */
+  gap: 1px;
+  background: var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dr-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.05rem 1.1rem 0.9rem;
+  background: var(--bg-primary);
+  color: inherit;
+  text-decoration: none;
+  transition: background var(--transition-fast);
+}
+
+.dr-tile:hover { background: var(--bg-secondary); }
+.dr-tile:hover .dr-tile-label { color: var(--accent); }
+
+.dr-tile-label {
+  /* Two lines' worth whether or not the name needs them, so every figure in
+     the strip sits on the same line. */
+  min-height: 2.1em;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  transition: color var(--transition-fast);
+}
+
+.dr-tile-row { display: flex; align-items: baseline; gap: 0.55rem; }
+
+.dr-tile-n {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+/* Green and red as direction only, which is what a change is. */
+.dr-tile-delta {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.dr-tile-delta.is-up { color: var(--higher); }
+.dr-tile-delta.is-down { color: var(--lower); }
+
+.dr-tile-delta em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  margin-left: 0.35rem;
+}
+
+/* ---- The ticker ----------------------------------------------------- */
+/* The dated things the owner did, newest first, on one line. A desk's first
+   question about a moving number is what happened to it. */
+
+.dr-ticker {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.74rem;
+  overflow: hidden;
+}
+
+.dr-ticker-head {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.dr-ticker-run {
+  display: flex;
+  gap: 1.4rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+  /* The run continues past the edge, and the fade says so rather than
+     cutting a word in half at full opacity. */
+  mask-image: linear-gradient(to right, #000 90%, transparent 100%);
+}
+
+.dr-ticker-run::-webkit-scrollbar { display: none; }
+
+.dr-ticker-item { color: var(--text-secondary); }
+
+.dr-ticker-day {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  margin-right: 0.45rem;
 }
 
 .dr-stamp-link { color: var(--text-tertiary); text-decoration: underline; }
@@ -8361,9 +8530,8 @@ textarea.jobform-line--desc {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem 1.1rem;
-  margin: clamp(2rem, 5vh, 3rem) 0 2.5rem;
-  padding: 0.7rem 0;
-  border-top: 1px solid var(--border-color);
+  margin: 0 0 2.75rem;
+  padding: 0.65rem 0;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-primary);
 }
@@ -8378,9 +8546,50 @@ textarea.jobform-line--desc {
 }
 
 .dr-index-link:hover { color: var(--text-primary); }
-.dr-index-link.is-active { color: var(--accent); }
+.dr-index-link.is-active {
+  color: var(--accent);
+  box-shadow: inset 0 -1px 0 0 var(--accent);
+}
 
-.dr-section { margin-bottom: 3.25rem; scroll-margin-top: 4.5rem; }
+.dr-section { margin-bottom: 3.5rem; scroll-margin-top: 4.5rem; }
+
+/* A section heading on the desk is a rule with a label on it, in the mono
+   register every other label here uses. */
+.dr-section > .pubws-h2 {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.13em;
+  color: var(--accent);
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-strong);
+}
+
+/* A section that draws something reads as a desk panel: what it is on the
+   left, the drawings on the right, so a paragraph stays a paragraph beside a
+   full-width chart. A section with no drawings keeps the column. */
+@media (min-width: 1000px) {
+  .dr-section.has-drawings {
+    display: grid;
+    grid-template-columns: 20rem minmax(0, 1fr);
+    column-gap: 3rem;
+  }
+
+  .dr-section.has-drawings > .pubws-h2 { grid-column: 1 / -1; }
+
+  .dr-section.has-drawings > .dr-prose {
+    position: sticky;
+    top: 3.6rem;
+    align-self: start;
+  }
+
+  /* Every block belongs in the drawings column: auto-placement would put the
+     second one back under the prose. */
+  .dr-section.has-drawings > .dr-block { grid-column: 2; }
+  .dr-section.has-drawings > .dr-prose { grid-column: 1; }
+  .dr-section.has-drawings > .dr-block:first-of-type { margin-top: 0; }
+}
+
+.dr-prose { max-width: 42rem; }
 
 .dr-prose p {
   margin: 0 0 0.9rem;
@@ -8463,9 +8672,10 @@ textarea.jobform-line--desc {
 .dr-bar {
   position: absolute;
   left: 0;
-  top: 0;
   bottom: 0;
-  background: var(--accent-soft);
+  height: 2px;
+  background: var(--accent);
+  opacity: 0.6;
   z-index: 0;
 }
 
@@ -8566,7 +8776,26 @@ textarea.jobform-line--desc {
 
 .tchart { margin: 0.9rem 0 0; position: relative; }
 
-.tchart-svg { display: block; width: 100%; touch-action: pan-y; }
+.tchart-svg {
+  display: block;
+  width: 100%;
+  touch-action: pan-y;
+  /* The instrument's own surface: a chart is a real interactive thing, so it
+     gets a panel where a list gets a hairline. No radius, no shadow. */
+  background: var(--graph-bg);
+  border: 1px solid var(--border-color);
+}
+
+/* A spark is the same chart with its axes off (docs/data-room.md). It is
+   small, so it is drawn in the accent and it carries no frame. */
+.tchart--spark { margin: 0; }
+.tchart--spark .tchart-svg { background: none; border: none; }
+.tchart--spark .tchart-series.is-s0 .tchart-line { stroke: var(--accent); stroke-width: 2; }
+.tchart--spark .tchart-series.is-s0 .tchart-area { fill: color-mix(in srgb, var(--accent) 24%, transparent); }
+/* The one dot a spark carries is the reading the figure beside it is. */
+.tchart--spark .tchart-series.is-s0 .tchart-dot { fill: var(--accent); }
+.tchart--spark .tchart-cursor line { stroke: var(--accent); opacity: 0.5; }
+.tchart--spark .tchart-tip { margin-top: 0.1rem; font-size: 0.64rem; min-height: 1rem; }
 
 .tchart-grid { stroke: var(--border-color); stroke-width: 1; }
 
@@ -8587,9 +8816,11 @@ textarea.jobform-line--desc {
 .tchart-series.is-s0 .tchart-dot { fill: var(--text-primary); }
 .tchart-series.is-s1 .tchart-dot { fill: var(--accent); }
 .tchart-series.is-s2 .tchart-dot { fill: var(--text-tertiary); }
-.tchart-series.is-s0 .tchart-area { fill: var(--bg-tertiary); }
+/* An area is a wash under its own line, not a slab of another colour: a
+   filled block in a third grey reads as a panel behind the chart. */
+.tchart-series.is-s0 .tchart-area { fill: color-mix(in srgb, var(--text-primary) 8%, transparent); }
 .tchart-series.is-s1 .tchart-area { fill: var(--accent-soft); }
-.tchart-series.is-s2 .tchart-area { fill: var(--bg-secondary); }
+.tchart-series.is-s2 .tchart-area { fill: color-mix(in srgb, var(--text-tertiary) 8%, transparent); }
 
 .tchart-bars.is-s0 rect { fill: var(--text-primary); opacity: 0.75; }
 .tchart-bars.is-s1 rect { fill: var(--accent); opacity: 0.8; }
@@ -8646,6 +8877,80 @@ textarea.jobform-line--desc {
   text-align: left;
 }
 
+/* The outreach list: one square per person, shaded by how far they have got
+   (docs/data-room.md, "What is scheduled"). Nobody is named. */
+.dr-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 0.9rem;
+}
+
+.dr-stage-cell {
+  display: block;
+  width: 15px;
+  height: 15px;
+  background: var(--accent);
+}
+
+.dr-stage-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin-top: 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-tertiary);
+}
+
+.dr-stage-key-item { display: inline-flex; align-items: center; gap: 0.4rem; }
+.dr-stage-key-item .dr-stage-cell { width: 9px; height: 9px; }
+
+/* ---- The readings: the line, then the eight weekly numbers ---------- */
+/* docs/data-room.md, "The base rates are every weekly reading". The numbers
+   stay printed under the line because a shape is not a base rate, and a week
+   nobody measured prints a dash rather than the week before's value. */
+
+.dr-rate + .dr-rate { margin-top: 2.6rem; }
+
+.dr-rate-name {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dr-rate-vals {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.dr-rate-vals span { color: var(--text-primary); }
+.dr-rate-vals .is-unread { color: var(--text-tertiary); }
+
+.dr-rate-cap {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.3rem;
+  font-size: 0.66rem;
+  color: var(--text-tertiary);
+}
+
+.dr-rate-cap span:nth-child(1),
+.dr-rate-cap span:nth-child(3) { font-family: var(--font-mono); flex: none; }
+
+@media (max-width: 560px) {
+  .dr-rate-cap span:nth-child(2) { display: none; }
+}
+
 /* ---- The window: the rows behind the next reading ------------------- */
 /* docs/data-room.md. Every block here draws one mark per row, because the
    count it replaced threw the tail away. Section labels inside a section, so
@@ -8653,6 +8958,7 @@ textarea.jobform-line--desc {
 
 .dr-h3 {
   margin: 2rem 0 0;
+  font-family: var(--font-mono);
   font-size: 0.66rem;
   font-weight: 600;
   text-transform: uppercase;
