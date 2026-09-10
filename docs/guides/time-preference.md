@@ -95,16 +95,32 @@ node then has one job, declaring the timescale, and "what this is right now" and
 curve on or off. A metric can have purely manual horizons. At most 24 entries,
 and duplicates are dropped.
 
-**Rolling offsets** are `+Nh`, `+Nd`, `+Nw`, `+Nm`, `+Ny`. They are re-resolved
-against now on every refresh, so there is always a market about that far out,
-and the unit sets the market's granularity: `+3m` maintains a month market,
-`+2w` a week market, `+6h` an hour market. `+0w` is the current period, which is
-how you say "revenue this week" and have it mean this week rather than the next
-one. A standing intraday ladder is `["+1h", "+2h", ...]`.
+**Rolling offsets** are `+Nmin`, `+Nh`, `+Nd`, `+Nw`, `+Nm`, `+Ny` (`m` is
+months, `min` is minutes). They are re-resolved against now on every refresh,
+so there is always a market about that far out, and the unit sets the market's
+granularity: `+3m` maintains a month market, `+2w` a week market, `+6h` an hour
+market, `+5min` a minute market. `+0w` is the current period, which is how you
+say "revenue this week" and have it mean this week rather than the next one. A
+standing intraday ladder is `["+1h", "+2h", ...]`.
 
-**One-shot dates** are `YYYY`, `YYYY-MM`, `YYYY-Www`, `YYYY-MM-DD` or
-`YYYY-MM-DDTHH` (hour, UTC). One market, resolving at the end of that period,
-never recreated. Dates whose period has already passed are pruned on save
+A minute offset `+Nmin` (N from 1 to 1440) names the minute cell that starts N
+minutes after the current one: at 20:04:30, `+1min` is the cell `20:05`,
+`+5min` is `20:09` and `+60min` is `21:04`. A game that moves once a minute
+prices its next move, its next five and its next hour with
+`["+1min", "+5min", "+60min"]`. The refresh is what advances a rolling entry,
+so a floor on minute horizons calls
+`POST /api/predictions/markets/refresh { "force": true }` once a minute with a
+manager key (`force` skips the five-minute cooldown), and
+`POST /api/predictions/resolve` on the same cadence so a cell settles the
+minute it ends.
+
+**One-shot dates** are `YYYY`, `YYYY-MM`, `YYYY-Www`, `YYYY-MM-DD`,
+`YYYY-MM-DDTHH` (hour, UTC) or `YYYY-MM-DDTHH:MM` (minute, UTC). One market,
+resolving at the end of that period, never recreated. A minute cell is one
+minute long, from its first second up to the next minute, and settles like every
+other period: on the last reading dated inside it, or N/A after the give-up
+grace when none arrives. A reading stamped one second past the minute belongs to
+the next cell. Dates whose period has already passed are pruned on save
 rather than rejected, so re-saving an old config never fails.
 
 **What each date opens with** rides on the same object, keyed by the entry:

@@ -80,3 +80,26 @@ describe('what the button promises', () => {
     expect(repeatSentence('once')).toBe('One market, on that date, and nothing after it.');
   });
 });
+
+describe('minute entries (docs/guides/time-preference.md, "+Nmin")', () => {
+  test('a rolling minute entry reads as every minute, N ahead', () => {
+    expect(describeEntry('+5min')).toEqual({ entry: '+5min', every: 'minute', ahead: 5, label: 'Every minute' });
+    expect(describeEntry('+1m').every).toBe('month');
+  });
+
+  test('resolves to the cell N minutes after the current one', () => {
+    const at = new Date('2026-09-10T20:04:30.000Z');
+    expect(resolveEntry('+1min', at)).toBe('2026-09-10T20:05');
+    expect(resolveEntry('+60min', at)).toBe('2026-09-10T21:04');
+    expect(resolveEntry('+1m', at)).toBe('2026-10');
+  });
+
+  test('a one-shot minute cell says the clock time', () => {
+    expect(describeEntry('2026-12-31T14:05').label).toBe('31 December 2026, 14:05 UTC, once');
+    expect(describeEntry('2026-12-31T14:05').every).toBe('once');
+  });
+
+  test('the entry stored for a minute choice is +Nmin', () => {
+    expect(entryFor('minute', 5, '', '')).toBe('+5min');
+  });
+});

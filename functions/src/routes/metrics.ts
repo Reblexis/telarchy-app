@@ -827,7 +827,8 @@ export function parseNaUntilMeasured(raw: unknown): boolean | undefined | Error 
   if (typeof raw !== 'boolean') return new Error('resolvesNaUntilMeasured must be a boolean');
   return raw;
 }
-const RELATIVE_HORIZON_RE = /^\+(\d+)(h|d|w|m|y)$/;
+// `min` before `m`: "+5min" is minutes, "+5m" is months (lib/date-utils).
+const RELATIVE_HORIZON_RE = /^\+(\d+)(min|h|d|w|m|y)$/;
 
 /**
  * The furthest a rolling horizon may reach, per unit.
@@ -845,6 +846,9 @@ const RELATIVE_HORIZON_RE = /^\+(\d+)(h|d|w|m|y)$/;
  * hold, so the bound costs nothing real.
  */
 const MAX_HORIZON_OFFSET: Record<string, number> = {
+  // A day of minutes (docs/guides/time-preference.md, "+Nmin": N from 1 to
+  // 1440). Past that an hour horizon says the same thing.
+  min: 1440,
   h: 100 * 365 * 24,
   d: 100 * 365,
   w: 100 * 53,
@@ -900,7 +904,7 @@ export function parseTimePreference(raw: unknown): TimePreference | null | undef
       if (!relative) {
         if (!isValidCalendarDate(entry)) {
           return new Error(
-            `invalid custom horizon "${entry}": use +Nh / +Nd / +Nw / +Nm / +Ny or YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH (UTC)`,
+            `invalid custom horizon "${entry}": use +Nmin / +Nh / +Nd / +Nw / +Nm / +Ny or YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH, YYYY-MM-DDTHH:MM (UTC)`,
           );
         }
         if (periodEndInstant(entry) <= now) continue; // expired absolute: prune, don't reject
@@ -908,6 +912,11 @@ export function parseTimePreference(raw: unknown): TimePreference | null | undef
         const max = MAX_HORIZON_OFFSET[relative[2]];
         if (Number(relative[1]) > max) {
           return new Error(`custom horizon "${entry}" is too far out: at most +${max}${relative[2]}`);
+        }
+        // "+0min" would be the minute already running, which a one-minute
+        // book cannot price: the minute horizons start at +1min.
+        if (relative[2] === 'min' && Number(relative[1]) < 1) {
+          return new Error(`custom horizon "${entry}" is not ahead: a minute horizon is +1min to +1440min`);
         }
       }
       if (seen.has(entry)) continue;

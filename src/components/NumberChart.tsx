@@ -95,7 +95,7 @@ export const RANGE_WORDS: Record<Granularity, Array<{ key: string; ms: number | 
 };
 
 export function granularityOf(targetDate: string): Granularity {
-  if (/^\d{4}-\d{2}-\d{2}(T\d{2})?$/.test(targetDate)) return 'day';
+  if (/^\d{4}-\d{2}-\d{2}(T\d{2}(:\d{2})?)?$/.test(targetDate)) return 'day';
   if (/^\d{4}-W\d{2}$/.test(targetDate)) return 'week';
   if (/^\d{4}-\d{2}$/.test(targetDate)) return 'month';
   return 'other';

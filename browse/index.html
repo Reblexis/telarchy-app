@@ -7273,7 +7273,7 @@ template.</p>
 <p>Participants forecast metric values, staking credits on their predictions.</p>
 <ul>
 <li><strong>Markets</strong>: created by admin or auto-created from time-preference curves. The managed instance refreshes them hourly (<code>POST /api/cron/refresh</code>, <code>10 * * * *</code>); the live schedule is <code>docs/infra/deploy.md</code>.</li>
-<li><strong>Date granularity</strong>: markets support multiple target date formats: <code>YYYY</code> (year), <code>YYYY-MM</code> (month), <code>YYYY-Www</code> (ISO week), <code>YYYY-MM-DD</code> (day). Relative dates (<code>+Nd</code>, <code>+Nw</code>, <code>+Nm</code>, <code>+Ny</code>) are resolved to absolute dates at creation time.</li>
+<li><strong>Date granularity</strong>: markets support multiple target date formats: <code>YYYY</code> (year), <code>YYYY-MM</code> (month), <code>YYYY-Www</code> (ISO week), <code>YYYY-MM-DD</code> (day), <code>YYYY-MM-DDTHH</code> (hour, UTC) and <code>YYYY-MM-DDTHH:MM</code> (minute, UTC). A period runs from its first instant to the first instant of the next period of the same size; a minute cell <code>2026-09-10T20:05</code> covers 20:05:00 up to but not including 20:06:00. Every size settles by the same rule: on the last reading whose timestamp falls inside the period, and it voids after the give-up grace when no reading arrives. Relative dates (<code>+Nmin</code>, <code>+Nh</code>, <code>+Nd</code>, <code>+Nw</code>, <code>+Nm</code>, <code>+Ny</code>; <code>m</code> is months, <code>min</code> is minutes) are resolved to absolute dates at creation time.</li>
 <li><strong>Resolution</strong>: markets resolve when <code>endOfPeriod(targetDate) &lt;= today</code>. Triggered by <code>POST /api/predictions/resolve</code> or by the resolve cron, which runs every 10 minutes on the managed instance.</li>
 <li><strong>Market administration</strong> is API-only: create, void, resolve and refresh are calls under <code>/api/predictions</code>, and there is no browser screen for any of them.</li>
 </ul>
@@ -10923,15 +10923,30 @@ node then has one job, declaring the timescale, and &quot;what this is right now
 <p><code>customHorizons</code> is a list of extra dates to keep markets at, working with the
 curve on or off. A metric can have purely manual horizons. At most 24 entries,
 and duplicates are dropped.</p>
-<p><strong>Rolling offsets</strong> are <code>+Nh</code>, <code>+Nd</code>, <code>+Nw</code>, <code>+Nm</code>, <code>+Ny</code>. They are re-resolved
-against now on every refresh, so there is always a market about that far out,
-and the unit sets the market's granularity: <code>+3m</code> maintains a month market,
-<code>+2w</code> a week market, <code>+6h</code> an hour market. <code>+0w</code> is the current period, which is
-how you say &quot;revenue this week&quot; and have it mean this week rather than the next
-one. A standing intraday ladder is <code>[&quot;+1h&quot;, &quot;+2h&quot;, ...]</code>.</p>
-<p><strong>One-shot dates</strong> are <code>YYYY</code>, <code>YYYY-MM</code>, <code>YYYY-Www</code>, <code>YYYY-MM-DD</code> or
-<code>YYYY-MM-DDTHH</code> (hour, UTC). One market, resolving at the end of that period,
-never recreated. Dates whose period has already passed are pruned on save
+<p><strong>Rolling offsets</strong> are <code>+Nmin</code>, <code>+Nh</code>, <code>+Nd</code>, <code>+Nw</code>, <code>+Nm</code>, <code>+Ny</code> (<code>m</code> is
+months, <code>min</code> is minutes). They are re-resolved against now on every refresh,
+so there is always a market about that far out, and the unit sets the market's
+granularity: <code>+3m</code> maintains a month market, <code>+2w</code> a week market, <code>+6h</code> an hour
+market, <code>+5min</code> a minute market. <code>+0w</code> is the current period, which is how you
+say &quot;revenue this week&quot; and have it mean this week rather than the next one. A
+standing intraday ladder is <code>[&quot;+1h&quot;, &quot;+2h&quot;, ...]</code>.</p>
+<p>A minute offset <code>+Nmin</code> (N from 1 to 1440) names the minute cell that starts N
+minutes after the current one: at 20:04:30, <code>+1min</code> is the cell <code>20:05</code>,
+<code>+5min</code> is <code>20:09</code> and <code>+60min</code> is <code>21:04</code>. A game that moves once a minute
+prices its next move, its next five and its next hour with
+<code>[&quot;+1min&quot;, &quot;+5min&quot;, &quot;+60min&quot;]</code>. The refresh is what advances a rolling entry,
+so a floor on minute horizons calls
+<code>POST /api/predictions/markets/refresh { &quot;force&quot;: true }</code> once a minute with a
+manager key (<code>force</code> skips the five-minute cooldown), and
+<code>POST /api/predictions/resolve</code> on the same cadence so a cell settles the
+minute it ends.</p>
+<p><strong>One-shot dates</strong> are <code>YYYY</code>, <code>YYYY-MM</code>, <code>YYYY-Www</code>, <code>YYYY-MM-DD</code>,
+<code>YYYY-MM-DDTHH</code> (hour, UTC) or <code>YYYY-MM-DDTHH:MM</code> (minute, UTC). One market,
+resolving at the end of that period, never recreated. A minute cell is one
+minute long, from its first second up to the next minute, and settles like every
+other period: on the last reading dated inside it, or N/A after the give-up
+grace when none arrives. A reading stamped one second past the minute belongs to
+the next cell. Dates whose period has already passed are pruned on save
 rather than rejected, so re-saving an old config never fails.</p>
 <p><strong>What each date opens with</strong> rides on the same object, keyed by the entry:
 <code>horizonCredits: { &quot;+0w&quot;: { &quot;book&quot;: 500, &quot;proposal&quot;: 250 } }</code>. <code>book</code> is what
@@ -11822,7 +11837,12 @@ and is passed by <code>deploy-cloudrun.yml</code> in <code>--update-env-vars</co
 so no revision can come up without it and quietly stop recording them.</p>
 <p>Hour-granularity markets (<code>YYYY-MM-DDTHH</code> target dates, <code>+Nh</code> custom
 horizons) need at least hourly resolution and rolling, so the managed
-cadence is never coarser than hourly.</p>
+cadence is never coarser than hourly. Minute-granularity markets
+(<code>YYYY-MM-DDTHH:MM</code>, <code>+Nmin</code>) are not served by the managed cadence at
+all: the operator of such a floor calls
+<code>POST /api/predictions/markets/refresh { &quot;force&quot;: true }</code> and
+<code>POST /api/predictions/resolve</code> once a minute with a manager key
+(<code>docs/guides/time-preference.md</code>, &quot;Pinning an exact date&quot;).</p>
 </li>
 <li>
 <p><strong>Self-hosted instance</strong>: nothing schedules itself. The operator triggers

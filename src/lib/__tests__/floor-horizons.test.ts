@@ -224,6 +224,11 @@ describe('the label helpers', () => {
     ['2026-08', 'this month'],
     ['2026-08-19', 'today'],
     ['2026-08-18', '18 Aug'],
+    // A minute cell reads as a clock time, an hour cell too (owner ask
+    // 2026-09-10, minute horizons).
+    ['2026-08-19T20:05', '20:05 UTC'],
+    ['2026-08-19T23:59', '23:59 UTC'],
+    ['2026-08-19T20', '20:00 UTC'],
   ])('horizonLabel(%s) is %s', (target, label) => {
     expect(horizonLabel(target, NOW)).toBe(label);
   });
@@ -246,6 +251,9 @@ describe('the label helpers', () => {
     ['2026-12', '31 December 2026'],
     ['2026-02', '28 February 2026'],
     ['2026-08-15', '15 August 2026'],
+    ['2026-08-15T20', '15 August 2026'],
+    ['2026-08-15T20:05', '15 August 2026'],
+    ['2026-12-31T23:59', '31 December 2026'],
   ])('settleDayOf(%s) is %s', (target, day) => {
     expect(settleDayOf(target)).toBe(day);
   });

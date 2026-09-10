@@ -14,11 +14,13 @@
  * them to the same answers.
  */
 
-export type Every = 'hour' | 'day' | 'week' | 'month' | 'year' | 'once';
+export type Every = 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year' | 'once';
 
-const RELATIVE = /^\+(\d+)([hdwmy])$/;
+// `min` before `m`: "+5min" is minutes, "+5m" is months.
+const RELATIVE = /^\+(\d+)(min|h|d|w|m|y)$/;
 
 const UNIT_TO_EVERY: Record<string, Every> = {
+  min: 'minute',
   h: 'hour',
   d: 'day',
   w: 'week',
@@ -27,6 +29,7 @@ const UNIT_TO_EVERY: Record<string, Every> = {
 };
 
 const EVERY_TO_UNIT: Record<Exclude<Every, 'once'>, string> = {
+  minute: 'min',
   hour: 'h',
   day: 'd',
   week: 'w',
@@ -62,6 +65,9 @@ export function resolveEntry(entry: string, now: Date = new Date()): string {
   const unit = m[2];
   const d = new Date(now);
   switch (unit) {
+    case 'min':
+      d.setUTCMinutes(d.getUTCMinutes() + amount);
+      return d.toISOString().slice(0, 16);
     case 'h':
       d.setUTCHours(d.getUTCHours() + amount);
       return d.toISOString().slice(0, 13);
@@ -99,7 +105,9 @@ const MONTHS = [
  *  the dialog's list promises it (docs/owner-on-the-floor.md, dialog 2). An
  *  entry in a shape the server never writes is shown as stored. */
 function absoluteInWords(raw: string): string {
-  let m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2})$/);
+  let m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (m) return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}, ${m[4]}:${m[5]} UTC`;
+  m = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2})$/);
   if (m) return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}, ${m[4]}:00 UTC`;
   m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (m) return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`;

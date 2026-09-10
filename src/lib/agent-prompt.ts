@@ -144,7 +144,7 @@ export function ownerAgentPrompt(origin: string, state: OwnerFloorState, grant: 
     '',
     'THE CALLS',
     '- New metric: POST /api/metrics { name, description, value, formula: "", marketRangeMax, timePreference: { enabled: false, halfLife: 1, customHorizons: ["2026-12"] } }',
-    '- Another date on an existing metric: PUT /api/metrics/{id} with the full customHorizons list, plus liquidityCredits for what each new market opens with. Rolling entries ("+0w", "+0m", "+1m") re-open each period; an absolute date ("2026-12", "2026-12-31") is one-shot.',
+    '- Another date on an existing metric: PUT /api/metrics/{id} with the full customHorizons list, plus liquidityCredits for what each new market opens with. Rolling entries ("+0w", "+0m", "+1m", "+5min") re-open each period; an absolute date ("2026-12", "2026-12-31") is one-shot.',
     '- Report the number: PUT /api/metrics/{id} { value, oldValue, updateNote }. This is what markets settle on, so it is the call that matters most.',
     '- Deepen a market: GET /api/predictions/markets to find its id, then POST /api/predictions/markets/{id}/liquidity { amount }.',
     '- How the market is run: PUT /api/workspaces/{id}/settings { description, subjectAbout, charter, visibility, autoFundNewMarkets, newMarketLiquidityCredits, proposalReward }.',
