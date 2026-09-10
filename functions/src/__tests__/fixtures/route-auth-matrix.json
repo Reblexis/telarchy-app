@@ -569,12 +569,12 @@
     "agent": 401,
     "master": 200
   },
-  "GET /api/data-room/": {
+  "GET /api/data-room/actions": {
     "anon": 200,
     "agent": 200,
     "master": 200
   },
-  "GET /api/data-room/actions": {
+  "GET /api/data-room/": {
     "anon": 200,
     "agent": 200,
     "master": 200
@@ -903,6 +903,16 @@
     "anon": 401,
     "agent": 404,
     "master": 404
+  },
+  "GET /api/predictions/markets/:id/forecasts": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/predictions/markets/:id/forecasts": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
   },
   "GET /api/predictions/markets/:id/liquidity-events": {
     "anon": 401,
