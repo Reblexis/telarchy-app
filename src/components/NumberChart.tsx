@@ -547,7 +547,11 @@ export function NumberChart({
                           {
                             key: 'now',
                             at: my,
-                            text: hasPair ? `${fmt(m.consensus, unit)} now` : fmt(m.consensus, unit),
+                            /* With a pair on screen this line is the market
+                             WITHOUT the proposal, and "now" was already the
+                             last logged reading in the cell beside it, 8%
+                             away (review 2026-09-10). */
+                            text: hasPair ? `${fmt(m.consensus, unit)} without it` : fmt(m.consensus, unit),
                             cls: 'nchart-now-label',
                           },
                         ]
