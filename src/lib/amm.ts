@@ -102,6 +102,25 @@ export function previewSell(prob: number, liquidity: number, direction: 'higher'
 }
 
 /**
+ * Where the market's call lands if `shares` of `direction` are sold right
+ * now: the price after those shares leave the book. The sell panel's ghost
+ * (docs/ui-conventions.md, "The price and the chart": a sale casts the same
+ * ghost as a buy). Same relative-state model as previewSell; the server's
+ * pHigher on the post-sale book is the authority (amm-parity.test.ts).
+ */
+export function previewSellPrice(
+  prob: number,
+  liquidity: number,
+  direction: 'higher' | 'lower',
+  shares: number,
+): number {
+  const b = liquidity;
+  const [q0, q1] = bookFromProb(prob, b);
+  const after: [number, number] = direction === 'higher' ? [q0, q1 - shares] : [q0 - shares, q1];
+  return 1 / (1 + Math.exp(-(after[1] - after[0]) / b));
+}
+
+/**
  * Client preview of a {targetValue, maxBudget} trade: the FULL server
  * flow, in order. (1) The buy side is decided against the live price,
  * exactly as the route does. (2) The netting close sells an opposite held

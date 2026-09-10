@@ -52,6 +52,7 @@ import {
   possessiveOf,
   priceSeriesIsInline,
   priceSeriesOf,
+  sentenceCase,
   settleInstant,
   settleNoteOf,
   timeAgoOf,
@@ -349,12 +350,29 @@ export function TradePage() {
   }, [params.number]);
   // The hash lands before the payload does, so the number waits here as the
   // selection until the proposals arrive and one of them answers to it.
+  /* A number nobody answers to (docs/ui-conventions.md, "An address that
+     names no proposal says so", 2026-09-10): the selection clears so the
+     plain floor renders, and one quiet line says which number was asked
+     for. Only once the payload is here: before that, the number is still
+     waiting. */
+  const [missingNumber, setMissingNumber] = useState<number | null>(null);
   useEffect(() => {
     if (!ws || !selectedJobId || !/^\d+$/.test(selectedJobId)) return;
+    if (ws.proposals === undefined) return;
     const wanted = Number(selectedJobId);
-    const hit = ws.proposals?.find(p => p.number === wanted);
-    if (hit) setSelectedJobId(hit.id);
+    const hit = ws.proposals.find(p => p.number === wanted);
+    if (hit) {
+      setSelectedJobId(hit.id);
+      setMissingNumber(null);
+    } else {
+      setSelectedJobId(null);
+      setMissingNumber(wanted);
+    }
   }, [ws, selectedJobId]);
+  // Picking anything real forgets the miss.
+  useEffect(() => {
+    if (selectedJobId && !/^\d+$/.test(selectedJobId)) setMissingNumber(null);
+  }, [selectedJobId]);
   // Which world the one view is showing (owner decision 2026-08-10: both
   // branches are on the page; the toggle picks which one the ticket trades,
   // and the chart draws the other as a quiet second line).
@@ -1755,6 +1773,14 @@ export function TradePage() {
                   </div>
                 </div>
               )}
+              {/* The address named a proposal that is not here (docs/ui-
+                conventions.md, "An address that names no proposal says so",
+                2026-09-10): one quiet line, and the plain floor under it. */}
+              {!selectedJob && missingNumber !== null && (
+                <p className="pubws-proposal-missing" role="status">
+                  No proposal #{missingNumber} on this floor.
+                </p>
+              )}
               {!selectedJob && (
                 <h2 className={`pubws-instrument-ask pubws-enter pubws-enter--1${flashContract ? ' is-flashed' : ''}`}>
                   What will be {ws.name ? `${possessiveOf(ws.name)} ` : ''}
@@ -1762,7 +1788,7 @@ export function TradePage() {
                     what="Metric"
                     options={metricHeads.map(m => ({
                       key: m.metricId,
-                      label: captionLabel(m.metricLabel, ws.name),
+                      label: sentenceCase(captionLabel(m.metricLabel, ws.name)),
                     }))}
                     activeKey={hero.metricId}
                     onStep={metricId => {
@@ -1829,7 +1855,7 @@ export function TradePage() {
                           was read as growth from today, or as profit after
                           the ask was paid (review 2026-09-10). */}
                         <span className="pubws-impact-what">
-                          {captionLabel(metricLabel, ws.name)} {dateQuestionOf(hero).on ? 'on ' : ''}
+                          {sentenceCase(captionLabel(metricLabel, ws.name))} {dateQuestionOf(hero).on ? 'on ' : ''}
                           {dateQuestionOf(hero).word}, approved versus declined
                         </span>
                         <p
@@ -1911,7 +1937,7 @@ export function TradePage() {
                         conditional sentence this restores was removed for
                         putting all of it in one clause ahead of any number. */}
                       <p className="pubws-proposal-q">
-                        If {branch}, what will {ws.name}'s {captionLabel(metricLabel, ws.name)} be{' '}
+                        If {branch}, what will {ws.name}'s {sentenceCase(captionLabel(metricLabel, ws.name))} be{' '}
                         {dateQuestionOf(hero).on ? 'on ' : ''}
                         {dateQuestionOf(hero).word}?
                       </p>

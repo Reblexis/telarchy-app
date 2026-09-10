@@ -155,13 +155,14 @@ describe('the definition editor edits the market on screen', () => {
   test('saving under the nearer clock writes ITS metric, not the hero metric', async () => {
     const { container } = renderFloor();
     // The headline is the furthest-resolving market (the year).
-    await waitFor(() => expect(caption(container)).toContain('Net 2026'));
+    // Sentence case mid-question (2026-09-10): the stored "Net 2026" reads "net 2026".
+    await waitFor(() => expect(caption(container)).toContain('net 2026'));
     // The manager's Edit button appears once the profile answers admin.
     await waitFor(() => expect(defSection(container).getByRole('button', { name: 'Edit' })).toBeTruthy());
 
     // Step to the week market and confirm it is the one on screen.
     stepMetric(container);
-    await waitFor(() => expect(caption(container)).toContain('Signups this week'));
+    await waitFor(() => expect(caption(container)).toContain('signups this week'));
 
     fireEvent.click(defSection(container).getByRole('button', { name: 'Edit' }));
     const box = container.querySelector('.pubws-know-edit-text') as HTMLTextAreaElement;
@@ -193,7 +194,7 @@ describe('the definition editor edits the market on screen', () => {
     ws.horizonHistories[1].description = 'Counts **net** revenue.\nRefunds subtract.\n- Steam\n- direct';
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(caption(container)).toContain('Net 2026'));
+    await waitFor(() => expect(caption(container)).toContain('net 2026'));
 
     const what = container.querySelector('.pubws-know-what')!;
     expect(what.querySelector('strong')?.textContent).toBe('net');
@@ -210,11 +211,11 @@ describe('the definition editor edits the market on screen', () => {
     ws.horizonHistories = [ws.horizonHistories[1]];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(caption(container)).toContain('Net 2026'));
+    await waitFor(() => expect(caption(container)).toContain('net 2026'));
     expect(defSection(container).getByText('The year definition.')).toBeTruthy();
 
     stepMetric(container);
-    await waitFor(() => expect(caption(container)).toContain('Signups this week'));
+    await waitFor(() => expect(caption(container)).toContain('signups this week'));
     expect(defSection(container).queryByText('The year definition.')).toBeNull();
   });
 });

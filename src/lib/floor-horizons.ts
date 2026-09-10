@@ -498,6 +498,28 @@ export function priceSeriesOf(
  * keeps its name), and never strips a prefix that is really the start of a
  * longer word ("LookPilotter"), which is why the boundary is checked.
  */
+/**
+ * A stored metric name as it reads INSIDE a sentence (docs/ui-conventions.md,
+ * "The question line": "The metric word reads in sentence case"). The
+ * stored name is a label and may be capitalised; mid-sentence it keeps its
+ * capital only when its first word is an acronym ("DAU", "MRR growth") or a
+ * proper noun ("Steam reviews"). The heuristic: a first word that is all
+ * capitals is an acronym; a first word whose second letter is lowercase and
+ * that names a known thing is a proper noun, which we cannot know, so the
+ * rule is: lowercase the first letter unless the word is all-caps, or the
+ * word appears elsewhere in the label capitalised the same way (a product
+ * name repeated), or it is in the short proper-noun list below.
+ */
+const PROPER_FIRST_WORDS = new Set(['Steam', 'Manifold', 'GitHub', 'Discord', 'Google', 'Apple', 'Kalshi', 'Telarchy']);
+export function sentenceCase(label: string): string {
+  if (!label) return label;
+  const first = label.split(/\s+/)[0] ?? '';
+  const bare = first.replace(/[^A-Za-z]/g, '');
+  if (bare.length > 1 && bare === bare.toUpperCase()) return label;
+  if (PROPER_FIRST_WORDS.has(bare)) return label;
+  return label.charAt(0).toLowerCase() + label.slice(1);
+}
+
 export function captionLabel(metricLabel: string, workspaceName: string | null | undefined): string {
   const name = (workspaceName ?? '').trim();
   if (!name) return metricLabel;
