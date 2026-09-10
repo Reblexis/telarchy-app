@@ -8448,714 +8448,291 @@ textarea.jobform-line--desc {
   box-shadow: 0 0 0 3px var(--higher-soft);
 }
 
-/* ---- The strip ------------------------------------------------------ */
-/* One tile per number a reader came for: the figure, the seven-day change,
-   and the same series drawn small. Every value is one the page publishes
-   further down, and the tile links to where it is drawn full size. */
-
-.dr-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  /* The separators are the grid's own gaps showing through, so a hairline
-     never lands on the outside edge of a wrapped row. */
-  gap: 1px;
-  background: var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.dr-tile {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 1.05rem 1.1rem 0.9rem;
-  background: var(--bg-primary);
-  color: inherit;
-  text-decoration: none;
-  transition: background var(--transition-fast);
-}
-
-.dr-tile:hover { background: var(--bg-secondary); }
-.dr-tile:hover .dr-tile-label { color: var(--accent); }
-
-.dr-tile-label {
-  /* Two lines' worth whether or not the name needs them, so every figure in
-     the strip sits on the same line as the ones beside it. */
-  line-height: 1.25;
-  min-height: 2.5em;
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-tertiary);
-  transition: color var(--transition-fast);
-}
-
-.dr-tile-row { display: flex; align-items: baseline; gap: 0.55rem; }
-
-.dr-tile-n {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  font-size: 1.75rem;
-  line-height: 1;
-}
-
-/* Green and red as direction only, which is what a change is. */
-.dr-tile-delta {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-tertiary);
-}
-
-.dr-tile-delta.is-up { color: var(--higher); }
-.dr-tile-delta.is-down { color: var(--lower); }
-
-.dr-tile-delta em {
-  font-style: normal;
-  font-weight: 400;
-  color: var(--text-tertiary);
-  margin-left: 0.35rem;
-}
-
-/* ---- The ticker ----------------------------------------------------- */
-/* The dated things the owner did, newest first, on one line. A desk's first
-   question about a moving number is what happened to it. */
-
-.dr-ticker {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  padding: 0.55rem 0;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.74rem;
-  overflow: hidden;
-}
-
-.dr-ticker-head {
-  flex: none;
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--accent);
-}
-
-.dr-ticker-run {
-  display: flex;
-  gap: 1.4rem;
-  overflow-x: auto;
-  white-space: nowrap;
-  scrollbar-width: none;
-  /* The run continues past the edge, and the fade says so rather than
-     cutting a word in half at full opacity. */
-  mask-image: linear-gradient(to right, #000 90%, transparent 100%);
-}
-
-.dr-ticker-run::-webkit-scrollbar { display: none; }
-
-.dr-ticker-item { color: var(--text-secondary); }
-
-.dr-ticker-day {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
-  margin-right: 0.45rem;
-}
-
 .dr-stamp-link { color: var(--text-tertiary); text-decoration: underline; }
 .dr-stamp-link:hover { color: var(--text-primary); }
 
-/* The index. A row of quiet links that sticks under the top bar, because a
-   document with nine sections needs a way back up and a sidebar is the
-   thing that was deleted. */
-.dr-index {
-  position: sticky;
-  top: 0;
-  z-index: 5;
+/* ---- The filter bar -------------------------------------------------- */
+/* One row: a chip per kind that toggles, the floor select, and the
+   participant chip when one is set. Every change rewrites the URL's query
+   (docs/data-room.md, "The page"): the page never holds a filter the URL
+   does not show. */
+
+.dr-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 1.1rem;
-  margin: 0 0 2.75rem;
-  padding: 0.65rem 0;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-primary);
-}
-
-.dr-index-link {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--text-tertiary);
-  text-decoration: none;
-  transition: color var(--transition-fast);
-}
-
-.dr-index-link:hover { color: var(--text-primary); }
-.dr-index-link.is-active {
-  color: var(--accent);
-  box-shadow: inset 0 -1px 0 0 var(--accent);
-}
-
-.dr-section { margin-bottom: 3.5rem; scroll-margin-top: 4.5rem; }
-
-/* A section heading on the desk is a rule with a label on it, in the mono
-   register every other label here uses. */
-.dr-section > .pubws-h2 {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.13em;
-  color: var(--accent);
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border-strong);
-}
-
-/* A section that draws something reads as a desk panel: what it is on the
-   left, the drawings on the right, so a paragraph stays a paragraph beside a
-   full-width chart. A section with no drawings keeps the column. */
-@media (min-width: 1000px) {
-  .dr-section.has-drawings {
-    display: grid;
-    grid-template-columns: 20rem minmax(0, 1fr);
-    column-gap: 3rem;
-  }
-
-  .dr-section.has-drawings > .pubws-h2 { grid-column: 1 / -1; }
-
-  .dr-section.has-drawings > .dr-prose {
-    position: sticky;
-    top: 3.6rem;
-    align-self: start;
-  }
-
-  /* Every block belongs in the drawings column: auto-placement would put the
-     second one back under the prose. */
-  .dr-section.has-drawings > .dr-block { grid-column: 2; }
-  .dr-section.has-drawings > .dr-prose { grid-column: 1; }
-  .dr-section.has-drawings > .dr-block:first-of-type { margin-top: 0; }
-}
-
-.dr-prose { max-width: 42rem; }
-
-.dr-prose p {
-  margin: 0 0 0.9rem;
-  font-size: 0.9rem;
-  line-height: 1.65;
-  color: var(--text-secondary);
-}
-
-.dr-prose p:last-child { margin-bottom: 0; }
-
-.dr-code, .dr-note code {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.82em;
-  color: var(--text-primary);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xs);
-  padding: 0.05em 0.3em;
-}
-
-.dr-block { margin: 1.6rem 0 0; }
-
-.dr-note {
-  margin: 0.9rem 0 0;
-  font-size: 0.78rem;
-  line-height: 1.55;
-  color: var(--text-tertiary);
-}
-
-.dr-note a { color: var(--accent); }
-
-.dr-err { color: var(--error-text); font-size: 0.85rem; text-align: center; }
-.dr-empty { color: var(--text-tertiary); font-size: 0.9rem; }
-
-/* The glance. Wraps rather than shrinking: the numerals are the reason a
-   section is worth stopping on. */
-.dr-figures {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem 2.5rem;
-  padding: 1.2rem 0;
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.dr-fig { display: flex; flex-direction: column; gap: 0.15rem; }
-
-.dr-fig-n {
-  font-family: 'JetBrains Mono', monospace;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  font-size: 1.6rem;
-  line-height: 1.05;
-}
-
-.dr-fig-l {
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-tertiary);
-}
-
-.dr-fig-note { font-size: 0.7rem; color: var(--text-tertiary); }
-
-.dr-list { list-style: none; margin: 1.2rem 0 0; padding: 0; }
-.dr-list li { border-top: 1px solid var(--border-color); }
-.dr-list li:last-child { border-bottom: 1px solid var(--border-color); }
-
-.dr-row {
-  position: relative;
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  padding: 0.55rem 0;
-  font-size: 0.85rem;
-}
-
-/* The amber rule behind a count, scaled to the largest row: which of these
-   is big, answered without a second chart. */
-.dr-bar {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  background: var(--accent);
-  opacity: 0.6;
-  z-index: 0;
-}
-
-.dr-left { position: relative; flex: 1; color: var(--text-secondary); }
-
-.dr-value {
-  position: relative;
-  font-family: 'JetBrains Mono', monospace;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-/* The chain that ends in the floor's metric. Counts on hairlines with the step
-   between them spelled out: a funnel from thousands of loads to single-digit
-   traders needs a log axis to show as bars, and a log axis on a funnel
-   flatters it. Replaced the market block on 2026-08-31 (docs/data-room.md). */
-.dr-funnel {
-  list-style: none;
-  margin: 1.3rem 0 0;
-  padding: 0;
-  border-top: 1px solid var(--border-color);
-}
-
-.dr-funnel li {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: baseline;
-  gap: 0.4rem 1rem;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.dr-funnel-n {
-  font-family: 'JetBrains Mono', monospace;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  font-size: 1.5rem;
-  min-width: 4.6rem;
-}
-
-.dr-funnel li:last-child .dr-funnel-n { color: var(--accent); }
-
-.dr-funnel-t {
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-  line-height: 1.5;
-}
-
-.dr-funnel-t em {
-  display: block;
-  font-style: normal;
-  color: var(--text-tertiary);
-  font-size: 0.76rem;
-}
-
-.dr-funnel-s {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
-  color: var(--accent);
-  white-space: nowrap;
-}
-
-@media (max-width: 520px) {
-  .dr-funnel li { grid-template-columns: auto 1fr; }
-  .dr-funnel-s { grid-column: 2; text-align: left; }
-}
-
-.dr-chart { margin: 1.4rem 0 0; }
-
-.dr-chart-svg {
-  display: block;
-  width: 100%;
-  height: 130px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.dr-chart-bar { fill: var(--accent); opacity: 0.75; }
-
-.dr-line { fill: none; stroke: var(--accent); stroke-width: 2; }
-.dr-line-fill { fill: var(--accent-soft); stroke: none; }
-
-.dr-chart-cap {
-  display: flex;
+  align-items: center;
   justify-content: space-between;
-  margin-top: 0.4rem;
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
+  gap: 0.6rem 1.5rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.dr-chart-max { font-family: 'JetBrains Mono', monospace; }
+.dr-kinds { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 
-/* ---- The data room's one chart -------------------------------------- */
-/* docs/data-room.md, "How the page draws things". Every published series goes
-   through TimeChart so they read as one instrument: one grid, one date axis,
-   one crosshair, one tooltip. Ink for the first series, the accent for the
-   second, and identity is never colour alone (the legend names them). */
-
-.tchart { margin: 0.9rem 0 0; position: relative; }
-
-.tchart-svg {
-  display: block;
-  width: 100%;
-  touch-action: pan-y;
-  /* The instrument's own surface: a chart is a real interactive thing, so it
-     gets a panel where a list gets a hairline. No radius, no shadow. */
-  background: var(--graph-bg);
-  border: 1px solid var(--border-color);
-}
-
-/* A spark is the same chart with its axes off (docs/data-room.md). It is
-   small, so it is drawn in the accent and it carries no frame. */
-.tchart--spark { margin: 0; }
-.tchart--spark .tchart-svg { background: none; border: none; }
-.tchart--spark .tchart-series.is-s0 .tchart-line { stroke: var(--accent); stroke-width: 2; }
-.tchart--spark .tchart-series.is-s0 .tchart-area { fill: color-mix(in srgb, var(--accent) 24%, transparent); }
-/* The one dot a spark carries is the reading the figure beside it is. */
-.tchart--spark .tchart-series.is-s0 .tchart-dot { fill: var(--accent); }
-.tchart--spark .tchart-cursor line { stroke: var(--accent); opacity: 0.5; }
-.tchart--spark .tchart-tip { margin-top: 0.1rem; font-size: 0.64rem; min-height: 1rem; }
-
-.tchart-grid { stroke: var(--border-color); stroke-width: 1; }
-
-.tchart-ylabel,
-.tchart-xlabel {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  fill: var(--text-tertiary);
-}
-
-/* Series one is the reading, in ink; series two is the accent; a third and a
-   fourth step down in weight rather than reaching for new hues, because this
-   page prices one thing at a time and a rainbow would be decoration. */
-.tchart-series .tchart-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.tchart-series.is-s0 .tchart-line { stroke: var(--text-primary); }
-.tchart-series.is-s1 .tchart-line { stroke: var(--accent); }
-.tchart-series.is-s2 .tchart-line { stroke: var(--text-tertiary); stroke-dasharray: 5 3; }
-.tchart-series.is-s0 .tchart-dot { fill: var(--text-primary); }
-.tchart-series.is-s1 .tchart-dot { fill: var(--accent); }
-.tchart-series.is-s2 .tchart-dot { fill: var(--text-tertiary); }
-/* An area is a wash under its own line, not a slab of another colour: a
-   filled block in a third grey reads as a panel behind the chart. */
-.tchart-series.is-s0 .tchart-area { fill: color-mix(in srgb, var(--text-primary) 8%, transparent); }
-.tchart-series.is-s1 .tchart-area { fill: var(--accent-soft); }
-.tchart-series.is-s2 .tchart-area { fill: color-mix(in srgb, var(--text-tertiary) 8%, transparent); }
-
-.tchart-bars.is-s0 rect { fill: var(--text-primary); opacity: 0.75; }
-.tchart-bars.is-s1 rect { fill: var(--accent); opacity: 0.8; }
-.tchart-bars.is-s2 rect { fill: var(--border-strong); }
-
-/* The dated things the owner did: a tick on the day, numbered against the
-   list the page prints beneath. Never a figure (docs/data-room.md). */
-.tchart-event-rule { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 2 3; }
-.tchart-event-dot { fill: var(--accent); }
-.tchart-event-num { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; fill: var(--button-text); }
-
-.tchart-cursor line { stroke: var(--text-primary); stroke-width: 1; opacity: 0.35; }
-.tchart-cursor-dot { fill: var(--bg-primary); stroke: var(--text-primary); stroke-width: 2; }
-
-/* The panel the pointer answers with. It sits under the chart rather than
-   floating over it: a tooltip that covers the line hides the thing it is
-   describing, and on a phone there is no pointer to move away. */
-.tchart-tip {
+.dr-filters-right {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem 0.9rem;
-  min-height: 1.4rem;
-  margin-top: 0.3rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  color: var(--text-secondary);
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
-.tchart-tip-day { color: var(--text-primary); font-weight: 600; }
-.tchart-tip-event { color: var(--accent); }
-
-.tchart-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem 1rem;
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
-}
-
-.tchart-legend-item { display: inline-flex; align-items: center; gap: 0.35rem; }
-
-.tchart-swatch { width: 10px; height: 3px; border-radius: 2px; background: var(--text-primary); }
-.tchart-swatch.is-s1 { background: var(--accent); }
-.tchart-swatch.is-s2 { background: var(--text-tertiary); }
-
-.tchart-cap {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 0.3rem;
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
-  text-align: left;
-}
-
-/* The outreach list: one square per person, shaded by how far they have got
-   (docs/data-room.md, "What is scheduled"). Nobody is named. */
-.dr-stages {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 0.9rem;
-}
-
-.dr-stage-cell {
-  display: block;
-  width: 15px;
-  height: 15px;
-  background: var(--accent);
-}
-
-.dr-stage-key {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 1rem;
-  margin-top: 0.9rem;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  color: var(--text-tertiary);
-}
-
-.dr-stage-key-item { display: inline-flex; align-items: center; gap: 0.4rem; }
-.dr-stage-key-item .dr-stage-cell { width: 9px; height: 9px; }
-
-/* ---- The readings: the line, then the eight weekly numbers ---------- */
-/* docs/data-room.md, "The base rates are every weekly reading". The numbers
-   stay printed under the line because a shape is not a base rate, and a week
-   nobody measured prints a dash rather than the week before's value. */
-
-.dr-rate + .dr-rate { margin-top: 2.6rem; }
-
-.dr-rate-name {
-  margin: 0 0 0.5rem;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.dr-rate-vals {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
+.dr-chip {
+  display: inline-flex;
+  align-items: center;
   gap: 0.4rem;
-  margin-top: 0.55rem;
+  padding: 0.28rem 0.6rem 0.28rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
   font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.8rem;
-  text-align: center;
-}
-
-.dr-rate-vals span { color: var(--text-primary); }
-.dr-rate-vals .is-unread { color: var(--text-tertiary); }
-
-.dr-rate-cap {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 0.3rem;
-  font-size: 0.66rem;
-  color: var(--text-tertiary);
-}
-
-.dr-rate-cap span:nth-child(1),
-.dr-rate-cap span:nth-child(3) { font-family: var(--font-mono); flex: none; }
-
-@media (max-width: 560px) {
-  .dr-rate-cap span:nth-child(2) { display: none; }
-}
-
-/* ---- The window: the rows behind the next reading ------------------- */
-/* docs/data-room.md. Every block here draws one mark per row, because the
-   count it replaced threw the tail away. Section labels inside a section, so
-   four drawings can sit under one heading without four headings. */
-
-.dr-h3 {
-  margin: 2rem 0 0;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-tertiary);
-}
-
-.rchart { margin: 0.7rem 0 0; }
-
-.rchart-svg {
-  display: block;
-  width: 100%;
-  height: 190px;
-}
-
-.rchart-bar { fill: var(--accent); }
-/* Green and red speak only as direction (docs/ui-conventions.md), which is
-   what a profit column is; the spend column has no direction and stays amber. */
-.rchart--signed .rchart-bar.is-up { fill: var(--higher); }
-.rchart--signed .rchart-bar.is-down { fill: var(--lower); }
-
-.rchart-zero { stroke: var(--border-strong); stroke-width: 1; }
-
-/* The line that decides the count, in the accent, so a reader can see who is
-   over it without being told how many are. */
-.rchart-threshold { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 3; }
-
-.rchart-cap {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 0.4rem;
   font-size: 0.68rem;
-  color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
 
-.rchart-line { font-family: 'JetBrains Mono', monospace; color: var(--accent); }
+.dr-chip:hover { border-color: var(--text-tertiary); color: var(--text-primary); }
 
-/* Every value taller than the axis, printed in full: a capped axis that
-   swallowed the biggest trader would be the summary this block replaced. */
-.rchart-over {
-  margin: 0.5rem 0 0;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  line-height: 1.5;
-  color: var(--text-tertiary);
-  text-align: left;
+.dr-chip.is-on {
+  border-color: var(--kind, var(--accent));
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--kind, var(--accent)) 14%, transparent);
 }
 
-/* The hovered bar in a rank chart: the same "the pointer answers" idiom the
-   time chart uses, so a reader who has hovered one has learned the other. */
-.rchart-bar.is-on { fill: var(--text-primary); }
-.rchart--signed .rchart-bar.is-on { fill: var(--text-primary); }
+.dr-chip-x { margin-left: 0.15rem; color: var(--text-tertiary); }
+.dr-chip:hover .dr-chip-x { color: var(--text-primary); }
 
-/* The panel's slot is reserved whether or not the pointer is in the chart, so
-   hovering never pushes the page around under the cursor. */
-.tchart-tip-slot { min-height: 1.4rem; }
-.tchart-tip-over { color: var(--higher); }
+/* The kind's colour, as a dot beside its name. The name is always there
+   (chip, row, tooltip), so nothing is encoded by colour alone. */
+.dr-kind-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--kind, var(--text-tertiary));
+}
 
-/* The index, grouped by part (docs/data-room.md, "One page, three parts"). */
-.dr-index-group { display: inline-flex; align-items: baseline; gap: 0.25rem 1.1rem; flex-wrap: wrap; }
+.dr-chip:not(.is-on) .dr-kind-dot { opacity: 0.55; }
 
-.dr-index-part {
-  font-family: 'JetBrains Mono', monospace;
+.dr-chip--trade, .dr-row--trade { --kind: var(--accent); }
+.dr-chip--proposal, .dr-row--proposal { --kind: #7aa2f7; }
+.dr-chip--decision, .dr-row--decision { --kind: #c084fc; }
+.dr-chip--delivery, .dr-row--delivery { --kind: var(--higher); }
+.dr-chip--comment, .dr-row--comment { --kind: #9aa4b2; }
+.dr-chip--announcement, .dr-row--announcement { --kind: #e9d8a6; }
+.dr-chip--reading, .dr-row--reading { --kind: #5ec8d8; }
+.dr-chip--metric, .dr-row--metric { --kind: #3aa6b9; }
+.dr-chip--market, .dr-row--market { --kind: #d8d8d8; }
+.dr-chip--liquidity, .dr-row--liquidity { --kind: #f28c6a; }
+.dr-chip--join, .dr-row--join { --kind: #9ece6a; }
+.dr-chip--link, .dr-row--link { --kind: #7dcfb6; }
+.dr-chip--workspace, .dr-row--workspace { --kind: #ff9e64; }
+.dr-chip--who { --kind: var(--text-primary); }
+
+.dr-select-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-mono);
   font-size: 0.62rem;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--text-primary);
-}
-
-/* A dated hairline list: the day, the row, and what state it is in. */
-.dr-when { list-style: none; margin: 0.8rem 0 0; padding: 0; border-top: 1px solid var(--border-color); }
-
-.dr-when-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.9rem;
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.85rem;
-}
-
-.dr-when-day {
-  flex: none;
-  width: 5.2rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
+  letter-spacing: 0.1em;
   color: var(--text-tertiary);
 }
 
-.dr-when-main { flex: 1; color: var(--text-secondary); line-height: 1.45; text-align: left; }
-
-.dr-when-right {
-  flex: none;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.74rem;
-  color: var(--text-tertiary);
-}
-
-@media (max-width: 560px) {
-  .dr-when-day { width: 4.2rem; }
-}
-
-/* The change log. A date column in mono so the days line up, and the
-   subject exactly as it was committed. */
-.dr-log { list-style: none; margin: 1.4rem 0 0; padding: 0; }
-
-.dr-log-row {
-  display: flex;
-  gap: 0.9rem;
-  padding: 0.45rem 0;
-  border-top: 1px solid var(--border-color);
-  font-size: 0.82rem;
-}
-
-.dr-log-row:last-child { border-bottom: 1px solid var(--border-color); }
-
-.dr-log-day {
-  flex: none;
-  width: 4.2rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  color: var(--text-tertiary);
-  padding-top: 0.1rem;
-}
-
-.dr-log-what { color: var(--text-secondary); line-height: 1.45; }
-
-@media (max-width: 560px) {
-  .dr-index { gap: 0.2rem 0.8rem; }
-  .dr-log-day { width: 3.4rem; }
-  /* The index wraps to four or five lines on a phone, so an anchor jump has
-     to clear more of it or the section label lands underneath. */
-  .dr-section { scroll-margin-top: 8rem; }
-}
-
-/* "Show all N": a text button in the meta register, because the log is the
-   longest thing on the page and most readers want the recent end of it. */
-.dr-more {
-  margin-top: 0.9rem;
-  padding: 0;
-  border: none;
-  background: none;
+.dr-select {
   font: inherit;
-  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 0.28rem 1.6rem 0.28rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: transparent
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E")
+    no-repeat right 0.6rem center;
+  color: var(--text-primary);
+  appearance: none;
+  cursor: pointer;
+}
+
+.dr-select:hover { border-color: var(--text-tertiary); }
+.dr-select option { background: var(--bg-secondary); color: var(--text-primary); }
+
+.dr-clear {
+  border: 0;
+  background: none;
+  padding: 0.25rem 0.2rem;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.1em;
   color: var(--accent);
   cursor: pointer;
 }
 
-.dr-more:hover { color: var(--accent-hover); }
+.dr-clear:hover { color: var(--accent-hover); }
+
+/* ---- The log --------------------------------------------------------- */
+/* Grouped by UTC day under a sticky rule. A row is the time, the kind, the
+   actor, the sentence, and the floor; the sentence is the link to the
+   thing, the actor and the floor are filters. */
+
+.dr-log { min-height: 40vh; }
+
+.dr-err, .dr-empty {
+  margin: 3rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+
+.dr-err { color: var(--error-text); }
+
+.dr-day { margin: 0; }
+
+.dr-day-rule {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 1.1rem 0 0.45rem;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+
+.dr-rows { list-style: none; margin: 0; padding: 0; }
+
+.dr-row {
+  display: grid;
+  grid-template-columns: 3.2rem 8.5rem minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.86rem;
+  line-height: 1.45;
+  transition: background var(--transition-fast);
+}
+
+.dr-row:hover { background: var(--bg-secondary); }
+
+/* A row the minute's poll brought in, until the pointer moves. */
+.dr-row.is-new { background: color-mix(in srgb, var(--kind, var(--accent)) 9%, transparent); }
+
+.dr-row-time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+}
+
+.dr-row-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.dr-row-kind-label { overflow: hidden; text-overflow: ellipsis; }
+
+.dr-row-body { min-width: 0; overflow-wrap: anywhere; }
+
+.dr-row-who {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin-right: 0.45rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.dr-row-who:hover { color: var(--accent); }
+
+.dr-row-text { color: var(--text-secondary); text-decoration: none; }
+.dr-row-text:hover { color: var(--text-primary); text-decoration: underline; text-decoration-color: var(--border-color); }
+
+.dr-row-floor {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dr-row-floor:hover { color: var(--accent); }
+
+@media (max-width: 768px) {
+  .dr-row {
+    grid-template-columns: 3.2rem minmax(0, 1fr) auto;
+    grid-template-areas:
+      'time kind floor'
+      'time body body';
+    row-gap: 0.15rem;
+  }
+  .dr-row-time { grid-area: time; }
+  .dr-row-kind { grid-area: kind; }
+  .dr-row-body { grid-area: body; }
+  .dr-row-floor { grid-area: floor; }
+  .dr-filters-right { margin-left: 0; }
+}
+
+/* ---- The foot -------------------------------------------------------- */
+
+.dr-foot {
+  display: flex;
+  justify-content: center;
+  padding: 1.6rem 0 0;
+}
+
+.dr-more {
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: none;
+  padding: 0.45rem 1.4rem;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.dr-more:hover { border-color: var(--accent); }
+.dr-more:disabled { color: var(--text-tertiary); cursor: default; }
+
+.dr-end {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+}
 
 
 /* ------------------------------------------------------------------ */

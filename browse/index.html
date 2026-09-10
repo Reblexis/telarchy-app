@@ -157,21 +157,13 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><details><summary><a class="file" href="#file--docs-data-room-md">docs/data-room.md</a></summary>
 <ul>
 <li><a href="#docs-data-room-md--h1">The data room</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h2">It is the platform&#x27;s own books, not a pitch</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h3">One page, three parts</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h4">The desk: the strip, the ticker, and the dark</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h5">Prose is the source, and prose carries no numbers</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h6">The funnel is the chain that ends in the metric</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h7">The window is the rows behind the next reading</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h8">The base rates are every weekly reading</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h9">What is scheduled</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h10">How the page draws things</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h11">Every number comes from the database that serves the site</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h12">Traffic, and what is deliberately not published</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h13">Otto browses it; it is not in his context</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h14">The change log is the git history</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h15">Rules for changing this page</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h16">What moved it</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h2">What an action is</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h3">A row</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h4">Filtering</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h5">The feed</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h6">Otto and the brief</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h7">The page</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h8">Rules for changing this page</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-formulas-md">docs/formulas.md</a></summary>
@@ -830,7 +822,7 @@ the top.</p>
 </tr>
 <tr>
 <td><code>data-room.md</code></td>
-<td>The public data room: what telarchy.com publishes about itself</td>
+<td>The data room: the public actions log and its feed</td>
 </tr>
 <tr>
 <td><code>metrics.md</code></td>
@@ -1780,348 +1772,258 @@ A: You do. The market gives you the number.</p>
 <section class="docfile" id="file--docs-data-room-md">
 <p class="filelabel">docs/data-room.md</p>
 <h1 id="docs-data-room-md--h1">The data room</h1>
-<p><code>telarchy.com/data-room</code> publishes Telarchy's own books: what the platform is
-for, what it has actually done, how many people came, what shipped, and what is
-planned. History: notes/decisions/data-room.md.</p>
-<p>It has two readers and no third.</p>
-<ol>
-<li><strong>A forecaster pricing the Telarchy floor.</strong> The Telarchy workspace runs the
-platform on itself and one market prices its weekly pulse. A market on a
-number nobody can inspect is a coin flip, so every number that market settles
-against is published here with the route that produces it.</li>
-<li><strong>Anyone deciding whether to build on Telarchy, buy it, or fund it.</strong> They
-get the same page the forecaster gets. There is no second version with better
-numbers.</li>
-</ol>
-<h2 id="docs-data-room-md--h2">It is the platform's own books, not a pitch</h2>
-<p>Nothing on the page argues a position and nothing restates what the market
-currently forecasts. <strong>That includes the platform's own market</strong> (owner ask
-2026-08-31): the <code>market</code> block printed the floor's call, the reading it
-settles against and its settle date, which is the rule's own violation sitting
-inside the document the rule governs. It is gone, and <code>funnel</code> took its place
-in the running order.</p>
-<p>The rule is not squeamishness about prices. A reader arrives here from the
-floor already holding the price; spending the page's best space on it buys
-them nothing, and it makes the page a mirror of a number it does not control.
-What a reader cannot get anywhere else is the chain that produces the metric
-and the events that moved it, so that is what the page is: who is here, what
-brings them, what has happened, and what it cost. The traffic section publishes numbers that are small,
-because that is the point: the floor's charter already promises &quot;this number is
-small today, and early weeks near zero mean nobody showed up yet&quot;, and a data
-room that only publishes flattering figures makes the charter a lie.</p>
-<p>The page is a desk: the site's dark palette, whatever the visitor's theme, a
-wide column, dense mono labels, hairlines instead of cards, and hand-rolled
-inline SVG for every drawing. It is the one page on the site that fixes its own
-palette, because it is the one page that is an instrument rather than a
-document about the product. Everything else is the floor's language
-(<code>docs/ui-conventions.md</code>): a sticky section index, tiny uppercase labels, one
-accent. It is not an app shell and it has no sidebar.</p>
-<h2 id="docs-data-room-md--h3">One page, three parts</h2>
-<p><strong>It stays one URL.</strong> The page's whole claim is that a visitor can fetch the
-same thing it renders and check it, and that a forecaster gets the chain in
-one read. Five pages make that five requests, break every link into it, and
-give an owner five places to keep in step. So <code>telarchy.com/data-room</code> remains
-one document.</p>
-<p>What it gains instead is an ORDER, and the order is the reader's questions
-rather than the order the sections were written in:</p>
-<ol>
-<li><strong>The numbers</strong> - what is priced, what each one has done, what moved them,
-what is scheduled, and the rows behind the next reading. A forecaster
-arrives for this and should not have to scroll past the company's history
-to reach it.</li>
-<li><strong>The place</strong> - who is here, how busy it is, where they came from, what
-has been proposed and what has shipped. Evidence about whether the numbers
-above are going anywhere.</li>
-<li><strong>The plan</strong> - what is intended, what could go wrong, and how to check
-every figure on the page.</li>
-</ol>
-<p>A section names its part with a <code>part:</code> directive, the same way it names its
-figures with <code>block:</code>, so the shape is in the prose beside the prose. An
-unknown part name throws at load, exactly as an unknown block does. The
-sticky index groups the sections under their part, so the page navigates like
-three pages without becoming three.</p>
-<h2 id="docs-data-room-md--h4">The desk: the strip, the ticker, and the dark</h2>
-<p>Above the first section the page carries a STRIP: one tile per number a reader
-came for, each with the figure, the change over the trailing seven days, and
-the same series drawn small. The tiles are the priced metrics in the order the
-floor prices them, then trades this week, then accounts. A tile is not a
-new figure: every value in it is one the page already publishes further down,
-and the strip exists so a reader who came for one number does not scroll for
-it.</p>
-<p>Each tile's series is the one its own figure counts: a priced metric's daily
-readings, the trailing seven-day sum of trades, the running total of accounts.
-The last two are windows over daily rows the page publishes further down, not
-new measurements.</p>
-<p><strong>The running total of accounts ends on the published figure.</strong> Signups are
-kept for sixty days and accounts predate that, so a total counted up from the
-first signup in the window would end below the accounts figure printed beside
-it. It is counted DOWN from that figure instead: the total on a day is the
-accounts today minus every signup after it. The chart in the place section is
-the same series, so the page draws one line for one number.</p>
-<p><strong>The change is arithmetic on two published readings, and it is labelled as
-one.</strong> A tile prints the difference between the newest reading and the reading
-that stood seven days before it, over the label <code>7d</code>. A metric with no reading
-that far back prints no change rather than one measured against whatever the
-first reading happens to be. This is the one derived figure on the page, it is
-recomputed by anybody from the readings beside it, and it is not a summary
-standing in for data the page then withholds.</p>
-<p><strong>A tile's drawing is the same drawing, small.</strong> It is a <code>TimeChart</code>, so it
-answers the pointer exactly as the full-size chart does; it drops the axes and
-the event marks because a 40px band has no room for them, and never the
-crosshair. Clicking a tile goes to the section where the same series is drawn
-full size.</p>
-<p>Under the strip runs the TICKER: the dated things the owner did, newest first,
-on one line. It is the <code>events</code> rows and nothing else, and it is there because
-a desk's first question about a moving number is what happened to it. An empty
-record draws no ticker.</p>
-<h2 id="docs-data-room-md--h5">Prose is the source, and prose carries no numbers</h2>
-<p>The document lives as markdown in <code>functions/src/content/data-room.ts</code> and ships
-verbatim. Each <code>## </code> heading becomes a section and an index entry, in source
-order, so adding a section is one edit to that string and nothing else.</p>
-<p>It is a TypeScript module rather than a <code>.md</code> file because the API serves it and
-the runtime image contains only what <code>tsc</code> emits from <code>functions/src</code>. Legal
-documents are carried the same way, for the same reason.</p>
-<p><strong>A number is never typed into the prose.</strong> A fenced <code>block:name</code> directive
-marks where machine-derived evidence is slotted in, and an unknown
-block name throws at module load rather than rendering a hole. Known blocks:
-<code>pulse</code>, <code>funnel</code>, <code>traction</code>, <code>contracts</code>, <code>traffic</code>, <code>shipping</code>. Because the
-prose never restates a figure a block already carries, the document and the data
-cannot disagree.</p>
-<h2 id="docs-data-room-md--h6">The funnel is the chain that ends in the metric</h2>
-<p>The floor's metric is weekly active verified traders, and every one of them
-came through the same four steps: a page load, an account, a Manifold profile
-claimed, a hundred credits traded in seven days. <code>funnel</code> publishes all four
-with the conversion between them, from counts the page already carries, so no
-step can be quoted without the step above it.</p>
-<p><strong>The conversions are printed, not drawn.</strong> A funnel from thousands of loads to
-single-digit traders needs a log axis to be visible as bars, and a log axis on
-a funnel flatters it. Four numbers on hairlines with the percentage beside each
-is the honest drawing.</p>
-<p><strong>The loads figure is not a cohort.</strong> It counts what the visit rollup holds,
-which starts on the date the rollup started, while accounts predate it. The
-page says so where the number appears rather than implying that 36 accounts
-came out of exactly those loads.</p>
-<h2 id="docs-data-room-md--h7">The window is the rows behind the next reading</h2>
-<p>Every priced number counts a trailing window, so part of its next reading is
-already fixed by rows that exist today. <code>window</code> publishes those rows, one
-unit at a time, and never a count of them: a reader who wants the summary can
-see it in the shape of the data, and a reader who wants to price the tail
-needs the tail.</p>
+<p><code>telarchy.com/data-room</code> is the platform's public actions log: every public
+action on Telarchy, newest first, in one time-ordered list a reader filters,
+and the same list as JSON for an agent. It is one thing on purpose. Anything
+else the room comes to carry is added one structure at a time, each with its
+own section of this doc, and never as a page of charts around the log.
+History: notes/decisions/data-room.md.</p>
+<p>It has two readers and they get the same thing: a person on the page, and an
+agent on <code>GET /api/data-room/actions</code>. The page renders that response and
+nothing else, and every filter the page offers is a query parameter the
+endpoint accepts, so what a person is looking at is one URL swap away from
+what an agent reads.</p>
+<h2 id="docs-data-room-md--h2">What an action is</h2>
+<p>An action is one dated thing somebody did on a public floor, or one dated
+thing that happened to a participant account, that the platform already holds
+durably. The log is assembled at read time from the tables the product runs
+on; there is no event pipeline and no second store (the <code>events</code> table is a
+48-hour buffer for agent polling, not a record). A row is therefore never
+written for the log and can never drift from the thing it describes.</p>
+<p>Private workspaces contribute nothing, and nothing on the log names an
+email address, an IP, a country, a referer, a payout detail or a private
+workspace, even as a count. A participant is named by the handle their public
+profile already carries.</p>
+<p>The kinds, in the order the filter bar lists them:</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>kind</th>
+<th>what it says</th>
+<th>drawn from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>trade</code></td>
+<td>a participant bought or sold shares on a book: side, shares, credits, and the market's call before and after</td>
+<td><code>trades</code> with kind <code>trade</code>; a redemption is bookkeeping and is never a row</td>
+</tr>
+<tr>
+<td><code>proposal</code></td>
+<td>a proposal was posted (title, ask), or its title or description was edited</td>
+<td><code>proposals</code> that are not <code>removed</code>; <code>proposal_revisions</code></td>
+</tr>
+<tr>
+<td><code>decision</code></td>
+<td>the owner approved, declined (with the written reason), or the proposal lapsed or was withdrawn</td>
+<td><code>proposals</code> by status: <code>approved</code>, <code>declined</code>, <code>declined_spam</code>, <code>lapsed</code>, <code>withdrawn</code></td>
+</tr>
+<tr>
+<td><code>delivery</code></td>
+<td>the proposer reported delivery</td>
+<td><code>proposals.deliveredAt</code></td>
+</tr>
+<tr>
+<td><code>comment</code></td>
+<td>a message on a proposal or on a book, as an excerpt</td>
+<td><code>proposal_messages</code>, <code>market_messages</code></td>
+</tr>
+<tr>
+<td><code>announcement</code></td>
+<td>the owner published an announcement, or edited one</td>
+<td><code>announcements</code>; an edit is its own row at <code>editedAt</code></td>
+</tr>
+<tr>
+<td><code>reading</code></td>
+<td>a metric's value changed: old, new, and the note that came with it</td>
+<td><code>updates</code>, which is written only when the value moved, so a flat number is silence rather than one row per hourly sync</td>
+</tr>
+<tr>
+<td><code>metric</code></td>
+<td>a metric was added, or a field of its definition changed</td>
+<td><code>metrics.createdAt</code>; <code>metric_definition_revisions</code></td>
+</tr>
+<tr>
+<td><code>market</code></td>
+<td>a baseline book opened, settled on a value, or was voided</td>
+<td><code>markets</code> with no <code>proposalId</code>; a proposal's pair books are implied by its own row and would otherwise print two dozen lines per proposal</td>
+</tr>
+<tr>
+<td><code>liquidity</code></td>
+<td>a participant put liquidity behind a book</td>
+<td><code>liquidity_events</code> with type <code>injection</code>; the engine's own <code>initial</code> and <code>anchor</code> rows are not actions</td>
+</tr>
+<tr>
+<td><code>join</code></td>
+<td>a participant account was created: a person, a bot an owner made, or a key-only agent</td>
+<td><code>agents.createdAt</code></td>
+</tr>
+<tr>
+<td><code>link</code></td>
+<td>a participant linked a record (Manifold, Polymarket)</td>
+<td><code>record_links</code></td>
+</tr>
+<tr>
+<td><code>workspace</code></td>
+<td>a public floor opened</td>
+<td><code>workspaces.createdAt</code>, visibility public at read time</td>
+</tr>
+</tbody>
+</table></div>
+<p>Removed proposals (spam, duplicates, test rows) are absent under every kind:
+an admin taking a row off the board is not a decision.</p>
+<p>A kind is a row in this table, an entry in <code>KINDS</code> in
+<code>functions/src/services/actions.ts</code>, a sentence renderer, and a test that
+seeds one and reads it back. All four or none.</p>
+<h2 id="docs-data-room-md--h3">A row</h2>
+<pre><code>{ id, at, kind,
+  workspace: { slug, name } | null,
+  actor: { id, handle } | null,
+  text, detail, href }
+</code></pre>
 <ul>
-<li><code>traders.spend</code> is credits traded in the trailing seven days, one entry per
-participant in the verified set, sorted high to low, zeroes included. The
-entries at or above <code>traders.threshold</code> are the weekly active verified
-traders the pulse publishes. The unrounded absolute-cost sum is authoritative,
-using the same window and verified set as <code>platform-stats.ts</code>.</li>
-<li><code>traders.lapses</code> is one entry per counted trader: the day their own trailing
-window drops under the threshold if they never trade again. Every counted
-trader has one and it is always inside the seven days, because a window that
-takes in nothing new always empties. Compute the first trade-expiry instant
-that leaves spend below the threshold and publish its UTC date, including
-today. The chart covers today through seven days ahead.</li>
-<li><code>forecasters.profit</code> is marked profit, one entry per participant, house
-excluded, sorted high to low. The entries at or above
-<code>forecasters.threshold</code> are the profitable forecasters. The unrounded marked
-profit used by the metric is authoritative and is published unchanged.</li>
-<li><code>owners.pending</code> is one row per public workspace holding an undecided
-proposal, with the date it decides by. Outside owners deciding cannot rise
-above the number of workspaces with something to decide.</li>
-<li><code>revenue.payments</code> is one row per payment on the revenue rail inside the
-window, completed or not, with its amount, status and date.</li>
+<li><code>at</code> is the instant the thing happened, ISO, UTC.</li>
+<li><code>workspace</code> is the public floor it happened on, or null for a platform-wide
+action (<code>join</code>, <code>link</code>).</li>
+<li><code>actor</code> is the participant who did it, or null when nobody in particular
+did (a book settling, a floor opening). The handle is the one their profile
+answers to.</li>
+<li><code>text</code> is one sentence in plain words that reads on its own after the actor
+and the floor, so an agent reading the JSON and a person reading the page
+see the same sentence. It never restates the actor or the floor: those are
+fields, and the page draws them as links.</li>
+<li><code>detail</code> is the structured version of the sentence, per kind (the shares,
+the cost, the call before and after; the status and reason; the old and new
+value), so an agent filters on numbers rather than parsing prose.</li>
+<li><code>href</code> is the address of the thing on this site: the book with the trade
+selected, the proposal, the participant, the floor.</li>
 </ul>
-<p><strong>No participant is named.</strong> A participant is an entry in a sorted list of
-numbers and a payment is an amount with a date. The only identity the block
-carries is a public workspace's own slug, which that workspace's floor already
-publishes.</p>
-<h2 id="docs-data-room-md--h8">The base rates are every weekly reading</h2>
-<p>A forecaster's first question about a number is how far it usually moves in
-the time they are being asked to price, and the page answered it only as a
-shape on a chart. <code>rates</code> publishes the readings themselves: for every
-metric the platform records on its own floor, the reading that stood at the
-end of each of the last eight weeks, oldest first.</p>
-<p>A week with no reading publishes null rather than the week before's value.
-Carrying a number forward would turn a week the sync did not run into a week
-the number did not move, which is the one thing this block exists to tell
-apart.</p>
-<p>The metrics come from the workspace named by <code>SELF_SYNC_WORKSPACE_ID</code>, the
-same one the hourly self-sync writes to. An instance that has not set it
-publishes an empty block, because its floor measures its owner's business
-rather than ours.</p>
-<p>Summaries of the eight (the biggest week, how many weeks were flat) are
-deliberately absent. They are arithmetic on numbers the block already
-publishes, and a reader who wants one can do it.</p>
-<h2 id="docs-data-room-md--h9">What is scheduled</h2>
-<p>The change log is retrospective and the metric is forward, so a forecaster
-pricing the end of the month was pricing the owner's calendar without being
-shown it. <code>calendar</code> publishes the dates the platform already holds: every
-number that settles with the instant it settles on, and every proposal still
-on the ballot with the instant it must be decided by. Baseline books only, one
-row per number and day: a proposal spawns two branch markets per horizon on
-the same metric and the same date, and the reader is being told a date rather
-than a book count. Soonest first, and only what is still
-ahead: a date that has passed is in the change log, not in the plan.</p>
-<p>Nothing here is typed in for the page. Every row is a date something already
-in the database falls due on, which is what keeps the calendar from becoming
-a list of intentions nobody is held to.</p>
-<p>The block also carries the outreach list as one entry per person, the stage
-they have reached and nothing else. Who is being written to stays unpublished
-for the same reason referers are (above); how many people are at each stage
-is the chain that ends in &quot;outside owners deciding&quot;, and a stage names
-nobody.</p>
-<h2 id="docs-data-room-md--h10">How the page draws things</h2>
-<p><strong>A number that has a history is drawn over time.</strong> Every priced metric, the
-traffic, the signups, the trading and the change log are lines and areas on a
-date axis, not a single figure or a bar per category. A forecaster is pricing
-where a number goes next, and a shape over time is the only drawing that
-answers that; a point-in-time figure answers &quot;what is it now&quot;, which the page
-already says in words.</p>
-<p><strong>The line carries what happened to it.</strong> The dated things the owner did (the
-<code>events</code> block: announcements, decisions, deliveries) are drawn on the metric
-charts as marks on the day they happened, numbered against the list beneath.
-They are context, not proof of causation, and the page says so once rather
-than beside each mark. Where marks fall closer together than their own
-numbers are wide, the first keeps its number and the rest keep only their
-rule: the pointer names every one of them either way.</p>
-<p><strong>Every chart answers the pointer.</strong> Hovering anywhere on a chart puts a
-crosshair on the nearest day and a panel naming the date, each series' value
-there, and any event on that day. A chart with two or more series carries a
-legend; a chart with one is named by its own caption. Nothing is encoded by
-colour alone.</p>
-<p><strong>Two things stay distributions</strong>, because they are not histories: what each
-verified participant has traded this week, and each participant's marked
-profit. Both answer &quot;who is near the line the count is drawn at&quot;, which no
-time series shows, and both sit under the window block that exists for exactly
-that question.</p>
-<p><strong>There are exactly two drawings on this page, and both answer the pointer.</strong>
-A series over dates is a <code>TimeChart</code>; a value per ranked unit is a
-<code>RankChart</code>. The strip's sparks are the first of those two with its axes
-turned off, not a third drawing. They share an axis style, a threshold rule, a crosshair and the
-same panel under the chart, so a reader who has hovered one has learned the
-other. Nothing on the page is a static picture: a drawing a reader cannot
-interrogate is a claim they have to take, and the page exists so they do not
-have to. Anything that is a series over days is drawn as one, including the
-seven days the counted traders lapse over.</p>
-<p><strong>Two numbers of different size get two charts.</strong> Thirty distinct visitors
-against six hundred loads, or ten people against a hundred trades, share an
-axis only by drawing the smaller one as a flat line on the floor, and the
-smaller one is usually the number that matters. Series share a chart when they
-are within about five times each other; otherwise they are stacked charts with
-the same date axis.</p>
-<p><strong>A heavy tail gets a log axis, and says so.</strong> Credits traded has seeding days
-three orders of magnitude above an ordinary one. The axis is labelled in
-powers and the caption names the scale, so the compression is stated rather
-than hidden. Nothing else on the page uses one; the funnel in particular
-stays printed, for the reason its own section gives.</p>
-<p><strong>A chart never invents a point.</strong> A day with no reading is a gap in the line,
-not a straight segment across it, for the same reason a week with no reading
-publishes null: a day nobody measured and a day the number did not move are
-different facts.</p>
-<p>Trading activity is complete over the queried trailing 120 days through the
-computation instant (the first and last UTC dates can be partial). Every covered
-date has a row, including zero trades, credits and traders on quiet days. Dates
-outside that interval stay absent. This does not zero-fill metric readings.</p>
-<h2 id="docs-data-room-md--h11">Every number comes from the database that serves the site</h2>
-<p><code>GET /api/data-room</code> is one public, uncredentialed read that returns the
-document and every number on it. The page renders that response and nothing
-else, so a visitor can fetch the same URL and check the page against it. Agents
-read it directly instead of scraping the page.</p>
-<p>The numbers are computed at read time from the same tables the product runs on:
-participants, markets, trades, proposals, page visits. There is no export step
-and no second pipeline that could drift. The response is cached for 60 seconds
-so a traffic spike cannot turn the page into a load test.</p>
-<p>A published total whose own rows do not add up reads as a mistake even when
-neither figure is wrong, so the proposal counts exclude <code>removed</code> entries: an
-admin taking a row off the board because it should never have been there (spam,
-a duplicate, a test row) is not a decision, and counting it would leave the
-approved, declined, pending and withdrawn rows summing to less than the total.</p>
-<p><strong>Refuse, do not guess.</strong> A term that cannot be computed is <code>null</code>, and the page
-renders <code>null</code> as &quot;not published&quot; rather than as zero.</p>
-<h2 id="docs-data-room-md--h12">Traffic, and what is deliberately not published</h2>
-<p>Visits are the platform's own server-side document-load log (<code>page_visits</code>); no
-third-party analytics exist on the site, as the privacy policy says. The
-traffic filter (drop recognised bot user-agents and scanner probe paths) is the same one the
-owner's cockpit uses: <code>humanVisitFilter()</code> in <code>functions/src/lib/visit-log.ts</code>
-owns it, and <code>/admin</code> and the data room both call it, so the public number and
-the private one cannot disagree.</p>
-<p>The captions say &quot;Known crawlers and scanner paths excluded&quot; and &quot;Distinct
-addresses&quot;. The filter does not establish that a requester is human.</p>
-<p>Raw visit rows are purged at 30 days by the privacy policy, which would cap the
-public history at a month forever. <code>traffic_daily</code> is a rollup of visits and
-unique addresses per day, written on every data-room read from whatever rows the
-log still holds, and never purged: it carries no IP, no path, no user-agent and
-no referer, only two counts and a date. History therefore accumulates from
-2026-08-20 forward, and the page says so.</p>
-<p>Three things stay private on purpose:</p>
-<ul>
-<li><strong>Referers.</strong> Which channel a visitor came from names unannounced outreach,
-and the owner's cockpit already has it.</li>
-<li><strong>Countries, paths and addresses.</strong> Visitor-level detail; the rollup is counts
-only.</li>
-<li><strong>Email addresses and the waitlist.</strong> Signup counts are published; who signed
-up is not.</li>
-</ul>
-<h2 id="docs-data-room-md--h13">Otto browses it; it is not in his context</h2>
-<p>The floor's answer service (Otto, <code>functions/src/lib/ask.ts</code>) is handed the
-floor's brief as fixed context and one tool, <code>read_data_room</code>, which reads the
-index and then one section at a time from the same cached feed the page
-renders; he browses it, he is not force-fed it.</p>
-<p>That split is deliberate. The brief is identical for every visitor on a floor,
-which is what lets an upstream cache hit it; pasting the data room into it
-would charge every visitor on every floor for a document most of them never ask
-about, and bury the company they came to read. As a tool it costs only the
-visitors who want it, and because he reads the same feed object, he cannot
-quote a number the page does not show.</p>
-<p>He gets at most six tool rounds, and the last request is sent without tools
-so a model that keeps reaching for one has to answer instead. A lookup that
-fails is handed back to him as text saying so, never swallowed: he is allowed
-to say the data room would not open, and never to invent what it said.</p>
-<p><strong>An outside agent gets it whole, in the brief.</strong> <code>GET /api/marketplace/:id/context</code> on the platform's own floor (the workspace named
-by <code>SELF_SYNC_WORKSPACE_ID</code>) carries the document as one of its <code>documents</code>
-entries, prose and figures together. The trade-off runs the other way there:
-an agent makes one request and then has to price the number, and one that has
-to scrape a page to learn what moves it prices worse than one that read it.
-Every other floor's brief carries only what that workspace itself published.</p>
-<h2 id="docs-data-room-md--h14">The change log is the git history</h2>
-<p>The history starts at the public open-source release, which is a clean-root
-snapshot; the private archive keeps the earlier history and it is not stitched
-in.</p>
-<p><code>shipping</code> is generated from <code>git log</code> of this repository by
-<code>scripts/build-changelog.mjs</code> into <code>functions/src/content/changelog.ts</code>, which is
-committed so it ships in the runtime image (the container has no <code>.git</code>). The
-<code>predeploy</code> npm script regenerates it, so a deploy publishes what the deploy
-contains.</p>
-<p><strong>Every commit subject in this repository is public the moment it deploys.</strong> A
-commit whose subject or body contains <code>[private]</code> is counted in the daily pace
-but never quoted, which is the escape hatch for a change that cannot be named.
-Use it rather than writing a vague subject: the log's value is that it is the
-real one.</p>
-<p>Two things are published: a bar per day (how fast this is being built, which is
-machine-derived and unarguable) and the subjects themselves, newest first.</p>
-<h2 id="docs-data-room-md--h15">Rules for changing this page</h2>
+<p>Numbers in <code>text</code> are rounded for reading; <code>detail</code> carries them unrounded.</p>
+<h2 id="docs-data-room-md--h4">Filtering</h2>
+<p>The same parameters on the page's URL and on the endpoint:</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>parameter</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kinds</code></td>
+<td>comma-separated kind ids; absent means every kind</td>
+</tr>
+<tr>
+<td><code>workspace</code></td>
+<td>a public floor's slug</td>
+</tr>
+<tr>
+<td><code>participant</code></td>
+<td>a handle or participant id; rows where they are the actor</td>
+</tr>
+<tr>
+<td><code>after</code></td>
+<td>ISO instant; rows strictly after it</td>
+</tr>
+<tr>
+<td><code>before</code></td>
+<td>ISO instant; rows strictly before it</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>rows per page, default 50, at most 200</td>
+</tr>
+<tr>
+<td><code>cursor</code></td>
+<td>the <code>next</code> of the previous page</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>telarchy.com/data-room?kinds=trade,decision&amp;workspace=telarchy</code> and
+<code>GET /api/data-room/actions?kinds=trade,decision&amp;workspace=telarchy</code> are the
+same list. The page's &quot;the same log as JSON&quot; link carries whatever filters are
+set.</p>
+<p>An unknown kind, a workspace that is not public, or a participant that does
+not exist answers 400 naming the parameter, not an empty list: an empty list
+is a fact about the log, and a typo is not allowed to look like one.</p>
+<p><strong>Paging never repeats or skips a row.</strong> <code>next</code> is an opaque cursor for the
+row after the last one returned, ordered on the instant and then the id, so
+two rows at the same instant page cleanly. <code>next</code> is null when the log is
+exhausted. <code>before</code> and <code>cursor</code> together take the stricter of the two.</p>
+<h2 id="docs-data-room-md--h5">The feed</h2>
+<p><code>GET /api/data-room/actions</code> is one public, uncredentialed read, open to every
+origin like the rest of the data room (<code>lib/cors.ts</code>). It answers</p>
+<pre><code>{ generatedAt, kinds: [{ id, label, description }],
+  workspaces: [{ slug, name }], rows: [...], next }
+</code></pre>
+<p><code>kinds</code> and <code>workspaces</code> are the filter vocabulary, so a client builds its
+filter bar from the response rather than from a copy of this table.</p>
+<p><code>GET /api/data-room</code> stays, and is the room as a document: <code>{ schema: 2, generatedAt, doc: { updatedAt, sections }, actions }</code> where <code>sections</code> is
+the prose (one section, &quot;actions&quot;, that says what the log is) and <code>actions</code>
+is the unfiltered first page in the shape above. It is cached for thirty
+seconds; filtered reads are computed on request, and the per-page cap is
+what keeps that cheap. The read also rolls the visit log into <code>traffic_daily</code>
+as it always has, so the traffic history keeps accumulating for whatever the
+room carries next.</p>
+<p>The log is one query: every kind is one branch of a <code>UNION ALL</code>, each branch
+already filtered and cut to the page size, and the union sorted and cut
+once more. Handles and floor names are looked up after, in two reads, so no
+branch joins on a name.</p>
+<h2 id="docs-data-room-md--h6">Otto and the brief</h2>
+<p>Otto's <code>read_data_room</code> tool takes the same parameters as the endpoint and
+returns rows as lines of text: the instant, the kind, the actor, the floor,
+the sentence. With no arguments it returns the first page and the list of
+kinds, so a question about what happened on Telarchy is one tool round. He
+still browses rather than carries it: the floor's brief is his fixed prefix
+and this is a tool, for the reason <code>docs/otto.md</code> gives.</p>
+<p>An outside agent reading the platform's own floor
+(<code>GET /api/marketplace/:id/context</code> on the workspace named by
+<code>SELF_SYNC_WORKSPACE_ID</code>) finds the latest page of the log as the <code>Data room</code> entry of <code>documents</code>, rendered as the same lines.</p>
+<h2 id="docs-data-room-md--h7">The page</h2>
+<p>The page is the desk (<code>docs/ui-conventions.md</code>, &quot;The data room&quot;): the site's
+dark tokens whatever the visitor's theme, the wide column, mono labels,
+hairlines. Above the log: the title, one line saying what the log is, and the
+stamp (read live, generated when, the JSON link). Nothing else above it.</p>
+<p><strong>The filter bar</strong> is one row: a chip per kind that toggles, a floor chip
+that opens the list of public floors, and, when a participant is set, a chip
+naming them with a clear. Every change rewrites the URL's query and refetches;
+the browser's back button therefore walks filters. A kind chip with nothing
+selected means every kind, which is what the page opens on.</p>
+<p><strong>The log</strong> is grouped by UTC day. Each day gets a rule with the date, sticky
+under the top bar while its rows scroll. A row is: the time in mono, a small
+mark for the kind, the actor as a link to their profile, the sentence, and
+the floor as a link, with the row itself linking to <code>href</code>. Clicking an actor
+sets the participant filter; clicking a floor sets the workspace filter.
+On a phone the time and the kind mark share a line and the sentence wraps
+under them.</p>
+<p>The mark for a kind is one colour per kind, and the kind's name is always
+beside the colour (in the chip, and in the row's tooltip), so nothing is
+encoded by colour alone.</p>
+<p><strong>More rows load at the bottom</strong>: a button that also fires on its own when
+it scrolls into view, appending the next page. Rows already on the page
+never move.</p>
+<p><strong>New rows arrive on their own.</strong> Every sixty seconds the page asks for rows
+after the newest it holds, with the current filters, and prepends them; a
+row that arrives this way is marked as new until the pointer moves. The stamp
+says the page polls each minute, so &quot;read live&quot; is a claim the page keeps.</p>
+<p>An empty result says &quot;No actions match&quot; with the filters still shown. A
+failed request says the log would not open, and never renders as an empty
+log: nothing happening and nothing loading are different facts.</p>
+<h2 id="docs-data-room-md--h8">Rules for changing this page</h2>
 <ol>
-<li>A number that changes over time is computed in <code>functions/src/services/ data-room.ts</code> from a live table, or it is labelled on the page with the date
-it was exported. There is no third category: a figure that quietly stops
-moving is worse than an absent one, because the page presents it with the
-same authority as the rest.</li>
-<li>Prose changes go in the content module. Never write a figure into it.</li>
-<li>A new block name must be added to <code>KNOWN_BLOCKS</code> and rendered by the page, or
-the module refuses to load.</li>
-<li><code>data-room.test.ts</code> pins the contract: the route answers anonymously, every
-block the prose names is one the feed carries, and the traffic rollup counts
-what the cockpit counts.</li>
+<li>A new kind is a row in the table above, an entry in <code>KINDS</code>, a branch of
+the union, a sentence renderer, and a seeded test. All or none.</li>
+<li>Nothing joins a private workspace, and nothing prints an address, a
+country, an email or a payout detail. The test that seeds a private
+floor's trade and asserts its absence is the one that must never be
+removed.</li>
+<li>Every filter is a query parameter, and the page never holds a filter the
+URL does not show.</li>
+<li><code>actions.test.ts</code> pins the contract: anonymous, private excluded,
+redemptions excluded, a page never repeats a row, the cap holds, every
+kind renders, and an unknown parameter value is a 400.</li>
 </ol>
-<h2 id="docs-data-room-md--h16">What moved it</h2>
-<p>The data room shows the twelve most recent dated announcements and proposal
-decisions from Telarchy's configured self-sync workspace, ordered oldest first.
-Any already-recorded delivery is included. Each row names the day, event and
-kind. These events give context for the readings; they do not establish that
-the event caused a change. An empty record says no events are recorded. The
-same rows are published in the JSON feed and markdown section for agents.</p>
-<p>This context belongs only in the data room. Workspace floors keep their prior
-charts and controls, with no event markers, What moved it section, owner-call
-controls, or delivery controls. Participant profiles keep their prior layout.
-Previously applied migrations remain in the journal to preserve stored data;
-the reverted controls and their new write endpoints are absent.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
@@ -6858,26 +6760,25 @@ stays first, because a share's payout is linear in the settled value and
 &quot;to win N&quot; alone, as Manifold prints it for a yes/no share, would read as
 a promise here.</p>
 <h2 id="docs-ui-conventions-md--h49">The data room</h2>
-<p><code>telarchy.com/data-room</code> (<code>DataRoomPage</code>, <code>.dr-*</code>) is the one page that fixes
-its own palette: it renders on the site's dark tokens whatever the visitor's
-theme is, because it is an instrument rather than a page about the product,
-and every drawing on it reads better on dark. It sets <code>data-theme=&quot;dark&quot;</code> on
-its own root and takes the tokens that are already defined there; it does not
-invent a second palette. Everything else is the site's language, amber accent
+<p><code>telarchy.com/data-room</code> (<code>DataRoomPage</code>, <code>.dr-*</code>) is the public actions log
+and the one page that fixes its own palette: it renders on the site's dark
+tokens whatever the visitor's theme is, because it is an instrument rather
+than a page about the product. It sets <code>data-theme=&quot;dark&quot;</code> on its own root
+and takes the tokens that are already defined there; it does not invent a
+second palette. Everything else is the site's language, amber accent
 included.</p>
-<p>It takes a wide 1180px column rather than the document's 760px, and the prose
-inside it stays capped near 68 characters so a paragraph is still a paragraph
-next to a full-width chart. It is one scrolling page with a sticky index of its
-own sections under the top bar, not a sidebar and not a route per section: a
-sidebar is the thing that was deleted, and a reader of a business document
-scrolls.</p>
-<p>Above the first section sit the strip (one tile per number a reader came for:
-figure, seven-day change, the same series drawn small) and the ticker (the
-dated things the owner did, newest first, on one line). Its figures follow the
-page rules exactly: tiny uppercase section labels, hairline rows with an amber
-rule behind a count, mono tabular numerals, and charts hand-rolled as inline
-SVG rather than a chart library. A number the feed refused to compute renders
-as &quot;not published&quot;, never as zero. Spec: <code>docs/data-room.md</code>.</p>
+<p>It takes a wide 1180px column rather than the document's 760px. Under the
+masthead and the stamp sits one filter row: a mono chip per kind that
+toggles, the floor select, and the participant chip when one is set; every
+change rewrites the URL query, and the page holds no filter the URL does not
+show. The log is grouped by UTC day under a sticky mono rule in the accent,
+and a row is a four-column grid: the time in tabular mono, the kind as a
+coloured dot beside its uppercase name, the actor in bold as a filter button
+followed by the sentence as the link to the thing, and the floor as a mono
+filter button on the right. On a phone the time spans two lines with the
+kind and floor above the sentence. A kind's colour is never the only place
+its name appears. A row the minute's poll brought in is tinted in its kind's
+colour until the pointer moves. Spec: <code>docs/data-room.md</code>.</p>
 <h2 id="docs-ui-conventions-md--h50">The frontend never speaks HTTP directly</h2>
 <p><code>src/lib/api.ts</code> is the one module that calls <code>fetch</code>. Everything else, page
 or component, calls a method on <code>api</code>. That is not tidiness: the parity guard
@@ -7434,7 +7335,7 @@ template.</p>
 <p>Two things make that safe enough to ship. <strong>Only the person in the conversation instructs him</strong>: a charter, a proposal description, a comment or a document is information he may report, never an order he follows, which is the rule that keeps a stranger's text from spending someone else's credits. And <strong>every call is recorded</strong> on the question row (<code>floor_questions.tool_calls</code>, surfaced in <code>GET /api/admin/questions</code>), so acting on someone's behalf leaves a record of what was done. The floor still owns whether the panel is open, and the ceiling itself rests on the frontend having no private door to the server: <code>src/lib/api.ts</code> is the only module that calls <code>fetch</code>, so everything the UI can do is a documented endpoint and &quot;what you can do&quot; and &quot;what Otto can do for you&quot; are the same list.</p>
 <p><strong>Otto browses the data room rather than carrying it.</strong> The floor's brief stays his fixed context, because it is the prefix every visitor on a floor shares and an upstream cache can hit; Telarchy's own books reach him as a tool he opens, index first and then one section, from the same cached feed the page renders. A visitor who never asks about the platform pays nothing for it, and he cannot quote a figure the page does not show.</p>
 <p><strong>The same brief is the answer to &quot;how do I point my own agent at this?&quot;</strong> Account settings carry a copyable prompt (the &quot;Your AI&quot; section) naming the context URL of whichever floor it was opened from, so a visitor's agent and the floor's own answers read identical facts. It sits there rather than on the floor because the floor's job is the market and every extra door on it is weight. An outside agent should read the context endpoint directly: same facts, its own model, no per-IP ceiling.</p>
-<p><strong>Telarchy publishes its own books at <code>/data-room</code>.</strong> Vision, traction, traffic, the change log and the plans, in one document, with every figure computed at request time from the tables the product runs on and served with the prose in one anonymous read (<code>GET /api/data-room</code>). It exists for two readers: a forecaster pricing the Telarchy floor, who needs the numbers that market settles against to be inspectable, and anyone deciding whether to build on this, who gets the same page rather than a better version. The traffic numbers are small and published anyway, because the floor's charter already promises that a week near zero means nobody showed up, and a data room that only published flattering figures would make that promise a lie. Referers, countries, paths and who signed up stay private; counts are public. Governing doc: <code>docs/data-room.md</code>.</p>
+<p><strong>Telarchy publishes its public actions log at <code>/data-room</code>.</strong> Every public action on the platform (trades, proposals and decisions, deliveries, comments, announcements, readings, books, liquidity, joins, record links, floors opening), newest first, assembled at read time from the tables the product runs on and served as one anonymous, filterable read (<code>GET /api/data-room/actions</code>). The page and the endpoint take the same filters, so a person and an agent read the same list. Private floors contribute nothing; emails, addresses, referers and payout details are never on it. Governing doc: <code>docs/data-room.md</code>.</p>
 <p><strong>A company's own documents reach the brief as sources.</strong> LookPilot's data room (definitions, provenance, competition, the one-time exports its page charts) is published from <code>lookpilot-web/scripts/telarchy-publish-data-room.js</code> into a text source named &quot;Data room&quot;, which the Public group can read. The live numbers are not duplicated into it: they already arrive as metrics with their history, and two copies of one number is how a page starts disagreeing with itself.</p>
 <h3 id="docs-vision-md--h33">Who to pay</h3>
 <p>Approving a proposal means sending real money to a stranger, and the owner

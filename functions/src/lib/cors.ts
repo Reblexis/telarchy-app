@@ -38,7 +38,7 @@ import { originAllowedForCors } from './origins';
  * a session chasing a phantom bug before anyone noticed the Origin header was
  * the variable.
  */
-const PUBLIC_CORS_PATH = /^\/api\/(data-room\/?|marketplace\/[^/]+(\/(context|ask))?)$/;
+const PUBLIC_CORS_PATH = /^\/api\/(data-room(\/actions)?\/?|marketplace\/[^/]+(\/(context|ask))?)$/;
 
 const publicCors = cors({ origin: '*', credentials: false });
 const credentialedCors = cors({

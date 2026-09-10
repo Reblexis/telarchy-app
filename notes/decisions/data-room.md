@@ -50,3 +50,35 @@ What that decided:
 - Three blocks had shipped with no CSS at all and were rendering raw: the
   weekly readings row and its caption, and the outreach squares. They are
   styled, and the outreach shade ramp is named rather than left to a tooltip.
+
+## 2026-09-10 - the room becomes the actions log (Viktor: "strip it down to as least as possible")
+
+The desk shipped in the morning; the evidence read that afternoon
+(`telarchy/notes/data-room-rethink-2026-09-10.md`: 11 addresses in 30 days,
+nothing on the site linking to it, Otto asked twice) went to Viktor with
+three directions. He picked none of them:
+
+> no leets strip it down to as least as possible and add stuff in structure
+> matter.. lets start with one thing only and that is actions log there
+> should be a log that shows all public actions (trades, signups, workspace
+> edits, etc..) in a time log and allows to filter easily it should look
+> really good.. so onlyt he log for now.. lsalso btw make sure it has api
+> (agents can browse the whole data room too just as well as human
+
+What that decided:
+
+- The room is one thing, the public actions log, and anything else it comes
+  to carry is added one structure at a time with its own section of the doc.
+  The strip, the ticker, the ten charts, the funnel, the window, the base
+  rates, the calendar, the change log and their services and tests went.
+- The log is assembled at read time as one UNION ALL over the live tables,
+  never a second store; a private floor is excluded at the branch.
+- The page and `GET /api/data-room/actions` take the same filters, so the
+  page's URL query is the endpoint's query; the JSON link carries them.
+- `GET /api/data-room` stays as the room as a document (schema 2: one prose
+  section plus the first page), Otto's `read_data_room` takes the log's
+  filters, and the platform's own floor brief carries the latest page.
+- The desk look (dark tokens, wide column, mono labels) stays: that decision
+  was about the surface and was a day old.
+- The traffic rollup keeps riding on the feed read so the history keeps
+  accumulating for whatever the room carries next.
