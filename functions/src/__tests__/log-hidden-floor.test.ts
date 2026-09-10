@@ -72,7 +72,7 @@ async function hidden(): Promise<boolean> {
   return ws.h;
 }
 
-const put = (who: string, body: unknown) =>
+const put = (who: string, body: object) =>
   request(app).put(`/api/workspaces/${WS}/settings`).set('X-Test-Agent-Id', who).set('X-Workspace-Id', WS).send(body);
 
 describe('logHidden on the settings route', () => {
