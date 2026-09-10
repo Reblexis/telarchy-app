@@ -93,20 +93,35 @@ describe('the log', () => {
     getActions.mockResolvedValue(
       page([
         row(),
-        row({ id: 'join:a2', at: '2026-09-09T22:30:00.000Z', kind: 'join', workspace: null, actor: { id: 'a2', handle: 'quroe' }, text: 'joined as a person', href: '/participants/quroe' }),
+        row({
+          id: 'join:a2',
+          at: '2026-09-09T22:30:00.000Z',
+          kind: 'join',
+          workspace: null,
+          actor: { id: 'a2', handle: 'quroe' },
+          text: 'joined as a person',
+          href: '/participants/quroe',
+        }),
       ]),
     );
     mount();
-    expect(await screen.findByText('bought 10 higher shares on Active traders (2026-09) for 40 cr, call 4 to 5.2')).toBeInTheDocument();
+    expect(
+      await screen.findByText('bought 10 higher shares on Active traders (2026-09) for 40 cr, call 4 to 5.2'),
+    ).toBeInTheDocument();
     // Two days, in order, newest first.
     const days = screen.getAllByRole('heading', { level: 2 });
     expect(days.map(d => d.textContent)).toEqual(['Thursday, 10 September 2026', 'Wednesday, 9 September 2026']);
-    const first = screen.getByText('bought 10 higher shares on Active traders (2026-09) for 40 cr, call 4 to 5.2').closest('li')!;
+    const first = screen
+      .getByText('bought 10 higher shares on Active traders (2026-09) for 40 cr, call 4 to 5.2')
+      .closest('li')!;
     expect(within(first).getByText('09:05')).toBeInTheDocument();
     expect(within(first).getByText('Trades')).toBeInTheDocument();
     expect(within(first).getByRole('button', { name: 'vire' })).toBeInTheDocument();
     expect(within(first).getByRole('button', { name: 'Telarchy' })).toBeInTheDocument();
-    expect(within(first).getByRole('link', { name: /bought 10 higher/ })).toHaveAttribute('href', '/telarchy#market=mkt1&trade=t1');
+    expect(within(first).getByRole('link', { name: /bought 10 higher/ })).toHaveAttribute(
+      'href',
+      '/telarchy#market=mkt1&trade=t1',
+    );
     // A platform-wide row has no floor.
     const second = screen.getByText('joined as a person').closest('li')!;
     expect(within(second).queryByRole('button', { name: /Telarchy|LookPilot/ })).toBeNull();
@@ -118,7 +133,9 @@ describe('the log', () => {
     getActions.mockResolvedValue(page([row()]));
     mount('/data-room?kinds=trade,decision&workspace=telarchy');
     await screen.findByText(/bought 10 higher/);
-    expect(getActions).toHaveBeenCalledWith(expect.objectContaining({ kinds: 'trade,decision', workspace: 'telarchy' }));
+    expect(getActions).toHaveBeenCalledWith(
+      expect.objectContaining({ kinds: 'trade,decision', workspace: 'telarchy' }),
+    );
     expect(screen.getByRole('button', { name: 'Trades' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Decisions' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Joins' })).toHaveAttribute('aria-pressed', 'false');
@@ -151,7 +168,9 @@ describe('the log', () => {
     const chip = screen.getByRole('button', { name: /vire/, pressed: true });
     fireEvent.click(chip);
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toBe(''));
-    fireEvent.click(within(screen.getByText(/bought 10 higher/).closest('li')!).getByRole('button', { name: 'Telarchy' }));
+    fireEvent.click(
+      within(screen.getByText(/bought 10 higher/).closest('li')!).getByRole('button', { name: 'Telarchy' }),
+    );
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toBe('?workspace=telarchy'));
     expect((screen.getByLabelText('Floor') as HTMLSelectElement).value).toBe('telarchy');
   });
@@ -171,7 +190,16 @@ describe('the log', () => {
   test('more rows append through the cursor and the end of the log is said', async () => {
     getActions.mockResolvedValueOnce(page([row()], 'CURSOR1'));
     getActions.mockResolvedValueOnce(
-      page([row({ id: 'trade:t0', at: '2026-09-08T09:00:00.000Z', text: 'sold 4 higher shares on Active traders (2026-09) for 15 cr' })], null),
+      page(
+        [
+          row({
+            id: 'trade:t0',
+            at: '2026-09-08T09:00:00.000Z',
+            text: 'sold 4 higher shares on Active traders (2026-09) for 15 cr',
+          }),
+        ],
+        null,
+      ),
     );
     mount();
     await screen.findByText(/bought 10 higher/);
@@ -208,12 +236,20 @@ describe('the log', () => {
     });
     expect(screen.getByText(/bought 10 higher/)).toBeInTheDocument();
     getActions.mockResolvedValueOnce(
-      page([row({ id: 'trade:t2', at: '2026-09-10T10:00:00.000Z', text: 'sold 2 lower shares on Active traders (2026-09) for 3 cr' })]),
+      page([
+        row({
+          id: 'trade:t2',
+          at: '2026-09-10T10:00:00.000Z',
+          text: 'sold 2 lower shares on Active traders (2026-09) for 3 cr',
+        }),
+      ]),
     );
     await act(async () => {
       await vi.advanceTimersByTimeAsync(60_000);
     });
-    expect(getActions).toHaveBeenLastCalledWith(expect.objectContaining({ kinds: 'trade', after: '2026-09-10T09:05:00.000Z' }));
+    expect(getActions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kinds: 'trade', after: '2026-09-10T09:05:00.000Z' }),
+    );
     const items = screen.getAllByRole('listitem');
     expect(items[0]).toHaveTextContent(/sold 2 lower/);
     expect(items[0].className).toMatch(/is-new/);

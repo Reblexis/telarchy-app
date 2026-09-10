@@ -1,4 +1,4 @@
-import { eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { eq, inArray, type SQL, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agents, workspaces } from '../db/schema';
 import { AppError } from '../lib/errors';
@@ -27,7 +27,11 @@ export interface ActionKind {
 export const KINDS: readonly ActionKind[] = [
   { id: 'trade', label: 'Trades', description: 'A participant bought or sold shares on a book.' },
   { id: 'proposal', label: 'Proposals', description: 'A proposal was posted, or its title or description edited.' },
-  { id: 'decision', label: 'Decisions', description: 'An owner approved or declined a proposal, or it lapsed or was withdrawn.' },
+  {
+    id: 'decision',
+    label: 'Decisions',
+    description: 'An owner approved or declined a proposal, or it lapsed or was withdrawn.',
+  },
   { id: 'delivery', label: 'Deliveries', description: 'A proposer reported delivery.' },
   { id: 'comment', label: 'Comments', description: 'A message on a proposal or on a book.' },
   { id: 'announcement', label: 'Announcements', description: 'An owner published or edited an announcement.' },
@@ -88,7 +92,10 @@ export function parseActionsQuery(q: Record<string, unknown>): ActionsQuery {
   const out: ActionsQuery = {};
   const kinds = str('kinds');
   if (kinds) {
-    const ids = kinds.split(',').map(s => s.trim()).filter(Boolean);
+    const ids = kinds
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
     const unknown = ids.filter(id => !KIND_IDS.has(id));
     if (unknown.length) {
       throw new AppError(`kinds: unknown kind "${unknown[0]}"; known kinds are ${[...KIND_IDS].join(', ')}`, 400);
@@ -467,7 +474,9 @@ function renderRow(
       const shares = Math.abs(Number(p.shares));
       const cost = Math.abs(Number(p.cost));
       const call =
-        p.callBefore != null && p.callAfter != null ? `, call ${num(Number(p.callBefore))} to ${num(Number(p.callAfter))}` : '';
+        p.callBefore != null && p.callAfter != null
+          ? `, call ${num(Number(p.callBefore))} to ${num(Number(p.callAfter))}`
+          : '';
       text = `${side} ${num(shares)} ${p.direction} shares on ${book} for ${num(cost)} cr${call}`;
       detail = {
         side: side === 'sold' ? 'sell' : 'buy',
@@ -508,7 +517,13 @@ function renderRow(
         default:
           text = `"${p.title}"${ask} was withdrawn`;
       }
-      detail = { number: p.number, title: p.title, askUsd: p.askUsd ?? null, status: p.status, reason: p.reason ?? null };
+      detail = {
+        number: p.number,
+        title: p.title,
+        askUsd: p.askUsd ?? null,
+        status: p.status,
+        reason: p.reason ?? null,
+      };
       href = `/${slug}/p/${p.number}`;
       break;
     }
@@ -521,8 +536,18 @@ function renderRow(
     case 'comment': {
       const on = p.on === 'proposal' ? `"${p.title}"` : book;
       text = `on ${on}: ${excerpt(p.content)}`;
-      detail = { on: p.on, number: p.number ?? null, title: p.title ?? null, marketId: p.marketId ?? null, metric: p.metric ?? null, date: p.date ?? null };
-      href = p.on === 'proposal' ? `/${slug}/p/${p.number}#comment=${p.id}` : `/${slug}#market=${p.marketId}&comment=${p.id}`;
+      detail = {
+        on: p.on,
+        number: p.number ?? null,
+        title: p.title ?? null,
+        marketId: p.marketId ?? null,
+        metric: p.metric ?? null,
+        date: p.date ?? null,
+      };
+      href =
+        p.on === 'proposal'
+          ? `/${slug}/p/${p.number}#comment=${p.id}`
+          : `/${slug}#market=${p.marketId}&comment=${p.id}`;
       break;
     }
     case 'announcement': {
@@ -557,7 +582,12 @@ function renderRow(
     }
     case 'join': {
       const owner = p.ownerId ? (handles.get(p.ownerId) ?? p.ownerId) : null;
-      text = p.as === 'bot' ? `joined as a bot run by ${owner}` : p.as === 'person' ? 'joined as a person' : 'joined as an agent';
+      text =
+        p.as === 'bot'
+          ? `joined as a bot run by ${owner}`
+          : p.as === 'person'
+            ? 'joined as a person'
+            : 'joined as an agent';
       detail = { as: p.as, ownerHandle: owner };
       href = `/participants/${encodeURIComponent(actorHandle ?? '')}`;
       break;
@@ -621,7 +651,10 @@ export function actionsTool() {
         parameters: {
           type: 'object',
           properties: {
-            kinds: { type: 'string', description: 'Comma-separated kinds, e.g. "trade,decision". Omit for every kind.' },
+            kinds: {
+              type: 'string',
+              description: 'Comma-separated kinds, e.g. "trade,decision". Omit for every kind.',
+            },
             workspace: { type: 'string', description: "A public floor's slug." },
             participant: { type: 'string', description: 'A participant handle or id; rows they did.' },
             after: { type: 'string', description: 'ISO instant; rows strictly after it.' },
