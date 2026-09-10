@@ -15,9 +15,11 @@ import { TopBar } from './TradePage';
  * check the page against it; if the two ever disagree, the response is right.
  * Spec: docs/data-room.md.
  *
- * Written in the floor's language (`.pubws` + `.dr-*`): one document column,
- * tiny uppercase section labels, hairlines instead of cards, and hand-rolled
- * SVG for the charts. See docs/ui-conventions.md.
+ * Drawn as a desk (docs/data-room.md, "The desk"): the site's dark tokens
+ * whatever the visitor's theme, a strip of tiles over a ticker of the dated
+ * things the owner did, then the document itself in the floor's language
+ * (`.pubws` + `.dr-*`) - tiny uppercase labels, hairlines instead of cards,
+ * hand-rolled SVG for every drawing. See docs/ui-conventions.md.
  */
 
 /** The three parts the page is ordered into, in the order they run down it.
@@ -38,6 +40,179 @@ function dayLabel(iso: string): string {
   const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+const DAY_MS = 86_400_000;
+const tOf = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`).getTime();
+
+/** The running total of accounts, counted DOWN from the published figure.
+ *  Signups are kept for sixty days and accounts predate that, so a total
+ *  counted up from the first signup in the window ends below the figure
+ *  printed beside it (docs/data-room.md, "The desk"). */
+function accountsOverTime(
+  accounts: number,
+  signups: Array<{ day: string; signups: number }>,
+): Array<{ at: string; value: number }> {
+  let after = 0;
+  const out: Array<{ at: string; value: number }> = [];
+  for (let i = signups.length - 1; i >= 0; i--) {
+    out.unshift({ at: signups[i].day, value: accounts - after });
+    after += signups[i].signups;
+  }
+  return out;
+}
+
+/** Trades in the seven days ending on each covered day: what "trades this
+ *  week" has been, from the daily rows the page publishes further down. */
+function trailingWeek(byDay: Array<{ day: string; trades: number }>): Array<{ at: string; value: number }> {
+  return byDay.map(d => {
+    const end = tOf(d.day);
+    const from = end - 6 * DAY_MS;
+    const value = byDay.filter(x => tOf(x.day) >= from && tOf(x.day) <= end).reduce((sum, x) => sum + x.trades, 0);
+    return { at: d.day, value };
+  });
+}
+
+/**
+ * The change over the trailing seven days: the newest reading minus the one
+ * that stood seven days before it.
+ *
+ * A series that does not reach back that far returns null and the tile prints
+ * no change, rather than a change measured against whatever its first reading
+ * happens to be. A reading more than three days older than the target day is
+ * not "what stood then" either: it is the same gap the chart breaks a line on.
+ */
+function weekChange(points: Array<{ at: string; value: number }>): number | null {
+  if (points.length < 2) return null;
+  const last = points[points.length - 1];
+  const target = tOf(last.at) - 7 * DAY_MS;
+  const prior = points.filter(p => tOf(p.at) <= target).pop();
+  if (!prior || target - tOf(prior.at) > 3 * DAY_MS) return null;
+  return last.value - prior.value;
+}
+
+/** Which section draws a block full size, so a tile can link to it. */
+function sectionWith(feed: DataRoomFeed, block: string): string | undefined {
+  return feed.doc.sections.find(s => s.blocks.includes(block as DataRoomBlock))?.id;
+}
+
+/**
+ * One tile of the strip: the figure, the seven-day change, and the same
+ * series drawn small (docs/data-room.md, "The desk"). The spark is a
+ * TimeChart with its axes off, so it answers the pointer like every other
+ * drawing on the page.
+ */
+function Tile({
+  label,
+  value,
+  points,
+  href,
+  connect,
+}: {
+  label: string;
+  value: string;
+  points: Array<{ at: string; value: number }>;
+  href?: string;
+  /** True for a series defined between its points (a running total). */
+  connect?: boolean;
+}) {
+  const delta = weekChange(points);
+  const body = (
+    <>
+      <span className="dr-tile-label">{label}</span>
+      <span className="dr-tile-row">
+        <span className="dr-tile-n">{value}</span>
+        {delta !== null && (
+          <span className={`dr-tile-delta${delta > 0 ? ' is-up' : delta < 0 ? ' is-down' : ''}`}>
+            {delta > 0 ? '+' : ''}
+            {n(Math.round(delta))}
+            <em>7d</em>
+          </span>
+        )}
+      </span>
+      <TimeChart
+        series={[{ key: label, label, points, kind: 'area', connect }]}
+        label={`${label}, over time`}
+        height={52}
+        variant="spark"
+      />
+    </>
+  );
+  return href ? (
+    <a className="dr-tile" href={`#${href}`}>
+      {body}
+    </a>
+  ) : (
+    <div className="dr-tile">{body}</div>
+  );
+}
+
+/**
+ * The strip: one tile per number a reader came for, in the order the floor
+ * prices them, then trades this week, then accounts. Nothing here is a new
+ * figure; every one of them is drawn full size further down the page.
+ */
+function Strip({ feed }: { feed: DataRoomFeed }) {
+  const e = feed.evidence;
+  const metrics = (e.rates?.metrics ?? []).filter(m => (m.daily ?? []).length > 0);
+  const trades = trailingWeek(e.trading?.byDay ?? []);
+  const accounts = accountsOverTime(e.traction?.accounts ?? 0, e.traction?.signupsByDay ?? []);
+  const ratesAt = sectionWith(feed, 'rates');
+  if (!metrics.length && !trades.length && !accounts.length) return null;
+  return (
+    <div className="dr-strip">
+      {metrics.map(m => {
+        const daily = m.daily ?? [];
+        return (
+          <Tile
+            key={m.name}
+            label={m.name}
+            value={n(Math.round(daily[daily.length - 1].value))}
+            points={daily}
+            href={ratesAt}
+          />
+        );
+      })}
+      {trades.length > 0 && (
+        <Tile
+          label="Trades this week"
+          value={n(e.pulse?.tradesThisWeek ?? trades[trades.length - 1].value)}
+          points={trades}
+          href={sectionWith(feed, 'trading')}
+        />
+      )}
+      {accounts.length > 0 && (
+        <Tile
+          label="Accounts"
+          value={n(e.traction.accounts)}
+          points={accounts}
+          connect
+          href={sectionWith(feed, 'traction')}
+        />
+      )}
+    </div>
+  );
+}
+
+/** The ticker: the dated things the owner did, newest first, on one line.
+ *  The same rows the events block prints; an empty record draws nothing. */
+function Ticker({ events }: { events: Array<{ at: string; kind: string; label: string }> }) {
+  if (!events.length) return null;
+  return (
+    <div className="dr-ticker">
+      <span className="dr-ticker-head">What moved it</span>
+      <div className="dr-ticker-run">
+        {[...events]
+          .sort((a, b) => b.at.localeCompare(a.at))
+          .map((e, i) => (
+            <span key={`${e.at}-${i}`} className="dr-ticker-item">
+              <span className="dr-ticker-day">{dayLabel(e.at)}</span>
+              {e.label}
+            </span>
+          ))}
+      </div>
+    </div>
+  );
 }
 
 /** A figure and what it counts. The page's only large numerals. */
@@ -184,20 +359,34 @@ function WhenList({
  */
 const STAGE_ORDER = ['no', 'draft', 'ready', 'sent', 'replied', 'call', 'workspace', 'activated'];
 
+const stageShade = (stage: string) => 0.2 + (Math.max(0, STAGE_ORDER.indexOf(stage)) / (STAGE_ORDER.length - 1)) * 0.8;
+
 function StageGrid({ stages }: { stages: string[] }) {
   if (!stages.length) return <p className="dr-empty">Nobody on the list yet.</p>;
   return (
-    <div className="dr-stages">
-      {stages.map((stage, i) => (
-        <span
-          key={`${stage}-${i}`}
-          className="dr-stage-cell"
-          data-stage={stage}
-          style={{ opacity: 0.2 + (Math.max(0, STAGE_ORDER.indexOf(stage)) / (STAGE_ORDER.length - 1)) * 0.8 }}
-          title={stage}
-        />
-      ))}
-    </div>
+    <>
+      <div className="dr-stages">
+        {stages.map((stage, i) => (
+          <span
+            key={`${stage}-${i}`}
+            className="dr-stage-cell"
+            data-stage={stage}
+            style={{ opacity: stageShade(stage) }}
+            title={stage}
+          />
+        ))}
+      </div>
+      {/* The ramp is the only thing that tells one square from another, so it
+          is named rather than left to a tooltip. */}
+      <div className="dr-stage-key">
+        {STAGE_ORDER.map(stage => (
+          <span key={stage} className="dr-stage-key-item">
+            <span className="dr-stage-cell" style={{ opacity: stageShade(stage) }} aria-hidden="true" />
+            {stage}
+          </span>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -439,19 +628,21 @@ function Block({ name, feed }: { name: DataRoomBlock; feed: DataRoomFeed }) {
                   key: 'cumulative',
                   label: 'Accounts, running total',
                   // Defined between its points: a quiet fortnight is not a
-                  // hole in the total, it is a flat stretch of it.
+                  // hole in the total, it is a flat stretch of it. Counted
+                  // down from the published figure, so the line ends on the
+                  // number printed above it (docs/data-room.md).
                   connect: true,
-                  points: t.signupsByDay.map((d, i) => ({
-                    at: d.day,
-                    value: t.signupsByDay.slice(0, i + 1).reduce((sum, x) => sum + x.signups, 0),
-                  })),
+                  points: accountsOverTime(t.accounts, t.signupsByDay),
                 },
               ]}
               events={e.events ?? []}
               label="Signups per day and the running total of accounts"
               height={190}
               caption={
-                <span>The running total starts at the first signup this window holds, not at zero accounts.</span>
+                <span>
+                  The running total ends on the accounts figure above and is counted back from it: accounts made before
+                  this window are its floor, not zero.
+                </span>
               }
             />
           </>
@@ -668,25 +859,41 @@ export function DataRoomPage() {
   }, [sections]);
 
   return (
-    <div className="pubws">
+    /* The one page on the site that fixes its own palette: it is an
+       instrument, and it reads on dark whatever the visitor set
+       (docs/ui-conventions.md, "The data room"). The tokens are the site's
+       own dark ones, not a second palette. */
+    <div className="pubws dr-desk" data-theme="dark">
       <TopBar user={!!user} ready={!authLoading} />
       <div className="dr">
         <header className="dr-head">
-          <h1 className="dr-title">Data room</h1>
-          <p className="dr-lead">
-            Telarchy&apos;s own books: what this is for, what it has done, who showed up, what shipped, and what is
-            planned. Every figure is read live from the database that serves this site.
-          </p>
+          <div className="dr-head-main">
+            <h1 className="dr-title">Data room</h1>
+            <p className="dr-lead">
+              Telarchy&apos;s own books: what this is for, what it has done, who showed up, what shipped, and what is
+              planned. Every figure is read live from the database that serves this site.
+            </p>
+          </div>
           {feed && (
             <p className="dr-stamp">
-              Words updated {dayLabel(feed.doc.updatedAt)} · figures generated{' '}
-              {new Date(feed.generatedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
+              <span className="dr-live">
+                <span className="dr-live-dot" aria-hidden="true" />
+                read live
+              </span>
+              <span>
+                figures generated{' '}
+                {new Date(feed.generatedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+              </span>
+              <span>words updated {dayLabel(feed.doc.updatedAt)}</span>
               <a href={withBase('/api/data-room')} className="dr-stamp-link">
                 the same page as JSON
               </a>
             </p>
           )}
         </header>
+
+        {feed && <Strip feed={feed} />}
+        {feed && <Ticker events={feed.evidence.events ?? []} />}
 
         {error && <p className="dr-err">{error}</p>}
         {!feed && !error && <p className="dr-empty">Reading the books...</p>}
@@ -726,7 +933,7 @@ export function DataRoomPage() {
             </nav>
 
             {sections.map(s => (
-              <section key={s.id} id={s.id} className="dr-section">
+              <section key={s.id} id={s.id} className={`dr-section${s.blocks.length ? ' has-drawings' : ''}`}>
                 <h2 className="pubws-h2">{s.title}</h2>
                 <div className="dr-prose">
                   <ReactMarkdown

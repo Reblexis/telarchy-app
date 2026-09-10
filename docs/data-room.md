@@ -33,10 +33,13 @@ because that is the point: the floor's charter already promises "this number is
 small today, and early weeks near zero mean nobody showed up yet", and a data
 room that only publishes flattering figures makes the charter a lie.
 
-The page is one document column in the floor's design language (`.pubws-doc`,
-see `docs/ui-conventions.md`): a sticky section index, tiny uppercase section
-labels, hairlines instead of cards, hand-rolled inline SVG for the charts. It is
-not an app shell and it has no sidebar.
+The page is a desk: the site's dark palette, whatever the visitor's theme, a
+wide column, dense mono labels, hairlines instead of cards, and hand-rolled
+inline SVG for every drawing. It is the one page on the site that fixes its own
+palette, because it is the one page that is an instrument rather than a
+document about the product. Everything else is the floor's language
+(`docs/ui-conventions.md`): a sticky section index, tiny uppercase labels, one
+accent. It is not an app shell and it has no sidebar.
 
 ## One page, three parts
 
@@ -64,6 +67,47 @@ figures with `block:`, so the shape is in the prose beside the prose. An
 unknown part name throws at load, exactly as an unknown block does. The
 sticky index groups the sections under their part, so the page navigates like
 three pages without becoming three.
+
+## The desk: the strip, the ticker, and the dark
+
+Above the first section the page carries a STRIP: one tile per number a reader
+came for, each with the figure, the change over the trailing seven days, and
+the same series drawn small. The tiles are the priced metrics in the order the
+floor prices them, then trades this week, then accounts. A tile is not a
+new figure: every value in it is one the page already publishes further down,
+and the strip exists so a reader who came for one number does not scroll for
+it.
+
+Each tile's series is the one its own figure counts: a priced metric's daily
+readings, the trailing seven-day sum of trades, the running total of accounts.
+The last two are windows over daily rows the page publishes further down, not
+new measurements.
+
+**The running total of accounts ends on the published figure.** Signups are
+kept for sixty days and accounts predate that, so a total counted up from the
+first signup in the window would end below the accounts figure printed beside
+it. It is counted DOWN from that figure instead: the total on a day is the
+accounts today minus every signup after it. The chart in the place section is
+the same series, so the page draws one line for one number.
+
+**The change is arithmetic on two published readings, and it is labelled as
+one.** A tile prints the difference between the newest reading and the reading
+that stood seven days before it, over the label `7d`. A metric with no reading
+that far back prints no change rather than one measured against whatever the
+first reading happens to be. This is the one derived figure on the page, it is
+recomputed by anybody from the readings beside it, and it is not a summary
+standing in for data the page then withholds.
+
+**A tile's drawing is the same drawing, small.** It is a `TimeChart`, so it
+answers the pointer exactly as the full-size chart does; it drops the axes and
+the event marks because a 40px band has no room for them, and never the
+crosshair. Clicking a tile goes to the section where the same series is drawn
+full size.
+
+Under the strip runs the TICKER: the dated things the owner did, newest first,
+on one line. It is the `events` rows and nothing else, and it is there because
+a desk's first question about a moving number is what happened to it. An empty
+record draws no ticker.
 
 ## Prose is the source, and prose carries no numbers
 
@@ -191,7 +235,9 @@ already says in words.
 `events` block: announcements, decisions, deliveries) are drawn on the metric
 charts as marks on the day they happened, numbered against the list beneath.
 They are context, not proof of causation, and the page says so once rather
-than beside each mark.
+than beside each mark. Where marks fall closer together than their own
+numbers are wide, the first keeps its number and the rest keep only their
+rule: the pointer names every one of them either way.
 
 **Every chart answers the pointer.** Hovering anywhere on a chart puts a
 crosshair on the nearest day and a panel naming the date, each series' value
@@ -207,7 +253,8 @@ that question.
 
 **There are exactly two drawings on this page, and both answer the pointer.**
 A series over dates is a `TimeChart`; a value per ranked unit is a
-`RankChart`. They share an axis style, a threshold rule, a crosshair and the
+`RankChart`. The strip's sparks are the first of those two with its axes
+turned off, not a third drawing. They share an axis style, a threshold rule, a crosshair and the
 same panel under the chart, so a reader who has hovered one has learned the
 other. Nothing on the page is a static picture: a drawing a reader cannot
 interrogate is a claim they have to take, and the page exists so they do not

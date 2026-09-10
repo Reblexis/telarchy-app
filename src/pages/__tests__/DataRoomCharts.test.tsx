@@ -89,7 +89,9 @@ async function renderBlocks(blocks: string[], evidence: Record<string, unknown>)
 describe('a priced metric is a line over time, annotated', () => {
   test('the daily readings are the line, not the eight weekly numbers', async () => {
     const c = await renderBlocks(['rates'], { rates: RATES });
-    const pts = [...c.querySelectorAll('.tchart-line')].flatMap(l =>
+    // Inside the section: the strip above it draws the same series small
+    // (docs/data-room.md, "The desk"), and this is about the block's line.
+    const pts = [...c.querySelectorAll('.dr-section .tchart-line')].flatMap(l =>
       (l.getAttribute('points') ?? '').trim().split(/\s+/),
     );
     expect(pts).toHaveLength(5);
@@ -99,7 +101,7 @@ describe('a priced metric is a line over time, annotated', () => {
     const c = await renderBlocks(['rates'], { rates: RATES });
     // Both events fall inside the drawn range, and both are on days with a
     // reading, so both get a mark.
-    expect(c.querySelectorAll('.tchart-event').length).toBe(2);
+    expect(c.querySelectorAll('.dr-section .tchart-event').length).toBe(2);
   });
 
   test('the weekly readings stay printed under the line: a shape is not a base rate', async () => {
@@ -120,7 +122,7 @@ describe('the trading under the trader count', () => {
   test('credits, trades and the people who placed them are three charts, not one squashed one', async () => {
     const c = await renderBlocks(['trading'], { trading: TRADING });
     // Ten people against a hundred trades on one axis draws the people flat.
-    expect(c.querySelectorAll('.tchart-svg').length).toBe(3);
+    expect(c.querySelectorAll('.dr-section .tchart-svg').length).toBe(3);
     expect(c.textContent).toContain('Credits traded, per day');
     expect(c.textContent).toContain('People trading, per day');
   });
@@ -139,7 +141,7 @@ describe('the trading under the trader count', () => {
 describe('traffic', () => {
   test('visits and distinct visitors get a chart each, because one axis flattens the people', async () => {
     const c = await renderBlocks(['traffic'], { traffic: TRAFFIC });
-    expect(c.querySelectorAll('.tchart-svg').length).toBe(2);
+    expect(c.querySelectorAll('.dr-section .tchart-svg').length).toBe(2);
     expect(c.textContent).toContain('Visits, per day');
     expect(c.textContent).toContain('Distinct addresses, per day');
   });

@@ -63,17 +63,26 @@ describe('the dates', () => {
 describe('the outreach list', () => {
   test('one square per person, and no count beside them', async () => {
     const container = await renderCalendar(CALENDAR);
-    expect(container.querySelectorAll('.dr-stage-cell')).toHaveLength(4);
+    // Inside the grid: the shade legend beside it draws one square per
+    // stage name, which is a key rather than a person.
+    expect(container.querySelectorAll('.dr-stages .dr-stage-cell')).toHaveLength(4);
   });
 
   test('a square carries the stage it is at, so the shape of the list is readable', async () => {
     const container = await renderCalendar(CALENDAR);
-    const cells = [...container.querySelectorAll('.dr-stage-cell')].map(c => c.getAttribute('data-stage'));
+    const cells = [...container.querySelectorAll('.dr-stages .dr-stage-cell')].map(c => c.getAttribute('data-stage'));
     expect(cells).toEqual(['draft', 'sent', 'sent', 'replied']);
   });
 
   test('nobody on the list draws no squares', async () => {
     const container = await renderCalendar({ dates: CALENDAR.dates, outreach: { stages: [] } });
     expect(container.querySelectorAll('.dr-stage-cell')).toHaveLength(0);
+  });
+
+  test('the shade ramp is named, because a square is unreadable without it', async () => {
+    const container = await renderCalendar(CALENDAR);
+    const key = container.querySelector('.dr-stage-key');
+    expect(key?.textContent).toContain('draft');
+    expect(key?.textContent).toContain('activated');
   });
 });
