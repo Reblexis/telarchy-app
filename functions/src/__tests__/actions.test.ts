@@ -24,22 +24,30 @@ jest.mock('../middleware/auth', () => ({
   },
 }));
 
+import { eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
 import {
   agents,
   announcements,
   authUser,
+  creditTransfers,
+  earnClaims,
+  earnRules,
+  limitOrders,
   liquidityEvents,
+  liquidityPurchases,
   marketMessages,
   markets,
   metricDefinitionRevisions,
   metrics,
   permissionGroups,
+  prizeSeasons,
   proposalMessages,
   proposalRevisions,
   proposals,
   recordLinks,
+  seasonEntries,
   trades,
   updates,
   workspaces,
@@ -432,6 +440,166 @@ async function seedEverything() {
       linkedAt: T('2026-08-24T10:00:00Z'),
     },
   ]);
+  await db.insert(limitOrders).values([
+    {
+      id: 'lo-open',
+      workspaceId: PUB,
+      marketId: 'mkt1',
+      agentId: 'a1',
+      direction: 'lower',
+      limitValue: 3,
+      budgetCredits: 200,
+      status: 'open',
+      createdAt: T('2026-08-25T10:00:00Z'),
+      updatedAt: T('2026-08-25T10:00:00Z'),
+    },
+    {
+      id: 'lo-filled',
+      workspaceId: PUB,
+      marketId: 'mkt1',
+      agentId: 'a1',
+      direction: 'higher',
+      limitValue: 6,
+      budgetCredits: 50,
+      filledCredits: 50,
+      status: 'filled',
+      createdAt: T('2026-08-25T11:00:00Z'),
+      updatedAt: T('2026-08-25T12:00:00Z'),
+    },
+    {
+      id: 'lo-private',
+      workspaceId: PRIV,
+      marketId: 'mkt9',
+      agentId: 'a1',
+      direction: 'higher',
+      limitValue: 6,
+      budgetCredits: 50,
+      status: 'open',
+      createdAt: T('2026-08-25T11:00:00Z'),
+      updatedAt: T('2026-08-25T11:00:00Z'),
+    },
+  ]);
+  await db.insert(liquidityEvents).values([
+    // A subsidy lands on every branch book of the proposal at once: three
+    // rows in the same minute, one row on the log.
+    {
+      id: 'sub-1',
+      workspaceId: PUB,
+      marketId: 'mkt-pair',
+      amount: 100,
+      totalLiquidity: 200,
+      type: 'proposal-subsidy',
+      agentId: 'a3',
+      createdAt: T('2026-08-26T10:00:01Z'),
+    },
+    {
+      id: 'sub-2',
+      workspaceId: PUB,
+      marketId: 'mkt-pair',
+      amount: 100,
+      totalLiquidity: 300,
+      type: 'proposal-subsidy',
+      agentId: 'a3',
+      createdAt: T('2026-08-26T10:00:02Z'),
+    },
+    {
+      id: 'sub-3',
+      workspaceId: PUB,
+      marketId: 'mkt-pair',
+      amount: 50,
+      totalLiquidity: 350,
+      type: 'proposal-subsidy',
+      agentId: 'a3',
+      createdAt: T('2026-08-26T10:00:03Z'),
+    },
+    {
+      id: 'anchor-1',
+      workspaceId: PUB,
+      marketId: 'mkt1',
+      amount: 5,
+      totalLiquidity: 355,
+      type: 'anchor',
+      createdAt: T('2026-08-26T11:00:00Z'),
+    },
+  ]);
+  await db.insert(liquidityPurchases).values([
+    {
+      id: 'buy-1',
+      workspaceId: PUB,
+      agentId: 'a1',
+      usdAmount: 5,
+      credits: 5000,
+      creditsPerUsd: 1000,
+      status: 'completed',
+      createdAt: T('2026-08-27T09:00:00Z'),
+      completedAt: T('2026-08-27T09:05:00Z'),
+    },
+    {
+      id: 'buy-pending',
+      workspaceId: PUB,
+      agentId: 'a1',
+      usdAmount: 50,
+      credits: 50000,
+      creditsPerUsd: 1000,
+      status: 'pending',
+      createdAt: T('2026-08-27T10:00:00Z'),
+    },
+  ]);
+  await db
+    .insert(earnRules)
+    .values([{ key: 'manifold_link', label: 'Link your Manifold record', credits: 1000, kind: 'flat' }]);
+  await db.insert(earnClaims).values([
+    {
+      id: 'claim-1',
+      agentId: 'a1',
+      key: 'manifold_link',
+      refId: 'x1',
+      credits: 1000,
+      createdAt: T('2026-08-24T10:01:00Z'),
+    },
+    {
+      id: 'claim-2',
+      agentId: 'a3',
+      key: 'daily_trade',
+      credits: 50,
+      period: '2026-08-28',
+      createdAt: T('2026-08-28T10:00:00Z'),
+    },
+  ]);
+  await db.insert(creditTransfers).values([
+    {
+      id: 'tr-1',
+      fromAgentId: 'a1',
+      toAgentId: 'a3',
+      credits: 250,
+      memo: 'a private note between them',
+      createdAt: T('2026-08-29T10:00:00Z'),
+    },
+    {
+      id: 'tr-back',
+      fromAgentId: 'a3',
+      toAgentId: 'a1',
+      credits: 100,
+      memo: 'reversal',
+      createdAt: T('2026-08-29T11:00:00Z'),
+    },
+  ]);
+  await db.insert(prizeSeasons).values([
+    {
+      id: 'season-0',
+      name: 'Season 0',
+      startsAt: T('2026-08-01'),
+      endsAt: T('2026-10-01'),
+      poolUsd: 500,
+      ladder: [],
+      workspaceIds: [],
+      rulesUrl: '/legal/season-0',
+    },
+  ]);
+  await db.insert(seasonEntries).values([
+    { seasonId: 'season-0', agentId: 'a1', optedIn: true, enteredAt: T('2026-08-30T10:00:00Z') },
+    { seasonId: 'season-0', agentId: 'a2', optedIn: false, enteredAt: null },
+  ]);
 }
 
 const rowsOf = async (query = '') => {
@@ -609,9 +777,15 @@ describe('every kind the doc names renders', () => {
   it('liquidity is what a participant added, never the engine seeding a book', async () => {
     await seedEverything();
     const { rows } = await rowsOf('?kinds=liquidity');
-    expect(rows.map(r => r.id)).toEqual(['liquidity:lq-add']);
-    expect(rows[0].text).toBe('put 250 cr of liquidity behind Active traders (2026-09)');
-    expect(rows[0].actor?.handle).toBe('vire');
+    expect(rows.map(r => r.id)).toEqual(['liquidity:subsidy:p1:a3:2026-08-26T10:00', 'liquidity:lq-add']);
+    expect(rows[1].text).toBe('put 250 cr of liquidity behind Active traders (2026-09)');
+    expect(rows[1].actor?.handle).toBe('vire');
+    // The three subsidy rows of one minute are one action: funding the proposal.
+    expect(rows[0].text).toBe('funded "Open job" with 250 cr of liquidity');
+    expect(rows[0].actor).toEqual({ id: 'a3', handle: 'a3' });
+    expect(rows[0].href).toBe('/telarchy/p/1');
+    expect(rows[0].detail).toMatchObject({ amount: 250, number: 1 });
+    expect(rows.some(r => r.id.includes('anchor'))).toBe(false);
   });
 
   it('a join says which kind of participant, and a link says the provider', async () => {
@@ -641,6 +815,84 @@ describe('every kind the doc names renders', () => {
   });
 });
 
+describe('the kinds added when the log was found short (2026-09-10)', () => {
+  it('an order is placed, and later filled, cancelled, expired or voided', async () => {
+    await seedEverything();
+    const { rows } = await rowsOf('?kinds=order');
+    expect(rows.map(r => r.id)).toEqual(['order:lo-filled:filled', 'order:lo-filled', 'order:lo-open']);
+    expect(rows[2].text).toBe('placed a limit order: up to 200 cr on lower at 3 on Active traders (2026-09)');
+    expect(rows[1].text).toBe('placed a limit order: up to 50 cr on higher at 6 on Active traders (2026-09)');
+    expect(rows[0].text).toBe('a limit order filled: 50 cr on higher at 6 on Active traders (2026-09)');
+    expect(rows[0].actor).toEqual({ id: 'a1', handle: 'vire' });
+    expect(rows[0].href).toBe('/telarchy#market=mkt1');
+    expect(rows[0].detail).toMatchObject({ status: 'filled', filledCredits: 50, budgetCredits: 50, level: 6 });
+  });
+
+  it('a purchase is an amount and a floor, nobody named, completed only', async () => {
+    await seedEverything();
+    const { rows } = await rowsOf('?kinds=purchase');
+    expect(rows.map(r => r.id)).toEqual(['purchase:buy-1']);
+    expect(rows[0].at).toBe('2026-08-27T09:05:00.000Z');
+    expect(rows[0].actor).toBeNull();
+    expect(rows[0].text).toBe('5,000 credits were bought for $5');
+    expect(rows[0].workspace?.slug).toBe('telarchy');
+    expect(JSON.stringify(rows[0])).not.toContain('a1');
+  });
+
+  it('a grant says what the credits were for, by the earn table label or the key', async () => {
+    await seedEverything();
+    const { rows } = await rowsOf('?kinds=grant');
+    expect(rows.map(r => r.id)).toEqual(['grant:claim-2', 'grant:claim-1']);
+    expect(rows[1].text).toBe('was granted 1,000 cr: Link your Manifold record');
+    expect(rows[1].actor?.handle).toBe('vire');
+    expect(rows[0].text).toBe('was granted 50 cr: daily_trade');
+    expect(rows[1].href).toBe('/participants/vire');
+  });
+
+  it('a transfer names both sides and never the memo', async () => {
+    await seedEverything();
+    const { rows } = await rowsOf('?kinds=transfer');
+    expect(rows.map(r => r.id)).toEqual(['transfer:tr-back', 'transfer:tr-1']);
+    expect(rows[1].actor?.handle).toBe('vire');
+    expect(rows[1].text).toBe('sent 250 cr to a3');
+    expect(rows[1].detail).toMatchObject({ credits: 250, toId: 'a3', toHandle: 'a3' });
+    expect(rows[0].actor?.handle).toBe('a3');
+    expect(rows[0].text).toBe('sent 100 cr to vire');
+    expect(JSON.stringify(rows)).not.toMatch(/private note|reversal/);
+  });
+
+  it('a season entry is a row; an opt-out that never entered is not', async () => {
+    await seedEverything();
+    const { rows } = await rowsOf('?kinds=season');
+    expect(rows.map(r => r.id)).toEqual(['season:season-0:a1']);
+    expect(rows[0].text).toBe('entered Season 0');
+    expect(rows[0].href).toBe('/season');
+  });
+});
+
+describe('a row outlives the thing it points at', () => {
+  it('a trade, an order, a comment and a liquidity row on a book since removed are still rows', async () => {
+    await seedEverything();
+    await db.delete(markets).where(eq(markets.id, 'mkt1'));
+    const { rows } = await rowsOf('?limit=200');
+    const trade = rows.find(r => r.id === 'trade:t-buy');
+    expect(trade).toBeTruthy();
+    expect(trade!.text).toBe('bought 10 higher shares on a book since removed for 40 cr, call 4 to 5.2');
+    expect(rows.find(r => r.id === 'liquidity:lq-add')?.text).toBe(
+      'put 250 cr of liquidity behind a book since removed',
+    );
+    expect(rows.find(r => r.id === 'order:lo-open')?.text).toMatch(/on a book since removed$/);
+    expect(rows.find(r => r.id === 'comment:mm1')?.text).toBe('on a book since removed: Cheap at 4.');
+  });
+
+  it('a metric edit whose metric is gone is still a row', async () => {
+    await seedEverything();
+    await db.delete(metrics).where(eq(metrics.id, 'm1'));
+    const { rows } = await rowsOf('?kinds=metric');
+    expect(rows.find(r => r.id === 'metric:md1')?.text).toBe('changed the description of a metric since removed');
+  });
+});
+
 describe('nothing private leaks', () => {
   it('a private floor contributes nothing under any kind', async () => {
     await seedEverything();
@@ -660,6 +912,7 @@ describe('nothing private leaks', () => {
     expect(blob).not.toContain('vire@example.com');
     expect(blob).not.toContain('example.com');
     expect(blob).not.toMatch(/"ip"|"country"|"referer"|payout/);
+    expect(blob).not.toMatch(/private note between them/);
   });
 
   it('a redemption is bookkeeping and is never a row', async () => {

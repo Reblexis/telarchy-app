@@ -26,6 +26,12 @@ export interface ActionKind {
  *  a row in the doc's table, a branch below, a sentence, and a seeded test. */
 export const KINDS: readonly ActionKind[] = [
   { id: 'trade', label: 'Trades', description: 'A participant bought or sold shares on a book.' },
+  { id: 'order', label: 'Orders', description: 'A limit order was placed, filled, cancelled, expired or voided.' },
+  {
+    id: 'liquidity',
+    label: 'Liquidity',
+    description: "A participant put liquidity behind a book or funded a proposal's books.",
+  },
   { id: 'proposal', label: 'Proposals', description: 'A proposal was posted, or its title or description edited.' },
   {
     id: 'decision',
@@ -38,11 +44,15 @@ export const KINDS: readonly ActionKind[] = [
   { id: 'reading', label: 'Readings', description: "A metric's value changed." },
   { id: 'metric', label: 'Metrics', description: 'A metric was added or its definition changed.' },
   { id: 'market', label: 'Books', description: 'A baseline book opened, settled, or was voided.' },
-  { id: 'liquidity', label: 'Liquidity', description: 'A participant put liquidity behind a book.' },
+  { id: 'purchase', label: 'Purchases', description: 'Credits were bought for a floor; nobody is named.' },
+  { id: 'grant', label: 'Grants', description: 'A participant was granted credits by the earn table.' },
+  { id: 'transfer', label: 'Transfers', description: 'A participant sent credits to another.' },
+  { id: 'season', label: 'Seasons', description: 'A participant entered a prize season.' },
   { id: 'join', label: 'Joins', description: 'A participant account was created.' },
   { id: 'link', label: 'Links', description: 'A participant linked a record on another platform.' },
   { id: 'workspace', label: 'Floors', description: 'A public floor opened.' },
 ];
+
 const KIND_IDS = new Set(KINDS.map(k => k.id));
 
 export interface ActionRow {
@@ -249,7 +259,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
       jsonb_build_object('marketId', t.market_id, 'metric', m.metric_name, 'date', m.target_date,
         'direction', t.direction, 'shares', t.shares, 'cost', t.cost,
         'callBefore', t.consensus_before, 'callAfter', t.consensus_after) AS payload
-      FROM trades t JOIN markets m ON m.id = t.market_id AND m.workspace_id = t.workspace_id
+      FROM trades t LEFT JOIN markets m ON m.id = t.market_id AND m.workspace_id = t.workspace_id
       WHERE t.kind = 'trade' AND ${common(sql`t.created_at`, sql`'trade:' || t.id`, sql`t.workspace_id`, sql`t.agent_id`)}
       ORDER BY t.created_at DESC, id DESC LIMIT ${take}`,
   );
@@ -308,7 +318,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
     'comment',
     sql`SELECT 'comment:' || c.id AS id, c.created_at AS at, 'comment' AS kind, c.workspace_id, c."from" AS actor_id,
       jsonb_build_object('on', 'market', 'id', c.id, 'marketId', c.market_id, 'metric', m.metric_name, 'date', m.target_date, 'content', c.content) AS payload
-      FROM market_messages c JOIN markets m ON m.id = c.market_id AND m.workspace_id = c.workspace_id
+      FROM market_messages c LEFT JOIN markets m ON m.id = c.market_id AND m.workspace_id = c.workspace_id
       WHERE ${common(sql`c.created_at`, sql`'comment:' || c.id`, sql`c.workspace_id`, sql`c."from"`)}
       ORDER BY c.created_at DESC, id DESC LIMIT ${take}`,
   );
@@ -351,7 +361,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
     'metric',
     sql`SELECT 'metric:' || r.id AS id, r.created_at AS at, 'metric' AS kind, r.workspace_id, r.changed_by AS actor_id,
       jsonb_build_object('event', 'changed', 'metric', m.name, 'field', r.field) AS payload
-      FROM metric_definition_revisions r JOIN metrics m ON m.id = r.metric_id AND m.workspace_id = r.workspace_id
+      FROM metric_definition_revisions r LEFT JOIN metrics m ON m.id = r.metric_id AND m.workspace_id = r.workspace_id
       WHERE ${common(sql`r.created_at`, sql`'metric:' || r.id`, sql`r.workspace_id`, sql`r.changed_by`)}
       ORDER BY r.created_at DESC, id DESC LIMIT ${take}`,
   );
@@ -378,10 +388,79 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
     'liquidity',
     sql`SELECT 'liquidity:' || l.id AS id, l.created_at AS at, 'liquidity' AS kind, l.workspace_id, l.agent_id AS actor_id,
       jsonb_build_object('marketId', l.market_id, 'metric', m.metric_name, 'date', m.target_date, 'amount', l.amount) AS payload
-      FROM liquidity_events l JOIN markets m ON m.id = l.market_id AND m.workspace_id = l.workspace_id
+      FROM liquidity_events l LEFT JOIN markets m ON m.id = l.market_id AND m.workspace_id = l.workspace_id
       WHERE l.type = 'injection' AND l.agent_id IS NOT NULL
         AND ${common(sql`l.created_at`, sql`'liquidity:' || l.id`, sql`l.workspace_id`, sql`l.agent_id`)}
       ORDER BY l.created_at DESC, id DESC LIMIT ${take}`,
+  );
+
+  add(
+    'liquidity',
+    sql`SELECT 'liquidity:subsidy:' || COALESCE(m.proposal_id, 'none') || ':' || l.agent_id || ':' || to_char(date_trunc('minute', l.created_at), 'YYYY-MM-DD"T"HH24:MI') AS id,
+      MAX(l.created_at) AS at, 'liquidity' AS kind, l.workspace_id, l.agent_id AS actor_id,
+      jsonb_build_object('event', 'subsidy', 'amount', SUM(l.amount), 'number', MAX(p.number), 'title', MAX(p.title), 'proposalId', m.proposal_id) AS payload
+      FROM liquidity_events l
+      LEFT JOIN markets m ON m.id = l.market_id AND m.workspace_id = l.workspace_id
+      LEFT JOIN proposals p ON p.id = m.proposal_id AND p.workspace_id = l.workspace_id
+      WHERE l.type = 'proposal-subsidy' AND l.agent_id IS NOT NULL AND ${common(sql`l.created_at`, sql`'liquidity:subsidy:' || COALESCE(m.proposal_id, 'none') || ':' || l.agent_id || ':' || to_char(date_trunc('minute', l.created_at), 'YYYY-MM-DD"T"HH24:MI')`, sql`l.workspace_id`, sql`l.agent_id`)}
+      GROUP BY m.proposal_id, l.agent_id, l.workspace_id, date_trunc('minute', l.created_at)
+      ORDER BY at DESC, id DESC LIMIT ${take}`,
+  );
+
+  add(
+    'order',
+    sql`SELECT 'order:' || o.id AS id, o.created_at AS at, 'order' AS kind, o.workspace_id, o.agent_id AS actor_id,
+      jsonb_build_object('event', 'placed', 'marketId', o.market_id, 'metric', m.metric_name, 'date', m.target_date,
+        'direction', o.direction, 'level', o.limit_value, 'budgetCredits', o.budget_credits) AS payload
+      FROM limit_orders o LEFT JOIN markets m ON m.id = o.market_id AND m.workspace_id = o.workspace_id
+      WHERE ${common(sql`o.created_at`, sql`'order:' || o.id`, sql`o.workspace_id`, sql`o.agent_id`)}
+      ORDER BY o.created_at DESC, id DESC LIMIT ${take}`,
+  );
+  add(
+    'order',
+    sql`SELECT 'order:' || o.id || ':' || o.status AS id, o.updated_at AS at, 'order' AS kind, o.workspace_id, o.agent_id AS actor_id,
+      jsonb_build_object('event', o.status, 'marketId', o.market_id, 'metric', m.metric_name, 'date', m.target_date,
+        'direction', o.direction, 'level', o.limit_value, 'budgetCredits', o.budget_credits, 'filledCredits', o.filled_credits) AS payload
+      FROM limit_orders o LEFT JOIN markets m ON m.id = o.market_id AND m.workspace_id = o.workspace_id
+      WHERE o.status <> 'open' AND ${common(sql`o.updated_at`, sql`'order:' || o.id || ':' || o.status`, sql`o.workspace_id`, sql`o.agent_id`)}
+      ORDER BY o.updated_at DESC, id DESC LIMIT ${take}`,
+  );
+
+  add(
+    'purchase',
+    sql`SELECT 'purchase:' || b.id AS id, b.completed_at AS at, 'purchase' AS kind, b.workspace_id, NULL AS actor_id,
+      jsonb_build_object('usd', b.usd_amount, 'credits', b.credits) AS payload
+      FROM liquidity_purchases b
+      WHERE b.status = 'completed' AND b.completed_at IS NOT NULL
+        AND ${common(sql`b.completed_at`, sql`'purchase:' || b.id`, sql`b.workspace_id`, null)}
+      ORDER BY b.completed_at DESC, id DESC LIMIT ${take}`,
+  );
+
+  add(
+    'grant',
+    sql`SELECT 'grant:' || c.id AS id, c.created_at AS at, 'grant' AS kind, NULL AS workspace_id, c.agent_id AS actor_id,
+      jsonb_build_object('key', c.key, 'label', r.label, 'credits', c.credits) AS payload
+      FROM earn_claims c LEFT JOIN earn_rules r ON r.key = c.key
+      WHERE ${common(sql`c.created_at`, sql`'grant:' || c.id`, null, sql`c.agent_id`)}
+      ORDER BY c.created_at DESC, id DESC LIMIT ${take}`,
+  );
+
+  add(
+    'transfer',
+    sql`SELECT 'transfer:' || t.id AS id, t.created_at AS at, 'transfer' AS kind, NULL AS workspace_id, t.from_agent_id AS actor_id,
+      jsonb_build_object('credits', t.credits, 'toId', t.to_agent_id) AS payload
+      FROM credit_transfers t
+      WHERE ${common(sql`t.created_at`, sql`'transfer:' || t.id`, null, sql`t.from_agent_id`)}
+      ORDER BY t.created_at DESC, id DESC LIMIT ${take}`,
+  );
+
+  add(
+    'season',
+    sql`SELECT 'season:' || e.season_id || ':' || e.agent_id AS id, e.entered_at AS at, 'season' AS kind, NULL AS workspace_id, e.agent_id AS actor_id,
+      jsonb_build_object('seasonId', e.season_id, 'season', s.name) AS payload
+      FROM season_entries e LEFT JOIN prize_seasons s ON s.id = e.season_id
+      WHERE e.entered_at IS NOT NULL AND ${common(sql`e.entered_at`, sql`'season:' || e.season_id || ':' || e.agent_id`, null, sql`e.agent_id`)}
+      ORDER BY e.entered_at DESC, id DESC LIMIT ${take}`,
   );
 
   add(
@@ -433,6 +512,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   for (const r of page) {
     if (r.actor_id) wanted.add(r.actor_id);
     if (r.payload?.ownerId) wanted.add(r.payload.ownerId);
+    if (r.payload?.toId) wanted.add(r.payload.toId);
   }
   const handles = new Map<string, string>();
   if (wanted.size) {
@@ -463,7 +543,9 @@ function renderRow(
   const slug = floor?.slug ?? '';
   const actorHandle = r.actor_id ? (handles.get(r.actor_id) ?? r.actor_id) : null;
   const actor = r.actor_id ? { id: r.actor_id, handle: actorHandle! } : null;
-  const book = p.metric ? `${p.metric} (${p.date})` : '';
+  // A book or metric since voided out of its table still names the action.
+  const book = p.metric ? `${p.metric} (${p.date})` : 'a book since removed';
+  const metricName = p.metric ?? 'a metric since removed';
   let text = '';
   let detail: Record<string, unknown> = {};
   let href = slug ? `/${slug}` : '/';
@@ -557,12 +639,12 @@ function renderRow(
       break;
     }
     case 'reading': {
-      text = `${p.metric} read ${num(Number(p.newValue))}, was ${num(Number(p.oldValue))}${p.note ? ` (${excerpt(p.note, 80)})` : ''}`;
+      text = `${metricName} read ${num(Number(p.newValue))}, was ${num(Number(p.oldValue))}${p.note ? ` (${excerpt(p.note, 80)})` : ''}`;
       detail = { metric: p.metric, oldValue: p.oldValue, newValue: p.newValue, note: p.note ?? null };
       break;
     }
     case 'metric': {
-      text = p.event === 'changed' ? `changed the ${p.field} of ${p.metric}` : `added the metric ${p.metric}`;
+      text = p.event === 'changed' ? `changed the ${p.field} of ${metricName}` : `added the metric ${metricName}`;
       detail = { event: p.event, metric: p.metric, field: p.field ?? null };
       break;
     }
@@ -575,9 +657,71 @@ function renderRow(
       break;
     }
     case 'liquidity': {
-      text = `put ${num(Number(p.amount))} cr of liquidity behind ${book}`;
-      detail = { marketId: p.marketId, metric: p.metric, date: p.date, amount: p.amount };
+      if (p.event === 'subsidy') {
+        const what = p.title ? `"${p.title}"` : 'a proposal since removed';
+        text = `funded ${what} with ${num(Number(p.amount))} cr of liquidity`;
+        detail = {
+          event: 'subsidy',
+          amount: p.amount,
+          number: p.number ?? null,
+          title: p.title ?? null,
+          proposalId: p.proposalId ?? null,
+        };
+        href = p.number != null ? `/${slug}/p/${p.number}` : `/${slug}`;
+      } else {
+        text = `put ${num(Number(p.amount))} cr of liquidity behind ${book}`;
+        detail = {
+          event: 'injection',
+          marketId: p.marketId,
+          metric: p.metric ?? null,
+          date: p.date ?? null,
+          amount: p.amount,
+        };
+        href = `/${slug}#market=${p.marketId}`;
+      }
+      break;
+    }
+    case 'order': {
+      const terms = `${num(Number(p.budgetCredits))} cr on ${p.direction} at ${num(Number(p.level))} on ${book}`;
+      if (p.event === 'placed') text = `placed a limit order: up to ${terms}`;
+      else if (p.event === 'filled')
+        text = `a limit order filled: ${num(Number(p.filledCredits ?? p.budgetCredits))} cr on ${p.direction} at ${num(Number(p.level))} on ${book}`;
+      else text = `a limit order was ${p.event}: up to ${terms}`;
+      detail = {
+        status: p.event,
+        marketId: p.marketId,
+        metric: p.metric ?? null,
+        date: p.date ?? null,
+        direction: p.direction,
+        level: p.level,
+        budgetCredits: p.budgetCredits,
+        filledCredits: p.filledCredits ?? null,
+      };
       href = `/${slug}#market=${p.marketId}`;
+      break;
+    }
+    case 'purchase': {
+      text = `${Number(p.credits).toLocaleString('en-US')} credits were bought for $${num(Number(p.usd))}`;
+      detail = { usd: p.usd, credits: p.credits };
+      break;
+    }
+    case 'grant': {
+      text = `was granted ${Number(p.credits).toLocaleString('en-US')} cr: ${p.label ?? p.key}`;
+      detail = { key: p.key, label: p.label ?? null, credits: p.credits };
+      href = `/participants/${encodeURIComponent(actorHandle ?? '')}`;
+      break;
+    }
+    case 'transfer': {
+      const to = handles.get(p.toId) ?? p.toId;
+      text = `sent ${num(Number(p.credits))} cr to ${to}`;
+      detail = { credits: p.credits, toId: p.toId, toHandle: to };
+      href = `/participants/${encodeURIComponent(to)}`;
+      break;
+    }
+    case 'season': {
+      text = `entered ${p.season ?? 'a prize season'}`;
+      detail = { seasonId: p.seasonId, season: p.season ?? null };
+      href = '/season';
       break;
     }
     case 'join': {
@@ -644,8 +788,9 @@ export function actionsTool() {
         name: 'read_data_room',
         description:
           "Read Telarchy's public actions log (telarchy.com/data-room): every public action on the " +
-          'platform, newest first: trades, proposals, decisions, deliveries, comments, announcements, ' +
-          'metric readings, books opening and settling, liquidity, joins, record links, floors opening. ' +
+          'platform, newest first: trades, limit orders, liquidity, proposals, decisions, deliveries, comments, ' +
+          'announcements, metric readings, metric edits, books opening and settling, credit purchases, grants, ' +
+          'transfers, season entries, joins, record links, floors opening. ' +
           'Filter with the same parameters the public endpoint takes. Use it whenever a visitor asks ' +
           'what has happened on Telarchy, who did what, or whether anyone is here.',
         parameters: {

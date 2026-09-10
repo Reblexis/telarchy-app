@@ -8530,6 +8530,11 @@ textarea.jobform-line--desc {
 .dr-chip--join, .dr-row--join { --kind: #9ece6a; }
 .dr-chip--link, .dr-row--link { --kind: #7dcfb6; }
 .dr-chip--workspace, .dr-row--workspace { --kind: #ff9e64; }
+.dr-chip--order, .dr-row--order { --kind: #e0af68; }
+.dr-chip--purchase, .dr-row--purchase { --kind: #f7768e; }
+.dr-chip--grant, .dr-row--grant { --kind: #b4f9a0; }
+.dr-chip--transfer, .dr-row--transfer { --kind: #73daca; }
+.dr-chip--season, .dr-row--season { --kind: #bb9af7; }
 .dr-chip--who { --kind: var(--text-primary); }
 
 .dr-select-wrap {

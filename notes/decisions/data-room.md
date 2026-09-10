@@ -82,3 +82,25 @@ What that decided:
   was about the surface and was a day old.
 - The traffic rollup keeps riding on the feed read so the history keeps
   accumulating for whatever the room carries next.
+
+## 2026-09-10 (evening) - "there are information missing in the log"
+
+Viktor, on the preview: "i feel like there are infromation m issing in the
+log.. some trades etc... make sure its kept up to date and updated and
+contains everythign". Two causes, one real. The preview runs on a database
+snapshot from 2026-09-05, so the branch could show nothing newer; that is
+the preview, not the log. The real one: an audit of the log against
+production found 19 trades and 10 liquidity rows dropped because their
+book had since been voided out of the table (an inner join), 3 metric edits
+whose metric was deleted, and five tables not covered at all (limit orders,
+proposal subsidies, credit purchases, earn grants, transfers, season
+entries).
+
+What that decided: every join to a name is a left join and a row outlives
+the thing it points at ("a book since removed"); five kinds were added
+(`order`, `purchase`, `grant`, `transfer`, `season`) and proposal
+subsidies became `liquidity` rows grouped per proposal, funder and minute;
+the audit is the rule: every row a covered table holds for a public floor
+or a participant is a row on the log, and what is left out is named in the
+doc. After the fix the per-kind counts on production matched the tables
+exactly.
