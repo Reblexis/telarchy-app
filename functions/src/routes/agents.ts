@@ -469,8 +469,10 @@ agentsRouter.get(
   '/:idOrNickname/public',
   optionalAuthMiddleware,
   wrap(async (req, res) => {
-    const { computeCalibrationStats, computeProfitBreakdown, currentPayoutFactors, isSettledMarket, voidedStakeKey } =
-      await import('../lib/leaderboard');
+    const { currentPayoutFactors } = await import('../lib/leaderboard');
+    // Dynamic for the same reason as the line above: routes/leaderboard.ts
+    // reaches back into the schema and services this router also loads.
+    const { cachedBoard } = await import('./leaderboard');
     type ProfitMarket = import('../lib/leaderboard').ProfitMarket;
     const idOrNickname = req.params.idOrNickname as string;
 
@@ -616,15 +618,110 @@ agentsRouter.get(
       return;
     }
 
-    // Stats are still aggregated over public workspaces only (the documented
-    // privacy contract for this endpoint). Per-position and per-trade detail
-    // expands to viewerWsIds.
+    // Stats are aggregated over public workspaces only (the documented
+    // privacy contract for this endpoint), and they are the BOARD's numbers:
+    // rank, profit and its split, calibration, trade count and last trade
+    // come from the same cached aggregation GET /api/leaderboard serves
+    // (lib/board.ts, through routes/leaderboard.ts), because this page is
+    // where every board row links: a trader shown at +412 cr on the floor's
+    // rail reading "0 cr earned" one click later is the bug the owner
+    // reported on 2026-08-14. The profile used to recompute that board from
+    // every trade, position and market of every public floor, uncached, on
+    // every view (telarchy umbrella, notes/snake-load-audit-2026-09-10.md,
+    // item 8). Per-position and per-trade detail expands to viewerWsIds and
+    // reads only this participant's rows.
     const statsScope = publicWsIds;
     const detailScope = Array.from(viewerWsIds);
 
-    const queryScope = Array.from(new Set([...statsScope, ...detailScope]));
+    let entry: typeof emptyStats | undefined;
+    if (statsScope.length > 0) {
+      const board = await cachedBoard(statsScope);
+      if (board.agentIds.includes(agent.id)) {
+        // Same order as the board: profit first, most recent trade as the
+        // tiebreak.
+        const lastTradeMs = (id: string) => {
+          const at = board.activityById.get(id)?.lastTradeAt;
+          return at ? new Date(at).getTime() : 0;
+        };
+        const order = [...board.agentIds].sort((x, y) => {
+          const px = board.profitById.get(x) ?? 0,
+            py = board.profitById.get(y) ?? 0;
+          if (py !== px) return py - px;
+          return lastTradeMs(y) - lastTradeMs(x);
+        });
+        // The activity cells, in one aggregate over this participant's rows
+        // alone: how many ledger rows, when the last one was, and the
+        // credits moved by buys and sells (a redemption is bookkeeping, not
+        // a trade, and does not count: docs/ui-conventions.md, "The stats
+        // strip"). The last-trade instant goes through the column's own
+        // mapping so it is the exact instant, not a driver string read in
+        // the process's time zone.
+        const [activity] = await db
+          .select({
+            totalTrades: sql<number>`count(*)::int`,
+            lastTradeAt: sql<Date | null>`max(${trades.createdAt})`.mapWith(trades.createdAt),
+            traded: sql<number>`coalesce(sum(abs(${trades.cost})) filter (where ${trades.kind} <> 'redeem'), 0)::float`,
+          })
+          .from(trades)
+          .where(and(eq(trades.agentId, agent.id), inArray(trades.workspaceId, statsScope)));
+        const q = board.calibrationById.get(agent.id);
+        entry = {
+          rank: order.indexOf(agent.id) + 1,
+          calibration: q?.calibration ?? null,
+          accuracy: q?.accuracy ?? null,
+          totalEarnings: board.profitById.get(agent.id) ?? 0,
+          settledEarnings: board.breakdownById.get(agent.id)?.settled ?? 0,
+          openEarnings: board.breakdownById.get(agent.id)?.open ?? 0,
+          resolvedMarkets: q?.resolvedMarkets ?? 0,
+          totalTrades: Number(activity?.totalTrades ?? 0),
+          tradedVolume: Math.round(Number(activity?.traded ?? 0) * 100) / 100,
+          lastTradeAt: activity?.lastTradeAt ? activity.lastTradeAt.toISOString() : null,
+        };
+      }
+    }
+
+    // This participant's own rows on the floors the viewer can see, and the
+    // markets those rows touch. Every statement is keyed by agent_id, and
+    // the market read is a semi-join on those rows rather than a list of
+    // ids, so nothing here grows with the size of a floor. Voided markets
+    // are left out on purpose: a voided position is refunded out of band,
+    // so reporting it as open would be wrong, and a trade on one keeps its
+    // row but names no market.
+    const tradeRows =
+      detailScope.length > 0
+        ? await db
+            .select({
+              id: trades.id,
+              agentId: trades.agentId,
+              workspaceId: trades.workspaceId,
+              marketId: trades.marketId,
+              direction: trades.direction,
+              shares: trades.shares,
+              cost: trades.cost,
+              kind: trades.kind,
+              consensusBefore: trades.consensusBefore,
+              consensusAfter: trades.consensusAfter,
+              createdAt: trades.createdAt,
+            })
+            .from(trades)
+            .where(and(eq(trades.agentId, agent.id), inArray(trades.workspaceId, detailScope)))
+        : [];
+    const positionRows =
+      detailScope.length > 0
+        ? await db
+            .select({
+              agentId: positions.agentId,
+              workspaceId: positions.workspaceId,
+              marketId: positions.marketId,
+              direction: positions.direction,
+              shares: positions.shares,
+              totalCost: positions.totalCost,
+            })
+            .from(positions)
+            .where(and(eq(positions.agentId, agent.id), inArray(positions.workspaceId, detailScope)))
+        : [];
     const wsMarkets =
-      queryScope.length > 0
+      detailScope.length > 0
         ? await db
             .select({
               id: markets.id,
@@ -642,201 +739,19 @@ agentsRouter.get(
               proposalId: markets.proposalId,
             })
             .from(markets)
-            .where(and(inArray(markets.workspaceId, queryScope), eq(markets.voided, false)))
+            .where(
+              and(
+                inArray(markets.workspaceId, detailScope),
+                eq(markets.voided, false),
+                sql`${markets.id} in (
+                  select ${trades.marketId} from ${trades} where ${trades.agentId} = ${agent.id}
+                  union
+                  select ${positions.marketId} from ${positions} where ${positions.agentId} = ${agent.id}
+                )`,
+              ),
+            )
         : [];
     const marketById = new Map(wsMarkets.map(m => [m.id, m]));
-
-    const [tradeRows, positionRows] = await Promise.all([
-      queryScope.length > 0
-        ? db
-            .select({
-              id: trades.id,
-              agentId: trades.agentId,
-              workspaceId: trades.workspaceId,
-              marketId: trades.marketId,
-              direction: trades.direction,
-              shares: trades.shares,
-              cost: trades.cost,
-              kind: trades.kind,
-              consensusBefore: trades.consensusBefore,
-              consensusAfter: trades.consensusAfter,
-              createdAt: trades.createdAt,
-            })
-            .from(trades)
-            .where(inArray(trades.workspaceId, queryScope))
-        : Promise.resolve(
-            [] as Array<{
-              id: string;
-              agentId: string;
-              workspaceId: string;
-              marketId: string;
-              direction: string;
-              shares: number;
-              cost: number;
-              kind: string;
-              consensusBefore: number | null;
-              consensusAfter: number | null;
-              createdAt: Date;
-            }>,
-          ),
-      queryScope.length > 0
-        ? db
-            .select({
-              agentId: positions.agentId,
-              workspaceId: positions.workspaceId,
-              marketId: positions.marketId,
-              direction: positions.direction,
-              shares: positions.shares,
-              totalCost: positions.totalCost,
-            })
-            .from(positions)
-            .where(inArray(positions.workspaceId, queryScope))
-        : Promise.resolve(
-            [] as Array<{
-              agentId: string;
-              workspaceId: string;
-              marketId: string;
-              direction: string;
-              shares: number;
-              totalCost: number;
-            }>,
-          ),
-    ]);
-
-    // Stats over public workspaces only (the documented privacy contract).
-    //
-    // rank and totalEarnings use the SAME formula as GET /api/leaderboard
-    // (trading profit marked to current market prices), because this page is
-    // where every board row links: a trader shown at +412 cr on the floor's
-    // rail reading "0 cr earned" one click later is the bug the owner reported
-    // on 2026-08-14. wsMarkets already excludes voided markets, which is the
-    // filter that formula requires on both of its sides.
-    let entry: typeof emptyStats | undefined;
-    if (statsScope.length > 0) {
-      const statsWsSet = new Set(statsScope);
-      // wsMarkets deliberately excludes voided markets (the detail lists below
-      // must not report a refunded position as open), but the profit formula
-      // needs them: a cancelled market pays a refund, and a trader who sold out
-      // above cost before the cancel kept the gain. Fetch just those for stats.
-      const voidedMarkets = await db
-        .select({
-          id: markets.id,
-          workspaceId: markets.workspaceId,
-          rangeMin: markets.rangeMin,
-          rangeMax: markets.rangeMax,
-          resolved: markets.resolved,
-          actualValue: markets.actualValue,
-          shares: markets.shares,
-          liquidity: markets.liquidity,
-        })
-        .from(markets)
-        .where(and(inArray(markets.workspaceId, statsScope), eq(markets.voided, true)));
-      const statsMarkets: ProfitMarket[] = [
-        ...wsMarkets.filter(m => statsWsSet.has(m.workspaceId)).map(m => ({ ...m, voided: false })),
-        ...voidedMarkets.map(m => ({ ...m, voided: true })),
-      ].map(m => ({
-        id: m.id,
-        workspaceId: m.workspaceId,
-        rangeMin: m.rangeMin,
-        rangeMax: m.rangeMax,
-        resolved: m.resolved,
-        actualValue: m.actualValue,
-        shares: (m.shares as [number, number] | null) ?? null,
-        liquidity: m.liquidity,
-        voided: m.voided,
-      }));
-      const statsTrades = tradeRows.filter(t => statsWsSet.has(t.workspaceId));
-      const voidedIds = new Set(voidedMarkets.map(m => `${m.workspaceId}:${m.id}`));
-      // Only positions that can be valued at a price; cancelled markets pay a
-      // refund, computed from the trades just below.
-      const statsPositions = positionRows
-        .filter(p => statsWsSet.has(p.workspaceId) && p.shares > 0 && !voidedIds.has(`${p.workspaceId}:${p.marketId}`))
-        .map(p => ({
-          agentId: p.agentId,
-          workspaceId: p.workspaceId,
-          marketId: p.marketId,
-          direction: p.direction,
-          shares: p.shares,
-        }));
-
-      // Net cash per agent, counting every trade on a market that still
-      // exists (voided included, since the value side counts their refund),
-      // exactly as the board's SQL aggregate does.
-      const marketByKey = new Set(statsMarkets.map(m => `${m.workspaceId}:${m.id}`));
-      const netCashByAgent = new Map<string, number>();
-      const tradeCountByAgent = new Map<string, number>();
-      // Credits moved by buys and sells; a redemption is bookkeeping, not a
-      // trade, and does not count (docs/ui-conventions.md, "The stats strip").
-      const tradedVolumeByAgent = new Map<string, number>();
-      const lastTradeByAgent = new Map<string, Date>();
-      for (const t of statsTrades) {
-        tradeCountByAgent.set(t.agentId, (tradeCountByAgent.get(t.agentId) ?? 0) + 1);
-        if (t.kind !== 'redeem')
-          tradedVolumeByAgent.set(t.agentId, (tradedVolumeByAgent.get(t.agentId) ?? 0) + Math.abs(t.cost));
-        const prev = lastTradeByAgent.get(t.agentId);
-        if (t.createdAt && (!prev || t.createdAt > prev)) lastTradeByAgent.set(t.agentId, t.createdAt);
-        if (!marketByKey.has(`${t.workspaceId}:${t.marketId}`)) continue;
-        netCashByAgent.set(t.agentId, (netCashByAgent.get(t.agentId) ?? 0) + t.cost);
-      }
-
-      // Net cash per (agent, cancelled market): what the void refunds, floored
-      // at zero inside computeTradingProfit. Same rule the board applies.
-      const voidedStake = new Map<string, number>();
-      for (const t of statsTrades) {
-        if (!voidedIds.has(`${t.workspaceId}:${t.marketId}`)) continue;
-        const key = voidedStakeKey(t.agentId, t.workspaceId, t.marketId);
-        voidedStake.set(key, (voidedStake.get(key) ?? 0) + t.cost);
-      }
-      // Net cash on markets whose money is final, the cost side of the settled
-      // part of the split (docs/seasons.md "The score"); same predicate as the
-      // board's SQL aggregate in lib/board.ts.
-      const settledKeys = new Set(statsMarkets.filter(isSettledMarket).map(m => `${m.workspaceId}:${m.id}`));
-      const settledCashByAgent = new Map<string, number>();
-      for (const t of statsTrades) {
-        if (!settledKeys.has(`${t.workspaceId}:${t.marketId}`)) continue;
-        settledCashByAgent.set(t.agentId, (settledCashByAgent.get(t.agentId) ?? 0) + t.cost);
-      }
-      const breakdownByAgent = computeProfitBreakdown(
-        statsMarkets,
-        netCashByAgent,
-        settledCashByAgent,
-        statsPositions,
-        voidedStake,
-      );
-      const profitByAgent = new Map(Array.from(breakdownByAgent, ([id, b]) => [id, b.total]));
-      const quality = computeCalibrationStats(
-        // Voided markets carry actualValue null, so they never reach here.
-        statsMarkets.filter(m => m.resolved && m.actualValue !== null),
-        statsPositions,
-      );
-
-      // Rank among everyone with public activity, same ordering as the board:
-      // profit first, most recent trade as the tiebreak.
-      const contenders = new Set<string>([...profitByAgent.keys(), ...tradeCountByAgent.keys()]);
-      const order = Array.from(contenders).sort((a, b) => {
-        const pa = profitByAgent.get(a) ?? 0,
-          pb = profitByAgent.get(b) ?? 0;
-        if (pb !== pa) return pb - pa;
-        return (lastTradeByAgent.get(b)?.getTime() ?? 0) - (lastTradeByAgent.get(a)?.getTime() ?? 0);
-      });
-      const position = order.indexOf(agent.id);
-      if (position >= 0) {
-        const q = quality.get(agent.id);
-        const last = lastTradeByAgent.get(agent.id);
-        entry = {
-          rank: position + 1,
-          calibration: q?.calibration ?? null,
-          accuracy: q?.accuracy ?? null,
-          totalEarnings: profitByAgent.get(agent.id) ?? 0,
-          settledEarnings: breakdownByAgent.get(agent.id)?.settled ?? 0,
-          openEarnings: breakdownByAgent.get(agent.id)?.open ?? 0,
-          resolvedMarkets: q?.resolvedMarkets ?? 0,
-          totalTrades: tradeCountByAgent.get(agent.id) ?? 0,
-          tradedVolume: Math.round((tradedVolumeByAgent.get(agent.id) ?? 0) * 100) / 100,
-          lastTradeAt: last ? last.toISOString() : null,
-        };
-      }
-    }
 
     // activeWorkspaces stays public-only so anonymous callers see the same
     // "where they trade publicly" list they always have. Detail-level lists

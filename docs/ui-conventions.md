@@ -2062,7 +2062,13 @@ reload.
   `docs/vision.md`), so a market that was cancelled under you nets to
   exactly zero, while a realised gain you took out before the cancel
   stands. Trades on markets whose rows are gone entirely cannot be valued
-  and count nothing. The row shows the signed profit in credits.
+  and count nothing. The row shows the signed profit in credits. **An
+  untraded market never enters the board or a profile**: a market nobody
+  traded and nobody holds a position on cannot have moved a balance, so the
+  board, the season standings and the profile's stats are computed over
+  the traded set only and answer the same with or without it (the reads
+  are bounded by trades, not by a workspace's market count; telarchy
+  umbrella, `notes/snake-load-audit-2026-09-10.md`).
 - **Top contractors** rank by the market's valuation of the proposals
   they posted, NOT by dollars collected. A proposal's value is its priced
   impact: the approved branch's consensus minus the declined branch's, on
@@ -2087,7 +2093,11 @@ reload.
   negative); dollars earned on approved proposals drop to the row's second
   line, alongside the proposal count. House accounts are NOT excluded
   here: a contractor's score is priced by other people, so it cannot be
-  self-granted.
+  self-granted. The rail scores every pending proposal plus the 200 most
+  recently posted approved ones (`CONTRACTOR_DECIDED_WINDOW`), never a
+  workspace's whole history: it is rebuilt on every floor poll and home
+  build, and a decided proposal's books are not read at all, since its
+  recorded pair is what it is valued on (same audit note).
 
 **The board is at most five seconds behind the trades, and a reader's own
 trade shows up on their next read.** The server-side board cache TTL is

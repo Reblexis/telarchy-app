@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNotNull, lte, or, type SQL, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { liquidityEvents, markets, positions, trades } from '../db/schema';
 import { resolutionInstant, settlesOn } from './date-utils';
@@ -90,9 +90,14 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
     };
   }
 
-  // Every market in the set, whatever state it is in: enough to say what a
-  // holding is worth (currentPayoutFactors picks the resolution payout or the
-  // live call; a voided market pays its refund instead).
+  // Every TRADED market in the set, whatever state it is in: enough to say
+  // what a holding is worth (currentPayoutFactors picks the resolution payout
+  // or the live call; a voided market pays its refund instead). A market
+  // nobody traded and nobody holds cannot have moved a balance, so it never
+  // enters the board (docs/ui-conventions.md, "Top traders"); without that
+  // restriction this read is proportional to the workspace's market count,
+  // which the Snake grows by ~11k a day, almost none of them traded
+  // (telarchy umbrella, notes/snake-load-audit-2026-09-10.md, item 7).
   const marketRows = await db
     .select({
       id: markets.id,
@@ -106,7 +111,7 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
       voided: markets.voided,
     })
     .from(markets)
-    .where(inArray(markets.workspaceId, workspaceIds));
+    .where(and(inArray(markets.workspaceId, workspaceIds), tradedIn(workspaceIds)));
 
   const profitMarkets: ProfitMarket[] = marketRows.map(m => ({
     id: m.id,
@@ -292,9 +297,11 @@ export function seasonMarketCountsIn(
  * silently while every pure test still passes, so it is pinned end to end in
  * own-book-no-profit.test.ts.
  */
-async function ownPoolFundingFor(marketIds: string[]): Promise<Map<string, number>> {
+async function ownPoolFundingWhere(marketPredicate: SQL): Promise<Map<string, number>> {
   const out = new Map<string, number>();
-  if (marketIds.length === 0) return out;
+  // Joined to the market set by its predicate, never by a list of ids: the
+  // list version threw past Postgres's 65,535-parameter cap once a season
+  // window held that many settled books (audit item 9).
   const funding = await db
     .select({
       agentId: liquidityEvents.agentId,
@@ -303,12 +310,31 @@ async function ownPoolFundingFor(marketIds: string[]): Promise<Map<string, numbe
       contributed: sql<number>`coalesce(sum(${liquidityEvents.poolContribution}), 0)::float`,
     })
     .from(liquidityEvents)
-    .where(and(isNotNull(liquidityEvents.agentId), inArray(liquidityEvents.marketId, marketIds)))
+    .innerJoin(
+      markets,
+      and(eq(markets.id, liquidityEvents.marketId), eq(markets.workspaceId, liquidityEvents.workspaceId)),
+    )
+    .where(and(isNotNull(liquidityEvents.agentId), marketPredicate))
     .groupBy(liquidityEvents.agentId, liquidityEvents.workspaceId, liquidityEvents.marketId);
   for (const f of funding) {
     out.set(`${f.agentId} ${f.workspaceId} ${f.marketId}`, Number(f.contributed));
   }
   return out;
+}
+
+/**
+ * The markets of `workspaceIds` that at least one trade or position touches.
+ * A semi-join on the ledgers rather than an `IN (<ids>)` list, so nothing
+ * here is proportional to the number of markets, only to the number of
+ * traded ones. Every read in this module that starts from `markets` goes
+ * through it: an untraded market cannot change anyone's number.
+ */
+function tradedIn(workspaceIds: string[]): SQL {
+  return sql`${markets.id} in (
+    select ${trades.marketId} from ${trades} where ${inArray(trades.workspaceId, workspaceIds)}
+    union
+    select ${positions.marketId} from ${positions} where ${inArray(positions.workspaceId, workspaceIds)}
+  )`;
 }
 
 export async function loadSeasonSettled(
@@ -324,7 +350,9 @@ export async function loadSeasonSettled(
     gt(markets.resolvedAt, windowStart),
     lte(markets.resolvedAt, windowEnd),
     or(eq(markets.voided, true), and(eq(markets.resolved, true), isNotNull(markets.actualValue))),
-  );
+    // Settled books nobody traded score nobody; the Snake voids ~10k a day.
+    tradedIn(workspaceIds),
+  )!;
 
   const marketRows = await db
     .select({
@@ -372,7 +400,7 @@ export async function loadSeasonSettled(
     )
     .groupBy(trades.agentId, trades.workspaceId, trades.marketId, trades.direction);
 
-  const ownPoolFunding = await ownPoolFundingFor(marketRows.map(m => m.id));
+  const ownPoolFunding = await ownPoolFundingWhere(inWindow);
 
   return computeSettledWindowProfit(
     marketRows.map(m => ({ ...m, actualValue: m.voided ? null : m.actualValue })),
@@ -433,6 +461,14 @@ export async function loadSeasonMarked(
  * at the cutoff instant, and only the ledger knows what that was.
  */
 async function loadOpenWindowMarked(workspaceIds: string[], windowEnd: Date): Promise<Map<string, number>> {
+  // Open, unvoided and traded: the same restriction as the board, for the
+  // same reason (an untraded book marks nobody).
+  const isOpen = and(
+    inArray(markets.workspaceId, workspaceIds),
+    eq(markets.resolved, false),
+    eq(markets.voided, false),
+    tradedIn(workspaceIds),
+  )!;
   const openRows = await db
     .select({
       id: markets.id,
@@ -447,7 +483,7 @@ async function loadOpenWindowMarked(workspaceIds: string[], windowEnd: Date): Pr
       settlesAt: markets.settlesAt,
     })
     .from(markets)
-    .where(and(inArray(markets.workspaceId, workspaceIds), eq(markets.resolved, false), eq(markets.voided, false)));
+    .where(isOpen);
 
   // Membership is decided by when a market SETTLES, so this half and the
   // settled half agree about the same market (seasonMarketCountsIn).
@@ -457,23 +493,29 @@ async function loadOpenWindowMarked(workspaceIds: string[], windowEnd: Date): Pr
   if (scored.length === 0) return new Map();
 
   // No cutoff here either, for the same reason as the settled half: every
-  // trade counts, so the marked position is the one actually held.
-  const cutoffs = scored.map(m => and(eq(trades.marketId, m.id), eq(trades.workspaceId, m.workspaceId)));
+  // trade counts, so the marked position is the one actually held. The
+  // ledger is joined to the open set by predicate (it used to be one OR
+  // branch per market, ten thousand of them on the Snake floor); the rows
+  // on open books that settle after the window are dropped here, and the
+  // pure function ignores any market it was not handed anyway.
+  const scoredKeys = new Set(scored.map(m => `${m.workspaceId} ${m.id}`));
+  const aggs = (
+    await db
+      .select({
+        agentId: trades.agentId,
+        workspaceId: trades.workspaceId,
+        marketId: trades.marketId,
+        direction: trades.direction,
+        shares: sql<number>`coalesce(sum(${trades.shares}), 0)::float`,
+        cost: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
+      })
+      .from(trades)
+      .innerJoin(markets, and(eq(markets.id, trades.marketId), eq(markets.workspaceId, trades.workspaceId)))
+      .where(isOpen)
+      .groupBy(trades.agentId, trades.workspaceId, trades.marketId, trades.direction)
+  ).filter(a => scoredKeys.has(`${a.workspaceId} ${a.marketId}`));
 
-  const aggs = await db
-    .select({
-      agentId: trades.agentId,
-      workspaceId: trades.workspaceId,
-      marketId: trades.marketId,
-      direction: trades.direction,
-      shares: sql<number>`coalesce(sum(${trades.shares}), 0)::float`,
-      cost: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
-    })
-    .from(trades)
-    .where(or(...cutoffs))
-    .groupBy(trades.agentId, trades.workspaceId, trades.marketId, trades.direction);
-
-  const ownPoolFunding = await ownPoolFundingFor(scored.map(m => m.id));
+  const ownPoolFunding = await ownPoolFundingWhere(isOpen);
 
   return computeMarkedWindowProfit(
     scored.map(m => ({

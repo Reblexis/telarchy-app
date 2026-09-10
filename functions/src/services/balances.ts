@@ -28,15 +28,21 @@ export async function snapshotAgentBalances(now: Date = new Date()): Promise<num
   const r = result as { rowCount?: number; affectedRows?: number };
   const inserted = r.rowCount ?? r.affectedRows ?? 0;
 
+  // Only the first run of a day has rows without a profit; every later run
+  // (this is called from every resolve tick) must find that out BEFORE
+  // paying for the board, which is five aggregates over the whole trades
+  // table (telarchy umbrella, notes/snake-load-audit-2026-09-10.md, item 7).
+  const pending = await db
+    .select({ agentId: agentBalanceSnapshots.agentId })
+    .from(agentBalanceSnapshots)
+    .where(and(eq(agentBalanceSnapshots.day, day), isNull(agentBalanceSnapshots.profit)));
+  if (pending.length === 0) return inserted;
+
   // The board over every public floor, the same aggregation /api/leaderboard
   // serves. A participant the board does not know scored nothing: zero, not
   // null, because null means "not recorded" (docs/ui-conventions.md).
   const publicWs = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.visibility, 'public'));
   const board = await loadBoard(publicWs.map(w => w.id));
-  const pending = await db
-    .select({ agentId: agentBalanceSnapshots.agentId })
-    .from(agentBalanceSnapshots)
-    .where(and(eq(agentBalanceSnapshots.day, day), isNull(agentBalanceSnapshots.profit)));
   for (const row of pending) {
     await db
       .update(agentBalanceSnapshots)

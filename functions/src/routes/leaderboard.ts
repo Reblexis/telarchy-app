@@ -99,7 +99,7 @@ const boardCache = ttlCache({
   load: (workspaceIds: string[]) => loadBoard(workspaceIds),
 });
 
-const cachedBoard = (workspaceIds: string[]) => boardCache.get(workspaceIds);
+export const cachedBoard = (workspaceIds: string[]) => boardCache.get(workspaceIds);
 
 /** Settlement, the trade route, and any test that just wrote trades needs the
  *  next read to see them rather than a cached answer. */
