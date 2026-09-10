@@ -6,6 +6,7 @@ import {
   agents,
   limitOrders,
   liquidityEvents,
+  marketForecasts,
   marketMessages,
   markets,
   positions,
@@ -964,6 +965,101 @@ predictionsRouter.post(
 
     const names = await getParticipantDisplayNames([from]);
     res.status(201).json({ id, marketId, from, fromName: names.get(from) ?? null, content, createdAt });
+  }),
+);
+
+/**
+ * Reference forecasts (docs/metrics.md, "The reference forecaster, and
+ * reference forecasts"): a participant files what it expects the market to
+ * settle at, as a number with a stage, a model and a short note. Any
+ * participant with trade may file; the metric reads the reference's rows.
+ * Refused on a market that is not open (resolved, voided or deactivated),
+ * because an estimate made after the answer is known, or on a book nobody
+ * can trade, is not a forecast.
+ */
+const FORECAST_STAGE_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
+
+predictionsRouter.post(
+  '/markets/:id/forecasts',
+  requireCapability('trade'),
+  wrap(async (req, res) => {
+    const { workspaceId } = req.auth!;
+    const marketId = req.params.id as string;
+    const { value, stage: rawStage, model: rawModel, note: rawNote } = req.body ?? {};
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      res.status(400).json({ error: 'value must be a finite number' });
+      return;
+    }
+    const stage = rawStage === undefined || rawStage === null ? 'spawn' : rawStage;
+    if (typeof stage !== 'string' || !FORECAST_STAGE_RE.test(stage)) {
+      res
+        .status(400)
+        .json({ error: 'stage must be a short token: letters, digits, "-" or "_", at most 32 characters' });
+      return;
+    }
+    const model = rawModel === undefined || rawModel === null ? null : rawModel;
+    if (model !== null && (typeof model !== 'string' || model.length > 100)) {
+      res.status(400).json({ error: 'model must be a string of at most 100 characters' });
+      return;
+    }
+    const note = rawNote === undefined || rawNote === null ? null : rawNote;
+    if (note !== null && (typeof note !== 'string' || note.length > 2000)) {
+      res.status(400).json({ error: 'note must be a string of at most 2000 characters' });
+      return;
+    }
+
+    const [market] = await db
+      .select({ id: markets.id, active: markets.active, resolved: markets.resolved, voided: markets.voided })
+      .from(markets)
+      .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+    if (!market) {
+      res.status(404).json({ error: 'Market not found' });
+      return;
+    }
+    if (market.resolved || market.voided || !market.active) {
+      res.status(409).json({ error: 'A forecast can only be filed on an open market' });
+      return;
+    }
+
+    const agentId = req.auth!.agentId || 'admin';
+    const id = randomUUID();
+    const createdAt = new Date();
+    await db
+      .insert(marketForecasts)
+      .values({ id, workspaceId, marketId, agentId, value, stage, model, note, createdAt });
+    res.status(201).json({ id, marketId, agentId, value, stage, model, note, createdAt });
+  }),
+);
+
+predictionsRouter.get(
+  '/markets/:id/forecasts',
+  requireCapability('read'),
+  wrap(async (req, res) => {
+    const { workspaceId } = req.auth!;
+    const marketId = req.params.id as string;
+    const [market] = await db
+      .select({ id: markets.id })
+      .from(markets)
+      .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+    if (!market) {
+      res.status(404).json({ error: 'Market not found' });
+      return;
+    }
+    const rows = await db
+      .select({
+        id: marketForecasts.id,
+        marketId: marketForecasts.marketId,
+        agentId: marketForecasts.agentId,
+        value: marketForecasts.value,
+        stage: marketForecasts.stage,
+        model: marketForecasts.model,
+        note: marketForecasts.note,
+        createdAt: marketForecasts.createdAt,
+      })
+      .from(marketForecasts)
+      .where(and(eq(marketForecasts.workspaceId, workspaceId), eq(marketForecasts.marketId, marketId)))
+      .orderBy(asc(marketForecasts.createdAt), asc(marketForecasts.id));
+    res.json(rows);
   }),
 );
 

@@ -1158,6 +1158,32 @@ export const marketMessages = pgTable(
   t => [primaryKey({ columns: [t.id, t.workspaceId] })],
 );
 
+/**
+ * Reference forecasts (docs/metrics.md, "The reference forecaster, and
+ * reference forecasts"): a participant's own estimate of where a market
+ * settles, filed as a number rather than parsed out of a comment, stamped
+ * with the instant it was made. The skill-vs-reference metric reads the
+ * rows filed by the reference participant; any participant with trade may
+ * file. `stage` says when in the market's life it was made (`spawn`,
+ * `mature`), `model` what produced it, `note` the short reasoning that is
+ * also posted as a comment.
+ */
+export const marketForecasts = pgTable(
+  'market_forecasts',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    marketId: text('market_id').notNull(),
+    agentId: text('agent_id').notNull(),
+    value: doublePrecision('value').notNull(),
+    stage: text('stage').notNull().default('spawn'),
+    model: text('model'),
+    note: text('note'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.id, t.workspaceId] }), index('market_forecasts_market_idx').on(t.marketId, t.agentId)],
+);
+
 /** Owner-authored prose attached to a workspace: public, timestamped, newest
  *  first. The surface a charter's "I announce material news" promise lands on
  *  (see docs/vision.md, "Workspace announcements"). Not a comment (nobody

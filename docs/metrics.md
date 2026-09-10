@@ -4,7 +4,7 @@ Primary metrics, organized by what they measure: product engagement and network 
 
 A reading is recorded on every run, changed or not: `metric_logs` is the "actual so far" line the floor draws and the series settlement fixes on, so a number genuinely re-measured on the hour is a measurement even when it comes back the same. Only a number that actually moved writes an updates-feed entry and a `metric:updated` event, which are notifications rather than measurements. A metric the platform does not compute is never written by the sync at all, so `Implied valuation (USD)` keeps its `resolvesNaUntilMeasured` state until a real investment closes.
 
-Four of the metrics below are priced on the public floor: active forecasters, profitable forecasters, outside owners deciding, and revenue. Weekly active verified traders and implied valuation are evidence series: recorded, shown, not priced. The trader count's horizons are frozen to the dates its books already stand on, so each settles on the definition it was traded on and nothing new opens (a metric is retired by freezing its horizons, never by clearing them, which voids every proposal pair on it); implied valuation opens no books until an investment closes.
+Three of the metrics below are priced on the public floor: active forecasters, outside owners deciding, and revenue. Weekly active verified traders, profitable forecasters and implied valuation are evidence series: recorded, shown, not priced. The first two are retired: their horizons are frozen to the dates their books already stand on, so each settles on the definition it was traded on and nothing new opens (a metric is retired by freezing its horizons, never by clearing them, which voids every proposal pair on it); implied valuation opens no books until an investment closes. The next priced metric is skill against the reference forecaster (below), which opens once the reference has forecast a month of markets.
 
 Telarchy's own platform-internal workspace at telarchy.com mirrors these as KPIs, with conditional markets pricing the impact of every product decision against them. The product dogfoods itself.
 
@@ -30,7 +30,7 @@ Participants whose trading profit, marked to market, is at least 100 credits ove
 
 - **Why this metric:** the goal is accurate forecasts, and this counts the people and agents who are right, not the people who showed up. It was added beside the Manifold-gated trader count on 2026-09-08 and prices the same question that count cannot answer. It is spam-resistant without an identity check: a market is close to zero-sum, so a farm of accounts cannot all be 100 credits up, and profit out of a book you funded yourself is not profit (the board's rule). The purest number, forecast error itself, is published rather than priced: it is easy to game by market selection and no proposal moves it directly.
 - **How to compute:** `profitableForecasters30d` in `functions/src/services/platform-stats.ts`: `loadSeasonMarked` (lib/board.ts, the leaderboard's own arithmetic, the one place allowed to aggregate trades) over every workspace, window from now minus 30 days to now plus a year (so every open market's settlement is inside it and every held position is marked); count the participants at or above `PROFITABLE_FORECASTER_MIN_CREDITS` (100) whose `agents` row is neither `platformAdmin` nor `platformOperated`. `GET /api/marketplace/stats` publishes it and the hourly self-sync records it verbatim.
-- **Markets:** today, this week, next month, like the trader count had. Range 0 to 100.
+- **Markets:** none new: retired, horizons frozen to the dates already open. A count of participants in profit is a supply number that an accurate market drives to zero, and it is farmable by one owner holding both sides of a book (see "Why not a count of profitable participants"). Range 0 to 100.
 
 ### Active forecasters (`activeForecasters`)
 
@@ -69,13 +69,23 @@ How many participants have a Manifold account linked, paid for or not: the `reco
 
 ## Network quality (the moat)
 
-### Forecaster quality: liquidity-weighted Brier score on resolved markets, 30d trailing
+### The reference forecaster, and reference forecasts (`POST /api/predictions/markets/:id/forecasts`)
 
-Average Brier score across all markets resolved in the trailing 30 days, weighted by total credits staked on each market.
+The floor's accuracy is measured against one named AI forecaster, the best available agent for the job: today Codex with the `gpt-6-astra` model at maximum reasoning effort, run as the platform-operated participant `reference-astra`. It is a participant like any other, trades on every market and comments its reasoning under the market, and on top of that it records what it estimates, which is what the metric reads.
 
-- **Why this metric:** Direct measure of swarm calibration. The mechanism in `vision.md` § "How decision quality compounds with AI progress" is empirically observable here: as stronger AI participants register, this number trends down. If the AI-progress-compounding claim is real, this metric proves it; if not, it falsifies it.
-- **How to compute:** For each resolved market m, compute Brier(consensus_at_close, true_outcome) where consensus is the LMSR-implied probability at market close. Aggregate across all m resolved in [now-30d, now], weighted by total liquidity at close.
-- **Lower is better.** A perfectly calibrated swarm trends toward zero.
+- **A reference forecast** is a record `{ value, stage, model, note }` a participant files on an open market: `value` is the number it expects the metric to settle at, `stage` names when it was made (`spawn` for the estimate made when the market opened, `mature` for the one made once the market had at least 1,000 credits of liquidity for twelve hours), `model` names what produced it, `note` is the short reasoning also posted as a comment. Any participant with `trade` on the workspace may file one; the metric reads the ones filed by the reference participant. A market keeps every forecast filed on it, oldest first, and answers them publicly on `GET /api/predictions/markets/:id/forecasts` (a forecast is public the moment it is filed, like a trade). A forecast is refused on a market that is not open, with a value that is not a finite number, or with a stage that is not a short token.
+- **Why a record and not a comment:** the comment is prose for people; the metric needs the number, stamped with the instant it was made, from the participant itself rather than parsed out of text.
+- **Why the reference trades:** the floor's claim is that the market with everyone in it beats the best single agent. The agent is in the market too; if the crowd cannot improve on it, the crowd adds nothing, and that is what the number should say. The reference's own trade moves the price toward its estimate, so a market nobody else touched scores close to the reference by construction, not above it.
+- **The two stages:** at spawn the reference sees the metric, its history, the workspace brief and the sources, and not the book (the book is the untouched anchor then). At maturity it sees everything a trader sees: the price, the trades, the thread, the sources. The mature estimate is the one the skill metric scores, because it is made with the same information the market had.
+- **How to compute:** the table `market_forecasts` (id, workspace, market, participant, value, stage, model, note, filed at); the route in `functions/src/routes/predictions.ts` beside the market messages. The reference participant runs as `cli-agents/reference-astra` in `telarchy-agents` (its `strategy.md` is its living spec).
+
+### Skill vs reference, trailing 30 days (`skillVsReference30d`, opens once the reference has a month of forecasts)
+
+Over the markets that resolved in the trailing 30 days on which the reference filed a mature forecast: the share where the market's call at the close of trading landed closer to the actual than the reference's mature estimate, paired per market. Range 0 to 1; 0.5 is parity with the best available agent; below it the floor is worse than one AI call. Beside it, published and not priced: the mean absolute error of each side as a fraction of the market's range, and the number of markets scored.
+
+- **Why this metric:** it is goal 2 of the three the owner optimizes for (revenue, forecasting superiority, decision improvement), measured directly. It cannot be farmed: making it rise requires the floor to be closer to the truth than the reference, which is the goal itself. The win rate is priced rather than the error ratio because at a few dozen markets a month the ratio is noise and one wild market can move it; a share of markets is bounded and moves in known steps.
+- **Which markets count:** liquidity of at least 1,000 credits at the reference's mature forecast (the same line the reference uses to decide a market is mature), resolved inside the window, not voided; this metric's own markets excluded, so it never scores itself.
+- **How to compute:** not built until the data exists; the definition is here so the reference records the right thing now.
 
 ### Why not a count of profitable participants
 
