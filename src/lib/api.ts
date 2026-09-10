@@ -2634,6 +2634,10 @@ export const api = {
       proposalReward?: number;
       spamPenalty?: number;
       maxPendingProposalsPerParticipant?: number;
+      decisionMinutes?: number;
+      /** Mute every notification about the workspace, on every channel
+       *  (docs/vision.md, "A workspace can mute everything it would send"). */
+      notificationsMuted?: boolean;
     },
   ) =>
     request(`/api/workspaces/${id}/settings`, {

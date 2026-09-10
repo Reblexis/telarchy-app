@@ -392,6 +392,7 @@ workspacesRouter.put(
     const hasSpamPenaltyKey = Object.prototype.hasOwnProperty.call(req.body, 'spamPenalty');
     const hasMaxPendingKey = Object.prototype.hasOwnProperty.call(req.body, 'maxPendingProposalsPerParticipant');
     const hasDecisionDaysKey = Object.prototype.hasOwnProperty.call(req.body, 'decisionMinutes');
+    const hasMutedKey = Object.prototype.hasOwnProperty.call(req.body, 'notificationsMuted');
     const touchesLifecycleFields =
       hasAutoFundKey ||
       hasCreditsKey ||
@@ -399,7 +400,8 @@ workspacesRouter.put(
       hasProposalRewardKey ||
       hasSpamPenaltyKey ||
       hasMaxPendingKey ||
-      hasDecisionDaysKey;
+      hasDecisionDaysKey ||
+      hasMutedKey;
 
     // Lifecycle-shaped fields (visibility, auto-fund, liquidity defaults) are
     // gated by the granular `manage_workspace` capability, which the Admin group
@@ -537,6 +539,18 @@ workspacesRouter.put(
         return;
       }
       update.decisionMinutes = d;
+    }
+
+    // The workspace-wide mute (docs/vision.md, "A workspace can mute
+    // everything it would send"): a boolean and nothing else, so a client
+    // sending "false" cannot mute a floor by accident.
+    if (hasMutedKey) {
+      const muted = req.body.notificationsMuted;
+      if (typeof muted !== 'boolean') {
+        res.status(400).json({ error: 'notificationsMuted must be a boolean' });
+        return;
+      }
+      update.notificationsMuted = muted;
     }
 
     if (hasSpamPenaltyKey) {

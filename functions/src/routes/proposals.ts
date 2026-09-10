@@ -131,7 +131,11 @@ proposalsRouter.post(
     // LookPilot floors were created by the admin account, and the owner posts
     // there as a platform admin.
     const [wsForCap] = await db
-      .select({ maxPending: workspaces.maxPendingProposalsPerParticipant, decisionMinutes: workspaces.decisionMinutes })
+      .select({
+        maxPending: workspaces.maxPendingProposalsPerParticipant,
+        decisionMinutes: workspaces.decisionMinutes,
+        notificationsMuted: workspaces.notificationsMuted,
+      })
       .from(workspaces)
       .where(eq(workspaces.id, workspaceId));
     const cap = wsForCap?.maxPending ?? 0;
@@ -272,11 +276,16 @@ proposalsRouter.post(
     void notifyProposalCreated({ workspaceId, proposedBy, title, description });
 
     // The owner reviews the ballot; a new job they never hear about is a
-    // silent decline by accident (owner decision 2026-08-10: notify).
-    void notifyOwner(
-      `Telarchy: new job proposed - ${title}`,
-      `${proposedBy} put a job on the ballot:\n\n${title}\n\n${description || '(no pitch)'}\n\nReview: ${publicOrigin()}/floors`,
-    );
+    // silent decline by accident (owner decision 2026-08-10: notify). A muted
+    // workspace is the one exception (docs/vision.md, "A workspace can mute
+    // everything it would send"): a floor posting four proposals a minute
+    // would otherwise mail the platform owner about each.
+    if (!wsForCap?.notificationsMuted) {
+      void notifyOwner(
+        `Telarchy: new job proposed - ${title}`,
+        `${proposedBy} put a job on the ballot:\n\n${title}\n\n${description || '(no pitch)'}\n\nReview: ${publicOrigin()}/floors`,
+      );
+    }
 
     res.status(201).json({ id, number, conditionalMarketIds, liquiditySubsidy: subsidy });
   }),

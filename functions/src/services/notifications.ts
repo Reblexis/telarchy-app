@@ -198,6 +198,32 @@ async function deliver(recipients: Recipient[], subject: string, body: (r: Recip
 }
 
 /**
+ * The workspace-wide mute (docs/vision.md, "A workspace can mute everything
+ * it would send"): the owner's decision about their own floor, checked once
+ * at the top of every entry point below, before any recipient is resolved,
+ * so it overrides every participant switch, the switchless decision email
+ * included. A missing workspace counts as muted: there is nothing to link to.
+ */
+export async function workspaceNotificationsMuted(workspaceId: string): Promise<boolean> {
+  const [ws] = await db
+    .select({ muted: workspaces.notificationsMuted })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId));
+  return ws ? ws.muted : true;
+}
+
+/** Which of these workspaces are muted, for the inbox's one pass. */
+async function mutedWorkspaces(ids: string[]): Promise<Set<string>> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return new Set();
+  const rows = await db
+    .select({ id: workspaces.id })
+    .from(workspaces)
+    .where(and(inArray(workspaces.id, unique), eq(workspaces.notificationsMuted, true)));
+  return new Set(rows.map(r => r.id));
+}
+
+/**
  * Someone posted a comment. Notifies the proposal's poster (their proposal)
  * and everyone else already in the thread (a reply), minus the author.
  *
@@ -213,6 +239,7 @@ export async function notifyCommentPosted(opts: {
   marketId?: string;
 }): Promise<void> {
   const { workspaceId, from, content, proposalId, marketId } = opts;
+  if (await workspaceNotificationsMuted(workspaceId)) return;
   try {
     // Reason precedence: the proposal's poster is claimed first, so a poster
     // who also commented gets the my-proposal line rather than the reply one
@@ -334,6 +361,7 @@ export async function notifyProposalCreated(opts: {
   description?: string;
 }): Promise<void> {
   const { workspaceId, proposedBy, title, description } = opts;
+  if (await workspaceNotificationsMuted(workspaceId)) return;
   try {
     const groups = await db
       .select({ memberIds: permissionGroups.memberIds })
@@ -395,6 +423,7 @@ export async function notifyProposalCreated(opts: {
  */
 export async function notifyProposalDecided(opts: { workspaceId: string; proposalId: string }): Promise<void> {
   const { workspaceId, proposalId } = opts;
+  if (await workspaceNotificationsMuted(workspaceId)) return;
   try {
     const [proposal] = await db
       .select({
@@ -507,6 +536,7 @@ export async function notifyProposalDecided(opts: { workspaceId: string; proposa
  */
 export async function notifyProposalDeadlineSoon(opts: { workspaceId: string; proposalId: string }): Promise<void> {
   const { workspaceId, proposalId } = opts;
+  if (await workspaceNotificationsMuted(workspaceId)) return;
   const [proposal] = await db
     .select()
     .from(proposals)
@@ -581,6 +611,7 @@ async function pricedLine(workspaceId: string, proposalId: string): Promise<stri
 
 export async function notifyMarketResolved(opts: { workspaceId: string; marketId: string }): Promise<void> {
   const { workspaceId, marketId } = opts;
+  if (await workspaceNotificationsMuted(workspaceId)) return;
   try {
     const [market] = await db
       .select({
@@ -669,6 +700,8 @@ export interface NotificationItem {
   subject: string;
   /** The comment, the pitch, or the decline reason. May be empty. */
   detail: string;
+  /** The workspace it happened in; the mute filter keys on it. */
+  workspaceId: string;
   /** Where to go: the floor slug, plus the thread when there is one. */
   workspaceSlug: string | null;
   proposalId: string | null;
@@ -1060,6 +1093,7 @@ export async function listNotifications(
       actor: handle(c.from),
       subject: titleOf.get(c.proposalId) ?? 'a proposal',
       detail: c.content,
+      workspaceId: c.workspaceId,
       workspaceSlug: slugs.get(c.workspaceId) ?? null,
       proposalId: c.proposalId,
       marketId: null,
@@ -1081,6 +1115,7 @@ export async function listNotifications(
       actor: handle(c.from),
       subject: owned ? (titleOf.get(owned) ?? 'a proposal') : (marketLabel.get(c.marketId) ?? 'a market'),
       detail: c.content,
+      workspaceId: c.workspaceId,
       workspaceSlug: slugs.get(c.workspaceId) ?? null,
       proposalId: owned ?? null,
       marketId: c.marketId,
@@ -1098,6 +1133,7 @@ export async function listNotifications(
       actor: handle(p.proposedBy),
       subject: p.title,
       detail: p.description ?? '',
+      workspaceId: p.workspaceId,
       workspaceSlug: slugs.get(p.workspaceId) ?? null,
       proposalId: p.id,
       marketId: null,
@@ -1121,6 +1157,7 @@ export async function listNotifications(
       actor: null,
       subject: p.title,
       detail: p.status === 'approved' ? 'Approved.' : p.declineReason || 'Declined.',
+      workspaceId: p.workspaceId,
       workspaceSlug: slugs.get(p.workspaceId) ?? null,
       proposalId: p.id,
       marketId: null,
@@ -1143,6 +1180,7 @@ export async function listNotifications(
         days === null
           ? 'Settles soon, and has never been reported. Report the number before it settles.'
           : `Settles soon on a reading from ${days === 0 ? 'earlier today' : `${days} ${days === 1 ? 'day' : 'days'} ago`}, taken before the period it settles for. Report the number.`,
+      workspaceId: s.workspaceId,
       workspaceSlug: slugs.get(s.workspaceId) ?? null,
       proposalId: null,
       marketId: s.marketId,
@@ -1159,6 +1197,7 @@ export async function listNotifications(
       actor: null,
       subject: `${m.metricName} ${m.targetDate}`,
       detail: `Settled at ${m.actualValue}.`,
+      workspaceId: m.workspaceId,
       workspaceSlug: slugs.get(m.workspaceId) ?? null,
       proposalId: m.proposalId ?? null,
       marketId: m.id,
@@ -1178,6 +1217,7 @@ export async function listNotifications(
       actor: null,
       subject: p.title,
       detail: p.status === 'approved' ? 'Approved.' : p.declineReason || 'Declined.',
+      workspaceId: p.workspaceId,
       workspaceSlug: slugs.get(p.workspaceId) ?? null,
       proposalId: p.id,
       marketId: null,
@@ -1199,6 +1239,7 @@ export async function listNotifications(
       actor: handle(c.from),
       subject: titleOf.get(c.proposalId) ?? 'a proposal',
       detail: c.content,
+      workspaceId: c.workspaceId,
       workspaceSlug: slugs.get(c.workspaceId) ?? null,
       proposalId: c.proposalId,
       marketId: null,
@@ -1215,6 +1256,7 @@ export async function listNotifications(
       actor: handle(c.from),
       subject: marketLabel.get(c.marketId) ?? 'a market',
       detail: c.content,
+      workspaceId: c.workspaceId,
       workspaceSlug: slugs.get(c.workspaceId) ?? null,
       proposalId: null,
       marketId: c.marketId,
@@ -1228,7 +1270,12 @@ export async function listNotifications(
   // `stale` is the one kind the matrix does not govern, so it passes through:
   // it is derived only for people who can fix the number, and it stops being
   // derived the moment they do.
-  const shown = items.filter(i => i.kind === 'stale' || webOn(i.kind));
+  // A muted workspace shows nothing here either (docs/vision.md, "A workspace
+  // can mute everything it would send"): the bell is a channel like the
+  // other two. Being derived from the record, it shows the record again
+  // once the workspace is unmuted.
+  const muted = await mutedWorkspaces(items.map(i => i.workspaceId));
+  const shown = items.filter(i => !muted.has(i.workspaceId) && (i.kind === 'stale' || webOn(i.kind)));
 
   shown.sort((a, b) => b.at.getTime() - a.at.getTime());
   for (const i of shown) {
