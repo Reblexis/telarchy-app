@@ -1624,7 +1624,17 @@ export const api = {
     }),
 
   // Proposals
-  getProposals: (status?: string) => request(`/api/proposals${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  /** Paginated: the newest `limit` (100, up to 500), `before` a proposal
+   *  number or an ISO instant (docs/infra/deploy.md, "Reads are bounded in
+   *  the size of a workspace"). */
+  getProposals: (status?: string, page?: { limit?: number; before?: string | number }) => {
+    const q = new URLSearchParams();
+    if (status) q.set('status', status);
+    if (page?.limit) q.set('limit', String(page.limit));
+    if (page?.before !== undefined) q.set('before', String(page.before));
+    const qs = q.toString();
+    return request(`/api/proposals${qs ? `?${qs}` : ''}`);
+  },
   getProposal: (id: string) => request(`/api/proposals/${id}`),
   createProposal: (body: {
     title: string;

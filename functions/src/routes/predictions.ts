@@ -841,7 +841,13 @@ predictionsRouter.get(
         }
       }
     } else {
-      await refreshRelativeDateMarkets(workspaceId);
+      // Beside the response, never in front of it (docs/infra/deploy.md,
+      // "Reads are bounded in the size of a workspace"): the refresh keeps
+      // its five-minute cooldown, and a reader is not made to wait for a
+      // FOR UPDATE transaction on system_config to learn what is open.
+      void refreshRelativeDateMarkets(workspaceId).catch(e =>
+        console.error(`refreshRelativeDateMarkets failed for workspace ${workspaceId}:`, e),
+      );
     }
 
     const active = req.query.active === 'true' ? true : req.query.active === 'false' ? false : undefined;

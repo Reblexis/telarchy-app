@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -609,7 +610,19 @@ export const markets = pgTable(
     /** Flagged for the public benchmark surface (/benchmark + /api/marketplace/featured). */
     featured: boolean('featured').notNull().default(false),
   },
-  t => [primaryKey({ columns: [t.id, t.workspaceId] }), index('markets_workspace_idx').on(t.workspaceId)],
+  t => [
+    primaryKey({ columns: [t.id, t.workspaceId] }),
+    index('markets_workspace_idx').on(t.workspaceId),
+    // Reads are bounded in the size of a workspace (docs/infra/deploy.md):
+    // one proposal's books in any state, the open set, the open baseline
+    // set, and the settled set by date. Migration 0117.
+    index('markets_ws_proposal_idx').on(t.workspaceId, t.proposalId),
+    index('markets_ws_open_idx').on(t.workspaceId, t.metricId, t.targetDate).where(sql`${t.resolved} = false`),
+    index('markets_ws_open_baseline_idx')
+      .on(t.workspaceId, t.metricId, t.targetDate)
+      .where(sql`${t.resolved} = false and ${t.proposalId} is null`),
+    index('markets_resolved_at_idx').on(t.resolvedAt).where(sql`${t.resolved} = true`),
+  ],
 );
 
 export const positions = pgTable(
@@ -677,6 +690,8 @@ export const trades = pgTable(
     // leads on id, so it serves none of them.
     index('trades_ws_market_created_idx').on(t.workspaceId, t.marketId, t.createdAt),
     index('trades_created_idx').on(t.createdAt),
+    // Count-by-market without a workspace predicate (migration 0117).
+    index('trades_market_idx').on(t.marketId),
   ],
 );
 
@@ -703,6 +718,8 @@ export const liquidityEvents = pgTable(
     primaryKey({ columns: [t.id, t.workspaceId] }),
     // The price replay reads every event for one market in creation order.
     index('liquidity_events_ws_market_created_idx').on(t.workspaceId, t.marketId, t.createdAt),
+    // Funding lookups by market alone, across workspaces (migration 0117).
+    index('liquidity_events_market_idx').on(t.marketId),
   ],
 );
 
@@ -962,6 +979,15 @@ export const proposals = pgTable(
   t => [
     primaryKey({ columns: [t.id, t.workspaceId] }),
     uniqueIndex('proposals_workspace_number_idx').on(t.workspaceId, t.number),
+    // Reads are bounded in the size of a workspace (docs/infra/deploy.md):
+    // status sweeps, the deadline sweep, newest-first lists, site-wide
+    // stats by decision date, and a participant's own proposals.
+    // Migration 0117.
+    index('proposals_ws_status_created_idx').on(t.workspaceId, t.status, t.createdAt),
+    index('proposals_ws_created_idx').on(t.workspaceId, t.createdAt),
+    index('proposals_ws_pending_decide_idx').on(t.workspaceId, t.decideBy).where(sql`${t.status} = 'pending'`),
+    index('proposals_status_resolved_idx').on(t.status, t.resolvedAt),
+    index('proposals_proposed_by_created_idx').on(t.proposedBy, t.createdAt),
   ],
 );
 

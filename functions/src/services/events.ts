@@ -43,9 +43,15 @@ export async function getEventsSince(
 
 export async function cleanupOldEvents(workspaceId: string): Promise<number> {
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
-  const deleted = await db
+  // Count, never RETURNING: a busy floor writes ~14k events a day and this
+  // runs every ten minutes (docs/infra/deploy.md, "Reads are bounded in the
+  // size of a workspace"). node-postgres reports rowCount; pglite (tests,
+  // self-host) reports affectedRows.
+  const result = (await db
     .delete(events)
-    .where(and(eq(events.workspaceId, workspaceId), lt(events.timestamp, cutoff)))
-    .returning({ id: events.id });
-  return deleted.length;
+    .where(and(eq(events.workspaceId, workspaceId), lt(events.timestamp, cutoff)))) as unknown as {
+    rowCount?: number | null;
+    affectedRows?: number;
+  };
+  return result.rowCount ?? result.affectedRows ?? 0;
 }

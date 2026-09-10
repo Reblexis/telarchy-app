@@ -17,11 +17,12 @@
  * effect of this endpoint existing.
  */
 
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   announcements,
   markets,
+  metricLogs,
   metrics as metricsTable,
   permissionGroups,
   proposalMessages,
@@ -33,7 +34,7 @@ import { consensus } from '../lib/amm';
 import { resolutionInstant } from '../lib/date-utils';
 import { branchIsShown, horizonSettled } from '../lib/market-pairs';
 import { getParticipantDisplayNames } from '../lib/participants';
-import { getProposalMarketSummariesForProposal, getTradeCountMap } from './proposals';
+import { getProposalMarketSummariesForProposals, getTradeCountMap } from './proposals';
 
 /**
  * How much source text one brief may carry. Raised (owner direction
@@ -136,10 +137,12 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
 
   const [metricRows, marketRows, proposalRows, announcementRows, groupRows, sourceRows] = await Promise.all([
     db.select().from(metricsTable).where(eq(metricsTable.workspaceId, workspaceId)).orderBy(metricsTable.order),
+    // Baselines only, in SQL; the proposals' pairs are read by proposal below
+    // (docs/infra/deploy.md, "Reads are bounded in the size of a workspace").
     db
       .select()
       .from(markets)
-      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.active, true))),
+      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.active, true), isNull(markets.proposalId))),
     db
       .select()
       .from(proposals)
@@ -174,6 +177,13 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
   // at the end of that day" is the only point a forecaster can compare across
   // days. Downsampled in the database rather than in JS, because hourly
   // readings over four months is thousands of rows for a public payload.
+  //
+  // Windowed to BRIEF_HISTORY_DAYS in the database (docs/infra/deploy.md,
+  // "Reads are bounded in the size of a workspace"): the brief shows that
+  // many days and a floor reading its number every minute has 43k rows a
+  // month to sort otherwise. One extra day so a partial first day still has
+  // its predecessor.
+  const windowStart = new Date(Date.now() - (BRIEF_HISTORY_DAYS + 1) * 86_400_000);
   const logRows =
     metricRows.length === 0
       ? []
@@ -189,6 +199,7 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
                 metricRows.map(m => sql`${m.id}`),
                 sql`, `,
               )})
+              and timestamp >= ${windowStart}
             order by metric_id, to_char(timestamp, 'YYYY-MM-DD'), timestamp desc
           `)) as unknown as { rows?: Array<{ metricId: string; day: string; value: number }> }
         ).rows ?? ([] as Array<{ metricId: string; day: string; value: number }>));
@@ -200,8 +211,16 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
       .sort((a, b) => a.at.localeCompare(b.at))
       .slice(-BRIEF_HISTORY_DAYS);
 
-  /** The first day any of this workspace's numbers was read. */
-  const firstReadingDay = logRows.length ? logRows.map(l => l.day).sort()[0] : null;
+  /** The first day any of this workspace's numbers was read: its own
+   *  aggregate, since the history above is windowed. */
+  const [firstReading] =
+    metricRows.length === 0
+      ? [undefined]
+      : await db
+          .select({ at: sql<Date | string | null>`min(${metricLogs.timestamp})` })
+          .from(metricLogs)
+          .where(eq(metricLogs.workspaceId, workspaceId));
+  const firstReadingDay = firstReading?.at ? new Date(firstReading.at).toISOString().slice(0, 10) : null;
 
   const liveProposals = proposalRows.filter(p => p.status !== 'removed');
   const names = await getParticipantDisplayNames(liveProposals.map(p => p.proposedBy));
@@ -239,68 +258,72 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
     workspaceId,
   );
 
-  const contracts = await Promise.all(
-    liveProposals.map(async p => {
-      // The priced impact is the ballot's set, filtered by the ballot's rule:
-      // a voided pair is the record of a decided proposal and dead weight on
-      // a pending one (lib/market-pairs.ts). A brief and a page quoting
-      // different deltas is the failure this prevents.
-      const all = await getProposalMarketSummariesForProposal(p.id, workspaceId);
-      const pairs = all
-        .map(pair => ({
-          ...pair,
-          approved: pair.approved && branchIsShown(p.status, pair.approved.voided) ? pair.approved : null,
-          declined: pair.declined && branchIsShown(p.status, pair.declined.voided) ? pair.declined : null,
-        }))
-        .filter(pair => pair.approved || pair.declined)
-        .map(pair => {
-          const resolvesOn = pair.resolvesOn ?? resolutionInstant(pair.targetDate);
-          const approved = pair.approved?.consensus ?? null;
-          const declined = pair.declined?.consensus ?? null;
-          return {
-            metricId: pair.metricId,
-            metricName: nameOf(pair.metricId, pair.metricName),
-            metricDefined: metricNames.has(pair.metricId),
-            targetDate: pair.targetDate,
-            resolvesOn,
-            settled: horizonSettled(resolvesOn),
-            approved,
-            declined,
-            delta: approved !== null && declined !== null ? approved - declined : null,
-            baseline: pair.baselineConsensus,
-            approvedTrades: pair.approved?.tradeCount ?? null,
-            declinedTrades: pair.declined?.tradeCount ?? null,
-          };
-        });
-      // Live horizons first, biggest mover first inside each group: the reader
-      // is deciding, and the top of the list is what a model reads.
-      pairs.sort((a, b) => {
-        if (a.settled !== b.settled) return a.settled ? 1 : -1;
-        return Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0);
-      });
-      return {
-        id: p.id,
-        title: p.title,
-        description: p.description,
-        askUsd: p.askUsd,
-        status: p.status,
-        proposedBy: names.get(p.proposedBy) ?? p.proposedBy,
-        createdAt: p.createdAt.toISOString(),
-        declineReason: p.declineReason,
-        decisionOpen: p.status === 'pending',
-        impact: pairs,
-        recentComments: commentRows
-          .filter(c => c.proposalId === p.id)
-          .slice(0, 6)
-          .reverse()
-          .map(c => ({
-            from: commenterNames.get(c.from) ?? c.from,
-            content: c.content,
-            at: c.createdAt.toISOString(),
-          })),
-      };
-    }),
+  // One read for every proposal's books, never one per proposal
+  // (docs/infra/deploy.md, "Reads are bounded in the size of a workspace").
+  const summariesByProposal = await getProposalMarketSummariesForProposals(
+    liveProposals.map(p => p.id),
+    workspaceId,
   );
+  const contracts = liveProposals.map(p => {
+    // The priced impact is the ballot's set, filtered by the ballot's rule:
+    // a voided pair is the record of a decided proposal and dead weight on
+    // a pending one (lib/market-pairs.ts). A brief and a page quoting
+    // different deltas is the failure this prevents.
+    const all = summariesByProposal.get(p.id) ?? [];
+    const pairs = all
+      .map(pair => ({
+        ...pair,
+        approved: pair.approved && branchIsShown(p.status, pair.approved.voided) ? pair.approved : null,
+        declined: pair.declined && branchIsShown(p.status, pair.declined.voided) ? pair.declined : null,
+      }))
+      .filter(pair => pair.approved || pair.declined)
+      .map(pair => {
+        const resolvesOn = pair.resolvesOn ?? resolutionInstant(pair.targetDate);
+        const approved = pair.approved?.consensus ?? null;
+        const declined = pair.declined?.consensus ?? null;
+        return {
+          metricId: pair.metricId,
+          metricName: nameOf(pair.metricId, pair.metricName),
+          metricDefined: metricNames.has(pair.metricId),
+          targetDate: pair.targetDate,
+          resolvesOn,
+          settled: horizonSettled(resolvesOn),
+          approved,
+          declined,
+          delta: approved !== null && declined !== null ? approved - declined : null,
+          baseline: pair.baselineConsensus,
+          approvedTrades: pair.approved?.tradeCount ?? null,
+          declinedTrades: pair.declined?.tradeCount ?? null,
+        };
+      });
+    // Live horizons first, biggest mover first inside each group: the reader
+    // is deciding, and the top of the list is what a model reads.
+    pairs.sort((a, b) => {
+      if (a.settled !== b.settled) return a.settled ? 1 : -1;
+      return Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0);
+    });
+    return {
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      askUsd: p.askUsd,
+      status: p.status,
+      proposedBy: names.get(p.proposedBy) ?? p.proposedBy,
+      createdAt: p.createdAt.toISOString(),
+      declineReason: p.declineReason,
+      decisionOpen: p.status === 'pending',
+      impact: pairs,
+      recentComments: commentRows
+        .filter(c => c.proposalId === p.id)
+        .slice(0, 6)
+        .reverse()
+        .map(c => ({
+          from: commenterNames.get(c.from) ?? c.from,
+          content: c.content,
+          at: c.createdAt.toISOString(),
+        })),
+    };
+  });
 
   return {
     workspaceId: ws.id,

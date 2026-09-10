@@ -983,6 +983,60 @@ Participant mail also needs `BETTER_AUTH_URL` (or it falls back to
 `https://telarchy.com`), because every one of those emails carries a link
 back to the floor and a link to the account settings that switch it off.
 
+## Reads are bounded in the size of a workspace
+
+A workspace can post thousands of proposals a day (one floor proposes and
+decides a proposal a minute; after a month it holds 100k proposals and
+300k markets, of which a few thousand are open). The API instance is 512Mi
+with a four-connection pool on a db-f1-micro, so a read that walks every
+proposal or every market of a workspace is a read that stops working
+within weeks. The rule:
+
+- **No public or per-minute read loads every proposal or market of a
+  workspace.** A read that wants baselines says `proposal_id is null` in
+  its SQL rather than dropping branch rows in JS (`getBaselineConsensusMap`,
+  `buildConsensusMap`, the market spawn's source read, the marketplace
+  listing, the floor payload, `/status`, the share card, the workspace
+  brief). A read that wants one proposal's markets is served by
+  `markets (workspace_id, proposal_id)`, in any state.
+- **Lists are paginated.** `GET /api/proposals` filters `status` in SQL,
+  returns the newest 100 by default (`limit` up to 500) and pages with
+  `before` (a proposal number, or an ISO instant on `createdAt`); a page
+  shorter than `limit` is the last one.
+- **Crons process due work in bounded batches.** `resolvePredictions`
+  looks a fixing up once per (metric, target date) rather than once per
+  book, at most two lookups in flight, and settles or voids at most
+  `RESOLVE_BATCH_MAX` (500) books per run; whatever is left is picked up
+  by the next tick (every 10 minutes in-process, hourly from the
+  scheduler) and the run reports `remaining`. No run therefore approaches
+  Cloud Run's 300 s request timeout, whatever the day's due count.
+- **The bell inbox is windowed.** A participant's own proposals are read
+  newest-first, `2 x limit` of them; their branch markets are bounded by
+  that window; the stale-reading nudge reads baseline books only, with
+  the workspace in every `metric_logs` predicate.
+- **The workspace brief reads bounded history.** The metric log query is
+  windowed to `BRIEF_HISTORY_DAYS`, the first reading day is a separate
+  `min(timestamp)`, and the 25 proposals' markets come back in one query.
+- **Nothing accumulates without a reader.** The per-proposal spawn lock
+  row in `system_config` is deleted when the spawn finishes, and event
+  cleanup counts deleted rows instead of returning them.
+- **Every hot predicate has an index.** `markets (workspace_id,
+  proposal_id)`; the open set and the open baseline set on
+  `(workspace_id, metric_id, target_date)` as partial indexes; `markets
+  (resolved_at) where resolved`; `proposals (workspace_id, status,
+  created_at)`, `(workspace_id, created_at)`, `(workspace_id, decide_by)
+  where pending`, `(status, resolved_at)`, `(proposed_by, created_at)`;
+  `liquidity_events (market_id)`; `trades (market_id)`. Additive, `IF NOT
+  EXISTS`, and declared in `functions/src/db/schema.ts` so drizzle-kit
+  keeps them. On the beta store the journal `when` has to be newer than
+  the last applied migration or the store skips it.
+
+The record behind the rule, with the measured row counts and each read it
+found, is the telarchy umbrella's `notes/snake-load-audit-2026-09-10.md`.
+A new read of proposals or markets that has no `limit`, no proposal id and
+no baseline predicate is a divergence from this section, whatever the size
+of the workspaces it was tested against.
+
 ## Memory
 
 **512Mi.** At 256Mi the container is OOM-killed on almost no traffic, and

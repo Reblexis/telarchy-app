@@ -117,3 +117,31 @@ export async function mirrorAccountIntoStore(_userId: string): Promise<void> {
 export function currentStoreName(): 'beta' | 'production' {
   return 'production';
 }
+
+/**
+ * The SQL a piece of code issues, for the tests that pin a READ'S SHAPE
+ * rather than its answer (docs/infra/deploy.md, "Reads are bounded in the
+ * size of a workspace"): that a baseline read says `proposal_id is null` in
+ * the database instead of dropping rows in JS, that a count carries the
+ * workspace, that a list carries a limit. Behavioural assertions cannot see
+ * the difference on a small fixture, and the difference is the whole point
+ * at 300k rows. Wraps the one client every query goes through; `stop()`
+ * restores it. Not reentrant: one capture at a time.
+ */
+export function captureQueries(): { queries: string[]; stop(): void } {
+  const queries: string[] = [];
+  const original = client.query.bind(client);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (client as any).query = (text: string, ...rest: unknown[]) => {
+    queries.push(text);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (original as any)(text, ...rest);
+  };
+  return {
+    queries,
+    stop() {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (client as any).query = original;
+    },
+  };
+}

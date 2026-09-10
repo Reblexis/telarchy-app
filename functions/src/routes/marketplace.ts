@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, desc, eq, gt, gte, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import {
@@ -87,10 +87,19 @@ marketplaceRouter.get(
 
     await Promise.all(
       publicWs.map(async ws => {
+        // Baselines only, in SQL (docs/infra/deploy.md, "Reads are bounded
+        // in the size of a workspace").
         const wsMarkets = await db
           .select()
           .from(markets)
-          .where(and(eq(markets.workspaceId, ws.id), eq(markets.resolved, false), eq(markets.active, true)));
+          .where(
+            and(
+              eq(markets.workspaceId, ws.id),
+              eq(markets.resolved, false),
+              eq(markets.active, true),
+              isNull(markets.proposalId),
+            ),
+          );
 
         for (const m of wsMarkets) {
           if (m.proposalId) continue;
@@ -492,10 +501,19 @@ export function resetHomePayloadCache(): void {
 async function buildFloorPayload(ws: PublicWs) {
   const workspaceId = ws.id;
 
+  // Baselines only, in SQL (docs/infra/deploy.md, "Reads are bounded in the
+  // size of a workspace"): the proposals' pairs are read by proposal below.
   const wsMarkets = await db
     .select()
     .from(markets)
-    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), eq(markets.active, true)));
+    .where(
+      and(
+        eq(markets.workspaceId, workspaceId),
+        eq(markets.resolved, false),
+        eq(markets.active, true),
+        isNull(markets.proposalId),
+      ),
+    );
 
   // One read of the workspace's metric rows serves the order tie-break, the
   // per-horizon description and the reset rule below.
@@ -1889,14 +1907,28 @@ export async function resolveProposalShare(
     .limit(1);
   if (!p) return null;
 
-  const wsMarkets = await db
-    .select()
-    .from(markets)
-    .where(and(eq(markets.workspaceId, ws.id), eq(markets.active, true)));
+  // Two bounded reads (docs/infra/deploy.md, "Reads are bounded in the size
+  // of a workspace"): the open baselines, and this one proposal's books.
+  const [baselineRows, pairRows] = await Promise.all([
+    db
+      .select()
+      .from(markets)
+      .where(
+        and(
+          eq(markets.workspaceId, ws.id),
+          eq(markets.active, true),
+          eq(markets.resolved, false),
+          isNull(markets.proposalId),
+        ),
+      ),
+    db
+      .select()
+      .from(markets)
+      .where(and(eq(markets.workspaceId, ws.id), eq(markets.proposalId, p.id), eq(markets.active, true))),
+  ]);
+  const wsMarkets = [...baselineRows, ...pairRows];
   const orders = await metricOrdersOf([ws.id]);
-  const baseline = wsMarkets
-    .filter(m => !m.proposalId && !m.resolved)
-    .map(m => ({ ...m, marketId: m.id, metricOrder: orders.get(m.metricId) ?? null }));
+  const baseline = baselineRows.map(m => ({ ...m, marketId: m.id, metricOrder: orders.get(m.metricId) ?? null }));
   baseline.sort(compareSoonestFirst);
   const hero = primaryMarket(baseline);
 
