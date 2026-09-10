@@ -173,7 +173,9 @@ test('unconfigured, it does nothing at all', async () => {
 
 test('active forecasters is recorded every run on the metric of that name and follows the platform number', async () => {
   const ACTIVE = 'metric-active-forecasters';
-  await db.insert(metrics).values({ id: ACTIVE, workspaceId: WS, name: 'Active forecasters', value: 1, formula: '0', marketRangeMax: 50 });
+  await db
+    .insert(metrics)
+    .values({ id: ACTIVE, workspaceId: WS, name: 'Active forecasters', value: 1, formula: '0', marketRangeMax: 50 });
   stats.activeForecasters = 3;
   await syncSelfMetrics();
   expect(await logsFor(ACTIVE)).toHaveLength(1);
