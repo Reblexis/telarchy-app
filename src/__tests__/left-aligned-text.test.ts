@@ -29,6 +29,7 @@ const PROSE = [
   'pubws-pitch',
   // the floor
   'pubws-ws-what',
+  'pubws-decides-p',
   'pubws-season',
   'pubws-settles',
   'pubws-na-note',

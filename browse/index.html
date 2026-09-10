@@ -5088,16 +5088,17 @@ now stands). The grounds are in <code>notes/decisions/ui-conventions.md</code>.<
 <p>A proposal is not a variant of the metric view. It is a decision with a
 deadline, an ask, and a price, and it reads in that order:</p>
 <pre><code>  #28  A 500 dollar prize for the best open-source trading agent
-  Viktor36 · no payment asked · decides 15 Sept · 24,857 behind it
+  Viktor36 · $500 if approved · decides 15 Sept · 24,857 behind it
 
   ACTIVE TRADERS   REVENUE        OUTSIDE OWNERS   FORECASTERS
   +1.4             no liquidity   no liquidity     no liquidity
   THIS WEEK        THIS MONTH
   ±0               +1.4
 
-            IF APPROVED, ACTIVE TRADERS THIS MONTH MOVE BY
+         ACTIVE TRADERS THIS MONTH, APPROVED VERSUS DECLINED
                              +1.4
-     NOW 9.00  |  IF APPROVED · 30 SEP 20.0  |  IF DECLINED · 30 SEP 18.6
+  LAST READ 9.00 | IF APPROVED · 30 SEP 20.0 | IF DECLINED · 30 SEP 18.6
+        If approved, what will Telarchy's active traders be on 30 Sep?
                         [ chart, both worlds ]
         [ BET HIGHER · if approved ]  [ BET LOWER · if approved ]
 </code></pre>
@@ -5109,6 +5110,14 @@ task as one clause before anything is on screen. The four facts of a
 proposal follow as ONE icon row in the market's own facts vocabulary: the
 proposer, the USD ask, the countdown to the decision, and the pool behind
 the pair.</li>
+<li><strong>The ask says what approving does to it</strong>: &quot;$250 if approved&quot;, not a
+bare &quot;$250&quot; (2026-09-10, after a review scored this page 3/10 for a
+newcomer: <code>notes/proposal-page-review-2026-09-10.md</code>). Three words in the
+row that is already there, rather than a sentence under it. The rule
+behind it: <strong>the mechanism is never explained above the trade</strong> (Viktor,
+2026-09-10, of a line that did explain it: &quot;shouldnt this just be in the
+market rules or something? seems like too much of a detail&quot;); what a
+proposal IS belongs in &quot;How this decides&quot;, below.</li>
 <li><strong>The strips say what it moves.</strong> With a proposal open, the metric strip
 and the date strip stop showing levels and show THIS proposal's impact on
 each cell: <code>ACTIVE TRADERS +1.4  REVENUE ±$0 ...</code>, <code>THIS WEEK ±0 THIS MONTH +1.4</code>. They carry no leading label (&quot;moves&quot;, &quot;by&quot;): the strips
@@ -5128,8 +5137,11 @@ place&quot;). Nothing is staked on that cell, so there is no forecast to print
 and nothing to trade on arrival. Where liquidity IS present the impact
 stands on its own, tagged with nothing.</li>
 <li><strong>The impact is the number.</strong> The hero is the selected cell's impact,
-if-done minus if-not-done, over the caption &quot;if approved, <metric> <date>
-move by&quot;, green up and red down. This is the reversal: on the metric view
+if-done minus if-not-done, over a caption that names what it is a
+comparison OF: &quot;<metric> <date>, approved versus declined&quot; (revised
+2026-09-10; &quot;if approved, <metric> <date> moves by&quot; left &quot;+$614&quot; open to
+being read as growth from today, or as profit after the ask is paid),
+green up and red down. This is the reversal: on the metric view
 the big number is the metric's own value, and on a proposal it is the
 impact, because the impact is the only number the ruling turns on and the
 only one the pair actually prices.</li>
@@ -5141,15 +5153,42 @@ note on two cells beside each other is said twice and truncates. The two branch 
 (<code>aria-pressed</code>), replacing the pair of pills: the number you are switching
 to is the thing you press. The baseline stays on screen as the first cell,
 which is the whole reason a pair can be read at all.</li>
+<li><strong>The question sits UNDER the worlds, never above the number.</strong> One
+sentence between the world cells and the chart, in the metric view's own
+serif: &quot;If approved, what will <floor>'s <metric> be on <settle day>?&quot;,
+switching to &quot;If declined&quot; with the cells. It names neither the proposer
+nor the task, because the title carries both a few lines above, and it
+comes after the number rather than before it: the conditional sentence
+this restores was removed on 2026-09-09 for putting a company, a metric, a
+date, a proposer and a task in one clause ahead of anything countable, and
+the placement is what fixes that, not the sentence itself.</li>
+<li><strong>The chart's baseline is &quot;without it&quot;, not a second &quot;now&quot;.</strong> With a pair
+on screen the unconditional market's line is labelled &quot;$7,049 without it&quot;:
+the &quot;now&quot; cell beside it is the last logged READING, and the two were 8%
+apart under one word. The cell says &quot;last read · 4 days ago&quot; for the same
+reason.</li>
 <li><strong>The world rides the verb.</strong> &quot;Bet Higher · if approved&quot;, on the button,
 never only in a toggle further up the page. A trader who has scrolled past
 the toggle cannot tell which world a verb belongs to, and the ticket in the
 rail names the same world in its header.</li>
-<li><strong>The words and the ruling are below the trade</strong>, in the order the metric
-view already uses: question, numbers, chart, verbs, then &quot;What <proposer>
-would do&quot; as the tinted block &quot;How this settles&quot; wears, then the owner's
-ruling band, then the rest of the ballot. Nothing that is prose or a
-control stands between the title and the number.</li>
+<li><strong>The words, the rules and the ruling are below the trade</strong>, in the order
+the metric view already uses: question, numbers, chart, verbs, then &quot;What
+<proposer> would do&quot; as the tinted block &quot;How this settles&quot; wears, then
+<strong>&quot;How this decides&quot;</strong> in that same block's shape, then the owner's ruling
+band, then the rest of the ballot. Nothing that is prose or a control
+stands between the title and the number.</li>
+<li><strong>&quot;How this decides&quot; is where the mechanism lives</strong>, and the only place
+(Viktor, 2026-09-10: &quot;shouldnt this just be in the market rules or
+something? seems like too much of a detail&quot;). Three sentences, generic to
+every proposal so nothing is written per proposal: what approving pays and
+commits; that every number this floor prices gets two markets for this
+proposal and the gap between them is what the market says the work is
+worth; and what the ruling does to them, which is that the world that did
+not happen is voided and refunded AT COST while the other keeps trading
+until the number settles, with an undecided proposal lapsing as a decline
+at its deadline. That is the engine's actual behaviour
+(<code>voidProposalBranch</code>, <code>lapseOverdueProposals</code>), not a simplification of
+it.</li>
 </ul>
 <p><strong>The deadline is said ONCE, in the facts row under the title</strong> (a clock
 glyph and the date, in the accent: &quot;decides 14 Sep&quot;; &quot;decided 12 Sep&quot; after

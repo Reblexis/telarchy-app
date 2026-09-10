@@ -1707,9 +1707,9 @@ export function TradePage() {
                         {selectedJob.proposedByName}
                       </span>
                     )}
-                    <span title={jobAskUsd === null ? 'No payment asked' : `$${jobAskUsd} to them if you approve it`}>
+                    <span title={!jobAskUsd ? 'No payment asked' : `$${jobAskUsd} to them if you approve it`}>
                       <CoinGlyph />
-                      {jobAskUsd === null ? 'no payment asked' : `$${jobAskUsd}`}
+                      {!jobAskUsd ? 'no payment asked' : `$${jobAskUsd} if approved`}
                     </span>
                     {selectedJobClosed ? (
                       <span aria-label="Decision deadline">
@@ -1807,9 +1807,12 @@ export function TradePage() {
                   {selectedJob ? (
                     <>
                       <div className="pubws-impact">
+                        {/* What the number is a comparison OF: "+$614" alone
+                          was read as growth from today, or as profit after
+                          the ask was paid (review 2026-09-10). */}
                         <span className="pubws-impact-what">
-                          if {branch}, {captionLabel(metricLabel, ws.name)} {dateQuestionOf(hero).on ? 'on ' : ''}
-                          {dateQuestionOf(hero).word} move by
+                          {captionLabel(metricLabel, ws.name)} {dateQuestionOf(hero).on ? 'on ' : ''}
+                          {dateQuestionOf(hero).word}, approved versus declined
                         </span>
                         <p
                           className={`pubws-impact-hero${
@@ -1825,7 +1828,12 @@ export function TradePage() {
                       </div>
                       <div className="pubws-worlds" role="group" aria-label="Which world">
                         <div className="pubws-world-cell pubws-world-cell--now">
-                          <span className="pubws-stat-what">now{readingAge ? ` \u00b7 read ${readingAge}` : ''}</span>
+                          {/* The last logged READING. It said "now" until
+                            2026-09-10, when the chart's baseline said "now"
+                            too, 8% away from it. */}
+                          <span className="pubws-stat-what">
+                            {readingAge ? `last read \u00b7 ${readingAge}` : 'last read'}
+                          </span>
                           <span className="pubws-price">
                             {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
                           </span>
@@ -1877,6 +1885,18 @@ export function TradePage() {
                           </span>
                         </button>
                       </div>
+                      {/* The question the two markets answer, UNDER the worlds
+                        and above the chart (docs/ui-conventions.md, "A
+                        proposal is a decision with a price", revised
+                        2026-09-10). It names neither the proposer nor the
+                        task: the title carries both a few lines up, and the
+                        conditional sentence this restores was removed for
+                        putting all of it in one clause ahead of any number. */}
+                      <p className="pubws-proposal-q">
+                        If {branch}, what will {ws.name}'s {captionLabel(metricLabel, ws.name)} be{' '}
+                        {dateQuestionOf(hero).on ? 'on ' : ''}
+                        {dateQuestionOf(hero).word}?
+                      </p>
                     </>
                   ) : (
                     <div className="pubws-stats">
@@ -2354,6 +2374,33 @@ export function TradePage() {
                         timeZone: 'UTC',
                       })}
                     </p>
+                  )}
+                  {/* How this decides: the mechanism, and the only place it
+                is explained (Viktor, 2026-09-10, of a sentence above the
+                trade: "shouldnt this just be in the market rules or
+                something? seems like too much of a detail"). Generic to
+                every proposal, and true to the engine: approving voids the
+                declined branch and refunds it at cost, declining voids the
+                approved one, and an undecided proposal lapses as a decline
+                (functions/src/services/proposals.ts). */}
+                  {!editingJob && (
+                    <div className="pubws-decides">
+                      <h3 className="pubws-know-head">How this decides</h3>
+                      <p className="pubws-decides-p">
+                        {!jobAskUsd
+                          ? `Approving commits ${ws.name} to the work.`
+                          : `Approving pays ${selectedJob.proposedByName ?? 'the proposer'} $${jobAskUsd} and commits ${ws.name} to the work.`}{' '}
+                        Every number this floor prices gets two markets for this proposal, one as if it is approved and
+                        one as if it is declined; the gap between them is what the market says the work is worth.
+                      </p>
+                      <p className="pubws-decides-p">
+                        When the owner rules, the world that did not happen is voided and every credit in it is refunded
+                        at what it cost, while the other keeps trading until the number itself settles.
+                        {selectedJob.decideBy && !selectedJobDecided
+                          ? ` Undecided by ${dayOf(selectedJob.decideBy)}, the proposal lapses and counts as declined.`
+                          : ' A proposal nobody rules on by its deadline lapses and counts as declined.'}
+                      </p>
+                    </div>
                   )}
                   {/* The owner's press, on the floor itself (owner ask
                 2026-08-11). Approve is the money verb, green; decline

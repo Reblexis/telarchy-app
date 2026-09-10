@@ -621,16 +621,17 @@ deadline, an ask, and a price, and it reads in that order:
 
 ```
   #28  A 500 dollar prize for the best open-source trading agent
-  Viktor36 · no payment asked · decides 15 Sept · 24,857 behind it
+  Viktor36 · $500 if approved · decides 15 Sept · 24,857 behind it
 
   ACTIVE TRADERS   REVENUE        OUTSIDE OWNERS   FORECASTERS
   +1.4             no liquidity   no liquidity     no liquidity
   THIS WEEK        THIS MONTH
   ±0               +1.4
 
-            IF APPROVED, ACTIVE TRADERS THIS MONTH MOVE BY
+         ACTIVE TRADERS THIS MONTH, APPROVED VERSUS DECLINED
                              +1.4
-     NOW 9.00  |  IF APPROVED · 30 SEP 20.0  |  IF DECLINED · 30 SEP 18.6
+  LAST READ 9.00 | IF APPROVED · 30 SEP 20.0 | IF DECLINED · 30 SEP 18.6
+        If approved, what will Telarchy's active traders be on 30 Sep?
                         [ chart, both worlds ]
         [ BET HIGHER · if approved ]  [ BET LOWER · if approved ]
 ```
@@ -642,6 +643,14 @@ deadline, an ask, and a price, and it reads in that order:
   proposal follow as ONE icon row in the market's own facts vocabulary: the
   proposer, the USD ask, the countdown to the decision, and the pool behind
   the pair.
+- **The ask says what approving does to it**: "$250 if approved", not a
+  bare "$250" (2026-09-10, after a review scored this page 3/10 for a
+  newcomer: `notes/proposal-page-review-2026-09-10.md`). Three words in the
+  row that is already there, rather than a sentence under it. The rule
+  behind it: **the mechanism is never explained above the trade** (Viktor,
+  2026-09-10, of a line that did explain it: "shouldnt this just be in the
+  market rules or something? seems like too much of a detail"); what a
+  proposal IS belongs in "How this decides", below.
 - **The strips say what it moves.** With a proposal open, the metric strip
   and the date strip stop showing levels and show THIS proposal's impact on
   each cell: `ACTIVE TRADERS +1.4  REVENUE ±$0 ...`, `THIS WEEK ±0
@@ -662,8 +671,11 @@ deadline, an ask, and a price, and it reads in that order:
   and nothing to trade on arrival. Where liquidity IS present the impact
   stands on its own, tagged with nothing.
 - **The impact is the number.** The hero is the selected cell's impact,
-  if-done minus if-not-done, over the caption "if approved, <metric> <date>
-  move by", green up and red down. This is the reversal: on the metric view
+  if-done minus if-not-done, over a caption that names what it is a
+  comparison OF: "<metric> <date>, approved versus declined" (revised
+  2026-09-10; "if approved, <metric> <date> moves by" left "+$614" open to
+  being read as growth from today, or as profit after the ask is paid),
+  green up and red down. This is the reversal: on the metric view
   the big number is the metric's own value, and on a proposal it is the
   impact, because the impact is the only number the ruling turns on and the
   only one the pair actually prices.
@@ -675,15 +687,42 @@ deadline, an ask, and a price, and it reads in that order:
   (`aria-pressed`), replacing the pair of pills: the number you are switching
   to is the thing you press. The baseline stays on screen as the first cell,
   which is the whole reason a pair can be read at all.
+- **The question sits UNDER the worlds, never above the number.** One
+  sentence between the world cells and the chart, in the metric view's own
+  serif: "If approved, what will <floor>'s <metric> be on <settle day>?",
+  switching to "If declined" with the cells. It names neither the proposer
+  nor the task, because the title carries both a few lines above, and it
+  comes after the number rather than before it: the conditional sentence
+  this restores was removed on 2026-09-09 for putting a company, a metric, a
+  date, a proposer and a task in one clause ahead of anything countable, and
+  the placement is what fixes that, not the sentence itself.
+- **The chart's baseline is "without it", not a second "now".** With a pair
+  on screen the unconditional market's line is labelled "$7,049 without it":
+  the "now" cell beside it is the last logged READING, and the two were 8%
+  apart under one word. The cell says "last read · 4 days ago" for the same
+  reason.
 - **The world rides the verb.** "Bet Higher · if approved", on the button,
   never only in a toggle further up the page. A trader who has scrolled past
   the toggle cannot tell which world a verb belongs to, and the ticket in the
   rail names the same world in its header.
-- **The words and the ruling are below the trade**, in the order the metric
-  view already uses: question, numbers, chart, verbs, then "What <proposer>
-  would do" as the tinted block "How this settles" wears, then the owner's
-  ruling band, then the rest of the ballot. Nothing that is prose or a
-  control stands between the title and the number.
+- **The words, the rules and the ruling are below the trade**, in the order
+  the metric view already uses: question, numbers, chart, verbs, then "What
+  <proposer> would do" as the tinted block "How this settles" wears, then
+  **"How this decides"** in that same block's shape, then the owner's ruling
+  band, then the rest of the ballot. Nothing that is prose or a control
+  stands between the title and the number.
+- **"How this decides" is where the mechanism lives**, and the only place
+  (Viktor, 2026-09-10: "shouldnt this just be in the market rules or
+  something? seems like too much of a detail"). Three sentences, generic to
+  every proposal so nothing is written per proposal: what approving pays and
+  commits; that every number this floor prices gets two markets for this
+  proposal and the gap between them is what the market says the work is
+  worth; and what the ruling does to them, which is that the world that did
+  not happen is voided and refunded AT COST while the other keeps trading
+  until the number settles, with an undecided proposal lapsing as a decline
+  at its deadline. That is the engine's actual behaviour
+  (`voidProposalBranch`, `lapseOverdueProposals`), not a simplification of
+  it.
 
 **The deadline is said ONCE, in the facts row under the title** (a clock
 glyph and the date, in the accent: "decides 14 Sep"; "decided 12 Sep" after

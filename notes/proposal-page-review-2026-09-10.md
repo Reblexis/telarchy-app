@@ -86,3 +86,37 @@ changes.
 1 and 3 are copy. 2 is a one-word label change in the chart. 5 is a caption.
 4 is a short block. 6 is the only one needing a drawing. Doing 1, 2, 3 and 5
 would answer most of what the score is measuring, in one pass.
+
+## Built, 2026-09-10
+
+Canvas: https://claude.ai/code/artifact/85067428-c0c7-4401-aacf-2c154a0e7493
+(three artboards: the page as it stood, what shipped, and Viktor's
+third-strip version drawn with its costs). He picked the middle one, then
+cut item 1 down when he saw it: "but shouldnt this just be in the market
+rules or something? seems like too much of a detail".
+
+What shipped:
+
+1. **The ask says what approving does to it** in the facts row: "$250 if
+   approved", three words in a row that already existed, instead of the
+   sentence under it that he cut. A zero ask now reads "no payment asked"
+   rather than "$0", which is what the doc always said and the code did not.
+2. **"How this decides" below the trade**, in the tinted block "How this
+   settles" wears: what approving pays and commits, that every number gets
+   two markets and the gap between them is the price of the work, and what a
+   ruling does to them. That last sentence is the engine's real behaviour,
+   read out of `proposals.ts`: the world that did not happen is voided and
+   refunded AT COST, the other keeps trading until the number settles, and
+   an undecided proposal lapses as a decline.
+3. **The caption names the comparison**: "net revenue this month, approved
+   versus declined" over the +$614. It also said "move by" instead of
+   "moves by", which is gone with it.
+4. **The question under the worlds**: "If approved, what will LookPilot's
+   net revenue be on 30 September?", switching with the branch cells.
+5. **Only one number on the page is called "now"**: the chart's baseline
+   line is "$7,049 without it", and the cell beside it is "last read · 4
+   days ago".
+
+Not done, and why: stake presets and hiding Buy/Sell behind an advanced
+control (conflicts with two of Viktor's own standing rules, recorded above);
+naming the market's call on the side pills (needs a drawing at 293px).

@@ -305,7 +305,9 @@ describe('a proposal open', () => {
     expect(sel.textContent).toContain('if approved 21');
     expect(sel.textContent).toContain('if declined 19.5');
     expect(sel.textContent).toContain('+1.5');
-    expect(sel.textContent).toContain('19.8 now');
+    // "without it", not a second "now": the cell beside the chart carries the
+    // last logged reading (review 2026-09-10).
+    expect(sel.textContent).toContain('19.8 without it');
     expect(container.querySelector('.nchart-legend')?.textContent).toContain('if Jason is paid $80');
   });
 

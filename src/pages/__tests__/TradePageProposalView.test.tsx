@@ -301,7 +301,8 @@ describe('the impact is the number and the two worlds are the control', () => {
     await openProposal(container);
     const hero = container.querySelector('.pubws-impact-hero') as HTMLElement;
     expect(words(hero)).toMatch(/\+\$300/);
-    expect(words(hero.parentElement)).toMatch(/if approved/i);
+    // The caption names what the number compares, revised 2026-09-10.
+    expect(words(hero.parentElement)).toMatch(/approved versus declined/i);
   });
 
   test('now, if approved and if declined are three cells, and the two worlds switch the branch', async () => {
@@ -309,7 +310,7 @@ describe('the impact is the number and the two worlds are the control', () => {
     await openProposal(container);
     const cells = [...container.querySelectorAll('.pubws-world-cell')];
     expect(cells).toHaveLength(3);
-    expect(words(cells[0])).toMatch(/now/i);
+    expect(words(cells[0])).toMatch(/last read/i);
     const approved = cells[1] as HTMLElement;
     const declined = cells[2] as HTMLElement;
     expect(approved.getAttribute('aria-pressed')).toBe('true');
@@ -363,5 +364,76 @@ describe('nothing that is prose or a ruling stands between the title and the num
     // A visitor: no ruling anywhere.
     expect(container.querySelector('.pubws-ruling')).toBeNull();
     expect(screen.queryByRole('button', { name: /^Approve/ })).toBeNull();
+  });
+});
+
+describe('a newcomer can tell what a proposal is', () => {
+  /**
+   * A review of the live page scored it 3/10 for a first-time visitor
+   * (notes/proposal-page-review-2026-09-10.md): it never said that approving
+   * pays anybody, its hero could be read as growth from today, it stated no
+   * question, and two different numbers were both called "now".
+   */
+  test('the ask says what approving does to it, in the facts row', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    const facts = container.querySelector('.pubws-proposal-head .pubws-prow-meta') as HTMLElement;
+    expect(words(facts)).toContain('$80 if approved');
+    // No sentence above the trade explaining the mechanism (Viktor,
+    // 2026-09-10: "seems like too much of a detail").
+    expect(container.querySelector('.pubws-proposal-deal')).toBeNull();
+  });
+
+  test('the mechanism is one block below the trade, and says what a ruling does', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    const rules = container.querySelector('.pubws-decides') as HTMLElement;
+    expect(words(rules)).toMatch(/how this decides/i);
+    expect(words(rules)).toContain('Approving pays Ada $80');
+    expect(words(rules)).toMatch(/two markets/i);
+    // The engine's real behaviour: the unrealized world is refunded at cost.
+    expect(words(rules)).toMatch(/refunded at what it cost/i);
+    expect(words(rules)).toMatch(/lapses/i);
+    // Below the trade, after the proposal's own words.
+    const w = container.querySelector('.pubws-proposal-words') as HTMLElement;
+    expect(follows(w, rules)).toBe(true);
+  });
+
+  test('a proposal that asks for nothing says so in both places', async () => {
+    const ws = h.grid();
+    ws.proposals[0].askUsd = 0;
+    ws.proposals[0].title = 'Rewrite the store page';
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async () => ws as never);
+    const { container } = renderFloor();
+    await openProposal(container);
+    expect(words(container.querySelector('.pubws-proposal-head .pubws-prow-meta'))).toContain('no payment asked');
+    expect(words(container.querySelector('.pubws-decides'))).toContain('Approving commits LookPilot to the work');
+  });
+
+  test('the caption names what the impact compares', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    const what = words(container.querySelector('.pubws-impact-what'));
+    expect(what).toMatch(/approved versus declined/i);
+    // The old wording, which read as growth from today (and said "move").
+    expect(what).not.toMatch(/moves? by/i);
+  });
+
+  test('the question sits under the worlds and above the chart, and follows the branch', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    const q = container.querySelector('.pubws-proposal-q') as HTMLElement;
+    expect(words(q)).toMatch(/^If approved, what will LookPilot's net revenue be on /i);
+    const cells = [...container.querySelectorAll('.pubws-world-cell')];
+    expect(follows(cells[2], q)).toBe(true);
+    fireEvent.click(cells[2] as HTMLElement);
+    await waitFor(() => expect(words(container.querySelector('.pubws-proposal-q'))).toMatch(/^If declined/i));
+  });
+
+  test('the baseline is "without it": only one number on the page is called now', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    expect(words(container.querySelector('.pubws-world-cell--now'))).toMatch(/^last read/i);
+    expect(words(container.querySelector('.pubws-world-cell--now'))).not.toMatch(/\bnow\b/i);
   });
 });
