@@ -1786,13 +1786,16 @@ what an agent reads.</p>
 <h2 id="docs-data-room-md--h2">What an action is</h2>
 <p>An action is one dated thing somebody did on a public floor, or one dated
 thing that happened to a participant account, that the platform already holds
-durably. The log is assembled at read time from the tables the product runs
+durably. Everything the tables hold about a public floor or a participant
+is in it; what is left out is named on this page, and nothing is left out
+silently. The log is assembled at read time from the tables the product runs
 on; there is no event pipeline and no second store (the <code>events</code> table is a
 48-hour buffer for agent polling, not a record). A row is therefore never
 written for the log and can never drift from the thing it describes.</p>
 <p>Private workspaces contribute nothing, and nothing on the log names an
-email address, an IP, a country, a referer, a payout detail or a private
-workspace, even as a count. A participant is named by the handle their public
+email address, an IP, a country, a referer, a payout detail, a transfer memo,
+a buyer of credits or a private workspace, even as a count. Deposits and
+withdrawals of real money are not on it. A participant is named by the handle their public
 profile already carries.</p>
 <p>The kinds, in the order the filter bar lists them:</p>
 <div class="tablewrap"><table>
@@ -1808,6 +1811,16 @@ profile already carries.</p>
 <td><code>trade</code></td>
 <td>a participant bought or sold shares on a book: side, shares, credits, and the market's call before and after</td>
 <td><code>trades</code> with kind <code>trade</code>; a redemption is bookkeeping and is never a row</td>
+</tr>
+<tr>
+<td><code>order</code></td>
+<td>a participant placed a limit order (side, level, budget), and later it filled, was cancelled, expired or was voided</td>
+<td><code>limit_orders</code>: one row at <code>createdAt</code>, and one at <code>updatedAt</code> for a status other than <code>open</code></td>
+</tr>
+<tr>
+<td><code>liquidity</code></td>
+<td>a participant put liquidity behind a book, or funded a proposal's books</td>
+<td><code>liquidity_events</code> of type <code>injection</code>, one row each; of type <code>proposal-subsidy</code>, one row per proposal, funder and minute with the amounts summed, because a subsidy lands on every branch book at once. The engine's own <code>initial</code> and <code>anchor</code> rows are not actions</td>
 </tr>
 <tr>
 <td><code>proposal</code></td>
@@ -1850,9 +1863,24 @@ profile already carries.</p>
 <td><code>markets</code> with no <code>proposalId</code>; a proposal's pair books are implied by its own row and would otherwise print two dozen lines per proposal</td>
 </tr>
 <tr>
-<td><code>liquidity</code></td>
-<td>a participant put liquidity behind a book</td>
-<td><code>liquidity_events</code> with type <code>injection</code>; the engine's own <code>initial</code> and <code>anchor</code> rows are not actions</td>
+<td><code>purchase</code></td>
+<td>credits were bought for a floor: the amount in dollars and credits, nobody named</td>
+<td><code>liquidity_purchases</code> with status <code>completed</code>, at <code>completedAt</code>; the buyer stays unnamed because who spends real money is theirs to say</td>
+</tr>
+<tr>
+<td><code>grant</code></td>
+<td>a participant was granted credits by the earn table, and what for</td>
+<td><code>earn_claims</code>, labelled from <code>earn_rules</code></td>
+</tr>
+<tr>
+<td><code>transfer</code></td>
+<td>a participant sent credits to another, or the house did</td>
+<td><code>credit_transfers</code>; the memo is the sender's and stays off the log</td>
+</tr>
+<tr>
+<td><code>season</code></td>
+<td>a participant entered a prize season</td>
+<td><code>season_entries.enteredAt</code></td>
 </tr>
 <tr>
 <td><code>join</code></td>
@@ -1871,6 +1899,13 @@ profile already carries.</p>
 </tr>
 </tbody>
 </table></div>
+<p><strong>A row outlives the thing it points at.</strong> A trade, an order, a comment, a
+liquidity event or a metric edit whose book or metric has since been voided
+out of the table is still an action somebody took, so the log keeps the row
+and says &quot;a book since removed&quot; (or &quot;a metric since removed&quot;) where the
+name would have been. Every join to a name is a left join for this reason;
+the test that deletes a book under a trade and still finds the trade is
+what pins it.</p>
 <p>Removed proposals (spam, duplicates, test rows) are absent under every kind:
 an admin taking a row off the board is not a decision.</p>
 <p>A kind is a row in this table, an entry in <code>KINDS</code> in
@@ -1962,8 +1997,9 @@ filter bar from the response rather than from a copy of this table.</p>
 <p><code>GET /api/data-room</code> stays, and is the room as a document: <code>{ schema: 2, generatedAt, doc: { updatedAt, sections }, actions }</code> where <code>sections</code> is
 the prose (one section, &quot;actions&quot;, that says what the log is) and <code>actions</code>
 is the unfiltered first page in the shape above. It is cached for thirty
-seconds; filtered reads are computed on request, and the per-page cap is
-what keeps that cheap. The read also rolls the visit log into <code>traffic_daily</code>
+seconds; filtered reads are computed on request, never cached, and the
+per-page cap is what keeps that cheap. The log is therefore never behind the
+tables by more than the page's own minute poll. The read also rolls the visit log into <code>traffic_daily</code>
 as it always has, so the traffic history keeps accumulating for whatever the
 room carries next.</p>
 <p>The log is one query: every kind is one branch of a <code>UNION ALL</code>, each branch
