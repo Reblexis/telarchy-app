@@ -8435,8 +8435,9 @@ textarea.jobform-line--desc {
 
 .dr-tile-label {
   /* Two lines' worth whether or not the name needs them, so every figure in
-     the strip sits on the same line. */
-  min-height: 2.1em;
+     the strip sits on the same line as the ones beside it. */
+  line-height: 1.25;
+  min-height: 2.5em;
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
