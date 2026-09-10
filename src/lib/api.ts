@@ -556,6 +556,9 @@ export interface PublicWorkspace {
   /** Owner-authored "What is <name>?" blurb for the floor (free text; null =
    *  the floor's built-in default copy is shown). Owner-editable. */
   subjectAbout?: string | null;
+  /** The owner's live picture of what the market steers, framed on the floor
+   *  above "What is <name>?" as a sandboxed iframe; null = no box. */
+  liveViewUrl?: string | null;
   /** When the owner says this workspace started running on Telarchy (ISO), or
       null. The floor's year chart marks it with one dashed line. */
   telarchyStartedOn?: string | null;
@@ -2549,6 +2552,8 @@ export const api = {
       description?: string | null;
       charter?: string | null;
       subjectAbout?: string | null;
+      /** https only, <=500 chars, null clears (docs/ui-conventions.md, "The live view"). */
+      liveViewUrl?: string | null;
       telarchyStartedOn?: string | null;
       autoFundNewMarkets?: boolean;
       newMarketLiquidityCredits?: number;

@@ -6462,6 +6462,23 @@ estimates&quot;). Mono names with hairline underlines that warm to the accent;
 external, new tab. A manager edits the text in place (the <code>SubjectAbout</code>
 editor pattern: hairlines, <code>jobform-line</code> textarea, ticket buttons). Its
 last line is the row that opens Otto (see &quot;Otto&quot;).</p>
+<p><strong>The live view</strong> (<code>FloorLiveView</code>) is the owner's own picture of the
+thing the market steers, embedded on the floor: a workspace whose setting
+<code>liveViewUrl</code> (PUT /api/workspaces/:id/settings, plain <code>manage</code>, https
+only, at most 500 characters, null to clear; served on the public floor
+payload as <code>liveViewUrl</code>) names a page gets that page rendered in a 16:9
+box in the owner-prose column, directly above &quot;What is <name>?&quot;, and a
+floor whose setting is null renders nothing there and nothing else on the
+page moves. It sits there rather than over the chart because the floor
+leads with its price (the number, the chart, the two priced sides come
+first) and the live view is owner material, read after the market like the
+rest of that column. The box is the column's width, so full width on a
+phone. The embed is a sandboxed iframe: <code>sandbox=&quot;allow-scripts allow-same-origin&quot;</code> and nothing more (no forms, no popups, no top
+navigation), <code>loading=&quot;lazy&quot;</code>, <code>referrerpolicy=&quot;no-referrer&quot;</code>. Under it,
+one left-aligned line in the muted meta style, &quot;Live view, published by the
+owner&quot;, and a link that opens the URL in a new tab. It is the owner's
+content, not Telarchy's: the floor frames it and vouches for nothing inside
+it, and the app sets no Content-Security-Policy, so any https origin frames.</p>
 <h3 id="docs-ui-conventions-md--h37">The announcements page</h3>
 <p><code>AnnouncementsPage</code> (<code>/:slug/announcements</code>) is a poster head over a
 document body: the workspace name as a tiny uppercase back-link, the
