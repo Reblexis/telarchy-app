@@ -12,12 +12,8 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { agents, authUser, earnClaims, recordLinks, trades, workspaces } from '../db/schema';
+import { ACTIVE_FORECASTER_MIN_CREDITS, activeForecasters7d, paidRecordLinkAgents } from '../services/platform-stats';
 import { allRecordProviders } from '../services/recordProviders';
-import {
-  ACTIVE_FORECASTER_MIN_CREDITS,
-  activeForecasters7d,
-  paidRecordLinkAgents,
-} from '../services/platform-stats';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const NOW = new Date('2026-09-10T12:00:00.000Z');
