@@ -1734,12 +1734,15 @@ export function TradePage() {
                     ) : (
                       selectedJob.decideBy && (
                         <span
-                          className="pubws-chip--deadline"
+                          className={`pubws-chip--deadline${deadlineUrgent ? ' is-urgent' : ''}`}
                           aria-label="Decision deadline"
-                          title={`The owner decides by ${new Date(selectedJob.decideBy).toUTCString()}`}
+                          title={`The owner decides by ${new Date(selectedJob.decideBy).toUTCString()}, or it declines itself`}
                         >
                           <ClockGlyph />
-                          decides {dayOf(selectedJob.decideBy)}
+                          {/* A date is no use when the answer is due this
+                            afternoon: under a day this counts down, red
+                            inside the last hour (whenOf). */}
+                          decides {whenOf(selectedJob.decideBy)}
                         </span>
                       )
                     )}
@@ -2446,61 +2449,15 @@ export function TradePage() {
                               >
                                 Decline
                               </button>
-                              {/* What happens if the owner does nothing, and the
-                            one way to buy time (docs/ui-conventions.md, "The
-                            deadline is one amber chip"): later only. */}
-                              {selectedJob.decideBy && !extendOpen && (
-                                <span className="pubws-ownerbar-note">
-                                  lapses {dayOf(selectedJob.decideBy)} ·{' '}
-                                  <button
-                                    type="button"
-                                    className="pubws-ownerbar-link"
-                                    onClick={() => {
-                                      setExtendDate(new Date(selectedJob.decideBy!).toISOString().slice(0, 10));
-                                      setExtendOpen(true);
-                                    }}
-                                  >
-                                    extend
-                                  </button>
-                                </span>
-                              )}
-                              {extendOpen && (
-                                <span className="pubws-ownerbar-note">
-                                  <input
-                                    className="jobform-line jobform-line--date"
-                                    type="date"
-                                    value={extendDate}
-                                    min={
-                                      selectedJob.decideBy
-                                        ? new Date(selectedJob.decideBy).toISOString().slice(0, 10)
-                                        : undefined
-                                    }
-                                    onChange={e => setExtendDate(e.target.value)}
-                                    aria-label="New deadline"
-                                  />
-                                  <button
-                                    type="button"
-                                    className="pubws-decide"
-                                    disabled={extendBusy || !extendDate}
-                                    onClick={() => {
-                                      setExtendBusy(true);
-                                      api
-                                        .editProposal(selectedJob.id, {
-                                          decideBy: new Date(`${extendDate}T23:59:59.000Z`).toISOString(),
-                                        })
-                                        .then(() => {
-                                          setExtendOpen(false);
-                                          reload();
-                                        })
-                                        .catch(e => setDecideErr((e as Error).message || 'Could not extend'))
-                                        .finally(() => setExtendBusy(false));
-                                    }}
-                                  >
-                                    Save deadline
-                                  </button>
-                                  <button type="button" className="pubws-decide" onClick={() => setExtendOpen(false)}>
-                                    Cancel
-                                  </button>
+                              {/* What happens if the owner does nothing, and
+                            nothing to press: a deadline does not move
+                            (docs/market-integrity.md I1b). */}
+                              {selectedJob.decideBy && (
+                                <span
+                                  className={`pubws-ownerbar-note${deadlineUrgent ? ' is-urgent' : ''}`}
+                                  title={`Deadline ${new Date(selectedJob.decideBy).toUTCString()}`}
+                                >
+                                  declines itself {whenOf(selectedJob.decideBy)}
                                 </span>
                               )}
                             </>
@@ -2621,7 +2578,7 @@ export function TradePage() {
                 workspaceName={ws.name}
                 proposalReward={ws.proposalReward}
                 metricNames={metricNames}
-                decisionDays={ws.decisionDays ?? 7}
+                decisionMinutes={ws.decisionMinutes ?? 1440}
                 onPropose={async (title, description, askUsd, decideBy) => {
                   // Anonymous proposers go through the signup door; the board
                   // itself is public information (Open workspace ballot).

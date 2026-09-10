@@ -645,6 +645,10 @@ deadline, an ask, and a price, and it reads in that order:
   proposal follow as ONE icon row in the market's own facts vocabulary: the
   proposer, the USD ask, the countdown to the decision, and the pool behind
   the pair.
+- **The deadline in the facts row counts down under a day** ("decides in
+  4h"), red inside the last hour, and its hover says the proposal declines
+  itself at it. The deadline never moves: there is no extend control
+  anywhere (docs/market-integrity.md I1b).
 - **The ask says what approving does to it**: "$250 if approved", not a
   bare "$250" (2026-09-10, after a review scored this page 3/10 for a
   newcomer: `notes/proposal-page-review-2026-09-10.md`). Three words in the
