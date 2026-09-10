@@ -243,13 +243,16 @@ describe('the title is the headline, and the facts are one line under it', () =>
 });
 
 describe('the strips say what it moves', () => {
-  test('every metric tab carries this proposal&rsquo;s impact on that metric', async () => {
+  test('the metric strip prints no number here either: a metric is not a market', async () => {
+    // Owner ask 2026-09-10, of the proposal view: "but again donet show any
+    // numbers here".
     const { container } = renderFloor();
     await openProposal(container);
     const strip = screen.getByLabelText('Metrics');
+    expect(strip.querySelector('.pubws-strip-val')).toBeNull();
     const tabs = [...strip.querySelectorAll('[role="tab"]')].map(t => words(t));
-    expect(tabs[0]).toMatch(/\+\$300/);
-    expect(tabs[1]).toMatch(/±0/);
+    expect(tabs[0]).toMatch(/^net revenue$/i);
+    expect(tabs.join(' ')).not.toMatch(/\$300|±/);
   });
 
   test('a pair with no liquidity says so, and cannot be pressed', async () => {
@@ -262,10 +265,14 @@ describe('the strips say what it moves', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async () => ws as never);
     const { container } = renderFloor();
     await openProposal(container);
-    const strip = screen.getByLabelText('Metrics');
-    const reviews = [...strip.querySelectorAll('[role="tab"]')][1] as HTMLElement;
-    expect(words(reviews)).toContain('no liquidity');
+    // The date strip prints the words; the metric strip, which prints no
+    // numbers, is quiet and dead and says so on hover.
+    const dates = [...screen.getByLabelText('Dates').querySelectorAll('[role="tab"]')] as HTMLElement[];
+    expect(words(dates[0])).toContain('no liquidity');
+    expect(dates[0].getAttribute('aria-disabled')).toBe('true');
+    const reviews = [...screen.getByLabelText('Metrics').querySelectorAll('[role="tab"]')][1] as HTMLElement;
     expect(reviews.getAttribute('aria-disabled')).toBe('true');
+    expect(reviews.getAttribute('title')).toBe('no liquidity');
     const before = reviews.getAttribute('aria-selected');
     fireEvent.click(reviews);
     expect(reviews.getAttribute('aria-selected')).toBe(before);
@@ -278,13 +285,13 @@ describe('the strips say what it moves', () => {
     expect(container.textContent).not.toMatch(/untraded/i);
   });
 
-  test('a funded pair keeps its impact, tagged with nothing', async () => {
+  test('a funded pair keeps its impact on the dates, tagged with nothing', async () => {
     const { container } = renderFloor();
     await openProposal(container);
-    const strip = screen.getByLabelText('Metrics');
-    const rev = [...strip.querySelectorAll('[role="tab"]')][0] as HTMLElement;
-    expect(words(rev)).toMatch(/\+\$300/);
-    expect(rev.getAttribute('aria-disabled')).not.toBe('true');
+    const dates = [...screen.getByLabelText('Dates').querySelectorAll('[role="tab"]')] as HTMLElement[];
+    const funded = dates.find(d => /\+\$300/.test(words(d))) as HTMLElement;
+    expect(funded).toBeTruthy();
+    expect(funded.getAttribute('aria-disabled')).not.toBe('true');
   });
 
   test('the dates strip carries the impact at each date', async () => {

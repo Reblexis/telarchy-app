@@ -1637,12 +1637,14 @@ export function TradePage() {
                   return {
                     id: m.metricId,
                     label: captionLabel(m.metricLabel, ws.name),
-                    /* A metric on its own is not a market, so the plain view's
-                       metric tab is a NAME and nothing else (owner ask
-                       2026-09-09). With a proposal open each tab IS a pair the
-                       proposal prices, and the number is its claim about it. */
-                    value: selectedJob ? (dry ? 'no liquidity' : impactLabel(cellPair, cell?.unit ?? '')) : undefined,
+                    /* A metric is an AXIS, not a market, so its tab is a name
+                       and nothing else in every view (owner ask 2026-09-10,
+                       of the proposal view: "but again donet show any numbers
+                       here"). Whatever number stood here was really about the
+                       date selected below. */
+                    value: undefined,
                     disabled: dry,
+                    title: dry ? 'no liquidity' : undefined,
                     selected: hero?.metricId === m.metricId,
                   };
                 })}
